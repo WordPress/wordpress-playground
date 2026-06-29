@@ -193,7 +193,6 @@ export function UnconnectedSiteSettingsForm({
 							value: true,
 						},
 					}}
-					disabled={!enabledFields.wpVersion}
 					render={({ field: { onChange, ...rest } }) => (
 						<div>
 							<SelectControl
@@ -201,6 +200,11 @@ export function UnconnectedSiteSettingsForm({
 								__nextHasNoMarginBottom={true}
 								label="WordPress version"
 								labelPosition="side"
+								// Disable the control itself rather than the
+								// Controller — a disabled Controller makes React
+								// Hook Form null the value, which would blank out a
+								// stored Playground's real WordPress version.
+								disabled={!enabledFields.wpVersion}
 								help={errors.wpVersion?.message}
 								className={classNames(css.addSiteInput, {
 									[css.invalidInput]: !!errors.wpVersion,
@@ -549,10 +553,12 @@ export function UnconnectedSiteSettingsForm({
 				<Controller
 					control={control}
 					name="multisite"
-					disabled={!enabledFields.multisite}
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
 							label="Create a multisite network"
+							// Disable the control, not the Controller — a disabled
+							// Controller makes React Hook Form null the value.
+							disabled={!enabledFields.multisite}
 							onChange={(isChecked) => {
 								setValue('multisite', isChecked);
 							}}

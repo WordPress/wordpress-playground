@@ -48,7 +48,7 @@ export function TemporarySiteSettingsForm({
 				>
 					<p className={css.footerNote}>
 						Applying changes rebuilds the Playground from its
-						initial state, discarding the current site.
+						initial state, discarding your current changes.
 					</p>
 					<Button type="submit" variant="primary" isDestructive>
 						Apply Settings & Reset Playground

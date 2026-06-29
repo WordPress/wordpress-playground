@@ -34,18 +34,24 @@ export function PhpMyAdminButton({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		async function detectPhpMyAdmin() {
-			if (!playground) {
-				return;
-			}
-
-			if (await playground.isDir(PHPMYADMIN_INSTALL_PATH)) {
-				setState('ready');
-			} else {
-				setState('idle');
-			}
+		if (!playground) {
+			setState('idle');
+			setError(null);
+			return;
 		}
-		detectPhpMyAdmin();
+		let cancelled = false;
+
+		async function detectPhpMyAdmin() {
+			if (!playground) return;
+			const isDir = await playground.isDir(PHPMYADMIN_INSTALL_PATH);
+			if (cancelled) return;
+			setState(isDir ? 'ready' : 'idle');
+		}
+
+		void detectPhpMyAdmin();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenPhpMyAdmin = async () => {

@@ -8,6 +8,7 @@ import { setShareExportOpen } from '../../../lib/state/redux/slice-ui';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { GitHubIcon } from '../../../github/github';
 import { Spinner } from '../../spinner';
+import { PlaygroundBootNotice } from '../../pane-loading';
 import type { ExportFormValues } from '../../../github/github-export-form/form';
 import css from './style.module.css';
 
@@ -23,6 +24,8 @@ export function SiteSharePanel() {
 	const dispatch = useAppDispatch();
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [linkCopied, setLinkCopied] = useState(false);
+	// Announced to screen readers since the visual "Link copied" swap isn't.
+	const [copyStatus, setCopyStatus] = useState('');
 	// Lives in Redux so the dock can drop its own header while the export
 	// sub-view is open (a single header instead of two).
 	const showGitHubExport = useAppSelector(
@@ -47,9 +50,16 @@ export function SiteSharePanel() {
 		try {
 			await navigator.clipboard.writeText(window.location.href);
 			setLinkCopied(true);
-			setTimeout(() => setLinkCopied(false), 2000);
+			setCopyStatus('Link copied');
+			setTimeout(() => {
+				setLinkCopied(false);
+				setCopyStatus('');
+			}, 2000);
 		} catch {
-			// Clipboard can be blocked; fail quietly rather than alerting.
+			// Clipboard can be blocked; announce the failure to screen readers
+			// rather than alerting visually.
+			setCopyStatus("Couldn't copy link");
+			setTimeout(() => setCopyStatus(''), 2000);
 		}
 	};
 
@@ -108,6 +118,10 @@ export function SiteSharePanel() {
 
 	return (
 		<section className={css.sharePanel}>
+			<PlaygroundBootNotice
+				show={disabled}
+				message="The Playground is still loading — Download and Export to GitHub will be ready in a moment."
+			/>
 			<div className={css.group}>
 				<span className={css.groupIcon} aria-hidden="true">
 					<Icon icon={download} size={22} />
@@ -148,6 +162,13 @@ export function SiteSharePanel() {
 						<Button variant="secondary" onClick={copyLink}>
 							{linkCopied ? 'Link copied' : 'Copy link'}
 						</Button>
+						<span
+							role="status"
+							aria-live="polite"
+							className="sr-only"
+						>
+							{copyStatus}
+						</span>
 					</div>
 				</div>
 			</div>

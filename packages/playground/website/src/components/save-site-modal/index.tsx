@@ -400,7 +400,7 @@ export function SaveSiteModal({
 				<p style={{ margin: 0, color: 'var(--ink, #21201d)' }}>
 					{isAutosaved
 						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
-						: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
+						: 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
 					label="Playground name"
@@ -419,7 +419,7 @@ export function SaveSiteModal({
 					options={[
 						{
 							label:
-								'Save in this browser' +
+								'Store in this browser' +
 								(!isOpfsAvailable ? ' (not available)' : ''),
 							value: 'opfs',
 						},
@@ -495,7 +495,11 @@ export function SaveSiteModal({
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Save"
+					submitText={
+						selectedStorage === 'local-fs'
+							? 'Save'
+							: 'Store permanently'
+					}
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
 					areBusy={false}

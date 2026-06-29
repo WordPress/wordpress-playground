@@ -1,16 +1,9 @@
 import classNames from 'classnames';
-import React, {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-} from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
 	chevronDown,
-	chevronUp,
 	close,
 	code,
 	grid,
@@ -23,9 +16,12 @@ import {
 } from '@wordpress/icons';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
+	setDockFullWidth,
+	setShareExportOpen,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 } from '../../lib/state/redux/slice-ui';
+import { writeDockFullWidth } from '../../lib/dock-full-width';
 import {
 	getActiveClientInfo,
 	useActiveSite,
@@ -37,6 +33,7 @@ import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { SiteManager } from '../site-manager';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
+import { AutosaveNudge } from './autosave-nudge';
 import css from './style.module.css';
 
 const isSavingDisabled = isSiteSavingDisabled();
@@ -47,8 +44,10 @@ type DockSection = Exclude<
 >;
 
 const DRAG_EDGE = 8;
+// Pointer travel (px) before a press on the header band becomes a drag instead
+// of a click — keeps a normal collapse tap from nudging the dock sideways.
+const DRAG_THRESHOLD = 4;
 const PANE_GAP = 12;
-const DOCK_DEFAULT_BOTTOM = 16;
 // Shared desktop height for the New and Your Playgrounds panes so they match;
 // a touch taller than the list felt before. Both clamp to the available space.
 const LIST_PANE_HEIGHT = 560;
@@ -91,21 +90,39 @@ function DatabaseIcon() {
 	);
 }
 
-function GripIcon() {
+/**
+ * Horizontal expand/contract arrows for the full-width toggle. Arrows point out
+ * to the edges to offer "stretch the dock full width"; they point in toward the
+ * centre to offer "shrink back to a floating bar".
+ */
+function DockWidthIcon({ full }: { full: boolean }) {
 	return (
 		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="currentColor"
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
 			aria-hidden="true"
 		>
-			<circle cx="5.5" cy="4" r="1.25" />
-			<circle cx="10.5" cy="4" r="1.25" />
-			<circle cx="5.5" cy="8" r="1.25" />
-			<circle cx="10.5" cy="8" r="1.25" />
-			<circle cx="5.5" cy="12" r="1.25" />
-			<circle cx="10.5" cy="12" r="1.25" />
+			{full ? (
+				<>
+					<path d="M3 12h7" />
+					<path d="M7 8.5 10.5 12 7 15.5" />
+					<path d="M21 12h-7" />
+					<path d="M17 8.5 13.5 12 17 15.5" />
+				</>
+			) : (
+				<>
+					<path d="M10 12H3" />
+					<path d="M6.5 8.5 3 12l3.5 3.5" />
+					<path d="M14 12h7" />
+					<path d="M17.5 8.5 21 12l-3.5 3.5" />
+				</>
+			)}
 		</svg>
 	);
 }
@@ -212,8 +229,6 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 	},
 };
 
-type DockPosition = { left: number; top: number };
-
 // At/below this width the dock becomes a full-width bottom bar with full-screen
 // panels (the mobile-app pattern), and free-floating drag is turned off. Set to
 // cover phones and portrait tablets, where a floating pane would crowd or
@@ -248,8 +263,43 @@ export function Dock() {
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
+	const autosaveNudge = useAppSelector((state) => state.ui.autosaveNudge);
+	const autosaveNudgeMuted = useAppSelector(
+		(state) => state.ui.autosaveNudgeMuted
+	);
+	const dockFullWidth = useAppSelector((state) => state.ui.dockFullWidth);
+	// A restorable recent autosave surfaces as a dot on the Playgrounds tool and
+	// (on first detection) a panel anchored to it. The dot persists until the
+	// user restores or mutes; muting hides the proactive cues entirely.
+	const showAutosaveCue = !!autosaveNudge && !autosaveNudgeMuted;
+	// The Playgrounds tool element, captured so the autosave panel can anchor to
+	// it (it's the home for recovery — opening it lists the autosaves).
+	const [playgroundsToolEl, setPlaygroundsToolEl] =
+		useState<HTMLButtonElement | null>(null);
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLDivElement>(null);
+	const dockBodyRef = useRef<HTMLDivElement>(null);
+	// Remembers what was focused before a pane opened so focus can return there
+	// when it closes (dialog focus management).
+	const focusBeforePaneRef = useRef<HTMLElement | null>(null);
+	// Tracks whether a pane has ever been open, so the close-branch focus restore
+	// only runs on a genuine open->close transition — never on the initial mount.
+	const hasBeenOpenRef = useRef(false);
+	// The dock's header chevron — always visible (even when collapsed), so it's a
+	// reliable focus fallback when the triggering tool isn't focusable on close.
+	const collapseToggleRef = useRef<HTMLButtonElement>(null);
+	// Bottom-edge drag: the header band doubles as a drag handle. dragRef holds
+	// the live gesture's start state (pointer x, the dock's center x, and half the
+	// visible width for clamping); draggedRef flips true once the pointer passes
+	// the threshold, so the trailing click collapses only on a real tap.
+	const dragRef = useRef<{
+		startX: number;
+		startCenter: number;
+		halfWidth: number;
+	} | null>(null);
+	const draggedRef = useRef(false);
+	// Timer that re-enables transitions just after a sharp full-width toggle.
+	const modeSwitchTimer = useRef<number | null>(null);
 	const inlineRename = useInlineRename();
 	const isMobile = useIsMobile();
 	const normalizedSection = normalizeSection(activeSection);
@@ -270,35 +320,39 @@ export function Dock() {
 		!!activeSite && normalizedSection === 'settings';
 	const showDescription = !isEditorSection && !!paneCopy.description;
 
-	// Free-floating dock position. `null` keeps the default bottom-center anchor.
-	const [dockPosition, setDockPosition] = useState<DockPosition | null>(null);
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
-	const [isDragging, setIsDragging] = useState(false);
-	// Collapsed dock hides the tools row, leaving just the address + status.
+	// The dock body's height (everything below the header band). Collapsing slides
+	// the dock down by exactly this, leaving only the header band on the edge.
+	const [dockBodyHeight, setDockBodyHeight] = useState(0);
+	// Collapsed dock slides down to leave only its header band on the bottom edge.
 	const [isCollapsed, setIsCollapsed] = useState(false);
-	// The dock's height while its tools row is shown. The default (non-dragged)
-	// desktop dock is pinned by a TOP edge derived from this height, so collapsing
-	// the tools leaves the address row exactly where it is — a bottom anchor would
-	// let the address bar drop as the dock shrinks (only the tools should move).
-	const [expandedDockHeight, setExpandedDockHeight] = useState(0);
 	const [viewportHeight, setViewportHeight] = useState(() =>
 		typeof window !== 'undefined' ? window.innerHeight : 0
 	);
-	const dragStart = useRef<{
-		pointerX: number;
-		pointerY: number;
-		left: number;
-		top: number;
-	} | null>(null);
+	const [viewportWidth, setViewportWidth] = useState(() =>
+		typeof window !== 'undefined' ? window.innerWidth : 0
+	);
+	// Floating-dock horizontal CENTER (px). null = centered on the viewport (the
+	// default); set once the user drags the dock along the bottom edge. Tracking
+	// the center (not the left edge) keeps the collapsed notch — which sits at the
+	// dock's center — clamped on-screen and landing on the same point.
+	const [dockCenter, setDockCenter] = useState<number | null>(null);
+	// Drives the grabbing cursor while a drag is in flight.
+	const [isDragging, setIsDragging] = useState(false);
+	// True briefly while toggling full-width <-> floating, so the dock eases its
+	// width and position for the switch. The width transition is off otherwise so
+	// it never lags a window resize.
+	const [isModeSwitching, setIsModeSwitching] = useState(false);
 
-	// Track the dock size so the pane can be re-anchored above it when moved.
+	// Track the dock + body sizes: dockSize anchors the pane above the dock, and
+	// dockBodyHeight is the exact distance the dock slides to collapse.
 	useEffect(() => {
-		if (!dockRef.current || typeof ResizeObserver === 'undefined') {
+		if (typeof ResizeObserver === 'undefined') {
 			return;
 		}
 		const observer = new ResizeObserver(() => {
-			// Border-box size (offset*) — contentRect omits the dock's padding,
-			// which would leave the pane ~16px short and overlapping the dock.
+			// Border-box size (offset*) — contentRect omits padding, which would
+			// leave the pane short and overlapping the dock.
 			const el = dockRef.current;
 			if (el) {
 				setDockSize({
@@ -306,32 +360,61 @@ export function Dock() {
 					height: el.offsetHeight,
 				});
 			}
+			const body = dockBodyRef.current;
+			if (body) {
+				setDockBodyHeight(body.offsetHeight);
+			}
 		});
-		observer.observe(dockRef.current);
+		if (dockRef.current) {
+			observer.observe(dockRef.current);
+		}
+		if (dockBodyRef.current) {
+			observer.observe(dockBodyRef.current);
+		}
 		return () => observer.disconnect();
 	}, []);
 
-	// Remember the dock's height while the tools are shown — the anchor for the
-	// default desktop position so collapsing doesn't move the address row.
-	// Grow-only: while the tools row animates open its observed height climbs from
-	// the collapsed value back up to full, and tracking that climb would make the
-	// top anchor dip down and rise back up. Taking the max pins the anchor at the
-	// full expanded height for the whole transition. (Desktop tools are a single
-	// non-wrapping row, so the expanded height never legitimately shrinks.)
+	// Re-pin the default dock to the bottom edge when the viewport height changes;
+	// the width feeds the drag clamp so a dragged dock can't end up off-screen.
 	useEffect(() => {
-		if (!isCollapsed && dockSize.height) {
-			setExpandedDockHeight((previous) =>
-				Math.max(previous, dockSize.height)
-			);
-		}
-	}, [isCollapsed, dockSize.height]);
-
-	// Re-pin the default dock to the bottom edge when the viewport height changes.
-	useEffect(() => {
-		const onResize = () => setViewportHeight(window.innerHeight);
+		const onResize = () => {
+			setViewportHeight(window.innerHeight);
+			setViewportWidth(window.innerWidth);
+		};
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
+
+	// Keep the dragged dock on-screen when the viewport narrows or the dock's width
+	// changes (e.g. a longer Playground name widens the address row). Clamping by
+	// the full width keeps the centered notch within the expanded bar's fit area.
+	useEffect(() => {
+		if (dockCenter === null || !dockSize.width) {
+			return;
+		}
+		const halfWidth = dockSize.width / 2;
+		const min = halfWidth + DRAG_EDGE;
+		const max = Math.max(min, viewportWidth - halfWidth - DRAG_EDGE);
+		const clamped = Math.min(Math.max(dockCenter, min), max);
+		if (clamped !== dockCenter) {
+			setDockCenter(clamped);
+		}
+	}, [viewportWidth, dockSize.width, dockCenter]);
+
+	// Publish the dock's visible-from-bottom height so the layout can shrink the
+	// WordPress preview to end exactly at the dock's top edge in full-width mode.
+	// When collapsed only the header band shows, so the preview reclaims the body.
+	useEffect(() => {
+		const headerHeight = Math.max(0, dockSize.height - dockBodyHeight);
+		const visible = isCollapsed ? headerHeight : dockSize.height;
+		const root = document.documentElement;
+		if (visible > 0) {
+			root.style.setProperty('--dock-docked-height', `${visible}px`);
+		}
+		return () => {
+			root.style.removeProperty('--dock-docked-height');
+		};
+	}, [dockSize.height, dockBodyHeight, isCollapsed]);
 
 	// Animate the Share pane's height when it swaps between its list and the
 	// inline "Export to GitHub" sub-view — a content-driven auto-height change
@@ -343,7 +426,11 @@ export function Dock() {
 	const shareHeightRef = useRef<number | null>(null);
 	useLayoutEffect(() => {
 		const el = paneRef.current;
-		if (normalizedSection !== 'share' || !el) {
+		// The FLIP height animation only applies to the desktop pane that sizes to
+		// its content. The mobile pane is a full-screen flex column pinned top:0 /
+		// bottom:dock-height; forcing a pixel height there over-constrains it and
+		// collapses it to content height, so skip the animation on mobile.
+		if (isMobile || normalizedSection !== 'share' || !el) {
 			shareHeightRef.current = null;
 			return;
 		}
@@ -387,116 +474,18 @@ export function Dock() {
 			window.clearTimeout(timer);
 			finish();
 		};
-	}, [shareExportOpen, normalizedSection]);
-
-	const clampPosition = useCallback(
-		({ left, top }: DockPosition): DockPosition => {
-			const maxLeft = Math.max(
-				DRAG_EDGE,
-				window.innerWidth - dockSize.width - DRAG_EDGE
-			);
-			const maxTop = Math.max(
-				DRAG_EDGE,
-				window.innerHeight - dockSize.height - DRAG_EDGE
-			);
-			return {
-				left: Math.min(Math.max(left, DRAG_EDGE), maxLeft),
-				top: Math.min(Math.max(top, DRAG_EDGE), maxTop),
-			};
-		},
-		[dockSize.width, dockSize.height]
-	);
-
-	// Keep the dragged dock on-screen when the viewport resizes.
-	useEffect(() => {
-		if (!dockPosition) {
-			return;
-		}
-		const onResize = () =>
-			setDockPosition((current) =>
-				current ? clampPosition(current) : current
-			);
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
-	}, [dockPosition, clampPosition]);
-
-	// Keep the dragged dock on-screen when its OWN height changes — e.g. expanding
-	// the tools row near the bottom of the viewport would otherwise push the dock
-	// off the bottom edge. Re-clamp so it slides up to stay fully visible.
-	useEffect(() => {
-		setDockPosition((current) => {
-			if (!current) {
-				return current;
-			}
-			const clamped = clampPosition(current);
-			return clamped.top === current.top && clamped.left === current.left
-				? current
-				: clamped;
-		});
-	}, [dockSize.width, dockSize.height, clampPosition]);
-
-	const handleDockPointerDown = (event: React.PointerEvent) => {
-		// The mobile dock is a fixed bottom bar — there's nothing to drag.
-		if (isMobile || event.button !== 0 || !dockRef.current) {
-			return;
-		}
-		// Drag from the dock's bare background (the dark gaps between buttons and
-		// inputs) and the grip — but never from an actual control, so clicks on
-		// the address bar, tools, and status still work normally.
-		const target = event.target as HTMLElement;
-		if (
-			target.closest(
-				'input, a, select, textarea, [contenteditable="true"]'
-			)
-		) {
-			return;
-		}
-		const button = target.closest('button');
-		if (button && button.getAttribute('aria-label') !== 'Move the dock') {
-			return;
-		}
-		event.preventDefault();
-		try {
-			event.currentTarget.setPointerCapture(event.pointerId);
-		} catch {
-			// Pointer capture is a best-effort nicety; dragging still works.
-		}
-		const rect = dockRef.current.getBoundingClientRect();
-		dragStart.current = {
-			pointerX: event.clientX,
-			pointerY: event.clientY,
-			left: rect.left,
-			top: rect.top,
-		};
-		setIsDragging(true);
-	};
-
-	const handleGripPointerMove = (event: React.PointerEvent) => {
-		if (!dragStart.current) {
-			return;
-		}
-		const next = clampPosition({
-			left:
-				dragStart.current.left +
-				(event.clientX - dragStart.current.pointerX),
-			top:
-				dragStart.current.top +
-				(event.clientY - dragStart.current.pointerY),
-		});
-		setDockPosition(next);
-	};
-
-	const handleGripPointerUp = (event: React.PointerEvent) => {
-		dragStart.current = null;
-		setIsDragging(false);
-		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-			event.currentTarget.releasePointerCapture(event.pointerId);
-		}
-	};
+	}, [shareExportOpen, normalizedSection, isMobile]);
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== 'Escape' || activeModal || !siteManagerIsOpen) {
+				return;
+			}
+			// This listener is capture-phase, so it would beat the inline-rename
+			// field's own bubble-phase handler. Let an in-progress rename cancel
+			// itself first instead of closing the whole pane.
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('input[aria-label="Rename Playground"]')) {
 				return;
 			}
 			// Let an open popover (the row actions menu, the address
@@ -510,73 +499,199 @@ export function Dock() {
 			) {
 				return;
 			}
+			// The inline "Export to GitHub" sub-view has its own back affordance;
+			// the first Escape returns to the Share list rather than closing the
+			// whole dock.
+			if (normalizedSection === 'share' && shareExportOpen) {
+				dispatch(setShareExportOpen(false));
+				return;
+			}
 			dispatch(setSiteManagerOpen(false));
 		};
 		document.addEventListener('keydown', handleKeyDown, true);
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown, true);
 		};
-	}, [activeModal, dispatch, siteManagerIsOpen]);
+	}, [
+		activeModal,
+		dispatch,
+		siteManagerIsOpen,
+		normalizedSection,
+		shareExportOpen,
+	]);
+
+	// Dialog focus management: when a pane opens, remember the trigger and move
+	// focus into the pane (unless an editor pane already grabbed it); when it
+	// closes, return focus to the control that opened it.
+	useEffect(() => {
+		if (siteManagerIsOpen) {
+			hasBeenOpenRef.current = true;
+			focusBeforePaneRef.current =
+				document.activeElement as HTMLElement | null;
+			const timer = window.setTimeout(() => {
+				const pane = paneRef.current;
+				if (pane && !pane.contains(document.activeElement)) {
+					pane.focus();
+				}
+			}, 120);
+			return () => window.clearTimeout(timer);
+		}
+		// Only restore focus on a real open->close transition. On the initial
+		// mount the pane was never open, so skip — otherwise the body-fallback
+		// below would steal focus to the collapse toggle on every page load.
+		if (!hasBeenOpenRef.current) {
+			return;
+		}
+		const previouslyFocused = focusBeforePaneRef.current;
+		focusBeforePaneRef.current = null;
+		if (previouslyFocused && document.contains(previouslyFocused)) {
+			previouslyFocused.focus();
+		}
+		// If the trigger couldn't take focus (e.g. its tools row was collapsed
+		// to visibility:hidden while the pane was open), focus didn't land — fall
+		// back to the always-visible collapse toggle so it never drops to <body>.
+		if (
+			document.activeElement === document.body ||
+			document.activeElement === null
+		) {
+			collapseToggleRef.current?.focus();
+		}
+	}, [siteManagerIsOpen]);
 
 	const openSection = (section: DockSection) => {
 		if (siteManagerIsOpen && normalizedSection === section) {
 			dispatch(setSiteManagerOpen(false));
 			return;
 		}
+		// Switching sections while the pane is already open doesn't re-run the
+		// open effect (siteManagerIsOpen stays true), so update the restore target
+		// to the tool the user just activated — otherwise closing returns focus to
+		// the first-opened tool, not the last one.
+		if (siteManagerIsOpen) {
+			focusBeforePaneRef.current =
+				document.activeElement as HTMLElement | null;
+		}
+		// A pane anchors above the expanded dock, so make sure it isn't collapsed.
+		setIsCollapsed(false);
 		dispatch(setSiteManagerSection(section));
 		dispatch(setSiteManagerOpen(true));
 	};
 
-	// On mobile the dock is a CSS-positioned full-width bottom bar, so any
-	// dragged free-floating position is ignored.
-	let dockStyle: React.CSSProperties | undefined;
-	if (isMobile) {
-		dockStyle = undefined;
-	} else if (dockPosition) {
-		dockStyle = {
-			left: `${dockPosition.left}px`,
-			top: `${dockPosition.top}px`,
-			bottom: 'auto',
-			transform: 'none',
-		};
-	} else if (expandedDockHeight && viewportHeight) {
-		// Default bottom-center, but pinned by the TOP edge computed from the
-		// EXPANDED height (keeping the CSS left:50% + translateX centering). This
-		// keeps the address row fixed when the tools collapse — the tools tuck away
-		// beneath it instead of the whole bar dropping to re-anchor at the bottom.
-		dockStyle = {
-			top: `${
-				viewportHeight - DOCK_DEFAULT_BOTTOM - expandedDockHeight
-			}px`,
-			bottom: 'auto',
-		};
-	}
+	// The dock can be dragged horizontally only while it floats: in full-width
+	// mode it already spans the edge, and on mobile it's a fixed bottom bar.
+	const canDrag = !isMobile && !dockFullWidth;
 
-	// Anchor the pane to the dock (centered on it, clamped to the viewport),
-	// opening above or below depending on room. We do this even at the default
-	// bottom-center position so the pane clears the dock's real height — the
-	// two-row dock (address bar + tools) is taller and would otherwise overlap.
+	// The header band doubles as the drag handle. A press that travels past the
+	// threshold drags the dock along the bottom edge; a press that doesn't is a
+	// plain tap and falls through to the click handler (collapse/expand).
+	const handleHeaderPointerDown = (event: React.PointerEvent) => {
+		if (!canDrag || event.button !== 0) {
+			return;
+		}
+		const dock = dockRef.current;
+		if (!dock) {
+			return;
+		}
+		const rect = dock.getBoundingClientRect();
+		dragRef.current = {
+			startX: event.clientX,
+			startCenter: rect.left + rect.width / 2,
+			// The dock keeps its full width even when collapsed (only the clip
+			// hides part of it), so clamp by the full width — the centered notch
+			// then stays within the area where the expanded bar also fits.
+			halfWidth: dock.offsetWidth / 2,
+		};
+		draggedRef.current = false;
+		event.currentTarget.setPointerCapture(event.pointerId);
+	};
+
+	const handleHeaderPointerMove = (event: React.PointerEvent) => {
+		const drag = dragRef.current;
+		if (!drag) {
+			return;
+		}
+		const dx = event.clientX - drag.startX;
+		if (!draggedRef.current && Math.abs(dx) < DRAG_THRESHOLD) {
+			return;
+		}
+		draggedRef.current = true;
+		setIsDragging(true);
+		const min = drag.halfWidth + DRAG_EDGE;
+		const max = Math.max(
+			min,
+			window.innerWidth - drag.halfWidth - DRAG_EDGE
+		);
+		setDockCenter(Math.min(Math.max(drag.startCenter + dx, min), max));
+	};
+
+	const handleHeaderPointerUp = (event: React.PointerEvent) => {
+		if (!dragRef.current) {
+			return;
+		}
+		try {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		} catch {
+			// The pointer may already be released; ignore.
+		}
+		dragRef.current = null;
+		setIsDragging(false);
+	};
+
+	const handleHeaderClick = () => {
+		// Swallow the click that ends a drag so it doesn't also toggle collapse.
+		if (draggedRef.current) {
+			draggedRef.current = false;
+			return;
+		}
+		setIsCollapsed((collapsed) => !collapsed);
+	};
+
+	const toggleFullWidth = () => {
+		const next = !dockFullWidth;
+		// Suppress dock transitions for the moment of the switch so it snaps
+		// (sharp) instead of easing, then re-enable them right after — keeping the
+		// collapse-notch animation intact for later.
+		setIsModeSwitching(true);
+		if (modeSwitchTimer.current !== null) {
+			window.clearTimeout(modeSwitchTimer.current);
+		}
+		modeSwitchTimer.current = window.setTimeout(() => {
+			setIsModeSwitching(false);
+			modeSwitchTimer.current = null;
+		}, 60);
+		dispatch(setDockFullWidth(next));
+		writeDockFullWidth(next);
+	};
+
+	useEffect(
+		() => () => {
+			if (modeSwitchTimer.current !== null) {
+				window.clearTimeout(modeSwitchTimer.current);
+			}
+		},
+		[]
+	);
+
+	// The dock is welded to the bottom edge by CSS; JS feeds it the body height
+	// (the collapse slide distance) and, when dragged, the chosen center offset.
+	const dockStyle = {
+		...(dockBodyHeight ? { '--dock-body-h': `${dockBodyHeight}px` } : {}),
+		...(dockCenter !== null ? { '--dock-center': `${dockCenter}px` } : {}),
+	} as React.CSSProperties;
+
+	// Anchor the pane centered above the flush dock, clamped to the viewport.
+	// (A pane only opens while the dock is expanded, so dockSize.height is the
+	// full two-row height the pane needs to clear.)
 	let paneStyle: React.CSSProperties | undefined;
 	if (isMobile) {
 		// Full-screen panel above the bottom bar: CSS handles the inset; it just
-		// needs to know how tall the dock currently is (it changes when the tools
-		// row collapses).
+		// needs to know how tall the dock currently is.
 		paneStyle = {
 			'--dock-height': `${dockSize.height}px`,
 		} as React.CSSProperties;
 	} else if (dockSize.height) {
-		// Pin to the same top edge the dock uses (expanded-height anchor) so the
-		// pane stays put as the tools collapse, rather than tracking the shrinking
-		// current height.
-		const dockTop = dockPosition
-			? dockPosition.top
-			: viewportHeight -
-				DOCK_DEFAULT_BOTTOM -
-				(expandedDockHeight || dockSize.height);
-		const dockBottom = dockTop + dockSize.height;
-		const centerX = dockPosition
-			? dockPosition.left + dockSize.width / 2
-			: window.innerWidth / 2;
+		const dockTop = viewportHeight - dockSize.height;
+		const centerX = window.innerWidth / 2;
 		const halfWidth = Math.min(
 			isEditorSection ? 560 : 300,
 			(window.innerWidth - 2 * DRAG_EDGE) / 2
@@ -585,18 +700,13 @@ export function Dock() {
 			Math.max(centerX, halfWidth + DRAG_EDGE),
 			window.innerWidth - halfWidth - DRAG_EDGE
 		);
-		const spaceAbove = dockTop - PANE_GAP - DRAG_EDGE;
-		const spaceBelow = viewportHeight - dockBottom - PANE_GAP - DRAG_EDGE;
-		const openAbove = spaceAbove >= spaceBelow;
-		const available = Math.max(160, openAbove ? spaceAbove : spaceBelow);
+		const available = Math.max(160, dockTop - PANE_GAP - DRAG_EDGE);
 		// Fixed-height panes get a stable height (capped) so they don't resize
 		// between tabs; everything else stays content-sized via max-height.
 		const fixedHeight = isFixedHeightSection
 			? Math.min(LIST_PANE_HEIGHT, available)
 			: undefined;
-		// Your Playgrounds matches the New pane's height: capped to the same
-		// value so the two read as the same size, scrolling when the list is
-		// longer than that.
+		// Your Playgrounds matches the New pane's height so the two read alike.
 		const maxHeight =
 			normalizedSection === 'playgrounds'
 				? Math.min(LIST_PANE_HEIGHT, available)
@@ -605,15 +715,8 @@ export function Dock() {
 			left: `${clampedCenter}px`,
 			maxHeight: `${maxHeight}px`,
 			...(fixedHeight ? { height: `${fixedHeight}px` } : {}),
-			...(openAbove
-				? {
-						bottom: `${viewportHeight - dockTop + PANE_GAP}px`,
-						top: 'auto',
-					}
-				: {
-						top: `${dockBottom + PANE_GAP}px`,
-						bottom: 'auto',
-					}),
+			bottom: `${dockSize.height + PANE_GAP}px`,
+			top: 'auto',
 		};
 	}
 
@@ -642,6 +745,14 @@ export function Dock() {
 							normalizedSection === 'share',
 					})}
 					style={paneStyle}
+					role="dialog"
+					// Not aria-modal: even on mobile the dock bar (tool buttons,
+					// address bar) stays interactive beside/below the pane, so we
+					// can't honestly trap focus to the pane alone. The obscured
+					// WordPress preview is removed from the a11y tree via `inert`
+					// (see layout). Focus is moved into the pane on open and
+					// restored to the triggering control on close (effect below).
+					tabIndex={-1}
 					aria-label={`${paneCopy.title} pane`}
 				>
 					{/* On mobile the pane is full-screen, so the tap-outside scrim
@@ -742,114 +853,148 @@ export function Dock() {
 			<nav
 				ref={dockRef}
 				className={classNames(css.dock, {
-					[css.dockDragging]: isDragging,
+					[css.dockCollapsed]: isCollapsed,
+					[css.dockFull]: !isMobile && dockFullWidth,
+					[css.dockSwitching]: isModeSwitching,
+					[css.dockDragged]:
+						!isMobile && !dockFullWidth && dockCenter !== null,
 				})}
 				style={dockStyle}
 				aria-label="Playground tools"
-				onPointerDown={handleDockPointerDown}
-				onPointerMove={handleGripPointerMove}
-				onPointerUp={handleGripPointerUp}
-				onPointerCancel={handleGripPointerUp}
 			>
-				<div className={css.dockTopRow}>
-					<button
-						type="button"
-						className={css.dragHandle}
-						aria-label="Move the dock"
-						title="Drag to move"
-					>
-						<GripIcon />
-					</button>
-					<div className={css.dockAddress}>
-						<AddressBar
-							url={clientInfo?.url}
-							onUpdate={
-								clientInfo
-									? (newUrl) => clientInfo.client.goTo(newUrl)
-									: undefined
-							}
-							disabled={!clientInfo}
-						/>
-					</div>
-					<div className={css.dockStatus}>
-						{playgroundTitle && (
-							<span
-								className={css.dockSiteName}
-								aria-label="Playground title"
-								title={playgroundTitle}
-							>
-								{playgroundTitle}
-							</span>
-						)}
-						{!isSavingDisabled && <SaveStatusIndicator />}
-					</div>
-					<button
-						type="button"
-						className={css.collapseToggle}
-						aria-label={
-							isCollapsed
-								? 'Expand dock tools'
-								: 'Collapse dock tools'
-						}
-						aria-expanded={!isCollapsed}
-						title={isCollapsed ? 'Show tools' : 'Hide tools'}
-						onClick={() =>
-							setIsCollapsed((collapsed) => !collapsed)
-						}
-					>
-						<Icon
-							icon={isCollapsed ? chevronDown : chevronUp}
-							size={20}
-						/>
-					</button>
-				</div>
-				<div
-					className={classNames(css.dockTools, {
-						[css.dockToolsHidden]: isCollapsed,
+				{/* The collapse control is the dock's own top edge — an integrated
+				    header band, not a tab perched on top. The chevron points down to
+				    collapse and flips up (via CSS) when collapsed. While the dock
+				    floats it doubles as the drag handle for the bottom edge. */}
+				<button
+					type="button"
+					ref={collapseToggleRef}
+					className={classNames(css.dockHeader, {
+						[css.dockHeaderDraggable]: canDrag,
+						[css.dockHeaderDragging]: isDragging,
 					})}
+					aria-label={isCollapsed ? 'Expand dock' : 'Collapse dock'}
+					aria-expanded={!isCollapsed}
+					title={isCollapsed ? 'Show dock' : 'Hide dock'}
+					onPointerDown={handleHeaderPointerDown}
+					onPointerMove={handleHeaderPointerMove}
+					onPointerUp={handleHeaderPointerUp}
+					onClick={handleHeaderClick}
 				>
-					{DOCK_ITEMS.map((item, index) => {
-						const isActive =
-							siteManagerIsOpen &&
-							normalizedSection === item.section;
-						const ariaLabel = getDockItemAriaLabel(item, isActive);
-						return (
-							<span
-								key={item.section}
-								className={classNames({
-									[css.withSeparator]: index === 2,
-								})}
-							>
-								<button
-									type="button"
-									className={classNames(css.dockItem, {
-										[css.dockItemPrimary]: item.isPrimary,
-										[css.dockItemActive]: isActive,
-									})}
-									aria-label={ariaLabel}
-									aria-pressed={isActive}
-									onClick={() => openSection(item.section)}
-									data-cy={
-										item.section === 'share'
-											? 'dropdown-menu'
-											: undefined
-									}
+					<Icon icon={chevronDown} size={20} />
+				</button>
+				<div className={css.dockBody} ref={dockBodyRef}>
+					<div className={css.dockTopRow}>
+						<div className={css.dockAddress}>
+							<AddressBar
+								url={clientInfo?.url}
+								onUpdate={
+									clientInfo
+										? (newUrl) =>
+												clientInfo.client.goTo(newUrl)
+										: undefined
+								}
+								disabled={!clientInfo}
+							/>
+						</div>
+						<div className={css.dockStatus}>
+							{playgroundTitle && (
+								<span
+									className={css.dockSiteName}
+									aria-label="Playground title"
+									title={playgroundTitle}
 								>
-									<span
-										className={css.dockIcon}
-										aria-hidden="true"
+									{playgroundTitle}
+								</span>
+							)}
+							{!isSavingDisabled && <SaveStatusIndicator />}
+						</div>
+						{/* Toggle between the floating dock and a full-width docked
+						    bar that the preview ends above. Desktop-only (CSS hides
+						    it on the mobile bottom bar). */}
+						<button
+							type="button"
+							className={css.dockWidthToggle}
+							aria-label={
+								dockFullWidth
+									? 'Float the dock'
+									: 'Dock to full width'
+							}
+							aria-pressed={dockFullWidth}
+							title={
+								dockFullWidth
+									? 'Float the dock'
+									: 'Dock to full width'
+							}
+							onClick={toggleFullWidth}
+						>
+							<DockWidthIcon full={dockFullWidth} />
+						</button>
+					</div>
+					<div className={css.dockTools}>
+						{DOCK_ITEMS.map((item, index) => {
+							const isActive =
+								siteManagerIsOpen &&
+								normalizedSection === item.section;
+							const isPlaygrounds =
+								item.section === 'playgrounds';
+							const showDot = isPlaygrounds && showAutosaveCue;
+							const ariaLabel = showDot
+								? `${item.ariaLabel} — recent autosave available`
+								: getDockItemAriaLabel(item);
+							return (
+								<span
+									key={item.section}
+									className={classNames({
+										[css.withSeparator]: index === 2,
+									})}
+								>
+									<button
+										type="button"
+										ref={
+											isPlaygrounds
+												? setPlaygroundsToolEl
+												: undefined
+										}
+										className={classNames(css.dockItem, {
+											[css.dockItemPrimary]:
+												item.isPrimary,
+											[css.dockItemActive]: isActive,
+										})}
+										aria-label={ariaLabel}
+										aria-pressed={isActive}
+										onClick={() =>
+											openSection(item.section)
+										}
+										data-cy={
+											item.section === 'share'
+												? 'dropdown-menu'
+												: undefined
+										}
 									>
-										{item.icon}
-									</span>
-									<span className={css.dockLabel}>
-										{item.label}
-									</span>
-								</button>
-							</span>
-						);
-					})}
+										<span
+											className={css.dockIcon}
+											aria-hidden="true"
+										>
+											{item.icon}
+										</span>
+										<span className={css.dockLabel}>
+											{item.label}
+										</span>
+										{showDot && (
+											<span
+												className={css.dockItemDot}
+												aria-hidden="true"
+											/>
+										)}
+									</button>
+								</span>
+							);
+						})}
+					</div>
 				</div>
 			</nav>
+			<AutosaveNudge anchor={playgroundsToolEl} />
 		</>
 	);
 }
@@ -864,9 +1009,9 @@ function normalizeSection(section: SiteManagerSection): DockSection {
 	return section;
 }
 
-function getDockItemAriaLabel(item: DockItem, isActive: boolean) {
-	if (item.section === 'settings') {
-		return isActive ? 'Close This Playground' : 'Open This Playground';
-	}
+function getDockItemAriaLabel(item: DockItem) {
+	// Open/closed state is conveyed by aria-pressed on every tool; encoding it
+	// again in a toggled verb label (as the settings tool used to) double-speaks
+	// the state to screen readers, so keep a stable name for all tools.
 	return item.ariaLabel;
 }

@@ -144,6 +144,17 @@ async function createFilesystemFromOriginalBlueprint(
 	return fs;
 }
 
+/**
+ * Reads a site's `blueprint.json` as text. Used to seed the New pane's "Write a
+ * Blueprint" editor with the Playground's existing Blueprint declaration.
+ */
+export async function readSiteBlueprintJson(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+): Promise<string> {
+	const fs = await createFilesystemFromOriginalBlueprint(originalBlueprint);
+	return fs.readFileAsText('/blueprint.json');
+}
+
 function collectBundledResourcePaths(value: unknown): Set<string> {
 	const accumulator = new Set<string>();
 	const stack: unknown[] = [value];

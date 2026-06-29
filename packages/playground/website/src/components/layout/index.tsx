@@ -2,7 +2,7 @@ import css from './style.module.css';
 
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { useState, lazy, Suspense, useEffect } from 'react';
+import { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import type { ExportFormValues } from '../../github/github-export-form/form';
 import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
@@ -66,6 +66,7 @@ export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const dockFullWidth = useAppSelector((state) => state.ui.dockFullWidth);
 	const dispatch = useAppDispatch();
 	const showDock = displayMode !== 'seamless';
 
@@ -89,15 +90,35 @@ export function Layout() {
 		clearOverlayQueryParam();
 	};
 
+	// While a dock pane is open the preview is visually obscured (blurred,
+	// pointer-events:none). Mark it `inert` too so the hidden WordPress iframe
+	// also leaves the keyboard tab order and the accessibility tree — especially
+	// important on mobile where the pane is full-screen. `inert` is set
+	// imperatively because React 18 does not forward it as a prop.
+	const siteViewContentRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const element = siteViewContentRef.current;
+		if (!element) {
+			return;
+		}
+		if (showDock && siteManagerIsOpen) {
+			element.setAttribute('inert', '');
+		} else {
+			element.removeAttribute('inert');
+		}
+	}, [showDock, siteManagerIsOpen]);
+
 	return (
 		<div
 			className={classNames(css.layout, {
 				[css.hasDockPane]: showDock && siteManagerIsOpen,
+				[css.dockDocked]: showDock && dockFullWidth,
 			})}
 		>
 			<Modals />
 			<div className={css.siteView}>
 				<div
+					ref={siteViewContentRef}
 					className={classNames(css.siteViewContent, {
 						[css.siteViewContentBlurred]:
 							showDock && siteManagerIsOpen,
@@ -111,9 +132,12 @@ export function Layout() {
 						className={classNames(css.previewDismiss, {
 							[css.previewDismissVisible]: siteManagerIsOpen,
 						})}
-						aria-label="Close Playground tools"
-						aria-hidden={!siteManagerIsOpen}
-						tabIndex={siteManagerIsOpen ? 0 : -1}
+						// Pointer-only click-outside scrim. Hidden from assistive
+						// tech and the tab order (so it's never a hidden tab stop
+						// behind the full-screen mobile pane); keyboard users close
+						// the pane with Escape or its X.
+						aria-hidden="true"
+						tabIndex={-1}
 						onClick={closeDockPane}
 					/>
 				)}

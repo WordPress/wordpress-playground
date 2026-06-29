@@ -43,12 +43,20 @@ export interface GitHubExportFormProps {
 	onClose: () => void;
 }
 
-let octokitClient: GithubClient;
+let octokitClient: GithubClient | undefined;
 function getClient() {
 	if (!octokitClient) {
 		octokitClient = createClient(oAuthState.value.token!);
 	}
 	return octokitClient;
+}
+/**
+ * Drops the cached client so the next getClient() rebuilds it with the current
+ * token. Called after a 401 so re-authenticating actually takes effect instead
+ * of reusing the stale, rejected client.
+ */
+function resetClient() {
+	octokitClient = undefined;
 }
 
 export type PullRequestAction = 'update' | 'create';
@@ -417,6 +425,7 @@ export default function GitHubExportForm({
 			// Handle the "Bad Credentials" error
 			if (e && e.status === 401) {
 				setOAuthToken(undefined);
+				resetClient();
 				throw e;
 			}
 
@@ -461,8 +470,13 @@ export default function GitHubExportForm({
 				)}
 
 				<div className={forms.submitRow}>
-					<Button variant="primary" size="large" onClick={onClose}>
-						Close this modal
+					<Button
+						type="button"
+						variant="primary"
+						size="large"
+						onClick={onClose}
+					>
+						Done
 					</Button>
 				</div>
 			</form>
@@ -470,7 +484,7 @@ export default function GitHubExportForm({
 	}
 
 	return (
-		<GitHubOAuthGuard>
+		<GitHubOAuthGuard intro="Export plugins, themes, or a wp-content directory to a GitHub repository.">
 			<form id="export-playground-form" onSubmit={handleSubmit}>
 				<p>
 					You may export WordPress plugins, themes, and entire
@@ -501,7 +515,9 @@ export default function GitHubExportForm({
 						</select>
 					</label>
 					{errors.contentType && (
-						<div className={forms.error}>{errors.contentType}</div>
+						<div role="alert" className={forms.error}>
+							{errors.contentType}
+						</div>
 					)}
 				</div>
 				{formValues.contentType === 'custom-paths' ? (
@@ -545,12 +561,12 @@ export default function GitHubExportForm({
 								</label>
 							</div>
 							{'fromPlaygroundRoot' in errors && (
-								<div className={forms.error}>
+								<div role="alert" className={forms.error}>
 									{errors.fromPlaygroundRoot}
 								</div>
 							)}
 							{'toPathInRepo' in errors && (
-								<div className={forms.error}>
+								<div role="alert" className={forms.error}>
 									{errors.toPathInRepo}
 								</div>
 							)}
@@ -570,7 +586,7 @@ export default function GitHubExportForm({
 								/>
 							</label>
 							{errors.relativeExportPaths && (
-								<div className={forms.error}>
+								<div role="alert" className={forms.error}>
 									{errors.relativeExportPaths}
 								</div>
 							)}
@@ -599,7 +615,9 @@ export default function GitHubExportForm({
 							</select>
 						</label>
 						{errors.theme && (
-							<div className={forms.error}>{errors.theme}</div>
+							<div role="alert" className={forms.error}>
+								{errors.theme}
+							</div>
 						)}
 					</div>
 				) : null}
@@ -625,7 +643,9 @@ export default function GitHubExportForm({
 							</select>
 						</label>
 						{errors.plugin && (
-							<div className={forms.error}>{errors.plugin}</div>
+							<div role="alert" className={forms.error}>
+								{errors.plugin}
+							</div>
 						)}
 					</div>
 				) : null}
@@ -648,7 +668,9 @@ export default function GitHubExportForm({
 						/>
 					</label>
 					{'repoUrl' in errors ? (
-						<div className={forms.error}>{errors.repoUrl}</div>
+						<div role="alert" className={forms.error}>
+							{errors.repoUrl}
+						</div>
 					) : null}
 				</div>
 				{formValues.repoUrl && !URLNeedsAnalyzing ? (
@@ -694,7 +716,7 @@ export default function GitHubExportForm({
 									/>
 								</label>
 								{errors.prNumber && (
-									<div className={forms.error}>
+									<div role="alert" className={forms.error}>
 										{errors.prNumber}
 									</div>
 								)}
@@ -720,11 +742,6 @@ export default function GitHubExportForm({
 										}
 									/>
 								</label>
-								{errors.pathInRepo && (
-									<div className={forms.error}>
-										{errors.pathInRepo}
-									</div>
-								)}
 							</div>
 						) : null}
 						{formValues.repoUrl ? (
@@ -747,7 +764,10 @@ export default function GitHubExportForm({
 										/>
 									</label>
 									{errors.commitMessage && (
-										<div className={forms.error}>
+										<div
+											role="alert"
+											className={forms.error}
+										>
 											{errors.commitMessage}
 										</div>
 									)}

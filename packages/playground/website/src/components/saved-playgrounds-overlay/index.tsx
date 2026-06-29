@@ -12,15 +12,16 @@ import {
 	moreVertical,
 	upload,
 	link,
-	close,
 	pencil,
 	layout,
+	fullscreen,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
+import { isValidBlueprintDraft } from './is-valid-blueprint-draft';
 import {
 	useState,
 	useEffect,
@@ -30,6 +31,7 @@ import {
 	Suspense,
 } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { getOpfsSyncProgressPercent } from '../../lib/opfs-sync-progress';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { importWordPressFiles } from '@wp-playground/client';
@@ -47,27 +49,23 @@ import {
 	isExplicitlySavedSite,
 	selectSortedSites,
 	selectTemporarySite,
+	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
+import { readSiteBlueprintJson } from '../blueprint-editor/SiteBlueprintBundleEditor';
 import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
+	setSiteManagerSection,
 	setSiteSlugToDelete,
 	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
-import {
-	Overlay,
-	OverlayHeader,
-	OverlayBody,
-	OverlaySection,
-} from '../overlay';
-
-const COMPACT_LAYOUT_QUERY = '(max-width: 875px)';
-const MAX_VISIBLE_COMPACT_STORED_SITES = 2;
+import { OverlaySection } from '../overlay';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -129,8 +127,6 @@ const VANILLA_WORDPRESS_CARD: BlueprintsIndexEntry = {
 	isVanilla: true,
 };
 
-export type OverlayViewMode = 'main' | 'blueprints';
-
 /**
  * The "New Playground" pane is a method rail beside one content panel. The rail
  * lists every way to start, grouped under two quiet eyebrows — "Blueprints"
@@ -150,51 +146,21 @@ type CreationTabId =
 
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
-	initialViewMode?: OverlayViewMode;
-	variant?: 'overlay' | 'pane';
 	panel?: 'all' | 'playgrounds' | 'new';
 }
 
 export function SavedPlaygroundsPane({
 	panel,
-	initialViewMode = 'main',
 }: {
 	panel: 'playgrounds' | 'new';
-	initialViewMode?: OverlayViewMode;
 }) {
 	const dispatch = useAppDispatch();
 	return (
 		<SavedPlaygroundsOverlay
 			onClose={() => dispatch(setSiteManagerOpen(false))}
-			initialViewMode={initialViewMode}
-			variant="pane"
 			panel={panel}
 		/>
 	);
-}
-
-function useIsCompactLayout() {
-	const [isCompactLayout, setIsCompactLayout] = useState(() => {
-		return (
-			typeof window !== 'undefined' &&
-			window.matchMedia(COMPACT_LAYOUT_QUERY).matches
-		);
-	});
-
-	useEffect(() => {
-		const mediaQuery = window.matchMedia(COMPACT_LAYOUT_QUERY);
-		const updateIsCompactLayout = () => {
-			setIsCompactLayout(mediaQuery.matches);
-		};
-
-		updateIsCompactLayout();
-		mediaQuery.addEventListener('change', updateIsCompactLayout);
-		return () => {
-			mediaQuery.removeEventListener('change', updateIsCompactLayout);
-		};
-	}, []);
-
-	return isCompactLayout;
 }
 
 function PullRequestIcon() {
@@ -220,11 +186,7 @@ function getActiveSiteSyncLabel(
 	const verb = opfsSync.operation === 'autosave' ? 'Autosaving' : 'Saving';
 	const { progress } = opfsSync;
 	if (progress && progress.total > 0) {
-		const percent = Math.min(
-			100,
-			Math.round((progress.files / progress.total) * 100)
-		);
-		return `${verb}… ${percent}%`;
+		return `${verb}… ${getOpfsSyncProgressPercent(progress)}%`;
 	}
 	return `${verb}…`;
 }
@@ -234,8 +196,6 @@ function getActiveSiteSyncLabel(
  */
 export function SavedPlaygroundsOverlay({
 	onClose,
-	initialViewMode = 'main',
-	variant = 'overlay',
 	panel = 'all',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -254,7 +214,6 @@ export function SavedPlaygroundsOverlay({
 	const creationPanelRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
 
-	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
@@ -262,6 +221,14 @@ export function SavedPlaygroundsOverlay({
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
 	>(null);
+	const [isImportingZip, setIsImportingZip] = useState(false);
+	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
+	// routine re-renders, so this prevents a second concurrent import firing while
+	// one is already in flight.
+	const importingRef = useRef(false);
+	// Set when a tab is reached via arrow keys so the field-autofocus effect below
+	// doesn't yank focus out of the tablist mid-navigation (roving stays intact).
+	const suppressFieldAutofocusRef = useRef(false);
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
@@ -273,13 +240,62 @@ export function SavedPlaygroundsOverlay({
 		STARTER_BLUEPRINT;
 	const setWriteOwnDraft = (value: string) =>
 		dispatch(setWriteOwnBlueprintDraft(value));
-	const isCompactLayout = useIsCompactLayout();
-	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
+	// Latest draft, readable inside the async seeding effect without making it a
+	// dependency, so a slow blueprint read can't overwrite edits typed meanwhile.
+	const writeOwnDraftRef = useRef(writeOwnDraft);
+	writeOwnDraftRef.current = writeOwnDraft;
+	const writeOwnSeededSlug = useAppSelector(
+		(state) => state.ui.writeOwnSeededSlug
+	);
+
+	// Pre-populate the "Write a Blueprint" sketch with the active site's Blueprint
+	// so it and the full Blueprint editor start from the same place. Seeds once per
+	// site (re-seeding when the active site changes); edits made afterwards are
+	// kept — the seeded slug guards against clobbering them on re-render.
+	useEffect(() => {
+		if (activeCreationTab !== 'write-own' || !activeSite) {
+			return;
+		}
+		if (writeOwnSeededSlug === activeSite.slug) {
+			return;
+		}
+		const { slug } = activeSite;
+		const { originalBlueprint } = activeSite.metadata;
+		const draftAtStart = writeOwnDraftRef.current;
+		// Mark seeded synchronously so an active-site metadata change mid-read
+		// doesn't restart this effect and re-clobber the user's edits.
+		dispatch(setWriteOwnSeededSlug(slug));
+		let cancelled = false;
+		void (async () => {
+			try {
+				const json = await readSiteBlueprintJson(originalBlueprint);
+				// Only seed if the user hasn't edited the draft since the read
+				// began (otherwise a slow read would overwrite their work).
+				if (!cancelled && writeOwnDraftRef.current === draftAtStart) {
+					dispatch(setWriteOwnBlueprintDraft(json));
+				}
+			} catch {
+				// Keep the starter Blueprint if the site's can't be read.
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+		// Depend on slug (not the whole activeSite) so unrelated metadata changes
+		// (e.g. whenLastUsed) don't re-run the seed.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [activeCreationTab, activeSite?.slug, writeOwnSeededSlug, dispatch]);
 
 	// Autofocus the first field whenever a tab shows a form so the user can
 	// start typing right away. The "write your own" editor focuses its own
 	// CodeMirror surface, so it's excluded here.
 	useEffect(() => {
+		// Skip when the tab was reached by keyboard arrows — focus must stay on the
+		// tab so the user can keep arrowing; clicking a tab still autofocuses.
+		if (suppressFieldAutofocusRef.current) {
+			suppressFieldAutofocusRef.current = false;
+			return;
+		}
 		const formTabs: CreationTabId[] = [
 			'blueprint-url',
 			'github',
@@ -300,22 +316,18 @@ export function SavedPlaygroundsOverlay({
 			!playground ||
 			!activeSite ||
 			activeSite.slug !== pendingZipTargetSlug ||
-			zipImportInProgressRef.current
+			importingRef.current
 		) {
 			return;
 		}
 
-		if (activeOpfsSyncStatus === 'syncing') {
-			return;
-		}
-
+		// Capture the file and clear the pending request synchronously, BEFORE the
+		// async work, so a re-render (new onClose/activeSite identity) re-running
+		// this effect can't kick off a second concurrent import into the same site.
+		importingRef.current = true;
 		const zipFile = pendingZipFile;
-		zipImportInProgressRef.current = true;
 		setPendingZipFile(null);
 		setPendingZipTargetSlug(null);
-		if (zipFileInputRef.current) {
-			zipFileInputRef.current.value = '';
-		}
 
 		const doImport = async () => {
 			try {
@@ -341,7 +353,11 @@ export function SavedPlaygroundsOverlay({
 					'Unable to import file. Is it a valid WordPress Playground export?'
 				);
 			} finally {
-				zipImportInProgressRef.current = false;
+				setIsImportingZip(false);
+				importingRef.current = false;
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
 			}
 		};
 		doImport();
@@ -381,12 +397,14 @@ export function SavedPlaygroundsOverlay({
 			return;
 		}
 
+		setIsImportingZip(true);
 		try {
 			const targetSlug = await createSiteForImport();
 			setPendingZipTargetSlug(targetSlug);
 			setPendingZipFile(file);
 		} catch (error) {
 			logger.error(error);
+			setIsImportingZip(false);
 			alert(
 				'No active Playground to import into. Please create one first.'
 			);
@@ -749,14 +767,7 @@ export function SavedPlaygroundsOverlay({
 	 * already decodes — the same one-outcome path as the gallery and URL sources,
 	 * with no new API.
 	 */
-	const isWriteOwnValid = (() => {
-		try {
-			JSON.parse(writeOwnDraft);
-			return writeOwnDraft.trim().length > 0;
-		} catch {
-			return false;
-		}
-	})();
+	const isWriteOwnValid = isValidBlueprintDraft(writeOwnDraft);
 	const createFromEditor = () => {
 		if (!isWriteOwnValid) {
 			return;
@@ -768,6 +779,47 @@ export function SavedPlaygroundsOverlay({
 			})
 		);
 		onClose();
+	};
+
+	/**
+	 * "Open in the full editor": carry the sketch (with the user's edits) into the
+	 * active site's Blueprint, then switch the dock to the roomier Blueprint tab —
+	 * with its file tree. The full editor reads the site's Blueprint, so writing
+	 * the draft there first preserves any modifications. This only updates the
+	 * Blueprint (applied later via "Run"), so the running Playground is not
+	 * reloaded.
+	 *
+	 * Saved Playgrounds are the exception: their stored Blueprint must stay
+	 * untouched, so we never write the draft into them (that would persist to
+	 * OPFS). The full editor opens on their existing Blueprint instead, where
+	 * editing is ephemeral and running spins up a new Playground.
+	 */
+	const openInFullEditor = async () => {
+		if (
+			activeSite &&
+			!isExplicitlySavedSite(activeSite) &&
+			// Only carry over a draft that is itself a valid Blueprint object;
+			// persisting a non-object (e.g. "hello"/42) would seed the site with
+			// a Blueprint the boot resolver rejects.
+			isValidBlueprintDraft(writeOwnDraft)
+		) {
+			try {
+				const parsed = JSON.parse(writeOwnDraft);
+				await dispatch(
+					updateSiteMetadata({
+						slug: activeSite.slug,
+						changes: {
+							originalBlueprint: parsed,
+							originalBlueprintSource: { type: 'inline-string' },
+						},
+					})
+				);
+			} catch {
+				// Invalid JSON — open the full editor on the site's current
+				// Blueprint rather than blocking the handoff.
+			}
+		}
+		dispatch(setSiteManagerSection('blueprint'));
 	};
 
 	/**
@@ -813,19 +865,51 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'github',
-			label: 'From GitHub',
+			label: 'GitHub',
 			panelTitle: 'Import from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
 		},
 		{
 			id: 'zip',
-			label: 'Import .zip',
+			label: 'Zip import',
 			panelTitle: 'Import a .zip export',
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
 		},
 	];
+
+	// Arrow-key roving focus for the creation method tablist (WAI-ARIA tabs):
+	// Left/Right move between enabled tabs, Home/End jump to the ends.
+	const handleCreationTabKeyDown = (
+		event: React.KeyboardEvent<HTMLButtonElement>
+	) => {
+		if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+			return;
+		}
+		const enabled = creationMethods.filter((method) => !method.disabled);
+		const currentIndex = enabled.findIndex(
+			(method) => method.id === activeCreationTab
+		);
+		if (currentIndex === -1) {
+			return;
+		}
+		let nextIndex = currentIndex;
+		if (event.key === 'ArrowRight') {
+			nextIndex = (currentIndex + 1) % enabled.length;
+		} else if (event.key === 'ArrowLeft') {
+			nextIndex = (currentIndex - 1 + enabled.length) % enabled.length;
+		} else if (event.key === 'Home') {
+			nextIndex = 0;
+		} else {
+			nextIndex = enabled.length - 1;
+		}
+		event.preventDefault();
+		const nextId = enabled[nextIndex].id;
+		suppressFieldAutofocusRef.current = true;
+		setActiveCreationTab(nextId);
+		document.getElementById(`creation-tab-${nextId}`)?.focus();
+	};
 
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
@@ -961,6 +1045,24 @@ export function SavedPlaygroundsOverlay({
 	function renderSiteRow(site: SiteInfo) {
 		const isSelected = site.slug === activeSite?.slug;
 		const meta = getStoredSiteDetails(site);
+		const isEditing = inlineRename.isEditing(site.slug);
+		// While renaming, the row holds a focusable text input. A text field
+		// inside role="button" is invalid (nested interactive) ARIA, so drop the
+		// button affordance during rename and let the input be the only control.
+		const rowButtonProps = isEditing
+			? {}
+			: {
+					role: 'button',
+					tabIndex: 0,
+					'aria-label': `Open ${site.metadata.name}`,
+					onClick: () => onSiteClick(site.slug),
+					onKeyDown: (event: React.KeyboardEvent) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault();
+							onSiteClick(site.slug);
+						}
+					},
+				};
 		return (
 			<div
 				key={site.slug}
@@ -969,19 +1071,7 @@ export function SavedPlaygroundsOverlay({
 					[css.siteRowSelected]: isSelected,
 				})}
 			>
-				<div
-					className={css.siteRowContent}
-					role="button"
-					tabIndex={0}
-					aria-label={`Open ${site.metadata.name}`}
-					onClick={() => onSiteClick(site.slug)}
-					onKeyDown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							event.preventDefault();
-							onSiteClick(site.slug);
-						}
-					}}
-				>
+				<div className={css.siteRowContent} {...rowButtonProps}>
 					<div className={css.siteRowLogo}>
 						{site.metadata.logo ? (
 							<img
@@ -1069,112 +1159,54 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	function renderYourPlaygroundsSection() {
-		if (variant === 'pane') {
-			const visibleSavedSites = showAllStoredSites
-				? savedSites
-				: savedSites.slice(0, MAX_VISIBLE_STORED_SITES);
-			const hiddenSavedSitesCount =
-				savedSites.length - visibleSavedSites.length;
-			const hasSites =
-				!!activeSite || recentSites.length > 0 || savedSites.length > 0;
-
-			return (
-				<OverlaySection className={css.playgroundsSection}>
-					{!hasSites ? (
-						<p className={css.emptyMessage}>
-							No Playgrounds available yet.
-						</p>
-					) : (
-						<>
-							{activeSite && (
-								<div className={css.siteGroup}>
-									<h3 className={css.siteGroupTitle}>
-										Current Playground
-									</h3>
-									<div
-										className={classNames(
-											css.sitesList,
-											css.playgroundsList
-										)}
-									>
-										{renderCurrentSiteRow(activeSite)}
-									</div>
-								</div>
-							)}
-							{renderSiteGroup('Last 5 autosaves', recentSites)}
-							{renderSiteGroup('Saved', visibleSavedSites)}
-						</>
-					)}
-					{hiddenSavedSitesCount > 0 && (
-						<button
-							type="button"
-							className={css.showMoreButton}
-							onClick={() =>
-								setShowAllStoredSites(!showAllStoredSites)
-							}
-						>
-							{showAllStoredSites
-								? 'Show fewer Playgrounds'
-								: `Show ${hiddenSavedSitesCount} more Playgrounds`}
-						</button>
-					)}
-				</OverlaySection>
-			);
-		}
-
-		const visibleStoredSites =
-			isCompactLayout && !showAllStoredSites
-				? storedSites.slice(0, MAX_VISIBLE_COMPACT_STORED_SITES)
-				: storedSites;
-		const hiddenStoredSitesCount =
-			storedSites.length - visibleStoredSites.length;
-		const visibleSites = [
-			...(temporarySite ? [temporarySite] : []),
-			...visibleStoredSites,
-		];
+		const visibleSavedSites = showAllStoredSites
+			? savedSites
+			: savedSites.slice(0, MAX_VISIBLE_STORED_SITES);
+		const hiddenSavedSitesCount =
+			savedSites.length - visibleSavedSites.length;
+		const hasSites =
+			!!activeSite || recentSites.length > 0 || savedSites.length > 0;
 
 		return (
-			<OverlaySection
-				title="Your Playgrounds"
-				className={classNames(
-					css.playgroundsSection,
-					css.yourPlaygroundsSection
-				)}
-			>
-				{visibleSites.length === 0 ? (
+			<OverlaySection className={css.playgroundsSection}>
+				{!hasSites ? (
 					<p className={css.emptyMessage}>
 						No Playgrounds available yet.
 					</p>
 				) : (
-					<div
-						className={classNames(
-							css.sitesList,
-							css.playgroundsList
+					<>
+						{activeSite && (
+							<div className={css.siteGroup}>
+								<h3 className={css.siteGroupTitle}>
+									Current Playground
+								</h3>
+								<div
+									className={classNames(
+										css.sitesList,
+										css.playgroundsList
+									)}
+								>
+									{renderCurrentSiteRow(activeSite)}
+								</div>
+							</div>
 						)}
-					>
-						{visibleSites.map(renderSiteRow)}
-					</div>
+						{renderSiteGroup('Recent autosaves', recentSites)}
+						{renderSiteGroup('Saved', visibleSavedSites)}
+					</>
 				)}
-				{isCompactLayout && hiddenStoredSitesCount > 0 && (
+				{savedSites.length > MAX_VISIBLE_STORED_SITES && (
 					<button
 						type="button"
-						className={css.viewAllPlaygroundsButton}
-						onClick={() => setShowAllStoredSites(true)}
+						className={css.showMoreButton}
+						onClick={() =>
+							setShowAllStoredSites(!showAllStoredSites)
+						}
 					>
-						View all
+						{showAllStoredSites
+							? 'Show fewer Playgrounds'
+							: `Show ${hiddenSavedSitesCount} more Playgrounds`}
 					</button>
 				)}
-				{isCompactLayout &&
-					showAllStoredSites &&
-					storedSites.length > MAX_VISIBLE_COMPACT_STORED_SITES && (
-						<button
-							type="button"
-							className={css.viewAllPlaygroundsButton}
-							onClick={() => setShowAllStoredSites(false)}
-						>
-							Show fewer
-						</button>
-					)}
 			</OverlaySection>
 		);
 	}
@@ -1186,6 +1218,16 @@ export function SavedPlaygroundsOverlay({
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
+		// The roving Tab stop must land on an ENABLED tab. If the active tab is a
+		// network source that just went offline (disabled), a disabled element with
+		// tabIndex=0 is dropped from the focus order — which would leave the tablist
+		// with no Tab stop at all. Fall back to the first enabled tab ('gallery' is
+		// always enabled and first, so this always resolves).
+		const rovingTabId = creationMethods.some(
+			(method) => method.id === activeCreationTab && !method.disabled
+		)
+			? activeCreationTab
+			: creationMethods.find((method) => !method.disabled)?.id;
 		return (
 			<OverlaySection
 				className={classNames(
@@ -1201,16 +1243,24 @@ export function SavedPlaygroundsOverlay({
 					{creationMethods.map((method) => (
 						<button
 							key={method.id}
+							id={`creation-tab-${method.id}`}
 							type="button"
 							role="tab"
 							aria-selected={activeCreationTab === method.id}
+							aria-controls="creation-panel"
+							tabIndex={method.id === rovingTabId ? 0 : -1}
 							className={classNames(css.creationButton, {
 								[css.creationButtonActive]:
 									activeCreationTab === method.id,
 							})}
-							aria-label={method.label}
 							onClick={() => setActiveCreationTab(method.id)}
+							onKeyDown={handleCreationTabKeyDown}
 							disabled={method.disabled}
+							title={
+								method.disabled
+									? 'Needs an internet connection — unavailable offline'
+									: undefined
+							}
 						>
 							<span className={css.creationIcon}>
 								{method.icon}
@@ -1221,7 +1271,14 @@ export function SavedPlaygroundsOverlay({
 						</button>
 					))}
 				</div>
-				<div className={css.creationPanel} ref={creationPanelRef}>
+				<div
+					id="creation-panel"
+					className={css.creationPanel}
+					ref={creationPanelRef}
+					role="tabpanel"
+					aria-labelledby={`creation-tab-${activeCreationTab}`}
+					tabIndex={0}
+				>
 					<div className={css.panelHeader}>
 						<h3 className={css.panelTitle}>
 							{activeMethod?.panelTitle}
@@ -1273,9 +1330,9 @@ export function SavedPlaygroundsOverlay({
 						className={classNames(css.inlineForm, css.writeOwnFlow)}
 					>
 						<p className={css.inlineFormHint}>
-							Sketch a starter Blueprint, then create your
-							Playground. For a roomier editor with a file tree,
-							open the Blueprint tab once it boots.{' '}
+							Tweak this Playground's Blueprint, then create a new
+							Playground from it — or open the full Blueprint
+							editor for a file tree and more room.{' '}
 							<a
 								className={css.inlineFormLink}
 								href="https://wordpress.github.io/wordpress-playground/blueprints"
@@ -1286,6 +1343,15 @@ export function SavedPlaygroundsOverlay({
 							</a>
 						</p>
 						<div className={css.writeOwnEditor}>
+							<button
+								type="button"
+								className={css.writeOwnExpand}
+								aria-label="Open the full Blueprint editor"
+								title="Open the full Blueprint editor"
+								onClick={openInFullEditor}
+							>
+								<Icon icon={fullscreen} size={20} />
+							</button>
 							<Suspense
 								fallback={
 									<div className={css.loadingContainer}>
@@ -1294,6 +1360,7 @@ export function SavedPlaygroundsOverlay({
 								}
 							>
 								<BlueprintAuthoringEditor
+									key={writeOwnSeededSlug ?? 'unseeded'}
 									config={{
 										initialDoc: writeOwnDraft,
 										onChange: setWriteOwnDraft,
@@ -1386,9 +1453,13 @@ export function SavedPlaygroundsOverlay({
 							<Button
 								variant="primary"
 								data-cy="restore-from-zip"
+								isBusy={isImportingZip}
+								disabled={isImportingZip}
 								onClick={() => zipFileInputRef.current?.click()}
 							>
-								Choose a .zip file…
+								{isImportingZip
+									? 'Importing…'
+									: 'Choose a .zip file…'}
 							</Button>
 						</div>
 					</div>
@@ -1466,9 +1537,7 @@ export function SavedPlaygroundsOverlay({
 		return (
 			<button
 				key={blueprint.path}
-				className={classNames(css.blueprintPreviewCard, {
-					[css.vanillaCard]: blueprint.isVanilla,
-				})}
+				className={css.blueprintPreviewCard}
 				onClick={() =>
 					blueprint.isVanilla
 						? createVanillaSite()
@@ -1505,249 +1574,11 @@ export function SavedPlaygroundsOverlay({
 		);
 	}
 
-	function renderBlueprintPreviewSection() {
-		// Vanilla WordPress is always present in `allBlueprints`, so the grid
-		// shows it immediately while the remote index loads behind it.
-		const blueprintsToShow =
-			variant === 'pane' ? filteredBlueprints : allBlueprints;
-		return (
-			<OverlaySection
-				title={
-					variant === 'pane' ? undefined : 'Start from a Blueprint'
-				}
-				className={classNames(
-					css.playgroundsSection,
-					css.blueprintsSection
-				)}
-			>
-				{variant === 'pane' && renderBlueprintFilters()}
-				{blueprintsToShow.length > 0 && (
-					<div className={css.blueprintsRow}>
-						{blueprintsToShow.map(renderBlueprintCard)}
-					</div>
-				)}
-				{blueprintsLoading && (
-					<div className={css.loadingContainer}>
-						<Spinner />
-					</div>
-				)}
-				{!blueprintsLoading && blueprintsError && (
-					<p className={css.emptyMessage}>
-						Unable to load Blueprints. Check your connection.
-					</p>
-				)}
-				{!blueprintsLoading &&
-					!blueprintsError &&
-					blueprintsToShow.length === 0 && (
-						<p className={css.emptyMessage}>
-							No Blueprints found matching your criteria.
-						</p>
-					)}
-			</OverlaySection>
-		);
-	}
-
-	if (variant === 'pane') {
-		return (
-			<div
-				className={classNames(css.playgroundsPane, {
-					[css.newPane]: panel === 'new',
-				})}
-			>
-				<input
-					type="file"
-					ref={zipFileInputRef}
-					onChange={handleImportZip}
-					accept=".zip,application/zip"
-					style={{ display: 'none' }}
-				/>
-				{panel !== 'new' && renderYourPlaygroundsSection()}
-				{panel !== 'playgrounds' && renderNewPlaygroundSection()}
-			</div>
-		);
-	}
-
-	if (viewMode === 'blueprints') {
-		return (
-			<Overlay
-				onClose={onClose}
-				className={css.playgroundsOverlay}
-				contentClassName={css.playgroundsContent}
-			>
-				<OverlayHeader
-					onClose={onClose}
-					onBack={() => {
-						setViewMode('main');
-						setSearchQuery('');
-						setSelectedTag(null);
-					}}
-					title="Blueprints"
-					showLogo={false}
-				/>
-				<div className={css.filtersBar}>
-					<div className={css.tagsContainer}>
-						<button
-							className={classNames(css.tagButton, {
-								[css.tagButtonActive]: selectedTag === null,
-							})}
-							onClick={() => setSelectedTag(null)}
-						>
-							All
-						</button>
-						<button
-							className={classNames(css.tagButton, {
-								[css.tagButtonActive]:
-									selectedTag === 'Featured',
-							})}
-							onClick={() =>
-								setSelectedTag(
-									selectedTag === 'Featured'
-										? null
-										: 'Featured'
-								)
-							}
-						>
-							Featured
-						</button>
-						{allTags.slice(0, 8).map((tag) => (
-							<button
-								key={tag}
-								className={classNames(css.tagButton, {
-									[css.tagButtonActive]: selectedTag === tag,
-								})}
-								onClick={() =>
-									setSelectedTag(
-										selectedTag === tag ? null : tag
-									)
-								}
-							>
-								{tag}
-							</button>
-						))}
-					</div>
-					<div className={css.searchWrapper}>
-						<div className={css.searchIcon}>
-							<svg
-								width="18"
-								height="18"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-							>
-								<circle cx="11" cy="11" r="8" />
-								<path d="m21 21-4.35-4.35" />
-							</svg>
-						</div>
-						<input
-							type="text"
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							placeholder="Search Blueprints"
-							className={css.searchField}
-							autoFocus
-						/>
-					</div>
-				</div>
-				<OverlayBody>
-					<OverlaySection
-						title={
-							selectedTag || searchQuery
-								? `Showing ${filteredBlueprints.length} of ${allBlueprints.length} blueprints`
-								: `Showing all ${filteredBlueprints.length} blueprints`
-						}
-					>
-						{blueprintsLoading ? (
-							<div className={css.loadingContainer}>
-								<Spinner />
-							</div>
-						) : blueprintsError ? (
-							<p className={css.emptyMessage}>
-								Unable to load blueprints. Check your
-								connection.
-							</p>
-						) : filteredBlueprints.length === 0 ? (
-							<p className={css.emptyMessage}>
-								No Blueprints found matching your criteria.
-							</p>
-						) : (
-							<div className={css.blueprintsFullGrid}>
-								{filteredBlueprints.map((blueprint) => (
-									<button
-										key={blueprint.path}
-										className={css.blueprintCard}
-										onClick={() =>
-											previewBlueprint(blueprint.path)
-										}
-									>
-										<div className={css.blueprintThumbnail}>
-											{blueprint.screenshot_url ? (
-												<img
-													src={
-														blueprint.screenshot_url
-													}
-													alt=""
-													loading="lazy"
-												/>
-											) : (
-												<div
-													className={
-														css.blueprintPlaceholder
-													}
-												>
-													<WordPressIcon />
-												</div>
-											)}
-										</div>
-										<div className={css.blueprintInfo}>
-											<h3 className={css.blueprintTitle}>
-												{blueprint.title}
-											</h3>
-											<p
-												className={
-													css.blueprintDescription
-												}
-											>
-												{blueprint.description}
-											</p>
-											{blueprint.categories &&
-												blueprint.categories.length >
-													0 && (
-													<div
-														className={
-															css.blueprintTags
-														}
-													>
-														{blueprint.categories
-															.slice(0, 3)
-															.map((tag) => (
-																<span
-																	key={tag}
-																	className={
-																		css.blueprintTag
-																	}
-																>
-																	{tag}
-																</span>
-															))}
-													</div>
-												)}
-										</div>
-									</button>
-								))}
-							</div>
-						)}
-					</OverlaySection>
-				</OverlayBody>
-			</Overlay>
-		);
-	}
-
 	return (
-		<Overlay
-			onClose={onClose}
-			className={css.playgroundsOverlay}
-			contentClassName={css.playgroundsContent}
+		<div
+			className={classNames(css.playgroundsPane, {
+				[css.newPane]: panel === 'new',
+			})}
 		>
 			<input
 				type="file"
@@ -1756,23 +1587,9 @@ export function SavedPlaygroundsOverlay({
 				accept=".zip,application/zip"
 				style={{ display: 'none' }}
 			/>
-			<button
-				type="button"
-				className={css.playgroundsCloseButton}
-				aria-label="Close"
-				onClick={onClose}
-			>
-				<Icon icon={close} size={28} />
-			</button>
-			<OverlayBody className={css.playgroundsBody}>
-				<div className={css.playgroundsColumns}>
-					{renderNewPlaygroundSection()}
-					{renderYourPlaygroundsSection()}
-
-					{renderBlueprintPreviewSection()}
-				</div>
-			</OverlayBody>
-		</Overlay>
+			{panel !== 'new' && renderYourPlaygroundsSection()}
+			{panel !== 'playgrounds' && renderNewPlaygroundSection()}
+		</div>
 	);
 }
 

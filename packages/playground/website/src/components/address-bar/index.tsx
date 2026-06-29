@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Icon, MenuItem, NavigableMenu, Popover } from '@wordpress/components';
+import { Icon, Popover } from '@wordpress/components';
 import { home, wordpress, layout, pin } from '@wordpress/icons';
+import classNames from 'classnames';
 import css from './style.module.css';
 
 /**
@@ -84,12 +85,16 @@ export default function AddressBar({
 }: AddressBarProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-	const menuRef = useRef<HTMLDivElement>(null);
 	const [value, setValue] = useState(url || '');
 	const [isFocused, setIsFocused] = useState(false);
 	const [isOpen, setIsOpen] = useState(false);
-	const [focusMenu, setFocusMenu] = useState(false);
+	// -1 means no option is active; focus stays on the input and the active
+	// option is exposed via aria-activedescendant (WAI-ARIA combobox pattern).
+	const [activeIndex, setActiveIndex] = useState(-1);
 	const [menuWidth, setMenuWidth] = useState(0);
+
+	const LISTBOX_ID = 'address-bar-suggestions';
+	const optionId = (index: number) => `address-bar-suggestion-${index}`;
 
 	useEffect(() => {
 		if (!isFocused && url) {
@@ -97,7 +102,7 @@ export default function AddressBar({
 		}
 	}, [isFocused, url]);
 
-	// Update menu width when popover opens and track resize
+	// Update listbox width when it opens and track resize.
 	useEffect(() => {
 		if (!isOpen || !inputRef.current) {
 			return;
@@ -113,25 +118,17 @@ export default function AddressBar({
 		return () => resizeObserver.disconnect();
 	}, [isOpen]);
 
-	// Focus the first menu item when focusMenu is set
-	useEffect(() => {
-		if (focusMenu && menuRef.current) {
-			const firstItem = menuRef.current.querySelector(
-				'button, [role="menuitem"]'
-			) as HTMLElement;
-			if (firstItem) {
-				firstItem.focus();
-			}
-			setFocusMenu(false);
-		}
-	}, [focusMenu]);
+	function closeSuggestions() {
+		setIsOpen(false);
+		setActiveIndex(-1);
+	}
 
 	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		const requestedPath = inputRef.current!.value;
 		onUpdate?.(requestedPath);
 		inputRef.current!.blur();
-		setIsOpen(false);
+		closeSuggestions();
 	}
 
 	function handleRefresh(e: React.MouseEvent<HTMLButtonElement>) {
@@ -143,19 +140,36 @@ export default function AddressBar({
 
 	function handleNavigation(path: string) {
 		onUpdate?.(path);
-		setIsOpen(false);
+		closeSuggestions();
 		inputRef.current?.blur();
 	}
 
 	function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+		// Combobox keyboard model: focus stays on the input; arrow keys move the
+		// active option (Down lands on the first, Up wraps to the last), Enter
+		// chooses the active option (or, if none, submits the typed path).
+		const count = quickNavItems.length;
 		if (e.key === 'ArrowDown') {
 			e.preventDefault();
-			if (!isOpen) {
-				setIsOpen(true);
+			if (disabled) {
+				return;
 			}
-			setFocusMenu(true);
+			setIsOpen(true);
+			setActiveIndex((index) => (index + 1) % count);
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			if (disabled) {
+				return;
+			}
+			setIsOpen(true);
+			setActiveIndex((index) => (index <= 0 ? count - 1 : index - 1));
+		} else if (e.key === 'Enter') {
+			if (isOpen && activeIndex >= 0) {
+				e.preventDefault();
+				handleNavigation(quickNavItems[activeIndex].path);
+			}
 		} else if (e.key === 'Escape') {
-			setIsOpen(false);
+			closeSuggestions();
 		}
 	}
 
@@ -169,38 +183,19 @@ export default function AddressBar({
 
 	function handleBlur() {
 		setIsFocused(false);
-		// Close popover if focus moves outside the component
-		// Use setTimeout to allow focus to move to menu items first
+		// Close once focus leaves the whole control. Options are chosen via a
+		// mousedown that keeps focus on the input, so leaving the input means
+		// leaving the control.
 		setTimeout(() => {
-			const isInInput = inputRef.current?.contains(
-				document.activeElement
-			);
-			const isInMenu = menuRef.current?.contains(document.activeElement);
-			if (!isInInput && !isInMenu) {
-				setIsOpen(false);
+			if (!containerRef.current?.contains(document.activeElement)) {
+				closeSuggestions();
 			}
 		}, 0);
 	}
 
 	function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
 		setValue(e.target.value);
-	}
-
-	function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			setIsOpen(false);
-			inputRef.current?.focus();
-		} else if (e.key === 'ArrowUp') {
-			const firstItem = menuRef.current?.querySelector(
-				'button, [role="menuitem"]'
-			);
-			if (document.activeElement === firstItem) {
-				e.preventDefault();
-				e.stopPropagation();
-				inputRef.current?.focus();
-			}
-		}
+		setActiveIndex(-1);
 	}
 
 	return (
@@ -240,28 +235,49 @@ export default function AddressBar({
 					type="text"
 					aria-label='URL to visit in the WordPress site, like "/wp-admin"'
 					autoComplete="off"
+					role="combobox"
+					aria-autocomplete="list"
+					aria-haspopup="listbox"
+					aria-expanded={isOpen}
+					aria-controls={isOpen ? LISTBOX_ID : undefined}
+					aria-activedescendant={
+						isOpen && activeIndex >= 0
+							? optionId(activeIndex)
+							: undefined
+					}
 				/>
 				{isOpen && (
 					<Popover
 						placement="top-start"
-						onClose={() => setIsOpen(false)}
+						onClose={closeSuggestions}
 						anchor={inputRef.current}
 						noArrow={true}
 						focusOnMount={false}
 						className={css.popover}
 					>
-						<NavigableMenu
-							ref={menuRef}
+						<ul
+							id={LISTBOX_ID}
+							role="listbox"
 							className={css.suggestions}
-							onKeyDownCapture={handleMenuKeyDown}
-							onBlur={handleBlur}
 							style={{ width: menuWidth }}
 						>
-							{quickNavItems.map((item) => (
-								<MenuItem
+							{quickNavItems.map((item, index) => (
+								<li
 									key={item.path}
-									className={css.suggestionItem}
-									onClick={() => handleNavigation(item.path)}
+									id={optionId(index)}
+									role="option"
+									aria-selected={index === activeIndex}
+									className={classNames(css.suggestionItem, {
+										[css.suggestionItemActive]:
+											index === activeIndex,
+									})}
+									// mousedown (not click) so the input keeps focus
+									// and the blur-close doesn't fire first.
+									onMouseDown={(event) => {
+										event.preventDefault();
+										handleNavigation(item.path);
+									}}
+									onMouseEnter={() => setActiveIndex(index)}
 								>
 									<span className={css.suggestionIcon}>
 										{item.icon}
@@ -272,13 +288,22 @@ export default function AddressBar({
 									<span className={css.suggestionPath}>
 										{item.path}
 									</span>
-								</MenuItem>
+								</li>
 							))}
-						</NavigableMenu>
+						</ul>
 					</Popover>
 				)}
 			</div>
-			<input className={css.submit} type="submit" tabIndex={-1} />
+			{/* Off-screen submit so Enter in the input navigates. Hidden from AT
+			    and given an explicit value so it never surfaces the browser's
+			    localized default ("Submit"/"Prześlij"). */}
+			<input
+				className={css.submit}
+				type="submit"
+				value="Go"
+				tabIndex={-1}
+				aria-hidden="true"
+			/>
 		</form>
 	);
 }

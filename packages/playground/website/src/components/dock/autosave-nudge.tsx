@@ -1,0 +1,265 @@
+import { useEffect, useRef, useState } from 'react';
+import { Button, Icon, Popover } from '@wordpress/components';
+import { close, wordpress } from '@wordpress/icons';
+import { logger } from '@php-wasm/logger';
+import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
+import {
+	addDeclinedAutosaveRestoreFingerprint,
+	closeAutosaveNudgePanel,
+	dismissAutosaveNudge,
+	setAutosaveNudgeMuted,
+} from '../../lib/state/redux/slice-ui';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
+import { writeAutosaveNudgeMuted } from '../../lib/autosave-nudge-muted';
+import { getRelativeDate } from '../../lib/get-relative-date';
+import css from './autosave-nudge.module.css';
+
+/**
+ * The restore-a-recent-autosave panel. When Playground starts fresh from a setup
+ * URL but a recent autosave of the same Playground exists, this auto-opens once
+ * as a Popover anchored to the dock's Playgrounds tool (the home for recovery),
+ * pointing at one clear action — Restore — with honest wording about what an
+ * autosave is. A quiet link mutes the proactive cues (this panel + the dot)
+ * without disabling the safety net: autosaves stay restorable from Your
+ * Playgrounds. The dot on the Playgrounds tool persists after this panel closes.
+ */
+export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
+	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
+	const nudge = useAppSelector((state) => state.ui.autosaveNudge);
+	const panelOpen = useAppSelector(
+		(state) => state.ui.autosaveNudgePanelOpen
+	);
+	const muted = useAppSelector((state) => state.ui.autosaveNudgeMuted);
+	// Whether the current Playground failed to start (e.g. a download/boot error).
+	const activeSiteError = useAppSelector(
+		(state) => state.ui.activeSite?.error
+	);
+	const nudgeSite = useAppSelector((state) =>
+		nudge ? selectSiteBySlug(state, nudge.siteSlug) : undefined
+	);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [error, setError] = useState<string>();
+	const panelRef = useRef<HTMLDivElement>(null);
+
+	// Once-per-prompt guard so the dismiss paths that can fire together (the ✕, the
+	// click-away listener, and the Popover's own onClose) don't autosave the
+	// current session more than once.
+	const keptFingerprintRef = useRef<string | null>(null);
+
+	// Keep the current fresh session safe before the user steps away from the
+	// prompt: autosave it in place (no reboot) while protecting the older autosave
+	// from pruning so it stays restorable.
+	const keepCurrentSession = async () => {
+		if (
+			!nudge ||
+			keptFingerprintRef.current === nudge.setupUrlFingerprint
+		) {
+			return;
+		}
+		keptFingerprintRef.current = nudge.setupUrlFingerprint;
+		try {
+			await sitesAPI.autosaveTemporarySite(undefined, {
+				updateUrl: false,
+				excludeFromPruning: [nudge.siteSlug],
+			});
+			dispatch(
+				addDeclinedAutosaveRestoreFingerprint(nudge.setupUrlFingerprint)
+			);
+		} catch (restoreError) {
+			keptFingerprintRef.current = null;
+			logger.error(
+				'Error autosaving the current Playground.',
+				restoreError
+			);
+		}
+	};
+
+	// Dismissing the prompt — by the ✕, a click away, Escape, or losing focus to
+	// the preview — all mean "keep what I'm working on": autosave the current
+	// session in place, then hide the panel. The dot stays, so restoring the older
+	// autosave is still one click away from Your Playgrounds.
+	const dismiss = () => {
+		void keepCurrentSession();
+		dispatch(closeAutosaveNudgePanel());
+	};
+	// Hold the latest dismiss so the click-away effect can call it without
+	// re-subscribing its listeners on every render.
+	const dismissRef = useRef(dismiss);
+	dismissRef.current = dismiss;
+
+	// Dismiss on a click outside the panel. A document listener covers the dock
+	// and surrounding chrome; a window-blur check covers clicks landing in the
+	// WordPress preview iframe (whose clicks never reach the parent document).
+	// The blur check is armed after a short delay so a focus shuffle during boot
+	// doesn't close the panel the moment it opens.
+	useEffect(() => {
+		if (!panelOpen) {
+			return;
+		}
+		let blurArmed = false;
+		const armTimer = window.setTimeout(() => {
+			blurArmed = true;
+		}, 300);
+		const onPointerDown = (event: MouseEvent) => {
+			const target = event.target;
+			if (
+				panelRef.current &&
+				target instanceof Node &&
+				!panelRef.current.contains(target)
+			) {
+				dismissRef.current();
+			}
+		};
+		const onWindowBlur = () => {
+			if (!blurArmed) {
+				return;
+			}
+			window.setTimeout(() => {
+				if (document.activeElement instanceof HTMLIFrameElement) {
+					dismissRef.current();
+				}
+			}, 0);
+		};
+		document.addEventListener('mousedown', onPointerDown, true);
+		window.addEventListener('blur', onWindowBlur);
+		return () => {
+			window.clearTimeout(armTimer);
+			document.removeEventListener('mousedown', onPointerDown, true);
+			window.removeEventListener('blur', onWindowBlur);
+		};
+	}, [panelOpen]);
+
+	// Don't offer to restore an autosave while the current Playground is in an
+	// error state: the prompt is moot, and its buttons would sit behind the
+	// start-error modal (so "Restore"/dismiss wouldn't even be clickable). Clear
+	// it entirely — including the dock dot — so no autosave cue shows on an error.
+	useEffect(() => {
+		if (activeSiteError && nudge) {
+			dispatch(dismissAutosaveNudge());
+		}
+	}, [activeSiteError, nudge, dispatch]);
+
+	if (!nudge || !panelOpen || !anchor || activeSiteError) {
+		return null;
+	}
+
+	const siteName = nudgeSite?.metadata.name || 'Your last session';
+	const createdAt = new Date(nudge.whenCreated ?? Date.now());
+
+	const handleRestore = async () => {
+		setError(undefined);
+		setIsRestoring(true);
+		try {
+			await sitesAPI.setActiveSite(nudge.siteSlug);
+			dispatch(dismissAutosaveNudge());
+		} catch (restoreError) {
+			logger.error('Error restoring autosaved Playground.', restoreError);
+			setError(
+				'Could not restore the autosave. Open Your Playgrounds to try again.'
+			);
+		} finally {
+			setIsRestoring(false);
+		}
+	};
+
+	const handleMute = () => {
+		void keepCurrentSession();
+		writeAutosaveNudgeMuted(true);
+		dispatch(setAutosaveNudgeMuted(true));
+	};
+
+	const handleUnmute = () => {
+		writeAutosaveNudgeMuted(false);
+		dispatch(setAutosaveNudgeMuted(false));
+	};
+
+	return (
+		<Popover
+			anchor={anchor}
+			placement="top"
+			offset={12}
+			// Slide along the anchor to stay within the viewport. Without this the
+			// panel overflows the screen edge on narrow/mobile layouts, where the
+			// Playgrounds tool sits near the left of the full-width bottom bar.
+			shift
+			focusOnMount={false}
+			className={css.popover}
+			onClose={dismiss}
+		>
+			<div
+				className={css.panel}
+				ref={panelRef}
+				aria-label="Recent autosave"
+			>
+				<button
+					type="button"
+					className={css.close}
+					aria-label="Dismiss recent autosave"
+					onClick={dismiss}
+				>
+					<Icon icon={close} size={18} />
+				</button>
+				{muted ? (
+					<div className={css.muted}>
+						<p className={css.mutedText}>
+							Autosave notices are off. You can still restore
+							autosaves from Your&nbsp;Playgrounds.
+						</p>
+						<button
+							type="button"
+							className={css.link}
+							onClick={handleUnmute}
+						>
+							Turn notices back on
+						</button>
+					</div>
+				) : (
+					<>
+						<p className={css.title}>Recent autosave</p>
+						<div className={css.card}>
+							<span className={css.icon} aria-hidden="true">
+								<Icon icon={wordpress} size={26} />
+							</span>
+							<div className={css.cardBody}>
+								<div className={css.name} title={siteName}>
+									{siteName}
+								</div>
+								<div className={css.meta}>
+									Autosaved {getRelativeDate(createdAt)}
+								</div>
+							</div>
+						</div>
+						<Button
+							variant="primary"
+							className={css.restore}
+							onClick={handleRestore}
+							disabled={isRestoring}
+						>
+							{isRestoring ? 'Restoring…' : 'Restore autosave'}
+						</Button>
+						{error && (
+							<p className={css.error} role="alert">
+								{error}
+							</p>
+						)}
+						<p className={css.fine}>
+							Kept in this browser as a periodic snapshot — not
+							every change is saved.
+						</p>
+						<div className={css.foot}>
+							<button
+								type="button"
+								className={css.link}
+								onClick={handleMute}
+							>
+								Don’t notify me about autosaves
+							</button>
+						</div>
+					</>
+				)}
+			</div>
+		</Popover>
+	);
+}

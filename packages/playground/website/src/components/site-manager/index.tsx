@@ -32,7 +32,10 @@ export const SiteManager = forwardRef<
 >(({ className }, ref) => {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const fullScreenSections = useMediaQuery('(max-width: 875px)');
+	// Match the dock's MOBILE_QUERY (1024px) so the inner panel switches to its
+	// mobile layout exactly when the dock makes the pane full-screen, instead of
+	// disagreeing between 876–1024px.
+	const fullScreenSections = useMediaQuery('(max-width: 1024px)');
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
 	);
@@ -71,7 +74,6 @@ export const SiteManager = forwardRef<
 						site={activeSite}
 						mobileUi={fullScreenSections}
 						activeTabName={activeTabName}
-						showHeader={false}
 					/>
 				) : null;
 			break;

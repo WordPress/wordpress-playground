@@ -2,6 +2,8 @@ import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
+import { readAutosaveNudgeMuted } from '../../autosave-nudge-muted';
+import { readDockFullWidth } from '../../dock-full-width';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -179,20 +181,44 @@ export interface UIState {
 	 */
 	writeOwnBlueprintDraft?: string;
 	/**
+	 * Slug of the Playground the New pane's "Write a Blueprint" editor was seeded
+	 * from, so reopening the pane for the same Playground reuses the existing
+	 * draft instead of reseeding it from the starter Blueprint.
+	 */
+	writeOwnSeededSlug?: string;
+	/**
 	 * Whether the Share pane is showing the inline "Export to GitHub" sub-view.
 	 * The dock reads this to drop its own pane header so the sub-view shows a
 	 * single header instead of two.
 	 */
 	shareExportOpen: boolean;
 	/**
+	 * Whether the dock is pinned full-width (docked to the bottom edge) rather
+	 * than free-floating. The layout reads this to obscure the preview behind a
+	 * docked pane.
+	 */
+	dockFullWidth: boolean;
+	/**
 	 * A recent autosave from the same setup URL that the user can restore.
-	 * Surfaced as a popover anchored to the dock's save-status button.
+	 * Surfaced as a popover anchored to the dock's Playgrounds tool.
 	 */
 	autosaveNudge?: {
 		siteSlug: string;
 		setupUrlFingerprint: string;
 		whenCreated?: number;
 	} | null;
+	/**
+	 * Whether the autosave nudge panel is currently shown. The nudge itself can
+	 * stay set (so the dot on the Playgrounds tool persists) after the panel is
+	 * closed, so panel visibility is tracked separately.
+	 */
+	autosaveNudgePanelOpen: boolean;
+	/**
+	 * Whether the user muted the proactive autosave cues (the nudge panel and the
+	 * dot). Persisted across sessions; autosaves stay restorable from Your
+	 * Playgrounds regardless.
+	 */
+	autosaveNudgeMuted: boolean;
 	/**
 	 * Setup-URL fingerprints the user declined to restore, so we don't reprompt
 	 * for the same URL within this session.
@@ -240,7 +266,10 @@ const initialState: UIState = {
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
 	shareExportOpen: false,
+	dockFullWidth: readDockFullWidth(),
 	autosaveNudge: null,
+	autosaveNudgePanelOpen: false,
+	autosaveNudgeMuted: readAutosaveNudgeMuted(),
 	declinedAutosaveRestoreFingerprints: [],
 };
 
@@ -318,8 +347,17 @@ const uiSlice = createSlice({
 		) => {
 			state.writeOwnBlueprintDraft = action.payload;
 		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
+		},
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
+		},
+		setDockFullWidth: (state, action: PayloadAction<boolean>) => {
+			state.dockFullWidth = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
@@ -348,9 +386,20 @@ const uiSlice = createSlice({
 			}>
 		) => {
 			state.autosaveNudge = action.payload;
+			// A fresh nudge auto-opens its panel once.
+			state.autosaveNudgePanelOpen = true;
 		},
 		dismissAutosaveNudge: (state) => {
 			state.autosaveNudge = null;
+			state.autosaveNudgePanelOpen = false;
+		},
+		// Hide the nudge panel but keep the nudge itself set, so the dot on the
+		// Playgrounds tool persists and the autosave stays one click away.
+		closeAutosaveNudgePanel: (state) => {
+			state.autosaveNudgePanelOpen = false;
+		},
+		setAutosaveNudgeMuted: (state, action: PayloadAction<boolean>) => {
+			state.autosaveNudgeMuted = action.payload;
 		},
 		addDeclinedAutosaveRestoreFingerprint: (
 			state,
@@ -409,12 +458,16 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
 	setShareExportOpen,
+	setDockFullWidth,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
 	setAutosaveNudge,
 	dismissAutosaveNudge,
+	closeAutosaveNudgePanel,
+	setAutosaveNudgeMuted,
 	addDeclinedAutosaveRestoreFingerprint,
 } = uiSlice.actions;
 

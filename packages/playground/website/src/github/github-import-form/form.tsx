@@ -40,6 +40,13 @@ function getClient() {
 	}
 	return octokitClient;
 }
+/**
+ * Drops the cached client so the next getClient() rebuilds it with the current
+ * token. Called after a 401 so re-authenticating actually takes effect.
+ */
+function resetClient() {
+	octokitClient = undefined;
+}
 
 export default function GitHubImportForm({
 	playground,
@@ -82,6 +89,7 @@ export default function GitHubImportForm({
 				setErrors({
 					url: 'This URL is not supported',
 				});
+				return;
 			}
 			logger.log(info);
 			setUrlInformation(info);
@@ -104,6 +112,7 @@ export default function GitHubImportForm({
 					switch (e.status) {
 						case 401:
 							setOAuthToken(undefined);
+							resetClient();
 							return;
 						case 404:
 							setErrors({
@@ -200,7 +209,9 @@ export default function GitHubImportForm({
 						/>
 					</label>
 					{'url' in errors ? (
-						<div className={forms.error}>{errors.url}</div>
+						<div role="alert" className={forms.error}>
+							{errors.url}
+						</div>
 					) : null}
 					<WPButton
 						variant="link"
@@ -296,7 +307,10 @@ export default function GitHubImportForm({
 										</select>
 									</label>
 									{'contentType' in errors ? (
-										<div className={forms.error}>
+										<div
+											role="alert"
+											className={forms.error}
+										>
 											{errors.contentType}
 										</div>
 									) : null}
@@ -321,7 +335,10 @@ export default function GitHubImportForm({
 										/>
 									</label>
 									{'path' in errors ? (
-										<div className={forms.error}>
+										<div
+											role="alert"
+											className={forms.error}
+										>
 											{errors.path}
 										</div>
 									) : null}

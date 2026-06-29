@@ -70,6 +70,9 @@ export function EnsurePlaygroundSiteIsSelected({
 	const declinedAutosaveRestoreFingerprints = useAppSelector(
 		(state) => state.ui.declinedAutosaveRestoreFingerprints
 	);
+	const autosaveNudgeMuted = useAppSelector(
+		(state) => state.ui.autosaveNudgeMuted
+	);
 	const currentSetupUrlFingerprint = useMemo(
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
@@ -189,6 +192,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
+					!autosaveNudgeMuted &&
 					!declinedAutosaveRestoreFingerprints.includes(
 						currentSetupUrlFingerprint
 					) &&
@@ -228,6 +232,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		declinedAutosaveRestoreFingerprints,
+		autosaveNudgeMuted,
 		url.href,
 		requestedSiteSlug,
 		siteListingStatus,
@@ -256,8 +261,8 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
-	// The restore-autosave nudge now renders as a popover anchored to the dock's
-	// save-status button (see SaveStatusIndicator); this component only detects
+	// The restore-autosave nudge renders as a panel anchored to the dock's
+	// Playgrounds tool (see Dock + AutosaveNudge); this component only detects
 	// the matching autosave and publishes it to the store.
 	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;

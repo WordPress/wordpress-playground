@@ -156,3 +156,13 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+/* --- Restored from the deployed build --- */
+
+.suggestion-item:hover,
+.suggestion-item-active {
+	background: #4f5861;
+	color: #e0e6eb;
+	outline: none;
+	box-shadow: none;
+}

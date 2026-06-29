@@ -35,10 +35,16 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 interface GitHubOAuthGuardProps {
 	children?: React.ReactNode;
 	mayLoseProgress?: boolean;
+	/**
+	 * Lead copy shown above the connect button. Defaults to import-oriented text;
+	 * the export flow passes its own so the guard doesn't say "Import…" there.
+	 */
+	intro?: React.ReactNode;
 }
 export default function GitHubOAuthGuard({
 	children,
 	mayLoseProgress,
+	intro,
 }: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (
@@ -56,14 +62,18 @@ export default function GitHubOAuthGuard({
 		return <div>{children}</div>;
 	}
 
-	return <Authenticate mayLoseProgress={mayLoseProgress} />;
+	return <Authenticate mayLoseProgress={mayLoseProgress} intro={intro} />;
 }
 
 interface AuthenticateProps {
 	mayLoseProgress?: boolean;
+	intro?: React.ReactNode;
 }
 
-function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
+function Authenticate({
+	mayLoseProgress = undefined,
+	intro,
+}: AuthenticateProps) {
 	const [exported, setExported] = useState(false);
 	const [error, setError] = useState<string>();
 	const buttonClass = classNames(css.githubButton, {
@@ -73,8 +83,8 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 	return (
 		<div className={css.authenticate}>
 			<p>
-				Import plugins, themes, or a wp-content directory from any
-				public GitHub repository.
+				{intro ??
+					'Import plugins, themes, or a wp-content directory from any public GitHub repository.'}
 			</p>
 			{mayLoseProgress ? (
 				<>

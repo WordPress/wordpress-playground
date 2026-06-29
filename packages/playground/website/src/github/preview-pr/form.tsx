@@ -5,6 +5,8 @@ import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type { ResolvedRef } from './resolve-pr-input';
+import { resolvePrInput } from './resolve-pr-input';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
@@ -38,95 +40,6 @@ export const targetParams = {
 	},
 };
 
-type ResolvedRef = {
-	target: 'wordpress' | 'gutenberg';
-	ref: string;
-	isBranch: boolean;
-};
-
-// WordPress Core builds artifacts per pull request, not per branch, so a branch
-// name (or branch URL) can't be previewed. Gutenberg branches still work.
-const WP_BRANCH_ERROR =
-	"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)";
-
-/**
- * Resolves free-form input into a repository + reference. A recognized GitHub
- * URL decides the repository; a bare number is a pull request on the preferred
- * repository; anything else is a branch name, which only Gutenberg supports.
- */
-function resolvePrInput(
-	raw: string,
-	preferredTarget: 'wordpress' | 'gutenberg'
-): { ok: true; value: ResolvedRef } | { ok: false; error: string } {
-	const input = raw.trim();
-	if (!input) {
-		return { ok: false, error: 'Enter a pull request number or URL.' };
-	}
-
-	const gutenbergPr = input.match(
-		/github\.com\/[^/]+\/gutenberg\/pull\/(\d+)/i
-	);
-	if (gutenbergPr) {
-		return {
-			ok: true,
-			value: {
-				target: 'gutenberg',
-				ref: gutenbergPr[1],
-				isBranch: false,
-			},
-		};
-	}
-
-	const gutenbergBranch = input.match(
-		/github\.com\/[^/]+\/gutenberg\/tree\/(.+)$/i
-	);
-	if (gutenbergBranch) {
-		return {
-			ok: true,
-			value: {
-				target: 'gutenberg',
-				ref: gutenbergBranch[1].replace(/\/+$/, ''),
-				isBranch: true,
-			},
-		};
-	}
-
-	const wordpressPr = input.match(
-		/github\.com\/[^/]+\/wordpress-develop\/pull\/(\d+)/i
-	);
-	if (wordpressPr) {
-		return {
-			ok: true,
-			value: {
-				target: 'wordpress',
-				ref: wordpressPr[1],
-				isBranch: false,
-			},
-		};
-	}
-
-	if (/github\.com\/[^/]+\/wordpress-develop\/tree\//i.test(input)) {
-		return { ok: false, error: WP_BRANCH_ERROR };
-	}
-
-	if (/^\d+$/.test(input)) {
-		return {
-			ok: true,
-			value: { target: preferredTarget, ref: input, isBranch: false },
-		};
-	}
-
-	// Bare, non-numeric, no recognized URL: treat as a branch name. Gutenberg
-	// supports branches; WordPress Core does not.
-	if (preferredTarget === 'gutenberg') {
-		return {
-			ok: true,
-			value: { target: 'gutenberg', ref: input, isBranch: true },
-		};
-	}
-	return { ok: false, error: WP_BRANCH_ERROR };
-}
-
 export default function PreviewPRForm({
 	onClose,
 	target = 'wordpress',
@@ -135,6 +48,11 @@ export default function PreviewPRForm({
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	// Track retry timers so they can be cancelled if the form unmounts mid-wait
+	// (e.g. closing the dock pane), instead of firing a retry after teardown.
+	const retryTimersRef = React.useRef<Array<ReturnType<typeof setTimeout>>>(
+		[]
+	);
 
 	useEffect(() => {
 		const query = new URLSearchParams(window.location.search);
@@ -142,6 +60,16 @@ export default function PreviewPRForm({
 			const prNumber = query.get('core-pr');
 			prNumber && setValue(prNumber);
 		}
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			for (const timer of retryTimersRef.current) {
+				clearTimeout(timer);
+				clearInterval(timer);
+			}
+			retryTimersRef.current = [];
+		};
 	}, []);
 
 	async function handleSubmit(e: React.FormEvent) {
@@ -188,7 +116,17 @@ export default function PreviewPRForm({
 		// artifact with prefix matching. For PRs, verify the build exists.
 		if (!isBranch) {
 			const zipArtifactUrl = buildArtifactUrl(resolved);
-			const response = await fetch(zipArtifactUrl + '&verify_only=true');
+			let response: Response;
+			try {
+				response = await fetch(zipArtifactUrl + '&verify_only=true');
+			} catch (e) {
+				logger.error(e);
+				setError(
+					'Could not reach the build server. Check your connection and try again.'
+				);
+				setSubmitting(false);
+				return;
+			}
 			if (response.status !== 200) {
 				let error = 'invalid_pr_number';
 				try {
@@ -199,6 +137,7 @@ export default function PreviewPRForm({
 				} catch (e) {
 					logger.error(e);
 					setError('An unexpected error occurred. Please try again.');
+					setSubmitting(false);
 					return;
 				}
 
@@ -223,10 +162,18 @@ export default function PreviewPRForm({
 							}
 							renderRetryIn(resolved, retryIn);
 						}, 1000);
-						setTimeout(() => {
+						const retryTimeout = setTimeout(() => {
 							clearInterval(timerInterval);
 							previewRef(resolved);
 						}, retryIn);
+						// Only one retry is ever pending at a time; clear any
+						// already-finished handles so the list can't grow
+						// unbounded across a long (15min+) retry loop.
+						retryTimersRef.current.forEach((timer) => {
+							clearTimeout(timer);
+							clearInterval(timer);
+						});
+						retryTimersRef.current = [timerInterval, retryTimeout];
 					}
 				} else if (error === 'artifact_invalid') {
 					setError(

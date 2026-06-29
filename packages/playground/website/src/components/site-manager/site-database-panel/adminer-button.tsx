@@ -61,21 +61,27 @@ export function AdminerButton({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		async function detectAdminer() {
-			if (!playground) {
-				return;
-			}
-
-			const documentRoot = await playground.documentRoot;
-			const adminerPath = `${documentRoot}/adminer`;
-
-			if (await playground.isDir(adminerPath)) {
-				setState('ready');
-			} else {
-				setState('idle');
-			}
+		if (!playground) {
+			setState('idle');
+			setError(null);
+			return;
 		}
-		detectAdminer();
+		let cancelled = false;
+
+		async function detectAdminer() {
+			if (!playground) return;
+			const documentRoot = await playground.documentRoot;
+			if (cancelled) return;
+			const adminerPath = `${documentRoot}/adminer`;
+			const isDir = await playground.isDir(adminerPath);
+			if (cancelled) return;
+			setState(isDir ? 'ready' : 'idle');
+		}
+
+		void detectAdminer();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenAdminer = async () => {

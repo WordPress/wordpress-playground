@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import css from './save-status-indicator.module.css';
 import classNames from 'classnames';
+import { getOpfsSyncProgressPercent } from '../../lib/opfs-sync-progress';
 import {
 	useAppSelector,
 	getActiveClientInfo,
@@ -11,16 +12,8 @@ import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToSave,
-	dismissAutosaveNudge,
-	addDeclinedAutosaveRestoreFingerprint,
 } from '../../lib/state/redux/slice-ui';
-import {
-	Icon,
-	Tooltip,
-	Popover,
-	Dropdown,
-	Button,
-} from '@wordpress/components';
+import { Icon, Tooltip, Dropdown, Button } from '@wordpress/components';
 import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
 import {
 	isAutosavedSite,
@@ -30,11 +23,16 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
-import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { logger } from '@php-wasm/logger';
-import { RestoreAutosaveNudge } from '../ensure-playground-site/restore-autosave-nudge';
+import { Spinner } from '../spinner';
 
-type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
+type SaveStatus =
+	| 'saved'
+	| 'autosaved'
+	| 'unsaved'
+	| 'saving'
+	| 'loading'
+	| 'error';
 
 /**
  * Compact persistence status for the dock. The actionable states (autosaved,
@@ -46,11 +44,6 @@ export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const sitesAPI = useSitesAPI();
-	const autosaveNudge = useAppSelector((state) => state.ui.autosaveNudge);
-	const [nudgeAnchor, setNudgeAnchor] = useState<HTMLElement | null>(null);
-	const [nudgeBusy, setNudgeBusy] = useState(false);
-	const [nudgeError, setNudgeError] = useState<string>();
 	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -99,77 +92,21 @@ export function SaveStatusIndicator() {
 		}
 	};
 
-	const handleRestoreAutosave = async () => {
-		if (!autosaveNudge) {
-			return;
-		}
-		setNudgeError(undefined);
-		setNudgeBusy(true);
-		try {
-			await sitesAPI.setActiveSite(autosaveNudge.siteSlug);
-			dispatch(dismissAutosaveNudge());
-		} catch (error) {
-			logger.error('Error restoring autosaved Playground.', error);
-			setNudgeError(
-				'Could not restore the autosave. Try again or keep the new Playground.'
-			);
-		} finally {
-			setNudgeBusy(false);
-		}
-	};
-
-	const handleKeepNew = async () => {
-		if (!autosaveNudge) {
-			return;
-		}
-		setNudgeError(undefined);
-		setNudgeBusy(true);
-		try {
-			await sitesAPI.autosaveTemporarySite(undefined, {
-				updateUrl: false,
-				excludeFromPruning: [autosaveNudge.siteSlug],
-			});
-			dispatch(
-				addDeclinedAutosaveRestoreFingerprint(
-					autosaveNudge.setupUrlFingerprint
-				)
-			);
-			dispatch(dismissAutosaveNudge());
-		} catch (error) {
-			logger.error(
-				'Error autosaving the new Playground after declining restore.',
-				error
-			);
-			setNudgeError(
-				'Could not keep the new Playground. Please try again.'
-			);
-		} finally {
-			setNudgeBusy(false);
-		}
-	};
-
-	const autosaveNudgePopover = autosaveNudge && nudgeAnchor && (
-		<Popover
-			anchor={nudgeAnchor}
-			placement="top"
-			offset={12}
-			focusOnMount={false}
-			className={css.autosaveNudgePopover}
-			onClose={() => dispatch(dismissAutosaveNudge())}
-		>
-			<RestoreAutosaveNudge
-				whenCreated={autosaveNudge.whenCreated}
-				error={nudgeError}
-				isBusy={nudgeBusy}
-				onRestore={handleRestoreAutosave}
-				onKeepNew={handleKeepNew}
-				onDismiss={() => dispatch(dismissAutosaveNudge())}
-			/>
-		</Popover>
-	);
-
 	if (!status) {
 		return null;
+	}
+
+	if (status === 'loading') {
+		// The runtime hasn't connected yet — a calm spinner instead of a
+		// premature "Autosaved"/"Saved" claim. Not actionable while loading.
+		return (
+			<div className={classNames(css.indicator, css.loading)}>
+				<Spinner size={16} />
+				<span className={css.label} role="status">
+					Loading…
+				</span>
+			</div>
+		);
 	}
 
 	if (status === 'saved') {
@@ -259,16 +196,13 @@ export function SaveStatusIndicator() {
 	if (status === 'saving') {
 		const progress =
 			opfsSync?.status === 'syncing' ? opfsSync.progress : undefined;
-		const progressPercent = getProgressPercent(progress);
+		const progressPercent = getOpfsSyncProgressPercent(progress);
+		const syncLabel = getSyncLabel(opfsSync);
 		return (
-			<div
-				className={classNames(css.indicator, css.saving)}
-				aria-label={`${getSyncLabel({
-					site: activeSite,
-					opfsSync,
-				})} ${progressPercent}%`}
-				role="status"
-			>
+			<div className={classNames(css.indicator, css.saving)}>
+				{/* The ring carries the live percentage as a progressbar value.
+				    It is NOT inside a live region, so screen readers expose the
+				    number on demand without re-announcing it on every sync tick. */}
 				<span
 					className={css.progressRing}
 					style={
@@ -276,10 +210,16 @@ export function SaveStatusIndicator() {
 							'--save-progress': `${progressPercent}%`,
 						} as React.CSSProperties
 					}
-					aria-hidden="true"
+					role="progressbar"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={progressPercent}
+					aria-label={syncLabel}
 				/>
-				<span className={css.label}>
-					{getSyncLabel({ site: activeSite, opfsSync })}
+				{/* Only the coarse verb is a live region, so it announces "Saving"
+				    once instead of spamming "Saving 41%, 42%…". */}
+				<span className={css.label} role="status">
+					{syncLabel}
 				</span>
 			</div>
 		);
@@ -308,26 +248,23 @@ export function SaveStatusIndicator() {
 	// isn't, there is no action to offer, so it reads as plain status text.
 	if (canStorePermanently) {
 		return (
-			<span className={css.statusAnchor} ref={setNudgeAnchor}>
-				<Tooltip
-					text="Temporary Playground — everything is lost on refresh. Click to store it permanently."
-					placement="top"
+			<Tooltip
+				text="Temporary Playground — everything is lost on refresh. Click to store it permanently."
+				placement="top"
+			>
+				<button
+					className={classNames(
+						css.indicator,
+						css.unsaved,
+						css.actionable
+					)}
+					onClick={openStorePermanently}
+					type="button"
 				>
-					<button
-						className={classNames(
-							css.indicator,
-							css.unsaved,
-							css.actionable
-						)}
-						onClick={openStorePermanently}
-						type="button"
-					>
-						<Icon icon={cautionFilled} size={18} />
-						<span className={css.label}>Unsaved</span>
-					</button>
-				</Tooltip>
-				{autosaveNudgePopover}
-			</span>
+					<Icon icon={cautionFilled} size={18} />
+					<span className={css.label}>Unsaved</span>
+				</button>
+			</Tooltip>
 		);
 	}
 
@@ -345,8 +282,10 @@ export function SaveStatusIndicator() {
 /**
  * Collapses site storage and OPFS sync state into one browser-chrome status.
  *
- * A newly-created OPFS site has saved metadata before its iframe client exists,
- * so `initialOpfsSyncPending` must still render as an in-progress save.
+ * A stored Playground whose iframe client hasn't connected yet is still loading,
+ * so it reads as 'loading' rather than claiming a settled "Saved"/"Autosaved" —
+ * the runtime isn't up and nothing is being persisted yet. 'saving' is reserved
+ * for an actual OPFS sync in progress (which only happens once connected).
  */
 function getSaveStatus(
 	site: SiteInfo | undefined,
@@ -360,15 +299,17 @@ function getSaveStatus(
 	if (opfsSync?.status === 'error') {
 		return 'error';
 	}
-	if (
-		opfsSync?.status === 'syncing' ||
-		(!clientInfo && site.metadata.initialOpfsSyncPending)
-	) {
+	if (opfsSync?.status === 'syncing') {
 		return 'saving';
 	}
 	const storage = site?.metadata.storage;
 	if (storage === 'none' || !storage) {
 		return 'unsaved';
+	}
+	// A stored Playground whose runtime hasn't connected yet is still loading —
+	// don't claim it's "Saved"/"Autosaved" until it's actually up.
+	if (!clientInfo) {
+		return 'loading';
 	}
 	if (isAutosaved) {
 		return 'autosaved';
@@ -379,35 +320,11 @@ function getSaveStatus(
 /**
  * Uses the sync operation when it is known, then falls back to site lifecycle.
  *
- * `initialOpfsSyncPending` alone is not enough to mean "autosaving": explicit
- * browser saves also do their first MEMFS-to-OPFS sync after boot. Known
- * autosaved Playgrounds keep the completed-state label while the pending OPFS
- * sync finishes because they are already represented as autosaves in Site Manager.
+ * This is only shown while a sync is actually in progress, so it always reports
+ * the in-progress verb — "Autosaving" for an autosave, "Saving" for an explicit
+ * browser save — never the settled "Autosaved" (a spinner next to "Autosaved"
+ * would contradict itself).
  */
-function getSyncLabel({
-	site,
-	opfsSync,
-}: {
-	site: SiteInfo | undefined;
-	opfsSync: OpfsSync | undefined;
-}) {
-	if (opfsSync?.operation === 'save') {
-		return 'Saving';
-	}
-	if (site && isAutosavedSite(site)) {
-		return 'Autosaved';
-	}
+function getSyncLabel(opfsSync: OpfsSync | undefined) {
 	return opfsSync?.operation === 'autosave' ? 'Autosaving' : 'Saving';
-}
-
-/**
- * Turns OPFS file-count progress into the bounded percentage used by the ring.
- */
-function getProgressPercent(
-	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
-) {
-	if (!progress || progress.total <= 0) {
-		return 0;
-	}
-	return Math.min(100, Math.round((progress.files / progress.total) * 100));
 }

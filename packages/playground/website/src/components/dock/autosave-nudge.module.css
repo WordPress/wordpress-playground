@@ -1,0 +1,153 @@
+/* Reconstructed from the deployed build. */
+
+.popover .components-popover__content {
+	border-radius: var(--radius-card, 8px);
+	box-shadow:
+		0 16px 40px #2821173d,
+		0 4px 12px #28211724;
+}
+
+.panel {
+	color: var(--ink, #21201d);
+	max-width: calc(100vw - 32px);
+	padding: var(--space-3, 12px);
+	position: relative;
+	width: 296px;
+}
+
+.close {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control, 6px);
+	color: var(--ink-faint, #8a857b);
+	cursor: pointer;
+	display: flex;
+	height: 28px;
+	justify-content: center;
+	padding: 0;
+	position: absolute;
+	right: 4px;
+	top: 4px;
+	width: 28px;
+}
+
+.close:hover {
+	background: #0000000f;
+	color: var(--ink, #21201d);
+}
+
+.close svg {
+	fill: currentColor;
+}
+
+.title {
+	color: var(--ink-faint, #8a857b);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	margin: 0 24px var(--space-2, 8px) 0;
+	text-transform: uppercase;
+}
+
+.card {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3, 12px);
+}
+
+.icon {
+	align-items: center;
+	background: var(--paper-3, #efece6);
+	border-radius: var(--radius-control, 6px);
+	color: var(--ink-soft, #3f3b35);
+	display: flex;
+	flex: none;
+	height: 38px;
+	justify-content: center;
+	width: 38px;
+}
+
+.icon svg {
+	fill: currentColor;
+}
+
+._cardBody_186q4_78 {
+	min-width: 0;
+}
+
+.name {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.meta {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+.restore {
+	justify-content: center;
+	margin-top: var(--space-3, 12px);
+	width: 100%;
+}
+
+.error {
+	color: var(--color-alert-red, #cc1818);
+	font-size: 12px;
+	line-height: 1.4;
+	margin: var(--space-2, 8px) 2px 0;
+}
+
+.fine {
+	color: var(--ink-faint, #8a857b);
+	font-size: 11.5px;
+	line-height: 1.5;
+	margin: 9px 2px 0;
+}
+
+.foot {
+	margin-top: var(--space-2, 8px);
+}
+
+.link {
+	background: none;
+	border: 0;
+	color: var(--accent-link, #2645c9);
+	cursor: pointer;
+	font: inherit;
+	font-size: 12.5px;
+	padding: 0;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.link:hover {
+	color: var(--accent, #3858e9);
+}
+
+.muted {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2, 8px);
+}
+
+.muted-text {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 12.5px;
+	line-height: 1.5;
+	margin: 0;
+	padding-right: 22px;
+}
+
+/* --- Restored from the deployed build --- */
+
+.cardBody {
+	min-width: 0px;
+}

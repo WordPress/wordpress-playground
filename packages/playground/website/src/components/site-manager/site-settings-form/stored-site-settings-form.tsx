@@ -32,10 +32,16 @@ export function StoredSiteSettingsForm({
 
 	const defaultValues = useMemo<Partial<SiteFormData>>(
 		() => ({
-			name: siteInfo.metadata.name,
 			// @TODO: Handle an unsupported PHP version coming up here
 			phpVersion: siteInfo.metadata.runtimeConfiguration
 				.phpVersion as any,
+			// Show the version this stored Playground is actually running, not the
+			// generic "latest" default. The fields are read-only for stored sites,
+			// so a blank "-- Select a version --" misreports the real config.
+			// Fall back to 'latest' (resolved to the concrete latest by the form)
+			// when the stored config didn't record a version.
+			wpVersion:
+				siteInfo.metadata.runtimeConfiguration.wpVersion || 'latest',
 			withNetworking: !!siteInfo.metadata.runtimeConfiguration.networking,
 		}),
 		[siteInfo]

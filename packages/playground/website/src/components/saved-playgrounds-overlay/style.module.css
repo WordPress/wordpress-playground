@@ -1788,3 +1788,60 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
+
+/* --- Restored from the deployed build --- */
+
+@keyframes _siteRowSavingSpin_113k7_440 {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* --- Restored from the deployed build --- */
+
+@keyframes siteRowSavingSpin {
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0px;
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-control, 6px);
+	background: var(--paper-2, #faf8f5);
+	color: var(--ink-muted, #5f5b54);
+	cursor: pointer;
+	box-shadow: rgba(40, 33, 23, 0.08) 0px 1px 2px;
+	transition:
+		background 0.12s,
+		color 0.12s;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:hover:not(:disabled) {
+	background: var(--paper-4, #e7e2da);
+	color: var(--ink, #21201d);
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:focus-visible {
+	outline: 2px solid var(--accent, #3858e9);
+	outline-offset: 2px;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:disabled {
+	cursor: default;
+	opacity: 0.4;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand svg {
+	fill: currentcolor;
+}

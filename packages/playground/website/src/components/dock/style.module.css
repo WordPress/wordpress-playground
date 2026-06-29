@@ -833,3 +833,161 @@
 		fill: currentColor;
 	}
 }
+
+/* --- Restored from the deployed build --- */
+
+.dock-switching {
+	transition: none;
+}
+
+.dock-collapsed {
+	clip-path: inset(
+		0 calc(50% - var(--dock-notch-w) / 2) 0
+			calc(50% - var(--dock-notch-w) / 2) round 18px 18px 0 0
+	);
+	transform: translate(-50%) translateY(var(--dock-body-h, calc(100% - 24px)));
+}
+
+.dock-dragged {
+	left: var(--dock-center, 50%);
+}
+
+.dock-full {
+	border-radius: 0;
+	clip-path: inset(0 0 0 0);
+	max-width: none;
+	width: 100vw;
+}
+
+.dock-full.dock-collapsed {
+	clip-path: inset(0 0 0 0);
+	transform: translate(-50%) translateY(var(--dock-body-h, calc(100% - 24px)));
+}
+
+.dock-full .dock-header {
+	display: none;
+}
+
+.dock-full .dock-body {
+	padding-top: 10px;
+}
+
+.dock-full .dock-tools {
+	justify-content: center;
+}
+
+.dock-header {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 18px 18px 0 0;
+	box-shadow:
+		inset 0 1px #f7f5f20f,
+		inset 0 -1px #00000038;
+	color: #f7f5f280;
+	cursor: pointer;
+	display: flex;
+	height: 24px;
+	justify-content: center;
+	padding: 0;
+	transition: color 0.14s ease;
+	width: 100%;
+}
+
+.dock-header:hover,
+.dock-header:focus-visible {
+	color: #f7f5f2;
+}
+
+.dock-header:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: -3px;
+}
+
+.dock-header svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 2.1;
+	transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dock-collapsed .dock-header svg {
+	transform: rotate(180deg);
+}
+
+.dock-header-draggable {
+	cursor: grab;
+}
+
+.dock-header-dragging {
+	cursor: grabbing;
+}
+
+.dock-width-toggle {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 8px;
+	color: #f7f5f28c;
+	cursor: pointer;
+	display: flex;
+	flex: none;
+	height: 32px;
+	justify-content: center;
+	padding: 0;
+	transition:
+		background 0.12s ease,
+		color 0.12s ease;
+	width: 32px;
+}
+
+.dock-width-toggle:hover {
+	background: #f7f5f224;
+	color: #f7f5f2;
+}
+
+.dock-width-toggle:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.dock-body {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 4px 8px 8px;
+}
+
+.dock-item-dot {
+	background: var(--accent, #3858e9);
+	border-radius: 50%;
+	box-shadow: 0 0 0 2px #21201d;
+	height: 7px;
+	pointer-events: none;
+	position: absolute;
+	right: 10px;
+	top: 6px;
+	width: 7px;
+}
+
+@media (max-width: 1024px) {
+	.dock-collapsed {
+		clip-path: none;
+		transform: translateY(var(--dock-body-h, calc(100% - 24px)));
+	}
+
+	.dock-header {
+		border-radius: 0;
+	}
+
+	.dock-width-toggle {
+		display: none;
+	}
+
+	.dock-body {
+		flex-direction: column-reverse;
+		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+}

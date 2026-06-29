@@ -75,3 +75,11 @@ body {
 .has-dock-pane .site-view-content {
 	pointer-events: none;
 }
+
+/* --- Restored from the deployed build --- */
+
+@media (min-width: 1025px) {
+	.dock-docked .site-view {
+		height: calc(100dvh - var(--dock-docked-height, 0px));
+	}
+}
