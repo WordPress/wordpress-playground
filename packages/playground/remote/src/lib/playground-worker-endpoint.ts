@@ -9,13 +9,13 @@ import type {
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
-import type { MountDevice } from '@wp-playground/storage/browser-fs';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
 } from '@php-wasm/web';
 import { createMemoizedFetch } from '@wp-playground/common';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage/browser-fs';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
