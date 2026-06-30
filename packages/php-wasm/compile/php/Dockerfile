@@ -461,10 +461,6 @@ RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams
 # to an unused identifier "php_exec_old", and then we mark php_exec as extern.
 RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
 
-# popen() and pclose() are redirected to wasm_popen/wasm_pclose at link
-# time via -Wl,--wrap=popen and -Wl,--wrap=pclose (see linker flags below).
-# This covers all call sites including PHP's popen() function and mail().
-
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c

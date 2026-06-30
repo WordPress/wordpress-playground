@@ -488,8 +488,8 @@ EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buff
 // We have a custom popen handler because the original one calls
 // fork() which emscripten does not support.
 //
-// This wasm_popen function is called by PHP_FUNCTION(popen) thanks
-// to a patch applied in the Dockerfile.
+// PHP_FUNCTION(popen) and other compiled C call sites reach this through
+// the linker-level __wrap_popen wrapper below.
 //
 // The `js_popen_to_file` is defined in phpwasm-emscripten-library.js.
 // It runs the `cmd` command and returns the path to a file that contains the
@@ -596,8 +596,8 @@ EMSCRIPTEN_KEEPALIVE int wasm_pclose(FILE *fp)
 }
 
 /**
- * Linker-level wrappers so every call to popen()/pclose() in the
- * compiled C code is redirected here via -Wl,--wrap=popen/pclose.
+ * Linker-level wrappers so every compiled C call to popen()/pclose()
+ * is redirected here via -Wl,--wrap=popen/pclose.
  */
 FILE *__wrap_popen(const char *cmd, const char *mode)
 {
