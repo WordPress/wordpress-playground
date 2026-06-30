@@ -693,25 +693,6 @@ export function parseEnvelopeArg(
 }
 
 /**
- * Extracts email addresses from an RFC 5322 address list.
- * Handles a mix of "Name <addr>" and bare "addr" entries.
- */
-export function extractAddresses(value: string): string[] {
-	const addresses: string[] = [];
-	for (const part of value.split(',')) {
-		const trimmed = part.trim();
-		if (!trimmed) continue;
-		const angle = trimmed.match(/<([^>]+)>/);
-		if (angle) {
-			addresses.push(angle[1].trim());
-		} else if (trimmed.includes('@')) {
-			addresses.push(trimmed);
-		}
-	}
-	return addresses;
-}
-
-/**
  * Removes RFC 5322 folded-header line breaks.
  *
  * https://www.rfc-editor.org/rfc/rfc5322.html#section-2.2.3

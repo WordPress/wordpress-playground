@@ -27,6 +27,15 @@ export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export { SmtpSinkWebSocket } from './smtp-sink-websocket';
 export * from './php-vars';
-export * from './smtp';
+export {
+	DEFAULT_SMTP_MAX_SIZE,
+	SmtpSink,
+	makeLoopbackPair,
+	type AuthValidator,
+	type ByteDuplex,
+	type CaughtMessage,
+	type SaslMechanism,
+	type SmtpSinkOptions,
+} from './smtp';
 
 export * from './sprintf';
