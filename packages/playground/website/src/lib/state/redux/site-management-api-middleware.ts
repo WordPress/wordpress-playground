@@ -32,7 +32,12 @@ import {
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
-import { selectClientBySiteSlug } from './slice-clients';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+	type ClientInfo,
+} from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
@@ -612,6 +617,7 @@ export function createSitesAPI(
 			await api.setActiveSite(newSiteInfo.slug, {
 				updateUrl: options.updateUrl,
 			});
+			await waitForInitialOpfsSync(newSiteInfo.slug, getState);
 			await dispatch(
 				pruneAutosavedSites({
 					excludeSlugs: [
@@ -624,6 +630,49 @@ export function createSitesAPI(
 		},
 	};
 	return api;
+}
+
+/**
+ * New OPFS sites first boot in MEMFS and then copy those files to OPFS.
+ * Wait for that copy before callers mutate /wordpress, otherwise imports can
+ * race the copy and leave the saved site with stale or missing files.
+ */
+async function waitForInitialOpfsSync(
+	siteSlug: string,
+	getState: () => PlaygroundReduxState
+) {
+	let clientInfo: ClientInfo | undefined = selectClientInfoBySiteSlug(
+		getState(),
+		siteSlug
+	);
+	if (clientInfo?.opfsSync?.status !== 'syncing') {
+		return;
+	}
+
+	clientInfo = await new Promise<ClientInfo | undefined>((resolve) => {
+		const unsubscribe = startListening({
+			predicate: (action) =>
+				updateClientInfo.match(action) &&
+				action.payload.siteSlug === siteSlug,
+			effect: (_action, listenerApi) => {
+				const nextClientInfo = selectClientInfoBySiteSlug(
+					listenerApi.getState(),
+					siteSlug
+				);
+				if (nextClientInfo?.opfsSync?.status === 'syncing') {
+					return;
+				}
+				unsubscribe();
+				resolve(nextClientInfo);
+			},
+		});
+	});
+
+	if (clientInfo?.opfsSync?.status === 'error') {
+		throw new Error(
+			`Could not initialize browser storage for site ${siteSlug}.`
+		);
+	}
 }
 
 /**
