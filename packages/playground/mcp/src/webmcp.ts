@@ -1,7 +1,7 @@
 /**
  * WebMCP registration for WordPress Playground.
  *
- * Registers playground tools with `navigator.modelContext` (the
+ * Registers playground tools with `document.modelContext` (the
  * Chrome WebMCP API) so that browser-side AI agents can interact
  * with the running Playground site.
  */
@@ -41,15 +41,11 @@ interface ModelContext {
 	registerTool(
 		tool: ModelContextTool,
 		options?: { signal?: AbortSignal }
-	): void;
+	): Promise<void> | void;
 	readonly tools: ModelContextTool[];
 }
 
-declare global {
-	interface Navigator {
-		modelContext?: ModelContext;
-	}
-}
+type DocumentWithModelContext = Document & { modelContext?: ModelContext };
 
 // -- Registration --
 
@@ -64,8 +60,11 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 	return active;
 }
 
-export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
-	if (typeof navigator === 'undefined' || !navigator.modelContext) {
+export async function registerWebMCPTools(
+	config: PlaygroundBridgeConfig
+): Promise<void> {
+	const modelContext = getModelContext();
+	if (!modelContext) {
 		return;
 	}
 
@@ -111,8 +110,14 @@ export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
 
-	for (const tool of tools) {
-		navigator.modelContext.registerTool(tool, { signal });
+	await Promise.all(
+		tools.map((tool) => modelContext.registerTool(tool, { signal }))
+	);
+}
+
+function getModelContext(): ModelContext | undefined {
+	if (typeof document !== 'undefined') {
+		return (document as DocumentWithModelContext).modelContext;
 	}
 }
 

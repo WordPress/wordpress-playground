@@ -82,7 +82,7 @@ The MCP server communicates with AI clients via stdio and with the browser via W
 
 ## WebMCP
 
-The [Playground Website](https://playground.wordpress.net/) also supports [WebMCP](https://github.com/webmachinelearning/webmcp) — a browser-native MCP proposal that exposes tools via `navigator.modelContext`. When a Playground site loads, its tools are registered automatically with no CLI or WebSocket bridge needed.
+The [Playground Website](https://playground.wordpress.net/) also supports [WebMCP](https://github.com/webmachinelearning/webmcp) — a browser-native MCP proposal that exposes tools via `document.modelContext`. When a Playground site loads, its tools are registered automatically with no CLI or WebSocket bridge needed.
 
 > **Note:** WebMCP is still a draft proposal and not widely supported.
 

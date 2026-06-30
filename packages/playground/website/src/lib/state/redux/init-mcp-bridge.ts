@@ -36,18 +36,20 @@ startListening({
 		};
 
 		// Register WebMCP tools regardless of ?mcp-port — they only
-		// activate when navigator.modelContext is available.
+		// activate when document.modelContext is available.
 		/**
-		 * Wrapped in try/catch because WebMCP (navigator.modelContext) is an
+		 * Wrapped in try/catch because WebMCP (document.modelContext) is an
 		 * experimental Chrome API that is still evolving. If it changes or
 		 * breaks, we must not let it crash the Playground website — the MCP
 		 * integration is a progressive enhancement, not a critical feature.
 		 */
-		try {
-			registerWebMCPTools(mcpConfig);
-		} catch (error) {
-			logger.warn('WebMCP registration failed:', error);
-		}
+		void (async () => {
+			try {
+				await registerWebMCPTools(mcpConfig);
+			} catch (error) {
+				logger.warn('WebMCP registration failed:', error);
+			}
+		})();
 
 		// Only start the WebSocket bridge when explicitly requested
 		// via ?mcp-port.
