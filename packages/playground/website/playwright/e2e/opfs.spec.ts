@@ -5,11 +5,11 @@ import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
- * The ZIP contains just an index.php file with the given marker content.
+ * The ZIP contains a marker file with the given content.
  */
 async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	const phpContent = `<?php echo '${markerContent}';`;
-	const file = new File([phpContent], 'wp-content/index.php', {
+	const file = new File([phpContent], 'wp-content/import-marker.php', {
 		type: 'text/plain',
 	});
 	const zipStream = encodeZip([file]);
@@ -628,10 +628,13 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		{ timeout: 90000 }
 	);
 
-	// Get the site slug from the URL
-	const urlAfterSave = website.page.url();
-	const urlObj = new URL(urlAfterSave);
-	const siteSlug = urlObj.searchParams.get('site-slug');
+	// Get the site slug from the active saved site.
+	const siteSlug = await website.page.evaluate(() => {
+		const activeSite = (window as any).playgroundSites
+			.list()
+			.find((site: any) => site.isActive);
+		return activeSite?.slug;
+	});
 	expect(siteSlug).toBeTruthy();
 
 	// Now reload the page directly with the site-slug parameter.
@@ -691,7 +694,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 			await api.isReady();
 			return api
 				.getClient()
-				.readFileAsText('/wordpress/wp-content/index.php');
+				.readFileAsText('/wordpress/wp-content/import-marker.php');
 		})
 	).resolves.toContain(importedMarker);
 	await website.page.reload();
@@ -702,7 +705,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 			await api.isReady();
 			return api
 				.getClient()
-				.readFileAsText('/wordpress/wp-content/index.php');
+				.readFileAsText('/wordpress/wp-content/import-marker.php');
 		})
 	).resolves.toContain(importedMarker);
 
