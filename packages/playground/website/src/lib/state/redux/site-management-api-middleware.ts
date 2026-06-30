@@ -36,6 +36,7 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
 import { redirectTo } from '../url/router';
 
@@ -618,6 +619,46 @@ export function createSitesAPI(
 						newSiteInfo.slug,
 						...(options.excludeFromPruning ?? []),
 					],
+				})
+			);
+			return newSiteInfo.slug;
+		},
+
+		/**
+		 * Creates a new site backed by a local directory and boots it.
+		 *
+		 * The directory handle is saved in IndexedDB so the site can be
+		 * reopened on subsequent page loads. First boot creates the WordPress
+		 * files from the setup URL, then copies that initialized filesystem
+		 * into the local directory.
+		 *
+		 * @param localFsHandle The directory handle from a
+		 *   `showDirectoryPicker` call.
+		 * @param requestedSiteSlug Optional slug hint.
+		 * @param settings Optional site settings.
+		 * @returns The new site's slug.
+		 */
+		async createNewLocalFsSite(
+			localFsHandle: FileSystemDirectoryHandle,
+			requestedSiteSlug?: string,
+			settings?: SiteSettings
+		): Promise<string> {
+			const siteName = requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName();
+			const url = getSetupUrlForNewSite(settings, {
+				onlySetupParams: true,
+			});
+			const newSiteInfo = await dispatch(
+				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+					storage: 'local-fs',
+				})
+			);
+			await saveDirectoryHandle(newSiteInfo.slug, localFsHandle);
+			await api.setActiveSite(newSiteInfo.slug);
+			await dispatch(
+				pruneAutosavedSites({
+					excludeSlugs: [newSiteInfo.slug],
 				})
 			);
 			return newSiteInfo.slug;

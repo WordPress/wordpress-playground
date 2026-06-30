@@ -176,7 +176,8 @@ export function bootSiteClient(
 		 */
 		const isFirstOpfsBoot =
 			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
+			(site.metadata.storage === 'opfs' ||
+				site.metadata.storage === 'local-fs') &&
 			!isWordPressInstalled;
 		const mounts: MountDescriptor[] = [];
 		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =

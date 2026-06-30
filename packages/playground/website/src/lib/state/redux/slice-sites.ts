@@ -536,6 +536,10 @@ export function setStoredSiteSpec(
 		 * Whether the stored site is an autosave or an explicit user save.
 		 */
 		persistence?: SitePersistence;
+		/**
+		 * The storage backend to use. Defaults to 'opfs'.
+		 */
+		storage?: SiteStorageType;
 	} = {}
 ) {
 	return async (
@@ -577,7 +581,7 @@ export function setStoredSiteSpec(
 				whenCreated: now,
 				whenLastUsed: now,
 				persistence: options.persistence ?? 'explicit',
-				storage: 'opfs' as const,
+				storage: options.storage ?? ('opfs' as const),
 				initialOpfsSyncPending: true,
 				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
 					playgroundUrlWithQueryApiArgs
