@@ -5,11 +5,7 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import {
-	randomFilename,
-	redactSensitiveText,
-	redactSensitiveUrl,
-} from '@php-wasm/util';
+import { randomFilename } from '@php-wasm/util';
 import {
 	GitAuthenticationError,
 	listDescendantFiles,
@@ -55,7 +51,7 @@ export class ResourceDownloadError extends Error {
 	constructor(message: string, url: string, options?: ErrorOptions) {
 		super(message, options);
 		this.name = 'ResourceDownloadError';
-		this.url = redactSensitiveUrl(url);
+		this.url = url;
 	}
 }
 
@@ -346,7 +342,7 @@ export abstract class Resource<T extends File | Directory> {
 				// eslint-disable-next-line no-console
 				console.warn(
 					`[Blueprints] github-proxy.com is deprecated and will stop working soon. ` +
-						`The URL "${redactSensitiveUrl(ref.url)}" has been automatically converted to a ${rewritten.resource} resource. ` +
+						`The URL "${ref.url}" has been automatically converted to a ${rewritten.resource} resource. ` +
 						`Please update your Blueprint to use native resource types. ` +
 						`See: https://wordpress.github.io/wordpress-playground/blueprints/steps/resources`
 				);
@@ -537,7 +533,6 @@ export abstract class FetchResource extends Resource<File> {
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
-		const displayUrl = redactSensitiveUrl(url);
 		try {
 			let response = await fetchWithCorsProxy(
 				url,
@@ -547,7 +542,7 @@ export abstract class FetchResource extends Resource<File> {
 			);
 			if (!response.ok) {
 				throw new ResourceDownloadError(
-					`Could not download "${displayUrl}"`,
+					`Could not download "${url}"`,
 					url
 				);
 			}
@@ -557,7 +552,7 @@ export abstract class FetchResource extends Resource<File> {
 			);
 			if (response.status !== 200) {
 				throw new ResourceDownloadError(
-					`Could not download "${displayUrl}"`,
+					`Could not download "${url}"`,
 					url
 				);
 			}
@@ -566,15 +561,13 @@ export abstract class FetchResource extends Resource<File> {
 				parseContentDisposition(
 					response.headers.get('content-disposition') || ''
 				) ||
-				encodeURIComponent(redactSensitiveUrl(url));
+				encodeURIComponent(url);
 			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
 			throw new ResourceDownloadError(
-				`Could not download "${displayUrl}".\n\n` +
+				`Could not download "${url}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is ` +
-					`actually served at that URL. Original error: \n ${redactSensitiveText(
-						String(e)
-					)}`,
+					`actually served at that URL. Original error: \n ${e}`,
 				url,
 				{ cause: e }
 			);
@@ -854,7 +847,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 	/** @inheritDoc */
 	get name() {
 		return [
-			redactSensitiveUrl(this.reference.url),
+			this.reference.url,
 			this.reference.ref ? `(${this.reference.ref})` : '',
 			this.reference.path?.replace(/^\/+/, '')
 				? `at ${this.reference.path}`

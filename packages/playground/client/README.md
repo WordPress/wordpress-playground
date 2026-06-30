@@ -11,14 +11,6 @@ const client = await startPlaygroundWeb({
 	// An iframe pointing to https://playground.wordpress.net/remote.html:
 	iframe: document.getElementById('wp'),
 	remoteUrl: `https://playground.wordpress.net/remote.html`,
-	blueprint: {
-		version: 2,
-		applicationOptions: {
-			'wordpress-playground': {
-				landingPage: '/wp-admin/',
-			},
-		},
-	},
 });
 
 const response = await client.run({
@@ -29,12 +21,6 @@ console.log(response.text);
 ```
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
-
-`startPlaygroundWeb()` accepts both Blueprint v1 and Blueprint v2 declarations.
-Version 2 declarations are routed through the native TypeScript v2 runner by
-default. The `onBlueprintValidated` callback receives the validated declaration
-before execution, regardless of whether the source was inline JSON, a bundle, or
-a remote Blueprint.
 
 ## npm package
 

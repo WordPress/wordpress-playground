@@ -27,9 +27,11 @@ import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
-// Blueprint v1 and native TypeScript v2 both run on the standard worker.
+// Select worker runtime (v1 or v2) based on query parameter
 // @ts-ignore
 import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
+// @ts-ignore
+import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -40,12 +42,9 @@ function getWorkerUrl(): string {
 	const runner = new URL(document.location.href).searchParams.get(
 		'blueprints-runner'
 	);
-	if (runner === 'v2') {
-		logger.warn(
-			'The blueprints-runner=v2 boot path is deprecated. Blueprints are executed by the TypeScript client handler on the standard worker.'
-		);
-	}
-	return new URL(workerV1Url, origin) + '';
+	const isV2 = runner === 'v2';
+	const selected = isV2 ? workerV2Url : workerV1Url;
+	return new URL(selected, origin) + '';
 }
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);

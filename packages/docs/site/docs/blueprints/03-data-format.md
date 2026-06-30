@@ -41,56 +41,6 @@ JSON files can be tedious to write and easy to get wrong. To help with that, Pla
 }
 ```
 
-The public schema accepts both Blueprint v1 declarations and Blueprint v2
-declarations. Blueprint v2 declarations include `"version": 2` and use
-properties such as `applicationOptions`, `phpVersion`, `wordpressVersion`,
-`plugins`, `themes`, `content`, `media`, and
-`additionalStepsAfterExecution`.
-
-```json
-{
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"version": 2,
-	"applicationOptions": {
-		"wordpress-playground": {
-			"landingPage": "/wp-admin/"
-		}
-	},
-	"plugins": ["gutenberg"],
-	"additionalStepsAfterExecution": [
-		{
-			"step": "writeFiles",
-			"files": {
-				"/wordpress/hello.php": {
-					"filename": "hello.php",
-					"content": "<?php echo 'Hello from Blueprint v2';"
-				}
-			}
-		}
-	]
-}
-```
-
-### Blueprint v2 data sources
-
-Blueprint v2 properties that consume files accept the same data-source shapes
-across the browser, the client API, and the CLI:
-
-- URL strings such as `"https://example.com/plugin.zip"` fetch remote files.
-- Execution-context paths such as `"./assets/file.txt"` or `"/assets/file.txt"`
-  read from the Blueprint bundle or the directory that contains `blueprint.json`.
-- Inline files use `{ "filename": "file.txt", "content": "..." }`.
-- Inline directories use `{ "directoryName": "plugin", "files": { ... } }`.
-- Git directory sources use `{ "gitRepository": "...", "ref": "...", "pathInRepository": "..." }`.
-- `wordpressVersion` may also be a WordPress ZIP URL, inline ZIP, bundled ZIP,
-  inline WordPress directory, or Git directory source.
-
-In the CLI, local execution-context paths are blocked by default. Pass
-`--blueprint-may-read-adjacent-files` only for Blueprints you trust. Query API
-overrides still apply legacy defaults on top of v2 declarations, including
-auto-login, networking, plugin/theme install error skipping, and WXR imports
-under the `admin` user with comment import enabled.
-
 ## Landing page
 
 The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path.
@@ -106,7 +56,7 @@ The `landingPage` property tells Playground which URL to navigate to after the B
 The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties:
 
 - `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, or `next`. Minor versions like `7.4.1` are not supported. Use `next` to preview the next PHP version from the php-src development branch; it is currently supported by the web runtime only.
-- `wp` (string): Loads the specified WordPress version. Accepts supported WordPress release lines such as `6.3` through `7.0`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
+- `wp` (string): Loads the specified WordPress version. Accepts the last seven major WordPress versions. As of April 28, 2026, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8`, or `6.9`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
 
 ```js
 {

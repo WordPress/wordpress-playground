@@ -70,7 +70,6 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
-	wordPressZip?: ArrayBuffer;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
@@ -81,9 +80,9 @@ export type WorkerBootOptions = {
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** @deprecated Legacy remote Blueprint v2 boot options are rejected. */
+	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;
-	/** @deprecated Direct remote Blueprint execution is unsupported. */
+	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.

@@ -8,12 +8,12 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
+	type BlueprintV1,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
+	InvalidBlueprintError,
 	BlueprintFetchError,
-	type BlueprintV1,
-	type BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import type { WritableFilesystemBackend } from '@wp-playground/storage';
 import {
@@ -25,10 +25,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import {
-	findBlueprintValidationErrorInCauseChain,
-	findFirewallErrorInCauseChain,
-} from './error-utils';
+import { findFirewallErrorInCauseChain } from './error-utils';
 import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
@@ -511,9 +508,10 @@ export function setTemporarySiteSpec(
 				'Error preparing the Blueprint after it was downloaded.',
 				e
 			);
-			const errorType = findBlueprintValidationErrorInCauseChain(e)
-				? 'blueprint-validation-failed'
-				: 'site-boot-failed';
+			const errorType =
+				e instanceof InvalidBlueprintError
+					? 'blueprint-validation-failed'
+					: 'site-boot-failed';
 			return showTemporarySiteError({ error: errorType, details: e });
 		}
 	};
@@ -700,7 +698,7 @@ async function prepareResolvedBlueprint(
 	const reflection = await BlueprintReflection.create(
 		resolvedBlueprint.blueprint
 	);
-	if (reflection.getVersion() === 1 || reflection.getVersion() === 2) {
+	if (reflection.getVersion() === 1) {
 		resolvedBlueprint.blueprint = await applyQueryOverrides(
 			resolvedBlueprint.blueprint,
 			playgroundUrlWithQueryApiArgs.searchParams
@@ -793,10 +791,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
-	originalBlueprint:
-		| BlueprintV1
-		| BlueprintV2Declaration
-		| WritableFilesystemBackend;
+	originalBlueprint: BlueprintV1 | WritableFilesystemBackend;
 	originalBlueprintSource: BlueprintSource;
 }
 

@@ -1,10 +1,5 @@
 import { FirewallInterferenceError } from '@php-wasm/web-service-worker';
 import {
-	InvalidBlueprintError,
-	InvalidBlueprintV2Error,
-} from '@wp-playground/blueprints';
-import {
-	findBlueprintValidationErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 	findFirewallErrorInCauseChain,
 } from './error-utils';
@@ -215,44 +210,5 @@ describe('findFirewallErrorInCauseChain', () => {
 		(namedError as any).cause = realFirewall;
 		const outer = new Error('top', { cause: namedError });
 		expect(findFirewallErrorInCauseChain(outer)).toBe(namedError);
-	});
-});
-
-describe('findBlueprintValidationErrorInCauseChain', () => {
-	it('should detect InvalidBlueprintError via instanceof', () => {
-		const error = new InvalidBlueprintError('Invalid Blueprint');
-		expect(findBlueprintValidationErrorInCauseChain(error)).toBe(error);
-	});
-
-	it('should detect InvalidBlueprintV2Error via instanceof', () => {
-		const error = new InvalidBlueprintV2Error('Invalid Blueprint v2');
-		expect(findBlueprintValidationErrorInCauseChain(error)).toBe(error);
-	});
-
-	it('should detect InvalidBlueprintV2Error by name property', () => {
-		const error = new Error('Invalid Blueprint v2');
-		error.name = 'InvalidBlueprintV2Error';
-		expect(findBlueprintValidationErrorInCauseChain(error)).toBe(error);
-	});
-
-	it('should detect InvalidBlueprintV2Error via originalErrorClassName', () => {
-		const error = new Error('Invalid Blueprint v2');
-		(error as any).originalErrorClassName = 'InvalidBlueprintV2Error';
-		expect(findBlueprintValidationErrorInCauseChain(error)).toBe(error);
-	});
-
-	it('should find validation errors nested in cause chain', () => {
-		const validationError = new InvalidBlueprintV2Error(
-			'Invalid Blueprint v2'
-		);
-		const wrapper = new Error('Boot failed', { cause: validationError });
-		expect(findBlueprintValidationErrorInCauseChain(wrapper)).toBe(
-			validationError
-		);
-	});
-
-	it('should return undefined for non-validation errors', () => {
-		const error = new Error('Something else went wrong');
-		expect(findBlueprintValidationErrorInCauseChain(error)).toBeUndefined();
 	});
 });

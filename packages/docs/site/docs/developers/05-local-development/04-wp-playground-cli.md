@@ -141,18 +141,6 @@ CLI command loading a blueprint:
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
-Blueprint v2 files are routed to the native TypeScript v2 runner automatically.
-Use `--mode` with v2 Blueprints when you need to control how the WordPress files
-are prepared:
-
-```bash
-npx @wp-playground/cli@latest server --blueprint=./blueprint-v2.json --mode=create-new-site
-```
-
-The supported v2 modes are `create-new-site`, `apply-to-existing-site`, and
-`mount-only`. Runtime options passed on the command line, such as `--php`,
-`--wp`, and `--login`, are merged into the Blueprint setup when possible.
-
 ### Mounting folders manually
 
 Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.
@@ -318,7 +306,6 @@ The `server` command supports these common optional arguments. Run `npx @wp-play
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 - `--login`: Automatically log the user in as an administrator.
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Select the native Blueprint v2 runner mode. Cannot be combined with `--wordpress-install-mode`.
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 - `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.

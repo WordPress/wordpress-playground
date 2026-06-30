@@ -140,17 +140,10 @@ jobs:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
-                include:
-                    - os: ubuntu-latest
-                      timeout-minutes: 30
-                    # Windows spends several minutes on checkout/cache restore and
-                    # runs the full CLI suite slower than Linux or macOS.
-                    - os: windows-latest
-                      timeout-minutes: 60
-                    - os: macos-latest
-                      timeout-minutes: 30
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        continue-on-error: true
         runs-on: ${{ matrix.os }}
-        timeout-minutes: ${{ matrix.timeout-minutes }}
+        timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
         name: 'test-playground-cli (${{ matrix.os }})'
@@ -562,11 +555,6 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
               run: npx playwright install chromium --with-deps
-            - name: Install PHP cURL extension
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y php-curl
-                  php -m | grep -qi '^curl$'
             - name: Start dev server
               run: |
                   npm run dev > /tmp/playground-dev.log 2>&1 &

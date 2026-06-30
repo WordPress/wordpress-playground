@@ -1,30 +1,6 @@
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 const vitePlugins = [
-	{
-		name: 'isomorphic-git-browser-entry',
-		config() {
-			return {
-				resolve: {
-					alias: [
-						// The package export points Vite at index.cjs, which imports Node's crypto.
-						// Match only the bare import so subpaths such as
-						// isomorphic-git/http/node keep using the package exports.
-						{
-							find: /^isomorphic-git$/,
-							replacement: fileURLToPath(
-								new URL(
-									'../../node_modules/isomorphic-git/index.js',
-									import.meta.url
-								)
-							),
-						},
-					],
-				},
-			};
-		},
-	},
 	{
 		name: 'base64-loader',
 		transform(_: any, id: string) {

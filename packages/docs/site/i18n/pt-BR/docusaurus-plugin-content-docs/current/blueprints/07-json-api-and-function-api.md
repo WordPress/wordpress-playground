@@ -20,20 +20,15 @@ Você pode usar Blueprints tanto com as versões web quanto com as versões node
 
 <div class="callout callout-info">
 
-**Blueprints versão 2**
+**Versão 2 do Blueprints**
 
-<!-- Blueprint v2 declarations are supported by the Playground web app, client package, and CLI. Version 2 keeps the JSON declaration model but moves WordPress setup into higher-level sections such as plugins, themes, content, and media, with escape hatches in additionalStepsAfterExecution. -->
+<!-- The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup. -->
 
-Declarações Blueprint v2 são compatíveis com o aplicativo web do Playground, o
-pacote client e a CLI. A versão 2 mantém o modelo de declaração JSON, mas move a
-configuração do WordPress para seções de nível mais alto, como `plugins`,
-`themes`, `content` e `media`, com pontos de extensão em
-`additionalStepsAfterExecution`.
+O time está explorando maneiras de fazer a transição do Blueprints de uma biblioteca TypeScript para uma biblioteca PHP. Isso permitiria que as pessoas executassem Blueprints em qualquer ambiente WordPress: Playground, um site hospedado ou uma configuração local.
 
-<!-- The public Blueprint JSON schema validates both v1 and v2 declarations. To opt into v2, set "version": 2. -->
+<!-- The proposed new specification is discussed on a separate GitHub repository, and you’re more than welcome to join (there or on the #playground Slack channel) and help shape the next generation of Playground. -->
 
-O [Blueprint JSON schema](https://playground.wordpress.net/blueprint-schema.json)
-público valida declarações v1 e v2. Para usar v2, defina `"version": 2`.
+A [nova especificação](https://github.com/WordPress/blueprints-library/issues/6) proposta é discutida em um [repositório GitHub](https://github.com/WordPress/blueprints-library/) separado, e você é bem-vindo para participar (lá ou no canal Slack [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K)) e ajudar a moldar a próxima geração do Playground.
 
 </div>
 

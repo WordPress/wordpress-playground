@@ -31,7 +31,6 @@ export type WorkerBootWordPressOptions = {
 	wpVersion?: string;
 	wordpressInstallMode: WordPressInstallMode;
 	wordPressZip?: ArrayBuffer;
-	networking?: boolean;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
 	/**
@@ -45,7 +44,6 @@ interface WorkerBootRequestHandlerOptions {
 	phpVersion: AllPHPVersion;
 	processId: number;
 	trace: boolean;
-	networking?: boolean;
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
@@ -68,17 +66,6 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 		processId.toString().padStart(16, '0'),
 		sprintf(format, ...args)
 	);
-}
-
-function getNetworkingPhpIniEntries(networking: boolean) {
-	return {
-		'openssl.cafile': '/internal/shared/ca-bundle.crt',
-		'curl.cainfo': '/internal/shared/ca-bundle.crt',
-		allow_url_fopen: networking ? '1' : '0',
-		disable_functions: networking
-			? ''
-			: 'fsockopen,pfsockopen,curl_init,curl_exec,curl_multi_exec,mail',
-	};
 }
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
@@ -116,7 +103,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			phpVersion,
 			wordpressInstallMode,
 			wordPressZip,
-			networking = true,
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
 			constants,
@@ -143,7 +129,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					'/internal/shared/ca-bundle.crt':
 						rootCertificates.join('\n'),
 				},
-				phpIniEntries: getNetworkingPhpIniEntries(networking),
+				phpIniEntries: {
+					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					'curl.cainfo': '/internal/shared/ca-bundle.crt',
+					allow_url_fopen: '1',
+					disable_functions: '',
+				},
 				dataSqlPath,
 				constants,
 			});
@@ -173,13 +164,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				siteUrl: options.siteUrl,
 				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				phpIniEntries: getNetworkingPhpIniEntries(
-					options.networking ?? true
-				),
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!
@@ -291,7 +275,7 @@ async function createPHPWorker(
 	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
 	fileLockManager: FileLockManager
 ) {
-	const spawnedWorker = await spawnWorkerThread('standard');
+	const spawnedWorker = await spawnWorkerThread('v1');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 		spawnedWorker.phpPort

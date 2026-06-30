@@ -14,17 +14,11 @@ Maaari mong gamitin ang mga Blueprint pareho sa web at node.js versions ng WordP
 
 <div class="callout callout-info">
 
-**Blueprints bersyon 2**
+**Blueprints version 2**
 
-Suportado ang mga Blueprint v2 declaration sa Playground web app, client
-package, at CLI. Pinapanatili ng bersyon 2 ang JSON declaration model, pero
-inililipat ang WordPress setup sa mas mataas na seksyon gaya ng `plugins`,
-`themes`, `content`, at `media`, na may dagdag na puwang para sa mga hakbang sa
-`additionalStepsAfterExecution`.
+Ang team ay nag-e-explore ng mga paraan para i-transition ang mga Blueprint mula sa TypeScript library patungong PHP library. Ito ay magpapahintulot sa mga tao na magpatakbo ng mga Blueprint sa anumang WordPress environments: Playground, hosted site, o local setup.
 
-Ang pampublikong [Blueprint JSON schema](https://playground.wordpress.net/blueprint-schema.json)
-ay nagva-validate ng parehong v1 at v2 declarations. Para gumamit ng v2, itakda
-ang `"version": 2`.
+Ang proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) ay na-discuss sa isang hiwalay na [GitHub repository](https://github.com/WordPress/blueprints-library/), at welcome ka na sumali (doon o sa [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) at tumulong sa pag-shape ng next generation ng Playground.
 
 </div>
 

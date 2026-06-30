@@ -1,6 +1,5 @@
 import type { StreamedPHPResponse } from './php-response';
 import { PHPResponse } from './php-response';
-import { redactSensitiveText } from '@php-wasm/util';
 
 export async function printDebugDetails(
 	e: any,
@@ -16,8 +15,8 @@ export async function printDebugDetails(
 
 /**
  * Pretty prints the full stack trace of the error and all its causes.
- *
  * Includes debug details for each error in the chain.
+ * This is needed
  *
  * @param e
  */
@@ -30,16 +29,9 @@ export async function prettyPrintFullStackTrace(e: any) {
 		}
 
 		process.stderr.write(current.originalErrorClassName ?? current.name);
+		process.stderr.write(': ' + current.message + '\n');
 		process.stderr.write(
-			': ' + redactSensitiveText(String(current.message ?? '')) + '\n'
-		);
-		process.stderr.write(
-			redactSensitiveText(
-				String(current.stack ?? '')
-					.split('\n')
-					.slice(1)
-					.join('\n')
-			)
+			(current.stack + '').split('\n').slice(1).join('\n')
 		);
 		process.stderr.write(`\n`);
 		if (current.response) {
@@ -47,7 +39,7 @@ export async function prettyPrintFullStackTrace(e: any) {
 		}
 		if (current.phpLogs) {
 			process.stderr.write(`\n\n==== PHP error log ====\n\n`);
-			process.stderr.write(redactSensitiveText(String(current.phpLogs)));
+			process.stderr.write(current.phpLogs);
 		}
 		current = current.cause;
 		isFirst = false;
@@ -172,21 +164,18 @@ export function printResponseDebugDetails(response: PHPResponse) {
 				response.headers,
 				null,
 				2
-			)
-				.split('\n')
-				.map(redactSensitiveText)
-				.join('\n')}\n\n`
+			)}\n\n`
 		);
 	}
 
 	if (response.text) {
 		process.stderr.write(`\n==== PHP stdout ====\n\n`);
-		process.stderr.write(redactSensitiveText(response.text));
+		process.stderr.write(response.text);
 	}
 
 	if (response.errors) {
 		process.stderr.write(`\n==== PHP stderr ====\n\n`);
-		process.stderr.write(redactSensitiveText(response.errors));
+		process.stderr.write(response.errors);
 	}
 	process.stderr.write(`\n`);
 }

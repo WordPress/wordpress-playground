@@ -493,7 +493,7 @@ El comando `server` admite los siguientes argumentos opcionales:
 - `--outfile`: Al construir, escribe en este archivo de salida.
 - `--site-url=<url>`: URL del sitio para WordPress. Por defecto: `http://127.0.0.1:{port}`.
 - `--wp=<version>`: Versión de WordPress a usar. Por defecto: la más reciente.
-- `--php=<version>`: Versión de PHP. Opciones: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Por defecto: `8.3`.
+- `--php=<version>`: Versión de PHP. Opciones: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Por defecto: `8.5`.
 - `--auto-mount[=<path>]`: Monta automáticamente un directorio. Sin ruta, monta el directorio de trabajo actual. Puedes montar un directorio WordPress, de plugin, de tema, wp-content o cualquier directorio con archivos PHP y HTML.
 - `--mount=<mapping>`: Monta un directorio manualmente (puede usarse varias veces). Formato: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Monta un directorio en el runtime PHP antes de la instalación de WordPress (puede usarse varias veces). Formato: `"/host/path:/vfs/path"`.
@@ -502,7 +502,6 @@ El comando `server` admite los siguientes argumentos opcionales:
 - `--blueprint=<path>`: Ruta del archivo JSON Blueprint a ejecutar.
 - `--blueprint-may-read-adjacent-files`: Opción de consentimiento: permite que los recursos "empaquetados" en un blueprint local lean archivos del mismo directorio que el blueprint.
 - `--login`: Inicia sesión automáticamente como administrador.
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Selecciona el modo del runner nativo de Blueprint v2. No se puede combinar con `--wordpress-install-mode`.
 - `--wordpress-install-mode <mode>`: Controla cómo Playground prepara WordPress antes del arranque. Por defecto: `download-and-install`. Otras opciones: `install-from-existing-files`, `install-from-existing-files-if-needed`, `do-not-attempt-installing`.
 - `--skip-sqlite-setup`: No configurar la integración de la base de datos SQLite.
 - `--verbosity=<level>`: Nivel de logs y mensajes de progreso. Opciones: `quiet`, `normal`, `debug`. Por defecto: `normal`.

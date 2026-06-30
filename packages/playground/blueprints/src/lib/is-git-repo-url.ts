@@ -1,11 +1,9 @@
 /**
  * Heuristically indicates whether a URL looks like a Git repository.
  *
- * The Query API and Blueprint compilers use this to distinguish plugin/theme
- * repository URLs from downloadable ZIP URLs. This is intentionally a small
- * allowlist of URL shapes Playground can clone, not a general Git remote
- * detector. Keep the rule centralized so those entry points cannot classify
- * the same string differently.
+ * Blueprint compilers use this to distinguish plugin/theme repository URLs
+ * from downloadable ZIP URLs. This is intentionally a small allowlist of URL
+ * shapes Playground can clone, not a general Git remote detector.
  */
 export function seemsLikeGitRepoUrl(url: string): boolean {
 	try {
@@ -33,8 +31,3 @@ export function seemsLikeGitRepoUrl(url: string): boolean {
 		return false;
 	}
 }
-
-/**
- * @deprecated Use `seemsLikeGitRepoUrl()` to make the heuristic explicit.
- */
-export const isGitRepoUrl = seemsLikeGitRepoUrl;

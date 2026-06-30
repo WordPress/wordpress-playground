@@ -5,13 +5,7 @@ import {
 	ChrootFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
-import {
-	basename,
-	dirname,
-	normalizePath,
-	redactSensitiveText,
-	redactSensitiveUrl,
-} from '@php-wasm/util';
+import { basename, dirname, normalizePath } from '@php-wasm/util';
 import type { BlueprintBundle } from './types';
 
 export class BlueprintFetchError extends Error {
@@ -20,7 +14,7 @@ export class BlueprintFetchError extends Error {
 	constructor(message: string, url: string, options?: ErrorOptions) {
 		super(message, options);
 		this.name = 'BlueprintFetchError';
-		this.url = redactSensitiveUrl(url);
+		this.url = url;
 	}
 }
 
@@ -39,7 +33,6 @@ export async function resolveRemoteBlueprint(
 	url: string,
 	options: ResolveRemoteBlueprintOptions = {}
 ): Promise<BlueprintBundle> {
-	const displayUrl = redactSensitiveUrl(url);
 	let blueprintBytes: ArrayBuffer;
 	try {
 		const fetchBlueprint = options.fetch || fetch;
@@ -47,16 +40,12 @@ export async function resolveRemoteBlueprint(
 			credentials: 'omit',
 		});
 		if (!response.ok) {
-			throw new Error(`Failed to fetch blueprint from ${displayUrl}`);
+			throw new Error(`Failed to fetch blueprint from ${url}`);
 		}
 		blueprintBytes = await response.arrayBuffer();
 	} catch (error) {
-		const errorMessage =
-			error instanceof Error ? error.message : String(error);
 		throw new BlueprintFetchError(
-			`Blueprint file could not be resolved from ${displayUrl}: ${redactSensitiveText(
-				errorMessage
-			)}`,
+			`Blueprint file could not be resolved from ${url}: ${error instanceof Error ? error.message : String(error)}`,
 			url,
 			{ cause: error }
 		);
@@ -83,7 +72,7 @@ export async function resolveRemoteBlueprint(
 			return createBlueprintBundleFromZip(blueprintBytes);
 		}
 		throw new Error(
-			`Blueprint file at ${displayUrl} is neither a valid JSON nor a ZIP file.`,
+			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
 			{ cause: error }
 		);
 	}

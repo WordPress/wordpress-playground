@@ -215,20 +215,6 @@ describe('expandAutoMounts', () => {
 				'do-not-attempt-installing'
 			);
 		});
-
-		test('should not override an explicit mode', () => {
-			const wpPath = path.join(__dirname, 'mount-examples/wordpress');
-			const args: RunCLIArgs = {
-				...createBasicArgs(wpPath),
-				mode: 'mount-only',
-				cliProvidedOptions: {
-					mode: true,
-				},
-			};
-			const result = expandAutoMounts(args);
-
-			expect(result.mode).toBe('mount-only');
-		});
 	});
 
 	describe('unrecognized directories', () => {

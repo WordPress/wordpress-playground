@@ -1,10 +1,6 @@
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
-import {
-	basename as pathBasename,
-	joinPaths,
-	seemsLikeGitRepoUrl,
-} from '@php-wasm/util';
+import { basename as pathBasename, joinPaths } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	compileBlueprintV1,
@@ -29,6 +25,7 @@ import type {
 	BlueprintV2Declaration,
 	RawBlueprintV2Data,
 } from './blueprint-v2-declaration';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 
 type JsonObject = Record<string, any>;
 export type V2Step = JsonObject & { step: string };

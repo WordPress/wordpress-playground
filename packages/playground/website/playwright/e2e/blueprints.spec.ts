@@ -22,76 +22,6 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
-test('Blueprint v2 declarations boot through the website', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint = {
-		version: 2,
-		applicationOptions: {
-			'wordpress-playground': {
-				landingPage: '/v2-smoke.php',
-			},
-		},
-		additionalStepsAfterExecution: [
-			{
-				step: 'writeFiles',
-				files: {
-					'/wordpress/v2-smoke.php': {
-						filename: 'v2-smoke.php',
-						content: '<?php echo "Native Blueprint v2";',
-					},
-				},
-			},
-		],
-	};
-
-	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await website.goto(`/#${encodedBlueprint}`);
-	await expect(wordpress.locator('body')).toContainText(
-		'Native Blueprint v2'
-	);
-});
-
-test('Blueprint v2 Query API defaults log the user in', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint = {
-		version: 2,
-		applicationOptions: {
-			'wordpress-playground': {
-				landingPage: '/wp-admin/',
-			},
-		},
-	};
-
-	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await website.goto(`./?storage=temp#${encodedBlueprint}`);
-	await expect(wordpress.locator('body')).toContainText('Dashboard');
-});
-
-test('Blueprint v2 explicit login=false is preserved by Query API defaults', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint = {
-		version: 2,
-		applicationOptions: {
-			'wordpress-playground': {
-				landingPage: '/wp-admin/',
-				login: false,
-			},
-		},
-	};
-
-	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await website.goto(`./?storage=temp#${encodedBlueprint}`);
-	await expect(wordpress.locator('input[type="submit"]')).toContainText(
-		'Log In'
-	);
-});
-
 test('spawning less should work', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/less.php',
@@ -242,23 +172,6 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
-	);
-});
-
-test('?blueprint-url=... should resolve v2 bundled resources', async ({
-	page,
-	website,
-	wordpress,
-}) => {
-	await website.goto('./?storage=temp');
-	const websiteUrl = new URL(
-		'test-fixtures/blueprint/blueprint-v2-with-bundled-resources.json',
-		page.url()
-	);
-	const blueprintUrl = encodeURIComponent(websiteUrl.href);
-	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
-	await expect(wordpress.locator('body')).toContainText(
-		'Blueprint v2 bundled resource'
 	);
 });
 
@@ -568,55 +481,29 @@ test('CURLFile uploads via curl_exec() should work', async ({
 				data: `<?php
 					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
 					file_put_contents($tmpFile, str_repeat('PLAYGROUND_TEST_CONTENT ', 100));
-					$endpoints = [
-						"https://httpbin.org/post",
-						"https://httpbingo.org/post",
-					];
-					$lastResult = "";
-					$lastError = "";
-					$lastHttpCode = 0;
-					$fileContents = null;
-					foreach ($endpoints as $endpoint) {
-						$ch = curl_init();
-						curl_setopt($ch, CURLOPT_URL, $endpoint);
-						curl_setopt($ch, CURLOPT_POST, true);
-						curl_setopt($ch, CURLOPT_POSTFIELDS, [
-							'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
-						]);
-						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-						$result = curl_exec($ch);
-						$error = curl_error($ch);
-						$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-						curl_close($ch);
-
-						$lastResult = $result;
-						$lastError = $error;
-						$lastHttpCode = $httpCode;
-						$decoded = json_decode($result, true);
-						$fileContents = $decoded['files']['file'] ?? null;
-						if (is_array($fileContents)) {
-							$fileContents = implode('', $fileContents);
-						}
-						if (
-							!$error &&
-							$httpCode === 200 &&
-							is_string($fileContents) &&
-							strpos($fileContents, 'PLAYGROUND_TEST_CONTENT') !== false
-						) {
-							break;
-						}
-					}
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, "https://httpbin.org/post");
+					curl_setopt($ch, CURLOPT_POST, true);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, [
+						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+					]);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$result = curl_exec($ch);
+					$error = curl_error($ch);
+					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
 					unlink($tmpFile);
-					if ($lastError) {
-						echo "CURL_ERROR:" . $lastError;
+					if ($error) {
+						echo "CURL_ERROR:" . $error;
 					} else {
-						echo "HTTP_CODE:" . $lastHttpCode;
-						if (is_string($fileContents)) {
+						echo "HTTP_CODE:" . $httpCode;
+						$decoded = json_decode($result, true);
+						if (isset($decoded['files']['file'])) {
 							echo " FILE_RECEIVED:YES";
-							echo " CONTENT_MATCH:" . (strpos($fileContents, 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
+							echo " CONTENT_MATCH:" . (strpos($decoded['files']['file'], 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
 						} else {
 							echo " FILE_RECEIVED:NO";
-							echo " BODY:" . substr($lastResult, 0, 500);
+							echo " BODY:" . substr($result, 0, 500);
 						}
 					}
 				`,

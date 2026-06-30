@@ -1,5 +1,5 @@
 import { ProgressTracker } from '@php-wasm/progress';
-import { seemsLikeGitRepoUrl, Semaphore } from '@php-wasm/util';
+import { Semaphore } from '@php-wasm/util';
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { FileReference } from './resources';
@@ -39,6 +39,7 @@ const keyedStepHandlers = {
 import blueprintValidator from '../../../public/blueprint-v1-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 
 export class InvalidBlueprintError extends Error {
 	public readonly validationErrors?: unknown;

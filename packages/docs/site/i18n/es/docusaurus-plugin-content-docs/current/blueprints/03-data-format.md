@@ -89,12 +89,12 @@ La propiedad `preferredVersions` declara tus versiones preferidas de PHP y
 WordPress. Puede contener las siguientes propiedades:
 
 <!--
-- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, or `next`. Minor versions like `7.4.1` are not supported.
-- `wp` (string): Loads the specified WordPress version. Accepts supported WordPress release lines such as `6.3` through `7.0`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
+- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
+- `wp` (string): Loads the specified WordPress version. Accepts the last seven major WordPress versions. As of April 28, 2026, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8`, or `6.9`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
 -->
 
-- `php` (string): Carga la versión de PHP especificada. Acepta `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest` o `next`. Las versiones menores como `7.4.1` no son compatibles.
-- `wp` (string): Carga la versión de WordPress especificada. Acepta líneas de versiones compatibles de WordPress, como `6.3` a `7.0`. También puedes usar los valores genéricos `latest`, `beta` o `nightly` (alias `trunk`). `beta` se resuelve a la Beta o Release Candidate más reciente de un ciclo de lanzamiento activo; `nightly`/`trunk` se compila directamente desde la rama de desarrollo de WordPress.
+- `php` (string): Carga la versión de PHP especificada. Acepta `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` o `latest`. Las versiones menores como `7.4.1` no son compatibles.
+- `wp` (string): Carga la versión de WordPress especificada. Acepta las últimas siete versiones principales de WordPress. Al 28 de abril de 2026, son `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8` o `6.9`. También puedes usar los valores genéricos `latest`, `beta` o `nightly` (alias `trunk`). `beta` se resuelve a la Beta o Release Candidate más reciente de un ciclo de lanzamiento activo; `nightly`/`trunk` se compila directamente desde la rama de desarrollo de WordPress.
 
 ```js
 {

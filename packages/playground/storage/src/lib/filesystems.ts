@@ -1,6 +1,6 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
-import { isParentOf, joinPaths, normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
@@ -273,13 +273,7 @@ export class ChrootFilesystem implements ReadableFilesystemBackend {
 	}
 
 	async read(path: string): Promise<StreamedFile> {
-		const chroot = normalizePath(this.chroot);
-		const chrootedPath = normalizePath(joinPaths(chroot, path));
-		if (chroot && !isParentOf(chroot, chrootedPath)) {
-			throw new Error(
-				`File ${path} is outside the blueprint bundle directory.`
-			);
-		}
+		const chrootedPath = joinPaths(this.chroot, path);
 		return this.backend.read(chrootedPath);
 	}
 }
@@ -441,9 +435,7 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 				this.fs = require('fs');
 				this.path = require('path');
 			}
-			this.root =
-				this.fs.realpathSync(this.path.resolve(this.root)) +
-				this.path.sep;
+			this.root = this.path.resolve(this.root) + this.path.sep;
 		}
 	}
 
@@ -459,22 +451,9 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 				`Refused to read a file outside of the root directory: ${filePath}`
 			);
 		}
-		let realFilePath: string;
-		try {
-			realFilePath = this.fs.realpathSync(filePath);
-		} catch (err: any) {
-			throw new Error(
-				`Failed to read file at ${filePath}: ${err.message}`
-			);
-		}
-		if (!realFilePath.startsWith(this.root)) {
-			throw new Error(
-				`Refused to read a file outside of the root directory: ${filePath}`
-			);
-		}
 
 		return new Promise((resolve, reject) => {
-			const fullPath = this.path.resolve(realFilePath);
+			const fullPath = this.path.resolve(filePath);
 			const stream = this.fs.createReadStream(fullPath);
 
 			stream.on('error', (err: any) => {

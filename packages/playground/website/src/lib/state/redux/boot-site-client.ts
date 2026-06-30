@@ -13,6 +13,7 @@ import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
+	InvalidBlueprintError,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
@@ -39,7 +40,6 @@ import {
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
 import {
-	findBlueprintValidationErrorInCauseChain,
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
@@ -161,7 +161,6 @@ export function bootSiteClient(
 		const blueprintRequestedNoWordPress =
 			blueprint &&
 			!isBlueprintBundle(blueprint) &&
-			'preferredVersions' in blueprint &&
 			blueprint.preferredVersions?.wp === false;
 		const wordpressInstallMode = blueprintRequestedNoWordPress
 			? 'do-not-attempt-installing'
@@ -252,7 +251,7 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-			} else if (findBlueprintValidationErrorInCauseChain(e)) {
+			} else if (e instanceof InvalidBlueprintError) {
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',

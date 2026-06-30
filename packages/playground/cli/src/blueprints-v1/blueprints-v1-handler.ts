@@ -28,6 +28,7 @@ import {
 	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
+	type WorkerType,
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
@@ -54,6 +55,10 @@ export class BlueprintsV1Handler {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.cliOutput = options.cliOutput;
+	}
+
+	getWorkerType(): WorkerType {
+		return 'v1';
 	}
 
 	async bootWordPress(
@@ -228,7 +233,6 @@ export class BlueprintsV1Handler {
 
 	private getEffectiveBlueprint() {
 		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
-		const cliProvidedOptions = this.args.cliProvidedOptions || {};
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
@@ -239,21 +243,18 @@ export class BlueprintsV1Handler {
 		return isBlueprintBundle(resolvedBlueprint)
 			? resolvedBlueprint
 			: {
+					login: this.args.login,
 					...(resolvedBlueprint || {}),
-					login: cliProvidedOptions.login
-						? this.args.login
-						: (resolvedBlueprint?.login ?? this.args.login),
 					preferredVersions: {
-						php: cliProvidedOptions.php
-							? (this.args.php ?? RecommendedPHPVersion)
-							: (resolvedBlueprint?.preferredVersions?.php ??
-								this.args.php ??
-								RecommendedPHPVersion),
-						wp: cliProvidedOptions.wp
-							? (this.args.wp ?? 'latest')
-							: (resolvedBlueprint?.preferredVersions?.wp ??
-								this.args.wp ??
-								'latest'),
+						php:
+							this.args.php ??
+							resolvedBlueprint?.preferredVersions?.php ??
+							RecommendedPHPVersion,
+						wp:
+							this.args.wp ??
+							resolvedBlueprint?.preferredVersions?.wp ??
+							'latest',
+						...(resolvedBlueprint?.preferredVersions || {}),
 					},
 				};
 	}

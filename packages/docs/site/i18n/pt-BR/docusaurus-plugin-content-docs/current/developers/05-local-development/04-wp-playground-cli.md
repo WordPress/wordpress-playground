@@ -489,7 +489,7 @@ O comando `server` suporta os seguintes argumentos opcionais:
 - `--outfile`: When building, write to this output file.
 - `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.3`.
+- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.5`.
 - `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
 - `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
@@ -498,7 +498,6 @@ O comando `server` suporta os seguintes argumentos opcionais:
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 - `--login`: Automatically log the user in as an administrator.
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Select the native Blueprint v2 runner mode. Cannot be combined with `--wordpress-install-mode`.
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 - `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.
@@ -517,7 +516,7 @@ O comando `server` suporta os seguintes argumentos opcionais:
 - `--outfile`: Ao construir, grava neste arquivo de saída.
 - `--site-url=<url>`: URL do site para o WordPress. Padrão: `http://127.0.0.1:{port}`.
 - `--wp=<version>`: Versão do WordPress a usar. Padrão: a mais recente.
-- `--php=<version>`: Versão do PHP. Opções: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Padrão: `8.3`.
+- `--php=<version>`: Versão do PHP. Opções: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Padrão: `8.5`.
 - `--auto-mount[=<path>]`: Monta um diretório automaticamente. Sem path, monta o diretório de trabalho atual. Você pode montar um diretório WordPress, de plugin, de tema, wp-content ou qualquer diretório com arquivos PHP e HTML.
 - `--mount=<mapping>`: Monta um diretório manualmente (pode ser usado várias vezes). Formato: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Monta um diretório no runtime PHP antes da instalação do WordPress (pode ser usado várias vezes). Formato: `"/host/path:/vfs/path"`.
@@ -526,7 +525,6 @@ O comando `server` suporta os seguintes argumentos opcionais:
 - `--blueprint=<path>`: Caminho do arquivo JSON Blueprint a executar.
 - `--blueprint-may-read-adjacent-files`: Flag de consentimento: permite que recursos "empacotados" em um blueprint local leiam arquivos no mesmo diretório do blueprint.
 - `--login`: Faz login automático do usuário como administrador.
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Seleciona o modo do runner nativo de Blueprint v2. Não pode ser combinado com `--wordpress-install-mode`.
 - `--wordpress-install-mode <mode>`: Controla como o Playground prepara o WordPress antes da inicialização. Padrão: `download-and-install`. Outras opções: `install-from-existing-files`, `install-from-existing-files-if-needed`, `do-not-attempt-installing`.
 - `--skip-sqlite-setup`: Não configurar a integração do banco SQLite.
 - `--verbosity=<level>`: Saída de logs e mensagens de progresso. Opções: `quiet`, `normal`, `debug`. Padrão: `normal`.

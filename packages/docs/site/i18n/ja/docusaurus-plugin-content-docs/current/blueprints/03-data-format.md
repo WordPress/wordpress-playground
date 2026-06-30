@@ -90,12 +90,12 @@ The `landingPage` property tells Playground which URL to navigate to after the B
 The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties:
 -->
 
-- `php` (文字列): 指定された PHP バージョンを読み込みます。`7.4`、`8.0`、`8.1`、`8.2`、`8.3`、`8.4`、`8.5`、`latest`、`next` が使用できます。`7.4.1` などのマイナーバージョンはサポートされていません。
-- `wp` (文字列): 指定された WordPress バージョンを読み込みます。`6.3` から `7.0` など、サポートされている WordPress リリースラインを使用できます。汎用値として `latest`、`nightly`、`beta` も使用できます。WordPress のプレリリース版を使用する場合、`beta` はリリースサイクルの最新のベータ版またはリリース候補版 (ベータ版または RC 版) を読み込みます。
+- `php` (文字列): 指定された PHP バージョンを読み込みます。`7.4`、`8.0`、`8.1`、`8.2`、`8.3`、`8.4`、`8.5`、`latest` が使用できます。`7.4.1` などのマイナーバージョンはサポートされていません。
+- `wp` (文字列): 指定された WordPress バージョンを読み込みます。最新の 4 つのメジャー WordPress バージョンが使用できます。2024 年 6 月 1 日時点では、`6.2`、`6.3`、`6.4`、`6.5` が使用できます。汎用値として `latest`、`nightly`、`beta` も使用できます。WordPress のプレリリース版を使用する場合、`beta` はリリースサイクルの最新のベータ版またはリリース候補版 (ベータ版または RC 版) を読み込みます。
 
 <!--
--   `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, or `next`. Minor versions like `7.4.1` are not supported.
--   `wp` (string): Loads the specified WordPress version. Accepts supported WordPress release lines such as `6.3` through `7.0`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
+-   `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
+-   `wp` (string): Loads the specified WordPress version. Accepts the last four major WordPress versions. As of June 1, 2024, that's `6.2`, `6.3`, `6.4`, or `6.5`. You can also use the generic values `latest`, `nightly`, or `beta`. To use a pre-release version of WordPress, `beta` will load the latest beta or release candidate versions of a release cycle (Beta or RC).
 -->
 
 ```js

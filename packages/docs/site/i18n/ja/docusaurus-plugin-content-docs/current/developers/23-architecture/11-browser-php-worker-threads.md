@@ -72,8 +72,8 @@ Web Worker を制御する唯一の方法は、メッセージの交換です。
 Exchanging messages is the only way to control web workers. The main application has no access to functions or variables inside of a web worker. It can only send and receive messages using `worker.postMessage` and `worker.onmessage = function(msg) { }`.
 -->
 
-これは面倒な作業になる可能性があるため、Playground では便利な [consumeAPI](/api/universal#consumeAPI) 関数を提供しています。この関数はメッセージ交換を抽象化し、Web Worker から特定の関数を公開します。そのため、上記の例では `phpClient.run` を呼び出すことができます。
+これは面倒な作業になる可能性があるため、Playground では便利な [consumeAPI](/api/universal/function/consumeAPI) 関数を提供しています。この関数はメッセージ交換を抽象化し、Web Worker から特定の関数を公開します。そのため、上記の例では `phpClient.run` を呼び出すことができます。
 
 <!--
-This can be tedious, which is why Playground provides a convenient [consumeAPI](/api/universal#consumeAPI) function that abstracts the message exchange and exposes specific functions from the web worker. This is why we can call `phpClient.run` in the example above.
+This can be tedious, which is why Playground provides a convenient [consumeAPI](/api/universal/function/consumeAPI) function that abstracts the message exchange and exposes specific functions from the web worker. This is why we can call `phpClient.run` in the example above.
 -->

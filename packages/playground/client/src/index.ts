@@ -29,8 +29,8 @@ export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
 import type {
-	Blueprint,
-	BlueprintDeclaration,
+	BlueprintV1,
+	BlueprintV1Declaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
@@ -41,26 +41,25 @@ import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
-import { BlueprintsHandler } from './blueprints-handler';
+import { BlueprintsV1Handler } from './blueprints-v1-handler';
+import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: Blueprint;
+	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
 	 */
 	extensions?: PHPWebExtension[];
 	/**
-	 * Run the supplied Blueprint through the native TypeScript v2 compiler,
-	 * upgrading v1 declarations when needed. Version 2 Blueprints use this
-	 * path automatically.
+	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
 	 */
 	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
-	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
+	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
 	 * steps are run.
@@ -153,9 +152,9 @@ export async function startPlaygroundWeb(
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
-		// The TypeScript runner executes both Blueprint v1 and v2 steps from
-		// the client package, so it can use the standard remote worker.
-		'blueprints-runner': 'v1',
+		'blueprints-runner': options.experimentalBlueprintsV2Runner
+			? 'v2'
+			: 'v1',
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
@@ -164,7 +163,9 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const handler = new BlueprintsHandler(options);
+	const handler = options.experimentalBlueprintsV2Runner
+		? new BlueprintsV2Handler(options)
+		: new BlueprintsV1Handler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();

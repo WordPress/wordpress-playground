@@ -45,95 +45,6 @@ describe('UrlResource', () => {
 			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
 		);
 	});
-
-	it('should redact credentials from download error messages', async () => {
-		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response('Forbidden', {
-				status: 403,
-				statusText: 'Forbidden',
-			})
-		);
-		const resource = new UrlResource({
-			resource: 'url',
-			url: 'https://user:pass@example.com/file.zip?access_token=secret&keep=1',
-		});
-
-		try {
-			let caughtError: unknown;
-			try {
-				await resource.resolve();
-			} catch (error) {
-				caughtError = error;
-			}
-			const message =
-				caughtError instanceof Error
-					? caughtError.message
-					: String(caughtError);
-			expect(message).toContain('REDACTED');
-			expect(message).not.toContain('user:pass');
-			expect(message).not.toContain('access_token=secret');
-			expect((caughtError as { url: string }).url).not.toContain(
-				'user:pass'
-			);
-			expect((caughtError as { url: string }).url).not.toContain(
-				'access_token=secret'
-			);
-		} finally {
-			fetchSpy.mockRestore();
-		}
-	});
-
-	it('redacts nested credentialed URLs from download error messages', async () => {
-		const fetchSpy = vi
-			.spyOn(globalThis, 'fetch')
-			.mockRejectedValue(
-				new Error(
-					'Failed https://proxy.example/?url=https://user:pass@example.com/file.zip?token=secret'
-				)
-			);
-		const resource = new UrlResource({
-			resource: 'url',
-			url: 'https://proxy.example/?url=https://user:pass@example.com/file.zip?token=secret',
-		});
-
-		try {
-			let caughtError: unknown;
-			try {
-				await resource.resolve();
-			} catch (error) {
-				caughtError = error;
-			}
-			const message =
-				caughtError instanceof Error
-					? caughtError.message
-					: String(caughtError);
-			expect(message).toContain('REDACTED');
-			expect(message).not.toContain('user:pass');
-			expect(message).not.toContain('token=secret');
-		} finally {
-			fetchSpy.mockRestore();
-		}
-	});
-
-	it('redacts credentials from URL-derived fallback file names', async () => {
-		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response('zip bytes', {
-				status: 200,
-			})
-		);
-		const resource = new UrlResource({
-			resource: 'url',
-			url: 'https://example.com/?token=secret&keep=1',
-		});
-
-		try {
-			const file = await resource.resolve();
-			expect(file.name).toContain('REDACTED');
-			expect(file.name).not.toContain('token%3Dsecret');
-		} finally {
-			fetchSpy.mockRestore();
-		}
-	});
 });
 
 describe('GitDirectoryResource', () => {
@@ -182,23 +93,6 @@ describe('GitDirectoryResource', () => {
 				'https-github.com-WordPress-wordpress-playground-trunk-at-.github'
 			);
 			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
-		});
-
-		it('redacts credentials from names used for progress and folders', () => {
-			const resource = new GitDirectoryResource({
-				resource: 'git:directory',
-				url: 'https://user:pass@example.com/private/repo.git?token=secret&keep=1',
-				ref: 'trunk',
-				path: 'plugin',
-			});
-
-			expect(resource.name).toContain('REDACTED');
-			expect(resource.name).toContain('keep=1');
-			expect(resource.name).not.toContain('user:pass');
-			expect(resource.name).not.toContain('token=secret');
-			expect(resource.filename).toContain('REDACTED');
-			expect(resource.filename).not.toContain('user-pass');
-			expect(resource.filename).not.toContain('token-secret');
 		});
 
 		it('includes a .git directory when requested', async () => {
@@ -697,21 +591,6 @@ describe('Resource.create with github-proxy.com URLs', () => {
 
 		// The resource should be a ZipResource (wrapped in decorators)
 		expect(resource).toBeDefined();
-	});
-
-	it('redacts sensitive github-proxy.com URL parts from warnings', () => {
-		Resource.create(
-			{
-				resource: 'url',
-				url: 'https://user:pass@github-proxy.com/proxy/?repo=owner/name&branch=trunk&access_token=secret',
-			},
-			{}
-		);
-
-		const warning = String(consoleWarnSpy.mock.calls[0]?.[0] ?? '');
-		expect(warning).toContain('REDACTED');
-		expect(warning).not.toContain('user:pass');
-		expect(warning).not.toContain('access_token=secret');
 	});
 
 	it('should not emit warning for non-github-proxy.com URLs', () => {

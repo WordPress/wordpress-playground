@@ -207,21 +207,6 @@ test('should install the specified plugin', async ({ website, wordpress }) => {
 	);
 });
 
-test('should continue installing query API plugins after an invalid plugin slug', async ({
-	website,
-	wordpress,
-}) => {
-	await website.goto(
-		'./?storage=temp&plugin=activitypub&plugin=inexistant&plugin=biscotti&url=/wp-admin/plugins.php'
-	);
-	await expect(wordpress.locator('#deactivate-activitypub')).toContainText(
-		'Deactivate'
-	);
-	await expect(wordpress.locator('#deactivate-biscotti')).toContainText(
-		'Deactivate'
-	);
-});
-
 test('should login the user in by default if no login query parameter is provided', async ({
 	website,
 	wordpress,

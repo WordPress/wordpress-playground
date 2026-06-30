@@ -491,7 +491,7 @@ Playground CLI はシンプルで設定しやすく、決めつけがありま�
 - `--outfile`: ビルド時の出力ファイル。
 - `--site-url=<url>`: WordPress のサイト URL。デフォルトは `http://127.0.0.1:{port}`。
 - `--wp=<version>`: 使用する WordPress のバージョン。デフォルトは最新。
-- `--php=<version>`: 使用する PHP のバージョン。選択肢: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`。デフォルトは `8.3`。
+- `--php=<version>`: 使用する PHP のバージョン。選択肢: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`。デフォルトは `8.5`。
 - `--auto-mount[=<path>]`: ディレクトリを自動マウント。パス未指定の場合はカレントディレクトリ。WordPress/プラグイン/テーマ/wp-content ディレクトリや PHP/HTML を含む任意のディレクトリをマウント可能。
 - `--mount=<mapping>`: ディレクトリを手動マウント（複数可）。形式: `"/host/path:/vfs/path"`。
 - `--mount-before-install`: WordPress インストール前に PHP ランタイムへマウント（複数可）。形式: `"/host/path:/vfs/path"`。
@@ -500,7 +500,6 @@ Playground CLI はシンプルで設定しやすく、決めつけがありま�
 - `--blueprint=<path>`: 実行する JSON Blueprint ファイルのパス。
 - `--blueprint-may-read-adjacent-files`: 同意フラグ。ローカル Blueprint の「バンドル」リソースが Blueprint と同じディレクトリのファイルを読むことを許可。
 - `--login`: 管理者として自動ログイン。
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: ネイティブ Blueprint v2 runner のモードを選択します。`--wordpress-install-mode` とは同時に使用できません。
 - `--wordpress-install-mode <mode>`: 起動前の WordPress 準備方法。デフォルトは `download-and-install`。他: `install-from-existing-files`、`install-from-existing-files-if-needed`、`do-not-attempt-installing`。
 - `--skip-sqlite-setup`: SQLite データベース統合をセットアップしない。
 - `--verbosity=<level>`: ログと進捗メッセージ。選択肢: `quiet`、`normal`、`debug`。デフォルトは `normal`。

@@ -163,7 +163,6 @@ The `server` command supports these common optional arguments. Run `npx @wp-play
 - `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path" "/vfs/path"`.
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
-- `--mode=<create-new-site|apply-to-existing-site|mount-only>`: Select how Blueprint v2 prepares or mounts the site.
 - `--login`: Automatically log the user in as an administrator.
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (same, but skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
@@ -249,7 +248,7 @@ Blueprint is a JSON file where you can pre-define the initial state of your Word
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginData": {
+			"pluginZipFile": {
 				"resource": "wordpress.org/plugins",
 				"slug": "gutenberg"
 			},
@@ -273,22 +272,6 @@ To use a Blueprint, create a file (e.g., my-blueprint.json) and run the followin
 ```bash
 npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 ```
-
-Blueprint v2 declarations are routed to the native TypeScript v2 runner
-automatically. You can also select a v2 mode explicitly:
-
-```bash
-npx @wp-playground/cli@latest server --blueprint=./blueprint-v2.json --mode=create-new-site
-```
-
-Supported v2 modes are `create-new-site`, `apply-to-existing-site`, and
-`mount-only`. The CLI still accepts legacy `--wordpress-install-mode` for v1
-flows, but do not combine it with `--mode`.
-
-CLI runtime flags such as `--php`, `--wp`, and `--login` are applied as
-Blueprint overrides when possible. A v2 `phpVersion` or `wordpressVersion`
-declared in the Blueprint takes precedence unless the CLI option is explicitly
-provided.
 
 ## Programmatic Usage with JavaScript
 

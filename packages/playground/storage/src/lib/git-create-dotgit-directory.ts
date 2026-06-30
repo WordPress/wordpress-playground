@@ -1,7 +1,6 @@
 import { GitIndex } from './isomorphic-git-internals';
 import type { SparseCheckoutObject } from './git-sparse-checkout';
 import pako from 'pako';
-import { hasSensitiveUrlData } from '@php-wasm/util';
 const deflate = pako.deflate;
 
 type GitDirectoryRefType = 'branch' | 'tag' | 'commit' | 'refname';
@@ -111,14 +110,9 @@ function buildGitConfig(
 	{
 		branchName,
 		partialCloneFilter,
-		persistRemote,
-	}: {
-		branchName?: string;
-		partialCloneFilter?: string;
-		persistRemote: boolean;
-	}
+	}: { branchName?: string; partialCloneFilter?: string }
 ): string {
-	const repositoryFormatVersion = persistRemote && partialCloneFilter ? 1 : 0;
+	const repositoryFormatVersion = partialCloneFilter ? 1 : 0;
 	const lines = [
 		'[core]',
 		`\trepositoryformatversion = ${repositoryFormatVersion}`,
@@ -127,22 +121,18 @@ function buildGitConfig(
 		'\tlogallrefupdates = true',
 		'\tignorecase = true',
 		'\tprecomposeunicode = true',
+		'[remote "origin"]',
+		`\turl = ${repoUrl}`,
+		'\tfetch = +refs/heads/*:refs/remotes/origin/*',
+		'\tfetch = +refs/tags/*:refs/tags/*',
 	];
-	if (persistRemote) {
-		lines.push(
-			'[remote "origin"]',
-			`\turl = ${repoUrl}`,
-			'\tfetch = +refs/heads/*:refs/remotes/origin/*',
-			'\tfetch = +refs/tags/*:refs/tags/*'
-		);
-		if (partialCloneFilter) {
-			lines.push('\tpromisor = true');
-			lines.push(`\tpartialclonefilter = ${partialCloneFilter}`);
-			lines.push('[extensions]');
-			lines.push('\tpartialclone = origin');
-		}
+	if (partialCloneFilter) {
+		lines.push('\tpromisor = true');
+		lines.push(`\tpartialclonefilter = ${partialCloneFilter}`);
+		lines.push('[extensions]');
+		lines.push('\tpartialclone = origin');
 	}
-	if (branchName && persistRemote) {
+	if (branchName) {
 		lines.push(
 			`[branch "${branchName}"]`,
 			'\tremote = origin',
@@ -175,13 +165,10 @@ export async function createDotGitDirectory({
 }): Promise<Record<string, string | Uint8Array>> {
 	const gitFiles: Record<string, string | Uint8Array> = {};
 	const headInfo = resolveHeadInfo(ref, refType, commitHash);
-	// Credentials belong in request headers, not persisted repository metadata.
-	const persistRemote = !hasSensitiveUrlData(repoUrl);
 
 	gitFiles['.git/HEAD'] = headInfo.headContent;
 	gitFiles['.git/config'] = buildGitConfig(repoUrl, {
 		branchName: headInfo.branchName,
-		persistRemote,
 	});
 	gitFiles['.git/description'] = 'WordPress Playground clone\n';
 	gitFiles['.git/shallow'] = `${commitHash}\n`;
@@ -194,12 +181,10 @@ export async function createDotGitDirectory({
 	if (headInfo.branchRef && headInfo.branchName) {
 		gitFiles['.git/logs/HEAD'] = `ref: ${headInfo.branchRef}\n`;
 		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
-		if (persistRemote) {
-			gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
-				`${commitHash}\n`;
-			gitFiles['.git/refs/remotes/origin/HEAD'] =
-				`ref: refs/remotes/origin/${headInfo.branchName}\n`;
-		}
+		gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
+			`${commitHash}\n`;
+		gitFiles['.git/refs/remotes/origin/HEAD'] =
+			`ref: refs/remotes/origin/${headInfo.branchName}\n`;
 	}
 
 	if (headInfo.tagName) {

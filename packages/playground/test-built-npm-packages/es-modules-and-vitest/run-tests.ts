@@ -26,7 +26,7 @@ type Result = {
 
 const results: Result[] = [];
 const timeoutMs = Number.parseInt(
-	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
 	10
 );
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -38,7 +38,6 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 const testFiles = [
 	'./tests/deps.spec.ts',
 	'./tests/wp.spec.ts',
-	'./tests/git-directory-resource.spec.ts',
 	'./tests/assets.spec.ts',
 ];
 

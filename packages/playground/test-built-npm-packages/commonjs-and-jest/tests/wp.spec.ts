@@ -1,29 +1,7 @@
 const { SupportedPHPVersions } = require('@php-wasm/universal');
 const { getPHPLoaderModule } = require('@php-wasm/node');
 const { runCLI } = require('@wp-playground/cli');
-const {
-	compileBlueprintV2,
-	createBlueprintV2ExecutionPlan,
-} = require('@wp-playground/blueprints');
 const path = require('path');
-it('Should expose native Blueprint v2 compiler from CommonJS package', async () => {
-	const declaration = {
-		version: 2,
-		additionalStepsAfterExecution: [
-			{
-				step: 'mkdir',
-				path: '/wordpress/cache',
-			},
-		],
-	};
-
-	expect(typeof compileBlueprintV2).toBe('function');
-	expect(createBlueprintV2ExecutionPlan(declaration)[0].step).toBe('mkdir');
-	await expect(compileBlueprintV2(declaration)).resolves.toMatchObject({
-		declaration,
-	});
-});
-
 SupportedPHPVersions.forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
 		it('WordPress should load', async () => {
@@ -31,7 +9,6 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				command: 'server',
 				php: phpVersion as any,
 				port: 0, // Use random available port to avoid conflicts
-				workers: 1,
 			});
 			try {
 				// Make a request
@@ -45,7 +22,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
-		}, 120000);
+		}, 30000);
 	});
 	/**
 	 * Very the built Playground packages ship worker files that have stable names.
