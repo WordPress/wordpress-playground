@@ -785,7 +785,7 @@ export const BlueprintBundleEditor = forwardRef<
 											}
 										/>
 										{isAutosaved
-											? 'Run Blueprint and reset site'
+											? 'Run Blueprint and reset Playground'
 											: 'Run Blueprint'}
 									</Button>
 								)}

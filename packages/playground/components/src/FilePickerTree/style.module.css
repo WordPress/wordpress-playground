@@ -28,7 +28,7 @@
 	-webkit-appearance: none;
 	background: none;
 	transition: box-shadow 0.1s linear;
-	height: 30px;
+	height: 36px;
 	align-items: center;
 	box-sizing: border-box;
 	padding: 6px 12px;
@@ -38,7 +38,6 @@
 	white-space: nowrap;
 	color: var(--ink, var(--wp-components-color-foreground, #1e1e1e));
 	background: transparent;
-	padding: 6px;
 
 	font-family:
 		-apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,

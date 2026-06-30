@@ -1310,6 +1310,11 @@
 .playgrounds-pane.new-pane .writeOwnEditor {
 	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
 	border-radius: var(--radius-card, 8px);
+	display: flex;
+	flex-direction: column;
+	/* Positioning context for the absolutely-placed "open the full editor"
+	   button, and a flex column so the editor grows to fill the panel. */
+	position: relative;
 	flex: 1;
 	min-height: 160px;
 	overflow: hidden;
