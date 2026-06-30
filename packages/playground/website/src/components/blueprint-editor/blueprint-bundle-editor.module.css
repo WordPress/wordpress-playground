@@ -50,14 +50,18 @@
 }
 
 .editorPath {
-	flex: 1;
-	min-width: 0;
+	flex: 1 1 auto;
+	min-width: 16ch;
 	font-family:
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	color: var(--ink-muted, #50575e);
-	word-break: break-all;
+	/* Truncate the path to a single line; on narrow headers it takes its own
+	   full-width row (see the media rule below) above the action buttons. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .editorPathPlaceholder {

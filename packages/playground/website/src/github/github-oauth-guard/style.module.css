@@ -21,7 +21,7 @@
 .github-button {
 	align-self: flex-start;
 	padding: 10px 20px;
-	background-color: #000;
+	background-color: var(--accent, #3858e9);
 	color: #fff;
 	border: none;
 	border-radius: 6px;
@@ -37,7 +37,7 @@
 }
 
 .github-button:hover {
-	background-color: #24292e;
+	background-color: var(--accent-hover, #2f4ad1);
 }
 
 .github-button.disabled {
