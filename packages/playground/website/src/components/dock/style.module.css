@@ -1,11 +1,10 @@
 .dock {
-	--dock-notch-w: 80px;
 	background: #21201d;
-	/* Welded to the bottom edge: only the top corners round, and the bottom is
-	   clipped flush so it reads as part of the viewport edge, not a floating bar. */
-	border-radius: 18px 18px 0 0;
+	/* Welded to the bottom edge: only the top corners round (WP's 7px), and the
+	   bottom is clipped flush so it reads as part of the viewport edge. */
+	border-radius: 7px 7px 0 0;
 	bottom: 0;
-	clip-path: inset(0 round 18px 18px 0 0);
+	clip-path: inset(0 round 7px 7px 0 0);
 	display: flex;
 	/* drop-shadow (not box-shadow) so the shadow follows the clipped silhouette
 	   and only lifts off the top edge. */
@@ -849,12 +848,10 @@
 	transition: none;
 }
 
+/* Collapsing slides only the tools row off the bottom edge (--dock-body-h now
+   measures the tools), leaving the address bar + grip resting on the edge. */
 .dock-collapsed {
-	clip-path: inset(
-		0 calc(50% - var(--dock-notch-w) / 2) 0
-			calc(50% - var(--dock-notch-w) / 2) round 18px 18px 0 0
-	);
-	transform: translate(-50%) translateY(var(--dock-body-h, calc(100% - 24px)));
+	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
 }
 
 .dock-dragged {
@@ -869,11 +866,11 @@
 }
 
 .dock-full.dock-collapsed {
-	clip-path: inset(0 0 0 0);
-	transform: translate(-50%) translateY(var(--dock-body-h, calc(100% - 24px)));
+	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
 }
 
-.dock-full .dock-header {
+/* The full-width bar already spans the edge, so it isn't draggable: no grip. */
+.dock-full .dock-grip {
 	display: none;
 }
 
@@ -885,35 +882,63 @@
 	justify-content: center;
 }
 
-.dock-header {
+.dock-grip {
+	align-items: center;
+	display: flex;
+	flex-shrink: 0;
+	height: 14px;
+	justify-content: center;
+}
+
+.dock-grip-bar {
+	background: #f7f5f233;
+	border-radius: 999px;
+	height: 4px;
+	transition: background 0.14s ease;
+	width: 36px;
+}
+
+.dock-grip-draggable {
+	cursor: grab;
+}
+
+.dock-grip-draggable:hover .dock-grip-bar {
+	background: #f7f5f259;
+}
+
+.dock-grip-dragging {
+	cursor: grabbing;
+}
+
+.dock-collapse-toggle {
 	align-items: center;
 	background: transparent;
 	border: 0;
-	border-radius: 18px 18px 0 0;
-	box-shadow:
-		inset 0 1px #f7f5f20f,
-		inset 0 -1px #00000038;
-	color: #f7f5f280;
+	border-radius: 8px;
+	color: #f7f5f28c;
 	cursor: pointer;
 	display: flex;
-	height: 24px;
+	flex: none;
+	height: 32px;
 	justify-content: center;
 	padding: 0;
-	transition: color 0.14s ease;
-	width: 100%;
+	transition:
+		background 0.12s ease,
+		color 0.12s ease;
+	width: 32px;
 }
 
-.dock-header:hover,
-.dock-header:focus-visible {
+.dock-collapse-toggle:hover {
+	background: #f7f5f224;
 	color: #f7f5f2;
 }
 
-.dock-header:focus-visible {
+.dock-collapse-toggle:focus-visible {
 	outline: 2px solid #3858e9;
-	outline-offset: -3px;
+	outline-offset: 2px;
 }
 
-.dock-header svg {
+.dock-collapse-toggle svg {
 	fill: none;
 	stroke: currentColor;
 	stroke-linecap: round;
@@ -922,16 +947,8 @@
 	transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dock-collapsed .dock-header svg {
+.dock-collapsed .dock-collapse-toggle svg {
 	transform: rotate(180deg);
-}
-
-.dock-header-draggable {
-	cursor: grab;
-}
-
-.dock-header-dragging {
-	cursor: grabbing;
 }
 
 .dock-width-toggle {
@@ -983,15 +1000,14 @@
 
 @media (max-width: 1024px) {
 	.dock-collapsed {
-		clip-path: none;
-		transform: translateY(var(--dock-body-h, calc(100% - 24px)));
+		transform: translateY(var(--dock-body-h, 56px));
 	}
 
-	.dock-header {
-		border-radius: 0;
-	}
-
-	.dock-width-toggle {
+	/* The mobile bar is fixed and full-screen-panelled: no drag grip, and the
+	   width/collapse toggles don't apply. */
+	.dock-grip,
+	.dock-width-toggle,
+	.dock-collapse-toggle {
 		display: none;
 	}
 

@@ -5,7 +5,6 @@ import {
 	Icon,
 	chevronDown,
 	close,
-	code,
 	grid,
 	list,
 	page,
@@ -91,6 +90,29 @@ function DatabaseIcon() {
 }
 
 /**
+ * Curly-braces mark for the Blueprint tool. Blueprints are JSON, so `{}` reads
+ * truer than the angle-bracket `<>` glyph, which connotes HTML/markup.
+ */
+function BracesIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M10 4Q7 4 7 8Q7 11 5 12Q7 13 7 16Q7 20 10 20" />
+			<path d="M14 4Q17 4 17 8Q17 11 19 12Q17 13 17 16Q17 20 14 20" />
+		</svg>
+	);
+}
+
+/**
  * Horizontal expand/contract arrows for the full-width toggle. Arrows point out
  * to the edges to offer "stretch the dock full width"; they point in toward the
  * centre to offer "shrink back to a floating bar".
@@ -153,12 +175,12 @@ const DOCK_ITEMS: DockItem[] = [
 		section: 'blueprint',
 		label: 'Blueprint',
 		ariaLabel: 'Current Blueprint',
-		icon: <Icon icon={code} size={24} />,
+		icon: <BracesIcon />,
 	},
 	{
 		section: 'settings',
-		label: 'This Playground',
-		ariaLabel: 'This Playground',
+		label: 'Site details',
+		ariaLabel: 'Site details',
 		icon: <Icon icon={wordpress} size={24} />,
 	},
 	{
@@ -202,7 +224,7 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 			'Review and edit the Blueprint that describes this Playground.',
 	},
 	settings: {
-		title: 'This Playground',
+		title: 'Site details',
 		description:
 			'Change this Playground’s WordPress, PHP, language, and network settings.',
 	},
@@ -324,7 +346,8 @@ export function Dock() {
 	// The dock body's height (everything below the header band). Collapsing slides
 	// the dock down by exactly this, leaving only the header band on the edge.
 	const [dockBodyHeight, setDockBodyHeight] = useState(0);
-	// Collapsed dock slides down to leave only its header band on the bottom edge.
+	// Collapsed dock slides down to tuck the tools row off the bottom edge,
+	// leaving the drag grip + address row resting on it.
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [viewportHeight, setViewportHeight] = useState(() =>
 		typeof window !== 'undefined' ? window.innerHeight : 0
@@ -334,8 +357,8 @@ export function Dock() {
 	);
 	// Floating-dock horizontal CENTER (px). null = centered on the viewport (the
 	// default); set once the user drags the dock along the bottom edge. Tracking
-	// the center (not the left edge) keeps the collapsed notch — which sits at the
-	// dock's center — clamped on-screen and landing on the same point.
+	// the center (not the left edge) keeps the dock — and the pane that anchors
+	// above it — clamped on-screen and landing on the same point.
 	const [dockCenter, setDockCenter] = useState<number | null>(null);
 	// Drives the grabbing cursor while a drag is in flight.
 	const [isDragging, setIsDragging] = useState(false);
@@ -360,9 +383,13 @@ export function Dock() {
 					height: el.offsetHeight,
 				});
 			}
-			const body = dockBodyRef.current;
-			if (body) {
-				setDockBodyHeight(body.offsetHeight);
+			const tools = dockBodyRef.current;
+			if (el && tools) {
+				// Distance from the top of the tools row down to the dock's
+				// bottom edge — how far the dock tucks down to hide the tools
+				// (and the padding beneath them) on collapse, leaving the grip
+				// + address row resting on the edge.
+				setDockBodyHeight(el.offsetHeight - tools.offsetTop);
 			}
 		});
 		if (dockRef.current) {
@@ -637,15 +664,6 @@ export function Dock() {
 		setIsDragging(false);
 	};
 
-	const handleHeaderClick = () => {
-		// Swallow the click that ends a drag so it doesn't also toggle collapse.
-		if (draggedRef.current) {
-			draggedRef.current = false;
-			return;
-		}
-		setIsCollapsed((collapsed) => !collapsed);
-	};
-
 	const toggleFullWidth = () => {
 		const next = !dockFullWidth;
 		// Suppress dock transitions for the moment of the switch so it snaps
@@ -691,7 +709,9 @@ export function Dock() {
 		} as React.CSSProperties;
 	} else if (dockSize.height) {
 		const dockTop = viewportHeight - dockSize.height;
-		const centerX = window.innerWidth / 2;
+		// Follow the dock's center so a dragged dock keeps its pane overhead,
+		// instead of the pane always snapping to the middle of the screen.
+		const centerX = dockCenter ?? window.innerWidth / 2;
 		const halfWidth = Math.min(
 			isEditorSection ? 560 : 300,
 			(window.innerWidth - 2 * DRAG_EDGE) / 2
@@ -862,28 +882,22 @@ export function Dock() {
 				style={dockStyle}
 				aria-label="Playground tools"
 			>
-				{/* The collapse control is the dock's own top edge — an integrated
-				    header band, not a tab perched on top. The chevron points down to
-				    collapse and flips up (via CSS) when collapsed. While the dock
-				    floats it doubles as the drag handle for the bottom edge. */}
-				<button
-					type="button"
-					ref={collapseToggleRef}
-					className={classNames(css.dockHeader, {
-						[css.dockHeaderDraggable]: canDrag,
-						[css.dockHeaderDragging]: isDragging,
+				{/* A quiet drag grip for nudging the floating dock along the bottom
+				    edge. Slim on purpose so it doesn't imply the dock moves anywhere
+				    — collapsing now lives on a button in the row below. */}
+				<div
+					className={classNames(css.dockGrip, {
+						[css.dockGripDraggable]: canDrag,
+						[css.dockGripDragging]: isDragging,
 					})}
-					aria-label={isCollapsed ? 'Expand dock' : 'Collapse dock'}
-					aria-expanded={!isCollapsed}
-					title={isCollapsed ? 'Show dock' : 'Hide dock'}
 					onPointerDown={handleHeaderPointerDown}
 					onPointerMove={handleHeaderPointerMove}
 					onPointerUp={handleHeaderPointerUp}
-					onClick={handleHeaderClick}
+					aria-hidden="true"
 				>
-					<Icon icon={chevronDown} size={20} />
-				</button>
-				<div className={css.dockBody} ref={dockBodyRef}>
+					<span className={css.dockGripBar} />
+				</div>
+				<div className={css.dockBody}>
 					<div className={css.dockTopRow}>
 						<div className={css.dockAddress}>
 							<AddressBar
@@ -930,8 +944,25 @@ export function Dock() {
 						>
 							<DockWidthIcon full={dockFullWidth} />
 						</button>
+						{/* Collapse just the tools row, leaving the address bar
+						    reachable. The chevron flips to point up when collapsed. */}
+						<button
+							type="button"
+							ref={collapseToggleRef}
+							className={css.dockCollapseToggle}
+							aria-label={
+								isCollapsed ? 'Expand dock' : 'Collapse dock'
+							}
+							aria-expanded={!isCollapsed}
+							title={isCollapsed ? 'Show tools' : 'Hide tools'}
+							onClick={() =>
+								setIsCollapsed((collapsed) => !collapsed)
+							}
+						>
+							<Icon icon={chevronDown} size={20} />
+						</button>
 					</div>
-					<div className={css.dockTools}>
+					<div className={css.dockTools} ref={dockBodyRef}>
 						{DOCK_ITEMS.map((item, index) => {
 							const isActive =
 								siteManagerIsOpen &&
