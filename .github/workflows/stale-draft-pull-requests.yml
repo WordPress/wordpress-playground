@@ -31,6 +31,8 @@ jobs:
                       const WARN_MARKER = '<!-- stale-draft-bot:warned -->';
                       const BOT_LOGIN = 'github-actions[bot]';
                       const now = Date.now();
+                      const OWN_WARNING_UPDATE_GRACE_MS = 60 * 1000;
+                      const SLACK_SECTION_LIMIT = 20;
 
                       const WARN_BODY = [
                           WARN_MARKER,
@@ -48,12 +50,24 @@ jobs:
                       const isOwnWarning = (c) =>
                           c.user?.login === BOT_LOGIN && c.body?.includes(WARN_MARKER);
 
-                      const escapeHtml = (value) =>
+                      const daysSince = (time) => Math.floor((now - time) / DAY_MS);
+
+                      const newestByCreatedAt = (items) =>
+                          items.reduce((newest, item) => {
+                              if (!newest) {
+                                  return item;
+                              }
+                              return new Date(item.created_at) > new Date(newest.created_at)
+                                  ? item
+                                  : newest;
+                          }, undefined);
+
+                      const escapeMarkdown = (value) =>
                           value
-                              .replaceAll('&', '&amp;')
-                              .replaceAll('<', '&lt;')
-                              .replaceAll('>', '&gt;')
-                              .replaceAll('"', '&quot;');
+                              .replaceAll('\\', '\\\\')
+                              .replaceAll('|', '\\|')
+                              .replaceAll('[', '\\[')
+                              .replaceAll(']', '\\]');
 
                       const escapeSlack = (value) =>
                           value
@@ -62,39 +76,50 @@ jobs:
                               .replaceAll('>', '&gt;');
 
                       const prSummaryLink = (pr) =>
-                          `<a href="${pr.html_url}">#${pr.number}</a> ${escapeHtml(pr.title)}`;
+                          `[#${pr.number}](${pr.html_url}) ${escapeMarkdown(pr.title)}`;
 
                       const prSlackLink = (pr) =>
                           `<${pr.html_url}|#${pr.number}> ${escapeSlack(pr.title)}`;
 
                       const summaryRow = (pr, reason) => [prSummaryLink(pr), reason];
-                      const slackRow = (pr, reason) => `• ${prSlackLink(pr)} — ${reason}`;
+                      const slackRow = (pr, reason) => `- ${prSlackLink(pr)} - ${reason}`;
 
                       const warnedPrs = [];
                       const gracePrs = [];
                       const closedPrs = [];
 
                       const addSummaryTable = (title, rows) => {
-                          core.summary.addHeading(title, 3);
+                          core.summary.addRaw(`### ${title}\n\n`);
 
                           if (rows.length === 0) {
                               core.summary.addRaw('None\n\n');
                               return;
                           }
 
-                          core.summary.addTable([
-                              [
-                                  { data: 'Pull request', header: true },
-                                  { data: 'Reason', header: true },
-                              ],
-                              ...rows,
-                          ]);
+                          core.summary.addRaw('| Pull request | Reason |\n');
+                          core.summary.addRaw('| --- | --- |\n');
+                          for (const [pullRequest, reason] of rows) {
+                              core.summary.addRaw(
+                                  `| ${pullRequest} | ${escapeMarkdown(reason)} |\n`
+                              );
+                          }
+                          core.summary.addRaw('\n');
                       };
 
-                      const slackSection = (title, rows) => [
-                          `*${title}:*`,
-                          rows.length === 0 ? 'None' : rows.join('\n'),
-                      ].join('\n');
+                      const slackSection = (title, rows, runUrl) => {
+                          if (rows.length === 0) {
+                              return [`*${title}:*`, 'None'].join('\n');
+                          }
+
+                          const visibleRows = rows.slice(0, SLACK_SECTION_LIMIT);
+                          const hiddenRows = rows.length - visibleRows.length;
+                          const suffix =
+                              hiddenRows > 0
+                                  ? `\n...and ${hiddenRows} more. See the Actions summary: ${runUrl}`
+                                  : '';
+
+                          return [`*${title}:*`, `${visibleRows.join('\n')}${suffix}`].join('\n');
+                      };
 
                       const { owner, repo } = context.repo;
 
@@ -102,66 +127,78 @@ jobs:
                           owner, repo, state: 'open', per_page: 100,
                       });
                       const drafts = prs.filter((pr) => pr.draft === true);
+                      const runUrl =
+                          `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
 
                       for (const pr of drafts) {
                           const num = pr.number;
+                          const prUpdatedTime = new Date(pr.updated_at).getTime();
+                          const daysSincePrUpdate = daysSince(prUpdatedTime);
 
-                          const [commits, issueComments, reviewComments, reviews] = await Promise.all([
-                              github.paginate(github.rest.pulls.listCommits,
-                                  { owner, repo, pull_number: num, per_page: 100 }),
-                              github.paginate(github.rest.issues.listComments,
-                                  { owner, repo, issue_number: num, per_page: 100 }),
-                              github.paginate(github.rest.pulls.listReviewComments,
-                                  { owner, repo, pull_number: num, per_page: 100 }),
-                              github.paginate(github.rest.pulls.listReviews,
-                                  { owner, repo, pull_number: num, per_page: 100 }),
-                          ]);
+                          if (daysSincePrUpdate < GRACE_DAYS) {
+                              continue;
+                          }
 
-                          const timestamps = [
-                              new Date(pr.created_at).getTime(),
-                              ...commits.map((c) => new Date(c.commit.committer.date).getTime()),
-                              ...issueComments
-                                  .filter((c) => !isOwnWarning(c))
-                                  .map((c) => new Date(c.created_at).getTime()),
-                              ...reviewComments.map((c) => new Date(c.created_at).getTime()),
-                              ...reviews
-                                  .filter((r) => r.submitted_at)
-                                  .map((r) => new Date(r.submitted_at).getTime()),
-                          ];
+                          const issueComments = await github.paginate(
+                              github.rest.issues.listComments,
+                              {
+                                  owner,
+                                  repo,
+                                  issue_number: num,
+                                  per_page: 100,
+                                  direction: 'asc',
+                              }
+                          );
 
-                          const lastActivity = Math.max(...timestamps);
-                          const daysIdle = Math.floor((now - lastActivity) / DAY_MS);
-                          const lastWarning = issueComments.filter(isOwnWarning).at(-1);
+                          const lastWarning = newestByCreatedAt(
+                              issueComments.filter(isOwnWarning)
+                          );
 
                           if (lastWarning) {
                               const lastWarningTime = new Date(lastWarning.created_at).getTime();
-                              if (lastWarningTime > lastActivity) {
-                                  const warningAgeDays = Math.floor((now - lastWarningTime) / DAY_MS);
-                                  if (warningAgeDays >= GRACE_DAYS) {
-                                      const reason = `${warningAgeDays} days since warning`;
-                                      closedPrs.push({
+                              const warningAgeDays = daysSince(lastWarningTime);
+                              const prUpdatedAfterWarning =
+                                  prUpdatedTime > lastWarningTime + OWN_WARNING_UPDATE_GRACE_MS;
+
+                              if (prUpdatedAfterWarning) {
+                                  if (daysSincePrUpdate >= WARN_DAYS) {
+                                      const reason = `${daysSincePrUpdate} days since PR update`;
+                                      warnedPrs.push({
                                           summary: summaryRow(pr, reason),
                                           slack: slackRow(pr, reason),
                                       });
                                       await github.rest.issues.createComment({
-                                          owner, repo, issue_number: num, body: CLOSE_BODY,
-                                      });
-                                      await github.rest.pulls.update({
-                                          owner, repo, pull_number: num, state: 'closed',
-                                      });
-                                  } else {
-                                      const reason = `${warningAgeDays} days since warning`;
-                                      gracePrs.push({
-                                          summary: summaryRow(pr, reason),
-                                          slack: slackRow(pr, reason),
+                                          owner, repo, issue_number: num, body: WARN_BODY,
                                       });
                                   }
                                   continue;
                               }
+
+                              if (warningAgeDays >= GRACE_DAYS) {
+                                  const reason = `${warningAgeDays} days since warning`;
+                                  closedPrs.push({
+                                      summary: summaryRow(pr, reason),
+                                      slack: slackRow(pr, reason),
+                                  });
+                                  await github.rest.issues.createComment({
+                                      owner, repo, issue_number: num, body: CLOSE_BODY,
+                                  });
+                                  await github.rest.pulls.update({
+                                      owner, repo, pull_number: num, state: 'closed',
+                                  });
+                              } else {
+                                  const reason = `${warningAgeDays} days since warning`;
+                                  gracePrs.push({
+                                      summary: summaryRow(pr, reason),
+                                      slack: slackRow(pr, reason),
+                                  });
+                              }
+
+                              continue;
                           }
 
-                          if (daysIdle >= WARN_DAYS) {
-                              const reason = `${daysIdle} days idle`;
+                          if (daysSincePrUpdate >= WARN_DAYS) {
+                              const reason = `${daysSincePrUpdate} days since PR update`;
                               warnedPrs.push({
                                   summary: summaryRow(pr, reason),
                                   slack: slackRow(pr, reason),
@@ -188,15 +225,21 @@ jobs:
                       const slackText = [
                           '*Stale draft pull requests report*',
                           `Checked ${drafts.length} open draft pull requests.`,
+                          `Full report: ${runUrl}`,
                           '',
-                          slackSection('Warnings posted', warnedPrs.map((pr) => pr.slack)),
+                          slackSection(
+                              'Warnings posted',
+                              warnedPrs.map((pr) => pr.slack),
+                              runUrl
+                          ),
                           '',
                           slackSection(
                               'Already warned, still in grace period',
-                              gracePrs.map((pr) => pr.slack)
+                              gracePrs.map((pr) => pr.slack),
+                              runUrl
                           ),
                           '',
-                          slackSection('Closed', closedPrs.map((pr) => pr.slack)),
+                          slackSection('Closed', closedPrs.map((pr) => pr.slack), runUrl),
                       ].join('\n');
 
                       core.setOutput('slack-message', JSON.stringify({ text: slackText }));
@@ -209,4 +252,5 @@ jobs:
                   curl --fail --show-error --silent \
                       -H 'Content-type: application/json' \
                       --data "$SLACK_MESSAGE" \
-                      "$SLACK_WEBHOOK_URL"
+                      "$SLACK_WEBHOOK_URL" ||
+                      echo "Slack notification failed; stale draft processing already completed."
