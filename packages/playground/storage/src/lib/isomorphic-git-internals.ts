@@ -1,3 +1,9 @@
+/*
+ * Portions of this file are adapted from isomorphic-git.
+ *
+ * Copyright 2017-2023 the 'isomorphic-git' authors
+ * SPDX-License-Identifier: MIT
+ */
 import { Buffer as BufferPolyfill } from 'buffer';
 import sha from 'sha.js';
 import {
