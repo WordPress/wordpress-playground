@@ -686,17 +686,17 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	// Verify the imported files landed in the new saved site and survived a reload.
 	// This catches races where import starts before the initial OPFS sync finishes.
 	await website.page.evaluate(async () => {
-		await (window as any).playgroundSites
-			.getClient()
-			.goTo('/wp-content/index.php');
+		const api = (window as any).playgroundSites;
+		await api.isReady();
+		await api.getClient().goTo('/wp-content/index.php');
 	});
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 	await website.page.reload();
 	await website.waitForNestedIframes();
 	await website.page.evaluate(async () => {
-		await (window as any).playgroundSites
-			.getClient()
-			.goTo('/wp-content/index.php');
+		const api = (window as any).playgroundSites;
+		await api.isReady();
+		await api.getClient().goTo('/wp-content/index.php');
 	});
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
