@@ -14,10 +14,6 @@ export class SmtpSinkWebSocket {
 	readyState = this.CONNECTING;
 
 	url: string;
-	protocol = '';
-	binaryType: 'arraybuffer' | 'blob' = 'arraybuffer';
-	extensions = '';
-	bufferedAmount = 0;
 
 	onopen: ((event: any) => void) | null = null;
 	onmessage: ((event: any) => void) | null = null;
