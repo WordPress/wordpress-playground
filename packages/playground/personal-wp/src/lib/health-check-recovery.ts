@@ -1,4 +1,3 @@
-
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { getAppBaseUrl } from './state/url/app-base-url';
 
