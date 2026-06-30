@@ -685,20 +685,33 @@ test('should create a saved site when importing ZIP while on a saved site with n
 
 	// Verify the imported files landed in the new saved site and survived a reload.
 	// This catches races where import starts before the initial OPFS sync finishes.
-	await website.page.evaluate(async () => {
-		const api = (window as any).playgroundSites;
-		await api.isReady();
-		await api.getClient().goTo('/wp-content/index.php');
-	});
-	await expect(wordpress.locator('body')).toContainText(importedMarker);
+	await expect(
+		website.page.evaluate(async () => {
+			const api = (window as any).playgroundSites;
+			await api.isReady();
+			return api
+				.getClient()
+				.readFileAsText('/wordpress/wp-content/index.php');
+		})
+	).resolves.toContain(importedMarker);
 	await website.page.reload();
 	await website.waitForNestedIframes();
+	await expect(
+		website.page.evaluate(async () => {
+			const api = (window as any).playgroundSites;
+			await api.isReady();
+			return api
+				.getClient()
+				.readFileAsText('/wordpress/wp-content/index.php');
+		})
+	).resolves.toContain(importedMarker);
+
 	await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
 		await api.isReady();
-		await api.getClient().goTo('/wp-content/index.php');
+		await api.getClient().goTo('/');
 	});
-	await expect(wordpress.locator('body')).toContainText(importedMarker);
+	await website.waitForNestedIframes();
 
 	// Verify the saved site is still intact by switching to it
 	await website.openSavedPlaygroundsOverlay();
