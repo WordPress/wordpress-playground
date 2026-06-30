@@ -1,6 +1,6 @@
 import type { StepHandler } from '.';
 import { unzip } from './unzip';
-import { dirname, joinPaths, phpVar, phpVars } from '@php-wasm/util';
+import { joinPaths, phpVar, phpVars, randomFilename } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
@@ -33,6 +33,8 @@ export interface ImportWordPressFilesStep<ResourceType> {
 	pathInZip?: string;
 }
 
+const importWordPressFilesQueue = new WeakMap<object, Promise<void>>();
+
 /**
  * Imports top-level WordPress files from a given zip file into
  * the `documentRoot`. For example, if a zip file contains the
@@ -49,120 +51,219 @@ export interface ImportWordPressFilesStep<ResourceType> {
 export const importWordPressFiles: StepHandler<
 	ImportWordPressFilesStep<File>
 > = async (playground, { wordPressFilesZip, pathInZip = '' }) => {
+	await queueImportWordPressFiles(playground, () =>
+		importWordPressFilesWithoutLock(playground, {
+			wordPressFilesZip,
+			pathInZip,
+		})
+	);
+};
+
+async function importWordPressFilesWithoutLock(
+	playground: UniversalPHP,
+	{
+		wordPressFilesZip,
+		pathInZip = '',
+	}: Omit<ImportWordPressFilesStep<File>, 'step'>
+) {
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	let importPath = joinPaths('/tmp', 'import');
-	await playground.mkdir(importPath);
-	await unzip(playground, {
-		zipFile: wordPressFilesZip,
-		extractToPath: importPath,
-	});
-	importPath = joinPaths(importPath, pathInZip);
-
-	// Read the export manifest if it exists. The manifest contains the
-	// site URL (including scope) at export time, which we'll use later
-	// to update URLs in the database when the scope changes.
-	const manifestPath = joinPaths(importPath, 'playground-export.json');
-	let oldSiteUrl: string | null = null;
-	if (await playground.fileExists(manifestPath)) {
-		try {
-			const manifestContent =
-				await playground.readFileAsText(manifestPath);
-			const manifest = JSON.parse(manifestContent);
-			oldSiteUrl = manifest.siteUrl;
-			// Remove the manifest file - it's not needed in the document root
-			await playground.unlink(manifestPath);
-		} catch {
-			// Ignore error – tolerate missing and malformed manifests.
-		}
-	}
-
-	// Carry over any Playground-related files, such as the
-	// SQLite database plugin, from the current wp-content
-	// into the one that's about to be imported
-	const importedWpContentPath = joinPaths(importPath, 'wp-content');
-	const wpContentPath = joinPaths(documentRoot, 'wp-content');
-	for (const relativePath of wpContentFilesExcludedFromExport) {
-		// Remove any paths that were supposed to be excluded from the export
-		// but maybe weren't
-		const excludedImportPath = joinPaths(
-			importedWpContentPath,
-			relativePath
-		);
-		await removePath(playground, excludedImportPath);
-
-		// Replace them with files sourced from the live wp-content directory
-		const restoreFromPath = joinPaths(wpContentPath, relativePath);
-		if (await playground.fileExists(restoreFromPath)) {
-			await playground.mkdir(dirname(excludedImportPath));
-			await playground.mv(restoreFromPath, excludedImportPath);
-		}
-	}
-
-	// Carry over the database directory if the imported zip file doesn't
-	// already contain one.
-	const importedDatabasePath = joinPaths(
-		importPath,
-		'wp-content',
-		'database'
+	const importRoot = joinPaths(
+		'/tmp',
+		`import-wordpress-files-${randomFilename()}`
 	);
-	if (!(await playground.fileExists(importedDatabasePath))) {
-		await playground.mv(
-			joinPaths(documentRoot, 'wp-content', 'database'),
-			importedDatabasePath
+	let importPath = importRoot;
+	try {
+		await playground.mkdir(importRoot);
+		await unzip(playground, {
+			zipFile: wordPressFilesZip,
+			extractToPath: importRoot,
+		});
+		importPath = joinPaths(importRoot, pathInZip);
+
+		// Read the export manifest if it exists. The manifest contains the
+		// site URL (including scope) at export time, which we'll use later
+		// to update URLs in the database when the scope changes.
+		const manifestPath = joinPaths(importPath, 'playground-export.json');
+		let oldSiteUrl: string | null = null;
+		if (await playground.fileExists(manifestPath)) {
+			try {
+				const manifestContent =
+					await playground.readFileAsText(manifestPath);
+				const manifest = JSON.parse(manifestContent);
+				oldSiteUrl = manifest.siteUrl;
+				// Remove the manifest file - it's not needed in the document root
+				await playground.unlink(manifestPath);
+			} catch {
+				// Ignore error – tolerate missing and malformed manifests.
+			}
+		}
+
+		// Carry over any Playground-related files, such as the
+		// SQLite database plugin, from the current wp-content
+		// into the one that's about to be imported.
+		const importedWpContentPath = joinPaths(importPath, 'wp-content');
+		const wpContentPath = joinPaths(documentRoot, 'wp-content');
+		for (const relativePath of wpContentFilesExcludedFromExport) {
+			// Remove any paths that were supposed to be excluded from the export
+			// but maybe weren't.
+			const excludedImportPath = joinPaths(
+				importedWpContentPath,
+				relativePath
+			);
+			await removePath(playground, excludedImportPath);
+
+			// Replace them with copies sourced from the live wp-content directory.
+			const restoreFromPath = joinPaths(wpContentPath, relativePath);
+			if (await playground.fileExists(restoreFromPath)) {
+				await copyPath(playground, restoreFromPath, excludedImportPath);
+			}
+		}
+
+		// Carry over the database directory if the imported zip file doesn't
+		// already contain one.
+		const importedDatabasePath = joinPaths(
+			importPath,
+			'wp-content',
+			'database'
 		);
-	}
+		const databasePath = joinPaths(documentRoot, 'wp-content', 'database');
+		if (
+			!(await playground.fileExists(importedDatabasePath)) &&
+			(await playground.fileExists(databasePath))
+		) {
+			await copyPath(playground, databasePath, importedDatabasePath);
+		}
 
-	// Move all the paths from the imported directory into the document root.
-	// Overwrite, if needed.
-	const importedFilenames = await playground.listFiles(importPath);
-	for (const fileName of importedFilenames) {
-		await removePath(playground, joinPaths(documentRoot, fileName));
-		await playground.mv(
-			joinPaths(importPath, fileName),
-			joinPaths(documentRoot, fileName)
+		// Move all the paths from the imported directory into the document root.
+		// Overwrite, if needed.
+		const importedFilenames = await playground.listFiles(importPath);
+		for (const fileName of importedFilenames) {
+			await removePath(playground, joinPaths(documentRoot, fileName));
+			await playground.mv(
+				joinPaths(importPath, fileName),
+				joinPaths(documentRoot, fileName)
+			);
+		}
+
+		// Remove the directory where we unzipped the imported zip file.
+		await removePath(playground, importRoot);
+
+		// Ensure required constants are defined if wp-config.php doesn't define them.
+		await ensureWpConfig(playground, documentRoot);
+
+		const newSiteUrl = await playground.absoluteUrl;
+
+		// If the manifest didn't provide the old site URL, try to infer it from
+		// the database. The siteurl option still contains the URL from the export
+		// at this point, before we update it with defineSiteUrl.
+		if (!oldSiteUrl) {
+			oldSiteUrl = await inferSiteUrlFromDatabase(
+				playground,
+				documentRoot
+			);
+		}
+
+		// Adjust the site URL
+		await defineSiteUrl(playground, {
+			siteUrl: newSiteUrl,
+		});
+
+		// Upgrade the database
+		const upgradePhp = phpVar(
+			joinPaths(documentRoot, 'wp-admin', 'upgrade.php')
 		);
-	}
-
-	// Remove the directory where we unzipped the imported zip file.
-	await playground.rmdir(importPath);
-
-	// Ensure required constants are defined if wp-config.php doesn't define them.
-	await ensureWpConfig(playground, documentRoot);
-
-	const newSiteUrl = await playground.absoluteUrl;
-
-	// If the manifest didn't provide the old site URL, try to infer it from
-	// the database. The siteurl option still contains the URL from the export
-	// at this point, before we update it with defineSiteUrl.
-	if (!oldSiteUrl) {
-		oldSiteUrl = await inferSiteUrlFromDatabase(playground, documentRoot);
-	}
-
-	// Adjust the site URL
-	await defineSiteUrl(playground, {
-		siteUrl: newSiteUrl,
-	});
-
-	// Upgrade the database
-	const upgradePhp = phpVar(
-		joinPaths(documentRoot, 'wp-admin', 'upgrade.php')
-	);
-	await playground.run({
-		code: `<?php
+		await playground.run({
+			code: `<?php
             $_GET['step'] = 'upgrade_db';
             require ${upgradePhp};
             `,
-	});
+		});
 
-	// If the site URL changed (different scope), update all URLs in the database.
-	// This ensures that image and media URLs that reference the old scope
-	// are updated to use the new scope.
-	if (oldSiteUrl && oldSiteUrl !== newSiteUrl) {
-		await replaceSiteUrl(playground, documentRoot, oldSiteUrl, newSiteUrl);
+		// If the site URL changed, update all URLs in the database.
+		// This ensures media URLs referencing the old scope use the new scope.
+		if (oldSiteUrl && oldSiteUrl !== newSiteUrl) {
+			await replaceSiteUrl(
+				playground,
+				documentRoot,
+				oldSiteUrl,
+				newSiteUrl
+			);
+		}
+	} finally {
+		await removePath(playground, importRoot);
 	}
-};
+}
+
+async function queueImportWordPressFiles<T>(
+	playground: UniversalPHP,
+	callback: () => Promise<T>
+): Promise<T> {
+	const key = playground as object;
+	const previous = importWordPressFilesQueue.get(key);
+	const current = (async () => {
+		await previous?.catch(() => undefined);
+		return await callback();
+	})();
+	const currentDone = current.then(
+		() => undefined,
+		() => undefined
+	);
+	importWordPressFilesQueue.set(key, currentDone);
+
+	try {
+		return await current;
+	} finally {
+		if (importWordPressFilesQueue.get(key) === currentDone) {
+			importWordPressFilesQueue.delete(key);
+		}
+	}
+}
+
+async function copyPath(
+	playground: UniversalPHP,
+	fromPath: string,
+	toPath: string
+) {
+	const js = phpVars({
+		fromPath,
+		toPath,
+	});
+	await playground.run({
+		code: `<?php
+		$copy_path = function ($from_path, $to_path) use (&$copy_path) {
+			if (is_dir($from_path)) {
+				if (!is_dir($to_path) && !mkdir($to_path, 0777, true) && !is_dir($to_path)) {
+					throw new RuntimeException("Could not create directory: " . $to_path);
+				}
+				foreach (scandir($from_path) as $entry) {
+					if ($entry === "." || $entry === "..") {
+						continue;
+					}
+					$copy_path(
+						$from_path . "/" . $entry,
+						$to_path . "/" . $entry
+					);
+				}
+				return;
+			}
+
+			$parent = dirname($to_path);
+			if (!is_dir($parent) && !mkdir($parent, 0777, true) && !is_dir($parent)) {
+				throw new RuntimeException("Could not create directory: " . $parent);
+			}
+			if (!copy($from_path, $to_path)) {
+				throw new RuntimeException(
+					"Could not copy " . $from_path . " to " . $to_path
+				);
+			}
+		};
+
+		$copy_path(${js.fromPath}, ${js.toPath});
+		`,
+	});
+}
 
 /**
  * Extracts the scope path segment from a Playground URL.

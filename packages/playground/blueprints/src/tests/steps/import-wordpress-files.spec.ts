@@ -184,6 +184,37 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
+	it('should serialize concurrent imports of the same export', async () => {
+		await sourcePHP.run({
+			code: `<?php
+			require ${phpVar(await sourcePHP.documentRoot)} . '/wp-load.php';
+			update_option('blogname', 'Concurrent import test');
+			`,
+		});
+
+		const zipBuffer = await zipWpContent(sourcePHP, {
+			selfContained: true,
+		});
+
+		await Promise.all([
+			importWordPressFiles(targetPHP, {
+				wordPressFilesZip: new File([zipBuffer], 'export-a.zip'),
+			}),
+			importWordPressFiles(targetPHP, {
+				wordPressFilesZip: new File([zipBuffer], 'export-b.zip'),
+			}),
+		]);
+
+		const result = await targetPHP.run({
+			code: `<?php
+			require ${phpVar(await targetPHP.documentRoot)} . '/wp-load.php';
+			echo get_option('blogname');
+			`,
+		});
+
+		expect(result.text).toBe('Concurrent import test');
+	});
+
 	it('should infer scope from database when manifest is missing and still replace URLs', async () => {
 		// Create a post with an image URL containing the source scope
 		const sourceUrl = sourcePHP.absoluteUrl;
