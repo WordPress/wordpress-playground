@@ -18,6 +18,7 @@ export {
 	printDebugDetails,
 	prettyPrintFullStackTrace,
 	printResponseDebugDetails,
+	describeError,
 } from './error-reporting';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';

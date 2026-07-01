@@ -25,6 +25,19 @@ This is an NX monorepo with npm workspaces. All commands use NX for task orchest
 
 **Node.js version**: This project requires a specific Node.js version (defined in `.nvmrc` and the `engines` field in root `package.json`). Before running any commands, ensure the correct version is active (e.g., via `nvm use` or other version manager).
 
+### Initial Setup
+
+From a fresh clone or new worktree, set up the repository before running builds,
+tests, or dev servers:
+
+```bash
+nvm use
+npm ci
+```
+
+This is especially important for worktree-based agent tools, which may create a
+working tree without installing dependencies.
+
 ### Common Commands
 
 ```bash
@@ -231,8 +244,7 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 
 - **Default branch**: `trunk` is the primary development branch
 - **Never use bare `git push`**: Always specify remote and branch explicitly
-- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1 --recurse-submodules`
-- **Submodules**: isomorphic-git submodule provides browser-based git operations
+- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1`
 
 ### Working with PHP Binaries
 
@@ -264,7 +276,6 @@ Located in `packages/nx-extensions/src/executors/`:
 - `packages/playground/cli/`: CLI tool implementation
 - `packages/docs/`: Docusaurus documentation site
 - `packages/meta/`: Internal tooling (ESLint plugin, changelog)
-- `isomorphic-git/`: Git operations in browser (submodule)
 
 ## Documentation
 

@@ -416,7 +416,7 @@ jobs:
             - name: Validate publish package overrides
               run: node tools/scripts/check-publish-package-overrides.mjs
             - name: Install Playwright Browsers
-              run: npx --yes playwright@1.55.1 install --with-deps chromium
+              run: npx --no-install playwright install --with-deps chromium
             - name: Build packages, start local registry, and run integration tests
               run: packages/playground/test-built-npm-packages/run-tests.sh
 

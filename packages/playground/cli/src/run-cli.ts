@@ -15,6 +15,7 @@ import {
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
+	describeError,
 } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
@@ -791,88 +792,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			if (debug) {
 				printDebugDetails(e);
 			} else {
-				const messageChain: string[] = [];
-				const seenErrors = new Set<Error>();
-				let currentError: Error | undefined = e;
-				for (let depth = 0; currentError && depth < 20; depth++) {
-					if (seenErrors.has(currentError)) {
-						messageChain.push('[Circular error cause]');
-						currentError = undefined;
-						break;
-					}
-					seenErrors.add(currentError);
-					messageChain.push(describeError(currentError));
-					currentError =
-						currentError.cause instanceof Error
-							? currentError.cause
-							: undefined;
-				}
-				if (currentError) {
-					messageChain.push('[Error cause chain truncated]');
-				}
-				console.error(
-					'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-				);
+				console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 			}
 		} else {
 			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
 		process.exit(1);
 	}
-}
-
-/**
- * Describe an error for display. Handles Error instances, Comlink-serialized
- * plain objects (which lose their Error prototype during worker thread
- * transfer), and arbitrary values.
- */
-function describeError(error: unknown): string {
-	if (error instanceof Error) {
-		if (error.message) {
-			return error.message;
-		}
-		const parts: string[] = [];
-		if (error.name && error.name !== 'Error') {
-			parts.push(error.name);
-		}
-		const obj = error as Error & Record<string, unknown>;
-		if (obj['errno'] !== undefined) {
-			parts.push(`errno: ${obj['errno']}`);
-		}
-		if (obj['code'] !== undefined) {
-			parts.push(`code: ${obj['code']}`);
-		}
-		if (parts.length > 0) {
-			return parts.join(' — ');
-		}
-		return error.stack || String(error);
-	}
-	if (error && typeof error === 'object') {
-		// Comlink-serialized errors arrive as plain objects like
-		// { name: 'ErrnoError', errno: 20 } with no .message.
-		const parts = [];
-		const obj = error as Record<string, unknown>;
-		if (obj['name']) {
-			parts.push(String(obj['name']));
-		}
-		if (obj['message']) {
-			parts.push(String(obj['message']));
-		}
-		if (obj['errno'] !== undefined) {
-			parts.push(`errno: ${obj['errno']}`);
-		}
-		if (parts.length > 0) {
-			return parts.join(' — ');
-		}
-		// Last resort: JSON-serialize the object so we at least see
-		// what fields it has.
-		try {
-			return JSON.stringify(error);
-		} catch {
-			return String(error);
-		}
-	}
-	return String(error);
 }
 
 function getMountForVfsPath(
