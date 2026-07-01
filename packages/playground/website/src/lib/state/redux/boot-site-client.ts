@@ -340,7 +340,8 @@ export function bootSiteClient(
 		// future boots mount OPFS normally.
 		const hasStaleInitialOpfsSyncPendingFlag =
 			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
+			(site.metadata.storage === 'opfs' ||
+				site.metadata.storage === 'local-fs') &&
 			isWordPressInstalled;
 
 		if (mountDescriptorForInitialOpfsSync) {
