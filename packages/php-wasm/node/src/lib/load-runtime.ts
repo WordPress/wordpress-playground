@@ -10,6 +10,8 @@ import {
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	ProcessIdAllocator,
+	withSMTPSink,
+	type WithSmtpSinkOptions,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
@@ -23,9 +25,7 @@ import {
 	type PHPExtension,
 	type XdebugOptions,
 } from './extensions/load-extensions';
-import { withSMTPSink } from '@php-wasm/universal';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
-import type { CaughtMessage } from '@php-wasm/util';
 import { platform } from 'os';
 import { jspi } from 'wasm-feature-detect';
 
@@ -55,10 +55,7 @@ export interface PHPLoaderOptions {
 	 * @deprecated Use `extensions: ['memcached']` instead.
 	 */
 	withMemcached?: boolean;
-	withSMTPSink?: {
-		smtpPort: number;
-		onEmail: (m: CaughtMessage) => void;
-	};
+	withSMTPSink?: WithSmtpSinkOptions;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {

@@ -29,7 +29,9 @@ export class SmtpSinkWebSocket {
 		this.url = url;
 
 		const [client, server] = makeLoopbackPair();
-		void new SmtpSink(server, onEmail).start();
+		void new SmtpSink(server, onEmail)
+			.start()
+			.catch((error) => this.emitError(error));
 		this.writer = client.writable.getWriter();
 
 		this.emitOpen();
@@ -39,6 +41,7 @@ export class SmtpSinkWebSocket {
 					write: (chunk) => this.emitMessage(chunk),
 				})
 			)
+			.catch((error) => this.emitError(error))
 			.finally(() => {
 				if (this.readyState !== this.CLOSED) this.emitClose();
 			});

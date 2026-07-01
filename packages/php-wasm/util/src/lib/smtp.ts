@@ -61,7 +61,7 @@ const SMTP_REPLY_TEXT = {
 	startMailInput: 'Start mail input; end with <CRLF>.<CRLF>',
 	cannotVrfyUser:
 		'Cannot VRFY user, but will accept message and attempt delivery',
-	messageSizeExceeded: 'message size exceeds fixed maximum message size',
+	messageSizeExceeded: 'Message size exceeds fixed maximum message size',
 	authSucceeded: '2.7.0 Authentication Succeeded',
 	authCredentialsInvalid: '5.7.8 Authentication credentials invalid',
 	authRequired: '5.7.0 Authentication required',
@@ -185,10 +185,11 @@ export class SmtpSink {
 	private async close(): Promise<void> {
 		if (this.closed) return;
 		this.closed = true;
-		await this.writer.close();
+		await Promise.allSettled([this.writer.close(), this.reader.cancel()]);
 	}
 
 	private consumeChunk(chunk: Uint8Array) {
+		if (this.closed) return;
 		const text = this.decoder.decode(chunk, { stream: true });
 		this.lineBuffer += text;
 
@@ -202,6 +203,15 @@ export class SmtpSink {
 			this.lineBuffer = this.lineBuffer.slice(crlfIndex + 2);
 
 			this.queueHandler(async () => {
+				if (this.closed) return;
+				if (
+					this.encoder.encode(line).byteLength + 2 >
+					this.currentLineLimit()
+				) {
+					await this.reply(500, SMTP_REPLY_TEXT.commandUnrecognized);
+					await this.close();
+					return;
+				}
 				if (this.dataMode) {
 					await this.handleDataLine(line);
 				} else if (this.authPending) {
@@ -213,23 +223,28 @@ export class SmtpSink {
 			if (this.closed) return;
 		}
 
-		// RFC 5321 §4.5.3.1.4: command lines (incl. CRLF) ≤ 512
-		// octets. §4.5.3.1.6: text lines (incl. CRLF) ≤ 1000 octets.
+		// RFC 5321 caps command lines at 512 octets and DATA text lines at
+		// 1000 octets, both including CRLF. RFC 4954 allows AUTH responses
+		// up to 12288 octets including CRLF.
 		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.4
 		// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.6
-		// DATA mode uses the 1000-octet text-line limit. Command mode, including
-		// AUTH continuation responses, uses the 512-octet command-line limit.
-		// If the un-terminated tail of lineBuffer grows past that limit, the
-		// peer is malformed (or hostile); refuse it and drop the session rather
-		// than letting lineBuffer grow without bound.
-		const maxLineLen = this.dataMode ? 1000 : 512;
-		if (this.lineBuffer.length > maxLineLen) {
+		// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
+		if (
+			this.encoder.encode(this.lineBuffer).byteLength + 2 >
+			this.currentLineLimit()
+		) {
 			this.lineBuffer = '';
 			this.queueHandler(async () => {
 				await this.reply(500, SMTP_REPLY_TEXT.commandUnrecognized);
 				await this.close();
 			});
 		}
+	}
+
+	private currentLineLimit(): number {
+		if (this.dataMode) return 1000;
+		if (this.authPending) return 12288;
+		return 512;
 	}
 
 	private queueHandler(handler: () => Promise<void>) {
@@ -339,6 +354,14 @@ export class SmtpSink {
 				const mechanism =
 					authArgumentMatch[1].toUpperCase() as SaslMechanism;
 				const initialResponseRaw = authArgumentMatch[2];
+				let initialResponse: string | null = null;
+				if (initialResponseRaw !== undefined) {
+					const trimmedInitialResponse = initialResponseRaw.trim();
+					initialResponse =
+						trimmedInitialResponse === '='
+							? ''
+							: trimmedInitialResponse || null;
+				}
 
 				if (this.authenticated) {
 					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
@@ -351,8 +374,6 @@ export class SmtpSink {
 				}
 
 				if (mechanism === 'PLAIN') {
-					const initialResponse =
-						getAuthInitialResponse(initialResponseRaw);
 					if (initialResponse == null) {
 						this.authPending = true;
 						this.authState = {
@@ -363,31 +384,45 @@ export class SmtpSink {
 					} else {
 						const isValid =
 							await this.handleAuthPlain(initialResponse);
-						await this.finishAuth(isValid);
+						if (isValid === null) {
+							await this.rejectAuthSyntax();
+						} else {
+							await this.finishAuth(isValid);
+						}
 					}
 					break;
 				}
 
 				if (mechanism === 'LOGIN') {
-					const initialResponse =
-						getAuthInitialResponse(initialResponseRaw);
 					if (initialResponse != null) {
 						// The initial response is the username for AUTH LOGIN.
-						const username = decodeBase64Text(initialResponse);
+						let username: string;
+						try {
+							username = decodeBase64ToString(initialResponse);
+						} catch {
+							await this.rejectAuthSyntax();
+							break;
+						}
 						this.authPending = true;
 						this.authState = {
 							mechanism: 'LOGIN',
 							stage: 'password',
 							username,
 						};
-						await this.reply(334, encodeBase64Text('Password:'));
+						await this.reply(
+							334,
+							encodeStringAsBase64('Password:')
+						);
 					} else {
 						this.authPending = true;
 						this.authState = {
 							mechanism: 'LOGIN',
 							stage: 'username',
 						};
-						await this.reply(334, encodeBase64Text('Username:'));
+						await this.reply(
+							334,
+							encodeStringAsBase64('Username:')
+						);
 					}
 					break;
 				}
@@ -427,7 +462,7 @@ export class SmtpSink {
 				// brackets rule as MAIL FROM.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
 				const path = parseEnvelopeArg(commandArgument, 'TO');
-				if (path === null) {
+				if (path === null || path === '') {
 					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
@@ -566,23 +601,39 @@ export class SmtpSink {
 
 		if (this.authState.mechanism === 'PLAIN') {
 			const isValid = await this.handleAuthPlain(line.trim());
-			await this.finishAuth(isValid);
+			if (isValid === null) {
+				await this.rejectAuthSyntax();
+			} else {
+				await this.finishAuth(isValid);
+			}
 			return;
 		}
 
 		if (this.authState.mechanism === 'LOGIN') {
 			if (this.authState.stage === 'username') {
-				const username = decodeBase64Text(line.trim());
+				let username: string;
+				try {
+					username = decodeBase64ToString(line.trim());
+				} catch {
+					await this.rejectAuthSyntax();
+					return;
+				}
 				this.authState = {
 					mechanism: 'LOGIN',
 					stage: 'password',
 					username,
 				};
-				await this.reply(334, encodeBase64Text('Password:'));
+				await this.reply(334, encodeStringAsBase64('Password:'));
 				return;
 			}
 			if (this.authState.stage === 'password') {
-				const password = decodeBase64Text(line.trim());
+				let password: string;
+				try {
+					password = decodeBase64ToString(line.trim());
+				} catch {
+					await this.rejectAuthSyntax();
+					return;
+				}
 				const isValid = await this.authValidator('LOGIN', {
 					username: this.authState.username || '',
 					password,
@@ -593,12 +644,14 @@ export class SmtpSink {
 		}
 	}
 
-	private async handleAuthPlain(initialBase64: string): Promise<boolean> {
-		let decoded = '';
+	private async handleAuthPlain(
+		initialBase64: string
+	): Promise<boolean | null> {
+		let decoded: string;
 		try {
 			decoded = decodeBase64ToString(initialBase64);
 		} catch {
-			return false;
+			return null;
 		}
 		// formats: authzid\0authcid\0passwd  OR  \0authcid\0passwd
 		const parts = decoded.split('\u0000');
@@ -625,6 +678,12 @@ export class SmtpSink {
 		} else {
 			await this.reply(535, SMTP_REPLY_TEXT.authCredentialsInvalid);
 		}
+	}
+
+	private async rejectAuthSyntax() {
+		this.authPending = false;
+		this.authState = null;
+		await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 	}
 
 	private resetEnvelope() {
@@ -814,24 +873,14 @@ function decodeQuotedPrintableToBytes(content: string): Uint8Array {
 	return new Uint8Array(bytes);
 }
 
-function decodeBase64Text(content: string): string {
-	return decodeBase64ToString(content);
-}
-
-function encodeBase64Text(content: string): string {
-	return encodeStringAsBase64(content);
-}
-
-function stripQuotes(value: string): string {
-	const match = value.match(/^"(.*)"$/);
-	return match ? match[1] : value;
-}
-
 function getHeaderParameter(headerValue: string, name: string): string | null {
 	const parameterPattern = new RegExp(`;\\s*${name}=([^;]+)`, 'i');
 	const match = headerValue.match(parameterPattern);
-	return match ? stripQuotes(match[1]) : null;
+	if (!match) return null;
+	const quotedValueMatch = match[1].match(/^"(.*)"$/);
+	return quotedValueMatch ? quotedValueMatch[1] : match[1];
 }
+
 function pickTextPlainFromMultipart(
 	body: string,
 	boundary: string
@@ -877,25 +926,27 @@ function pickTextPlainFromMultipart(
 	return null;
 }
 
-function decodeBody(
-	contentTransferEncoding: string | undefined,
-	charset: string | undefined,
+function decodeTextPart(
+	headers: Record<string, string>,
 	content: string
 ): string {
-	const normalizedContentTransferEncoding = (
-		contentTransferEncoding || ''
-	).toLowerCase();
-	if (
-		normalizedContentTransferEncoding !== 'base64' &&
-		normalizedContentTransferEncoding !== 'quoted-printable'
-	) {
+	const encoding = (headers['content-transfer-encoding'] || '').toLowerCase();
+	let bytes: Uint8Array;
+	if (encoding === 'base64') {
+		try {
+			bytes = decodeBase64ToUint8Array(content);
+		} catch {
+			return content;
+		}
+	} else if (encoding === 'quoted-printable') {
+		bytes = decodeQuotedPrintableToBytes(content);
+	} else {
 		return content;
 	}
-	const bytes =
-		normalizedContentTransferEncoding === 'base64'
-			? decodeBase64ToUint8Array(content)
-			: decodeQuotedPrintableToBytes(content);
-	return decodeBytes(bytes, charset || 'utf-8');
+	return decodeBytes(
+		bytes,
+		getHeaderParameter(headers['content-type'] || '', 'charset') || 'utf-8'
+	);
 }
 
 /**
@@ -937,8 +988,8 @@ export function parseMessage(
 			? recipientParts.join(', ')
 			: fallbackRecipients.join(', ');
 
-	let text: string | undefined;
 	const contentType = (headers['content-type'] || 'text/plain').toLowerCase();
+	let text: string | undefined;
 	if (contentType.startsWith('multipart/')) {
 		const boundary = getHeaderParameter(
 			headers['content-type'],
@@ -947,29 +998,11 @@ export function parseMessage(
 		if (boundary) {
 			const part = pickTextPlainFromMultipart(bodyRaw, boundary);
 			if (part) {
-				const partContentTransferEncoding = (
-					part.headers['content-transfer-encoding'] || ''
-				).toLowerCase();
-				const partCharset =
-					getHeaderParameter(
-						part.headers['content-type'] || '',
-						'charset'
-					) || 'utf-8';
-				text = decodeBody(
-					partContentTransferEncoding,
-					partCharset,
-					part.content
-				);
+				text = decodeTextPart(part.headers, part.content);
 			}
 		}
 	} else if (contentType.startsWith('text/plain')) {
-		const contentTransferEncoding = (
-			headers['content-transfer-encoding'] || ''
-		).toLowerCase();
-		const charset =
-			getHeaderParameter(headers['content-type'] || '', 'charset') ||
-			'utf-8';
-		text = decodeBody(contentTransferEncoding, charset, bodyRaw);
+		text = decodeTextPart(headers, bodyRaw);
 	} else {
 		text = bodyRaw;
 	}
@@ -994,11 +1027,4 @@ export function makeLoopbackPair(): [ByteDuplex, ByteDuplex] {
 		writable: secondToFirst.writable,
 	};
 	return [first, second];
-}
-
-function getAuthInitialResponse(response?: string): string | null {
-	if (!response) return null;
-	const trimmed = response.trim();
-	if (trimmed === '' || trimmed === '=') return null;
-	return trimmed;
 }

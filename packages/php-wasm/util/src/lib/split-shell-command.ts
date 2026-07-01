@@ -3,6 +3,8 @@
  * Ensures that commands like `wp option set blogname "My blog name"` are split
  * into `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
  * `['wp', 'option', 'set', 'blogname', 'My', 'blog', 'name']`.
+ * Also preserves empty quoted arguments, which sendmail uses for values such
+ * as `-f ""`.
  *
  * @param command
  * @returns

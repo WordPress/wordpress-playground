@@ -7,12 +7,12 @@ import {
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	loadPHPRuntime,
+	withSMTPSink,
+	type WithSmtpSinkOptions,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
-import { withSMTPSink } from '@php-wasm/universal';
-import type { CaughtMessage } from '@php-wasm/util';
 import {
 	withPHPExtensions,
 	type PHPWebExtension,
@@ -34,10 +34,7 @@ export interface LoaderOptions {
 	 * @deprecated Use `extensions: ['intl']` instead.
 	 */
 	withIntl?: boolean;
-	withSMTPSink?: {
-		smtpPort: number;
-		onEmail: (m: CaughtMessage) => void;
-	};
+	withSMTPSink?: WithSmtpSinkOptions;
 }
 
 /**

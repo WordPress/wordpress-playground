@@ -1,4 +1,5 @@
 import type { EmscriptenOptions } from '@php-wasm/universal';
+import type { AddressInfo } from 'net';
 import {
 	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
@@ -9,12 +10,13 @@ import { findFreePorts } from './utils';
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<EmscriptenOptions> {
-	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
-		await findFreePorts(2);
+	const [inboundProxyWsServerPort] = await findFreePorts(1);
 
-	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
-		outboundProxyWsServerPort
-	);
+	const outboundNetworkProxyServer =
+		await initOutboundWebsocketProxyServer(0);
+	const outboundProxyWsServerPort = (
+		outboundNetworkProxyServer.address() as AddressInfo
+	).port;
 
 	return {
 		...phpModuleArgs,

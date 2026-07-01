@@ -1,4 +1,5 @@
 import { createSpawnHandler } from './create-spawn-handler';
+import { basename } from './paths';
 import { splitShellCommand } from './split-shell-command';
 import { DEFAULT_SMTP_MAX_SIZE, parseMessage } from './smtp';
 import type { CaughtMessage } from './smtp';
@@ -44,7 +45,7 @@ export function createSendmailSpawnHandler(
 	const sendmailHandler = createSpawnHandler(
 		async function (command, processApi) {
 			// Parse -f: supports `-f sender@domain.com` and `-fsender@domain.com`.
-			// A standalone `--` ends option parsing; anything after it is a recipient.
+			// A standalone `--` ends option parsing.
 			let envelopeSender = '';
 			for (
 				let commandIndex = 1;
@@ -99,7 +100,9 @@ export function createSendmailSpawnHandler(
 				headers: parsed.headers,
 				text: parsed.text,
 				raw,
-				rawSize: raw.length,
+				// RFC 1870 SIZE values are measured in octets.
+				// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
+				rawSize: new TextEncoder().encode(raw).byteLength,
 			};
 
 			onEmail(message);
@@ -120,7 +123,7 @@ export function createSendmailSpawnHandler(
 				: typeof command === 'string'
 					? (splitShellCommand(command)[0] ?? '')
 					: '';
-		const bin = cmdStr.split('/').pop() || '';
+		const bin = basename(cmdStr);
 		if (bin !== 'sendmail') {
 			if (fallbackSpawnHandler) {
 				// Preserve the caller's normal process spawning for anything

@@ -294,6 +294,60 @@ describe('SmtpSink – AUTH PLAIN', () => {
 		expect(resp).toBe('235 2.7.0 Authentication Succeeded\r\n');
 	});
 
+	it('accepts AUTH responses close to the 12288-octet limit', async () => {
+		// RFC 4954 §4 allows AUTH client response lines up to 12288 octets,
+		// including CRLF.
+		// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
+		const authResponseLineLimit = 12288;
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		await client.write('AUTH PLAIN\r\n');
+		expect(await client.read()).toMatch(/^334 /);
+		const credentials = btoa(`\0${'u'.repeat(9207)}\0pass`);
+		expect(credentials.length + 2).toBeLessThanOrEqual(
+			authResponseLineLimit
+		);
+		expect(credentials.length + 2).toBeGreaterThan(
+			authResponseLineLimit - 8
+		);
+		expect(credentials.length + 2).toBeGreaterThan(512);
+		await client.write(`${credentials}\r\n`);
+		const resp = await client.read();
+		expect(resp).toBe('235 2.7.0 Authentication Succeeded\r\n');
+	});
+
+	it('rejects invalid PLAIN base64 with syntax error', async () => {
+		// RFC 4954 §4: undecodable client responses reject AUTH with 501.
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		await client.write('AUTH PLAIN\r\n');
+		await client.read();
+		await client.write('!!!!\r\n');
+		const resp = await client.read();
+		expect(resp).toBe('501 Syntax error in parameters or arguments\r\n');
+	});
+
+	it('treats = as an empty initial response', async () => {
+		// RFC 4954 §4: "=" is a zero-length initial response, not a
+		// request for another 334 challenge. Empty PLAIN credentials are
+		// invalid for this sink and should fail immediately.
+		// Reference: https://www.rfc-editor.org/rfc/rfc4954.html#section-4
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		await client.write('AUTH PLAIN =\r\n');
+		const resp = await client.read();
+		expect(resp).toBe('535 5.7.8 Authentication credentials invalid\r\n');
+	});
+
 	it('rejects invalid credentials', async () => {
 		// RFC 4954 §6: bad credentials produce "535 5.7.8
 		// Authentication credentials invalid".
@@ -390,6 +444,20 @@ describe('SmtpSink – AUTH LOGIN', () => {
 		await client.write(`${btoa('wrong')}\r\n`);
 		const resp = await client.read();
 		expect(resp).toBe('535 5.7.8 Authentication credentials invalid\r\n');
+	});
+
+	it('rejects invalid LOGIN base64 without hanging the session', async () => {
+		// RFC 4954 §4: undecodable client responses reject AUTH with 501.
+		const client = createClient({
+			auth: { mechanisms: ['LOGIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		await client.write('AUTH LOGIN\r\n');
+		await client.read();
+		await client.write('!!!!\r\n');
+		const resp = await client.read();
+		expect(resp).toBe('501 Syntax error in parameters or arguments\r\n');
 	});
 });
 
@@ -559,6 +627,18 @@ describe('SmtpSink – command edge cases', () => {
 		await expect(client.read()).resolves.toBe('');
 	});
 
+	it('drops the connection when a complete command line exceeds 512 octets', async () => {
+		// "NOOP " (5) + 506 chars + "\r\n" (2) = 513 octets total,
+		// one octet over the RFC 5321 §4.5.3.1.4 command-line limit.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('NOOP ' + 'A'.repeat(506) + '\r\n');
+		const resp = await client.read();
+		expect(resp).toBe('500 Syntax error, command unrecognized\r\n');
+		await expect(client.read()).resolves.toBe('');
+	});
+
 	it('drops the connection with 500 when a DATA text line exceeds 1000 octets', async () => {
 		// RFC 5321 §4.5.3.1.6: "The maximum total length of a text
 		// line including the <CRLF> is 1000 octets." Inside DATA mode
@@ -581,6 +661,26 @@ describe('SmtpSink – command edge cases', () => {
 		// 1500 bytes of body with no CRLF — over the 1000-octet
 		// text-line limit.
 		await client.write('A'.repeat(1500));
+		const resp = await client.read();
+		expect(resp).toBe('500 Syntax error, command unrecognized\r\n');
+		await expect(client.read()).resolves.toBe('');
+	});
+
+	it('drops the connection when a complete DATA line exceeds 1000 octets', async () => {
+		// 999 body octets + "\r\n" = 1001 octets total, one over
+		// the RFC 5321 §4.5.3.1.6 text-line limit.
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('DATA\r\n');
+		expect(await client.read()).toBe(
+			'354 Start mail input; end with <CRLF>.<CRLF>\r\n'
+		);
+		await client.write('A'.repeat(999) + '\r\n');
 		const resp = await client.read();
 		expect(resp).toBe('500 Syntax error, command unrecognized\r\n');
 		await expect(client.read()).resolves.toBe('');
@@ -746,6 +846,19 @@ describe('SmtpSink – command edge cases', () => {
 		expect(await client.read()).toMatch(/^501 /);
 	});
 
+	it('rejects the null reverse-path form for RCPT TO', async () => {
+		// RFC 5321 §4.5.5 reserves <> for MAIL FROM bounce senders.
+		// Forward-path recipients still need a non-empty path.
+		// Reference: https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.5
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<>\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
 	it('accepts MAIL FROM with trailing ESMTP parameters', async () => {
 		// RFC 5321 §4.1.1.2 ABNF:
 		//   mail = "MAIL FROM:" Reverse-path
@@ -842,9 +955,8 @@ describe('SmtpSink – data handling', () => {
 	});
 
 	it('rejects message exceeding maxSize', async () => {
-		// RFC 1870 §6.3: when the message exceeds the SIZE the server
-		// declared, the server returns "552 Message size exceeds fixed
-		// fixed maximum message size" after the end-of-data marker.
+		// RFC 1870 §6.3: when the message exceeds the declared SIZE, the
+		// server returns 552 after the end-of-data marker.
 		// Reference: https://www.rfc-editor.org/rfc/rfc1870.html#section-6.3
 		const client = createClient({ maxSize: 100 });
 		await client.read();
@@ -861,7 +973,7 @@ describe('SmtpSink – data handling', () => {
 		await client.write('.\r\n');
 		const resp = await client.read();
 		expect(resp).toBe(
-			'552 message size exceeds fixed maximum message size\r\n'
+			'552 Message size exceeds fixed maximum message size\r\n'
 		);
 		expect(client.messages).toHaveLength(0);
 	});
@@ -888,7 +1000,7 @@ describe('SmtpSink – data handling', () => {
 		await client.write(body);
 
 		expect(await client.read()).toBe(
-			'552 message size exceeds fixed maximum message size\r\n'
+			'552 Message size exceeds fixed maximum message size\r\n'
 		);
 		expect(client.messages).toHaveLength(0);
 
@@ -1176,6 +1288,17 @@ describe('parseMessage', () => {
 			'\r\n';
 		const result = parseMessage(raw, '', []);
 		expect(result.text?.trim()).toBe('Decoded body content');
+	});
+
+	it('leaves invalid base64 bodies undecoded', () => {
+		const raw =
+			'Subject: Invalid body base64\r\n' +
+			'Content-Type: text/plain; charset=utf-8\r\n' +
+			'Content-Transfer-Encoding: base64\r\n' +
+			'\r\n' +
+			'!!!!\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('!!!!');
 	});
 
 	it('extracts text/plain from multipart email', () => {
