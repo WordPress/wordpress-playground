@@ -227,6 +227,68 @@ describe('Blueprint step installTheme', () => {
 				})
 			).rejects.toThrow();
 		});
+
+		it('should apply ifAlreadyInstalled to directory theme resources', async () => {
+			await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Existing Directory Theme`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+
+			await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Skipped Theme`,
+					},
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
+				'Theme Name: Existing Directory Theme'
+			);
+
+			await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Overwritten Theme`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
+				'Theme Name: Overwritten Theme'
+			);
+
+			await expect(
+				installTheme(php, {
+					themeData: {
+						name: 'test-theme',
+						files: {
+							'index.php': `/**\n * Theme Name: Error Theme`,
+						},
+					},
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
+		});
 	});
 
 	describe('targetFolderName option', () => {
