@@ -60,6 +60,10 @@
 	color: #93c5fd;
 }
 
+.loading {
+	color: #e5e7eb;
+}
+
 .error {
 	color: #fca5a5;
 	cursor: pointer;
@@ -153,6 +157,7 @@
 		rgba(255, 255, 255, 0.24) 0
 	);
 	flex-shrink: 0;
+	animation: save-status-spin 0.8s linear infinite;
 	mask: radial-gradient(
 		farthest-side,
 		transparent calc(100% - 2px),
@@ -163,6 +168,32 @@
 		transparent calc(100% - 2px),
 		#000 calc(100% - 2px)
 	);
+}
+
+.loading-pulse {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+	flex-shrink: 0;
+	animation: save-status-blink 1s ease-in-out infinite;
+}
+
+@keyframes save-status-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes save-status-blink {
+	0%,
+	100% {
+		opacity: 0.35;
+	}
+
+	50% {
+		opacity: 1;
+	}
 }
 
 /* Mobile responsive styles */

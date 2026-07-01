@@ -13,7 +13,7 @@ import {
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { Icon, Popover } from '@wordpress/components';
-import { backup, check, cautionFilled } from '@wordpress/icons';
+import { cautionFilled, published } from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -23,7 +23,13 @@ import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 
-type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
+type SaveStatus =
+	| 'saved'
+	| 'autosaved'
+	| 'unsaved'
+	| 'loading'
+	| 'saving'
+	| 'error';
 
 export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
@@ -76,8 +82,8 @@ export function SaveStatusIndicator() {
 	if (status === 'saved') {
 		return (
 			<div className={classNames(css.indicator, css.saved)}>
-				<Icon icon={check} size={18} />
-				<span className={css.label}>Saved Playground</span>
+				<Icon icon={published} size={18} />
+				<span className={css.label}>Saved</span>
 			</div>
 		);
 	}
@@ -97,7 +103,7 @@ export function SaveStatusIndicator() {
 					aria-expanded={isPopoverOpen}
 					type="button"
 				>
-					<Icon icon={backup} size={18} />
+					<Icon icon={published} size={18} />
 					<span className={css.label}>Autosaved</span>
 				</button>
 				{isPopoverOpen && (
@@ -130,31 +136,42 @@ export function SaveStatusIndicator() {
 		);
 	}
 
+	if (status === 'loading') {
+		return (
+			<div
+				className={classNames(css.indicator, css.loading)}
+				aria-label="Loading"
+				role="status"
+			>
+				<span className={css.loadingPulse} aria-hidden="true" />
+				<span className={css.label}>Loading</span>
+			</div>
+		);
+	}
+
 	if (status === 'saving') {
 		const progress =
 			opfsSync?.status === 'syncing' ? opfsSync.progress : undefined;
 		const progressPercent = getProgressPercent(progress);
+		const progressLabel =
+			progressPercent === undefined ? '' : ` ${progressPercent}%`;
+		const ringProgress = progressPercent ?? 30;
 		return (
 			<div
 				className={classNames(css.indicator, css.saving)}
-				aria-label={`${getSyncLabel({
-					site: activeSite,
-					opfsSync,
-				})} ${progressPercent}%`}
+				aria-label={`Saving${progressLabel}`}
 				role="status"
 			>
 				<span
 					className={css.progressRing}
 					style={
 						{
-							'--save-progress': `${progressPercent}%`,
+							'--save-progress': `${ringProgress}%`,
 						} as React.CSSProperties
 					}
 					aria-hidden="true"
 				/>
-				<span className={css.label}>
-					{getSyncLabel({ site: activeSite, opfsSync })}
-				</span>
+				<span className={css.label}>Saving</span>
 			</div>
 		);
 	}
@@ -226,8 +243,8 @@ export function SaveStatusIndicator() {
 /**
  * Collapses site storage and OPFS sync state into one browser-chrome status.
  *
- * A newly-created OPFS site has saved metadata before its iframe client exists,
- * so `initialOpfsSyncPending` must still render as an in-progress save.
+ * Booting sites have saved metadata before the iframe client exists. Actual
+ * OPFS writes only start once the client reports an active sync operation.
  */
 function getSaveStatus(
 	site: SiteInfo | undefined,
@@ -241,11 +258,11 @@ function getSaveStatus(
 	if (opfsSync?.status === 'error') {
 		return 'error';
 	}
-	if (
-		opfsSync?.status === 'syncing' ||
-		(!clientInfo && site.metadata.initialOpfsSyncPending)
-	) {
+	if (opfsSync?.status === 'syncing') {
 		return 'saving';
+	}
+	if (!clientInfo) {
+		return 'loading';
 	}
 	const storage = site?.metadata.storage;
 	if (storage === 'none' || !storage) {
@@ -258,37 +275,13 @@ function getSaveStatus(
 }
 
 /**
- * Uses the sync operation when it is known, then falls back to site lifecycle.
- *
- * `initialOpfsSyncPending` alone is not enough to mean "autosaving": explicit
- * browser saves also do their first MEMFS-to-OPFS sync after boot. Known
- * autosaved Playgrounds keep the completed-state label while the pending OPFS
- * sync finishes because they are already represented as autosaves in Site Manager.
- */
-function getSyncLabel({
-	site,
-	opfsSync,
-}: {
-	site: SiteInfo | undefined;
-	opfsSync: OpfsSync | undefined;
-}) {
-	if (opfsSync?.operation === 'save') {
-		return 'Saving';
-	}
-	if (site && isAutosavedSite(site)) {
-		return 'Autosaved';
-	}
-	return opfsSync?.operation === 'autosave' ? 'Autosaving' : 'Saving';
-}
-
-/**
  * Turns OPFS file-count progress into the bounded percentage used by the ring.
  */
 function getProgressPercent(
 	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
 ) {
 	if (!progress || progress.total <= 0) {
-		return 0;
+		return undefined;
 	}
 	return Math.min(100, Math.round((progress.files / progress.total) * 100));
 }
