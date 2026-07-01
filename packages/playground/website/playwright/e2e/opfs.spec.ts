@@ -665,10 +665,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
+	const importDoneDialog = website.page.waitForEvent('dialog');
 
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
@@ -676,6 +673,9 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	const dialog = await importDoneDialog;
+	expect(dialog.message()).toContain('File imported!');
+	await dialog.accept();
 
 	// The import should trigger creation of a new saved site by default.
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
