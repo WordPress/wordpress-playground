@@ -371,6 +371,7 @@ echo json_encode(array(
 
 	describe('targetFolderName option', () => {
 		it('should install a plugin to expected path', async () => {
+			// @ts-expect-error pluginZipFile is deprecated but still supported at runtime.
 			await installPlugin(php, {
 				pluginZipFile: await zipFiles(php, zipFileName, {
 					[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
