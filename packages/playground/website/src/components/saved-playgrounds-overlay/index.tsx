@@ -331,7 +331,7 @@ export function SavedPlaygroundsOverlay({
 
 		const doImport = async () => {
 			try {
-				if (activeOpfsSyncStatus === 'error') {
+				if (activeClientInfo?.opfsSync?.status === 'error') {
 					throw new Error(
 						'Unable to save the new Playground before import.'
 					);
@@ -366,7 +366,7 @@ export function SavedPlaygroundsOverlay({
 		pendingZipTargetSlug,
 		activeSite,
 		playground,
-		activeOpfsSyncStatus,
+		activeClientInfo?.opfsSync?.status,
 		onClose,
 	]);
 
@@ -392,7 +392,7 @@ export function SavedPlaygroundsOverlay({
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
-		if (zipImportInProgressRef.current || pendingZipFile) {
+		if (importingRef.current || pendingZipFile) {
 			e.target.value = '';
 			return;
 		}
