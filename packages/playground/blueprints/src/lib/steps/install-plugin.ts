@@ -83,9 +83,17 @@ export interface InstallPluginOptions {
 	 */
 	activationOptions?: Record<string, unknown>;
 	/**
+	 * Whether installation/activation failures should abort the Blueprint.
+	 */
+	onError?: 'skip-plugin' | 'throw';
+	/**
 	 * The name of the folder to install the plugin to. Defaults to guessing from pluginData
 	 */
 	targetFolderName?: string;
+	/**
+	 * Human-readable plugin name for progress captions and skip warnings.
+	 */
+	humanReadableName?: string;
 }
 
 /**
@@ -109,15 +117,9 @@ export const installPlugin: StepHandler<
 		);
 	}
 
-	const pluginsDirectoryPath = joinPaths(
-		await playground.documentRoot,
-		'wp-content',
-		'plugins'
-	);
-	const targetFolderName =
-		'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderPath = '';
 	let assetNiceName = '';
+	const progressName = () => options.humanReadableName || assetNiceName;
 
 	const looksLikeZipFile = async (file: File): Promise<boolean> => {
 		if (file.name.toLowerCase().endsWith('.zip')) {
@@ -134,85 +136,113 @@ export const installPlugin: StepHandler<
 		return matchesZipSignature;
 	};
 
-	if (pluginData instanceof File) {
-		if (await looksLikeZipFile(pluginData)) {
-			// Assume any other file is a zip file
-			// @TODO: Consider validating whether this is a zip file?
-			const zipFileName =
-				pluginData.name.split('/').pop() || 'plugin.zip';
-			assetNiceName = zipNameToHumanName(zipFileName);
-
-			progress?.tracker.setCaption(
-				`Installing the ${assetNiceName} plugin`
-			);
-			const assetResult = await installAsset(playground, {
-				ifAlreadyInstalled,
-				zipFile: pluginData,
-				targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-				targetFolderName: targetFolderName,
-			});
-			assetFolderPath = assetResult.assetFolderPath;
-			assetNiceName = assetResult.assetFolderName;
-		} else if (pluginData.name.endsWith('.php')) {
-			const destinationFilePath = joinPaths(
-				pluginsDirectoryPath,
-				pluginData.name
-			);
-			await writeFile(playground, {
-				path: destinationFilePath,
-				data: pluginData,
-			});
-			assetFolderPath = pluginsDirectoryPath;
-			assetNiceName = pluginData.name;
-		} else {
-			throw new Error(
-				'pluginData looks like a file ' +
-					'but does not look like a .zip or .php file.'
-			);
-		}
-	} else if (pluginData) {
-		assetNiceName = pluginData.name;
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
-
-		const pluginDirectoryPath = joinPaths(
-			pluginsDirectoryPath,
-			targetFolderName || pluginData.name
+	try {
+		const pluginsDirectoryPath = joinPaths(
+			await playground.documentRoot,
+			'wp-content',
+			'plugins'
 		);
-		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
-			rmRoot: true,
-		});
-		assetFolderPath = pluginDirectoryPath;
-	}
+		const targetFolderName =
+			'targetFolderName' in options ? options.targetFolderName : '';
 
-	// Activate
-	const activate = 'activate' in options ? options.activate : true;
+		if (pluginData instanceof File) {
+			if (await looksLikeZipFile(pluginData)) {
+				// Assume any other file is a zip file
+				// @TODO: Consider validating whether this is a zip file?
+				const zipFileName =
+					pluginData.name.split('/').pop() || 'plugin.zip';
+				assetNiceName = zipNameToHumanName(zipFileName);
 
-	if (activate) {
-		let activationOptionName: string | undefined;
-		if (options.activationOptions !== undefined) {
-			activationOptionName = await setPluginActivationOptions(
-				playground,
-				assetFolderPath,
-				options.activationOptions
-			);
-		}
-		try {
-			await activatePlugin(
-				playground,
-				{
-					pluginPath: assetFolderPath,
-					pluginName: assetNiceName,
-				},
-				progress
-			);
-		} finally {
-			if (activationOptionName) {
-				await deletePluginActivationOptions(
-					playground,
-					activationOptionName
+				progress?.tracker.setCaption(
+					`Installing the ${progressName()} plugin`
+				);
+				const assetResult = await installAsset(playground, {
+					ifAlreadyInstalled,
+					zipFile: pluginData,
+					targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+					targetFolderName: targetFolderName,
+				});
+				assetFolderPath = assetResult.assetFolderPath;
+				assetNiceName = assetResult.assetFolderName;
+			} else if (pluginData.name.endsWith('.php')) {
+				const destinationFilePath = joinPaths(
+					pluginsDirectoryPath,
+					pluginData.name
+				);
+				await writeFile(playground, {
+					path: destinationFilePath,
+					data: pluginData,
+				});
+				assetFolderPath = pluginsDirectoryPath;
+				assetNiceName = pluginData.name;
+			} else {
+				throw new Error(
+					'pluginData looks like a file ' +
+						'but does not look like a .zip or .php file.'
 				);
 			}
+		} else if (pluginData) {
+			assetNiceName = pluginData.name;
+			progress?.tracker.setCaption(
+				`Installing the ${progressName()} plugin`
+			);
+
+			const pluginDirectoryPath = joinPaths(
+				pluginsDirectoryPath,
+				targetFolderName || pluginData.name
+			);
+			await writeFiles(
+				playground,
+				pluginDirectoryPath,
+				pluginData.files,
+				{
+					rmRoot: true,
+				}
+			);
+			assetFolderPath = pluginDirectoryPath;
 		}
+
+		// Activate
+		const activate = 'activate' in options ? options.activate : true;
+
+		if (activate) {
+			let activationOptionName: string | undefined;
+			if (options.activationOptions !== undefined) {
+				activationOptionName = await setPluginActivationOptions(
+					playground,
+					assetFolderPath,
+					options.activationOptions
+				);
+			}
+			try {
+				await activatePlugin(
+					playground,
+					{
+						pluginPath: assetFolderPath,
+						pluginName: progressName(),
+					},
+					progress
+				);
+			} finally {
+				if (activationOptionName) {
+					await deletePluginActivationOptions(
+						playground,
+						activationOptionName
+					);
+				}
+			}
+		}
+	} catch (error) {
+		if (options.onError === 'skip-plugin') {
+			const skippedPluginName = progressName() || 'unknown plugin';
+			logger.warn(
+				`Skipping plugin installation for ${skippedPluginName} after failure: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+			return;
+		}
+		throw error;
 	}
 };
 

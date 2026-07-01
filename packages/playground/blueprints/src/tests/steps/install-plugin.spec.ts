@@ -4,6 +4,7 @@ import { installPlugin } from '../../lib/steps/install-plugin';
 import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { logger } from '@php-wasm/logger';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
@@ -123,6 +124,65 @@ describe('Blueprint step installPlugin', () => {
 		const pluginFilePath = `${pluginsPath}/test-plugin.php`;
 		expect(php.fileExists(pluginFilePath)).toBe(true);
 		expect(php.readFileAsText(pluginFilePath)).toBe(rawPluginContent);
+	});
+
+	it('should throw plugin installation errors by default', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
+			})
+		).rejects.toThrow(
+			'pluginData looks like a file but does not look like a .zip or .php file.'
+		);
+	});
+
+	it('should skip plugin installation errors when onError is skip-plugin', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
+					options: {
+						onError: 'skip-plugin',
+					},
+				})
+			).resolves.toBeUndefined();
+
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping plugin installation for unknown plugin after failure'
+				)
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
+	it('should use humanReadableName when skipping plugin installation errors', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(['not a plugin'], 'not-a-plugin.txt'),
+					options: {
+						onError: 'skip-plugin',
+						humanReadableName: 'Query Monitor Beta',
+					},
+				})
+			).resolves.toBeUndefined();
+
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Skipping plugin installation for Query Monitor Beta after failure'
+				)
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
 	});
 
 	it('should expose activationOptions during plugin activation', async () => {

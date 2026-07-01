@@ -1491,9 +1491,18 @@
 					"additionalProperties": {},
 					"description": "Parameters to expose to the plugin during its activation hook."
 				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-plugin", "throw"],
+					"description": "Whether installation/activation failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the plugin to. Defaults to guessing from pluginData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable plugin name for progress captions and skip warnings."
 				}
 			},
 			"additionalProperties": false
