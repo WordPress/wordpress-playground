@@ -6,7 +6,7 @@ import type { Directory } from '../v1/resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
-import { joinPaths } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -122,6 +122,14 @@ export const installTheme: StepHandler<
 		} else {
 			assetNiceName = themeData.name;
 			assetFolderName = targetFolderName || assetNiceName;
+			if (
+				!assetFolderName ||
+				basename(assetFolderName) !== assetFolderName
+			) {
+				throw new Error(
+					'Theme folder name must be a single directory name.'
+				);
+			}
 
 			progress?.tracker.setCaption(
 				`Installing the ${progressName()} theme`
