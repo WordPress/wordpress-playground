@@ -36,10 +36,12 @@ export interface MountOptions {
 		onProgress?: SyncProgressCallback;
 	};
 	onMount?: (mount: DirectoryHandleMount) => void;
+	onFlushStatus?: OpfsFlushStatusCallback;
 }
 export interface DirectoryHandleMount {
 	flush(): Promise<void>;
 	unmount(): Promise<void>;
+	setFlushStatusCallback(callback?: OpfsFlushStatusCallback): void;
 }
 export type SyncProgress = {
 	/** The number of files that have been synced. */
@@ -52,9 +54,25 @@ export type SyncProgress = {
 export type SyncProgressCallback = (
 	progress: SyncProgress
 ) => void | Promise<void>;
+export type OpfsFlushStatus =
+	| {
+			status: 'flushing';
+			pendingOperations: number;
+	  }
+	| {
+			status: 'idle';
+	  }
+	| {
+			status: 'error';
+			message: string;
+	  };
+export type OpfsFlushStatusCallback = (
+	status: OpfsFlushStatus
+) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
+	onFlushStatus?: OpfsFlushStatusCallback;
 }
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
@@ -78,11 +96,15 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				onFlushStatus: options.onFlushStatus,
+			});
 			options.onMount?.(mount);
 			return mount.unmount;
 		} else {
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				onFlushStatus: options.onFlushStatus,
+			});
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
@@ -328,10 +350,29 @@ export function journalFSEventsToOpfs(
 	});
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 	let flushPromise: Promise<void> | undefined;
+	let onFlushStatus = options.onFlushStatus;
 
 	function flush() {
 		if (flushPromise === undefined) {
-			flushPromise = flushJournal().finally(() => {
+			if (journal.length === 0) {
+				return Promise.resolve();
+			}
+			flushPromise = (async () => {
+				await reportFlushStatus({
+					status: 'flushing',
+					pendingOperations: journal.length,
+				});
+				try {
+					await flushJournal();
+					await reportFlushStatus({ status: 'idle' });
+				} catch (error) {
+					await reportFlushStatus({
+						status: 'error',
+						message: getErrorMessage(error),
+					});
+					throw error;
+				}
+			})().finally(() => {
 				flushPromise = undefined;
 			});
 		}
@@ -352,6 +393,14 @@ export function journalFSEventsToOpfs(
 		void flush().catch((error) => {
 			logger.error(error);
 		});
+	}
+
+	async function reportFlushStatus(status: OpfsFlushStatus) {
+		try {
+			await onFlushStatus?.(status);
+		} catch (error) {
+			logger.error('OPFS flush status callback failed', error);
+		}
 	}
 
 	async function flushJournal() {
@@ -408,7 +457,14 @@ export function journalFSEventsToOpfs(
 	return {
 		flush,
 		unmount,
+		setFlushStatusCallback(callback?: OpfsFlushStatusCallback) {
+			onFlushStatus = callback;
+		},
 	};
+}
+
+function getErrorMessage(error: unknown) {
+	return error instanceof Error ? error.message : String(error);
 }
 
 type JournalEntry = FilesystemOperation;

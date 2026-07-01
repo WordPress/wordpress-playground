@@ -15,6 +15,8 @@ export type {
 	DirectoryHandleMount,
 	MountDevice,
 	MountOptions,
+	OpfsFlushStatus,
+	OpfsFlushStatusCallback,
 	SyncProgress,
 	SyncProgressCallback,
 } from './directory-handle-mount';

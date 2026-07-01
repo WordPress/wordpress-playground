@@ -45,6 +45,7 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { setOpfsFlushStatusCallback } from './opfs-flush-status';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -333,6 +334,15 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		if (mountDescriptor && !mountDescriptorForInitialOpfsSync) {
+			void setOpfsFlushStatusCallback({
+				playground: connectedPlayground,
+				mountpoint: mountDescriptor.mountpoint,
+				siteSlug: site.slug,
+				dispatch,
+				getState,
+			});
+		}
 		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
 		// If OPFS already contains WordPress files, the initial sync either
 		// completed earlier or is no longer needed. Clear the stale flag so
@@ -349,6 +359,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				operation: syncOperation,
 				dispatch,
+				getState,
 			});
 		} else {
 			try {
@@ -411,12 +422,14 @@ async function syncInitialOpfsFilesInBackground({
 	siteSlug,
 	operation,
 	dispatch,
+	getState,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 	siteSlug: string;
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
+	getState: () => PlaygroundReduxState;
 }) {
 	let shouldReportProgress = true;
 	try {
@@ -443,6 +456,14 @@ async function syncInitialOpfsFilesInBackground({
 				);
 			}
 		);
+		await setOpfsFlushStatusCallback({
+			playground,
+			mountpoint: mountDescriptor.mountpoint,
+			siteSlug,
+			dispatch,
+			getState,
+		});
+		await playground.flushOpfs(mountDescriptor.mountpoint);
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,

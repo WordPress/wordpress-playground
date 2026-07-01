@@ -101,6 +101,37 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 	});
 
+	it('reports flush status only when pending journaled changes are written', async () => {
+		const statuses: Array<{
+			status: string;
+			pendingOperations?: number;
+		}> = [];
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress',
+			{
+				onFlushStatus: (status) => {
+					statuses.push(status);
+				},
+			}
+		);
+
+		await mount.flush();
+		expect(statuses).toEqual([]);
+
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+		await mount.flush();
+
+		expect(statuses).toEqual([
+			{ status: 'flushing', pendingOperations: 1 },
+			{ status: 'idle' },
+		]);
+	});
+
 	it.each(['filesystem.write', 'request.end'] as const)(
 		'flushes pending writes when %s is dispatched',
 		async (eventType) => {

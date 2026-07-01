@@ -20,6 +20,7 @@ import {
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
+import { setOpfsFlushStatusCallback } from './opfs-flush-status';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -207,8 +208,60 @@ export function persistTemporarySite(
 					);
 				}
 			);
+			await setOpfsFlushStatusCallback({
+				playground,
+				mountpoint: mountDescriptor.mountpoint,
+				siteSlug,
+				dispatch,
+				getState,
+			});
+			await playground.flushOpfs(mountDescriptor.mountpoint);
 
-			// @TODO: Create a notification to tell the user the operation is complete
+			// Autosaves stay tied to their source setup URL so restore matching and
+			// boot-time query options can still inspect it. Explicit saves open by
+			// slug, so drop the temporary route params after persistence.
+			if (!isAutosave) {
+				await dispatch(
+					updateSite({
+						slug: siteSlug,
+						changes: {
+							originalUrlParams: undefined,
+						},
+					})
+				);
+			}
+
+			const persistedAt = Date.now();
+			const playgroundDefinedConstants =
+				await getPlaygroundDefinedPHPConstants(playground);
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: {
+						storage: storageType,
+						persistence: options.persistence ?? 'explicit',
+						// The viewport key includes whenCreated. Changing it would
+						// remount the iframe, so autosave keeps the current value
+						// while explicit saves reset the creation time.
+						...(isAutosave ? {} : { whenCreated: persistedAt }),
+						whenLastUsed: persistedAt,
+						// Keep these outside runtimeConfiguration so autosave does not
+						// change the running iframe's boot fingerprint.
+						playgroundDefinedConstants,
+						// If we persisted a blueprint bundle, point to it so we can
+						// load the full bundle (not just the declaration) on next load.
+						...(bundleWasPersisted
+							? {
+									originalBlueprintSource: {
+										type: 'opfs-site' as const,
+									},
+								}
+							: {}),
+						...(trimmedName ? { name: trimmedName } : {}),
+					},
+				})
+			);
+
 			dispatch(
 				updateClientInfo({
 					siteSlug,
@@ -232,50 +285,6 @@ export function persistTemporarySite(
 			throw error;
 		}
 
-		// Autosaves stay tied to their source setup URL so restore matching and
-		// boot-time query options can still inspect it. Explicit saves open by
-		// slug, so drop the temporary route params after persistence.
-		if (!isAutosave) {
-			await dispatch(
-				updateSite({
-					slug: siteSlug,
-					changes: {
-						originalUrlParams: undefined,
-					},
-				})
-			);
-		}
-
-		const persistedAt = Date.now();
-		const playgroundDefinedConstants =
-			await getPlaygroundDefinedPHPConstants(playground);
-		await dispatch(
-			updateSiteMetadata({
-				slug: siteSlug,
-				changes: {
-					storage: storageType,
-					persistence: options.persistence ?? 'explicit',
-					// The viewport key includes whenCreated. Changing it would
-					// remount the iframe, so autosave keeps the current value
-					// while explicit saves reset the creation time.
-					...(isAutosave ? {} : { whenCreated: persistedAt }),
-					whenLastUsed: persistedAt,
-					// Keep these outside runtimeConfiguration so autosave does not
-					// change the running iframe's boot fingerprint.
-					playgroundDefinedConstants,
-					// If we persisted a blueprint bundle, point to it so we can
-					// load the full bundle (not just the declaration) on next load.
-					...(bundleWasPersisted
-						? {
-								originalBlueprintSource: {
-									type: 'opfs-site' as const,
-								},
-							}
-						: {}),
-					...(trimmedName ? { name: trimmedName } : {}),
-				},
-			})
-		);
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:

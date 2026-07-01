@@ -5,6 +5,7 @@ import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
+	OpfsFlushStatusCallback,
 	PHPWebExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
@@ -440,10 +441,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	async mountOpfs(
 		options: MountDescriptor,
-		onProgress?: SyncProgressCallback
+		onProgress?: SyncProgressCallback,
+		onFlushStatus?: OpfsFlushStatusCallback
 	) {
 		const php = this.__internal_getPHP()!;
-		await this.mountOpfsIntoPhp(php, options, onProgress);
+		await this.mountOpfsIntoPhp(php, options, onProgress, onFlushStatus);
 	}
 
 	async flushOpfs(mountpoint: string) {
@@ -452,6 +454,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
 		await opfsMount.flush();
+	}
+
+	async setOpfsFlushStatusCallback(
+		mountpoint: string,
+		callback?: OpfsFlushStatusCallback
+	) {
+		const opfsMount = this.opfsMounts[mountpoint];
+		if (opfsMount === undefined) {
+			throw new Error(`No OPFS mount found at "${mountpoint}".`);
+		}
+		opfsMount.setFlushStatusCallback(callback);
 	}
 
 	async unmountOpfs(mountpoint: string) {
@@ -533,7 +546,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	protected async mountOpfsIntoPhp(
 		php: PHP,
 		options: MountDescriptor,
-		onProgress?: SyncProgressCallback
+		onProgress?: SyncProgressCallback,
+		onFlushStatus?: OpfsFlushStatusCallback
 	) {
 		if (
 			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
@@ -552,6 +566,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					onProgress,
 					direction: options.initialSyncDirection,
 				},
+				onFlushStatus,
 				onMount(mount) {
 					opfsMount = mount;
 				},

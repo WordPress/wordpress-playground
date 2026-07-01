@@ -3,7 +3,11 @@
  */
 import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
-import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
+import type {
+	OpfsFlushStatusCallback,
+	RemoteAPI,
+	SyncProgressCallback,
+} from '@php-wasm/web';
 import type { ProgressBarOptions } from './progress-bar';
 import type {
 	PlaygroundWorkerEndpoint,
@@ -63,10 +67,16 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	mountOpfs(
 		options: MountDescriptor,
-		onProgress?: SyncProgressCallback
+		onProgress?: SyncProgressCallback,
+		onFlushStatus?: OpfsFlushStatusCallback
 	): Promise<void>;
 
 	flushOpfs(mountpoint: string): Promise<void>;
+
+	setOpfsFlushStatusCallback(
+		mountpoint: string,
+		callback?: OpfsFlushStatusCallback
+	): Promise<void>;
 
 	unmountOpfs(mountpoint: string): Promise<void>;
 

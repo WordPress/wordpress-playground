@@ -1,6 +1,9 @@
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
-import type { SyncProgressCallback } from '@php-wasm/web';
+import type {
+	OpfsFlushStatusCallback,
+	SyncProgressCallback,
+} from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
 	exposeAPI,
@@ -388,13 +391,28 @@ export async function bootPlaygroundRemote() {
 		 */
 		async mountOpfs(
 			options: MountDescriptor,
-			onProgress?: SyncProgressCallback
+			onProgress?: SyncProgressCallback,
+			onFlushStatus?: OpfsFlushStatusCallback
 		) {
-			return await phpWorkerApi.mountOpfs(options, onProgress);
+			return await phpWorkerApi.mountOpfs(
+				options,
+				onProgress,
+				onFlushStatus
+			);
 		},
 
 		async flushOpfs(mountpoint: string) {
 			return await phpWorkerApi.flushOpfs(mountpoint);
+		},
+
+		async setOpfsFlushStatusCallback(
+			mountpoint: string,
+			callback?: OpfsFlushStatusCallback
+		) {
+			return await phpWorkerApi.setOpfsFlushStatusCallback(
+				mountpoint,
+				callback
+			);
 		},
 
 		/**

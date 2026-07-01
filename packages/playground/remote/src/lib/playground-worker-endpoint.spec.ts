@@ -42,6 +42,18 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
+	it('sets the active OPFS mount flush status callback', async () => {
+		const opfsMount = createOpfsMount();
+		const endpoint = await createEndpoint({
+			'/wordpress': opfsMount,
+		});
+		const callback = vi.fn();
+
+		await endpoint.setOpfsFlushStatusCallback('/wordpress', callback);
+
+		expect(opfsMount.setFlushStatusCallback).toHaveBeenCalledWith(callback);
+	});
+
 	it('reports whether an OPFS mount is active', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),
@@ -299,6 +311,10 @@ async function createEndpoint(
 			mountpoint: string;
 		}): Promise<void>;
 		flushOpfs(mountpoint: string): Promise<void>;
+		setOpfsFlushStatusCallback(
+			mountpoint: string,
+			callback?: () => void
+		): Promise<void>;
 		unmountOpfs(mountpoint: string): Promise<void>;
 		opfsMounts: typeof opfsMounts;
 		unmounts: typeof unmounts;
@@ -313,6 +329,7 @@ function createOpfsMount() {
 	return {
 		flush: vi.fn(async () => {}),
 		unmount: vi.fn(async () => {}),
+		setFlushStatusCallback: vi.fn(),
 	};
 }
 
