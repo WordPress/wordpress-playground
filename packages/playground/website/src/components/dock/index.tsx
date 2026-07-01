@@ -33,6 +33,7 @@ import { SiteManager } from '../site-manager';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { AutosaveNudge } from './autosave-nudge';
+import playgroundLogoSvg from '../../playground-logo.svg?raw';
 import css from './style.module.css';
 
 const isSavingDisabled = isSiteSavingDisabled();
@@ -43,9 +44,12 @@ type DockSection = Exclude<
 >;
 
 const DRAG_EDGE = 8;
-// Pointer travel (px) before a press on the header band becomes a drag instead
-// of a click — keeps a normal collapse tap from nudging the dock sideways.
+// Pointer travel (px) before a press on the grip becomes a drag instead of a
+// tap — keeps a small jitter from nudging the dock sideways.
 const DRAG_THRESHOLD = 4;
+// How far past the on-screen clamp the user has to keep pushing the dock toward
+// a side edge before releasing tucks it into a corner button there.
+const CORNER_OVERDRAG = 36;
 const PANE_GAP = 12;
 // Shared desktop height for the New and Your Playgrounds panes so they match;
 // a touch taller than the list felt before. Both clamp to the available space.
@@ -91,7 +95,9 @@ function DatabaseIcon() {
 
 /**
  * Curly-braces mark for the Blueprint tool. Blueprints are JSON, so `{}` reads
- * truer than the angle-bracket `<>` glyph, which connotes HTML/markup.
+ * truer than the angle-bracket `<>` glyph, which connotes HTML/markup. The arms
+ * curve continuously into the tongue (no straight vertical segments) so it reads
+ * as calligraphic braces, not two gray stripes; thin stroke to sit light.
  */
 function BracesIcon() {
 	return (
@@ -106,8 +112,16 @@ function BracesIcon() {
 			strokeLinejoin="round"
 			aria-hidden="true"
 		>
-			<path d="M10 4Q7 4 7 8Q7 11 5 12Q7 13 7 16Q7 20 10 20" />
-			<path d="M14 4Q17 4 17 8Q17 11 19 12Q17 13 17 16Q17 20 14 20" />
+			{/* fill="none" per-path so the dock's `.dock-icon svg { fill: currentColor }`
+			    rule can't fill these open paths into solid crescents (the gray stripes). */}
+			<path
+				fill="none"
+				d="M9 4C7 4 7 6 6.8 8.5C6.65 10.4 6 11.4 4.5 12C6 12.6 6.65 13.6 6.8 15.5C7 18 7 20 9 20"
+			/>
+			<path
+				fill="none"
+				d="M15 4C17 4 17 6 17.2 8.5C17.35 10.4 18 11.4 19.5 12C18 12.6 17.35 13.6 17.2 15.5C17 18 17 20 15 20"
+			/>
 		</svg>
 	);
 }
@@ -273,6 +287,13 @@ function useIsMobile() {
 	return isMobile;
 }
 
+function prefersReducedMotion() {
+	return (
+		typeof window !== 'undefined' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches
+	);
+}
+
 export function Dock() {
 	const dispatch = useAppDispatch();
 	const siteManagerIsOpen = useAppSelector(
@@ -320,6 +341,14 @@ export function Dock() {
 		halfWidth: number;
 	} | null>(null);
 	const draggedRef = useRef(false);
+	// Dragging the corner launcher back out maximizes the dock — the mirror of
+	// dragging the bar into a corner. cornerDragRef holds the gesture's start x;
+	// cornerDraggedRef flips true past the threshold so a plain tap still just
+	// restores; lastDockWidthRef keeps the bar's last real width for clamping
+	// while it's tucked away (its measured width is 0 while display:none).
+	const cornerDragRef = useRef<{ startX: number } | null>(null);
+	const cornerDraggedRef = useRef(false);
+	const lastDockWidthRef = useRef(0);
 	// Timer that re-enables transitions just after a sharp full-width toggle.
 	const modeSwitchTimer = useRef<number | null>(null);
 	const inlineRename = useInlineRename();
@@ -362,10 +391,24 @@ export function Dock() {
 	const [dockCenter, setDockCenter] = useState<number | null>(null);
 	// Drives the grabbing cursor while a drag is in flight.
 	const [isDragging, setIsDragging] = useState(false);
+	// Which side the dock has been pushed to: while a drag is live this previews
+	// the corner button; once the drag ends it commits, replacing the bar with a
+	// small launcher in that bottom corner.
+	const [dragSide, setDragSide] = useState<'left' | 'right' | null>(null);
 	// True briefly while toggling full-width <-> floating, so the dock eases its
 	// width and position for the switch. The width transition is off otherwise so
 	// it never lags a window resize.
 	const [isModeSwitching, setIsModeSwitching] = useState(false);
+	// Animated fold-into-corner: `isFolding` keeps the bar mounted while it plays
+	// its shrink-toward-the-corner animation before committing to the corner
+	// launcher; `isUnfolding` pops the restored bar back in when the launcher is
+	// clicked. Both clear on the animation's end.
+	const [isFolding, setIsFolding] = useState(false);
+	const [isUnfolding, setIsUnfolding] = useState(false);
+	// While the launcher is being dragged back out, the bar follows the pointer
+	// (like a grip drag) and the launcher stays mounted but hidden so it keeps
+	// pointer capture through the gesture.
+	const [isMaximizing, setIsMaximizing] = useState(false);
 
 	// Track the dock + body sizes: dockSize anchors the pane above the dock, and
 	// dockBodyHeight is the exact distance the dock slides to collapse.
@@ -382,6 +425,11 @@ export function Dock() {
 					width: el.offsetWidth,
 					height: el.offsetHeight,
 				});
+				// Keep the last non-zero width so a maximize-drag can clamp even
+				// though the bar measures 0 while tucked into the corner.
+				if (el.offsetWidth > 0) {
+					lastDockWidthRef.current = el.offsetWidth;
+				}
 			}
 			const tools = dockBodyRef.current;
 			if (el && tools) {
@@ -648,7 +696,16 @@ export function Dock() {
 			min,
 			window.innerWidth - drag.halfWidth - DRAG_EDGE
 		);
-		setDockCenter(Math.min(Math.max(drag.startCenter + dx, min), max));
+		const desired = drag.startCenter + dx;
+		// Keep pushing past the edge and the dock arms to dock into that corner.
+		setDragSide(
+			desired < min - CORNER_OVERDRAG
+				? 'left'
+				: desired > max + CORNER_OVERDRAG
+					? 'right'
+					: null
+		);
+		setDockCenter(Math.min(Math.max(desired, min), max));
 	};
 
 	const handleHeaderPointerUp = (event: React.PointerEvent) => {
@@ -662,6 +719,88 @@ export function Dock() {
 		}
 		dragRef.current = null;
 		setIsDragging(false);
+		// Released while pushed past the edge: fold the bar into a corner launcher.
+		// With motion allowed, play the shrink-to-corner animation first (committing
+		// to `cornered` on its end); reduced motion snaps straight to the launcher.
+		if (dragSide !== null && !prefersReducedMotion()) {
+			setIsCollapsed(false);
+			setIsFolding(true);
+		}
+	};
+
+	// Dragging the corner launcher back out is the inverse of the fold: past the
+	// threshold the bar reappears and tracks the pointer along the bottom edge,
+	// reusing the same drag + corner-preview machinery as the grip.
+	const handleCornerPointerDown = (event: React.PointerEvent) => {
+		if (event.button !== 0) {
+			return;
+		}
+		cornerDragRef.current = { startX: event.clientX };
+		cornerDraggedRef.current = false;
+		try {
+			event.currentTarget.setPointerCapture(event.pointerId);
+		} catch {
+			// Synthetic/edge cases where capture isn't available; ignore.
+		}
+	};
+
+	const handleCornerPointerMove = (event: React.PointerEvent) => {
+		const drag = cornerDragRef.current;
+		if (!drag) {
+			return;
+		}
+		if (
+			!cornerDraggedRef.current &&
+			Math.abs(event.clientX - drag.startX) < DRAG_THRESHOLD
+		) {
+			return;
+		}
+		if (!cornerDraggedRef.current) {
+			// First real movement: bring the bar back and hand off to a drag. The
+			// launcher stays mounted (isMaximizing) so it keeps pointer capture.
+			cornerDraggedRef.current = true;
+			setIsUnfolding(false);
+			setIsCollapsed(false);
+			setIsMaximizing(true);
+			setIsDragging(true);
+		}
+		const halfWidth = (lastDockWidthRef.current || 320) / 2;
+		const min = halfWidth + DRAG_EDGE;
+		const max = Math.max(min, window.innerWidth - halfWidth - DRAG_EDGE);
+		const desired = event.clientX;
+		// Push it back to an edge and the corner preview re-arms, so releasing
+		// there re-minimizes — same behaviour as the grip drag.
+		setDragSide(
+			desired < min - CORNER_OVERDRAG
+				? 'left'
+				: desired > max + CORNER_OVERDRAG
+					? 'right'
+					: null
+		);
+		setDockCenter(Math.min(Math.max(desired, min), max));
+	};
+
+	const handleCornerPointerUp = (event: React.PointerEvent) => {
+		if (!cornerDragRef.current) {
+			return;
+		}
+		try {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		} catch {
+			// The pointer may already be released; ignore.
+		}
+		cornerDragRef.current = null;
+		if (!cornerDraggedRef.current) {
+			// A plain tap — let the click handler restore the bar to centre.
+			return;
+		}
+		setIsMaximizing(false);
+		setIsDragging(false);
+		// Dropped back at an edge → fold straight back into that corner; dropped
+		// anywhere else → the bar stays maximized where it was pulled out to.
+		if (dragSide !== null && !prefersReducedMotion()) {
+			setIsFolding(true);
+		}
 	};
 
 	const toggleFullWidth = () => {
@@ -740,8 +879,63 @@ export function Dock() {
 		};
 	}
 
+	// A drag tucked the dock into a bottom corner: show a small launcher there
+	// instead of the full bar. `isFolding` keeps the bar mounted through its
+	// shrink animation, so the corner state only commits once that finishes.
+	const cornered = dragSide !== null && !isDragging && !isFolding;
+
+	// The fold / unfold keyframes run on the nav itself; commit the resulting
+	// state when they end (ignore animations bubbling up from descendants).
+	const handleDockAnimationEnd = (event: React.AnimationEvent) => {
+		if (event.target !== dockRef.current) {
+			return;
+		}
+		if (isFolding) {
+			setIsFolding(false);
+		} else if (isUnfolding) {
+			setIsUnfolding(false);
+		}
+	};
+
 	return (
 		<>
+			{(cornered || isFolding || isMaximizing) && (
+				<button
+					type="button"
+					className={classNames(css.dockCorner, {
+						[css.dockCornerLeft]: dragSide === 'left',
+						[css.dockCornerRight]: dragSide === 'right',
+						// Hidden (but still capturing the pointer) while it's being
+						// dragged out — the reappearing bar is what the user sees move.
+						[css.dockCornerDragging]: isMaximizing,
+					})}
+					aria-label="Show Playground tools"
+					title="Drag out or click to show Playground tools"
+					// Not clickable until the fold finishes, so a click mid-animation
+					// can't kick off an unfold before the launcher has settled.
+					disabled={isFolding}
+					onPointerDown={handleCornerPointerDown}
+					onPointerMove={handleCornerPointerMove}
+					onPointerUp={handleCornerPointerUp}
+					onClick={() => {
+						// A drag already handled the restore; ignore the trailing click.
+						if (cornerDraggedRef.current) {
+							return;
+						}
+						setDragSide(null);
+						setDockCenter(null);
+						setIsCollapsed(false);
+						if (!prefersReducedMotion()) {
+							setIsUnfolding(true);
+						}
+					}}
+				>
+					<span
+						className={css.dockCornerLogo}
+						dangerouslySetInnerHTML={{ __html: playgroundLogoSvg }}
+					/>
+				</button>
+			)}
 			<CSSTransition
 				nodeRef={paneRef}
 				in={siteManagerIsOpen}
@@ -878,8 +1072,18 @@ export function Dock() {
 					[css.dockSwitching]: isModeSwitching,
 					[css.dockDragged]:
 						!isMobile && !dockFullWidth && dockCenter !== null,
+					[css.dockWillCorner]: dragSide !== null && isDragging,
+					[css.dockWillCornerLeft]: dragSide === 'left' && isDragging,
+					[css.dockWillCornerRight]:
+						dragSide === 'right' && isDragging,
+					[css.dockFolding]: isFolding,
+					[css.dockFoldingLeft]: isFolding && dragSide === 'left',
+					[css.dockFoldingRight]: isFolding && dragSide === 'right',
+					[css.dockUnfolding]: isUnfolding,
+					[css.dockCornered]: cornered,
 				})}
 				style={dockStyle}
+				onAnimationEnd={handleDockAnimationEnd}
 				aria-label="Playground tools"
 			>
 				{/* A quiet drag grip for nudging the floating dock along the bottom
@@ -1025,7 +1229,9 @@ export function Dock() {
 					</div>
 				</div>
 			</nav>
-			<AutosaveNudge anchor={playgroundsToolEl} />
+			{!cornered && !isFolding && (
+				<AutosaveNudge anchor={playgroundsToolEl} />
+			)}
 		</>
 	);
 }

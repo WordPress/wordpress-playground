@@ -1,7 +1,10 @@
 /* Reconstructed from the deployed build. */
 
-.popover .components-popover__content {
-	border-radius: var(--radius-card, 8px);
+/* :global — CSS Modules would otherwise hash `.components-popover__content`, so
+   this rule silently never matched and the popover fell back to WordPress'
+   square, hairline-bordered default. */
+.popover :global(.components-popover__content) {
+	border-radius: 16px;
 	box-shadow:
 		0 16px 40px #2821173d,
 		0 4px 12px #28211724;
@@ -10,9 +13,9 @@
 .panel {
 	color: var(--ink, #21201d);
 	max-width: calc(100vw - 32px);
-	padding: var(--space-3, 12px);
+	padding: var(--space-4, 16px);
 	position: relative;
-	width: 296px;
+	width: 300px;
 }
 
 .close {
@@ -58,14 +61,14 @@
 
 .icon {
 	align-items: center;
-	background: var(--paper-3, #efece6);
-	border-radius: var(--radius-control, 6px);
+	background: #f0efec;
+	border-radius: 8px;
 	color: var(--ink-soft, #3f3b35);
 	display: flex;
 	flex: none;
-	height: 38px;
+	height: 44px;
 	justify-content: center;
-	width: 38px;
+	width: 44px;
 }
 
 .icon svg {
@@ -93,8 +96,10 @@
 }
 
 .restore {
+	border-radius: 8px;
 	justify-content: center;
 	margin-top: var(--space-3, 12px);
+	min-height: 42px;
 	width: 100%;
 }
 
