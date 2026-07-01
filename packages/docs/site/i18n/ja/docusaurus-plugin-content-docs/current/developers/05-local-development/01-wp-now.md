@@ -3,14 +3,22 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution パッケージは非推奨です
+<div class="callout callout-warning">
+
+**パッケージは非推奨です**
+
 NPM パッケージ @wp-now/wp-now は非推奨となり、今後アップデートは行われません。開発フローでコマンドラインツールを使用するには、NPM パッケージ `@wp-playground/cli` を使用してください。
-:::
+
+</div>
 
 <!--
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 -->
 
 # wp-now NPM パッケージ
@@ -31,9 +39,9 @@ The NPM package @wp-now/wp-now is deprecated, won't receive updates in the futur
 Key Features:
 -->
 
--   **コマンドラインインターフェース**: CLI に慣れた開発者にとって使いやすいです。
--   **クイックセットアップ**: ローカルの WordPress 環境を数秒でセットアップできます。
--   **カスタマイズ可能**: 特定の開発ニーズに合わせて設定できます。
+- **コマンドラインインターフェース**: CLI に慣れた開発者にとって使いやすいです。
+- **クイックセットアップ**: ローカルの WordPress 環境を数秒でセットアップできます。
+- **カスタマイズ可能**: 特定の開発ニーズに合わせて設定できます。
 
 <!--
 -   **Command-line Interface**: Easy to use for developers comfortable with CLI.
@@ -47,18 +55,22 @@ Key Features:
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 -->
 
-:::info **ドキュメント**
+<div class="callout callout-info">
+
+**ドキュメント**
 
 `wp-now` は別の GitHub リポジトリ [Playground Tools](https://github.com/WordPress/playground-tools/) でメンテナンスされています。最新のドキュメントは [専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) をご覧ください。
 
-:::
+</div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 -->
 
 ## プラグインまたはテーマディレクトリで wp-now を起動します

@@ -10,22 +10,26 @@ WordPress Playground には、WordPress を完全に制御できる JavaScript A
 WordPress Playground comes with a JavaScript API client that grants you full control over your WordPress.
  -->
 
-:::info ここでの API は「REST API」を意味するものではありません
+<div class="callout callout-info">
+
+**ここでの API は「REST API」を意味するものではありません**
 
 WordPress Playground はブラウザベースのアプリケーションです。
 ここでの API とは、JavaScript 内で呼び出せる関数のセットを指します。
 これはネットワークベースの REST API ではありません。
 
-:::
+</div>
 
 <!--
-:::info API here doesn't mean "REST API"
+<div class="callout callout-info">
+
+**API here doesn't mean "REST API"**
 
 WordPress Playground is a browser-based application.
 The term API here refers to a set of functions you can
 call inside JavaScript. This is **not** a network-based REST API.
 
-:::
+</div>
  -->
 
 ## クイックスタート
@@ -69,19 +73,23 @@ Here's the shortest example of how to use the JavaScript API in a HTML page:
 </script>
 ```
 
-:::info /remote.html は特別な URL です
+<div class="callout callout-info">
+
+**/remote.html は特別な URL です**
 
 `/remote.html` は、ブラウザ UI を備えたデモアプリではなく、Playground API エンドポイントを読み込む特別な URL です。`/` と `/remote.html` の違いについては、[このページ](/developers/apis/javascript-api/-html-vs-remote-html) をご覧ください。
 
-:::
+</div>
 
 <!--
-:::info /remote.html is a special URL
+<div class="callout callout-info">
+
+**/remote.html is a special URL**
 
 `/remote.html` is a special URL that loads the Playground
 API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html).
 
-:::
+</div>
  -->
 
 ## ウェブサイトの制御

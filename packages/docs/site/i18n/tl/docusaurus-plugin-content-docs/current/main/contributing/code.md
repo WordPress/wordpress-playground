@@ -6,20 +6,22 @@ slug: /contributing/code
 
 Tulad ng lahat ng WordPress projects, ginagamit ng Playground ang GitHub para pamahalaan ang code at subaybayan ang mga isyu. Ang pangunahing repositorya ay matatagpuan sa [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) at ang Playground Tools repositorya ay nasa [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
-:::info Mag-ambag sa Playground Tools
+<div class="callout callout-info">
+
+**Mag-ambag sa Playground Tools**
 
 Kasama sa gabay na ito ang mga link sa pangunahing repositorya, ngunit ang lahat ng hakbang at opsyon ay magagamit din para sa Playground Tools. Kung interesado ka sa mga plugin o lokal na development tools—simulan mo doon.
 
-:::
+</div>
 
 I-browse ang [listahan ng mga bukas na isyu](https://github.com/wordpress/wordpress-playground/issues) upang makita kung saan ka maaaring magtrabaho. Ang label na [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) ay inirerekomendang panimulang punto para sa mga unang beses na kontribyutor.
 
 Siguraduhing suriin ang mga sumusunod na resources bago ka magsimula:
 
--   [Mga prinsipyo sa Coding](/contributing/coding-standards)
--   [Arkitektura](/developers/architecture)
--   [Bisyon at Pilosopiya](https://github.com/WordPress/wordpress-playground/issues/472)
--   [Roadmap ng WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
+- [Mga prinsipyo sa Coding](/contributing/coding-standards)
+- [Arkitektura](/developers/architecture)
+- [Bisyon at Pilosopiya](https://github.com/WordPress/wordpress-playground/issues/472)
+- [Roadmap ng WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
 
 ## Mag-ambag ng Pull Request
 
@@ -41,11 +43,13 @@ Magbubukas ang Playground sa bagong browser tab at awtomatikong magre-refresh sa
 
 Kapag handa ka na, i-commit ang mga pagbabago at mag-submit ng Pull Request.
 
-:::info Pag-format
+<div class="callout callout-info">
+
+**Pag-format**
 
 Awtomatikong hinahandle ang code formatting at linting. Mag-relax ka lang, mag-type lang, at hayaan ang makina ang gumalaw.
 
-:::
+</div>
 
 ### Pagpapatakbo ng lokal na Multisite
 
@@ -71,8 +75,8 @@ Ngayon ay maa-access ang iyong dev server sa https://playground.test.
 
 Kung gumagamit ka ng VS Code at naka-install ang Chrome, maaari mong i-debug ang Playground sa code editor:
 
--   Buksan ang project folder sa VS Code.
--   Piliin ang Run > Start Debugging mula sa main menu o pindutin ang `F5`/`fn`+`F5`.
+- Buksan ang project folder sa VS Code.
+- Piliin ang Run > Start Debugging mula sa main menu o pindutin ang `F5`/`fn`+`F5`.
 
 ### Debugging PHP
 

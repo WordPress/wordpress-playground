@@ -15,6 +15,7 @@ const url = new URL(`http://localhost:${port}`);
 // disable auto-login, the old Playground build encounters
 // a boot error.
 url.searchParams.set('login', 'no');
+url.searchParams.set('storage', 'temp');
 // Specify the theme so we can assert against expected default content.
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');

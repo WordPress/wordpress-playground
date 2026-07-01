@@ -246,9 +246,13 @@ Comme alternative à Apache, voici un exemple d'utilisation de NGINX pour servir
 <!-- The example may be outdated. Please check [the source file](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) for the latest version. -->
 <!-- ::: -->
 
-:::info Consultez le fichier source
+<div class="callout callout-info">
+
+**Consultez le fichier source**
+
 L'exemple peut être obsolète. Veuillez vérifier [le fichier source](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) pour la dernière version.
-:::
+
+</div>
 
 <!-- The combined Apache `.htaccess` file looks like this. -->
 

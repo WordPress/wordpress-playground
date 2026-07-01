@@ -18,6 +18,7 @@ export {
 	printDebugDetails,
 	prettyPrintFullStackTrace,
 	printResponseDebugDetails,
+	describeError,
 } from './error-reporting';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
@@ -46,11 +47,25 @@ export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
+	AllPHPVersions,
+	PHPNextVersion,
+	isLegacyPHPVersion,
+	isPHPNextVersion,
 	LatestSupportedPHPVersion,
+	LegacyPHPVersions,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
-export type { SupportedPHPVersion } from './supported-php-versions';
+export type {
+	AllPHPVersion,
+	LegacyPHPVersion,
+	SupportedPHPVersion,
+} from './supported-php-versions';
+export {
+	createLegacyPhpIniPreRunStep,
+	LEGACY_PHP_INI_CONTENT,
+	LEGACY_PHP_INI_PATH,
+} from './legacy-php-ini';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
@@ -84,6 +99,22 @@ export type {
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
+export {
+	withResolvedPHPExtensions,
+	installPHPExtensionFilesSync,
+	PHP_EXTENSIONS_DIR,
+	resolvePHPExtension,
+} from './load-extension';
+export type {
+	InstallPHPExtensionFilesOptions,
+	PHPExtensionIniDirective,
+	PHPExtensionLoadDirective,
+	ResolvedInstallOptions,
+	ResolvedPHPExtension,
+	PHPExtensionManifest,
+	PHPExtensionManifestExtraFiles,
+	PHPExtensionSource,
+} from './load-extension';
 
 export {
 	DEFAULT_BASE_URL,

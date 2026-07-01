@@ -1,7 +1,12 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
+import { isLegacyPHPVersion } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
+import { writeCommonPlatformMuPlugins } from './platform-mu-plugins';
+import { SQLITE_PRELOAD_LOADER_CLASS } from './sqlite-preload-loader';
+import { setupLegacyPlatformLevelMuPlugins } from './legacy-wp/legacy-mu-plugins';
+import { preloadLegacySqliteIntegration } from './legacy-wp/legacy-sqlite-preload';
 
 export {
 	bootWordPress,
@@ -27,8 +32,15 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
+export async function setupPlatformLevelMuPlugins(
+	php: UniversalPHP,
+	options: { phpVersion?: string } = {}
+) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return setupLegacyPlatformLevelMuPlugins(php);
+	}
 	await php.mkdir('/internal/shared/mu-plugins');
+
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
 		`<?php
@@ -258,121 +270,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		`
 	);
 
-	await php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
-		`<?php
-
-		// Save WordPress environment information to a file.
-		add_action('wp_loaded', function() {
-			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
-				$db_info = array(
-					'type' => 'sqlite',
-					'path' => FQDB,
-					'driver_path' => defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')
-						? WP_MYSQL_ON_SQLITE_LOADER_PATH
-						: dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php',
-				);
-			} else {
-				$db_info = array(
-					'type' => 'mysql',
-					// TODO: Save MySQL connection config.
-				);
-			}
-			$wp_env = array('db' => $db_info);
-			$wp_env_php = sprintf('<?php return %s;', var_export($wp_env, true));
-			$wp_env_file = '/internal/shared/wp-env.php';
-			if (!file_exists($wp_env_file) || file_get_contents($wp_env_file) !== $wp_env_php ) {
-				file_put_contents($wp_env_file, $wp_env_php);
-			}
-		});
-
-        // Needed because gethostbyname( 'wordpress.org' ) returns
-        // a private network IP address for some reason.
-        add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-            return array(
-                'wordpress.org',
-                'api.wordpress.org',
-                'downloads.wordpress.org',
-            );
-        } );
-
-		/**
-		 * Prevents wp_http_validate_url() from universally failing.
-		 *
-		 * wp_http_validate_url() calls gethostbyname() to verify whether the host
-		 * is external. If it is internal, the URL validation fails and WordPress
-		 * refuses to make a request.
-		 *
-		 * However, in EMscripten, gethostbyname() returns a private network IP address.
-		 * This causes wp_http_validate_url() to return false for all URLs.
-		 *
-		 * This filter ensures that all URLs are considered external. In production
-		 * environments, this would be considered a security risk. However, Playground
-		 * already provides multiple code execution vectors as features (e.g. Blueprints).
-		 *
-		 * If someone wants to poke around local IP addresses, they already have multiple
-		 * tools at their disposal. Therefore, this is not a real security risk in context
-		 * of WordPress Playground or Playground CLI.
-		 */
-		add_filter('http_request_host_is_external', '__return_true');
-
-		// Support pretty permalinks
-        add_filter( 'got_url_rewrite', '__return_true' );
-
-        // Create the fonts directory if missing
-        if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
-            mkdir(WP_CONTENT_DIR . '/fonts');
-        }
-
-        $log_file = WP_CONTENT_DIR . '/debug.log';
-        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-            if ( is_string( WP_DEBUG_LOG ) ) {
-                $log_file = WP_DEBUG_LOG;
-            }
-            ini_set('error_log', $log_file);
-        } else {
-            ini_set('log_errors', '0');
-        }
-        define('ERROR_LOG_FILE', $log_file);
-        ?>`
-	);
-
-	/**
-	 * WordPress 6.7+ only generates the sitemap.xml → wp-sitemap.xml rewrite
-	 * rule when installed at the domain root. Since Playground may use non-root
-	 * installations, the rule isn't generated. This mu-plugin handles the
-	 * redirect manually by using the site URL to determine the correct base path.
-	 *
-	 * @see https://github.com/WordPress/wordpress-playground/issues/2051
-	 */
-	await php.writeFile(
-		'/internal/shared/mu-plugins/sitemap-redirect.php',
-		`<?php
-		/**
-		 * Redirect sitemap.xml to wp-sitemap.xml for non-root installations.
-		 *
-		 * WordPress seems to only generate the sitemap.xml → wp-sitemap.xml rewrite
-		 * rule when installed at the domain root. This mu-plugin handles the
-		 * redirect for non-root installations.
-		 */
-		if (isset($_SERVER['REQUEST_URI'])) {
-			$site_url = site_url();
-			$parsed = parse_url($site_url);
-			$base_path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
-
-			$request_uri = $_SERVER['REQUEST_URI'];
-			if (
-				$request_uri === $base_path . '/sitemap.xml' ||
-				strpos($request_uri, $base_path . '/sitemap.xml?') === 0 ||
-				strpos($request_uri, $base_path . '/sitemap.xml/') === 0
-			) {
-				$query_string = strpos($request_uri, '?') !== false ? substr($request_uri, strpos($request_uri, '?')) : '';
-				header('Location: ' . $base_path . '/wp-sitemap.xml' . $query_string, true, 301);
-				exit;
-			}
-		}
-		`
-	);
+	await writeCommonPlatformMuPlugins(php);
 
 	// Load the error handler before any other PHP file to ensure it
 	// treats all the errors, even those trigerred before mu-plugins
@@ -452,10 +350,18 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
+export interface SqliteIntegrationOptions {
+	phpVersion?: string;
+}
+
 export async function preloadSqliteIntegration(
 	php: UniversalPHP,
-	sqliteZip: File
+	sqliteZip: File,
+	options: SqliteIntegrationOptions = {}
 ) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return preloadLegacySqliteIntegration(php, sqliteZip, options);
+	}
 	if (await php.isDir('/tmp/sqlite-database-integration')) {
 		await php.rmdir('/tmp/sqlite-database-integration', {
 			recursive: true,
@@ -471,6 +377,32 @@ export async function preloadSqliteIntegration(
 		(await php.listFiles('/tmp/sqlite-database-integration'))[0]
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
+
+	// WP 5.0–6.1 compat: the SQLite plugin declares
+	// `private $allow_unsafe_unquoted_parameters` on WP_SQLite_DB and
+	// then, from `prepare()`, calls `$this->__get(...)` expecting WP's
+	// wpdb::__get() to return the parent's property. That works on WP
+	// 6.2+ (wpdb declares the same property upstream) but blows up on
+	// older WordPress, where wpdb's __get() runs `return $this->$name;`
+	// from the parent class context and PHP refuses to read a child
+	// class's *private* member — producing a silent fatal Error that
+	// kills install.php and every subsequent request. Widening the
+	// declaration to `protected` lets both class contexts reach it and
+	// leaves behaviour identical on every supported WordPress version.
+	const sqliteDbClassPath = joinPaths(
+		SQLITE_PLUGIN_FOLDER,
+		'wp-includes/sqlite/class-wp-sqlite-db.php'
+	);
+	if (await php.fileExists(sqliteDbClassPath)) {
+		const classSource = await php.readFileAsText(sqliteDbClassPath);
+		const patched = classSource.replace(
+			'private $allow_unsafe_unquoted_parameters',
+			'protected $allow_unsafe_unquoted_parameters'
+		);
+		if (patched !== classSource) {
+			await php.writeFile(sqliteDbClassPath, patched);
+		}
+	}
 
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
@@ -498,83 +430,7 @@ export async function preloadSqliteIntegration(
 	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		stopIfDbPhpExists +
-			`<?php
-
-/**
- * Loads the SQLite integration plugin before WordPress is loaded
- * and without creating a drop-in "db.php" file.
- *
- * Technically, it creates a global $wpdb object whose only two
- * purposes are to:
- *
- * * Exist – because the require_wp_db() WordPress function won't
- *           connect to MySQL if $wpdb is already set.
- * * Load the SQLite integration plugin the first time it's used
- *   and replace the global $wpdb reference with the SQLite one.
- *
- * This lets Playground keep the WordPress installation clean and
- * solves dillemas like:
- *
- * * Should we include db.php in Playground exports?
- * * Should we remove db.php from Playground imports?
- * * How should we treat stale db.php from long-lived OPFS sites?
- *
- * @see https://github.com/WordPress/wordpress-playground/discussions/1379 for
- *      more context.
- */
-class Playground_SQLite_Integration_Loader {
-	public function __call($name, $arguments) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		return call_user_func_array(
-			array($GLOBALS['wpdb'], $name),
-			$arguments
-		);
-	}
-	public function __get($name) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		return $GLOBALS['wpdb']->$name;
-	}
-	public function __set($name, $value) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
-		}
-		$GLOBALS['wpdb']->$name = $value;
-	}
-    protected function load_sqlite_integration() {
-        require_once ${phpVar(SQLITE_MUPLUGIN_PATH)};
-    }
-}
-/**
- * The Query Monitor plugin short-circuits in the CLI SAPI. However, in Playground,
- * the SAPI is always "cli" at the moment. Let's set a constant to disable the CLI
- * detection.
- *
- * @see https://github.com/WordPress/sqlite-database-integration/pull/212
- * @see https://github.com/WordPress/sqlite-database-integration/pull/215
- */
-define('QM_TESTS', true);
-$wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
-
-/**
- * WordPress is capable of using a preloaded global $wpdb. However, if
- * it cannot find the drop-in db.php plugin it still checks whether
- * the mysqli_connect() function exists even though it's not used.
- *
- * What WordPress demands, Playground shall provide.
- */
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
-
-		`
+		buildModernSqlitePreload(stopIfDbPhpExists, SQLITE_MUPLUGIN_PATH)
 	);
 	/**
 	 * Ensure the SQLite integration is loaded and clearly communicate
@@ -589,6 +445,28 @@ if(!function_exists('mysqli_connect')) {
 			var_dump(isset($wpdb));
 			die("SQLite integration not loaded " . get_class($wpdb));
 		}
+		`
+	);
+}
+
+/**
+ * Builds the 0-sqlite.php preload content for modern PHP (7+).
+ * Matches trunk behavior: require_once, simple db.php guard,
+ * minimal mysqli_connect stub.
+ */
+function buildModernSqlitePreload(
+	stopIfDbPhpExists: string,
+	muPluginPath: string
+): string {
+	return (
+		stopIfDbPhpExists +
+		`<?php
+
+${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
 		`
 	);
 }

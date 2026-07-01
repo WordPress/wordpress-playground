@@ -4,6 +4,7 @@ import {
 	bindUserSpace,
 	createNodeFsMountHandler,
 	loadNodeRuntime,
+	type PHPExtension,
 	type WasmUserSpaceContext,
 } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -168,10 +169,7 @@ export type SecondaryWorkerBootArgs = {
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
-	withIntl?: boolean;
-	withRedis?: boolean;
-	withMemcached?: boolean;
-	withXdebug?: boolean;
+	extensions?: PHPExtension[];
 	pathAliases?: PathAlias[];
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -231,6 +229,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 		await setPhpIniEntries(php, {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 			allow_url_fopen: '1',
 			disable_functions: '',
 		});
@@ -451,10 +450,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		phpIniEntries,
 		trace,
 		nativeInternalDirPath,
-		withIntl,
-		withRedis,
-		withMemcached,
-		withXdebug,
+		extensions,
 		pathAliases,
 		onPHPInstanceCreated,
 		spawnHandler,
@@ -489,10 +485,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							},
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
-						withIntl: withIntl,
-						withRedis,
-						withMemcached,
-						withXdebug,
+						extensions,
 					});
 				},
 				maxPhpInstances: 1,
@@ -564,7 +557,7 @@ async function createPHPWorker(
 		phpIniEntries,
 		trace,
 		nativeInternalDirPath,
-		withXdebug,
+		extensions,
 		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
@@ -590,7 +583,7 @@ async function createPHPWorker(
 		processId: spawnedWorker.processId,
 		trace,
 		nativeInternalDirPath,
-		withXdebug,
+		extensions,
 		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,

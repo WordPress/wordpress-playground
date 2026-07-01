@@ -25,6 +25,10 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const personalWPDevServerPort = 5401;
+const isomorphicGitEsmEntry = join(
+	__dirname,
+	'../../../node_modules/isomorphic-git/index.js'
+);
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -47,6 +51,14 @@ export default defineConfig(({ command, mode }) => {
 
 	const defaultBlueprintUrl =
 		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/blueprint.json';
+	const personalWpUsageStatsEndpoint =
+		'PERSONAL_WP_USAGE_STATS_ENDPOINT' in process.env
+			? process.env.PERSONAL_WP_USAGE_STATS_ENDPOINT
+			: undefined;
+	const personalWpUsageStatsHost =
+		'PERSONAL_WP_USAGE_STATS_HOST' in process.env
+			? process.env.PERSONAL_WP_USAGE_STATS_HOST
+			: 'my.wordpress.net';
 
 	return {
 		root: __dirname,
@@ -55,6 +67,30 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-personal-wp',
+		optimizeDeps: {
+			include: [
+				'async-lock',
+				'buffer',
+				'clean-git-ref',
+				'crc-32',
+				'diff3',
+				'ignore',
+				'ini',
+				'pako',
+				'pify',
+				'sha.js',
+				'sha.js/sha1.js',
+			],
+			exclude: ['isomorphic-git'],
+		},
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: isomorphicGitEsmEntry,
+				},
+			],
+		},
 
 		css: {
 			modules: {
@@ -112,6 +148,12 @@ export default defineConfig(({ command, mode }) => {
 				name: 'cors-proxy-url',
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
+			}),
+			virtualModule({
+				name: 'personal-wp-usage-stats',
+				content: `
+				export const personalWpUsageStatsEndpoint = ${JSON.stringify(personalWpUsageStatsEndpoint || undefined)};
+				export const personalWpUsageStatsHost = ${JSON.stringify(personalWpUsageStatsHost || undefined)};`,
 			}),
 			virtualModule({
 				name: 'website-defaults',
@@ -175,6 +217,30 @@ export default defineConfig(({ command, mode }) => {
 				},
 			},
 		],
+
+		worker: {
+			format: 'es',
+			plugins: () => [
+				viteTsConfigPaths({
+					root: '../../../',
+				}),
+				viteIgnoreImports({
+					extensions: ['wasm', 'so', 'dat'],
+				}),
+				...viteGlobalExtensions,
+				buildVersionPlugin('remote-config'),
+			],
+			rollupOptions: {
+				output: {
+					entryFileNames: (chunkInfo: any) => {
+						if (chunkInfo.name === 'service-worker') {
+							return 'sw.js';
+						}
+						return '[name]-[hash].js';
+					},
+				},
+			},
+		},
 
 		build: {
 			target: 'esnext',

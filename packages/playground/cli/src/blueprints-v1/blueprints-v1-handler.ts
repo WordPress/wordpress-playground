@@ -2,6 +2,7 @@ import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import {
 	consumeAPI,
+	isLegacyPHPVersion,
 	type Pooled,
 	type UniversalPHP,
 } from '@php-wasm/universal';
@@ -31,6 +32,7 @@ import {
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
+import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -116,7 +118,13 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
+			// Use pre-patched v3.0.0-rc.3 for legacy PHP (closures replaced
+			// with named functions, PHP 5.2 polyfills added offline).
+			const phpVersion = this.args.php || RecommendedPHPVersion;
+			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+			const sqliteVersion = isLegacyPhp ? 'v3.0.0-rc.3-php52' : 'trunk';
+			sqliteIntegrationPluginZip =
+				await fetchSqliteIntegration(sqliteVersion);
 		}
 
 		this.cliOutput.updateProgress('Booting WordPress');
@@ -130,6 +138,7 @@ export class BlueprintsV1Handler {
 			playground as unknown as PlaygroundCliBlueprintV1Worker
 		).bootWordPress(
 			{
+				phpVersion: runtimeConfiguration.phpVersion,
 				wpVersion: runtimeConfiguration.wpVersion,
 				siteUrl: this.siteUrl,
 				wordpressInstallMode:
@@ -189,10 +198,7 @@ export class BlueprintsV1Handler {
 			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			withXdebug: !!this.args.xdebug,
+			extensions: cliExtensionArgsToExtensionsArray(this.args),
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
 		});

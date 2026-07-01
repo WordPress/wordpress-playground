@@ -5,6 +5,7 @@ import {
 	runCLI,
 	parseOptionsAndRunCLI,
 	internalsKeyForTesting,
+	resolveWorkerCount,
 } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -171,10 +172,11 @@ describe.each(blueprintVersions)(
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
-			const oldestSupportedVersion =
-				MinifiedWordPressVersionsList[
-					MinifiedWordPressVersionsList.length - 1
-				];
+			// Use the oldest non-legacy version. Legacy versions
+			// (< 5.0) require legacy PHP and can't boot on modern PHP.
+			const oldestSupportedVersion = MinifiedWordPressVersionsList.filter(
+				(v) => parseFloat(v) >= 5
+			).pop()!;
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
@@ -327,6 +329,81 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('My WordPress Website');
 		});
 
+		// Regression test: Playground must not write its own drop-ins
+		// (db.php, object-cache.php, advanced-cache.php, sunrise.php)
+		// into a user-mounted wp-content. Studio and other consumers
+		// mount real wp-content directories into Playground, and any
+		// Playground-managed file written at the wp-content root would
+		// silently take over the user's external site.
+		test('should not drop any new files at the wp-content root when wp-content is mounted', async () => {
+			const hostWpContent = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-wpcontent-')
+			);
+			// Minimal wp-content skeleton. `plugins/` and `themes/`
+			// stay empty so WP's unzip step fills them in; any file
+			// added at the root of hostWpContent after boot must come
+			// from Playground itself.
+			mkdirSync(path.join(hostWpContent, 'plugins'));
+			mkdirSync(path.join(hostWpContent, 'themes'));
+			writeFileSync(
+				path.join(hostWpContent, 'index.php'),
+				'<?php // Silence is golden.\n'
+			);
+			const filesBefore = new Set(readdirSync(hostWpContent));
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'mount-before-install': [
+						{
+							hostPath: hostWpContent,
+							vfsPath: '/wordpress/wp-content',
+						},
+					],
+				});
+
+				// Confirm the site booted so we're actually exercising
+				// the full boot → install flow, not a no-op path.
+				const homeResponse = await fetch(
+					new URL('/', cliServer.serverUrl)
+				);
+				expect(homeResponse.status).toBe(200);
+
+				// No Playground-managed drop-in should appear at the
+				// wp-content root. These four names cover the WP
+				// drop-ins that a rogue Playground write could abuse.
+				for (const dropIn of [
+					'db.php',
+					'object-cache.php',
+					'advanced-cache.php',
+					'sunrise.php',
+				]) {
+					expect(existsSync(path.join(hostWpContent, dropIn))).toBe(
+						false
+					);
+				}
+
+				// Belt-and-suspenders: any net-new *file* at the
+				// wp-content root is a Playground drop-in regression.
+				// Directories added by WordPress itself during install
+				// (e.g. `database/` for the SQLite DB, `fonts/` for
+				// the Fonts API, `upgrade/`) are legitimate and ignored.
+				const filesAfter = new Set(readdirSync(hostWpContent));
+				const unexpectedNewFiles = [...filesAfter]
+					.filter((f) => !filesBefore.has(f))
+					.filter(
+						(f) =>
+							!lstatSync(
+								path.join(hostWpContent, f)
+							).isDirectory()
+					);
+				expect(unexpectedNewFiles).toEqual([]);
+			} finally {
+				rmSync(hostWpContent, { recursive: true, force: true });
+			}
+		}, 120000);
+
 		// Regression test: mounting files under /tmp (which is already
 		// NODEFS-mounted to a shared host directory) used to race
 		// across 6 workers and intermittently fail with ErrnoError 20
@@ -339,10 +416,7 @@ describe.each(blueprintVersions)(
 
 			const mounts = [];
 			for (let i = 0; i < 5; i++) {
-				const hostSubDir = path.join(
-					hostTmpDir,
-					`migration-${i}`
-				);
+				const hostSubDir = path.join(hostTmpDir, `migration-${i}`);
 				mkdirSync(hostSubDir, { recursive: true });
 				const hostFilePath = path.join(
 					hostSubDir,
@@ -783,6 +857,25 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('phpMyAdmin', () => {
+			async function expectPhpMyAdminAlias(
+				cliServer: RunCLIServer,
+				urlPrefix: string
+			) {
+				const probeFile = 'playground-alias-check.txt';
+				await cliServer.playground.writeFile(
+					`${PHPMYADMIN_INSTALL_PATH}/${probeFile}`,
+					'phpMyAdmin alias works'
+				);
+
+				const probeUrl = new URL(
+					`${urlPrefix}/${probeFile}`,
+					cliServer.serverUrl
+				);
+				const response = await fetch(probeUrl);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toBe('phpMyAdmin alias works');
+			}
+
 			test('should install phpMyAdmin when --phpmyadmin flag is set', async () => {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
@@ -809,12 +902,7 @@ describe.each(blueprintVersions)(
 				expect(configExists).toBe(true);
 
 				// Verify phpMyAdmin is accessible via rewrite rule
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should not install phpMyAdmin when flag is not set', async () => {
@@ -838,12 +926,7 @@ describe.each(blueprintVersions)(
 				});
 
 				// When phpmyadmin is true (boolean), it should default to /phpmyadmin
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should install phpMyAdmin at a custom path', async () => {
@@ -854,12 +937,7 @@ describe.each(blueprintVersions)(
 				});
 
 				// Verify phpMyAdmin is accessible at the custom path
-				const phpMyAdminUrl = new URL(
-					'/db-admin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/db-admin');
 			}, 120000);
 		});
 	},
@@ -1069,6 +1147,56 @@ describe('start command', () => {
 		expect(existsSync(wpContentPath)).toBe(true);
 		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
 	}, 120000);
+
+	test('should accept --no-auto-mount and skip auto-detection', async () => {
+		// Regression test: yargs-parser's boolean-negation turns
+		// `--no-auto-mount` into `{ autoMount: false }`. When the start
+		// command declared a literal `no-auto-mount` option (with no
+		// matching `auto-mount`), strictOptions rejected the negated key
+		// with `Unknown arguments: auto-mount, autoMount`.
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-no-auto-mount-')
+		);
+		const pluginDirName = 'sample-plugin';
+		const pluginDir = path.join(tmpDir, pluginDirName);
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, `${pluginDirName}.php`),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+
+		// Throw instead of no-op so any unexpected `process.exit` during
+		// startup fails the test loudly instead of silently continuing in
+		// an inconsistent state.
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
+
+		try {
+			await using cliResult = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--no-auto-mount',
+				'--skip-browser',
+			]);
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			// Server started → yargs accepted `--no-auto-mount`.
+			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+			// Auto-mount did not fire → the plugin is not present under
+			// /wordpress/wp-content/plugins/.
+			const autoMountedPluginExists = await cliServer.playground.isDir(
+				`/wordpress/wp-content/plugins/${pluginDirName}`
+			);
+			expect(autoMountedPluginExists).toBe(false);
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
 });
 
 describe('php command', () => {
@@ -1738,10 +1866,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define-bool', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define-bool',
@@ -1761,10 +1889,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define-number', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define-number',
@@ -1784,10 +1912,10 @@ describe('other run-cli behaviors', () => {
 
 		test('should override WP_DEBUG constants via --define', async () => {
 			// Confirm default values before confirming they can be overridden.
-			const defaultConstantss = await getConstants([]);
-			expect(defaultConstantss.WP_DEBUG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_LOG).toBe('true');
-			expect(defaultConstantss.WP_DEBUG_DISPLAY).toBe('false');
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
 
 			const constants = await getConstants([
 				'--define',
@@ -1803,6 +1931,180 @@ describe('other run-cli behaviors', () => {
 			expect(constants.WP_DEBUG).toBe('false');
 			expect(constants.WP_DEBUG_LOG).toBe('false');
 			expect(constants.WP_DEBUG_DISPLAY).toBe('true');
+		});
+	});
+
+	describe('worker count', () => {
+		async function getWorkerCount(cliArgs: string[]) {
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((() => {}) as any);
+			try {
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--port=0',
+					...cliArgs,
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+				return cliServer[internalsKeyForTesting].workerThreadCount;
+			} finally {
+				exitSpy.mockRestore();
+			}
+		}
+
+		const defaultExpected = Math.min(6, Math.max(1, os.cpus().length - 1));
+		const autoExpected = Math.max(1, os.cpus().length - 1);
+
+		test('defaults to min(6, cpus-1) when --workers is not set', async () => {
+			expect(await getWorkerCount([])).toBe(defaultExpected);
+		});
+
+		test('honors an explicit --workers=3', async () => {
+			expect(await getWorkerCount(['--workers=3'])).toBe(3);
+		});
+
+		test('honors --workers=1 (single-worker bootstrap path)', async () => {
+			expect(await getWorkerCount(['--workers=1'])).toBe(1);
+		});
+
+		test('--workers=auto uses max(1, cpus-1)', async () => {
+			expect(await getWorkerCount(['--workers=auto'])).toBe(autoExpected);
+		});
+
+		async function expectInvalidWorkersValue(value: string) {
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation(() => undefined as never);
+			const errorMessages: string[] = [];
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation((...args: unknown[]) => {
+					errorMessages.push(
+						args
+							.map((a) =>
+								a instanceof Error ? a.message : String(a)
+							)
+							.join(' ')
+					);
+				});
+			try {
+				await parseOptionsAndRunCLI([
+					'server',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--port=0',
+					`--workers=${value}`,
+				]);
+				expect(errorMessages.join('\n')).toContain(
+					`Invalid --workers value "${value}"`
+				);
+				expect(exitSpy).toHaveBeenCalledWith(1);
+			} finally {
+				exitSpy.mockRestore();
+				consoleErrorSpy.mockRestore();
+			}
+		}
+
+		test('--workers=0 fails with a clear error', async () => {
+			await expectInvalidWorkersValue('0');
+		});
+
+		test('--workers=abc fails with a clear error', async () => {
+			await expectInvalidWorkersValue('abc');
+		});
+
+		async function getWarnCallsForWorkersArgs(
+			cliArgs: string[],
+			cpuCount: number
+		) {
+			const cpusStub = vi
+				.spyOn(os, 'cpus')
+				.mockReturnValue(new Array(cpuCount).fill({}) as os.CpuInfo[]);
+			const warnSpy = vi
+				.spyOn(logger, 'warn')
+				.mockImplementation(() => {});
+			try {
+				await getWorkerCount(cliArgs);
+				return warnSpy.mock.calls
+					.map((call) => call.join(' '))
+					.join('\n');
+			} finally {
+				warnSpy.mockRestore();
+				cpusStub.mockRestore();
+			}
+		}
+
+		test('does not warn when the default worker count is 6 on a large host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 8);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns that the default was CPU-reduced on a small host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 4);
+			expect(warnCalls).toMatch(
+				/default worker count has been reduced to 3 because this machine has only 4 CPU\(s\)/
+			);
+		});
+
+		test('warns when the user explicitly sets --workers below 6', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=3'],
+				8
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns when --workers=auto resolves below 6 on small hosts', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=auto'],
+				4
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+		});
+
+		test('does not warn when --workers is set to 6 or above', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=6'],
+				8
+			);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('--experimental-multi-worker warns and still starts', async () => {
+			const warnSpy = vi
+				.spyOn(logger, 'warn')
+				.mockImplementation(() => {});
+			try {
+				const count = await getWorkerCount([
+					'--experimental-multi-worker=4',
+				]);
+				// Value is ignored; default applies.
+				expect(count).toBe(defaultExpected);
+				const warnCalls = warnSpy.mock.calls
+					.map((call) => call.join(' '))
+					.join('\n');
+				expect(warnCalls).toMatch(/--experimental-multi-worker/);
+				expect(warnCalls).toMatch(/--workers/);
+			} finally {
+				warnSpy.mockRestore();
+			}
 		});
 	});
 
@@ -1862,6 +2164,62 @@ describe('other run-cli behaviors', () => {
 			} finally {
 				blockingServer.close();
 			}
+		});
+	});
+});
+
+describe('resolveWorkerCount', () => {
+	function withCpus<T>(count: number, fn: () => T): T {
+		const stub = vi
+			.spyOn(os, 'cpus')
+			.mockReturnValue(new Array(count).fill({}) as os.CpuInfo[]);
+		try {
+			return fn();
+		} finally {
+			stub.mockRestore();
+		}
+	}
+
+	test('default caps at 6 on large hosts', () => {
+		withCpus(16, () => {
+			expect(resolveWorkerCount(undefined)).toBe(6);
+		});
+	});
+
+	test('default shrinks to cpus-1 on small hosts', () => {
+		withCpus(4, () => {
+			expect(resolveWorkerCount(undefined)).toBe(3);
+		});
+	});
+
+	test('default is at least 1 on single-core hosts', () => {
+		withCpus(1, () => {
+			expect(resolveWorkerCount(undefined)).toBe(1);
+		});
+	});
+
+	test('default is at least 1 when os.cpus() returns an empty array', () => {
+		withCpus(0, () => {
+			expect(resolveWorkerCount(undefined)).toBe(1);
+		});
+	});
+
+	test('auto returns cpus-1 without the 6 cap', () => {
+		withCpus(16, () => {
+			expect(resolveWorkerCount('auto')).toBe(15);
+		});
+	});
+
+	test('auto is at least 1 on single-core hosts', () => {
+		withCpus(1, () => {
+			expect(resolveWorkerCount('auto')).toBe(1);
+		});
+	});
+
+	test('explicit number is honored verbatim', () => {
+		withCpus(2, () => {
+			expect(resolveWorkerCount(32)).toBe(32);
+			expect(resolveWorkerCount(1)).toBe(1);
 		});
 	});
 });

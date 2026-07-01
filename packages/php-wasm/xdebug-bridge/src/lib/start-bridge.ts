@@ -11,6 +11,7 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
+	excludedPaths?: string[];
 	phpInstance?: UniversalPHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
 	breakOnFirstLine?: boolean;
@@ -22,6 +23,7 @@ export async function startBridge(config: StartBridgeConfig) {
 	const cdpHost = config.cdpHost ?? '127.0.0.1';
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
+	const excludedPaths = config.excludedPaths ?? [];
 
 	logger.log('Starting XDebug Bridge...');
 
@@ -43,14 +45,26 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
 
+	function isExcluded(p: string): boolean {
+		return excludedPaths.some(
+			(prefix) => p === prefix || p.startsWith(prefix + '/')
+		);
+	}
+
 	// Recursively get a list of .php files in phpRoot
 	async function getPhpFiles(dir: string): Promise<string[]> {
+		if (isExcluded(dir)) {
+			return [];
+		}
 		const results: string[] = [];
 		const list = config.phpInstance
 			? await config.phpInstance!.listFiles(dir)
 			: readdirSync(dir);
 		for (const file of list) {
 			const filePath = path.join(dir, file);
+			if (isExcluded(filePath)) {
+				continue;
+			}
 			try {
 				// lstat avoids crashes when encountering symlinks
 				const stat = config.phpInstance
@@ -80,5 +94,6 @@ export async function startBridge(config: StartBridgeConfig) {
 		phpRoot,
 		getPHPFile,
 		breakOnFirstLine,
+		excludedPaths,
 	});
 }

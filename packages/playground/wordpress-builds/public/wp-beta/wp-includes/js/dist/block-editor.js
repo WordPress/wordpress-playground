@@ -12227,7 +12227,7 @@ var wp;
     if (isWithinSection && getBlockName(state, sectionClientId) === "core/block") {
       return false;
     }
-    if (isWithinSection && (isParentSectionBlock || blockEditingMode === "contentOnly") && !isContainerInsertableToInContentOnlyMode(
+    if (isWithinSection && (isParentSectionBlock || blockEditingMode === "contentOnly" || blockEditingMode === "disabled") && !isContainerInsertableToInContentOnlyMode(
       state,
       blockName,
       rootClientId
@@ -12357,9 +12357,9 @@ var wp;
         if (defaultBlocks.length > 1) {
           return true;
         }
-      } else {
         return false;
       }
+      return false;
     }
     return rootBlockEditingMode !== "disabled";
   }
@@ -14426,10 +14426,6 @@ var wp;
       return;
     }
     const rootClientId = select3.getBlockRootClientId(clientId);
-    const isLocked = select3.getTemplateLock(rootClientId);
-    if (isLocked) {
-      return;
-    }
     const blockIndex = select3.getBlockIndex(clientId);
     const directInsertBlock = rootClientId ? select3.getDirectInsertBlock(rootClientId) : null;
     if (!directInsertBlock) {
@@ -14455,10 +14451,6 @@ var wp;
       return;
     }
     const rootClientId = select3.getBlockRootClientId(clientId);
-    const isLocked = select3.getTemplateLock(rootClientId);
-    if (isLocked) {
-      return;
-    }
     const blockIndex = select3.getBlockIndex(clientId);
     const directInsertBlock = rootClientId ? select3.getDirectInsertBlock(rootClientId) : null;
     if (!directInsertBlock) {
@@ -16415,12 +16407,8 @@ var wp;
       const { orientation = "horizontal" } = layout;
       let fallbackGapValue = "0.5em";
       if (globalBlockGapValue) {
-        const processedGlobalGap = getGapCSSValue(
-          globalBlockGapValue,
-          "0.5em"
-        );
-        const gapParts = processedGlobalGap.split(" ");
-        fallbackGapValue = gapParts.length > 1 ? gapParts[1] : gapParts[0];
+        const gapBox = getGapBoxControlValueFromStyle(globalBlockGapValue);
+        fallbackGapValue = getSpacingPresetCssVar(gapBox?.left) || getSpacingPresetCssVar(gapBox?.top) || "0.5em";
       }
       const blockGapValue = style?.spacing?.blockGap && !shouldSkipSerialization(blockName, "spacing", "blockGap") ? getGapCSSValue(style?.spacing?.blockGap, fallbackGapValue) : void 0;
       const justifyContent = justifyContentMap[layout.justifyContent];
@@ -17097,9 +17085,8 @@ var wp;
       }
       let fallbackGapValue = "1.2rem";
       if (globalBlockGapValue) {
-        const processedGap = getGapCSSValue(globalBlockGapValue, "0.5em");
-        const gapParts = processedGap.split(" ");
-        fallbackGapValue = gapParts.length > 1 ? gapParts[1] : gapParts[0];
+        const gapBox = getGapBoxControlValueFromStyle(globalBlockGapValue);
+        fallbackGapValue = getSpacingPresetCssVar(gapBox?.left) || getSpacingPresetCssVar(gapBox?.top) || "1.2rem";
       }
       const blockGapValue = style?.spacing?.blockGap && !shouldSkipSerialization(blockName, "spacing", "blockGap") ? getGapCSSValue(style?.spacing?.blockGap, fallbackGapValue) : void 0;
       let output = "";
@@ -18416,6 +18403,10 @@ var wp;
       [clientId]
     );
     const { updateBlock: updateBlock2 } = (0, import_data19.useDispatch)(store);
+    const blockContent = (0, import_element26.useMemo)(
+      () => block ? (0, import_blocks18.getBlockContent)(block) : "",
+      [block]
+    );
     const onChange = () => {
       const blockType = (0, import_blocks18.getBlockType)(block.name);
       if (!blockType) {
@@ -18442,8 +18433,8 @@ var wp;
       }
     };
     (0, import_element26.useEffect)(() => {
-      setHtml((0, import_blocks18.getBlockContent)(block));
-    }, [block]);
+      setHtml(blockContent);
+    }, [blockContent]);
     return /* @__PURE__ */ (0, import_jsx_runtime147.jsx)(
       import_react_autosize_textarea.default,
       {
@@ -22563,9 +22554,13 @@ var wp;
       },
       [clientId]
     );
+    const blockElement = useBlockElement(clientId);
+    const rawCanvasView = blockElement?.ownerDocument?.defaultView;
+    const canvasView = rawCanvasView === null ? void 0 : rawCanvasView;
     const { isBlockCurrentlyHidden, currentViewport } = useBlockVisibility({
       blockVisibility: currentBlockVisibility,
-      deviceType: selectedDeviceType
+      deviceType: selectedDeviceType,
+      view: canvasView
     });
     const isBlockParentHiddenAtViewport2 = (0, import_data28.useSelect)(
       (select3) => {
@@ -23701,6 +23696,7 @@ var wp;
           const storeBlocks = controlledBlocks.map(
             (block) => cloneBlockWithMapping(block, idMappingRef.current)
           );
+          __unstableMarkNextChangeAsNotPersistent2();
           setHasControlledInnerBlocks2(clientId, true);
           if (subscribedRef.current) {
             pendingChangesRef.current.incoming = storeBlocks;
@@ -23718,12 +23714,13 @@ var wp;
       }
     };
     const unsetControlledBlocks = () => {
-      __unstableMarkNextChangeAsNotPersistent2();
       if (clientId) {
+        __unstableMarkNextChangeAsNotPersistent2();
         setHasControlledInnerBlocks2(clientId, false);
         __unstableMarkNextChangeAsNotPersistent2();
         replaceInnerBlocks2(clientId, []);
       } else {
+        __unstableMarkNextChangeAsNotPersistent2();
         resetBlocks2([]);
       }
     };
@@ -24501,7 +24498,7 @@ var wp;
       targetRect = target.getBoundingClientRect();
     }
     function isTabCandidate(node) {
-      if (getBlockClientId(node) && import_dom10.focus.focusable.find(node).filter((element) => !(0, import_dom10.isFormElement)(element)).length !== 0) {
+      if (node.contentEditable !== "true" && getBlockClientId(node) && import_dom10.focus.focusable.find(node).filter((element) => !(0, import_dom10.isFormElement)(element)).length !== 0) {
         return false;
       }
       if (!import_dom10.focus.tabbable.isTabbableIndex(node)) {
@@ -33229,7 +33226,6 @@ var wp;
   // packages/block-editor/build-module/components/inspector-controls/fill.mjs
   var import_jsx_runtime211 = __toESM(require_jsx_runtime(), 1);
   var PATTERN_EDITING_GROUPS = ["content", "list"];
-  var TEMPLATE_PART_GROUPS = ["default", "settings", "advanced"];
   function InspectorControlsFill({
     children,
     group = "default",
@@ -33255,9 +33251,8 @@ var wp;
     }
     if (context[mayDisplayPatternEditingControlsKey]) {
       const isTemplatePart9 = context.name === "core/template-part";
-      const isTemplatePartGroup = TEMPLATE_PART_GROUPS.includes(group);
       const isPatternEditingGroup = PATTERN_EDITING_GROUPS.includes(group);
-      const canShowGroup = isTemplatePart9 && isTemplatePartGroup || isPatternEditingGroup;
+      const canShowGroup = isTemplatePart9 || isPatternEditingGroup;
       if (!canShowGroup) {
         return null;
       }
@@ -59663,7 +59658,7 @@ var wp;
           contentClientIds
         }
       ),
-      !isSectionBlock2 && /* @__PURE__ */ (0, import_jsx_runtime377.jsxs)(import_jsx_runtime377.Fragment, { children: [
+      (!isSectionBlock2 || blockName === "core/template-part") && /* @__PURE__ */ (0, import_jsx_runtime377.jsxs)(import_jsx_runtime377.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime377.jsx)(
           inspector_controls_default.Slot,
           {
@@ -60020,12 +60015,16 @@ var wp;
     advancedFills.length && (hasContentTab || hasListFills)) {
       tabs.push(TAB_SETTINGS);
     }
-    if (hasBlockStyles || hasStyleFills) {
+    const { tabSettings, isPreviewMode } = (0, import_data169.useSelect)((select3) => {
+      const settings2 = select3(store).getSettings();
+      return {
+        tabSettings: settings2.blockInspectorTabs,
+        isPreviewMode: settings2.isPreviewMode
+      };
+    }, []);
+    if (!isPreviewMode && (hasBlockStyles || hasStyleFills)) {
       tabs.push(TAB_STYLES);
     }
-    const tabSettings = (0, import_data169.useSelect)((select3) => {
-      return select3(store).getSettings().blockInspectorTabs;
-    }, []);
     const showTabs = getShowTabs(blockName, tabSettings);
     return showTabs ? tabs : EMPTY_ARRAY14;
   }
@@ -60761,7 +60760,7 @@ var wp;
   function useBlockEditingMode(mode2) {
     const context = useBlockEditContext();
     const { clientId = "" } = context;
-    const { setBlockEditingMode: setBlockEditingMode2, unsetBlockEditingMode: unsetBlockEditingMode2 } = (0, import_data174.useDispatch)(store);
+    const registry = (0, import_data174.useRegistry)();
     const globalBlockEditingMode = (0, import_data174.useSelect)(
       (select3) => (
         // Avoid adding the subscription if not needed!
@@ -60770,15 +60769,21 @@ var wp;
       [clientId]
     );
     (0, import_element217.useEffect)(() => {
-      if (mode2) {
-        setBlockEditingMode2(clientId, mode2);
+      if (!mode2) {
+        return;
       }
+      const {
+        setBlockEditingMode: setBlockEditingMode2,
+        unsetBlockEditingMode: unsetBlockEditingMode2,
+        __unstableMarkNextChangeAsNotPersistent: __unstableMarkNextChangeAsNotPersistent2
+      } = registry.dispatch(store);
+      __unstableMarkNextChangeAsNotPersistent2();
+      setBlockEditingMode2(clientId, mode2);
       return () => {
-        if (mode2) {
-          unsetBlockEditingMode2(clientId);
-        }
+        __unstableMarkNextChangeAsNotPersistent2();
+        unsetBlockEditingMode2(clientId);
       };
-    }, [clientId, mode2, setBlockEditingMode2, unsetBlockEditingMode2]);
+    }, [registry, clientId, mode2]);
     return clientId ? context[blockEditingModeKey] : globalBlockEditingMode;
   }
 
@@ -72011,6 +72016,7 @@ var wp;
   var import_compose104 = __toESM(require_compose(), 1);
   var import_blocks117 = __toESM(require_blocks(), 1);
   var import_i18n236 = __toESM(require_i18n(), 1);
+  var import_notices12 = __toESM(require_notices(), 1);
   var import_jsx_runtime454 = __toESM(require_jsx_runtime(), 1);
   var CUSTOM_CSS_INSTANCE_REFERENCE = {};
   var EMPTY_STYLE = {};
@@ -72043,6 +72049,7 @@ var wp;
       }
     ) });
   }
+  var CUSTOM_CSS_WARNING_NOTICE_ID = "custom-css-edit-warning";
   function CustomCSSEdit({ clientId, name, setAttributes }) {
     const { style, canEditCSS } = (0, import_data185.useSelect)(
       (select3) => {
@@ -72069,6 +72076,25 @@ var wp;
   function useBlockProps15({ style }) {
     const customCSS = style?.css;
     const isValidCSS = typeof customCSS === "string" && customCSS.trim().length > 0 && validateCSS(customCSS);
+    const canEditCSS = (0, import_data185.useSelect)(
+      (select3) => select3(store).getSettings().canEditCSS,
+      []
+    );
+    const { createWarningNotice } = (0, import_data185.useDispatch)(import_notices12.store);
+    const hasCustomCSS = !!customCSS?.trim();
+    (0, import_element267.useEffect)(() => {
+      if (!canEditCSS && hasCustomCSS) {
+        createWarningNotice(
+          (0, import_i18n236.__)(
+            "This post contains blocks with custom CSS. You do not have permission to edit CSS. If you save this post, the custom CSS will be removed."
+          ),
+          {
+            id: CUSTOM_CSS_WARNING_NOTICE_ID,
+            isDismissible: true
+          }
+        );
+      }
+    }, [canEditCSS, hasCustomCSS, createWarningNotice]);
     const customCSSIdentifier = (0, import_compose104.useInstanceId)(
       CUSTOM_CSS_INSTANCE_REFERENCE,
       "wp-custom-css"
@@ -74861,7 +74887,7 @@ var wp;
     return /* @__PURE__ */ (0, import_jsx_runtime468.jsx)(
       import_components278.__experimentalToolsPanelItem,
       {
-        label: (0, import_i18n244.__)("Scale"),
+        label: (0, import_i18n244._x)("Scale", "Image scaling options"),
         isShownByDefault,
         hasValue: () => displayValue !== defaultValue,
         onDeselect: () => onChange(defaultValue),
@@ -74869,7 +74895,7 @@ var wp;
         children: /* @__PURE__ */ (0, import_jsx_runtime468.jsx)(
           import_components278.__experimentalToggleGroupControl,
           {
-            label: (0, import_i18n244.__)("Scale"),
+            label: (0, import_i18n244._x)("Scale", "Image scaling options"),
             isBlock: true,
             help: scaleHelp[displayValue],
             value: displayValue,
@@ -75251,6 +75277,7 @@ var wp;
 
   // packages/block-editor/build-module/components/link-picker/link-preview.mjs
   var import_components282 = __toESM(require_components(), 1);
+  var import_dom41 = __toESM(require_dom(), 1);
   var import_jsx_runtime473 = __toESM(require_jsx_runtime(), 1);
   var { Badge: Badge6 } = unlock(import_components282.privateApis);
   function LinkPreview2({ title, url, image, badges }) {
@@ -75275,7 +75302,7 @@ var wp;
                 {
                   numberOfLines: 1,
                   className: "link-preview-button__title",
-                  children: title
+                  children: (0, import_dom41.__unstableStripHTML)(title)
                 }
               ),
               url && /* @__PURE__ */ (0, import_jsx_runtime473.jsx)(

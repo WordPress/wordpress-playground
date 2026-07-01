@@ -1,4 +1,5 @@
 import {
+	type AllPHPVersion,
 	type SupportedPHPVersion,
 	type EmscriptenOptions,
 	type PHPRuntime,
@@ -6,6 +7,8 @@ import {
 	loadPHPRuntime,
 	FSHelpers,
 	FileLockManagerComposite,
+	createLegacyPhpIniPreRunStep,
+	isLegacyPHPVersion,
 	ProcessIdAllocator,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
@@ -16,20 +19,39 @@ import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
 import {
-	withXdebug,
+	withPHPExtensions,
+	type PHPExtension,
 	type XdebugOptions,
-} from './extensions/xdebug/with-xdebug';
-import { withIntl } from './extensions/intl/with-intl';
-import { withRedis } from './extensions/redis/with-redis';
-import { withMemcached } from './extensions/memcached/with-memcached';
+} from './extensions/load-extensions';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { platform } from 'os';
+import { jspi } from 'wasm-feature-detect';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
+	/**
+	 * PHP extensions to install before the runtime starts.
+	 *
+	 * Use built-in names such as `intl`, `xdebug`, `redis`, and `memcached`,
+	 * or pass an external JSPI extension source such as a manifest.
+	 */
+	extensions?: PHPExtension[];
+	/**
+	 * @deprecated Use `extensions: ['xdebug']` or
+	 * `extensions: [{ name: 'xdebug', options }]` instead.
+	 */
 	withXdebug?: boolean | XdebugOptions;
+	/**
+	 * @deprecated Use `extensions: ['intl']` instead.
+	 */
 	withIntl?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['redis']` instead.
+	 */
 	withRedis?: boolean;
+	/**
+	 * @deprecated Use `extensions: ['memcached']` instead.
+	 */
 	withMemcached?: boolean;
 }
 
@@ -98,7 +120,7 @@ const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
  * @see load
  */
 export async function loadNodeRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
 	const processId =
@@ -109,6 +131,42 @@ export async function loadNodeRuntime(
 		((process.env as any).VITEST
 			? dangerousDefaultProcessIdAllocator!.claim()
 			: undefined);
+
+	const isLegacy = isLegacyPHPVersion(phpVersion);
+	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
+	const requestedExtensions = [...(options.extensions ?? [])];
+
+	/*
+	 * Keep the deprecated `with*` options as aliases for built-in extension
+	 * requests. If callers already requested the same built-in through
+	 * `extensions`, do not add it again.
+	 */
+	if (options.withIntl && !hasBuiltInExtension(requestedExtensions, 'intl')) {
+		requestedExtensions.push('intl');
+	}
+	if (
+		options.withRedis &&
+		!hasBuiltInExtension(requestedExtensions, 'redis')
+	) {
+		requestedExtensions.push('redis');
+	}
+	if (
+		options.withMemcached &&
+		!hasBuiltInExtension(requestedExtensions, 'memcached')
+	) {
+		requestedExtensions.push('memcached');
+	}
+
+	if (
+		options.withXdebug &&
+		!hasBuiltInExtension(requestedExtensions, 'xdebug')
+	) {
+		requestedExtensions.push(
+			typeof options.withXdebug === 'object'
+				? { name: 'xdebug', options: options.withXdebug }
+				: 'xdebug'
+		);
+	}
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -133,7 +191,20 @@ export async function loadNodeRuntime(
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
+		phpWasmAsyncMode,
 		processId,
+		// For legacy PHP: pre-create php.ini via a preRun step. See
+		// createLegacyPhpIniPreRunStep for why this must run before
+		// the PHP SAPI starts. Merge with any caller-provided preRun
+		// hooks (the spread above may have set them).
+		...(isLegacy
+			? {
+					preRun: [
+						createLegacyPhpIniPreRunStep(),
+						...((options.emscriptenOptions as any)?.preRun ?? []),
+					],
+				}
+			: {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
@@ -287,24 +358,21 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (options?.withXdebug) {
-		emscriptenOptions = await withXdebug(
-			phpVersion,
-			emscriptenOptions,
-			typeof options.withXdebug === 'object' ? options.withXdebug : {}
+	if (isLegacy && requestedExtensions.length) {
+		throw new Error(
+			`Extensions (xdebug, intl, redis, memcached) are not ` +
+				`available for legacy PHP ${phpVersion}.`
 		);
 	}
 
-	if (options?.withIntl === true) {
-		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withRedis === true) {
-		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withMemcached === true) {
-		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
+	if (!isLegacy) {
+		const modernVersion = phpVersion as SupportedPHPVersion;
+		emscriptenOptions = await withPHPExtensions(
+			modernVersion,
+			phpWasmAsyncMode,
+			emscriptenOptions,
+			requestedExtensions
+		);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
@@ -313,4 +381,24 @@ export async function loadNodeRuntime(
 
 	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
 	return runtimeId;
+}
+
+/**
+ * Checks whether a built-in extension has already been requested.
+ *
+ * This keeps deprecated `with*` flags backwards compatible without installing
+ * the same built-in twice when callers also pass the newer `extensions` array.
+ * External extension sources are ignored because their names are resolved later
+ * from bytes, URLs, or manifests.
+ */
+function hasBuiltInExtension(
+	extensions: PHPExtension[],
+	name: string
+): boolean {
+	return extensions.some((extension) => {
+		if (typeof extension === 'string') {
+			return extension === name;
+		}
+		return !('source' in extension) && extension.name === name;
+	});
 }

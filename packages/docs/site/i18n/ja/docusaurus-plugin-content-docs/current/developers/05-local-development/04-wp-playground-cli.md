@@ -148,14 +148,18 @@ This is useful when:
 - サイトデータが破損または不整合になったとき
 
 <!--
-:::info
+<div class="callout callout-info">
+
 The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 `--reset` フラグは `start` でのみ有効です。`server` の場合は、`~/.wordpress-playground/sites/<path-hash>/` の永続化サイトディレクトリを手動で削除してください。
-:::
+
+</div>
 
 <!--
 ### Choosing a WordPress and PHP Version
@@ -247,14 +251,18 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Windows では、パス形式 `/host/path:/vfs/path` が問題になることがあります。その場合は `--mount-dir` と `--mount-dir-before-install` を使い、`"/host/path"` `"/vfs/path"` の形式でホストと仮想ファイルシステムのパスを指定してください。
-:::
+
+</div>
 
 <!--
 ### Understanding Data Persistence and SQLite Location in `server` mode
@@ -505,14 +513,18 @@ Playground CLI はシンプルで設定しやすく、決めつけがありま�
 - `--experimental-multi-worker=<number>`: 実験的マルチワーカーを有効化（実ファイルシステム上の `/wordpress` が必要）。正の数でワーカー数を指定。未指定時は CPU 数 - 1。
 
 <!--
-:::caution
+<div class="callout callout-warning">
+
 With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
+
 `--follow-symlinks` を付けると、マウント外のファイルが Playground に露出するシンボリックリンクが存在し、セキュリティリスクになる可能性があります。
-:::
+
+</div>
 
 <!--
 ## Need some help with the CLI?

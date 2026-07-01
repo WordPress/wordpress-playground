@@ -10,6 +10,11 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { createLanguageStep } from './i18n';
+import {
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
+	healthCheckRecoveryBlueprint,
+	isHealthCheckRecoveryUrl,
+} from '../health-check-recovery';
 
 /**
  * Determines whether to use the default personal blueprint or process URL params.
@@ -80,6 +85,7 @@ const ACTIONABLE_URL_PARAMS = [
 	'import-site',
 	'import-wxr',
 	'import-content',
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
 ];
 
 /**
@@ -104,13 +110,17 @@ export async function resolveUrlParamsForExistingSite(
 		return null;
 	}
 
+	if (isHealthCheckRecoveryUrl(url)) {
+		return healthCheckRecoveryBlueprint;
+	}
+
 	try {
 		const resolved = await resolveBlueprintFromURL(url, undefined);
 		// Extract the blueprint declaration from the bundle if needed
 		let blueprint = isBlueprintBundle(resolved.blueprint)
 			? await getBlueprintDeclaration(resolved.blueprint)
 			: (resolved.blueprint as BlueprintV1Declaration);
-		// Apply query overrides (e.g., ?url= for landing page, ?login=, etc.)
+		// Apply query overrides (e.g., ?login=, ?php=, etc.)
 		blueprint = (await applyQueryOverrides(
 			blueprint,
 			url.searchParams

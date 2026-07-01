@@ -18,6 +18,7 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
+import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -203,7 +204,7 @@ export const JustViewport = function JustViewport({
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
 
 	const dispatch = useAppDispatch();
-	const runtimeConfigString = JSON.stringify(
+	const runtimeBootFingerprint = getRuntimeBootFingerprint(
 		site.metadata.runtimeConfiguration
 	);
 	useEffect(() => {
@@ -224,7 +225,7 @@ export const JustViewport = function JustViewport({
 			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [siteSlug, iframeRef, runtimeConfigString]);
+	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);

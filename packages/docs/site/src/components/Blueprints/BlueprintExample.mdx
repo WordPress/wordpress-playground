@@ -3,9 +3,19 @@ import CodeBlock from '@theme/CodeBlock';
 
 <div className="margin-vert--sm">
 	{!props.justButton && (
-		<CodeBlock title={props.title} language="json">
-			{props.display || JSON.stringify(props.blueprint, null, '\t')}
+		<CodeBlock
+			title={props.title}
+			language={props.blueprintUrl ? 'text' : 'json'}
+		>
+			{props.display ||
+				props.blueprintUrl ||
+				JSON.stringify(props.blueprint, null, '\t')}
 		</CodeBlock>
 	)}
-	{!props.noButton && <BlueprintRunButton blueprint={props.blueprint} />}
+	{!props.noButton && (
+		<BlueprintRunButton
+			blueprint={props.blueprint}
+			blueprintUrl={props.blueprintUrl}
+		/>
+	)}
 </div>

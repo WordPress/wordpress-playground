@@ -85,17 +85,23 @@ function playground_handle_request() {
 	//
 	// PATH RESOLUTION
 	//
-	$resolved_path = realpath( __DIR__ . $requested_path );
+	$served_path = $requested_path;
+	$resolved_path = realpath( __DIR__ . $served_path );
 	if ( is_dir( $resolved_path ) ) {
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
-	if ( false === $resolved_path && ! str_ends_with( $requested_path, '.php' ) ) {
+	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $requested_path );
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
+	}
+
+	if ( false === $resolved_path && playground_is_my_wordpress_net_request() ) {
+		$served_path = '/index.html';
+		$resolved_path = playground_resolve_my_wordpress_net_index_fallback();
 	}
 
 	$log( "Resolved '$original_requested_path' to '$resolved_path'." );
@@ -139,7 +145,7 @@ function playground_handle_request() {
 		header( "Content-Type: $content_type" );
 	}
 
-	$custom_response_headers = playground_get_custom_response_headers( $requested_path );
+	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
 			header( $custom_header );
@@ -164,7 +170,7 @@ function playground_handle_request() {
 
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
-		playground_maybe_set_environment( $requested_path );
+		playground_maybe_set_environment( $served_path );
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
@@ -180,11 +186,43 @@ function playground_maybe_rewrite( $original_requested_path ) {
 		$requested_path = '/plugin-proxy.php';
 	}
 
+	if (
+		playground_is_my_wordpress_net_request() &&
+		(
+			'/relay' === $requested_path ||
+			str_starts_with( $requested_path, '/relay/' )
+		)
+	) {
+		$requested_path = '/relay.php';
+	}
+
 	if ( $requested_path !== $original_requested_path ) {
 		return $requested_path;
 	}
 
 	return false;
+}
+
+function playground_is_my_wordpress_net_request() {
+	if ( empty( $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	if ( ! preg_match( '/^my\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+function playground_resolve_my_wordpress_net_index_fallback() {
+	$resolved_path = realpath( __DIR__ . '/index.html' );
+	if ( false === $resolved_path ) {
+		// Deployment may move index.html aside so PHP can apply custom cache headers.
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php/index.html' );
+	}
+
+	return $resolved_path;
 }
 
 function playground_maybe_redirect( $requested_path ) {
@@ -316,6 +354,47 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
+	if ( str_ends_with( $requested_path, 'mywp-event.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
+	if ( str_ends_with( $requested_path, 'mywp-event-dashboard.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		$secrets = new Atomic_Persistent_Data;
+		$github_client_id =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID ??
+			$secrets->GITHUB_APP_CLIENT_ID ??
+			null;
+		$github_client_secret =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET ??
+			$secrets->GITHUB_APP_CLIENT_SECRET ??
+			null;
+		if (
+			isset(
+				$github_client_id,
+				$github_client_secret,
+				$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS,
+			)
+		) {
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID=$github_client_id" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET=$github_client_secret" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_USERS={$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS}" );
+		} else {
+			error_log( 'PLAYGROUND: Missing secrets for mywp-event-dashboard.php' );
+		}
+
+		return true;
+	}
+
+	if ( basename( $requested_path ) === 'relay.php' ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
 	return false;
 }
 
@@ -324,6 +403,8 @@ function playground_get_custom_response_headers( $requested_path ) {
 
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
+	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
+		return array( 'Cache-Control: no-store' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece
 		// using file offsets embedded in the zip's metadata.
@@ -341,6 +422,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 			$filename,
 			array(
 				'index.js',
+				'php-code-snippet.js',
 				'blueprint-schema.json',
 				'logger.php',
 				'oauth.php',

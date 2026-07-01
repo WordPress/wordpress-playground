@@ -6,6 +6,10 @@ on:
     schedule:
         - cron: '0 8 * * *'
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     build_and_deploy:
         # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
@@ -23,6 +27,9 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        timeout-minutes: 60
+        permissions:
+            contents: write # Required to clone the repo and push the refreshed WordPress nightly commit.
         environment:
             name: wordpress-assets
         steps:

@@ -114,12 +114,13 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 		browserName === 'webkit',
 		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
 	);
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-simple.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -130,11 +131,11 @@ test('?blueprint-url=... should accept data URLs', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
+	await website.goto('./?storage=temp');
 	const blueprintUrl = encodeURIComponent(
 		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -145,12 +146,13 @@ test('?blueprint-url=... should work with ZIP bundles', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint.zip',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -161,12 +163,13 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-with-bundled-resources.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -307,7 +310,7 @@ test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(
-		wordpress.locator('body').locator('[aria-label="“Test post” (Edit)"]')
+		wordpress.locator('body').locator('a').filter({ hasText: 'Test post' })
 	).toBeVisible();
 });
 
@@ -960,6 +963,48 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	await expect(wordpress.locator('body')).toContainText(
 		'Welcome to WordPress. This is your first post.'
 	);
+});
+
+test('Blueprint with `preferredVersions.wp: false` boots Playground without WordPress', async ({
+	website,
+}) => {
+	const blueprint: Blueprint = {
+		preferredVersions: { php: 'latest', wp: false },
+	};
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	// `website.goto` waits for the WP iframe body to render, which never
+	// happens when WordPress isn't installed. Skip that wait and use the
+	// raw page navigation instead.
+	await website.page.goto(`/#${encodedBlueprint}`);
+
+	// `window.playground` is exposed once the worker boot resolves.
+	await website.page.waitForFunction(
+		() => Boolean((window as any).playground),
+		null,
+		{ timeout: 240_000 }
+	);
+
+	const probe = await website.page.evaluate(async () => {
+		const playground = (window as any).playground;
+		const r = await playground.run({
+			// `/wordpress` itself is created by PHPRequestHandler as the
+			// document root regardless of WP, so that's not a useful signal.
+			// What we really want is: no WP files, no WP runtime, no SQLite
+			// drop-in installed.
+			code: `<?php echo json_encode([
+				'wp_files' => file_exists('/wordpress/wp-includes/version.php'),
+				'wp_loaded' => function_exists('wp_get_current_user'),
+				'sqlite_drop_in' => file_exists('/internal/shared/preload/0-sqlite.php'),
+			]);`,
+		});
+		return r.text;
+	});
+
+	expect(JSON.parse(probe)).toEqual({
+		wp_files: false,
+		wp_loaded: false,
+		sqlite_drop_in: false,
+	});
 });
 
 /**

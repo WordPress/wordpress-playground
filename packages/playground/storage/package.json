@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/storage",
-	"version": "3.1.20",
+	"version": "3.1.43",
 	"description": "Bindings for storing WordPress Playground on different backends.",
 	"repository": {
 		"type": "git",
@@ -36,16 +36,8 @@
 	"type": "module",
 	"types": "index.d.ts",
 	"dependencies": {
-		"async-lock": "^1.4.1",
-		"clean-git-ref": "^2.0.1",
-		"crc-32": "^1.2.0",
-		"diff3": "0.0.3",
-		"ignore": "^5.1.4",
-		"minimisted": "^2.0.0",
+		"isomorphic-git": "1.37.6",
 		"pako": "^1.0.10",
-		"pify": "^4.0.1",
-		"readable-stream": "^3.4.0",
-		"sha.js": "^2.4.9",
-		"simple-get": "^4.0.1"
+		"sha.js": "2.4.12"
 	}
 }

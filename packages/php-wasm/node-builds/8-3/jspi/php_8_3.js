@@ -13,10 +13,10 @@ const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
-const dependencyFilename = path.join(currentDirPath, '8_3_30', 'php_8_3.wasm');
+const dependencyFilename = path.join(currentDirPath, '8_3_31', 'php_8_3.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 22831615; 
-const phpVersionString = '8.3.30';
+export const dependenciesTotalSize = 22836169; 
+const phpVersionString = '8.3.31';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 // include: shell.js
@@ -5411,6 +5411,7 @@ var PHPWASM = {
   O_NONBLOCK: 2048,
   POLLHUP: 16,
   SETFL_MASK: 3072,
+  socketTimeouts: new Map,
   init: function() {
     // TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
     if (PHPLoader.bindUserSpace) {
@@ -5807,6 +5808,24 @@ var PHPWASM = {
     return [ promise, cancel ];
   },
   noop: function() {},
+  parseSocketTimeout: function(optionValuePtr, optionLen) {
+    if (!optionValuePtr || optionLen < 8) {
+      return null;
+    }
+    let seconds;
+    let microseconds;
+    if (optionLen >= 16) {
+      seconds = Number(HEAP64[optionValuePtr >> 3]);
+      microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+    } else {
+      seconds = HEAP32[optionValuePtr >> 2];
+      microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+    }
+    if (!Number.isFinite(seconds) || !Number.isFinite(microseconds) || seconds < 0 || microseconds < 0) {
+      return null;
+    }
+    return seconds * 1e3 + Math.ceil(microseconds / 1e3);
+  },
   spawnProcess: function(command, args, options) {
     if (Module["spawnProcess"]) {
       const spawned = Module["spawnProcess"](command, args, /**
@@ -5845,6 +5864,7 @@ var PHPWASM = {
     throw e;
   },
   shutdownSocket: function(socketd, how) {
+    PHPWASM.socketTimeouts.delete(socketd);
     // This implementation only supports websockets at the moment
     const sock = getSocketFromFD(socketd);
     const peer = Object.values(sock.peers)[0];
@@ -5929,42 +5949,73 @@ function _wasm_connect(sockfd, addr, addrlen) {
       wakeUp(-ERRNO_CODES.ECONNREFUSED);
       return;
     }
-    // Wait for the connection to be established
-    const timeout = 3e4;
-    // 30 second timeout
+    // Wait for the connection to be established. A zero timeval
+    // disables the timeout, matching SO_SNDTIMEO semantics.
+    const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+    const timeout = sendTimeout ?? 3e4;
     let resolved = false;
-    const timeoutId = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        wakeUp(-ERRNO_CODES.ETIMEDOUT);
-      }
-    }, timeout);
-    const handleOpen = () => {
-      if (!resolved) {
-        resolved = true;
+    let timeoutId;
+    let handleOpen;
+    let handleError;
+    let handleClose;
+    const peer = PHPWASM.getAllPeers(sock).find(
+      (candidate) => candidate.socket === ws
+    );
+
+    const cleanupConnectListeners = () => {
+      if (typeof timeoutId !== "undefined") {
         clearTimeout(timeoutId);
-        ws.removeEventListener("error", handleError);
-        ws.removeEventListener("close", handleClose);
-        wakeUp(0);
+      }
+      ws.removeEventListener("open", handleOpen);
+      ws.removeEventListener("error", handleError);
+      ws.removeEventListener("close", handleClose);
+    };
+
+    const cleanupFailedConnect = (errno) => {
+      try {
+        if (
+          ws.readyState !== ws.CLOSING &&
+          ws.readyState !== ws.CLOSED
+        ) {
+          ws.close();
+        }
+      } catch (e) {
+        // Ignore close errors on an already-failed connect.
+      }
+      if (peer) {
+        SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+      }
+      sock.connecting = false;
+      sock.error = errno;
+    };
+
+    const finishConnect = (result) => {
+      if (!resolved) {
+        resolved = true;
+        cleanupConnectListeners();
+        if (result < 0) {
+          cleanupFailedConnect(-result);
+        }
+        wakeUp(result);
       }
     };
-    const handleError = () => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeoutId);
-        ws.removeEventListener("open", handleOpen);
-        ws.removeEventListener("close", handleClose);
-        wakeUp(-ERRNO_CODES.ECONNREFUSED);
-      }
+
+    if (timeout > 0) {
+      timeoutId = setTimeout(() => {
+        finishConnect(-ERRNO_CODES.ETIMEDOUT);
+      }, timeout);
+    }
+
+    handleOpen = () => {
+      finishConnect(0);
     };
-    const handleClose = () => {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeoutId);
-        ws.removeEventListener("open", handleOpen);
-        ws.removeEventListener("error", handleError);
-        wakeUp(-ERRNO_CODES.ECONNREFUSED);
-      }
+
+    handleError = () => {
+      finishConnect(-ERRNO_CODES.ECONNREFUSED);
+    };
+
+    handleClose = () => {
+      finishConnect(-ERRNO_CODES.ECONNREFUSED);
     };
     ws.addEventListener("open", handleOpen);
     ws.addEventListener("error", handleError);
@@ -8722,18 +8773,25 @@ function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen)
   const SO_SNDTIMEO = 67;
   const IPPROTO_TCP = 6;
   const TCP_NODELAY = 1;
+  if (level === SOL_SOCKET && (optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)) {
+    const timeoutMs = PHPWASM.parseSocketTimeout(optionValuePtr, optionLen);
+    if (timeoutMs === null) {
+      return -1;
+    }
+    const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+    if (optionName === SO_RCVTIMEO) {
+      timeouts.receive = timeoutMs;
+    } else {
+      timeouts.send = timeoutMs;
+    }
+    PHPWASM.socketTimeouts.set(socketd, timeouts);
+    return 0;
+  }
   // Options that we can forward to the WebSocket proxy
   const isForwardable = (level === SOL_SOCKET && optionName === SO_KEEPALIVE) || (level === IPPROTO_TCP && optionName === TCP_NODELAY);
-  // Options that we acknowledge but don't actually implement
-  // (WebSocket connections handle timeouts differently)
-  const isIgnorable = level === SOL_SOCKET && (optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-  if (!isForwardable && !isIgnorable) {
+  if (!isForwardable) {
     console.warn(`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`);
     return -1;
-  }
-  // For ignorable options, just return success
-  if (isIgnorable) {
-    return 0;
   }
   const ws = PHPWASM.getAllWebSockets(socketd)[0];
   if (!ws) {
@@ -8877,13 +8935,26 @@ var FS_createDevice = (...args) => FS.createDevice(...args);
 
 var _wasm_recv = function(sockfd, buffer, size, flags) {
   return Asyncify.handleSleep(wakeUp => {
+    const receiveTimeout = PHPWASM.socketTimeouts.get(sockfd)?.receive;
+    const startedAt = Date.now();
+    let resolved = false;
     const poll = function() {
+      if (resolved) {
+        return;
+      }
       let newl = ___syscall_recvfrom(sockfd, buffer, size, flags, null, null);
       if (newl > 0) {
+        resolved = true;
         wakeUp(newl);
-      } else if (newl === -6) {
+      } else if (newl === -ERRNO_CODES.EAGAIN) {
+        if (receiveTimeout > 0 && Date.now() - startedAt >= receiveTimeout) {
+          resolved = true;
+          wakeUp(-ERRNO_CODES.EAGAIN);
+          return;
+        }
         setTimeout(poll, 20);
       } else {
+        resolved = true;
         wakeUp(0);
       }
     };
@@ -9236,7 +9307,7 @@ function __asyncjs__js_module_onMessage(data, response_buffer) {
 __asyncjs__js_module_onMessage.sig = "iii";
 
 // Imports from the Wasm binary.
-var _php_date_get_date_ce, _php_date_get_interface_ce, _php_date_get_timezone_ce, _get_timezone_info, _php_hash_fetch_ops, _php_combined_lcg, _php_mt_rand_range, _php_random_bytes, _php_get_nan, _php_get_inf, _php_setcookie, _php_escape_html_entities, _php_info_print_table_header, _php_info_print_table_row, _php_info_print_table_start, _php_info_print_table_end, _php_info_print_table_colspan_header, _PHP_MD5Final, _PHP_MD5InitArgs, _PHP_MD5Update, _php_str_to_str, _php_addcslashes_str, _php_addcslashes, _php_var_serialize, _php_var_serialize_init, _php_var_serialize_destroy, _php_var_unserialize_init, _php_var_unserialize_destroy, _php_var_unserialize, _php_get_module_initialized, _php_log_err_with_severity, _php_printf, _php_error_docref, _ap_php_slprintf, _ap_php_snprintf, _ap_php_vsnprintf, _display_ini_entries, _sapi_header_op, _php_socket_strerror, _php_output_write, __php_stream_free, __php_stream_read, __php_stream_eof, __php_stream_set_option, __php_stream_write, __php_stream_getc, __php_stream_get_line, __php_stream_seek, __php_stream_open_wrapper_ex, _php_stream_context_alloc, _php_stream_context_set_option, __php_stream_cast, __php_stream_xport_create, __emalloc_16, __emalloc_24, __emalloc_32, __emalloc_40, __emalloc_48, __emalloc_56, __emalloc_80, __emalloc_96, __emalloc_112, __emalloc_128, __emalloc_192, __emalloc_320, __emalloc_1280, __efree_56, __emalloc, __efree, __erealloc, __safe_emalloc, ___zend_malloc, __safe_erealloc, ___zend_realloc, __ecalloc, __estrdup, __estrndup, _zend_set_memory_limit, _zend_memory_usage, _zend_memory_peak_usage, ___zend_calloc, _zend_type_to_string, _zend_unmangle_property_name_ex, _zend_is_auto_global_str, _zend_get_compiled_variable_name, _zend_register_long_constant, _zend_register_string_constant, _zend_get_constant_str, _get_active_class_name, _get_active_function_name, _zend_get_executed_filename, _zend_get_executed_filename_ex, _zend_get_executed_lineno, __call_user_function_impl, _zend_call_function, _zend_call_known_function, _zend_call_known_instance_method_with_2_params, _zend_eval_string, _zend_set_timeout, _zend_unset_timeout, _zend_fetch_class, _zend_rebuild_symbol_table, _zend_html_puts, _zend_llist_init, _zend_llist_add_element, _zend_llist_prepend_element, _zend_llist_destroy, _zend_llist_remove_tail, _zend_llist_count, _zend_llist_get_first_ex, _zend_llist_get_last_ex, _zend_llist_get_next_ex, __is_numeric_string_ex, _convert_to_long, _zval_get_long_func, _convert_to_double, __convert_to_string, __try_convert_to_string, _zval_get_double_func, _zval_get_string_func, _zend_is_true, _zend_binary_strcasecmp, _numeric_compare_function, _compare_function, _instanceof_function_slow, _zend_str_tolower, _zend_memnstr_ex, _rc_dtor_func, _zval_ptr_dtor, _zval_add_ref, _zend_vspprintf, _zend_spprintf, _zend_strpprintf, __zend_bailout, _zend_error, _zend_error_noreturn, _zend_throw_error, _zend_argument_count_error, _zend_value_error, _zend_get_parameters_array_ex, _zend_wrong_param_count, _zend_zval_type_name, _zend_wrong_parameters_none_error, _zend_wrong_parameters_count_error, _zend_wrong_parameter_error, _zend_argument_type_error, _zend_argument_value_error, _zend_argument_error, _zend_parse_arg_bool_slow, _zend_parse_arg_long_slow, _zend_parse_arg_double_slow, _zend_parse_arg_str_slow, _zend_parse_arg_str_or_long_slow, _zend_release_fcall_info_cache, _zend_parse_parameters, _zend_parse_method_parameters, _object_properties_init, _object_init_ex, _add_assoc_long_ex, _add_assoc_null_ex, _add_assoc_bool_ex, _add_assoc_double_ex, _add_assoc_str_ex, _add_assoc_string_ex, _add_assoc_stringl_ex, _add_assoc_zval_ex, _add_index_long, _add_index_null, _add_index_string, _add_index_stringl, _add_next_index_long, _add_next_index_null, _add_next_index_bool, _add_next_index_double, _add_next_index_str, _add_next_index_string, _add_next_index_stringl, _zend_startup_module, _zend_register_internal_class_ex, _zend_class_implements, _zend_is_callable_ex, _zend_fcall_info_init, _zend_get_module_version, _zend_declare_typed_property, _zend_try_assign_typed_ref_bool, _zend_try_assign_typed_ref_long, _zend_try_assign_typed_ref_str, _zend_try_assign_typed_ref_arr, _zend_declare_class_constant_ex, _zend_declare_class_constant_long, _zend_declare_class_constant_bool, _zend_update_property, _zend_read_property_ex, _zend_read_property, _zend_replace_error_handling, _zend_restore_error_handling, _zend_get_resource_handle, _zend_hash_str_find, __zend_hash_init, __zend_new_array_0, __zend_new_array, _zend_array_dup, _zend_hash_add, _zend_hash_update, _zend_hash_str_update, _zend_hash_index_add_empty_element, _zend_hash_add_empty_element, _zend_hash_str_add_empty_element, _zend_hash_next_index_insert, _zend_hash_next_index_insert_new, _zend_hash_index_update, _zend_hash_del, _zend_hash_str_del, _zend_hash_index_del, _zend_hash_destroy, _zend_array_destroy, _zend_hash_clean, _zend_hash_apply, _zend_hash_apply_with_arguments, _zend_hash_copy, _zend_array_to_list, _zend_hash_find, _zend_hash_index_find, _zend_hash_internal_pointer_reset_ex, _zend_hash_move_forward_ex, _zend_hash_get_current_key_ex, _zend_hash_get_current_key_type_ex, _zend_hash_get_current_data_ex, _zend_hash_sort_ex, __zend_handle_numeric_str_ex, _zend_register_list_destructors_ex, _zend_rsrc_list_get_rsrc_type, _zend_register_persistent_resource, _zend_get_parameter_attribute_str, _zend_add_attribute, _zend_set_user_opcode_handler, _zend_get_user_opcode_handler, _zend_get_zval_ptr, _zend_register_ini_entries_ex, _zend_unregister_ini_entries_ex, _zend_alter_ini_entry, _zend_ini_long, _zend_ini_string_ex, _zend_ini_string, _zend_ini_boolean_displayer_cb, _display_link_numbers, _OnUpdateBool, _OnUpdateLong, _OnUpdateLongGEZero, _OnUpdateReal, _OnUpdateString, _OnUpdateStringUnempty, _zend_sort, _zend_iterator_init, _zend_call_method, _zend_create_internal_iterator_zval, _zend_get_exception_base, _zend_is_unwind_exit, _zend_is_graceful_exit, _zend_clear_exception, _zend_throw_exception, _zend_throw_exception_ex, _zend_throw_error_exception, _zend_strtod, _zend_freedtoa, _zend_dtoa, _gc_enabled, _gc_possible_root, _zend_gc_get_status, _zend_get_gc_buffer_create, _zend_get_gc_buffer_grow, _zend_get_closure_method_def, _virtual_file_ex, _tsrm_realpath, _zend_object_std_init, _zend_object_std_dtor, _zend_objects_clone_members, _zend_std_get_properties, _zend_get_property_info, _zend_class_init_statics, _zend_std_compare_objects, _zend_get_properties_for, _zend_objects_store_mark_destructed, _zend_objects_store_del, _smart_str_erealloc, __smart_string_alloc, _zend_observer_fcall_register, _zend_observer_fiber_switch_register, _strtoll, _strlen, _munmap, _fiprintf, _abort, _free, _memcmp, _malloc, _snprintf, _strchr, _mmap, ___errno_location, _strerror, _dlopen, _dlsym, _dlclose, _strcmp, _getenv, ___wasm_setjmp, ___wasm_setjmp_test, ___wasm_longjmp, _atoi, _strtoull, _clock_gettime, _strrchr, _realloc, _strcasecmp, _memchr, _strncmp, _iscntrl, _isxdigit, _tolower, _strtok_r, _strncasecmp, _fileno, _isatty, _fread, _fclose, _strtoul, _strstr, _strpbrk, _strdup, _write, _close, _fwrite, _gettimeofday, _time, _toupper, _iprintf, _puts, _putchar, _stat, _fopen, _getcwd, _open, _strncpy, _siprintf, _localtime_r, _strtol, _pow, _strtod, _strftime, _sin, _cos, _atan2, _acos, _ispunct, _setlocale, _read, _tan, _asin, _atan, _log, _log2, _fmod, _wasm_popen, _wasm_php_exec, _socket, _gai_strerror, _freeaddrinfo, _fcntl, _connect, _strerror_r, _php_pollfd_for, _getsockopt, _htons, _ntohs, _getpeername, _getsockname, _htonl, _send, _shutdown, _strcpy, _strcat, _tzset, _ntohl, _wasm_sleep, _fputs, _atoll, _isdigit, _isgraph, _isspace, _fflush, _expf, _lseek, _fputc, ___small_fprintf, _qsort, _calloc, _vfprintf, _flock, _fgets, _initgroups, _atol, _wasm_read, _feof, _strncat, ___ctype_get_mb_cur_max, ___wrap_usleep, _poll, ___wrap_select, _wasm_set_sapi_name, _wasm_set_phpini_path, _wasm_add_cli_arg, _run_cli, _wasm_add_SERVER_entry, _wasm_add_ENV_entry, _wasm_set_query_string, _wasm_set_path_translated, _wasm_set_skip_shebang, _wasm_set_request_uri, _wasm_set_request_method, _wasm_set_request_host, _wasm_set_content_type, _wasm_set_request_body, _wasm_set_content_length, _wasm_set_cookies, _wasm_set_request_port, _wasm_sapi_request_shutdown, _wasm_sapi_handle_request, _php_wasm_init, _wasm_free, _wasm_get_end_offset, ___wrap_getpid, _wasm_trace, _srandom, _random, _vsnprintf, _pthread_mutex_init, _pthread_mutex_destroy, _pthread_mutex_lock, _pthread_mutex_unlock, _srand, _rand, _rewind, _modf, _atof, _gmtime, _round, _pthread_cond_init, _pthread_cond_destroy, _pthread_cond_broadcast, ___extenddftf2, ___letf2, ___floatunditf, _div, ___funcs_on_exit, ___cxa_atexit, ___dl_seterr, __emscripten_find_dylib, _freopen, _pthread_cond_timedwait, _mbstowcs, _emscripten_builtin_memalign, __emscripten_timeout, _strtok, _tanhf, _wcstombs, _emscripten_get_sbrk_ptr, ___trap, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, __ZNSt3__211__call_onceERVmPvPFvS2_E, __ZNSt3__218condition_variable10notify_allEv, __ZNSt3__25mutex4lockEv, __ZNSt3__25mutex6unlockEv, ___cxa_bad_typeid, ___cxa_allocate_exception, ___cxa_throw, ___cxa_pure_virtual, ___dynamic_cast, __ZNSt20bad_array_new_lengthD1Ev, __ZNSt12length_errorD1Ev, _sendmsg, memory, ___stack_pointer, __indirect_function_table, ___c_longjmp, wasmTable, wasmMemory;
+var _php_date_get_date_ce, _php_date_get_interface_ce, _php_date_get_timezone_ce, _get_timezone_info, _php_hash_fetch_ops, _php_combined_lcg, _php_mt_rand_range, _php_random_bytes, _php_get_nan, _php_get_inf, _php_setcookie, _php_escape_html_entities, _php_info_print_table_header, _php_info_print_table_row, _php_info_print_table_start, _php_info_print_table_end, _php_info_print_table_colspan_header, _PHP_MD5Final, _PHP_MD5InitArgs, _PHP_MD5Update, _php_str_to_str, _php_addcslashes_str, _php_addcslashes, _php_var_serialize, _php_var_serialize_init, _php_var_serialize_destroy, _php_var_unserialize_init, _php_var_unserialize_destroy, _php_var_unserialize, _php_get_module_initialized, _php_log_err_with_severity, _php_printf, _php_error_docref, _ap_php_slprintf, _ap_php_snprintf, _ap_php_vsnprintf, _display_ini_entries, _sapi_header_op, _php_socket_strerror, _php_output_write, __php_stream_free, __php_stream_read, __php_stream_eof, __php_stream_set_option, __php_stream_write, __php_stream_getc, __php_stream_get_line, __php_stream_seek, __php_stream_open_wrapper_ex, _php_stream_context_alloc, _php_stream_context_set_option, __php_stream_cast, __php_stream_xport_create, __emalloc_16, __emalloc_24, __emalloc_32, __emalloc_40, __emalloc_48, __emalloc_56, __emalloc_80, __emalloc_96, __emalloc_112, __emalloc_128, __emalloc_192, __emalloc_320, __emalloc_1280, __efree_56, __emalloc, __efree, __erealloc, __safe_emalloc, ___zend_malloc, __safe_erealloc, ___zend_realloc, __ecalloc, __estrdup, __estrndup, _zend_set_memory_limit, _zend_memory_usage, _zend_memory_peak_usage, ___zend_calloc, _zend_type_to_string, _zend_unmangle_property_name_ex, _zend_is_auto_global_str, _zend_get_compiled_variable_name, _zend_register_long_constant, _zend_register_string_constant, _zend_get_constant_str, _get_active_class_name, _get_active_function_name, _zend_get_executed_filename, _zend_get_executed_filename_ex, _zend_get_executed_lineno, _zend_get_executed_scope, __call_user_function_impl, _zend_call_function, _zend_call_known_function, _zend_call_known_instance_method_with_2_params, _zend_lookup_class_ex, _zend_eval_string, _zend_set_timeout, _zend_unset_timeout, _zend_fetch_class, _zend_rebuild_symbol_table, _zend_html_puts, _zend_llist_init, _zend_llist_add_element, _zend_llist_prepend_element, _zend_llist_destroy, _zend_llist_remove_tail, _zend_llist_count, _zend_llist_get_first_ex, _zend_llist_get_last_ex, _zend_llist_get_next_ex, _destroy_op_array, _zend_destroy_static_vars, __is_numeric_string_ex, _convert_to_long, _zval_get_long_func, _convert_to_double, __convert_to_string, __try_convert_to_string, _zval_get_double_func, _zval_get_string_func, _zend_is_true, _zend_binary_strcasecmp, _numeric_compare_function, _compare_function, _instanceof_function_slow, _zend_str_tolower, _zend_memnstr_ex, _rc_dtor_func, _zval_ptr_dtor, _zval_add_ref, _zend_vspprintf, _zend_spprintf, _zend_strpprintf, __zend_bailout, _zend_error, _zend_error_noreturn, _zend_throw_error, _zend_argument_count_error, _zend_value_error, _zend_get_parameters_array_ex, _zend_wrong_param_count, _zend_zval_type_name, _zend_wrong_parameters_none_error, _zend_wrong_parameters_count_error, _zend_wrong_parameter_error, _zend_argument_type_error, _zend_argument_value_error, _zend_argument_error, _zend_parse_arg_bool_slow, _zend_parse_arg_long_slow, _zend_parse_arg_double_slow, _zend_parse_arg_str_slow, _zend_parse_arg_str_or_long_slow, _zend_release_fcall_info_cache, _zend_parse_parameters, _zend_parse_method_parameters, _object_properties_init, _object_init_ex, _add_assoc_long_ex, _add_assoc_null_ex, _add_assoc_bool_ex, _add_assoc_double_ex, _add_assoc_str_ex, _add_assoc_string_ex, _add_assoc_stringl_ex, _add_assoc_zval_ex, _add_index_long, _add_index_null, _add_index_string, _add_index_stringl, _add_next_index_long, _add_next_index_null, _add_next_index_bool, _add_next_index_double, _add_next_index_str, _add_next_index_string, _add_next_index_stringl, _zend_startup_module, _zend_register_internal_class_ex, _zend_class_implements, _zend_register_internal_interface, _zend_is_callable_ex, _zend_is_callable, _zend_fcall_info_init, _zend_get_module_version, _zend_declare_typed_property, _zend_try_assign_typed_ref_bool, _zend_try_assign_typed_ref_long, _zend_try_assign_typed_ref_str, _zend_try_assign_typed_ref_arr, _zend_declare_property, _zend_declare_class_constant_ex, _zend_declare_class_constant_long, _zend_declare_class_constant_bool, _zend_update_property, _zend_read_property_ex, _zend_read_property, _zend_replace_error_handling, _zend_restore_error_handling, _zend_is_iterable, _zend_get_resource_handle, _zend_hash_str_find, __zend_hash_init, __zend_new_array_0, __zend_new_array, _zend_array_count, _zend_array_dup, _zend_hash_add, _zend_hash_update, _zend_hash_str_update, _zend_hash_index_add_empty_element, _zend_hash_add_empty_element, _zend_hash_str_add_empty_element, _zend_hash_next_index_insert, _zend_hash_next_index_insert_new, _zend_hash_index_update, _zend_hash_del, _zend_hash_str_del, _zend_hash_index_del, _zend_hash_destroy, _zend_array_destroy, _zend_hash_clean, _zend_hash_apply, _zend_hash_apply_with_arguments, _zend_hash_copy, _zend_array_to_list, _zend_hash_find, _zend_hash_index_find, _zend_hash_internal_pointer_reset_ex, _zend_hash_move_forward_ex, _zend_hash_get_current_key_ex, _zend_hash_get_current_key_zval_ex, _zend_hash_get_current_key_type_ex, _zend_hash_get_current_data_ex, _zend_hash_sort_ex, __zend_handle_numeric_str_ex, _zend_register_list_destructors_ex, _zend_rsrc_list_get_rsrc_type, _zend_register_persistent_resource, _zend_get_parameter_attribute_str, _zend_add_attribute, _zend_execute, _zend_set_user_opcode_handler, _zend_get_user_opcode_handler, _zend_get_zval_ptr, _zend_register_ini_entries_ex, _zend_unregister_ini_entries_ex, _zend_alter_ini_entry, _zend_ini_long, _zend_ini_string_ex, _zend_ini_string, _zend_ini_boolean_displayer_cb, _display_link_numbers, _OnUpdateBool, _OnUpdateLong, _OnUpdateLongGEZero, _OnUpdateReal, _OnUpdateString, _OnUpdateStringUnempty, _zend_sort, _zend_iterator_init, _zend_call_method, _zend_create_internal_iterator_zval, _zend_get_exception_base, _zend_is_unwind_exit, _zend_is_graceful_exit, _zend_clear_exception, _zend_throw_exception, _zend_throw_exception_ex, _zend_throw_error_exception, _zend_throw_exception_object, _zend_strtod, _zend_freedtoa, _zend_dtoa, _gc_enabled, _gc_possible_root, _zend_gc_get_status, _zend_get_gc_buffer_create, _zend_get_gc_buffer_grow, _zend_get_closure_method_def, _virtual_file_ex, _tsrm_realpath, _zend_object_std_init, _zend_object_std_dtor, _zend_objects_new, _zend_objects_clone_members, _zend_std_get_properties, _zend_get_property_info, _zend_std_read_property, _zend_std_write_property, _zend_class_init_statics, _zend_std_compare_objects, _zend_std_has_property, _zend_get_properties_for, _zend_objects_store_mark_destructed, _zend_objects_store_del, _zend_do_implement_interface, _smart_str_erealloc, __smart_string_alloc, _zend_observer_fcall_register, _zend_observer_fiber_switch_register, _strtoll, _strlen, _munmap, _fiprintf, _abort, _free, _memcmp, _malloc, _snprintf, _strchr, _mmap, ___errno_location, _strerror, _dlopen, _dlsym, _dlclose, _strcmp, _getenv, ___wasm_setjmp, ___wasm_setjmp_test, ___wasm_longjmp, _atoi, _strtoull, _clock_gettime, _strrchr, _realloc, _strcasecmp, _memchr, _strncmp, _iscntrl, _isxdigit, _tolower, _strtok_r, _strncasecmp, _fileno, _isatty, _fread, _fclose, _strtoul, _strstr, _strpbrk, _strdup, _write, _close, _fwrite, _gettimeofday, _time, _toupper, _iprintf, _puts, _putchar, _stat, _fopen, _getcwd, _open, _strncpy, _siprintf, _localtime_r, _strtol, _pow, _strtod, _strftime, _sin, _cos, _atan2, _acos, _ispunct, _setlocale, _read, _tan, _asin, _atan, _log, _log2, _fmod, _wasm_popen, _wasm_php_exec, _socket, _gai_strerror, _freeaddrinfo, _fcntl, _connect, _strerror_r, _php_pollfd_for, _getsockopt, _htons, _ntohs, _getpeername, _getsockname, _htonl, _send, _shutdown, _strcpy, _strcat, _tzset, _ntohl, _wasm_sleep, _fputs, _atoll, _isdigit, _isgraph, _isspace, _fflush, _expf, _lseek, _fputc, ___small_fprintf, _qsort, _calloc, _vfprintf, _flock, _writev, _fgets, _initgroups, _atol, _posix_memalign, _wasm_read, _feof, _strncat, ___ctype_get_mb_cur_max, ___wrap_usleep, _poll, ___wrap_select, _wasm_set_sapi_name, _wasm_set_phpini_path, _wasm_add_cli_arg, _run_cli, _wasm_add_SERVER_entry, _wasm_add_ENV_entry, _wasm_set_query_string, _wasm_set_path_translated, _wasm_set_skip_shebang, _wasm_set_request_uri, _wasm_set_request_method, _wasm_set_request_host, _wasm_set_content_type, _wasm_set_request_body, _wasm_set_content_length, _wasm_set_cookies, _wasm_set_request_port, _wasm_sapi_request_shutdown, _wasm_sapi_handle_request, _php_wasm_init, _wasm_free, _wasm_get_end_offset, ___wrap_getpid, _wasm_trace, _getentropy, _pthread_cond_signal, _pthread_cond_wait, _pthread_condattr_destroy, _pthread_condattr_init, _pthread_condattr_setclock, _pthread_mutex_trylock, _pthread_mutexattr_destroy, _pthread_mutexattr_init, _pthread_mutexattr_settype, _sched_yield, _srandom, _random, _vsnprintf, _pthread_mutex_init, _pthread_mutex_destroy, _pthread_mutex_lock, _pthread_mutex_unlock, _srand, _rand, _rewind, _modf, _atof, _gmtime, _round, _pthread_cond_init, _pthread_cond_destroy, _pthread_cond_broadcast, ___extenddftf2, ___letf2, ___floatunditf, _div, ___funcs_on_exit, ___cxa_atexit, ___dl_seterr, __emscripten_find_dylib, _freopen, _pthread_cond_timedwait, _mbstowcs, _emscripten_builtin_memalign, __emscripten_timeout, _strtok, _tanhf, _wcstombs, _emscripten_get_sbrk_ptr, ___trap, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, __ZNSt3__211__call_onceERVmPvPFvS2_E, __ZNSt3__218condition_variable10notify_allEv, __ZNSt3__25mutex4lockEv, __ZNSt3__25mutex6unlockEv, ___cxa_bad_typeid, ___cxa_allocate_exception, ___cxa_throw, ___cxa_pure_virtual, ___dynamic_cast, __ZNSt20bad_array_new_lengthD1Ev, __ZNSt12length_errorD1Ev, _sendmsg, memory, ___stack_pointer, __indirect_function_table, ___c_longjmp, wasmTable, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _php_date_get_date_ce = Module["_php_date_get_date_ce"] = wasmExports["php_date_get_date_ce"];
@@ -9332,10 +9403,12 @@ function assignWasmExports(wasmExports) {
   _zend_get_executed_filename = Module["_zend_get_executed_filename"] = wasmExports["zend_get_executed_filename"];
   _zend_get_executed_filename_ex = Module["_zend_get_executed_filename_ex"] = wasmExports["zend_get_executed_filename_ex"];
   _zend_get_executed_lineno = Module["_zend_get_executed_lineno"] = wasmExports["zend_get_executed_lineno"];
+  _zend_get_executed_scope = Module["_zend_get_executed_scope"] = wasmExports["zend_get_executed_scope"];
   __call_user_function_impl = Module["__call_user_function_impl"] = wasmExports["_call_user_function_impl"];
   _zend_call_function = Module["_zend_call_function"] = wasmExports["zend_call_function"];
   _zend_call_known_function = Module["_zend_call_known_function"] = wasmExports["zend_call_known_function"];
   _zend_call_known_instance_method_with_2_params = Module["_zend_call_known_instance_method_with_2_params"] = wasmExports["zend_call_known_instance_method_with_2_params"];
+  _zend_lookup_class_ex = Module["_zend_lookup_class_ex"] = wasmExports["zend_lookup_class_ex"];
   _zend_eval_string = Module["_zend_eval_string"] = wasmExports["zend_eval_string"];
   _zend_set_timeout = Module["_zend_set_timeout"] = wasmExports["zend_set_timeout"];
   _zend_unset_timeout = Module["_zend_unset_timeout"] = wasmExports["zend_unset_timeout"];
@@ -9351,6 +9424,8 @@ function assignWasmExports(wasmExports) {
   _zend_llist_get_first_ex = Module["_zend_llist_get_first_ex"] = wasmExports["zend_llist_get_first_ex"];
   _zend_llist_get_last_ex = Module["_zend_llist_get_last_ex"] = wasmExports["zend_llist_get_last_ex"];
   _zend_llist_get_next_ex = Module["_zend_llist_get_next_ex"] = wasmExports["zend_llist_get_next_ex"];
+  _destroy_op_array = Module["_destroy_op_array"] = wasmExports["destroy_op_array"];
+  _zend_destroy_static_vars = Module["_zend_destroy_static_vars"] = wasmExports["zend_destroy_static_vars"];
   __is_numeric_string_ex = Module["__is_numeric_string_ex"] = wasmExports["_is_numeric_string_ex"];
   _convert_to_long = Module["_convert_to_long"] = wasmExports["convert_to_long"];
   _zval_get_long_func = Module["_zval_get_long_func"] = wasmExports["zval_get_long_func"];
@@ -9419,7 +9494,9 @@ function assignWasmExports(wasmExports) {
   _zend_startup_module = Module["_zend_startup_module"] = wasmExports["zend_startup_module"];
   _zend_register_internal_class_ex = Module["_zend_register_internal_class_ex"] = wasmExports["zend_register_internal_class_ex"];
   _zend_class_implements = Module["_zend_class_implements"] = wasmExports["zend_class_implements"];
+  _zend_register_internal_interface = Module["_zend_register_internal_interface"] = wasmExports["zend_register_internal_interface"];
   _zend_is_callable_ex = Module["_zend_is_callable_ex"] = wasmExports["zend_is_callable_ex"];
+  _zend_is_callable = Module["_zend_is_callable"] = wasmExports["zend_is_callable"];
   _zend_fcall_info_init = Module["_zend_fcall_info_init"] = wasmExports["zend_fcall_info_init"];
   _zend_get_module_version = Module["_zend_get_module_version"] = wasmExports["zend_get_module_version"];
   _zend_declare_typed_property = Module["_zend_declare_typed_property"] = wasmExports["zend_declare_typed_property"];
@@ -9427,6 +9504,7 @@ function assignWasmExports(wasmExports) {
   _zend_try_assign_typed_ref_long = Module["_zend_try_assign_typed_ref_long"] = wasmExports["zend_try_assign_typed_ref_long"];
   _zend_try_assign_typed_ref_str = Module["_zend_try_assign_typed_ref_str"] = wasmExports["zend_try_assign_typed_ref_str"];
   _zend_try_assign_typed_ref_arr = Module["_zend_try_assign_typed_ref_arr"] = wasmExports["zend_try_assign_typed_ref_arr"];
+  _zend_declare_property = Module["_zend_declare_property"] = wasmExports["zend_declare_property"];
   _zend_declare_class_constant_ex = Module["_zend_declare_class_constant_ex"] = wasmExports["zend_declare_class_constant_ex"];
   _zend_declare_class_constant_long = Module["_zend_declare_class_constant_long"] = wasmExports["zend_declare_class_constant_long"];
   _zend_declare_class_constant_bool = Module["_zend_declare_class_constant_bool"] = wasmExports["zend_declare_class_constant_bool"];
@@ -9435,11 +9513,13 @@ function assignWasmExports(wasmExports) {
   _zend_read_property = Module["_zend_read_property"] = wasmExports["zend_read_property"];
   _zend_replace_error_handling = Module["_zend_replace_error_handling"] = wasmExports["zend_replace_error_handling"];
   _zend_restore_error_handling = Module["_zend_restore_error_handling"] = wasmExports["zend_restore_error_handling"];
+  _zend_is_iterable = Module["_zend_is_iterable"] = wasmExports["zend_is_iterable"];
   _zend_get_resource_handle = Module["_zend_get_resource_handle"] = wasmExports["zend_get_resource_handle"];
   _zend_hash_str_find = Module["_zend_hash_str_find"] = wasmExports["zend_hash_str_find"];
   __zend_hash_init = Module["__zend_hash_init"] = wasmExports["_zend_hash_init"];
   __zend_new_array_0 = Module["__zend_new_array_0"] = wasmExports["_zend_new_array_0"];
   __zend_new_array = Module["__zend_new_array"] = wasmExports["_zend_new_array"];
+  _zend_array_count = Module["_zend_array_count"] = wasmExports["zend_array_count"];
   _zend_array_dup = Module["_zend_array_dup"] = wasmExports["zend_array_dup"];
   _zend_hash_add = Module["_zend_hash_add"] = wasmExports["zend_hash_add"];
   _zend_hash_update = Module["_zend_hash_update"] = wasmExports["zend_hash_update"];
@@ -9465,6 +9545,7 @@ function assignWasmExports(wasmExports) {
   _zend_hash_internal_pointer_reset_ex = Module["_zend_hash_internal_pointer_reset_ex"] = wasmExports["zend_hash_internal_pointer_reset_ex"];
   _zend_hash_move_forward_ex = Module["_zend_hash_move_forward_ex"] = wasmExports["zend_hash_move_forward_ex"];
   _zend_hash_get_current_key_ex = Module["_zend_hash_get_current_key_ex"] = wasmExports["zend_hash_get_current_key_ex"];
+  _zend_hash_get_current_key_zval_ex = Module["_zend_hash_get_current_key_zval_ex"] = wasmExports["zend_hash_get_current_key_zval_ex"];
   _zend_hash_get_current_key_type_ex = Module["_zend_hash_get_current_key_type_ex"] = wasmExports["zend_hash_get_current_key_type_ex"];
   _zend_hash_get_current_data_ex = Module["_zend_hash_get_current_data_ex"] = wasmExports["zend_hash_get_current_data_ex"];
   _zend_hash_sort_ex = Module["_zend_hash_sort_ex"] = wasmExports["zend_hash_sort_ex"];
@@ -9474,6 +9555,7 @@ function assignWasmExports(wasmExports) {
   _zend_register_persistent_resource = Module["_zend_register_persistent_resource"] = wasmExports["zend_register_persistent_resource"];
   _zend_get_parameter_attribute_str = Module["_zend_get_parameter_attribute_str"] = wasmExports["zend_get_parameter_attribute_str"];
   _zend_add_attribute = Module["_zend_add_attribute"] = wasmExports["zend_add_attribute"];
+  _zend_execute = Module["_zend_execute"] = wasmExports["zend_execute"];
   _zend_set_user_opcode_handler = Module["_zend_set_user_opcode_handler"] = wasmExports["zend_set_user_opcode_handler"];
   _zend_get_user_opcode_handler = Module["_zend_get_user_opcode_handler"] = wasmExports["zend_get_user_opcode_handler"];
   _zend_get_zval_ptr = Module["_zend_get_zval_ptr"] = wasmExports["zend_get_zval_ptr"];
@@ -9502,6 +9584,7 @@ function assignWasmExports(wasmExports) {
   _zend_throw_exception = Module["_zend_throw_exception"] = wasmExports["zend_throw_exception"];
   _zend_throw_exception_ex = Module["_zend_throw_exception_ex"] = wasmExports["zend_throw_exception_ex"];
   _zend_throw_error_exception = Module["_zend_throw_error_exception"] = wasmExports["zend_throw_error_exception"];
+  _zend_throw_exception_object = Module["_zend_throw_exception_object"] = wasmExports["zend_throw_exception_object"];
   _zend_strtod = Module["_zend_strtod"] = wasmExports["zend_strtod"];
   _zend_freedtoa = Module["_zend_freedtoa"] = wasmExports["zend_freedtoa"];
   _zend_dtoa = Module["_zend_dtoa"] = wasmExports["zend_dtoa"];
@@ -9515,14 +9598,19 @@ function assignWasmExports(wasmExports) {
   _tsrm_realpath = Module["_tsrm_realpath"] = wasmExports["tsrm_realpath"];
   _zend_object_std_init = Module["_zend_object_std_init"] = wasmExports["zend_object_std_init"];
   _zend_object_std_dtor = Module["_zend_object_std_dtor"] = wasmExports["zend_object_std_dtor"];
+  _zend_objects_new = Module["_zend_objects_new"] = wasmExports["zend_objects_new"];
   _zend_objects_clone_members = Module["_zend_objects_clone_members"] = wasmExports["zend_objects_clone_members"];
   _zend_std_get_properties = Module["_zend_std_get_properties"] = wasmExports["zend_std_get_properties"];
   _zend_get_property_info = Module["_zend_get_property_info"] = wasmExports["zend_get_property_info"];
+  _zend_std_read_property = Module["_zend_std_read_property"] = wasmExports["zend_std_read_property"];
+  _zend_std_write_property = Module["_zend_std_write_property"] = wasmExports["zend_std_write_property"];
   _zend_class_init_statics = Module["_zend_class_init_statics"] = wasmExports["zend_class_init_statics"];
   _zend_std_compare_objects = Module["_zend_std_compare_objects"] = wasmExports["zend_std_compare_objects"];
+  _zend_std_has_property = Module["_zend_std_has_property"] = wasmExports["zend_std_has_property"];
   _zend_get_properties_for = Module["_zend_get_properties_for"] = wasmExports["zend_get_properties_for"];
   _zend_objects_store_mark_destructed = Module["_zend_objects_store_mark_destructed"] = wasmExports["zend_objects_store_mark_destructed"];
   _zend_objects_store_del = Module["_zend_objects_store_del"] = wasmExports["zend_objects_store_del"];
+  _zend_do_implement_interface = Module["_zend_do_implement_interface"] = wasmExports["zend_do_implement_interface"];
   _smart_str_erealloc = Module["_smart_str_erealloc"] = wasmExports["smart_str_erealloc"];
   __smart_string_alloc = Module["__smart_string_alloc"] = wasmExports["_smart_string_alloc"];
   _zend_observer_fcall_register = Module["_zend_observer_fcall_register"] = wasmExports["zend_observer_fcall_register"];
@@ -9638,9 +9726,11 @@ function assignWasmExports(wasmExports) {
   _calloc = Module["_calloc"] = wasmExports["calloc"];
   _vfprintf = Module["_vfprintf"] = wasmExports["vfprintf"];
   _flock = Module["_flock"] = wasmExports["flock"];
+  _writev = Module["_writev"] = wasmExports["writev"];
   _fgets = Module["_fgets"] = wasmExports["fgets"];
   _initgroups = Module["_initgroups"] = wasmExports["initgroups"];
   _atol = Module["_atol"] = wasmExports["atol"];
+  _posix_memalign = Module["_posix_memalign"] = wasmExports["posix_memalign"];
   _wasm_read = Module["_wasm_read"] = wasmExports["wasm_read"];
   _feof = Module["_feof"] = wasmExports["feof"];
   _strncat = Module["_strncat"] = wasmExports["strncat"];
@@ -9672,6 +9762,17 @@ function assignWasmExports(wasmExports) {
   _wasm_get_end_offset = Module["_wasm_get_end_offset"] = wasmExports["wasm_get_end_offset"];
   ___wrap_getpid = Module["___wrap_getpid"] = wasmExports["__wrap_getpid"];
   _wasm_trace = Module["_wasm_trace"] = wasmExports["wasm_trace"];
+  _getentropy = Module["_getentropy"] = wasmExports["getentropy"];
+  _pthread_cond_signal = Module["_pthread_cond_signal"] = wasmExports["pthread_cond_signal"];
+  _pthread_cond_wait = Module["_pthread_cond_wait"] = wasmExports["pthread_cond_wait"];
+  _pthread_condattr_destroy = Module["_pthread_condattr_destroy"] = wasmExports["pthread_condattr_destroy"];
+  _pthread_condattr_init = Module["_pthread_condattr_init"] = wasmExports["pthread_condattr_init"];
+  _pthread_condattr_setclock = Module["_pthread_condattr_setclock"] = wasmExports["pthread_condattr_setclock"];
+  _pthread_mutex_trylock = Module["_pthread_mutex_trylock"] = wasmExports["pthread_mutex_trylock"];
+  _pthread_mutexattr_destroy = Module["_pthread_mutexattr_destroy"] = wasmExports["pthread_mutexattr_destroy"];
+  _pthread_mutexattr_init = Module["_pthread_mutexattr_init"] = wasmExports["pthread_mutexattr_init"];
+  _pthread_mutexattr_settype = Module["_pthread_mutexattr_settype"] = wasmExports["pthread_mutexattr_settype"];
+  _sched_yield = Module["_sched_yield"] = wasmExports["sched_yield"];
   _srandom = Module["_srandom"] = wasmExports["srandom"];
   _random = Module["_random"] = wasmExports["random"];
   _vsnprintf = Module["_vsnprintf"] = wasmExports["vsnprintf"];
@@ -9728,109 +9829,133 @@ function assignWasmExports(wasmExports) {
   ___c_longjmp = Module["___c_longjmp"] = wasmExports["__c_longjmp"];
 }
 
-var _spl_ce_RuntimeException = Module["_spl_ce_RuntimeException"] = 13813484;
+var _spl_ce_RuntimeException = Module["_spl_ce_RuntimeException"] = 13815756;
 
-var _core_globals = Module["_core_globals"] = 13824048;
+var _file_globals = Module["_file_globals"] = 13826792;
 
-var _php_ini_opened_path = Module["_php_ini_opened_path"] = 13717008;
+var _core_globals = Module["_core_globals"] = 13826320;
 
-var _php_ini_scanned_path = Module["_php_ini_scanned_path"] = 13717012;
+var _php_ini_opened_path = Module["_php_ini_opened_path"] = 13719280;
 
-var _php_ini_scanned_files = Module["_php_ini_scanned_files"] = 13717016;
+var _php_ini_scanned_path = Module["_php_ini_scanned_path"] = 13719284;
 
-var _sapi_module = Module["_sapi_module"] = 13798200;
+var _php_ini_scanned_files = Module["_php_ini_scanned_files"] = 13719288;
 
-var _sapi_globals = Module["_sapi_globals"] = 13798344;
+var _sapi_module = Module["_sapi_module"] = 13800472;
 
-var _compiler_globals = Module["_compiler_globals"] = 13827344;
+var _sapi_globals = Module["_sapi_globals"] = 13800616;
 
-var _executor_globals = Module["_executor_globals"] = 13827728;
+var _compiler_globals = Module["_compiler_globals"] = 13829616;
 
-var _zend_compile_file = Module["_zend_compile_file"] = 13829032;
+var _executor_globals = Module["_executor_globals"] = 1383e4;
 
-var _zend_execute_ex = Module["_zend_execute_ex"] = 13827232;
+var _zend_compile_file = Module["_zend_compile_file"] = 13831304;
 
-var _zend_execute_internal = Module["_zend_execute_internal"] = 13827236;
+var _zend_compile_string = Module["_zend_compile_string"] = 13831308;
 
-var _empty_fcall_info = Module["_empty_fcall_info"] = 10338072;
+var _zend_execute_ex = Module["_zend_execute_ex"] = 13829504;
 
-var _empty_fcall_info_cache = Module["_empty_fcall_info_cache"] = 10338120;
+var _zend_execute_internal = Module["_zend_execute_internal"] = 13829508;
 
-var _zend_write = Module["_zend_write"] = 13827268;
+var _empty_fcall_info = Module["_empty_fcall_info"] = 10340120;
 
-var _zend_error_cb = Module["_zend_error_cb"] = 13827272;
+var _empty_fcall_info_cache = Module["_empty_fcall_info_cache"] = 10340168;
 
-var _zend_post_startup_cb = Module["_zend_post_startup_cb"] = 13827252;
+var _zend_write = Module["_zend_write"] = 13829540;
 
-var _module_registry = Module["_module_registry"] = 13826104;
+var _zend_error_cb = Module["_zend_error_cb"] = 13829544;
 
-var _zend_extensions = Module["_zend_extensions"] = 13824872;
+var _zend_post_startup_cb = Module["_zend_post_startup_cb"] = 13829524;
 
-var _zend_empty_array = Module["_zend_empty_array"] = 13209352;
+var _module_registry = Module["_module_registry"] = 13828376;
 
-var _zend_pass_function = Module["_zend_pass_function"] = 13194440;
+var _zend_extensions = Module["_zend_extensions"] = 13827144;
 
-var _zend_ce_aggregate = Module["_zend_ce_aggregate"] = 13711888;
+var _zend_empty_array = Module["_zend_empty_array"] = 13211400;
 
-var _zend_ce_iterator = Module["_zend_ce_iterator"] = 13711892;
+var _zend_pass_function = Module["_zend_pass_function"] = 13196488;
 
-var _zend_ce_countable = Module["_zend_ce_countable"] = 13711904;
+var _zend_ce_traversable = Module["_zend_ce_traversable"] = 13714156;
 
-var _zend_ce_exception = Module["_zend_ce_exception"] = 13825248;
+var _zend_ce_aggregate = Module["_zend_ce_aggregate"] = 13714160;
 
-var _zend_ce_error = Module["_zend_ce_error"] = 13825364;
+var _zend_ce_iterator = Module["_zend_ce_iterator"] = 13714164;
 
-var _zend_throw_exception_hook = Module["_zend_throw_exception_hook"] = 13825240;
+var _zend_ce_serializable = Module["_zend_ce_serializable"] = 13714168;
 
-var _zend_ce_throwable = Module["_zend_ce_throwable"] = 13825244;
+var _zend_ce_arrayaccess = Module["_zend_ce_arrayaccess"] = 13714172;
 
-var _gc_collect_cycles = Module["_gc_collect_cycles"] = 13712296;
+var _zend_ce_countable = Module["_zend_ce_countable"] = 13714176;
 
-var _zend_ce_closure = Module["_zend_ce_closure"] = 13818700;
+var _zend_ce_stringable = Module["_zend_ce_stringable"] = 13714180;
 
-var _zend_empty_string = Module["_zend_empty_string"] = 13710352;
+var _zend_ce_exception = Module["_zend_ce_exception"] = 13827520;
 
-var _zend_known_strings = Module["_zend_known_strings"] = 13710356;
+var _zend_ce_error = Module["_zend_ce_error"] = 13827636;
 
-var _zend_string_init_interned = Module["_zend_string_init_interned"] = 13710420;
+var _zend_throw_exception_hook = Module["_zend_throw_exception_hook"] = 13827512;
 
-var _zend_one_char_string = Module["_zend_one_char_string"] = 13710432;
+var _zend_ce_throwable = Module["_zend_ce_throwable"] = 13827516;
 
-var _std_object_handlers = Module["_std_object_handlers"] = 13208768;
+var _zend_ce_division_by_zero_error = Module["_zend_ce_division_by_zero_error"] = 13827648;
+
+var _zend_ce_unhandled_match_error = Module["_zend_ce_unhandled_match_error"] = 13827652;
+
+var _gc_collect_cycles = Module["_gc_collect_cycles"] = 13714568;
+
+var _zend_ce_closure = Module["_zend_ce_closure"] = 13820972;
+
+var _zend_empty_string = Module["_zend_empty_string"] = 13712624;
+
+var _zend_known_strings = Module["_zend_known_strings"] = 13712628;
+
+var _zend_string_init_interned = Module["_zend_string_init_interned"] = 13712692;
+
+var _zend_one_char_string = Module["_zend_one_char_string"] = 13712704;
+
+var _std_object_handlers = Module["_std_object_handlers"] = 13210816;
+
+var _zend_ce_unit_enum = Module["_zend_ce_unit_enum"] = 13714572;
+
+var _zend_ce_backed_enum = Module["_zend_ce_backed_enum"] = 13714576;
 
 var ___memory_base = Module["___memory_base"] = 0;
 
 var ___table_base = Module["___table_base"] = 1;
 
-var _stderr = Module["_stderr"] = 13703232;
+var _stderr = Module["_stderr"] = 13705504;
 
-var _stdin = Module["_stdin"] = 13703384;
+var _stdin = Module["_stdin"] = 13705656;
 
-var _stdout = Module["_stdout"] = 13703536;
+var _stdout = Module["_stdout"] = 13705808;
 
-var _z_errmsg = Module["_z_errmsg"] = 13210960;
+var __playground_zend_side_module_data_exports = Module["__playground_zend_side_module_data_exports"] = 13212160;
 
-var _timezone = Module["_timezone"] = 14164320;
+var __playground_zend_side_module_function_exports = Module["__playground_zend_side_module_function_exports"] = 13212256;
 
-var _tzname = Module["_tzname"] = 14164328;
+var _z_errmsg = Module["_z_errmsg"] = 13213232;
 
-var ___heap_base = 15226592;
+var _timezone = Module["_timezone"] = 14166592;
 
-var __ZNSt3__25ctypeIcE2idE = Module["__ZNSt3__25ctypeIcE2idE"] = 14177996;
+var _tzname = Module["_tzname"] = 14166600;
 
-var __ZSt7nothrow = Module["__ZSt7nothrow"] = 12787178;
+var ___heap_base = 15228864;
 
-var __ZTVN10__cxxabiv120__si_class_type_infoE = Module["__ZTVN10__cxxabiv120__si_class_type_infoE"] = 13703824;
+var __ZNSt3__25ctypeIcE2idE = Module["__ZNSt3__25ctypeIcE2idE"] = 14180268;
 
-var __ZTVN10__cxxabiv117__class_type_infoE = Module["__ZTVN10__cxxabiv117__class_type_infoE"] = 13703784;
+var __ZSt7nothrow = Module["__ZSt7nothrow"] = 12789226;
 
-var __ZTVN10__cxxabiv121__vmi_class_type_infoE = Module["__ZTVN10__cxxabiv121__vmi_class_type_infoE"] = 13703876;
+var __ZTVN10__cxxabiv120__si_class_type_infoE = Module["__ZTVN10__cxxabiv120__si_class_type_infoE"] = 13706096;
 
-var __ZTISt20bad_array_new_length = Module["__ZTISt20bad_array_new_length"] = 13703996;
+var __ZTVN10__cxxabiv117__class_type_infoE = Module["__ZTVN10__cxxabiv117__class_type_infoE"] = 13706056;
 
-var __ZTVSt12length_error = Module["__ZTVSt12length_error"] = 13704072;
+var __ZTVN10__cxxabiv121__vmi_class_type_infoE = Module["__ZTVN10__cxxabiv121__vmi_class_type_infoE"] = 13706148;
 
-var __ZTISt12length_error = Module["__ZTISt12length_error"] = 13704092;
+var __ZTISt20bad_array_new_length = Module["__ZTISt20bad_array_new_length"] = 13706268;
+
+var __ZTVSt12length_error = Module["__ZTVSt12length_error"] = 13706344;
+
+var __ZTISt12length_error = Module["__ZTISt12length_error"] = 13706364;
 
 var wasmImports = {
   /** @export */ __assert_fail: ___assert_fail,

@@ -15,14 +15,18 @@ Help make WordPress Playground accessible to a global audience by translating it
 Aidez à rendre WordPress Playground accessible à un public plus large en traduisant sa documentation. Ce guide fournit tout ce que vous devez savoir pour commencer. Contribuer à la traduction suit le même flux de travail que tout autre modification de la documentation. Vous pouvez soit forker le dépôt [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) et créer une pull request (PR) avec vos modifications, soit éditer les pages directement en utilisant l’interface GitHub.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Pour un guide détaillé sur le flux de travail de la contribution (fork, création de PR, etc.), veuillez consulter notre [guide de contribution à la documentation](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -35,14 +39,18 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 Le site de documentation de Playground est construit avec Docusaurus, qui gère les fonctionnalités d'internationalisation (i18n).
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Pour en savoir plus sur la façon dont Docusaurus gère les traductions, consultez la [section Internationalisation](https://docusaurus.io/docs/i18n/introduction) de la documentation officielle de Docusaurus.
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -270,14 +278,18 @@ Suivez ces étapes pour traduire une page :
 - Demandez une révision sur `#playground` ou `#polyglots` sur `wordpress.slack.com`
 
 <!--
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Nous recommandons fortement de soumettre des pull requests avec un petit nombre de pages traduites. Cette approche simplifie le processus de révision et permet une intégration plus progressive et gérable de votre travail.
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template
@@ -420,14 +432,18 @@ Playground est un outil en ligne pour expérimenter et apprendre WordPress. Ce s
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Cette pratique aide également l'équipe de maintenance à identifier les traductions obsolètes. Lorsque le contenu anglais original est mis à jour, nous pouvons rechercher dans la base de code l'ancien texte (maintenant dans les commentaires) et signaler la traduction correspondante pour révision.
-:::
+
+</div>
 
 <!--
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).

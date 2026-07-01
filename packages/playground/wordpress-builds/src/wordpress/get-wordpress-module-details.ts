@@ -2,6 +2,8 @@
 // @ts-ignore
 import url_beta from './wp-beta.zip?url';
 // @ts-ignore
+import url_7_0 from './wp-7.0.zip?url';
+// @ts-ignore
 import url_6_9 from './wp-6.9.zip?url';
 // @ts-ignore
 import url_6_8 from './wp-6.8.zip?url';
@@ -22,7 +24,7 @@ import url_6_3 from './wp-6.3.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = "6.9"): { size: number, url: string } {
+export function getWordPressModuleDetails(wpVersion: string = "7.0"): { size: number, url: string } {
 	switch (wpVersion) {
 		
 		case 'trunk':
@@ -34,8 +36,15 @@ export function getWordPressModuleDetails(wpVersion: string = "6.9"): { size: nu
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 27359362,
+				size: 27914564,
 				url: url_beta,
+			};
+			
+		case '7.0':
+			/** @ts-ignore */
+			return {
+				size: 27906690,
+				url: url_7_0,
 			};
 			
 		case '6.9':
