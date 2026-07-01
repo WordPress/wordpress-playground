@@ -1486,6 +1486,11 @@
 					"type": "boolean",
 					"description": "Whether to activate the plugin after installing it."
 				},
+				"activationOptions": {
+					"type": "object",
+					"additionalProperties": {},
+					"description": "Parameters to expose to the plugin during its activation hook."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the plugin to. Defaults to guessing from pluginData"
