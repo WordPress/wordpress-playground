@@ -1518,9 +1518,18 @@
 					"type": "boolean",
 					"description": "Whether to import the theme's starter content after installing it."
 				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-theme", "throw"],
+					"description": "Whether installation, activation, or starter-content failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the theme to. Defaults to guessing from themeData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable theme name for the progress caption and skip warning."
 				}
 			},
 			"additionalProperties": false
