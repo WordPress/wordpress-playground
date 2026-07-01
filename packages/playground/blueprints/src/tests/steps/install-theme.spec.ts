@@ -114,9 +114,7 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			})
-		).rejects.toThrow(
-			'Theme folder name must be a single directory name.'
-		);
+		).rejects.toThrow('Theme folder name must be a single directory name.');
 
 		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
 	});
@@ -135,9 +133,7 @@ describe('Blueprint step installTheme', () => {
 					targetFolderName: 'nested/theme',
 				},
 			})
-		).rejects.toThrow(
-			'Theme folder name must be a single directory name.'
-		);
+		).rejects.toThrow('Theme folder name must be a single directory name.');
 
 		expect(php.fileExists('/wordpress/wp-content/themes/nested')).toBe(
 			false
@@ -366,6 +362,7 @@ describe('Blueprint step installTheme', () => {
 			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
 			php.unlink(unexpectedZipFilePath);
 
+			// @ts-expect-error themeZipFile is deprecated but still supported at runtime.
 			await installTheme(php, {
 				themeZipFile: new File([zip], unexpectedZipFileName),
 				ifAlreadyInstalled: 'overwrite',
