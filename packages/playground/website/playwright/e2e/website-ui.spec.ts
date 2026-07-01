@@ -1792,6 +1792,70 @@ echo get_option('blogname');
 	});
 });
 
+test('should create a new Playground from a local directory', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+	);
+
+	await website.page.addInitScript(() => {
+		Object.defineProperty(window, 'showDirectoryPicker', {
+			value: async () => {
+				const root = await navigator.storage.getDirectory();
+				const directory = await root.getDirectoryHandle(
+					`e2e-local-create-${Date.now()}`,
+					{ create: true }
+				);
+				(directory as any).requestPermission = async () => 'granted';
+				(directory as any).queryPermission = async () => 'granted';
+				(window as any).__e2eLocalDirectory = directory;
+				return directory;
+			},
+			configurable: true,
+		});
+	});
+
+	await website.goto(getUniqueSavedPlaygroundSetupUrl('local-create'));
+	await website.openSavedPlaygroundsOverlay();
+
+	await website.page
+		.getByRole('button', {
+			name: /Create Playground from a local directory/,
+		})
+		.click();
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(() => {
+					const sites = (window as any).playgroundSites.list();
+					const activeSite = sites.find((site: any) => site.isActive);
+					return {
+						storage: activeSite?.storage,
+						persistence: activeSite?.persistence,
+					};
+				}),
+			{ timeout: 90000 }
+		)
+		.toEqual({ storage: 'local-fs', persistence: 'explicit' });
+
+	expect(
+		await website.page.evaluate(async () => {
+			const directory = (window as any)
+				.__e2eLocalDirectory as FileSystemDirectoryHandle;
+			try {
+				await directory.getFileHandle('wp-config.php');
+				return true;
+			} catch {
+				return false;
+			}
+		})
+	).toBe(true);
+});
+
 test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
 	website,
 }) => {
