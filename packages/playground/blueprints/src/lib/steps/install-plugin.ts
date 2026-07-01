@@ -6,8 +6,10 @@ import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import type { Directory } from '../v1/resources';
 import { joinPaths } from '@php-wasm/util';
-import { writeFiles } from '@php-wasm/universal';
+import { writeFiles, type UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
+
+const ACTIVATION_OPTIONS_PAYLOAD_PREFIX = 'PLAYGROUND_ACTIVATION_OPTIONS:';
 
 /**
  * @inheritDoc installPlugin
@@ -46,8 +48,10 @@ import { logger } from '@php-wasm/logger';
  * }
  * </code>
  */
-export interface InstallPluginStep<FileResource, DirectoryResource>
-	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
+export interface InstallPluginStep<
+	FileResource,
+	DirectoryResource,
+> extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
@@ -75,9 +79,21 @@ export interface InstallPluginOptions {
 	 */
 	activate?: boolean;
 	/**
+	 * Parameters to expose to the plugin during its activation hook.
+	 */
+	activationOptions?: Record<string, unknown>;
+	/**
+	 * Whether installation/activation failures should abort the Blueprint.
+	 */
+	onError?: 'skip-plugin' | 'throw';
+	/**
 	 * The name of the folder to install the plugin to. Defaults to guessing from pluginData
 	 */
 	targetFolderName?: string;
+	/**
+	 * Human-readable plugin name for progress captions and skip warnings.
+	 */
+	humanReadableName?: string;
 }
 
 /**
@@ -101,15 +117,9 @@ export const installPlugin: StepHandler<
 		);
 	}
 
-	const pluginsDirectoryPath = joinPaths(
-		await playground.documentRoot,
-		'wp-content',
-		'plugins'
-	);
-	const targetFolderName =
-		'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderPath = '';
 	let assetNiceName = '';
+	const progressName = () => options.humanReadableName || assetNiceName;
 
 	const looksLikeZipFile = async (file: File): Promise<boolean> => {
 		if (file.name.toLowerCase().endsWith('.zip')) {
@@ -126,67 +136,250 @@ export const installPlugin: StepHandler<
 		return matchesZipSignature;
 	};
 
-	if (pluginData instanceof File) {
-		if (await looksLikeZipFile(pluginData)) {
-			// Assume any other file is a zip file
-			// @TODO: Consider validating whether this is a zip file?
-			const zipFileName =
-				pluginData.name.split('/').pop() || 'plugin.zip';
-			assetNiceName = zipNameToHumanName(zipFileName);
+	try {
+		const pluginsDirectoryPath = joinPaths(
+			await playground.documentRoot,
+			'wp-content',
+			'plugins'
+		);
+		const targetFolderName =
+			'targetFolderName' in options ? options.targetFolderName : '';
 
-			progress?.tracker.setCaption(
-				`Installing the ${assetNiceName} plugin`
-			);
-			const assetResult = await installAsset(playground, {
-				ifAlreadyInstalled,
-				zipFile: pluginData,
-				targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-				targetFolderName: targetFolderName,
-			});
-			assetFolderPath = assetResult.assetFolderPath;
-			assetNiceName = assetResult.assetFolderName;
-		} else if (pluginData.name.endsWith('.php')) {
-			const destinationFilePath = joinPaths(
-				pluginsDirectoryPath,
-				pluginData.name
-			);
-			await writeFile(playground, {
-				path: destinationFilePath,
-				data: pluginData,
-			});
-			assetFolderPath = pluginsDirectoryPath;
+		if (pluginData instanceof File) {
+			if (await looksLikeZipFile(pluginData)) {
+				// Assume any other file is a zip file
+				// @TODO: Consider validating whether this is a zip file?
+				const zipFileName =
+					pluginData.name.split('/').pop() || 'plugin.zip';
+				assetNiceName = zipNameToHumanName(zipFileName);
+
+				progress?.tracker.setCaption(
+					`Installing the ${progressName()} plugin`
+				);
+				const assetResult = await installAsset(playground, {
+					ifAlreadyInstalled,
+					zipFile: pluginData,
+					targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+					targetFolderName: targetFolderName,
+				});
+				assetFolderPath = assetResult.assetFolderPath;
+				assetNiceName = assetResult.assetFolderName;
+			} else if (pluginData.name.endsWith('.php')) {
+				const destinationFilePath = joinPaths(
+					pluginsDirectoryPath,
+					pluginData.name
+				);
+				await writeFile(playground, {
+					path: destinationFilePath,
+					data: pluginData,
+				});
+				assetFolderPath = pluginsDirectoryPath;
+				assetNiceName = pluginData.name;
+			} else {
+				throw new Error(
+					'pluginData looks like a file ' +
+						'but does not look like a .zip or .php file.'
+				);
+			}
+		} else if (pluginData) {
 			assetNiceName = pluginData.name;
-		} else {
-			throw new Error(
-				'pluginData looks like a file ' +
-					'but does not look like a .zip or .php file.'
+			progress?.tracker.setCaption(
+				`Installing the ${progressName()} plugin`
 			);
+
+			const pluginDirectoryPath = joinPaths(
+				pluginsDirectoryPath,
+				targetFolderName || pluginData.name
+			);
+			await writeFiles(
+				playground,
+				pluginDirectoryPath,
+				pluginData.files,
+				{
+					rmRoot: true,
+				}
+			);
+			assetFolderPath = pluginDirectoryPath;
 		}
-	} else if (pluginData) {
-		assetNiceName = pluginData.name;
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
 
-		const pluginDirectoryPath = joinPaths(
-			pluginsDirectoryPath,
-			targetFolderName || pluginData.name
-		);
-		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
-			rmRoot: true,
-		});
-		assetFolderPath = pluginDirectoryPath;
-	}
+		// Activate
+		const activate = 'activate' in options ? options.activate : true;
 
-	// Activate
-	const activate = 'activate' in options ? options.activate : true;
-
-	if (activate) {
-		await activatePlugin(
-			playground,
-			{
-				pluginPath: assetFolderPath,
-				pluginName: assetNiceName,
-			},
-			progress
-		);
+		if (activate) {
+			let activationOptionName: string | undefined;
+			if (options.activationOptions !== undefined) {
+				activationOptionName = await setPluginActivationOptions(
+					playground,
+					assetFolderPath,
+					options.activationOptions
+				);
+			}
+			try {
+				await activatePlugin(
+					playground,
+					{
+						pluginPath: assetFolderPath,
+						pluginName: progressName(),
+					},
+					progress
+				);
+			} finally {
+				if (activationOptionName) {
+					await deletePluginActivationOptions(
+						playground,
+						activationOptionName
+					);
+				}
+			}
+		}
+	} catch (error) {
+		if (options.onError === 'skip-plugin') {
+			const skippedPluginName = progressName() || 'unknown plugin';
+			logger.warn(
+				`Skipping plugin installation for ${skippedPluginName} after failure: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+			return;
+		}
+		throw error;
 	}
 };
+
+/**
+ * Stages activation options for a plugin before its activation hook runs.
+ *
+ * Blueprint v2 defines these as values exposed through the
+ * `blueprint_activation_` + `plugin_basename(__FILE__)` option during
+ * activation. A runtime-only global/env value would be cleaner, but activation
+ * currently happens behind `activatePlugin()`, across a separate PHP request
+ * boundary from this staging call. The temporary option survives that boundary
+ * and is deleted in `finally` after activation.
+ */
+async function setPluginActivationOptions(
+	playground: UniversalPHP,
+	pluginPath: string,
+	activationOptions: Record<string, unknown>
+) {
+	const docroot = await playground.documentRoot;
+	const result = await playground.run({
+		code: `<?php
+ob_start();
+define('WP_ADMIN', true);
+require_once getenv('DOCROOT') . "/wp-load.php";
+require_once getenv('DOCROOT') . "/wp-admin/includes/plugin.php";
+
+$payload_prefix = getenv('ACTIVATION_OPTIONS_PAYLOAD_PREFIX');
+$plugin_path = getenv('PLUGIN_PATH');
+$plugin_file = '';
+if (is_dir($plugin_path)) {
+	foreach ((glob(rtrim($plugin_path, '/') . '/*.php') ?: array()) as $file) {
+		$info = get_plugin_data($file, false, false);
+		if (!empty($info['Name'])) {
+			$plugin_file = $file;
+			break;
+		}
+	}
+} else {
+	$plugin_dir = rtrim(WP_PLUGIN_DIR, '/');
+	$plugin_file = $plugin_path;
+	if (strpos($plugin_file, $plugin_dir . '/') !== 0 && file_exists($plugin_dir . '/' . $plugin_file)) {
+		$plugin_file = $plugin_dir . '/' . $plugin_file;
+	}
+}
+
+if (!$plugin_file || !file_exists($plugin_file)) {
+	ob_end_clean();
+	// Prefix the JSON payload so JS can find it even if plugin bootstrap
+	// code prints notices or other output during this request.
+	echo $payload_prefix . json_encode(array('error' => 'Could not find plugin file for activation options.'));
+	exit;
+}
+
+$options_json = getenv('ACTIVATION_OPTIONS_JSON');
+$options = json_decode($options_json ?: '', true);
+if (!is_array($options)) {
+	ob_end_clean();
+	// Prefix the JSON payload so JS can find it even if plugin bootstrap
+	// code prints notices or other output during this request.
+	echo $payload_prefix . json_encode(array('error' => 'Could not decode plugin activation options.'));
+	exit;
+}
+$option_name = 'blueprint_activation_' . plugin_basename($plugin_file);
+update_option($option_name, $options);
+ob_end_clean();
+// Prefix the JSON payload so JS can find it even if plugin bootstrap
+// code prints notices or other output during this request.
+echo $payload_prefix . json_encode(array('optionName' => $option_name));
+`,
+		env: {
+			DOCROOT: docroot,
+			PLUGIN_PATH: pluginPath,
+			ACTIVATION_OPTIONS_JSON: JSON.stringify(activationOptions),
+			ACTIVATION_OPTIONS_PAYLOAD_PREFIX:
+				ACTIVATION_OPTIONS_PAYLOAD_PREFIX,
+		},
+	});
+	const payload = parseActivationOptionsPayload(result.text);
+	if (payload?.['error']) {
+		throw new Error(String(payload['error']));
+	}
+	if (!payload?.['optionName'] || typeof payload['optionName'] !== 'string') {
+		throw new Error('Could not determine plugin activation options name.');
+	}
+	return payload['optionName'];
+}
+
+async function deletePluginActivationOptions(
+	playground: UniversalPHP,
+	optionName: string
+) {
+	await playground.run({
+		code: `<?php
+require_once getenv('DOCROOT') . "/wp-load.php";
+delete_option(getenv('OPTION_NAME'));
+`,
+		env: {
+			DOCROOT: await playground.documentRoot,
+			OPTION_NAME: optionName,
+		},
+	});
+}
+
+/**
+ * Extracts the staging helper's JSON payload from noisy PHP output.
+ *
+ * `playground.run()` returns everything printed during the request. A plugin
+ * file loaded by WordPress may echo warnings, notices, or regular output while
+ * the helper is locating the plugin file. The helper therefore prefixes its
+ * machine-readable JSON with `ACTIVATION_OPTIONS_PAYLOAD_PREFIX`, and this
+ * parser reads only the first line after the last prefix occurrence.
+ */
+function parseActivationOptionsPayload(text: string | undefined) {
+	const output = text || '';
+
+	// Plugin bootstrap code may write arbitrary output before or after our
+	// helper runs, so read the last sentinel occurrence instead of assuming
+	// the response body is only JSON.
+	const payloadIndex = output.lastIndexOf(ACTIVATION_OPTIONS_PAYLOAD_PREFIX);
+	if (payloadIndex === -1) {
+		return undefined;
+	}
+
+	// The helper emits exactly one JSON object after the sentinel. Keep only
+	// the first line so later plugin output cannot become part of the JSON
+	// parse.
+	const payload = output
+		.slice(payloadIndex + ACTIVATION_OPTIONS_PAYLOAD_PREFIX.length)
+		.trimStart()
+		.split(/\r?\n/, 1)[0]
+		.trim();
+	if (!payload) {
+		return undefined;
+	}
+	try {
+		return JSON.parse(payload) as Record<string, unknown>;
+	} catch {
+		throw new Error('Could not parse plugin activation options payload.');
+	}
+}

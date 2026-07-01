@@ -37,8 +37,18 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 		code: `<?php
 		include ${phpVar(docroot)} . '/wp-load.php';
 		$site_options = ${phpVar(options)};
+		$flush_rewrite_rules = (
+			is_array($site_options) &&
+			array_key_exists('permalink_structure', $site_options)
+		) || (
+			is_object($site_options) &&
+			property_exists($site_options, 'permalink_structure')
+		);
 		foreach($site_options as $name => $value) {
 			update_option($name, $value);
+		}
+		if ($flush_rewrite_rules) {
+			flush_rewrite_rules(false);
 		}
 		echo "Success";
 		`,

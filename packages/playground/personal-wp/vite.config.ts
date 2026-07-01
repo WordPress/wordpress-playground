@@ -25,6 +25,10 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const personalWPDevServerPort = 5401;
+const isomorphicGitEsmEntry = join(
+	__dirname,
+	'../../../node_modules/isomorphic-git/index.js'
+);
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -63,6 +67,30 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-personal-wp',
+		optimizeDeps: {
+			include: [
+				'async-lock',
+				'buffer',
+				'clean-git-ref',
+				'crc-32',
+				'diff3',
+				'ignore',
+				'ini',
+				'pako',
+				'pify',
+				'sha.js',
+				'sha.js/sha1.js',
+			],
+			exclude: ['isomorphic-git'],
+		},
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: isomorphicGitEsmEntry,
+				},
+			],
+		},
 
 		css: {
 			modules: {
