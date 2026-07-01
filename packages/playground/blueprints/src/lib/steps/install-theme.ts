@@ -132,9 +132,36 @@ export const installTheme: StepHandler<
 				'themes',
 				assetFolderName
 			);
-			await writeFiles(playground, themeDirectoryPath, themeData.files, {
-				rmRoot: true,
-			});
+			let shouldWriteThemeFiles = true;
+			/**
+			 * Directory themes are written directly instead of going through
+			 * `installAsset()`, so apply the same `ifAlreadyInstalled` rule here.
+			 */
+			if (await playground.fileExists(themeDirectoryPath)) {
+				if (!(await playground.isDir(themeDirectoryPath))) {
+					throw new Error(
+						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+					);
+				}
+				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+					shouldWriteThemeFiles = false;
+				} else if (ifAlreadyInstalled === 'error') {
+					throw new Error(
+						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because it already exists and ` +
+							`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+					);
+				}
+			}
+			if (shouldWriteThemeFiles) {
+				await writeFiles(
+					playground,
+					themeDirectoryPath,
+					themeData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 		}
 
 		const activate = 'activate' in options ? options.activate : true;
