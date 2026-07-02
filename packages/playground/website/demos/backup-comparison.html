@@ -1,0 +1,224 @@
+<!doctype html>
+<head>
+	<title>Playground Backup Comparison</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family:
+				-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			background: #f6f7f7;
+			color: #1d2327;
+		}
+
+		main {
+			display: grid;
+			grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+			height: 100dvh;
+		}
+
+		.panel {
+			overflow: auto;
+			padding: 20px;
+			border-right: 1px solid #dcdcde;
+			background: #fff;
+		}
+
+		h1 {
+			margin: 0 0 12px;
+			font-size: 20px;
+			line-height: 1.25;
+		}
+
+		p {
+			margin: 0 0 16px;
+			line-height: 1.5;
+		}
+
+		.actions {
+			display: grid;
+			gap: 10px;
+			margin: 18px 0;
+		}
+
+		button {
+			appearance: none;
+			border: 1px solid #2271b1;
+			border-radius: 4px;
+			background: #2271b1;
+			color: #fff;
+			cursor: pointer;
+			font: inherit;
+			font-weight: 600;
+			padding: 10px 12px;
+			text-align: left;
+		}
+
+		button.secondary {
+			background: #fff;
+			color: #2271b1;
+		}
+
+		button:disabled {
+			cursor: not-allowed;
+			opacity: 0.55;
+		}
+
+		.status {
+			min-height: 42px;
+			padding: 10px 12px;
+			border: 1px solid #c3c4c7;
+			border-radius: 4px;
+			background: #f6f7f7;
+			font-size: 13px;
+			line-height: 1.45;
+			white-space: pre-wrap;
+		}
+
+		.results {
+			display: grid;
+			gap: 12px;
+			margin-top: 18px;
+		}
+
+		.result {
+			border: 1px solid #c3c4c7;
+			border-radius: 4px;
+			background: #fff;
+		}
+
+		.result-header {
+			display: grid;
+			gap: 8px;
+			padding: 12px;
+			border-bottom: 1px solid #dcdcde;
+		}
+
+		.result-title {
+			font-weight: 700;
+		}
+
+		.result-meta {
+			color: #50575e;
+			font-size: 13px;
+		}
+
+		.result-actions {
+			display: flex;
+			gap: 8px;
+		}
+
+		.result-actions button {
+			padding: 6px 8px;
+			font-size: 13px;
+		}
+
+		details {
+			padding: 10px 12px 12px;
+		}
+
+		summary {
+			cursor: pointer;
+			font-weight: 600;
+		}
+
+		.entries {
+			overflow: auto;
+			max-height: 280px;
+			margin-top: 10px;
+			border: 1px solid #dcdcde;
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 12px;
+		}
+
+		th,
+		td {
+			padding: 6px 8px;
+			border-bottom: 1px solid #f0f0f1;
+			text-align: left;
+			vertical-align: top;
+		}
+
+		th {
+			position: sticky;
+			top: 0;
+			background: #f6f7f7;
+			font-weight: 700;
+		}
+
+		td.path {
+			font-family:
+				ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			word-break: break-all;
+		}
+
+		iframe {
+			width: 100%;
+			height: 100%;
+			border: 0;
+			background: #fff;
+		}
+
+		@media (max-width: 900px) {
+			main {
+				grid-template-columns: 1fr;
+				grid-template-rows: auto minmax(420px, 1fr);
+				height: auto;
+				min-height: 100dvh;
+			}
+
+			.panel {
+				border-right: 0;
+				border-bottom: 1px solid #dcdcde;
+			}
+
+			iframe {
+				min-height: 70dvh;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<section class="panel">
+			<h1>Backup Comparison</h1>
+			<p>
+				Generate ZIP variants from the same Playground instance and
+				inspect their sizes and file lists.
+			</p>
+
+			<div class="actions">
+				<button id="export-lite" disabled>
+					Playground export, selfContained: false
+				</button>
+				<button id="export-self-contained" disabled>
+					Playground export, selfContained: true
+				</button>
+				<button id="blueprint-bundle" disabled>
+					Blueprint bundle via plugin
+				</button>
+				<button id="clear-results" class="secondary" disabled>
+					Clear results
+				</button>
+			</div>
+
+			<div id="status" class="status">Booting Playground...</div>
+			<div id="results" class="results"></div>
+		</section>
+
+		<iframe id="wp" title="WordPress Playground"></iframe>
+	</main>
+
+	<script type="module">
+		await import('./backup-comparison.ts');
+	</script>
+</body>

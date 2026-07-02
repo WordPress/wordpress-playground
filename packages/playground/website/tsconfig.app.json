@@ -28,6 +28,7 @@
 		"demos/github.ts",
 		"demos/time-traveling.tsx",
 		"demos/peer.ts",
+		"demos/backup-comparison.ts",
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
 		"demos/php-blueprints.ts",
