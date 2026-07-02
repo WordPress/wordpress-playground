@@ -82,6 +82,25 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprint.version).toBe(2);
 	});
+
+	it('accepts arbitrary WXR author-map usernames', () => {
+		const blueprint = {
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: './content.wxr',
+					authorsMode: 'map',
+					authorsMap: {
+						alice: 'admin',
+						'bob@example.com': 'editor',
+					},
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
