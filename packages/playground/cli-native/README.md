@@ -132,10 +132,12 @@ The native host enables Wasmtime's filesystem cache under
 process so subsequent CLI runs and server workers avoid recompiling the same
 PHP wasm payload.
 
-For a single-worker comparison against macOS native PHP, use
-`--workers=1 --opcache=middle`; this keeps PHP wasm warm requests close to the
-current 2x native-PHP memory target, at the cost of requiring a restart or
-worker rotation before PHP file edits are visible.
+For a single-worker comparison against native PHP, use PHP 8.5 with
+`--workers=1 --opcache=middle`; this keeps PHP wasm warm request latency closest
+to native PHP while the shorter worker recycle delay returns idle RSS near the
+native process after high-memory requests. Immediate post-burst RSS still
+depends on PHP wasm linear-memory high water and needs PHP wasm asset rebuilds
+for further reduction.
 
 The native CLI is still pre-release. `git:directory` resources use GitHub/GitLab
 archive downloads for the common no-metadata path; resources that request `.git`
@@ -209,7 +211,7 @@ Benchmark WordPress server latency and RSS against system PHP with:
 bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
 ```
 
-The benchmark packages PHP 8.3 by default, bootstraps comparable WordPress 6.9
+The benchmark packages PHP 8.5 by default, bootstraps comparable WordPress 6.9
 sites, runs home/search/post/editor requests through `wp-playground-native` and
 native `php -S`, then prints raw metrics plus ratios against native PHP. Tune
 sample counts and worker recycling with environment variables:
@@ -236,7 +238,7 @@ NATIVE_PHP_LABEL=macos-php \
   bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
 ```
 
-Wasmtime stack sizing defaults to `2` MiB max wasm stack and `4` MiB async
+Wasmtime stack sizing defaults to `2` MiB max wasm stack and `2` MiB async
 stack. Package precompilation and the benchmarked server run both read the same
 env values, so larger safety-margin profiles can be measured without changing
 source:

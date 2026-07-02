@@ -26,6 +26,7 @@ use crate::{
     mount::Mount,
     paths::{SiteStorage, WordPressInstallMode},
     php::{PhpInstance, PhpRequest, PhpResponse},
+    route_counters::{self, Field, RequestId},
     runtime::{release_unused_process_memory, NativeRuntime},
     vfs::normalize_vfs_path,
     wordpress::{
@@ -42,7 +43,7 @@ const MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER: usize = 16;
 const MAX_REQUESTS_PER_WORKER_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_MAX_REQUESTS_PER_WORKER";
 const RECYCLE_WASM_MEMORY_MIB_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_RECYCLE_WASM_MEMORY_MIB";
 const DEFAULT_RECYCLE_WASM_MEMORY_MIB: u64 = 90;
-const WORKER_RECYCLE_IDLE_DELAY: Duration = Duration::from_millis(500);
+const WORKER_RECYCLE_IDLE_DELAY: Duration = Duration::from_millis(50);
 const WORKER_RECYCLE_IDLE_DELAY_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_WORKER_RECYCLE_IDLE_MS";
 const AUTO_LOGIN_COOKIE_NAME: &str = "playground_auto_login_already_happened";
 const CLEAR_AUTO_LOGIN_COOKIE: &str = "playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
@@ -97,6 +98,12 @@ struct HttpResponse {
 enum ServerHttpResponse {
     Buffered(HttpResponse),
     StaticFile(PathBuf),
+}
+
+struct HandledHttpResponse {
+    response: ServerHttpResponse,
+    route_target: &'static str,
+    worker_action: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,33 +275,15 @@ impl WorkerPool {
         worker: &mut PhpWorker,
         wasm_memory_size_bytes: Option<u64>,
     ) -> Result<WorkerAfterRequest> {
-        worker.requests_handled = worker.requests_handled.saturating_add(1);
-        worker.last_request_finished_at = Instant::now();
-        if worker.recycle_scheduled {
-            return Ok(WorkerAfterRequest::Keep);
-        }
-        if reserve_lazy_worker_retirement(self.lazy, &self.created_workers)? {
-            return Ok(WorkerAfterRequest::Retire);
-        }
-        if self
-            .recycle_wasm_memory_threshold
-            .zip(wasm_memory_size_bytes)
-            .is_some_and(|(threshold, memory_size)| memory_size >= threshold)
-        {
-            worker.recycle_scheduled = true;
-            return Ok(WorkerAfterRequest::Recycle {
-                delay: Duration::ZERO,
-                force: true,
-            });
-        }
-        if worker.requests_handled < self.max_requests_per_worker {
-            return Ok(WorkerAfterRequest::Keep);
-        }
-        worker.recycle_scheduled = true;
-        Ok(WorkerAfterRequest::Recycle {
-            delay: self.recycle_idle_delay,
-            force: false,
-        })
+        mark_worker_request_finished(
+            worker,
+            &self.created_workers,
+            self.lazy,
+            self.max_requests_per_worker,
+            self.recycle_wasm_memory_threshold,
+            self.recycle_idle_delay,
+            wasm_memory_size_bytes,
+        )
     }
 
     fn schedule_worker_recycle(
@@ -359,6 +348,43 @@ impl WorkerPool {
             }
         });
     }
+}
+
+fn mark_worker_request_finished(
+    worker: &mut PhpWorker,
+    created_workers: &Mutex<usize>,
+    lazy: bool,
+    max_requests_per_worker: usize,
+    recycle_wasm_memory_threshold: Option<u64>,
+    recycle_idle_delay: Duration,
+    wasm_memory_size_bytes: Option<u64>,
+) -> Result<WorkerAfterRequest> {
+    worker.requests_handled = worker.requests_handled.saturating_add(1);
+    worker.last_request_finished_at = Instant::now();
+    if worker.recycle_scheduled {
+        return Ok(WorkerAfterRequest::Keep);
+    }
+    if reserve_lazy_worker_retirement(lazy, created_workers)? {
+        return Ok(WorkerAfterRequest::Retire);
+    }
+    if recycle_wasm_memory_threshold
+        .zip(wasm_memory_size_bytes)
+        .is_some_and(|(threshold, memory_size)| memory_size >= threshold)
+    {
+        worker.recycle_scheduled = true;
+        return Ok(WorkerAfterRequest::Recycle {
+            delay: recycle_idle_delay,
+            force: true,
+        });
+    }
+    if worker.requests_handled < max_requests_per_worker {
+        return Ok(WorkerAfterRequest::Keep);
+    }
+    worker.recycle_scheduled = true;
+    Ok(WorkerAfterRequest::Recycle {
+        delay: recycle_idle_delay,
+        force: false,
+    })
 }
 
 fn reserve_lazy_worker_retirement(lazy: bool, created_workers: &Mutex<usize>) -> Result<bool> {
@@ -740,6 +766,25 @@ fn symlink_policy_from_follow(follow_symlinks: bool) -> SymlinkPolicy {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct RouteCounterContext<'a> {
+    request_id: RequestId,
+    method: &'a str,
+    target: &'a str,
+    symlink_policy: SymlinkPolicy,
+}
+
+impl RouteCounterContext<'_> {
+    fn fields(self) -> Vec<Field> {
+        let mut fields = route_counters::request_fields(self.request_id, self.method, self.target);
+        fields.push(Field::new(
+            "symlink_policy",
+            symlink_policy_label(self.symlink_policy),
+        ));
+        fields
+    }
+}
+
 pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Result<u8> {
     let mut mounts = server_mounts(config)?;
     let _document_root = ensure_wordpress_mount(&mut mounts)?;
@@ -794,7 +839,7 @@ fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
         }
     }
 
-    for mount in &mounts {
+    for mount in &mut mounts {
         if mount.vfs_path == "/wordpress" {
             fs::create_dir_all(&mount.host_path).map_err(|error| {
                 CliError::new(format!(
@@ -802,6 +847,7 @@ fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
                     mount.host_path.display()
                 ))
             })?;
+            mount.refresh_canonical_host_path()?;
         }
     }
 
@@ -1026,34 +1072,125 @@ fn handle_stream(
     follow_symlinks: bool,
     first_request: &AtomicBool,
 ) -> Result<()> {
-    let request = match read_http_request(stream) {
+    let request_id = route_counters::next_request_id();
+    let request_started_at = request_id.map(|_| Instant::now());
+    let request = match read_http_request_with_counter(stream, request_id) {
         Ok(request) => request,
-        Err(error) => return write_http_response(stream, &error.response(), false),
+        Err(error) => {
+            let response = error.response();
+            let write_result =
+                write_http_response_with_counter(stream, &response, false, request_id);
+            emit_request_total(RequestTotalCounter {
+                request_id,
+                started_at: request_started_at,
+                method: "",
+                target: "",
+                route_target: "http_error",
+                status: response.status,
+                request_body_bytes: 0,
+                response_body_bytes: request_id.map(|_| response.body.len() as u64),
+                response_header_bytes: request_id
+                    .map(|_| http_response_head_bytes(&response).len()),
+                worker_action: "none",
+                error: write_result.as_ref().err().map(RequestTotalError::Write),
+            });
+            return write_result;
+        }
     };
+    let request_counter = request_id.map(|_| RequestTotalRequest {
+        method: request.method.clone(),
+        target: request.target.clone(),
+        body_bytes: request.body.len(),
+    });
     let suppress_body = request.method.eq_ignore_ascii_case("HEAD");
-    if first_request.swap(false, Ordering::SeqCst)
-        && header_value(&request.headers, "cookie").is_some_and(|cookies| {
-            cookies
-                .split(';')
-                .any(|cookie| cookie.trim_start().starts_with(AUTO_LOGIN_COOKIE_NAME))
-        })
-    {
-        write_http_response(
-            stream,
-            &clear_auto_login_cookie_response(&request),
-            suppress_body,
-        )
+    if should_clear_auto_login_cookie(first_request, &request) {
+        let response = clear_auto_login_cookie_response(&request);
+        let write_result =
+            write_http_response_with_counter(stream, &response, suppress_body, request_id);
+        emit_request_total(RequestTotalCounter {
+            request_id,
+            started_at: request_started_at,
+            method: request_counter
+                .as_ref()
+                .map_or("", |request| request.method.as_str()),
+            target: request_counter
+                .as_ref()
+                .map_or("", |request| request.target.as_str()),
+            route_target: "clear_auto_login",
+            status: response.status,
+            request_body_bytes: request_counter
+                .as_ref()
+                .map_or(0, |request| request.body_bytes),
+            response_body_bytes: request_id.map(|_| response.body.len() as u64),
+            response_header_bytes: request_id.map(|_| http_response_head_bytes(&response).len()),
+            worker_action: "none",
+            error: write_result.as_ref().err().map(RequestTotalError::Write),
+        });
+        write_result
     } else {
-        let response = handle_http_request(
+        let handled = match handle_http_request(
             request,
             mounts,
             worker_pool,
             port,
             debug,
             symlink_policy_from_follow(follow_symlinks),
-        )?;
-        write_server_http_response(stream, &response, suppress_body)
+            request_id,
+        ) {
+            Ok(handled) => handled,
+            Err(error) => {
+                // Count the boundary without changing the existing no-response failure path.
+                emit_request_total(request_error_total_counter(
+                    request_id,
+                    request_started_at,
+                    request_counter.as_ref(),
+                    &error,
+                ));
+                return Err(error);
+            }
+        };
+        let (response_status, response_body_bytes, response_header_bytes) = request_id
+            .map(|_| server_response_counter_stats(&handled.response))
+            .unwrap_or((0, None, None));
+        let write_result = write_server_http_response_with_counter(
+            stream,
+            &handled.response,
+            suppress_body,
+            request_id,
+        );
+        emit_request_total(RequestTotalCounter {
+            request_id,
+            started_at: request_started_at,
+            method: request_counter
+                .as_ref()
+                .map_or("", |request| request.method.as_str()),
+            target: request_counter
+                .as_ref()
+                .map_or("", |request| request.target.as_str()),
+            route_target: handled.route_target,
+            status: response_status,
+            request_body_bytes: request_counter
+                .as_ref()
+                .map_or(0, |request| request.body_bytes),
+            response_body_bytes,
+            response_header_bytes,
+            worker_action: handled.worker_action,
+            error: write_result.as_ref().err().map(RequestTotalError::Write),
+        });
+        write_result
     }
+}
+
+fn should_clear_auto_login_cookie(first_request: &AtomicBool, request: &HttpRequest) -> bool {
+    first_request.swap(false, Ordering::SeqCst) && request_has_auto_login_cookie(request)
+}
+
+fn request_has_auto_login_cookie(request: &HttpRequest) -> bool {
+    header_value(&request.headers, "cookie").is_some_and(|cookies| {
+        cookies
+            .split(';')
+            .any(|cookie| cookie.trim_start().starts_with(AUTO_LOGIN_COOKIE_NAME))
+    })
 }
 
 fn clear_auto_login_cookie_response(request: &HttpRequest) -> HttpResponse {
@@ -1079,6 +1216,253 @@ fn http_error_response(status: u16, message: &str) -> HttpResponse {
     }
 }
 
+struct RequestTotalRequest {
+    method: String,
+    target: String,
+    body_bytes: usize,
+}
+
+struct RequestTotalCounter<'a> {
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    method: &'a str,
+    target: &'a str,
+    route_target: &'static str,
+    status: u16,
+    request_body_bytes: usize,
+    response_body_bytes: Option<u64>,
+    response_header_bytes: Option<usize>,
+    worker_action: &'static str,
+    error: Option<RequestTotalError<'a>>,
+}
+
+#[derive(Clone, Copy)]
+enum RequestTotalError<'a> {
+    Handle(&'a CliError),
+    Write(&'a CliError),
+}
+
+impl<'a> RequestTotalError<'a> {
+    fn field_name(self) -> &'static str {
+        match self {
+            RequestTotalError::Handle(_) => "request_error",
+            RequestTotalError::Write(_) => "write_error",
+        }
+    }
+
+    fn error(self) -> &'a CliError {
+        match self {
+            RequestTotalError::Handle(error) | RequestTotalError::Write(error) => error,
+        }
+    }
+}
+
+fn request_error_total_counter<'a>(
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    request: Option<&'a RequestTotalRequest>,
+    error: &'a CliError,
+) -> RequestTotalCounter<'a> {
+    RequestTotalCounter {
+        request_id,
+        started_at,
+        method: request.map_or("", |request| request.method.as_str()),
+        target: request.map_or("", |request| request.target.as_str()),
+        route_target: "handle_error",
+        status: 0,
+        request_body_bytes: request.map_or(0, |request| request.body_bytes),
+        response_body_bytes: None,
+        response_header_bytes: None,
+        worker_action: "none",
+        error: Some(RequestTotalError::Handle(error)),
+    }
+}
+
+fn emit_request_total(counter: RequestTotalCounter<'_>) {
+    let Some(started_at) = counter.started_at else {
+        return;
+    };
+    let Some(fields) =
+        request_total_fields(counter, route_counters::elapsed_us(started_at.elapsed()))
+    else {
+        return;
+    };
+    route_counters::emit("request.total.boundary", &fields);
+}
+
+fn request_total_fields(
+    counter: RequestTotalCounter<'_>,
+    total_elapsed_us: u128,
+) -> Option<Vec<Field>> {
+    let RequestTotalCounter {
+        request_id,
+        started_at: _,
+        method,
+        target,
+        route_target,
+        status,
+        request_body_bytes,
+        response_body_bytes,
+        response_header_bytes,
+        worker_action,
+        error,
+    } = counter;
+    let request_id = request_id?;
+    let mut fields = route_counters::request_fields(request_id, method, target);
+    fields.extend([
+        Field::new("status", status),
+        Field::new("route_target", route_target),
+        Field::new("total_elapsed_us", total_elapsed_us),
+        Field::new("body_bytes", request_body_bytes),
+        Field::new(
+            "response_body_bytes",
+            response_body_bytes
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+        ),
+        Field::new(
+            "header_bytes",
+            response_header_bytes
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+        ),
+        Field::new("worker_action", worker_action),
+        Field::new("result", if error.is_some() { "error" } else { "ok" }),
+    ]);
+    if let Some(error) = error {
+        fields.push(Field::new(error.field_name(), error.error()));
+    }
+    Some(fields)
+}
+
+fn server_response_counter_stats(
+    response: &ServerHttpResponse,
+) -> (u16, Option<u64>, Option<usize>) {
+    match response {
+        ServerHttpResponse::Buffered(response) => (
+            response.status,
+            Some(response.body.len() as u64),
+            Some(http_response_head_bytes(response).len()),
+        ),
+        ServerHttpResponse::StaticFile(host_path) => {
+            let body_len = host_path.metadata().ok().map(|metadata| metadata.len());
+            let head_bytes = body_len.map(|body_len| {
+                let response = HttpResponse {
+                    status: 200,
+                    headers: vec![(
+                        "Content-Type".to_string(),
+                        content_type_for_path(host_path).to_string(),
+                    )],
+                    body: Vec::new(),
+                };
+                http_response_head_bytes_with_body_len(&response, body_len).len()
+            });
+            (200, body_len, head_bytes)
+        }
+    }
+}
+
+fn worker_after_request_label(worker_after_request: &WorkerAfterRequest) -> &'static str {
+    match worker_after_request {
+        WorkerAfterRequest::Keep => "keep",
+        WorkerAfterRequest::Recycle { force, .. } if *force => "recycle_force",
+        WorkerAfterRequest::Recycle { .. } => "recycle",
+        WorkerAfterRequest::Retire => "retire",
+    }
+}
+
+fn emit_php_request_build_counter(
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    php_request: &PhpRequest,
+    request_header_count: usize,
+    request_header_bytes: usize,
+) {
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let server_bytes = php_request
+        .server_entries
+        .iter()
+        .map(|(key, value)| key.len() + value.len())
+        .sum::<usize>();
+    let env_bytes = php_request
+        .env
+        .iter()
+        .map(|(key, value)| key.len() + value.len())
+        .sum::<usize>();
+    let mut fields =
+        route_counters::request_fields(request_id, &php_request.method, &php_request.request_uri);
+    fields.extend([
+        Field::new(
+            "elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new("script_path", &php_request.script_path),
+        Field::new("server_entries", php_request.server_entries.len()),
+        Field::new("env_entries", php_request.env.len()),
+        Field::new("header_entries", request_header_count),
+        Field::new("header_bytes", request_header_bytes),
+        Field::new("env_bytes", env_bytes),
+        Field::new("server_bytes", server_bytes),
+        Field::new(
+            "cookie_bytes",
+            php_request.cookies.as_ref().map_or(0, |value| value.len()),
+        ),
+        Field::new(
+            "content_type_bytes",
+            php_request
+                .content_type
+                .as_ref()
+                .map_or(0, |value| value.len()),
+        ),
+        Field::new("body_bytes", php_request.body.len()),
+    ]);
+    route_counters::emit("php_request.build", &fields);
+}
+
+struct ResponseConvertCounter<'a> {
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    method: &'a str,
+    target: &'a str,
+    raw_header_bytes: usize,
+    parsed_header_count: usize,
+    status: u16,
+    stdout_body_bytes: usize,
+    stderr_bytes: usize,
+}
+
+fn emit_response_convert_counter(counter: ResponseConvertCounter<'_>) {
+    let ResponseConvertCounter {
+        request_id,
+        started_at,
+        method,
+        target,
+        raw_header_bytes,
+        parsed_header_count,
+        status,
+        stdout_body_bytes,
+        stderr_bytes,
+    } = counter;
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let mut fields = route_counters::request_fields(request_id, method, target);
+    fields.extend([
+        Field::new(
+            "convert_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new("raw_header_bytes", raw_header_bytes),
+        Field::new("parsed_header_count", parsed_header_count),
+        Field::new("status", status),
+        Field::new("stdout_body_bytes", stdout_body_bytes),
+        Field::new("stderr_bytes", stderr_bytes),
+    ]);
+    route_counters::emit("response.convert", &fields);
+}
+
 fn handle_http_request(
     request: HttpRequest,
     mounts: &[Mount],
@@ -1086,16 +1470,33 @@ fn handle_http_request(
     port: u16,
     debug: bool,
     symlink_policy: SymlinkPolicy,
-) -> Result<ServerHttpResponse> {
-    let route = match resolve_route_with_symlink_policy(mounts, &request.target, symlink_policy) {
+    request_id: Option<RequestId>,
+) -> Result<HandledHttpResponse> {
+    let route_context = request_id.map(|request_id| RouteCounterContext {
+        request_id,
+        method: &request.method,
+        target: &request.target,
+        symlink_policy,
+    });
+    let route_started_at = route_context.map(|_| Instant::now());
+    let route_result = resolve_route_with_symlink_policy_with_counters(
+        mounts,
+        &request.target,
+        symlink_policy,
+        route_context,
+    );
+    emit_route_resolve_total(route_context, route_started_at, route_result.as_ref());
+    let route = match route_result {
         Ok(route) => route,
         Err(_) => {
-            return Ok(ServerHttpResponse::Buffered(http_error_response(
-                400,
-                "Bad Request",
-            )))
+            return Ok(HandledHttpResponse {
+                response: ServerHttpResponse::Buffered(http_error_response(400, "Bad Request")),
+                route_target: "bad_request",
+                worker_action: "none",
+            })
         }
     };
+    let route_target = route_target_label(&route);
     match route {
         RouteTarget::Php {
             vfs_path,
@@ -1114,6 +1515,7 @@ fn handle_http_request(
                 &vfs_path,
                 path_info.as_deref(),
                 debug,
+                request_id,
             )?;
             let log_memory_stats = env_flag("WP_PLAYGROUND_NATIVE_MEMORY_STATS");
             let memory_stats = if log_memory_stats {
@@ -1132,6 +1534,11 @@ fn handle_http_request(
                 });
             let worker_after_request =
                 worker_pool.mark_request_finished(&mut php_worker, wasm_memory_size_bytes)?;
+            let worker_action = if request_id.is_some() {
+                worker_after_request_label(&worker_after_request)
+            } else {
+                "none"
+            };
             if debug {
                 eprintln!(
                     "debug: PHP request {} exited {} after {} host imports across {} workers; recent imports: {}",
@@ -1176,14 +1583,26 @@ fn handle_http_request(
                     worker.retire_on_drop();
                 }
             }
-            Ok(ServerHttpResponse::Buffered(response.1))
+            Ok(HandledHttpResponse {
+                response: ServerHttpResponse::Buffered(response.1),
+                route_target,
+                worker_action,
+            })
         }
-        RouteTarget::Static { host_path } => Ok(ServerHttpResponse::StaticFile(host_path)),
-        RouteTarget::NotFound => Ok(ServerHttpResponse::Buffered(HttpResponse {
-            status: 404,
-            headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
-            body: b"Not Found\n".to_vec(),
-        })),
+        RouteTarget::Static { host_path } => Ok(HandledHttpResponse {
+            response: ServerHttpResponse::StaticFile(host_path),
+            route_target,
+            worker_action: "none",
+        }),
+        RouteTarget::NotFound => Ok(HandledHttpResponse {
+            response: ServerHttpResponse::Buffered(HttpResponse {
+                status: 404,
+                headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
+                body: b"Not Found\n".to_vec(),
+            }),
+            route_target,
+            worker_action: "none",
+        }),
     }
 }
 
@@ -1194,20 +1613,35 @@ fn handle_php_route_request(
     vfs_path: &str,
     path_info: Option<&str>,
     debug: bool,
+    request_id: Option<RequestId>,
 ) -> Result<(i32, HttpResponse)> {
-    let php_request = php_request_from_http(request, vfs_path, path_info, port);
-    let response = php.run_sapi_request(&php_request).map_err(|error| {
-        if debug {
-            CliError::new(format!(
-                "{error}\nrecent host imports: {}",
-                recent_host_imports(php.called_host_imports())
-            ))
-        } else {
-            error
-        }
-    })?;
+    let request = request.into();
+    let response_counter_request =
+        request_id.map(|_| (request.method.clone(), request.target.clone()));
+    let php_request =
+        php_request_from_http_with_counter(request, vfs_path, path_info, port, request_id);
+    let response = php
+        .run_sapi_request_with_counter(&php_request, request_id)
+        .map_err(|error| {
+            if debug {
+                CliError::new(format!(
+                    "{error}\nrecent host imports: {}",
+                    recent_host_imports(php.called_host_imports())
+                ))
+            } else {
+                error
+            }
+        })?;
     let exit_code = response.exit_code;
-    Ok((exit_code, http_response_from_php(response)))
+    let (method, target) = response_counter_request
+        .as_ref()
+        .map_or(("", ""), |(method, target)| {
+            (method.as_str(), target.as_str())
+        });
+    Ok((
+        exit_code,
+        http_response_from_php_with_counter(response, request_id, method, target),
+    ))
 }
 
 fn php_request_from_http(
@@ -1216,7 +1650,30 @@ fn php_request_from_http(
     path_info: Option<&str>,
     port: u16,
 ) -> PhpRequest {
+    php_request_from_http_with_counter(request, script_path, path_info, port, None)
+}
+
+fn php_request_from_http_with_counter(
+    request: impl Into<HttpRequest>,
+    script_path: &str,
+    path_info: Option<&str>,
+    port: u16,
+    request_id: Option<RequestId>,
+) -> PhpRequest {
+    let started_at = request_id.map(|_| Instant::now());
     let request = request.into();
+    let (request_header_count, request_header_bytes) = if request_id.is_some() {
+        (
+            request.headers.len(),
+            request
+                .headers
+                .iter()
+                .map(|(name, value)| name.len() + value.len())
+                .sum::<usize>(),
+        )
+    } else {
+        (0, 0)
+    };
     let HttpRequest {
         method,
         target,
@@ -1297,6 +1754,13 @@ fn php_request_from_http(
             .push((server_name, value.clone()));
     }
 
+    emit_php_request_build_counter(
+        request_id,
+        started_at,
+        &php_request,
+        request_header_count,
+        request_header_bytes,
+    );
     php_request
 }
 
@@ -1417,8 +1881,30 @@ fn php_entry_exists(entries: &[(String, String)], key: &str) -> bool {
     entries.iter().any(|(name, _)| name == key)
 }
 
-fn http_response_from_php(response: PhpResponse) -> HttpResponse {
+fn http_response_from_php_with_counter(
+    response: PhpResponse,
+    request_id: Option<RequestId>,
+    method: &str,
+    target: &str,
+) -> HttpResponse {
+    let started_at = request_id.map(|_| Instant::now());
+    let collect_counter_stats = request_id.is_some();
     let exit_code = response.exit_code;
+    let raw_header_bytes = if collect_counter_stats {
+        response.headers.len()
+    } else {
+        0
+    };
+    let stdout_body_bytes = if collect_counter_stats {
+        response.stdout.len()
+    } else {
+        0
+    };
+    let stderr_bytes = if collect_counter_stats {
+        response.stderr.len()
+    } else {
+        0
+    };
     let mut parsed = parse_php_headers(&response.headers);
     if (200..400).contains(&parsed.status) && exit_code != 0 {
         parsed.status = 500;
@@ -1439,6 +1925,21 @@ fn http_response_from_php(response: PhpResponse) -> HttpResponse {
         ));
     }
     parsed.body = response.stdout;
+    emit_response_convert_counter(ResponseConvertCounter {
+        request_id,
+        started_at,
+        method,
+        target,
+        raw_header_bytes,
+        parsed_header_count: if collect_counter_stats {
+            parsed.headers.len()
+        } else {
+            0
+        },
+        status: parsed.status,
+        stdout_body_bytes,
+        stderr_bytes,
+    });
     parsed
 }
 
@@ -5271,6 +5772,7 @@ fn handle_startup_http_request(
             &vfs_path,
             path_info.as_deref(),
             false,
+            None,
         )?
         .1),
         RouteTarget::Static { host_path } => {
@@ -7295,6 +7797,15 @@ fn resolve_route_with_symlink_policy(
     target: &str,
     symlink_policy: SymlinkPolicy,
 ) -> Result<RouteTarget> {
+    resolve_route_with_symlink_policy_with_counters(mounts, target, symlink_policy, None)
+}
+
+fn resolve_route_with_symlink_policy_with_counters(
+    mounts: &[Mount],
+    target: &str,
+    symlink_policy: SymlinkPolicy,
+    _counter: Option<RouteCounterContext<'_>>,
+) -> Result<RouteTarget> {
     let request_path = request_path_from_target(target)?;
     let vfs_path = if request_path == "/" {
         "/wordpress".to_string()
@@ -7466,6 +7977,60 @@ fn canonical_existing_path_or_ancestor(path: &Path) -> Option<PathBuf> {
     None
 }
 
+fn emit_route_resolve_total(
+    counter: Option<RouteCounterContext<'_>>,
+    started_at: Option<Instant>,
+    result: std::result::Result<&RouteTarget, &CliError>,
+) {
+    let (Some(counter), Some(started_at)) = (counter, started_at) else {
+        return;
+    };
+    let mut fields = counter.fields();
+    fields.extend([
+        Field::new(
+            "route_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new(
+            "route_target",
+            result.map(route_target_label).unwrap_or("error"),
+        ),
+    ]);
+    match result {
+        Ok(RouteTarget::Php {
+            vfs_path,
+            path_info,
+        }) => fields.extend([
+            Field::new("script_vfs_path", vfs_path),
+            Field::new(
+                "path_info_bytes",
+                path_info.as_ref().map_or(0, |value| value.len()),
+            ),
+        ]),
+        Ok(RouteTarget::Static { host_path }) => {
+            fields.push(Field::new("host_path", host_path.display()));
+        }
+        Ok(RouteTarget::NotFound) => {}
+        Err(error) => fields.push(Field::new("error", error)),
+    }
+    route_counters::emit("route.resolve_total", &fields);
+}
+
+fn route_target_label(route_target: &RouteTarget) -> &'static str {
+    match route_target {
+        RouteTarget::Php { .. } => "php",
+        RouteTarget::Static { .. } => "static",
+        RouteTarget::NotFound => "not_found",
+    }
+}
+
+fn symlink_policy_label(symlink_policy: SymlinkPolicy) -> &'static str {
+    match symlink_policy {
+        SymlinkPolicy::BlockEscapes => "block_escapes",
+        SymlinkPolicy::Follow => "follow",
+    }
+}
+
 fn direct_child_mount_name<'a>(path: &str, mount_path: &'a str) -> Option<(&'a str, bool)> {
     let suffix = if path == "/" {
         mount_path.trim_start_matches('/')
@@ -7538,24 +8103,67 @@ fn hex_value(byte: u8) -> Option<u8> {
     }
 }
 
+#[cfg(test)]
 fn read_http_request(stream: &mut TcpStream) -> HttpParseResult<HttpRequest> {
+    read_http_request_with_counter(stream, None)
+}
+
+fn read_http_request_with_counter(
+    stream: &mut TcpStream,
+    request_id: Option<RequestId>,
+) -> HttpParseResult<HttpRequest> {
+    let started_at = request_id.map(|_| Instant::now());
+    let collect_counter_stats = request_id.is_some();
     let mut buffer = Vec::new();
     let mut temp = [0u8; 8192];
     let mut header_end = None;
     let mut expected_length = ExpectedBodyLength::Fixed(0);
+    let mut read_calls = 0usize;
+    let mut bytes_read = 0usize;
+    let mut max_buffer_len = 0usize;
 
     loop {
-        let count = stream.read(&mut temp).map_err(|error| match error.kind() {
-            io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock => {
-                HttpProtocolError::new(408, "Request Timeout")
+        let count = match stream.read(&mut temp) {
+            Ok(count) => count,
+            Err(error) => {
+                emit_http_read_counter(
+                    request_id,
+                    started_at,
+                    read_calls,
+                    bytes_read,
+                    max_buffer_len,
+                    &expected_length,
+                    "error",
+                );
+                return Err(match error.kind() {
+                    io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock => {
+                        HttpProtocolError::new(408, "Request Timeout")
+                    }
+                    _ => {
+                        HttpProtocolError::new(400, format!("Failed to read HTTP request: {error}"))
+                    }
+                });
             }
-            _ => HttpProtocolError::new(400, format!("Failed to read HTTP request: {error}")),
-        })?;
+        };
         if count == 0 {
             break;
         }
         buffer.extend_from_slice(&temp[..count]);
+        if collect_counter_stats {
+            read_calls += 1;
+            bytes_read += count;
+            max_buffer_len = max_buffer_len.max(buffer.len());
+        }
         if buffer.len() > MAX_REQUEST_BYTES {
+            emit_http_read_counter(
+                request_id,
+                started_at,
+                read_calls,
+                bytes_read,
+                max_buffer_len,
+                &expected_length,
+                "too_large",
+            );
             return Err(HttpProtocolError::new(
                 413,
                 "HTTP request exceeds native server limit",
@@ -7564,7 +8172,21 @@ fn read_http_request(stream: &mut TcpStream) -> HttpParseResult<HttpRequest> {
         if header_end.is_none() {
             header_end = find_header_end(&buffer);
             if let Some(end) = header_end {
-                expected_length = expected_body_length(&buffer[..end])?;
+                match expected_body_length(&buffer[..end]) {
+                    Ok(length) => expected_length = length,
+                    Err(error) => {
+                        emit_http_read_counter(
+                            request_id,
+                            started_at,
+                            read_calls,
+                            bytes_read,
+                            max_buffer_len,
+                            &expected_length,
+                            "bad_length",
+                        );
+                        return Err(error);
+                    }
+                }
             }
         }
         if let Some(end) = header_end {
@@ -7574,16 +8196,36 @@ fn read_http_request(stream: &mut TcpStream) -> HttpParseResult<HttpRequest> {
                         break;
                     }
                 }
-                ExpectedBodyLength::Chunked => {
-                    if chunked_body_is_complete(&buffer[end..])? {
-                        break;
+                ExpectedBodyLength::Chunked => match chunked_body_is_complete(&buffer[end..]) {
+                    Ok(true) => break,
+                    Ok(false) => {}
+                    Err(error) => {
+                        emit_http_read_counter(
+                            request_id,
+                            started_at,
+                            read_calls,
+                            bytes_read,
+                            max_buffer_len,
+                            &expected_length,
+                            "bad_chunked",
+                        );
+                        return Err(error);
                     }
-                }
+                },
             }
         }
     }
 
-    parse_http_request_owned(buffer)
+    emit_http_read_counter(
+        request_id,
+        started_at,
+        read_calls,
+        bytes_read,
+        max_buffer_len,
+        &expected_length,
+        "ok",
+    );
+    parse_http_request_owned_with_counter(buffer, request_id)
 }
 
 #[cfg(test)]
@@ -7610,29 +8252,66 @@ fn parse_http_request(buffer: &[u8]) -> HttpParseResult<HttpRequest> {
     })
 }
 
-fn parse_http_request_owned(mut buffer: Vec<u8>) -> HttpParseResult<HttpRequest> {
-    let parsed = parse_http_request_head(&buffer)?;
-    let body_start = parsed.header_end;
-    let body = match parsed.body_encoding {
-        BodyEncoding::Fixed(content_length) => {
-            let body_end = fixed_body_end(body_start, content_length)?;
-            if buffer.len() < body_end {
-                return Err(HttpProtocolError::new(400, "Incomplete HTTP request body"));
-            }
-            buffer.truncate(body_end);
-            buffer.drain(..body_start);
-            buffer
-        }
-        BodyEncoding::Chunked => decode_chunked_body(&buffer[body_start..])?,
-    };
+#[cfg(test)]
+fn parse_http_request_owned(buffer: Vec<u8>) -> HttpParseResult<HttpRequest> {
+    parse_http_request_owned_with_counter(buffer, None)
+}
 
-    Ok(HttpRequest {
-        method: parsed.method,
-        target: parsed.target,
-        version: parsed.version,
-        headers: parsed.headers,
-        body,
-    })
+fn parse_http_request_owned_with_counter(
+    mut buffer: Vec<u8>,
+    request_id: Option<RequestId>,
+) -> HttpParseResult<HttpRequest> {
+    let started_at = request_id.map(|_| Instant::now());
+    let collect_counter_stats = request_id.is_some();
+    let input_bytes = if collect_counter_stats {
+        buffer.len()
+    } else {
+        0
+    };
+    let mut fixed_body_bytes = 0usize;
+    let mut chunked_decoded_bytes = 0usize;
+    let result = (|| {
+        let parsed = parse_http_request_head(&buffer)?;
+        let body_start = parsed.header_end;
+        let body = match parsed.body_encoding {
+            BodyEncoding::Fixed(content_length) => {
+                let body_end = fixed_body_end(body_start, content_length)?;
+                if buffer.len() < body_end {
+                    return Err(HttpProtocolError::new(400, "Incomplete HTTP request body"));
+                }
+                if collect_counter_stats {
+                    fixed_body_bytes = content_length;
+                }
+                buffer.truncate(body_end);
+                buffer.drain(..body_start);
+                buffer
+            }
+            BodyEncoding::Chunked => {
+                let body = decode_chunked_body(&buffer[body_start..])?;
+                if collect_counter_stats {
+                    chunked_decoded_bytes = body.len();
+                }
+                body
+            }
+        };
+
+        Ok(HttpRequest {
+            method: parsed.method,
+            target: parsed.target,
+            version: parsed.version,
+            headers: parsed.headers,
+            body,
+        })
+    })();
+    emit_http_parse_counter(
+        request_id,
+        started_at,
+        input_bytes,
+        fixed_body_bytes,
+        chunked_decoded_bytes,
+        result.as_ref(),
+    );
+    result
 }
 
 struct ParsedHttpHead {
@@ -7970,8 +8649,18 @@ fn write_http_response(
     response: &HttpResponse,
     suppress_body: bool,
 ) -> Result<()> {
+    write_http_response_with_counter(stream, response, suppress_body, None)
+}
+
+fn write_http_response_with_counter(
+    stream: &mut TcpStream,
+    response: &HttpResponse,
+    suppress_body: bool,
+    request_id: Option<RequestId>,
+) -> Result<()> {
+    let started_at = request_id.map(|_| Instant::now());
     let head = http_response_head_bytes(response);
-    stream
+    let result = stream
         .write_all(&head)
         .and_then(|_| {
             if !suppress_body {
@@ -7979,29 +8668,51 @@ fn write_http_response(
             }
             stream.flush()
         })
-        .map_err(|error| CliError::new(format!("Failed to write HTTP response: {error}")))
+        .map_err(|error| CliError::new(format!("Failed to write HTTP response: {error}")));
+    emit_response_write_counter(
+        request_id,
+        started_at,
+        response.status,
+        head.len(),
+        response.body.len() as u64,
+        suppress_body,
+        result.as_ref().err(),
+    );
+    result
 }
 
-fn write_server_http_response(
+fn write_server_http_response_with_counter(
     stream: &mut TcpStream,
     response: &ServerHttpResponse,
     suppress_body: bool,
+    request_id: Option<RequestId>,
 ) -> Result<()> {
     match response {
         ServerHttpResponse::Buffered(response) => {
-            write_http_response(stream, response, suppress_body)
+            write_http_response_with_counter(stream, response, suppress_body, request_id)
         }
         ServerHttpResponse::StaticFile(host_path) => {
-            write_static_file_response(stream, host_path, suppress_body)
+            write_static_file_response_with_counter(stream, host_path, suppress_body, request_id)
         }
     }
 }
 
+#[cfg(test)]
 fn write_static_file_response(
     stream: &mut TcpStream,
     host_path: &Path,
     suppress_body: bool,
 ) -> Result<()> {
+    write_static_file_response_with_counter(stream, host_path, suppress_body, None)
+}
+
+fn write_static_file_response_with_counter(
+    stream: &mut TcpStream,
+    host_path: &Path,
+    suppress_body: bool,
+    request_id: Option<RequestId>,
+) -> Result<()> {
+    let started_at = request_id.map(|_| Instant::now());
     let mut file = fs::File::open(host_path).map_err(|error| {
         CliError::new(format!(
             "Failed to open static file {}: {error}",
@@ -8026,7 +8737,7 @@ fn write_static_file_response(
         body: Vec::new(),
     };
     let head = http_response_head_bytes_with_body_len(&response, body_len);
-    stream
+    let result = stream
         .write_all(&head)
         .and_then(|_| {
             if !suppress_body {
@@ -8039,7 +8750,122 @@ fn write_static_file_response(
                 "Failed to write static file response for {}: {error}",
                 host_path.display()
             ))
-        })
+        });
+    emit_response_write_counter(
+        request_id,
+        started_at,
+        response.status,
+        head.len(),
+        body_len,
+        suppress_body,
+        result.as_ref().err(),
+    );
+    result
+}
+
+fn emit_http_read_counter(
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    read_calls: usize,
+    bytes_read: usize,
+    max_buffer_len: usize,
+    expected_length: &ExpectedBodyLength,
+    result: &str,
+) {
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let fields = vec![
+        Field::new("request_id", request_id.get()),
+        Field::new("read_calls", read_calls),
+        Field::new("bytes_read", bytes_read),
+        Field::new("max_buffer_len", max_buffer_len),
+        Field::new(
+            "expected_body_length",
+            expected_body_length_label(expected_length),
+        ),
+        Field::new(
+            "read_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new("result", result),
+    ];
+    route_counters::emit("http.read_loop", &fields);
+}
+
+fn expected_body_length_label(expected_length: &ExpectedBodyLength) -> String {
+    match expected_length {
+        ExpectedBodyLength::Fixed(length) => length.to_string(),
+        ExpectedBodyLength::Chunked => "chunked".to_string(),
+    }
+}
+
+fn emit_http_parse_counter(
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    input_bytes: usize,
+    fixed_body_bytes: usize,
+    chunked_decoded_bytes: usize,
+    result: std::result::Result<&HttpRequest, &HttpProtocolError>,
+) {
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let mut fields = vec![
+        Field::new("request_id", request_id.get()),
+        Field::new("input_bytes", input_bytes),
+        Field::new("fixed_body_bytes", fixed_body_bytes),
+        Field::new("chunked_decoded_bytes", chunked_decoded_bytes),
+        Field::new(
+            "parse_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+    ];
+    match result {
+        Ok(request) => fields.extend([
+            Field::new("result", "ok"),
+            Field::new("headers_count", request.headers.len()),
+            Field::new("method_bytes", request.method.len()),
+            Field::new("target_bytes", request.target.len()),
+            Field::new("version_bytes", request.version.len()),
+        ]),
+        Err(error) => fields.extend([
+            Field::new("result", "error"),
+            Field::new("status", error.status),
+            Field::new("message", &error.message),
+        ]),
+    }
+    route_counters::emit("http.parse_owned", &fields);
+}
+
+fn emit_response_write_counter(
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    status: u16,
+    head_bytes: usize,
+    body_bytes: u64,
+    suppress_body: bool,
+    write_error: Option<&CliError>,
+) {
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let mut fields = vec![
+        Field::new("request_id", request_id.get()),
+        Field::new("status", status),
+        Field::new("head_bytes", head_bytes),
+        Field::new("body_bytes", body_bytes),
+        Field::new("suppress_body", suppress_body),
+        Field::new(
+            "write_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new("result", if write_error.is_some() { "error" } else { "ok" }),
+    ];
+    if let Some(error) = write_error {
+        fields.push(Field::new("write_error", error));
+    }
+    route_counters::emit("response.write", &fields);
 }
 
 #[cfg(test)]
@@ -8204,9 +9030,12 @@ mod tests {
         io::{Cursor, Read, Write},
         net::{TcpListener, TcpStream},
         path::{Path, PathBuf},
-        sync::Mutex,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Mutex,
+        },
         thread::{self, JoinHandle},
-        time::{Duration, SystemTime, UNIX_EPOCH},
+        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
     use super::{
@@ -8215,29 +9044,35 @@ mod tests {
         cpu_workers_minus_one, decode_chunked_body_with_limit, define_wp_config_consts_script,
         directory_zip_name, ensure_tmp_mount, extract_scope_path, filename_from_url,
         git_archive_bytes_to_file_tree, git_archive_download_url, git_archive_supported_host,
-        host_path_for_vfs_path, http_response_bytes, import_theme_starter_content_script,
-        import_wordpress_files_replace_files, import_wordpress_files_rewrite_scope_script,
-        import_wxr_script, inject_http_host_into_wp_config, install_asset_zip,
-        install_downloadable_asset, install_plugin_asset, lazy_worker_pool_enabled,
-        looks_like_zip_file, max_requests_per_worker_from_env, maybe_boot_wordpress_site,
+        host_path_for_vfs_path, http_response_bytes, http_response_head_bytes_with_body_len,
+        import_theme_starter_content_script, import_wordpress_files_replace_files,
+        import_wordpress_files_rewrite_scope_script, import_wxr_script,
+        inject_http_host_into_wp_config, install_asset_zip, install_downloadable_asset,
+        install_plugin_asset, lazy_worker_pool_enabled, looks_like_zip_file,
+        mark_worker_request_finished, max_requests_per_worker_from_env, maybe_boot_wordpress_site,
         multisite_url_settings, normalize_git_directory_path, parse_http_request,
-        parse_http_request_owned, parse_php_headers, php_request_from_http,
-        php_request_from_run_options, php_single_quoted_string, read_http_request, reason_phrase,
-        recycle_wasm_memory_threshold_from_env, remove_wp_allow_multisite_define,
-        request_path_from_target, requested_worker_count, reserve_lazy_worker_retirement,
-        reset_data_script, resolve_git_directory_resource, resolve_route, run_git,
-        run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
-        set_site_language_metadata_script, split_shell_command, startup_steps_from_blueprint_json,
+        parse_http_request_owned, parse_http_request_owned_with_counter, parse_php_headers,
+        php_request_from_http, php_request_from_run_options, php_single_quoted_string,
+        read_http_request, reason_phrase, recycle_wasm_memory_threshold_from_env,
+        remove_wp_allow_multisite_define, request_error_total_counter, request_path_from_target,
+        request_total_fields, requested_worker_count, reserve_lazy_worker_retirement,
+        reset_data_script, resolve_git_directory_resource, resolve_route, route_target_label,
+        run_git, run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
+        server_mounts, server_response_counter_stats, set_site_language_metadata_script,
+        should_clear_auto_login_cookie, split_shell_command, startup_steps_from_blueprint_json,
         startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
         startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
         validate_install_asset_zip, wordpress_importer_install_step,
-        wordpress_translation_url_from_api_response, worker_recycle_idle_delay_from_env,
-        wp_cli_runner_script, wp_installation_wizard_request, write_static_file_response,
-        write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
-        FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
-        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
-        PhpRunOptions, PhpRunScript, RouteTarget, StartupHttpRequest, StartupStep,
-        CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB, DEFAULT_WP_CLI_PATH,
+        wordpress_translation_url_from_api_response, worker_after_request_label,
+        worker_recycle_idle_delay_from_env, wp_cli_runner_script, wp_installation_wizard_request,
+        write_http_response_with_counter, write_server_http_response_with_counter,
+        write_static_file_response, write_wordpress_snapshot_zip, zip_path_to_string,
+        DefineWpConfigMethod, DownloadableAsset, FileContentSource, FileTreeEntry, FileTreeSource,
+        GitDirectoryResource, HttpRequest, HttpResponse, IfAlreadyInstalled, InstallAssetSource,
+        InstallAssetStep, PhpConstantValue, PhpRunOptions, PhpRunScript, PhpWorker,
+        RequestTotalRequest, RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep,
+        WorkerAfterRequest, AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE,
+        DEFAULT_RECYCLE_WASM_MEMORY_MIB, DEFAULT_WP_CLI_PATH,
         MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER, MAX_REQUESTS_PER_WORKER_ENV_VAR,
         RECYCLE_WASM_MEMORY_MIB_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
         WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
@@ -8250,10 +9085,14 @@ mod tests {
     };
     use crate::download::url_cache_key;
     use crate::host::{HostMount, HostOptions};
-    use crate::paths::WordPressInstallMode;
+    use crate::paths::{SiteStorage, WordPressInstallMode};
+    use crate::route_counters;
     use crate::runtime::{repo_root_from_manifest_dir, NativeRuntime};
     use crate::wordpress::prepare_wordpress;
-    use crate::{args::parse_cli_args_from, mount::Mount};
+    use crate::{
+        args::{parse_cli_args_from, CommandName, RuntimeCommand, RuntimeConfig},
+        mount::Mount,
+    };
     #[cfg(unix)]
     use zip::ZipArchive;
 
@@ -8421,6 +9260,54 @@ mod tests {
 
         assert_eq!(request.body, b"payload");
         assert_eq!(request.body.as_ptr(), buffer_ptr);
+    }
+
+    #[test]
+    fn owned_http_request_parser_with_counter_preserves_fixed_body_behavior() {
+        let buffer =
+            b"POST /index.php HTTP/1.1\r\nHost: example.test\r\nContent-Length: 7\r\n\r\npayload"
+                .to_vec();
+        let buffer_ptr = buffer.as_ptr();
+
+        let request = parse_http_request_owned_with_counter(
+            buffer,
+            Some(route_counters::request_id_for_test(101)),
+        )
+        .unwrap();
+
+        assert_eq!(request.method, "POST");
+        assert_eq!(request.target, "/index.php");
+        assert_eq!(request.body, b"payload");
+        assert_eq!(request.body.as_ptr(), buffer_ptr);
+        assert_eq!(
+            parse_http_request_owned_with_counter(
+                b"POST / HTTP/1.1\r\nContent-Length: 7\r\n\r\nabc".to_vec(),
+                Some(route_counters::request_id_for_test(102)),
+            )
+            .unwrap_err()
+            .status,
+            400
+        );
+    }
+
+    #[test]
+    fn owned_http_request_parser_with_counter_preserves_chunked_behavior() {
+        let request = parse_http_request_owned_with_counter(
+            b"POST /upload HTTP/1.1\r\nTransfer-Encoding: Chunked\r\n\r\n4;demo=true\r\nWiki\r\n5\r\npedia\r\n0\r\nX-Trailer: ignored\r\n\r\n".to_vec(),
+            Some(route_counters::request_id_for_test(103)),
+        )
+        .unwrap();
+
+        assert_eq!(request.body, b"Wikipedia");
+        assert_eq!(
+            parse_http_request_owned_with_counter(
+                b"POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc0\r\n\r\n".to_vec(),
+                Some(route_counters::request_id_for_test(104)),
+            )
+            .unwrap_err()
+            .status,
+            400
+        );
     }
 
     #[test]
@@ -8933,6 +9820,101 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn server_response_wrapper_preserves_buffered_head_suppression() {
+        let response = HttpResponse {
+            status: 200,
+            headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
+            body: b"hello".to_vec(),
+        };
+        let expected = http_response_bytes(&response, true);
+
+        let actual = capture_server_http_response(ServerHttpResponse::Buffered(response), true);
+
+        assert_eq!(actual, expected);
+        assert!(String::from_utf8(actual).unwrap().ends_with("\r\n\r\n"));
+    }
+
+    #[test]
+    fn server_response_wrapper_preserves_static_head_length_without_body() {
+        let root = temp_dir("static-server-response");
+        let file = root.join("asset.css");
+        fs::write(&file, b"a{b:c}").unwrap();
+
+        let response = capture_server_http_response(ServerHttpResponse::StaticFile(file), true);
+        let text = String::from_utf8(response).unwrap();
+
+        assert!(text.contains("HTTP/1.1 200 OK\r\n"));
+        assert!(text.contains("Content-Length: 6\r\n"));
+        assert!(text.contains("Content-Type: text/css\r\n"));
+        assert!(text.ends_with("\r\n\r\n"));
+        assert!(!text.contains("a{b:c}"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn server_response_counter_stats_keeps_static_lengths_for_head_accounting() {
+        let buffered_response = HttpResponse {
+            status: 204,
+            headers: vec![("X-Test".to_string(), "ok".to_string())],
+            body: b"hello".to_vec(),
+        };
+        let buffered_header_bytes =
+            http_response_head_bytes_with_body_len(&buffered_response, 5).len();
+
+        assert_eq!(
+            server_response_counter_stats(&ServerHttpResponse::Buffered(buffered_response)),
+            (204, Some(5), Some(buffered_header_bytes))
+        );
+
+        let root = temp_dir("static-counter-stats");
+        let file = root.join("asset.css");
+        fs::write(&file, b"a{b:c}").unwrap();
+        let static_response = HttpResponse {
+            status: 200,
+            headers: vec![("Content-Type".to_string(), "text/css".to_string())],
+            body: Vec::new(),
+        };
+        let static_header_bytes = http_response_head_bytes_with_body_len(&static_response, 6).len();
+
+        assert_eq!(
+            server_response_counter_stats(&ServerHttpResponse::StaticFile(file.clone())),
+            (200, Some(6), Some(static_header_bytes))
+        );
+        assert_eq!(
+            server_response_counter_stats(&ServerHttpResponse::StaticFile(root.join("gone.txt"))),
+            (200, None, None)
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn request_total_counter_marks_handle_http_request_errors() {
+        let request = RequestTotalRequest {
+            method: "POST".to_string(),
+            target: "/wp-admin/post-new.php".to_string(),
+            body_bytes: 7,
+        };
+        let error = crate::CliError::new("PHP worker lock was poisoned");
+        let fields = request_total_fields(
+            request_error_total_counter(
+                Some(route_counters::request_id_for_test(501)),
+                Some(Instant::now()),
+                Some(&request),
+                &error,
+            ),
+            42,
+        )
+        .unwrap();
+
+        assert_eq!(
+            route_counters::format_row("request.total.boundary", &fields),
+            "route-counter\trow=request.total.boundary\trequest_id=501\tmethod=POST\ttarget=/wp-admin/post-new.php\troute_label=editor\tstatus=0\troute_target=handle_error\ttotal_elapsed_us=42\tbody_bytes=7\tresponse_body_bytes=unknown\theader_bytes=unknown\tworker_action=none\tresult=error\trequest_error=PHP worker lock was poisoned"
+        );
+    }
+
     fn capture_static_file_response(path: &Path, suppress_body: bool) -> Vec<u8> {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
@@ -8949,6 +9931,42 @@ mod tests {
         response
     }
 
+    fn capture_server_http_response(response: ServerHttpResponse, suppress_body: bool) -> Vec<u8> {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            write_server_http_response_with_counter(&mut stream, &response, suppress_body, None)
+                .unwrap();
+        });
+
+        let mut stream = TcpStream::connect(address).unwrap();
+        let mut captured = Vec::new();
+        stream.read_to_end(&mut captured).unwrap();
+        handle.join().unwrap();
+        captured
+    }
+
+    fn capture_http_response_with_counter(
+        response: HttpResponse,
+        suppress_body: bool,
+        request_id: Option<route_counters::RequestId>,
+    ) -> Vec<u8> {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            write_http_response_with_counter(&mut stream, &response, suppress_body, request_id)
+                .unwrap();
+        });
+
+        let mut stream = TcpStream::connect(address).unwrap();
+        let mut captured = Vec::new();
+        stream.read_to_end(&mut captured).unwrap();
+        handle.join().unwrap();
+        captured
+    }
+
     #[test]
     fn reason_phrase_uses_unknown_for_unmapped_statuses() {
         assert_eq!(reason_phrase(408), "Request Timeout");
@@ -8956,6 +9974,64 @@ mod tests {
         assert_eq!(reason_phrase(422), "Unprocessable Content");
         assert_eq!(reason_phrase(501), "Not Implemented");
         assert_eq!(reason_phrase(599), "Unknown");
+    }
+
+    #[test]
+    fn auto_login_cookie_clear_only_runs_on_first_request() {
+        let request = HttpRequest {
+            method: "GET".to_string(),
+            target: "/wp-admin/".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: vec![(
+                "Cookie".to_string(),
+                format!("wordpress_test_cookie=1; {AUTO_LOGIN_COOKIE_NAME}=1"),
+            )],
+            body: Vec::new(),
+        };
+        let first_request = AtomicBool::new(true);
+
+        assert!(should_clear_auto_login_cookie(&first_request, &request));
+        assert!(!first_request.load(Ordering::SeqCst));
+        assert!(!should_clear_auto_login_cookie(&first_request, &request));
+
+        let first_request = AtomicBool::new(true);
+        let request_without_cookie = HttpRequest {
+            headers: vec![("Cookie".to_string(), "wordpress_test_cookie=1".to_string())],
+            ..request
+        };
+
+        assert!(!should_clear_auto_login_cookie(
+            &first_request,
+            &request_without_cookie
+        ));
+        assert!(!first_request.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn clear_auto_login_cookie_head_redirect_uses_counter_writer_without_body() {
+        let request = HttpRequest {
+            method: "HEAD".to_string(),
+            target: "/wp-admin/?page=demo".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: Vec::new(),
+            body: Vec::new(),
+        };
+        let response = clear_auto_login_cookie_response(&request);
+        let expected = http_response_bytes(&response, true);
+
+        let actual = capture_http_response_with_counter(
+            response,
+            true,
+            Some(route_counters::request_id_for_test(151)),
+        );
+
+        assert_eq!(actual, expected);
+        let text = String::from_utf8(actual).unwrap();
+        assert!(text.contains("HTTP/1.1 302 Found\r\n"));
+        assert!(text.contains("Content-Length: 0\r\n"));
+        assert!(text.contains("Location: /wp-admin/?page=demo\r\n"));
+        assert!(text.contains(&format!("Set-Cookie: {CLEAR_AUTO_LOGIN_COOKIE}\r\n")));
+        assert!(text.ends_with("\r\n\r\n"));
     }
 
     #[test]
@@ -9115,6 +10191,39 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn route_target_labels_match_route_metadata_values() {
+        let root = temp_dir("route-metadata");
+        fs::write(root.join("index.php"), b"<?php echo 'index';").unwrap();
+        fs::write(root.join("style.css"), b"body{}").unwrap();
+        let mounts = vec![Mount::new(&root, "/wordpress").unwrap()];
+
+        let php_route = resolve_route(&mounts, "/").unwrap();
+        assert_eq!(route_target_label(&php_route), "php");
+        assert_eq!(
+            php_route,
+            RouteTarget::Php {
+                vfs_path: "/wordpress/index.php".to_string(),
+                path_info: None,
+            }
+        );
+
+        let static_route = resolve_route(&mounts, "/style.css").unwrap();
+        assert_eq!(route_target_label(&static_route), "static");
+        assert_eq!(
+            static_route,
+            RouteTarget::Static {
+                host_path: root.join("style.css"),
+            }
+        );
+
+        let not_found_route = resolve_route(&mounts, "/wp-content/missing.css").unwrap();
+        assert_eq!(route_target_label(&not_found_route), "not_found");
+        assert_eq!(not_found_route, RouteTarget::NotFound);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     #[cfg(unix)]
     #[test]
     fn host_path_for_vfs_path_blocks_symlink_escape() {
@@ -9125,6 +10234,84 @@ mod tests {
         let mounts = vec![Mount::new(&root, "/wordpress").unwrap()];
 
         assert!(host_path_for_vfs_path(&mounts, "/wordpress/link.txt").is_none());
+
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn server_mounts_refreshes_managed_wordpress_canonical_path_created_late() {
+        let root = temp_dir("managed-canonical-root");
+        let wordpress_root = root.join("wordpress");
+        let mount = Mount::new(&wordpress_root, "/wordpress").unwrap();
+        assert!(mount.canonical_host_path.is_none());
+
+        let mut options = parse_cli_args_from(vec!["server".to_string()], &root).unwrap();
+        options.mounts_before_install.push(mount);
+        let config = RuntimeConfig {
+            command: RuntimeCommand::Server,
+            original_command: CommandName::Start,
+            options,
+            site_storage: Some(SiteStorage::Managed(wordpress_root.clone())),
+            server_url: Some("http://127.0.0.1:9400".to_string()),
+        };
+
+        let mounts = server_mounts(&config).unwrap();
+        let database_path = wordpress_root.join("wp-content/database/.ht.sqlite");
+        fs::create_dir_all(database_path.parent().unwrap()).unwrap();
+        fs::write(&database_path, b"sqlite").unwrap();
+
+        assert_eq!(
+            host_path_for_vfs_path(&mounts, "/wordpress/wp-content/database/.ht.sqlite"),
+            Some(database_path)
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn server_mounts_refreshed_wordpress_mount_blocks_symlink_escape() {
+        let root = temp_dir("managed-canonical-symlink-root");
+        let wordpress_root = root.join("wordpress");
+        let outside = temp_dir("managed-canonical-symlink-outside");
+        fs::write(outside.join("secret.txt"), "outside").unwrap();
+        let mount = Mount::new(&wordpress_root, "/wordpress").unwrap();
+        assert!(mount.canonical_host_path.is_none());
+
+        let mut options = parse_cli_args_from(vec!["server".to_string()], &root).unwrap();
+        options.mounts.push(mount);
+        let config = RuntimeConfig {
+            command: RuntimeCommand::Server,
+            original_command: CommandName::Start,
+            options,
+            site_storage: None,
+            server_url: Some("http://127.0.0.1:9401".to_string()),
+        };
+
+        let mounts = server_mounts(&config).unwrap();
+        let wordpress_mount = mounts
+            .iter()
+            .find(|mount| mount.vfs_path == "/wordpress")
+            .unwrap();
+        assert_eq!(
+            wordpress_mount.canonical_host_path,
+            fs::canonicalize(&wordpress_root).ok()
+        );
+
+        std::os::unix::fs::symlink(outside.join("secret.txt"), wordpress_root.join("link.txt"))
+            .unwrap();
+
+        assert!(host_path_for_vfs_path(&mounts, "/wordpress/link.txt").is_none());
+        assert_eq!(
+            host_path_for_vfs_path_with_symlink_policy(
+                &mounts,
+                "/wordpress/link.txt",
+                SymlinkPolicy::Follow,
+            )
+            .unwrap(),
+            wordpress_root.join("link.txt")
+        );
 
         let _ = fs::remove_dir_all(root);
         let _ = fs::remove_dir_all(outside);
@@ -9350,6 +10537,145 @@ mod tests {
         let fixed_workers = Mutex::new(3);
         assert!(!reserve_lazy_worker_retirement(false, &fixed_workers).unwrap());
         assert_eq!(*fixed_workers.lock().unwrap(), 3);
+    }
+
+    #[test]
+    fn worker_after_request_labels_match_counter_values() {
+        assert_eq!(
+            worker_after_request_label(&WorkerAfterRequest::Keep),
+            "keep"
+        );
+        assert_eq!(
+            worker_after_request_label(&WorkerAfterRequest::Recycle {
+                delay: Duration::from_millis(25),
+                force: false,
+            }),
+            "recycle"
+        );
+        assert_eq!(
+            worker_after_request_label(&WorkerAfterRequest::Recycle {
+                delay: Duration::ZERO,
+                force: true,
+            }),
+            "recycle_force"
+        );
+        assert_eq!(
+            worker_after_request_label(&WorkerAfterRequest::Retire),
+            "retire"
+        );
+    }
+
+    #[test]
+    fn mark_worker_request_finished_keeps_recycles_forces_and_retires() {
+        let created_workers = Mutex::new(1);
+        let mut worker = retained_worker(0, false);
+        let action = mark_worker_request_finished(
+            &mut worker,
+            &created_workers,
+            false,
+            2,
+            None,
+            Duration::from_millis(25),
+            None,
+        )
+        .unwrap();
+        assert!(matches!(action, WorkerAfterRequest::Keep));
+        assert_eq!(worker_after_request_label(&action), "keep");
+        assert_eq!(worker.requests_handled, 1);
+        assert!(!worker.recycle_scheduled);
+
+        let mut worker = retained_worker(1, false);
+        let action = mark_worker_request_finished(
+            &mut worker,
+            &created_workers,
+            false,
+            2,
+            None,
+            Duration::from_millis(25),
+            None,
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            WorkerAfterRequest::Recycle {
+                delay,
+                force: false,
+            } if delay == Duration::from_millis(25)
+        ));
+        assert_eq!(worker_after_request_label(&action), "recycle");
+        assert_eq!(worker.requests_handled, 2);
+        assert!(worker.recycle_scheduled);
+
+        let mut worker = retained_worker(0, false);
+        let action = mark_worker_request_finished(
+            &mut worker,
+            &created_workers,
+            false,
+            10,
+            Some(100),
+            Duration::from_millis(25),
+            Some(100),
+        )
+        .unwrap();
+        assert!(matches!(
+            action,
+            WorkerAfterRequest::Recycle {
+                delay,
+                force: true,
+            } if delay == Duration::from_millis(25)
+        ));
+        assert_eq!(worker_after_request_label(&action), "recycle_force");
+        assert_eq!(worker.requests_handled, 1);
+        assert!(worker.recycle_scheduled);
+
+        let created_workers = Mutex::new(2);
+        let mut worker = retained_worker(0, false);
+        let action = mark_worker_request_finished(
+            &mut worker,
+            &created_workers,
+            true,
+            10,
+            None,
+            Duration::from_millis(25),
+            None,
+        )
+        .unwrap();
+        assert!(matches!(action, WorkerAfterRequest::Retire));
+        assert_eq!(worker_after_request_label(&action), "retire");
+        assert_eq!(worker.requests_handled, 1);
+        assert_eq!(*created_workers.lock().unwrap(), 1);
+        assert!(!worker.recycle_scheduled);
+    }
+
+    #[test]
+    fn mark_worker_request_finished_keeps_already_scheduled_recycle() {
+        let created_workers = Mutex::new(2);
+        let mut worker = retained_worker(10, true);
+        let action = mark_worker_request_finished(
+            &mut worker,
+            &created_workers,
+            true,
+            1,
+            Some(1),
+            Duration::from_millis(25),
+            Some(1),
+        )
+        .unwrap();
+
+        assert!(matches!(action, WorkerAfterRequest::Keep));
+        assert_eq!(worker_after_request_label(&action), "keep");
+        assert_eq!(worker.requests_handled, 11);
+        assert_eq!(*created_workers.lock().unwrap(), 2);
+        assert!(worker.recycle_scheduled);
+    }
+
+    fn retained_worker(requests_handled: usize, recycle_scheduled: bool) -> PhpWorker {
+        PhpWorker {
+            php: None,
+            requests_handled,
+            last_request_finished_at: Instant::now(),
+            recycle_scheduled,
+        }
     }
 
     #[test]

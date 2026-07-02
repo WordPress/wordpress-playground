@@ -9,6 +9,7 @@ pub mod mount;
 pub mod packaging;
 pub mod paths;
 pub mod php;
+mod route_counters;
 pub mod runtime;
 pub mod server;
 pub mod sha1;

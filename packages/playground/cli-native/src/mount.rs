@@ -30,6 +30,17 @@ impl Mount {
         mount.auto_mounted = true;
         Ok(mount)
     }
+
+    pub(crate) fn refresh_canonical_host_path(&mut self) -> Result<()> {
+        let canonical_host_path = fs::canonicalize(&self.host_path).map_err(|error| {
+            CliError::new(format!(
+                "Failed to resolve mount host path {}: {error}",
+                self.host_path.display()
+            ))
+        })?;
+        self.canonical_host_path = Some(canonical_host_path);
+        Ok(())
+    }
 }
 
 pub fn parse_mount_with_delimiter_arguments(values: &[String]) -> Result<Vec<Mount>> {

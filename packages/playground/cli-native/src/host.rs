@@ -1127,7 +1127,9 @@ impl HostState {
             return EBADF;
         }
         self.release_advisory_locks_for_fd(fd);
+        let mut invalidate_path = None;
         if let Some(FdEntry::File {
+            path,
             host_path: Some(host_path),
             data,
             dirty: true,
@@ -1137,6 +1139,7 @@ impl HostState {
             if fs::write(host_path, data).is_err() {
                 return EINVAL;
             }
+            invalidate_path = Some(path.clone());
         }
         let closed_socket_id = match self.fds[index].as_ref() {
             Some(FdEntry::Socket { socket_id }) => Some(*socket_id),
@@ -1153,6 +1156,9 @@ impl HostState {
             if !still_open {
                 self.sockets.remove(&socket_id);
             }
+        }
+        if let Some(path) = invalidate_path {
+            self.invalidate_host_cache_path(&path);
         }
         0
     }
@@ -1172,8 +1178,10 @@ impl HostState {
             };
         }
 
-        match self.get_fd_mut(fd) {
+        let mut invalidate_path = None;
+        let result = match self.get_fd_mut(fd) {
             Ok(FdEntry::File {
+                path,
                 host_path: Some(host_path),
                 data,
                 dirty,
@@ -1185,7 +1193,7 @@ impl HostState {
                 match fs::write(host_path, data) {
                     Ok(_) => {
                         *dirty = false;
-                        self.clear_host_cache();
+                        invalidate_path = Some(path.clone());
                         0
                     }
                     Err(_) => EINVAL,
@@ -1207,16 +1215,21 @@ impl HostState {
             Ok(FdEntry::Stdin) => EBADF,
             Ok(FdEntry::Socket { .. }) => unreachable!(),
             Err(errno) => errno,
+        };
+        if let Some(path) = invalidate_path {
+            self.invalidate_host_cache_path(&path);
         }
+        result
     }
 
     fn truncate_fd(&mut self, fd: i32, length: i64) -> i32 {
         let Ok(length) = usize::try_from(length) else {
             return -EINVAL;
         };
-        let mut clear_cache = false;
+        let mut invalidate_path = None;
         let result = match self.get_fd_mut(fd) {
             Ok(FdEntry::File {
+                path,
                 data,
                 host_path,
                 position,
@@ -1237,7 +1250,7 @@ impl HostState {
                     }
                     data.clear();
                     *dirty = false;
-                    clear_cache = true;
+                    invalidate_path = Some(path.clone());
                 } else {
                     data.resize(length, 0);
                     *dirty = true;
@@ -1248,8 +1261,10 @@ impl HostState {
             Ok(_) => -EINVAL,
             Err(errno) => -errno,
         };
-        if clear_cache && result == 0 {
-            self.clear_host_cache();
+        if result == 0 {
+            if let Some(path) = invalidate_path {
+                self.invalidate_host_cache_path(&path);
+            }
         }
         result
     }
@@ -1267,9 +1282,10 @@ impl HostState {
         let Some(end) = offset.checked_add(length) else {
             return -EINVAL;
         };
-        let mut clear_cache = false;
+        let mut invalidate_path = None;
         let result = match self.get_fd_mut(fd) {
             Ok(FdEntry::File {
+                path,
                 data,
                 host_path,
                 access_mode,
@@ -1289,7 +1305,7 @@ impl HostState {
                             if file.set_len(end as u64).is_err() {
                                 return -EINVAL;
                             }
-                            clear_cache = true;
+                            invalidate_path = Some(path.clone());
                         }
                         Ok(_) => {}
                         Err(_) => return -EINVAL,
@@ -1306,8 +1322,10 @@ impl HostState {
             Ok(_) => -EINVAL,
             Err(errno) => -errno,
         };
-        if clear_cache && result == 0 {
-            self.clear_host_cache();
+        if result == 0 {
+            if let Some(path) = invalidate_path {
+                self.invalidate_host_cache_path(&path);
+            }
         }
         result
     }
@@ -5021,6 +5039,18 @@ fn file_descriptor_allows_write(access_mode: i32) -> bool {
     matches!(access_mode & O_ACCMODE, O_WRONLY | O_RDWR)
 }
 
+fn cache_path_related_to_change(cached_path: &str, changed_path: &str) -> bool {
+    cached_path == changed_path
+        || cached_path == "/"
+        || changed_path == "/"
+        || cached_path
+            .strip_prefix(changed_path)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+        || changed_path
+            .strip_prefix(cached_path)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
 fn env_flag(name: &str) -> bool {
     std::env::var(name)
         .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "on"))
@@ -5028,15 +5058,34 @@ fn env_flag(name: &str) -> bool {
 }
 
 impl HostState {
+    #[cfg(test)]
     fn clear_host_cache(&self) {
         if self.host_cache_enabled {
             self.clear_host_cache_entries();
         }
     }
 
+    fn invalidate_host_cache_path(&self, path: &str) {
+        if self.host_cache_enabled {
+            self.invalidate_host_cache_path_entries(path);
+        }
+    }
+
+    #[cfg(test)]
     fn clear_host_cache_entries(&self) {
         self.host_path_cache.borrow_mut().clear();
         self.host_stat_cache.borrow_mut().clear();
+        self.host_cache_generation
+            .set(self.host_cache_generation.get().wrapping_add(1));
+    }
+
+    fn invalidate_host_cache_path_entries(&self, path: &str) {
+        self.host_path_cache
+            .borrow_mut()
+            .retain(|(cached_path, _, _), _| !cache_path_related_to_change(cached_path, path));
+        self.host_stat_cache
+            .borrow_mut()
+            .retain(|(cached_path, _), _| !cache_path_related_to_change(cached_path, path));
         self.host_cache_generation
             .set(self.host_cache_generation.get().wrapping_add(1));
     }
@@ -5218,6 +5267,7 @@ impl HostState {
                     match fs::OpenOptions::new().write(true).open(&host_path) {
                         Ok(file) if file.set_len(0).is_ok() => {
                             position = 0;
+                            self.invalidate_host_cache_path(path);
                         }
                         _ => return -EINVAL,
                     }
@@ -5242,7 +5292,7 @@ impl HostState {
                 }
                 match fs::File::create(&host_path) {
                     Ok(_) => {
-                        self.clear_host_cache();
+                        self.invalidate_host_cache_path(path);
                         self.alloc_fd(FdEntry::File {
                             path: path.to_string(),
                             host_path: Some(host_path),
@@ -5536,23 +5586,28 @@ impl HostState {
         };
         let result = chmod_host_path(&host_path, mode);
         if result == 0 {
-            self.clear_host_cache();
+            self.invalidate_host_cache_path(&resolved);
         }
         result
     }
 
     fn chmod_fd(&self, fd: i32, mode: i32) -> i32 {
-        let host_path = match self.get_fd(fd) {
+        let (host_path, invalidate_path) = match self.get_fd(fd) {
             Ok(FdEntry::File {
+                path,
                 host_path: Some(host_path),
                 ..
-            }) => Some(host_path.clone()),
+            }) => (Some(host_path.clone()), Some(path.clone())),
             Ok(FdEntry::File {
                 host_path: None, ..
-            }) => None,
-            Ok(FdEntry::InternalReadFile { .. }) => None,
-            Ok(FdEntry::HostReadFile { host_path, .. }) => Some(host_path.clone()),
-            Ok(FdEntry::Directory { path, .. }) => self.resolve_host_path(path),
+            }) => (None, None),
+            Ok(FdEntry::InternalReadFile { .. }) => (None, None),
+            Ok(FdEntry::HostReadFile {
+                path, host_path, ..
+            }) => (Some(host_path.clone()), Some(path.clone())),
+            Ok(FdEntry::Directory { path, .. }) => {
+                (self.resolve_host_path(path), Some(path.clone()))
+            }
             Ok(_) => return -EBADF,
             Err(errno) => return -errno,
         };
@@ -5562,7 +5617,9 @@ impl HostState {
         };
         let result = chmod_host_path(&host_path, mode);
         if result == 0 {
-            self.clear_host_cache();
+            if let Some(path) = invalidate_path {
+                self.invalidate_host_cache_path(&path);
+            }
         }
         result
     }
@@ -5582,7 +5639,7 @@ impl HostState {
         let host_target = self.host_symlink_target(target, &host_link_path);
         let result = create_host_symlink(&host_target, &host_link_path);
         if result == 0 {
-            self.clear_host_cache();
+            self.invalidate_host_cache_path(&resolved_link);
         }
         result
     }
@@ -5718,7 +5775,7 @@ impl HostState {
         }
         match fs::create_dir(&host_path) {
             Ok(_) => {
-                self.clear_host_cache();
+                self.invalidate_host_cache_path(path);
                 0
             }
             Err(_) => -EINVAL,
@@ -5731,7 +5788,7 @@ impl HostState {
         };
         match fs::remove_file(&host_path) {
             Ok(_) => {
-                self.clear_host_cache();
+                self.invalidate_host_cache_path(path);
                 0
             }
             Err(_) => -EINVAL,
@@ -5744,7 +5801,7 @@ impl HostState {
         };
         match fs::remove_dir(&host_path) {
             Ok(_) => {
-                self.clear_host_cache();
+                self.invalidate_host_cache_path(path);
                 0
             }
             Err(_) => -EINVAL,
@@ -5760,7 +5817,8 @@ impl HostState {
         };
         match fs::rename(old_host_path, new_host_path) {
             Ok(_) => {
-                self.clear_host_cache();
+                self.invalidate_host_cache_path(oldpath);
+                self.invalidate_host_cache_path(newpath);
                 0
             }
             Err(_) => -EINVAL,
@@ -8698,6 +8756,7 @@ fn fd_write(
         return Ok(0);
     }
 
+    let mut invalidate_path = None;
     {
         let state = caller.data_mut();
         let entry = match state.get_fd_mut(fd) {
@@ -8741,6 +8800,7 @@ fn fd_write(
                 }
             }
             FdEntry::File {
+                path,
                 host_path: Some(host_path),
                 position,
                 access_mode,
@@ -8759,6 +8819,7 @@ fn fd_write(
                 *position = next_position;
                 total = written;
                 *dirty = false;
+                invalidate_path = Some(path.clone());
             }
             FdEntry::File {
                 data,
@@ -8789,6 +8850,9 @@ fn fd_write(
         }
     }
 
+    if let Some(path) = invalidate_path {
+        caller.data().invalidate_host_cache_path(&path);
+    }
     write_u32(caller, pnum, total as u32)?;
     Ok(0)
 }
@@ -8917,6 +8981,7 @@ fn fd_pwrite(
     }
     let mut total = chunks.iter().map(Vec::len).sum::<usize>();
 
+    let mut invalidate_path = None;
     {
         let entry = match caller.data_mut().get_fd_mut(fd) {
             Ok(entry) => entry,
@@ -8924,6 +8989,7 @@ fn fd_pwrite(
         };
         match entry {
             FdEntry::File {
+                path,
                 host_path: Some(host_path),
                 access_mode,
                 dirty,
@@ -8939,6 +9005,7 @@ fn fd_pwrite(
                     };
                 total = written;
                 *dirty = false;
+                invalidate_path = Some(path.clone());
             }
             FdEntry::File {
                 data,
@@ -8964,6 +9031,9 @@ fn fd_pwrite(
         }
     }
 
+    if let Some(path) = invalidate_path {
+        caller.data().invalidate_host_cache_path(&path);
+    }
     write_u32(caller, pnum, total as u32)?;
     Ok(0)
 }
@@ -13932,6 +14002,62 @@ mod tests {
 
         cached.clear_host_cache();
         assert_eq!(cached.fd_stat(fd).unwrap().size, 7);
+
+        let _ = fs::remove_dir_all(host_root);
+    }
+
+    #[test]
+    fn scoped_host_cache_invalidation_preserves_unrelated_wordpress_stats() {
+        let host_root = temp_dir("scoped-cache-invalidation");
+        let stable_path = host_root.join("wp-includes/version.php");
+        let changed_path = host_root.join("wp-content/cache/item.php");
+        fs::create_dir_all(stable_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(changed_path.parent().unwrap()).unwrap();
+        fs::write(&stable_path, b"stable").unwrap();
+        fs::write(&changed_path, b"changed").unwrap();
+
+        let state = HostState::new(HostOptions {
+            mounts: vec![HostMount {
+                host_path: host_root.clone(),
+                vfs_path: "/wordpress".to_string(),
+            }],
+            host_cache: true,
+            ..HostOptions::default()
+        });
+
+        assert_eq!(
+            state
+                .stat_path("/wordpress/wp-includes/version.php")
+                .unwrap()
+                .size,
+            6
+        );
+        assert_eq!(
+            state
+                .stat_path("/wordpress/wp-content/cache/item.php")
+                .unwrap()
+                .size,
+            7
+        );
+        assert!(state
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/wp-includes/version.php".to_string(), true)));
+        assert!(state
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/wp-content/cache/item.php".to_string(), true)));
+
+        state.invalidate_host_cache_path("/wordpress/wp-content/cache/item.php");
+
+        assert!(state
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/wp-includes/version.php".to_string(), true)));
+        assert!(!state
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/wp-content/cache/item.php".to_string(), true)));
 
         let _ = fs::remove_dir_all(host_root);
     }

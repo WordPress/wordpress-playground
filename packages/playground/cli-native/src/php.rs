@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, path::PathBuf, time::Instant};
+use std::{
+    collections::BTreeMap,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use wasmtime::{Instance, Memory, Module, TypedFunc};
 
@@ -9,6 +13,7 @@ use crate::{
         PROFILE_IMPORT_FAMILIES_ENV_VAR, PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR,
         PROFILE_IMPORT_SELF_TIME_ENV_VAR, PROFILE_IMPORT_TOP_N_ENV_VAR,
     },
+    route_counters::{self, Field, RequestId},
     runtime::NativeRuntime,
     CliError, Result,
 };
@@ -437,12 +442,25 @@ impl PhpInstance {
     }
 
     pub fn run_sapi_request(&mut self, request: &PhpRequest) -> Result<PhpResponse> {
+        self.run_sapi_request_with_counter(request, None)
+    }
+
+    pub(crate) fn run_sapi_request_with_counter(
+        &mut self,
+        request: &PhpRequest,
+        request_id: Option<RequestId>,
+    ) -> Result<PhpResponse> {
+        let sapi_started_at = request_id.map(|_| Instant::now());
+        let host_import_start = request_id.map(|_| self.host_import_count());
         let import_profile = ImportProfileWindow::start(self);
         let _ = self.take_captured_stdout();
         let _ = self.take_captured_stderr();
         let _ = self.take_captured_headers();
 
+        let init_started_at = request_id.map(|_| Instant::now());
+        let mut init_ran = false;
         if !self.php_initialized {
+            init_ran = true;
             let php_ini = self.write_c_string(PHP_INI_PATH)?;
             self.wasm_set_phpini_path(php_ini.ptr)?;
             self.free(php_ini.ptr)?;
@@ -464,20 +482,43 @@ impl PhpInstance {
             }
             self.php_initialized = true;
         }
+        let init_elapsed = init_started_at.map(|started_at| started_at.elapsed());
 
+        let setup_started_at = request_id.map(|_| Instant::now());
         let request_allocation = self.set_sapi_request(request)?;
+        let setup_elapsed = setup_started_at.map(|started_at| started_at.elapsed());
 
+        let handle_started_at = request_id.map(|_| Instant::now());
         let handle_result = self.wasm_sapi_handle_request();
+        let handle_elapsed = handle_started_at.map(|started_at| started_at.elapsed());
         request_allocation.free(self);
         let exit_code = handle_result?;
+        let stdout = self.take_captured_stdout();
+        let stderr = self.take_captured_stderr();
+        let headers = self.take_captured_headers();
+        emit_sapi_request_boundary_counter(SapiRequestBoundaryCounter {
+            request_id,
+            started_at: sapi_started_at,
+            request,
+            init_ran,
+            init_elapsed,
+            setup_elapsed,
+            handle_elapsed,
+            exit_code,
+            stdout_bytes: stdout.len(),
+            stderr_bytes: stderr.len(),
+            header_bytes: headers.len(),
+            host_import_start,
+            host_import_end: host_import_start.map(|_| self.host_import_count()),
+        });
         if let Some(import_profile) = import_profile {
             emit_import_profile(self, request, import_profile);
         }
         Ok(PhpResponse {
             exit_code,
-            stdout: self.take_captured_stdout(),
-            stderr: self.take_captured_stderr(),
-            headers: self.take_captured_headers(),
+            stdout,
+            stderr,
+            headers,
         })
     }
 
@@ -923,6 +964,80 @@ impl ImportProfileWindow {
                 .then(|| php.import_inclusive_time_snapshot()),
         })
     }
+}
+
+struct SapiRequestBoundaryCounter<'a> {
+    request_id: Option<RequestId>,
+    started_at: Option<Instant>,
+    request: &'a PhpRequest,
+    init_ran: bool,
+    init_elapsed: Option<Duration>,
+    setup_elapsed: Option<Duration>,
+    handle_elapsed: Option<Duration>,
+    exit_code: i32,
+    stdout_bytes: usize,
+    stderr_bytes: usize,
+    header_bytes: usize,
+    host_import_start: Option<usize>,
+    host_import_end: Option<usize>,
+}
+
+fn emit_sapi_request_boundary_counter(counter: SapiRequestBoundaryCounter<'_>) {
+    let SapiRequestBoundaryCounter {
+        request_id,
+        started_at,
+        request,
+        init_ran,
+        init_elapsed,
+        setup_elapsed,
+        handle_elapsed,
+        exit_code,
+        stdout_bytes,
+        stderr_bytes,
+        header_bytes,
+        host_import_start,
+        host_import_end,
+    } = counter;
+    let (Some(request_id), Some(started_at)) = (request_id, started_at) else {
+        return;
+    };
+    let mut fields =
+        route_counters::request_fields(request_id, &request.method, &request.request_uri);
+    fields.extend([
+        Field::new("script_path", &request.script_path),
+        Field::new(
+            "total_elapsed_us",
+            route_counters::elapsed_us(started_at.elapsed()),
+        ),
+        Field::new("init_ran", init_ran),
+        Field::new("init_elapsed_us", duration_us_or_unknown(init_elapsed)),
+        Field::new(
+            "request_setup_elapsed_us",
+            duration_us_or_unknown(setup_elapsed),
+        ),
+        Field::new(
+            "sapi_handle_elapsed_us",
+            duration_us_or_unknown(handle_elapsed),
+        ),
+        Field::new("exit_code", exit_code),
+        Field::new("stdout_bytes", stdout_bytes),
+        Field::new("stderr_bytes", stderr_bytes),
+        Field::new("captured_header_bytes", header_bytes),
+        Field::new(
+            "host_import_delta",
+            host_import_start
+                .zip(host_import_end)
+                .map(|(start, end)| end.saturating_sub(start).to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+        ),
+    ]);
+    route_counters::emit("sapi.request.boundary", &fields);
+}
+
+fn duration_us_or_unknown(duration: Option<Duration>) -> String {
+    duration
+        .map(|duration| route_counters::elapsed_us(duration).to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 fn emit_import_profile(php: &PhpInstance, request: &PhpRequest, profile: ImportProfileWindow) {
@@ -2129,10 +2244,7 @@ echo json_encode(array(
         )
         .unwrap();
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2208,10 +2320,7 @@ echo file_get_contents('php://input');
         request.content_type = Some("text/plain".to_string());
         request.body = b"payload".to_vec();
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2249,6 +2358,18 @@ echo file_get_contents('php://input');
         );
     }
 
+    fn php83_host_options_with_tmp_opcache_fixture(temp_dir: &std::path::Path) -> HostOptions {
+        fs::create_dir_all(temp_dir.join("opcache")).unwrap();
+        HostOptions {
+            echo_output: false,
+            mounts: vec![HostMount {
+                host_path: temp_dir.to_path_buf(),
+                vfs_path: "/tmp".to_string(),
+            }],
+            ..HostOptions::default()
+        }
+    }
+
     #[test]
     #[ignore = "Full PHP wasm outbound HTTP execution is an explicit smoke test."]
     fn real_php83_cli_fetches_loopback_http_url() {
@@ -2280,10 +2401,7 @@ echo file_get_contents('php://input');
         )
         .unwrap();
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2353,10 +2471,7 @@ echo 'native-https-ok';
         )
         .unwrap();
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2565,10 +2680,7 @@ echo 'native-nonblocking-ok';
         )
         .unwrap();
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2669,14 +2781,7 @@ echo "native-server-ok:$request";
             assert_eq!(&response, b"pong");
         });
 
-        let mut host_options = HostOptions {
-            echo_output: false,
-            mounts: vec![HostMount {
-                host_path: temp_dir.clone(),
-                vfs_path: "/tmp".to_string(),
-            }],
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
@@ -2734,15 +2839,12 @@ echo "native-server-ok:$request";
         fs::write(external_root.join("document.txt"), b"symlink-ok").unwrap();
         std::os::unix::fs::symlink(&external_root, host_root.join("linked-dir")).unwrap();
 
-        let host_options = HostOptions {
-            echo_output: false,
-            follow_symlinks: true,
-            mounts: vec![HostMount {
-                host_path: host_root.clone(),
-                vfs_path: "/wordpress".to_string(),
-            }],
-            ..HostOptions::default()
-        };
+        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&host_root);
+        host_options.follow_symlinks = true;
+        host_options.mounts.push(HostMount {
+            host_path: host_root.clone(),
+            vfs_path: "/wordpress".to_string(),
+        });
         let mut php = runtime
             .instantiate_php_with_host_options("8.3", host_options)
             .unwrap();

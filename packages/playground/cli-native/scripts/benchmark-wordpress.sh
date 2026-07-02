@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 CLI_DIR="$REPO_ROOT/packages/playground/cli-native"
 
-PHP_VERSION="${PHP_VERSION:-8.3}"
+PHP_VERSION="${PHP_VERSION:-8.5}"
 WP_VERSION="${WP_VERSION:-6.9}"
 SAMPLES="${SAMPLES:-8}"
 WARMUPS="${WARMUPS:-2}"
@@ -43,7 +43,7 @@ bootstrap comparable WordPress sites, then measure these routes:
   /, /?s=hello, /?p=1, /wp-admin/post-new.php
 
 Environment:
-  PHP_VERSION=8.3
+  PHP_VERSION=8.5
   WP_VERSION=6.9
   SAMPLES=8
   WARMUPS=2
@@ -60,7 +60,7 @@ Environment:
   NATIVE_PHP_BIN=php
   NATIVE_PHP_LABEL=native-php
   WP_PLAYGROUND_NATIVE_MAX_WASM_STACK_MIB=2
-  WP_PLAYGROUND_NATIVE_ASYNC_STACK_MIB=4
+  WP_PLAYGROUND_NATIVE_ASYNC_STACK_MIB=2
   WP_PLAYGROUND_NATIVE_RECYCLE_WASM_MEMORY_MIB=90
   WP_PLAYGROUND_NATIVE_MEMORY_RESERVATION_MIB=
   WP_PLAYGROUND_NATIVE_MEMORY_GUARD_MIB=
