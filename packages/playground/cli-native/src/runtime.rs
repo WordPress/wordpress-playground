@@ -13,9 +13,9 @@ use wasmtime::{
 use crate::{
     assets::{
         find_php_assets_manifest, load_php_assets_manifest, select_php_asset, verify_file_asset,
-        AssetManifest, PhpAsset,
+        AssetManifest, PhpAsset, PhpAssetRuntime,
     },
-    host::create_stub_import_linker,
+    host::{create_stub_import_linker_with_options, HostOptions},
     CliError, Result,
 };
 
@@ -168,10 +168,19 @@ impl NativeRuntime {
 
     fn compile_php_wasm_module(&self, php_version: &str, asset: &PhpAsset) -> Result<Module> {
         let wasm_path = self.repo_root.join(&asset.wasm.path);
+        let runtime = self
+            .manifest
+            .php_runtime()
+            .unwrap_or(PhpAssetRuntime::Asyncify);
+        let runtime_hint = if runtime.uses_wasmtime_async() {
+            "; this manifest selected the Wasmtime async PHP runtime. The current node-builds/jspi PHP artifacts use legacy WebAssembly exceptions, which this Wasmtime compiler does not support. Rebuild PHP wasm without legacy exceptions before switching the manifest runtime."
+        } else {
+            ""
+        };
         Module::from_file(&self.engine, &wasm_path).map_err(|error| {
             CliError::new(format!(
-                "Failed to compile PHP {php_version} wasm module {} with Wasmtime: {error}",
-                wasm_path.display()
+                "Failed to compile PHP {php_version} wasm module {} with Wasmtime: {error}{runtime_hint}",
+                wasm_path.display(),
             ))
         })
     }
@@ -226,7 +235,13 @@ impl NativeRuntime {
     ) -> Result<WasmModuleSummary> {
         let mut summary = self.wasm_module_summary(php_version)?;
         let module = self.php_module(php_version)?;
-        let mut linker = create_stub_import_linker(&module)?;
+        let mut linker = create_stub_import_linker_with_options(
+            &module,
+            HostOptions {
+                php_runtime: self.manifest.php_runtime()?,
+                ..HostOptions::default()
+            },
+        )?;
         let _instance = linker.instantiate(&module)?;
         summary.stub_linker_can_instantiate = true;
         Ok(summary)

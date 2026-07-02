@@ -21,7 +21,7 @@ development flow:
   `--define-number`, including the Node CLI's default `WP_DEBUG*` constants;
 - auto-mount detection for plugin, theme, `wp-content`, and full WordPress directories;
 - persistent site path hashing compatible with the Node CLI convention;
-- a checked-in asyncify PHP asset manifest with paths and SHA-256 checksums;
+- a checked-in PHP asset manifest with paths and SHA-256 checksums;
 - PHP CLI execution through Wasmtime, including manually mounted VFS paths such
   as PHAR tools under `/tools`, and shared WordPress preparation/startup when
   WordPress installation is not explicitly skipped;
@@ -169,6 +169,13 @@ An asset root may use the source-tree layout with
 resolved relative to that asset root, so release archives must include the PHP
 wasm files, WordPress ZIPs, and SQLite integration ZIPs at the paths referenced
 by the manifest and native asset loaders.
+
+The native runtime can dispatch PHP through Wasmtime's async call path when an
+asset manifest selects the Wasmtime async runtime. The checked-in manifest still
+uses the asyncify node build because the current `node-builds/jspi` PHP artifacts
+use legacy WebAssembly exceptions, which Wasmtime 46's compiler rejects. A PHP
+wasm rebuild without legacy exceptions is required before changing the bundled
+manifest to the Wasmtime async runtime.
 
 By default, release packages include every supported PHP version listed in the
 asset manifest. Use repeatable `--php-version=<version>` only for intentionally

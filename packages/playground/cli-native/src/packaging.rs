@@ -863,9 +863,7 @@ fn selected_php_manifest(
                 .iter()
                 .find(|asset| &asset.version == version)
                 .ok_or_else(|| {
-                    CliError::new(format!(
-                        "No asyncify PHP asset is available for PHP {version}"
-                    ))
+                    CliError::new(format!("No PHP wasm asset is available for PHP {version}"))
                 })?;
             selected.push(asset.clone());
         }
@@ -873,7 +871,7 @@ fn selected_php_manifest(
     };
     if php.is_empty() {
         return Err(CliError::new(format!(
-            "No supported asyncify PHP assets are available. Supported versions: {}",
+            "No supported PHP wasm assets are available. Supported versions: {}",
             SUPPORTED_PHP_VERSIONS.join(", ")
         )));
     }

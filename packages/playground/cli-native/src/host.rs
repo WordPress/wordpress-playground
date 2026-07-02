@@ -25,7 +25,9 @@ use wasmtime::{
     Caller, ExternType, Func, Global, Linker, Memory, Module, Ref, Store, Val, ValType,
 };
 
-use crate::{vfs::normalize_vfs_path, CliError, Result};
+use futures_executor::block_on;
+
+use crate::{assets::PhpAssetRuntime, vfs::normalize_vfs_path, CliError, Result};
 
 type GuestIovWrites = Vec<(i32, Vec<u8>)>;
 type HostIovReadResult = std::result::Result<(GuestIovWrites, usize, usize), i32>;
@@ -343,6 +345,7 @@ pub struct HostOptions {
     pub opcache_mode: OpcacheMode,
     pub host_cache: bool,
     pub php_version: Option<String>,
+    pub php_runtime: PhpAssetRuntime,
 }
 
 impl Default for HostOptions {
@@ -359,6 +362,7 @@ impl Default for HostOptions {
             opcache_mode: OpcacheMode::default(),
             host_cache: false,
             php_version: None,
+            php_runtime: PhpAssetRuntime::Asyncify,
         }
     }
 }
@@ -2252,18 +2256,23 @@ pub struct StubImportLinker {
     pub store: Store<HostState>,
     pub imports: Vec<StubbedImport>,
     got_func_globals: HashMap<String, Global>,
+    uses_wasmtime_async: bool,
 }
 
 impl StubImportLinker {
     pub fn instantiate(&mut self, module: &Module) -> Result<wasmtime::Instance> {
-        let instance = self
-            .linker
-            .instantiate(&mut self.store, module)
-            .map_err(|error| {
-                CliError::new(format!("Failed to instantiate wasm module: {error}"))
-            })?;
+        let instance = if self.uses_wasmtime_async {
+            block_on(self.linker.instantiate_async(&mut self.store, module))
+        } else {
+            self.linker.instantiate(&mut self.store, module)
+        }
+        .map_err(|error| CliError::new(format!("Failed to instantiate wasm module: {error}")))?;
         self.patch_got_func_exit(&instance)?;
         Ok(instance)
+    }
+
+    pub fn uses_wasmtime_async(&self) -> bool {
+        self.uses_wasmtime_async
     }
 
     fn patch_got_func_exit(&mut self, instance: &wasmtime::Instance) -> Result<()> {
@@ -2303,6 +2312,8 @@ pub fn create_stub_import_linker_with_options(
     options: HostOptions,
 ) -> Result<StubImportLinker> {
     let engine = module.engine();
+    let php_runtime = options.php_runtime;
+    let uses_wasmtime_async = php_runtime.uses_wasmtime_async();
     let retain_import_metadata = options.capture_import_trace || options.max_import_calls.is_some();
     let mut store = Store::new(engine, HostState::new(options));
     let mut linker = Linker::new(engine);
@@ -2324,6 +2335,7 @@ pub fn create_stub_import_linker_with_options(
                     &module_name,
                     &import_name,
                     &import_label,
+                    php_runtime,
                 )? {
                     classification = classify_special_func_import(&module_name, &import_name);
                     // Defined by the native PHP host layer.
@@ -2407,6 +2419,7 @@ pub fn create_stub_import_linker_with_options(
         store,
         imports,
         got_func_globals,
+        uses_wasmtime_async,
     })
 }
 
@@ -2505,6 +2518,7 @@ fn is_special_func_import(module_name: &str, import_name: &str) -> bool {
                 | "js_waitpid"
                 | "js_process_status"
                 | "js_popen_to_file"
+                | "__asyncjs__js_popen_to_file"
                 | "js_flock"
                 | "js_release_file_locks"
                 | "getaddrinfo"
@@ -2561,6 +2575,7 @@ fn is_special_func_import(module_name: &str, import_name: &str) -> bool {
                 | "__syscall_listen"
                 | "__syscall_accept4"
                 | "__syscall_sendto"
+                | "__syscall_sendmsg"
                 | "__syscall_recvfrom"
                 | "__syscall_getsockopt"
                 | "__syscall_getsockname"
@@ -2571,6 +2586,7 @@ fn is_special_func_import(module_name: &str, import_name: &str) -> bool {
                 | "strptime"
                 | "_mmap_js"
                 | "_munmap_js"
+                | "__asyncjs__wasm_poll_socket"
         )
 }
 
@@ -2732,6 +2748,7 @@ fn define_special_func_import(
     module_name: &str,
     import_name: &str,
     import_label: &str,
+    php_runtime: PhpAssetRuntime,
 ) -> Result<bool> {
     if module_name == "wasi_snapshot_preview1" {
         match import_name {
@@ -3148,31 +3165,25 @@ fn define_special_func_import(
                               exit_code_ptr: i32|
                               -> wasmtime::Result<i32> {
                             caller.data_mut().record_import(&label)?;
-                            if command == 0 || mode == 0 {
-                                if exit_code_ptr != 0 {
-                                    write_u8(&mut caller, exit_code_ptr, 1)?;
-                                }
-                                set_errno(&mut caller, EINVAL)?;
-                                return Ok(0);
-                            }
-                            let command = read_c_string(&mut caller, command)?;
-                            let mode = read_c_string(&mut caller, mode)?;
-                            let result = caller.data_mut().run_popen_command(&command, &mode);
-                            match result {
-                                Ok((path, exit_code)) => {
-                                    if exit_code_ptr != 0 {
-                                        write_u8(&mut caller, exit_code_ptr, exit_code as u8)?;
-                                    }
-                                    write_malloced_c_string(&mut caller, &path)
-                                }
-                                Err(errno) => {
-                                    set_errno(&mut caller, errno)?;
-                                    if exit_code_ptr != 0 {
-                                        write_u8(&mut caller, exit_code_ptr, 1)?;
-                                    }
-                                    Ok(0)
-                                }
-                            }
+                            js_popen_to_file(&mut caller, command, mode, exit_code_ptr)
+                        },
+                    )
+                    .map_err(|error| define_error(import_label, error))?;
+                return Ok(true);
+            }
+            "__asyncjs__js_popen_to_file" => {
+                let label = import_label.to_string();
+                linker
+                    .func_wrap(
+                        module_name,
+                        import_name,
+                        move |mut caller: Caller<'_, HostState>,
+                              command: i32,
+                              mode: i32,
+                              exit_code_ptr: i32|
+                              -> wasmtime::Result<i32> {
+                            caller.data_mut().record_import(&label)?;
+                            js_popen_to_file(&mut caller, command, mode, exit_code_ptr)
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -3278,6 +3289,24 @@ fn define_special_func_import(
                 return Ok(true);
             }
             "wasm_poll_socket" => {
+                let label = import_label.to_string();
+                linker
+                    .func_wrap(
+                        module_name,
+                        import_name,
+                        move |mut caller: Caller<'_, HostState>,
+                              socket: i32,
+                              events: i32,
+                              timeout: i32|
+                              -> wasmtime::Result<i32> {
+                            caller.data_mut().record_import(&label)?;
+                            Ok(wasm_poll_socket(&mut caller, socket, events, timeout))
+                        },
+                    )
+                    .map_err(|error| define_error(import_label, error))?;
+                return Ok(true);
+            }
+            "__asyncjs__wasm_poll_socket" => {
                 let label = import_label.to_string();
                 linker
                     .func_wrap(
@@ -3443,7 +3472,12 @@ fn define_special_func_import(
                               _ms: i32|
                               -> wasmtime::Result<()> {
                             caller.data_mut().record_import(&label)?;
-                            emscripten_sleep(&mut caller)
+                            if php_runtime.uses_wasmtime_async() {
+                                emscripten_sleep_wasmtime_async(_ms);
+                                Ok(())
+                            } else {
+                                emscripten_sleep(&mut caller)
+                            }
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -4346,6 +4380,27 @@ fn define_special_func_import(
                     .map_err(|error| define_error(import_label, error))?;
                 return Ok(true);
             }
+            "__syscall_sendmsg" => {
+                let label = import_label.to_string();
+                linker
+                    .func_wrap(
+                        module_name,
+                        import_name,
+                        move |mut caller: Caller<'_, HostState>,
+                              _fd: i32,
+                              _message: i32,
+                              _flags: i32,
+                              _d: i32,
+                              _e: i32,
+                              _f: i32|
+                              -> wasmtime::Result<i32> {
+                            caller.data_mut().record_import(&label)?;
+                            Ok(-ENOSYS)
+                        },
+                    )
+                    .map_err(|error| define_error(import_label, error))?;
+                return Ok(true);
+            }
             "__syscall_getsockopt" => {
                 let label = import_label.to_string();
                 linker
@@ -4669,6 +4724,39 @@ fn set_threw(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<()> {
     set_threw.call(&mut *caller, &[Val::I32(1), Val::I32(0)], &mut [])
 }
 
+fn js_popen_to_file(
+    caller: &mut Caller<'_, HostState>,
+    command: i32,
+    mode: i32,
+    exit_code_ptr: i32,
+) -> wasmtime::Result<i32> {
+    if command == 0 || mode == 0 {
+        if exit_code_ptr != 0 {
+            write_u8(caller, exit_code_ptr, 1)?;
+        }
+        set_errno(caller, EINVAL)?;
+        return Ok(0);
+    }
+    let command = read_c_string(caller, command)?;
+    let mode = read_c_string(caller, mode)?;
+    let result = caller.data_mut().run_popen_command(&command, &mode);
+    match result {
+        Ok((path, exit_code)) => {
+            if exit_code_ptr != 0 {
+                write_u8(caller, exit_code_ptr, exit_code as u8)?;
+            }
+            write_malloced_c_string(caller, &path)
+        }
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            if exit_code_ptr != 0 {
+                write_u8(caller, exit_code_ptr, 1)?;
+            }
+            Ok(0)
+        }
+    }
+}
+
 fn emscripten_sleep(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<()> {
     match caller.data().asyncify_state() {
         AsyncifyState::Normal => {
@@ -4685,6 +4773,15 @@ fn emscripten_sleep(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<()> 
         AsyncifyState::Unwinding => Err(wasmtime::Error::msg(
             "emscripten_sleep called while Asyncify is already unwinding",
         )),
+    }
+}
+
+fn emscripten_sleep_wasmtime_async(ms: i32) {
+    let Ok(ms) = u64::try_from(ms) else {
+        return;
+    };
+    if ms != 0 {
+        thread::sleep(Duration::from_millis(ms));
     }
 }
 

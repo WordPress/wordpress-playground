@@ -4,7 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use wasmtime::{Instance, Memory, Module, TypedFunc};
+use futures_executor::block_on;
+use wasmtime::{Instance, Memory, Module, TypedFunc, WasmParams, WasmResults};
 
 use crate::{
     host::{
@@ -77,6 +78,7 @@ pub struct PhpInstance {
     exports: PhpExportCache,
     php_initialized: bool,
     bulk_sapi_request_supported: bool,
+    uses_wasmtime_async: bool,
 }
 
 #[derive(Default)]
@@ -121,6 +123,7 @@ impl NativeRuntime {
         host_options
             .php_version
             .get_or_insert_with(|| php_version.to_string());
+        host_options.php_runtime = self.manifest().php_runtime()?;
         PhpInstance::from_module_with_host_options(module, host_options)
     }
 
@@ -177,7 +180,8 @@ impl PhpInstance {
         let mut linker =
             crate::host::create_stub_import_linker_with_options(&module, host_options)?;
         let instance = linker.instantiate(&module)?;
-        call_optional_wasm_ctors(&mut linker, &instance)?;
+        let uses_wasmtime_async = linker.uses_wasmtime_async();
+        call_optional_wasm_ctors(&mut linker, &instance, uses_wasmtime_async)?;
         let bulk_sapi_request_supported = instance
             .get_func(&mut linker.store, "wasm_sapi_set_request")
             .is_some();
@@ -187,6 +191,7 @@ impl PhpInstance {
             exports: PhpExportCache::default(),
             php_initialized: false,
             bulk_sapi_request_supported,
+            uses_wasmtime_async,
         })
     }
 
@@ -207,14 +212,13 @@ impl PhpInstance {
         let len = u32::try_from(len)
             .map_err(|_| CliError::new(format!("Allocation too large: {len} bytes")))?;
         let malloc = self.cached_export1_i32_to_i32("malloc", |exports| &mut exports.malloc)?;
-        malloc
-            .call(&mut self.linker.store, len)
+        self.call_typed_export(&malloc, len)
             .map_err(|error| CliError::new(format!("malloc({len}) failed: {error}")))
     }
 
     pub fn free(&mut self, ptr: u32) -> Result<()> {
         let free = self.cached_free_export()?;
-        free.call(&mut self.linker.store, ptr)
+        self.call_typed_export(&free, ptr)
             .map_err(|error| CliError::new(format!("free({ptr}) failed: {error}")))
     }
 
@@ -258,6 +262,22 @@ impl PhpInstance {
             .map_err(|error| CliError::new(format!("Invalid UTF-8 in wasm string: {error}")))
     }
 
+    fn call_typed_export<Params, Results>(
+        &mut self,
+        func: &TypedFunc<Params, Results>,
+        params: Params,
+    ) -> wasmtime::Result<Results>
+    where
+        Params: WasmParams + Sync,
+        Results: WasmResults + Sync,
+    {
+        if self.uses_wasmtime_async {
+            block_on(func.call_async(&mut self.linker.store, params))
+        } else {
+            func.call(&mut self.linker.store, params)
+        }
+    }
+
     pub fn memory_stats(&mut self) -> Result<PhpMemoryStats> {
         let memory_size_bytes = self.memory_size_bytes()?;
         Ok(PhpMemoryStats {
@@ -277,7 +297,7 @@ impl PhpInstance {
             .instance
             .get_typed_func::<(), u32>(&mut self.linker.store, "emscripten_get_sbrk_ptr")
             .ok()?;
-        let sbrk_ptr = func.call(&mut self.linker.store, ()).ok()?;
+        let sbrk_ptr = self.call_typed_export(&func, ()).ok()?;
         let bytes = self.read_bytes(sbrk_ptr, 4).ok()?;
         Some(u32::from_le_bytes(bytes.try_into().ok()?))
     }
@@ -287,8 +307,7 @@ impl PhpInstance {
             .instance
             .get_typed_func::<u32, u32>(&mut self.linker.store, "zend_memory_usage")
             .ok()?;
-        func.call(&mut self.linker.store, u32::from(real_usage))
-            .ok()
+        self.call_typed_export(&func, u32::from(real_usage)).ok()
     }
 
     pub fn define_constants(&mut self, constants: &[(String, PhpConstantValue)]) {
@@ -819,7 +838,7 @@ impl PhpInstance {
         slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<(), ()>>,
     ) -> Result<()> {
         let func = self.cached_export_void0(export, slot)?;
-        func.call(&mut self.linker.store, ())
+        self.call_typed_export(&func, ())
             .map_err(|error| CliError::new(format!("{export} failed: {error}")))
     }
 
@@ -830,7 +849,7 @@ impl PhpInstance {
         slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<u32, i32>>,
     ) -> Result<i32> {
         let func = self.cached_export1_i32(export, slot)?;
-        func.call(&mut self.linker.store, arg).map_err(|error| {
+        self.call_typed_export(&func, arg).map_err(|error| {
             CliError::new(format!(
                 "{export} failed: {error}; host import count: {}; recent host imports: {}",
                 self.host_import_count(),
@@ -846,7 +865,7 @@ impl PhpInstance {
         slot: fn(&mut PhpExportCache) -> &mut Option<TypedFunc<u32, ()>>,
     ) -> Result<()> {
         let func = self.cached_export1_void(export, slot)?;
-        func.call(&mut self.linker.store, arg).map_err(|error| {
+        self.call_typed_export(&func, arg).map_err(|error| {
             CliError::new(format!(
                 "{export} failed: {error}; host import count: {}; recent host imports: {}",
                 self.host_import_count(),
@@ -863,7 +882,7 @@ impl PhpInstance {
         slot: PhpExport2I32Slot,
     ) -> Result<i32> {
         let func = self.cached_export2_i32(export, slot)?;
-        func.call(&mut self.linker.store, (arg1, arg2))
+        self.call_typed_export(&func, (arg1, arg2))
             .map_err(|error| {
                 CliError::new(format!(
                     "{export} failed: {error}; host import count: {}; recent host imports: {}",
@@ -881,7 +900,7 @@ impl PhpInstance {
         slot: PhpExport2VoidSlot,
     ) -> Result<()> {
         let func = self.cached_export2_void(export, slot)?;
-        func.call(&mut self.linker.store, (arg1, arg2))
+        self.call_typed_export(&func, (arg1, arg2))
             .map_err(|error| {
                 CliError::new(format!(
                     "{export} failed: {error}; host import count: {}; recent host imports: {}",
@@ -892,6 +911,22 @@ impl PhpInstance {
     }
 
     fn call_typed_export0_i32(&mut self, export: &str, func: TypedFunc<(), i32>) -> Result<i32> {
+        if self.uses_wasmtime_async {
+            return match self.call_typed_export(&func, ()) {
+                Ok(value) => Ok(value),
+                Err(error) => {
+                    if let Some(exit_status) = error.downcast_ref::<PhpExitStatus>() {
+                        return Ok(exit_status.0);
+                    }
+                    Err(CliError::new(format!(
+                        "{export} failed: {error}; host import count: {}; recent host imports: {}",
+                        self.host_import_count(),
+                        self.recent_host_imports(120)
+                    )))
+                }
+            };
+        }
+
         loop {
             match func.call(&mut self.linker.store, ()) {
                 Ok(value) => {
@@ -1320,6 +1355,7 @@ fn import_family_name(import: &str) -> String {
         } else if matches!(
             name,
             "wasm_poll_socket"
+                | "__asyncjs__wasm_poll_socket"
                 | "wasm_close"
                 | "wasm_shutdown"
                 | "wasm_setsockopt"
@@ -1364,7 +1400,11 @@ fn import_family_name(import: &str) -> String {
             "env.runtime"
         } else if matches!(
             name,
-            "js_open_process" | "js_waitpid" | "js_process_status" | "js_popen_to_file"
+            "js_open_process"
+                | "js_waitpid"
+                | "js_process_status"
+                | "js_popen_to_file"
+                | "__asyncjs__js_popen_to_file"
         ) {
             "env.process"
         } else if name.starts_with("js_") {
@@ -1593,16 +1633,23 @@ fn write_sapi_blob_u32(blob: &mut [u8], offset: usize, value: u32) {
     blob[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-fn call_optional_wasm_ctors(linker: &mut StubImportLinker, instance: &Instance) -> Result<()> {
+fn call_optional_wasm_ctors(
+    linker: &mut StubImportLinker,
+    instance: &Instance,
+    uses_wasmtime_async: bool,
+) -> Result<()> {
     let Some(func) = instance.get_func(&mut linker.store, "__wasm_call_ctors") else {
         return Ok(());
     };
     let typed = func
         .typed::<(), ()>(&linker.store)
         .map_err(|error| CliError::new(format!("Invalid __wasm_call_ctors export: {error}")))?;
-    typed
-        .call(&mut linker.store, ())
-        .map_err(|error| CliError::new(format!("__wasm_call_ctors failed: {error}")))
+    let result = if uses_wasmtime_async {
+        block_on(typed.call_async(&mut linker.store, ()))
+    } else {
+        typed.call(&mut linker.store, ())
+    };
+    result.map_err(|error| CliError::new(format!("__wasm_call_ctors failed: {error}")))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

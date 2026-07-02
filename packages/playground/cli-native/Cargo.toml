@@ -22,6 +22,7 @@ name = "wp_playground_native"
 path = "src/lib.rs"
 
 [dependencies]
+futures-executor = "0.3"
 getrandom = "0.3.4"
 mio = { version = "1.2.1", features = ["net", "os-poll"] }
 reqwest = { version = "0.12", default-features = false, features = [
@@ -32,6 +33,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 socket2 = "0.6"
 wasmtime = { version = "46.0.0", default-features = false, features = [
+	"async",
 	"cache",
 	"cranelift",
 	"parallel-compilation",

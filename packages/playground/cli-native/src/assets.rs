@@ -13,7 +13,42 @@ pub const SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str =
 pub const PACKAGED_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str = "assets/php-assets.json";
 pub const FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str = "php-assets.json";
 const PHP_ASSET_MANIFEST_SCHEMA_VERSION: u8 = 1;
-const PHP_ASSET_MANIFEST_RUNTIME: &str = "node-builds/asyncify";
+pub const PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC: &str = "node-builds/jspi";
+pub const PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY: &str = "node-builds/asyncify";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PhpAssetRuntime {
+    Asyncify,
+    WasmtimeAsync,
+}
+
+impl PhpAssetRuntime {
+    pub fn from_manifest_runtime(runtime: &str) -> Option<Self> {
+        match runtime {
+            PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY => Some(Self::Asyncify),
+            PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC => Some(Self::WasmtimeAsync),
+            _ => None,
+        }
+    }
+
+    pub fn manifest_runtime(self) -> &'static str {
+        match self {
+            Self::Asyncify => PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY,
+            Self::WasmtimeAsync => PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC,
+        }
+    }
+
+    fn build_dir_name(self) -> &'static str {
+        match self {
+            Self::Asyncify => "asyncify",
+            Self::WasmtimeAsync => "jspi",
+        }
+    }
+
+    pub fn uses_wasmtime_async(self) -> bool {
+        matches!(self, Self::WasmtimeAsync)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FileAsset {
@@ -53,6 +88,17 @@ struct RawPhpAsset {
 }
 
 impl AssetManifest {
+    pub fn php_runtime(&self) -> Result<PhpAssetRuntime> {
+        PhpAssetRuntime::from_manifest_runtime(&self.runtime).ok_or_else(|| {
+            CliError::new(format!(
+                "Unsupported PHP asset manifest runtime `{}`; expected `{}` or `{}`",
+                self.runtime,
+                PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY,
+                PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC
+            ))
+        })
+    }
+
     pub fn to_json(&self) -> String {
         let mut json = String::new();
         json.push_str("{\n");
@@ -132,6 +178,7 @@ pub fn discover_php_assets(repo_root: &Path) -> Result<AssetManifest> {
         )));
     }
 
+    let runtime = PhpAssetRuntime::Asyncify;
     let mut php = Vec::new();
     for entry in fs::read_dir(&builds_root)? {
         let entry = entry?;
@@ -142,12 +189,12 @@ pub fn discover_php_assets(repo_root: &Path) -> Result<AssetManifest> {
         let Some(version) = version_from_build_dir(&build_dir) else {
             continue;
         };
-        let asyncify = build_dir.join("asyncify");
-        if !asyncify.is_dir() {
+        let runtime_dir = build_dir.join(runtime.build_dir_name());
+        if !runtime_dir.is_dir() {
             continue;
         }
-        let js = find_prefixed_file(&asyncify, "php_", "js")?;
-        let wasm = find_wasm_file(&asyncify)?;
+        let js = find_prefixed_file(&runtime_dir, "php_", "js")?;
+        let wasm = find_wasm_file(&runtime_dir)?;
         php.push(PhpAsset {
             version,
             js: file_asset(repo_root, &js)?,
@@ -162,7 +209,7 @@ pub fn discover_php_assets(repo_root: &Path) -> Result<AssetManifest> {
 
     Ok(AssetManifest {
         schema_version: PHP_ASSET_MANIFEST_SCHEMA_VERSION,
-        runtime: PHP_ASSET_MANIFEST_RUNTIME.to_string(),
+        runtime: runtime.manifest_runtime().to_string(),
         php,
     })
 }
@@ -225,10 +272,12 @@ fn validate_raw_manifest(raw: &RawAssetManifest) -> Result<()> {
             raw.schema_version, PHP_ASSET_MANIFEST_SCHEMA_VERSION
         )));
     }
-    if raw.runtime != PHP_ASSET_MANIFEST_RUNTIME {
+    if PhpAssetRuntime::from_manifest_runtime(&raw.runtime).is_none() {
         return Err(CliError::new(format!(
-            "Unsupported PHP asset manifest runtime `{}`; expected `{}`",
-            raw.runtime, PHP_ASSET_MANIFEST_RUNTIME
+            "Unsupported PHP asset manifest runtime `{}`; expected `{}` or `{}`",
+            raw.runtime,
+            PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY,
+            PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC
         )));
     }
     if raw.php.is_empty() {
@@ -309,11 +358,7 @@ pub fn select_php_asset<'a>(manifest: &'a AssetManifest, version: &str) -> Resul
         .php
         .iter()
         .find(|asset| asset.version == version)
-        .ok_or_else(|| {
-            CliError::new(format!(
-                "No asyncify PHP asset is available for PHP {version}"
-            ))
-        })
+        .ok_or_else(|| CliError::new(format!("No PHP wasm asset is available for PHP {version}")))
 }
 
 fn version_from_build_dir(path: &Path) -> Option<String> {
@@ -351,9 +396,9 @@ fn find_prefixed_file(dir: &Path, prefix: &str, extension: &str) -> Result<PathB
     })
 }
 
-fn find_wasm_file(asyncify_dir: &Path) -> Result<PathBuf> {
+fn find_wasm_file(runtime_dir: &Path) -> Result<PathBuf> {
     let mut candidates = Vec::new();
-    for entry in fs::read_dir(asyncify_dir)? {
+    for entry in fs::read_dir(runtime_dir)? {
         let entry = entry?;
         let path = entry.path();
         if !path.is_dir() {
@@ -366,8 +411,8 @@ fn find_wasm_file(asyncify_dir: &Path) -> Result<PathBuf> {
     candidates.sort();
     candidates.into_iter().next().ok_or_else(|| {
         CliError::new(format!(
-            "No asyncify php_*.wasm file found in {}",
-            asyncify_dir.display()
+            "No php_*.wasm file found in {}",
+            runtime_dir.display()
         ))
     })
 }
@@ -391,7 +436,7 @@ fn escape_json(value: &str) -> String {
 mod tests {
     use super::{
         discover_php_assets, find_php_assets_manifest, load_php_assets_manifest, select_php_asset,
-        verify_file_asset, FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH,
+        verify_file_asset, PhpAssetRuntime, FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH,
         PACKAGED_PHP_ASSET_MANIFEST_RELATIVE_PATH, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
     };
     use std::{
@@ -479,6 +524,30 @@ mod tests {
     }
 
     #[test]
+    fn loads_wasmtime_async_manifest_runtime() {
+        let root = temp_dir("wasmtime-async-runtime");
+        let manifest = write_manifest_json(
+            &root,
+            "runtime.json",
+            r#"{
+                "schemaVersion": 1,
+                "runtime": "node-builds/jspi",
+                "php": {
+                    "8.3": {
+                        "js": { "path": "php/php.js", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+                        "wasm": { "path": "php/php.wasm", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+                    }
+                }
+            }"#,
+        );
+        let manifest = load_php_assets_manifest(&manifest).unwrap();
+        assert_eq!(
+            manifest.php_runtime().unwrap(),
+            PhpAssetRuntime::WasmtimeAsync
+        );
+    }
+
+    #[test]
     fn finds_manifest_in_source_or_packaged_asset_layouts() {
         let source_root = temp_dir("source-layout");
         let source_manifest = write_manifest(&source_root, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH);
@@ -525,7 +594,7 @@ mod tests {
             "runtime.json",
             r#"{
                 "schemaVersion": 1,
-                "runtime": "node-builds/jspi",
+                "runtime": "node-builds/unknown",
                 "php": {
                     "8.3": {
                         "js": { "path": "php/php.js", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
