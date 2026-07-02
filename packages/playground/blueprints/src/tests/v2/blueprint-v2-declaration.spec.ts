@@ -280,9 +280,22 @@ const blueprintWithInvalidThemeCollisionHandling = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithMissingWxrAuthorsMap = {
+	version: 2,
+	content: [
+		// @ts-expect-error WXR author mapping must declare the author map.
+		{
+			type: 'wxr',
+			source: './content.wxr',
+			authorsMode: 'map',
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
 void blueprintWithInvalidPluginCollisionHandling;
 void blueprintWithInvalidThemeInstallFailureHandling;
 void blueprintWithInvalidThemeCollisionHandling;
+void blueprintWithMissingWxrAuthorsMap;
