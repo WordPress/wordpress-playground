@@ -139,6 +139,20 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprint.version).toBe(2);
 	});
+
+	it('accepts theme install failure handling', () => {
+		const blueprint = {
+			version: 2,
+			themes: [
+				{
+					source: 'twentytwentyfour',
+					onError: 'skip-theme',
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
@@ -206,7 +220,19 @@ const blueprintWithInvalidPluginCollisionHandling = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithInvalidThemeInstallFailureHandling = {
+	version: 2,
+	themes: [
+		{
+			source: 'twentytwentyfour',
+			// @ts-expect-error Theme install failure handling must be theme-specific.
+			onError: 'skip-plugin',
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
 void blueprintWithInvalidPluginCollisionHandling;
+void blueprintWithInvalidThemeInstallFailureHandling;
