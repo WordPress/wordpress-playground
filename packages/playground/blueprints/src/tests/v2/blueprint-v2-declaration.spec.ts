@@ -153,6 +153,24 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprint.version).toBe(2);
 	});
+
+	it('accepts theme install collision handling', () => {
+		const blueprint = {
+			version: 2,
+			activeTheme: {
+				source: 'twentytwentyfour',
+				ifAlreadyInstalled: 'skip',
+			},
+			themes: [
+				{
+					source: 'twentytwentythree',
+					ifAlreadyInstalled: 'error',
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
@@ -231,8 +249,20 @@ const blueprintWithInvalidThemeInstallFailureHandling = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithInvalidThemeCollisionHandling = {
+	version: 2,
+	themes: [
+		{
+			source: 'twentytwentyfour',
+			// @ts-expect-error Theme collision handling must be a known policy.
+			ifAlreadyInstalled: 'replace',
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
 void blueprintWithInvalidPluginCollisionHandling;
 void blueprintWithInvalidThemeInstallFailureHandling;
+void blueprintWithInvalidThemeCollisionHandling;
