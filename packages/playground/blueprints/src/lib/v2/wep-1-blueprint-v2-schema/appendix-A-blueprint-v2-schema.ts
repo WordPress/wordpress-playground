@@ -566,14 +566,14 @@ export namespace V2Schema {
 		  };
 
 	type PluginDefinition =
-		| DataSources.DataReference
+		| DataSources.PluginDataReference
 		| DataSources.PluginDirectoryReference
 		| PluginObjectDefinition;
 
 	// Separated from PluginDefinition to avoid duplicate step entries in the generated JSON schema
 	type PluginObjectDefinition = {
 		source:
-			| DataSources.DataReference
+			| DataSources.PluginDataReference
 			| DataSources.PluginDirectoryReference;
 
 		/**
