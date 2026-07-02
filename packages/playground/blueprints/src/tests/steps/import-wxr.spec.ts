@@ -242,6 +242,123 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should pass the attachment fetching option to the importer',
+		async () => {
+			await php.run({
+				code: `<?php
+			$mu_plugins_dir = getenv('DOCROOT') . '/wp-content/mu-plugins';
+			if (!is_dir($mu_plugins_dir)) {
+				mkdir($mu_plugins_dir, 0777, true);
+			}
+			file_put_contents(
+				$mu_plugins_dir . '/capture-wxr-fetch-attachments.php',
+				<<<'PHP'
+				<?php
+				add_filter('pre_http_request', function($preempt, $parsed_args, $url) {
+					update_option(
+						'playground_wxr_attachment_request_count',
+						(int) get_option('playground_wxr_attachment_request_count', 0) + 1
+					);
+					return new WP_Error('playground_blocked_attachment_fetch', 'Blocked test attachment fetch.');
+				}, 10, 3);
+				PHP
+			);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			const createAttachmentWxr = (
+				postId: number
+			) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Attachment import</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	<item>
+		<title>Remote image</title>
+		<link>https://example.com/wp-content/uploads/image.jpg</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/wp-content/uploads/image.jpg</guid>
+		<description></description>
+		<content:encoded><![CDATA[]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${postId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[remote-image]]></wp:post_name>
+		<wp:status><![CDATA[inherit]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[attachment]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<wp:attachment_url><![CDATA[https://example.com/wp-content/uploads/image.jpg]]></wp:attachment_url>
+	</item>
+</channel>
+</rss>`;
+
+			await importWxr(php, {
+				file: new File([createAttachmentWxr(9001)], 'import.wxr'),
+			});
+
+			const defaultResult = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((int) get_option('playground_wxr_attachment_request_count', 0));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(defaultResult.json).toBeGreaterThan(0);
+
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			update_option('playground_wxr_attachment_request_count', 0);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file: new File([createAttachmentWxr(9002)], 'import.wxr'),
+				fetchAttachments: false,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((int) get_option('playground_wxr_attachment_request_count', 0));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toBe(0);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should rewrite site URLs in the imported content (tt5 playground content)',
 		async () => {
 			const fileData = await readFile(
