@@ -102,6 +102,26 @@ describe('Blueprint v2 declaration types', () => {
 		expect(blueprint.version).toBe(2);
 	});
 
+	it('accepts WXR source lists', () => {
+		const blueprint = {
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: [
+						'./products.wxr',
+						{
+							filename: 'pages.wxr',
+							content: '<rss version="2.0"></rss>',
+						},
+					],
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
+
 	it('accepts Blueprint v2 runtime version labels', () => {
 		const blueprints = [
 			{
