@@ -41,6 +41,7 @@ import {
 	deleteDirectoryHandle,
 } from '../opfs/opfs-directory-handle-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { logger } from '@php-wasm/logger';
 import { redirectTo } from '../url/router';
 
 export interface SiteSettings {
