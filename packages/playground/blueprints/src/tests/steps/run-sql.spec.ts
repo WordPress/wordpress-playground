@@ -85,6 +85,45 @@ describe('Blueprint step runSql', () => {
 		);
 	});
 
+	it('should rewrite mapped URLs in SQL query text', async () => {
+		await runSql(php, {
+			sql: new File(
+				[
+					`SELECT 'https://source.example/wp-content/uploads/image.jpg';`,
+				],
+				'mapped-url.sql'
+			),
+			urlsMap: {
+				'https://source.example': 'https://target.example',
+			},
+		});
+
+		const result = php.readFileAsText(outputLogPath);
+		expect(result).toBe(
+			`{"type":"SQL_QUERY","query":"SELECT 'https:\\/\\/target.example\\/wp-content\\/uploads\\/image.jpg';"}\n`
+		);
+	});
+
+	it('should preserve mapped URLs when urlsMode is preserve', async () => {
+		await runSql(php, {
+			sql: new File(
+				[
+					`SELECT 'https://source.example/wp-content/uploads/image.jpg';`,
+				],
+				'preserved-url.sql'
+			),
+			urlsMode: 'preserve',
+			urlsMap: {
+				'https://source.example': 'https://target.example',
+			},
+		});
+
+		const result = php.readFileAsText(outputLogPath);
+		expect(result).toBe(
+			`{"type":"SQL_QUERY","query":"SELECT 'https:\\/\\/source.example\\/wp-content\\/uploads\\/image.jpg';"}\n`
+		);
+	});
+
 	it('should split and "run" multiple sql queries', async () => {
 		await runSql(php, {
 			sql: new File(

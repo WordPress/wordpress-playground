@@ -29,6 +29,16 @@ export interface RunSqlStep<ResourceType> {
 	 * The SQL to run. Each non-empty line must contain a valid SQL query.
 	 */
 	sql: ResourceType;
+	/**
+	 * Whether to rewrite URLs in the SQL query text before execution.
+	 *
+	 * @default "rewrite"
+	 */
+	urlsMode?: 'rewrite' | 'preserve';
+	/**
+	 * Explicit URL replacements to apply to the SQL query text before execution.
+	 */
+	urlsMap?: Record<string, string>;
 }
 
 /**
@@ -42,7 +52,7 @@ export interface RunSqlStep<ResourceType> {
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
-	{ sql },
+	{ sql, urlsMode = 'rewrite', urlsMap = {} },
 	progress?
 ) => {
 	progress?.tracker.setCaption(`Executing SQL Queries`);
@@ -61,8 +71,15 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 	);
 
 	const docroot = await playground.documentRoot;
+	const urlReplacements =
+		urlsMode === 'rewrite' ? JSON.stringify(urlsMap) : '{}';
 
-	const js = phpVars({ docroot, sqlFilename, streamClassFilename });
+	const js = phpVars({
+		docroot,
+		sqlFilename,
+		streamClassFilename,
+		urlReplacements,
+	});
 
 	const runPhp = await playground.run({
 		code: `<?php
@@ -75,6 +92,24 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		global $wpdb;
 
 		do_action('run_sql_step');
+
+		$url_replacements = json_decode(${js.urlReplacements}, true);
+		if (!is_array($url_replacements)) {
+			throw new Exception('Invalid SQL URL replacements.');
+		}
+
+		if (!function_exists('playground_rewrite_sql_urls')) {
+			function playground_rewrite_sql_urls($query, $url_replacements) {
+				// This is a raw SQL-dump rewrite hook. It handles explicit URL literals
+				// but does not try to infer source URLs or repair serialized PHP values.
+				foreach ($url_replacements as $from => $to) {
+					if (is_string($from) && is_string($to) && $from !== '') {
+						$query = str_replace($from, $to, $query);
+					}
+				}
+				return $query;
+			}
+		}
 
 		$stream = new WP_MySQL_Naive_Query_Stream();
 
@@ -97,6 +132,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 			// Process any complete queries in the stream
 			while ($stream->next_query()) {
 				$query = $stream->get_query();
+				$query = playground_rewrite_sql_urls($query, $url_replacements);
 				$wpdb->query($query);
 			}
 		}
@@ -107,6 +143,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		$stream->mark_input_complete();
 		while ($stream->next_query()) {
 			$query = $stream->get_query();
+			$query = playground_rewrite_sql_urls($query, $url_replacements);
 			$wpdb->query($query);
 		}
 	`,

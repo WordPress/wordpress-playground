@@ -1201,6 +1201,19 @@
 						"sql": {
 							"$ref": "#/definitions/FileReference",
 							"description": "The SQL to run. Each non-empty line must contain a valid SQL query."
+						},
+						"urlsMode": {
+							"type": "string",
+							"enum": ["rewrite", "preserve"],
+							"description": "Whether to rewrite URLs in the SQL query text before execution.",
+							"default": "rewrite"
+						},
+						"urlsMap": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Explicit URL replacements to apply to the SQL query text before execution."
 						}
 					},
 					"required": ["sql", "step"]
