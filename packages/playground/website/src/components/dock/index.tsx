@@ -3,7 +3,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
-	chevronDown,
 	close,
 	grid,
 	list,
@@ -15,6 +14,7 @@ import {
 } from '@wordpress/icons';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
+	dismissAutosaveNudge,
 	setDockFullWidth,
 	setShareExportOpen,
 	setSiteManagerOpen,
@@ -44,9 +44,13 @@ type DockSection = Exclude<
 >;
 
 const DRAG_EDGE = 8;
-// Pointer travel (px) before a press on the grip becomes a drag instead of a
-// tap — keeps a small jitter from nudging the dock sideways.
+// Pointer travel (px) before a press on the bare chrome becomes a drag instead
+// of a tap — keeps a small jitter from nudging the dock sideways.
 const DRAG_THRESHOLD = 4;
+// Presses on buttons arm the same drag (aiming for the thin bare chrome is
+// fiddly), but need a touch more travel so a sloppy click on a tool stays a
+// click.
+const BUTTON_DRAG_THRESHOLD = 6;
 // How far past the on-screen clamp the user has to keep pushing the dock toward
 // a side edge before releasing tucks it into a corner button there.
 const CORNER_OVERDRAG = 36;
@@ -127,11 +131,10 @@ function BracesIcon() {
 }
 
 /**
- * Horizontal expand/contract arrows for the full-width toggle. Arrows point out
- * to the edges to offer "stretch the dock full width"; they point in toward the
- * centre to offer "shrink back to a floating bar".
+ * Chevron for the toggle pill's left half. It collapses/expands the tools row
+ * and flips to point up (via CSS) when the tools are hidden.
  */
-function DockWidthIcon({ full }: { full: boolean }) {
+function DockCollapseChevron() {
 	return (
 		<svg
 			width="20"
@@ -139,26 +142,82 @@ function DockWidthIcon({ full }: { full: boolean }) {
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="1.8"
+			strokeWidth="2"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
 		>
-			{full ? (
-				<>
-					<path d="M3 12h7" />
-					<path d="M7 8.5 10.5 12 7 15.5" />
-					<path d="M21 12h-7" />
-					<path d="M17 8.5 13.5 12 17 15.5" />
-				</>
-			) : (
-				<>
-					<path d="M10 12H3" />
-					<path d="M6.5 8.5 3 12l3.5 3.5" />
-					<path d="M14 12h7" />
-					<path d="M17.5 8.5 21 12l-3.5 3.5" />
-				</>
-			)}
+			<path d="M6 9l6 6 6-6" />
+		</svg>
+	);
+}
+
+/**
+ * Screen mark for the toggle pill's right half while the dock floats — the
+ * "go full width" action: a monitor whose content fills it edge to edge.
+ * The glyph itself carries the toggle's state (it swaps with the floating
+ * mark below), so the button needs no pressed styling.
+ */
+function DockFullWidthIcon() {
+	return (
+		<svg
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			fill="none"
+			aria-hidden="true"
+		>
+			<rect
+				x="3"
+				y="6"
+				width="18"
+				height="12"
+				rx="2.5"
+				stroke="currentColor"
+				strokeWidth="1.7"
+			/>
+			<rect
+				x="5.4"
+				y="8.4"
+				width="13.2"
+				height="7.2"
+				rx="1.3"
+				fill="currentColor"
+			/>
+		</svg>
+	);
+}
+
+/**
+ * The same screen while the dock is full width — the "back to floating"
+ * action: a small window floating inside the monitor.
+ */
+function DockFloatingIcon() {
+	return (
+		<svg
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			fill="none"
+			aria-hidden="true"
+		>
+			<rect
+				x="3"
+				y="6"
+				width="18"
+				height="12"
+				rx="2.5"
+				stroke="currentColor"
+				strokeWidth="1.7"
+			/>
+			<rect
+				x="7"
+				y="9.5"
+				width="10"
+				height="5"
+				rx="1.3"
+				fill="currentColor"
+			/>
 		</svg>
 	);
 }
@@ -313,7 +372,8 @@ export function Dock() {
 	const dockFullWidth = useAppSelector((state) => state.ui.dockFullWidth);
 	// A restorable recent autosave surfaces as a dot on the Playgrounds tool and
 	// (on first detection) a panel anchored to it. The dot persists until the
-	// user restores or mutes; muting hides the proactive cues entirely.
+	// user restores, opens Your Playgrounds (seeing the list acknowledges it),
+	// or mutes; muting hides the proactive cues entirely.
 	const showAutosaveCue = !!autosaveNudge && !autosaveNudgeMuted;
 	// The Playgrounds tool element, captured so the autosave panel can anchor to
 	// it (it's the home for recovery — opening it lists the autosaves).
@@ -331,16 +391,18 @@ export function Dock() {
 	// The dock's header chevron — always visible (even when collapsed), so it's a
 	// reliable focus fallback when the triggering tool isn't focusable on close.
 	const collapseToggleRef = useRef<HTMLButtonElement>(null);
-	// Bottom-edge drag: the header band doubles as a drag handle. dragRef holds
-	// the live gesture's start state (pointer x, the dock's center x, and half the
-	// visible width for clamping); draggedRef flips true once the pointer passes
-	// the threshold, so the trailing click collapses only on a real tap.
-	const dragRef = useRef<{
-		startX: number;
-		startCenter: number;
-		halfWidth: number;
-	} | null>(null);
+	// Whole-surface drag (the hr-11 model, buttons included): any press on the
+	// dock — bare chrome or a tool — arms a drag, and it becomes one only past
+	// a small travel threshold, so a still press on a button is still a click.
+	// The gesture runs on window listeners created at pointerdown (a fast
+	// pointer can outrun the dock's own box), so what the release handler needs
+	// is mirrored into refs: draggedRef flips true past the threshold (the
+	// pressed control's trailing click is then swallowed), dragArmedRef tells
+	// the hover-sheen handler to stand down, and dragSideRef mirrors dragSide
+	// (the window handler would otherwise read a stale render's state).
+	const dragArmedRef = useRef(false);
 	const draggedRef = useRef(false);
+	const dragSideRef = useRef<'left' | 'right' | null>(null);
 	// Dragging the corner launcher back out maximizes the dock — the mirror of
 	// dragging the bar into a corner. cornerDragRef holds the gesture's start x;
 	// cornerDraggedRef flips true past the threshold so a plain tap still just
@@ -349,6 +411,9 @@ export function Dock() {
 	const cornerDragRef = useRef<{ startX: number } | null>(null);
 	const cornerDraggedRef = useRef(false);
 	const lastDockWidthRef = useRef(0);
+	// The corner launcher's box at the moment it was clicked — the unfold
+	// animation grows the dock out of exactly this spot.
+	const cornerRectRef = useRef<DOMRect | null>(null);
 	// Timer that re-enables transitions just after a sharp full-width toggle.
 	const modeSwitchTimer = useRef<number | null>(null);
 	const inlineRename = useInlineRename();
@@ -634,6 +699,12 @@ export function Dock() {
 	}, [siteManagerIsOpen]);
 
 	const openSection = (section: DockSection) => {
+		// Visiting Your Playgrounds acknowledges the autosave cue: the dot is a
+		// pointer to the recovery home, not an unread badge, so seeing the list
+		// clears it. Autosaves remain restorable from that list regardless.
+		if (section === 'playgrounds' && autosaveNudge) {
+			dispatch(dismissAutosaveNudge());
+		}
 		if (siteManagerIsOpen && normalizedSection === section) {
 			dispatch(setSiteManagerOpen(false));
 			return;
@@ -656,11 +727,61 @@ export function Dock() {
 	// mode it already spans the edge, and on mobile it's a fixed bottom bar.
 	const canDrag = !isMobile && !dockFullWidth;
 
-	// The header band doubles as the drag handle. A press that travels past the
-	// threshold drags the dock along the bottom edge; a press that doesn't is a
-	// plain tap and falls through to the click handler (collapse/expand).
-	const handleHeaderPointerDown = (event: React.PointerEvent) => {
-		if (!canDrag || event.button !== 0) {
+	// The chrome-anywhere drag must leave real controls alone — presses on the
+	// tools, the address bar, or the pill click and type as normal; only the
+	// bare dark surface is a grab.
+	const isInteractiveTarget = (target: EventTarget | null) =>
+		target instanceof Element &&
+		!!target.closest(
+			'button, a, input, textarea, select, [role="menu"], [role="menuitem"]'
+		);
+
+	// The grab affordance: warm light pools along the dock's top edge under the
+	// pointer (the hr-11 "sheen"). Written straight to CSS custom properties so
+	// tracking the pointer never re-renders the component.
+	const setSheen = (opacity: number, clientX?: number) => {
+		const dock = dockRef.current;
+		if (!dock) {
+			return;
+		}
+		dock.style.setProperty('--sheen-o', String(opacity));
+		if (clientX !== undefined) {
+			const rect = dock.getBoundingClientRect();
+			const x = Math.min(
+				Math.max(clientX - rect.left, 12),
+				Math.max(rect.width - 12, 12)
+			);
+			dock.style.setProperty('--sheen-x', `${x}px`);
+		}
+	};
+
+	// If the dock stops being draggable while lit (full width toggled, viewport
+	// crossed the mobile breakpoint), the affordance must not linger.
+	useEffect(() => {
+		if (!canDrag) {
+			dockRef.current?.style.setProperty('--sheen-o', '0');
+		}
+	}, [canDrag]);
+
+	// Text-editing surfaces keep their native press behavior (caret placement,
+	// selection); everything else on the dock — buttons included — can start a
+	// drag, so nobody has to aim for the thin bare chrome.
+	const isNativePressTarget = (target: EventTarget | null) =>
+		target instanceof Element &&
+		!!target.closest(
+			'input, textarea, select, a, [role="menu"], [role="menuitem"]'
+		);
+
+	// Any press on the dock arms a drag; it becomes one only once the pointer
+	// travels past the threshold (a touch more over buttons, so a sloppy click
+	// stays a click). A real drag swallows the pressed control's trailing
+	// click, so a tool never opens because you moved the dock by it.
+	const handleDockPointerDown = (event: React.PointerEvent) => {
+		if (
+			!canDrag ||
+			event.button !== 0 ||
+			isNativePressTarget(event.target)
+		) {
 			return;
 		}
 		const dock = dockRef.current;
@@ -668,63 +789,124 @@ export function Dock() {
 			return;
 		}
 		const rect = dock.getBoundingClientRect();
-		dragRef.current = {
-			startX: event.clientX,
-			startCenter: rect.left + rect.width / 2,
-			// The dock keeps its full width even when collapsed (only the clip
-			// hides part of it), so clamp by the full width — the centered notch
-			// then stays within the area where the expanded bar also fits.
-			halfWidth: dock.offsetWidth / 2,
+		const startX = event.clientX;
+		const startCenter = rect.left + rect.width / 2;
+		// The dock keeps its full width even when collapsed (only the clip
+		// hides part of it), so clamp by the full width — the centered notch
+		// then stays within the area where the expanded bar also fits.
+		const halfWidth = dock.offsetWidth / 2;
+		const onButton = isInteractiveTarget(event.target);
+		const threshold = onButton ? BUTTON_DRAG_THRESHOLD : DRAG_THRESHOLD;
+		const pointerId = event.pointerId;
+		// Pointer capture keeps the gesture alive when the cursor crosses into
+		// the WordPress preview iframe, whose document would otherwise swallow
+		// every pointer event and freeze the drag. Capturing retargets the
+		// eventual click though, so a press on a button defers it until the
+		// threshold confirms a drag (the click is dead at that point anyway);
+		// a press on the bare chrome is an inert tap and captures right away.
+		const capturePointer = () => {
+			try {
+				dockRef.current?.setPointerCapture(pointerId);
+			} catch {
+				// Synthetic/edge cases where capture isn't available; ignore.
+			}
 		};
+		if (!onButton) {
+			capturePointer();
+		}
+		dragArmedRef.current = true;
 		draggedRef.current = false;
-		event.currentTarget.setPointerCapture(event.pointerId);
+		const handleMove = (moveEvent: PointerEvent) => {
+			const dx = moveEvent.clientX - startX;
+			if (!draggedRef.current) {
+				if (Math.abs(dx) < threshold) {
+					return;
+				}
+				draggedRef.current = true;
+				setIsDragging(true);
+				capturePointer();
+			}
+			setSheen(1, moveEvent.clientX);
+			const min = halfWidth + DRAG_EDGE;
+			const max = Math.max(
+				min,
+				window.innerWidth - halfWidth - DRAG_EDGE
+			);
+			const desired = startCenter + dx;
+			// Keep pushing past the edge and the dock arms to dock into that
+			// corner.
+			const side =
+				desired < min - CORNER_OVERDRAG
+					? 'left'
+					: desired > max + CORNER_OVERDRAG
+						? 'right'
+						: null;
+			dragSideRef.current = side;
+			setDragSide(side);
+			setDockCenter(Math.min(Math.max(desired, min), max));
+		};
+		const handleUp = () => {
+			window.removeEventListener('pointermove', handleMove, true);
+			window.removeEventListener('pointerup', handleUp, true);
+			window.removeEventListener('pointercancel', handleUp, true);
+			dragArmedRef.current = false;
+			if (!draggedRef.current) {
+				// A still press — let the pressed control's click go through.
+				return;
+			}
+			draggedRef.current = false;
+			// A real drag: whatever was pressed (often a tool button now) must
+			// not also fire its click on release. That click is always the
+			// FIRST one after the release, so eat exactly one; the timeout only
+			// cleans up when the browser never fired a trailing click at all.
+			const eatClick = (clickEvent: MouseEvent) => {
+				clickEvent.stopPropagation();
+				clickEvent.preventDefault();
+			};
+			window.addEventListener('click', eatClick, {
+				capture: true,
+				once: true,
+			});
+			window.setTimeout(
+				() =>
+					window.removeEventListener('click', eatClick, {
+						capture: true,
+					}),
+				250
+			);
+			setIsDragging(false);
+			// Keep the sheen only if the pointer actually rests on the dock.
+			if (!dockRef.current?.matches(':hover')) {
+				setSheen(0);
+			}
+			// Released while pushed past the edge: fold the bar into a corner
+			// launcher. With motion allowed, play the shrink-to-corner animation
+			// first (committing to `cornered` on its end); reduced motion snaps
+			// straight to the launcher.
+			if (dragSideRef.current !== null && !prefersReducedMotion()) {
+				setIsCollapsed(false);
+				setIsFolding(true);
+			}
+		};
+		// Window-level listeners so a fast pointer can't outrun the dock's box.
+		window.addEventListener('pointermove', handleMove, true);
+		window.addEventListener('pointerup', handleUp, true);
+		window.addEventListener('pointercancel', handleUp, true);
 	};
 
-	const handleHeaderPointerMove = (event: React.PointerEvent) => {
-		const drag = dragRef.current;
-		if (!drag) {
+	const handleDockPointerMove = (event: React.PointerEvent) => {
+		// A live gesture drives the sheen from its own window listeners; this
+		// only runs the hover reveal — full strength over the bare chrome, a
+		// whisper over controls so the surface still reads as one.
+		if (dragArmedRef.current || !canDrag) {
 			return;
 		}
-		const dx = event.clientX - drag.startX;
-		if (!draggedRef.current && Math.abs(dx) < DRAG_THRESHOLD) {
-			return;
-		}
-		draggedRef.current = true;
-		setIsDragging(true);
-		const min = drag.halfWidth + DRAG_EDGE;
-		const max = Math.max(
-			min,
-			window.innerWidth - drag.halfWidth - DRAG_EDGE
-		);
-		const desired = drag.startCenter + dx;
-		// Keep pushing past the edge and the dock arms to dock into that corner.
-		setDragSide(
-			desired < min - CORNER_OVERDRAG
-				? 'left'
-				: desired > max + CORNER_OVERDRAG
-					? 'right'
-					: null
-		);
-		setDockCenter(Math.min(Math.max(desired, min), max));
+		setSheen(isInteractiveTarget(event.target) ? 0.12 : 1, event.clientX);
 	};
 
-	const handleHeaderPointerUp = (event: React.PointerEvent) => {
-		if (!dragRef.current) {
-			return;
-		}
-		try {
-			event.currentTarget.releasePointerCapture(event.pointerId);
-		} catch {
-			// The pointer may already be released; ignore.
-		}
-		dragRef.current = null;
-		setIsDragging(false);
-		// Released while pushed past the edge: fold the bar into a corner launcher.
-		// With motion allowed, play the shrink-to-corner animation first (committing
-		// to `cornered` on its end); reduced motion snaps straight to the launcher.
-		if (dragSide !== null && !prefersReducedMotion()) {
-			setIsCollapsed(false);
-			setIsFolding(true);
+	const handleDockPointerLeave = () => {
+		if (!dragArmedRef.current) {
+			setSheen(0);
 		}
 	};
 
@@ -829,6 +1011,92 @@ export function Dock() {
 		[]
 	);
 
+	// Maximize, explained by motion: the restored dock doesn't pop in — it
+	// slides out of the corner launcher's exact spot along the bottom edge,
+	// swelling as it travels, and unfurls into the bar in place (the genie
+	// idea, not the genie warp). Bottom-anchored scaling keeps it welded to
+	// the edge the whole way. The keyframes are computed per run because the
+	// travel distance depends on which corner it left from.
+	useLayoutEffect(() => {
+		if (!isUnfolding) {
+			return;
+		}
+		const dock = dockRef.current;
+		const source = cornerRectRef.current;
+		cornerRectRef.current = null;
+		if (!dock || !source || typeof dock.animate !== 'function') {
+			setIsUnfolding(false);
+			return;
+		}
+		const target = dock.getBoundingClientRect();
+		if (!target.width || !target.height) {
+			setIsUnfolding(false);
+			return;
+		}
+		const dx =
+			source.left + source.width / 2 - (target.left + target.width / 2);
+		const dy = source.bottom - target.bottom;
+		const sx = source.width / target.width;
+		const sy = source.height / target.height;
+		// Pre-scale radius so the tiny starting frame shows the launcher's own
+		// rounding, not a scaled-to-nothing sliver of the dock's corners.
+		const startRadius = Math.min(480, 13 / Math.max(sx, 0.03));
+		dock.style.transformOrigin = '50% 100%';
+		const travel = dock.animate(
+			[
+				{
+					transform: `translateX(-50%) translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`,
+					clipPath: `inset(0 round ${startRadius}px)`,
+				},
+				{
+					// Slides out of the corner along the edge first, swelling…
+					transform: `translateX(-50%) translate(${dx * 0.45}px, ${
+						dy * 0.85
+					}px) scale(${sx + (1 - sx) * 0.3}, ${sy + (1 - sy) * 0.34})`,
+					clipPath: `inset(0 round ${Math.max(
+						24,
+						startRadius * 0.4
+					)}px)`,
+					offset: 0.42,
+				},
+				{
+					// …then unfurls upward into the bar.
+					transform: 'translateX(-50%)',
+					clipPath: 'inset(0 round 18px 18px 0 0)',
+				},
+			],
+			{ duration: 440, easing: 'cubic-bezier(0.3, 0.9, 0.3, 1)' }
+		);
+		// The contents stay quiet until the frame is big enough to hold them.
+		const body = dock.querySelector<HTMLElement>(`.${css.dockBody}`);
+		const contentFade = body?.animate(
+			[
+				{ opacity: 0 },
+				{ opacity: 0, offset: 0.35 },
+				{ opacity: 1, offset: 0.85 },
+				{ opacity: 1 },
+			],
+			{ duration: 440, easing: 'linear' }
+		);
+		let finished = false;
+		const finish = () => {
+			if (finished) {
+				return;
+			}
+			finished = true;
+			dock.style.transformOrigin = '';
+			setIsUnfolding(false);
+		};
+		travel.addEventListener('finish', finish);
+		const timer = window.setTimeout(finish, 640);
+		return () => {
+			window.clearTimeout(timer);
+			travel.cancel();
+			contentFade?.cancel();
+			finish();
+		};
+	}, [isUnfolding]);
+
 	// The dock is welded to the bottom edge by CSS; JS feeds it the body height
 	// (the collapse slide distance) and, when dragged, the chosen center offset.
 	const dockStyle = {
@@ -884,16 +1152,15 @@ export function Dock() {
 	// shrink animation, so the corner state only commits once that finishes.
 	const cornered = dragSide !== null && !isDragging && !isFolding;
 
-	// The fold / unfold keyframes run on the nav itself; commit the resulting
-	// state when they end (ignore animations bubbling up from descendants).
+	// The fold keyframes run on the nav itself; commit the corner state when
+	// they end (ignore animations bubbling up from descendants). The unfold is
+	// driven by the Web Animations effect above, which ends itself.
 	const handleDockAnimationEnd = (event: React.AnimationEvent) => {
 		if (event.target !== dockRef.current) {
 			return;
 		}
 		if (isFolding) {
 			setIsFolding(false);
-		} else if (isUnfolding) {
-			setIsUnfolding(false);
 		}
 	};
 
@@ -917,11 +1184,15 @@ export function Dock() {
 					onPointerDown={handleCornerPointerDown}
 					onPointerMove={handleCornerPointerMove}
 					onPointerUp={handleCornerPointerUp}
-					onClick={() => {
+					onClick={(event) => {
 						// A drag already handled the restore; ignore the trailing click.
 						if (cornerDraggedRef.current) {
 							return;
 						}
+						// Where the growth starts: the launcher's box, captured
+						// before the state flip unmounts it.
+						cornerRectRef.current =
+							event.currentTarget.getBoundingClientRect();
 						setDragSide(null);
 						setDockCenter(null);
 						setIsCollapsed(false);
@@ -1081,26 +1352,20 @@ export function Dock() {
 					[css.dockFoldingRight]: isFolding && dragSide === 'right',
 					[css.dockUnfolding]: isUnfolding,
 					[css.dockCornered]: cornered,
+					[css.dockCanMove]: canDrag,
+					[css.dockDragging]: isDragging,
 				})}
 				style={dockStyle}
 				onAnimationEnd={handleDockAnimationEnd}
+				onPointerDown={handleDockPointerDown}
+				onPointerMove={handleDockPointerMove}
+				onPointerLeave={handleDockPointerLeave}
 				aria-label="Playground tools"
 			>
-				{/* A quiet drag grip for nudging the floating dock along the bottom
-				    edge. Slim on purpose so it doesn't imply the dock moves anywhere
-				    — collapsing now lives on a button in the row below. */}
-				<div
-					className={classNames(css.dockGrip, {
-						[css.dockGripDraggable]: canDrag,
-						[css.dockGripDragging]: isDragging,
-					})}
-					onPointerDown={handleHeaderPointerDown}
-					onPointerMove={handleHeaderPointerMove}
-					onPointerUp={handleHeaderPointerUp}
-					aria-hidden="true"
-				>
-					<span className={css.dockGripBar} />
-				</div>
+				{/* No drag handle: the whole dark chrome is the grab. This sheen is
+				    the affordance — light pools along the top edge under the pointer
+				    (via --sheen-x/--sheen-o) to say "you can hold this here". */}
+				<div className={css.dockSheen} aria-hidden="true" />
 				<div className={css.dockBody}>
 					<div className={css.dockTopRow}>
 						<div className={css.dockAddress}>
@@ -1127,44 +1392,56 @@ export function Dock() {
 							)}
 							{!isSavingDisabled && <SaveStatusIndicator />}
 						</div>
-						{/* Toggle between the floating dock and a full-width docked
-						    bar that the preview ends above. Desktop-only (CSS hides
-						    it on the mobile bottom bar). */}
-						<button
-							type="button"
-							className={css.dockWidthToggle}
-							aria-label={
-								dockFullWidth
-									? 'Float the dock'
-									: 'Dock to full width'
-							}
-							aria-pressed={dockFullWidth}
-							title={
-								dockFullWidth
-									? 'Float the dock'
-									: 'Dock to full width'
-							}
-							onClick={toggleFullWidth}
-						>
-							<DockWidthIcon full={dockFullWidth} />
-						</button>
-						{/* Collapse just the tools row, leaving the address bar
-						    reachable. The chevron flips to point up when collapsed. */}
-						<button
-							type="button"
-							ref={collapseToggleRef}
-							className={css.dockCollapseToggle}
-							aria-label={
-								isCollapsed ? 'Expand dock' : 'Collapse dock'
-							}
-							aria-expanded={!isCollapsed}
-							title={isCollapsed ? 'Show tools' : 'Hide tools'}
-							onClick={() =>
-								setIsCollapsed((collapsed) => !collapsed)
-							}
-						>
-							<Icon icon={chevronDown} size={20} />
-						</button>
+						{/* Two switches fused into one split capsule (the hr-11
+						    "pill" study): the left half hides/shows the tools, the
+						    right half toggles full width. Each glyph shows the
+						    ACTION and carries the state itself — the chevron flips
+						    when the tools are hidden, the screen mark swaps
+						    between full-bleed and floating — so neither needs a
+						    pressed style. Desktop-only (CSS hides it on the mobile
+						    bar). */}
+						<div className={css.dockTogglePill}>
+							<button
+								type="button"
+								ref={collapseToggleRef}
+								className={classNames(
+									css.dockPillBtn,
+									css.dockPillCollapse
+								)}
+								aria-label={
+									isCollapsed ? 'Show tools' : 'Hide tools'
+								}
+								title={
+									isCollapsed ? 'Show tools' : 'Hide tools'
+								}
+								onClick={() =>
+									setIsCollapsed((collapsed) => !collapsed)
+								}
+							>
+								<DockCollapseChevron />
+							</button>
+							<button
+								type="button"
+								className={css.dockPillBtn}
+								aria-label={
+									dockFullWidth
+										? 'Exit full width'
+										: 'Full width'
+								}
+								title={
+									dockFullWidth
+										? 'Exit full width'
+										: 'Full width'
+								}
+								onClick={toggleFullWidth}
+							>
+								{dockFullWidth ? (
+									<DockFloatingIcon />
+								) : (
+									<DockFullWidthIcon />
+								)}
+							</button>
+						</div>
 					</div>
 					<div className={css.dockTools} ref={dockBodyRef}>
 						{DOCK_ITEMS.map((item, index) => {

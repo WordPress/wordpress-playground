@@ -22,7 +22,9 @@ import css from './autosave-nudge.module.css';
  * pointing at one clear action — Restore — with honest wording about what an
  * autosave is. A quiet link mutes the proactive cues (this panel + the dot)
  * without disabling the safety net: autosaves stay restorable from Your
- * Playgrounds. The dot on the Playgrounds tool persists after this panel closes.
+ * Playgrounds. The dot on the Playgrounds tool persists after this panel
+ * closes, and clears when the user visits Your Playgrounds — seeing the list
+ * is acknowledging the cue (see the dock's openSection).
  */
 export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	const dispatch = useAppDispatch();
@@ -42,6 +44,69 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [error, setError] = useState<string>();
 	const panelRef = useRef<HTMLDivElement>(null);
+	// Where the caret (the panel's tail) sits, in px from the panel's left
+	// edge. Measured rather than centered: the shifted popover rarely centers
+	// on the Playgrounds tool the tail points at.
+	const [caretLeft, setCaretLeft] = useState<number | null>(null);
+
+	useEffect(() => {
+		if (!panelOpen || !anchor) {
+			return;
+		}
+		// Track every frame while the panel is open: the dock re-centers as its
+		// width settles (e.g. the save status swapping "Loading…" for longer
+		// text) and the popover follows the anchor asynchronously, so any
+		// one-shot measurement goes stale. Two rect reads per frame on a
+		// short-lived panel is cheap; setState bails when the value is stable.
+		//
+		// Geometry note: every rect on the popover wears its entrance animation
+		// (the root scales in from the anchor), so measuring rects mid-flight
+		// would drag the caret along the edge. But the popover engine writes
+		// its FINAL position into the root's inline transform — composed with
+		// the entrance as e.g. `translateX(299px) translateY(504px)
+		// translateY(2em) scale(0)` — so the translateX component is the
+		// settled left from the very first frame. Parse that, and the caret
+		// sits in its final panel-local spot immediately, riding the entrance
+		// scale like any other child. Rects are only the fallback.
+		let raf = 0;
+		const measure = () => {
+			const panel = panelRef.current;
+			if (panel) {
+				const root =
+					(panel.closest('.components-popover') as HTMLElement) ??
+					panel;
+				const finalX = /translate(?:X|3d)?\(\s*(-?[\d.]+)px/.exec(
+					root.style.transform || ''
+				);
+				let panelLeft = finalX
+					? parseFloat(finalX[1])
+					: root.getBoundingClientRect().left;
+				for (
+					let el: HTMLElement | null = panel;
+					el && el !== root;
+					el = el.offsetParent as HTMLElement | null
+				) {
+					panelLeft += el.offsetLeft;
+				}
+				const anchorRect = anchor.getBoundingClientRect();
+				// Aim at the Playgrounds tool's center (the dot is its badge,
+				// not the target), clamped clear of the panel's rounded
+				// corners.
+				const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+				const next =
+					Math.round(
+						Math.min(
+							Math.max(anchorCenterX - panelLeft, 18),
+							panel.offsetWidth - 18
+						) * 2
+					) / 2;
+				setCaretLeft(next);
+			}
+			raf = window.requestAnimationFrame(measure);
+		};
+		raf = window.requestAnimationFrame(measure);
+		return () => window.cancelAnimationFrame(raf);
+	}, [panelOpen, anchor]);
 
 	// Once-per-prompt guard so the dismiss paths that can fire together (the ✕, the
 	// click-away listener, and the Popover's own onClose) don't autosave the
@@ -259,6 +324,15 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 						</div>
 					</>
 				)}
+				<span
+					className={css.caret}
+					style={
+						caretLeft === null
+							? { opacity: 0 }
+							: { left: `${caretLeft}px`, opacity: 1 }
+					}
+					aria-hidden="true"
+				/>
 			</div>
 		</Popover>
 	);

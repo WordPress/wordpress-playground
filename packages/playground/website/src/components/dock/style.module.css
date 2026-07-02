@@ -18,10 +18,21 @@
 	transition:
 		transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
 		clip-path 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+	/* The whole surface is a drag handle, so none of the chrome's text (tool
+	   labels, the save status) is selectable — a press that stays under the
+	   drag threshold must not leave a selection behind. The address input
+	   opts back in below; it's the one place text interaction is real. */
+	user-select: none;
+	-webkit-user-select: none;
 	/* Content-based width so it stays put when dragged — auto width is
 	   shrink-to-fit and can change as the dock's `left` moves toward an edge. */
 	width: max-content;
 	z-index: 50;
+}
+
+.dock-address input {
+	user-select: text;
+	-webkit-user-select: text;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -864,7 +875,7 @@
 }
 
 /* Collapsing slides only the tools row off the bottom edge (--dock-body-h now
-   measures the tools), leaving the address bar + grip resting on the edge. */
+   measures the tools), leaving the address row resting on the edge. */
 .dock-collapsed {
 	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
 }
@@ -921,20 +932,12 @@
 	}
 }
 
-/* Unfolding: the restored bar pops back in, centered, as the launcher vanishes. */
+/* Unfolding: the restored bar grows out of the launcher's corner — the motion
+   itself (translate + scale keyframes computed from the real geometry) runs via
+   the Web Animations API in the component; this only parks the pointer while
+   the bar is in flight. */
 .dock-unfolding {
-	animation: dock-unfold 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
-}
-
-@keyframes dock-unfold {
-	from {
-		opacity: 0;
-		transform: translateX(-50%) scale(0.9);
-	}
-	to {
-		opacity: 1;
-		transform: translateX(-50%) scale(1);
-	}
+	pointer-events: none;
 }
 
 /* Committed: the bar is replaced by the corner launcher (rendered separately). */
@@ -1039,121 +1042,140 @@
 	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
 }
 
-/* The full-width bar already spans the edge, so it isn't draggable: no grip. */
-.dock-full .dock-grip {
-	display: none;
-}
-
-.dock-full .dock-body {
-	padding-top: 10px;
-}
-
 .dock-full .dock-tools {
 	justify-content: center;
 }
 
-.dock-grip {
-	align-items: center;
-	display: flex;
-	flex-shrink: 0;
-	height: 18px;
-	justify-content: center;
-}
-
-.dock-grip-bar {
-	background: #f7f5f233;
-	border-radius: 999px;
-	height: 4px;
-	transition: background 0.14s ease;
-	width: 36px;
-}
-
-.dock-grip-draggable {
+/* No drag handle: while the dock can move, its whole dark chrome is the grab
+   (real controls keep their own cursors and swallow the press in JS). */
+.dock-can-move {
 	cursor: grab;
+	touch-action: none;
 }
 
-.dock-grip-draggable:hover .dock-grip-bar {
-	background: #f7f5f259;
-}
-
-.dock-grip-dragging {
+.dock-can-move.dock-dragging {
 	cursor: grabbing;
 }
 
-.dock-collapse-toggle {
+/* The grab affordance (the hr-11 "sheen"): warm light pools along the dock's
+   top edge under the pointer, with a bright hairline riding the very edge —
+   invisible at rest, answered on approach. Driven by --sheen-x/--sheen-o,
+   written from the dock's pointer handlers. */
+.dock-sheen {
+	border-radius: 18px 18px 0 0;
+	height: 30px;
+	inset: 0 0 auto;
+	opacity: var(--sheen-o, 0);
+	overflow: hidden;
+	pointer-events: none;
+	position: absolute;
+	transition: opacity 0.3s ease;
+	z-index: 3;
+}
+
+.dock-sheen::before {
+	background: radial-gradient(
+		180px 32px at var(--sheen-x, 50%) 0,
+		rgba(255, 251, 243, 0.27),
+		rgba(255, 251, 243, 0.06) 55%,
+		transparent 80%
+	);
+	content: '';
+	inset: 0;
+	position: absolute;
+}
+
+.dock-sheen::after {
+	background: radial-gradient(
+		110px 3px at var(--sheen-x, 50%) 1px,
+		rgba(255, 251, 243, 0.85),
+		rgba(255, 251, 243, 0.16) 62%,
+		transparent 85%
+	);
+	content: '';
+	height: 2px;
+	inset: 0 0 auto;
+	position: absolute;
+}
+
+/* Full width isn't draggable, so it gets no grab affordance either. */
+.dock-full .dock-sheen {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dock-sheen {
+		transition: none;
+	}
+}
+
+/* Two switches fused into one split capsule (the hr-11 "pill" study): the left
+   half hides/shows the tools, the right half toggles full width. State lives
+   in the glyphs themselves — the chevron flips while the tools are hidden and
+   the screen mark swaps between full-bleed and floating — so no pressed
+   styling is needed. */
+.dock-toggle-pill {
+	align-items: stretch;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
+	display: inline-flex;
+	flex: none;
+	height: 34px;
+	overflow: hidden;
+}
+
+.dock-pill-btn {
 	align-items: center;
 	background: transparent;
 	border: 0;
-	border-radius: 8px;
-	color: #f7f5f28c;
+	color: rgba(247, 245, 241, 0.62);
 	cursor: pointer;
 	display: flex;
-	flex: none;
-	height: 32px;
 	justify-content: center;
 	padding: 0;
 	transition:
-		background 0.12s ease,
-		color 0.12s ease;
-	width: 32px;
+		background 0.13s ease,
+		color 0.13s ease;
+	width: 36px;
 }
 
-.dock-collapse-toggle:hover {
-	background: #f7f5f224;
-	color: #f7f5f2;
+.dock-pill-btn + .dock-pill-btn {
+	border-left: 1px solid rgba(255, 251, 243, 0.09);
 }
 
-.dock-collapse-toggle:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
+.dock-pill-btn:hover {
+	background: rgba(255, 251, 243, 0.12);
+	color: #f7f5f1;
 }
 
-.dock-collapse-toggle svg {
-	fill: none;
-	stroke: currentColor;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-	stroke-width: 2.1;
+.dock-pill-btn:focus-visible {
+	outline: 2px solid #8fa3f7;
+	outline-offset: -2px;
+}
+
+.dock-pill-btn svg {
+	display: block;
+}
+
+/* The collapse chevron flips to point up when the tools are hidden. */
+.dock-pill-collapse svg {
 	transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dock-collapsed .dock-collapse-toggle svg {
+.dock-collapsed .dock-pill-collapse svg {
 	transform: rotate(180deg);
-}
-
-.dock-width-toggle {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 8px;
-	color: #f7f5f28c;
-	cursor: pointer;
-	display: flex;
-	flex: none;
-	height: 32px;
-	justify-content: center;
-	padding: 0;
-	transition:
-		background 0.12s ease,
-		color 0.12s ease;
-	width: 32px;
-}
-
-.dock-width-toggle:hover {
-	background: #f7f5f224;
-	color: #f7f5f2;
-}
-
-.dock-width-toggle:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
 }
 
 .dock-body {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	padding: 4px 8px 8px;
+	/* One 8px frame all around. The measure that matters is the ink touching
+	   each edge: the toggle pill (full-row, bordered) at the top, the tool
+	   buttons at the sides and bottom — all of them clear the dock's edge by
+	   the same 8px. */
+	padding: 8px;
 }
 
 .dock-item-dot {
@@ -1173,11 +1195,10 @@
 		transform: translateY(var(--dock-body-h, 56px));
 	}
 
-	/* The mobile bar is fixed and full-screen-panelled: no drag grip, and the
-	   width/collapse toggles don't apply. */
-	.dock-grip,
-	.dock-width-toggle,
-	.dock-collapse-toggle {
+	/* The mobile bar is fixed and full-screen-panelled: no drag (so no sheen),
+	   and the width/collapse toggles don't apply. */
+	.dock-sheen,
+	.dock-toggle-pill {
 		display: none;
 	}
 

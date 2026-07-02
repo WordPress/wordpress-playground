@@ -2,12 +2,32 @@
 
 /* :global — CSS Modules would otherwise hash `.components-popover__content`, so
    this rule silently never matched and the popover fell back to WordPress'
-   square, hairline-bordered default. */
+   square, hairline-bordered default. Overflow must stay visible so the caret
+   can peek past the panel's bottom edge. */
 .popover :global(.components-popover__content) {
 	border-radius: 16px;
 	box-shadow:
 		0 16px 40px #2821173d,
 		0 4px 12px #28211724;
+	/* !important because the Popover writes `overflow: auto` as an INLINE
+	   style on this element; without the override the caret below gets
+	   clipped at the panel's bottom edge. */
+	overflow: visible !important;
+}
+
+/* The tail: a small rotated square peeking from the panel's bottom edge,
+   aligned (measured in JS) with the center of the Playgrounds tool, so the
+   panel visibly belongs to that tool rather than floating unattached. */
+.caret {
+	background: #fff;
+	bottom: -6px;
+	box-shadow: 4px 4px 10px #2821171f;
+	height: 12px;
+	left: 50%;
+	pointer-events: none;
+	position: absolute;
+	transform: translateX(-50%) rotate(45deg);
+	width: 12px;
 }
 
 .panel {
