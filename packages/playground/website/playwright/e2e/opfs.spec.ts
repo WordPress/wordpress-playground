@@ -11,7 +11,8 @@ async function createTestWordPressZip(
 	markerContent: string,
 	markerPath = 'wp-content/index.php'
 ): Promise<Buffer> {
-	const phpContent = `<?php echo '${markerContent}';`;
+	const encodedMarker = Buffer.from(markerContent).toString('base64');
+	const phpContent = `<?php echo base64_decode('${encodedMarker}');`;
 	const file = new File([phpContent], markerPath, {
 		type: 'text/plain',
 	});
@@ -95,6 +96,27 @@ async function getActivePlaygroundSite(page: Page) {
 			.list()
 			.find((site: any) => site.isActive)
 	);
+}
+
+async function waitForActivePlaygroundSiteSlug(
+	page: Page,
+	matchesSlug: (slug: string) => boolean
+) {
+	await expect
+		.poll(
+			async () => {
+				const slug = (await getActivePlaygroundSite(page))?.slug;
+				return typeof slug === 'string' &&
+					slug.length > 0 &&
+					matchesSlug(slug)
+					? slug
+					: '';
+			},
+			{ timeout: 120000 }
+		)
+		.not.toBe('');
+
+	return await getActivePlaygroundSite(page);
 }
 
 async function setActivePlaygroundSite(page: Page, siteSlug: string) {
@@ -763,6 +785,7 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	);
 	const savedSite = await getActivePlaygroundSite(website.page);
 	expect(savedSite?.slug).toBeTruthy();
+	const savedSiteSlug = savedSite.slug;
 
 	await website.openSavedPlaygroundsOverlay();
 
@@ -791,41 +814,34 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	await expect
 		.poll(() => dialogs, { timeout: 120000 })
 		.toEqual([importSuccessMessage]);
-	await expect
-		.poll(() => getActivePlaygroundSite(website.page), {
-			timeout: 120000,
-		})
-		.toMatchObject({
-			isActive: true,
-		});
-	await expect
-		.poll(async () => (await getActivePlaygroundSite(website.page))?.slug, {
-			timeout: 120000,
-		})
-		.not.toBe(savedSite.slug);
-	const importedSite = await getActivePlaygroundSite(website.page);
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== savedSiteSlug
+	);
 	expect(importedSite?.slug).toBeTruthy();
+	const importedSiteSlug = importedSite.slug;
+	await website.waitForNestedIframes();
 
 	await expect(website.page.getByText('Save failed')).toHaveCount(0);
 	await expect(website.page.getByText('Site failed')).toHaveCount(0);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-	await setActivePlaygroundSite(website.page, savedSite.slug);
+	await setActivePlaygroundSite(website.page, savedSiteSlug);
 	await website.waitForNestedIframes();
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
 	);
 
-	await setActivePlaygroundSite(website.page, importedSite.slug);
+	await setActivePlaygroundSite(website.page, importedSiteSlug);
 	await website.waitForNestedIframes();
 	await expect(website.page.getByText('Save failed')).toHaveCount(0);
 	await expect(website.page.getByText('Site failed')).toHaveCount(0);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-	await website.goto(`./?site-slug=${importedSite.slug}`);
+	await website.goto(`./?site-slug=${importedSiteSlug}`);
 	await expect(website.page.getByText('Save failed')).toHaveCount(0);
 	await expect(website.page.getByText('Site failed')).toHaveCount(0);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
