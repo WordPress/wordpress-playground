@@ -121,6 +121,24 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprints).toHaveLength(3);
 	});
+
+	it('accepts plugin install collision handling', () => {
+		const blueprint = {
+			version: 2,
+			plugins: [
+				{
+					source: 'akismet',
+					ifAlreadyInstalled: 'skip',
+				},
+				{
+					source: 'jetpack',
+					ifAlreadyInstalled: 'error',
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
@@ -177,6 +195,18 @@ const blueprintWithNestedDirectoryName = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithInvalidPluginCollisionHandling = {
+	version: 2,
+	plugins: [
+		{
+			source: 'akismet',
+			// @ts-expect-error Plugin collision handling must be a known policy.
+			ifAlreadyInstalled: 'replace',
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
+void blueprintWithInvalidPluginCollisionHandling;

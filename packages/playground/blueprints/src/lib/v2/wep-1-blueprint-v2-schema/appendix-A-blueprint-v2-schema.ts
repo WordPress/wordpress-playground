@@ -654,6 +654,13 @@ export namespace V2Schema {
 		onError?: 'skip-plugin' | 'throw';
 
 		/**
+		 * How to handle a plugin that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+
+		/**
 		 * Human-readable name of the plugin for the progress bar.
 		 *
 		 * For example, with the following Blueprint:
