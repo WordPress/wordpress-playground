@@ -5,6 +5,8 @@ import {
 import {
 	wpCLI,
 	zipWpContent,
+	compileBlueprintV1,
+	runBlueprintV1Steps,
 	type BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import { getRemoteUrl } from '../src/lib/config';
@@ -40,13 +42,13 @@ const clearResultsButton = getElement<HTMLButtonElement>('clear-results');
 const results: BackupResult[] = [];
 let playground: PlaygroundClient | undefined;
 let isBusy = false;
+let isBlueprintBundleMakerReady = false;
 
 const blueprintBundleMakerPlugin = {
 	step: 'installPlugin',
 	pluginData: {
-		resource: 'git:directory',
-		url: 'https://github.com/ashfame/blueprint-bundle-maker.git',
-		ref: 'main',
+		resource: 'url',
+		url: 'https://github.com/ashfame/blueprint-bundle-maker/archive/refs/heads/main.zip',
 	},
 	options: {
 		activate: true,
@@ -59,12 +61,7 @@ const blueprint: BlueprintV1Declaration = {
 		php: '8.3',
 		wp: 'latest',
 	},
-	features: {
-		networking: true,
-	},
-	extraLibraries: ['wp-cli'],
 	landingPage: '/',
-	steps: [blueprintBundleMakerPlugin, { step: 'login' }],
 };
 
 boot();
@@ -94,7 +91,7 @@ exportSelfContainedButton.addEventListener('click', () => {
 });
 
 blueprintBundleButton.addEventListener('click', () => {
-	void runBackup('Blueprint bundle via plugin', generateBlueprintBundle);
+	void runBackup('Blueprint Bundle Maker plugin', generateBlueprintBundle);
 });
 
 clearResultsButton.addEventListener('click', () => {
@@ -105,9 +102,7 @@ clearResultsButton.addEventListener('click', () => {
 
 async function boot() {
 	setButtonsEnabled(false);
-	setStatus(
-		'Booting Playground and installing Blueprint Bundle Maker. This may take a minute...'
-	);
+	setStatus('Booting Playground...');
 
 	try {
 		playground = await startPlaygroundWeb({
@@ -126,6 +121,8 @@ async function boot() {
 
 async function generateBlueprintBundle() {
 	const client = await getPlayground();
+	await prepareBlueprintBundleMaker(client);
+
 	const outputPath = '/tmp/site-blueprint-bundle.zip';
 	if (await client.fileExists(outputPath)) {
 		await client.unlink(outputPath);
@@ -154,6 +151,25 @@ async function generateBlueprintBundle() {
 		filename: 'blueprint-bundle-maker.zip',
 		bytes,
 	};
+}
+
+async function prepareBlueprintBundleMaker(client: PlaygroundClient) {
+	if (isBlueprintBundleMakerReady) {
+		return;
+	}
+
+	setStatus('Installing Blueprint Bundle Maker and WP-CLI...');
+	const compiled = await compileBlueprintV1(
+		{
+			extraLibraries: ['wp-cli'],
+			steps: [blueprintBundleMakerPlugin],
+		},
+		{
+			corsProxy: corsProxyUrl,
+		}
+	);
+	await runBlueprintV1Steps(compiled, client);
+	isBlueprintBundleMakerReady = true;
 }
 
 async function runBackup(
