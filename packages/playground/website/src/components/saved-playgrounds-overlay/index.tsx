@@ -39,7 +39,7 @@ import {
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
-import { playgroundAvailableInOpfs } from '../../lib/state/redux/boot-site-client';
+import { isPlaygroundDirectory } from '../../lib/is-playground-directory';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
@@ -443,7 +443,10 @@ export function SavedPlaygroundsOverlay({
 				'Local directory - Create Playground from a local directory',
 			iconComponent: <LocalDirectoryIcon />,
 			onClick: async () => {
-				if (!('showDirectoryPicker' in window)) {
+				if (
+					!('showDirectoryPicker' in window) ||
+					typeof window.showDirectoryPicker !== 'function'
+				) {
 					setLocalDirectoryError(
 						'Your browser does not support the File System Access API required to select a local directory.'
 					);
@@ -451,10 +454,10 @@ export function SavedPlaygroundsOverlay({
 				}
 				try {
 					setLocalDirectoryError(null);
-					const handle = (await (window as any).showDirectoryPicker({
+					const handle = await window.showDirectoryPicker({
 						id: 'playground-directory',
 						mode: 'readwrite',
-					})) as FileSystemDirectoryHandle;
+					});
 
 					// Validate permissions
 					try {
@@ -480,7 +483,7 @@ export function SavedPlaygroundsOverlay({
 					}
 
 					// Check if it's a valid WordPress installation
-					const isWpInstall = await playgroundAvailableInOpfs(handle);
+					const isWpInstall = await isPlaygroundDirectory(handle);
 
 					if (!isWpInstall) {
 						// Check if the directory is empty

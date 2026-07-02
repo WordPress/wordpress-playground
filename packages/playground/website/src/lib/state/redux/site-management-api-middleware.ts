@@ -36,7 +36,10 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
+import {
+	saveDirectoryHandle,
+	deleteDirectoryHandle,
+} from '../opfs/opfs-directory-handle-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
 import { redirectTo } from '../url/router';
 
@@ -654,13 +657,30 @@ export function createSitesAPI(
 					storage: 'local-fs',
 				})
 			);
-			await saveDirectoryHandle(newSiteInfo.slug, localFsHandle);
-			await api.setActiveSite(newSiteInfo.slug);
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [newSiteInfo.slug],
-				})
-			);
+
+			try {
+				await saveDirectoryHandle(newSiteInfo.slug, localFsHandle);
+				await api.setActiveSite(newSiteInfo.slug);
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [newSiteInfo.slug],
+					})
+				);
+			} catch (error) {
+				logger.error(
+					'Failed to boot local-fs site, rolling back:',
+					error
+				);
+				// Rollback
+				await dispatch(removeSite(newSiteInfo.slug));
+				await deleteDirectoryHandle(newSiteInfo.slug).catch((err) => {
+					logger.error(
+						'Error deleting directory handle during rollback:',
+						err
+					);
+				});
+				throw error;
+			}
 			return newSiteInfo.slug;
 		},
 	};
