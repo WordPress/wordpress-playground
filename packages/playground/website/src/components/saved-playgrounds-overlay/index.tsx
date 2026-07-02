@@ -164,6 +164,8 @@ export function SavedPlaygroundsOverlay({
 				await importWordPressFiles(playground, {
 					wordPressFilesZip: zipFile,
 				});
+				// Import writes are journaled to OPFS asynchronously. Flush before
+				// reporting success so switching sites cannot boot a partial save.
 				await flushImportedWordPressFiles(playground);
 				setTimeout(async () => {
 					await playground.goTo('/');
