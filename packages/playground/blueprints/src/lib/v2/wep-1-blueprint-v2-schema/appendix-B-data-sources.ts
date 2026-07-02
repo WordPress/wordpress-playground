@@ -195,7 +195,8 @@ export namespace DataSources {
 		| `${Slug}@${SimpleVersionExpression}`;
 
 	/**
-	 * WordPress version, e.g. "6.4", "6.4.3", "6.8-RC1", or "6.7-beta2".
+	 * WordPress version, e.g. "latest", "beta", "trunk", "6.4",
+	 * "6.4.3", "6.8-RC1", or "6.7-beta2".
 	 *
 	 * These refer to slugs of specific WordPress releases as listed in
 	 * the first table column on https://wordpress.org/download/releases/.
@@ -204,18 +205,23 @@ export namespace DataSources {
 	 * `wordpressVersion` property.
 	 */
 	export type WordPressVersion =
+		| 'beta'
+		| 'trunk'
+		| 'nightly'
 		| SimpleVersionExpression
 		| `${SimpleVersionExpression}-${WordPressVersionSuffix}`;
 
 	/**
-	 * PHP version, e.g. "8.1" or "8.1.3".
+	 * PHP version, e.g. "8.1", "8.1.3", or "next".
 	 *
 	 * These refer to PHP versions as listed in https://www.php.net/releases/.
+	 * `next` previews the php-src development branch and is currently
+	 * supported by the web runtime only.
 	 *
 	 * The PHPVersion type is only meaningful in the top-level
 	 * `phpVersion` property.
 	 */
-	export type PHPVersion = SimpleVersionExpression;
+	export type PHPVersion = SimpleVersionExpression | 'next';
 
 	/**
 	 * A path within the built WordPress site, relative to the WordPress root
