@@ -485,7 +485,9 @@ export namespace V2Schema {
 		 */
 		| ({
 				type: 'wxr';
-				source: DataSources.FileDataReference;
+				source:
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[];
 
 				/**
 				 * Static assets handling.
