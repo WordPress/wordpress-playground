@@ -721,6 +721,11 @@
 							"$ref": "#/definitions/FileReference",
 							"description": "The file to import"
 						},
+						"rewriteUrls": {
+							"type": "boolean",
+							"description": "Whether to rewrite imported URLs to the current site URL.",
+							"default": true
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],

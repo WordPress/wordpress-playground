@@ -21,6 +21,12 @@ export interface ImportWxrStep<ResourceType> {
 	/** The file to import */
 	file: ResourceType;
 	/**
+	 * Whether to rewrite imported URLs to the current site URL.
+	 *
+	 * @default true
+	 */
+	rewriteUrls?: boolean;
+	/**
 	 * The importer to use. Possible values:
 	 *
 	 * - `default`: The importer from https://github.com/humanmade/WordPress-Importer
@@ -44,16 +50,21 @@ export interface ImportWxrStep<ResourceType> {
  */
 export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	playground,
-	{ file },
+	{ file, rewriteUrls = true },
 	progress?
 ) => {
-	await importWithDefaultImporter(playground, file, progress);
+	await importWithDefaultImporter(playground, file, progress, {
+		rewriteUrls,
+	});
 };
 
 async function importWithDefaultImporter(
 	playground: UniversalPHP,
 	file: File,
-	progress?: StepProgress | undefined
+	progress: StepProgress | undefined,
+	options: {
+		rewriteUrls: boolean;
+	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
 	await writeFile(playground, {
@@ -119,12 +130,13 @@ async function importWithDefaultImporter(
 
 	$GLOBALS['wpcli_import_current_file'] = basename( $file );
 	$wp_import->import( getenv('IMPORT_FILE'), [
-		'rewrite_urls' => true,
+		'rewrite_urls' => getenv('REWRITE_URLS') === 'true',
 	] );
 	`,
 		env: {
 			IMPORT_FILE: '/tmp/import.wxr',
 			FETCH_ATTACHMENTS: 'true',
+			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
 		},
 	});
 }

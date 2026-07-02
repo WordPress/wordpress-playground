@@ -208,6 +208,40 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should preserve site URLs in imported content when URL rewriting is disabled',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-base-url-rewriting.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await importWxr(php, {
+				file,
+				rewriteUrls: false,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$posts = get_posts();
+			echo json_encode([
+				'post_content' => $posts[0]->post_content,
+			]);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json.post_content).toContain(
+				'https://🚀-science.com/science'
+			);
+			expect(result.json.post_content).not.toContain(handler.absoluteUrl);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should rewrite site URLs in the imported content (tt5 playground content)',
 		async () => {
 			const fileData = await readFile(
