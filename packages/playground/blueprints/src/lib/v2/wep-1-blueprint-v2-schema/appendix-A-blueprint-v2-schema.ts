@@ -706,6 +706,12 @@ export namespace V2Schema {
 		 */
 		onError?: 'skip-theme' | 'throw';
 		/**
+		 * How to handle a theme that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+		/**
 		 * Human-readable name of the theme for the progress bar.
 		 *
 		 * For example, with the following Blueprint:
