@@ -291,9 +291,16 @@ export function removeSite(slug: string) {
 			throw new Error('Cannot remove a temporary site.');
 		}
 		try {
-			await opfsSiteStorage?.delete(siteInfo.slug);
+			// Defer deletion so the UI unmounts the iframe *before* the files
+			// disappear from underneath the running PHP process.
+			const slugToDelete = siteInfo.slug;
+			setTimeout(async () => {
+				await opfsSiteStorage?.delete(slugToDelete).catch((error) => {
+					logger.error('Error deleting site from OPFS:', error);
+				});
+			}, 0);
 		} catch (error: any) {
-			logger.error('Error deleting site from OPFS:', error);
+			logger.error('Error scheduling site deletion from OPFS:', error);
 		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
@@ -582,7 +589,7 @@ export function setStoredSiteSpec(
 				whenLastUsed: now,
 				persistence: options.persistence ?? 'explicit',
 				storage: options.storage ?? ('opfs' as const),
-				initialOpfsSyncPending: true,
+				initialSyncPending: true,
 				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
 					playgroundUrlWithQueryApiArgs
 				),
@@ -647,7 +654,7 @@ export function resetAutosavedSiteSpec(
 						...site.metadata,
 						whenCreated: now,
 						whenLastUsed: now,
-						initialOpfsSyncPending: true,
+						initialSyncPending: true,
 						/**
 						 * Recreating an autosaved Playground discards the old
 						 * WordPress files and boots from the updated setup.
@@ -785,6 +792,10 @@ export interface SiteMetadata {
 	 * Sites created with `setStoredSiteSpec` start with metadata only. Their
 	 * first boot must run from the setup URL, then copy initialized files into
 	 * OPFS and clear this flag after a successful sync.
+	 */
+	initialSyncPending?: boolean;
+	/**
+	 * @deprecated Use `initialSyncPending` instead.
 	 */
 	initialOpfsSyncPending?: boolean;
 	/**
