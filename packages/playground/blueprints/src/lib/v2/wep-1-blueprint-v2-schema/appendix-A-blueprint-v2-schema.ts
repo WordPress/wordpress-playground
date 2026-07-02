@@ -714,8 +714,8 @@ export namespace V2Schema {
 		humanReadableName?: string;
 	};
 
-	type RemoteUsername = 'string';
-	type LocalUsername = 'string';
+	type RemoteUsername = string;
+	type LocalUsername = string;
 
 	/**
 	 * WordPress register_post_type() arguments representation. {{{
