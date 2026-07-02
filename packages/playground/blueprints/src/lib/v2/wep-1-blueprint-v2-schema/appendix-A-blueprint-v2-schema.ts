@@ -700,6 +700,12 @@ export namespace V2Schema {
 		 */
 		targetDirectoryName?: string;
 		/**
+		 * Sometimes it's fine when a theme fails to install.
+		 *
+		 * @default "throw"
+		 */
+		onError?: 'skip-theme' | 'throw';
+		/**
 		 * Human-readable name of the theme for the progress bar.
 		 *
 		 * For example, with the following Blueprint:
