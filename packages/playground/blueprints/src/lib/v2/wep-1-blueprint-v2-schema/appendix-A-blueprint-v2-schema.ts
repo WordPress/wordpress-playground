@@ -180,12 +180,12 @@ export namespace V2Schema {
 			| DataSources.WordPressVersion
 			| DataSources.DataReference
 			| {
-					min: DataSources.WordPressVersion;
-					max?: DataSources.WordPressVersion;
+					min: DataSources.WordPressVersionConstraintVersion;
+					max?: DataSources.WordPressVersionConstraintVersion;
 					/**
 					 * @default "latest"
 					 */
-					preferred?: DataSources.WordPressVersion;
+					preferred?: DataSources.WordPressVersionPreferredVersion;
 			  };
 
 		/**
@@ -204,9 +204,9 @@ export namespace V2Schema {
 		phpVersion?:
 			| DataSources.PHPVersion
 			| {
-					min?: DataSources.PHPVersion;
-					recommended?: DataSources.PHPVersion;
-					max?: DataSources.PHPVersion;
+					min?: DataSources.PHPVersionConstraintVersion;
+					recommended?: DataSources.PHPVersionConstraintVersion;
+					max?: DataSources.PHPVersionConstraintVersion;
 			  };
 
 		/**

@@ -142,6 +142,24 @@ describe('Blueprint v2 declaration types', () => {
 		expect(blueprints).toHaveLength(3);
 	});
 
+	it('accepts Blueprint v2 version constraints', () => {
+		const blueprint = {
+			version: 2,
+			wordpressVersion: {
+				min: '6.8-rc1',
+				max: '6.9',
+				preferred: 'latest',
+			},
+			phpVersion: {
+				min: '8.0',
+				recommended: '8.3',
+				max: '8.4',
+			},
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
+
 	it('accepts plugin install collision handling', () => {
 		const blueprint = {
 			version: 2,
@@ -292,6 +310,39 @@ const blueprintWithMissingWxrAuthorsMap = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithNonComparableWordPressVersionMinimum = {
+	version: 2,
+	wordpressVersion: {
+		// @ts-expect-error Version constraint minimums must be comparable versions.
+		min: 'latest',
+	},
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithExtraWordPressVersionComponent = {
+	version: 2,
+	wordpressVersion: {
+		// @ts-expect-error Version constraints must have two or three components.
+		min: '6.8.1.2',
+	},
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithUnsupportedWordPressVersionRecommendation = {
+	version: 2,
+	wordpressVersion: {
+		min: '6.8',
+		// @ts-expect-error WordPress version constraints use preferred, not recommended.
+		recommended: '6.8.1',
+	},
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithNonComparablePHPVersionRecommendation = {
+	version: 2,
+	phpVersion: {
+		// @ts-expect-error Runtime labels are only valid as top-level PHP versions.
+		recommended: 'next',
+	},
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
@@ -299,3 +350,7 @@ void blueprintWithInvalidPluginCollisionHandling;
 void blueprintWithInvalidThemeInstallFailureHandling;
 void blueprintWithInvalidThemeCollisionHandling;
 void blueprintWithMissingWxrAuthorsMap;
+void blueprintWithNonComparableWordPressVersionMinimum;
+void blueprintWithExtraWordPressVersionComponent;
+void blueprintWithUnsupportedWordPressVersionRecommendation;
+void blueprintWithNonComparablePHPVersionRecommendation;
