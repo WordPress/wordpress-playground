@@ -447,12 +447,12 @@ export namespace V2Schema {
 	};
 
 	type ContentDefinition =
-		| ({
+		| {
 				type: 'mysql-dump';
 				source:
 					| DataSources.FileDataReference
 					| DataSources.FileDataReference[];
-		  } & URLMappingConfig)
+		  }
 		| ({
 				type: 'posts';
 				source:
