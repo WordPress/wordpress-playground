@@ -157,7 +157,20 @@ export namespace DataSources {
 		| 'latest'
 		| `${number}.${number}`
 		| `${number}.${number}.${number}`;
-	export type WordPressVersionSuffix = `beta${number}` | `rc${number}`;
+	export type VersionNumberComponent = `${bigint}`;
+	export type ComparableVersionExpression =
+		| `${VersionNumberComponent}.${VersionNumberComponent}`
+		| `${VersionNumberComponent}.${VersionNumberComponent}.${VersionNumberComponent}`;
+	export type WordPressVersionSuffix =
+		| `beta${VersionNumberComponent}`
+		| `rc${VersionNumberComponent}`;
+	export type WordPressVersionConstraintVersion =
+		| ComparableVersionExpression
+		| `${ComparableVersionExpression}-${WordPressVersionSuffix}`;
+	export type WordPressVersionPreferredVersion =
+		| 'latest'
+		| WordPressVersionConstraintVersion;
+	export type PHPVersionConstraintVersion = SimpleVersionExpression;
 	/** }}} Helper types */
 
 	/**
