@@ -53,6 +53,35 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprint.version).toBe(2);
 	});
+
+	it('accepts inline directories with nested child directories', () => {
+		const blueprint = {
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'writeFiles',
+					files: {
+						'/wordpress/wp-content/uploads': {
+							directoryName: 'uploads',
+							files: {
+								'2026': {
+									files: {
+										'07': {
+											files: {
+												'image.txt': 'image',
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			],
+		} satisfies BlueprintV2Declaration;
+
+		expect(blueprint.version).toBe(2);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
@@ -86,5 +115,29 @@ const blueprintWithDirectoryAsMediaSource = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithNestedDirectoryName = {
+	version: 2,
+	additionalStepsAfterExecution: [
+		{
+			step: 'writeFiles',
+			files: {
+				'/wordpress/wp-content/uploads': {
+					directoryName: 'uploads',
+					files: {
+						'2026': {
+							// @ts-expect-error nested directory names come from the parent key.
+							directoryName: '2026',
+							files: {
+								'image.txt': 'image',
+							},
+						},
+					},
+				},
+			},
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
+void blueprintWithNestedDirectoryName;

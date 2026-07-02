@@ -74,7 +74,16 @@ export namespace DataSources {
 	 */
 	export type InlineDirectory = {
 		directoryName: string;
-		files: Record<string, InlineFileContent | InlineDirectory>;
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
+	};
+
+	/**
+	 * A child directory inside an inline directory.
+	 *
+	 * Its directory name comes from the parent `files` record key.
+	 */
+	export type NestedInlineDirectory = {
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
 	};
 
 	/**
