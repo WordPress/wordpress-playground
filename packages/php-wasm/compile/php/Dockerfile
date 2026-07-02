@@ -1,6 +1,7 @@
 FROM playground-php-wasm:base
 
 ARG WITH_JSPI="no"
+ARG WITH_WASMTIME_ASYNC="no"
 ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
 ENV PATH="/root/lib/bin:${PATH}"
 
@@ -51,7 +52,9 @@ COPY ./compile/oniguruma/ /root/builds/oniguruma
 COPY ./compile/libImageMagick/ /root/builds/libImageMagick
 COPY ./compile/libgd/ /root/builds/libgd
 
-RUN if [ "$WITH_JSPI" = "yes" ]; then \
+RUN if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+	find /root/builds -path '*/wasmtime-async/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
+elif [ "$WITH_JSPI" = "yes" ]; then \
 	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
@@ -59,7 +62,10 @@ fi
 
 COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
-RUN if [ "$WITH_JSPI" = "yes" ]; then \
+RUN if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+	cp -r /root/builds-libzip/wasmtime-async/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
+	cp -r /root/builds-libzip/wasmtime-async/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
+elif [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/jspi/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 else \
@@ -69,7 +75,9 @@ fi
 
 COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
-RUN if [ "$WITH_JSPI" = "yes" ]; then \
+RUN if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+	cp -r /root/builds-libopenssl/wasmtime-async/dist/root/lib /libs/libopenssl; \
+elif [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
 else \
 	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
@@ -508,7 +516,8 @@ ARG OUTPUT_DIR_ON_HOST
 ARG DEBUG_DWARF_COMPILATION_DIR
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
-	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+	export WASMTIME_ASYNC_FLAGS=$(if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then echo "-sWASM_LEGACY_EXCEPTIONS=0"; else echo ""; fi) && \
+	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions $WASMTIME_ASYNC_FLAGS"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
 		$JSPI_FLAGS \
@@ -2378,7 +2387,8 @@ RUN set -euxo pipefail; \
 	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
+		export WASMTIME_ASYNC_FLAGS=$(if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then echo "-sWASM_LEGACY_EXCEPTIONS=0"; else echo ""; fi); \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions $WASMTIME_ASYNC_FLAGS -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \

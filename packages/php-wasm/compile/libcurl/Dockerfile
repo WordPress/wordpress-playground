@@ -1,17 +1,22 @@
 FROM playground-php-wasm:base
 
 ARG JSPI
+ARG WASMTIME_ASYNC=0
 
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/ /root/libz
-RUN if [ "$JSPI" = "1" ]; then \
+RUN if [ "$WASMTIME_ASYNC" = "1" ]; then \
+        cp -r /root/libz/wasmtime-async/dist/root/lib/* /root/lib; \
+    elif [ "$JSPI" = "1" ]; then \
         cp -r /root/libz/jspi/dist/root/lib/* /root/lib; \
     else \
         cp -r /root/libz/asyncify/dist/root/lib/* /root/lib; \
     fi
 
 COPY ./libopenssl/ /root/libopenssl
-RUN if [ "$JSPI" = "1" ]; then \
+RUN if [ "$WASMTIME_ASYNC" = "1" ]; then \
+        cp -r /root/libopenssl/wasmtime-async/dist/root/lib/* /root/lib; \
+    elif [ "$JSPI" = "1" ]; then \
         cp -r /root/libopenssl/jspi/dist/root/lib/* /root/lib; \
     else \
         cp -r /root/libopenssl/asyncify/dist/root/lib/* /root/lib; \
@@ -59,7 +64,8 @@ RUN CPPFLAGS="-I/root/lib/include " \
 RUN if [ "$JSPI" = "1" ]; then \
     source /root/emsdk/emsdk_env.sh && \
     EMCC_SKIP="-lc -lz -lcurl -lssl " \
-    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true; \
+    export WASMTIME_ASYNC_FLAGS=$(if [ "$WASMTIME_ASYNC" = "1" ]; then echo "-sWASM_LEGACY_EXCEPTIONS=0"; else echo ""; fi) && \
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions $WASMTIME_ASYNC_FLAGS " emmake make || true; \
 fi
 
 RUN if [ "$JSPI" != "1" ]; then \

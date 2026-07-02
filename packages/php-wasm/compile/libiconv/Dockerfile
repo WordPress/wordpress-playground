@@ -1,10 +1,13 @@
 FROM playground-php-wasm:base
 
 ARG JSPI
+ARG WASMTIME_ASYNC=0
 
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/ /root/libz
-RUN if [ "$JSPI" = "1" ]; then \
+RUN if [ "$WASMTIME_ASYNC" = "1" ]; then \
+        cp -r /root/libz/wasmtime-async/dist/root/lib/* /root/lib; \
+    elif [ "$JSPI" = "1" ]; then \
         cp -r /root/libz/jspi/dist/root/lib/* /root/lib; \
     else \
         cp -r /root/libz/asyncify/dist/root/lib/* /root/lib; \
@@ -31,7 +34,7 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
-	export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+	export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions $(if [ "$WASMTIME_ASYNC" = "1" ]; then echo "-sWASM_LEGACY_EXCEPTIONS=0"; fi)"; else echo ""; fi) && \
 	EMCC_FLAGS=" -D__x86_64__ -fPIC $JSPI_FLAGS" emmake make; \
 	emmake make install;
 

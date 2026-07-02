@@ -54,6 +54,16 @@ extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval,
 
 static int redirect_stream_to_file(FILE *stream, char *file_path);
 static void restore_stream_handler(FILE *original_stream, int replacement_stream);
+void wasm_set_query_string(char *query_string);
+void wasm_set_path_translated(char *path_translated);
+void wasm_set_request_uri(char *request_uri);
+void wasm_set_request_method(char *request_method);
+void wasm_set_request_host(char *request_host);
+void wasm_set_content_type(char *content_type);
+void wasm_set_request_body(char *request_body);
+void wasm_set_content_length(int content_length);
+void wasm_set_cookies(char *cookies);
+void wasm_set_request_port(int port);
 
 /**
  * Shims popen(3) functionallity:

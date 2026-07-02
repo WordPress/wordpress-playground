@@ -120,10 +120,11 @@ impl NativeRuntime {
         mut host_options: HostOptions,
     ) -> Result<PhpInstance> {
         let module = self.php_module(php_version)?;
+        let asset = self.php_asset(php_version)?;
         host_options
             .php_version
             .get_or_insert_with(|| php_version.to_string());
-        host_options.php_runtime = self.manifest().php_runtime()?;
+        host_options.php_runtime = self.manifest().php_runtime_for_asset(asset)?;
         PhpInstance::from_module_with_host_options(module, host_options)
     }
 

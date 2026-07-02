@@ -170,10 +170,10 @@ impl NativeRuntime {
         let wasm_path = self.repo_root.join(&asset.wasm.path);
         let runtime = self
             .manifest
-            .php_runtime()
+            .php_runtime_for_asset(asset)
             .unwrap_or(PhpAssetRuntime::Asyncify);
         let runtime_hint = if runtime.uses_wasmtime_async() {
-            "; this manifest selected the Wasmtime async PHP runtime. The current node-builds/jspi PHP artifacts use legacy WebAssembly exceptions, which this Wasmtime compiler does not support. Rebuild PHP wasm without legacy exceptions before switching the manifest runtime."
+            "; this manifest selected the Wasmtime async PHP runtime. Rebuild this PHP wasm artifact with --WITH_WASMTIME_ASYNC=yes if the checked-in artifact is stale."
         } else {
             ""
         };
@@ -235,10 +235,11 @@ impl NativeRuntime {
     ) -> Result<WasmModuleSummary> {
         let mut summary = self.wasm_module_summary(php_version)?;
         let module = self.php_module(php_version)?;
+        let asset = self.php_asset(php_version)?;
         let mut linker = create_stub_import_linker_with_options(
             &module,
             HostOptions {
-                php_runtime: self.manifest.php_runtime()?,
+                php_runtime: self.manifest.php_runtime_for_asset(asset)?,
                 ..HostOptions::default()
             },
         )?;
@@ -270,6 +271,7 @@ fn wasm_engine_for_target(
     let settings = wasm_engine_settings(profile, target_triple);
     config.cranelift_opt_level(settings.opt_level);
     config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
+    config.wasm_exceptions(true);
     config.generate_address_map(false);
     if !uses_windows_unwind_info(target_triple) {
         config.native_unwind_info(false);

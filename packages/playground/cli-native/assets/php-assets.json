@@ -73,13 +73,14 @@
 			}
 		},
 		"8.5": {
+			"runtime": "node-builds/wasmtime-async",
 			"js": {
-				"path": "packages/php-wasm/node-builds/8-5/asyncify/php_8_5.js",
-				"sha256": "fb651c4d0c45e3df33659bccde31ee403870bb643d3e4ec9ed32d50073d06f9e"
+				"path": "packages/php-wasm/node-builds/8-5/wasmtime-async/php_8_5.js",
+				"sha256": "89eea82f7af0dd747d83ff2770a54be78e40cc9fea1e666b5bf2e954d6de3f09"
 			},
 			"wasm": {
-				"path": "packages/php-wasm/node-builds/8-5/asyncify/8_5_5/php_8_5.wasm",
-				"sha256": "0c63ce70a18d3525e263906f215c13ee008efa3fd83873e0116a7522b2e1e27d"
+				"path": "packages/php-wasm/node-builds/8-5/wasmtime-async/8_5_6/php_8_5.wasm",
+				"sha256": "c217d6560015cd313957c0a84ff2301c5f9c61c8ced18ed2985def4467118294"
 			}
 		}
 	}

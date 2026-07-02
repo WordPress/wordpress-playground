@@ -36,6 +36,8 @@ wasmtime = { version = "46.0.0", default-features = false, features = [
 	"async",
 	"cache",
 	"cranelift",
+	"gc",
+	"gc-null",
 	"parallel-compilation",
 	"runtime",
 	"std",

@@ -1,6 +1,7 @@
 FROM playground-php-wasm:base
 
 ARG JSPI
+ARG WASMTIME_ASYNC=0
 
 RUN mkdir -p /root/lib/include /root/lib/lib
 
@@ -15,7 +16,7 @@ RUN cd oniguruma && \
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \
-        export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+        export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions $(if [ "$WASMTIME_ASYNC" = "1" ]; then echo "-sWASM_LEGACY_EXCEPTIONS=0"; fi)"; else echo ""; fi) && \
         EMCC_SKIP="-lz" EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE $JSPI_FLAGS" emmake make;
 
 RUN cd oniguruma && \

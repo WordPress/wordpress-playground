@@ -100,6 +100,30 @@
 				"parallel": false
 			}
 		},
+		"recompile-php:wasmtime-async": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --WITH_WASMTIME_ASYNC=yes"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:wasmtime-async:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.5 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.4 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.3 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.2 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.1 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.0 --WITH_WASMTIME_ASYNC=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.4 --WITH_WASMTIME_ASYNC=yes"
+				],
+				"parallel": false
+			}
+		},
 		"recompile-php:asyncify": {
 			"executor": "nx:run-commands",
 			"options": {

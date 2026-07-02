@@ -49,6 +49,8 @@
 		"recompile:php:web:asyncify:7.3": "nx recompile-php:asyncify php-wasm-web -- --PHP_VERSION=7.3 ",
 		"recompile:php:web:asyncify:7.2": "nx recompile-php:asyncify php-wasm-web -- --PHP_VERSION=7.2 ",
 		"recompile:php:node": "nx recompile-php:all php-wasm-node ",
+		"recompile:php:node:wasmtime-async:all": "nx recompile-php:wasmtime-async:all php-wasm-node ",
+		"recompile:php:node:wasmtime-async:8.5": "nx recompile-php:wasmtime-async php-wasm-node -- --PHP_VERSION=8.5 ",
 		"recompile:php:node:jspi:all": "nx recompile-php:jspi:all php-wasm-node ",
 		"recompile:php:node:jspi:8.5": "nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.5 ",
 		"recompile:php:node:jspi:8.4": "nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.4 ",

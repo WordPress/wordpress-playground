@@ -13,7 +13,7 @@ pub const SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str =
 pub const PACKAGED_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str = "assets/php-assets.json";
 pub const FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH: &str = "php-assets.json";
 const PHP_ASSET_MANIFEST_SCHEMA_VERSION: u8 = 1;
-pub const PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC: &str = "node-builds/jspi";
+pub const PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC: &str = "node-builds/wasmtime-async";
 pub const PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY: &str = "node-builds/asyncify";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +41,7 @@ impl PhpAssetRuntime {
     fn build_dir_name(self) -> &'static str {
         match self {
             Self::Asyncify => "asyncify",
-            Self::WasmtimeAsync => "jspi",
+            Self::WasmtimeAsync => "wasmtime-async",
         }
     }
 
@@ -59,6 +59,7 @@ pub struct FileAsset {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhpAsset {
     pub version: String,
+    pub runtime: Option<PhpAssetRuntime>,
     pub js: FileAsset,
     pub wasm: FileAsset,
     pub wasmtime: Option<FileAsset>,
@@ -81,6 +82,8 @@ struct RawAssetManifest {
 
 #[derive(Debug, Deserialize)]
 struct RawPhpAsset {
+    #[serde(default)]
+    runtime: Option<String>,
     js: FileAsset,
     wasm: FileAsset,
     #[serde(default)]
@@ -99,6 +102,10 @@ impl AssetManifest {
         })
     }
 
+    pub fn php_runtime_for_asset(&self, asset: &PhpAsset) -> Result<PhpAssetRuntime> {
+        asset.runtime.map_or_else(|| self.php_runtime(), Ok)
+    }
+
     pub fn to_json(&self) -> String {
         let mut json = String::new();
         json.push_str("{\n");
@@ -110,6 +117,12 @@ impl AssetManifest {
         json.push_str("\t\"php\": {\n");
         for (index, asset) in self.php.iter().enumerate() {
             json.push_str(&format!("\t\t\"{}\": {{\n", escape_json(&asset.version)));
+            if let Some(runtime) = asset.runtime {
+                json.push_str(&format!(
+                    "\t\t\t\"runtime\": \"{}\",\n",
+                    escape_json(runtime.manifest_runtime())
+                ));
+            }
             push_file_asset(&mut json, "js", &asset.js, ",");
             push_file_asset(
                 &mut json,
@@ -142,6 +155,10 @@ pub fn load_php_assets_manifest(path: &Path) -> Result<AssetManifest> {
         .into_iter()
         .map(|(version, asset)| PhpAsset {
             version,
+            runtime: asset
+                .runtime
+                .as_deref()
+                .and_then(PhpAssetRuntime::from_manifest_runtime),
             js: asset.js,
             wasm: asset.wasm,
             wasmtime: asset.wasmtime,
@@ -197,6 +214,7 @@ pub fn discover_php_assets(repo_root: &Path) -> Result<AssetManifest> {
         let wasm = find_wasm_file(&runtime_dir)?;
         php.push(PhpAsset {
             version,
+            runtime: None,
             js: file_asset(repo_root, &js)?,
             wasm: file_asset(repo_root, &wasm)?,
             wasmtime: None,
@@ -287,6 +305,14 @@ fn validate_raw_manifest(raw: &RawAssetManifest) -> Result<()> {
     }
     for (version, asset) in &raw.php {
         validate_php_version(version)?;
+        if let Some(runtime) = &asset.runtime {
+            if PhpAssetRuntime::from_manifest_runtime(runtime).is_none() {
+                return Err(CliError::new(format!(
+                    "Unsupported PHP {version} asset runtime `{runtime}`; expected `{}` or `{}`",
+                    PHP_ASSET_MANIFEST_RUNTIME_ASYNCIFY, PHP_ASSET_MANIFEST_RUNTIME_WASMTIME_ASYNC
+                )));
+            }
+        }
         validate_file_asset(&asset.js, &format!("PHP {version} js"))?;
         validate_file_asset(&asset.wasm, &format!("PHP {version} wasm"))?;
         if let Some(wasmtime) = &asset.wasmtime {
@@ -521,6 +547,13 @@ mod tests {
         let php83 = select_php_asset(&manifest, "8.3").unwrap();
         verify_file_asset(&repo_root, &php83.js).unwrap();
         verify_file_asset(&repo_root, &php83.wasm).unwrap();
+        let php85 = select_php_asset(&manifest, "8.5").unwrap();
+        assert_eq!(
+            manifest.php_runtime_for_asset(php85).unwrap(),
+            PhpAssetRuntime::WasmtimeAsync
+        );
+        verify_file_asset(&repo_root, &php85.js).unwrap();
+        verify_file_asset(&repo_root, &php85.wasm).unwrap();
     }
 
     #[test]
@@ -531,7 +564,7 @@ mod tests {
             "runtime.json",
             r#"{
                 "schemaVersion": 1,
-                "runtime": "node-builds/jspi",
+                "runtime": "node-builds/wasmtime-async",
                 "php": {
                     "8.3": {
                         "js": { "path": "php/php.js", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
@@ -543,6 +576,33 @@ mod tests {
         let manifest = load_php_assets_manifest(&manifest).unwrap();
         assert_eq!(
             manifest.php_runtime().unwrap(),
+            PhpAssetRuntime::WasmtimeAsync
+        );
+    }
+
+    #[test]
+    fn loads_per_asset_wasmtime_async_runtime_override() {
+        let root = temp_dir("per-asset-wasmtime-async-runtime");
+        let manifest = write_manifest_json(
+            &root,
+            "runtime.json",
+            r#"{
+                "schemaVersion": 1,
+                "runtime": "node-builds/asyncify",
+                "php": {
+                    "8.5": {
+                        "runtime": "node-builds/wasmtime-async",
+                        "js": { "path": "php/php.js", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+                        "wasm": { "path": "php/php.wasm", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+                    }
+                }
+            }"#,
+        );
+        let manifest = load_php_assets_manifest(&manifest).unwrap();
+        let php85 = select_php_asset(&manifest, "8.5").unwrap();
+        assert_eq!(manifest.php_runtime().unwrap(), PhpAssetRuntime::Asyncify);
+        assert_eq!(
+            manifest.php_runtime_for_asset(php85).unwrap(),
             PhpAssetRuntime::WasmtimeAsync
         );
     }

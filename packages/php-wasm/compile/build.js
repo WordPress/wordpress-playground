@@ -46,6 +46,12 @@ const argParser = yargs(process.argv.slice(2))
 			default: false,
 			description: 'Build with JSPI support',
 		},
+		WITH_WASMTIME_ASYNC: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description:
+				'Build a node JSPI artifact with WebAssembly exceptions compatible with Wasmtime async.',
+		},
 		DEBUG: {
 			type: 'boolean',
 			default: false,
@@ -169,8 +175,8 @@ const argParser = yargs(process.argv.slice(2))
 		WITH_OPENSSL_VERSION: {
 			type: 'string',
 			choices: ['1.1.0h', '1.1.1'],
-			description: 'OpenSSL version to use',
-			default: '1.1.0h',
+			description:
+				'OpenSSL version to use. Defaults to 1.1.1 for PHP 8.5+ and 1.1.0h otherwise.',
 		},
 		WITH_OPCACHE: {
 			type: 'string',
@@ -203,6 +209,7 @@ const platformDefaults = {
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 		WITH_JSPI: 'no',
+		WITH_WASMTIME_ASYNC: 'no',
 		WITH_CURL: 'yes',
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
@@ -239,6 +246,16 @@ const getArg = (name) => {
 				: name in platformDefaults.all
 					? platformDefaults.all[name]
 					: 'no';
+	if (name === 'WITH_JSPI' && args.WITH_WASMTIME_ASYNC === 'yes') {
+		value = 'yes';
+	}
+	if (
+		args.WITH_WASMTIME_ASYNC === 'yes' &&
+		(name === 'WITH_GD' || name === 'WITH_IMAGICK') &&
+		!(name in args)
+	) {
+		value = 'no';
+	}
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -264,8 +281,13 @@ function computeOutputDir() {
 	const [major, minor] = phpVersion.split('.');
 	const versionDir = `${major}-${minor}`;
 	// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
+	const isWasmtimeAsync = args.WITH_WASMTIME_ASYNC === 'yes';
 	const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
-	const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+	const jspiOrAsyncify = isWasmtimeAsync
+		? 'wasmtime-async'
+		: isJspi
+			? 'jspi'
+			: 'asyncify';
 	const platformDir = platform === 'node' ? 'node-builds' : 'web-builds';
 	return path.resolve(
 		process.cwd(),
@@ -304,12 +326,21 @@ await cleanupOldMinorVersions();
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+if (args.WITH_WASMTIME_ASYNC === 'yes') {
+	await asyncSpawn('make', ['all_wasmtime_async_core'], {
+		cwd: sourceDir,
+		stdio: 'inherit',
+	});
+}
 
 const phpVersionForDockerfile = getArg('PHP_VERSION').replace(
 	'PHP_VERSION=',
 	''
 );
 const phpRef = args.PHP_REF || `php-${phpVersionForDockerfile}`;
+const opensslVersionForDockerfile =
+	args.WITH_OPENSSL_VERSION ||
+	(defaultRequiresOpenSSL111(phpVersionForDockerfile) ? '1.1.1' : '1.1.0h');
 const dockerfile = phpVersionForDockerfile.startsWith('5.2')
 	? 'php/Dockerfile-5-2'
 	: 'php/Dockerfile';
@@ -328,7 +359,7 @@ await asyncSpawn(
 		'--build-arg',
 		`PHP_REF=${phpRef}`,
 		'--build-arg',
-		`OPENSSL_VERSION=${args.WITH_OPENSSL_VERSION || '1.1.0h'}`,
+		`OPENSSL_VERSION=${opensslVersionForDockerfile}`,
 		'--build-arg',
 		getArg('WITH_FILEINFO'),
 		'--build-arg',
@@ -383,6 +414,8 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_JSPI'),
 		'--build-arg',
+		getArg('WITH_WASMTIME_ASYNC'),
+		'--build-arg',
 		getArg('WITH_OPCACHE'),
 		'--build-arg',
 		getArg('STACK_SIZE'),
@@ -397,7 +430,7 @@ await asyncSpawn(
 
 const copyTerminfoCommand =
 	getArg('WITH_CLI_SAPI') === 'yes'
-		? ' && cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
+		? ' && if [ -f /root/lib/share/terminfo/x/xterm ]; then cp /root/lib/share/terminfo/x/xterm /output/terminfo/x; fi'
 		: '';
 const restoreOutputOwnershipCommand = getRestoreOutputOwnershipCommand();
 
@@ -442,6 +475,11 @@ function getRestoreOutputOwnershipCommand() {
 		return '';
 	}
 	return ` && chown -R ${uid}:${gid} /output`;
+}
+
+function defaultRequiresOpenSSL111(phpVersion) {
+	const [major, minor] = phpVersion.split('.').map(Number);
+	return major > 8 || (major === 8 && minor >= 5);
 }
 
 function asyncSpawn(...args) {

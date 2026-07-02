@@ -22,6 +22,13 @@ libz/jspi/dist/root/lib/lib/libz.a: base-image
 	docker cp $$(docker create playground-php-wasm:libz):/root/lib/lib ./libz/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libz):/root/lib/include ./libz/jspi/dist/root/lib
 
+libz_wasmtime_async: libz/wasmtime-async/dist/root/lib/lib/libz.a
+libz/wasmtime-async/dist/root/lib/lib/libz.a: base-image
+	docker build -f ./libz/Dockerfile -t playground-php-wasm:libz ./ --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1
+	mkdir -p ./libz/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libz):/root/lib/lib ./libz/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libz):/root/lib/include ./libz/wasmtime-async/dist/root/lib
+
 libzip_asyncify: libzip-1.2.0_asyncify libzip-1.9.2_asyncify
 
 libzip-1.2.0_asyncify: libzip/asyncify/dist/1.2.0/root/lib/lib/libzip.a
@@ -53,6 +60,22 @@ libzip/jspi/dist/1.9.2/root/lib/lib/libzip.a: base-image libz_jspi
 	docker build -f ./libzip/Dockerfile -t playground-php-wasm:libzip . --build-arg LIBZIP_VERSION=1.9.2 --build-arg JSPI=1 --progress=plain
 	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/jspi/dist/1.9.2/root/lib
 	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/jspi/dist/1.9.2/root/lib
+
+libzip_wasmtime_async: libzip-1.2.0_wasmtime_async libzip-1.9.2_wasmtime_async
+
+libzip-1.2.0_wasmtime_async: libzip/wasmtime-async/dist/1.2.0/root/lib/lib/libzip.a
+libzip/wasmtime-async/dist/1.2.0/root/lib/lib/libzip.a: base-image libz_wasmtime_async
+	mkdir -p ./libzip/wasmtime-async/dist/1.2.0/root/lib
+	docker build -f ./libzip/Dockerfile -t playground-php-wasm:libzip . --build-arg LIBZIP_VERSION=1.2.0 --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1 --progress=plain
+	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/wasmtime-async/dist/1.2.0/root/lib
+	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/wasmtime-async/dist/1.2.0/root/lib
+
+libzip-1.9.2_wasmtime_async: libzip/wasmtime-async/dist/1.9.2/root/lib/lib/libzip.a
+libzip/wasmtime-async/dist/1.9.2/root/lib/lib/libzip.a: base-image libz_wasmtime_async
+	mkdir -p ./libzip/wasmtime-async/dist/1.9.2/root/lib
+	docker build -f ./libzip/Dockerfile -t playground-php-wasm:libzip . --build-arg LIBZIP_VERSION=1.9.2 --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1 --progress=plain
+	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/wasmtime-async/dist/1.9.2/root/lib
+	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/wasmtime-async/dist/1.9.2/root/lib
 
 libpng16_asyncify: libpng16/asyncify/dist/root/lib/lib/libpng16.a
 libpng16/asyncify/dist/root/lib/lib/libpng16.a: base-image libz_asyncify
@@ -160,6 +183,14 @@ libxml2/jspi/dist/root/lib/lib/libxml2.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/lib ./libxml2/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/include ./libxml2/jspi/dist/root/lib
 
+libxml2_wasmtime_async: libxml2/wasmtime-async/dist/root/lib/lib/libxml2.a
+libxml2/wasmtime-async/dist/root/lib/lib/libxml2.a: base-image libz_wasmtime_async
+	mkdir -p ./libxml2/wasmtime-async/dist/root/lib
+	docker build -f ./libxml2/Dockerfile -t playground-php-wasm:libxml2 . --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/bin ./libxml2/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/lib ./libxml2/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/include ./libxml2/wasmtime-async/dist/root/lib
+
 libopenssl_asyncify: libopenssl/asyncify/dist/1.1.0h/root/lib/lib/libssl.a libopenssl/asyncify/dist/1.1.1/root/lib/lib/libssl.a
 
 libopenssl/asyncify/dist/1.1.0h/root/lib/lib/libssl.a: base-image libz_asyncify
@@ -192,6 +223,27 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
 
+libopenssl_wasmtime_async: libopenssl/wasmtime-async/dist/1.1.0h/root/lib/lib/libssl.a libopenssl/wasmtime-async/dist/root/lib/lib/libssl.a
+
+libopenssl/wasmtime-async/dist/root/lib/lib/libssl.a: libopenssl/wasmtime-async/dist/1.1.1/root/lib/lib/libssl.a
+	rm -rf ./libopenssl/wasmtime-async/dist/root/lib
+	mkdir -p ./libopenssl/wasmtime-async/dist/root/lib
+	cp -a ./libopenssl/wasmtime-async/dist/1.1.1/root/lib/. ./libopenssl/wasmtime-async/dist/root/lib/
+
+libopenssl/wasmtime-async/dist/1.1.0h/root/lib/lib/libssl.a: base-image libz_wasmtime_async
+	mkdir -p ./libopenssl/wasmtime-async/dist/root/lib
+	docker build -f ./libopenssl/Dockerfile -t playground-php-wasm:libopenssl-1.1.0h . --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1 --build-arg OPENSSL_VERSION=1.1.0h
+	mkdir -p ./libopenssl/wasmtime-async/dist/1.1.0h/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.0h):/root/install/lib ./libopenssl/wasmtime-async/dist/1.1.0h/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.0h):/root/install/include ./libopenssl/wasmtime-async/dist/1.1.0h/root/lib
+
+libopenssl/wasmtime-async/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_wasmtime_async
+	mkdir -p ./libopenssl/wasmtime-async/dist/root/lib
+	docker build -f ./libopenssl/Dockerfile -t playground-php-wasm:libopenssl-1.1.1 . --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1 --build-arg OPENSSL_VERSION=1.1.1t
+	mkdir -p ./libopenssl/wasmtime-async/dist/1.1.1/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/wasmtime-async/dist/1.1.1/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/wasmtime-async/dist/1.1.1/root/lib
+
 WITH_DEBUG ?= no
 
 libsqlite3_asyncify: libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a
@@ -199,7 +251,7 @@ libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a: base-image libz_asyncify
 	mkdir -p ./libsqlite3/asyncify/dist/root/lib
 	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
 		--build-arg WITH_DEBUG=${WITH_DEBUG} \
-		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3 \
 		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/asyncify/dist/root/lib
@@ -213,10 +265,25 @@ libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a: base-image libz_jspi
 	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
 		--build-arg JSPI=1 \
 		--build-arg WITH_DEBUG=${WITH_DEBUG} \
-		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3 \
 		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/jspi/dist/root/lib
+	@if [ "${WITH_DEBUG}" = "yes" ]; then \
+		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
+	fi
+
+libsqlite3_wasmtime_async: libsqlite3/wasmtime-async/dist/root/lib/lib/libsqlite3.a
+libsqlite3/wasmtime-async/dist/root/lib/lib/libsqlite3.a: base-image libz_wasmtime_async
+	mkdir -p ./libsqlite3/wasmtime-async/dist/root/lib
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
+		--build-arg JSPI=1 \
+		--build-arg WASMTIME_ASYNC=1 \
+		--build-arg WITH_DEBUG=${WITH_DEBUG} \
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3 \
+		--progress=plain
+	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/wasmtime-async/dist/root/lib
 	@if [ "${WITH_DEBUG}" = "yes" ]; then \
 		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
 	fi
@@ -234,6 +301,13 @@ libiconv/jspi/dist/root/lib/lib/libiconv.a: base-image libz_jspi
 	docker build -f ./libiconv/Dockerfile -t playground-php-wasm:libiconv . --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/lib ./libiconv/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/include ./libiconv/jspi/dist/root/lib
+
+libiconv_wasmtime_async: libiconv/wasmtime-async/dist/root/lib/lib/libiconv.a
+libiconv/wasmtime-async/dist/root/lib/lib/libiconv.a: base-image libz_wasmtime_async
+	mkdir -p ./libiconv/wasmtime-async/dist/root/lib
+	docker build -f ./libiconv/Dockerfile -t playground-php-wasm:libiconv . --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1
+	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/lib ./libiconv/wasmtime-async/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/include ./libiconv/wasmtime-async/dist/root/lib
 
 # This didn't get a proper JSPI port because it wasn't actually used in the build.
 # It's kept here because we still will want PHP WASM to support interactive CLI and
@@ -280,6 +354,13 @@ oniguruma/jspi/dist/root/lib/lib/libonig.a: base-image
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/jspi/dist/root/lib/
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/jspi/dist/root/lib/
 
+oniguruma_wasmtime_async: oniguruma/wasmtime-async/dist/root/lib/lib/libonig.a
+oniguruma/wasmtime-async/dist/root/lib/lib/libonig.a: base-image
+	mkdir -p ./oniguruma/wasmtime-async/dist/root/lib
+	docker build -f ./oniguruma/Dockerfile -t playground-php-wasm:oniguruma . --progress=plain --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1
+	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/wasmtime-async/dist/root/lib/
+	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/wasmtime-async/dist/root/lib/
+
 libcurl_asyncify: libcurl/asyncify/dist/root/lib/lib/libcurl.a
 libcurl/asyncify/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_asyncify
 	mkdir -p ./libcurl/asyncify/dist/root/lib
@@ -293,6 +374,13 @@ libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_jspi
 	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/jspi/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/jspi/dist/root/lib
+
+libcurl_wasmtime_async: libcurl/wasmtime-async/dist/root/lib/lib/libcurl.a
+libcurl/wasmtime-async/dist/root/lib/lib/libcurl.a: base-image libz_wasmtime_async libopenssl_wasmtime_async
+	mkdir -p ./libcurl/wasmtime-async/dist/root/lib
+	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain --build-arg JSPI=1 --build-arg WASMTIME_ASYNC=1
+	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/wasmtime-async/dist/root/lib/lib
+	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/wasmtime-async/dist/root/lib
 
 libImageMagick_asyncify: libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a
 libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_asyncify libjpeg_asyncify libpng16_asyncify libwebp_asyncify
@@ -313,11 +401,14 @@ libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz
 all: all_jspi all_asyncify
 all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi oniguruma_jspi libcurl_jspi libImageMagick_jspi
 all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify oniguruma_asyncify libcurl_asyncify libImageMagick_asyncify
+all_wasmtime_async_core: libz_wasmtime_async libzip_wasmtime_async libxml2_wasmtime_async libopenssl_wasmtime_async libsqlite3_wasmtime_async libiconv_wasmtime_async oniguruma_wasmtime_async libcurl_wasmtime_async
 
 clean:
 	rm -rf ./libz/jspi/dist
+	rm -rf ./libz/wasmtime-async/dist
 	rm -rf ./libz/asyncify/dist
 	rm -rf ./libzip/jspi/dist
+	rm -rf ./libzip/wasmtime-async/dist
 	rm -rf ./libzip/asyncify/dist
 	rm -rf ./libpng16/jspi/dist
 	rm -rf ./libpng16/asyncify/dist
@@ -330,14 +421,20 @@ clean:
 	rm -rf ./libavif/jspi/dist
 	rm -rf ./libavif/asyncify/dist
 	rm -rf ./libxml2/jspi/dist
+	rm -rf ./libxml2/wasmtime-async/dist
 	rm -rf ./libxml2/asyncify/dist
 	rm -rf ./libopenssl/jspi/dist
+	rm -rf ./libopenssl/wasmtime-async/dist
 	rm -rf ./libopenssl/asyncify/dist
 	rm -rf ./libsqlite3/jspi/dist
+	rm -rf ./libsqlite3/wasmtime-async/dist
 	rm -rf ./libsqlite3/asyncify/dist
 	rm -rf ./libiconv/jspi/dist
+	rm -rf ./libiconv/wasmtime-async/dist
 	rm -rf ./libiconv/asyncify/dist
 	rm -rf ./oniguruma/jspi/dist
+	rm -rf ./oniguruma/wasmtime-async/dist
 	rm -rf ./oniguruma/asyncify/dist
+	rm -rf ./libcurl/wasmtime-async/dist
 	rm -rf ./libImageMagick/jspi/dist
 	rm -rf ./libImageMagick/asyncify/dist
