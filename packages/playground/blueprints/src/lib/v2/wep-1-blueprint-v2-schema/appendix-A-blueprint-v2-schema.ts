@@ -483,77 +483,77 @@ export namespace V2Schema {
 		 * ]
 		 * ```
 		 */
-		| ({
-				type: 'wxr';
-				source:
-					| DataSources.FileDataReference
-					| DataSources.FileDataReference[];
+		| WXRContentDefinition;
 
-				/**
-				 * Static assets handling.
-				 *
-				 * Possible values:
-				 *
-				 * * "fetch" – Fetch the static assets and save them to the local filesystem.
-				 * * "hotlink" – Hotlink the static assets from the remote site.
-				 *
-				 * @default "fetch".
-				 */
-				staticAssets?: 'fetch' | 'hotlink';
+	type WXRContentDefinition = WXRContentBase &
+		(
+			| {
+					/**
+					 * Map remote authors to existing local authors.
+					 */
+					authorsMode: 'map';
+					authorsMap: Record<RemoteUsername, LocalUsername>;
+			  }
+			| {
+					/**
+					 * How to handle authors that don't exist on the current site.
+					 *
+					 * Possible values:
+					 *
+					 * * "create" – Create a new author.
+					 * * "default-author" – Use the default author.
+					 *
+					 * @default "create".
+					 */
+					authorsMode?: 'create' | 'default-author';
+					authorsMap?: Record<RemoteUsername, LocalUsername>;
+			  }
+		);
 
-				/**
-				 * How to handle authors that don't exist on the current site.
-				 *
-				 * Possible values:
-				 *
-				 * * "create" – Create a new author.
-				 * * "default-author" – Use the default author.
-				 * * "map" – Map the author to an existing author on the current site.
-				 *
-				 * @default "create".
-				 */
-				authorsMode?: 'create' | 'default-author' | 'map';
+	type WXRContentBase = {
+		type: 'wxr';
+		source: DataSources.FileDataReference | DataSources.FileDataReference[];
 
-				/**
-				 * The default author to use when `mode` is "default-author".
-				 *
-				 * @default "admin".
-				 */
-				defaultAuthorUsername?: string;
+		/**
+		 * Static assets handling.
+		 *
+		 * Possible values:
+		 *
+		 * * "fetch" – Fetch the static assets and save them to the local filesystem.
+		 * * "hotlink" – Hotlink the static assets from the remote site.
+		 *
+		 * @default "fetch".
+		 */
+		staticAssets?: 'fetch' | 'hotlink';
 
-				/**
-				 * Map post authors from the remote site to the current site.
-				 *
-				 * When not provided, the importer will attempt to match the authors by
-				 * username, email, or name.
-				 *
-				 * Required when `authorsMode` is "map".
-				 *
-				 * @default undefined.
-				 */
-				authorsMap?: Record<RemoteUsername, LocalUsername>;
+		/**
+		 * The default author to use when `mode` is "default-author".
+		 *
+		 * @default "admin".
+		 */
+		defaultAuthorUsername?: string;
 
-				/**
-				 * Whether to import users from the remote site.
-				 *
-				 * @default false.
-				 */
-				importUsers?: boolean;
+		/**
+		 * Whether to import users from the remote site.
+		 *
+		 * @default false.
+		 */
+		importUsers?: boolean;
 
-				/**
-				 * Whether to import comments from the remote site.
-				 *
-				 * @default false.
-				 */
-				importComments?: boolean;
+		/**
+		 * Whether to import comments from the remote site.
+		 *
+		 * @default false.
+		 */
+		importComments?: boolean;
 
-				/**
-				 * Whether to import site settings from the remote site.
-				 *
-				 * @default false.
-				 */
-				importSiteOptions?: boolean;
-		  } & URLMappingConfig);
+		/**
+		 * Whether to import site settings from the remote site.
+		 *
+		 * @default false.
+		 */
+		importSiteOptions?: boolean;
+	} & URLMappingConfig;
 
 	type MediaDefinition =
 		| DataSources.FileDataReference
