@@ -101,6 +101,26 @@ describe('Blueprint v2 declaration types', () => {
 
 		expect(blueprint.version).toBe(2);
 	});
+
+	it('accepts Blueprint v2 runtime version labels', () => {
+		const blueprints = [
+			{
+				version: 2,
+				wordpressVersion: 'beta',
+				phpVersion: 'next',
+			},
+			{
+				version: 2,
+				wordpressVersion: 'trunk',
+			},
+			{
+				version: 2,
+				wordpressVersion: 'nightly',
+			},
+		] satisfies BlueprintV2Declaration[];
+
+		expect(blueprints).toHaveLength(3);
+	});
 });
 
 const blueprintWithDirectoryAsRunPHPCode = {
