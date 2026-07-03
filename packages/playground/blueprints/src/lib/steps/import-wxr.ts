@@ -33,6 +33,12 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	rewriteUrls?: boolean;
 	/**
+	 * Whether to import comments from the WXR file.
+	 *
+	 * @default true
+	 */
+	importComments?: boolean;
+	/**
 	 * The importer to use. Possible values:
 	 *
 	 * - `default`: The importer from https://github.com/humanmade/WordPress-Importer
@@ -56,12 +62,18 @@ export interface ImportWxrStep<ResourceType> {
  */
 export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	playground,
-	{ file, fetchAttachments = true, rewriteUrls = true },
+	{
+		file,
+		fetchAttachments = true,
+		rewriteUrls = true,
+		importComments = true,
+	},
 	progress?
 ) => {
 	await importWithDefaultImporter(playground, file, progress, {
 		fetchAttachments,
 		rewriteUrls,
+		importComments,
 	});
 };
 
@@ -72,6 +84,7 @@ async function importWithDefaultImporter(
 	options: {
 		fetchAttachments: boolean;
 		rewriteUrls: boolean;
+		importComments: boolean;
 	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
@@ -119,6 +132,10 @@ async function importWithDefaultImporter(
 	// Prepare the data to be used in process_author_mapping();
 	$wp_import->get_authors_from_import( $import_data );
 
+	if (getenv('IMPORT_COMMENTS') === 'false') {
+		add_filter('wp_import_post_comments', '__return_empty_array');
+	}
+
 	// We no longer need the original data, so unset to avoid using excess
 	// memory.
 	unset( $import_data );
@@ -145,6 +162,7 @@ async function importWithDefaultImporter(
 			IMPORT_FILE: '/tmp/import.wxr',
 			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
+			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
 		},
 	});
 }
