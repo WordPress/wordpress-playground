@@ -592,7 +592,11 @@ function shouldEnableAdminTransitions() {
 	);
 }
 
-function isChromiumBasedBrowser(navigatorObject: Navigator = navigator) {
+function isChromiumBasedBrowser(navigatorObject = globalThis.navigator) {
+	if (!navigatorObject) {
+		return false;
+	}
+
 	const brands = (
 		navigatorObject as Navigator & {
 			userAgentData?: { brands?: Array<{ brand: string }> };

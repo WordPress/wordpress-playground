@@ -141,13 +141,8 @@ function playground_disable_admin_view_transitions() {
 		return;
 	}
 
-	if ( function_exists( 'wp_dequeue_style' ) ) {
-		wp_dequeue_style( 'wp-view-transitions-admin' );
-	}
-
-	if ( function_exists( 'wp_deregister_style' ) ) {
-		wp_deregister_style( 'wp-view-transitions-admin' );
-	}
+	wp_dequeue_style( 'wp-view-transitions-admin' );
+	wp_deregister_style( 'wp-view-transitions-admin' );
 }
 add_action( 'admin_enqueue_scripts', 'playground_disable_admin_view_transitions', PHP_INT_MAX );
 
