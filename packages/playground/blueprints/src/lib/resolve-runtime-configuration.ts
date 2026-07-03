@@ -69,20 +69,41 @@ function isBlueprintV2Declaration(
 function resolveV2PHPVersion(
 	declaration: BlueprintV2Declaration
 ): AllPHPVersion {
-	if (typeof declaration.phpVersion !== 'string') {
-		return RecommendedPHPVersion;
+	const phpVersion = declaration.phpVersion;
+	if (typeof phpVersion === 'string') {
+		return resolveV2PHPVersionString(phpVersion);
 	}
 
-	if (
-		(AllPHPVersions as readonly string[]).includes(declaration.phpVersion)
-	) {
-		return declaration.phpVersion as AllPHPVersion;
+	const recommendedVersion = getV2PHPConstraintRecommendedVersion(phpVersion);
+	if (recommendedVersion) {
+		return resolveV2PHPVersionString(recommendedVersion);
 	}
 
+	return RecommendedPHPVersion;
+}
+
+function resolveV2PHPVersionString(phpVersion: string): AllPHPVersion {
+	if ((AllPHPVersions as readonly string[]).includes(phpVersion)) {
+		return phpVersion as AllPHPVersion;
+	}
 	throw new Error(
-		`Unsupported Blueprint v2 PHP version "${declaration.phpVersion}". ` +
+		`Unsupported Blueprint v2 PHP version "${phpVersion}". ` +
 			`Supported versions: ${AllPHPVersions.join(', ')}.`
 	);
+}
+
+function getV2PHPConstraintRecommendedVersion(
+	phpVersion: BlueprintV2Declaration['phpVersion']
+): string | undefined {
+	if (!phpVersion || typeof phpVersion !== 'object') {
+		return undefined;
+	}
+	if (!('recommended' in phpVersion)) {
+		return undefined;
+	}
+	return typeof phpVersion.recommended === 'string'
+		? phpVersion.recommended
+		: undefined;
 }
 
 function resolveV2WordPressVersion(
