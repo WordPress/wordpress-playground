@@ -21,6 +21,14 @@ type PackageExport =
 			default?: PackageExport;
 	  };
 
+/**
+ * Forces Vite to use the browser ESM entry of isomorphic-git.
+ *
+ * Without this alias, Vite may optimize the package from its Node/CJS entry,
+ * which pulls in Node crypto and breaks browser bundles. Resolve the entry
+ * from package metadata instead of hardcoding the current transitive package
+ * graph.
+ */
 export function isomorphicGitBrowserAlias() {
 	return {
 		find: /^isomorphic-git$/,
