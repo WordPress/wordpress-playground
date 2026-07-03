@@ -66,13 +66,37 @@ describe('compileBlueprintForExecution', () => {
 		);
 	});
 
-	it('rejects Blueprint v2 declarations until the v2 execution path is wired', async () => {
+	it('compiles minimal Blueprint v2 declarations through the TypeScript runner', async () => {
+		const declaration = {
+			version: 2,
+			phpVersion: '8.3',
+		} as const;
+		const playground = {};
+
+		const compiled = await compileBlueprintForExecution(declaration);
+		await compiled.run(playground as any);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.declaration).toBe(declaration);
+		expect(compiled.compiled.runtime).toMatchObject({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+		});
+	});
+
+	it('rejects unsupported Blueprint v2 execution fields', async () => {
 		await expect(
 			compileBlueprintForExecution({
 				version: 2,
+				siteOptions: {
+					blogname: 'Unsupported for now',
+				},
 			})
 		).rejects.toThrow(
-			'Blueprint v2 execution is not supported by compileBlueprintForExecution() yet.'
+			'siteOptions: This Blueprint v2 feature is not supported by the TypeScript runner yet.'
 		);
 	});
 });
