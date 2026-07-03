@@ -190,6 +190,20 @@ describe('Blueprint v2 runtime configuration', () => {
 		);
 	});
 
+	it('rejects unsatisfied PHP version constraints', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				phpVersion: {
+					min: '8.5',
+					max: '8.4',
+				},
+			})
+		).rejects.toThrow(
+			'Unsatisfiable Blueprint v2 PHP version constraints {"min":"8.5","max":"8.4"}. Supported versions:'
+		);
+	});
+
 	it('resolves simple WordPress version strings', async () => {
 		for (const wordpressVersion of [
 			'latest',
