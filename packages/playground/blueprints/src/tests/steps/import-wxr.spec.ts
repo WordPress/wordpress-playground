@@ -604,4 +604,65 @@ describe('Blueprint step importWxr', () => {
 		},
 		{ timeout: 30_000 }
 	);
+
+	it(
+		'Should replace all post authors with the configured default user',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$user_id = wp_create_user(
+				'wxr_default_author',
+				'password',
+				'wxr_default_author@example.com'
+			);
+			$user = new WP_User($user_id);
+			$user->set_role('author');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file,
+				defaultAuthorUsername: 'wxr_default_author',
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+			]);
+
+			$post_author_logins = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_author_logins[] = $author ? $author->user_login : null;
+			}
+
+			echo json_encode($post_author_logins);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toEqual([
+				'wxr_default_author',
+				'wxr_default_author',
+			]);
+		},
+		{ timeout: 30_000 }
+	);
 });

@@ -39,6 +39,12 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	importComments?: boolean;
 	/**
+	 * The existing local user to assign imported posts to.
+	 *
+	 * @default "admin"
+	 */
+	defaultAuthorUsername?: string;
+	/**
 	 * The importer to use. Possible values:
 	 *
 	 * - `default`: The importer from https://github.com/humanmade/WordPress-Importer
@@ -67,6 +73,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		fetchAttachments = true,
 		rewriteUrls = true,
 		importComments = true,
+		defaultAuthorUsername = 'admin',
 	},
 	progress?
 ) => {
@@ -74,6 +81,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		fetchAttachments,
 		rewriteUrls,
 		importComments,
+		defaultAuthorUsername,
 	});
 };
 
@@ -85,6 +93,7 @@ async function importWithDefaultImporter(
 		fetchAttachments: boolean;
 		rewriteUrls: boolean;
 		importComments: boolean;
+		defaultAuthorUsername: string;
 	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
@@ -121,10 +130,16 @@ async function importWithDefaultImporter(
 	 */
 	kses_remove_filters();
 
-	// Set current user for the importer to pick it up as the default
-	// post author.
-	$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
-	wp_set_current_user( $admin_id );
+	// The WordPress importer assigns unmapped imported authors to the current
+	// user, so set it to the requested default author before importing.
+	$default_author_username = getenv('DEFAULT_AUTHOR_USERNAME');
+	$default_author          = get_user_by('login', $default_author_username);
+	if (!$default_author) {
+		throw new Exception(
+			sprintf('Could not find default WXR import author "%s".', $default_author_username)
+		);
+	}
+	wp_set_current_user( $default_author->ID );
 
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
@@ -163,6 +178,7 @@ async function importWithDefaultImporter(
 			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
 			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
+			DEFAULT_AUTHOR_USERNAME: options.defaultAuthorUsername,
 		},
 	});
 }
