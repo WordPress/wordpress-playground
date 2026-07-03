@@ -215,7 +215,6 @@ export function SavedPlaygroundsOverlay({
 	const inlineRename = useInlineRename();
 
 	const [searchQuery, setSearchQuery] = useState('');
-	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
@@ -434,20 +433,6 @@ export function SavedPlaygroundsOverlay({
 			: []),
 	];
 
-	const tagCounts = new Map<string, number>();
-	allBlueprints.forEach((b) => {
-		(b.categories || []).forEach((tag) => {
-			tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-		});
-	});
-	const allTags = Array.from(tagCounts.keys())
-		.filter((tag) => tag.substring(0, 1).match(/^[A-Z]$/))
-		.sort((a, b) => {
-			const countDiff = (tagCounts.get(b) || 0) - (tagCounts.get(a) || 0);
-			if (countDiff !== 0) return countDiff;
-			return 0;
-		});
-
 	const filteredBlueprints = allBlueprints.filter((blueprint) => {
 		const query = searchQuery.toLowerCase();
 		const matchesSearch =
@@ -458,13 +443,7 @@ export function SavedPlaygroundsOverlay({
 				cat.toLowerCase().includes(query)
 			);
 
-		const matchesTag =
-			!selectedTag ||
-			(selectedTag === 'Featured'
-				? blueprint.featured === true
-				: blueprint.categories?.includes(selectedTag));
-
-		return matchesSearch && matchesTag;
+		return matchesSearch;
 	});
 
 	const onSiteClick = (slug: string) => {
@@ -1482,41 +1461,6 @@ export function SavedPlaygroundsOverlay({
 	function renderBlueprintFilters() {
 		return (
 			<div className={css.filtersBar}>
-				<div className={css.tagsContainer}>
-					<button
-						className={classNames(css.tagButton, {
-							[css.tagButtonActive]: selectedTag === null,
-						})}
-						onClick={() => setSelectedTag(null)}
-					>
-						All
-					</button>
-					<button
-						className={classNames(css.tagButton, {
-							[css.tagButtonActive]: selectedTag === 'Featured',
-						})}
-						onClick={() =>
-							setSelectedTag(
-								selectedTag === 'Featured' ? null : 'Featured'
-							)
-						}
-					>
-						Featured
-					</button>
-					{allTags.slice(0, 8).map((tag) => (
-						<button
-							key={tag}
-							className={classNames(css.tagButton, {
-								[css.tagButtonActive]: selectedTag === tag,
-							})}
-							onClick={() =>
-								setSelectedTag(selectedTag === tag ? null : tag)
-							}
-						>
-							{tag}
-						</button>
-					))}
-				</div>
 				<div className={css.searchWrapper}>
 					<div className={css.searchIcon}>
 						<svg

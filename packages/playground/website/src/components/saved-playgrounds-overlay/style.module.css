@@ -39,34 +39,6 @@
 	color: #6b7280;
 }
 
-.tagsContainer {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-}
-
-.tagButton {
-	padding: 6px 14px;
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 16px;
-	color: #9ca3af;
-	font-size: clamp(14px, 1.4vw, 15px);
-	cursor: pointer;
-	transition: all 0.15s ease;
-}
-
-.tagButton:hover {
-	background: #353b41;
-	color: #fff;
-}
-
-.tagButtonActive {
-	background: #3858e9;
-	border-color: #3858e9;
-	color: #fff;
-}
-
 .emptyMessage {
 	color: #6b7280;
 	font-size: clamp(14px, 1.4vw, 15px);
@@ -1631,35 +1603,6 @@
 .playgrounds-pane .searchField::placeholder,
 .playgrounds-pane .searchIcon {
 	color: var(--ink-faint, #8a857b);
-}
-
-.playgrounds-pane .tagButton {
-	background: #ffffff;
-	border-color: rgba(33, 30, 25, 0.14);
-	color: #5f5b54;
-	min-height: 36px;
-}
-
-/* Keep the category filters to a single line: pills that don't fit wrap to a
-   second row, which is clipped — so only whole pills that fit are shown, never a
-   cut-off partial. (Pill height is 36px above.) */
-.playgrounds-pane .tagsContainer {
-	max-height: 36px;
-	overflow: hidden;
-}
-
-.playgrounds-pane .tagButton:hover {
-	background: rgba(33, 30, 25, 0.045);
-	color: #21201d;
-}
-
-/* A soft tinted pill — distinct from the raised white "tab" segments above, so
-   a selected category never looks like the active creation tab. */
-.playgrounds-pane .tagButtonActive,
-.playgrounds-pane .tagButtonActive:hover {
-	background: rgba(56, 88, 233, 0.12);
-	border-color: #3858e9;
-	color: #2645c9;
 }
 
 .playgrounds-pane .blueprintPreviewThumbnail,
