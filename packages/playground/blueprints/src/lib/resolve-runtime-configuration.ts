@@ -3,6 +3,7 @@ import { BlueprintReflection } from './reflection';
 import type { Blueprint, RuntimeConfiguration } from './types';
 import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
+import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
 export async function resolveRuntimeConfiguration(
 	blueprint: Blueprint
@@ -31,12 +32,17 @@ export async function resolveRuntimeConfiguration(
 			constants: {},
 		};
 	} else {
+		const declaration =
+			reflection.getDeclaration() as BlueprintV2Declaration;
+		const playgroundOptions =
+			declaration.applicationOptions?.['wordpress-playground'];
+
 		// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
 		return {
 			phpVersion: RecommendedPHPVersion,
 			wpVersion: 'latest',
 			intl: false,
-			networking: true,
+			networking: playgroundOptions?.networkAccess ?? true,
 			constants: {},
 			extraLibraries: [],
 		};
