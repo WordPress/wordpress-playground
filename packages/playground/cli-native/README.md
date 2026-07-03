@@ -177,6 +177,18 @@ package, but it cannot switch an asyncify artifact into a Wasmtime async
 artifact. The checked-in manifest defaults to asyncify for PHP 7.4 through 8.4
 and uses the Wasmtime async runtime for PHP 8.5.
 
+The checked-in PHP 8.5 Wasmtime async asset is generated with:
+
+```bash
+node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.5 --WITH_WASMTIME_ASYNC=yes
+```
+
+After rebuilding it, update `packages/playground/cli-native/assets/php-assets.json`
+with the new SHA-256 values for `php_8_5.js` and `php_8_5.wasm`. The generated
+`packages/php-wasm/node-builds/*/wasmtime-async/**` paths are marked
+`linguist-generated` and `-text` in `.gitattributes` so cross-platform checkouts
+do not rewrite loader line endings or invalidate the manifest checksums.
+
 By default, release packages include every supported PHP version listed in the
 asset manifest. Use repeatable `--php-version=<version>` only for intentionally
 filtered development packages; omitting it is the release path.
@@ -198,6 +210,12 @@ extracted binary:
 ```bash
 cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --php-version=8.3 --skip-wordpress-assets --smoke-php-version=8.3
 ```
+
+The generated `package-manifest.json` records `wasmtimePrecompile.requested`,
+`wasmtimePrecompile.supported`, and `wasmtimePrecompile.skippedReason`. Windows
+ARM64 currently reports precompile as unsupported and ships source `.wasm` files
+for runtime compilation; other release targets include generated `.wasm.cwasm`
+files when precompile is requested.
 
 The full package smoke includes bundled WordPress and SQLite assets, extracts
 the archive, starts the extracted binary as a server, fetches the installed

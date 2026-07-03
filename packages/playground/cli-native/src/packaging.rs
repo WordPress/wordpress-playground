@@ -62,6 +62,7 @@ pub struct PackageManifest {
     pub package_name: String,
     pub version: String,
     pub target_triple: String,
+    pub wasmtime_precompile: PackageWasmtimePrecompileManifest,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,6 +89,15 @@ pub struct PackageArchiveManifest {
     pub size_bytes: u64,
     pub sha256: String,
     pub checksum_file_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageWasmtimePrecompileManifest {
+    pub requested: bool,
+    pub supported: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skipped_reason: Option<String>,
 }
 
 impl Default for PackageOptions {
@@ -234,8 +244,14 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
     }
 
     let package_manifest_path = package_root.join("package-manifest.json");
-    let manifest_without_archive =
-        build_package_manifest(&options.package_name, binary_manifest, files, None);
+    let wasmtime_precompile = package_wasmtime_precompile_manifest(options.precompile_wasmtime);
+    let manifest_without_archive = build_package_manifest(
+        &options.package_name,
+        wasmtime_precompile,
+        binary_manifest,
+        files,
+        None,
+    );
     write_package_manifest(&package_manifest_path, &manifest_without_archive)?;
 
     let (archive_path, archive_checksum_path, archive_manifest_path) = if options.create_archive {
@@ -1052,6 +1068,7 @@ fn copy_file(source: &Path, destination: &Path) -> Result<()> {
 
 fn build_package_manifest(
     package_name: &str,
+    wasmtime_precompile: PackageWasmtimePrecompileManifest,
     binary: PackageFileManifest,
     files: Vec<PackageFileManifest>,
     archive: Option<PackageArchiveManifest>,
@@ -1061,6 +1078,7 @@ fn build_package_manifest(
         package_name: package_name.to_string(),
         version: package_version().to_string(),
         target_triple: target_triple().to_string(),
+        wasmtime_precompile,
         source_commit: source_commit(),
         rustc_version: rustc_version(),
         binary,
@@ -1247,6 +1265,31 @@ fn target_triple() -> String {
     })
 }
 
+fn package_wasmtime_precompile_manifest(requested: bool) -> PackageWasmtimePrecompileManifest {
+    let target = target_triple();
+    package_wasmtime_precompile_manifest_for_target(requested, Some(&target))
+}
+
+fn package_wasmtime_precompile_manifest_for_target(
+    requested: bool,
+    target_triple: Option<&str>,
+) -> PackageWasmtimePrecompileManifest {
+    let supported = !skips_wasmtime_precompile_for_target(target_triple);
+    let skipped_reason = if requested && !supported {
+        let target = target_triple.unwrap_or("current target");
+        Some(format!(
+            "Wasmtime precompilation is disabled for {target}; package includes source .wasm files for runtime compilation"
+        ))
+    } else {
+        None
+    };
+    PackageWasmtimePrecompileManifest {
+        requested,
+        supported,
+        skipped_reason,
+    }
+}
+
 fn configured_target_triple() -> Option<String> {
     env::var("WP_PLAYGROUND_NATIVE_TARGET_TRIPLE")
         .ok()
@@ -1379,7 +1422,8 @@ mod tests {
     };
 
     use super::{
-        extract_package_archive, package_native_cli, precompile_packaged_wasm_for_target,
+        extract_package_archive, package_native_cli,
+        package_wasmtime_precompile_manifest_for_target, precompile_packaged_wasm_for_target,
         selected_php_manifest, PackageOptions, PACKAGE_SHARE_DIR,
     };
     use crate::{
@@ -1684,6 +1728,8 @@ mod tests {
         assert_eq!(package_manifest["schemaVersion"], 1);
         assert_eq!(package_manifest["packageName"], "native-test");
         assert_eq!(package_manifest["version"], super::package_version());
+        assert_eq!(package_manifest["wasmtimePrecompile"]["requested"], false);
+        assert!(package_manifest["wasmtimePrecompile"]["skippedReason"].is_null());
         assert_eq!(package_manifest["binary"]["kind"], "binary");
         assert!(package_manifest["archive"].is_null());
         let files = package_manifest["files"].as_array().unwrap();
@@ -1762,11 +1808,21 @@ mod tests {
             .join("packages/playground/cli-native/assets/php-assets.json");
         let manifest = load_php_assets_manifest(&manifest_path).unwrap();
         let php83 = select_php_asset(&manifest, "8.3").unwrap();
+        let package_manifest = fs::read_to_string(&summary.package_manifest_path).unwrap();
+        let package_manifest: serde_json::Value = serde_json::from_str(&package_manifest).unwrap();
+        assert_eq!(package_manifest["wasmtimePrecompile"]["requested"], true);
         if super::skips_wasmtime_precompile_for_target(None) {
+            assert_eq!(package_manifest["wasmtimePrecompile"]["supported"], false);
+            assert!(package_manifest["wasmtimePrecompile"]["skippedReason"]
+                .as_str()
+                .unwrap()
+                .contains("runtime compilation"));
             assert!(php83.wasmtime.is_none());
             assert!(summary.asset_root.join(&php83.wasm.path).is_file());
             return;
         }
+        assert_eq!(package_manifest["wasmtimePrecompile"]["supported"], true);
+        assert!(package_manifest["wasmtimePrecompile"]["skippedReason"].is_null());
 
         let wasmtime = php83.wasmtime.as_ref().unwrap();
         assert!(wasmtime.path.to_string_lossy().ends_with(".wasm.cwasm"));
@@ -1803,6 +1859,31 @@ mod tests {
         assert!(!package_asset_root
             .join("packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm.cwasm")
             .exists());
+    }
+
+    #[test]
+    fn package_manifest_reports_wasmtime_precompile_target_fallback() {
+        let supported =
+            package_wasmtime_precompile_manifest_for_target(true, Some("x86_64-unknown-linux-gnu"));
+        assert!(supported.requested);
+        assert!(supported.supported);
+        assert!(supported.skipped_reason.is_none());
+
+        let unsupported =
+            package_wasmtime_precompile_manifest_for_target(true, Some("aarch64-pc-windows-msvc"));
+        assert!(unsupported.requested);
+        assert!(!unsupported.supported);
+        assert!(unsupported
+            .skipped_reason
+            .as_ref()
+            .unwrap()
+            .contains("aarch64-pc-windows-msvc"));
+
+        let not_requested =
+            package_wasmtime_precompile_manifest_for_target(false, Some("aarch64-pc-windows-msvc"));
+        assert!(!not_requested.requested);
+        assert!(!not_requested.supported);
+        assert!(not_requested.skipped_reason.is_none());
     }
 
     #[test]
