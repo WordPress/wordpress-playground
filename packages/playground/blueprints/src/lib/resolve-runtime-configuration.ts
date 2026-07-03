@@ -1,4 +1,8 @@
-import { AllPHPVersions, type AllPHPVersion } from '@php-wasm/universal';
+import {
+	AllPHPVersions,
+	LatestSupportedPHPVersion,
+	type AllPHPVersion,
+} from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { BlueprintReflection } from './reflection';
 import type {
@@ -83,6 +87,9 @@ function resolveV2PHPVersion(
 }
 
 function resolveV2PHPVersionString(phpVersion: string): AllPHPVersion {
+	if (phpVersion === 'latest') {
+		return LatestSupportedPHPVersion;
+	}
 	if ((AllPHPVersions as readonly string[]).includes(phpVersion)) {
 		return phpVersion as AllPHPVersion;
 	}
