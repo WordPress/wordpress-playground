@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
@@ -97,10 +98,17 @@ async function handleGitFixtureRequest(
 	}
 
 	const requestBody = await collectStream(req);
+	const gitProtocol = getHeaderValue(req.headers['git-protocol']);
 	const child = spawn('git', ['http-backend'], {
 		env: {
 			...process.env,
 			GIT_HTTP_EXPORT_ALL: '1',
+			...(gitProtocol
+				? {
+						GIT_PROTOCOL: gitProtocol,
+						HTTP_GIT_PROTOCOL: gitProtocol,
+					}
+				: {}),
 			GIT_PROJECT_ROOT: repositoryRoot,
 			PATH_INFO: pathInfo,
 			QUERY_STRING: requestUrl.searchParams.toString(),
@@ -111,40 +119,39 @@ async function handleGitFixtureRequest(
 	});
 
 	child.stdin.end(requestBody);
-	const [stdout, stderr, exitCode] = await Promise.all([
-		collectStream(child.stdout),
-		collectStream(child.stderr),
-		new Promise<number | null>((resolve) =>
-			child.on('close', (code) => resolve(code))
-		),
-	]);
-
-	if (exitCode) {
-		throw new Error(
-			`git http-backend exited with ${exitCode}: ${stderr.toString()}`
-		);
-	}
+	const { stdout } = await runGitProcess(child, 'git http-backend');
 
 	writeCgiResponse(stdout, res);
 }
 
 async function runGit(args: string[], cwd: string) {
 	const child = spawn('git', args, { cwd });
-	const [stdout, stderr, exitCode] = await Promise.all([
+	const { stdout } = await runGitProcess(child, `git ${args.join(' ')}`);
+	return stdout;
+}
+
+async function runGitProcess(
+	child: ChildProcessWithoutNullStreams,
+	command: string
+) {
+	const [stdout, stderr, processResult] = await Promise.all([
 		collectStream(child.stdout),
 		collectStream(child.stderr),
-		new Promise<number | null>((resolve) =>
-			child.on('close', (code) => resolve(code))
-		),
+		waitForProcess(child),
 	]);
 
-	if (exitCode) {
+	if (processResult.code !== 0) {
+		if (processResult.code === null) {
+			throw new Error(
+				`${command} exited with signal ${processResult.signal}`
+			);
+		}
 		throw new Error(
-			`git ${args.join(' ')} exited with ${exitCode}: ${stderr.toString()}`
+			`${command} exited with ${processResult.code}: ${stderr.toString()}`
 		);
 	}
 
-	return stdout;
+	return { stdout, stderr };
 }
 
 function listen(server: Server): Promise<void> {
@@ -166,6 +173,15 @@ function close(server: Server): Promise<void> {
 			}
 			resolve();
 		});
+	});
+}
+
+function waitForProcess(
+	child: ChildProcessWithoutNullStreams
+): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
+	return new Promise((resolve, reject) => {
+		child.once('error', reject);
+		child.once('close', (code, signal) => resolve({ code, signal }));
 	});
 }
 
@@ -203,6 +219,13 @@ function writeCgiResponse(response: Buffer, res: ServerResponse) {
 	}
 
 	res.end(response.subarray(separatorIndex + separator.length));
+}
+
+function getHeaderValue(header: string | string[] | undefined) {
+	if (Array.isArray(header)) {
+		return header.join(', ');
+	}
+	return header;
 }
 
 function setCorsHeaders(res: ServerResponse) {

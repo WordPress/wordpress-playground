@@ -296,14 +296,17 @@ describe('GitDirectoryResource', () => {
 			});
 		});
 
-		it('should not use CORS proxy for localhost git URLs', async () => {
+		it.each([
+			'http://127.0.0.1:9876/sample-plugin.git',
+			'http://localhost:9876/sample-plugin.git',
+			'http://[::1]:9876/sample-plugin.git',
+		])('should not use CORS proxy for local git URL %s', async (gitUrl) => {
 			global.fetch = vi.fn().mockResolvedValue({
 				ok: false,
 				status: 401,
 				statusText: 'Unauthorized',
 			});
 
-			const gitUrl = 'http://127.0.0.1:9876/sample-plugin.git';
 			const resource = new GitDirectoryResource(
 				{
 					resource: 'git:directory',

@@ -868,12 +868,12 @@ function maybeProxyGitUrl(url: string, corsProxy?: string) {
 
 function isLocalhostUrl(url: string) {
 	try {
-		const { hostname } = new URL(url);
+		const { host, hostname } = new URL(url);
 		return (
 			hostname === 'localhost' ||
 			hostname === '127.0.0.1' ||
-			hostname === '::1' ||
-			hostname === '[::1]'
+			host === '[::1]' ||
+			host.startsWith('[::1]:')
 		);
 	} catch {
 		return false;
