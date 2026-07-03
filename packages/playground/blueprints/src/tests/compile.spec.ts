@@ -2,8 +2,17 @@ import { InMemoryFilesystem } from '@wp-playground/storage';
 import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
+import { runBlueprintV2 } from '../lib/v2/run-blueprint-v2';
+
+vi.mock('../lib/v2/run-blueprint-v2', () => ({
+	runBlueprintV2: vi.fn(),
+}));
 
 describe('compileBlueprintForExecution', () => {
+	beforeEach(() => {
+		vi.mocked(runBlueprintV2).mockReset();
+	});
+
 	it('compiles Blueprint v1 declarations through the v1 compiler', async () => {
 		const declaration: BlueprintV1Declaration = {
 			steps: [
@@ -66,13 +75,27 @@ describe('compileBlueprintForExecution', () => {
 		);
 	});
 
-	it('rejects Blueprint v2 declarations until the v2 execution path is wired', async () => {
-		await expect(
-			compileBlueprintForExecution({
-				version: 2,
-			})
-		).rejects.toThrow(
-			'Blueprint v2 execution is not supported by compileBlueprintForExecution() yet.'
-		);
+	it('compiles Blueprint v2 declarations through the v2 runner', async () => {
+		const declaration = {
+			version: 2,
+		} as const;
+		const playground = {};
+
+		const compiled = await compileBlueprintForExecution(declaration);
+		await compiled.run(playground as any);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.declaration).toBe(declaration);
+		expect(compiled.compiled.runtime).toMatchObject({
+			wpVersion: 'latest',
+			networking: true,
+		});
+		expect(runBlueprintV2).toHaveBeenCalledWith({
+			php: playground,
+			blueprint: declaration,
+		});
 	});
 });
