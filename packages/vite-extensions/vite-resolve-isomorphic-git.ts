@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -55,7 +55,7 @@ function resolveIsomorphicGitBrowserEsmEntry() {
 	);
 	const packageJson = readPackageJson(packageRoot);
 	const entry = getBrowserEsmPackageEntry(packageJson);
-	return join(packageRoot, entry);
+	return resolvePackageEntryPath(packageRoot, entry);
 }
 
 function findPackageRoot(resolvedPath: string, packageName: string) {
@@ -82,11 +82,9 @@ function readPackageJson(packageRoot: string) {
 }
 
 function getBrowserEsmPackageEntry(packageJson: PackageJson): string {
-	if (typeof packageJson.browser === 'string') {
-		return packageJson.browser;
-	}
-
-	const exportEntry = resolvePackageExport(packageJson.exports?.['.']);
+	const exportEntry = resolveBrowserImportPackageExport(
+		packageJson.exports?.['.']
+	);
 	if (exportEntry) {
 		return exportEntry;
 	}
@@ -95,22 +93,56 @@ function getBrowserEsmPackageEntry(packageJson: PackageJson): string {
 		return packageJson.module;
 	}
 
-	throw new Error('Could not resolve isomorphic-git browser ESM entry');
+	if (typeof packageJson.browser === 'string') {
+		return packageJson.browser;
+	}
+
+	throw new Error(
+		'Could not resolve isomorphic-git browser ESM entry from ' +
+			'exports["."].browser, exports["."].import, module, or browser'
+	);
 }
 
-function resolvePackageExport(
+function resolvePackageEntryPath(packageRoot: string, entry: string) {
+	if (isAbsolute(entry)) {
+		throw new Error(
+			`Resolved isomorphic-git browser ESM entry must be relative: ${entry}`
+		);
+	}
+
+	const resolvedEntry = join(packageRoot, entry);
+	if (!existsSync(resolvedEntry)) {
+		throw new Error(
+			`Resolved isomorphic-git browser ESM entry does not exist: ` +
+				`${entry} (${resolvedEntry})`
+		);
+	}
+
+	return resolvedEntry;
+}
+
+function resolveBrowserImportPackageExport(
 	packageExport: PackageExport | undefined
 ): string | undefined {
 	if (!packageExport || typeof packageExport === 'string') {
 		return packageExport;
 	}
 
+	const browserOrImport =
+		resolveBrowserImportPackageExport(packageExport.browser) ||
+		resolveBrowserImportPackageExport(packageExport.import);
+	if (browserOrImport) {
+		return browserOrImport;
+	}
+
 	/**
-	 * Do not fall back to `default`: in the current `isomorphic-git` package,
-	 * that is the Node/CJS entry this alias is meant to avoid.
+	 * The current `isomorphic-git` package uses `default` for its Node/CJS entry.
+	 * Only inspect nested condition objects there; do not accept a string default
+	 * as the browser ESM entry.
 	 */
-	return (
-		resolvePackageExport(packageExport.browser) ||
-		resolvePackageExport(packageExport.import)
-	);
+	if (packageExport.default && typeof packageExport.default !== 'string') {
+		return resolveBrowserImportPackageExport(packageExport.default);
+	}
+
+	return undefined;
 }
