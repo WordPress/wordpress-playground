@@ -90,6 +90,13 @@ function resolveV2PHPVersion(
 	if (constrainedVersion) {
 		return constrainedVersion;
 	}
+	if (phpVersion && typeof phpVersion === 'object') {
+		throw new Error(
+			`Unsatisfiable Blueprint v2 PHP version constraints ` +
+				`${JSON.stringify(phpVersion)}. ` +
+				`Supported versions: ${AllPHPVersions.join(', ')}.`
+		);
+	}
 
 	return RecommendedPHPVersion;
 }
