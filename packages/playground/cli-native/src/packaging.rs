@@ -1380,10 +1380,11 @@ mod tests {
 
     use super::{
         extract_package_archive, package_native_cli, precompile_packaged_wasm_for_target,
-        PackageOptions, PACKAGE_SHARE_DIR,
+        selected_php_manifest, PackageOptions, PACKAGE_SHARE_DIR,
     };
     use crate::{
-        assets::{load_php_assets_manifest, select_php_asset},
+        args::SUPPORTED_PHP_VERSIONS,
+        assets::{load_php_assets_manifest, select_php_asset, AssetManifest, FileAsset, PhpAsset},
         sha256::sha256_hex,
     };
     use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
@@ -1569,6 +1570,48 @@ mod tests {
             )
             .as_bytes(),
         );
+    }
+
+    fn fake_php_asset(version: &str) -> PhpAsset {
+        let normalized = version.replace('.', "_");
+        PhpAsset {
+            version: version.to_string(),
+            runtime: None,
+            js: FileAsset {
+                path: PathBuf::from(format!("php_{normalized}.js")),
+                sha256: "0".repeat(64),
+            },
+            wasm: FileAsset {
+                path: PathBuf::from(format!("php_{normalized}.wasm")),
+                sha256: "0".repeat(64),
+            },
+            wasmtime: None,
+        }
+    }
+
+    #[test]
+    fn default_selection_includes_every_supported_php_version() {
+        let mut php = vec![fake_php_asset("5.2")];
+        php.extend(
+            SUPPORTED_PHP_VERSIONS
+                .iter()
+                .map(|version| fake_php_asset(version)),
+        );
+        php.push(fake_php_asset("9.9"));
+        let manifest = AssetManifest {
+            schema_version: 1,
+            runtime: "node-builds/asyncify".to_string(),
+            php,
+        };
+
+        let selected = selected_php_manifest(&manifest, &[]).unwrap();
+        let versions = selected
+            .php
+            .iter()
+            .map(|asset| asset.version.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(versions, SUPPORTED_PHP_VERSIONS.to_vec());
     }
 
     #[test]

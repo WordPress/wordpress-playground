@@ -325,6 +325,7 @@ fn print_help() {
            --out-dir <path>             Output directory, defaults to target/package\n\
            --name <name>                Package directory/archive name\n\
           --php-version <version>      Include only this PHP version; repeatable\n\
+                                       Omit to package all supported PHP versions\n\
           --precompile-wasmtime        Generate target-specific Wasmtime .cwasm assets\n\
           --no-precompile-wasmtime     Copy wasm assets without target-specific precompile\n\
           --skip-wordpress-assets      Do not copy bundled WordPress/SQLite ZIPs\n\
