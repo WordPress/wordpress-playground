@@ -1,3 +1,4 @@
+import { AllPHPVersions, type AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { BlueprintReflection } from './reflection';
 import type {
@@ -45,7 +46,7 @@ export async function resolveRuntimeConfiguration(
 
 		// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
 		return {
-			phpVersion: RecommendedPHPVersion,
+			phpVersion: resolveV2PHPVersion(declaration),
 			wpVersion: 'latest',
 			intl: false,
 			networking: playgroundOptions?.networkAccess ?? true,
@@ -59,4 +60,23 @@ function isBlueprintV2Declaration(
 	declaration: BlueprintDeclaration
 ): declaration is BlueprintV2Declaration {
 	return (declaration as { version?: unknown }).version === 2;
+}
+
+function resolveV2PHPVersion(
+	declaration: BlueprintV2Declaration
+): AllPHPVersion {
+	if (typeof declaration.phpVersion !== 'string') {
+		return RecommendedPHPVersion;
+	}
+
+	if (
+		(AllPHPVersions as readonly string[]).includes(declaration.phpVersion)
+	) {
+		return declaration.phpVersion as AllPHPVersion;
+	}
+
+	throw new Error(
+		`Unsupported Blueprint v2 PHP version "${declaration.phpVersion}". ` +
+			`Supported versions: ${AllPHPVersions.join(', ')}.`
+	);
 }
