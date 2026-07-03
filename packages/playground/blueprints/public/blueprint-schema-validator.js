@@ -607,7 +607,7 @@ const schema11 = {
 						defaultAuthorUsername: {
 							type: 'string',
 							description:
-								'The existing local user to assign imported posts to.',
+								'The fallback local user for imported authors that cannot be mapped.',
 							default: 'admin',
 						},
 						importer: {
@@ -4681,7 +4681,7 @@ const schema33 = {
 				defaultAuthorUsername: {
 					type: 'string',
 					description:
-						'The existing local user to assign imported posts to.',
+						'The fallback local user for imported authors that cannot be mapped.',
 					default: 'admin',
 				},
 				importer: {

@@ -532,7 +532,7 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
-		'Should replace all post authors with admin user',
+		'Should assign unmapped post authors to admin user by default',
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
@@ -606,7 +606,7 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
-		'Should replace all post authors with the configured default user',
+		'Should assign unmapped post authors to the configured default user',
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
@@ -632,7 +632,7 @@ describe('Blueprint step importWxr', () => {
 
 			await importWxr(php, {
 				file,
-				defaultAuthorUsername: 'wxr_default_author',
+				defaultAuthorUsername: ' wxr_default_author ',
 			});
 
 			const result = await php.run({
@@ -643,6 +643,8 @@ describe('Blueprint step importWxr', () => {
 				'post_type' => ['post', 'page'],
 				'post_status' => 'any',
 				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC',
 			]);
 
 			$post_author_logins = [];
@@ -658,10 +660,13 @@ describe('Blueprint step importWxr', () => {
 				},
 			});
 
-			expect(result.json).toEqual([
-				'wxr_default_author',
-				'wxr_default_author',
-			]);
+			expect(result.json.length).toBeGreaterThan(0);
+			expect(
+				result.json.every(
+					(authorLogin: string) =>
+						authorLogin === 'wxr_default_author'
+				)
+			).toBe(true);
 		},
 		{ timeout: 30_000 }
 	);

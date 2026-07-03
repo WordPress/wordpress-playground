@@ -39,7 +39,7 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	importComments?: boolean;
 	/**
-	 * The existing local user to assign imported posts to.
+	 * The fallback local user for imported authors that cannot be mapped.
 	 *
 	 * @default "admin"
 	 */
@@ -77,11 +77,12 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	},
 	progress?
 ) => {
+	const fallbackAuthorUsername = defaultAuthorUsername.trim() || 'admin';
 	await importWithDefaultImporter(playground, file, progress, {
 		fetchAttachments,
 		rewriteUrls,
 		importComments,
-		defaultAuthorUsername,
+		fallbackAuthorUsername,
 	});
 };
 
@@ -93,7 +94,7 @@ async function importWithDefaultImporter(
 		fetchAttachments: boolean;
 		rewriteUrls: boolean;
 		importComments: boolean;
-		defaultAuthorUsername: string;
+		fallbackAuthorUsername: string;
 	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
@@ -131,15 +132,15 @@ async function importWithDefaultImporter(
 	kses_remove_filters();
 
 	// The WordPress importer assigns unmapped imported authors to the current
-	// user, so set it to the requested default author before importing.
-	$default_author_username = getenv('DEFAULT_AUTHOR_USERNAME');
-	$default_author          = get_user_by('login', $default_author_username);
-	if (!$default_author) {
+	// user, so set it to the requested fallback author before importing.
+	$fallback_author_username = getenv('FALLBACK_AUTHOR_USERNAME');
+	$fallback_author          = get_user_by('login', $fallback_author_username);
+	if (!$fallback_author) {
 		throw new Exception(
-			sprintf('Could not find default WXR import author "%s".', $default_author_username)
+			sprintf('Could not find fallback WXR import author "%s".', $fallback_author_username)
 		);
 	}
-	wp_set_current_user( $default_author->ID );
+	wp_set_current_user( $fallback_author->ID );
 
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
@@ -178,7 +179,7 @@ async function importWithDefaultImporter(
 			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
 			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
-			DEFAULT_AUTHOR_USERNAME: options.defaultAuthorUsername,
+			FALLBACK_AUTHOR_USERNAME: options.fallbackAuthorUsername,
 		},
 	});
 }
