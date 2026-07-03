@@ -22,6 +22,31 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.run).toBe(compiled.compiled.run);
 	});
 
+	it('compiles Blueprint v1 declarations from raw JSON', async () => {
+		const compiled = await compileBlueprintForExecution(
+			JSON.stringify({
+				steps: [
+					{
+						step: 'mkdir',
+						path: '/wordpress/cache',
+					},
+				],
+			})
+		);
+
+		expect(compiled.version).toBe(1);
+		expect(compiled.declaration).toEqual({
+			steps: [
+				{
+					step: 'mkdir',
+					path: '/wordpress/cache',
+				},
+			],
+		});
+		expect(compiled.compiled).toHaveProperty('versions');
+		expect(compiled.run).toBe(compiled.compiled.run);
+	});
+
 	it('compiles Blueprint v1 bundles with bundled resources', async () => {
 		const bundle = new InMemoryFilesystem({
 			'message.txt': 'Hello from a bundled file.',

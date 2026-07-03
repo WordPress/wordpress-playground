@@ -16,6 +16,10 @@ export type CompiledBlueprintForExecution = {
 	compiled: CompiledBlueprintV1;
 	run: (playground: UniversalPHP) => Promise<void>;
 };
+type BlueprintExecutionInput =
+	| BlueprintV1Declaration
+	| BlueprintBundle
+	| string;
 
 export interface CompileBlueprintForExecutionOptions extends Omit<
 	CompileBlueprintV1Options,
@@ -32,20 +36,32 @@ export interface CompileBlueprintForExecutionOptions extends Omit<
  * newer callers can migrate to as Blueprint v2 support grows.
  */
 export async function compileBlueprintForExecution(
-	input: BlueprintV1Declaration | BlueprintBundle,
+	input: BlueprintExecutionInput,
 	options: CompileBlueprintForExecutionOptions = {}
 ): Promise<CompiledBlueprintForExecution> {
-	const declaration = await getBlueprintDeclaration(input);
-	const compiled = await compileBlueprintV1(input, {
-		...options,
-		onBlueprintValidated: options.onBlueprintValidated as
-			| CompileBlueprintV1Options['onBlueprintValidated']
-			| undefined,
-	});
+	const declaration = await getBlueprintV1Declaration(input);
+	const compiled = await compileBlueprintV1(
+		typeof input === 'string' ? declaration : input,
+		{
+			...options,
+			onBlueprintValidated: options.onBlueprintValidated as
+				| CompileBlueprintV1Options['onBlueprintValidated']
+				| undefined,
+		}
+	);
 	return {
 		version: 1,
 		declaration,
 		compiled,
 		run: compiled.run,
 	};
+}
+
+async function getBlueprintV1Declaration(
+	input: BlueprintExecutionInput
+): Promise<BlueprintV1Declaration> {
+	if (typeof input === 'string') {
+		return JSON.parse(input);
+	}
+	return getBlueprintDeclaration(input);
 }
