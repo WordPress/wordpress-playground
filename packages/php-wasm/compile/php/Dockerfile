@@ -2389,9 +2389,10 @@ RUN set -euxo pipefail; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
+	PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
+	PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid "; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js --js-library /root/phpwasm-emscripten-library-dns-lookup-for-node.js -Wl,--wrap=getpid "; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dns-lookup-for-node.js "; \
 	else \
 		# Prevents "document is not defined" errors in Web Workers when using MAIN_MODULE.
 		# By default, Emscripten assumes MAIN_MODULE runs only in a web environment,

@@ -5,8 +5,10 @@ import type {
 } from '@php-wasm/universal';
 import {
 	createLegacyPhpIniPreRunStep,
+	FileLockManagerInMemory,
 	isLegacyPHPVersion,
 	loadPHPRuntime,
+	ProcessIdAllocator,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
@@ -16,6 +18,7 @@ import {
 	type PHPWebExtension,
 } from './extensions/load-extensions';
 import { jspi } from 'wasm-feature-detect';
+import { bindUserSpace, type WasmUserSpaceContext } from './wasm-user-space';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -60,6 +63,9 @@ const fakeWebsocket = () => {
 	};
 };
 
+const processIdAllocator = new ProcessIdAllocator();
+const fileLockManager = new FileLockManagerInMemory();
+
 interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 	setImmediate: (fn: () => void) => void;
 }
@@ -83,9 +89,17 @@ export async function loadWebRuntime(
 
 	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
 
+	const suppliedEmscriptenOptions = loaderOptions.emscriptenOptions || {};
+	const suppliedProcessId = suppliedEmscriptenOptions['processId'];
+	const suppliedBindUserSpace = suppliedEmscriptenOptions['bindUserSpace'];
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
-		...(loaderOptions.emscriptenOptions || {}),
+		processId: suppliedProcessId ?? processIdAllocator.claim(),
+		bindUserSpace:
+			suppliedBindUserSpace ??
+			((context: WasmUserSpaceContext) =>
+				bindUserSpace(fileLockManager, context)),
+		...suppliedEmscriptenOptions,
 		phpWasmAsyncMode,
 	};
 

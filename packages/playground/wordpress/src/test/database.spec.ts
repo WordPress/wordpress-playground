@@ -5,7 +5,7 @@ import {
 	getWordPressModule,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { mkdirSync, readFileSync, rmdirSync } from 'fs';
+import { mkdirSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { bootWordPressAndRequestHandler } from '../boot';
@@ -33,7 +33,7 @@ describe('Test database', () => {
 	});
 
 	afterAll(() => {
-		rmdirSync(tempDir, { recursive: true });
+		rmSync(tempDir, { recursive: true, force: true });
 	});
 
 	it("should not start WordPress when SQLite ZIP not specified, the SQLite driver directory doesn't exist and MySQL can't be used", async () => {
@@ -67,6 +67,35 @@ describe('Test database', () => {
 			expect(Object.keys(MinifiedWordPressVersions)).toContain(
 				loadedWordPressVersion
 			);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'should force SQLite rollback journals even when WAL is requested',
+		async () => {
+			await using handler = await bootWordPressAndRequestHandler({
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(RecommendedPHPVersion),
+				siteUrl: 'http://playground-domain/',
+				wordPressZip: await getWordPressModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				constants: {
+					SQLITE_JOURNAL_MODE: 'WAL',
+				},
+			});
+
+			const php = await handler.getPrimaryPhp();
+			const result = await php.run({
+				code: `<?php
+					$pdo = new PDO( 'sqlite:/wordpress/wp-content/database/.ht.sqlite' );
+					echo $pdo->query( 'PRAGMA journal_mode' )->fetchColumn();
+					echo "\\n";
+					echo file_exists( '/wordpress/wp-content/database/.ht.sqlite-wal' ) ? 'wal' : 'no-wal';
+				`,
+			});
+
+			expect(result.text).toBe('delete\nno-wal');
 		},
 		{ timeout: 30_000 }
 	);
