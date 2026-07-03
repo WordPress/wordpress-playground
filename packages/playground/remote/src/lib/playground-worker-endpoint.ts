@@ -61,6 +61,7 @@ import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php5
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 let activeRequestHandler: PHPRequestHandler | undefined;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 export interface MountDescriptor {
 	mountpoint: string;
@@ -576,13 +577,19 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 function createRuntimeOptionsMuPlugin() {
 	const definitions: string[] = [];
-	if (isChromiumBasedBrowser()) {
+	if (isChromiumBasedBrowser() && !shouldEnableAdminTransitions()) {
 		definitions.push(
 			"define('PLAYGROUND_DISABLE_ADMIN_VIEW_TRANSITIONS', true);"
 		);
 	}
 
 	return `<?php\n${definitions.join('\n')}\n`;
+}
+
+function shouldEnableAdminTransitions() {
+	return new URL(globalThis.location.href).searchParams.has(
+		WITH_ADMIN_TRANSITIONS_PARAM
+	);
 }
 
 function isChromiumBasedBrowser(navigatorObject: Navigator = navigator) {
