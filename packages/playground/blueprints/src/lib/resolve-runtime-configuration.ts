@@ -1,6 +1,10 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { BlueprintReflection } from './reflection';
-import type { Blueprint, RuntimeConfiguration } from './types';
+import type {
+	Blueprint,
+	BlueprintDeclaration,
+	RuntimeConfiguration,
+} from './types';
 import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
@@ -32,8 +36,10 @@ export async function resolveRuntimeConfiguration(
 			constants: {},
 		};
 	} else {
-		const declaration =
-			reflection.getDeclaration() as BlueprintV2Declaration;
+		const declaration = reflection.getDeclaration();
+		if (!isBlueprintV2Declaration(declaration)) {
+			throw new Error('Expected a Blueprint v2 declaration.');
+		}
 		const playgroundOptions =
 			declaration.applicationOptions?.['wordpress-playground'];
 
@@ -47,4 +53,10 @@ export async function resolveRuntimeConfiguration(
 			extraLibraries: [],
 		};
 	}
+}
+
+function isBlueprintV2Declaration(
+	declaration: BlueprintDeclaration
+): declaration is BlueprintV2Declaration {
+	return (declaration as { version?: unknown }).version === 2;
 }
