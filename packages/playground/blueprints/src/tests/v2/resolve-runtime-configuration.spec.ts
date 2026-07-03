@@ -1,3 +1,4 @@
+import { StreamedFile } from '@php-wasm/stream-compression';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { resolveRuntimeConfiguration } from '../../lib/resolve-runtime-configuration';
 import type { BlueprintBundle } from '../../lib/types';
@@ -36,13 +37,14 @@ describe('Blueprint v2 runtime configuration', () => {
 
 function createBundle(blueprint: BlueprintV2Declaration): BlueprintBundle {
 	return {
-		read(path: string) {
+		async read(path: string) {
 			if (path !== 'blueprint.json') {
 				throw new Error(`Unexpected bundle read: ${path}`);
 			}
-			return Promise.resolve(
-				new File([JSON.stringify(blueprint)], 'blueprint.json')
+			return StreamedFile.fromArrayBuffer(
+				new TextEncoder().encode(JSON.stringify(blueprint)),
+				'blueprint.json'
 			);
 		},
-	} as BlueprintBundle;
+	} satisfies BlueprintBundle;
 }
