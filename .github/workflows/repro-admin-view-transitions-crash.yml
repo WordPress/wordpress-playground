@@ -20,7 +20,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
 
             - name: Install Chrome for Playwright
-              run: sudo npx playwright install chrome ffmpeg --with-deps
+              run: sudo npx playwright install chrome --with-deps
 
             - name: Start dev server
               run: |
@@ -58,7 +58,6 @@ jobs:
                     });
                     const page = await browser.newPage({
                       viewport: { width: 1400, height: 950 },
-                      recordVideo: { dir: artifactDir, size: { width: 1400, height: 950 } },
                     });
                     const events = [];
                     page.on('crash', () => events.push({ type: 'pagecrash' }));
