@@ -44,6 +44,8 @@ import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -155,6 +157,11 @@ export async function startPlaygroundWeb(
 		'blueprints-runner': options.experimentalBlueprintsV2Runner
 			? 'v2'
 			: 'v1',
+		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
+			globalThis.location.href
+		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)
+			? '1'
+			: undefined,
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
