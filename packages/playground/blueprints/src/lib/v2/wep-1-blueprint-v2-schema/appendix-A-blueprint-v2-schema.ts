@@ -562,12 +562,6 @@ export namespace V2Schema {
 		 */
 		importComments?: boolean;
 
-		/**
-		 * Whether to import site settings from the remote site.
-		 *
-		 * @default false.
-		 */
-		importSiteOptions?: boolean;
 	} & URLMappingConfig;
 
 	type MediaDefinition =
