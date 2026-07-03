@@ -20,7 +20,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
 
             - name: Install Chrome for Playwright
-              run: sudo npx playwright install chrome --with-deps
+              run: sudo npx playwright install chrome ffmpeg --with-deps
 
             - name: Start dev server
               run: |
