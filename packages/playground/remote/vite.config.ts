@@ -14,12 +14,10 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
-const isomorphicGitEsmEntry = join(
-	__dirname,
-	'../../../node_modules/isomorphic-git/index.js'
-);
 
 const plugins = [
 	viteTsConfigPaths({
@@ -74,29 +72,8 @@ export default defineConfig(({ mode }) => {
 			'*.zip',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
-		optimizeDeps: {
-			include: [
-				'async-lock',
-				'buffer',
-				'clean-git-ref',
-				'crc-32',
-				'diff3',
-				'ignore',
-				'ini',
-				'pako',
-				'pify',
-				'sha.js',
-				'sha.js/sha1.js',
-			],
-			exclude: ['isomorphic-git'],
-		},
 		resolve: {
-			alias: [
-				{
-					find: /^isomorphic-git$/,
-					replacement: isomorphicGitEsmEntry,
-				},
-			],
+			alias: [isomorphicGitBrowserAlias()],
 		},
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
