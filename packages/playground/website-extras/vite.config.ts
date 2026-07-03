@@ -19,6 +19,10 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
+const isomorphicGitEsmEntry = fileURLToPath(
+	new URL('../../../node_modules/isomorphic-git/index.js', import.meta.url)
+);
+
 export default defineConfig(({ mode }) => {
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -35,6 +39,15 @@ export default defineConfig(({ mode }) => {
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
+
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: isomorphicGitEsmEntry,
+				},
+			],
+		},
 
 		css: {
 			modules: {

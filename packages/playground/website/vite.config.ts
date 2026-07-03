@@ -33,6 +33,10 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const exec = promisify(execCb);
+const isomorphicGitEsmEntry = join(
+	__dirname,
+	'../../../node_modules/isomorphic-git/index.js'
+);
 
 // Determine if we are running in a devcontainer.
 const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
@@ -83,6 +87,15 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
+
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: isomorphicGitEsmEntry,
+				},
+			],
+		},
 
 		css: {
 			modules: {

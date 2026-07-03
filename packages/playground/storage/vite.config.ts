@@ -13,6 +13,11 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
+const isomorphicGitEsmEntry = join(
+	__dirname,
+	'../../../node_modules/isomorphic-git/index.js'
+);
+
 export default defineConfig({
 	root: __dirname,
 	base: '/',
@@ -39,6 +44,15 @@ export default defineConfig({
 		}),
 		...viteGlobalExtensions,
 	],
+
+	resolve: {
+		alias: [
+			{
+				find: /^isomorphic-git$/,
+				replacement: isomorphicGitEsmEntry,
+			},
+		],
+	},
 
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode

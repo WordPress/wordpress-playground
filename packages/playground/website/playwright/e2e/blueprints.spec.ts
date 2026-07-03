@@ -22,6 +22,40 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('installPlugin should install a plugin from a git:directory resource', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/plugins.php',
+		steps: [
+			{ step: 'login' },
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'git:directory',
+					url: 'https://github.com/WordPress/wordpress-playground.git',
+					ref: 'b27a0e69ce12f7ad9503bc5dba96c01ee1bfdcda',
+					refType: 'commit',
+					path: 'packages/playground/cli/tests/mount-examples/plugin',
+				},
+				options: {
+					activate: true,
+				},
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`./?storage=temp#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('Sample Plugin', {
+		timeout: 120000,
+	});
+	await expect(wordpress.getByLabel('Deactivate Sample Plugin')).toHaveText(
+		'Deactivate'
+	);
+});
+
 test('spawning less should work', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/less.php',
