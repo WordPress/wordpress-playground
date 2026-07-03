@@ -36,7 +36,7 @@ jobs:
                     fi
                   done
 
-            - name: Reproduce crash in headed Chrome under Xvfb
+            - name: Compare admin View Transition behavior in headed Chrome under Xvfb
               run: |
                   mkdir -p /tmp/admin-view-transitions-repro
                   xvfb-run -a node <<'NODE'
@@ -45,17 +45,18 @@ jobs:
 
                   const artifactDir = '/tmp/admin-view-transitions-repro';
                   const resultPath = `${artifactDir}/result.json`;
+                  const launchOptions = {
+                    channel: 'chrome',
+                    headless: false,
+                    args: [
+                      '--window-size=1400,950',
+                      '--enable-logging=stderr',
+                      '--vmodule=*compositor*=2,*viz*=2,*view_transition*=2',
+                    ],
+                  };
 
-                  (async () => {
-                    const browser = await chromium.launch({
-                      channel: 'chrome',
-                      headless: false,
-                      args: [
-                        '--window-size=1400,950',
-                        '--enable-logging=stderr',
-                        '--vmodule=*compositor*=2,*viz*=2,*view_transition*=2',
-                      ],
-                    });
+                  async function runCase({ name, url }) {
+                    const browser = await chromium.launch(launchOptions);
                     const page = await browser.newPage({
                       viewport: { width: 1400, height: 950 },
                     });
@@ -74,8 +75,9 @@ jobs:
                     });
 
                     const result = {
+                      name,
                       browserVersion: await browser.version(),
-                      url: 'http://127.0.0.1:5400/website-server/?with-admin-transitions&storage=temp&url=/wp-admin/',
+                      url,
                       beforeStyles: [],
                       foundThemesPage: null,
                       crashed: false,
@@ -123,7 +125,7 @@ jobs:
                           }))
                       );
                       await page.screenshot({
-                        path: `${artifactDir}/before-themes-click.png`,
+                        path: `${artifactDir}/${name}-before-themes-click.png`,
                         fullPage: true,
                       });
 
@@ -150,7 +152,7 @@ jobs:
                               h1: h1.trim(),
                             };
                             await page.screenshot({
-                              path: `${artifactDir}/after-themes-click.png`,
+                              path: `${artifactDir}/${name}-after-themes-click.png`,
                               fullPage: true,
                             });
                             break;
@@ -163,16 +165,41 @@ jobs:
                           event.type === 'pagecrash' || event.type === 'wait-error'
                       );
                       result.closed = page.isClosed();
-                      fs.writeFileSync(resultPath, JSON.stringify(result, null, 2));
                       console.log(JSON.stringify(result, null, 2));
                       await browser.close().catch(() => {});
                     }
 
-                    if (!result.beforeStyles.length) {
-                      throw new Error('Expected admin View Transition styles to be present');
+                    return result;
+                  }
+
+                  (async () => {
+                    const results = [];
+                    results.push(
+                      await runCase({
+                        name: 'default',
+                        url: 'http://127.0.0.1:5400/website-server/?storage=temp&url=/wp-admin/',
+                      })
+                    );
+                    results.push(
+                      await runCase({
+                        name: 'with-admin-transitions',
+                        url: 'http://127.0.0.1:5400/website-server/?with-admin-transitions&storage=temp&url=/wp-admin/',
+                      })
+                    );
+                    fs.writeFileSync(resultPath, JSON.stringify(results, null, 2));
+
+                    const [defaultResult, overrideResult] = results;
+                    if (defaultResult.beforeStyles.length) {
+                      throw new Error('Expected default run to disable admin View Transition styles');
                     }
-                    if (!result.crashed) {
-                      throw new Error('Chrome did not crash');
+                    if (defaultResult.crashed || !defaultResult.foundThemesPage) {
+                      throw new Error('Expected default run to load Themes without crashing');
+                    }
+                    if (!overrideResult.beforeStyles.length) {
+                      throw new Error('Expected override run to keep admin View Transition styles');
+                    }
+                    if (!overrideResult.crashed) {
+                      throw new Error('Expected override run to crash Chrome');
                     }
                   })().catch((error) => {
                     console.error(error);
