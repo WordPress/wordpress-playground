@@ -272,8 +272,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					'0-playground-chrome-view-transitions-workaround.php':
-						createChromeViewTransitionsWorkaroundMuPlugin(),
+					...createChromeViewTransitionsWorkaroundMuPlugin(),
 					// Legacy PHP can't parse closures at all (even with an
 					// early return), so use a minimal compatible stub instead.
 					'1-playground-web.php': isLegacyPhp
@@ -581,7 +580,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/3845.
  */
-function createChromeViewTransitionsWorkaroundMuPlugin() {
+function createChromeViewTransitionsWorkaroundMuPlugin(): Record<
+	string,
+	string
+> {
 	const userEnforcedTransitions = new URL(
 		globalThis.location.href
 	).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM);
@@ -608,10 +610,11 @@ function createChromeViewTransitionsWorkaroundMuPlugin() {
 			);
 
 	if (userEnforcedTransitions || !isChromiumBasedBrowser) {
-		return '';
+		return {};
 	}
 
-	return `<?php
+	return {
+		'0-playground-chrome-view-transitions-workaround.php': `<?php
 /**
  * Disable view transitions in Google Chrome until
  * https://issues.chromium.org/issues/530704642 is resolved.
@@ -628,7 +631,8 @@ function playground_dequeue_admin_view_transitions_for_chrome_crash() {
 	wp_deregister_style( 'wp-view-transitions-admin' );
 }
 add_action( 'admin_enqueue_scripts', 'playground_dequeue_admin_view_transitions_for_chrome_crash', PHP_INT_MAX );
-`;
+`,
+	};
 }
 
 function createNullPrototypeRecord<T>() {
