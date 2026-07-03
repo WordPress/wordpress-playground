@@ -670,4 +670,25 @@ describe('Blueprint step importWxr', () => {
 		},
 		{ timeout: 30_000 }
 	);
+
+	it(
+		'Should fail when the configured default author does not exist',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await expect(
+				importWxr(php, {
+					file,
+					defaultAuthorUsername: 'missing_wxr_author',
+				})
+			).rejects.toThrow(
+				/Could not find fallback WXR import author .*missing_wxr_author/
+			);
+		},
+		{ timeout: 30_000 }
+	);
 });
