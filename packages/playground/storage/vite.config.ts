@@ -12,12 +12,18 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 export default defineConfig({
 	root: __dirname,
 	base: '/',
 
 	cacheDir: '../../../node_modules/.vite/packages-playground-storage',
+
+	resolve: {
+		alias: [isomorphicGitBrowserAlias()],
+	},
 
 	css: {
 		modules: {

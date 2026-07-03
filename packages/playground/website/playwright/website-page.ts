@@ -22,6 +22,27 @@ export class WebsitePage {
 		).not.toBeEmpty();
 	}
 
+	async waitForPlaygroundShell(page = this.page) {
+		const controls = [
+			page.getByLabel('Open Site Manager'),
+			page.getByRole('button', { name: /Site Manager/ }),
+			page.getByRole('button', { name: /This Playground/ }),
+		];
+		const deadline = Date.now() + 120000;
+		while (Date.now() < deadline) {
+			const visibleControls = await Promise.all(
+				controls.map((control) =>
+					control.first().isVisible({ timeout: 1000 })
+				)
+			);
+			if (visibleControls.some(Boolean)) {
+				return;
+			}
+			await page.waitForTimeout(500);
+		}
+		throw new Error('Timed out waiting for Playground shell controls');
+	}
+
 	wordpress(page = this.page) {
 		return (
 			page

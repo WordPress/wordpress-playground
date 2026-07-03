@@ -155,6 +155,7 @@
 		"@types/react-dom": "18.3.0",
 		"@types/react-modal": "3.16.3",
 		"@types/react-transition-group": "4.4.11",
+		"@types/sha.js": "2.4.4",
 		"@types/tar-fs": "2.0.4",
 		"@types/wicg-file-system-access": "2023.10.5",
 		"@types/wordpress__block-editor": "11.5.15",

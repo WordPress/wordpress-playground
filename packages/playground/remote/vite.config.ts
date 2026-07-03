@@ -14,6 +14,8 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
@@ -70,6 +72,9 @@ export default defineConfig(({ mode }) => {
 			'*.zip',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
 		// dependencies.

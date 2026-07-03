@@ -180,12 +180,12 @@ export namespace V2Schema {
 			| DataSources.WordPressVersion
 			| DataSources.DataReference
 			| {
-					min: DataSources.WordPressVersion;
-					max?: DataSources.WordPressVersion;
+					min: DataSources.WordPressVersionConstraintVersion;
+					max?: DataSources.WordPressVersionConstraintVersion;
 					/**
 					 * @default "latest"
 					 */
-					preferred?: DataSources.WordPressVersion;
+					preferred?: DataSources.WordPressVersionPreferredVersion;
 			  };
 
 		/**
@@ -204,9 +204,9 @@ export namespace V2Schema {
 		phpVersion?:
 			| DataSources.PHPVersion
 			| {
-					min?: DataSources.PHPVersion;
-					recommended?: DataSources.PHPVersion;
-					max?: DataSources.PHPVersion;
+					min?: DataSources.PHPVersionConstraintVersion;
+					recommended?: DataSources.PHPVersionConstraintVersion;
+					max?: DataSources.PHPVersionConstraintVersion;
 			  };
 
 		/**
@@ -221,9 +221,13 @@ export namespace V2Schema {
 		 * @example `"activeTheme": "adventurer@4.6.0"`
 		 * @example
 		 * ```json
-		 * "activeTheme": {
-		 *     "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *     "id": "kanso"
+		 * {
+		 *     "version": 2,
+		 *     "activeTheme": {
+		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *         "targetDirectoryName": "kanso",
+		 *         "importStarterContent": true
+		 *     }
 		 * }
 		 * ```
 		 */
@@ -235,14 +239,17 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * themes: [
-		 *     "stylish-press-theme",
-		 *     "adventurer@4.6.0",
-		 *     {
-		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *         "id": "kanso"
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "themes": [
+		 *         "stylish-press-theme",
+		 *         "adventurer@4.6.0",
+		 *         {
+		 *             "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *             "targetDirectoryName": "kanso"
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
 		themes?: ThemeDefinition[];
@@ -253,16 +260,20 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * plugins: [
-		 *     "jetpack",
-		 *     "akismet@6.4.3",
-		 *     "./query-monitor.php",
-		 *     "./code-block.zip",
-		 *     {
-		 *         "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
-		 *         "active": false
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "plugins": [
+		 *         "jetpack",
+		 *         "akismet@6.4.3",
+		 *         "./query-monitor.php",
+		 *         "./code-block.zip",
+		 *         {
+		 *             "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
+		 *             "active": false
+		 *         }
+		 *     ]
+		 * }
+		 * ```
 		 */
 		plugins?: PluginDefinition[];
 
@@ -272,14 +283,15 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * muPlugins: [
-		 *     {
-		 *         "file": {
+		 * {
+		 *     "version": 2,
+		 *     "muPlugins": [
+		 *         {
 		 *             "filename": "addFilter-0.php",
 		 *             "content": "<?php add_action( 'requests-requests.before_request', function( &$url ) {\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\n} );"
 		 *         }
-		 *     }
-		 * ]
+		 *     ]
+		 * }
 		 * ```
 		 */
 		muPlugins?: Array<DataSources.DataReference>;
@@ -449,13 +461,15 @@ export namespace V2Schema {
 	type ContentDefinition =
 		| ({
 				type: 'mysql-dump';
-				source: DataSources.DataReference | DataSources.DataReference[];
+				source:
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[];
 		  } & URLMappingConfig)
 		| ({
 				type: 'posts';
 				source:
-					| DataSources.DataReference
-					| DataSources.DataReference[]
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[]
 					| WordPressPost
 					| WordPressPost[];
 		  } & URLMappingConfig)
@@ -465,96 +479,95 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * content: [
-		 *     {
-		 *         "type": "wxr",
-		 *         "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
-		 *     },
-		 *     {
-		 *         "type": "wxr",
-		 *         "url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
-		 *         "rewriteUrls": true,
-		 *         "fetchStaticAssets": false,
-		 *         "users": false,
-		 *         "comments": false,
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "content": [
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
+		 *         },
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
+		 *             "urlsMode": "rewrite",
+		 *             "staticAssets": "hotlink",
+		 *             "importUsers": false,
+		 *             "importComments": false
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
-		| ({
-				type: 'wxr';
-				source: DataSources.DataReference;
+		| WXRContentDefinition;
 
-				/**
-				 * Static assets handling.
-				 *
-				 * Possible values:
-				 *
-				 * * "fetch" – Fetch the static assets and save them to the local filesystem.
-				 * * "hotlink" – Hotlink the static assets from the remote site.
-				 *
-				 * @default "fetch".
-				 */
-				staticAssets?: 'fetch' | 'hotlink';
+	type WXRContentDefinition = WXRContentBase &
+		(
+			| {
+					/**
+					 * Map remote authors to existing local authors.
+					 */
+					authorsMode: 'map';
+					authorsMap: Record<RemoteUsername, LocalUsername>;
+			  }
+			| {
+					/**
+					 * How to handle authors that don't exist on the current site.
+					 *
+					 * Possible values:
+					 *
+					 * * "create" – Create a new author.
+					 * * "default-author" – Use the default author.
+					 *
+					 * @default "create".
+					 */
+					authorsMode?: 'create' | 'default-author';
+					authorsMap?: Record<RemoteUsername, LocalUsername>;
+			  }
+		);
 
-				/**
-				 * How to handle authors that don't exist on the current site.
-				 *
-				 * Possible values:
-				 *
-				 * * "create" – Create a new author.
-				 * * "default-author" – Use the default author.
-				 * * "map" – Map the author to an existing author on the current site.
-				 *
-				 * @default "create".
-				 */
-				authorsMode?: 'create' | 'default-author' | 'map';
+	type WXRContentBase = {
+		type: 'wxr';
+		source: DataSources.FileDataReference | DataSources.FileDataReference[];
 
-				/**
-				 * The default author to use when `mode` is "default-author".
-				 *
-				 * @default "admin".
-				 */
-				defaultAuthorUsername?: string;
+		/**
+		 * Static assets handling.
+		 *
+		 * Possible values:
+		 *
+		 * * "fetch" – Fetch the static assets and save them to the local filesystem.
+		 * * "hotlink" – Hotlink the static assets from the remote site.
+		 *
+		 * @default "fetch".
+		 */
+		staticAssets?: 'fetch' | 'hotlink';
 
-				/**
-				 * Map post authors from the remote site to the current site.
-				 *
-				 * When not provided, the importer will attempt to match the authors by
-				 * username, email, or name.
-				 *
-				 * Required when `authorsMode` is "map".
-				 *
-				 * @default undefined.
-				 */
-				authorsMap?: Record<RemoteUsername, LocalUsername>;
+		/**
+		 * The default author to use when `mode` is "default-author".
+		 *
+		 * @default "admin".
+		 */
+		defaultAuthorUsername?: string;
 
-				/**
-				 * Whether to import users from the remote site.
-				 *
-				 * @default false.
-				 */
-				importUsers?: boolean;
+		/**
+		 * Whether to import users from the remote site.
+		 *
+		 * @default false.
+		 */
+		importUsers?: boolean;
 
-				/**
-				 * Whether to import comments from the remote site.
-				 *
-				 * @default false.
-				 */
-				importComments?: boolean;
+		/**
+		 * Whether to import comments from the remote site.
+		 *
+		 * @default false.
+		 */
+		importComments?: boolean;
 
-				/**
-				 * Whether to import site settings from the remote site.
-				 *
-				 * @default false.
-				 */
-				importSiteOptions?: boolean;
-		  } & URLMappingConfig);
+	} & URLMappingConfig;
 
 	type MediaDefinition =
-		| DataSources.DataReference
+		| DataSources.FileDataReference
 		| {
-				source: DataSources.DataReference;
+				source: DataSources.FileDataReference;
 				title?: string;
 				description?: string;
 				alt?: string;
@@ -652,6 +665,13 @@ export namespace V2Schema {
 		onError?: 'skip-plugin' | 'throw';
 
 		/**
+		 * How to handle a plugin that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+
+		/**
 		 * Human-readable name of the plugin for the progress bar.
 		 *
 		 * For example, with the following Blueprint:
@@ -691,6 +711,18 @@ export namespace V2Schema {
 		 */
 		targetDirectoryName?: string;
 		/**
+		 * Sometimes it's fine when a theme fails to install.
+		 *
+		 * @default "throw"
+		 */
+		onError?: 'skip-theme' | 'throw';
+		/**
+		 * How to handle a theme that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+		/**
 		 * Human-readable name of the theme for the progress bar.
 		 *
 		 * For example, with the following Blueprint:
@@ -712,8 +744,8 @@ export namespace V2Schema {
 		humanReadableName?: string;
 	};
 
-	type RemoteUsername = 'string';
-	type LocalUsername = 'string';
+	type RemoteUsername = string;
+	type LocalUsername = string;
 
 	/**
 	 * WordPress register_post_type() arguments representation. {{{
@@ -1523,7 +1555,7 @@ export namespace V2Schema {
 		/**
 		 * The PHP file to execute.
 		 */
-		code: DataSources.DataReference;
+		code: DataSources.FileDataReference;
 		/**
 		 * Environment variables to set for this run.
 		 */
@@ -1532,7 +1564,7 @@ export namespace V2Schema {
 
 	type RunSQLStep = {
 		step: 'runSQL';
-		source: DataSources.DataReference;
+		source: DataSources.FileDataReference;
 	};
 
 	/**
@@ -1564,7 +1596,7 @@ export namespace V2Schema {
 		/**
 		 * The zip file resource to extract.
 		 */
-		zipFile: DataSources.DataReference;
+		zipFile: DataSources.FileDataReference;
 		/**
 		 * The path to extract the zip file to inside the virtual filesystem.
 		 */
