@@ -419,13 +419,13 @@ export function SaveSiteModal({
 					options={[
 						{
 							label:
-								'Store in this browser' +
+								'Save in browser storage' +
 								(!isOpfsAvailable ? ' (not available)' : ''),
 							value: 'opfs',
 						},
 						{
 							label:
-								'Save to a local directory' +
+								'Save in a local directory' +
 								(!localIsAvailable ? ' (not available)' : ''),
 							value: 'local-fs',
 						},

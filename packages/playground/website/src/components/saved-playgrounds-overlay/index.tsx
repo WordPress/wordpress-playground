@@ -956,8 +956,8 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	// Every row carries one calm "..." menu (no separate buttons). It groups the
-	// two save destinations — "Store permanently" (OPFS) and "Save in a local
-	// directory…" — above Rename / Delete. Clicking anywhere on the row switches
+	// two save destinations — "Save in browser storage" (OPFS) and "Save in a
+	// local directory…" — above Rename / Delete. Clicking anywhere on the row switches
 	// to it. The menu only lists what applies to that Playground's storage.
 	function renderRowActions(site: SiteInfo) {
 		const isAutosave = isAutosavedSite(site);
@@ -994,7 +994,7 @@ export function SavedPlaygroundsOverlay({
 												)
 											}
 										>
-											Store permanently
+											Save in browser storage
 										</MenuItem>
 									)}
 									{canSaveToLocal && (

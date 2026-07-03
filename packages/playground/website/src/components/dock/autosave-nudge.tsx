@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Icon, Popover } from '@wordpress/components';
 import { close, wordpress } from '@wordpress/icons';
 import { logger } from '@php-wasm/logger';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	getActiveClientInfo,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
 import {
 	addDeclinedAutosaveRestoreFingerprint,
@@ -33,6 +37,16 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	const panelOpen = useAppSelector(
 		(state) => state.ui.autosaveNudgePanelOpen
 	);
+	// Hold the panel back until the freshly-started Playground has actually booted
+	// (its client registers). Popping a "restore a different Playground" panel
+	// while the loading screen is still teaching the new name splits attention
+	// between two Playgrounds at once. So show only the loading card first, and
+	// open this once the Playground is ready — the dot on the Playgrounds tool
+	// still signals that a restore is available in the meantime.
+	const activeClientReady = useAppSelector(
+		(state) => !!getActiveClientInfo(state)
+	);
+	const panelReady = panelOpen && activeClientReady;
 	const muted = useAppSelector((state) => state.ui.autosaveNudgeMuted);
 	// Whether the current Playground failed to start (e.g. a download/boot error).
 	const activeSiteError = useAppSelector(
@@ -50,7 +64,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	const [caretLeft, setCaretLeft] = useState<number | null>(null);
 
 	useEffect(() => {
-		if (!panelOpen || !anchor) {
+		if (!panelReady || !anchor) {
 			return;
 		}
 		// Track every frame while the panel is open: the dock re-centers as its
@@ -106,7 +120,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 		};
 		raf = window.requestAnimationFrame(measure);
 		return () => window.cancelAnimationFrame(raf);
-	}, [panelOpen, anchor]);
+	}, [panelReady, anchor]);
 
 	// Once-per-prompt guard so the dismiss paths that can fire together (the ✕, the
 	// click-away listener, and the Popover's own onClose) don't autosave the
@@ -160,7 +174,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	// The blur check is armed after a short delay so a focus shuffle during boot
 	// doesn't close the panel the moment it opens.
 	useEffect(() => {
-		if (!panelOpen) {
+		if (!panelReady) {
 			return;
 		}
 		let blurArmed = false;
@@ -194,7 +208,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 			document.removeEventListener('mousedown', onPointerDown, true);
 			window.removeEventListener('blur', onWindowBlur);
 		};
-	}, [panelOpen]);
+	}, [panelReady]);
 
 	// Don't offer to restore an autosave while the current Playground is in an
 	// error state: the prompt is moot, and its buttons would sit behind the
@@ -206,7 +220,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 		}
 	}, [activeSiteError, nudge, dispatch]);
 
-	if (!nudge || !panelOpen || !anchor || activeSiteError) {
+	if (!nudge || !panelReady || !anchor || activeSiteError) {
 		return null;
 	}
 

@@ -26,6 +26,7 @@ import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 import { Dock } from '../dock';
+import { SaveInProgressUnloadGuard } from '../save-in-progress-unload-guard';
 import classNames from 'classnames';
 
 /**
@@ -143,6 +144,7 @@ export function Layout() {
 				)}
 			</div>
 			{showDock && <Dock />}
+			<SaveInProgressUnloadGuard />
 		</div>
 	);
 }

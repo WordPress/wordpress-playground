@@ -589,9 +589,10 @@ export function PlaygroundFileEditor({
 						{!readOnly && currentPath ? (
 							<Button
 								// The button's look carries the state: a calm,
-								// checkmarked "Saved" once in sync; a solid blue
-								// "Save" when there are pending edits; "Saving…"
-								// mid-write; a red "Retry save" on failure.
+								// checkmarked "File saved" once in sync; a solid
+								// blue "Save file" when there are pending edits;
+								// "Saving…" mid-write; a red "Retry save" on
+								// failure.
 								variant={
 									saveState === SaveState.IDLE ||
 									saveState === SaveState.SAVED
@@ -656,15 +657,16 @@ export function PlaygroundFileEditor({
 function getSaveButtonLabel(saveState: SaveState) {
 	switch (saveState) {
 		case SaveState.PENDING:
-			return 'Save';
+			return 'Save file';
 		case SaveState.SAVING:
 			return 'Saving…';
 		case SaveState.ERROR:
 			return 'Retry save';
-		// IDLE and the brief SAVED flash both read as "Saved" — the editor is in
-		// sync with disk.
+		// IDLE and the brief SAVED flash both read as "File saved" — the editor
+		// is in sync with disk, and naming the file makes clear it's this file
+		// that's saved (not the whole Playground).
 		default:
-			return 'Saved';
+			return 'File saved';
 	}
 }
 

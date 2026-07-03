@@ -73,12 +73,12 @@ class ProgressBar {
 			this.element.classList.add(css['isHidden']);
 		}
 
-		// A small eyebrow above the name, so the big text below reads clearly as
-		// the Playground's name rather than a document/page title. Shown only when
-		// there's a name to frame.
+		// A small prefix above the name, so the big text below reads clearly as
+		// the Playground being started rather than a document/page title. Shown
+		// only when there's a name to frame.
 		this.labelElement.className = '';
 		this.labelElement.classList.add(css['label']);
-		this.labelElement.textContent = 'Playground';
+		this.labelElement.textContent = 'Starting Your Playground:';
 		if (!this.title) {
 			this.labelElement.classList.add(css['titleHidden']);
 		}
