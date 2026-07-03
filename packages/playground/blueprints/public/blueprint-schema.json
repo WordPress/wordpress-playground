@@ -736,6 +736,11 @@
 							"description": "Whether to import comments from the WXR file.",
 							"default": true
 						},
+						"importSiteOptions": {
+							"type": "boolean",
+							"description": "Whether to import site options from the WXR file.",
+							"default": false
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],

@@ -39,6 +39,12 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	importComments?: boolean;
 	/**
+	 * Whether to import site options from the WXR file.
+	 *
+	 * @default false
+	 */
+	importSiteOptions?: boolean;
+	/**
 	 * The importer to use. Possible values:
 	 *
 	 * - `default`: The importer from https://github.com/humanmade/WordPress-Importer
@@ -67,6 +73,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		fetchAttachments = true,
 		rewriteUrls = true,
 		importComments = true,
+		importSiteOptions = false,
 	},
 	progress?
 ) => {
@@ -74,6 +81,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		fetchAttachments,
 		rewriteUrls,
 		importComments,
+		importSiteOptions,
 	});
 };
 
@@ -85,6 +93,7 @@ async function importWithDefaultImporter(
 		fetchAttachments: boolean;
 		rewriteUrls: boolean;
 		importComments: boolean;
+		importSiteOptions: boolean;
 	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
@@ -109,6 +118,46 @@ async function importWithDefaultImporter(
 	require 'wp-load.php';
 	require 'wp-admin/includes/admin.php';
 
+	if (!function_exists('playground_import_wxr_site_options')) {
+		function playground_import_wxr_site_options($file) {
+			$reader_class = '\\WordPress\\DataLiberation\\EntityReader\\WXREntityReader';
+			$stream_class = '\\WordPress\\ByteStream\\ReadStream\\FileReadStream';
+
+			if (
+				!class_exists($reader_class) ||
+				!class_exists($stream_class)
+			) {
+				throw new Exception(
+					'The active WordPress Importer does not support WXR site option imports.'
+				);
+			}
+
+			try {
+				$reader = $reader_class::create($stream_class::from_path($file));
+				while ($reader->next_entity()) {
+					$entity = $reader->get_entity();
+					if ('site_option' !== $entity->get_type()) {
+						continue;
+					}
+					$data = $entity->get_data();
+					if (isset($data['option_name']) && 'blogname' === $data['option_name']) {
+						update_option(
+							'blogname',
+							wp_specialchars_decode($data['option_value'], ENT_QUOTES)
+						);
+						return;
+					}
+				}
+			} catch (Exception $e) {
+				throw new Exception(
+					'Could not parse WXR file for site option imports: ' . $e->getMessage(),
+					0,
+					$e
+				);
+			}
+		}
+	}
+
 	/**
 	 * Disable all kses filters to prevent content sanitization during import.
 	 * It messes up Playground URL scheme by mangling transforming code such as:
@@ -128,6 +177,10 @@ async function importWithDefaultImporter(
 
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
+
+	if (getenv('IMPORT_SITE_OPTIONS') === 'true') {
+		playground_import_wxr_site_options(getenv('IMPORT_FILE'));
+	}
 
 	// Prepare the data to be used in process_author_mapping();
 	$wp_import->get_authors_from_import( $import_data );
@@ -163,6 +216,7 @@ async function importWithDefaultImporter(
 			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
 			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
+			IMPORT_SITE_OPTIONS: options.importSiteOptions ? 'true' : 'false',
 		},
 	});
 }

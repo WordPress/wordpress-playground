@@ -478,6 +478,139 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should import WXR site options only when enabled',
+		async () => {
+			const escapeXml = (value: string) =>
+				value
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&apos;');
+			const createSiteOptionsWxr = ({
+				siteTitle,
+				postId,
+				postSlug,
+			}: {
+				siteTitle: string;
+				postId: number;
+				postSlug: string;
+			}) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>${escapeXml(siteTitle)}</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	<item>
+		<title>Site options post ${postId}</title>
+		<link>https://example.com/${postSlug}/</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=${postId}</guid>
+		<description></description>
+		<content:encoded><![CDATA[<p>Site options post</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${postId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[${postSlug}]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+</channel>
+</rss>`;
+
+			const getSiteTitle = async () => {
+				const result = await php.run({
+					code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode(get_bloginfo('name'));
+			`,
+					env: {
+						DOCROOT: handler.documentRoot,
+					},
+				});
+				return result.json;
+			};
+
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			update_option('blogname', 'Original Site Name');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createSiteOptionsWxr({
+							siteTitle: 'Ignored Imported Site Name',
+							postId: 9301,
+							postSlug: 'site-options-disabled',
+						}),
+					],
+					'import.wxr'
+				),
+			});
+
+			expect(await getSiteTitle()).toBe('Original Site Name');
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createSiteOptionsWxr({
+							siteTitle: 'Explicitly Ignored Site Name',
+							postId: 9302,
+							postSlug: 'site-options-explicitly-disabled',
+						}),
+					],
+					'import.wxr'
+				),
+				importSiteOptions: false,
+			});
+
+			expect(await getSiteTitle()).toBe('Original Site Name');
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createSiteOptionsWxr({
+							siteTitle: 'Imported & Site <Name>',
+							postId: 9303,
+							postSlug: 'site-options-enabled',
+						}),
+					],
+					'import.wxr'
+				),
+				importSiteOptions: true,
+			});
+
+			expect(await getSiteTitle()).toBe(
+				'Imported &amp; Site &lt;Name&gt;'
+			);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should rewrite site URLs in the imported content (tt5 playground content)',
 		async () => {
 			const fileData = await readFile(
