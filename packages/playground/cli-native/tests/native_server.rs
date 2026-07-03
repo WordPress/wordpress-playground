@@ -186,6 +186,41 @@ fn native_server_binary_serves_mounted_php_index() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+#[ignore = "Full packaged PHP 8.5 Wasmtime async execution is an explicit smoke test."]
+fn packaged_php85_wasmtime_async_runs_full_wordpress_smokes() {
+    let out_dir = temp_dir("packaged-php85-wasmtime-async");
+    let package_name = "wp-playground-native-php85-wasmtime-async-smoke";
+    let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
+        .arg("--binary")
+        .arg(env!("CARGO_BIN_EXE_wp-playground-native"))
+        .arg("--out-dir")
+        .arg(&out_dir)
+        .arg("--name")
+        .arg(package_name)
+        .arg("--skip-archive")
+        .arg("--smoke-wordpress-server=8.5")
+        .arg("--smoke-run-blueprint=8.5")
+        .arg("--smoke-build-snapshot=8.5")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "package-native-cli failed with status {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let package_root = out_dir.join(package_name);
+    assert!(package_root.join("bin/wp-playground-native").is_file());
+    assert!(package_root.join("package-manifest.json").is_file());
+
+    let _ = fs::remove_dir_all(out_dir);
+}
+
 #[test]
 #[ignore = "Full native server process execution is an explicit smoke test."]
 fn native_server_reused_worker_does_not_leak_sapi_request_state() {

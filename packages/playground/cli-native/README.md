@@ -170,16 +170,16 @@ resolved relative to that asset root, so release archives must include the PHP
 wasm files, WordPress ZIPs, and SQLite integration ZIPs at the paths referenced
 by the manifest and native asset loaders.
 
-The native runtime can dispatch PHP through Wasmtime's async call path when an
-asset manifest selects the Wasmtime async runtime. The checked-in manifest still
-uses the asyncify node build because the current `node-builds/jspi` PHP artifacts
-use legacy WebAssembly exceptions, which Wasmtime 46's compiler rejects. A PHP
-wasm rebuild without legacy exceptions is required before changing the bundled
-manifest to the Wasmtime async runtime.
+The native runtime dispatches PHP according to the runtime selected in the
+packaged asset manifest. Runtime variants are artifact choices, not startup
+flags: `--php-version` can choose among PHP versions already included in a
+package, but it cannot switch an asyncify artifact into a Wasmtime async
+artifact. The checked-in manifest defaults to asyncify for PHP 7.4 through 8.4
+and uses the Wasmtime async runtime for PHP 8.5.
 
 By default, release packages include every supported PHP version listed in the
 asset manifest. Use repeatable `--php-version=<version>` only for intentionally
-filtered development packages.
+filtered development packages; omitting it is the release path.
 
 Create a self-contained package with:
 
@@ -209,8 +209,11 @@ cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --
 ```
 
 CI builds complete package archives and checksums across macOS, Linux, and
-Windows, uploads them as workflow artifacts, and runs the heavier full packaged
-WordPress server, `run-blueprint`, and `build-snapshot` smokes on Linux.
+Windows, uploads them as workflow artifacts, and runs `php -v` from the packaged
+binary for every supported PHP version on every native target. It also runs the
+heavier packaged WordPress server, `run-blueprint`, and `build-snapshot` smokes
+with PHP 8.3 on every native target, plus PHP 8.5 on Linux x64 to exercise the
+Wasmtime async runtime through full WordPress startup.
 
 Benchmark WordPress server latency and RSS against system PHP with:
 
