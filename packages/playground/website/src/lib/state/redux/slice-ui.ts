@@ -12,6 +12,9 @@ export type SiteError =
 	| 'directory-handle-unknown-error'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
+	// A stored save whose initial copy never finished, so core WordPress files
+	// are missing and it can't boot. The lost files aren't recoverable.
+	| 'incomplete-save'
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'

@@ -94,7 +94,11 @@ class ProgressBar {
 
 		this.captionElement.className = '';
 		this.captionElement.classList.add(css['caption']);
-		this.captionElement.textContent = this.caption + '...';
+		// No trailing "..." — it's a redundant loading cue (the progress bar
+		// right below already animates) and, by hanging off the right end, it
+		// pushed the caption's words left of the name's optical center, so the
+		// two lines stopped looking centered on the same axis.
+		this.captionElement.textContent = this.caption;
 
 		const progressBarWrapper = this.element.querySelector(
 			`.${css['wrapper']}`

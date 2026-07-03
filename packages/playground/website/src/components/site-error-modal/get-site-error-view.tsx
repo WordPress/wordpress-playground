@@ -58,6 +58,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'incomplete-save':
+			return incompleteSaveView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
 		case 'resource-download-failed':
@@ -270,6 +272,44 @@ function blueprintValidationFailedView({
 				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Start without a Blueprint
+			</Button>,
+		],
+	};
+}
+
+function incompleteSaveView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'This Playground didn’t finish saving',
+		isDeveloperError: false,
+		// There's no crash to report or debug — the files simply never got
+		// written, so hide the report / AI-troubleshoot actions.
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: undefined,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Its first save was interrupted — likely a tab closed or the
+					device lost power mid-save — so some of its WordPress files
+					were never written to storage and it can’t open.
+				</p>
+				<p>
+					Those files only existed in the original tab, so this copy
+					can’t be recovered. You can delete it and start a new
+					Playground.
+				</p>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				isDestructive
+				key="delete-incomplete-save"
+				onClick={helpers.deleteSite}
+			>
+				Delete this Playground
 			</Button>,
 		],
 	};

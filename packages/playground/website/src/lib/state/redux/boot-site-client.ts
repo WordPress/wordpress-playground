@@ -96,11 +96,14 @@ export function bootSiteClient(
 		}
 
 		let isWordPressInstalled = false;
+		let storedDirHandle: FileSystemDirectoryHandle | undefined;
 		if (mountDescriptor) {
 			try {
-				isWordPressInstalled = await playgroundAvailableInOpfs(
-					await directoryHandleFromMountDevice(mountDescriptor.device)
+				storedDirHandle = await directoryHandleFromMountDevice(
+					mountDescriptor.device
 				);
+				isWordPressInstalled =
+					await playgroundAvailableInOpfs(storedDirHandle);
 			} catch (e) {
 				logger.error(e);
 				if (e instanceof DOMException && e.name === 'NotFoundError') {
@@ -127,6 +130,25 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+				return;
+			}
+		}
+
+		// A stored save that looks installed (wp-config.php + the SQLite database
+		// are present) but is missing load-bearing WordPress core files is a
+		// partial copy whose initial save never finished — a tab closed or power
+		// lost mid-copy. Those core files only ever lived in the running tab's
+		// memory, so there is nothing left to recover. Be upfront and stop here
+		// instead of booting into a fatal require() of a missing core file.
+		if (isWordPressInstalled && storedDirHandle) {
+			const coreFilesPresent =
+				await opfsHasWordPressCoreFiles(storedDirHandle);
+			if (!coreFilesPresent) {
+				logger.error(
+					'Saved Playground is missing core WordPress files; its ' +
+						'initial save did not finish. Showing the incomplete-save notice.'
+				);
+				dispatch(setActiveSiteError({ error: 'incomplete-save' }));
 				return;
 			}
 		}
@@ -522,6 +544,43 @@ export async function playgroundAvailableInOpfs(
 			create: false,
 		});
 		await database.getFileHandle('.ht.sqlite', { create: false });
+	} catch {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Whether a stored Playground directory still holds the WordPress core files a
+ * boot fatally depends on.
+ *
+ * `playgroundAvailableInOpfs` only proves a site was *started* here (wp-config.php
+ * and the SQLite database exist); it can't tell a complete copy from a partial
+ * one. A save interrupted mid-copy can keep wp-config.php while dropping core
+ * files, and the next boot then fatals on the first missing `require()` (the
+ * reported case was `wp-includes/sodium_compat/autoload.php`). Sampling a few
+ * load-bearing files that every supported WordPress ships — one at the root, one
+ * in wp-includes, and the sodium_compat entry that actually crashed — catches
+ * that partial state. It's a heuristic (a partial copy could in principle retain
+ * all of these), but a false negative just falls back to the generic boot-error
+ * view, while the checked files are universal enough to avoid false positives.
+ */
+async function opfsHasWordPressCoreFiles(
+	dirHandle: FileSystemDirectoryHandle
+): Promise<boolean> {
+	try {
+		const wpIncludes = await dirHandle.getDirectoryHandle('wp-includes', {
+			create: false,
+		});
+		const sodiumCompat = await wpIncludes.getDirectoryHandle(
+			'sodium_compat',
+			{ create: false }
+		);
+		await Promise.all([
+			dirHandle.getFileHandle('wp-settings.php', { create: false }),
+			wpIncludes.getFileHandle('version.php', { create: false }),
+			sodiumCompat.getFileHandle('autoload.php', { create: false }),
+		]);
 	} catch {
 		return false;
 	}
