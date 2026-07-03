@@ -1,4 +1,5 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { resolveRuntimeConfiguration } from '../../lib/resolve-runtime-configuration';
 import type { BlueprintBundle } from '../../lib/types';
@@ -109,6 +110,17 @@ describe('Blueprint v2 runtime configuration', () => {
 			})
 		).resolves.toMatchObject({
 			phpVersion: 'next',
+		});
+	});
+
+	it('resolves the latest PHP version label', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				phpVersion: 'latest',
+			})
+		).resolves.toMatchObject({
+			phpVersion: LatestSupportedPHPVersion,
 		});
 	});
 
