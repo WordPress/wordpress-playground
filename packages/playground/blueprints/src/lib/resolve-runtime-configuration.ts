@@ -17,6 +17,9 @@ import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 const V2_WORDPRESS_VERSION_LABELS = ['latest', 'beta', 'trunk', 'nightly'];
 const V2_WORDPRESS_VERSION_PATTERN =
 	/^\d+\.\d+(?:\.\d+)?(?:-(?:beta|rc)\d+)?$/i;
+const V2_PHP_CONSTRAINT_CANDIDATES = AllPHPVersions.filter(
+	(phpVersion) => phpVersion !== 'next'
+) as AllPHPVersion[];
 
 export async function resolveRuntimeConfiguration(
 	blueprint: Blueprint
@@ -83,6 +86,11 @@ function resolveV2PHPVersion(
 		return resolveV2PHPVersionString(recommendedVersion);
 	}
 
+	const constrainedVersion = resolveV2PHPConstraintVersion(phpVersion);
+	if (constrainedVersion) {
+		return constrainedVersion;
+	}
+
 	return RecommendedPHPVersion;
 }
 
@@ -111,6 +119,66 @@ function getV2PHPConstraintRecommendedVersion(
 	return typeof phpVersion.recommended === 'string'
 		? phpVersion.recommended
 		: undefined;
+}
+
+function resolveV2PHPConstraintVersion(
+	phpVersion: BlueprintV2Declaration['phpVersion']
+): AllPHPVersion | undefined {
+	if (!phpVersion || typeof phpVersion !== 'object') {
+		return undefined;
+	}
+	if (isV2PHPVersionWithinConstraints(RecommendedPHPVersion, phpVersion)) {
+		return RecommendedPHPVersion;
+	}
+	return V2_PHP_CONSTRAINT_CANDIDATES.find((candidate) =>
+		isV2PHPVersionWithinConstraints(candidate, phpVersion)
+	);
+}
+
+function isV2PHPVersionWithinConstraints(
+	phpVersion: AllPHPVersion,
+	constraints: Exclude<BlueprintV2Declaration['phpVersion'], string>
+): boolean {
+	if (phpVersion === 'next') {
+		return false;
+	}
+	const minVersion = normalizeV2PHPConstraintVersion(constraints?.min);
+	if (minVersion && comparePHPVersions(phpVersion, minVersion) < 0) {
+		return false;
+	}
+	const maxVersion = normalizeV2PHPConstraintVersion(constraints?.max);
+	if (maxVersion && comparePHPVersions(phpVersion, maxVersion) > 0) {
+		return false;
+	}
+	return true;
+}
+
+function normalizeV2PHPConstraintVersion(
+	phpVersion: string | undefined
+): string | undefined {
+	if (phpVersion === 'latest') {
+		return LatestSupportedPHPVersion;
+	}
+	return phpVersion;
+}
+
+function comparePHPVersions(left: string, right: string): number {
+	const leftParts = parsePHPVersion(left);
+	const rightParts = parsePHPVersion(right);
+	for (let i = 0; i < 3; i++) {
+		const difference = leftParts[i] - rightParts[i];
+		if (difference !== 0) {
+			return difference;
+		}
+	}
+	return 0;
+}
+
+function parsePHPVersion(phpVersion: string): [number, number, number] {
+	const [major = 0, minor = 0, patch = 0] = phpVersion
+		.split('.')
+		.map((part) => Number(part));
+	return [major, minor, patch];
 }
 
 function resolveV2WordPressVersion(

@@ -153,6 +153,32 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
+	it('uses the highest supported PHP version matching version constraints', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				phpVersion: {
+					min: LatestSupportedPHPVersion,
+				},
+			})
+		).resolves.toMatchObject({
+			phpVersion: LatestSupportedPHPVersion,
+		});
+	});
+
+	it('uses a lower supported PHP version when max excludes the default', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				phpVersion: {
+					max: '8.2',
+				},
+			})
+		).resolves.toMatchObject({
+			phpVersion: '8.2',
+		});
+	});
+
 	it('rejects unsupported PHP version strings', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
