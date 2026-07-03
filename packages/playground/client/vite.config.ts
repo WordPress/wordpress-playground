@@ -10,6 +10,8 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { resolveIsomorphicGitEsmEntry } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 function validateOrigin(origin: string) {
 	try {
@@ -28,10 +30,7 @@ const additionalRemoteOriginsModulePath = join(
 	__dirname,
 	'src/additional-remote-origins.ts'
 );
-const isomorphicGitEsmEntry = join(
-	__dirname,
-	'../../../node_modules/isomorphic-git/index.js'
-);
+const isomorphicGitEsmEntry = resolveIsomorphicGitEsmEntry();
 
 export default defineConfig({
 	root: __dirname,

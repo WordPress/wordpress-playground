@@ -296,6 +296,39 @@ describe('GitDirectoryResource', () => {
 			});
 		});
 
+		it('should not use CORS proxy for localhost git URLs', async () => {
+			global.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 401,
+				statusText: 'Unauthorized',
+			});
+
+			const gitUrl = 'http://127.0.0.1:9876/sample-plugin.git';
+			const resource = new GitDirectoryResource(
+				{
+					resource: 'git:directory',
+					url: gitUrl,
+					ref: 'main',
+				},
+				undefined,
+				{
+					corsProxy: 'https://cors-proxy.com/?',
+				}
+			);
+
+			await expect(resource.resolve()).rejects.toMatchObject({
+				name: 'GitAuthenticationError',
+				repoUrl: gitUrl,
+				status: 401,
+			});
+
+			const firstFetchUrl = String(
+				vi.mocked(global.fetch).mock.calls[0][0]
+			);
+			expect(firstFetchUrl).toContain(gitUrl);
+			expect(firstFetchUrl).not.toContain('cors-proxy.com');
+		});
+
 		it('should call gitAdditionalHeadersCallback without CORS proxy', async () => {
 			const githubUrl = 'https://github.com/user/private-repo';
 			const headerCallback = vi.fn().mockReturnValue({

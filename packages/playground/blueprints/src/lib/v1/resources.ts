@@ -761,9 +761,10 @@ export class GitDirectoryResource extends Resource<Directory> {
 		const additionalHeaders =
 			this.options?.additionalHeaders?.(this.reference.url) ?? {};
 
-		const repoUrl = this.options?.corsProxy
-			? `${this.options.corsProxy}${this.reference.url}`
-			: this.reference.url;
+		const repoUrl = maybeProxyGitUrl(
+			this.reference.url,
+			this.options?.corsProxy
+		);
 
 		try {
 			const commitHash = await resolveCommitHash(
@@ -855,6 +856,27 @@ export class GitDirectoryResource extends Resource<Directory> {
 		]
 			.filter((segment) => segment.length > 0)
 			.join(' ');
+	}
+}
+
+function maybeProxyGitUrl(url: string, corsProxy?: string) {
+	if (!corsProxy || isLocalhostUrl(url)) {
+		return url;
+	}
+	return `${corsProxy}${url}`;
+}
+
+function isLocalhostUrl(url: string) {
+	try {
+		const { hostname } = new URL(url);
+		return (
+			hostname === 'localhost' ||
+			hostname === '127.0.0.1' ||
+			hostname === '::1' ||
+			hostname === '[::1]'
+		);
+	} catch {
+		return false;
 	}
 }
 

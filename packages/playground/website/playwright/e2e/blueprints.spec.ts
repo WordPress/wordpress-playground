@@ -1,6 +1,7 @@
 import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
+import { startGitFixtureServer } from '../git-fixture-server';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -20,6 +21,50 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('installPlugin should install a plugin from a git:directory resource', async ({
+	website,
+	wordpress,
+}) => {
+	const gitFixtureServer = await startGitFixtureServer();
+	try {
+		const blueprint: Blueprint = {
+			landingPage: '/wp-admin/plugins.php',
+			steps: [
+				{ step: 'login' },
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'git:directory',
+						url: `${gitFixtureServer.url}/sample-plugin.git`,
+						ref: 'main',
+						refType: 'branch',
+						path: 'sample-plugin',
+					},
+					options: {
+						activate: true,
+					},
+				},
+			],
+		};
+
+		const encodedBlueprint = encodeStringAsBase64(
+			JSON.stringify(blueprint)
+		);
+		await website.goto(`./?storage=temp#${encodedBlueprint}`);
+		await expect(wordpress.locator('body')).toContainText(
+			'Sample Git Plugin',
+			{
+				timeout: 120000,
+			}
+		);
+		await expect(
+			wordpress.getByLabel('Deactivate Sample Git Plugin')
+		).toHaveText('Deactivate');
+	} finally {
+		await gitFixtureServer.close();
+	}
 });
 
 test('spawning less should work', async ({ website, wordpress }) => {

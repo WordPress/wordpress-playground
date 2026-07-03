@@ -14,12 +14,11 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { resolveIsomorphicGitEsmEntry } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
-const isomorphicGitEsmEntry = join(
-	__dirname,
-	'../../../node_modules/isomorphic-git/index.js'
-);
+const isomorphicGitEsmEntry = resolveIsomorphicGitEsmEntry();
 
 const plugins = [
 	viteTsConfigPaths({

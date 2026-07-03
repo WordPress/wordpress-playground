@@ -23,12 +23,11 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { resolveIsomorphicGitEsmEntry } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const personalWPDevServerPort = 5401;
-const isomorphicGitEsmEntry = join(
-	__dirname,
-	'../../../node_modules/isomorphic-git/index.js'
-);
+const isomorphicGitEsmEntry = resolveIsomorphicGitEsmEntry();
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {

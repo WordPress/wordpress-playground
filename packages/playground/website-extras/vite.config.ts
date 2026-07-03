@@ -18,6 +18,10 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { resolveIsomorphicGitEsmEntry } from '../../vite-extensions/vite-resolve-isomorphic-git';
+
+const isomorphicGitEsmEntry = resolveIsomorphicGitEsmEntry();
 
 export default defineConfig(({ mode }) => {
 	const corsProxyUrl =
@@ -35,6 +39,30 @@ export default defineConfig(({ mode }) => {
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
+		optimizeDeps: {
+			include: [
+				'async-lock',
+				'buffer',
+				'clean-git-ref',
+				'crc-32',
+				'diff3',
+				'ignore',
+				'ini',
+				'pako',
+				'pify',
+				'sha.js',
+				'sha.js/sha1.js',
+			],
+			exclude: ['isomorphic-git'],
+		},
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: isomorphicGitEsmEntry,
+				},
+			],
+		},
 
 		css: {
 			modules: {
