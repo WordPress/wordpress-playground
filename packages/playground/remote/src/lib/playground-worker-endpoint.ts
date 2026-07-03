@@ -624,6 +624,10 @@ function playground_remove_admin_view_transitions_for_chrome_crash() {
 add_action( 'admin_print_styles', 'playground_remove_admin_view_transitions_for_chrome_crash', -1 );
 
 function playground_dequeue_admin_view_transitions_for_chrome_crash() {
+	if ( ! function_exists( 'wp_dequeue_style' ) || ! function_exists( 'wp_deregister_style' ) ) {
+		return;
+	}
+
 	wp_dequeue_style( 'wp-view-transitions-admin' );
 	wp_deregister_style( 'wp-view-transitions-admin' );
 }
