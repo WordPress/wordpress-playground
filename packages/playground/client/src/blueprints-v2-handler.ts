@@ -2,6 +2,7 @@ import type { ProgressTracker } from '@php-wasm/progress';
 import type { PlaygroundClient, StartPlaygroundOptions } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
+import { isChromiumBasedBrowser } from './browser-detection';
 
 export class BlueprintsV2Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -23,7 +24,6 @@ export class BlueprintsV2Handler {
 			scope,
 			pathAliases,
 			disableProgressBar,
-			disableAdminViewTransitions,
 		} = this.options;
 		const downloadProgress = progressTracker!.stage(0.25);
 		const executionProgress = progressTracker!.stage(0.75);
@@ -102,7 +102,7 @@ export class BlueprintsV2Handler {
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,
 			pathAliases,
-			disableAdminViewTransitions,
+			disableAdminViewTransitions: isChromiumBasedBrowser(),
 		} as any);
 
 		await playground.isReady();

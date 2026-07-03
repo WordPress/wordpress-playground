@@ -13,6 +13,7 @@ import {
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
+import { isChromiumBasedBrowser } from './browser-detection';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -39,7 +40,6 @@ export class BlueprintsV1Handler {
 			onClientConnected,
 			pathAliases,
 			disableProgressBar,
-			disableAdminViewTransitions,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -104,7 +104,7 @@ export class BlueprintsV1Handler {
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 			pathAliases,
-			disableAdminViewTransitions,
+			disableAdminViewTransitions: isChromiumBasedBrowser(),
 		});
 		await playground.isReady();
 		downloadProgress.finish();

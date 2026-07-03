@@ -51,10 +51,6 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: BlueprintV1;
 	/**
-	 * Disables browser-native View Transitions for wp-admin pages.
-	 */
-	disableAdminViewTransitions?: boolean;
-	/**
 	 * PHP extensions to install before the runtime starts.
 	 */
 	extensions?: PHPWebExtension[];
@@ -145,23 +141,18 @@ export interface StartPlaygroundOptions {
 export async function startPlaygroundWeb(
 	options: StartPlaygroundOptions
 ): Promise<PlaygroundClient> {
-	const optionsWithDefaults = {
-		...options,
-		disableAdminViewTransitions:
-			options.disableAdminViewTransitions ?? isChromiumBasedBrowser(),
-	};
 	const {
 		iframe,
 		progressTracker = new ProgressTracker(),
 		disableProgressBar,
-	} = optionsWithDefaults;
-	let { remoteUrl } = optionsWithDefaults;
+	} = options;
+	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
-		'blueprints-runner': optionsWithDefaults.experimentalBlueprintsV2Runner
+		'blueprints-runner': options.experimentalBlueprintsV2Runner
 			? 'v2'
 			: 'v1',
 	});
@@ -172,32 +163,14 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const handler = optionsWithDefaults.experimentalBlueprintsV2Runner
-		? new BlueprintsV2Handler(optionsWithDefaults)
-		: new BlueprintsV1Handler(optionsWithDefaults);
+	const handler = options.experimentalBlueprintsV2Runner
+		? new BlueprintsV2Handler(options)
+		: new BlueprintsV1Handler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
 
 	return playground;
-}
-
-export function isChromiumBasedBrowser(navigatorObject: Navigator = navigator) {
-	const brands = (
-		navigatorObject as Navigator & {
-			userAgentData?: { brands?: Array<{ brand: string }> };
-		}
-	).userAgentData?.brands;
-
-	if (brands) {
-		return brands.some(({ brand }) =>
-			['Chromium', 'Google Chrome', 'Microsoft Edge', 'Opera'].includes(
-				brand
-			)
-		);
-	}
-
-	return /\b(?:Chrome|Chromium|Edg|OPR)\//.test(navigatorObject.userAgent);
 }
 
 /**

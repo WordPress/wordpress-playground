@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
 		runBlueprintV1Steps: vi.fn(),
 		resolveRuntimeConfiguration: vi.fn(),
 		createBlueprintReflection: vi.fn(),
+		isChromiumBasedBrowser: vi.fn(),
 		consumeAPI: vi.fn(),
 		collectPhpLogs: vi.fn(),
 	};
@@ -28,6 +29,10 @@ vi.mock('@php-wasm/logger', () => ({
 
 vi.mock('@php-wasm/universal', () => ({
 	consumeAPI: mocks.consumeAPI,
+}));
+
+vi.mock('./browser-detection', () => ({
+	isChromiumBasedBrowser: mocks.isChromiumBasedBrowser,
 }));
 
 vi.mock('.', () => ({
@@ -50,6 +55,7 @@ describe('BlueprintsV1Handler', () => {
 		mocks.playground.prefetchUpdateChecks.mockResolvedValue(undefined);
 		mocks.compileBlueprintV1.mockResolvedValue([]);
 		mocks.isBlueprintBundle.mockReturnValue(false);
+		mocks.isChromiumBasedBrowser.mockReturnValue(false);
 		mocks.runBlueprintV1Steps.mockResolvedValue(undefined);
 		mocks.resolveRuntimeConfiguration.mockResolvedValue({
 			phpVersion: '8.4',
@@ -113,6 +119,24 @@ describe('BlueprintsV1Handler', () => {
 			})
 		);
 		expect(progressTracker.pipe).toHaveBeenCalledWith(mocks.playground);
+	});
+
+	it('passes Chromium admin View Transition detection to the runtime', async () => {
+		mocks.isChromiumBasedBrowser.mockReturnValue(true);
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				disableAdminViewTransitions: true,
+			})
+		);
 	});
 
 	it('does not pipe progress to the remote when progress bar is disabled', async () => {

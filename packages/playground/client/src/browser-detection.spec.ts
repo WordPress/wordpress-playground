@@ -1,20 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { isChromiumBasedBrowser as detectChromiumBrowser } from './index';
-
-let isChromiumBasedBrowser: typeof detectChromiumBrowser;
+import { describe, expect, it } from 'vitest';
+import { isChromiumBasedBrowser } from './browser-detection';
 
 describe('isChromiumBasedBrowser', () => {
-	beforeAll(async () => {
-		vi.stubGlobal('location', {
-			origin: 'https://playground.test',
-		});
-		({ isChromiumBasedBrowser } = await import('./index'));
-	});
-
-	afterAll(() => {
-		vi.unstubAllGlobals();
-	});
-
 	it('detects Chromium browsers from user agent brands', () => {
 		expect(
 			isChromiumBasedBrowser(
