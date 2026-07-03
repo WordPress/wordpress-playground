@@ -48,7 +48,9 @@
 	width: 0;
 	background: #3858e9;
 	border-radius: 2px;
-	transition: opacity linear 0.2s, width ease-in 0.2s;
+	transition:
+		opacity linear 0.2s,
+		width ease-in 0.2s;
 }
 
 .progress-bar.is-indefinite {
@@ -78,10 +80,45 @@
 	}
 }
 
+/* A quiet eyebrow ("PLAYGROUND") above the name, so the big text below reads as
+   the Playground's name, not a page title. */
+.label {
+	color: #757575;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+	margin: 0 0 0.35rem;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+/* The stable Playground name — larger and bolder than the caption, sitting just
+   above it. It never changes as boot stages advance. */
+.title {
+	font-weight: 600;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 1.5rem;
+	margin: 0 0 0.25rem;
+	max-width: 60vw;
+	overflow: hidden;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.title-hidden {
+	display: none;
+}
+
 .caption {
 	font-weight: 400;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 1.1rem;
+	/* With the name carrying identity above, the changing stage caption reads as
+	   secondary status. */
+	color: #757575;
+	margin: 0;
 }
 
 @media (prefers-color-scheme: dark) {

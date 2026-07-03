@@ -7,8 +7,14 @@ import {
 	type Tooltip,
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
-import { Button, Notice } from '@wordpress/components';
-import { download, link } from '@wordpress/icons';
+import {
+	Button,
+	Dropdown,
+	MenuGroup,
+	MenuItem,
+	Notice,
+} from '@wordpress/components';
+import { Icon, chevronDown, download, help, link } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -41,6 +47,7 @@ import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import {
 	isAutosavedSite,
 	type SiteInfo,
@@ -285,7 +292,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
-	const [displayPath, setDisplayPath] = useState<string | null>(null);
 	const [isRecreating, setIsRecreating] = useState(false);
 	const [validationResult, setValidationResult] =
 		useState<BlueprintValidationResult | null>(null);
@@ -358,7 +364,6 @@ export const BlueprintBundleEditor = forwardRef<
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				if (cancelled) return;
 				setCurrentPath(BLUEPRINT_JSON_PATH);
-				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
 				setSaveError(null);
 				setMessageContent(null);
@@ -444,6 +449,9 @@ export const BlueprintBundleEditor = forwardRef<
 					},
 				})
 			);
+			// Applying the Blueprint boots a fresh Playground — get the editor
+			// pane out of the way so the user sees it come up.
+			dispatch(setSiteManagerOpen(false));
 		} catch (error) {
 			logger.error('Failed to recreate from blueprint', error);
 			setSaveError('Could not recreate Playground. Try again.');
@@ -463,7 +471,6 @@ export const BlueprintBundleEditor = forwardRef<
 		(path: string, content: string, shouldFocus = true) => {
 			setCurrentPath(path);
 			setCode(content);
-			setDisplayPath(path);
 			setMessageContent(null);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
@@ -480,7 +487,6 @@ export const BlueprintBundleEditor = forwardRef<
 		setCurrentPath(null);
 		setCode('');
 		setMessageContent(null);
-		setDisplayPath(null);
 		setSaveError(null);
 		setTreeFocusPath(null);
 	}, []);
@@ -549,9 +555,8 @@ export const BlueprintBundleEditor = forwardRef<
 	}, []);
 
 	const handleShowMessage = useCallback(
-		(path: string | null, message: string | JSX.Element) => {
+		(_path: string | null, message: string | JSX.Element) => {
 			setCurrentPath(null);
-			setDisplayPath((prev) => path ?? prev);
 
 			if (typeof message === 'string') {
 				setCode(message);
@@ -672,7 +677,6 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
 	);
 
-	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const disableRunButton = isRecreating || !site || hasValidationErrors;
 	return (
 		<>
@@ -720,49 +724,83 @@ export const BlueprintBundleEditor = forwardRef<
 									? 'Hide files'
 									: 'Browse files'}
 							</Button>
-							<div
-								className={classNames(styles.editorPath, {
-									[styles.editorPathPlaceholder]:
-										!currentPath?.length,
-								})}
-							>
-								{displayPath ||
-									selectedDirPath ||
-									'Browse files under /'}
-							</div>
-
 							<div className={styles.editorHeaderActions}>
 								<a
 									className={styles.editorDocsLink}
 									href="https://wordpress.github.io/wordpress-playground/blueprints"
 									target="_blank"
 									rel="noreferrer"
+									aria-label="What are Blueprints? Open the documentation"
+									title="What are Blueprints? Open the documentation"
 								>
-									What are Blueprints?
+									<Icon icon={help} size={24} />
 								</a>
-								<Button
-									variant="secondary"
-									className={styles.editorToolbarButton}
-									onClick={handleShareBlueprint}
-									icon={link}
-									title="Copy a link to this Blueprint"
-									disabled={!isBundleShareable}
-								>
-									Copy link
-								</Button>
-								<Button
-									variant="secondary"
-									className={styles.editorToolbarButton}
-									onClick={handleDownloadBundle}
-									icon={download}
-									title="Download this Blueprint bundle"
-								>
-									Download
-								</Button>
+								<Dropdown
+									className={styles.editorExport}
+									popoverProps={{ placement: 'bottom-end' }}
+									renderToggle={({ isOpen, onToggle }) => (
+										<Button
+											variant="secondary"
+											className={classNames(
+												styles.editorToolbarButton,
+												styles.editorExportToggle
+											)}
+											onClick={onToggle}
+											aria-expanded={isOpen}
+											aria-haspopup="menu"
+										>
+											Export
+											<Icon
+												icon={chevronDown}
+												size={20}
+											/>
+										</Button>
+									)}
+									renderContent={({ onClose }) => (
+										<>
+											<MenuGroup>
+												<MenuItem
+													icon={link}
+													disabled={
+														!isBundleShareable
+													}
+													onClick={() => {
+														handleShareBlueprint();
+														onClose();
+													}}
+												>
+													Copy Blueprint URL
+												</MenuItem>
+												<MenuItem
+													icon={download}
+													onClick={() => {
+														handleDownloadBundle();
+														onClose();
+													}}
+												>
+													Download Zip
+												</MenuItem>
+											</MenuGroup>
+											{/* Say why Copy Blueprint URL is greyed
+											    out, as a quiet footnote under the menu
+											    rather than crowding the item itself. */}
+											{!isBundleShareable && (
+												<p
+													className={
+														styles.exportHint
+													}
+												>
+													Multi-file Blueprints can’t
+													be shared as a URL —
+													download a zip instead.
+												</p>
+											)}
+										</>
+									)}
+								/>
 								{!readOnly && (
 									<Button
 										variant="primary"
-										isDestructive={isAutosaved}
 										className={classNames(
 											styles.editorToolbarButton,
 											{
@@ -784,9 +822,7 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										{isAutosaved
-											? 'Run Blueprint and reset Playground'
-											: 'Run Blueprint'}
+										Run in a new Playground
 									</Button>
 								)}
 							</div>
@@ -802,16 +838,6 @@ export const BlueprintBundleEditor = forwardRef<
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="success" isDismissible={false}>
 									{successMessage}
-								</Notice>
-							</div>
-						) : null}
-						{!readOnly && !isBundleShareable ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="warning" isDismissible={false}>
-									This Blueprint bundle contains multiple
-									files and cannot be shared via URL. Use the
-									download button to export the bundle as a
-									zip file.
 								</Notice>
 							</div>
 						) : null}

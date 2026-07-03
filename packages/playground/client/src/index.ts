@@ -49,6 +49,12 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * A stable label for the loading progress bar — typically the name of the
+	 * Playground being spawned. Shown as a heading above the (changing) boot
+	 * caption so the site stays identified for the whole load.
+	 */
+	siteName?: string;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -152,6 +158,7 @@ export async function startPlaygroundWeb(
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
+		progressbarTitle: options.siteName || undefined,
 		'blueprints-runner': options.experimentalBlueprintsV2Runner
 			? 'v2'
 			: 'v1',

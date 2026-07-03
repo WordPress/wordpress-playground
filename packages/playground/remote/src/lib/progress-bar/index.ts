@@ -2,6 +2,12 @@
 import css from './style.module.css';
 
 export interface ProgressBarOptions {
+	/**
+	 * A stable heading — the name of the Playground being spawned. Unlike the
+	 * caption, it is not overwritten as boot stages advance, so the site stays
+	 * named for the whole load.
+	 */
+	title?: string;
 	caption?: string;
 	progress?: number;
 	isIndefinite?: boolean;
@@ -10,7 +16,10 @@ export interface ProgressBarOptions {
 
 class ProgressBar {
 	element: HTMLDivElement;
+	labelElement: HTMLParagraphElement;
+	titleElement: HTMLHeadingElement;
 	captionElement: HTMLHeadingElement;
+	title = '';
 	caption = 'Preparing WordPress';
 	progress = 0;
 	isIndefinite = false;
@@ -18,12 +27,19 @@ class ProgressBar {
 
 	constructor(options: ProgressBarOptions = {}) {
 		this.element = document.createElement('div');
+		this.labelElement = document.createElement('p');
+		this.titleElement = document.createElement('h2');
 		this.captionElement = document.createElement('h3');
+		this.element.appendChild(this.labelElement);
+		this.element.appendChild(this.titleElement);
 		this.element.appendChild(this.captionElement);
 		this.setOptions(options);
 	}
 
 	setOptions(options: ProgressBarOptions) {
+		if ('title' in options && options.title) {
+			this.title = options.title!;
+		}
 		if ('caption' in options && options.caption) {
 			this.caption = options.caption!;
 		}
@@ -55,6 +71,25 @@ class ProgressBar {
 
 		if (!this.visible) {
 			this.element.classList.add(css['isHidden']);
+		}
+
+		// A small eyebrow above the name, so the big text below reads clearly as
+		// the Playground's name rather than a document/page title. Shown only when
+		// there's a name to frame.
+		this.labelElement.className = '';
+		this.labelElement.classList.add(css['label']);
+		this.labelElement.textContent = 'Playground';
+		if (!this.title) {
+			this.labelElement.classList.add(css['titleHidden']);
+		}
+
+		// The stable Playground name; hidden entirely when none was provided so
+		// the caption stays vertically centered as before.
+		this.titleElement.className = '';
+		this.titleElement.classList.add(css['title']);
+		this.titleElement.textContent = this.title;
+		if (!this.title) {
+			this.titleElement.classList.add(css['titleHidden']);
 		}
 
 		this.captionElement.className = '';

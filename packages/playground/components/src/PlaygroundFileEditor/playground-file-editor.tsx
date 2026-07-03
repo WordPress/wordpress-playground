@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Notice } from '@wordpress/components';
+import { check } from '@wordpress/icons';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
@@ -483,28 +484,38 @@ export function PlaygroundFileEditor({
 		[]
 	);
 
+	// Save now, on demand — from the Save button or Ctrl+S. Unlike the debounced
+	// autosave this runs in any state (flushing a pending autosave, or retrying
+	// after an error), but still skips a redundant write when the editor already
+	// matches disk, so an explicit save on an unchanged file just re-confirms
+	// "Saved".
 	const handleManualSave = useCallback(async () => {
-		if (saveTimeoutRef.current === null) {
+		if (!filesystemRef.current || !currentPathRef.current) {
 			return;
 		}
-		if (!filesystemRef.current || !currentPathRef.current) {
+		if (saveTimeoutRef.current !== null) {
 			window.clearTimeout(saveTimeoutRef.current);
 			saveTimeoutRef.current = null;
-			return;
 		}
-		window.clearTimeout(saveTimeoutRef.current);
-		saveTimeoutRef.current = null;
+		const pathToSave = currentPathRef.current;
+		const contentToSave = codeRef.current;
 		setSaveState(SaveState.SAVING);
 		try {
-			const pathToSave = currentPathRef.current;
-			const contentToSave = codeRef.current;
-			if (onSaveFile) {
-				await onSaveFile(pathToSave, contentToSave);
-			} else {
-				await filesystemRef.current.writeFile(
-					pathToSave,
-					contentToSave
-				);
+			let onDisk: string | null = null;
+			try {
+				onDisk = await filesystemRef.current.readFileAsText(pathToSave);
+			} catch {
+				onDisk = null;
+			}
+			if (onDisk !== contentToSave) {
+				if (onSaveFile) {
+					await onSaveFile(pathToSave, contentToSave);
+				} else {
+					await filesystemRef.current.writeFile(
+						pathToSave,
+						contentToSave
+					);
+				}
 			}
 			setSaveState(SaveState.SAVED);
 			setSaveError(null);
@@ -515,8 +526,11 @@ export function PlaygroundFileEditor({
 		}
 	}, [onSaveFile]);
 
-	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
-	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
+	const saveButtonLabel = getSaveButtonLabel(saveState);
+	const saveButtonStateClassName = getSaveButtonStateClassName(
+		saveState,
+		styles
+	);
 
 	if (!filesystem) {
 		return (
@@ -572,14 +586,38 @@ export function PlaygroundFileEditor({
 								? currentPath
 								: `Browse files under ${documentRoot}`}
 						</div>
-						<div
-							className={classNames(
-								styles['saveStatus'],
-								saveStatusClassName
-							)}
-						>
-							{saveStatusLabel}
-						</div>
+						{!readOnly && currentPath ? (
+							<Button
+								// The button's look carries the state: a calm,
+								// checkmarked "Saved" once in sync; a solid blue
+								// "Save" when there are pending edits; "Saving…"
+								// mid-write; a red "Retry save" on failure.
+								variant={
+									saveState === SaveState.IDLE ||
+									saveState === SaveState.SAVED
+										? 'secondary'
+										: 'primary'
+								}
+								isDestructive={saveState === SaveState.ERROR}
+								icon={
+									saveState === SaveState.IDLE ||
+									saveState === SaveState.SAVED
+										? check
+										: undefined
+								}
+								className={classNames(
+									styles['saveButton'],
+									saveButtonStateClassName
+								)}
+								isBusy={saveState === SaveState.SAVING}
+								disabled={saveState === SaveState.SAVING}
+								onClick={handleManualSave}
+								// Clicking saves now; it never closes the editor.
+								title="Save this file"
+							>
+								{saveButtonLabel}
+							</Button>
+						) : null}
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>
@@ -615,31 +653,31 @@ export function PlaygroundFileEditor({
 	);
 }
 
-function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
+function getSaveButtonLabel(saveState: SaveState) {
 	switch (saveState) {
 		case SaveState.PENDING:
+			return 'Save';
 		case SaveState.SAVING:
 			return 'Saving…';
-		case SaveState.SAVED:
-			return 'Saved';
 		case SaveState.ERROR:
-			return saveError ?? 'Save failed';
+			return 'Retry save';
+		// IDLE and the brief SAVED flash both read as "Saved" — the editor is in
+		// sync with disk.
 		default:
-			return '';
+			return 'Saved';
 	}
 }
 
-function getSaveStatusClassName(
+function getSaveButtonStateClassName(
 	saveState: SaveState,
 	styleSheet: typeof styles
 ) {
+	// Pending/saving/error looks are carried by the Button variant (primary) and
+	// isDestructive; only the calm in-sync "Saved" gets a success tint here.
 	switch (saveState) {
-		case SaveState.PENDING:
-			return styleSheet['saveStatusPending'];
-		case SaveState.SAVING:
-			return styleSheet['saveStatusSaving'];
-		case SaveState.ERROR:
-			return styleSheet['saveStatusError'];
+		case SaveState.IDLE:
+		case SaveState.SAVED:
+			return styleSheet['saveButtonSaved'];
 		default:
 			return undefined;
 	}

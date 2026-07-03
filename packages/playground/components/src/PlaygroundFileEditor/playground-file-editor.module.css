@@ -74,21 +74,20 @@
 	flex-shrink: 0;
 }
 
-.saveStatus {
-	font-size: 12px;
-	line-height: 16px;
-	color: var(--ink-muted, #6a6a6a);
+.saveButton {
+	/* Fixed width so the label swapping between Save / Saving… / Saved / Retry
+	   save doesn't jog the header layout. */
+	min-width: 96px;
+	justify-content: center;
 	white-space: nowrap;
 }
 
-.saveStatusSaving,
-.saveStatusPending {
-	color: var(--ink, #1e1e1e);
-}
-
-.saveStatusError {
-	color: var(--color-alert-red, #cc1818);
-	font-weight: 500;
+/* In sync: a calm, confirmed "✓ Saved" (secondary button + green check/label),
+   distinct from the solid blue "Save" that appears with pending edits. */
+.saveButton.saveButtonSaved,
+.saveButton.saveButtonSaved svg {
+	color: var(--color-success, #007017);
+	fill: var(--color-success, #007017);
 }
 
 .editor {
@@ -167,7 +166,9 @@
 	color: var(--accent-hover, #135e96);
 }
 
-.mobileToggle {
+/* Scoped under .editorHeader (0,2,0) so it reliably outranks WordPress'
+   `.components-button { display }` regardless of stylesheet load order. */
+.editorHeader .mobileToggle {
 	display: none;
 }
 
@@ -222,7 +223,7 @@
 		margin-right: 48px;
 	}
 
-	.mobileToggle {
+	.editorHeader .mobileToggle {
 		display: inline-flex;
 		order: 1;
 	}

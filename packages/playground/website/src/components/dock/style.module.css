@@ -6,11 +6,20 @@
 	bottom: 0;
 	clip-path: inset(0 round 18px 18px 0 0);
 	display: flex;
-	/* drop-shadow (not box-shadow) so the shadow follows the clipped silhouette
-	   and only lifts off the top edge. */
-	filter: drop-shadow(0 -10px 22px rgba(33, 30, 25, 0.28))
-		drop-shadow(0 -2px 5px rgba(33, 30, 25, 0.2));
+	/* drop-shadow (not box-shadow) so it follows the clipped silhouette. Two soft
+	   upward casts lift the bar off the page; a tight near-opaque edge cast defines
+	   the boundary on light or similar-toned backgrounds, where a soft shadow alone
+	   washes out and the bar looks pasted on. */
+	filter: drop-shadow(0 -14px 34px rgba(12, 10, 8, 0.5))
+		drop-shadow(0 -3px 10px rgba(12, 10, 8, 0.34))
+		drop-shadow(0 0 1px rgba(12, 10, 8, 0.6));
 	flex-direction: column;
+	/* A light rim on the inside edges (the bottom is clipped flush) keeps a crisp
+	   outline where the page behind is dark; the brighter top line reads as the lit
+	   top edge of a raised panel. Inset so it's clipped and rounded with the box. */
+	box-shadow:
+		inset 0 0 0 1px rgba(255, 251, 243, 0.16),
+		inset 0 2px 0 -1px rgba(255, 251, 243, 0.26);
 	left: 50%;
 	max-width: calc(100vw - 24px);
 	position: fixed;
@@ -950,7 +959,9 @@
 .dock-corner {
 	align-items: center;
 	animation: dock-corner-pop 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.15);
-	background: #21201d;
+	/* A light tile so the blue brand logo reads at full contrast (blue on white) —
+	   the way the mark is meant to be shown, not muddy blue-on-dark. */
+	background: #ffffff;
 	border: 0;
 	border-radius: 13px;
 	bottom: 16px;
@@ -958,8 +969,11 @@
 	   clicked. */
 	cursor: grab;
 	display: flex;
-	filter: drop-shadow(0 6px 18px rgba(33, 30, 25, 0.34))
-		drop-shadow(0 2px 5px rgba(33, 30, 25, 0.2));
+	/* A soft neutral shadow plus a hairline dark edge separate the tile from the
+	   page whether the background behind it is light or dark. */
+	filter: drop-shadow(0 6px 18px rgba(20, 18, 15, 0.3))
+		drop-shadow(0 2px 5px rgba(20, 18, 15, 0.22));
+	box-shadow: inset 0 0 0 1px rgba(20, 18, 15, 0.12);
 	height: 46px;
 	justify-content: center;
 	position: fixed;
@@ -988,7 +1002,7 @@
 }
 
 .dock-corner:hover {
-	background: #2a2825;
+	background: #f2f0ec;
 }
 
 .dock-corner:focus-visible {
@@ -996,8 +1010,8 @@
 	outline-offset: 2px;
 }
 
-/* The Playground brand mark rides in its native brand blue (#3858e9), which pops
-   against the dark tile — the on-brand icon, not a plain monochrome W. */
+/* The Playground brand mark in its native brand blue (#3858e9), reading at full
+   contrast on the light tile — the on-brand icon, not a plain monochrome W. */
 .dock-corner-logo {
 	align-items: center;
 	display: flex;

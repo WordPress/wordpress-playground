@@ -656,6 +656,16 @@ export function SavedPlaygroundsOverlay({
 			return `Gutenberg branch ${gutenbergBranch}`;
 		}
 
+		// Autosaving repoints originalBlueprintSource to the persisted OPFS bundle
+		// (so a reload restores the saved state, not the pristine Blueprint) — a
+		// storage detail, not provenance. When we still know the Blueprint URL the
+		// Playground was actually created from, report that instead, so a
+		// Blueprint-born Playground never reads as "started from saved files".
+		const blueprintUrl = getOriginalSearchParam(site, 'blueprint-url');
+		if (blueprintUrl) {
+			return getRemoteBlueprintLabel(blueprintUrl);
+		}
+
 		const source = site.metadata.originalBlueprintSource;
 		if (source.type === 'remote-url') {
 			return getRemoteBlueprintLabel(source.url);
@@ -872,7 +882,7 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'zip',
-			label: 'Zip import',
+			label: 'Import zip',
 			panelTitle: 'Import a .zip export',
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,

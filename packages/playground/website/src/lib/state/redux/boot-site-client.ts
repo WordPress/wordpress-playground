@@ -203,6 +203,9 @@ export function bootSiteClient(
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
+				// Keep the Playground's name on the loading screen the whole time
+				// it boots, rather than only the changing "Preparing WordPress…".
+				siteName: site.metadata.name,
 				blueprint,
 				extensions: phpExtensions,
 				experimentalBlueprintsV2Runner:

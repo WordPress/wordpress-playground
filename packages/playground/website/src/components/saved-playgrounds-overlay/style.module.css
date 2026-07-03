@@ -1219,17 +1219,18 @@
 	white-space: nowrap;
 }
 
-/* On phones the 3-column tab grid clips the longer labels ("Blueprint gallery",
-   "Write a Blueprint", "From GitHub"). Drop to a single-column list of full-width
-   rows — icon left, full untruncated label — at a comfortable touch height. */
+/* On phones the 3-column tab grid clips the longer labels, but a single-column
+   list of six full-width rows eats too much of the panel. A 2-column grid strikes
+   the balance: three rows instead of six, still icon + full (wrapping) label at a
+   comfortable touch height. */
 @media (max-width: 1024px) {
 	.playgrounds-pane.new-pane .creationTabs {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	.playgrounds-pane.new-pane .creationButton {
 		min-height: 44px;
-		padding: 12px;
+		padding: 10px 12px;
 	}
 
 	.playgrounds-pane.new-pane .creationTitle {

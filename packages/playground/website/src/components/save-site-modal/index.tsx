@@ -495,13 +495,12 @@ export function SaveSiteModal({
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText={
-						selectedStorage === 'local-fs'
-							? 'Save'
-							: 'Store permanently'
-					}
+					// One label regardless of storage target — the pane title and
+					// the storage-location choice already say what "Save" does.
+					submitText="Save"
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
+					cancelDisabled={isSaving}
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>

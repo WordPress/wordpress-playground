@@ -290,6 +290,7 @@ export default function PreviewPRForm({
 			) : (
 				<ModalButtons
 					areDisabled={submitting}
+					cancelDisabled={submitting}
 					onCancel={onClose}
 					onSubmit={handleSubmit}
 					submitText="Preview"

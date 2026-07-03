@@ -4,12 +4,12 @@ import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
 	close,
+	download,
 	grid,
 	list,
 	page,
 	pencil,
 	plus,
-	share,
 	wordpress,
 } from '@wordpress/icons';
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
@@ -276,9 +276,9 @@ const DOCK_ITEMS: DockItem[] = [
 	},
 	{
 		section: 'share',
-		label: 'Share',
-		ariaLabel: 'Share and export',
-		icon: <Icon icon={share} size={24} />,
+		label: 'Export',
+		ariaLabel: 'Export',
+		icon: <Icon icon={download} size={24} />,
 	},
 ];
 
@@ -315,7 +315,7 @@ const PANE_COPY: Record<DockSection, { title: string; description: string }> = {
 		description: 'PHP, WordPress, and Playground runtime messages.',
 	},
 	share: {
-		title: 'Share and export',
+		title: 'Export',
 		description: '',
 	},
 	save: {
@@ -698,6 +698,20 @@ export function Dock() {
 		}
 	}, [siteManagerIsOpen]);
 
+	// A pane only ever shows above the expanded bar. If one opens while the dock
+	// is folded into a corner, un-fold it so the bar is back — otherwise the
+	// cornered bar (display:none) and the launcher (suppressed under the pane)
+	// would both be hidden and the dock would vanish. Paired with refusing to
+	// fold while a pane is open (see the drag release), the dock is never cornered
+	// while a pane is up.
+	useEffect(() => {
+		if (siteManagerIsOpen && dragSide !== null) {
+			setDragSide(null);
+			setDockCenter(null);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [siteManagerIsOpen]);
+
 	const openSection = (section: DockSection) => {
 		// Visiting Your Playgrounds acknowledges the autosave cue: the dot is a
 		// pointer to the recovery home, not an unread badge, so seeing the list
@@ -883,7 +897,18 @@ export function Dock() {
 			// launcher. With motion allowed, play the shrink-to-corner animation
 			// first (committing to `cornered` on its end); reduced motion snaps
 			// straight to the launcher.
-			if (dragSideRef.current !== null && !prefersReducedMotion()) {
+			if (dragSideRef.current !== null && siteManagerIsOpen) {
+				// A tools pane is open, which only ever shows above the expanded
+				// bar. Folding into a corner here would hide the tools in use — and
+				// with the launcher suppressed under the pane, leave nothing on
+				// screen. Refuse the fold and snap the bar back to center instead.
+				dragSideRef.current = null;
+				setDragSide(null);
+				setDockCenter(null);
+			} else if (
+				dragSideRef.current !== null &&
+				!prefersReducedMotion()
+			) {
 				setIsCollapsed(false);
 				setIsFolding(true);
 			}
@@ -1166,6 +1191,11 @@ export function Dock() {
 
 	return (
 		<>
+			{/* The launcher is the dock's minimized form. It and an open pane are
+			    mutually exclusive by construction: the dock is never cornered while a
+			    pane is up (the effect above un-folds on open, and a fold is refused
+			    on release while open), so `cornered` is already false here whenever a
+			    pane is open — no extra guard needed, and never both hidden at once. */}
 			{(cornered || isFolding || isMaximizing) && (
 				<button
 					type="button"

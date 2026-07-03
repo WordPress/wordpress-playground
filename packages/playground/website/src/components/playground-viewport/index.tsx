@@ -167,7 +167,9 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{!hasVisibleSite && (
 				<div className={css.loadingViewport}>
-					<h3 className={css.loadingCaption}>&nbsp;</h3>
+					<h3 className={css.loadingCaption}>
+						{activeSite?.metadata.name || ' '}
+					</h3>
 					<div className={css.progressWrapper}>
 						<div className={css.progressBar} />
 					</div>

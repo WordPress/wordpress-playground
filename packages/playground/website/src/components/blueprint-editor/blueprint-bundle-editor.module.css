@@ -49,23 +49,28 @@
 	z-index: 1;
 }
 
-.editorPath {
-	flex: 1 1 auto;
-	min-width: 16ch;
-	font-family:
-		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-		'Liberation Mono', 'Courier New', monospace;
-	font-size: 12px;
-	color: var(--ink-muted, #50575e);
-	/* Truncate the path to a single line; on narrow headers it takes its own
-	   full-width row (see the media rule below) above the action buttons. */
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+/* The Export dropdown's toggle sits inline with the other toolbar actions. */
+.editorExport {
+	display: inline-flex;
 }
 
-.editorPathPlaceholder {
-	color: var(--ink-faint, #787c82);
+/* Space the trailing caret from the label so the button reads as a menu. */
+.editorExportToggle svg {
+	margin-left: 4px;
+	margin-right: -2px;
+}
+
+/* A quiet footnote under the Export menu explaining why Copy Blueprint URL is
+   greyed out — separated from the items by a hairline so it reads as a note, not
+   a clickable row. */
+.exportHint {
+	border-top: 1px solid var(--line-subtle, #e0e0e0);
+	color: var(--ink-muted, #50575e);
+	font-size: 12px;
+	line-height: 1.4;
+	margin: 4px 0 0;
+	max-width: 240px;
+	padding: 8px 12px 4px;
 }
 
 .editorHeaderActions {
@@ -73,6 +78,9 @@
 	align-items: center;
 	flex-wrap: wrap;
 	justify-content: flex-end;
+	/* With the file-path readout gone, the actions are the header's only desktop
+	   content — keep them pinned to the right where they've always lived. */
+	margin-left: auto;
 	gap: 8px;
 	/* Allow the action group to shrink/wrap on narrow panes instead of pushing
 	   itself off the edge (it sits beside a flex:1 path that would otherwise win
@@ -80,17 +88,22 @@
 	min-width: 0;
 }
 
-/* A quiet docs link sitting to the left of the toolbar's actions. */
+/* A help (?) icon linking to the Blueprints docs — the conventional "what is
+   this?" affordance, quieter and clearer than a text link in the toolbar. */
 .editorDocsLink {
-	margin-right: 4px;
-	color: var(--accent, #3858e9);
-	font-size: 13px;
-	text-decoration: none;
-	white-space: nowrap;
+	align-items: center;
+	border-radius: 6px;
+	color: var(--ink-muted, #50575e);
+	display: inline-flex;
+	height: 32px;
+	justify-content: center;
+	margin-right: 2px;
+	width: 32px;
 }
 
 .editorDocsLink:hover {
-	text-decoration: underline;
+	background: rgba(20, 18, 15, 0.06);
+	color: var(--accent, #3858e9);
 }
 
 .editor {
@@ -184,7 +197,11 @@
 	height: 18px;
 }
 
-.mobileToggle {
+/* Scoped under .editorHeader (0,2,0) so it outranks WordPress' own
+   `.components-button { display }` regardless of stylesheet load order — this
+   editor's CSS is a lazy chunk, so a bare `.mobileToggle` lost that tie and the
+   button leaked onto desktop. */
+.editorHeader .mobileToggle {
 	display: none;
 }
 
@@ -227,15 +244,7 @@
 		background: var(--paper-2, #ffffff);
 	}
 
-	.editorPath {
-		width: 100%;
-		order: 2;
-		/* Keep the filename clear of the pane's close X in the top-right corner
-		   (it shares this first row with "Browse files"). */
-		margin-right: 48px;
-	}
-
-	.mobileToggle {
+	.editorHeader .mobileToggle {
 		display: inline-flex;
 		order: 1;
 	}
