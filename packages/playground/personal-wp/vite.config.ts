@@ -24,10 +24,9 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { resolveIsomorphicGitEsmEntry } from '../../vite-extensions/vite-resolve-isomorphic-git';
+import { getIsomorphicGitViteConfig } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const personalWPDevServerPort = 5401;
-const isomorphicGitEsmEntry = resolveIsomorphicGitEsmEntry();
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -66,30 +65,7 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-personal-wp',
-		optimizeDeps: {
-			include: [
-				'async-lock',
-				'buffer',
-				'clean-git-ref',
-				'crc-32',
-				'diff3',
-				'ignore',
-				'ini',
-				'pako',
-				'pify',
-				'sha.js',
-				'sha.js/sha1.js',
-			],
-			exclude: ['isomorphic-git'],
-		},
-		resolve: {
-			alias: [
-				{
-					find: /^isomorphic-git$/,
-					replacement: isomorphicGitEsmEntry,
-				},
-			],
-		},
+		...getIsomorphicGitViteConfig(),
 
 		css: {
 			modules: {

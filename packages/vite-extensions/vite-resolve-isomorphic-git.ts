@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 
 interface PackageJson {
 	module?: string;
+	dependencies?: Record<string, string>;
 	exports?: {
 		'.'?:
 			| string
@@ -16,13 +17,43 @@ interface PackageJson {
 	};
 }
 
+export function getIsomorphicGitViteConfig() {
+	return {
+		optimizeDeps: {
+			include: getIsomorphicGitOptimizeDeps(),
+			exclude: ['isomorphic-git'],
+		},
+		resolve: {
+			alias: [
+				{
+					find: /^isomorphic-git$/,
+					replacement: resolveIsomorphicGitEsmEntry(),
+				},
+			],
+		},
+	};
+}
+
 export function resolveIsomorphicGitEsmEntry() {
+	const { packageJson, packageRoot } = readIsomorphicGitPackage();
+	const entry = getEsmPackageEntry(packageJson);
+	return join(packageRoot, entry);
+}
+
+function getIsomorphicGitOptimizeDeps() {
+	const { packageJson } = readIsomorphicGitPackage();
+	const dependencies = Object.keys(packageJson.dependencies ?? {}).filter(
+		(dependency) => !isNodeOnlyIsomorphicGitDependency(dependency)
+	);
+	return [...dependencies, 'buffer', 'ini', 'sha.js/sha1.js'].sort();
+}
+
+function readIsomorphicGitPackage() {
 	const packageRoot = dirname(require.resolve('isomorphic-git'));
 	const packageJson = JSON.parse(
 		readFileSync(join(packageRoot, 'package.json'), 'utf8')
 	) as PackageJson;
-	const entry = getEsmPackageEntry(packageJson);
-	return join(packageRoot, entry);
+	return { packageJson, packageRoot };
 }
 
 function getEsmPackageEntry(packageJson: PackageJson) {
@@ -39,4 +70,8 @@ function getEsmPackageEntry(packageJson: PackageJson) {
 		return packageJson.module;
 	}
 	throw new Error('Could not resolve isomorphic-git ESM entry');
+}
+
+function isNodeOnlyIsomorphicGitDependency(dependency: string) {
+	return ['minimisted', 'readable-stream', 'simple-get'].includes(dependency);
 }
