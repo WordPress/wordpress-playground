@@ -13,7 +13,6 @@ import {
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
-import { isChromiumBasedBrowser } from './browser-detection';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -104,7 +103,6 @@ export class BlueprintsV1Handler {
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 			pathAliases,
-			disableAdminViewTransitions: isChromiumBasedBrowser(),
 		});
 		await playground.isReady();
 		downloadProgress.finish();
