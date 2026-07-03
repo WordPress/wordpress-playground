@@ -54,7 +54,7 @@ export async function resolveRuntimeConfiguration(
 			wpVersion: resolveV2WordPressVersion(declaration),
 			intl: false,
 			networking: playgroundOptions?.networkAccess ?? true,
-			constants: {},
+			constants: declaration.constants ?? {},
 			extraLibraries: [],
 		};
 	}

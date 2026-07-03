@@ -75,6 +75,23 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
+	it('resolves constants from the declaration', async () => {
+		const constants = {
+			WP_DEBUG: true,
+			WP_ENVIRONMENT_TYPE: 'local',
+			AUTOSAVE_INTERVAL: 120,
+		};
+
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				constants,
+			})
+		).resolves.toMatchObject({
+			constants,
+		});
+	});
+
 	it('resolves exact PHP version strings', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
