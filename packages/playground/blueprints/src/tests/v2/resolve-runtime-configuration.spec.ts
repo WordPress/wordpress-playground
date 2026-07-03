@@ -112,13 +112,27 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
-	it('uses the default PHP version for constraint objects', async () => {
+	it('resolves recommended PHP versions from constraint objects', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
 				version: 2,
 				phpVersion: {
 					min: '8.1',
 					recommended: '8.2',
+					max: '8.4',
+				},
+			})
+		).resolves.toMatchObject({
+			phpVersion: '8.2',
+		});
+	});
+
+	it('uses the default PHP version for constraints without a recommended version', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				phpVersion: {
+					min: '8.1',
 					max: '8.4',
 				},
 			})
