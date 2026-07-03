@@ -88,19 +88,47 @@ function resolveV2PHPVersion(
 function resolveV2WordPressVersion(
 	declaration: BlueprintV2Declaration
 ): string {
-	if (typeof declaration.wordpressVersion !== 'string') {
-		return 'latest';
+	const wordpressVersion = declaration.wordpressVersion;
+	if (typeof wordpressVersion === 'string') {
+		return resolveV2WordPressVersionString(wordpressVersion);
 	}
 
+	const preferredVersion =
+		getV2WordPressConstraintPreferredVersion(wordpressVersion);
+	if (preferredVersion) {
+		return resolveV2WordPressVersionString(preferredVersion);
+	}
+
+	return 'latest';
+}
+
+function resolveV2WordPressVersionString(wordpressVersion: string): string {
 	if (
-		V2_WORDPRESS_VERSION_LABELS.includes(declaration.wordpressVersion) ||
-		V2_WORDPRESS_VERSION_PATTERN.test(declaration.wordpressVersion)
+		V2_WORDPRESS_VERSION_LABELS.includes(wordpressVersion) ||
+		V2_WORDPRESS_VERSION_PATTERN.test(wordpressVersion)
 	) {
-		return declaration.wordpressVersion;
+		return wordpressVersion;
 	}
 
 	throw new Error(
-		`Unsupported Blueprint v2 WordPress version "${declaration.wordpressVersion}". ` +
+		`Unsupported Blueprint v2 WordPress version "${wordpressVersion}". ` +
 			'Use latest, beta, trunk, nightly, or a version like 6.8, 6.8.1, or 6.8-rc1.'
 	);
+}
+
+function getV2WordPressConstraintPreferredVersion(
+	wordpressVersion: BlueprintV2Declaration['wordpressVersion']
+): string | undefined {
+	if (!wordpressVersion || typeof wordpressVersion !== 'object') {
+		return undefined;
+	}
+	if (!('min' in wordpressVersion)) {
+		return undefined;
+	}
+	if (!('preferred' in wordpressVersion)) {
+		return undefined;
+	}
+	return typeof wordpressVersion.preferred === 'string'
+		? wordpressVersion.preferred
+		: undefined;
 }

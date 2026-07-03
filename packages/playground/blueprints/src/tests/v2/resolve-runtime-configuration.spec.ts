@@ -159,13 +159,26 @@ describe('Blueprint v2 runtime configuration', () => {
 		}
 	});
 
-	it('uses the default WordPress version for constraint objects', async () => {
+	it('resolves preferred WordPress versions from constraint objects', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
 				version: 2,
 				wordpressVersion: {
 					min: '6.8',
 					preferred: '6.8',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.8',
+		});
+	});
+
+	it('uses the default WordPress version for constraints without a preferred version', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8',
 				},
 			})
 		).resolves.toMatchObject({
