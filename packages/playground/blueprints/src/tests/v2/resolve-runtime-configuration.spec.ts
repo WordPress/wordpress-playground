@@ -33,6 +33,47 @@ describe('Blueprint v2 runtime configuration', () => {
 			expectedDefaults
 		);
 	});
+
+	it('resolves networking from Playground application options', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						networkAccess: false,
+					},
+				},
+			})
+		).resolves.toMatchObject({
+			networking: false,
+		});
+
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						networkAccess: true,
+					},
+				},
+			})
+		).resolves.toMatchObject({
+			networking: true,
+		});
+	});
+
+	it('uses the default networking value when network access is omitted', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {},
+				},
+			})
+		).resolves.toMatchObject({
+			networking: true,
+		});
+	});
 });
 
 function createBundle(blueprint: BlueprintV2Declaration): BlueprintBundle {
