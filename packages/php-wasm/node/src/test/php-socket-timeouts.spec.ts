@@ -61,7 +61,7 @@ describe('socket timeout support', () => {
 			),
 		];
 
-		expect(loaderFiles).toHaveLength(32);
+		expect(loaderFiles).toHaveLength(33);
 
 		for (const loaderFile of loaderFiles) {
 			const loader = readFileSync(loaderFile, 'utf8');

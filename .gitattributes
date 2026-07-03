@@ -8,9 +8,11 @@ packages/php-wasm/compile/libz/zlib-src linguist-vendored
 packages/php-wasm/node/public/ linguist-generated=true
 packages/php-wasm/node-builds/*/asyncify/** linguist-generated=true -diff -text
 packages/php-wasm/node-builds/*/jspi/** linguist-generated=true -diff -text
+packages/php-wasm/node-builds/*/wasmtime-async/** linguist-generated=true -diff -text
 packages/php-wasm/node/src/test/test-data/ linguist-generated=true
 packages/php-wasm/web-builds/*/asyncify/** linguist-generated=true -diff -text
 packages/php-wasm/web-builds/*/jspi/** linguist-generated=true -diff -text
+packages/php-wasm/web-builds/*/wasmtime-async/** linguist-generated=true -diff -text
 packages/playground/sync/src/test/wp-* linguist-generated=true
 packages/playground/remote/public/wp-* linguist-generated=true -diff
 packages/playground/remote/src/wordpress linguist-generated=true -diff
