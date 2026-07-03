@@ -272,7 +272,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					...createChromeViewTransitionsWorkaroundMuPlugin(),
+					...viewTransitionsWorkaroundMuPlugin(),
 					// Legacy PHP can't parse closures at all (even with an
 					// early return), so use a minimal compatible stub instead.
 					'1-playground-web.php': isLegacyPhp
@@ -580,10 +580,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/3845.
  */
-function createChromeViewTransitionsWorkaroundMuPlugin(): Record<
-	string,
-	string
-> {
+function viewTransitionsWorkaroundMuPlugin(): Record<string, string> {
 	const userEnforcedTransitions = new URL(
 		globalThis.location.href
 	).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM);

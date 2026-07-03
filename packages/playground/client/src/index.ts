@@ -157,7 +157,9 @@ export async function startPlaygroundWeb(
 		'blueprints-runner': options.experimentalBlueprintsV2Runner
 			? 'v2'
 			: 'v1',
-		[WITH_ADMIN_TRANSITIONS_PARAM]: shouldEnableAdminTransitions()
+		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
+			globalThis.location.href
+		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)
 			? '1'
 			: undefined,
 	});
@@ -176,11 +178,6 @@ export async function startPlaygroundWeb(
 	progressTracker.finish();
 
 	return playground;
-}
-
-function shouldEnableAdminTransitions() {
-	const query = new URL(globalThis.location.href).searchParams;
-	return query.has(WITH_ADMIN_TRANSITIONS_PARAM);
 }
 
 /**
