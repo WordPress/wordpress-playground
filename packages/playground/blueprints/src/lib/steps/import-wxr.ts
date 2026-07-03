@@ -21,6 +21,12 @@ export interface ImportWxrStep<ResourceType> {
 	/** The file to import */
 	file: ResourceType;
 	/**
+	 * Whether to fetch and import attachment files referenced by the WXR file.
+	 *
+	 * @default true
+	 */
+	fetchAttachments?: boolean;
+	/**
 	 * Whether to rewrite imported URLs to the current site URL.
 	 *
 	 * @default true
@@ -50,10 +56,11 @@ export interface ImportWxrStep<ResourceType> {
  */
 export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	playground,
-	{ file, rewriteUrls = true },
+	{ file, fetchAttachments = true, rewriteUrls = true },
 	progress?
 ) => {
 	await importWithDefaultImporter(playground, file, progress, {
+		fetchAttachments,
 		rewriteUrls,
 	});
 };
@@ -63,6 +70,7 @@ async function importWithDefaultImporter(
 	file: File,
 	progress: StepProgress | undefined,
 	options: {
+		fetchAttachments: boolean;
 		rewriteUrls: boolean;
 	}
 ) {
@@ -135,7 +143,7 @@ async function importWithDefaultImporter(
 	`,
 		env: {
 			IMPORT_FILE: '/tmp/import.wxr',
-			FETCH_ATTACHMENTS: 'true',
+			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
 		},
 	});
