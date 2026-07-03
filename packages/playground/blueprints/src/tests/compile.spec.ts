@@ -65,4 +65,14 @@ describe('compileBlueprintForExecution', () => {
 			'Hello from a bundled file.'
 		);
 	});
+
+	it('rejects Blueprint v2 declarations until the v2 execution path is wired', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+			})
+		).rejects.toThrow(
+			'Blueprint v2 execution is not supported by compileBlueprintForExecution() yet.'
+		);
+	});
 });

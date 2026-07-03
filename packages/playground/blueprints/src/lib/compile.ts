@@ -1,14 +1,16 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import type { BlueprintBundle, BlueprintDeclaration } from './types';
+import type { Blueprint, BlueprintBundle, BlueprintDeclaration } from './types';
+import { getBlueprintDeclaration } from './reflection';
 import {
 	compileBlueprintV1,
 	type CompileBlueprintV1Options,
 	type CompiledBlueprintV1,
-	getBlueprintDeclaration,
+	isBlueprintBundle,
 } from './v1/compile';
 import type { BlueprintV1Declaration } from './v1/types';
+import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
-export type BlueprintExecutionPath = 'v1';
+export type BlueprintExecutionPath = 'v1' | 'v2';
 
 export type CompiledBlueprintForExecution = {
 	version: 1;
@@ -32,11 +34,26 @@ export interface CompileBlueprintForExecutionOptions extends Omit<
  * newer callers can migrate to as Blueprint v2 support grows.
  */
 export async function compileBlueprintForExecution(
-	input: BlueprintV1Declaration | BlueprintBundle,
+	input: Blueprint | BlueprintBundle,
 	options: CompileBlueprintForExecutionOptions = {}
 ): Promise<CompiledBlueprintForExecution> {
 	const declaration = await getBlueprintDeclaration(input);
-	const compiled = await compileBlueprintV1(input, {
+	if (isBlueprintV2Declaration(declaration)) {
+		throw new Error(
+			'Blueprint v2 execution is not supported by compileBlueprintForExecution() yet.'
+		);
+	}
+	return compileBlueprintV1ForExecution(input, declaration, options);
+}
+
+async function compileBlueprintV1ForExecution(
+	input: Blueprint | BlueprintBundle,
+	declaration: BlueprintV1Declaration,
+	options: CompileBlueprintForExecutionOptions
+): Promise<CompiledBlueprintForExecution> {
+	const compileInput =
+		isBlueprintBundle(input) ? input : declaration;
+	const compiled = await compileBlueprintV1(compileInput, {
 		...options,
 		onBlueprintValidated: options.onBlueprintValidated as
 			| CompileBlueprintV1Options['onBlueprintValidated']
@@ -48,4 +65,10 @@ export async function compileBlueprintForExecution(
 		compiled,
 		run: compiled.run,
 	};
+}
+
+function isBlueprintV2Declaration(
+	declaration: BlueprintDeclaration
+): declaration is BlueprintV2Declaration {
+	return (declaration as { version?: unknown }).version === 2;
 }
