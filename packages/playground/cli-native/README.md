@@ -315,3 +315,8 @@ For example:
 VARIANTS="light-48:48MB:emmalloc:WITH_GD=no,WITH_MYSQL=no,WITH_IMAGICK=no" \
   bash packages/playground/cli-native/scripts/benchmark-php-wasm-variants.sh
 ```
+
+The helper defaults to `PHP_WASM_RUNTIME=wasmtime-async` and passes
+`WITH_WASMTIME_ASYNC=yes` so native CLI variant runs match the Wasmtime async
+runtime. Set `PHP_WASM_RUNTIME=asyncify` only when intentionally comparing the
+older asyncify payload.

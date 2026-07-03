@@ -12,6 +12,7 @@ WARMUPS="${WARMUPS:-2}"
 BASE_PORT="${BASE_PORT:-10100}"
 PORT_STEP="${PORT_STEP:-20}"
 PACKAGE_PRECOMPILE_WASMTIME="${PACKAGE_PRECOMPILE_WASMTIME:-1}"
+PHP_WASM_RUNTIME="${PHP_WASM_RUNTIME:-wasmtime-async}"
 KEEP_VARIANT_ARTIFACTS="${KEEP_VARIANT_ARTIFACTS:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 WORK_DIR="${WORK_DIR:-}"
@@ -36,6 +37,7 @@ Environment:
   BASE_PORT=10100
   PORT_STEP=20
   PACKAGE_PRECOMPILE_WASMTIME=1
+  PHP_WASM_RUNTIME=wasmtime-async
   KEEP_VARIANT_ARTIFACTS=0
   WORK_DIR=/tmp/wp-native-variant-bench
   DRY_RUN=0
@@ -90,6 +92,14 @@ case "$PACKAGE_PRECOMPILE_WASMTIME" in
 		;;
 esac
 
+case "$PHP_WASM_RUNTIME" in
+	wasmtime-async | asyncify) ;;
+	*)
+		echo "error: PHP_WASM_RUNTIME must be wasmtime-async or asyncify" >&2
+		exit 1
+		;;
+esac
+
 major="${PHP_VERSION%%.*}"
 minor="${PHP_VERSION#*.}"
 minor="${minor%%.*}"
@@ -117,7 +127,7 @@ write_asset_manifest() {
 	cat >"$manifest_path" <<JSON
 {
 	"schemaVersion": 1,
-	"runtime": "node-builds/asyncify",
+	"runtime": "node-builds/$PHP_WASM_RUNTIME",
 	"php": {
 		"$php_selector_version": {
 			"js": {
@@ -148,7 +158,7 @@ build_variant_asset_root() {
 	local malloc="$3"
 	local extra_csv="${4:-}"
 	local asset_root="$WORK_DIR/$label/asset-root"
-	local output_dir="$asset_root/packages/php-wasm/node-builds/$version_dir/asyncify"
+	local output_dir="$asset_root/packages/php-wasm/node-builds/$version_dir/$PHP_WASM_RUNTIME"
 	local build_args=(
 		"$REPO_ROOT/packages/php-wasm/compile/build.js"
 		"--PLATFORM=node"
@@ -157,6 +167,9 @@ build_variant_asset_root() {
 		"--INITIAL_MEMORY=$initial_memory"
 		"--MALLOC=$malloc"
 	)
+	if [[ "$PHP_WASM_RUNTIME" == "wasmtime-async" ]]; then
+		build_args+=("--WITH_WASMTIME_ASYNC=yes")
+	fi
 
 	if [[ -n "$extra_csv" ]]; then
 		local extra_args=()
@@ -172,8 +185,8 @@ build_variant_asset_root() {
 		printf "node"
 		printf " %q" "${build_args[@]}"
 		printf "\n"
-		printf "PACKAGE_ASSET_ROOT=%q WASMTIME_LABEL=%q PHP_VERSION=%q WP_VERSION=%q SAMPLES=%q WARMUPS=%q BASE_PORT=<port> PACKAGE_PRECOMPILE_WASMTIME=%q bash %q\n" \
-			"$asset_root" "$label" "$php_selector_version" "$WP_VERSION" "$SAMPLES" "$WARMUPS" "$PACKAGE_PRECOMPILE_WASMTIME" "$BENCHMARK_SCRIPT"
+		printf "PACKAGE_ASSET_ROOT=%q WASMTIME_LABEL=%q PHP_VERSION=%q WP_VERSION=%q SAMPLES=%q WARMUPS=%q BASE_PORT=<port> PACKAGE_PRECOMPILE_WASMTIME=%q PHP_WASM_RUNTIME=%q bash %q\n" \
+			"$asset_root" "$label" "$php_selector_version" "$WP_VERSION" "$SAMPLES" "$WARMUPS" "$PACKAGE_PRECOMPILE_WASMTIME" "$PHP_WASM_RUNTIME" "$BENCHMARK_SCRIPT"
 		return 0
 	fi
 
