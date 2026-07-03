@@ -44,6 +44,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		wordpressInstallMode,
 		corsProxyUrl,
 		pathAliases,
+		disableAdminViewTransitions,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -74,6 +75,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
+				disableAdminViewTransitions,
 			});
 
 			this.requestedWordPressVersion =

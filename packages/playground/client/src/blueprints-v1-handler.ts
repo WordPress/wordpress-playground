@@ -39,6 +39,7 @@ export class BlueprintsV1Handler {
 			onClientConnected,
 			pathAliases,
 			disableProgressBar,
+			disableAdminViewTransitions,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -103,6 +104,7 @@ export class BlueprintsV1Handler {
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 			pathAliases,
+			disableAdminViewTransitions,
 		});
 		await playground.isReady();
 		downloadProgress.finish();

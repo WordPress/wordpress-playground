@@ -94,6 +94,10 @@ export type WorkerBootOptions = {
 	 * the document root. Similar to Nginx's `alias` directive.
 	 */
 	pathAliases?: PathAlias[];
+	/**
+	 * Disables browser-native View Transitions for wp-admin pages.
+	 */
+	disableAdminViewTransitions?: boolean;
 };
 
 /** @inheritDoc PHPClient */
@@ -152,6 +156,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking,
 		phpVersion,
 		pathAliases,
+		disableAdminViewTransitions,
 	}: {
 		siteUrl: string;
 		sapiName: string;
@@ -161,6 +166,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
+		disableAdminViewTransitions?: boolean;
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -271,6 +277,10 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
+					'0-playground-runtime-options.php':
+						createRuntimeOptionsMuPlugin({
+							disableAdminViewTransitions,
+						}),
 					// Legacy PHP can't parse closures at all (even with an
 					// early return), so use a minimal compatible stub instead.
 					'1-playground-web.php': isLegacyPhp
@@ -570,6 +580,21 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
+}
+
+function createRuntimeOptionsMuPlugin({
+	disableAdminViewTransitions,
+}: {
+	disableAdminViewTransitions?: boolean;
+}) {
+	const definitions: string[] = [];
+	if (disableAdminViewTransitions) {
+		definitions.push(
+			"define('PLAYGROUND_DISABLE_ADMIN_VIEW_TRANSITIONS', true);"
+		);
+	}
+
+	return `<?php\n${definitions.join('\n')}\n`;
 }
 
 function createNullPrototypeRecord<T>() {
