@@ -4816,7 +4816,7 @@ export function init(RuntimeName, PHPLoader) {
 						syscalls: SYSCALLS,
 						FS,
 						PROXYFS,
-						NODEFS,
+						...(typeof NODEFS !== 'undefined' ? { NODEFS } : {}),
 					});
 				});
 			}
