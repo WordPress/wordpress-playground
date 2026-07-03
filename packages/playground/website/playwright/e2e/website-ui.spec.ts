@@ -760,9 +760,9 @@ test.describe('Default Playground storage', () => {
 			null
 		);
 		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
-		await expect(
-			website.page.getByText('Finalizing autosave')
-		).toHaveCount(0);
+		await expect(website.page.getByText('Finalizing autosave')).toHaveCount(
+			0
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
@@ -791,9 +791,9 @@ test.describe('Default Playground storage', () => {
 				}
 			)
 		);
-		expect(
-			saveStatusSamples.some(({ text }) => text === 'Autosaved')
-		).toBe(true);
+		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
+			true
+		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
 		).toBe(false);
@@ -847,6 +847,9 @@ test.describe('Default Playground storage', () => {
 		// Recreate failures are shown inline and leave the Run button available,
 		// so retry the action instead of waiting on an unchanged iframe.
 		await expect(async () => {
+			await expect(runBlueprintButton).toBeEnabled({
+				timeout: 5000,
+			});
 			await runBlueprintButton.click();
 			await expect(
 				website.page.getByText(

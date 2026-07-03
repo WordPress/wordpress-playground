@@ -24,6 +24,9 @@
  *
  * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
  */
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
 import { chromium } from 'playwright';
 
 // Matrix of (WordPress, PHP) combinations to test.
@@ -1043,6 +1046,17 @@ if (failures.length > 0) {
 	}
 }
 
+if (failures.length > 0 && !process.env.LEGACY_BOOT_RETRY) {
+	const retryableFailures = failures.filter(isRetryableResult);
+	const nonRetryableFailures = failures.filter((r) => !isRetryableResult(r));
+	if (retryableFailures.length > 0 && nonRetryableFailures.length === 0) {
+		const retry = retryTransientFailures(retryableFailures);
+		if (retry.status === 0) {
+			process.exit(0);
+		}
+	}
+}
+
 // All non-skip failures are hard errors.
 const totalFailures = results.reduce(
 	(n, r) =>
@@ -1052,4 +1066,35 @@ const totalFailures = results.reduce(
 if (totalFailures > 0) {
 	console.error(`\n${totalFailures} failure(s) across all phases.`);
 	process.exit(1);
+}
+
+function retryTransientFailures(retryableFailures) {
+	const wpOnly = [...new Set(retryableFailures.map((r) => r.wp))].join(',');
+	console.log(`\nRetrying transient legacy boot failures: ${wpOnly}`);
+	return spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
+		env: {
+			...process.env,
+			WP_ONLY: wpOnly,
+			LEGACY_BOOT_RETRY: '1',
+		},
+		stdio: 'inherit',
+	});
+}
+
+function isRetryableResult(result) {
+	const failedStatuses = PHASES.map((phase) => result[phase]).filter(
+		(status) => status && !isPass(status) && !isSkip(status)
+	);
+	return failedStatuses.length > 0 && failedStatuses.every(isRetryableStatus);
+}
+
+function isRetryableStatus(status) {
+	if (status.status === 'TIMEOUT') {
+		return true;
+	}
+	const text = `${status.detail || ''}\n${status.body || ''}`;
+	return (
+		text.includes('WebWorker failed to load') ||
+		text.includes('One or more database tables are unavailable')
+	);
 }
