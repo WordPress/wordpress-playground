@@ -54,10 +54,6 @@ add_action('admin_head', function () {
  * plugins, and user code can override them with ordinary CSS.
  */
 function playground_enable_view_transitions() {
-	if ( playground_should_disable_view_transitions() ) {
-		return;
-	}
-
 	if ( playground_has_wordpress_view_transitions() ) {
 		return;
 	}
@@ -83,18 +79,6 @@ function playground_enable_view_transitions() {
 		}
 	</style>
 	<?php
-}
-
-/**
- * Checks whether the current page should opt out of Playground View Transitions.
- */
-function playground_should_disable_view_transitions() {
-	if ( ! defined( 'PLAYGROUND_DISABLE_ADMIN_VIEW_TRANSITIONS' )
-		|| ! PLAYGROUND_DISABLE_ADMIN_VIEW_TRANSITIONS ) {
-		return false;
-	}
-
-	return function_exists( 'is_admin' ) && is_admin();
 }
 
 /**
@@ -129,22 +113,6 @@ function playground_has_wordpress_view_transitions() {
 add_action( 'wp_head', 'playground_enable_view_transitions', 0 );
 add_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
 add_action( 'login_head', 'playground_enable_view_transitions', 0 );
-
-/**
- * Disable Core admin View Transitions in Playground.
- *
- * WordPress 7.0+ can enqueue wp-view-transitions-admin, so the Playground
- * fallback opting out is not enough by itself.
- */
-function playground_disable_admin_view_transitions() {
-	if ( ! playground_should_disable_view_transitions() ) {
-		return;
-	}
-
-	wp_dequeue_style( 'wp-view-transitions-admin' );
-	wp_deregister_style( 'wp-view-transitions-admin' );
-}
-add_action( 'admin_enqueue_scripts', 'playground_disable_admin_view_transitions', PHP_INT_MAX );
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {

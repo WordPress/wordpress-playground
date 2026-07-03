@@ -272,8 +272,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
-					'0-playground-runtime-options.php':
-						createRuntimeOptionsMuPlugin(),
+					'0-playground-chrome-view-transitions-workaround.php':
+						createChromeViewTransitionsWorkaroundMuPlugin(),
 					// Legacy PHP can't parse closures at all (even with an
 					// early return), so use a minimal compatible stub instead.
 					'1-playground-web.php': isLegacyPhp
@@ -575,43 +575,60 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
-function createRuntimeOptionsMuPlugin() {
-	const definitions: string[] = [];
-	if (isChromiumBasedBrowser() && !shouldEnableAdminTransitions()) {
-		definitions.push(
-			"define('PLAYGROUND_DISABLE_ADMIN_VIEW_TRANSITIONS', true);"
-		);
-	}
-
-	return `<?php\n${definitions.join('\n')}\n`;
-}
-
-function shouldEnableAdminTransitions() {
-	return new URL(globalThis.location.href).searchParams.has(
-		WITH_ADMIN_TRANSITIONS_PARAM
-	);
-}
-
-function isChromiumBasedBrowser(navigatorObject = globalThis.navigator) {
-	if (!navigatorObject) {
-		return false;
-	}
-
-	const brands = (
-		navigatorObject as Navigator & {
-			userAgentData?: { brands?: Array<{ brand: string }> };
-		}
-	).userAgentData?.brands;
-
-	if (brands) {
-		return brands.some(({ brand }) =>
-			['Chromium', 'Google Chrome', 'Microsoft Edge', 'Opera'].includes(
-				brand
+/**
+ * Disable view transitions in Google Chrome until
+ * https://issues.chromium.org/issues/530704642 is resolved.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3845.
+ */
+function createChromeViewTransitionsWorkaroundMuPlugin() {
+	const userEnforcedTransitions = new URL(
+		globalThis.location.href
+	).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM);
+	const navigatorObject = globalThis.navigator;
+	const brands = navigatorObject
+		? (
+				navigatorObject as Navigator & {
+					userAgentData?: { brands?: Array<{ brand: string }> };
+				}
+			).userAgentData?.brands
+		: undefined;
+	// Naive but sufficient browser detection for the crash workaround.
+	const isChromiumBasedBrowser = brands
+		? brands.some(({ brand }) =>
+				[
+					'Chromium',
+					'Google Chrome',
+					'Microsoft Edge',
+					'Opera',
+				].includes(brand)
 			)
-		);
+		: /\b(?:Chrome|Chromium|Edg|OPR)\//.test(
+				navigatorObject?.userAgent || ''
+			);
+
+	if (userEnforcedTransitions || !isChromiumBasedBrowser) {
+		return '';
 	}
 
-	return /\b(?:Chrome|Chromium|Edg|OPR)\//.test(navigatorObject.userAgent);
+	return `<?php
+/**
+ * Disable view transitions in Google Chrome until
+ * https://issues.chromium.org/issues/530704642 is resolved.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3845.
+ */
+function playground_remove_admin_view_transitions_for_chrome_crash() {
+	remove_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
+}
+add_action( 'admin_print_styles', 'playground_remove_admin_view_transitions_for_chrome_crash', -1 );
+
+function playground_dequeue_admin_view_transitions_for_chrome_crash() {
+	wp_dequeue_style( 'wp-view-transitions-admin' );
+	wp_deregister_style( 'wp-view-transitions-admin' );
+}
+add_action( 'admin_enqueue_scripts', 'playground_dequeue_admin_view_transitions_for_chrome_crash', PHP_INT_MAX );
+`;
 }
 
 function createNullPrototypeRecord<T>() {
