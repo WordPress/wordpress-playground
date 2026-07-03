@@ -142,3 +142,4 @@ export { createObjectPoolProxy } from './object-pool-proxy';
 export type { Pooled } from './object-pool-proxy';
 
 export * from './process-id-allocator';
+export * from './wasm-file-locking';
