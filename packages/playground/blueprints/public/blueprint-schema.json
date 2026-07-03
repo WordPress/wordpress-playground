@@ -736,6 +736,11 @@
 							"description": "Whether to import comments from the WXR file.",
 							"default": true
 						},
+						"defaultAuthorUsername": {
+							"type": "string",
+							"description": "The fallback local user for imported authors that cannot be mapped.",
+							"default": "admin"
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],

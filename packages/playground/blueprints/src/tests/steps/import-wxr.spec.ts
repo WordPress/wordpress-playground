@@ -532,7 +532,7 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
-		'Should replace all post authors with admin user',
+		'Should assign unmapped post authors to admin user by default',
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
@@ -601,6 +601,93 @@ describe('Blueprint step importWxr', () => {
 			const postTitles = json.post_authors.map((p: any) => p.post_title);
 			expect(postTitles).toContain('Comprehensive Post');
 			expect(postTitles).toContain('Comprehensive Page');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should assign unmapped post authors to the configured default user',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$user_id = wp_create_user(
+				'wxr_default_author',
+				'password',
+				'wxr_default_author@example.com'
+			);
+			$user = new WP_User($user_id);
+			$user->set_role('author');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file,
+				defaultAuthorUsername: ' wxr_default_author ',
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC',
+			]);
+
+			$post_author_logins = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_author_logins[] = $author ? $author->user_login : null;
+			}
+
+			echo json_encode($post_author_logins);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json.length).toBeGreaterThan(0);
+			expect(
+				result.json.every(
+					(authorLogin: string) =>
+						authorLogin === 'wxr_default_author'
+				)
+			).toBe(true);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should fail when the configured default author does not exist',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await expect(
+				importWxr(php, {
+					file,
+					defaultAuthorUsername: 'missing_wxr_author',
+				})
+			).rejects.toThrow(
+				/Could not find fallback WXR import author .*missing_wxr_author/
+			);
 		},
 		{ timeout: 30_000 }
 	);
