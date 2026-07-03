@@ -1,9 +1,10 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import type { BlueprintDeclaration } from './types';
+import type { BlueprintBundle, BlueprintDeclaration } from './types';
 import {
 	compileBlueprintV1,
 	type CompileBlueprintV1Options,
 	type CompiledBlueprintV1,
+	getBlueprintDeclaration,
 } from './v1/compile';
 import type { BlueprintV1Declaration } from './v1/types';
 
@@ -16,11 +17,10 @@ export type CompiledBlueprintForExecution = {
 	run: (playground: UniversalPHP) => Promise<void>;
 };
 
-export interface CompileBlueprintForExecutionOptions
-	extends Omit<
-		CompileBlueprintV1Options,
-		'onBlueprintValidated' | 'streamBundledFile'
-	> {
+export interface CompileBlueprintForExecutionOptions extends Omit<
+	CompileBlueprintV1Options,
+	'onBlueprintValidated' | 'streamBundledFile'
+> {
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
@@ -32,10 +32,11 @@ export interface CompileBlueprintForExecutionOptions
  * newer callers can migrate to as Blueprint v2 support grows.
  */
 export async function compileBlueprintForExecution(
-	declaration: BlueprintV1Declaration,
+	input: BlueprintV1Declaration | BlueprintBundle,
 	options: CompileBlueprintForExecutionOptions = {}
 ): Promise<CompiledBlueprintForExecution> {
-	const compiled = await compileBlueprintV1(declaration, {
+	const declaration = await getBlueprintDeclaration(input);
+	const compiled = await compileBlueprintV1(input, {
 		...options,
 		onBlueprintValidated: options.onBlueprintValidated as
 			| CompileBlueprintV1Options['onBlueprintValidated']
