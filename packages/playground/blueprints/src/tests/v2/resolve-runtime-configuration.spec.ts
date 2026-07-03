@@ -120,6 +120,52 @@ describe('Blueprint v2 runtime configuration', () => {
 			'Unsupported Blueprint v2 PHP version "8.9". Supported versions:'
 		);
 	});
+
+	it('resolves simple WordPress version strings', async () => {
+		for (const wordpressVersion of [
+			'latest',
+			'6.8',
+			'6.8.1',
+			'6.8-rc1',
+			'beta',
+			'trunk',
+			'nightly',
+		]) {
+			await expect(
+				resolveRuntimeConfiguration({
+					version: 2,
+					wordpressVersion,
+				} as BlueprintV2Declaration)
+			).resolves.toMatchObject({
+				wpVersion: wordpressVersion,
+			});
+		}
+	});
+
+	it('uses the default WordPress version for constraint objects', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8',
+					preferred: '6.8',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: 'latest',
+		});
+	});
+
+	it('rejects unsupported WordPress version strings', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: 'not-a-version',
+			} as unknown as BlueprintV2Declaration)
+		).rejects.toThrow(
+			'Unsupported Blueprint v2 WordPress version "not-a-version".'
+		);
+	});
 });
 
 function createBundle(blueprint: BlueprintV2Declaration): BlueprintBundle {

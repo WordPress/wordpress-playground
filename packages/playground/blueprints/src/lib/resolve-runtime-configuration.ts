@@ -10,6 +10,10 @@ import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
+const V2_WORDPRESS_VERSION_LABELS = ['latest', 'beta', 'trunk', 'nightly'];
+const V2_WORDPRESS_VERSION_PATTERN =
+	/^\d+\.\d+(?:\.\d+)?(?:-(?:beta|rc)\d+)?$/i;
+
 export async function resolveRuntimeConfiguration(
 	blueprint: Blueprint
 ): Promise<RuntimeConfiguration> {
@@ -47,7 +51,7 @@ export async function resolveRuntimeConfiguration(
 		// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
 		return {
 			phpVersion: resolveV2PHPVersion(declaration),
-			wpVersion: 'latest',
+			wpVersion: resolveV2WordPressVersion(declaration),
 			intl: false,
 			networking: playgroundOptions?.networkAccess ?? true,
 			constants: {},
@@ -78,5 +82,25 @@ function resolveV2PHPVersion(
 	throw new Error(
 		`Unsupported Blueprint v2 PHP version "${declaration.phpVersion}". ` +
 			`Supported versions: ${AllPHPVersions.join(', ')}.`
+	);
+}
+
+function resolveV2WordPressVersion(
+	declaration: BlueprintV2Declaration
+): string {
+	if (typeof declaration.wordpressVersion !== 'string') {
+		return 'latest';
+	}
+
+	if (
+		V2_WORDPRESS_VERSION_LABELS.includes(declaration.wordpressVersion) ||
+		V2_WORDPRESS_VERSION_PATTERN.test(declaration.wordpressVersion)
+	) {
+		return declaration.wordpressVersion;
+	}
+
+	throw new Error(
+		`Unsupported Blueprint v2 WordPress version "${declaration.wordpressVersion}". ` +
+			'Use latest, beta, trunk, nightly, or a version like 6.8, 6.8.1, or 6.8-rc1.'
 	);
 }
