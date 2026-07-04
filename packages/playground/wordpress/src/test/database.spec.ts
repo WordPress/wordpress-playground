@@ -50,7 +50,7 @@ describe('Test database', () => {
 	});
 
 	it(
-		'should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory',
+		'should install WordPress in DELETE journal mode when SQL data path specified',
 		async () => {
 			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
@@ -67,6 +67,54 @@ describe('Test database', () => {
 			expect(Object.keys(MinifiedWordPressVersions)).toContain(
 				loadedWordPressVersion
 			);
+
+			const php = await handler.getPrimaryPhp();
+			const response = await php.run({
+				code: `<?php
+ob_start();
+require getenv('DOCUMENT_ROOT') . '/wp-load.php';
+ob_clean();
+echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
+`,
+				env: {
+					DOCUMENT_ROOT: '/wordpress',
+				},
+			});
+			expect(response.errors).toHaveLength(0);
+			expect(response.text).toBe('delete');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'should honor explicit WAL journal mode',
+		async () => {
+			await using handler = await bootWordPressAndRequestHandler({
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(RecommendedPHPVersion),
+				siteUrl: 'http://playground-domain/',
+				wordPressZip: await getWordPressModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+				constants: {
+					SQLITE_JOURNAL_MODE: 'WAL',
+				},
+			});
+
+			const php = await handler.getPrimaryPhp();
+			const response = await php.run({
+				code: `<?php
+ob_start();
+require getenv('DOCUMENT_ROOT') . '/wp-load.php';
+ob_clean();
+echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
+`,
+				env: {
+					DOCUMENT_ROOT: '/wordpress',
+				},
+			});
+			expect(response.errors).toHaveLength(0);
+			expect(response.text).toBe('wal');
 		},
 		{ timeout: 30_000 }
 	);
