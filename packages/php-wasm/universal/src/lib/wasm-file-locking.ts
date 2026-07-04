@@ -207,11 +207,17 @@ export function bindFileLockingUserSpace(
 					return -rangeLockErrno;
 				}
 
-				const conflictingLock =
-					fileLockManager.findFirstConflictingByteRangeLock(
-						target.path,
-						rangeLock
-					);
+				let conflictingLock;
+				try {
+					conflictingLock =
+						fileLockManager.findFirstConflictingByteRangeLock(
+							target.path,
+							rangeLock
+						);
+				} catch (e) {
+					js_wasm_trace('fcntl(%d, F_GETLK) error %s', fd, e);
+					return -EINVAL;
+				}
 				if (conflictingLock === undefined) {
 					updateFlockStruct(memory, flockStructAddr, {
 						l_type: F_UNLCK,
@@ -248,18 +254,38 @@ export function bindFileLockingUserSpace(
 				if (rangeLockErrno !== 0) {
 					return -rangeLockErrno;
 				}
-				adapter.beforeRangeLock?.(target, rangeLock);
 
-				const succeeded = fileLockManager.lockFileByteRange(
-					target.path,
-					rangeLock,
-					cmd === F_SETLKW
-				);
-				if (succeeded) {
+				try {
+					adapter.beforeRangeLock?.(target, rangeLock);
+					const succeeded = fileLockManager.lockFileByteRange(
+						target.path,
+						rangeLock,
+						cmd === F_SETLKW
+					);
+					if (!succeeded) {
+						return -EAGAIN;
+					}
+					try {
+						adapter.afterRangeLock?.(target, rangeLock);
+					} catch (e) {
+						js_wasm_trace(
+							'fcntl(%d, F_SETLK) afterRangeLock error %s',
+							fd,
+							e
+						);
+						fileLockManager.lockFileByteRange(
+							target.path,
+							{ ...rangeLock, type: 'unlocked' },
+							false
+						);
+						return -EINVAL;
+					}
 					maybeLockedFdPaths.set(target.fd, target.path);
-					adapter.afterRangeLock?.(target, rangeLock);
+					return 0;
+				} catch (e) {
+					js_wasm_trace('fcntl(%d, F_SETLK) error %s', fd, e);
+					return -EINVAL;
 				}
-				return succeeded ? 0 : -EAGAIN;
 			}
 
 			case F_SETFL: {
@@ -324,16 +350,21 @@ export function bindFileLockingUserSpace(
 			return -paramsCheckErrno;
 		}
 
-		const succeeded = fileLockManager.lockWholeFile(target.path, {
-			type: lockOpType,
-			pid,
-			fd: target.fd,
-			waitForLock: (op & LOCK_NB) === 0,
-		});
-		if (succeeded) {
-			maybeLockedFdPaths.set(target.fd, target.path);
+		try {
+			const succeeded = fileLockManager.lockWholeFile(target.path, {
+				type: lockOpType,
+				pid,
+				fd: target.fd,
+				waitForLock: (op & LOCK_NB) === 0,
+			});
+			if (succeeded) {
+				maybeLockedFdPaths.set(target.fd, target.path);
+			}
+			return succeeded ? 0 : -EWOULDBLOCK;
+		} catch (e) {
+			js_wasm_trace('flock(%d, %d) error %s', fd, op, e);
+			return -EINVAL;
 		}
-		return succeeded ? 0 : -EWOULDBLOCK;
 	}
 
 	function fd_close(fd: number) {
