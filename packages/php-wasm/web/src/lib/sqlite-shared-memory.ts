@@ -30,6 +30,7 @@ type Mapping = {
 	position: number;
 	heap: ByteHeap;
 	version: number;
+	writable: boolean;
 };
 
 type SharedFile = {
@@ -41,8 +42,9 @@ type SharedFile = {
 type ResolveStreamPath = (stream: Emscripten.FS.FSStream) => string | undefined;
 type ResolveVfsPath = (path: string) => string;
 
-// Emscripten passes the mmap MAP_PRIVATE flag through from musl's sys/mman.h.
+// Emscripten passes mmap flags/protection values through from musl's sys/mman.h.
 const MAP_PRIVATE = 2;
+const PROT_WRITE = 2;
 const patchedRuntimes = new WeakSet<object>();
 
 /**
@@ -97,7 +99,9 @@ export class SQLiteSharedMemory {
 			);
 			try {
 				for (const mapping of processMappings) {
-					this.copyMappingIntoSharedBytes(mapping);
+					if (mapping.writable) {
+						this.copyMappingIntoSharedBytes(mapping);
+					}
 				}
 			} catch (e) {
 				firstError ??= e;
@@ -149,6 +153,7 @@ export class SQLiteSharedMemory {
 				position,
 				heap: context.memory.HEAPU8,
 				version: -1,
+				writable: isWritableMapping(prot),
 			});
 
 			return result;
@@ -177,6 +182,7 @@ export class SQLiteSharedMemory {
 					position: offset,
 					heap: context.memory.HEAPU8,
 					version: -1,
+					writable: true,
 				});
 				this.unregisterMapping(context.pid, path, addr, offset);
 			}
@@ -279,7 +285,7 @@ export class SQLiteSharedMemory {
 			return;
 		}
 		for (const mapping of file.mappings) {
-			if (mapping.pid === pid) {
+			if (mapping.pid === pid && mapping.writable) {
 				this.copyMappingIntoSharedBytes(mapping);
 			}
 		}
@@ -345,6 +351,10 @@ export class SQLiteSharedMemory {
 
 function isPrivateMapping(flags: number) {
 	return (flags & MAP_PRIVATE) !== 0;
+}
+
+function isWritableMapping(prot: number) {
+	return (prot & PROT_WRITE) !== 0;
 }
 
 function isSQLiteSharedMemoryPath(path: string | undefined): path is string {

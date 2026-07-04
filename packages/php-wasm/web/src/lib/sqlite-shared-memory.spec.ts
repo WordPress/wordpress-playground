@@ -20,6 +20,33 @@ describe('SQLiteSharedMemory', () => {
 		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([1, 2, 3, 4]);
 	});
 
+	it('does not flush read-only mappings back into shared bytes', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const writer = createRuntime(1);
+		const reader = createRuntime(2);
+		const observer = createRuntime(3);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		sharedMemory.install(observer.context, resolveStreamPath, identity);
+
+		const writerMapping = mmap(writer.context, path, 4);
+		const readerMapping = mmap(reader.context, path, 4, PROT_READ);
+
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+		sharedMemory.beforeUnlock(writer.context.pid, path);
+		sharedMemory.beforeRangeLock(reader.context.pid, path);
+
+		reader.heap.write(readerMapping.ptr, [9, 9, 9, 9]);
+		sharedMemory.beforeUnlock(reader.context.pid, path);
+		const observerMapping = mmap(observer.context, path, 4);
+
+		expect(observer.heap.read(observerMapping.ptr, 4)).toEqual([
+			1, 2, 3, 4,
+		]);
+	});
+
 	it('does not invalidate peer mappings when flushed bytes are unchanged', () => {
 		const sharedMemory = new SQLiteSharedMemory();
 		const writer = createRuntime(1);
@@ -127,8 +154,16 @@ function createRuntime(pid: number) {
 	};
 }
 
-function mmap(context: TestContext, path: string, length: number) {
-	return context.FS.mmap({ path }, length, 0, 0, 0);
+const PROT_WRITE = 2;
+const PROT_READ = 1;
+
+function mmap(
+	context: TestContext,
+	path: string,
+	length: number,
+	prot = PROT_WRITE
+) {
+	return context.FS.mmap({ path }, length, 0, prot, 0);
 }
 
 function resolveStreamPath(stream: unknown) {
