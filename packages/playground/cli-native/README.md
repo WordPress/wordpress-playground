@@ -147,6 +147,38 @@ The Node CLI compatibility contract for native v1 is tracked in
 `compatibility.json`; parser tests validate representative supported and
 intentionally unsupported rows.
 
+## CLI help and diagnostics
+
+Use `wp-playground-native --help` for the command list, or
+`wp-playground-native <command> --help` for command-specific options and
+examples. Help flags are handled before runtime startup, so these commands do
+not compile PHP wasm or inspect local WordPress assets:
+
+```bash
+wp-playground-native --help
+wp-playground-native start --help
+wp-playground-native php --help
+```
+
+The native CLI intentionally favors explicit long options. For example, use
+`--port 9400` rather than `-p 9400`. If a command or option is mistyped, the
+parser reports the bad token, suggests the closest supported spelling when it
+can, and points to the relevant help command:
+
+```bash
+wp-playground-native serve
+# error: Unknown command `serve`. Did you mean `server`?
+
+wp-playground-native server --pot=9400
+# error: Unknown option `--pot` for the server command. Did you mean `--port`?
+```
+
+For `php`, use `--` when a PHP flag should bypass native option parsing:
+
+```bash
+wp-playground-native php --php 8.5 -- -v
+```
+
 Build and test with:
 
 ```bash

@@ -18,6 +18,24 @@ use wp_playground_native::{
 };
 
 const WORDPRESS_BUILDS_DIR: &str = "packages/playground/wordpress-builds/src/wordpress";
+const PACKAGE_OPTION_NAMES: &[&str] = &[
+    "--binary",
+    "--asset-root",
+    "--out-dir",
+    "--name",
+    "--php-version",
+    "--include-wordpress-assets",
+    "--skip-wordpress-assets",
+    "--skip-archive",
+    "--precompile-wasmtime",
+    "--no-precompile-wasmtime",
+    "--smoke-php-version",
+    "--smoke-wordpress-server",
+    "--smoke-run-blueprint",
+    "--smoke-build-snapshot",
+    "--smoke-wordpress-version",
+    "--help",
+];
 
 fn main() -> ExitCode {
     match run() {
@@ -326,9 +344,7 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
                 }
             }
             _ => {
-                return Err(CliError::new(format!(
-                    "Unknown package-native-cli option `{arg}`"
-                )));
+                return Err(unknown_package_option_error(arg));
             }
         }
         index += 1;
@@ -375,9 +391,17 @@ fn validate_supported_php_version(version: &str, flag: &str) -> Result<()> {
 
 fn value(args: &[String], index: &mut usize, flag: &str) -> Result<String> {
     *index += 1;
-    args.get(*index)
-        .cloned()
-        .ok_or_else(|| CliError::new(format!("{flag} requires a value")))
+    let value = args.get(*index).cloned().ok_or_else(|| {
+        CliError::new(format!(
+            "{flag} requires a value. Use `{flag}=<value>` or `{flag} <value>`."
+        ))
+    })?;
+    if value.starts_with("--") {
+        return Err(CliError::new(format!(
+            "{flag} requires a value, but got option `{value}`. Use `{flag}=<value>` or `{flag} <value>`."
+        )));
+    }
+    Ok(value)
 }
 
 fn value_after_equals(arg: &str, prefix: &str) -> String {
@@ -386,32 +410,102 @@ fn value_after_equals(arg: &str, prefix: &str) -> String {
 
 fn print_help() {
     println!(
-        "package-native-cli [options]\n\
-         \n\
-         Options:\n\
-           --binary <path>              Release wp-playground-native binary to package\n\
-           --asset-root <path>          Source asset root, defaults to repository root\n\
-           --out-dir <path>             Output directory, defaults to target/package\n\
-           --name <name>                Package directory/archive name\n\
-          --php-version <version>      Include only this PHP version; repeatable\n\
-                                       Omit to package all supported PHP versions.\n\
-                                       Runtime variants come from the packaged manifest.\n\
-          --precompile-wasmtime        Generate target-specific Wasmtime .cwasm assets\n\
-          --no-precompile-wasmtime     Copy wasm assets without target-specific precompile\n\
-          --include-wordpress-assets   Copy bundled WordPress release ZIPs for offline startup\n\
-          --skip-wordpress-assets      Do not copy bundled WordPress release ZIPs (default)\n\
-           --skip-archive               Create package directory only\n\
-           --smoke-php-version <ver>    Run packaged `php -v` smoke for a version\n\
-           --smoke-wordpress-server <php>\n\
-                                        Boot packaged WordPress+SQLite server smoke\n\
-           --smoke-run-blueprint <php>\n\
-                                        Run packaged WordPress+SQLite Blueprint smoke\n\
-           --smoke-build-snapshot <php>\n\
-                                        Run packaged WordPress+SQLite snapshot smoke\n\
-           --smoke-wordpress-version <wp>\n\
-                                        WordPress version for WordPress smokes, defaults to latest\n\
-           -h, --help                   Show this help"
+        concat!(
+            "Usage: package-native-cli [options]\n\n",
+            "Builds a redistributable wp-playground-native package. By default it includes every supported PHP version, precompiles Wasmtime modules where the target supports it, and omits bundled WordPress release ZIPs.\n\n",
+            "Options:\n",
+            "  --binary <path>              Release wp-playground-native binary to package\n",
+            "  --asset-root <path>          Source asset root, defaults to repository root\n",
+            "  --out-dir <path>             Output directory, defaults to target/package\n",
+            "  --name <name>                Package directory/archive name\n",
+            "  --php-version <version>      Include only this PHP version; repeatable\n",
+            "                               Omit to package all supported PHP versions.\n",
+            "                               Runtime variants come from the packaged manifest.\n",
+            "  --precompile-wasmtime        Generate target-specific Wasmtime .cwasm assets\n",
+            "  --no-precompile-wasmtime     Copy wasm assets without target-specific precompile\n",
+            "  --include-wordpress-assets   Copy bundled WordPress release ZIPs for offline startup\n",
+            "  --skip-wordpress-assets      Do not copy bundled WordPress release ZIPs (default)\n",
+            "  --skip-archive               Create package directory only\n",
+            "  --smoke-php-version <ver>    Run packaged `php -v` smoke for a version\n",
+            "  --smoke-wordpress-server <php>\n",
+            "                               Boot packaged WordPress+SQLite server smoke\n",
+            "  --smoke-run-blueprint <php>\n",
+            "                               Run packaged WordPress+SQLite Blueprint smoke\n",
+            "  --smoke-build-snapshot <php>\n",
+            "                               Run packaged WordPress+SQLite snapshot smoke\n",
+            "  --smoke-wordpress-version <wp>\n",
+            "                               WordPress version for WordPress smokes, defaults to latest\n",
+            "  -h, --help                   Show this help\n\n",
+            "Examples:\n",
+            "  package-native-cli --binary target/release/wp-playground-native --out-dir /tmp --name wp-playground-native-local\n",
+            "  package-native-cli --php-version=8.5 --no-precompile-wasmtime --smoke-php-version=8.5"
+        )
     );
+}
+
+fn unknown_package_option_error(arg: &str) -> CliError {
+    let option = arg.split_once('=').map(|(option, _)| option).unwrap_or(arg);
+    let mut message = format!("Unknown package-native-cli option `{arg}`.");
+    if let Some(suggestion) = suggest_package_option(option) {
+        message.push_str(&format!(" Did you mean `{suggestion}`?"));
+    }
+    message.push_str(" Run `package-native-cli --help` for supported options.");
+    CliError::new(message)
+}
+
+fn suggest_package_option(option: &str) -> Option<&'static str> {
+    match option {
+        "--php-verison" | "--php" => return Some("--php-version"),
+        "--wp-assets" | "--wordpress-assets" => return Some("--include-wordpress-assets"),
+        "--no-wordpress-assets" => return Some("--skip-wordpress-assets"),
+        "--smoke-wp-version" => return Some("--smoke-wordpress-version"),
+        _ => {}
+    }
+    suggest_name(option, PACKAGE_OPTION_NAMES)
+}
+
+fn suggest_name<'a>(input: &str, candidates: &'a [&str]) -> Option<&'a str> {
+    let mut best = None;
+    let mut best_distance = usize::MAX;
+    for candidate in candidates {
+        if *candidate == input {
+            continue;
+        }
+        if candidate.starts_with(input) || input.starts_with(*candidate) {
+            return Some(candidate);
+        }
+        let distance = edit_distance(input, candidate);
+        if distance < best_distance {
+            best = Some(*candidate);
+            best_distance = distance;
+        }
+    }
+
+    let threshold = (input.chars().count() / 3).max(2);
+    if best_distance <= threshold {
+        best
+    } else {
+        None
+    }
+}
+
+fn edit_distance(left: &str, right: &str) -> usize {
+    let right_chars = right.chars().collect::<Vec<_>>();
+    let mut previous = (0..=right_chars.len()).collect::<Vec<_>>();
+    let mut current = vec![0; right_chars.len() + 1];
+
+    for (left_index, left_char) in left.chars().enumerate() {
+        current[0] = left_index + 1;
+        for (right_index, right_char) in right_chars.iter().enumerate() {
+            let insertion = current[right_index] + 1;
+            let deletion = previous[right_index + 1] + 1;
+            let substitution = previous[right_index] + usize::from(left_char != *right_char);
+            current[right_index + 1] = insertion.min(deletion).min(substitution);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+
+    previous[right_chars.len()]
 }
 
 fn resolve_smoke_wordpress_version(asset_root: &Path, requested: &str) -> Result<String> {
@@ -516,6 +610,22 @@ mod tests {
                 "{error}"
             );
         }
+    }
+
+    #[test]
+    fn package_option_typos_have_actionable_errors() {
+        let error = parse_args(vec!["--php-verison=8.5".to_string()])
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("Unknown package-native-cli option"));
+        assert!(error.contains("Did you mean `--php-version`?"), "{error}");
+        assert!(error.contains("package-native-cli --help"), "{error}");
+
+        let error = parse_args(vec!["--binary".to_string(), "--out-dir=/tmp".to_string()])
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("--binary requires a value"));
+        assert!(error.contains("got option `--out-dir=/tmp`"), "{error}");
     }
 
     #[test]

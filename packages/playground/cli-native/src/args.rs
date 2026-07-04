@@ -15,6 +15,55 @@ pub const DEFAULT_PHP_VERSION: &str = "8.3";
 pub const DEFAULT_WP_VERSION: &str = "latest";
 pub const DEFAULT_PORT: u16 = 9400;
 pub const SUPPORTED_PHP_VERSIONS: &[&str] = &["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"];
+const COMMAND_NAMES: &[&str] = &["start", "server", "run-blueprint", "build-snapshot", "php"];
+const SUPPORTED_OPTION_NAMES: &[&str] = &[
+    "path",
+    "wp",
+    "php",
+    "port",
+    "site-url",
+    "mount",
+    "mount-before-install",
+    "mount-dir",
+    "mount-dir-before-install",
+    "auto-mount",
+    "no-auto-mount",
+    "reset",
+    "login",
+    "no-login",
+    "skip-browser",
+    "blueprint",
+    "blueprint-may-read-adjacent-files",
+    "outfile",
+    "wordpress-install-mode",
+    "skip-wordpress-install",
+    "skip-sqlite-setup",
+    "define",
+    "define-bool",
+    "define-number",
+    "workers",
+    "verbosity",
+    "quiet",
+    "debug",
+    "follow-symlinks",
+    "intl",
+    "opcache",
+];
+const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
+    "phpmyadmin",
+    "xdebug",
+    "experimental-unsafe-ide-integration",
+    "experimental-devtools",
+    "experimental-blueprints-v2-runner",
+    "experimental-multi-worker",
+    "experimental-trace",
+    "internal-cookie-store",
+    "php-extension",
+    "no-intl",
+    "mode",
+    "redis",
+    "memcached",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandName {
@@ -130,14 +179,10 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
         Some(command) if command == "run-blueprint" => CommandName::RunBlueprint,
         Some(command) if command == "build-snapshot" => CommandName::BuildSnapshot,
         Some(command) if command == "php" => CommandName::Php,
-        Some(command) => {
-            return Err(CliError::new(format!(
-                "Unknown command `{command}`. Expected start, server, run-blueprint, build-snapshot, or php."
-            )));
-        }
+        Some(command) => return Err(unknown_command_error(&command)),
         None => {
             return Err(CliError::new(
-                "Please specify a command: start, server, run-blueprint, build-snapshot, or php.",
+                "Please specify a command: start, server, run-blueprint, build-snapshot, or php. Run `wp-playground-native --help` for examples.",
             ));
         }
     };
@@ -150,6 +195,29 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
         if options.command == CommandName::Php && php_passthrough {
             options.php_args.push(token);
             continue;
+        }
+
+        if token == "--" {
+            if options.command != CommandName::Php {
+                return Err(CliError::new(format!(
+                    "Unexpected `--` for the {} command. The option terminator is only supported by `wp-playground-native php` when passing flags through to PHP.",
+                    options.command.as_str()
+                )));
+            }
+            while let Some(value) = parser.next() {
+                options.php_args.push(value);
+            }
+            php_passthrough = true;
+            continue;
+        }
+
+        if token.starts_with('-') && !token.starts_with("--") {
+            if options.command == CommandName::Php {
+                options.php_args.push(token);
+                php_passthrough = true;
+                continue;
+            }
+            return Err(unknown_short_option_error(&token, &options.command));
         }
 
         if !token.starts_with("--") {
@@ -357,8 +425,9 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
                     php_passthrough = true;
                     continue;
                 }
-                return Err(CliError::new(format!(
-                    "Unknown option --{unsupported} for wp-playground-native v1"
+                return Err(CliError::new(unknown_option_message(
+                    unsupported,
+                    &options.command,
                 )));
             }
         }
@@ -372,7 +441,7 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
     apply_default_debug_constants(&mut options)?;
     if options.command == CommandName::Php && options.php_args.is_empty() {
         return Err(CliError::new(
-            "The php command requires PHP arguments: wp-playground-native php <script.php>",
+            "The php command requires PHP arguments. Try `wp-playground-native php -- -v` or `wp-playground-native php <script.php>`.",
         ));
     }
 
@@ -657,7 +726,9 @@ fn split_long_option(token: &str) -> Result<(&str, Option<&str>)> {
         .strip_prefix("--")
         .ok_or_else(|| CliError::new(format!("Expected long option, got {token}")))?;
     if without_prefix.is_empty() {
-        return Err(CliError::new("Empty option name"));
+        return Err(CliError::new(
+            "Expected an option name after `--`. Use `--` only after `wp-playground-native php` to pass the remaining flags through to PHP.",
+        ));
     }
     if let Some((flag, value)) = without_prefix.split_once('=') {
         Ok((flag, Some(value)))
@@ -676,8 +747,9 @@ fn ensure_option_allowed_for_command(flag: &str, command: &CommandName) -> Resul
     }
 
     Err(CliError::new(format!(
-        "--{flag} is only supported by {}",
-        format_command_list(allowed_commands)
+        "--{flag} is only supported by {}; you are using the {command_name} command. Run `wp-playground-native {} --help` for the supported options.",
+        format_command_list(allowed_commands),
+        allowed_commands[0]
     )))
 }
 
@@ -737,6 +809,126 @@ fn format_command_list(commands: &[&str]) -> String {
             formatted
         }
     }
+}
+
+fn unknown_command_error(command: &str) -> CliError {
+    let suggestion =
+        command_alias_suggestion(command).or_else(|| suggest_name(command, COMMAND_NAMES));
+    let mut message = format!(
+        "Unknown command `{command}`. Expected one of: {}.",
+        COMMAND_NAMES.join(", ")
+    );
+    if let Some(suggestion) = suggestion {
+        message.push_str(&format!(" Did you mean `{suggestion}`?"));
+    }
+    message.push_str(" Run `wp-playground-native --help` for examples.");
+    CliError::new(message)
+}
+
+fn command_alias_suggestion(command: &str) -> Option<&'static str> {
+    match command {
+        "serve" => Some("server"),
+        "blueprint" | "run-blueprints" => Some("run-blueprint"),
+        "snapshot" | "snap" | "build" => Some("build-snapshot"),
+        "php-cli" => Some("php"),
+        _ => None,
+    }
+}
+
+fn unknown_short_option_error(token: &str, command: &CommandName) -> CliError {
+    CliError::new(format!(
+        "Unknown short option `{token}` for the {} command. wp-playground-native uses long options such as `--port`; run `wp-playground-native {} --help` for supported options.",
+        command.as_str(),
+        command.as_str()
+    ))
+}
+
+fn unknown_option_message(flag: &str, command: &CommandName) -> String {
+    let mut message = format!(
+        "Unknown option `--{flag}` for the {} command.",
+        command.as_str()
+    );
+    if let Some(suggestion) = option_alias_suggestion(flag).or_else(|| suggest_option_name(flag)) {
+        message.push_str(&format!(" Did you mean `--{suggestion}`?"));
+    }
+    message.push_str(&format!(
+        " Run `wp-playground-native {} --help` for supported options.",
+        command.as_str()
+    ));
+    message
+}
+
+fn option_alias_suggestion(flag: &str) -> Option<&'static str> {
+    match flag {
+        "wordpress" | "wordpress-version" | "wp-version" => Some("wp"),
+        "php-version" => Some("php"),
+        "worker" => Some("workers"),
+        "verbose" => Some("verbosity"),
+        "out" | "output" => Some("outfile"),
+        "mount-before" => Some("mount-before-install"),
+        "mount-dir-before" => Some("mount-dir-before-install"),
+        "skip-wordpress" => Some("skip-wordpress-install"),
+        "skip-sqlite" => Some("skip-sqlite-setup"),
+        _ => None,
+    }
+}
+
+fn suggest_option_name(flag: &str) -> Option<&'static str> {
+    suggest_name(flag, SUPPORTED_OPTION_NAMES)
+        .or_else(|| suggest_name(flag, UNSUPPORTED_NATIVE_V1_OPTION_NAMES))
+}
+
+fn suggest_name<'a>(input: &str, candidates: &'a [&str]) -> Option<&'a str> {
+    if input.is_empty() {
+        return None;
+    }
+
+    let normalized = input.to_ascii_lowercase();
+    let mut best = None;
+    let mut best_distance = usize::MAX;
+    for candidate in candidates {
+        if *candidate == normalized {
+            continue;
+        }
+        if candidate.starts_with(&normalized) || normalized.starts_with(*candidate) {
+            return Some(candidate);
+        }
+        let distance = edit_distance(&normalized, candidate);
+        if distance < best_distance {
+            best = Some(*candidate);
+            best_distance = distance;
+        }
+    }
+
+    let threshold = (normalized.chars().count() / 3).max(2);
+    if best_distance <= threshold {
+        best
+    } else {
+        None
+    }
+}
+
+fn edit_distance(left: &str, right: &str) -> usize {
+    let right_chars = right.chars().collect::<Vec<_>>();
+    let mut previous = (0..=right_chars.len()).collect::<Vec<_>>();
+    let mut current = vec![0; right_chars.len() + 1];
+
+    for (left_index, left_char) in left.chars().enumerate() {
+        current[0] = left_index + 1;
+        for (right_index, right_char) in right_chars.iter().enumerate() {
+            let insertion = current[right_index] + 1;
+            let deletion = previous[right_index + 1] + 1;
+            let substitution = previous[right_index] + usize::from(left_char != *right_char);
+            current[right_index + 1] = insertion.min(deletion).min(substitution);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+
+    previous[right_chars.len()]
+}
+
+fn value_hint(flag: &str) -> String {
+    format!("Use `--{flag}=<value>` or `--{flag} <value>`.")
 }
 
 impl CommandName {
@@ -818,7 +1010,7 @@ fn parse_verbosity(value: &str) -> Result<Verbosity> {
         "normal" => Ok(Verbosity::Normal),
         "debug" => Ok(Verbosity::Debug),
         _ => Err(CliError::new(format!(
-            "Invalid --verbosity value \"{value}\""
+            "Invalid --verbosity value \"{value}\": expected quiet, normal, or debug."
         ))),
     }
 }
@@ -990,11 +1182,14 @@ impl Parser {
     }
 
     fn required_value(&mut self, flag: &str) -> Result<String> {
-        let value = self
-            .next()
-            .ok_or_else(|| CliError::new(format!("--{flag} expects a value")))?;
+        let value = self.next().ok_or_else(|| {
+            CliError::new(format!("--{flag} expects a value. {}", value_hint(flag)))
+        })?;
         if value.starts_with("--") {
-            return Err(CliError::new(format!("--{flag} expects a value")));
+            return Err(CliError::new(format!(
+                "--{flag} expects a value, but got option `{value}`. {}",
+                value_hint(flag)
+            )));
         }
         Ok(value)
     }
@@ -1540,13 +1735,65 @@ mod tests {
     #[test]
     fn unknown_commands_have_stable_errors() {
         let cwd = temp_dir("compat-unsupported-commands");
-        let command = "snapshot";
-        let error = parse_cli_args_from(args(&[command]), &cwd).unwrap_err();
+        let error = parse_cli_args_from(args(&["snapshot"]), &cwd).unwrap_err();
         assert!(
             error.message().contains("Unknown command"),
-            "{command}: {}",
+            "snapshot: {}",
             error.message()
         );
+        assert!(
+            error.message().contains("Did you mean `build-snapshot`?"),
+            "{}",
+            error.message()
+        );
+
+        let error = parse_cli_args_from(args(&["serve"]), &cwd).unwrap_err();
+        assert!(
+            error.message().contains("Did you mean `server`?"),
+            "{}",
+            error.message()
+        );
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn command_line_typos_have_actionable_errors() {
+        let cwd = temp_dir("cli-typos");
+
+        let error = parse_cli_args_from(args(&["server", "--pot=9400"]), &cwd).unwrap_err();
+        assert!(error.message().contains("Unknown option `--pot`"));
+        assert!(error.message().contains("Did you mean `--port`?"));
+        assert!(error
+            .message()
+            .contains("wp-playground-native server --help"));
+
+        let error = parse_cli_args_from(args(&["server", "--wp-version=6.9"]), &cwd).unwrap_err();
+        assert!(error.message().contains("Did you mean `--wp`?"));
+
+        let error = parse_cli_args_from(args(&["server", "-p", "9400"]), &cwd).unwrap_err();
+        assert!(error.message().contains("Unknown short option `-p`"));
+        assert!(error.message().contains("long options"));
+
+        let error = parse_cli_args_from(args(&["server", "--php", "--wp=6.9"]), &cwd).unwrap_err();
+        assert!(error.message().contains("--php expects a value"));
+        assert!(error.message().contains("got option `--wp=6.9`"));
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn php_command_supports_option_terminator_for_passthrough() {
+        let cwd = temp_dir("php-option-terminator");
+        let options =
+            parse_cli_args_from(args(&["php", "--php=8.5", "--", "--help"]), &cwd).unwrap();
+
+        assert_eq!(options.command, CommandName::Php);
+        assert_eq!(options.php, "8.5");
+        assert_eq!(options.php_args, vec!["--help".to_string()]);
+
+        let error = parse_cli_args_from(args(&["server", "--"]), &cwd).unwrap_err();
+        assert!(error.message().contains("Unexpected `--`"));
 
         let _ = fs::remove_dir_all(cwd);
     }
