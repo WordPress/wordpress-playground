@@ -350,7 +350,11 @@ export function bindFileLockingUserSpace(
 		const path =
 			lockFdErrno === 0 ? maybeLockedFdPaths.get(lockFd) : undefined;
 		if (lockFdErrno === 0 && path !== undefined) {
-			adapter.beforeFdClose?.({ fd: lockFd, path });
+			try {
+				adapter.beforeFdClose?.({ fd: lockFd, path });
+			} catch (e) {
+				js_wasm_trace('fd_close(%d) adapter error %s', fd, e);
+			}
 		}
 
 		const fdCloseResult = builtin_fd_close(fd);
@@ -358,15 +362,29 @@ export function bindFileLockingUserSpace(
 			return fdCloseResult;
 		}
 
-		fileLockManager.releaseLocksOnFdClose(pid, lockFd, path);
-		maybeLockedFdPaths.delete(lockFd);
+		try {
+			fileLockManager.releaseLocksOnFdClose(pid, lockFd, path);
+		} catch (e) {
+			js_wasm_trace('fd_close(%d) release locks error %s', fd, e);
+		} finally {
+			maybeLockedFdPaths.delete(lockFd);
+		}
 		return fdCloseResult;
 	}
 
 	function js_release_file_locks() {
-		adapter.beforeProcessExit?.();
-		fileLockManager?.releaseLocksForProcess(pid);
-		maybeLockedFdPaths.clear();
+		try {
+			adapter.beforeProcessExit?.();
+		} catch (e) {
+			js_wasm_trace('js_release_file_locks() adapter error %s', e);
+		}
+		try {
+			fileLockManager?.releaseLocksForProcess(pid);
+		} catch (e) {
+			js_wasm_trace('js_release_file_locks() release error %s', e);
+		} finally {
+			maybeLockedFdPaths.clear();
+		}
 	}
 
 	function readRequestedRangeLock(

@@ -17,6 +17,9 @@ type ResultTuple<T> =
 	| readonly [value: T, errorCode: 0]
 	| readonly [value: never, errorCode: NonZeroNumber];
 
+const runtimeFileSystemIds = new WeakMap<object, number>();
+let nextRuntimeFileSystemId = 1;
+
 export type WasmUserSpaceContext = WasmFileLockingUserSpaceContext & {
 	PROXYFS: typeof Emscripten.PROXYFS & {
 		realPath(node: FSNode): string;
@@ -33,8 +36,8 @@ export function bindUserSpace(
 	sqliteSharedMemory?.install(
 		context,
 		(stream) =>
-			getPathForLock(context, context.FS.getPath((stream as any).node)),
-		(path) => getPathForLock(context, path)
+			getLockPath(context, context.FS.getPath((stream as any).node)),
+		(path) => getLockPath(context, path)
 	);
 
 	return bindFileLockingUserSpace(
@@ -62,7 +65,7 @@ function createWebFileLockAdapter(
 		return [
 			{
 				fd,
-				path: getPathForLock(context, vfsPath),
+				path: getLockPath(context, vfsPath),
 			},
 			0,
 		] as const;
@@ -118,13 +121,34 @@ function createWebFileLockAdapter(
 	};
 }
 
-function getPathForLock(
+function getLockPath(
 	{ FS, PROXYFS }: WasmUserSpaceContext,
 	vfsPath: string
 ): string {
 	const { node } = FS.lookupPath(vfsPath, { noent_okay: true });
 	if (node?.mount.type === PROXYFS) {
-		return PROXYFS.realPath(node);
+		const backingFs = node.mount.opts?.['fs'];
+		if (typeof backingFs === 'object' && backingFs !== null) {
+			return `${getRuntimeFileSystemId(backingFs)}:${PROXYFS.realPath(node)}`;
+		}
 	}
-	return vfsPath;
+
+	/*
+	 * Absolute paths only identify files within a single Emscripten runtime.
+	 * Two independent browser PHP runtimes both have paths such as
+	 * `/tmp/wp.sqlite`, but those paths refer to different MEMFS files unless
+	 * one runtime reaches the other through PROXYFS. Prefixing by the backing
+	 * FS object keeps unrelated runtimes isolated while still giving PROXYFS
+	 * users the same lock identity as the source runtime.
+	 */
+	return `${getRuntimeFileSystemId(FS)}:${vfsPath}`;
+}
+
+function getRuntimeFileSystemId(fs: object) {
+	let id = runtimeFileSystemIds.get(fs);
+	if (id === undefined) {
+		id = nextRuntimeFileSystemId++;
+		runtimeFileSystemIds.set(fs, id);
+	}
+	return id;
 }

@@ -56,21 +56,26 @@ test.describe('SQLite file locking', () => {
 	test('needs shared memory coordination for WAL writes across PROXYFS runtimes', async ({
 		page,
 	}) => {
-		let result;
-		try {
-			result = await runWalConcurrencyScenario(
-				page,
-				'loadWebRuntimeWithoutSQLiteSharedMemory'
-			);
-		} catch (error) {
-			result = { error: String(error) };
-		}
+		const result = await runWalConcurrencyScenario(
+			page,
+			'loadWebRuntimeWithoutSQLiteSharedMemory'
+		);
 
 		/*
 		 * This is the same workload as the positive test with only the
 		 * cross-runtime `-shm` coordinator disabled. Without it, one runtime's
 		 * WAL-index view wins and the other writer's committed frames vanish.
 		 */
+		test.expect(result).toMatchObject({
+			count: 50,
+			journal: 'wal',
+			integrity: 'ok',
+			wal: true,
+			shm: true,
+		});
+		test.expect(result.rows).toHaveLength(1);
+		test.expect(result.rows[0].c).toBe(50);
+		test.expect([1, 2]).toContain(result.rows[0].worker);
 		test.expect(result).not.toEqual(successResult);
 	});
 });
