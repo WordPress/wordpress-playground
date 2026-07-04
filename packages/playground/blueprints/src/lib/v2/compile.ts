@@ -3,6 +3,8 @@ import { joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
+import { compileBlueprintV1 } from '../v1/compile';
+import type { BlueprintV1Declaration } from '../v1/types';
 import type {
 	InstallPluginOptions,
 	InstallPluginStep,
@@ -178,21 +180,71 @@ export async function compileBlueprintV2(
 	const runtime = await resolveRuntimeConfiguration(declaration);
 	const plan = createBlueprintV2ExecutionPlan(declaration);
 	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
+	const v1Blueprint = createV1BlueprintForLoweredV2Steps(
+		declaration,
+		runtime,
+		steps
+	);
 	return {
 		runtime,
 		applicationOptions: declaration.applicationOptions,
 		plan,
 		steps,
 		unsupportedPlan,
-		run: async () => {
-			if (plan.length > 0) {
+		run: async (playground) => {
+			if (unsupportedPlan.length > 0) {
 				throw new UnsupportedBlueprintV2FeatureError(
 					'executionPlan',
-					'Blueprint v2 execution plans are not runnable by the TypeScript runner yet.'
+					getUnsupportedPlanMessage(unsupportedPlan)
 				);
 			}
+			const v1Runner = await compileBlueprintV1(v1Blueprint);
+			await v1Runner.run(playground);
 		},
 	};
+}
+
+/**
+ * Builds the smallest v1 declaration needed to run already-lowered v2 steps.
+ *
+ * Top-level v2 constants, site options, plugins, and themes are not copied into
+ * the v1 top-level fields because the v2 plan lowering already converted them
+ * into ordered steps. Copying them here would make the v1 compiler run them
+ * twice.
+ */
+function createV1BlueprintForLoweredV2Steps(
+	declaration: BlueprintV2Declaration,
+	runtime: RuntimeConfiguration,
+	steps: BlueprintV2StepPlan
+): BlueprintV1Declaration {
+	const applicationOptions =
+		declaration.applicationOptions?.['wordpress-playground'];
+
+	return {
+		preferredVersions: {
+			php: runtime.phpVersion,
+			wp: runtime.wpVersion,
+		},
+		features: {
+			intl: runtime.intl,
+			networking: runtime.networking,
+		},
+		extraLibraries: runtime.extraLibraries,
+		landingPage: applicationOptions?.landingPage,
+		login: applicationOptions?.login,
+		steps,
+	};
+}
+
+function getUnsupportedPlanMessage(unsupportedPlan: BlueprintV2ExecutionPlan) {
+	const unsupportedTypes = Array.from(
+		new Set(unsupportedPlan.map((item) => item.type))
+	).join(', ');
+
+	return (
+		`Blueprint v2 execution plan contains unsupported items: ` +
+		`${unsupportedTypes}.`
+	);
 }
 
 /**
