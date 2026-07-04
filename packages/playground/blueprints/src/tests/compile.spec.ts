@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import type { BlueprintV2Declaration } from '../lib/v2/blueprint-v2-declaration';
+import { UnsupportedBlueprintV2FeatureError } from '../lib/v2/compile';
 
 describe('compileBlueprintForExecution', () => {
 	it('compiles Blueprint v1 declarations through the v1 compiler', async () => {
@@ -493,16 +494,54 @@ describe('compileBlueprintForExecution', () => {
 		expect(Object.getPrototypeOf(pluginData.files)).toBe(Object.prototype);
 	});
 
-	it('rejects running Blueprint v2 plans until plan items are wired', async () => {
+	it('runs fully lowered Blueprint v2 plans through the v1 runner', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
-			siteOptions: {
-				blogname: 'Compiled but not runnable yet',
-			},
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2',
+				},
+			],
 		});
+		const playground = {
+			mkdir: vi.fn(),
+		};
 
-		await expect(compiled.run({} as any)).rejects.toThrow(
-			'executionPlan: Blueprint v2 execution plans are not runnable by the TypeScript runner yet.'
+		await compiled.run(playground as any);
+
+		expect(playground.mkdir).toHaveBeenCalledWith(
+			'/wordpress/wp-content/uploads/from-v2'
 		);
+	});
+
+	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			media: ['./media/image.jpg'],
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2',
+				},
+			],
+		});
+		const playground = {
+			mkdir: vi.fn(),
+		};
+
+		let thrownError: unknown;
+		try {
+			await compiled.run(playground as any);
+		} catch (error) {
+			thrownError = error;
+		}
+
+		expect(thrownError).toBeInstanceOf(UnsupportedBlueprintV2FeatureError);
+		expect(thrownError).toMatchObject({
+			featurePath: 'executionPlan',
+			message: expect.stringContaining('importMedia'),
+		});
+		expect(playground.mkdir).not.toHaveBeenCalled();
 	});
 });
