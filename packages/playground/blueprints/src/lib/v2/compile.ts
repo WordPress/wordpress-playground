@@ -3,7 +3,13 @@ import { joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
-import type { StepDefinition } from '../steps';
+import type {
+	InstallPluginOptions,
+	InstallPluginStep,
+	InstallThemeOptions,
+	InstallThemeStep,
+	StepDefinition,
+} from '../steps';
 import type { DirectoryReference, FileReference } from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 
@@ -503,27 +509,46 @@ function lowerAdditionalBlueprintV2Step(
  */
 function createInstallPluginStep(plugin: BlueprintV2Plugin): StepDefinition {
 	const definition = normalizeAssetDefinition(plugin);
-
-	return {
+	const step: InstallPluginStep<FileReference, DirectoryReference> = {
 		step: 'installPlugin',
 		pluginData: convertV2DataReferenceToV1(definition.source, 'plugin'),
-		...(definition.ifAlreadyInstalled
-			? { ifAlreadyInstalled: definition.ifAlreadyInstalled }
-			: {}),
-		options: {
-			activate: definition.active ?? true,
-			...(definition.activationOptions
-				? { activationOptions: definition.activationOptions }
-				: {}),
-			...(definition.onError ? { onError: definition.onError } : {}),
-			...(definition.targetDirectoryName
-				? { targetFolderName: definition.targetDirectoryName }
-				: {}),
-			...(definition.humanReadableName
-				? { humanReadableName: definition.humanReadableName }
-				: {}),
-		},
-	} as StepDefinition;
+		options: createInstallPluginOptions(definition),
+	};
+
+	if (definition.ifAlreadyInstalled) {
+		step.ifAlreadyInstalled = definition.ifAlreadyInstalled;
+	}
+
+	return step;
+}
+
+/**
+ * Maps plugin-only v2 install options to the v1 `installPlugin` option names.
+ */
+function createInstallPluginOptions(
+	definition: BlueprintV2InstallAssetDefinition
+): InstallPluginOptions {
+	const options: InstallPluginOptions = {
+		activate: definition.active ?? true,
+	};
+
+	if (definition.activationOptions) {
+		options.activationOptions = definition.activationOptions;
+	}
+	if (
+		definition.onError === 'skip-plugin' ||
+		definition.onError === 'throw'
+	) {
+		options.onError = definition.onError;
+	}
+	if (definition.targetDirectoryName) {
+		options.targetFolderName = definition.targetDirectoryName;
+	}
+	if (definition.humanReadableName) {
+		options.humanReadableName = definition.humanReadableName;
+	}
+
+	return options;
 }
 
 /**
@@ -537,25 +562,42 @@ function createInstallThemeStep(
 	active: boolean
 ): StepDefinition {
 	const definition = normalizeAssetDefinition(theme);
-
-	return {
+	const step: InstallThemeStep<FileReference, DirectoryReference> = {
 		step: 'installTheme',
 		themeData: convertV2DataReferenceToV1(definition.source, 'theme'),
-		...(definition.ifAlreadyInstalled
-			? { ifAlreadyInstalled: definition.ifAlreadyInstalled }
-			: {}),
-		options: {
-			activate: active,
-			importStarterContent: definition.importStarterContent ?? false,
-			...(definition.targetDirectoryName
-				? { targetFolderName: definition.targetDirectoryName }
-				: {}),
-			...(definition.onError ? { onError: definition.onError } : {}),
-			...(definition.humanReadableName
-				? { humanReadableName: definition.humanReadableName }
-				: {}),
-		},
-	} as StepDefinition;
+		options: createInstallThemeOptions(definition, active),
+	};
+
+	if (definition.ifAlreadyInstalled) {
+		step.ifAlreadyInstalled = definition.ifAlreadyInstalled;
+	}
+
+	return step;
+}
+
+/**
+ * Maps theme-only v2 install options to the v1 `installTheme` option names.
+ */
+function createInstallThemeOptions(
+	definition: BlueprintV2InstallAssetDefinition,
+	active: boolean
+): InstallThemeOptions {
+	const options: InstallThemeOptions = {
+		activate: active,
+		importStarterContent: definition.importStarterContent ?? false,
+	};
+
+	if (definition.targetDirectoryName) {
+		options.targetFolderName = definition.targetDirectoryName;
+	}
+	if (definition.onError === 'skip-theme' || definition.onError === 'throw') {
+		options.onError = definition.onError;
+	}
+	if (definition.humanReadableName) {
+		options.humanReadableName = definition.humanReadableName;
+	}
+
+	return options;
 }
 
 /**
