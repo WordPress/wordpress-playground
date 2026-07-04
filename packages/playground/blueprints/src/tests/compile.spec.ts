@@ -90,6 +90,34 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('runs Blueprint v2 bundles with bundled execution-context resources', async () => {
+		const bundle = new InMemoryFilesystem({
+			'plugin.php': '<?php /* Plugin Name: Bundled Plugin */',
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				plugins: [
+					{
+						source: './plugin.php',
+						active: false,
+					},
+				],
+			}),
+		});
+		const playground = {
+			documentRoot: '/wordpress',
+			writeFile: vi.fn(),
+		};
+
+		const compiled = await compileBlueprintForExecution(bundle);
+		await compiled.run(playground as any);
+
+		expect(compiled.version).toBe(2);
+		expect(playground.writeFile).toHaveBeenCalledWith(
+			'/wordpress/wp-content/plugins/plugin.php',
+			expect.any(Uint8Array)
+		);
+	});
+
 	it('compiles Blueprint v2 declarations into an ordered execution plan', async () => {
 		const declaration: BlueprintV2Declaration = {
 			version: 2,
