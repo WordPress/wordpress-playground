@@ -404,8 +404,6 @@ export async function preloadSqliteIntegration(
 		}
 	}
 
-	await useRollbackJournalByDefaultInPlayground(php, SQLITE_PLUGIN_FOLDER);
-
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
@@ -449,51 +447,6 @@ export async function preloadSqliteIntegration(
 		}
 		`
 	);
-}
-
-async function useRollbackJournalByDefaultInPlayground(
-	php: UniversalPHP,
-	sqlitePluginFolder: string
-) {
-	/*
-	 * Playground's browser runtime can run multiple PHP instances over the same
-	 * WordPress tree. Secondary instances access /wordpress through PROXYFS.
-	 * Web PHP can coordinate fcntl locks for rollback journals, but SQLite WAL
-	 * also relies on shared-memory wal-index state that PROXYFS mmap cannot
-	 * provide. Force rollback journals in Playground's bundled SQLite driver.
-	 */
-	const paths = [
-		joinPaths(
-			sqlitePluginFolder,
-			'wp-includes/sqlite/class-wp-sqlite-db.php'
-		),
-		joinPaths(
-			sqlitePluginFolder,
-			'wp-includes/sqlite/install-functions.php'
-		),
-		joinPaths(
-			sqlitePluginFolder,
-			'wp-includes/database/sqlite/class-wp-sqlite-connection.php'
-		),
-	];
-	for (const path of paths) {
-		if (!(await php.fileExists(path))) {
-			continue;
-		}
-		const source = await php.readFileAsText(path);
-		const patched = source
-			.replace(
-				"defined( 'SQLITE_JOURNAL_MODE' ) ? SQLITE_JOURNAL_MODE : null",
-				"'DELETE'"
-			)
-			.replace(
-				"$journal_mode           = $options['journal_mode'] ?? 'WAL';",
-				"$journal_mode           = 'DELETE';"
-			);
-		if (patched !== source) {
-			await php.writeFile(path, patched);
-		}
-	}
 }
 
 /**

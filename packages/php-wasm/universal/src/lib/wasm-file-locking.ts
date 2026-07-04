@@ -50,6 +50,7 @@ export type WasmFileLockingUserSpaceContext = {
 		EWOULDBLOCK: NonZeroNumber;
 	};
 	memory: {
+		HEAPU8: HeapAccessor<number>;
 		HEAP16: HeapAccessor<number>;
 		HEAP32: HeapAccessor<number>;
 		HEAP64: HeapAccessor<bigint>;
@@ -67,6 +68,13 @@ export type WasmFileLockingUserSpaceContext = {
 	};
 	// Functions present in built php-wasm JS.
 	syscalls: {
+		doMsync?: (
+			addr: number,
+			stream: Emscripten.FS.FSStream,
+			len: number,
+			flags: number,
+			offset: number
+		) => void;
 		getStreamFromFD: (fd: number) => Emscripten.FS.FSStream;
 	};
 	FS: typeof Emscripten.FS;
@@ -89,6 +97,16 @@ export type WasmFileLockAdapter = {
 	 * resolving the file path would fail after an unlink.
 	 */
 	getLockFd: (fd: number) => ResultTuple<number>;
+	beforeRangeLock?: (
+		target: WasmFileLockTarget,
+		lock: RequestedRangeLock
+	) => void;
+	afterRangeLock?: (
+		target: WasmFileLockTarget,
+		lock: RequestedRangeLock
+	) => void;
+	beforeFdClose?: (target: WasmFileLockTarget) => void;
+	beforeProcessExit?: () => void;
 };
 
 export type WasmFileLockingUserSpaceAPI = {
@@ -225,14 +243,12 @@ export function bindFileLockingUserSpace(
 				const [rangeLock, rangeLockErrno] = readRequestedRangeLock(
 					fd,
 					target.fd,
-					readFlockStruct(
-						memory,
-						varArgsAccessor.getNextAsPointer()
-					)
+					readFlockStruct(memory, varArgsAccessor.getNextAsPointer())
 				);
 				if (rangeLockErrno !== 0) {
 					return -rangeLockErrno;
 				}
+				adapter.beforeRangeLock?.(target, rangeLock);
 
 				const succeeded = fileLockManager.lockFileByteRange(
 					target.path,
@@ -241,6 +257,7 @@ export function bindFileLockingUserSpace(
 				);
 				if (succeeded) {
 					maybeLockedFdPaths.set(target.fd, target.path);
+					adapter.afterRangeLock?.(target, rangeLock);
 				}
 				return succeeded ? 0 : -EAGAIN;
 			}
@@ -253,13 +270,15 @@ export function bindFileLockingUserSpace(
 				 */
 				let arg = 0;
 				if (varargs !== undefined) {
-					const varArgsAccessor = new VarArgsAccessor(memory, varargs);
+					const varArgsAccessor = new VarArgsAccessor(
+						memory,
+						varargs
+					);
 					arg = varArgsAccessor.getNextAsInt();
 				}
 				const stream = getStreamFromFD(fd);
 				const setflMask = O_APPEND | O_NONBLOCK;
-				stream.flags =
-					(arg & setflMask) | (stream.flags & ~setflMask);
+				stream.flags = (arg & setflMask) | (stream.flags & ~setflMask);
 				return 0;
 			}
 
@@ -330,6 +349,9 @@ export function bindFileLockingUserSpace(
 		const [lockFd, lockFdErrno] = adapter.getLockFd(fd);
 		const path =
 			lockFdErrno === 0 ? maybeLockedFdPaths.get(lockFd) : undefined;
+		if (lockFdErrno === 0 && path !== undefined) {
+			adapter.beforeFdClose?.({ fd: lockFd, path });
+		}
 
 		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0 || lockFdErrno !== 0 || path === undefined) {
@@ -342,6 +364,7 @@ export function bindFileLockingUserSpace(
 	}
 
 	function js_release_file_locks() {
+		adapter.beforeProcessExit?.();
 		fileLockManager?.releaseLocksForProcess(pid);
 		maybeLockedFdPaths.clear();
 	}

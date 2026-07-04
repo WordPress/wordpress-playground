@@ -19,6 +19,7 @@ import {
 } from './extensions/load-extensions';
 import { jspi } from 'wasm-feature-detect';
 import { bindUserSpace, type WasmUserSpaceContext } from './wasm-user-space';
+import { SQLiteSharedMemory } from './sqlite-shared-memory';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -65,6 +66,7 @@ const fakeWebsocket = () => {
 
 const processIdAllocator = new ProcessIdAllocator();
 const fileLockManager = new FileLockManagerInMemory();
+const sqliteSharedMemory = new SQLiteSharedMemory();
 
 interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 	setImmediate: (fn: () => void) => void;
@@ -98,7 +100,7 @@ export async function loadWebRuntime(
 		bindUserSpace:
 			suppliedBindUserSpace ??
 			((context: WasmUserSpaceContext) =>
-				bindUserSpace(fileLockManager, context)),
+				bindUserSpace(fileLockManager, sqliteSharedMemory, context)),
 		...suppliedEmscriptenOptions,
 		phpWasmAsyncMode,
 	};

@@ -14,9 +14,7 @@ test.describe('SQLite file locking', () => {
 		});
 	});
 
-	test('coordinates rollback-journal writes across PROXYFS runtimes', async ({
-		page,
-	}) => {
+	test('coordinates WAL writes across PROXYFS runtimes', async ({ page }) => {
 		const result = await page.evaluate(async (phpVersion) => {
 			async function createPHP() {
 				const php = new window.PHP(
@@ -50,7 +48,7 @@ test.describe('SQLite file locking', () => {
 					@unlink( $db . '-shm' );
 					$pdo = new PDO( 'sqlite:' . $db );
 					$pdo->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-					$pdo->query( 'PRAGMA journal_mode=delete' )->fetchColumn();
+					$pdo->query( 'PRAGMA journal_mode=wal' )->fetchColumn();
 					$pdo->exec( 'CREATE TABLE t(worker int, i int)' );
 				`
 			);
@@ -81,6 +79,7 @@ test.describe('SQLite file locking', () => {
 							echo json_encode( array(
 								'rows' => $rows,
 								'count' => (int) $pdo->query( 'SELECT COUNT(*) FROM t' )->fetchColumn(),
+								'journal' => $pdo->query( 'PRAGMA journal_mode' )->fetchColumn(),
 								'integrity' => $pdo->query( 'PRAGMA integrity_check' )->fetchColumn(),
 								'wal' => file_exists( '${databasePath}-wal' ),
 								'shm' => file_exists( '${databasePath}-shm' ),
@@ -100,9 +99,10 @@ test.describe('SQLite file locking', () => {
 				{ worker: 2, c: 50 },
 			],
 			count: 100,
+			journal: 'wal',
 			integrity: 'ok',
-			wal: false,
-			shm: false,
+			wal: true,
+			shm: true,
 		});
 	});
 });
