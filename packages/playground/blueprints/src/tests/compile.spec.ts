@@ -235,6 +235,264 @@ describe('compileBlueprintForExecution', () => {
 		await expect(compiled.run({} as any)).resolves.toBeUndefined();
 	});
 
+	it('lowers supported Blueprint v2 plan items to v1-compatible step records', async () => {
+		const declaration: BlueprintV2Declaration = {
+			version: 2,
+			constants: {
+				WP_DEBUG: true,
+			},
+			siteOptions: {
+				blogname: 'Lowered v2 plan',
+			},
+			themes: ['twentytwentythree'],
+			activeTheme: {
+				source: 'twentytwentyfour@1.2.3',
+				humanReadableName: 'Twenty Twenty-Four',
+			},
+			plugins: [
+				{
+					source: 'akismet',
+					active: false,
+					ifAlreadyInstalled: 'skip',
+					activationOptions: {
+						mode: 'test',
+					},
+				},
+			],
+			media: ['./media/image.jpg'],
+			siteLanguage: 'pl_PL',
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2',
+				},
+				{
+					step: 'defineConstants',
+					constants: {
+						SCRIPT_DEBUG: true,
+					},
+				},
+				{
+					step: 'setSiteOptions',
+					options: {
+						timezone_string: 'Europe/Warsaw',
+					},
+				},
+				{
+					step: 'installPlugin',
+					source: 'https://github.com/WordPress/wordpress-importer',
+					active: true,
+				},
+				{
+					step: 'installTheme',
+					source: {
+						directoryName: 'inline-theme',
+						files: {
+							'style.css': 'Theme Name: Inline',
+						},
+					},
+					active: false,
+				},
+				{
+					step: 'wp-cli',
+					command: 'plugin list',
+				},
+				{
+					step: 'runSQL',
+					source: './dump.sql',
+				},
+			],
+		};
+
+		const compiled = await compileBlueprintForExecution(declaration);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'defineWpConfigConsts',
+			'setSiteOptions',
+			'installTheme',
+			'installTheme',
+			'installPlugin',
+			'setSiteLanguage',
+			'mkdir',
+			'defineWpConfigConsts',
+			'setSiteOptions',
+			'installPlugin',
+			'installTheme',
+			'wp-cli',
+		]);
+		expect(compiled.compiled.steps).toMatchObject([
+			{
+				step: 'defineWpConfigConsts',
+				consts: {
+					WP_DEBUG: true,
+				},
+			},
+			{
+				step: 'setSiteOptions',
+				options: {
+					blogname: 'Lowered v2 plan',
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'wordpress.org/themes',
+					slug: 'twentytwentythree',
+				},
+				options: {
+					activate: false,
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'url',
+					url: 'https://downloads.wordpress.org/theme/twentytwentyfour.1.2.3.zip',
+				},
+				options: {
+					activate: true,
+					humanReadableName: 'Twenty Twenty-Four',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'akismet',
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+					activationOptions: {
+						mode: 'test',
+					},
+				},
+			},
+			{
+				step: 'setSiteLanguage',
+				language: 'pl_PL',
+			},
+			{
+				step: 'mkdir',
+				path: '/wordpress/wp-content/uploads/from-v2',
+			},
+			{
+				step: 'defineWpConfigConsts',
+				consts: {
+					SCRIPT_DEBUG: true,
+				},
+			},
+			{
+				step: 'setSiteOptions',
+				options: {
+					timezone_string: 'Europe/Warsaw',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'zip',
+					inner: {
+						resource: 'git:directory',
+						url: 'https://github.com/WordPress/wordpress-importer',
+						ref: 'HEAD',
+					},
+				},
+				options: {
+					activate: true,
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'literal:directory',
+					name: 'inline-theme',
+					files: {
+						'style.css': 'Theme Name: Inline',
+					},
+				},
+				options: {
+					activate: false,
+				},
+			},
+			{
+				step: 'wp-cli',
+				command: 'plugin list',
+			},
+		]);
+		expect(
+			compiled.compiled.unsupportedPlan.map((item) => item.type)
+		).toEqual(['importMedia', 'runStep']);
+	});
+
+	it('rejects empty Blueprint v2 target-site paths', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'rm',
+						path: '',
+					},
+				],
+			} as BlueprintV2Declaration)
+		).rejects.toThrow('Invalid Blueprint v2 path: must not be empty.');
+	});
+
+	it('treats absolute data paths as Blueprint execution-context paths', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: '/plugins/local-plugin.zip',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'bundled',
+				path: 'plugins/local-plugin.zip',
+			},
+		});
+	});
+
+	it('preserves special inline directory filenames as plain file entries', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'inline-plugin',
+						files: {
+							['__proto__']: 'not a prototype',
+						},
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		const pluginData = (compiled.compiled.steps[0] as any).pluginData;
+		expect(
+			Object.prototype.hasOwnProperty.call(pluginData.files, '__proto__')
+		).toBe(true);
+		expect(pluginData.files.__proto__).toBe('not a prototype');
+		expect(Object.getPrototypeOf(pluginData.files)).toBe(Object.prototype);
+	});
+
 	it('rejects running Blueprint v2 plans until plan items are wired', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,

@@ -1,6 +1,16 @@
-import type { UniversalPHP } from '@php-wasm/universal';
+import type { FileTree, UniversalPHP } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
+import type {
+	InstallPluginOptions,
+	InstallPluginStep,
+	InstallThemeOptions,
+	InstallThemeStep,
+	StepDefinition,
+} from '../steps';
+import type { DirectoryReference, FileReference } from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 
 export class UnsupportedBlueprintV2FeatureError extends Error {
@@ -41,8 +51,42 @@ type BlueprintV2Content = NonNullable<
 type BlueprintV2Step = NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
 >[number];
+type BlueprintV2DataReference =
+	| string
+	| {
+			filename: string;
+			content: string;
+	  }
+	| {
+			directoryName: string;
+			files: Record<string, string | BlueprintV2InlineDirectory>;
+	  }
+	| {
+			gitRepository: string;
+			ref?: string;
+			pathInRepository?: string;
+			path?: string;
+	  };
+type BlueprintV2InlineDirectory = {
+	files: Record<string, string | BlueprintV2InlineDirectory>;
+};
+type BlueprintV2InstallAssetDefinition = {
+	source: BlueprintV2DataReference;
+	active?: boolean;
+	activationOptions?: Record<string, unknown>;
+	ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+	importStarterContent?: boolean;
+	targetDirectoryName?: string;
+	onError?: 'skip-plugin' | 'skip-theme' | 'throw';
+	humanReadableName?: string;
+};
 
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
+export type BlueprintV2StepPlan = StepDefinition[];
+export type BlueprintV2StepPlanLoweringResult = {
+	steps: BlueprintV2StepPlan;
+	unsupportedPlan: BlueprintV2ExecutionPlan;
+};
 
 export type BlueprintV2ExecutionPlanItem =
 	| {
@@ -115,18 +159,31 @@ export type CompiledBlueprintV2 = {
 	runtime: RuntimeConfiguration;
 	applicationOptions?: BlueprintV2ApplicationOptions;
 	plan: BlueprintV2ExecutionPlan;
+	steps: BlueprintV2StepPlan;
+	unsupportedPlan: BlueprintV2ExecutionPlan;
 	run: (playground: UniversalPHP) => Promise<void>;
 };
 
+/**
+ * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
+ * understand today.
+ *
+ * This does not make v2 plans runnable yet. It resolves runtime options, creates
+ * an ordered v2 execution plan, and lowers the supported plan items into v1 step
+ * records so later PRs can wire those records into the existing runner.
+ */
 export async function compileBlueprintV2(
 	declaration: BlueprintV2Declaration
 ): Promise<CompiledBlueprintV2> {
 	const runtime = await resolveRuntimeConfiguration(declaration);
 	const plan = createBlueprintV2ExecutionPlan(declaration);
+	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
 	return {
 		runtime,
 		applicationOptions: declaration.applicationOptions,
 		plan,
+		steps,
+		unsupportedPlan,
 		run: async () => {
 			if (plan.length > 0) {
 				throw new UnsupportedBlueprintV2FeatureError(
@@ -138,6 +195,13 @@ export async function compileBlueprintV2(
 	};
 }
 
+/**
+ * Converts the top-level Blueprint v2 fields into a simple ordered plan.
+ *
+ * The plan keeps the original v2 data intact. It only decides execution order
+ * and records where each item came from, which makes unsupported items visible
+ * instead of silently dropping them during lowering.
+ */
 export function createBlueprintV2ExecutionPlan(
 	declaration: BlueprintV2Declaration
 ): BlueprintV2ExecutionPlan {
@@ -262,4 +326,541 @@ export function createBlueprintV2ExecutionPlan(
 	}
 
 	return plan;
+}
+
+/**
+ * Converts the supported v2 plan items into v1-compatible step records.
+ *
+ * The v1 step runner already knows how to install plugins, install themes, set
+ * options, and run several imperative steps. This function reuses those shapes
+ * while keeping unsupported v2-only work in `unsupportedPlan` for future PRs.
+ */
+export function lowerBlueprintV2ExecutionPlan(
+	plan: BlueprintV2ExecutionPlan
+): BlueprintV2StepPlanLoweringResult {
+	const steps: StepDefinition[] = [];
+	const unsupportedPlan: BlueprintV2ExecutionPlan = [];
+
+	for (const planItem of plan) {
+		const loweredSteps = lowerBlueprintV2ExecutionPlanItem(planItem);
+		if (loweredSteps) {
+			steps.push(...loweredSteps);
+		} else {
+			unsupportedPlan.push(planItem);
+		}
+	}
+
+	return { steps, unsupportedPlan };
+}
+
+/**
+ * Lowers one v2 plan item when it has a direct v1 step equivalent.
+ *
+ * Returning `undefined` is intentional: it means "this plan item is valid v2,
+ * but this PR has not taught the TypeScript runner how to represent it yet."
+ */
+function lowerBlueprintV2ExecutionPlanItem(
+	planItem: BlueprintV2ExecutionPlanItem
+): StepDefinition[] | undefined {
+	switch (planItem.type) {
+		case 'defineWpConfigConsts':
+			return [
+				{
+					step: 'defineWpConfigConsts',
+					consts: planItem.consts,
+				},
+			];
+		case 'setSiteOptions':
+			return [
+				{
+					step: 'setSiteOptions',
+					options: planItem.options,
+				},
+			];
+		case 'installTheme':
+			return [createInstallThemeStep(planItem.theme, planItem.active)];
+		case 'installPlugin':
+			return [createInstallPluginStep(planItem.plugin)];
+		case 'setSiteLanguage':
+			return [
+				{
+					step: 'setSiteLanguage',
+					language: planItem.language,
+				},
+			];
+		case 'runStep':
+			return lowerAdditionalBlueprintV2Step(planItem.step);
+		default:
+			return undefined;
+	}
+}
+
+/**
+ * Lowers v2's `additionalStepsAfterExecution` entries that already match v1
+ * steps closely enough to reuse their existing runner implementations.
+ */
+function lowerAdditionalBlueprintV2Step(
+	step: BlueprintV2Step
+): StepDefinition[] | undefined {
+	switch (step.step) {
+		case 'activatePlugin':
+			return [
+				{
+					step: 'activatePlugin',
+					pluginPath: step.pluginPath,
+					pluginName: step.humanReadableName,
+				},
+			];
+		case 'activateTheme':
+			return [
+				{
+					step: 'activateTheme',
+					themeFolderName: step.themeDirectoryName,
+				},
+			];
+		case 'cp':
+			return [
+				{
+					step: 'cp',
+					fromPath: toPlaygroundPath(step.fromPath),
+					toPath: toPlaygroundPath(step.toPath),
+				},
+			];
+		case 'defineConstants':
+			return [
+				{
+					step: 'defineWpConfigConsts',
+					consts: step.constants,
+				},
+			];
+		case 'importThemeStarterContent':
+			return [
+				{
+					step: 'importThemeStarterContent',
+					themeSlug: step.themeSlug,
+				},
+			];
+		case 'installPlugin':
+			return [createInstallPluginStep(step)];
+		case 'installTheme':
+			return [createInstallThemeStep(step, step.active ?? true)];
+		case 'mkdir':
+			return [
+				{
+					step: 'mkdir',
+					path: toPlaygroundPath(step.path),
+				},
+			];
+		case 'mv':
+			return [
+				{
+					step: 'mv',
+					fromPath: toPlaygroundPath(step.fromPath),
+					toPath: toPlaygroundPath(step.toPath),
+				},
+			];
+		case 'rm':
+			return [
+				{
+					step: 'rm',
+					path: toPlaygroundPath(step.path),
+				},
+			];
+		case 'rmdir':
+			return [
+				{
+					step: 'rmdir',
+					path: toPlaygroundPath(step.path),
+				},
+			];
+		case 'setSiteLanguage':
+			return [
+				{
+					step: 'setSiteLanguage',
+					language: step.language,
+				},
+			];
+		case 'setSiteOptions':
+			return [
+				{
+					step: 'setSiteOptions',
+					options: step.options,
+				},
+			];
+		case 'wp-cli':
+			return [
+				{
+					step: 'wp-cli',
+					command: step.command,
+					wpCliPath: step.wpCliPath,
+				},
+			];
+		default:
+			return undefined;
+	}
+}
+
+/**
+ * Creates the v1 `installPlugin` step for a v2 plugin declaration.
+ *
+ * Blueprint v2 accepts either a bare data reference (`"akismet"`) or an object
+ * with a `source` plus install options. `normalizeAssetDefinition()` gives both
+ * forms one shape before this function maps the fields to v1 names.
+ */
+function createInstallPluginStep(plugin: BlueprintV2Plugin): StepDefinition {
+	const definition = normalizeAssetDefinition(plugin);
+	const step: InstallPluginStep<FileReference, DirectoryReference> = {
+		step: 'installPlugin',
+		pluginData: convertV2DataReferenceToV1(definition.source, 'plugin'),
+		options: createInstallPluginOptions(definition),
+	};
+
+	if (definition.ifAlreadyInstalled) {
+		step.ifAlreadyInstalled = definition.ifAlreadyInstalled;
+	}
+
+	return step;
+}
+
+/**
+ * Maps plugin-only v2 install options to the v1 `installPlugin` option names.
+ */
+function createInstallPluginOptions(
+	definition: BlueprintV2InstallAssetDefinition
+): InstallPluginOptions {
+	const options: InstallPluginOptions = {
+		activate: definition.active ?? true,
+	};
+
+	if (definition.activationOptions) {
+		options.activationOptions = definition.activationOptions;
+	}
+	if (
+		definition.onError === 'skip-plugin' ||
+		definition.onError === 'throw'
+	) {
+		options.onError = definition.onError;
+	}
+	if (definition.targetDirectoryName) {
+		options.targetFolderName = definition.targetDirectoryName;
+	}
+	if (definition.humanReadableName) {
+		options.humanReadableName = definition.humanReadableName;
+	}
+
+	return options;
+}
+
+/**
+ * Creates the v1 `installTheme` step for a v2 theme declaration.
+ *
+ * `active` comes from the surrounding v2 plan item because top-level themes and
+ * `activeTheme` use the same source shapes but different activation behavior.
+ */
+function createInstallThemeStep(
+	theme: BlueprintV2Theme | BlueprintV2ActiveTheme,
+	active: boolean
+): StepDefinition {
+	const definition = normalizeAssetDefinition(theme);
+	const step: InstallThemeStep<FileReference, DirectoryReference> = {
+		step: 'installTheme',
+		themeData: convertV2DataReferenceToV1(definition.source, 'theme'),
+		options: createInstallThemeOptions(definition, active),
+	};
+
+	if (definition.ifAlreadyInstalled) {
+		step.ifAlreadyInstalled = definition.ifAlreadyInstalled;
+	}
+
+	return step;
+}
+
+/**
+ * Maps theme-only v2 install options to the v1 `installTheme` option names.
+ */
+function createInstallThemeOptions(
+	definition: BlueprintV2InstallAssetDefinition,
+	active: boolean
+): InstallThemeOptions {
+	const options: InstallThemeOptions = {
+		activate: active,
+		importStarterContent: definition.importStarterContent ?? false,
+	};
+
+	if (definition.targetDirectoryName) {
+		options.targetFolderName = definition.targetDirectoryName;
+	}
+	if (definition.onError === 'skip-theme' || definition.onError === 'throw') {
+		options.onError = definition.onError;
+	}
+	if (definition.humanReadableName) {
+		options.humanReadableName = definition.humanReadableName;
+	}
+
+	return options;
+}
+
+/**
+ * Turns the two accepted v2 asset forms into a single object shape.
+ *
+ * Objects with `source` are full install definitions. Inline files, inline
+ * directories, git references, and strings are data references and must be
+ * wrapped as `{ source }` before they can be lowered.
+ */
+function normalizeAssetDefinition(
+	asset: BlueprintV2Plugin | BlueprintV2Theme | BlueprintV2ActiveTheme
+): BlueprintV2InstallAssetDefinition {
+	if (
+		asset &&
+		typeof asset === 'object' &&
+		'source' in asset &&
+		!isInlineFile(asset) &&
+		!isInlineDirectory(asset) &&
+		!isGitPath(asset)
+	) {
+		return asset as BlueprintV2InstallAssetDefinition;
+	}
+	return { source: asset as BlueprintV2DataReference };
+}
+
+/**
+ * Maps a Blueprint v2 data reference to the equivalent v1 resource.
+ *
+ * V2 groups URLs, WordPress.org slugs, execution-context paths, inline data,
+ * and git repositories into one data-reference concept. V1 uses separate
+ * `resource` names, so each supported v2 form is identified here explicitly.
+ */
+function convertV2DataReferenceToV1(
+	reference: BlueprintV2DataReference,
+	context: 'plugin' | 'theme'
+): FileReference | DirectoryReference {
+	if (typeof reference === 'string') {
+		if (seemsLikeGitRepoUrl(reference)) {
+			return {
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: reference.trim().replace(/\/+$/, ''),
+					ref: 'HEAD',
+				},
+			};
+		}
+		if (isHttpUrl(reference)) {
+			return { resource: 'url', url: reference };
+		}
+		if (isExecutionContextPath(reference)) {
+			return {
+				resource: 'bundled',
+				path: normalizeExecutionContextPath(reference),
+			};
+		}
+		return wordpressOrgResource(
+			reference,
+			context === 'plugin' ? 'plugins' : 'themes'
+		);
+	}
+
+	if (isInlineFile(reference)) {
+		return {
+			resource: 'literal',
+			name: reference.filename,
+			contents: reference.content,
+		};
+	}
+
+	if (isInlineDirectory(reference)) {
+		return {
+			resource: 'literal:directory',
+			name: reference.directoryName,
+			files: inlineDirectoryFilesToFileTree(reference.files),
+		};
+	}
+
+	if (isGitPath(reference)) {
+		return {
+			resource: 'git:directory',
+			url: reference.gitRepository,
+			ref: reference.ref || 'HEAD',
+			path: reference.pathInRepository || reference.path || '',
+		};
+	}
+
+	throw new UnsupportedBlueprintV2FeatureError(
+		context,
+		'Unsupported Blueprint v2 data reference.'
+	);
+}
+
+/**
+ * Converts a v2 target-site path into the absolute WordPress VFS path that v1
+ * file steps expect.
+ *
+ * V2 paths in imperative file steps are site-relative (`site:...`) or plain
+ * relative paths. Empty paths and parent-directory segments are rejected because
+ * they would make destructive steps like `rm` ambiguous or unsafe.
+ */
+function toPlaygroundPath(path: string): string {
+	if (typeof path !== 'string' || path.trim() === '') {
+		throw new UnsupportedBlueprintV2FeatureError(
+			'path',
+			'Invalid Blueprint v2 path: must not be empty.'
+		);
+	}
+	if (pathContainsParentDirectorySegment(path)) {
+		throw new UnsupportedBlueprintV2FeatureError(
+			'path',
+			`Invalid Blueprint v2 path "${path}": must not contain parent directory segments.`
+		);
+	}
+	if (path.startsWith('site:')) {
+		return joinPaths('/wordpress', path.slice('site:'.length));
+	}
+	if (path === '/wordpress' || path.startsWith('/wordpress/')) {
+		return path;
+	}
+	return joinPaths('/wordpress', path);
+}
+
+/**
+ * Checks whether a string is an HTTP(S) URL rather than a WordPress.org slug or
+ * a Blueprint execution-context path.
+ */
+function isHttpUrl(value: string) {
+	try {
+		const url = new URL(value);
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Checks whether a string points at a file in the Blueprint Execution Context.
+ */
+function isExecutionContextPath(value: string) {
+	// The Blueprint v2 schema defines both "./" and "/" as paths in the
+	// Blueprint Execution Context. "/" is chrooted there, not in WordPress.
+	return (
+		(value.startsWith('./') || value.startsWith('/')) &&
+		!pathContainsParentDirectorySegment(
+			normalizeExecutionContextPath(value)
+		)
+	);
+}
+
+/**
+ * Removes the execution-context marker so v1 bundled resources can resolve the
+ * path relative to the bundle root.
+ */
+function normalizeExecutionContextPath(path: string) {
+	return path.replace(/^\.?\//, '');
+}
+
+/**
+ * Rejects parent-directory traversal before a v2 path is converted to a v1 VFS
+ * or bundled-resource path.
+ */
+function pathContainsParentDirectorySegment(path: string) {
+	const vfsPath = path.startsWith('site:')
+		? path.slice('site:'.length)
+		: path;
+	return vfsPath.replace(/\\/g, '/').split('/').includes('..');
+}
+
+/**
+ * Converts a WordPress.org slug, optionally with `@version`, to the v1 resource
+ * shape that the existing plugin/theme installers already consume.
+ */
+function wordpressOrgResource(
+	reference: string,
+	type: 'plugins' | 'themes'
+): FileReference {
+	const [slug, version] = reference.split('@');
+	if (version && version !== 'latest') {
+		const singular = type === 'plugins' ? 'plugin' : 'theme';
+		return {
+			resource: 'url',
+			url: `https://downloads.wordpress.org/${singular}/${slug}.${version}.zip`,
+		};
+	}
+	return {
+		resource:
+			type === 'plugins'
+				? 'wordpress.org/plugins'
+				: 'wordpress.org/themes',
+		slug,
+	} as FileReference;
+}
+
+/**
+ * Detects v2 inline file references.
+ */
+function isInlineFile(
+	value: any
+): value is { filename: string; content: string } {
+	return (
+		value &&
+		typeof value === 'object' &&
+		typeof value.filename === 'string' &&
+		typeof value.content === 'string'
+	);
+}
+
+/**
+ * Detects v2 inline directory references.
+ */
+function isInlineDirectory(value: any): value is {
+	directoryName: string;
+	files: Record<string, string | BlueprintV2InlineDirectory>;
+} {
+	return (
+		value &&
+		typeof value === 'object' &&
+		typeof value.directoryName === 'string' &&
+		value.files &&
+		typeof value.files === 'object'
+	);
+}
+
+/**
+ * Detects v2 git directory references.
+ */
+function isGitPath(value: any): value is {
+	gitRepository: string;
+	ref?: string;
+	pathInRepository?: string;
+	path?: string;
+} {
+	return (
+		value &&
+		typeof value === 'object' &&
+		typeof value.gitRepository === 'string'
+	);
+}
+
+/**
+ * Converts v2 inline directory contents to the recursive file-tree object used
+ * by v1 literal directory resources.
+ *
+ * File names come from user input, so `Object.defineProperty()` is used instead
+ * of normal assignment. That keeps names such as `__proto__` as file entries
+ * instead of letting JavaScript treat them as object-prototype operations.
+ */
+function inlineDirectoryFilesToFileTree(
+	files: Record<string, string | BlueprintV2InlineDirectory>
+): FileTree {
+	const fileTree: FileTree = {};
+	for (const [path, content] of Object.entries(files)) {
+		const value =
+			typeof content === 'string'
+				? content
+				: inlineDirectoryFilesToFileTree(content.files);
+		Object.defineProperty(fileTree, path, {
+			value,
+			enumerable: true,
+			configurable: true,
+			writable: true,
+		});
+	}
+	return fileTree;
 }
