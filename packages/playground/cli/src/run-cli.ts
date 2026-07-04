@@ -1971,7 +1971,7 @@ export function spawnWorkerThread(
  * Expose the file lock manager API on a MessagePort and return it.
  *
  * @see comlink-sync.ts
- * @see phpwasm-emscripten-library-file-locking-for-node.js
+ * @see phpwasm-emscripten-library-file-locking.js
  */
 async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	const { port1, port2 } = new NodeMessageChannel();
@@ -1982,7 +1982,7 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 *
 	 * @todo: Fill in the file containing the injected file locking system calls.
 	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 * @see phpwasm-emscripten-library-file-locking.js
 	 */
 	await exposeSyncAPI(fileLockManager, port1);
 	return port2;

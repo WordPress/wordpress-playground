@@ -2364,7 +2364,7 @@ RUN set -eux; \
 RUN mkdir /root/output
 COPY ./compile/php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 COPY ./compile/php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
-COPY ./compile/php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-file-locking.js /root/phpwasm-emscripten-library-file-locking.js
 COPY ./compile/php/phpwasm-emscripten-library-dns-lookup-for-node.js /root/phpwasm-emscripten-library-dns-lookup-for-node.js
 COPY ./compile/php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
@@ -2390,7 +2390,7 @@ RUN set -euxo pipefail; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
 	PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-	PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid "; \
+	PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking.js -Wl,--wrap=getpid "; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dns-lookup-for-node.js "; \
 	else \

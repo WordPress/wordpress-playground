@@ -84,7 +84,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
 	 *
 	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 * @see phpwasm-emscripten-library-file-locking.js
 	 */
 	async useFileLockManager(port: MessagePort) {
 		this.fileLockManager = await consumeAPISync<FileLockManager>(port);

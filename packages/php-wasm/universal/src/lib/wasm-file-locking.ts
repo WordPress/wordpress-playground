@@ -441,7 +441,12 @@ export function bindFileLockingUserSpace(
 	}
 
 	function checkLockParams(fd: number, lType: number) {
-		const accessMode = builtin_fcntl64(fd, F_GETFL) & O_ACCMODE;
+		const flags = builtin_fcntl64(fd, F_GETFL);
+		if (flags < 0) {
+			return -flags;
+		}
+
+		const accessMode = flags & O_ACCMODE;
 		if (
 			(lType === F_WRLCK && accessMode === O_RDONLY) ||
 			(lType === F_RDLCK && accessMode === O_WRONLY)

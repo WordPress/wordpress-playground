@@ -1,10 +1,29 @@
-import test from '@playwright/test';
+import test, { type Page } from '@playwright/test';
 
 const phpVersion = '8.2';
+const successResult = {
+	rows: [
+		{ worker: 1, c: 50 },
+		{ worker: 2, c: 50 },
+	],
+	count: 100,
+	journal: 'wal',
+	integrity: 'ok',
+	wal: true,
+	shm: true,
+};
+
+type WebRuntimeLoaderName =
+	| 'loadWebRuntime'
+	| 'loadWebRuntimeWithoutSQLiteSharedMemory';
+
+const browserConsoleLogs = new WeakMap<Page, string[]>();
 
 test.describe('SQLite file locking', () => {
 	test.beforeEach(async ({ page }) => {
-		page.on('console', (log) => console.log(log.text()));
+		const logs: string[] = [];
+		browserConsoleLogs.set(page, logs);
+		page.on('console', (log) => logs.push(log.text()));
 
 		await page.goto('/');
 
@@ -14,11 +33,57 @@ test.describe('SQLite file locking', () => {
 		});
 	});
 
+	test.afterEach(async ({ page }, testInfo) => {
+		if (testInfo.status === testInfo.expectedStatus) {
+			return;
+		}
+		const logs = browserConsoleLogs.get(page);
+		if (!logs?.length) {
+			return;
+		}
+		await testInfo.attach('browser-console.log', {
+			body: logs.join('\n'),
+			contentType: 'text/plain',
+		});
+	});
+
 	test('coordinates WAL writes across PROXYFS runtimes', async ({ page }) => {
-		const result = await page.evaluate(async (phpVersion) => {
+		const result = await runWalConcurrencyScenario(page, 'loadWebRuntime');
+
+		test.expect(result).toEqual(successResult);
+	});
+
+	test('needs shared memory coordination for WAL writes across PROXYFS runtimes', async ({
+		page,
+	}) => {
+		let result;
+		try {
+			result = await runWalConcurrencyScenario(
+				page,
+				'loadWebRuntimeWithoutSQLiteSharedMemory'
+			);
+		} catch (error) {
+			result = { error: String(error) };
+		}
+
+		/*
+		 * This is the same workload as the positive test with only the
+		 * cross-runtime `-shm` coordinator disabled. Without it, one runtime's
+		 * WAL-index view wins and the other writer's committed frames vanish.
+		 */
+		test.expect(result).not.toEqual(successResult);
+	});
+});
+
+async function runWalConcurrencyScenario(
+	page: Page,
+	runtimeLoaderName: WebRuntimeLoaderName
+) {
+	return await page.evaluate(
+		async ({ phpVersion, runtimeLoaderName }) => {
 			async function createPHP() {
 				const php = new window.PHP(
-					await window.loadWebRuntime(phpVersion as any)
+					await window[runtimeLoaderName](phpVersion as any)
 				);
 				return php;
 			}
@@ -91,18 +156,7 @@ test.describe('SQLite file locking', () => {
 				primary.exit();
 				replica.exit();
 			}
-		}, phpVersion);
-
-		test.expect(result).toEqual({
-			rows: [
-				{ worker: 1, c: 50 },
-				{ worker: 2, c: 50 },
-			],
-			count: 100,
-			journal: 'wal',
-			integrity: 'ok',
-			wal: true,
-			shm: true,
-		});
-	});
-});
+		},
+		{ phpVersion, runtimeLoaderName }
+	);
+}
