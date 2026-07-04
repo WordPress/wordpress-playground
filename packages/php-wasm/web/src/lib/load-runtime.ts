@@ -96,12 +96,12 @@ export async function loadWebRuntime(
 	const suppliedBindUserSpace = suppliedEmscriptenOptions['bindUserSpace'];
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
+		...suppliedEmscriptenOptions,
 		processId: suppliedProcessId ?? processIdAllocator.claim(),
 		bindUserSpace:
 			suppliedBindUserSpace ??
 			((context: WasmUserSpaceContext) =>
 				bindUserSpace(fileLockManager, sqliteSharedMemory, context)),
-		...suppliedEmscriptenOptions,
 		phpWasmAsyncMode,
 	};
 

@@ -125,7 +125,7 @@ function getLockPath(
 	{ FS, PROXYFS }: WasmUserSpaceContext,
 	vfsPath: string
 ): string {
-	const { node } = FS.lookupPath(vfsPath, { noent_okay: true });
+	const { node, path } = FS.lookupPath(vfsPath, { noent_okay: true });
 	if (node?.mount.type === PROXYFS) {
 		const backingFs = node.mount.opts?.['fs'];
 		if (typeof backingFs === 'object' && backingFs !== null) {
@@ -141,7 +141,7 @@ function getLockPath(
 	 * FS object keeps unrelated runtimes isolated while still giving PROXYFS
 	 * users the same lock identity as the source runtime.
 	 */
-	return `${getRuntimeFileSystemId(FS)}:${vfsPath}`;
+	return `${getRuntimeFileSystemId(FS)}:${path}`;
 }
 
 function getRuntimeFileSystemId(fs: object) {

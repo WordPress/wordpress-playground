@@ -14,11 +14,7 @@ describe('bindFileLockingUserSpace', () => {
 			},
 		});
 		const context = createContext();
-		const userSpace = bindFileLockingUserSpace(
-			manager,
-			adapter,
-			context
-		);
+		const userSpace = bindFileLockingUserSpace(manager, adapter, context);
 
 		expect(userSpace.flock(10, context.constants.LOCK_SH)).toBe(0);
 		expect(userSpace.fd_close(10)).toBe(0);
@@ -39,11 +35,7 @@ describe('bindFileLockingUserSpace', () => {
 			},
 		});
 		const context = createContext();
-		const userSpace = bindFileLockingUserSpace(
-			manager,
-			adapter,
-			context
-		);
+		const userSpace = bindFileLockingUserSpace(manager, adapter, context);
 
 		userSpace.js_release_file_locks();
 
@@ -113,6 +105,56 @@ describe('bindFileLockingUserSpace', () => {
 
 		expect(userSpace.fcntl64(10, context.constants.F_GETLK, 4)).toBe(
 			-context.errnoCodes.EINVAL
+		);
+	});
+
+	it('returns errno when F_SETFL cannot resolve the fd stream', () => {
+		const context = createContext();
+		vi.mocked(context.syscalls.getStreamFromFD).mockImplementation(() => {
+			throw new Error('bad fd');
+		});
+		context.memory.HEAP32.set(1, context.constants.O_NONBLOCK);
+		const userSpace = bindFileLockingUserSpace(
+			createLockManager(),
+			createLockAdapter(),
+			context
+		);
+
+		expect(userSpace.fcntl64(10, context.constants.F_SETFL, 4)).toBe(
+			-context.errnoCodes.EBADF
+		);
+	});
+
+	it('releases an acquired range lock when after-lock cleanup throws', () => {
+		const manager = createLockManager();
+		const adapter = createLockAdapter({
+			afterRangeLock: () => {
+				throw new Error('after lock failed');
+			},
+		});
+		const context = createContext();
+		writeFlockStruct(context, {
+			l_type: context.constants.F_WRLCK,
+			l_whence: context.constants.SEEK_SET,
+			l_start: 0n,
+			l_len: 1n,
+		});
+		const userSpace = bindFileLockingUserSpace(manager, adapter, context);
+
+		expect(userSpace.fcntl64(10, context.constants.F_SETLK, 4)).toBe(
+			-context.errnoCodes.EINVAL
+		);
+		expect(manager.lockFileByteRange).toHaveBeenNthCalledWith(
+			2,
+			'/shared-file',
+			{
+				type: 'unlocked',
+				start: 0n,
+				end: 1n,
+				pid: 1,
+				fd: 20,
+			},
+			false
 		);
 	});
 });

@@ -302,10 +302,16 @@ export function bindFileLockingUserSpace(
 					);
 					arg = varArgsAccessor.getNextAsInt();
 				}
-				const stream = getStreamFromFD(fd);
-				const setflMask = O_APPEND | O_NONBLOCK;
-				stream.flags = (arg & setflMask) | (stream.flags & ~setflMask);
-				return 0;
+				try {
+					const stream = getStreamFromFD(fd);
+					const setflMask = O_APPEND | O_NONBLOCK;
+					stream.flags =
+						(arg & setflMask) | (stream.flags & ~setflMask);
+					return 0;
+				} catch (e) {
+					js_wasm_trace('fcntl(%d, F_SETFL) error %s', fd, e);
+					return -EBADF;
+				}
 			}
 
 			default:
