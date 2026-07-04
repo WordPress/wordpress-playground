@@ -167,8 +167,10 @@ An asset root may use the source-tree layout with
 `packages/playground/cli-native/assets/php-assets.json`, a packaged layout with
 `assets/php-assets.json`, or a flat `php-assets.json`. Manifest file paths are
 resolved relative to that asset root, so release archives must include the PHP
-wasm files, WordPress ZIPs, and SQLite integration ZIPs at the paths referenced
-by the manifest and native asset loaders.
+wasm files and SQLite integration ZIPs at the paths referenced by the manifest
+and native asset loaders. Native packages do not copy PHP JavaScript loader
+files; those remain part of the shared PHP wasm manifest shape, but the native
+runtime only needs the wasm and optional Wasmtime precompiled module files.
 
 The native runtime dispatches PHP according to the runtime selected in the
 packaged asset manifest. Runtime variants are artifact choices, not startup
@@ -193,7 +195,7 @@ By default, release packages include every supported PHP version listed in the
 asset manifest. Use repeatable `--php-version=<version>` only for intentionally
 filtered development packages; omitting it is the release path.
 
-Create a self-contained package with:
+Create a package with:
 
 ```bash
 cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins
@@ -202,13 +204,20 @@ cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --
 
 The package helper writes `bin/wp-playground-native` plus
 `share/wp-playground-native`, then creates a ZIP archive and a matching
-`.zip.sha256` checksum sidecar. Package smokes verify the checksum, extract the
+`.zip.sha256` checksum sidecar. By default it includes PHP wasm assets, optional
+Wasmtime `.cwasm` assets, and the SQLite integration ZIP required for default
+WordPress startup. It does not include WordPress release ZIPs; WordPress releases
+are downloaded into the normal cache on demand. Add `--include-wordpress-assets`
+only when intentionally building a larger offline package with bundled
+WordPress release ZIPs. WordPress package smokes build a temporary offline smoke
+package outside the requested output directory when the requested package does
+not include those release ZIPs. Package smokes verify the checksum, extract the
 archive, disable source-tree fallback with
 `WP_PLAYGROUND_NATIVE_DISABLE_SOURCE_FALLBACK=1`, and runs `php -v` from the
 extracted binary:
 
 ```bash
-cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --php-version=8.3 --skip-wordpress-assets --smoke-php-version=8.3
+cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --php-version=8.3 --smoke-php-version=8.3
 ```
 
 The generated `package-manifest.json` records `wasmtimePrecompile.requested`,
@@ -217,10 +226,10 @@ ARM64 currently reports precompile as unsupported and ships source `.wasm` files
 for runtime compilation; other release targets include generated `.wasm.cwasm`
 files when precompile is requested.
 
-The full package smoke includes bundled WordPress and SQLite assets, extracts
-the archive, starts the extracted binary as a server, fetches the installed
-WordPress homepage, verifies SQLite database creation, and can also run a
-standalone Blueprint and snapshot export through the packaged binary:
+The WordPress package smoke extracts the archive, starts the extracted binary as
+a server, fetches the installed WordPress homepage, verifies SQLite database
+creation, and can also run a standalone Blueprint and snapshot export through
+the packaged binary:
 
 ```bash
 cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-wordpress-server=8.3 --smoke-run-blueprint=8.3 --smoke-build-snapshot=8.3 --smoke-wordpress-version=6.9

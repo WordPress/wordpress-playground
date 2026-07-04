@@ -191,7 +191,6 @@ impl NativeRuntime {
 
     pub fn verify_php_asset(&self, php_version: &str) -> Result<()> {
         let asset = self.php_asset(php_version)?;
-        verify_file_asset(&self.repo_root, &asset.js)?;
         verify_file_asset(&self.repo_root, &asset.wasm)?;
         if let Some(wasmtime) = &asset.wasmtime {
             verify_file_asset(&self.repo_root, wasmtime)?;
@@ -646,7 +645,6 @@ mod tests {
     fn write_packaged_asset_root(root: &Path) {
         fs::create_dir_all(root.join("assets")).unwrap();
         fs::create_dir_all(root.join("php")).unwrap();
-        fs::write(root.join("php/php_8_3.js"), b"js").unwrap();
         fs::write(root.join("php/php_8_3.wasm"), b"wasm").unwrap();
         fs::write(
             root.join("assets/php-assets.json"),
@@ -677,7 +675,6 @@ mod tests {
     fn write_packaged_asset_root_with_wasmtime(root: &Path, wasm: &[u8], wasmtime: &[u8]) {
         fs::create_dir_all(root.join("assets")).unwrap();
         fs::create_dir_all(root.join("php")).unwrap();
-        fs::write(root.join("php/php_8_3.js"), b"js").unwrap();
         fs::write(root.join("php/php_8_3.wasm"), wasm).unwrap();
         fs::write(root.join("php/php_8_3.wasm.cwasm"), wasmtime).unwrap();
         fs::write(
@@ -713,6 +710,9 @@ mod tests {
 
     #[test]
     fn loads_and_verifies_packaged_asset_root() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous_profiling = env::var_os(WASMTIME_PROFILING_ENV_VAR);
+        env::remove_var(WASMTIME_PROFILING_ENV_VAR);
         let root = temp_dir("packaged-root");
         write_packaged_asset_root(&root);
 
@@ -724,10 +724,14 @@ mod tests {
             PathBuf::from("php/php_8_3.wasm")
         );
         runtime.verify_php_asset("8.3").unwrap();
+        restore_env_var(WASMTIME_PROFILING_ENV_VAR, previous_profiling);
     }
 
     #[test]
     fn optimized_runtime_falls_back_to_wasm_when_precompiled_asset_is_unusable() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous_profiling = env::var_os(WASMTIME_PROFILING_ENV_VAR);
+        env::remove_var(WASMTIME_PROFILING_ENV_VAR);
         let root = temp_dir("precompiled-fallback-root");
         write_packaged_asset_root_with_wasmtime(&root, b"\0asm\x01\0\0\0", b"not-cwasm");
 
@@ -738,6 +742,7 @@ mod tests {
 
         assert_eq!(module.imports().count(), 0);
         assert_eq!(module.exports().count(), 0);
+        restore_env_var(WASMTIME_PROFILING_ENV_VAR, previous_profiling);
     }
 
     #[test]
@@ -993,6 +998,14 @@ mod tests {
             env::set_var(WASMTIME_PROFILING_ENV_VAR, previous);
         } else {
             env::remove_var(WASMTIME_PROFILING_ENV_VAR);
+        }
+    }
+
+    fn restore_env_var(name: &str, previous: Option<std::ffi::OsString>) {
+        if let Some(previous) = previous {
+            env::set_var(name, previous);
+        } else {
+            env::remove_var(name);
         }
     }
 

@@ -31,6 +31,8 @@ pub const PACKAGE_SHARE_DIR: &str = "share/wp-playground-native";
 const WORDPRESS_BUILDS_DIR: &str = "packages/playground/wordpress-builds/src/wordpress";
 const SQLITE_BUILDS_DIR: &str =
     "packages/playground/wordpress-builds/src/sqlite-database-integration";
+const SQLITE_TRUNK_ZIP: &str = "sqlite-database-integration-trunk.zip";
+const SQLITE_PHP52_ZIP: &str = "sqlite-database-integration-v3.0.0-rc.3-php52.zip";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageOptions {
@@ -110,7 +112,7 @@ impl Default for PackageOptions {
                 .join("package"),
             package_name: default_package_name(),
             php_versions: Vec::new(),
-            include_wordpress_assets: true,
+            include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
         }
@@ -184,13 +186,6 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
     for asset in &mut selected_manifest.php {
         files.push(copy_verified_asset(
             &options.asset_root,
-            &asset.js,
-            &package_asset_root,
-            &package_root,
-            "php-js",
-        )?);
-        files.push(copy_verified_asset(
-            &options.asset_root,
             &asset.wasm,
             &package_asset_root,
             &package_root,
@@ -224,22 +219,20 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
         "php-asset-manifest",
     )?);
 
+    files.extend(copy_required_sqlite_assets(
+        &options.asset_root,
+        &package_asset_root,
+        &package_root,
+        &selected_manifest,
+    )?);
     if options.include_wordpress_assets {
-        files.extend(copy_asset_directory(
+        files.extend(copy_zip_asset_directory(
             &options.asset_root,
             &package_asset_root,
             &package_root,
             WORDPRESS_BUILDS_DIR,
             validate_wordpress_zip,
             "wordpress",
-        )?);
-        files.extend(copy_asset_directory(
-            &options.asset_root,
-            &package_asset_root,
-            &package_root,
-            SQLITE_BUILDS_DIR,
-            validate_sqlite_zip,
-            "sqlite",
         )?);
     }
 
@@ -347,7 +340,7 @@ pub fn run_packaged_wordpress_server_smoke(
         summary.clone()
     };
     assert_packaged_php_asset_files_exist(&smoke_summary, php_version)?;
-    assert_packaged_wordpress_assets_exist(&smoke_summary, wordpress_version)?;
+    assert_packaged_sqlite_assets_exist(&smoke_summary, php_version)?;
 
     let site_root = unique_temp_dir("wp-playground-native-packaged-server-site")?;
     let mut child = Command::new(&smoke_summary.binary_path)
@@ -428,7 +421,7 @@ pub fn run_packaged_run_blueprint_smoke(
         summary.clone()
     };
     assert_packaged_php_asset_files_exist(&smoke_summary, php_version)?;
-    assert_packaged_wordpress_assets_exist(&smoke_summary, wordpress_version)?;
+    assert_packaged_sqlite_assets_exist(&smoke_summary, php_version)?;
 
     let root = unique_temp_dir("wp-playground-native-packaged-blueprint")?;
     let site_root = root.join("wordpress");
@@ -508,7 +501,7 @@ pub fn run_packaged_build_snapshot_smoke(
         summary.clone()
     };
     assert_packaged_php_asset_files_exist(&smoke_summary, php_version)?;
-    assert_packaged_wordpress_assets_exist(&smoke_summary, wordpress_version)?;
+    assert_packaged_sqlite_assets_exist(&smoke_summary, php_version)?;
 
     let root = unique_temp_dir("wp-playground-native-packaged-snapshot")?;
     let site_root = root.join("wordpress");
@@ -601,7 +594,7 @@ fn assert_packaged_php_asset_files_exist(
     })?;
     let manifest = load_php_assets_manifest(&manifest_path)?;
     let asset = select_php_asset(&manifest, php_version)?;
-    let mut relative_paths = vec![&asset.js.path, &asset.wasm.path];
+    let mut relative_paths = vec![&asset.wasm.path];
     if let Some(wasmtime) = &asset.wasmtime {
         relative_paths.push(&wasmtime.path);
     }
@@ -617,42 +610,17 @@ fn assert_packaged_php_asset_files_exist(
     Ok(())
 }
 
-fn assert_packaged_wordpress_assets_exist(
-    summary: &PackageSummary,
-    wordpress_version: &str,
-) -> Result<()> {
-    let wordpress_zip = summary
-        .asset_root
-        .join(WORDPRESS_BUILDS_DIR)
-        .join(format!("wp-{wordpress_version}.zip"));
-    if !wordpress_zip.is_file() {
-        return Err(CliError::new(format!(
-            "Packaged WordPress asset is missing: {}",
-            wordpress_zip.display()
-        )));
-    }
-    validate_wordpress_zip(&wordpress_zip)?;
+fn assert_packaged_sqlite_assets_exist(summary: &PackageSummary, php_version: &str) -> Result<()> {
     let sqlite_dir = summary.asset_root.join(SQLITE_BUILDS_DIR);
-    let sqlite_zips = sqlite_dir
-        .read_dir()
-        .map_err(|error| {
-            CliError::new(format!(
-                "Failed to inspect packaged SQLite asset directory {}: {error}",
-                sqlite_dir.display()
-            ))
-        })?
-        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
-        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("zip"))
-        .collect::<Vec<_>>();
-    if sqlite_zips.is_empty() {
+    let filename = sqlite_asset_filename(php_version);
+    let sqlite_zip = sqlite_dir.join(filename);
+    if !sqlite_zip.is_file() {
         return Err(CliError::new(format!(
-            "Packaged SQLite asset directory contains no ZIP files: {}",
-            sqlite_dir.display()
+            "Packaged SQLite asset is missing: {}",
+            sqlite_zip.display()
         )));
     }
-    for sqlite_zip in sqlite_zips {
-        validate_sqlite_zip(&sqlite_zip)?;
-    }
+    validate_sqlite_zip(&sqlite_zip)?;
     Ok(())
 }
 
@@ -995,7 +963,41 @@ fn precompiled_wasmtime_path(wasm_path: &Path) -> Result<PathBuf> {
     Ok(PathBuf::from(format!("{prefix}{file_name}.cwasm")))
 }
 
-fn copy_asset_directory(
+fn copy_required_sqlite_assets(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    manifest: &AssetManifest,
+) -> Result<Vec<PackageFileManifest>> {
+    let mut copied = Vec::new();
+    let needs_php52 = manifest.php.iter().any(|asset| asset.version == "5.2");
+    let needs_trunk = manifest.php.iter().any(|asset| asset.version != "5.2");
+
+    if needs_trunk {
+        copied.push(copy_validated_zip_asset(
+            asset_root,
+            package_asset_root,
+            package_root,
+            Path::new(SQLITE_BUILDS_DIR).join(SQLITE_TRUNK_ZIP),
+            validate_sqlite_zip,
+            "sqlite",
+        )?);
+    }
+    if needs_php52 {
+        copied.push(copy_validated_zip_asset(
+            asset_root,
+            package_asset_root,
+            package_root,
+            Path::new(SQLITE_BUILDS_DIR).join(SQLITE_PHP52_ZIP),
+            validate_sqlite_zip,
+            "sqlite",
+        )?);
+    }
+
+    Ok(copied)
+}
+
+fn copy_zip_asset_directory(
     asset_root: &Path,
     package_asset_root: &Path,
     package_root: &Path,
@@ -1014,15 +1016,13 @@ fn copy_asset_directory(
     for entry in fs::read_dir(&source_dir)? {
         let entry = entry?;
         let source = entry.path();
-        if source.is_file() {
-            if is_zip_file(&source) {
-                validate(&source)?;
-            }
-            let relative = Path::new(relative_dir).join(entry.file_name());
-            copy_relative_asset(asset_root, &relative, package_asset_root)?;
-            copied.push(package_file_manifest(
+        if source.is_file() && is_zip_file(&source) {
+            copied.push(copy_validated_zip_asset(
+                asset_root,
+                package_asset_root,
                 package_root,
-                Path::new(PACKAGE_SHARE_DIR).join(relative),
+                Path::new(relative_dir).join(entry.file_name()),
+                validate,
                 kind,
             )?);
         }
@@ -1034,6 +1034,31 @@ fn is_zip_file(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+}
+
+fn copy_validated_zip_asset(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    relative_path: PathBuf,
+    validate: fn(&Path) -> Result<()>,
+    kind: &str,
+) -> Result<PackageFileManifest> {
+    validate(&asset_root.join(&relative_path))?;
+    copy_relative_asset(asset_root, &relative_path, package_asset_root)?;
+    package_file_manifest(
+        package_root,
+        Path::new(PACKAGE_SHARE_DIR).join(relative_path),
+        kind,
+    )
+}
+
+fn sqlite_asset_filename(php_version: &str) -> &'static str {
+    if php_version == "5.2" {
+        SQLITE_PHP52_ZIP
+    } else {
+        SQLITE_TRUNK_ZIP
+    }
 }
 
 fn copy_relative_asset(
@@ -1424,7 +1449,8 @@ mod tests {
     use super::{
         extract_package_archive, package_native_cli,
         package_wasmtime_precompile_manifest_for_target, precompile_packaged_wasm_for_target,
-        selected_php_manifest, PackageOptions, PACKAGE_SHARE_DIR,
+        selected_php_manifest, PackageOptions, PACKAGE_SHARE_DIR, SQLITE_PHP52_ZIP,
+        SQLITE_TRUNK_ZIP,
     };
     use crate::{
         args::SUPPORTED_PHP_VERSIONS,
@@ -1514,18 +1540,12 @@ mod tests {
             "packages/playground/wordpress-builds/src/wordpress/get-wordpress-module-details.ts",
             b"export {};",
         );
-        write_zip(
+        write_file(
             root,
-            "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-trunk.zip",
-            &[
-                ("plugin-sqlite-database-integration/db.copy", b"<?php"),
-                ("plugin-sqlite-database-integration/load.php", b"<?php"),
-                (
-                    "plugin-sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php",
-                    b"<?php",
-                ),
-            ],
+            "packages/playground/wordpress-builds/src/wordpress/wp-versions.json",
+            b"[]",
         );
+        write_fake_sqlite_asset(root);
         write_file(
             root,
             "packages/playground/cli-native/assets/php-assets.json",
@@ -1577,6 +1597,48 @@ mod tests {
         );
     }
 
+    fn write_fake_sqlite_asset(root: &Path) {
+        write_fake_sqlite_zip(root, SQLITE_TRUNK_ZIP, "plugin-sqlite-database-integration");
+        write_fake_sqlite_zip(root, SQLITE_PHP52_ZIP, "plugin-sqlite-database-integration");
+        write_fake_sqlite_zip(
+            root,
+            "sqlite-database-integration-v3.0.0-rc.3.zip",
+            "plugin-sqlite-database-integration",
+        );
+        write_fake_sqlite_zip(
+            root,
+            "sqlite-database-integration-v2.1.16.zip",
+            "sqlite-database-integration-2.1.16",
+        );
+        write_file(
+            root,
+            "packages/playground/wordpress-builds/src/sqlite-database-integration/get-sqlite-driver-module-details.ts",
+            b"export {};",
+        );
+        write_file(
+            root,
+            "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-versions.json",
+            b"[]",
+        );
+    }
+
+    fn write_fake_sqlite_zip(root: &Path, filename: &str, prefix: &str) {
+        write_zip(
+            root,
+            &format!(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/{filename}"
+            ),
+            &[
+                (&format!("{prefix}/db.copy"), b"<?php"),
+                (&format!("{prefix}/load.php"), b"<?php"),
+                (
+                    &format!("{prefix}/wp-includes/sqlite/class-wp-sqlite-db.php"),
+                    b"<?php",
+                ),
+            ],
+        );
+    }
+
     fn write_precompilable_asset_root(root: &Path) {
         let wasm = b"\0asm\x01\0\0\0";
         write_file(
@@ -1614,6 +1676,7 @@ mod tests {
             )
             .as_bytes(),
         );
+        write_fake_sqlite_asset(root);
     }
 
     fn fake_php_asset(version: &str) -> PhpAsset {
@@ -1688,6 +1751,38 @@ mod tests {
         assert!(select_php_asset(&manifest, "5.2").is_err());
         assert!(select_php_asset(&manifest, "8.3").is_ok());
         assert!(select_php_asset(&manifest, "8.4").is_ok());
+        assert!(!summary
+            .asset_root
+            .join("packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js")
+            .exists());
+        assert!(!summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/wp-6.9.zip")
+            .exists());
+        assert!(summary
+            .asset_root
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-trunk.zip"
+            )
+            .is_file());
+        assert!(!summary
+            .asset_root
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3-php52.zip"
+            )
+            .exists());
+        assert!(!summary
+            .asset_root
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v3.0.0-rc.3.zip"
+            )
+            .exists());
+        assert!(!summary
+            .asset_root
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/get-sqlite-driver-module-details.ts"
+            )
+            .exists());
     }
 
     #[test]
@@ -1707,7 +1802,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.3".to_string()],
-            include_wordpress_assets: true,
+            include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
         })
@@ -1733,11 +1828,9 @@ mod tests {
         assert_eq!(package_manifest["binary"]["kind"], "binary");
         assert!(package_manifest["archive"].is_null());
         let files = package_manifest["files"].as_array().unwrap();
-        assert!(files.iter().any(|file| {
-            file["kind"] == "wordpress"
-                && file["path"].as_str().unwrap().ends_with("/wp-6.9.zip")
-                && file["sha256"].as_str().unwrap().len() == 64
-        }));
+        assert!(!files.iter().any(|file| file["kind"] == "php-js"));
+        assert!(!files.iter().any(|file| file["kind"] == "wordpress"));
+        assert!(files.iter().any(|file| file["kind"] == "sqlite"));
         let archive_manifest =
             fs::read_to_string(summary.archive_manifest_path.as_ref().unwrap()).unwrap();
         let archive_manifest: serde_json::Value = serde_json::from_str(&archive_manifest).unwrap();
@@ -1756,18 +1849,36 @@ mod tests {
             .asset_root
             .join("packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm")
             .is_file());
-        assert!(summary
+        assert!(!summary
+            .asset_root
+            .join("packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js")
+            .exists());
+        assert!(!summary
             .package_root
             .join(PACKAGE_SHARE_DIR)
             .join("packages/playground/wordpress-builds/src/wordpress/wp-6.9.zip")
-            .is_file());
-        assert!(summary
+            .exists());
+        assert!(!summary
             .package_root
             .join(PACKAGE_SHARE_DIR)
             .join(
                 "packages/playground/wordpress-builds/src/wordpress/get-wordpress-module-details.ts"
             )
-            .is_file());
+            .exists());
+        assert!(!summary
+            .package_root
+            .join(PACKAGE_SHARE_DIR)
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-v2.1.16.zip"
+            )
+            .exists());
+        assert!(!summary
+            .package_root
+            .join(PACKAGE_SHARE_DIR)
+            .join(
+                "packages/playground/wordpress-builds/src/sqlite-database-integration/get-sqlite-driver-module-details.ts"
+            )
+            .exists());
 
         let extracted = extract_package_archive(summary.archive_path.as_deref().unwrap()).unwrap();
         assert!(extracted.binary_path.is_file());
@@ -1778,6 +1889,43 @@ mod tests {
             .asset_root
             .join("packages/playground/cli-native/assets/php-assets.json")
             .is_file());
+    }
+
+    #[test]
+    fn includes_only_wordpress_release_zips_when_requested() {
+        let root = temp_dir("wordpress-assets-root");
+        let out_dir = temp_dir("wordpress-assets-out");
+        let binary = root.join(format!(
+            "wp-playground-native{}",
+            std::env::consts::EXE_SUFFIX
+        ));
+        fs::write(&binary, b"binary").unwrap();
+        write_fake_asset_root(&root);
+
+        let summary = package_native_cli(&PackageOptions {
+            binary_path: binary,
+            asset_root: root,
+            out_dir,
+            package_name: "native-wordpress-assets-test".to_string(),
+            php_versions: vec!["8.3".to_string()],
+            include_wordpress_assets: true,
+            create_archive: false,
+            precompile_wasmtime: false,
+        })
+        .unwrap();
+
+        assert!(summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/wp-6.9.zip")
+            .is_file());
+        assert!(!summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/get-wordpress-module-details.ts")
+            .exists());
+        assert!(!summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/wp-versions.json")
+            .exists());
     }
 
     #[test]
@@ -1969,7 +2117,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.3".to_string()],
-            include_wordpress_assets: false,
+            include_wordpress_assets: true,
             create_archive: true,
             precompile_wasmtime: false,
         })
@@ -2097,7 +2245,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.3".to_string()],
-            include_wordpress_assets: true,
+            include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,
         })

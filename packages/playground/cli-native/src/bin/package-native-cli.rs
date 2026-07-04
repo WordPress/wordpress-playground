@@ -1,7 +1,8 @@
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     process::ExitCode,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use wp_playground_native::{
@@ -10,6 +11,7 @@ use wp_playground_native::{
         default_package_name, default_release_binary_path, package_native_cli,
         run_packaged_build_snapshot_smoke, run_packaged_php_smoke,
         run_packaged_run_blueprint_smoke, run_packaged_wordpress_server_smoke, PackageOptions,
+        PackageSummary,
     },
     runtime::asset_root_from_manifest_dir,
     CliError, Result,
@@ -51,36 +53,112 @@ fn run() -> Result<()> {
     if let Some(manifest_path) = &summary.archive_manifest_path {
         println!("archive-manifest: {}", manifest_path.display());
     }
-    for version in parsed.smoke_php_versions {
-        run_packaged_php_smoke(&summary, &version)?;
-        println!("smoke: php {version} ok");
+    let has_wordpress_smokes = parsed.smoke_wordpress_server.is_some()
+        || parsed.smoke_run_blueprint.is_some()
+        || parsed.smoke_build_snapshot.is_some();
+    let wordpress_smoke_summary =
+        if has_wordpress_smokes && !parsed.options.include_wordpress_assets {
+            Some(package_wordpress_smoke_assets(&parsed.options)?)
+        } else {
+            None
+        };
+    let smoke_result = (|| -> Result<()> {
+        let wordpress_smoke_summary = wordpress_smoke_summary.as_ref().unwrap_or(&summary);
+
+        for version in parsed.smoke_php_versions {
+            run_packaged_php_smoke(&summary, &version)?;
+            println!("smoke: php {version} ok");
+        }
+        if let Some(smoke) = parsed.smoke_wordpress_server {
+            let wordpress_version = resolve_smoke_wordpress_version(
+                &wordpress_smoke_summary.asset_root,
+                &smoke.wordpress_version,
+            )?;
+            run_packaged_wordpress_server_smoke(
+                wordpress_smoke_summary,
+                &smoke.php_version,
+                &wordpress_version,
+            )?;
+            println!(
+                "smoke: wordpress server php {} wp {} ok",
+                smoke.php_version, wordpress_version
+            );
+        }
+        if let Some(smoke) = parsed.smoke_run_blueprint {
+            let wordpress_version = resolve_smoke_wordpress_version(
+                &wordpress_smoke_summary.asset_root,
+                &smoke.wordpress_version,
+            )?;
+            run_packaged_run_blueprint_smoke(
+                wordpress_smoke_summary,
+                &smoke.php_version,
+                &wordpress_version,
+            )?;
+            println!(
+                "smoke: run-blueprint php {} wp {} ok",
+                smoke.php_version, wordpress_version
+            );
+        }
+        if let Some(smoke) = parsed.smoke_build_snapshot {
+            let wordpress_version = resolve_smoke_wordpress_version(
+                &wordpress_smoke_summary.asset_root,
+                &smoke.wordpress_version,
+            )?;
+            run_packaged_build_snapshot_smoke(
+                wordpress_smoke_summary,
+                &smoke.php_version,
+                &wordpress_version,
+            )?;
+            println!(
+                "smoke: build-snapshot php {} wp {} ok",
+                smoke.php_version, wordpress_version
+            );
+        }
+        Ok(())
+    })();
+
+    if let Some(summary) = &wordpress_smoke_summary {
+        if let Err(error) = cleanup_wordpress_smoke_assets(summary) {
+            eprintln!("warning: failed to clean up temporary WordPress smoke package: {error}");
+        }
     }
-    if let Some(smoke) = parsed.smoke_wordpress_server {
-        let wordpress_version =
-            resolve_smoke_wordpress_version(&summary.asset_root, &smoke.wordpress_version)?;
-        run_packaged_wordpress_server_smoke(&summary, &smoke.php_version, &wordpress_version)?;
-        println!(
-            "smoke: wordpress server php {} wp {} ok",
-            smoke.php_version, wordpress_version
-        );
-    }
-    if let Some(smoke) = parsed.smoke_run_blueprint {
-        let wordpress_version =
-            resolve_smoke_wordpress_version(&summary.asset_root, &smoke.wordpress_version)?;
-        run_packaged_run_blueprint_smoke(&summary, &smoke.php_version, &wordpress_version)?;
-        println!(
-            "smoke: run-blueprint php {} wp {} ok",
-            smoke.php_version, wordpress_version
-        );
-    }
-    if let Some(smoke) = parsed.smoke_build_snapshot {
-        let wordpress_version =
-            resolve_smoke_wordpress_version(&summary.asset_root, &smoke.wordpress_version)?;
-        run_packaged_build_snapshot_smoke(&summary, &smoke.php_version, &wordpress_version)?;
-        println!(
-            "smoke: build-snapshot php {} wp {} ok",
-            smoke.php_version, wordpress_version
-        );
+
+    smoke_result
+}
+
+fn package_wordpress_smoke_assets(options: &PackageOptions) -> Result<PackageSummary> {
+    let mut smoke_options = options.clone();
+    smoke_options.out_dir = unique_temp_dir("wordpress-smoke-package")?;
+    smoke_options.package_name = format!("{}-wordpress-smoke-assets", options.package_name);
+    smoke_options.include_wordpress_assets = true;
+    smoke_options.precompile_wasmtime = false;
+    package_native_cli(&smoke_options)
+}
+
+fn unique_temp_dir(name: &str) -> Result<PathBuf> {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| CliError::new(format!("System clock is before UNIX_EPOCH: {error}")))?
+        .as_nanos();
+    let dir = env::temp_dir().join(format!("wp-playground-native-{name}-{unique}"));
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+fn cleanup_wordpress_smoke_assets(summary: &PackageSummary) -> Result<()> {
+    let out_dir = summary.package_root.parent().ok_or_else(|| {
+        CliError::new(format!(
+            "Temporary WordPress smoke package has no parent directory: {}",
+            summary.package_root.display()
+        ))
+    })?;
+    if out_dir.exists() {
+        fs::remove_dir_all(out_dir).map_err(|error| {
+            CliError::new(format!(
+                "Failed to remove temporary WordPress smoke package directory {}: {error}",
+                out_dir.display()
+            ))
+        })?;
     }
     Ok(())
 }
@@ -137,6 +215,7 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
                     .php_versions
                     .push(php_version_value(&args, &mut index, "--php-version")?)
             }
+            "--include-wordpress-assets" => options.include_wordpress_assets = true,
             "--skip-wordpress-assets" => options.include_wordpress_assets = false,
             "--skip-archive" => options.create_archive = false,
             "--precompile-wasmtime" => options.precompile_wasmtime = true,
@@ -261,16 +340,6 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
     if options.out_dir == PathBuf::new() {
         return Err(CliError::new("--out-dir must not be empty"));
     }
-    if (smoke_wordpress_server.is_some()
-        || smoke_run_blueprint.is_some()
-        || smoke_build_snapshot.is_some())
-        && !options.include_wordpress_assets
-    {
-        return Err(CliError::new(
-            "WordPress package smokes require packaged WordPress/SQLite assets; remove --skip-wordpress-assets",
-        ));
-    }
-
     Ok(ParsedArgs {
         options,
         smoke_php_versions,
@@ -329,7 +398,8 @@ fn print_help() {
                                        Runtime variants come from the packaged manifest.\n\
           --precompile-wasmtime        Generate target-specific Wasmtime .cwasm assets\n\
           --no-precompile-wasmtime     Copy wasm assets without target-specific precompile\n\
-          --skip-wordpress-assets      Do not copy bundled WordPress/SQLite ZIPs\n\
+          --include-wordpress-assets   Copy bundled WordPress release ZIPs for offline startup\n\
+          --skip-wordpress-assets      Do not copy bundled WordPress release ZIPs (default)\n\
            --skip-archive               Create package directory only\n\
            --smoke-php-version <ver>    Run packaged `php -v` smoke for a version\n\
            --smoke-wordpress-server <php>\n\
@@ -350,13 +420,10 @@ fn resolve_smoke_wordpress_version(asset_root: &Path, requested: &str) -> Result
     }
 
     let dir = asset_root.join(WORDPRESS_BUILDS_DIR);
-    let mut versions = fs::read_dir(&dir)
-        .map_err(|error| {
-            CliError::new(format!(
-                "Failed to inspect packaged WordPress asset directory {}: {error}",
-                dir.display()
-            ))
-        })?
+    let Ok(entries) = fs::read_dir(&dir) else {
+        return Ok(requested.to_string());
+    };
+    let mut versions = entries
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
         .filter_map(|path| {
             let name = path.file_name()?.to_str()?;
@@ -365,12 +432,7 @@ fn resolve_smoke_wordpress_version(asset_root: &Path, requested: &str) -> Result
         })
         .collect::<Vec<_>>();
     versions.sort_by_key(|version| version_sort_key(version));
-    versions.pop().ok_or_else(|| {
-        CliError::new(format!(
-            "No packaged WordPress ZIPs found in {}",
-            dir.display()
-        ))
-    })
+    Ok(versions.pop().unwrap_or_else(|| requested.to_string()))
 }
 
 fn version_sort_key(version: &str) -> Vec<u16> {
@@ -417,6 +479,7 @@ mod tests {
         let parsed = parse_args(vec!["--smoke-wordpress-server=8.3".to_string()]).unwrap();
         let smoke = parsed.smoke_wordpress_server.unwrap();
         assert_eq!(smoke.wordpress_version, "latest");
+        assert!(!parsed.options.include_wordpress_assets);
     }
 
     #[test]
@@ -472,6 +535,34 @@ mod tests {
     }
 
     #[test]
+    fn skips_wordpress_release_assets_by_default_and_can_include_them() {
+        let parsed = parse_args(Vec::new()).unwrap();
+        assert!(!parsed.options.include_wordpress_assets);
+
+        let parsed = parse_args(vec!["--include-wordpress-assets".to_string()]).unwrap();
+        assert!(parsed.options.include_wordpress_assets);
+
+        let parsed = parse_args(vec![
+            "--include-wordpress-assets".to_string(),
+            "--skip-wordpress-assets".to_string(),
+        ])
+        .unwrap();
+        assert!(!parsed.options.include_wordpress_assets);
+    }
+
+    #[test]
+    fn keeps_wordpress_smokes_from_forcing_wordpress_release_assets() {
+        let parsed = parse_args(vec![
+            "--skip-wordpress-assets".to_string(),
+            "--smoke-wordpress-server=8.3".to_string(),
+        ])
+        .unwrap();
+
+        assert!(!parsed.options.include_wordpress_assets);
+        assert!(parsed.smoke_wordpress_server.is_some());
+    }
+
+    #[test]
     fn resolves_latest_smoke_to_newest_packaged_wordpress_zip() {
         let root = temp_dir("latest-wp");
         let wordpress_dir = root.join(WORDPRESS_BUILDS_DIR);
@@ -485,15 +576,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_build_snapshot_smoke_without_wordpress_assets() {
-        let error = parse_args(vec![
-            "--skip-wordpress-assets".to_string(),
-            "--smoke-build-snapshot=8.3".to_string(),
-        ])
-        .unwrap_err()
-        .to_string();
-
-        assert!(error.contains("WordPress package smokes"), "{error}");
+    fn leaves_latest_smoke_unresolved_without_packaged_wordpress_zips() {
+        let root = temp_dir("missing-latest-wp");
+        let version = resolve_smoke_wordpress_version(&root, "latest").unwrap();
+        assert_eq!(version, "latest");
     }
 
     fn temp_dir(name: &str) -> PathBuf {
