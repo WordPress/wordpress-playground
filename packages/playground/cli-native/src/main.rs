@@ -1,10 +1,14 @@
-use std::process::ExitCode;
+use std::{
+    env,
+    io::{self, IsTerminal},
+    process::ExitCode,
+};
 
 use wp_playground_native::{args::parse_cli_args, commands::run};
 
 fn main() -> ExitCode {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if let Some(output) = immediate_output(&args) {
+    if let Some(output) = immediate_output(&args, should_color_stdout()) {
         println!("{output}");
         return ExitCode::SUCCESS;
     }
@@ -17,15 +21,29 @@ fn main() -> ExitCode {
     }
 }
 
-fn immediate_output(args: &[String]) -> Option<String> {
+fn immediate_output(args: &[String], color: bool) -> Option<String> {
     match args {
-        [flag] if flag == "--help" || flag == "-h" => Some(help_text(None).to_string()),
+        [] => Some(format_help(None, color)),
+        [flag] if flag == "--help" || flag == "-h" => Some(format_help(None, color)),
         [flag] if flag == "--version" || flag == "-V" => Some(version_text()),
         [command, rest @ ..] if is_command(command) && has_help_flag_before_delimiter(rest) => {
-            Some(help_text(Some(command)).to_string())
+            Some(format_help(Some(command), color))
         }
         _ => None,
     }
+}
+
+fn should_color_stdout() -> bool {
+    if env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+    if env::var("TERM").is_ok_and(|term| term == "dumb") {
+        return false;
+    }
+    if env::var("FORCE_COLOR").is_ok_and(|value| value != "0" && !value.is_empty()) {
+        return true;
+    }
+    io::stdout().is_terminal()
 }
 
 fn has_help_flag_before_delimiter(args: &[String]) -> bool {
@@ -54,6 +72,62 @@ fn version_text() -> String {
             .or(option_env!("CARGO_PKG_VERSION"))
             .unwrap_or("unknown")
     )
+}
+
+fn format_help(command: Option<&str>, color: bool) -> String {
+    let text = help_text(command);
+    if color {
+        colorize_help(text)
+    } else {
+        text.to_string()
+    }
+}
+
+fn colorize_help(text: &str) -> String {
+    text.lines()
+        .map(colorize_help_line)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn colorize_help_line(line: &str) -> String {
+    const BOLD_CYAN: &str = "\x1b[1;36m";
+    const BOLD_YELLOW: &str = "\x1b[1;33m";
+    const GREEN: &str = "\x1b[32m";
+    const DIM: &str = "\x1b[2m";
+    const RESET: &str = "\x1b[0m";
+
+    if let Some(rest) = line.strip_prefix("Usage:") {
+        return format!("{BOLD_CYAN}Usage:{RESET}{rest}");
+    }
+    if matches!(
+        line,
+        "Commands:" | "Global options:" | "Common options:" | "Examples:"
+    ) {
+        return format!("{BOLD_YELLOW}{line}{RESET}");
+    }
+    if let Some(rest) = line.strip_prefix("  wp-playground-native") {
+        return format!("  {BOLD_CYAN}wp-playground-native{RESET}{rest}");
+    }
+    if let Some(rest) = line.strip_prefix("  package-native-cli") {
+        return format!("  {BOLD_CYAN}package-native-cli{RESET}{rest}");
+    }
+    if let Some(rest) = line.strip_prefix("  ") {
+        if let Some((name, description)) = split_help_row(rest) {
+            if is_command(name) || name.starts_with('-') {
+                return format!("  {GREEN}{name}{RESET}{DIM}{description}{RESET}");
+            }
+        }
+    }
+
+    line.to_string()
+}
+
+fn split_help_row(row: &str) -> Option<(&str, &str)> {
+    let split_at = row
+        .char_indices()
+        .find_map(|(index, _)| row[index..].starts_with("  ").then_some(index))?;
+    Some(row.split_at(split_at))
 }
 
 fn help_text(command: Option<&str>) -> &'static str {
@@ -168,7 +242,7 @@ fn help_text(command: Option<&str>) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{immediate_output, version_text};
+    use super::{format_help, immediate_output, version_text};
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
@@ -176,24 +250,37 @@ mod tests {
 
     #[test]
     fn prints_global_help_and_version_without_runtime_startup() {
-        assert!(immediate_output(&args(&["--help"]))
+        assert!(immediate_output(&args(&[]), false)
+            .unwrap()
+            .contains("Usage: wp-playground-native <command>"));
+        assert!(immediate_output(&args(&["--help"]), false)
             .unwrap()
             .contains("Usage: wp-playground-native <command>"));
         assert_eq!(
-            immediate_output(&args(&["--version"])).unwrap(),
+            immediate_output(&args(&["--version"]), false).unwrap(),
             version_text()
         );
     }
 
     #[test]
     fn prints_command_help_for_known_commands_only() {
-        assert!(immediate_output(&args(&["start", "--help"]))
+        assert!(immediate_output(&args(&["start", "--help"]), false)
             .unwrap()
             .contains("Usage: wp-playground-native start"));
-        assert!(immediate_output(&args(&["start", "--path", ".", "--help"]))
-            .unwrap()
-            .contains("Usage: wp-playground-native start"));
-        assert!(immediate_output(&args(&["unknown", "--help"])).is_none());
-        assert!(immediate_output(&args(&["php", "--", "--help"])).is_none());
+        assert!(
+            immediate_output(&args(&["start", "--path", ".", "--help"]), false)
+                .unwrap()
+                .contains("Usage: wp-playground-native start")
+        );
+        assert!(immediate_output(&args(&["unknown", "--help"]), false).is_none());
+        assert!(immediate_output(&args(&["php", "--", "--help"]), false).is_none());
+    }
+
+    #[test]
+    fn can_colorize_help_output() {
+        let output = format_help(None, true);
+        assert!(output.contains("\x1b[1;36mUsage:\x1b[0m"));
+        assert!(output.contains("\x1b[1;33mCommands:\x1b[0m"));
+        assert!(output.contains("\x1b[32mstart\x1b[0m"));
     }
 }

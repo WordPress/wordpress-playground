@@ -149,7 +149,9 @@ intentionally unsupported rows.
 
 ## CLI help and diagnostics
 
-Use `wp-playground-native --help` for the command list, or
+Running `wp-playground-native` with no command shows the same command list as
+`wp-playground-native --help`. Use `wp-playground-native --help` explicitly when
+you want to be clear, or
 `wp-playground-native <command> --help` for command-specific options and
 examples. Help flags are handled before runtime startup, so these commands do
 not compile PHP wasm or inspect local WordPress assets:
@@ -159,6 +161,9 @@ wp-playground-native --help
 wp-playground-native start --help
 wp-playground-native php --help
 ```
+
+Help output uses ANSI color when stdout is a terminal. Set `NO_COLOR=1` to force
+plain output, or `FORCE_COLOR=1` to force colors in captured output.
 
 The native CLI intentionally favors explicit long options. For example, use
 `--port 9400` rather than `-p 9400`. If a command or option is mistyped, the
