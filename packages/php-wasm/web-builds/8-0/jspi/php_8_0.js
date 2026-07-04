@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 16725015;
+export const dependenciesTotalSize = 13647296;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -5274,33 +5274,6 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 	___syscall_faccessat.sig = 'iipii';
-	var INT53_MAX = 9007199254740992;
-	var INT53_MIN = -9007199254740992;
-	var bigintToI53Checked = (num) =>
-		num < INT53_MIN || num > INT53_MAX ? NaN : Number(num);
-	function ___syscall_fallocate(fd, mode, offset, len) {
-		offset = bigintToI53Checked(offset);
-		len = bigintToI53Checked(len);
-		try {
-			if (isNaN(offset) || isNaN(len)) return -61;
-			if (mode != 0) {
-				return -138;
-			}
-			if (offset < 0 || len < 0) {
-				return -28;
-			}
-			var oldSize = FS.fstat(fd).size;
-			var newSize = offset + len;
-			if (newSize > oldSize) {
-				FS.ftruncate(fd, newSize);
-			}
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fallocate.sig = 'iiijj';
 	function ___syscall_fchmod(fd, mode) {
 		try {
 			FS.fchmod(fd, mode);
@@ -5341,7 +5314,24 @@ export function init(RuntimeName, PHPLoader) {
 		return ret;
 	};
 	var syscallGetVarargP = syscallGetVarargI;
-	function ___syscall_fcntl64(fd, cmd, varargs) {
+	function _fd_close(fd) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fd_close(fd);
+		}
+		return Module['userSpace'].fd_close(fd);
+	}
+	_fd_close.sig = 'ii';
+	function _builtin_fd_close(fd) {
+		try {
+			var stream = SYSCALLS.getStreamFromFD(fd);
+			FS.close(stream);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return e.errno;
+		}
+	}
+	function _builtin_fcntl64(fd, cmd, varargs) {
 		SYSCALLS.varargs = varargs;
 		try {
 			var stream = SYSCALLS.getStreamFromFD(fd);
@@ -5384,6 +5374,12 @@ export function init(RuntimeName, PHPLoader) {
 			return -e.errno;
 		}
 	}
+	function ___syscall_fcntl64(fd, cmd, varargs) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fcntl64(fd, cmd, varargs);
+		}
+		return Module['userSpace'].fcntl64(fd, cmd, varargs);
+	}
 	___syscall_fcntl64.sig = 'iiip';
 	function ___syscall_fstat64(fd, buf) {
 		try {
@@ -5394,6 +5390,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 	___syscall_fstat64.sig = 'iip';
+	var INT53_MAX = 9007199254740992;
+	var INT53_MIN = -9007199254740992;
+	var bigintToI53Checked = (num) =>
+		num < INT53_MIN || num > INT53_MAX ? NaN : Number(num);
 	function ___syscall_ftruncate64(fd, length) {
 		length = bigintToI53Checked(length);
 		try {
@@ -6223,11 +6223,6 @@ export function init(RuntimeName, PHPLoader) {
 		runtimeKeepaliveCounter = 0;
 	};
 	__emscripten_runtime_keepalive_clear.sig = 'v';
-	var __emscripten_system = (command) => {
-		if (!command) return 0;
-		return -52;
-	};
-	__emscripten_system.sig = 'ip';
 	function __gmtime_js(time, tmPtr) {
 		time = bigintToI53Checked(time);
 		var date = new Date(time * 1e3);
@@ -6589,17 +6584,6 @@ export function init(RuntimeName, PHPLoader) {
 		return 0;
 	};
 	_environ_sizes_get.sig = 'ipp';
-	function _fd_close(fd) {
-		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			FS.close(stream);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
-	_fd_close.sig = 'ii';
 	function _fd_fdstat_get(fd, pbuf) {
 		try {
 			var rightsBase = 0;
@@ -6642,52 +6626,6 @@ export function init(RuntimeName, PHPLoader) {
 		}
 		return ret;
 	};
-	function _fd_pread(fd, iov, iovcnt, offset, pnum) {
-		offset = bigintToI53Checked(offset);
-		try {
-			if (isNaN(offset)) return 61;
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			var num = doReadv(stream, iov, iovcnt, offset);
-			HEAPU32[pnum >> 2] = num;
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
-	_fd_pread.sig = 'iippjp';
-	var doWritev = (stream, iov, iovcnt, offset) => {
-		var ret = 0;
-		for (var i = 0; i < iovcnt; i++) {
-			var ptr = HEAPU32[iov >> 2];
-			var len = HEAPU32[(iov + 4) >> 2];
-			iov += 8;
-			var curr = FS.write(stream, HEAP8, ptr, len, offset);
-			if (curr < 0) return -1;
-			ret += curr;
-			if (curr < len) {
-				break;
-			}
-			if (typeof offset != 'undefined') {
-				offset += curr;
-			}
-		}
-		return ret;
-	};
-	function _fd_pwrite(fd, iov, iovcnt, offset, pnum) {
-		offset = bigintToI53Checked(offset);
-		try {
-			if (isNaN(offset)) return 61;
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			var num = doWritev(stream, iov, iovcnt, offset);
-			HEAPU32[pnum >> 2] = num;
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
-	_fd_pwrite.sig = 'iippjp';
 	function _fd_read(fd, iov, iovcnt, pnum) {
 		try {
 			var stream = SYSCALLS.getStreamFromFD(fd);
@@ -6736,6 +6674,24 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_fd_sync.sig = 'ii';
 	_fd_sync.isAsync = true;
+	var doWritev = (stream, iov, iovcnt, offset) => {
+		var ret = 0;
+		for (var i = 0; i < iovcnt; i++) {
+			var ptr = HEAPU32[iov >> 2];
+			var len = HEAPU32[(iov + 4) >> 2];
+			iov += 8;
+			var curr = FS.write(stream, HEAP8, ptr, len, offset);
+			if (curr < 0) return -1;
+			ret += curr;
+			if (curr < len) {
+				break;
+			}
+			if (typeof offset != 'undefined') {
+				offset += curr;
+			}
+		}
+		return ret;
+	};
 	function _fd_write(fd, iov, iovcnt, pnum) {
 		try {
 			var stream = SYSCALLS.getStreamFromFD(fd);
@@ -6967,6 +6923,12 @@ export function init(RuntimeName, PHPLoader) {
 		return result;
 	};
 	_getprotobynumber.sig = 'pi';
+	function _js_flock(fd, op) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return 0;
+		}
+		return Module['userSpace'].flock(fd, op);
+	}
 	function _js_open_process(
 		command,
 		argsPtr,
@@ -7229,6 +7191,12 @@ export function init(RuntimeName, PHPLoader) {
 			return 1;
 		}
 		return 0;
+	}
+	function _js_release_file_locks() {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return;
+		}
+		return Module['userSpace'].js_release_file_locks();
 	}
 	function _js_waitpid(pid, exitCodePtr) {
 		if (!PHPWASM.processTable[pid]) {
@@ -8271,6 +8239,7 @@ export function init(RuntimeName, PHPLoader) {
 		_wasm_read,
 		_feof,
 		_fflush,
+		_flock,
 		_mmap,
 		_closedir,
 		_gettimeofday,
@@ -8336,6 +8305,8 @@ export function init(RuntimeName, PHPLoader) {
 		_wasm_sapi_handle_request,
 		_php_wasm_init,
 		_wasm_free,
+		_wasm_get_end_offset,
+		___wrap_getpid,
 		_wasm_trace,
 		_getentropy,
 		_pthread_cond_signal,
@@ -8357,12 +8328,9 @@ export function init(RuntimeName, PHPLoader) {
 		_modf,
 		_strerror_r,
 		___ctype_get_mb_cur_max,
-		___extenddftf2,
-		___letf2,
-		___floatunditf,
-		_div,
 		___funcs_on_exit,
 		___cxa_atexit,
+		_div,
 		___dl_seterr,
 		__emscripten_find_dylib,
 		_isdigit,
@@ -8373,10 +8341,13 @@ export function init(RuntimeName, PHPLoader) {
 		_emscripten_builtin_memalign,
 		_round,
 		__emscripten_timeout,
+		___extenddftf2,
+		___letf2,
 		_tanhf,
 		_wcstombs,
 		_emscripten_get_sbrk_ptr,
 		___trap,
+		___floatunditf,
 		__emscripten_stack_restore,
 		__emscripten_stack_alloc,
 		_emscripten_stack_get_current,
@@ -8778,6 +8749,7 @@ export function init(RuntimeName, PHPLoader) {
 		_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
 		_feof = Module['_feof'] = wasmExports['feof'];
 		_fflush = Module['_fflush'] = wasmExports['fflush'];
+		_flock = Module['_flock'] = wasmExports['flock'];
 		_mmap = Module['_mmap'] = wasmExports['mmap'];
 		_closedir = Module['_closedir'] = wasmExports['closedir'];
 		_gettimeofday = Module['_gettimeofday'] = wasmExports['gettimeofday'];
@@ -8871,6 +8843,10 @@ export function init(RuntimeName, PHPLoader) {
 			PHPLoader['free'] =
 			Module['_wasm_free'] =
 				wasmExports['wasm_free'];
+		_wasm_get_end_offset = Module['_wasm_get_end_offset'] =
+			wasmExports['wasm_get_end_offset'];
+		___wrap_getpid = Module['___wrap_getpid'] =
+			wasmExports['__wrap_getpid'];
 		_wasm_trace = Module['_wasm_trace'] = wasmExports['wasm_trace'];
 		_getentropy = Module['_getentropy'] = wasmExports['getentropy'];
 		_pthread_cond_signal = Module['_pthread_cond_signal'] =
@@ -8909,14 +8885,9 @@ export function init(RuntimeName, PHPLoader) {
 		_strerror_r = Module['_strerror_r'] = wasmExports['strerror_r'];
 		___ctype_get_mb_cur_max = Module['___ctype_get_mb_cur_max'] =
 			wasmExports['__ctype_get_mb_cur_max'];
-		___extenddftf2 = Module['___extenddftf2'] =
-			wasmExports['__extenddftf2'];
-		___letf2 = Module['___letf2'] = wasmExports['__letf2'];
-		___floatunditf = Module['___floatunditf'] =
-			wasmExports['__floatunditf'];
-		_div = Module['_div'] = wasmExports['div'];
 		___funcs_on_exit = wasmExports['__funcs_on_exit'];
 		___cxa_atexit = Module['___cxa_atexit'] = wasmExports['__cxa_atexit'];
+		_div = Module['_div'] = wasmExports['div'];
 		___dl_seterr = wasmExports['__dl_seterr'];
 		__emscripten_find_dylib = wasmExports['_emscripten_find_dylib'];
 		_isdigit = Module['_isdigit'] = wasmExports['isdigit'];
@@ -8931,10 +8902,15 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['emscripten_builtin_memalign'];
 		_round = Module['_round'] = wasmExports['round'];
 		__emscripten_timeout = wasmExports['_emscripten_timeout'];
+		___extenddftf2 = Module['___extenddftf2'] =
+			wasmExports['__extenddftf2'];
+		___letf2 = Module['___letf2'] = wasmExports['__letf2'];
 		_tanhf = Module['_tanhf'] = wasmExports['tanhf'];
 		_wcstombs = Module['_wcstombs'] = wasmExports['wcstombs'];
 		_emscripten_get_sbrk_ptr = wasmExports['emscripten_get_sbrk_ptr'];
 		___trap = wasmExports['__trap'];
+		___floatunditf = Module['___floatunditf'] =
+			wasmExports['__floatunditf'];
 		__emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];
 		__emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
 		_emscripten_stack_get_current =
@@ -8970,60 +8946,60 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
-	var _file_globals = (Module['_file_globals'] = 12085992);
-	var _sapi_module = (Module['_sapi_module'] = 12031804);
-	var _sapi_globals = (Module['_sapi_globals'] = 12031952);
-	var _compiler_globals = (Module['_compiler_globals'] = 12088240);
-	var _executor_globals = (Module['_executor_globals'] = 12088616);
-	var _zend_compile_string = (Module['_zend_compile_string'] = 12089780);
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 11943924);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11943928);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11943932);
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 11943936);
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 11943940);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11943944);
-	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 11943948);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12086536);
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12086520);
+	var _file_globals = (Module['_file_globals'] = 11427e3);
+	var _sapi_module = (Module['_sapi_module'] = 11373404);
+	var _sapi_globals = (Module['_sapi_globals'] = 11373552);
+	var _compiler_globals = (Module['_compiler_globals'] = 11429248);
+	var _executor_globals = (Module['_executor_globals'] = 11429624);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 11430788);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 11285524);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11285528);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11285532);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 11285536);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 11285540);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11285544);
+	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 11285548);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11427544);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 11427528);
 	var _zend_ce_division_by_zero_error = (Module[
 		'_zend_ce_division_by_zero_error'
-	] = 12086664);
+	] = 11427672);
 	var _zend_ce_unhandled_match_error = (Module[
 		'_zend_ce_unhandled_match_error'
-	] = 12087008);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11942352);
+	] = 11428016);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 11283952);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11942420);
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 11942432);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11601700);
+		11284020);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 11284032);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11076548);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 11935536);
+	var _stdout = (Module['_stdout'] = 11277136);
 	var __playground_zend_side_module_data_exports = (Module[
 		'__playground_zend_side_module_data_exports'
-	] = 11602896);
+	] = 11077744);
 	var __playground_zend_side_module_function_exports = (Module[
 		'__playground_zend_side_module_function_exports'
-	] = 11602992);
-	var _timezone = (Module['_timezone'] = 12124640);
-	var _tzname = (Module['_tzname'] = 12124648);
-	var ___heap_base = 13186960;
+	] = 11077840);
+	var _timezone = (Module['_timezone'] = 11459704);
+	var _tzname = (Module['_tzname'] = 11459712);
+	var ___heap_base = 12521968;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		12138364);
+		11473372);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11935824);
+	] = 11277424);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11935784);
+	] = 11277384);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11935876);
+	] = 11277476);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11935996);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11936072);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11936092);
+	] = 11277596);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11277672);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11277692);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,
@@ -9038,7 +9014,6 @@ export function init(RuntimeName, PHPLoader) {
 		__syscall_dup: ___syscall_dup,
 		__syscall_dup3: ___syscall_dup3,
 		__syscall_faccessat: ___syscall_faccessat,
-		__syscall_fallocate: ___syscall_fallocate,
 		__syscall_fchmod: ___syscall_fchmod,
 		__syscall_fchown32: ___syscall_fchown32,
 		__syscall_fchownat: ___syscall_fchownat,
@@ -9075,7 +9050,6 @@ export function init(RuntimeName, PHPLoader) {
 		_emscripten_lookup_name: __emscripten_lookup_name,
 		_emscripten_runtime_keepalive_clear:
 			__emscripten_runtime_keepalive_clear,
-		_emscripten_system: __emscripten_system,
 		_gmtime_js: __gmtime_js,
 		_localtime_js: __localtime_js,
 		_mktime_js: __mktime_js,
@@ -9094,8 +9068,6 @@ export function init(RuntimeName, PHPLoader) {
 		exit: _exit,
 		fd_close: _fd_close,
 		fd_fdstat_get: _fd_fdstat_get,
-		fd_pread: _fd_pread,
-		fd_pwrite: _fd_pwrite,
 		fd_read: _fd_read,
 		fd_seek: _fd_seek,
 		fd_sync: _fd_sync,
@@ -9105,8 +9077,11 @@ export function init(RuntimeName, PHPLoader) {
 		getprotobyname: _getprotobyname,
 		getprotobynumber: _getprotobynumber,
 		js_fd_read,
+		js_flock: _js_flock,
+		js_getpid: _js_getpid,
 		js_open_process: _js_open_process,
 		js_process_status: _js_process_status,
+		js_release_file_locks: _js_release_file_locks,
 		js_waitpid: _js_waitpid,
 		js_wasm_trace: _js_wasm_trace,
 		proc_exit: _proc_exit,

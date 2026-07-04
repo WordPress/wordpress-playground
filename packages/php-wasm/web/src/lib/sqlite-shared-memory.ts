@@ -41,6 +41,7 @@ type SharedFile = {
 type ResolveStreamPath = (stream: Emscripten.FS.FSStream) => string | undefined;
 type ResolveVfsPath = (path: string) => string;
 
+// Emscripten passes the mmap MAP_PRIVATE flag through from musl's sys/mman.h.
 const MAP_PRIVATE = 2;
 const patchedRuntimes = new WeakSet<object>();
 
@@ -289,12 +290,15 @@ export class SQLiteSharedMemory {
 		incrementVersion: boolean
 	) {
 		this.ensureFileSize(file, mapping.position + mapping.length);
+		let changed = false;
 		for (let i = 0; i < mapping.length; i++) {
-			file.bytes[mapping.position + i] = mapping.heap.get(
-				mapping.ptr + i
-			);
+			const byte = mapping.heap.get(mapping.ptr + i);
+			if (file.bytes[mapping.position + i] !== byte) {
+				file.bytes[mapping.position + i] = byte;
+				changed = true;
+			}
 		}
-		if (incrementVersion) {
+		if (incrementVersion && changed) {
 			file.version++;
 		}
 		mapping.version = file.version;
@@ -306,10 +310,7 @@ export class SQLiteSharedMemory {
 		}
 		this.ensureFileSize(file, mapping.position + mapping.length);
 		for (let i = 0; i < mapping.length; i++) {
-			mapping.heap.set(
-				mapping.ptr + i,
-				file.bytes[mapping.position + i]
-			);
+			mapping.heap.set(mapping.ptr + i, file.bytes[mapping.position + i]);
 		}
 		mapping.version = file.version;
 	}

@@ -1,6 +1,6 @@
 import test, { type Page } from '@playwright/test';
 
-const phpVersion = '8.2';
+const phpVersion = '8.3';
 const successResult = {
 	rows: [
 		{ worker: 1, c: 50 },
