@@ -90,8 +90,26 @@ export class SQLiteSharedMemory {
 	}
 
 	beforeProcessExit(pid: number) {
-		for (const path of this.files.keys()) {
-			this.copyProcessMappingsIntoSharedBytes(pid, path);
+		let firstError: unknown;
+		for (const [path, file] of this.files) {
+			const processMappings = Array.from(file.mappings).filter(
+				(mapping) => mapping.pid === pid
+			);
+			try {
+				for (const mapping of processMappings) {
+					this.copyMappingIntoSharedBytes(mapping);
+				}
+			} catch (e) {
+				firstError ??= e;
+			} finally {
+				for (const mapping of processMappings) {
+					file.mappings.delete(mapping);
+				}
+				this.deleteFileIfNotMapped(path);
+			}
+		}
+		if (firstError !== undefined) {
+			throw firstError;
 		}
 	}
 

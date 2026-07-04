@@ -90,6 +90,7 @@ export async function loadWebRuntime(
 	}
 
 	const phpWasmAsyncMode = (await jspi()) ? 'jspi' : 'asyncify';
+	const isLegacy = isLegacyPHPVersion(phpVersion);
 
 	const suppliedEmscriptenOptions = loaderOptions.emscriptenOptions || {};
 	const suppliedProcessId = suppliedEmscriptenOptions['processId'];
@@ -97,13 +98,27 @@ export async function loadWebRuntime(
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
 		...fakeWebsocket(),
 		...suppliedEmscriptenOptions,
-		processId: suppliedProcessId ?? processIdAllocator.claim(),
-		bindUserSpace:
-			suppliedBindUserSpace ??
-			((context: WasmUserSpaceContext) =>
-				bindUserSpace(fileLockManager, sqliteSharedMemory, context)),
 		phpWasmAsyncMode,
 	};
+	/*
+	 * PHP 5.2 web binaries do not include the fcntl/fd_close wrappers, so
+	 * install the default file-locking user space only where those wrappers
+	 * can call it. Custom bindUserSpace callers still get a process ID.
+	 */
+	if (!isLegacy || suppliedBindUserSpace !== undefined) {
+		emscriptenOptions = {
+			...emscriptenOptions,
+			processId: suppliedProcessId ?? processIdAllocator.claim(),
+			bindUserSpace:
+				suppliedBindUserSpace ??
+				((context: WasmUserSpaceContext) =>
+					bindUserSpace(
+						fileLockManager,
+						sqliteSharedMemory,
+						context
+					)),
+		};
+	}
 
 	if (loaderOptions.tcpOverFetch) {
 		emscriptenOptions = tcpOverFetchWebsocket(
@@ -112,7 +127,6 @@ export async function loadWebRuntime(
 		);
 	}
 
-	const isLegacy = isLegacyPHPVersion(phpVersion);
 	const requestedExtensions = [...(loaderOptions.extensions ?? [])];
 	if (
 		loaderOptions.withIntl &&

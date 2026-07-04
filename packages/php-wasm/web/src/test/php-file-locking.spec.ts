@@ -1,6 +1,7 @@
 import test, { type Page } from '@playwright/test';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.3';
+const phpVersion = RecommendedPHPVersion;
 const successResult = {
 	rows: [
 		{ worker: 1, c: 50 },

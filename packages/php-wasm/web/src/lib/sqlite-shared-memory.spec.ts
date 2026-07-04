@@ -42,6 +42,48 @@ describe('SQLiteSharedMemory', () => {
 		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([1, 2, 3, 4]);
 		expect(reader.heap.set).not.toHaveBeenCalled();
 	});
+
+	it('drops runtime mappings after flushing them on process exit', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const writer = createRuntime(1);
+		const reader = createRuntime(2);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		const writerMapping = mmap(writer.context, path, 4);
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+
+		sharedMemory.beforeProcessExit(writer.context.pid);
+		writer.context.FS.unlink(path);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
+	});
+
+	it('drops runtime mappings when process-exit flushing fails', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const writer = createRuntime(1);
+		const reader = createRuntime(2);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		mmap(writer.context, path, 4);
+		writer.heap.get.mockImplementation(() => {
+			throw new Error('heap is gone');
+		});
+
+		expect(() =>
+			sharedMemory.beforeProcessExit(writer.context.pid)
+		).toThrow('heap is gone');
+		writer.context.FS.unlink(path);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
+	});
 });
 
 type TestStream = {
