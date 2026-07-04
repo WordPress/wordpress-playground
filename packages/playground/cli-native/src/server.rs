@@ -786,9 +786,11 @@ impl RouteCounterContext<'_> {
 }
 
 pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Result<u8> {
+    progress(&config.options, "Preparing mounts");
     let mut mounts = server_mounts(config)?;
     let _document_root = ensure_wordpress_mount(&mut mounts)?;
     ensure_tmp_mount(&mut mounts)?;
+    progress(&config.options, "Preparing WordPress files");
     let prepared = prepare_wordpress(runtime.repo_root(), &config.options, &mounts)?;
     if !prepared.installed_files_available
         && !matches!(
@@ -800,6 +802,15 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
             "WordPress files are not available in {}",
             prepared.document_root.display()
         )));
+    }
+    if prepared.installed_files_available {
+        progress(
+            &config.options,
+            format!(
+                "WordPress files ready at {}",
+                prepared.document_root.display()
+            ),
+        );
     }
 
     let host_options = HostOptions {
@@ -819,6 +830,12 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
         ..HostOptions::default()
     };
     run_listener(config, &mounts, runtime, host_options)
+}
+
+fn progress(options: &CliOptions, message: impl AsRef<str>) {
+    if !matches!(options.verbosity, Verbosity::Quiet) {
+        eprintln!("{}", message.as_ref());
+    }
 }
 
 fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
@@ -926,6 +943,7 @@ fn run_listener(
     runtime: &NativeRuntime,
     mut host_options: HostOptions,
 ) -> Result<u8> {
+    progress(&config.options, "Binding HTTP server");
     let listener = bind_server_listener(config.options.port)?;
     let actual_port = listener
         .local_addr()
@@ -959,10 +977,22 @@ fn run_listener(
         ));
     }
 
+    progress(
+        &config.options,
+        format!("Loading PHP {} runtime", config.options.php),
+    );
     let mut php =
         runtime.instantiate_php_with_host_options(&config.options.php, host_options.clone())?;
 
+    progress(&config.options, "Preparing WordPress database");
     maybe_boot_wordpress_site(mounts, &mut php, actual_port, &config.options)?;
+    progress(&config.options, "WordPress database ready");
+    if !startup_steps.is_empty() {
+        progress(
+            &config.options,
+            format!("Running {} Blueprint startup step(s)", startup_steps.len()),
+        );
+    }
     run_startup_steps(
         &startup_steps,
         mounts,
@@ -972,6 +1002,13 @@ fn run_listener(
     )?;
     let worker_count = requested_worker_count(&config.options);
     let lazy_workers = lazy_worker_pool_enabled(&config.options);
+    let initial_worker_count = if lazy_workers { 1 } else { worker_count };
+    progress(
+        &config.options,
+        format!(
+            "Starting PHP worker pool ({initial_worker_count}/{worker_count} worker(s) ready now)"
+        ),
+    );
     let worker_pool = Arc::new(create_worker_pool(
         runtime,
         &config.options.php,
@@ -987,6 +1024,7 @@ fn run_listener(
     }
 
     if matches!(config.original_command, CommandName::Start) && !config.options.skip_browser {
+        progress(&config.options, "Opening browser");
         let _ = open_browser(&server_url);
     }
 

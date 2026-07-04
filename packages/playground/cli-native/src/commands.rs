@@ -30,8 +30,24 @@ pub fn run(options: CliOptions) -> Result<u8> {
             WasmEngineProfile::FastStartup
         }
     };
+    if !matches!(config.command, RuntimeCommand::Php) {
+        progress(
+            &config.options,
+            format!(
+                "Using PHP {} with WordPress {}",
+                config.options.php, config.options.wp
+            ),
+        );
+        progress(&config.options, "Loading native runtime assets");
+    }
     let runtime = NativeRuntime::from_default_asset_root_with_engine_profile(engine_profile)?;
     runtime.verify_php_asset(&config.options.php)?;
+    if !matches!(config.command, RuntimeCommand::Php) {
+        progress(
+            &config.options,
+            format!("Verified packaged PHP {} wasm asset", config.options.php),
+        );
+    }
 
     match config.command {
         RuntimeCommand::Server => run_native_server(&runtime, &config),
@@ -43,6 +59,12 @@ pub fn run(options: CliOptions) -> Result<u8> {
             }
             run_php_command(&runtime, &config.options)
         }
+    }
+}
+
+fn progress(options: &CliOptions, message: impl AsRef<str>) {
+    if !matches!(options.verbosity, Verbosity::Quiet) {
+        eprintln!("{}", message.as_ref());
     }
 }
 
@@ -59,6 +81,7 @@ fn env_flag(name: &str) -> bool {
 
 fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Result<u8> {
     let mounts = php_mounts(options)?;
+    progress(options, "Preparing WordPress files");
     let prepared = prepare_wordpress(runtime.repo_root(), options, &mounts)?;
     if !prepared.installed_files_available {
         return Err(CliError::new(format!(
@@ -66,6 +89,13 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
             prepared.document_root.display()
         )));
     }
+    progress(
+        options,
+        format!(
+            "WordPress files ready at {}",
+            prepared.document_root.display()
+        ),
+    );
 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
@@ -76,9 +106,18 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
     }
 
     let startup_steps = startup_steps_from_options(options)?;
+    progress(options, format!("Loading PHP {} runtime", options.php));
     let mut php = runtime.instantiate_php_with_host_options(&options.php, host_options.clone())?;
     if should_boot_wordpress_for_php(options) {
+        progress(options, "Preparing WordPress database");
         maybe_boot_wordpress_site(&mounts, &mut php, port, options)?;
+        progress(options, "WordPress database ready");
+    }
+    if !startup_steps.is_empty() {
+        progress(
+            options,
+            format!("Running {} Blueprint startup step(s)", startup_steps.len()),
+        );
     }
     run_startup_steps(&startup_steps, &mounts, &mut php, port, &mut host_options)?;
     if !matches!(options.verbosity, Verbosity::Quiet) {
@@ -93,6 +132,7 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
         .as_ref()
         .ok_or_else(|| CliError::new("The build-snapshot command requires --outfile"))?;
     let mounts = php_mounts(options)?;
+    progress(options, "Preparing WordPress files");
     let prepared = prepare_wordpress(runtime.repo_root(), options, &mounts)?;
     if !prepared.installed_files_available {
         return Err(CliError::new(format!(
@@ -100,6 +140,13 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
             prepared.document_root.display()
         )));
     }
+    progress(
+        options,
+        format!(
+            "WordPress files ready at {}",
+            prepared.document_root.display()
+        ),
+    );
 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
@@ -110,9 +157,18 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
     }
 
     let startup_steps = startup_steps_from_options(options)?;
+    progress(options, format!("Loading PHP {} runtime", options.php));
     let mut php = runtime.instantiate_php_with_host_options(&options.php, host_options.clone())?;
     if should_boot_wordpress_for_php(options) {
+        progress(options, "Preparing WordPress database");
         maybe_boot_wordpress_site(&mounts, &mut php, port, options)?;
+        progress(options, "WordPress database ready");
+    }
+    if !startup_steps.is_empty() {
+        progress(
+            options,
+            format!("Running {} Blueprint startup step(s)", startup_steps.len()),
+        );
     }
     run_startup_steps(&startup_steps, &mounts, &mut php, port, &mut host_options)?;
     let symlink_policy = if options.follow_symlinks {

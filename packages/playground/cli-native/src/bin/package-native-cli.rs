@@ -18,6 +18,7 @@ use wp_playground_native::{
 };
 
 const WORDPRESS_BUILDS_DIR: &str = "packages/playground/wordpress-builds/src/wordpress";
+const PRECOMPILE_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_PACKAGE_PRECOMPILE";
 const PACKAGE_OPTION_NAMES: &[&str] = &[
     "--binary",
     "--asset-root",
@@ -52,6 +53,12 @@ fn run() -> Result<()> {
     if parsed.help {
         print_help();
         return Ok(());
+    }
+
+    if parsed.precompile_requested && !parsed.options.precompile_wasmtime {
+        eprintln!(
+            "warning: --precompile-wasmtime was requested but ignored; set {PRECOMPILE_ENV_VAR}=1 to include target-specific .cwasm assets"
+        );
     }
 
     let summary = package_native_cli(&parsed.options)?;
@@ -188,6 +195,7 @@ struct ParsedArgs {
     smoke_wordpress_server: Option<WordPressServerSmoke>,
     smoke_run_blueprint: Option<WordPressServerSmoke>,
     smoke_build_snapshot: Option<WordPressServerSmoke>,
+    precompile_requested: bool,
     help: bool,
 }
 
@@ -202,7 +210,6 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
         package_name: default_package_name(),
         binary_path: default_release_binary_path(),
         asset_root: asset_root_from_manifest_dir(),
-        precompile_wasmtime: true,
         ..PackageOptions::default()
     };
     let mut smoke_php_versions = Vec::new();
@@ -210,6 +217,7 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
     let mut smoke_run_blueprint = None;
     let mut smoke_build_snapshot = None;
     let mut smoke_wordpress_version = DEFAULT_WP_VERSION.to_string();
+    let mut precompile_requested = false;
     let mut index = 0;
     while index < args.len() {
         let arg = &args[index];
@@ -221,6 +229,7 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
                     smoke_wordpress_server,
                     smoke_run_blueprint,
                     smoke_build_snapshot,
+                    precompile_requested,
                     help: true,
                 });
             }
@@ -236,7 +245,10 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
             "--include-wordpress-assets" => options.include_wordpress_assets = true,
             "--skip-wordpress-assets" => options.include_wordpress_assets = false,
             "--skip-archive" => options.create_archive = false,
-            "--precompile-wasmtime" => options.precompile_wasmtime = true,
+            "--precompile-wasmtime" => {
+                precompile_requested = true;
+                options.precompile_wasmtime = precompile_env_enabled();
+            }
             "--no-precompile-wasmtime" => options.precompile_wasmtime = false,
             "--smoke-php-version" => {
                 smoke_php_versions.push(php_version_value(
@@ -362,8 +374,20 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
         smoke_wordpress_server,
         smoke_run_blueprint,
         smoke_build_snapshot,
+        precompile_requested,
         help: false,
     })
+}
+
+fn precompile_env_enabled() -> bool {
+    env::var(PRECOMPILE_ENV_VAR)
+        .map(|value| {
+            matches!(
+                value.to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
 }
 
 fn php_version_value(args: &[String], index: &mut usize, flag: &str) -> Result<String> {
@@ -412,7 +436,7 @@ fn print_help() {
     println!(
         concat!(
             "Usage: package-native-cli [options]\n\n",
-            "Builds a redistributable wp-playground-native package. By default it includes every supported PHP version, precompiles Wasmtime modules where the target supports it, and omits bundled WordPress release ZIPs.\n\n",
+            "Builds a redistributable wp-playground-native package. By default it includes every supported PHP version, packages wasm for runtime compilation, and omits bundled WordPress release ZIPs.\n\n",
             "Options:\n",
             "  --binary <path>              Release wp-playground-native binary to package\n",
             "  --asset-root <path>          Source asset root, defaults to repository root\n",
@@ -421,8 +445,9 @@ fn print_help() {
             "  --php-version <version>      Include only this PHP version; repeatable\n",
             "                               Omit to package all supported PHP versions.\n",
             "                               Runtime variants come from the packaged manifest.\n",
-            "  --precompile-wasmtime        Generate target-specific Wasmtime .cwasm assets\n",
-            "  --no-precompile-wasmtime     Copy wasm assets without target-specific precompile\n",
+            "  --precompile-wasmtime        Also generate target-specific Wasmtime .cwasm assets\n",
+            "                               Requires WP_PLAYGROUND_NATIVE_PACKAGE_PRECOMPILE=1.\n",
+            "  --no-precompile-wasmtime     Copy wasm assets without target-specific precompile (default)\n",
             "  --include-wordpress-assets   Copy bundled WordPress release ZIPs for offline startup\n",
             "  --skip-wordpress-assets      Do not copy bundled WordPress release ZIPs (default)\n",
             "  --skip-archive               Create package directory only\n",
@@ -438,7 +463,7 @@ fn print_help() {
             "  -h, --help                   Show this help\n\n",
             "Examples:\n",
             "  package-native-cli --binary target/release/wp-playground-native --out-dir /tmp --name wp-playground-native-local\n",
-            "  package-native-cli --php-version=8.5 --no-precompile-wasmtime --smoke-php-version=8.5"
+            "  package-native-cli --php-version=8.5 --precompile-wasmtime --smoke-php-version=8.5"
         )
     );
 }
@@ -629,19 +654,20 @@ mod tests {
     }
 
     #[test]
-    fn precompiles_wasmtime_assets_by_default_and_can_disable_it() {
+    fn packages_wasm_only_by_default_and_can_enable_precompile() {
         let parsed = parse_args(Vec::new()).unwrap();
-        assert!(parsed.options.precompile_wasmtime);
+        assert!(!parsed.options.precompile_wasmtime);
 
-        let parsed = parse_args(vec!["--no-precompile-wasmtime".to_string()]).unwrap();
+        let parsed = parse_args(vec!["--precompile-wasmtime".to_string()]).unwrap();
+        assert!(parsed.precompile_requested);
         assert!(!parsed.options.precompile_wasmtime);
 
         let parsed = parse_args(vec![
-            "--no-precompile-wasmtime".to_string(),
             "--precompile-wasmtime".to_string(),
+            "--no-precompile-wasmtime".to_string(),
         ])
         .unwrap();
-        assert!(parsed.options.precompile_wasmtime);
+        assert!(!parsed.options.precompile_wasmtime);
     }
 
     #[test]

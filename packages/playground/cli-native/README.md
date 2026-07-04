@@ -207,7 +207,7 @@ resolved relative to that asset root, so release archives must include the PHP
 wasm files and SQLite integration ZIPs at the paths referenced by the manifest
 and native asset loaders. Native packages do not copy PHP JavaScript loader
 files; those remain part of the shared PHP wasm manifest shape, but the native
-runtime only needs the wasm and optional Wasmtime precompiled module files.
+runtime only needs the wasm files.
 
 The native runtime dispatches PHP according to the runtime selected in the
 packaged asset manifest. Runtime variants are artifact choices, not startup
@@ -242,14 +242,15 @@ cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --
 The package helper writes `bin/wp-playground-native` plus
 `share/wp-playground-native`, then creates a ZIP archive and a matching
 `.zip.sha256` checksum sidecar. By default it includes PHP wasm assets, optional
-Wasmtime `.cwasm` assets, and the SQLite integration ZIP required for default
-WordPress startup. It does not include WordPress release ZIPs; WordPress releases
-are downloaded into the normal cache on demand. Add `--include-wordpress-assets`
-only when intentionally building a larger offline package with bundled
-WordPress release ZIPs. WordPress package smokes build a temporary offline smoke
-package outside the requested output directory when the requested package does
-not include those release ZIPs. Package smokes verify the checksum, extract the
-archive, disable source-tree fallback with
+Wasmtime `.cwasm` assets only when `--precompile-wasmtime` is passed with
+`WP_PLAYGROUND_NATIVE_PACKAGE_PRECOMPILE=1`, and the SQLite integration ZIP
+required for default WordPress startup. It does not include WordPress release
+ZIPs; WordPress releases are downloaded into the normal cache on demand. Add
+`--include-wordpress-assets` only when intentionally building a larger offline
+package with bundled WordPress release ZIPs. WordPress package smokes build a
+temporary offline smoke package outside the requested output directory when the
+requested package does not include those release ZIPs. Package smokes verify the
+checksum, extract the archive, disable source-tree fallback with
 `WP_PLAYGROUND_NATIVE_DISABLE_SOURCE_FALLBACK=1`, and runs `php -v` from the
 extracted binary:
 
@@ -258,10 +259,13 @@ cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --
 ```
 
 The generated `package-manifest.json` records `wasmtimePrecompile.requested`,
-`wasmtimePrecompile.supported`, and `wasmtimePrecompile.skippedReason`. Windows
-ARM64 currently reports precompile as unsupported and ships source `.wasm` files
-for runtime compilation; other release targets include generated `.wasm.cwasm`
-files when precompile is requested.
+`wasmtimePrecompile.supported`, and `wasmtimePrecompile.skippedReason`.
+Precompile is opt-in because `.wasm.cwasm` files substantially increase archive
+and unpacked package size. Set `WP_PLAYGROUND_NATIVE_PACKAGE_PRECOMPILE=1` and
+pass `--precompile-wasmtime` to build a larger package with target-specific
+precompiled modules. Windows ARM64 currently reports precompile as unsupported
+and ships source `.wasm` files for runtime compilation even when precompile is
+requested.
 
 The WordPress package smoke extracts the archive, starts the extracted binary as
 a server, fetches the installed WordPress homepage, verifies SQLite database
