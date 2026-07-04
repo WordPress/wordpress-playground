@@ -56,12 +56,12 @@ async function compileBlueprintV2ForExecution(
 	input: Blueprint | BlueprintBundle,
 	declaration: BlueprintV2Declaration
 ): Promise<CompiledBlueprintForExecution> {
-	if (isBlueprintBundle(input)) {
-		throw new Error(
-			'Blueprint v2 bundles are not supported by compileBlueprintForExecution() yet.'
-		);
-	}
-	const compiled = await compileBlueprintV2(declaration);
+	const compiled = await compileBlueprintV2(
+		declaration,
+		isBlueprintBundle(input)
+			? { streamBundledFile: (...args: [any]) => input.read(...args) }
+			: {}
+	);
 	return {
 		version: 2,
 		declaration,

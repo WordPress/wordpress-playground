@@ -3,7 +3,10 @@ import { joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
-import { compileBlueprintV1 } from '../v1/compile';
+import {
+	compileBlueprintV1,
+	type CompileBlueprintV1Options,
+} from '../v1/compile';
 import type { BlueprintV1Declaration } from '../v1/types';
 import type {
 	InstallPluginOptions,
@@ -166,16 +169,23 @@ export type CompiledBlueprintV2 = {
 	run: (playground: UniversalPHP) => Promise<void>;
 };
 
+export type CompileBlueprintV2Options = Pick<
+	CompileBlueprintV1Options,
+	'streamBundledFile'
+>;
+
 /**
  * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
  * understand today.
  *
- * This does not make v2 plans runnable yet. It resolves runtime options, creates
- * an ordered v2 execution plan, and lowers the supported plan items into v1 step
- * records so later PRs can wire those records into the existing runner.
+ * It resolves runtime options, creates an ordered v2 execution plan, and lowers
+ * supported plan items into v1 step records. Fully lowered plans run through the
+ * existing v1 runner; unsupported items stay visible and block execution before
+ * any partial work is applied.
  */
 export async function compileBlueprintV2(
-	declaration: BlueprintV2Declaration
+	declaration: BlueprintV2Declaration,
+	options: CompileBlueprintV2Options = {}
 ): Promise<CompiledBlueprintV2> {
 	const runtime = await resolveRuntimeConfiguration(declaration);
 	const plan = createBlueprintV2ExecutionPlan(declaration);
@@ -198,7 +208,7 @@ export async function compileBlueprintV2(
 					getUnsupportedPlanMessage(unsupportedPlan)
 				);
 			}
-			const v1Runner = await compileBlueprintV1(v1Blueprint);
+			const v1Runner = await compileBlueprintV1(v1Blueprint, options);
 			await v1Runner.run(playground);
 		},
 	};
