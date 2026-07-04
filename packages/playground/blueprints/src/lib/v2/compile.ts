@@ -64,6 +64,16 @@ type BlueprintV2DataReference =
 type BlueprintV2InlineDirectory = {
 	files: Record<string, string | BlueprintV2InlineDirectory>;
 };
+type BlueprintV2InstallAssetDefinition = {
+	source: BlueprintV2DataReference;
+	active?: boolean;
+	activationOptions?: Record<string, unknown>;
+	ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
+	importStarterContent?: boolean;
+	targetDirectoryName?: string;
+	onError?: 'skip-plugin' | 'skip-theme' | 'throw';
+	humanReadableName?: string;
+};
 
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
 export type BlueprintV2StepPlan = StepDefinition[];
@@ -503,17 +513,20 @@ function createInstallThemeStep(
 	} as StepDefinition;
 }
 
-function normalizeAssetDefinition(asset: any) {
+function normalizeAssetDefinition(
+	asset: BlueprintV2Plugin | BlueprintV2Theme | BlueprintV2ActiveTheme
+): BlueprintV2InstallAssetDefinition {
 	if (
 		asset &&
 		typeof asset === 'object' &&
+		'source' in asset &&
 		!isInlineFile(asset) &&
 		!isInlineDirectory(asset) &&
 		!isGitPath(asset)
 	) {
-		return asset;
+		return asset as BlueprintV2InstallAssetDefinition;
 	}
-	return { source: asset };
+	return { source: asset as BlueprintV2DataReference };
 }
 
 function convertV2DataReferenceToV1(
@@ -578,8 +591,11 @@ function convertV2DataReferenceToV1(
 }
 
 function toPlaygroundPath(path: string): string {
-	if (typeof path !== 'string' || path.length === 0) {
-		return '/wordpress';
+	if (typeof path !== 'string' || path.trim() === '') {
+		throw new UnsupportedBlueprintV2FeatureError(
+			'path',
+			'Invalid Blueprint v2 path: must not be empty.'
+		);
 	}
 	if (pathContainsParentDirectorySegment(path)) {
 		throw new UnsupportedBlueprintV2FeatureError(
@@ -606,6 +622,8 @@ function isHttpUrl(value: string) {
 }
 
 function isExecutionContextPath(value: string) {
+	// The Blueprint v2 schema defines both "./" and "/" as paths in the
+	// Blueprint Execution Context. "/" is chrooted there, not in WordPress.
 	return (
 		(value.startsWith('./') || value.startsWith('/')) &&
 		!pathContainsParentDirectorySegment(
@@ -686,12 +704,18 @@ function isGitPath(value: any): value is {
 function inlineDirectoryFilesToFileTree(
 	files: Record<string, string | BlueprintV2InlineDirectory>
 ): FileTree {
-	return Object.fromEntries(
-		Object.entries(files).map(([path, content]) => {
-			if (typeof content === 'string') {
-				return [path, content];
-			}
-			return [path, inlineDirectoryFilesToFileTree(content.files)];
-		})
-	);
+	const fileTree: FileTree = {};
+	for (const [path, content] of Object.entries(files)) {
+		const value =
+			typeof content === 'string'
+				? content
+				: inlineDirectoryFilesToFileTree(content.files);
+		Object.defineProperty(fileTree, path, {
+			value,
+			enumerable: true,
+			configurable: true,
+			writable: true,
+		});
+	}
+	return fileTree;
 }

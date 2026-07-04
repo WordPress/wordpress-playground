@@ -429,6 +429,70 @@ describe('compileBlueprintForExecution', () => {
 		).toEqual(['importMedia', 'runStep']);
 	});
 
+	it('rejects empty Blueprint v2 target-site paths', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'rm',
+						path: '',
+					},
+				],
+			} as BlueprintV2Declaration)
+		).rejects.toThrow('Invalid Blueprint v2 path: must not be empty.');
+	});
+
+	it('treats absolute data paths as Blueprint execution-context paths', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: '/plugins/local-plugin.zip',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'bundled',
+				path: 'plugins/local-plugin.zip',
+			},
+		});
+	});
+
+	it('preserves special inline directory filenames as plain file entries', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'inline-plugin',
+						files: {
+							['__proto__']: 'not a prototype',
+						},
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		const pluginData = (compiled.compiled.steps[0] as any).pluginData;
+		expect(
+			Object.prototype.hasOwnProperty.call(pluginData.files, '__proto__')
+		).toBe(true);
+		expect(pluginData.files.__proto__).toBe('not a prototype');
+		expect(Object.getPrototypeOf(pluginData.files)).toBe(Object.prototype);
+	});
+
 	it('rejects running Blueprint v2 plans until plan items are wired', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
