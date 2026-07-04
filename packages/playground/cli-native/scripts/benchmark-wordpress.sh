@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 CLI_DIR="$REPO_ROOT/packages/playground/cli-native"
 
-PHP_VERSION="${PHP_VERSION:-8.5}"
+PHP_VERSION="${PHP_VERSION:-8.3}"
 WP_VERSION="${WP_VERSION:-6.9}"
 SAMPLES="${SAMPLES:-8}"
 WARMUPS="${WARMUPS:-2}"
@@ -43,7 +43,7 @@ bootstrap comparable WordPress sites, then measure these routes:
   /, /?s=hello, /?p=1, /wp-admin/post-new.php
 
 Environment:
-  PHP_VERSION=8.5
+  PHP_VERSION=8.3
   WP_VERSION=6.9
   SAMPLES=8
   WARMUPS=2

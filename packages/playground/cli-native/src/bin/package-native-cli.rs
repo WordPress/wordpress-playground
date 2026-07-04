@@ -7,6 +7,7 @@ use std::{
 
 use wp_playground_native::{
     args::{DEFAULT_WP_VERSION, SUPPORTED_PHP_VERSIONS},
+    assets::{load_php_assets_manifest, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH},
     packaging::{
         default_package_name, default_release_binary_path, package_native_cli,
         run_packaged_build_snapshot_smoke, run_packaged_php_smoke,
@@ -78,6 +79,7 @@ fn run() -> Result<()> {
     if let Some(manifest_path) = &summary.archive_manifest_path {
         println!("archive-manifest: {}", manifest_path.display());
     }
+    let packaged_php_versions = packaged_php_versions(&summary)?;
     let has_wordpress_smokes = parsed.smoke_wordpress_server.is_some()
         || parsed.smoke_run_blueprint.is_some()
         || parsed.smoke_build_snapshot.is_some();
@@ -91,53 +93,61 @@ fn run() -> Result<()> {
         let wordpress_smoke_summary = wordpress_smoke_summary.as_ref().unwrap_or(&summary);
 
         for version in parsed.smoke_php_versions {
-            run_packaged_php_smoke(&summary, &version)?;
+            let smoke_php_version =
+                resolve_smoke_php_version(&packaged_php_versions, &version, "--smoke-php-version")?;
+            run_packaged_php_smoke(&summary, &smoke_php_version)?;
             println!("smoke: php {version} ok");
         }
         if let Some(smoke) = parsed.smoke_wordpress_server {
+            let smoke_php_version = resolve_smoke_php_version(
+                &packaged_php_versions,
+                &smoke.php_version,
+                "--smoke-wordpress-server",
+            )?;
             let wordpress_version = resolve_smoke_wordpress_version(
                 &wordpress_smoke_summary.asset_root,
                 &smoke.wordpress_version,
             )?;
             run_packaged_wordpress_server_smoke(
                 wordpress_smoke_summary,
-                &smoke.php_version,
+                &smoke_php_version,
                 &wordpress_version,
             )?;
-            println!(
-                "smoke: wordpress server php {} wp {} ok",
-                smoke.php_version, wordpress_version
-            );
+            println_smoke_result("wordpress server", &smoke.php_version, &wordpress_version);
         }
         if let Some(smoke) = parsed.smoke_run_blueprint {
+            let smoke_php_version = resolve_smoke_php_version(
+                &packaged_php_versions,
+                &smoke.php_version,
+                "--smoke-run-blueprint",
+            )?;
             let wordpress_version = resolve_smoke_wordpress_version(
                 &wordpress_smoke_summary.asset_root,
                 &smoke.wordpress_version,
             )?;
             run_packaged_run_blueprint_smoke(
                 wordpress_smoke_summary,
-                &smoke.php_version,
+                &smoke_php_version,
                 &wordpress_version,
             )?;
-            println!(
-                "smoke: run-blueprint php {} wp {} ok",
-                smoke.php_version, wordpress_version
-            );
+            println_smoke_result("run-blueprint", &smoke.php_version, &wordpress_version);
         }
         if let Some(smoke) = parsed.smoke_build_snapshot {
+            let smoke_php_version = resolve_smoke_php_version(
+                &packaged_php_versions,
+                &smoke.php_version,
+                "--smoke-build-snapshot",
+            )?;
             let wordpress_version = resolve_smoke_wordpress_version(
                 &wordpress_smoke_summary.asset_root,
                 &smoke.wordpress_version,
             )?;
             run_packaged_build_snapshot_smoke(
                 wordpress_smoke_summary,
-                &smoke.php_version,
+                &smoke_php_version,
                 &wordpress_version,
             )?;
-            println!(
-                "smoke: build-snapshot php {} wp {} ok",
-                smoke.php_version, wordpress_version
-            );
+            println_smoke_result("build-snapshot", &smoke.php_version, &wordpress_version);
         }
         Ok(())
     })();
@@ -149,6 +159,41 @@ fn run() -> Result<()> {
     }
 
     smoke_result
+}
+
+fn packaged_php_versions(summary: &PackageSummary) -> Result<Vec<String>> {
+    let manifest = load_php_assets_manifest(
+        &summary
+            .asset_root
+            .join(SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH),
+    )?;
+    Ok(manifest
+        .php
+        .iter()
+        .map(|asset| asset.version.clone())
+        .collect())
+}
+
+fn resolve_smoke_php_version(
+    packaged_php_versions: &[String],
+    requested: &str,
+    flag: &str,
+) -> Result<String> {
+    if packaged_php_versions
+        .iter()
+        .any(|version| version == requested)
+    {
+        return Ok(requested.to_string());
+    }
+
+    Err(CliError::new(format!(
+        "{flag} requested PHP {requested}, but this package contains PHP versions: {}",
+        packaged_php_versions.join(", ")
+    )))
+}
+
+fn println_smoke_result(smoke_name: &str, php_version: &str, wordpress_version: &str) {
+    println!("smoke: {smoke_name} php {php_version} wp {wordpress_version} ok");
 }
 
 fn package_wordpress_smoke_assets(options: &PackageOptions) -> Result<PackageSummary> {
@@ -251,27 +296,23 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
             }
             "--no-precompile-wasmtime" => options.precompile_wasmtime = false,
             "--smoke-php-version" => {
-                smoke_php_versions.push(php_version_value(
-                    &args,
-                    &mut index,
-                    "--smoke-php-version",
-                )?);
+                smoke_php_versions.push(value(&args, &mut index, "--smoke-php-version")?);
             }
             "--smoke-wordpress-server" => {
                 smoke_wordpress_server = Some(WordPressServerSmoke {
-                    php_version: php_version_value(&args, &mut index, "--smoke-wordpress-server")?,
+                    php_version: value(&args, &mut index, "--smoke-wordpress-server")?,
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
             "--smoke-run-blueprint" => {
                 smoke_run_blueprint = Some(WordPressServerSmoke {
-                    php_version: php_version_value(&args, &mut index, "--smoke-run-blueprint")?,
+                    php_version: value(&args, &mut index, "--smoke-run-blueprint")?,
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
             "--smoke-build-snapshot" => {
                 smoke_build_snapshot = Some(WordPressServerSmoke {
-                    php_version: php_version_value(&args, &mut index, "--smoke-build-snapshot")?,
+                    php_version: value(&args, &mut index, "--smoke-build-snapshot")?,
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
@@ -307,39 +348,23 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
                 )?);
             }
             _ if arg.starts_with("--smoke-php-version=") => {
-                smoke_php_versions.push(php_version_after_equals(
-                    arg,
-                    "--smoke-php-version=",
-                    "--smoke-php-version",
-                )?);
+                smoke_php_versions.push(value_after_equals(arg, "--smoke-php-version="));
             }
             _ if arg.starts_with("--smoke-wordpress-server=") => {
                 smoke_wordpress_server = Some(WordPressServerSmoke {
-                    php_version: php_version_after_equals(
-                        arg,
-                        "--smoke-wordpress-server=",
-                        "--smoke-wordpress-server",
-                    )?,
+                    php_version: value_after_equals(arg, "--smoke-wordpress-server="),
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
             _ if arg.starts_with("--smoke-run-blueprint=") => {
                 smoke_run_blueprint = Some(WordPressServerSmoke {
-                    php_version: php_version_after_equals(
-                        arg,
-                        "--smoke-run-blueprint=",
-                        "--smoke-run-blueprint",
-                    )?,
+                    php_version: value_after_equals(arg, "--smoke-run-blueprint="),
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
             _ if arg.starts_with("--smoke-build-snapshot=") => {
                 smoke_build_snapshot = Some(WordPressServerSmoke {
-                    php_version: php_version_after_equals(
-                        arg,
-                        "--smoke-build-snapshot=",
-                        "--smoke-build-snapshot",
-                    )?,
+                    php_version: value_after_equals(arg, "--smoke-build-snapshot="),
                     wordpress_version: smoke_wordpress_version.clone(),
                 });
             }
@@ -463,7 +488,8 @@ fn print_help() {
             "  -h, --help                   Show this help\n\n",
             "Examples:\n",
             "  package-native-cli --binary target/release/wp-playground-native --out-dir /tmp --name wp-playground-native-local\n",
-            "  package-native-cli --php-version=8.5 --precompile-wasmtime --smoke-php-version=8.5"
+            "  package-native-cli --smoke-php-version=7.4 --smoke-php-version=8.5\n",
+            "  package-native-cli --php-version=8.5 --smoke-php-version=8.5"
         )
     );
 }
@@ -569,7 +595,10 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{parse_args, resolve_smoke_wordpress_version, WORDPRESS_BUILDS_DIR};
+    use super::{
+        parse_args, resolve_smoke_php_version, resolve_smoke_wordpress_version,
+        WORDPRESS_BUILDS_DIR,
+    };
 
     #[test]
     fn parses_build_snapshot_smoke_and_updates_wordpress_version() {
@@ -585,11 +614,11 @@ mod tests {
         let parsed = parse_args(vec![
             "--smoke-wordpress-version=6.7".to_string(),
             "--smoke-build-snapshot".to_string(),
-            "8.4".to_string(),
+            "8.3".to_string(),
         ])
         .unwrap();
         let smoke = parsed.smoke_build_snapshot.unwrap();
-        assert_eq!(smoke.php_version, "8.4");
+        assert_eq!(smoke.php_version, "8.3");
         assert_eq!(smoke.wordpress_version, "6.7");
     }
 
@@ -597,6 +626,7 @@ mod tests {
     fn defaults_wordpress_smokes_to_latest() {
         let parsed = parse_args(vec!["--smoke-wordpress-server=8.3".to_string()]).unwrap();
         let smoke = parsed.smoke_wordpress_server.unwrap();
+        assert_eq!(smoke.php_version, "8.3");
         assert_eq!(smoke.wordpress_version, "latest");
         assert!(!parsed.options.include_wordpress_assets);
     }
@@ -617,24 +647,35 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_php_package_and_smoke_versions() {
-        for args in [
-            vec!["--php-version=5.2"],
-            vec!["--smoke-php-version=5.2"],
-            vec!["--smoke-wordpress-server=5.2"],
-            vec!["--smoke-run-blueprint=5.2"],
-            vec!["--smoke-build-snapshot=5.2"],
-        ] {
-            let error = parse_args(args.iter().map(|arg| arg.to_string()).collect())
-                .unwrap_err()
-                .to_string();
+    fn rejects_unsupported_php_package_versions() {
+        let error = parse_args(vec!["--php-version=5.2".to_string()])
+            .unwrap_err()
+            .to_string();
 
-            assert!(error.contains("unsupported PHP version `5.2`"), "{error}");
-            assert!(
-                error.contains("Supported versions: 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5"),
-                "{error}"
-            );
-        }
+        assert!(error.contains("unsupported PHP version `5.2`"), "{error}");
+        assert!(
+            error.contains("Supported versions: 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_smoke_php_versions_not_in_package() {
+        let packaged = vec!["8.5".to_string()];
+
+        assert_eq!(
+            resolve_smoke_php_version(&packaged, "8.5", "--smoke-php-version").unwrap(),
+            "8.5"
+        );
+
+        let error = resolve_smoke_php_version(&packaged, "8.3", "--smoke-wordpress-server")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("--smoke-wordpress-server requested PHP 8.3"),
+            "{error}"
+        );
+        assert!(error.contains("PHP versions: 8.5"), "{error}");
     }
 
     #[test]
@@ -690,7 +731,7 @@ mod tests {
     fn keeps_wordpress_smokes_from_forcing_wordpress_release_assets() {
         let parsed = parse_args(vec![
             "--skip-wordpress-assets".to_string(),
-            "--smoke-wordpress-server=8.3".to_string(),
+            "--smoke-wordpress-server=8.5".to_string(),
         ])
         .unwrap();
 

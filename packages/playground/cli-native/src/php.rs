@@ -2245,9 +2245,9 @@ mod tests {
 
     #[test]
     #[ignore = "Full PHP wasm instantiation is an explicit smoke test."]
-    fn real_php83_exports_are_resolvable_with_stub_host() {
+    fn real_php85_exports_are_resolvable_with_stub_host() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
-        let mut php = runtime.instantiate_php_with_stub_host("8.3").unwrap();
+        let mut php = runtime.instantiate_php_with_stub_host("8.5").unwrap();
 
         let ini = php.write_c_string("/internal/shared/php.ini").unwrap();
         let sapi = php.write_c_string("cli").unwrap();
@@ -2258,7 +2258,7 @@ mod tests {
 
     #[test]
     #[ignore = "Full PHP wasm time execution is an explicit smoke test."]
-    fn real_php83_cli_date_time_helpers_use_native_host_imports() {
+    fn real_php85_cli_date_time_helpers_use_native_host_imports() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2292,11 +2292,11 @@ echo json_encode(array(
         )
         .unwrap();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&["php".to_string(), script_path.to_string_lossy().to_string()])
@@ -2341,7 +2341,7 @@ echo json_encode(array(
 
     #[test]
     #[ignore = "Full PHP wasm SAPI execution is an explicit smoke test."]
-    fn real_php83_sapi_request_captures_body_and_headers() {
+    fn real_php85_sapi_request_captures_body_and_headers() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2368,11 +2368,11 @@ echo file_get_contents('php://input');
         request.content_type = Some("text/plain".to_string());
         request.body = b"payload".to_vec();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let response = php.run_sapi_request(&request).unwrap();
         let imports = php.recent_host_imports(120);
@@ -2406,7 +2406,7 @@ echo file_get_contents('php://input');
         );
     }
 
-    fn php83_host_options_with_tmp_opcache_fixture(temp_dir: &std::path::Path) -> HostOptions {
+    fn php85_host_options_with_tmp_opcache_fixture(temp_dir: &std::path::Path) -> HostOptions {
         fs::create_dir_all(temp_dir.join("opcache")).unwrap();
         HostOptions {
             echo_output: false,
@@ -2420,7 +2420,7 @@ echo file_get_contents('php://input');
 
     #[test]
     #[ignore = "Full PHP wasm outbound HTTP execution is an explicit smoke test."]
-    fn real_php83_cli_fetches_loopback_http_url() {
+    fn real_php85_cli_fetches_loopback_http_url() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = std::thread::spawn(move || {
@@ -2449,11 +2449,11 @@ echo file_get_contents('php://input');
         )
         .unwrap();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&["php".to_string(), script_path.to_string_lossy().to_string()])
@@ -2481,7 +2481,7 @@ echo file_get_contents('php://input');
 
     #[test]
     #[ignore = "Full PHP wasm outbound HTTPS execution is an explicit smoke test."]
-    fn real_php83_cli_fetches_https_url_with_streams_and_curl() {
+    fn real_php85_cli_fetches_https_url_with_streams_and_curl() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2519,11 +2519,11 @@ echo 'native-https-ok';
         )
         .unwrap();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&["php".to_string(), script_path.to_string_lossy().to_string()])
@@ -2550,7 +2550,7 @@ echo 'native-https-ok';
 
     #[test]
     #[ignore = "Full PHP wasm nonblocking networking execution is an explicit smoke test."]
-    fn real_php83_cli_nonblocking_stream_select_and_curl_multi_select() {
+    fn real_php85_cli_nonblocking_stream_select_and_curl_multi_select() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         listener.set_nonblocking(true).unwrap();
         let port = listener.local_addr().unwrap().port();
@@ -2728,11 +2728,11 @@ echo 'native-nonblocking-ok';
         )
         .unwrap();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&[
@@ -2770,7 +2770,7 @@ echo 'native-nonblocking-ok';
 
     #[test]
     #[ignore = "Full PHP wasm TCP server socket execution is an explicit smoke test."]
-    fn real_php83_cli_stream_socket_server_accepts_loopback_client() {
+    fn real_php85_cli_stream_socket_server_accepts_loopback_client() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2829,11 +2829,11 @@ echo "native-server-ok:$request";
             assert_eq!(&response, b"pong");
         });
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&temp_dir);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&temp_dir);
         host_options.allowed_host_paths.push(script_path.clone());
         host_options.allowed_host_paths.push(temp_dir.clone());
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&[
@@ -2872,7 +2872,7 @@ echo "native-server-ok:$request";
     #[cfg(unix)]
     #[test]
     #[ignore = "Full PHP wasm symlink execution is an explicit smoke test."]
-    fn real_php83_cli_readlink_target_is_usable_with_follow_symlinks() {
+    fn real_php85_cli_readlink_target_is_usable_with_follow_symlinks() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2887,14 +2887,14 @@ echo "native-server-ok:$request";
         fs::write(external_root.join("document.txt"), b"symlink-ok").unwrap();
         std::os::unix::fs::symlink(&external_root, host_root.join("linked-dir")).unwrap();
 
-        let mut host_options = php83_host_options_with_tmp_opcache_fixture(&host_root);
+        let mut host_options = php85_host_options_with_tmp_opcache_fixture(&host_root);
         host_options.follow_symlinks = true;
         host_options.mounts.push(HostMount {
             host_path: host_root.clone(),
             vfs_path: "/wordpress".to_string(),
         });
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
         let exit_code = php
             .run_cli_session(&[

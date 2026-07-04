@@ -876,7 +876,7 @@ impl HostState {
             constants_json(&options.string_constants).into(),
         );
 
-        let resolved_mounts = options
+        let mut resolved_mounts: Vec<ResolvedHostMount> = options
             .mounts
             .iter()
             .map(|mount| ResolvedHostMount {
@@ -887,6 +887,7 @@ impl HostState {
                     .unwrap_or_else(|_| mount.vfs_path.clone()),
             })
             .collect();
+        resolved_mounts.sort_by_key(|mount| std::cmp::Reverse(mount.vfs_path.len()));
         let canonical_allowed_host_paths = options
             .allowed_host_paths
             .iter()
@@ -13752,6 +13753,48 @@ mod tests {
 
         let _ = fs::remove_dir_all(wordpress_root);
         let _ = fs::remove_dir_all(plugin_root);
+    }
+
+    #[test]
+    fn overlapping_mount_create_uses_deepest_vfs_mount() {
+        let parent_root = temp_dir("mount-overlap-parent");
+        let child_root = temp_dir("mount-overlap-child");
+        fs::create_dir_all(parent_root.join("sub")).unwrap();
+        fs::write(child_root.join("existing.txt"), b"child").unwrap();
+
+        let state = HostState::new(HostOptions {
+            mounts: vec![
+                HostMount {
+                    host_path: parent_root.clone(),
+                    vfs_path: "/data".to_string(),
+                },
+                HostMount {
+                    host_path: child_root.clone(),
+                    vfs_path: "/data/sub".to_string(),
+                },
+            ],
+            ..HostOptions::default()
+        });
+
+        assert_eq!(
+            state.resolve_host_path("/data/sub/existing.txt").unwrap(),
+            fs::canonicalize(child_root.join("existing.txt")).unwrap()
+        );
+        assert_eq!(
+            state
+                .resolve_host_path_for_open("/data/sub/new.txt", true)
+                .unwrap(),
+            child_root.join("new.txt")
+        );
+        assert_eq!(
+            state
+                .resolve_host_path_for_open("/data/root.txt", true)
+                .unwrap(),
+            parent_root.join("root.txt")
+        );
+
+        let _ = fs::remove_dir_all(parent_root);
+        let _ = fs::remove_dir_all(child_root);
     }
 
     #[test]

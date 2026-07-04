@@ -1371,7 +1371,7 @@ mod tests {
         match option {
             "--path" => argv.push("--path=.".to_string()),
             "--wp" => argv.push("--wp=6.9".to_string()),
-            "--php" => argv.push("--php=8.3".to_string()),
+            "--php" => argv.push("--php=8.5".to_string()),
             "--port" => argv.push("--port=9400".to_string()),
             "--site-url" => argv.push("--site-url=http://127.0.0.1:9400".to_string()),
             "--mount" => {
@@ -1464,7 +1464,7 @@ mod tests {
         let options = parse_cli_args_from(
             vec![
                 "server".to_string(),
-                "--php=8.4".to_string(),
+                "--php=8.5".to_string(),
                 "--wp".to_string(),
                 "6.9".to_string(),
                 "--port".to_string(),
@@ -1482,7 +1482,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(options.command, CommandName::Server);
-        assert_eq!(options.php, "8.4");
+        assert_eq!(options.php, "8.5");
         assert_eq!(options.wp, "6.9");
         assert_eq!(options.port, Some(9999));
         assert_eq!(options.mounts[0].host_path, plugin);
@@ -1530,7 +1530,7 @@ mod tests {
                 "start",
                 "--path=.",
                 "--wp=6.9",
-                "--php=8.3",
+                "--php=8.5",
                 "--port=9444",
                 "--site-url=http://127.0.0.1:9444",
                 "--mount-dir",
@@ -1579,7 +1579,7 @@ mod tests {
             args(&[
                 "server",
                 "--wp=6.9",
-                "--php=8.4",
+                "--php=8.5",
                 "--port=9555",
                 "--site-url=http://127.0.0.1:9555",
                 "--mount",
@@ -1606,7 +1606,7 @@ mod tests {
         let php = parse_cli_args_from(
             args(&[
                 "php",
-                "--php=8.3",
+                "--php=8.5",
                 "--wp=6.9",
                 "--site-url=http://127.0.0.1:9400",
                 "--mount-dir-before-install",
@@ -1631,7 +1631,7 @@ mod tests {
             args(&[
                 "run-blueprint",
                 "--wp=6.9",
-                "--php=8.3",
+                "--php=8.5",
                 "--site-url=http://127.0.0.1:9400",
                 "--mount-dir-before-install",
                 "before",
@@ -1660,7 +1660,7 @@ mod tests {
             args(&[
                 "build-snapshot",
                 "--wp=6.9",
-                "--php=8.3",
+                "--php=8.5",
                 "--site-url=http://127.0.0.1:9400",
                 "--mount-dir-before-install",
                 "before",
@@ -2188,7 +2188,7 @@ mod tests {
         let options = parse_cli_args_from(
             vec![
                 "php".to_string(),
-                "--php=8.3".to_string(),
+                "--php=8.5".to_string(),
                 "script.php".to_string(),
             ],
             &cwd,
@@ -2203,7 +2203,7 @@ mod tests {
     fn parses_php_cli_flags_as_php_args() {
         let cwd = temp_dir("php-cli-flags");
         let options = parse_cli_args_from(
-            vec!["php".to_string(), "--php=8.3".to_string(), "-v".to_string()],
+            vec!["php".to_string(), "--php=8.5".to_string(), "-v".to_string()],
             &cwd,
         )
         .unwrap();

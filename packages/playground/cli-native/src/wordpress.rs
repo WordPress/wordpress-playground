@@ -1083,7 +1083,7 @@ mod tests {
             .to_path_buf();
         let dir = temp_dir("sqlite-integration");
 
-        ensure_sqlite_integration(&repo_root, &dir, "8.3").unwrap();
+        ensure_sqlite_integration(&repo_root, &dir, "8.5").unwrap();
 
         let db_php = fs::read_to_string(dir.join("wp-content/db.php")).unwrap();
         assert!(db_php.contains("SQLITE_MAIN_FILE"));

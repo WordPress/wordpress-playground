@@ -188,10 +188,10 @@ fn native_server_binary_serves_mounted_php_index() {
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[test]
-#[ignore = "Full packaged PHP 8.5 Wasmtime async execution is an explicit smoke test."]
-fn packaged_php85_wasmtime_async_runs_full_wordpress_smokes() {
-    let out_dir = temp_dir("packaged-php85-wasmtime-async");
-    let package_name = "wp-playground-native-php85-wasmtime-async-smoke";
+#[ignore = "Full packaged Wasmtime async execution is an explicit smoke test."]
+fn packaged_wasmtime_async_runs_full_wordpress_smokes() {
+    let out_dir = temp_dir("packaged-wasmtime-async");
+    let package_name = "wp-playground-native-wasmtime-async-smoke";
     let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
         .arg("--binary")
         .arg(env!("CARGO_BIN_EXE_wp-playground-native"))
@@ -200,9 +200,9 @@ fn packaged_php85_wasmtime_async_runs_full_wordpress_smokes() {
         .arg("--name")
         .arg(package_name)
         .arg("--skip-archive")
-        .arg("--smoke-wordpress-server=8.5")
-        .arg("--smoke-run-blueprint=8.5")
-        .arg("--smoke-build-snapshot=8.5")
+        .arg("--smoke-wordpress-server=8.3")
+        .arg("--smoke-run-blueprint=8.3")
+        .arg("--smoke-build-snapshot=8.3")
         .output()
         .unwrap();
 
@@ -224,9 +224,9 @@ fn packaged_php85_wasmtime_async_runs_full_wordpress_smokes() {
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[test]
 #[ignore = "Full packaged start command execution is an explicit smoke test."]
-fn packaged_php83_start_command_serves_default_wordpress() {
-    let out_dir = temp_dir("packaged-php83-start");
-    let package_name = "wp-playground-native-php83-start-smoke";
+fn packaged_start_command_serves_default_wordpress() {
+    let out_dir = temp_dir("packaged-start");
+    let package_name = "wp-playground-native-start-smoke";
     let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
         .arg("--binary")
         .arg(env!("CARGO_BIN_EXE_wp-playground-native"))
@@ -236,7 +236,6 @@ fn packaged_php83_start_command_serves_default_wordpress() {
         .arg(package_name)
         .arg("--skip-archive")
         .arg("--no-precompile-wasmtime")
-        .arg("--php-version=8.3")
         .output()
         .unwrap();
 
@@ -249,8 +248,8 @@ fn packaged_php83_start_command_serves_default_wordpress() {
     );
 
     let package_root = out_dir.join(package_name);
-    let home = temp_dir("packaged-php83-start-home");
-    let cwd = temp_dir("packaged-php83-start-cwd");
+    let home = temp_dir("packaged-start-home");
+    let cwd = temp_dir("packaged-start-cwd");
     let serial_guard = SERVER_SMOKE_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 BENCHMARK_SCRIPT="$SCRIPT_DIR/benchmark-wordpress.sh"
 
-PHP_VERSION="${PHP_VERSION:-8.5}"
+PHP_VERSION="${PHP_VERSION:-8.3}"
 WP_VERSION="${WP_VERSION:-6.9}"
 SAMPLES="${SAMPLES:-8}"
 WARMUPS="${WARMUPS:-2}"
@@ -30,7 +30,7 @@ leading --, for example:
   light-48:48MB:emmalloc:WITH_GD=no,WITH_MYSQL=no,WITH_IMAGICK=no
 
 Environment:
-  PHP_VERSION=8.5
+  PHP_VERSION=8.3
   WP_VERSION=6.9
   SAMPLES=8
   WARMUPS=2

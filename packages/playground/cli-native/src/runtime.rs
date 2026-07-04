@@ -645,21 +645,21 @@ mod tests {
     fn write_packaged_asset_root(root: &Path) {
         fs::create_dir_all(root.join("assets")).unwrap();
         fs::create_dir_all(root.join("php")).unwrap();
-        fs::write(root.join("php/php_8_3.wasm"), b"wasm").unwrap();
+        fs::write(root.join("php/php_8_5.wasm"), b"wasm").unwrap();
         fs::write(
             root.join("assets/php-assets.json"),
             format!(
                 r#"{{
                     "schemaVersion": 1,
-                    "runtime": "node-builds/asyncify",
+                    "runtime": "node-builds/wasmtime-async",
                     "php": {{
-                        "8.3": {{
+                        "8.5": {{
                             "js": {{
-                                "path": "php/php_8_3.js",
+                                "path": "php/php_8_5.js",
                                 "sha256": "{}"
                             }},
                             "wasm": {{
-                                "path": "php/php_8_3.wasm",
+                                "path": "php/php_8_5.wasm",
                                 "sha256": "{}"
                             }}
                         }}
@@ -675,26 +675,26 @@ mod tests {
     fn write_packaged_asset_root_with_wasmtime(root: &Path, wasm: &[u8], wasmtime: &[u8]) {
         fs::create_dir_all(root.join("assets")).unwrap();
         fs::create_dir_all(root.join("php")).unwrap();
-        fs::write(root.join("php/php_8_3.wasm"), wasm).unwrap();
-        fs::write(root.join("php/php_8_3.wasm.cwasm"), wasmtime).unwrap();
+        fs::write(root.join("php/php_8_5.wasm"), wasm).unwrap();
+        fs::write(root.join("php/php_8_5.wasm.cwasm"), wasmtime).unwrap();
         fs::write(
             root.join("assets/php-assets.json"),
             format!(
                 r#"{{
                     "schemaVersion": 1,
-                    "runtime": "node-builds/asyncify",
+                    "runtime": "node-builds/wasmtime-async",
                     "php": {{
-                        "8.3": {{
+                        "8.5": {{
                             "js": {{
-                                "path": "php/php_8_3.js",
+                                "path": "php/php_8_5.js",
                                 "sha256": "{}"
                             }},
                             "wasm": {{
-                                "path": "php/php_8_3.wasm",
+                                "path": "php/php_8_5.wasm",
                                 "sha256": "{}"
                             }},
                             "wasmtime": {{
-                                "path": "php/php_8_3.wasm.cwasm",
+                                "path": "php/php_8_5.wasm.cwasm",
                                 "sha256": "{}"
                             }}
                         }}
@@ -720,10 +720,10 @@ mod tests {
 
         assert_eq!(runtime.asset_root(), root.as_path());
         assert_eq!(
-            runtime.php_asset("8.3").unwrap().wasm.path,
-            PathBuf::from("php/php_8_3.wasm")
+            runtime.php_asset("8.5").unwrap().wasm.path,
+            PathBuf::from("php/php_8_5.wasm")
         );
-        runtime.verify_php_asset("8.3").unwrap();
+        runtime.verify_php_asset("8.5").unwrap();
         restore_env_var(WASMTIME_PROFILING_ENV_VAR, previous_profiling);
     }
 
@@ -738,7 +738,7 @@ mod tests {
         let runtime =
             NativeRuntime::from_asset_root_with_engine_profile(&root, WasmEngineProfile::Optimized)
                 .unwrap();
-        let module = runtime.php_module("8.3").unwrap();
+        let module = runtime.php_module("8.5").unwrap();
 
         assert_eq!(module.imports().count(), 0);
         assert_eq!(module.exports().count(), 0);
@@ -1011,11 +1011,11 @@ mod tests {
 
     #[test]
     #[ignore = "Full PHP wasm compilation is an explicit smoke test, not part of the fast unit suite."]
-    fn loads_manifest_and_compiles_php83_module_metadata_with_wasmtime() {
+    fn loads_manifest_and_compiles_php85_module_metadata_with_wasmtime() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
-        let summary = runtime.wasm_module_summary("8.3").unwrap();
+        let summary = runtime.wasm_module_summary("8.5").unwrap();
 
-        assert_eq!(summary.php_version, "8.3");
+        assert_eq!(summary.php_version, "8.5");
         assert!(!summary.imports.is_empty());
         assert!(!summary.exports.is_empty());
         assert!(summary
@@ -1023,12 +1023,6 @@ mod tests {
             .iter()
             .any(|import| import.module == "env" || import.module == "wasi_snapshot_preview1"));
         assert!(summary.exports.iter().any(|export| export.name == "memory"));
-    }
-
-    #[test]
-    #[ignore = "Cross-precompiles full PHP 7.4 wasm for Windows ARM64; run explicitly."]
-    fn precompiles_php74_for_windows_arm64_target() {
-        precompile_php_for_windows_arm64_target("7.4");
     }
 
     #[test]
@@ -1067,10 +1061,10 @@ mod tests {
 
     #[test]
     #[ignore = "Full PHP wasm compilation is an explicit smoke test, not part of the fast unit suite."]
-    fn stub_host_can_instantiate_php83_module() {
+    fn stub_host_can_instantiate_php85_module() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let summary = runtime
-            .wasm_module_stub_instantiation_summary("8.3")
+            .wasm_module_stub_instantiation_summary("8.5")
             .unwrap();
 
         assert!(summary.stub_linker_can_instantiate);

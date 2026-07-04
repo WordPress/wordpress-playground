@@ -32,7 +32,7 @@
 		"package-smoke": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins && cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=8.3"
+				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins && cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=7.4 --smoke-php-version=8.0 --smoke-php-version=8.1 --smoke-php-version=8.2 --smoke-php-version=8.3 --smoke-php-version=8.4 --smoke-php-version=8.5"
 			}
 		},
 		"package-wordpress-smoke": {

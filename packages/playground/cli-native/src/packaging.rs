@@ -1493,6 +1493,18 @@ mod tests {
         zip.finish().unwrap();
     }
 
+    fn fake_php_wasmtime_paths(version: &str) -> (String, String) {
+        let build_dir = version.replace('.', "-");
+        let normalized = version.replace('.', "_");
+        let prefix = format!("php_{normalized}");
+        (
+            format!("packages/php-wasm/node-builds/{build_dir}/wasmtime-async/{prefix}.js"),
+            format!(
+                "packages/php-wasm/node-builds/{build_dir}/wasmtime-async/{normalized}_test/{prefix}.wasm"
+            ),
+        )
+    }
+
     fn write_fake_asset_root(root: &Path) {
         write_file(
             root,
@@ -1504,25 +1516,50 @@ mod tests {
             "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
             b"wasm52",
         );
-        write_file(
-            root,
-            "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
-            b"js83",
-        );
-        write_file(
-            root,
-            "packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm",
-            b"wasm83",
-        );
+        let mut manifest_entries = vec![format!(
+            r#""5.2": {{
+                "js": {{
+                    "path": "packages/php-wasm/node-builds/5-2/asyncify/php_5_2.js",
+                    "sha256": "{}"
+                }},
+                "wasm": {{
+                    "path": "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
+                    "sha256": "{}"
+                }}
+            }}"#,
+            sha256_hex(b"js52"),
+            sha256_hex(b"wasm52")
+        )];
+        for version in SUPPORTED_PHP_VERSIONS {
+            let (js_path, wasm_path) = fake_php_wasmtime_paths(version);
+            let js = format!("js{version}");
+            let wasm = format!("wasm{version}");
+            write_file(root, &js_path, js.as_bytes());
+            write_file(root, &wasm_path, wasm.as_bytes());
+            manifest_entries.push(format!(
+                r#""{version}": {{
+                    "js": {{
+                        "path": "{js_path}",
+                        "sha256": "{}"
+                    }},
+                    "wasm": {{
+                        "path": "{wasm_path}",
+                        "sha256": "{}"
+                    }}
+                }}"#,
+                sha256_hex(js.as_bytes()),
+                sha256_hex(wasm.as_bytes())
+            ));
+        }
         write_file(
             root,
             "packages/php-wasm/node-builds/8-4/asyncify/php_8_4.js",
-            b"js84",
+            b"js84-asyncify",
         );
         write_file(
             root,
             "packages/php-wasm/node-builds/8-4/asyncify/8_4_20/php_8_4.wasm",
-            b"wasm84",
+            b"wasm84-asyncify",
         );
         write_zip(
             root,
@@ -1552,46 +1589,12 @@ mod tests {
             format!(
                 r#"{{
                     "schemaVersion": 1,
-                    "runtime": "node-builds/asyncify",
+                    "runtime": "node-builds/wasmtime-async",
                     "php": {{
-                        "5.2": {{
-                            "js": {{
-                                "path": "packages/php-wasm/node-builds/5-2/asyncify/php_5_2.js",
-                                "sha256": "{}"
-                            }},
-                            "wasm": {{
-                                "path": "packages/php-wasm/node-builds/5-2/asyncify/5_2_17/php_5_2.wasm",
-                                "sha256": "{}"
-                            }}
-                        }},
-                        "8.3": {{
-                            "js": {{
-                                "path": "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
-                                "sha256": "{}"
-                            }},
-                            "wasm": {{
-                                "path": "packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm",
-                                "sha256": "{}"
-                            }}
-                        }},
-                        "8.4": {{
-                            "js": {{
-                                "path": "packages/php-wasm/node-builds/8-4/asyncify/php_8_4.js",
-                                "sha256": "{}"
-                            }},
-                            "wasm": {{
-                                "path": "packages/php-wasm/node-builds/8-4/asyncify/8_4_20/php_8_4.wasm",
-                                "sha256": "{}"
-                            }}
-                        }}
+                        {}
                     }}
                 }}"#,
-                sha256_hex(b"js52"),
-                sha256_hex(b"wasm52"),
-                sha256_hex(b"js83"),
-                sha256_hex(b"wasm83"),
-                sha256_hex(b"js84"),
-                sha256_hex(b"wasm84")
+                manifest_entries.join(",\n")
             )
             .as_bytes(),
         );
@@ -1643,12 +1646,12 @@ mod tests {
         let wasm = b"\0asm\x01\0\0\0";
         write_file(
             root,
-            "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
-            b"js83",
+            "packages/php-wasm/node-builds/8-5/wasmtime-async/php_8_5.js",
+            b"js85",
         );
         write_file(
             root,
-            "packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm",
+            "packages/php-wasm/node-builds/8-5/wasmtime-async/8_5_6/php_8_5.wasm",
             wasm,
         );
         write_file(
@@ -1657,21 +1660,21 @@ mod tests {
             format!(
                 r#"{{
                     "schemaVersion": 1,
-                    "runtime": "node-builds/asyncify",
+                    "runtime": "node-builds/wasmtime-async",
                     "php": {{
-                        "8.3": {{
+                        "8.5": {{
                             "js": {{
-                                "path": "packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js",
+                                "path": "packages/php-wasm/node-builds/8-5/wasmtime-async/php_8_5.js",
                                 "sha256": "{}"
                             }},
                             "wasm": {{
-                                "path": "packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm",
+                                "path": "packages/php-wasm/node-builds/8-5/wasmtime-async/8_5_6/php_8_5.wasm",
                                 "sha256": "{}"
                             }}
                         }}
                     }}
                 }}"#,
-                sha256_hex(b"js83"),
+                sha256_hex(b"js85"),
                 sha256_hex(wasm)
             )
             .as_bytes(),
@@ -1707,7 +1710,7 @@ mod tests {
         php.push(fake_php_asset("9.9"));
         let manifest = AssetManifest {
             schema_version: 1,
-            runtime: "node-builds/asyncify".to_string(),
+            runtime: "node-builds/wasmtime-async".to_string(),
             php,
         };
 
@@ -1749,11 +1752,16 @@ mod tests {
             .join("packages/playground/cli-native/assets/php-assets.json");
         let manifest = load_php_assets_manifest(&manifest_path).unwrap();
         assert!(select_php_asset(&manifest, "5.2").is_err());
-        assert!(select_php_asset(&manifest, "8.3").is_ok());
-        assert!(select_php_asset(&manifest, "8.4").is_ok());
+        for version in SUPPORTED_PHP_VERSIONS {
+            assert!(select_php_asset(&manifest, version).is_ok());
+        }
         assert!(!summary
             .asset_root
-            .join("packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js")
+            .join(fake_php_wasmtime_paths("8.5").0)
+            .exists());
+        assert!(!summary
+            .asset_root
+            .join("packages/php-wasm/node-builds/8-4/asyncify/8_4_20/php_8_4.wasm")
             .exists());
         assert!(!summary
             .asset_root
@@ -1801,7 +1809,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -1843,15 +1851,15 @@ mod tests {
             .asset_root
             .join("packages/playground/cli-native/assets/php-assets.json");
         let manifest = load_php_assets_manifest(&manifest_path).unwrap();
-        assert!(select_php_asset(&manifest, "8.3").is_ok());
+        assert!(select_php_asset(&manifest, "8.5").is_ok());
         assert!(select_php_asset(&manifest, "8.4").is_err());
         assert!(summary
             .asset_root
-            .join("packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm")
+            .join(fake_php_wasmtime_paths("8.5").1)
             .is_file());
         assert!(!summary
             .asset_root
-            .join("packages/php-wasm/node-builds/8-3/asyncify/php_8_3.js")
+            .join(fake_php_wasmtime_paths("8.5").0)
             .exists());
         assert!(!summary
             .package_root
@@ -1907,7 +1915,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-wordpress-assets-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: true,
             create_archive: false,
             precompile_wasmtime: false,
@@ -1944,7 +1952,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-precompile-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: true,
@@ -1955,7 +1963,7 @@ mod tests {
             .asset_root
             .join("packages/playground/cli-native/assets/php-assets.json");
         let manifest = load_php_assets_manifest(&manifest_path).unwrap();
-        let php83 = select_php_asset(&manifest, "8.3").unwrap();
+        let php85 = select_php_asset(&manifest, "8.5").unwrap();
         let package_manifest = fs::read_to_string(&summary.package_manifest_path).unwrap();
         let package_manifest: serde_json::Value = serde_json::from_str(&package_manifest).unwrap();
         assert_eq!(package_manifest["wasmtimePrecompile"]["requested"], true);
@@ -1965,14 +1973,14 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("runtime compilation"));
-            assert!(php83.wasmtime.is_none());
-            assert!(summary.asset_root.join(&php83.wasm.path).is_file());
+            assert!(php85.wasmtime.is_none());
+            assert!(summary.asset_root.join(&php85.wasm.path).is_file());
             return;
         }
         assert_eq!(package_manifest["wasmtimePrecompile"]["supported"], true);
         assert!(package_manifest["wasmtimePrecompile"]["skippedReason"].is_null());
 
-        let wasmtime = php83.wasmtime.as_ref().unwrap();
+        let wasmtime = php85.wasmtime.as_ref().unwrap();
         assert!(wasmtime.path.to_string_lossy().ends_with(".wasm.cwasm"));
         assert!(summary.asset_root.join(&wasmtime.path).is_file());
         assert_eq!(
@@ -1991,7 +1999,7 @@ mod tests {
         let asset = manifest
             .php
             .iter_mut()
-            .find(|asset| asset.version == "8.3")
+            .find(|asset| asset.version == "8.5")
             .unwrap();
 
         let wasmtime = precompile_packaged_wasm_for_target(
@@ -2005,7 +2013,7 @@ mod tests {
         assert!(wasmtime.is_none());
         assert!(asset.wasmtime.is_none());
         assert!(!package_asset_root
-            .join("packages/php-wasm/node-builds/8-3/asyncify/8_3_30/php_8_3.wasm.cwasm")
+            .join("packages/php-wasm/node-builds/8-5/wasmtime-async/8_5_6/php_8_5.wasm.cwasm")
             .exists());
     }
 
@@ -2050,7 +2058,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2085,7 +2093,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2116,7 +2124,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: true,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2212,7 +2220,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: true,
             create_archive: false,
             precompile_wasmtime: false,
@@ -2244,7 +2252,7 @@ mod tests {
             asset_root: root,
             out_dir,
             package_name: "native-test".to_string(),
-            php_versions: vec!["8.3".to_string()],
+            php_versions: vec!["8.5".to_string()],
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,

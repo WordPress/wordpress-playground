@@ -195,7 +195,7 @@ pub fn discover_php_assets(repo_root: &Path) -> Result<AssetManifest> {
         )));
     }
 
-    let runtime = PhpAssetRuntime::Asyncify;
+    let runtime = PhpAssetRuntime::WasmtimeAsync;
     let mut php = Vec::new();
     for entry in fs::read_dir(&builds_root)? {
         let entry = entry?;
@@ -465,6 +465,7 @@ mod tests {
         verify_file_asset, PhpAssetRuntime, FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH,
         PACKAGED_PHP_ASSET_MANIFEST_RELATIVE_PATH, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
     };
+    use crate::args::SUPPORTED_PHP_VERSIONS;
     use std::{
         fs,
         path::{Path, PathBuf},
@@ -522,19 +523,34 @@ mod tests {
     fn discovers_repo_php_assets_when_available() {
         let repo_root = repo_root();
         let manifest = discover_php_assets(&repo_root).unwrap();
-        assert!(manifest.php.iter().any(|asset| asset.version == "8.3"));
-        assert!(manifest.php.iter().any(|asset| asset.version == "8.4"));
-        let php83 = manifest
-            .php
-            .iter()
-            .find(|asset| asset.version == "8.3")
-            .unwrap();
-        assert!(php83
-            .js
-            .path
-            .to_string_lossy()
-            .ends_with("asyncify/php_8_3.js"));
-        assert!(php83.wasm.path.to_string_lossy().contains("asyncify/8_3_"));
+        assert_eq!(
+            manifest.php_runtime().unwrap(),
+            PhpAssetRuntime::WasmtimeAsync
+        );
+        assert_eq!(
+            manifest
+                .php
+                .iter()
+                .map(|asset| asset.version.as_str())
+                .collect::<Vec<_>>(),
+            SUPPORTED_PHP_VERSIONS
+        );
+        for asset in &manifest.php {
+            assert_eq!(
+                manifest.php_runtime_for_asset(asset).unwrap(),
+                PhpAssetRuntime::WasmtimeAsync
+            );
+            assert!(
+                asset.js.path.to_string_lossy().contains("wasmtime-async"),
+                "{}",
+                asset.js.path.display()
+            );
+            assert!(
+                asset.wasm.path.to_string_lossy().contains("wasmtime-async"),
+                "{}",
+                asset.wasm.path.display()
+            );
+        }
     }
 
     #[test]
@@ -544,14 +560,37 @@ mod tests {
             &repo_root.join("packages/playground/cli-native/assets/php-assets.json"),
         )
         .unwrap();
-        let php83 = select_php_asset(&manifest, "8.3").unwrap();
-        verify_file_asset(&repo_root, &php83.js).unwrap();
-        verify_file_asset(&repo_root, &php83.wasm).unwrap();
         let php85 = select_php_asset(&manifest, "8.5").unwrap();
         assert_eq!(
-            manifest.php_runtime_for_asset(php85).unwrap(),
+            manifest.php_runtime().unwrap(),
             PhpAssetRuntime::WasmtimeAsync
         );
+        assert_eq!(
+            manifest
+                .php
+                .iter()
+                .map(|asset| asset.version.as_str())
+                .collect::<Vec<_>>(),
+            SUPPORTED_PHP_VERSIONS
+        );
+        for asset in &manifest.php {
+            assert_eq!(
+                manifest.php_runtime_for_asset(asset).unwrap(),
+                PhpAssetRuntime::WasmtimeAsync
+            );
+            assert!(
+                asset.js.path.to_string_lossy().contains("wasmtime-async"),
+                "{}",
+                asset.js.path.display()
+            );
+            assert!(
+                asset.wasm.path.to_string_lossy().contains("wasmtime-async"),
+                "{}",
+                asset.wasm.path.display()
+            );
+            verify_file_asset(&repo_root, &asset.js).unwrap();
+            verify_file_asset(&repo_root, &asset.wasm).unwrap();
+        }
         verify_file_asset(&repo_root, &php85.js).unwrap();
         verify_file_asset(&repo_root, &php85.wasm).unwrap();
     }

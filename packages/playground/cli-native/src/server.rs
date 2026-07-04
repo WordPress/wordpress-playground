@@ -9265,7 +9265,7 @@ mod tests {
             vec![
                 "server".to_string(),
                 "--wp=6.9".to_string(),
-                "--php=8.3".to_string(),
+                "--php=8.5".to_string(),
                 "--wordpress-install-mode=download-and-install".to_string(),
             ],
             &root,
@@ -12554,7 +12554,7 @@ mod tests {
             ..HostOptions::default()
         };
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
 
         run_startup_step(
@@ -12680,7 +12680,7 @@ echo "ok";
             ..HostOptions::default()
         };
         let mut php = runtime
-            .instantiate_php_with_host_options("8.3", host_options)
+            .instantiate_php_with_host_options("8.5", host_options)
             .unwrap();
 
         run_startup_step(

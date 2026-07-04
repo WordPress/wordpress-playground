@@ -98,7 +98,7 @@ development flow:
   `max(1, CPUs - 1)` without the default cap, and `--workers=<n>` uses the
   fixed positive integer eagerly unless `WP_PLAYGROUND_NATIVE_LAZY_WORKERS` is
   enabled. Native workers schedule an idle recycle after every 16 PHP
-  requests by default to bound asyncify heap high-water RSS, and recycle
+  requests by default to bound wasm heap high-water RSS, and recycle
   immediately after requests that grow wasm linear memory past 90 MiB. Extra
   lazily spawned workers retire when their current request finishes, keeping
   only one warm worker after request bursts. Set
@@ -132,7 +132,7 @@ The native host enables Wasmtime's filesystem cache under
 process so subsequent CLI runs and server workers avoid recompiling the same
 PHP wasm payload.
 
-For a single-worker comparison against native PHP, use PHP 8.5 with
+For a single-worker comparison against native PHP, use PHP 8.3 with
 `--workers=1 --opcache=middle`; this keeps PHP wasm warm request latency closest
 to native PHP while the shorter worker recycle delay returns idle RSS near the
 native process after high-memory requests. Immediate post-burst RSS still
@@ -181,7 +181,7 @@ wp-playground-native server --pot=9400
 For `php`, use `--` when a PHP flag should bypass native option parsing:
 
 ```bash
-wp-playground-native php --php 8.5 -- -v
+wp-playground-native php --php 8.3 -- -v
 ```
 
 Build and test with:
@@ -190,15 +190,15 @@ Build and test with:
 cargo build --manifest-path packages/playground/cli-native/Cargo.toml
 cargo test --manifest-path packages/playground/cli-native/Cargo.toml
 cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml --all-targets -- -D warnings
-cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=8.3
+cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=7.4 --smoke-php-version=8.0 --smoke-php-version=8.1 --smoke-php-version=8.2 --smoke-php-version=8.3 --smoke-php-version=8.4 --smoke-php-version=8.5
 ```
 
 Runtime assets are discovered without npm or Node.js. By default, the binary
 looks for an asset root next to the executable, under
 `share/wp-playground-native`, and finally in the source tree used to build this
 package. Set `WP_PLAYGROUND_NATIVE_ASSET_ROOT` to override discovery.
-Native PHP support starts at PHP 7.4 and currently covers PHP 7.4, 8.0, 8.1,
-8.2, 8.3, 8.4, and 8.5.
+Native PHP support currently covers PHP 7.4 and PHP 8.0 through 8.5 via the
+Wasmtime async PHP build.
 
 An asset root may use the source-tree layout with
 `packages/playground/cli-native/assets/php-assets.json`, a packaged layout with
@@ -213,17 +213,17 @@ The native runtime dispatches PHP according to the runtime selected in the
 packaged asset manifest. Runtime variants are artifact choices, not startup
 flags: `--php-version` can choose among PHP versions already included in a
 package, but it cannot switch an asyncify artifact into a Wasmtime async
-artifact. The checked-in manifest defaults to asyncify for PHP 7.4 through 8.4
-and uses the Wasmtime async runtime for PHP 8.5.
+artifact. The checked-in native manifest uses only the Wasmtime async runtime
+and includes every supported PHP version.
 
-The checked-in PHP 8.5 Wasmtime async asset is generated with:
+The checked-in Wasmtime async PHP assets are generated with:
 
 ```bash
-node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.5 --WITH_WASMTIME_ASYNC=yes
+npm run recompile:php:node:wasmtime-async:all
 ```
 
 After rebuilding it, update `packages/playground/cli-native/assets/php-assets.json`
-with the new SHA-256 values for `php_8_5.js` and `php_8_5.wasm`. The generated
+with the new SHA-256 values for the generated JS and wasm files. The generated
 `packages/php-wasm/node-builds/*/wasmtime-async/**` paths are marked
 `linguist-generated` and `-text` in `.gitattributes` so cross-platform checkouts
 do not rewrite loader line endings or invalidate the manifest checksums.
@@ -255,7 +255,7 @@ checksum, extract the archive, disable source-tree fallback with
 extracted binary:
 
 ```bash
-cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --php-version=8.3 --smoke-php-version=8.3
+cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- --smoke-php-version=7.4 --smoke-php-version=8.0 --smoke-php-version=8.1 --smoke-php-version=8.2 --smoke-php-version=8.3 --smoke-php-version=8.4 --smoke-php-version=8.5
 ```
 
 The generated `package-manifest.json` records `wasmtimePrecompile.requested`,
@@ -280,8 +280,8 @@ CI builds complete package archives and checksums across macOS, Linux, and
 Windows, uploads them as workflow artifacts, and runs `php -v` from the packaged
 binary for every supported PHP version on every native target. It also runs the
 heavier packaged WordPress server, `run-blueprint`, and `build-snapshot` smokes
-with PHP 8.3 on every native target, plus PHP 8.5 on Linux x64 to exercise the
-Wasmtime async runtime through full WordPress startup.
+with PHP 8.3 to exercise the Wasmtime async runtime through full WordPress
+startup.
 
 Benchmark WordPress server latency and RSS against system PHP with:
 
@@ -289,7 +289,7 @@ Benchmark WordPress server latency and RSS against system PHP with:
 bash packages/playground/cli-native/scripts/benchmark-wordpress.sh
 ```
 
-The benchmark packages PHP 8.5 by default, bootstraps comparable WordPress 6.9
+The benchmark packages PHP 8.3 by default, bootstraps comparable WordPress 6.9
 sites, runs home/search/post/editor requests through `wp-playground-native` and
 native `php -S`, then prints raw metrics plus ratios against native PHP. Tune
 sample counts and worker recycling with environment variables:
@@ -359,7 +359,7 @@ WASMTIME_LABEL=php-ini-tuned \
 
 The most useful next variants are:
 
-- allocator: rebuild the node asyncify PHP asset with `MALLOC=emmalloc`;
+- allocator: rebuild the Wasmtime async PHP asset with `MALLOC=emmalloc`;
 - light server profile: keep SQLite, OPcache, curl, OpenSSL, mbstring, iconv,
   libxml, and zip, then test removing server-path extras such as Imagick,
   MySQL, SOAP, EXIF, fileinfo, GD, and WS proxy support;
