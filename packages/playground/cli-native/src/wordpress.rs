@@ -494,11 +494,37 @@ fn strip_zip_prefix(path: &Path, prefix: Option<&Path>) -> Option<PathBuf> {
 
 pub(crate) fn ensure_wp_config(document_root: &Path) -> Result<()> {
     let wp_config = document_root.join("wp-config.php");
-    let sample = document_root.join("wp-config-sample.php");
-    if !wp_config.exists() && sample.is_file() {
-        fs::copy(sample, wp_config)?;
+    if !wp_config.exists() || wp_config_is_stock_sample(&wp_config)? {
+        fs::write(wp_config, playground_wp_config())?;
     }
     Ok(())
+}
+
+fn wp_config_is_stock_sample(path: &Path) -> Result<bool> {
+    let contents = fs::read_to_string(path)?;
+    Ok(contents.contains("database_name_here")
+        && contents.contains("username_here")
+        && contents.contains("put your unique phrase here"))
+}
+
+fn playground_wp_config() -> &'static str {
+    r#"<?php
+if ( ! defined( 'CONCATENATE_SCRIPTS' ) ) { define( 'CONCATENATE_SCRIPTS', false ); }
+if ( ! defined( 'DB_NAME' ) ) { define( 'DB_NAME', 'wordpress' ); }
+if ( ! defined( 'DB_USER' ) ) { define( 'DB_USER', 'root' ); }
+if ( ! defined( 'DB_PASSWORD' ) ) { define( 'DB_PASSWORD', '' ); }
+if ( ! defined( 'DB_HOST' ) ) { define( 'DB_HOST', 'localhost' ); }
+if ( ! defined( 'DB_CHARSET' ) ) { define( 'DB_CHARSET', 'utf8mb4' ); }
+if ( ! defined( 'DB_COLLATE' ) ) { define( 'DB_COLLATE', '' ); }
+
+$table_prefix = 'wp_';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+require_once ABSPATH . 'wp-settings.php';
+"#
 }
 
 fn ensure_sqlite_database_scaffold(document_root: &Path) -> Result<()> {
@@ -670,6 +696,28 @@ fn patch_sqlite_driver_compatibility(plugin_dir: &Path) -> Result<()> {
     if patched != source {
         fs::write(sqlite_db, patched)?;
     }
+
+    let install_functions = plugin_dir
+        .join("wp-includes")
+        .join("sqlite")
+        .join("install-functions.php");
+    if !install_functions.is_file() {
+        return Ok(());
+    }
+    let source = fs::read_to_string(&install_functions)?;
+    let patched = source
+        .replace(
+            "\t\t$translator->begin_transaction();",
+            "\t\t// The translator wraps individual DDL statements; an outer install transaction trips SQLite under Wasmtime.",
+        )
+        .replace("\t\t$translator->commit();", "\t\t// Outer install commit disabled.")
+        .replace(
+            "\t\t$translator->rollback();",
+            "\t\t// Outer install rollback disabled.",
+        );
+    if patched != source {
+        fs::write(install_functions, patched)?;
+    }
     Ok(())
 }
 
@@ -764,17 +812,50 @@ mod tests {
     }
 
     #[test]
-    fn copies_sample_wp_config_when_missing() {
+    fn writes_playground_wp_config_when_missing() {
         let dir = temp_dir("config");
+
+        ensure_wp_config(&dir).unwrap();
+
+        let config = fs::read_to_string(dir.join("wp-config.php")).unwrap();
+        assert!(config.contains("define( 'DB_NAME', 'wordpress' );"));
+        assert!(config.contains("require_once ABSPATH . 'wp-settings.php';"));
+        assert!(!config.contains("database_name_here"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn replaces_stock_sample_wp_config_from_release_zip() {
+        let dir = temp_dir("stock-config");
         fs::write(
-            dir.join("wp-config-sample.php"),
-            "<?php define('DB_NAME', 'wordpress');",
+            dir.join("wp-config.php"),
+            "<?php\ndefine( 'DB_NAME', 'database_name_here' );\ndefine( 'DB_USER', 'username_here' );\ndefine( 'AUTH_KEY', 'put your unique phrase here' );\n",
         )
         .unwrap();
 
         ensure_wp_config(&dir).unwrap();
 
-        assert!(dir.join("wp-config.php").is_file());
+        let config = fs::read_to_string(dir.join("wp-config.php")).unwrap();
+        assert!(config.contains("define( 'DB_NAME', 'wordpress' );"));
+        assert!(!config.contains("database_name_here"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn preserves_custom_wp_config() {
+        let dir = temp_dir("custom-config");
+        fs::write(
+            dir.join("wp-config.php"),
+            "<?php define( 'DB_NAME', 'custom' );\n",
+        )
+        .unwrap();
+
+        ensure_wp_config(&dir).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.join("wp-config.php")).unwrap(),
+            "<?php define( 'DB_NAME', 'custom' );\n"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -1010,6 +1091,20 @@ mod tests {
         assert!(dir
             .join("wp-content/plugins/sqlite-database-integration/load.php")
             .is_file());
+        let sqlite_db = fs::read_to_string(
+            dir.join(
+                "wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php",
+            ),
+        )
+        .unwrap();
+        assert!(sqlite_db.contains("protected $allow_unsafe_unquoted_parameters"));
+        let install_functions = fs::read_to_string(
+            dir.join(
+                "wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/install-functions.php",
+            ),
+        )
+        .unwrap();
+        assert!(install_functions.contains("Outer install commit disabled."));
         assert!(dir.join("wp-content/database/.htaccess").is_file());
         let _ = fs::remove_dir_all(dir);
     }

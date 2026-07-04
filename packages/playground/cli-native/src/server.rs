@@ -2010,28 +2010,55 @@ pub(crate) fn boot_wordpress_site(
     php: &mut PhpInstance,
     port: u16,
 ) -> Result<()> {
-    let body = "language=en&prefix=wp_&weblog_title=My+WordPress+Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install+WordPress&pw_weak=1&admin_email=admin%40localhost.com";
-    let request = HttpRequest {
-        method: "POST".to_string(),
-        target: "/wp-admin/install.php?step=2".to_string(),
-        version: "HTTP/1.1".to_string(),
-        headers: vec![
-            ("host".to_string(), format!("127.0.0.1:{port}")),
-            (
-                "content-type".to_string(),
-                "application/x-www-form-urlencoded".to_string(),
-            ),
-            ("content-length".to_string(), body.len().to_string()),
-        ],
-        body: body.as_bytes().to_vec(),
-    };
-    let php_request =
-        php_request_from_http(&request, "/wordpress/wp-admin/install.php", None, port);
-    let install_response = php.run_sapi_request(&php_request)?;
+    install_wordpress_with_api(mounts, php, port, "password")
+}
+
+fn install_wordpress_with_api(
+    mounts: &[Mount],
+    php: &mut PhpInstance,
+    port: u16,
+    admin_password: &str,
+) -> Result<()> {
+    let install_script = format!(
+        r#"<?php
+ob_start();
+define('WP_INSTALLING', true);
+$_COOKIE['playground_auto_login_already_happened'] = '1';
+require getenv('DOCUMENT_ROOT') . '/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+if (!is_blog_installed()) {{
+    wp_install(
+        'My WordPress Website',
+        'admin',
+        'admin@localhost.com',
+        true,
+        '',
+        {admin_password},
+        'en'
+    );
+}}
+
+ob_clean();
+echo is_blog_installed() ? 'installed' : 'not-installed';
+ob_end_flush();
+"#,
+        admin_password = php_single_quoted_string(admin_password)
+    );
+    let install_response =
+        run_staged_startup_script(mounts, php, port, 0, "install-wordpress", &install_script)?;
 
     if install_response.exit_code != 0 {
         return Err(CliError::new(format!(
             "Failed to install WordPress before serving requests. Installer output: {}",
+            response_excerpt(&install_response)
+        )));
+    }
+
+    let output = String::from_utf8_lossy(&install_response.stdout);
+    if output.trim() != "installed" {
+        return Err(CliError::new(format!(
+            "WordPress installer did not report a completed install. Installer output: {}",
             response_excerpt(&install_response)
         )));
     }
@@ -5626,8 +5653,12 @@ fn run_startup_step_with_symlink_policy(
             ));
         }
         StartupStep::RunWpInstallationWizard { admin_password } => {
-            let request = wp_installation_wizard_request(admin_password.as_deref())?;
-            return run_request_startup_step(mounts, php, port, index, &request, symlink_policy);
+            return install_wordpress_with_api(
+                mounts,
+                php,
+                port,
+                admin_password.as_deref().unwrap_or("password"),
+            );
         }
         StartupStep::EnableMultisite { .. } => {
             return Err(CliError::new(
@@ -5799,6 +5830,7 @@ fn handle_startup_http_request(
     }
 }
 
+#[cfg(test)]
 fn wp_installation_wizard_request(admin_password: Option<&str>) -> Result<StartupHttpRequest> {
     let user_name = admin_password.unwrap_or("admin");
     let password = admin_password.unwrap_or("password");

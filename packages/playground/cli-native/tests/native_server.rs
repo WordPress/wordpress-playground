@@ -221,6 +221,106 @@ fn packaged_php85_wasmtime_async_runs_full_wordpress_smokes() {
     let _ = fs::remove_dir_all(out_dir);
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+#[ignore = "Full packaged start command execution is an explicit smoke test."]
+fn packaged_php83_start_command_serves_default_wordpress() {
+    let out_dir = temp_dir("packaged-php83-start");
+    let package_name = "wp-playground-native-php83-start-smoke";
+    let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
+        .arg("--binary")
+        .arg(env!("CARGO_BIN_EXE_wp-playground-native"))
+        .arg("--out-dir")
+        .arg(&out_dir)
+        .arg("--name")
+        .arg(package_name)
+        .arg("--skip-archive")
+        .arg("--no-precompile-wasmtime")
+        .arg("--php-version=8.3")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "package-native-cli failed with status {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let package_root = out_dir.join(package_name);
+    let home = temp_dir("packaged-php83-start-home");
+    let cwd = temp_dir("packaged-php83-start-cwd");
+    let serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut child = Command::new(package_root.join("bin/wp-playground-native"))
+        .args(["start", "--skip-browser", "--port=0"])
+        .current_dir(&cwd)
+        .env("HOME", &home)
+        .env_remove("WP_PLAYGROUND_NATIVE_ASSET_ROOT")
+        .env("WP_PLAYGROUND_NATIVE_DISABLE_SOURCE_FALLBACK", "1")
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let stderr = child.stderr.take().unwrap();
+    let guard = ChildGuard::new(child, serial_guard);
+    let (tx, rx) = mpsc::channel();
+    let stderr_thread = thread::spawn(move || {
+        for line in BufReader::new(stderr).lines() {
+            if tx.send(line.unwrap_or_default()).is_err() {
+                break;
+            }
+        }
+    });
+
+    let mut stderr_lines = Vec::new();
+    let listening_line = loop {
+        match rx.recv_timeout(SERVER_START_TIMEOUT) {
+            Ok(line) if line.contains("wp-playground-native listening on ") => break line,
+            Ok(line) => stderr_lines.push(line),
+            Err(error) => {
+                panic!(
+                    "packaged start did not report a listening URL before timeout: {error}; stderr={stderr_lines:?}"
+                );
+            }
+        }
+    };
+    let url = listening_line
+        .split("wp-playground-native listening on ")
+        .nth(1)
+        .unwrap()
+        .trim();
+    let address = url.strip_prefix("http://").unwrap();
+    let redirect = send_get(address, "/");
+    assert!(
+        redirect.status_line.starts_with("HTTP/1.1 302 Found"),
+        "{}\n{}\n{}",
+        redirect.status_line,
+        redirect.headers,
+        redirect.body
+    );
+    assert!(redirect
+        .headers
+        .contains("playground_auto_login_already_happened=1"));
+    let response = parse_http_response(send_raw_http(
+        address,
+        &format!(
+            "GET / HTTP/1.1\r\nHost: {address}\r\nCookie: playground_auto_login_already_happened=1\r\nConnection: close\r\n\r\n"
+        ),
+    ));
+    assert_ok(&response);
+    assert!(response.body.contains("My WordPress Website"));
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(out_dir);
+    let _ = fs::remove_dir_all(home);
+    let _ = fs::remove_dir_all(cwd);
+}
+
 #[test]
 #[ignore = "Full native server process execution is an explicit smoke test."]
 fn native_server_reused_worker_does_not_leak_sapi_request_state() {
