@@ -77,9 +77,11 @@ export const unzipFile = async (
 							extract_zip_entry($zip, $entry);
 						}
 					}
-				} finally {
+				} catch (Exception $e) {
 					$zip->close();
+					throw $e;
 				}
+				$zip->close();
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
@@ -147,14 +149,18 @@ export const unzipFile = async (
 				);
 			}
 			try {
-				if (stream_copy_to_stream($source, $target) === false) {
-					throw new Exception(
-						'Could not extract ZIP entry: ' . $entry['filename']
-					);
-				}
-			} finally {
+				$copyResult = stream_copy_to_stream($source, $target);
+			} catch (Exception $e) {
 				fclose($source);
 				fclose($target);
+				throw $e;
+			}
+			fclose($source);
+			fclose($target);
+			if ($copyResult === false) {
+				throw new Exception(
+					'Could not extract ZIP entry: ' . $entry['filename']
+				);
 			}
 		}
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
