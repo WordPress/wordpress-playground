@@ -86,10 +86,6 @@ type BlueprintV2InstallAssetDefinition = {
 	humanReadableName?: string;
 };
 
-export type CompileBlueprintV2Options = Omit<
-	CompileBlueprintV1Options,
-	'onBlueprintValidated'
->;
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
 export type BlueprintV2StepPlan = StepDefinition[];
 export type BlueprintV2StepPlanLoweringResult = {
@@ -173,14 +169,19 @@ export type CompiledBlueprintV2 = {
 	run: (playground: UniversalPHP) => Promise<void>;
 };
 
+export type CompileBlueprintV2Options = Pick<
+	CompileBlueprintV1Options,
+	'streamBundledFile'
+>;
+
 /**
  * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
  * understand today.
  *
  * It resolves runtime options, creates an ordered v2 execution plan, and lowers
- * supported plan items into v1 step records the existing runner can execute.
- * Unsupported plan items stay visible and fail at run time instead of being
- * silently dropped.
+ * supported plan items into v1 step records. Fully lowered plans run through the
+ * existing v1 runner; unsupported items stay visible and block execution before
+ * any partial work is applied.
  */
 export async function compileBlueprintV2(
 	declaration: BlueprintV2Declaration,
@@ -696,12 +697,6 @@ function convertV2DataReferenceToV1(
 	context: 'plugin' | 'theme'
 ): FileReference | DirectoryReference {
 	if (typeof reference === 'string') {
-		if (reference.includes('\0')) {
-			throw new UnsupportedBlueprintV2FeatureError(
-				context,
-				'Invalid Blueprint v2 data reference: must not contain null bytes.'
-			);
-		}
 		if (seemsLikeGitRepoUrl(reference)) {
 			return {
 				resource: 'zip',
@@ -767,20 +762,10 @@ function convertV2DataReferenceToV1(
  * they would make destructive steps like `rm` ambiguous or unsafe.
  */
 function toPlaygroundPath(path: string): string {
-	if (
-		typeof path !== 'string' ||
-		path.trim() === '' ||
-		isEmptyTargetSitePath(path)
-	) {
+	if (typeof path !== 'string' || path.trim() === '') {
 		throw new UnsupportedBlueprintV2FeatureError(
 			'path',
 			'Invalid Blueprint v2 path: must not be empty.'
-		);
-	}
-	if (path.includes('\0')) {
-		throw new UnsupportedBlueprintV2FeatureError(
-			'path',
-			'Invalid Blueprint v2 path: must not contain null bytes.'
 		);
 	}
 	if (pathContainsParentDirectorySegment(path)) {
@@ -830,7 +815,7 @@ function isExecutionContextPath(value: string) {
  * path relative to the bundle root.
  */
 function normalizeExecutionContextPath(path: string) {
-	return path.replace(/^\.?\/+/, '');
+	return path.replace(/^\.?\//, '');
 }
 
 /**
@@ -844,16 +829,6 @@ function pathContainsParentDirectorySegment(path: string) {
 	return vfsPath.replace(/\\/g, '/').split('/').includes('..');
 }
 
-function isEmptyTargetSitePath(path: string) {
-	const vfsPath = path.startsWith('site:')
-		? path.slice('site:'.length)
-		: path;
-	return vfsPath
-		.replace(/\\/g, '/')
-		.split('/')
-		.every((segment) => segment === '' || segment === '.');
-}
-
 /**
  * Converts a WordPress.org slug, optionally with `@version`, to the v1 resource
  * shape that the existing plugin/theme installers already consume.
@@ -862,7 +837,7 @@ function wordpressOrgResource(
 	reference: string,
 	type: 'plugins' | 'themes'
 ): FileReference {
-	const { slug, version } = parseWordPressOrgReference(reference, type);
+	const [slug, version] = reference.split('@');
 	if (version && version !== 'latest') {
 		const singular = type === 'plugins' ? 'plugin' : 'theme';
 		return {
@@ -877,27 +852,6 @@ function wordpressOrgResource(
 				: 'wordpress.org/themes',
 		slug,
 	} as FileReference;
-}
-
-function parseWordPressOrgReference(
-	reference: string,
-	type: 'plugins' | 'themes'
-) {
-	const match = /^([a-zA-Z0-9_-]+)(?:@(latest|\d+\.\d+(?:\.\d+)?))?$/.exec(
-		reference
-	);
-	if (!match) {
-		const singular = type === 'plugins' ? 'plugin' : 'theme';
-		throw new UnsupportedBlueprintV2FeatureError(
-			type,
-			`Invalid WordPress.org ${singular} reference "${reference}". ` +
-				'Use a slug, optionally followed by @latest, @x.y, or @x.y.z.'
-		);
-	}
-	return {
-		slug: match[1],
-		version: match[2],
-	};
 }
 
 /**

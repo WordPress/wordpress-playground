@@ -366,7 +366,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const constants = bootRequestHandlerConstants(options.constants);
+	defaultSqliteJournalMode(options);
 	const createSpawnHandler =
 		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
@@ -396,9 +396,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 		// Define any custom constants provided via CLI or configuration
-		if (constants) {
-			for (const key in constants) {
-				php.defineConstant(key, constants[key]);
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
 			}
 		}
 
@@ -501,19 +501,17 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	return requestHandler;
 }
 
-function bootRequestHandlerConstants(
-	constants: BootRequestHandlerOptions['constants']
-) {
-	if ('SQLITE_JOURNAL_MODE' in (constants ?? {})) {
-		return constants;
+function defaultSqliteJournalMode(options: BootRequestHandlerOptions) {
+	if ('SQLITE_JOURNAL_MODE' in (options.constants ?? {})) {
+		return;
 	}
 
 	/*
 	 * Blueprint constants are applied after SQLite may have opened the first
 	 * connection. Define Playground's default through auto-prepend first.
 	 */
-	return {
-		...constants,
+	options.constants = {
+		...options.constants,
 		SQLITE_JOURNAL_MODE: 'DELETE',
 	};
 }

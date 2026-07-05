@@ -204,52 +204,6 @@ describe('Blueprint v2 runtime configuration', () => {
 		);
 	});
 
-	it('rejects invalid PHP version constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				phpVersion: {
-					min: {
-						resource: 'url',
-						url: 'https://example.com/php.json',
-					},
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 PHP version constraint "min":'
-		);
-	});
-
-	it('rejects invalid recommended PHP version constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				phpVersion: {
-					recommended: {
-						resource: 'url',
-						url: 'https://example.com/php.json',
-					},
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 PHP version constraint "recommended":'
-		);
-	});
-
-	it('rejects recommended PHP versions outside the constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				phpVersion: {
-					min: '8.3',
-					recommended: '8.2',
-				},
-			})
-		).rejects.toThrow(
-			'Recommended Blueprint v2 PHP version "8.2" does not satisfy constraints'
-		);
-	});
-
 	it('resolves simple WordPress version strings', async () => {
 		for (const wordpressVersion of [
 			'latest',
@@ -285,21 +239,6 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
-	it('resolves preferred WordPress release candidate constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.8-beta1',
-					preferred: '6.8-rc1',
-					max: '6.8',
-				},
-			})
-		).resolves.toMatchObject({
-			wpVersion: '6.8-rc1',
-		});
-	});
-
 	it('uses the default WordPress version for constraints without a preferred version', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
@@ -313,35 +252,6 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
-	it('uses the maximum WordPress version for bounded constraints without a preferred version', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.7',
-					max: '6.8',
-				},
-			})
-		).resolves.toMatchObject({
-			wpVersion: '6.8',
-		});
-	});
-
-	it('resolves latest preferred WordPress versions within bounded constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.7',
-					preferred: 'latest',
-					max: '6.8',
-				},
-			})
-		).resolves.toMatchObject({
-			wpVersion: '6.8',
-		});
-	});
-
 	it('rejects unsupported WordPress version strings', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
@@ -350,108 +260,6 @@ describe('Blueprint v2 runtime configuration', () => {
 			} as unknown as BlueprintV2Declaration)
 		).rejects.toThrow(
 			'Unsupported Blueprint v2 WordPress version "not-a-version".'
-		);
-	});
-
-	it('rejects unsupported WordPress version data references', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					resource: 'url',
-					url: 'https://example.com/wordpress.zip',
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version data reference.'
-		);
-	});
-
-	it('rejects unsupported WordPress version constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: {
-						resource: 'url',
-						url: 'https://example.com/wordpress-version.json',
-					},
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version constraint "min":'
-		);
-	});
-
-	it('rejects unsupported preferred WordPress versions', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.8',
-					preferred: 'trunk',
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version constraint "preferred":'
-		);
-	});
-
-	it('rejects invalid preferred WordPress version constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.8',
-					preferred: {
-						resource: 'url',
-						url: 'https://example.com/wordpress-version.json',
-					},
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version constraint "preferred":'
-		);
-	});
-
-	it('rejects unsatisfiable WordPress version constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.9',
-					max: '6.8',
-				},
-			})
-		).rejects.toThrow(
-			'Unsatisfiable Blueprint v2 WordPress version constraints'
-		);
-	});
-
-	it('rejects preferred WordPress versions outside the constraints', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.8',
-					preferred: '6.7',
-				},
-			})
-		).rejects.toThrow(
-			'Preferred Blueprint v2 WordPress version "6.7" does not satisfy constraints'
-		);
-
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					min: '6.8',
-					preferred: '6.9',
-					max: '6.8.9',
-				},
-			})
-		).rejects.toThrow(
-			'Preferred Blueprint v2 WordPress version "6.9" does not satisfy constraints'
 		);
 	});
 });

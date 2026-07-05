@@ -11,63 +11,35 @@ export function addTCPServerToWebSocketServerClass(
 ): any {
 	return class PHPWasmWebSocketServer extends WSServer {
 		private tcpToWsProxyServer?: Server;
-		private closedBeforeTcpProxyStarted = false;
 
 		constructor(options: any, callback: any) {
 			const requestedPort = options.port;
 			options.port = 0;
 			super(options, undefined);
 			this.once('listening', () => {
-				if (this.closedBeforeTcpProxyStarted) {
-					return;
-				}
 				this.tcpToWsProxyServer = listenTCPToWSProxy(
 					{
 						tcpListenPort: requestedPort,
 						wsConnectPort: getServerPort(this),
 					},
-					() => callback?.call(this),
-					(error) => {
-						if (this.closedBeforeTcpProxyStarted) {
-							return;
-						}
-						this.tcpToWsProxyServer = undefined;
-						super.close(() => {
-							this.emit('error', error);
-						});
-					}
+					() => callback?.call(this)
 				);
 			});
 		}
 
 		override close(callback?: (err?: Error) => void) {
-			this.closedBeforeTcpProxyStarted = true;
 			const tcpToWsProxyServer = this.tcpToWsProxyServer;
 			this.tcpToWsProxyServer = undefined;
 
-			if (!tcpToWsProxyServer) {
-				return super.close(callback);
-			}
-
-			let pendingCloses = 2;
-			let firstError: Error | undefined;
-			const finishClose = (error?: Error) => {
-				if (
-					error &&
-					(error as NodeJS.ErrnoException).code !==
-						'ERR_SERVER_NOT_RUNNING'
-				) {
-					firstError ??= error;
-					log('TCP server close error', error);
+			tcpToWsProxyServer?.close(
+				(error: NodeJS.ErrnoException | undefined) => {
+					if (error?.code !== 'ERR_SERVER_NOT_RUNNING') {
+						log('TCP server close error', error);
+					}
 				}
-				pendingCloses -= 1;
-				if (pendingCloses === 0) {
-					callback?.(firstError);
-				}
-			};
+			);
 
-			tcpToWsProxyServer.close(finishClose);
-			return super.close(finishClose);
+			return super.close(callback);
 		}
 	};
 }
@@ -79,8 +51,7 @@ export interface InboundTcpToWsProxyOptions {
 }
 export function listenTCPToWSProxy(
 	options: InboundTcpToWsProxyOptions,
-	onListening?: () => void,
-	onListenError?: (error: Error) => void
+	onListening?: () => void
 ) {
 	options = {
 		wsConnectHost: '127.0.0.1',
@@ -117,10 +88,6 @@ export function listenTCPToWSProxy(
 			log('WebSocket connection closed');
 			tcpSource.end();
 		});
-		wsTarget.addEventListener('error', (event) => {
-			log('WebSocket connection error', event);
-			tcpSource.destroy();
-		});
 
 		tcpSource.on('data', function (data) {
 			log('TCP->WS message:', data);
@@ -142,21 +109,7 @@ export function listenTCPToWSProxy(
 			wsTarget.close();
 		});
 	});
-	const handleListenError = (error: Error) => {
-		log('TCP server listen error', error);
-		onListenError?.(error);
-	};
-	let isListening = false;
-	const handleRuntimeError = (error: Error) => {
-		if (isListening) {
-			log('TCP server runtime error', error);
-		}
-	};
-	server.on('error', handleRuntimeError);
-	server.once('error', handleListenError);
 	server.listen(tcpListenPort, function () {
-		isListening = true;
-		server.off('error', handleListenError);
 		log('TCP server listening');
 		onListening?.();
 	});

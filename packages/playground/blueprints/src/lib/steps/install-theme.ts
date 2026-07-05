@@ -124,10 +124,6 @@ export const installTheme: StepHandler<
 			assetFolderName = targetFolderName || assetNiceName;
 			if (
 				!assetFolderName ||
-				assetFolderName === '.' ||
-				assetFolderName === '..' ||
-				assetFolderName.includes('\\') ||
-				assetFolderName.includes('\0') ||
 				basename(assetFolderName) !== assetFolderName
 			) {
 				throw new Error(

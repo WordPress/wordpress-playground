@@ -41,7 +41,7 @@ export interface ImportWxrStep<ResourceType> {
 	/**
 	 * The fallback local user for imported authors that cannot be mapped.
 	 *
-	 * When omitted, the importer uses the first Administrator user.
+	 * @default "admin"
 	 */
 	defaultAuthorUsername?: string;
 	/**
@@ -73,11 +73,11 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		fetchAttachments = true,
 		rewriteUrls = true,
 		importComments = true,
-		defaultAuthorUsername,
+		defaultAuthorUsername = 'admin',
 	},
 	progress?
 ) => {
-	const fallbackAuthorUsername = defaultAuthorUsername?.trim() ?? '';
+	const fallbackAuthorUsername = defaultAuthorUsername.trim() || 'admin';
 	await importWithDefaultImporter(playground, file, progress, {
 		fetchAttachments,
 		rewriteUrls,
@@ -132,31 +132,13 @@ async function importWithDefaultImporter(
 	kses_remove_filters();
 
 	// The WordPress importer assigns unmapped imported authors to the current
-	// user. Preserve the historical default of the first Administrator user when
-	// no fallback username was explicitly requested.
+	// user, so set it to the requested fallback author before importing.
 	$fallback_author_username = getenv('FALLBACK_AUTHOR_USERNAME');
-	if ($fallback_author_username) {
-		$fallback_author = get_user_by('login', $fallback_author_username);
-		if (!$fallback_author) {
-			throw new Exception(
-				sprintf('Could not find fallback WXR import author "%s".', $fallback_author_username)
-			);
-		}
-	} else {
-		$fallback_administrators = get_users(
-			array(
-				'role'    => 'Administrator',
-				'number'  => 1,
-				'orderby' => 'ID',
-				'order'   => 'ASC',
-			)
+	$fallback_author          = get_user_by('login', $fallback_author_username);
+	if (!$fallback_author) {
+		throw new Exception(
+			sprintf('Could not find fallback WXR import author "%s".', $fallback_author_username)
 		);
-		if (!$fallback_administrators) {
-			throw new Exception(
-				'Could not find an Administrator user to use as the fallback WXR import author.'
-			);
-		}
-		$fallback_author = $fallback_administrators[0];
 	}
 	wp_set_current_user( $fallback_author->ID );
 
@@ -187,7 +169,7 @@ async function importWithDefaultImporter(
 		'fetch_attachments' => $wp_import->fetch_attachments,
 	);
 
-	$GLOBALS['wpcli_import_current_file'] = basename( getenv('IMPORT_FILE') );
+	$GLOBALS['wpcli_import_current_file'] = basename( $file );
 	$wp_import->import( getenv('IMPORT_FILE'), [
 		'rewrite_urls' => getenv('REWRITE_URLS') === 'true',
 	] );

@@ -142,7 +142,7 @@ export interface CompileBlueprintV1Options {
 
 export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
-	options: Omit<CompileBlueprintV1Options, 'streamBundledFile'> = {}
+	options: CompileBlueprintV1Options = {}
 ): Promise<CompiledBlueprintV1> {
 	const finalOptions: CompileBlueprintV1Options = {
 		...options,

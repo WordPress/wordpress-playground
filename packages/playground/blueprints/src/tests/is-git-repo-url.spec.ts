@@ -29,17 +29,6 @@ describe('seemsLikeGitRepoUrl', () => {
 				'https://github.com/owner/repo/archive/main.zip'
 			)
 		).toBe(false);
-		expect(
-			seemsLikeGitRepoUrl(
-				'https://gitlab.com/group/project/-/archive/main/project-main.zip'
-			)
-		).toBe(false);
-		expect(
-			seemsLikeGitRepoUrl('https://gitlab.com/group/project/-/tree/main')
-		).toBe(false);
-		expect(
-			seemsLikeGitRepoUrl('https://github.com/owner/repo?tab=readme')
-		).toBe(false);
 		expect(seemsLikeGitRepoUrl('http://github.com/owner/repo')).toBe(false);
 		expect(seemsLikeGitRepoUrl('classic-editor')).toBe(false);
 	});

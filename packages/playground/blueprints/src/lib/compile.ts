@@ -9,11 +9,7 @@ import {
 } from './v1/compile';
 import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
-import {
-	compileBlueprintV2,
-	type CompileBlueprintV2Options,
-	type CompiledBlueprintV2,
-} from './v2/compile';
+import { compileBlueprintV2, type CompiledBlueprintV2 } from './v2/compile';
 
 export type BlueprintExecutionPath = 'v1' | 'v2';
 
@@ -51,27 +47,21 @@ export async function compileBlueprintForExecution(
 ): Promise<CompiledBlueprintForExecution> {
 	const declaration = await getBlueprintDeclaration(input);
 	if (isBlueprintV2Declaration(declaration)) {
-		return compileBlueprintV2ForExecution(input, declaration, options);
+		return compileBlueprintV2ForExecution(input, declaration);
 	}
 	return compileBlueprintV1ForExecution(input, declaration, options);
 }
 
 async function compileBlueprintV2ForExecution(
 	input: Blueprint | BlueprintBundle,
-	declaration: BlueprintV2Declaration,
-	options: CompileBlueprintForExecutionOptions
+	declaration: BlueprintV2Declaration
 ): Promise<CompiledBlueprintForExecution> {
-	const { onBlueprintValidated, ...runnerOptions } = options;
-	const compileOptions: CompileBlueprintV2Options = {
-		...(runnerOptions as CompileBlueprintV2Options),
-	};
-	if (isBlueprintBundle(input)) {
-		compileOptions.streamBundledFile = function (...args: [any]) {
-			return input.read(...args);
-		};
-	}
-	const compiled = await compileBlueprintV2(declaration, compileOptions);
-	onBlueprintValidated?.(declaration);
+	const compiled = await compileBlueprintV2(
+		declaration,
+		isBlueprintBundle(input)
+			? { streamBundledFile: (...args: [any]) => input.read(...args) }
+			: {}
+	);
 	return {
 		version: 2,
 		declaration,

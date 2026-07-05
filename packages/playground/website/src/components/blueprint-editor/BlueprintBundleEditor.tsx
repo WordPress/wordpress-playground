@@ -584,6 +584,7 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		try {
 			setIsRecreating(true);
+			setSaveError(null);
 			await flushCurrentFile();
 			const isAutosaved = isAutosavedSite(site);
 			if (isAutosaved && !opfsSiteStorage) {

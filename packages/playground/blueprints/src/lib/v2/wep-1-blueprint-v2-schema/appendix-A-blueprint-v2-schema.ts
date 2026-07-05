@@ -69,7 +69,7 @@ export namespace V2Schema {
 				/**
 				 * Whether to allow the site to access the network.
 				 *
-				 * @default true
+				 * @default false
 				 */
 				networkAccess?: boolean;
 			};
@@ -542,9 +542,9 @@ export namespace V2Schema {
 		staticAssets?: 'fetch' | 'hotlink';
 
 		/**
-		 * The fallback local user for imported authors that cannot be mapped.
+		 * The default author to use when `mode` is "default-author".
 		 *
-		 * When omitted, the importer uses the first Administrator user.
+		 * @default "admin".
 		 */
 		defaultAuthorUsername?: string;
 

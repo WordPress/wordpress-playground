@@ -607,7 +607,8 @@ const schema11 = {
 						defaultAuthorUsername: {
 							type: 'string',
 							description:
-								'The fallback local user for imported authors that cannot be mapped.\n\nWhen omitted, the importer uses the first Administrator user.',
+								'The fallback local user for imported authors that cannot be mapped.',
+							default: 'admin',
 						},
 						importer: {
 							type: 'string',
@@ -4680,7 +4681,8 @@ const schema33 = {
 				defaultAuthorUsername: {
 					type: 'string',
 					description:
-						'The fallback local user for imported authors that cannot be mapped.\n\nWhen omitted, the importer uses the first Administrator user.',
+						'The fallback local user for imported authors that cannot be mapped.',
+					default: 'admin',
 				},
 				importer: {
 					type: 'string',

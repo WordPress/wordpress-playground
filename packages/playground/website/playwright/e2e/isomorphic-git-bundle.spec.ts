@@ -5,30 +5,28 @@ test('browser bundle should not include the isomorphic-git Node crypto path', as
 }) => {
 	await page.goto('./');
 
-	const bundles = await fetchIsomorphicGitBundles(page);
+	const bundle = await fetchIsomorphicGitBundle(page);
 
-	for (const bundle of bundles) {
-		expect(bundle.source).not.toContain('createHash');
-		expect(bundle.source).not.toContain('__vite-browser-external');
+	expect(bundle.source).not.toContain('createHash');
+	expect(bundle.source).not.toContain('__vite-browser-external');
 
-		if (bundle.sourceMap) {
-			expect(bundle.sourceMap).not.toContain(
-				'node_modules/isomorphic-git/index.cjs'
-			);
-			expect(bundle.sourceMap).not.toContain('browser-external:crypto');
-		}
+	if (bundle.sourceMap) {
+		expect(bundle.sourceMap).not.toContain(
+			'node_modules/isomorphic-git/index.cjs'
+		);
+		expect(bundle.sourceMap).not.toContain('browser-external:crypto');
 	}
 });
 
-async function fetchIsomorphicGitBundles(page: Page) {
-	const productionBundles = await fetchProductionIsomorphicGitBundles(page);
-	if (productionBundles) {
-		return productionBundles;
+async function fetchIsomorphicGitBundle(page: Page) {
+	const productionBundle = await fetchProductionIsomorphicGitBundle(page);
+	if (productionBundle) {
+		return productionBundle;
 	}
-	return [await fetchDevIsomorphicGitBundle(page)];
+	return await fetchDevIsomorphicGitBundle(page);
 }
 
-async function fetchProductionIsomorphicGitBundles(page: Page) {
+async function fetchProductionIsomorphicGitBundle(page: Page) {
 	const assetsResponse = await page.request.get(
 		new URL('assets-required-for-offline-mode.json', page.url()).href
 	);
@@ -42,23 +40,18 @@ async function fetchProductionIsomorphicGitBundles(page: Page) {
 	}
 
 	const assets = JSON.parse(assetsText) as string[];
-	const bundlePaths = assets.filter(
+	const bundlePath = assets.find(
 		(asset) =>
 			asset.startsWith('/assets/isomorphic-git-internals-') &&
 			asset.endsWith('.js')
 	);
-	expect(bundlePaths).not.toHaveLength(0);
+	expect(bundlePath).toBeTruthy();
 
-	return await Promise.all(
-		bundlePaths.map(async (bundlePath) => {
-			const bundleUrl = new URL(bundlePath.replace(/^\//, ''), page.url())
-				.href;
-			return {
-				source: await fetchText(page, bundleUrl),
-				sourceMap: await fetchOptionalText(page, `${bundleUrl}.map`),
-			};
-		})
-	);
+	const bundleUrl = new URL(bundlePath!.replace(/^\//, ''), page.url()).href;
+	return {
+		source: await fetchText(page, bundleUrl),
+		sourceMap: await fetchOptionalText(page, `${bundleUrl}.map`),
+	};
 }
 
 async function fetchDevIsomorphicGitBundle(page: Page) {

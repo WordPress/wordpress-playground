@@ -7,37 +7,19 @@
  */
 export function seemsLikeGitRepoUrl(url: string): boolean {
 	const normalizedUrl = url.trim().replace(/\/+$/, '');
-	let parsed: URL;
-	try {
-		parsed = new URL(normalizedUrl);
-	} catch {
-		return false;
-	}
-
-	if (
-		parsed.protocol !== 'https:' ||
-		parsed.search.length > 0 ||
-		parsed.hash.length > 0
-	) {
-		return false;
-	}
 
 	// Explicit Git clone URLs can point to any HTTPS host.
-	if (parsed.pathname.endsWith('.git')) {
+	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
 		return true;
 	}
 
 	// GitHub shorthand: exactly /owner/repo.
-	const segments = parsed.pathname.split('/').filter(Boolean);
-	if (parsed.hostname === 'github.com') {
-		return segments.length === 2;
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
+		return true;
 	}
 
 	// GitLab shorthand: /group[/subgroup...]/project.
-	// GitLab uses "/-/" for tree, archive, and other non-repository pages.
-	return (
-		parsed.hostname === 'gitlab.com' &&
-		segments.length >= 2 &&
-		!segments.includes('-')
+	return /^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(
+		normalizedUrl
 	);
 }

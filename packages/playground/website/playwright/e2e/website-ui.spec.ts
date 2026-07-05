@@ -956,6 +956,9 @@ test.describe('Default Playground storage', () => {
 		// Recreate failures are shown inline and leave the Run button available,
 		// so retry the action until the recreated site boots with the new content.
 		await expect(async () => {
+			await expect(runBlueprintButton).toBeEnabled({
+				timeout: 5000,
+			});
 			await runBlueprintButton.click();
 			await website.waitForNestedIframes();
 			await expect(wordpress.locator('body')).toContainText(

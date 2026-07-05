@@ -46,6 +46,11 @@ export async function writeFiles(
 	}
 	for (const [relativePath, content] of Object.entries(newFiles)) {
 		const filePath = joinPaths(root, relativePath);
+		if (!isParentOf(root, filePath)) {
+			throw new Error(
+				'File paths must stay inside the target directory.'
+			);
+		}
 		if (!(await php.fileExists(dirname(filePath)))) {
 			await php.mkdir(dirname(filePath));
 		}
