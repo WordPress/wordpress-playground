@@ -533,7 +533,13 @@ test('should hide dock tools from focus when the tools row is collapsed', async 
 
 test('should expand dock tools when the status pill opens a pane', async ({
 	website,
+	browserName,
 }) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
 	await website.page.setViewportSize({ width: 1280, height: 900 });
 	await website.goto('./?storage=temp');
 	await website.ensureSiteManagerIsClosed();

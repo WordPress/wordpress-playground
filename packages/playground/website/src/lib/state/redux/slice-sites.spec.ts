@@ -6,6 +6,7 @@ import type * as BlueprintsModule from '@wp-playground/blueprints';
 import { resolveBlueprintFromURL } from '../url/resolve-blueprint-from-url';
 import type * as ResolveBlueprintModule from '../url/resolve-blueprint-from-url';
 import reducer, {
+	addSite,
 	pruneAutosavedSites,
 	removeSite,
 	resetAutosavedSiteSpec,
@@ -18,6 +19,7 @@ import { selectActiveSite, setActiveSite } from './store';
 
 const opfsMocks = vi.hoisted(() => {
 	const opfsSiteStorage = {
+		create: vi.fn(),
 		update: vi.fn(),
 		delete: vi.fn(),
 		resetSiteFiles: vi.fn(),
@@ -69,6 +71,7 @@ vi.mock('@php-wasm/logger', () => ({
 	},
 }));
 
+const createOpfsSite = vi.mocked(opfsMocks.opfsSiteStorageMock.create);
 const updateOpfsSite = vi.mocked(opfsMocks.opfsSiteStorageMock.update);
 const deleteOpfsSite = vi.mocked(opfsMocks.opfsSiteStorageMock.delete);
 const resetOpfsSiteFiles = vi.mocked(
@@ -94,6 +97,8 @@ beforeEach(() => {
 
 describe('site updates', () => {
 	beforeEach(() => {
+		createOpfsSite.mockReset();
+		createOpfsSite.mockResolvedValue(undefined);
 		updateOpfsSite.mockReset();
 		updateOpfsSite.mockResolvedValue(undefined);
 		deleteOpfsSite.mockReset();
@@ -136,6 +141,30 @@ describe('site updates', () => {
 			undefined
 		);
 		expect(state.sites.entities.stored?.metadata.name).toBe('Renamed');
+	});
+
+	it('replaces a temporary slug collision after the OPFS metadata write succeeds', async () => {
+		const temporarySite = createSite('shared-blueprint-name', {
+			storage: 'none',
+			name: 'Shared Blueprint Name',
+		});
+		const storedSite = createSite('shared-blueprint-name', {
+			storage: 'opfs',
+			name: 'Shared Blueprint Name',
+		});
+		const state = createState(temporarySite);
+		const dispatch = createDispatch(state);
+
+		await dispatch(addSite(storedSite));
+
+		expect(createOpfsSite).toHaveBeenCalledWith(
+			'shared-blueprint-name',
+			storedSite.metadata,
+			undefined
+		);
+		expect(state.sites.entities['shared-blueprint-name']).toStrictEqual(
+			storedSite
+		);
 	});
 
 	it('keeps stored setup URL params when updating metadata', async () => {

@@ -159,6 +159,21 @@ describe('PlaygroundRoute site creation routes', () => {
 		expect(params.get('wp')).toBe('6.6');
 	});
 
+	it('preserves GitHub auth prompts when selecting a saved site', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/website-server/?gh-ensure-auth=yes'
+		);
+		const params = new URL(url).searchParams;
+		expect(params.get('site-slug')).toBe('saved-site');
+		expect(params.get('gh-ensure-auth')).toBe('yes');
+	});
+
 	it('preserves the experimental Blueprint runner when selecting a saved site', () => {
 		const url = PlaygroundRoute.site(
 			{

@@ -314,12 +314,29 @@ export function addSite(siteInfo: SiteInfo) {
 				'Cannot add a saved Playground because browser storage is not available.'
 			);
 		}
+		const existingSite = selectSiteBySlug(getState(), siteInfo.slug);
+		if (existingSite && existingSite.metadata.storage !== 'none') {
+			throw new Error(`Site already exists: ${siteInfo.slug}`);
+		}
 		await opfsSiteStorage.create(
 			siteInfo.slug,
 			siteInfo.metadata,
 			siteInfo.originalUrlParams
 		);
-		dispatch(sitesSlice.actions.addSite(siteInfo));
+		// Saved-site creation can race a temporary site created from the
+		// still-visible setup URL. Once OPFS metadata exists, the saved
+		// record must win that slug.
+		const currentSite = selectSiteBySlug(getState(), siteInfo.slug);
+		if (currentSite?.metadata.storage === 'none') {
+			dispatch(
+				sitesSlice.actions.updateSite({
+					id: siteInfo.slug,
+					changes: siteInfo,
+				})
+			);
+		} else {
+			dispatch(sitesSlice.actions.addSite(siteInfo));
+		}
 	};
 }
 

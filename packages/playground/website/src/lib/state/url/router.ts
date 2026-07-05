@@ -116,6 +116,7 @@ export class PlaygroundRoute {
 				'mcp',
 				'mcp-port',
 				'can-save',
+				'gh-ensure-auth',
 				'experimental-blueprints-v2-runner',
 			];
 			const preserveParams: Record<string, string | string[]> = {};

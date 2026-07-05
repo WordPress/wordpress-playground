@@ -1,6 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
+const WORDPRESS_BOOT_TIMEOUT = 120000;
+
 export class WebsitePage {
 	public readonly page: Page;
 
@@ -19,7 +21,7 @@ export class WebsitePage {
 				)
 				.frameLocator('#wp')
 				.locator('body')
-		).not.toBeEmpty();
+		).not.toBeEmpty({ timeout: WORDPRESS_BOOT_TIMEOUT });
 	}
 
 	async waitForPlaygroundShell(page = this.page) {

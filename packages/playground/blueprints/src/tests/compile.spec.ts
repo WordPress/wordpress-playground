@@ -90,32 +90,81 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
-	it('runs Blueprint v2 bundles with bundled execution-context resources', async () => {
+	it('compiles minimal Blueprint v2 bundles through the TypeScript runner', async () => {
 		const bundle = new InMemoryFilesystem({
-			'plugin.php': '<?php /* Plugin Name: Bundled Plugin */',
 			'blueprint.json': JSON.stringify({
 				version: 2,
-				plugins: [
+				additionalStepsAfterExecution: [
 					{
-						source: './plugin.php',
-						active: false,
+						step: 'mkdir',
+						path: 'site:wp-content/uploads/from-v2-bundle',
 					},
 				],
 			}),
 		});
 		const playground = {
-			documentRoot: '/wordpress',
-			writeFile: vi.fn(),
+			mkdir: vi.fn(),
 		};
 
 		const compiled = await compileBlueprintForExecution(bundle);
 		await compiled.run(playground as any);
 
 		expect(compiled.version).toBe(2);
-		expect(playground.writeFile).toHaveBeenCalledWith(
-			'/wordpress/wp-content/plugins/plugin.php',
-			expect.any(Uint8Array)
+		expect(compiled.declaration).toEqual({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2-bundle',
+				},
+			],
+		});
+		expect(playground.mkdir).toHaveBeenCalledWith(
+			'/wordpress/wp-content/uploads/from-v2-bundle'
 		);
+	});
+
+	it('compiles Blueprint v2 bundles with execution-context resources', async () => {
+		const bundle = new InMemoryFilesystem({
+			'plugin.zip': 'fake zip bytes',
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				plugins: [
+					{
+						source: './plugin.zip',
+					},
+				],
+			}),
+		});
+
+		const compiled = await compileBlueprintForExecution(bundle);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'bundled',
+				path: 'plugin.zip',
+			},
+		});
+	});
+
+	it('reports Blueprint v2 declarations through onBlueprintValidated', async () => {
+		const declaration = {
+			version: 2,
+			phpVersion: '8.3',
+		} as const;
+		const onBlueprintValidated = vi.fn();
+
+		await compileBlueprintForExecution(declaration, {
+			onBlueprintValidated,
+		});
+
+		expect(onBlueprintValidated).toHaveBeenCalledTimes(1);
+		expect(onBlueprintValidated).toHaveBeenCalledWith(declaration);
 	});
 
 	it('compiles Blueprint v2 declarations into an ordered execution plan', async () => {
@@ -459,17 +508,67 @@ describe('compileBlueprintForExecution', () => {
 	});
 
 	it('rejects empty Blueprint v2 target-site paths', async () => {
+		for (const path of ['', '.', '/', 'site:', 'site:/', 'site:.']) {
+			await expect(
+				compileBlueprintForExecution({
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'rm',
+							path,
+						},
+					],
+				} as BlueprintV2Declaration)
+			).rejects.toThrow('Invalid Blueprint v2 path: must not be empty.');
+		}
+	});
+
+	it('rejects Blueprint v2 target-site paths with parent directory segments', async () => {
+		for (const path of [
+			'../wp-config.php',
+			'wp-content/../wp-config.php',
+			'site:../wp-config.php',
+			'site:wp-content\\..\\wp-config.php',
+		]) {
+			await expect(
+				compileBlueprintForExecution({
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'rm',
+							path,
+						},
+					],
+				} as BlueprintV2Declaration)
+			).rejects.toThrow('Invalid Blueprint v2 path');
+		}
+	});
+
+	it('rejects Blueprint v2 target-site paths with null bytes', async () => {
 		await expect(
 			compileBlueprintForExecution({
 				version: 2,
 				additionalStepsAfterExecution: [
 					{
 						step: 'rm',
-						path: '',
+						path: 'site:wp-content/uploads/image\0.php',
 					},
 				],
 			} as BlueprintV2Declaration)
-		).rejects.toThrow('Invalid Blueprint v2 path: must not be empty.');
+		).rejects.toThrow(
+			'Invalid Blueprint v2 path: must not contain null bytes.'
+		);
+	});
+
+	it('rejects Blueprint v2 data references with null bytes', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+				plugins: ['./plugins/query-monitor\0.zip'],
+			} as BlueprintV2Declaration)
+		).rejects.toThrow(
+			'Invalid Blueprint v2 data reference: must not contain null bytes.'
+		);
 	});
 
 	it('treats absolute data paths as Blueprint execution-context paths', async () => {
@@ -493,6 +592,41 @@ describe('compileBlueprintForExecution', () => {
 				path: 'plugins/local-plugin.zip',
 			},
 		});
+	});
+
+	it('normalizes repeated execution-context path prefixes', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: '//plugins/local-plugin.zip',
+				},
+				{
+					source: './/plugins/other-plugin.zip',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'bundled',
+					path: 'plugins/local-plugin.zip',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'bundled',
+					path: 'plugins/other-plugin.zip',
+				},
+			},
+		]);
 	});
 
 	it('preserves special inline directory filenames as plain file entries', async () => {
@@ -522,6 +656,24 @@ describe('compileBlueprintForExecution', () => {
 		expect(Object.getPrototypeOf(pluginData.files)).toBe(Object.prototype);
 	});
 
+	it('rejects invalid Blueprint v2 WordPress.org plugin references', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+				plugins: ['akismet@1.2@unexpected'],
+			} as BlueprintV2Declaration)
+		).rejects.toThrow('Invalid WordPress.org plugin reference');
+	});
+
+	it('rejects invalid Blueprint v2 WordPress.org theme references', async () => {
+		await expect(
+			compileBlueprintForExecution({
+				version: 2,
+				themes: ['../twentytwentyfour'],
+			} as BlueprintV2Declaration)
+		).rejects.toThrow('Invalid WordPress.org theme reference');
+	});
+
 	it('runs fully lowered Blueprint v2 plans through the v1 runner', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
@@ -541,6 +693,33 @@ describe('compileBlueprintForExecution', () => {
 		expect(playground.mkdir).toHaveBeenCalledWith(
 			'/wordpress/wp-content/uploads/from-v2'
 		);
+	});
+
+	it('passes runner options to lowered Blueprint v2 steps', async () => {
+		const onStepCompleted = vi.fn();
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'mkdir',
+						path: 'site:wp-content/uploads/from-v2',
+					},
+				],
+			},
+			{ onStepCompleted }
+		);
+		const playground = {
+			mkdir: vi.fn(),
+		};
+
+		await compiled.run(playground as any);
+
+		expect(onStepCompleted).toHaveBeenCalledTimes(1);
+		expect(onStepCompleted.mock.calls[0][1]).toMatchObject({
+			step: 'mkdir',
+			path: '/wordpress/wp-content/uploads/from-v2',
+		});
 	});
 
 	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
