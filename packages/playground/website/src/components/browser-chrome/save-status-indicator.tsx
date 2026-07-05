@@ -22,9 +22,9 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
-import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { logger } from '@php-wasm/logger';
 import { Spinner } from '../spinner';
+import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 
 type SaveStatus =
 	| 'saved'
@@ -63,8 +63,10 @@ export function SaveStatusIndicator() {
 	};
 
 	// Re-reads the linked local directory into the running Playground so edits
-	// made to the files on disk (outside Playground) show up. Re-mounts OPFS with
-	// an opfs-to-memfs sync, then reloads the page to reflect the new files.
+	// made to the files on disk (outside Playground) show up. Re-mounts the
+	// filesystem with an opfs-to-memfs sync, then reloads the page to reflect the
+	// new files. Do not flush first: this action is explicitly disk →
+	// Playground, and flushing here could overwrite edits made on disk.
 	const reloadFilesFromDisk = async () => {
 		const client = clientInfo?.client;
 		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
@@ -73,19 +75,44 @@ export function SaveStatusIndicator() {
 			return;
 		}
 		setIsReloadingFromDisk(true);
+		let docroot: string | undefined;
+		let mountNeedsRestore = false;
 		try {
-			const docroot = await client.documentRoot;
+			docroot = await client.documentRoot;
 			await client.unmountOpfs(docroot);
+			mountNeedsRestore = true;
 			await client.mountOpfs({
 				device: opfsMountDescriptor.device,
 				mountpoint: docroot,
 				initialSyncDirection: 'opfs-to-memfs',
 			});
+			mountNeedsRestore = false;
 			await client.goTo(url);
 		} catch (error) {
+			if (mountNeedsRestore && docroot) {
+				try {
+					// Restore the live mount without pushing the current MEMFS
+					// snapshot back to disk. The user's explicit action here is
+					// disk → Playground, so a failure must not overwrite disk edits
+					// with the older in-browser copy.
+					await client.mountOpfs({
+						device: opfsMountDescriptor.device,
+						mountpoint: docroot,
+						initialSyncDirection: 'opfs-to-memfs',
+					});
+				} catch (restoreError) {
+					logger.error(
+						'Error restoring the local directory mount.',
+						restoreError
+					);
+				}
+			}
 			logger.error(
 				'Error reloading files from the local directory.',
 				error
+			);
+			alert(
+				'Unable to reload files from the local directory. Please try again.'
 			);
 		} finally {
 			setIsReloadingFromDisk(false);
@@ -302,14 +329,14 @@ function getSaveStatus(
 	if (opfsSync?.status === 'syncing') {
 		return 'saving';
 	}
+	// A Playground whose runtime hasn't connected yet is still loading — don't
+	// claim it is ready to save or already saved until the client is actually up.
+	if (!clientInfo) {
+		return 'loading';
+	}
 	const storage = site?.metadata.storage;
 	if (storage === 'none' || !storage) {
 		return 'unsaved';
-	}
-	// A stored Playground whose runtime hasn't connected yet is still loading —
-	// don't claim it's "Saved"/"Autosaved" until it's actually up.
-	if (!clientInfo) {
-		return 'loading';
 	}
 	if (isAutosaved) {
 		return 'autosaved';

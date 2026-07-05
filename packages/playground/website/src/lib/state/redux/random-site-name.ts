@@ -1,6 +1,6 @@
 /**
  * Generates a random, human readable site name.
- * For example: "Abandoned Road", "Old School", "Greenwich Village" etc.
+ * For example: "Happy Abandoned Road", "Calm Old School", etc.
  */
 export function randomSiteName() {
 	// The three slots draw from disjoint lists (no word appears in two), so a

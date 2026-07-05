@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { joinPaths } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
@@ -6,47 +7,102 @@ import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+const RELATIVE_DATABASE_PATH = 'wp-content/database/.ht.sqlite';
 
 export function SiteDatabasePanel({
 	playground,
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
+	const [documentRoot, setDocumentRoot] = useState<{
+		playground: PlaygroundClient;
+		root: string;
+	} | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
 
 	useEffect(() => {
 		if (!playground) {
+			setDocumentRoot(null);
 			setDatabaseSize(null);
 			return;
 		}
+		let cancelled = false;
+		setDocumentRoot(null);
+		setDatabaseSize(null);
+		void playground.documentRoot.then(
+			(root) => {
+				if (!cancelled) {
+					setDocumentRoot({ playground, root });
+				}
+			},
+			() => {
+				if (!cancelled) {
+					setDocumentRoot(null);
+				}
+			}
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [playground]);
+
+	const currentDocumentRoot =
+		documentRoot && documentRoot.playground === playground
+			? documentRoot.root
+			: null;
+	const databasePath = currentDocumentRoot
+		? joinPaths(currentDocumentRoot, RELATIVE_DATABASE_PATH)
+		: null;
+
+	useEffect(() => {
+		if (!playground || !databasePath) {
+			setDatabaseSize(null);
+			return;
+		}
+		let cancelled = false;
+		const activePlayground = playground;
+		const path = databasePath;
 
 		async function fetchDatabaseSize() {
-			if (!playground) return;
-
 			try {
-				const fileExists = await playground.fileExists(DATABASE_PATH);
+				const fileExists = await activePlayground.fileExists(path);
+				if (cancelled) return;
 				if (fileExists) {
-					const buffer =
-						await playground.readFileAsBuffer(DATABASE_PATH);
-					setDatabaseSize(buffer.byteLength);
+					const size = await getRemoteFileSize(
+						activePlayground,
+						path
+					);
+					if (!cancelled) {
+						setDatabaseSize(size);
+					}
 				} else {
 					setDatabaseSize(null);
 				}
 			} catch {
-				setDatabaseSize(null);
+				if (!cancelled) {
+					setDatabaseSize(null);
+				}
 			}
 		}
 
 		void fetchDatabaseSize();
-	}, [playground]);
+		return () => {
+			cancelled = true;
+		};
+	}, [playground, databasePath]);
 
 	const formatBytes = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
+		const safeBytes = Math.max(0, bytes);
+		if (safeBytes === 0) return '0 B';
 		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		const i = Math.min(
+			Math.floor(Math.log(safeBytes) / Math.log(k)),
+			sizes.length - 1
+		);
+		return `${parseFloat((safeBytes / Math.pow(k, i)).toFixed(2))} ${
+			sizes[i]
+		}`;
 	};
 
 	return (
@@ -90,7 +146,9 @@ export function SiteDatabasePanel({
 					</span>
 					<span className={css.label}>SQLite database path:</span>
 					<span className={css.value}>
-						<code>{DATABASE_PATH}</code>
+						<code>
+							{databasePath ?? `…/${RELATIVE_DATABASE_PATH}`}
+						</code>
 					</span>
 					{databaseSize !== null && (
 						<>
@@ -104,10 +162,34 @@ export function SiteDatabasePanel({
 			</VStack>
 
 			<div className={css.buttonGroup}>
-				<DownloadButton playground={playground} />
+				<DownloadButton
+					playground={playground}
+					databasePath={databasePath}
+				/>
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
 			</div>
 		</VStack>
 	);
+}
+
+async function getRemoteFileSize(
+	playground: PlaygroundClient,
+	path: string
+): Promise<number> {
+	const escapedPath = escapePhpSingleQuotedString(path);
+	const response = await playground.run({
+		code:
+			`<?php clearstatcache(true, '${escapedPath}');` +
+			` echo filesize('${escapedPath}');`,
+	});
+	const sizeText = response.text.trim();
+	if (!/^\d+$/.test(sizeText)) {
+		throw new Error(`Could not read the size of ${path}.`);
+	}
+	return Number(sizeText);
+}
+
+function escapePhpSingleQuotedString(value: string): string {
+	return value.replace(/['\\]/g, '\\$&');
 }

@@ -31,7 +31,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	);
 }
 
-export function SiteLogs({ className }: { className?: string }) {
+export function SiteLogs({
+	className,
+	autoFocusSearch = true,
+}: {
+	className?: string;
+	autoFocusSearch?: boolean;
+}) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
@@ -84,7 +90,7 @@ export function SiteLogs({ className }: { className?: string }) {
 					placeholder="Search logs"
 					value={searchTerm}
 					onChange={setSearchTerm}
-					autoFocus={true}
+					autoFocus={autoFocusSearch}
 					className={css.logSearch}
 				/>
 			) : null}

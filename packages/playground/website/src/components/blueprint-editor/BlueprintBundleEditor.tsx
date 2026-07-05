@@ -7,6 +7,7 @@ import {
 	type Tooltip,
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
+import { joinPaths } from '@php-wasm/util';
 import {
 	Button,
 	Dropdown,
@@ -49,12 +50,18 @@ import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import {
+	getAutosaveFingerprintFromURL,
+	getSetupUrlFromUrl,
+} from '../../lib/state/playground-identity';
+import {
 	isAutosavedSite,
+	sitesSlice,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
+import { resetAutosavedSiteFilesWithPendingMarker } from '../../lib/state/opfs/opfs-autosave-reset';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -135,7 +142,7 @@ function createStringEditorTooltip(openStringEditor: () => boolean): Extension {
 
 					const button = document.createElement('button');
 					button.className = 'cm-string-editor-button';
-					button.innerHTML = '✎ Multiline Edit';
+					button.textContent = '✎ Multiline Edit';
 					button.title = 'Edit string (Cmd/Ctrl+E)';
 					button.onmousedown = (e) => {
 						e.preventDefault();
@@ -286,6 +293,7 @@ export const BlueprintBundleEditor = forwardRef<
 	const [code, setCode] = useState<string>('');
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	const successMessageTimerRef = useRef<number | undefined>(undefined);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [treeFocusPath, setTreeFocusPath] = useState<string | null>(null);
@@ -304,65 +312,245 @@ export const BlueprintBundleEditor = forwardRef<
 			contentEnd: 0,
 		});
 
-	// Use the URL hash hook to track shareability and compute URL hash
-	const { urlHash, isShareable: isBundleShareable } = useBlueprintUrlHash(
+	// Track whether this bundle can be represented by a single Blueprint URL.
+	const {
+		urlHash,
+		isShareable: isBundleShareable,
+		isCheckingShareability,
+		hasComputedUrlHash,
+	} = useBlueprintUrlHash(
 		filesystem as EventedFilesystem,
 		currentPath === BLUEPRINT_JSON_PATH ? code : '',
 		{ disabled: readOnly || currentPath !== BLUEPRINT_JSON_PATH }
 	);
-	const newUrl = useMemo(() => {
-		if (readOnly) {
-			return false;
+	const hasValidationErrors =
+		validationResult !== null && !validationResult.valid;
+
+	useEffect(() => {
+		return () => {
+			if (successMessageTimerRef.current !== undefined) {
+				window.clearTimeout(successMessageTimerRef.current);
+			}
+		};
+	}, []);
+
+	const currentBlueprintShareUrl = useMemo(() => {
+		if (
+			readOnly ||
+			currentPath !== BLUEPRINT_JSON_PATH ||
+			isCheckingShareability ||
+			!hasComputedUrlHash ||
+			!isBundleShareable ||
+			!urlHash
+		) {
+			return null;
 		}
-		const url = new URL(window.location.href);
-		if (urlHash) {
+		try {
+			const parsed = JSON.parse(code);
+			if (
+				typeof parsed !== 'object' ||
+				parsed === null ||
+				Array.isArray(parsed) ||
+				hasValidationErrors
+			) {
+				return null;
+			}
+			// Drop route/UI params so the copied link boots this Blueprint,
+			// rather than reopening the current stored Playground by slug.
+			const url = getSetupUrlFromUrl(new URL(window.location.href));
 			url.hash = urlHash;
-		} else if (url.hash) {
-			url.hash = '';
-		} else {
-			return false;
+			return url.toString();
+		} catch {
+			return null;
 		}
-		return url.toString();
-	}, [urlHash, readOnly]);
+	}, [
+		code,
+		currentPath,
+		hasValidationErrors,
+		hasComputedUrlHash,
+		isBundleShareable,
+		isCheckingShareability,
+		readOnly,
+		urlHash,
+	]);
+	const copyBlueprintUrlDisabledReason = useMemo(() => {
+		if (currentBlueprintShareUrl) {
+			return null;
+		}
+		if (readOnly) {
+			return 'Saved Playgrounds keep their Blueprint read-only here.';
+		}
+		if (currentPath !== BLUEPRINT_JSON_PATH) {
+			return 'Open blueprint.json to copy a Blueprint URL.';
+		}
+		if (isCheckingShareability || !hasComputedUrlHash) {
+			return 'Checking whether this Blueprint can be shared as a URL…';
+		}
+		if (!isBundleShareable) {
+			return 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.';
+		}
+		if (hasValidationErrors) {
+			return 'Fix validation errors before copying a Blueprint URL.';
+		}
+		return 'Fix the Blueprint JSON before copying a URL.';
+	}, [
+		currentBlueprintShareUrl,
+		currentPath,
+		hasValidationErrors,
+		hasComputedUrlHash,
+		isBundleShareable,
+		isCheckingShareability,
+		readOnly,
+	]);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	const codeRef = useRef(code);
+	const currentPathRef = useRef(currentPath);
+	const editorActionIdRef = useRef(0);
+	const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
 	const dispatch = useAppDispatch();
+
+	useEffect(() => {
+		codeRef.current = code;
+	}, [code]);
+
+	useEffect(() => {
+		currentPathRef.current = currentPath;
+	}, [currentPath]);
+
+	const queueBlueprintWrite = useCallback(
+		async (path: string, content: string, shouldWrite?: () => boolean) => {
+			const write = async () => {
+				if (shouldWrite && !shouldWrite()) {
+					return;
+				}
+				await filesystem.writeFile(path, content);
+			};
+			const queuedWrite = writeQueueRef.current
+				.catch(() => undefined)
+				.then(write);
+			writeQueueRef.current = queuedWrite.catch(() => undefined);
+			await queuedWrite;
+		},
+		[filesystem]
+	);
 
 	// Save file to filesystem
 	const saveFile = useDebouncedCallback(
 		async (path: string, content: string) => {
 			try {
-				await filesystem.writeFile(path, content);
-				setSaveError(null);
+				await queueBlueprintWrite(
+					path,
+					content,
+					() =>
+						currentPathRef.current === path &&
+						codeRef.current === content
+				);
+				if (
+					currentPathRef.current === path &&
+					codeRef.current === content
+				) {
+					setSaveError(null);
+				}
 			} catch (error) {
 				logger.error('Failed to save file', error);
-				setSaveError('Could not save changes. Try again.');
+				if (
+					currentPathRef.current === path &&
+					codeRef.current === content
+				) {
+					setSaveError('Could not save changes. Try again.');
+				}
 			}
 		},
 		200,
-		[filesystem]
+		[filesystem, queueBlueprintWrite]
 	);
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
+			if (newCode === codeRef.current) {
+				return;
+			}
+			codeRef.current = newCode;
 			setCode(newCode);
-			if (currentPath) {
-				saveFile(currentPath, newCode);
+			if (currentPathRef.current) {
+				saveFile(currentPathRef.current, newCode);
 			}
 		},
-		[currentPath, saveFile]
+		[saveFile]
 	);
+
+	const flushCurrentFile = useCallback(async () => {
+		const pathToSave = currentPathRef.current;
+		if (!pathToSave || readOnly) {
+			return;
+		}
+		try {
+			// Keep draining while the same file is open. The editor remains
+			// interactive during forced flushes (file switch, run, download), so a
+			// write that started with an older buffer must not be the last saved
+			// snapshot if the user typed again before it settled.
+			while (currentPathRef.current === pathToSave) {
+				const contentToSave = codeRef.current;
+				const editorChanged = () =>
+					currentPathRef.current !== pathToSave ||
+					codeRef.current !== contentToSave;
+				await queueBlueprintWrite(
+					pathToSave,
+					contentToSave,
+					() => !editorChanged()
+				);
+				if (!editorChanged()) {
+					break;
+				}
+			}
+			setSaveError(null);
+		} catch (error) {
+			logger.error('Failed to save file', error);
+			setSaveError('Could not save changes. Try again.');
+			throw error;
+		}
+	}, [queueBlueprintWrite, readOnly]);
+
+	// The Blueprint editor saves after a short debounce. Closing the pane,
+	// switching Playgrounds, or replacing the backing filesystem before that
+	// debounce fires must still persist the latest edit instead of letting the
+	// cleanup cancel it.
+	useEffect(() => {
+		return () => {
+			const pathToSave = currentPathRef.current;
+			if (!pathToSave || readOnly) {
+				return;
+			}
+			const contentToSave = codeRef.current;
+			void (async () => {
+				try {
+					await queueBlueprintWrite(pathToSave, contentToSave);
+				} catch (error) {
+					logger.error(
+						'Failed to flush pending Blueprint save on unmount',
+						error
+					);
+				}
+			})();
+		};
+	}, [queueBlueprintWrite, readOnly]);
 
 	// Load initial blueprint.json and focus tree
 	useEffect(() => {
 		let cancelled = false;
+		const actionId = ++editorActionIdRef.current;
 		(async () => {
 			try {
 				const blueprintJsonContent =
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
-				if (cancelled) return;
+				if (cancelled || editorActionIdRef.current !== actionId) {
+					return;
+				}
+				currentPathRef.current = BLUEPRINT_JSON_PATH;
+				codeRef.current = blueprintJsonContent;
 				setCurrentPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
 				setSaveError(null);
@@ -373,7 +561,7 @@ export const BlueprintBundleEditor = forwardRef<
 				// edit the moment the panel opens. The delay lets the editor
 				// mount after this state update.
 				setTimeout(() => {
-					if (!cancelled) {
+					if (!cancelled && editorActionIdRef.current === actionId) {
 						editorRef.current?.focus();
 					}
 				}, 80);
@@ -386,13 +574,6 @@ export const BlueprintBundleEditor = forwardRef<
 		};
 	}, [filesystem]);
 
-	// Sync the URL hash from the hook to the browser's location
-	useEffect(() => {
-		if (false !== newUrl) {
-			window.history.replaceState(null, '', newUrl.toString());
-		}
-	}, [newUrl]);
-
 	const handleRecreateFromBlueprint = useCallback(async () => {
 		if (
 			!site ||
@@ -403,7 +584,13 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		try {
 			setIsRecreating(true);
+			await flushCurrentFile();
 			const isAutosaved = isAutosavedSite(site);
+			if (isAutosaved && !opfsSiteStorage) {
+				throw new Error(
+					'Cannot recreate autosaved Playground because browser storage is not available.'
+				);
+			}
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??
 				((site.metadata.originalBlueprint ||
@@ -414,41 +601,77 @@ export const BlueprintBundleEditor = forwardRef<
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				bundle as any
 			);
+			const recreatedAt = Date.now();
+			const editedBundleSetupUrl =
+				createEditedBundleSetupUrlFingerprintSource(
+					site.slug,
+					recreatedAt
+				);
+			const usesEditedBundleFingerprint =
+				isAutosaved || site.metadata.storage === 'none';
+			let changes: {
+				metadata: SiteInfo['metadata'];
+				originalUrlParams: SiteInfo['originalUrlParams'];
+			} = {
+				metadata: {
+					...site.metadata,
+					originalBlueprintSource: isAutosaved
+						? { type: 'opfs-site' as const }
+						: { type: 'none' as const },
+					originalBlueprint: isAutosaved
+						? (filesystem as EventedFilesystem).backend
+						: bundle,
+					runtimeConfiguration,
+					initialOpfsSyncPending:
+						isAutosaved || site.metadata.initialOpfsSyncPending,
+					/**
+					 * Recreating an autosaved Playground discards the old WordPress
+					 * files and boots from the edited Blueprint. Constants discovered
+					 * from the previous runtime may no longer exist in the recreated
+					 * site, so they must be rediscovered after the first OPFS sync.
+					 */
+					playgroundDefinedConstants: isAutosaved
+						? undefined
+						: site.metadata.playgroundDefinedConstants,
+					// A temporary site can be autosaved after it runs an edited
+					// bundle. Give that bundle its own fingerprint immediately so
+					// restore matching cannot confuse it with the original setup URL.
+					sourceSetupUrlFingerprint: usesEditedBundleFingerprint
+						? getAutosaveFingerprintFromURL(editedBundleSetupUrl)
+						: site.metadata.sourceSetupUrlFingerprint,
+					whenCreated: recreatedAt,
+				},
+				// Keep the human-facing setup URL and runtime-only query params
+				// such as `php-extension`. The unique edited-bundle fingerprint
+				// above is what prevents autosave restore matching from treating
+				// the recreated site as the original setup URL.
+				originalUrlParams: site.originalUrlParams,
+			};
 			if (isAutosaved) {
-				await opfsSiteStorage!.resetSiteFiles(site.slug);
+				changes = await resetAutosavedSiteFilesWithPendingMarker(
+					site.slug,
+					changes
+				);
+			}
+			if (isAutosaved) {
+				// The OPFS metadata write already happened before reset above.
+				// Update Redux directly now so a second worker write can't fail
+				// after the old files have already been deleted.
+				dispatch(
+					sitesSlice.actions.updateSite({
+						id: site.slug,
+						changes,
+					})
+				);
+			} else {
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes,
+					})
+				);
 			}
 			dispatch(removeClientInfo(site.slug));
-			await dispatch(
-				updateSite({
-					slug: site.slug,
-					changes: {
-						metadata: {
-							...site.metadata,
-							originalBlueprintSource: isAutosaved
-								? { type: 'opfs-site' }
-								: { type: 'none' },
-							originalBlueprint: isAutosaved
-								? (filesystem as EventedFilesystem).backend
-								: bundle,
-							runtimeConfiguration,
-							initialOpfsSyncPending:
-								isAutosaved ||
-								site.metadata.initialOpfsSyncPending,
-							/**
-							 * Recreating an autosaved Playground discards the old WordPress
-							 * files and boots from the edited Blueprint. Constants discovered
-							 * from the previous runtime may no longer exist in the recreated
-							 * site, so they must be rediscovered after the first OPFS sync.
-							 */
-							playgroundDefinedConstants: isAutosaved
-								? undefined
-								: site.metadata.playgroundDefinedConstants,
-							whenCreated: Date.now(),
-						},
-						originalUrlParams: undefined,
-					},
-				})
-			);
 			// Applying the Blueprint boots a fresh Playground — get the editor
 			// pane out of the way so the user sees it come up.
 			dispatch(setSiteManagerOpen(false));
@@ -458,7 +681,7 @@ export const BlueprintBundleEditor = forwardRef<
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, readOnly, site]);
+	}, [dispatch, filesystem, flushCurrentFile, readOnly, site]);
 
 	// autorun token hook
 	useEffect(() => {
@@ -468,7 +691,25 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [autoRunToken]);
 
 	const handleFileOpened = useCallback(
-		(path: string, content: string, shouldFocus = true) => {
+		async (path: string, content: string, shouldFocus = true) => {
+			const actionId = ++editorActionIdRef.current;
+			await flushCurrentFile();
+			if (editorActionIdRef.current !== actionId) {
+				return;
+			}
+			if (path === currentPathRef.current) {
+				setShowExplorerOnMobile(false);
+				if (shouldFocus) {
+					setTimeout(() => {
+						if (editorActionIdRef.current === actionId) {
+							editorRef.current?.focus();
+						}
+					}, 20);
+				}
+				return;
+			}
+			currentPathRef.current = path;
+			codeRef.current = content;
 			setCurrentPath(path);
 			setCode(content);
 			setMessageContent(null);
@@ -477,22 +718,35 @@ export const BlueprintBundleEditor = forwardRef<
 			setTreeFocusPath(path);
 
 			if (shouldFocus) {
-				setTimeout(() => editorRef.current?.focus(), 20);
+				setTimeout(() => {
+					if (editorActionIdRef.current === actionId) {
+						editorRef.current?.focus();
+					}
+				}, 20);
 			}
 		},
-		[]
+		[flushCurrentFile]
 	);
 
-	const handleClearSelection = useCallback(() => {
+	const handleClearSelection = useCallback(async () => {
+		const actionId = ++editorActionIdRef.current;
+		await flushCurrentFile();
+		if (editorActionIdRef.current !== actionId) {
+			return;
+		}
+		currentPathRef.current = null;
+		codeRef.current = '';
 		setCurrentPath(null);
 		setCode('');
 		setMessageContent(null);
 		setSaveError(null);
 		setTreeFocusPath(null);
-	}, []);
+	}, [flushCurrentFile]);
 
 	// Open the string editor modal for the string at the current cursor position
 	const openStringEditor = useCallback(() => {
+		if (readOnly) return false;
+
 		const view = cmViewRef.current;
 		if (!view) return false;
 
@@ -523,11 +777,13 @@ export const BlueprintBundleEditor = forwardRef<
 		});
 
 		return true;
-	}, []);
+	}, [readOnly]);
 
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
+			if (readOnly) return;
+
 			const view = cmViewRef.current;
 			if (!view) return;
 
@@ -545,7 +801,7 @@ export const BlueprintBundleEditor = forwardRef<
 			// Format the document after the change
 			setTimeout(() => formatEditor(view), 0);
 		},
-		[stringEditorState.contentStart, stringEditorState.contentEnd]
+		[readOnly, stringEditorState.contentStart, stringEditorState.contentEnd]
 	);
 
 	const closeStringEditor = useCallback(() => {
@@ -555,13 +811,21 @@ export const BlueprintBundleEditor = forwardRef<
 	}, []);
 
 	const handleShowMessage = useCallback(
-		(_path: string | null, message: string | JSX.Element) => {
+		async (_path: string | null, message: string | JSX.Element) => {
+			const actionId = ++editorActionIdRef.current;
+			await flushCurrentFile();
+			if (editorActionIdRef.current !== actionId) {
+				return false;
+			}
+			currentPathRef.current = null;
 			setCurrentPath(null);
 
 			if (typeof message === 'string') {
+				codeRef.current = message;
 				setCode(message);
 				setMessageContent(null);
 			} else {
+				codeRef.current = '';
 				setCode('');
 				setMessageContent(message);
 			}
@@ -569,8 +833,9 @@ export const BlueprintBundleEditor = forwardRef<
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 			setTreeFocusPath(null);
+			return true;
 		},
-		[]
+		[flushCurrentFile]
 	);
 
 	const handleValidationChange = useCallback(
@@ -592,31 +857,30 @@ export const BlueprintBundleEditor = forwardRef<
 			EditorView.updateListener.of((update) => {
 				cmViewRef.current = update.view;
 			}),
-			// Keyboard shortcut to open string editor
-			keymap.of([
-				{
-					key: 'Mod-e',
-					preventDefault: true,
-					run: () => openStringEditor(),
-				},
-			]),
-			// String editor toolbar tooltip
-			createStringEditorTooltip(openStringEditor),
+			...(readOnly
+				? []
+				: [
+						keymap.of([
+							{
+								key: 'Mod-e',
+								preventDefault: true,
+								run: () => openStringEditor(),
+							},
+						]),
+						createStringEditorTooltip(openStringEditor),
+					]),
 		],
-		[handleValidationChange, openStringEditor]
+		[handleValidationChange, openStringEditor, readOnly]
 	);
-
-	const hasValidationErrors =
-		validationResult !== null && !validationResult.valid;
 
 	const handleDownloadBundle = useCallback(async () => {
 		try {
+			await flushCurrentFile();
 			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
 			const addEntries = async (dirPath: string, prefix: string) => {
 				const entries = await filesystem.listFiles(dirPath);
 				for (const name of entries) {
-					const absPath =
-						dirPath === '/' ? `/${name}` : `${dirPath}/${name}`;
+					const absPath = joinPaths(dirPath, name);
 					const relative = prefix ? `${prefix}${name}` : name;
 					if (await filesystem.isDir(absPath)) {
 						await addEntries(
@@ -647,20 +911,32 @@ export const BlueprintBundleEditor = forwardRef<
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem]);
+	}, [filesystem, flushCurrentFile]);
+
+	const showTemporarySuccessMessage = (message: string) => {
+		setSuccessMessage(message);
+		if (successMessageTimerRef.current !== undefined) {
+			window.clearTimeout(successMessageTimerRef.current);
+		}
+		successMessageTimerRef.current = window.setTimeout(() => {
+			setSuccessMessage(null);
+			successMessageTimerRef.current = undefined;
+		}, 2000);
+	};
 
 	const handleShareBlueprint = async () => {
-		if (false === newUrl) {
-			alert(
-				'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
+		if (!currentBlueprintShareUrl) {
+			setSaveError(
+				copyBlueprintUrlDisabledReason ??
+					'Could not copy a Blueprint URL.'
 			);
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText(newUrl);
+			await navigator.clipboard.writeText(currentBlueprintShareUrl);
 
-			setSuccessMessage('Link copied to clipboard!');
-			setTimeout(() => setSuccessMessage(null), 2000);
+			setSaveError(null);
+			showTemporarySuccessMessage('Link copied to clipboard!');
 		} catch (error) {
 			logger.error('Failed to share blueprint', error);
 			setSaveError('Could not copy link. Try again.');
@@ -677,6 +953,7 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
 	);
 
+	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const disableRunButton = isRecreating || !site || hasValidationErrors;
 	return (
 		<>
@@ -762,7 +1039,7 @@ export const BlueprintBundleEditor = forwardRef<
 												<MenuItem
 													icon={link}
 													disabled={
-														!isBundleShareable
+														!currentBlueprintShareUrl
 													}
 													onClick={() => {
 														handleShareBlueprint();
@@ -784,15 +1061,15 @@ export const BlueprintBundleEditor = forwardRef<
 											{/* Say why Copy Blueprint URL is greyed
 											    out, as a quiet footnote under the menu
 											    rather than crowding the item itself. */}
-											{!isBundleShareable && (
+											{copyBlueprintUrlDisabledReason && (
 												<p
 													className={
 														styles.exportHint
 													}
 												>
-													Multi-file Blueprints can’t
-													be shared as a URL —
-													download a zip instead.
+													{
+														copyBlueprintUrlDisabledReason
+													}
 												</p>
 											)}
 										</>
@@ -822,7 +1099,9 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										Run in a new Playground
+										{isAutosaved
+											? 'Run Blueprint and reset site'
+											: 'Run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -954,3 +1233,16 @@ export const BlueprintBundleEditor = forwardRef<
 		</>
 	);
 });
+
+function createEditedBundleSetupUrlFingerprintSource(
+	siteSlug: string,
+	recreatedAt: number
+) {
+	const url = new URL(window.location.href);
+	url.search = '';
+	// A Blueprint bundle edited in OPFS may contain files that no URL can
+	// recreate. Give that autosave a non-route hash so it never matches an
+	// unrelated setup URL such as a clean default Playground.
+	url.hash = `opfs-blueprint-${siteSlug}-${recreatedAt}`;
+	return url;
+}

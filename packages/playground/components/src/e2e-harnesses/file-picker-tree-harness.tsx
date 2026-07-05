@@ -14,6 +14,7 @@ declare global {
 		__filePickerHarness?: {
 			filesystem: AsyncWritableFilesystem;
 			reload: () => void;
+			switchFilesystem: () => void;
 			lastSelectedPath: string | null;
 			lastDoubleClickedPath: string | null;
 		};
@@ -47,6 +48,15 @@ const baseFilesystem: DirNode = {
 								'nested.php': {
 									type: 'file',
 									content: "<?php echo 'Nested';",
+								},
+							},
+						},
+						'selector "] edge': {
+							type: 'dir',
+							children: {
+								'child.php': {
+									type: 'file',
+									content: "<?php echo 'Selector edge';",
 								},
 							},
 						},
@@ -94,6 +104,26 @@ const baseFilesystem: DirNode = {
 		'notes.txt': {
 			type: 'file',
 			content: 'Root notes',
+		},
+	},
+};
+
+const alternateFilesystem: DirNode = {
+	type: 'dir',
+	children: {
+		wordpress: {
+			type: 'dir',
+			children: {
+				workspace: {
+					type: 'dir',
+					children: {
+						'alternate.php': {
+							type: 'file',
+							content: "<?php echo 'Alternate';",
+						},
+					},
+				},
+			},
 		},
 	},
 };
@@ -263,11 +293,22 @@ class InMemoryFilesystem
 	}
 }
 
-const createFilesystem = () =>
-	new InMemoryFilesystem(cloneStructure(baseFilesystem));
+const createFilesystem = (snapshot: DirNode = baseFilesystem) =>
+	new InMemoryFilesystem(cloneStructure(snapshot));
 
 export function FilePickerTreeHarness() {
-	const filesystem = useMemo(() => createFilesystem(), []);
+	const [filesystemVariant, setFilesystemVariant] = React.useState<
+		'base' | 'alternate'
+	>('base');
+	const filesystem = useMemo(
+		() =>
+			createFilesystem(
+				filesystemVariant === 'base'
+					? baseFilesystem
+					: alternateFilesystem
+			),
+		[filesystemVariant]
+	);
 	const [lastSelectedPath, setLastSelectedPath] = React.useState<
 		string | null
 	>(null);
@@ -279,6 +320,11 @@ export function FilePickerTreeHarness() {
 		window.__filePickerHarness = {
 			filesystem,
 			reload: () => window.location.reload(),
+			switchFilesystem: () => {
+				setFilesystemVariant((variant) =>
+					variant === 'base' ? 'alternate' : 'base'
+				);
+			},
 			lastSelectedPath,
 			lastDoubleClickedPath,
 		};

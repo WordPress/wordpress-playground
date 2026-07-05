@@ -39,6 +39,7 @@ const keyedStepHandlers = {
 import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 
 export class InvalidBlueprintError extends Error {
 	public readonly validationErrors?: unknown;
@@ -259,7 +260,7 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (isGitRepoUrl(value)) {
+					if (seemsLikeGitRepoUrl(value)) {
 						return {
 							resource: 'zip',
 							inner: {
@@ -842,22 +843,4 @@ function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
 			[]
 		);
 	}
-}
-
-function isGitRepoUrl(url: string): boolean {
-	const normalizedUrl = url.trim().replace(/\/+$/, '');
-	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (
-		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
-	) {
-		return true;
-	}
-	return false;
 }

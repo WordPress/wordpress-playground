@@ -27,7 +27,8 @@ export const seemsLikeBinary = (buffer: Uint8Array): boolean => {
 
 /**
  * Creates a download URL for a file and returns both the URL and filename.
- * The URL is automatically revoked after 60 seconds.
+ * The caller owns the returned URL and must revoke it when the rendered link or
+ * preview goes away.
  */
 export const createDownloadUrl = (
 	data: Uint8Array,
@@ -35,15 +36,122 @@ export const createDownloadUrl = (
 ): { url: string; filename: string } => {
 	const blob = new Blob([data]);
 	const url = URL.createObjectURL(blob);
-	setTimeout(() => URL.revokeObjectURL(url), 60_000);
 	return { url, filename };
 };
+
+export type InlineFilePreviewReadResult =
+	| { type: 'inline'; data: Uint8Array }
+	| { type: 'too-large'; downloadUrl?: string };
+
+type BrowserReadableFile = {
+	arrayBuffer(): Promise<ArrayBuffer>;
+	stream?: () => ReadableStream<Uint8Array>;
+	size?: number;
+	filesize?: number;
+};
+
+/**
+ * Reads a file for inline editing without buffering streams that already report
+ * they are larger than the editor limit.
+ */
+export async function readFileForInlinePreview(
+	file: BrowserReadableFile,
+	maxInlineBytes = MAX_INLINE_FILE_BYTES
+): Promise<InlineFilePreviewReadResult> {
+	const knownSize = getKnownFileSize(file);
+	if (knownSize !== undefined && knownSize > maxInlineBytes) {
+		return {
+			type: 'too-large',
+			downloadUrl: createObjectUrlForNativeBlob(file, knownSize),
+		};
+	}
+
+	if (typeof file.stream === 'function') {
+		return readStreamForInlinePreview(file, maxInlineBytes);
+	}
+
+	const data = new Uint8Array(await file.arrayBuffer());
+	if (data.byteLength > maxInlineBytes) {
+		return {
+			type: 'too-large',
+			downloadUrl: createObjectUrlForNativeBlob(file, data.byteLength),
+		};
+	}
+	return { type: 'inline', data };
+}
+
+function getKnownFileSize(file: BrowserReadableFile): number | undefined {
+	if (typeof file.filesize === 'number') {
+		return file.filesize;
+	}
+	if (typeof file.size === 'number') {
+		return file.size;
+	}
+	return undefined;
+}
+
+async function readStreamForInlinePreview(
+	file: BrowserReadableFile,
+	maxInlineBytes: number
+): Promise<InlineFilePreviewReadResult> {
+	const reader = file.stream!().getReader();
+	const chunks: Uint8Array[] = [];
+	let totalBytes = 0;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				return {
+					type: 'inline',
+					data: concatChunks(chunks, totalBytes),
+				};
+			}
+			if (!value) {
+				continue;
+			}
+			totalBytes += value.byteLength;
+			if (totalBytes > maxInlineBytes) {
+				await reader.cancel().catch(() => undefined);
+				return {
+					type: 'too-large',
+					downloadUrl: createObjectUrlForNativeBlob(file, totalBytes),
+				};
+			}
+			chunks.push(value);
+		}
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+function concatChunks(chunks: Uint8Array[], totalBytes: number) {
+	const data = new Uint8Array(totalBytes);
+	let offset = 0;
+	for (const chunk of chunks) {
+		data.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return data;
+}
+
+function createObjectUrlForNativeBlob(
+	file: BrowserReadableFile,
+	expectedSize: number
+): string | undefined {
+	if (file instanceof Blob && file.size === expectedSize) {
+		return URL.createObjectURL(file);
+	}
+	return undefined;
+}
 
 /**
  * Gets the MIME type for a filename based on its extension.
  */
 export const getMimeType = (filename: string): string => {
-	const extension = filename.split('.').pop() as keyof typeof mimeTypes;
+	const extension = filename
+		.split('.')
+		.pop()
+		?.toLowerCase() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
 };
 

@@ -48,6 +48,7 @@
 	word-wrap: break-word;
 	padding: var(--space-2) 0;
 	margin: var(--space-2) 0;
+	white-space: pre-wrap;
 	white-space-collapse: preserve-breaks;
 	border-block-end: 1px solid var(--line-subtle);
 }

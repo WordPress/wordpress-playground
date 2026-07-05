@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 export class WebsitePage {
@@ -22,6 +22,31 @@ export class WebsitePage {
 		).not.toBeEmpty();
 	}
 
+	async waitForPlaygroundShell(page = this.page) {
+		const controls = [
+			page.getByRole('button', { name: /Site details/ }),
+			page.getByLabel('Open Site Manager'),
+			page.getByRole('button', { name: /Site Manager/ }),
+			page.getByRole('button', { name: /This Playground/ }),
+		];
+		const deadline = Date.now() + 120000;
+		while (Date.now() < deadline) {
+			const visibleControls = await Promise.all(
+				controls.map((control) =>
+					control
+						.first()
+						.isVisible({ timeout: 1000 })
+						.catch(() => false)
+				)
+			);
+			if (visibleControls.some(Boolean)) {
+				return;
+			}
+			await page.waitForTimeout(500);
+		}
+		throw new Error('Timed out waiting for Playground shell controls');
+	}
+
 	wordpress(page = this.page) {
 		return (
 			page
@@ -43,7 +68,7 @@ export class WebsitePage {
 
 	async ensureSiteManagerIsOpen() {
 		const siteManagerButton = this.page.getByRole('button', {
-			name: /This Playground/,
+			name: /Site details/,
 		});
 		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
 		if (isPressed !== 'true') {
@@ -56,31 +81,53 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const panel = this.page.locator('section[class*="site-info-panel"]');
+		const panel = this.page.locator(
+			'section[role="dialog"][aria-label$=" pane"]'
+		);
 		if (await panel.isVisible({ timeout: 1000 }).catch(() => false)) {
-			// The dock pane closes when its click-outside scrim is clicked.
-			// (Clicking the active tool re-opens the same section instead of
-			// toggling it closed.)
-			await this.page
-				.locator('[class*="preview-dismiss"]')
-				.click({ force: true });
+			const activeTool = this.page
+				.locator(
+					'nav[aria-label="Playground tools"] button[aria-pressed="true"]'
+				)
+				.first();
+			if (
+				await activeTool.isVisible({ timeout: 1000 }).catch(() => false)
+			) {
+				await activeTool.click({ timeout: 5000 }).catch(async () => {
+					await this.page.keyboard.press('Escape');
+				});
+			} else {
+				await this.page.keyboard.press('Escape');
+			}
 		}
-		// Wait for the site info panel section to be hidden
 		await expect(panel).not.toBeVisible();
 	}
 
 	/**
-	 * Opens the Your Playgrounds overlay and waits for its content to render.
+	 * Opens the Your Playgrounds pane and waits for its content to render.
 	 */
 	async openSavedPlaygroundsOverlay() {
-		await this.page
-			.getByRole('button', { name: 'Your Playgrounds' })
-			.click();
-		await expect(
-			this.page
-				.locator('[class*="overlay"]')
-				.filter({ hasText: 'Playground' })
-		).toBeVisible();
+		const pane = this.page.getByRole('dialog', {
+			name: 'Your Playgrounds pane',
+		});
+		if (!(await pane.isVisible({ timeout: 1000 }).catch(() => false))) {
+			await this.page
+				.getByRole('button', { name: 'Your Playgrounds' })
+				.click();
+		}
+		await expect(pane).toBeVisible();
+	}
+
+	async openSavedPlayground(name: string) {
+		const overlay = this.page.getByRole('dialog', {
+			name: 'Your Playgrounds pane',
+		});
+		const row = overlay.getByRole('button', {
+			name: new RegExp(`^Open ${escapeRegExp(name)}$`),
+		});
+		await expect(row).toBeVisible();
+		await waitForPaneAnimations(overlay);
+		await row.click();
 	}
 
 	async startNewVanillaPlayground() {
@@ -101,13 +148,15 @@ export class WebsitePage {
 	}
 
 	async closeSavedPlaygroundsOverlay() {
-		const overlay = this.page
-			.locator('[class*="overlay"]')
-			.filter({ hasText: 'Playground' });
-		if (await overlay.isVisible()) {
-			await this.page.keyboard.press('Escape');
+		const pane = this.page.getByRole('dialog', {
+			name: 'Your Playgrounds pane',
+		});
+		if (await pane.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await this.page
+				.getByRole('button', { name: 'Your Playgrounds' })
+				.click();
 		}
-		await expect(overlay).not.toBeVisible();
+		await expect(pane).not.toBeVisible();
 	}
 
 	async getSiteTitle(): Promise<string> {
@@ -115,4 +164,29 @@ export class WebsitePage {
 			.locator('h1[class*="_site-info-header-details-name"]')
 			.innerText();
 	}
+}
+
+async function waitForPaneAnimations(pane: Locator) {
+	await pane.evaluate(async (element) => {
+		const animations = element
+			.getAnimations({ subtree: true })
+			.filter(
+				(animation) =>
+					animation.playState === 'running' ||
+					animation.playState === 'pending'
+			);
+		if (animations.length === 0) {
+			return;
+		}
+		await Promise.race([
+			Promise.allSettled(
+				animations.map((animation) => animation.finished)
+			),
+			new Promise((resolve) => setTimeout(resolve, 500)),
+		]);
+	});
+}
+
+function escapeRegExp(text: string) {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

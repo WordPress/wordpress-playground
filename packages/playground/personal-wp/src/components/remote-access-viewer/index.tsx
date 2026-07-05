@@ -56,6 +56,8 @@ const GUEST_ID_STORAGE_KEY = 'personal-wp-remote-access-guest-id';
 const REMOTE_ACCESS_RELAY_SCOPE = 'default';
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
+const SERVICE_WORKER_UNSUPPORTED_MESSAGE =
+	'Remote access needs a browser with service worker support.';
 
 export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -246,6 +248,13 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 	useEffect(() => {
 		if (!('serviceWorker' in navigator)) {
+			setRelayDiagnostics((current) => ({
+				...current,
+				serviceWorker: 'Unsupported',
+				lastError: 'This browser does not support service workers.',
+			}));
+			setError(SERVICE_WORKER_UNSUPPORTED_MESSAGE);
+			setStatus('error');
 			return;
 		}
 
@@ -319,6 +328,9 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		};
 
 		configureServiceWorker().catch((error) => {
+			if (cancelled) {
+				return;
+			}
 			setRelayDiagnostics((current) => ({
 				...current,
 				serviceWorker: `Error: ${(error as Error).message}`,
@@ -521,6 +533,11 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	);
 
 	const retry = () => {
+		if (!('serviceWorker' in navigator)) {
+			setError(SERVICE_WORKER_UNSUPPORTED_MESSAGE);
+			setStatus('error');
+			return;
+		}
 		restartConnection('Retrying');
 	};
 

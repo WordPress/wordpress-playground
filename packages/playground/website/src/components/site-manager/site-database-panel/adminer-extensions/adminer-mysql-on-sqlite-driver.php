@@ -128,6 +128,8 @@ if (!defined('Adminer\DRIVER')) {
 		function query($query, $unbuffered = false) {
 			try {
 				$this->affected_rows = 0;
+				$this->errno = 0;
+				$this->error = '';
 				$results = $this->driver->query($query);
 				if (is_int($results)) {
 					$this->affected_rows = $results;
@@ -135,7 +137,10 @@ if (!defined('Adminer\DRIVER')) {
 				$columns = $this->driver->get_last_column_meta();
 				return new Result(is_array($results) ? $results : array(), $columns);
 			} catch (Throwable $e) {
-				return new Result(array(), array());
+				$this->affected_rows = 0;
+				$this->errno = $e->getCode() ?: 1;
+				$this->error = $e->getMessage();
+				return false;
 			}
 		}
 	}
@@ -169,14 +174,23 @@ if (!defined('Adminer\DRIVER')) {
 		}
 
 		function fetch_assoc() {
+			if ($this->row_offset >= count($this->rows)) {
+				return false;
+			}
 			return (array) $this->rows[$this->row_offset++];
 		}
 
 		function fetch_row() {
+			if ($this->row_offset >= count($this->rows)) {
+				return false;
+			}
 			return array_values((array) $this->rows[$this->row_offset++]);
 		}
 
-		function fetch_field(): \stdClass {
+		function fetch_field() {
+			if ($this->col_offset >= count($this->columns)) {
+				return false;
+			}
 			$column = $this->columns[$this->col_offset++];
 
 			// Adminer expects MySQLi-like column metadata rather than PDO syntax.

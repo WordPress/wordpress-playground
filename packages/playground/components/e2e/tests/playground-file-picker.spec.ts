@@ -11,6 +11,7 @@ declare global {
 		__filePickerHarness?: {
 			filesystem: HarnessFilesystem;
 			reload: () => void;
+			switchFilesystem: () => void;
 			lastSelectedPath: string | null;
 			lastDoubleClickedPath: string | null;
 		};
@@ -26,14 +27,20 @@ const gotoHarness = async (page: Page) => {
 const canonicalPath = (path: string) =>
 	path.startsWith('/') ? path : `/${path}`;
 
+const cssString = (value: string) =>
+	`"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+const pathSelector = (path: string) =>
+	`[data-path=${cssString(canonicalPath(path))}]`;
+
 const nodeLocator = (page: Page, path: string): Locator =>
-	page.locator(`[data-path="${canonicalPath(path)}"]`);
+	page.locator(pathSelector(path));
 
 const nodeButton = (page: Page, path: string): Locator =>
-	page.locator(`button[data-path="${canonicalPath(path)}"]`).first();
+	page.locator(`button${pathSelector(path)}`).first();
 
 const renameInput = (page: Page, path: string): Locator =>
-	page.locator(`[data-path="${canonicalPath(path)}"] input`).first();
+	page.locator(`${pathSelector(path)} input`).first();
 
 const isExpanded = async (page: Page, path: string) =>
 	(await nodeButton(page, path).getAttribute('data-expanded')) === 'true';
@@ -76,7 +83,7 @@ const expectFocused = async (page: Page, path: string) => {
 };
 
 const expectSelected = async (page: Page, path: string) => {
-	await expect(nodeButton(page, path)).toHaveClass(/selected__/);
+	await expect(nodeButton(page, path)).toHaveClass(/selected/);
 };
 
 const callFilesystem = async <
@@ -105,7 +112,7 @@ const callFilesystem = async <
 					`Filesystem method ${methodName} is unavailable`
 				);
 			}
-			return target(...parameters);
+			return target.apply(harness.filesystem, parameters);
 		},
 		{
 			methodName: method as string,
@@ -164,6 +171,26 @@ test('collapses a folder when it is toggled again', async ({ page }) => {
 	await expect(nodeLocator(page, 'wordpress/workspace')).toHaveCount(0);
 });
 
+test('reloads visible children when the filesystem object changes', async ({
+	page,
+}) => {
+	await expandToPath(page, 'wordpress/workspace');
+	await expect(
+		nodeButton(page, 'wordpress/workspace/index.php')
+	).toBeVisible();
+
+	await page.evaluate(() => {
+		window.__filePickerHarness?.switchFilesystem();
+	});
+
+	await expect(
+		nodeButton(page, 'wordpress/workspace/alternate.php')
+	).toBeVisible();
+	await expect(
+		nodeLocator(page, 'wordpress/workspace/index.php')
+	).toHaveCount(0);
+});
+
 test('arrow right expands the focused directory', async ({ page }) => {
 	await collapseNode(page, 'wordpress');
 	await expandNode(page, 'wordpress');
@@ -209,6 +236,24 @@ test('arrow left on a file returns focus to its parent folder', async ({
 	await akismet.focus();
 	await akismet.press('ArrowLeft');
 	await expectFocused(page, 'wordpress/wp-content/plugins');
+});
+
+test('arrow navigation handles paths with selector metacharacters', async ({
+	page,
+}) => {
+	const specialFolder = 'wordpress/workspace/selector "] edge';
+	const specialFile = `${specialFolder}/child.php`;
+
+	await expandToPath(page, 'wordpress/workspace');
+	const folder = nodeButton(page, specialFolder);
+	await folder.focus();
+	await folder.press('ArrowRight');
+	await expect(nodeButton(page, specialFile)).toBeVisible();
+
+	const file = nodeButton(page, specialFile);
+	await file.focus();
+	await file.press('ArrowLeft');
+	await expectFocused(page, specialFolder);
 });
 
 test('arrow down moves focus to the next visible node', async ({ page }) => {
@@ -268,7 +313,24 @@ test('file context menu omits folder-only actions', async ({ page }) => {
 	await page.keyboard.press('Escape');
 });
 
-test.skip('renaming a file updates the label and filesystem entry', async ({
+test('root context menu omits destructive actions', async ({ page }) => {
+	await nodeButton(page, '/').click({ button: 'right' });
+	await expect(page.getByRole('menu')).toBeVisible();
+	await expect(
+		page.getByRole('menuitem', { name: 'Create file' })
+	).toBeVisible();
+	await expect(
+		page.getByRole('menuitem', { name: 'Create directory' })
+	).toBeVisible();
+	await expect(page.getByRole('menuitem', { name: 'Rename' })).toHaveCount(0);
+	await expect(page.getByRole('menuitem', { name: 'Delete' })).toHaveCount(0);
+	await expect(page.getByRole('menuitem', { name: 'Download' })).toHaveCount(
+		0
+	);
+	await page.keyboard.press('Escape');
+});
+
+test('renaming a file updates the label and filesystem entry', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/workspace');
@@ -309,6 +371,25 @@ test('renaming a directory keeps it expanded with its children', async ({
 	).toBeVisible();
 });
 
+test('renaming a directory remaps a selected child path', async ({ page }) => {
+	await expandToPath(page, 'wordpress/workspace');
+	await nodeButton(page, 'wordpress/workspace/index.php').click();
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		'/wordpress/workspace/index.php'
+	);
+
+	await nodeButton(page, 'wordpress/workspace').click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+	const input = renameInput(page, 'wordpress/workspace');
+	await input.fill('project');
+	await input.press('Enter');
+
+	await expect(nodeButton(page, 'wordpress/project/index.php')).toBeVisible();
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		'/wordpress/project/index.php'
+	);
+});
+
 test('escape cancels an in-progress rename', async ({ page }) => {
 	await expandToPath(page, 'wordpress/workspace');
 	await nodeButton(page, 'wordpress/workspace/index.php').click({
@@ -323,14 +404,14 @@ test('escape cancels an in-progress rename', async ({ page }) => {
 	).toBeVisible();
 });
 
-test.skip('deleting a file removes it from the tree view', async ({ page }) => {
+test('deleting a file removes it from the tree view', async ({ page }) => {
 	await nodeButton(page, 'notes.txt').click({ button: 'right' });
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await expect(nodeLocator(page, 'notes.txt')).toHaveCount(0);
 	await expect(fileExists(page, '/notes.txt')).resolves.toBe(false);
 });
 
-test.skip('deleting a folder moves focus to its parent directory', async ({
+test('deleting a folder moves focus to its parent directory', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/wp-content/plugins');
@@ -347,7 +428,7 @@ test.skip('deleting a folder moves focus to its parent directory', async ({
 	await expectFocused(page, 'wordpress/wp-content');
 });
 
-test.skip('creating a file through the context menu inserts a pending rename field', async ({
+test('creating a file through the context menu inserts a pending rename field', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/wp-content');
@@ -355,7 +436,7 @@ test.skip('creating a file through the context menu inserts a pending rename fie
 		button: 'right',
 	});
 	await page.getByRole('menuitem', { name: 'Create file' }).click();
-	const pendingPath = 'wordpress/wp-content/new-file.php';
+	const pendingPath = 'wordpress/wp-content/untitled.php';
 	const input = renameInput(page, pendingPath);
 	await expect(input).toBeVisible();
 	await input.fill('plugin.php');
@@ -368,7 +449,7 @@ test.skip('creating a file through the context menu inserts a pending rename fie
 	).resolves.toBe('');
 });
 
-test.skip('creating a file reuses an available suffixed name when needed', async ({
+test('creating a file reuses an available suffixed name when needed', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/workspace');
@@ -376,17 +457,23 @@ test.skip('creating a file reuses an available suffixed name when needed', async
 		button: 'right',
 	});
 	await page.getByRole('menuitem', { name: 'Create file' }).click();
-	const pendingPath = 'wordpress/workspace/new-file (1).php';
+	await renameInput(page, 'wordpress/workspace/untitled.php').press('Enter');
+
+	await nodeButton(page, 'wordpress/workspace').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Create file' }).click();
+	const pendingPath = 'wordpress/workspace/untitled (1).php';
 	const input = renameInput(page, pendingPath);
-	await expect(input).toHaveValue('new-file (1).php');
+	await expect(input).toHaveValue('untitled (1).php');
 	await input.press('Enter');
 	await expect(nodeButton(page, pendingPath)).toBeVisible();
 	await expect(
-		readFileAsText(page, '/wordpress/workspace/new-file (1).php')
+		readFileAsText(page, '/wordpress/workspace/untitled (1).php')
 	).resolves.toBe('');
 });
 
-test.skip('creating a directory through the context menu adds the new folder', async ({
+test('creating a directory through the context menu adds the new folder', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/workspace');
@@ -405,7 +492,7 @@ test.skip('creating a directory through the context menu adds the new folder', a
 	);
 });
 
-test.skip('invalid rename on a new file removes the placeholder entry', async ({
+test('invalid rename on a new file removes the placeholder entry', async ({
 	page,
 }) => {
 	await expandToPath(page, 'wordpress/workspace');
@@ -413,13 +500,14 @@ test.skip('invalid rename on a new file removes the placeholder entry', async ({
 		button: 'right',
 	});
 	await page.getByRole('menuitem', { name: 'Create file' }).click();
-	const pendingPath = 'wordpress/workspace/new-file (1).php';
+	const pendingPath = 'wordpress/workspace/untitled.php';
 	const input = renameInput(page, pendingPath);
 	await input.fill('');
+	await expect(input).toHaveValue('');
 	await input.press('Enter');
 	await expect(nodeLocator(page, pendingPath)).toHaveCount(0);
 	await expect(
-		fileExists(page, '/wordpress/workspace/new-file (1).php')
+		fileExists(page, '/wordpress/workspace/untitled.php')
 	).resolves.toBe(false);
 });
 

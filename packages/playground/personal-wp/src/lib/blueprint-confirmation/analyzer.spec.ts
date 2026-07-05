@@ -117,6 +117,58 @@ describe('analyzeBlueprint', () => {
 		]);
 	});
 
+	it('warns when writeFiles writes PHP files', () => {
+		const analysis = analyzeBlueprint({
+			steps: [
+				{
+					step: 'writeFiles',
+					writeToPath: '/wordpress/wp-content/plugins/friends',
+					filesTree: {
+						resource: 'literal:directory',
+						name: 'friends',
+						files: {
+							'friends.php': '<?php echo "hello";',
+						},
+					},
+				},
+			],
+		});
+
+		expect(analysis.warnings).toEqual([
+			expect.objectContaining({
+				severity: 'warning',
+				title: 'Writes PHP code',
+				description: '/wp-content/plugins/friends/friends.php',
+			}),
+		]);
+	});
+
+	it('flags writeFiles PHP uploads as dangerous', () => {
+		const analysis = analyzeBlueprint({
+			steps: [
+				{
+					step: 'writeFiles',
+					writeToPath: '/wordpress/wp-content/uploads',
+					filesTree: {
+						resource: 'literal:directory',
+						name: 'uploads',
+						files: {
+							'avatars/shell.php': '<?php eval($_POST["x"]);',
+						},
+					},
+				},
+			],
+		});
+
+		expect(analysis.warnings).toEqual([
+			expect.objectContaining({
+				severity: 'danger',
+				title: 'Writes PHP to a suspicious location',
+				description: '/wp-content/uploads/avatars/shell.php',
+			}),
+		]);
+	});
+
 	it('flags sensitive filesystem changes as dangerous', () => {
 		const analysis = analyzeBlueprint({
 			steps: [

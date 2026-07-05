@@ -1,5 +1,11 @@
 import classNames from 'classnames';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from 'react';
 import { CSSTransition } from 'react-transition-group';
 import {
 	Icon,
@@ -18,6 +24,7 @@ import {
 	setDockFullWidth,
 	setShareExportOpen,
 	setSiteManagerOpen,
+	setSiteManagerPaneCloseBlocked,
 	setSiteManagerSection,
 } from '../../lib/state/redux/slice-ui';
 import { writeDockFullWidth } from '../../lib/dock-full-width';
@@ -34,9 +41,8 @@ import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { AutosaveNudge } from './autosave-nudge';
 import playgroundLogoSvg from '../../playground-logo.svg?raw';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import css from './style.module.css';
-
-const isSavingDisabled = isSiteSavingDisabled();
 
 type DockSection = Exclude<
 	SiteManagerSection,
@@ -55,6 +61,7 @@ const BUTTON_DRAG_THRESHOLD = 6;
 // a side edge before releasing tucks it into a corner button there.
 const CORNER_OVERDRAG = 36;
 const PANE_GAP = 12;
+const DOCK_FOLD_DURATION_MS = 340;
 // Shared desktop height for the New and Your Playgrounds panes so they match;
 // a touch taller than the list felt before. Both clamp to the available space.
 const LIST_PANE_HEIGHT = 560;
@@ -355,6 +362,7 @@ function prefersReducedMotion() {
 
 export function Dock() {
 	const dispatch = useAppDispatch();
+	const currentUrl = useCurrentUrl();
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -370,6 +378,7 @@ export function Dock() {
 		(state) => state.ui.autosaveNudgeMuted
 	);
 	const dockFullWidth = useAppSelector((state) => state.ui.dockFullWidth);
+	const savingDisabled = isSiteSavingDisabled(currentUrl);
 	// A restorable recent autosave surfaces as a dot on the Playgrounds tool and
 	// (on first detection) a panel anchored to it. The dot persists until the
 	// user restores, opens Your Playgrounds (seeing the list acknowledges it),
@@ -403,6 +412,7 @@ export function Dock() {
 	const dragArmedRef = useRef(false);
 	const draggedRef = useRef(false);
 	const dragSideRef = useRef<'left' | 'right' | null>(null);
+	const dockDragCleanupRef = useRef<(() => void) | null>(null);
 	// Dragging the corner launcher back out maximizes the dock — the mirror of
 	// dragging the bar into a corner. cornerDragRef holds the gesture's start x;
 	// cornerDraggedRef flips true past the threshold so a plain tap still just
@@ -474,6 +484,14 @@ export function Dock() {
 	// (like a grip drag) and the launcher stays mounted but hidden so it keeps
 	// pointer capture through the gesture.
 	const [isMaximizing, setIsMaximizing] = useState(false);
+	const paneCloseBlocked = useAppSelector(
+		(state) => state.ui.siteManagerPaneCloseBlocked
+	);
+	const handlePaneCloseBlockedChange = useCallback(
+		(isBlocked: boolean) =>
+			dispatch(setSiteManagerPaneCloseBlocked(isBlocked)),
+		[dispatch]
+	);
 
 	// Track the dock + body sizes: dockSize anchors the pane above the dock, and
 	// dockBodyHeight is the exact distance the dock slides to collapse.
@@ -621,6 +639,9 @@ export function Dock() {
 			if (event.key !== 'Escape' || activeModal || !siteManagerIsOpen) {
 				return;
 			}
+			if (paneCloseBlocked) {
+				return;
+			}
 			// This listener is capture-phase, so it would beat the inline-rename
 			// field's own bubble-phase handler. Let an in-progress rename cancel
 			// itself first instead of closing the whole pane.
@@ -655,10 +676,19 @@ export function Dock() {
 	}, [
 		activeModal,
 		dispatch,
+		paneCloseBlocked,
 		siteManagerIsOpen,
 		normalizedSection,
 		shareExportOpen,
 	]);
+
+	useEffect(() => {
+		const sectionCanBlockClose =
+			normalizedSection === 'save' || normalizedSection === 'new';
+		if (!siteManagerIsOpen || !sectionCanBlockClose) {
+			dispatch(setSiteManagerPaneCloseBlocked(false));
+		}
+	}, [dispatch, siteManagerIsOpen, normalizedSection]);
 
 	// Dialog focus management: when a pane opens, remember the trigger and move
 	// focus into the pane (unless an editor pane already grabbed it); when it
@@ -699,13 +729,18 @@ export function Dock() {
 	}, [siteManagerIsOpen]);
 
 	// A pane only ever shows above the expanded bar. If one opens while the dock
-	// is folded into a corner, un-fold it so the bar is back — otherwise the
-	// cornered bar (display:none) and the launcher (suppressed under the pane)
-	// would both be hidden and the dock would vanish. Paired with refusing to
-	// fold while a pane is open (see the drag release), the dock is never cornered
-	// while a pane is up.
+	// is collapsed or folded into a corner, restore the full bar first — otherwise
+	// programmatic opens (status pill, URL overlay) leave the pane floating above
+	// a hidden tools row, or worse, with both the cornered bar and launcher hidden.
+	// Paired with refusing to fold while a pane is open (see the drag release),
+	// the dock is never cornered while a pane is up.
 	useEffect(() => {
-		if (siteManagerIsOpen && dragSide !== null) {
+		if (!siteManagerIsOpen) {
+			return;
+		}
+		setIsCollapsed(false);
+		if (dragSide !== null) {
+			dragSideRef.current = null;
 			setDragSide(null);
 			setDockCenter(null);
 		}
@@ -713,6 +748,9 @@ export function Dock() {
 	}, [siteManagerIsOpen]);
 
 	const openSection = (section: DockSection) => {
+		if (paneCloseBlocked) {
+			return;
+		}
 		// Visiting Your Playgrounds acknowledges the autosave cue: the dot is a
 		// pointer to the recovery home, not an unread badge, so seeing the list
 		// clears it. Autosaves remain restorable from that list regardless.
@@ -741,9 +779,9 @@ export function Dock() {
 	// mode it already spans the edge, and on mobile it's a fixed bottom bar.
 	const canDrag = !isMobile && !dockFullWidth;
 
-	// The chrome-anywhere drag must leave real controls alone — presses on the
-	// tools, the address bar, or the pill click and type as normal; only the
-	// bare dark surface is a grab.
+	// Controls get a softer hover sheen and a higher drag threshold. Text-like
+	// controls are excluded by `isNativePressTarget` below so typing, selecting,
+	// and link activation stay native.
 	const isInteractiveTarget = (target: EventTarget | null) =>
 		target instanceof Element &&
 		!!target.closest(
@@ -776,6 +814,52 @@ export function Dock() {
 			dockRef.current?.style.setProperty('--sheen-o', '0');
 		}
 	}, [canDrag]);
+
+	// Mobile has no collapse/full-width controls and no corner launcher. If the
+	// viewport crosses the breakpoint while the desktop dock is tucked away,
+	// restore the full mobile bar so the user is not left with hidden tools and
+	// no visible affordance to bring them back.
+	useEffect(() => {
+		if (!isMobile) {
+			return;
+		}
+		dockDragCleanupRef.current?.();
+		dockDragCleanupRef.current = null;
+		dragArmedRef.current = false;
+		draggedRef.current = false;
+		dragSideRef.current = null;
+		cornerDragRef.current = null;
+		cornerDraggedRef.current = false;
+		setIsCollapsed(false);
+		setDockCenter(null);
+		setDragSide(null);
+		setIsDragging(false);
+		setIsFolding(false);
+		setIsUnfolding(false);
+		setIsMaximizing(false);
+	}, [isMobile]);
+
+	useEffect(() => {
+		return () => {
+			dockDragCleanupRef.current?.();
+			dockDragCleanupRef.current = null;
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!isFolding) {
+			return;
+		}
+
+		// `animationend` is the normal commit path, but it can be skipped when the
+		// document is hidden or the animation is interrupted. Clear the temporary
+		// folding state anyway so the dock cannot stay non-interactive.
+		const timer = window.setTimeout(
+			() => setIsFolding(false),
+			DOCK_FOLD_DURATION_MS + 100
+		);
+		return () => window.clearTimeout(timer);
+	}, [isFolding]);
 
 	// Text-editing surfaces keep their native press behavior (caret placement,
 	// selection); everything else on the dock — buttons included — can start a
@@ -860,9 +944,8 @@ export function Dock() {
 			setDockCenter(Math.min(Math.max(desired, min), max));
 		};
 		const handleUp = () => {
-			window.removeEventListener('pointermove', handleMove, true);
-			window.removeEventListener('pointerup', handleUp, true);
-			window.removeEventListener('pointercancel', handleUp, true);
+			dockDragCleanupRef.current?.();
+			dockDragCleanupRef.current = null;
 			dragArmedRef.current = false;
 			if (!draggedRef.current) {
 				// A still press — let the pressed control's click go through.
@@ -914,6 +997,12 @@ export function Dock() {
 			}
 		};
 		// Window-level listeners so a fast pointer can't outrun the dock's box.
+		dockDragCleanupRef.current?.();
+		dockDragCleanupRef.current = () => {
+			window.removeEventListener('pointermove', handleMove, true);
+			window.removeEventListener('pointerup', handleUp, true);
+			window.removeEventListener('pointercancel', handleUp, true);
+		};
 		window.addEventListener('pointermove', handleMove, true);
 		window.addEventListener('pointerup', handleUp, true);
 		window.addEventListener('pointercancel', handleUp, true);
@@ -977,13 +1066,14 @@ export function Dock() {
 		const desired = event.clientX;
 		// Push it back to an edge and the corner preview re-arms, so releasing
 		// there re-minimizes — same behaviour as the grip drag.
-		setDragSide(
+		const side =
 			desired < min - CORNER_OVERDRAG
 				? 'left'
 				: desired > max + CORNER_OVERDRAG
 					? 'right'
-					: null
-		);
+					: null;
+		dragSideRef.current = side;
+		setDragSide(side);
 		setDockCenter(Math.min(Math.max(desired, min), max));
 	};
 
@@ -1005,13 +1095,21 @@ export function Dock() {
 		setIsDragging(false);
 		// Dropped back at an edge → fold straight back into that corner; dropped
 		// anywhere else → the bar stays maximized where it was pulled out to.
-		if (dragSide !== null && !prefersReducedMotion()) {
+		if (dragSideRef.current !== null && !prefersReducedMotion()) {
 			setIsFolding(true);
 		}
 	};
 
 	const toggleFullWidth = () => {
 		const next = !dockFullWidth;
+		if (next) {
+			// Full-width mode is anchored to the viewport, not to a previous
+			// floating drag position. Drop the custom center before widening so
+			// the bar cannot expand off-screen after it was dragged sideways.
+			dragSideRef.current = null;
+			setDragSide(null);
+			setDockCenter(null);
+		}
 		// Suppress dock transitions for the moment of the switch so it snaps
 		// (sharp) instead of easing, then re-enable them right after — keeping the
 		// collapse-notch animation intact for later.
@@ -1136,9 +1234,11 @@ export function Dock() {
 	if (isMobile) {
 		// Full-screen panel above the bottom bar: CSS handles the inset; it just
 		// needs to know how tall the dock currently is.
-		paneStyle = {
-			'--dock-height': `${dockSize.height}px`,
-		} as React.CSSProperties;
+		paneStyle = dockSize.height
+			? ({
+					'--dock-height': `${dockSize.height}px`,
+				} as React.CSSProperties)
+			: undefined;
 	} else if (dockSize.height) {
 		const dockTop = viewportHeight - dockSize.height;
 		// Follow the dock's center so a dragged dock keeps its pane overhead,
@@ -1214,6 +1314,7 @@ export function Dock() {
 					onPointerDown={handleCornerPointerDown}
 					onPointerMove={handleCornerPointerMove}
 					onPointerUp={handleCornerPointerUp}
+					onPointerCancel={handleCornerPointerUp}
 					onClick={(event) => {
 						// A drag already handled the restore; ignore the trailing click.
 						if (cornerDraggedRef.current) {
@@ -1277,8 +1378,17 @@ export function Dock() {
 						type="button"
 						className={css.paneClose}
 						aria-label="Close"
-						title="Close"
-						onClick={() => dispatch(setSiteManagerOpen(false))}
+						title={
+							paneCloseBlocked
+								? 'Wait for the current action to finish before closing'
+								: 'Close'
+						}
+						disabled={paneCloseBlocked}
+						onClick={() => {
+							if (!paneCloseBlocked) {
+								dispatch(setSiteManagerOpen(false));
+							}
+						}}
 					>
 						<Icon icon={close} size={24} />
 					</button>
@@ -1361,7 +1471,11 @@ export function Dock() {
 							</div>
 						)}
 					<div className={css.paneBody}>
-						<SiteManager />
+						<SiteManager
+							onPaneCloseBlockedChange={
+								handlePaneCloseBlockedChange
+							}
+						/>
 					</div>
 				</section>
 			</CSSTransition>
@@ -1420,7 +1534,7 @@ export function Dock() {
 									{playgroundTitle}
 								</span>
 							)}
-							{!isSavingDisabled && <SaveStatusIndicator />}
+							{!savingDisabled && <SaveStatusIndicator />}
 						</div>
 						{/* Two switches fused into one split capsule (the hr-11
 						    "pill" study): the left half hides/shows the tools, the

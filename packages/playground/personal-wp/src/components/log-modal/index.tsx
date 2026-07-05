@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { logEventType, logger } from '@php-wasm/logger';
 
 import classNames from 'classnames';
@@ -11,6 +11,7 @@ import type {
 } from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { splitLogHighlights } from './log-highlights';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
@@ -30,13 +31,23 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	);
 }
 
-export function SiteLogs({ className }: { className?: string }) {
+export function SiteLogs({
+	className,
+	autoFocusSearch = true,
+}: {
+	className?: string;
+	autoFocusSearch?: boolean;
+}) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
-	const filteredLogs = logs.filter((log) =>
-		log.toLowerCase().includes(searchTerm.toLowerCase())
-	);
+	// Keep each entry's original (append-only) index so it can be a stable React
+	// key. Newest-first display then doesn't churn keys when a log is added.
+	const filteredLogs = logs
+		.map((log, index) => ({ log, index }))
+		.filter(({ log }) =>
+			log.toLowerCase().includes(searchTerm.toLowerCase())
+		);
 
 	useEffect(() => {
 		getLogs();
@@ -52,15 +63,23 @@ export function SiteLogs({ className }: { className?: string }) {
 	}
 
 	function logList() {
-		return filteredLogs.reverse().map((log, index) => (
-			<div
-				className={css.logEntry}
-				key={index}
-				dangerouslySetInnerHTML={{
-					__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
-				}}
-			/>
-		));
+		// Newest first, without mutating filteredLogs (slice before reverse).
+		return filteredLogs
+			.slice()
+			.reverse()
+			.map(({ log, index }) => (
+				<div className={css.logEntry} key={index}>
+					{splitLogHighlights(log).map((segment, segmentIndex) =>
+						segment.highlight ? (
+							<mark key={segmentIndex}>{segment.text}</mark>
+						) : (
+							<Fragment key={segmentIndex}>
+								{segment.text}
+							</Fragment>
+						)
+					)}
+				</div>
+			));
 	}
 
 	return (
@@ -71,7 +90,7 @@ export function SiteLogs({ className }: { className?: string }) {
 					placeholder="Search logs"
 					value={searchTerm}
 					onChange={setSearchTerm}
-					autoFocus={true}
+					autoFocus={autoFocusSearch}
 					className={css.logSearch}
 				/>
 			) : null}

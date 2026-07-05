@@ -163,11 +163,11 @@ function findUrlInCauseChain(error: Error): string | undefined {
 export interface UIState {
 	activeSite?: {
 		slug: string;
+		bootRetryKey?: number;
 		error?: SiteError;
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
-	siteSlugToRename?: string;
 	siteSlugToDelete?: string;
 	/**
 	 * Site the save modal operates on. Defaults to the active site when unset.
@@ -177,6 +177,12 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	/**
+	 * Whether the current dock pane is running work that must not be hidden yet.
+	 * The dock owns the pane contents, while the preview scrim lives in Layout,
+	 * so this has to be shared instead of local component state.
+	 */
+	siteManagerPaneCloseBlocked: boolean;
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so the user's
 	 * in-progress Blueprint survives closing and reopening the pane (which
@@ -241,15 +247,13 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
-	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
-	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
-	 * restored from a URL parameter.
+	 * The delete-site modal requires Redux state (siteSlugToDelete) that is not
+	 * persisted in the URL, so it cannot be meaningfully restored from a URL
+	 * parameter.
 	 */
 	activeModal:
-		query.get('modal') === 'error-report' ||
-		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth' ||
-		query.get('modal') === 'delete-site'
+		query.has('modal') &&
+		shouldClearModalParamOnInitialLoad(query.get('modal'))
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -268,6 +272,7 @@ const initialState: UIState = {
 		// your entire screen – quite a confusing experience.
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
+	siteManagerPaneCloseBlocked: false,
 	shareExportOpen: false,
 	dockFullWidth: readDockFullWidth(),
 	autosaveNudge: null,
@@ -293,17 +298,27 @@ const uiSlice = createSlice({
 			reducer: (
 				state,
 				action: PayloadAction<{
+					siteSlug?: string;
 					error: SiteError;
 					details?: SerializedSiteErrorDetails;
 				}>
 			) => {
-				if (state.activeSite) {
+				if (
+					state.activeSite &&
+					(!action.payload.siteSlug ||
+						action.payload.siteSlug === state.activeSite.slug)
+				) {
 					state.activeSite.error = action.payload.error;
 					state.activeSite.errorDetails = action.payload.details;
 				}
 			},
-			prepare: (payload: { error: SiteError; details?: unknown }) => ({
+			prepare: (payload: {
+				siteSlug?: string;
+				error: SiteError;
+				details?: unknown;
+			}) => ({
 				payload: {
+					siteSlug: payload.siteSlug,
 					error: payload.error,
 					details: serializeSiteErrorDetails(payload.details),
 				},
@@ -314,6 +329,15 @@ const uiSlice = createSlice({
 				state.activeSite.error = undefined;
 				state.activeSite.errorDetails = undefined;
 			}
+		},
+		retryActiveSiteBoot: (state) => {
+			if (!state.activeSite) {
+				return;
+			}
+			state.activeSite.error = undefined;
+			state.activeSite.errorDetails = undefined;
+			state.activeSite.bootRetryKey =
+				(state.activeSite.bootRetryKey ?? 0) + 1;
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			const url = new URL(window.location.href);
@@ -344,6 +368,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setSiteManagerPaneCloseBlocked: (
+			state,
+			action: PayloadAction<boolean>
+		) => {
+			state.siteManagerPaneCloseBlocked = action.payload;
+		},
 		setWriteOwnBlueprintDraft: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -361,12 +391,6 @@ const uiSlice = createSlice({
 		},
 		setDockFullWidth: (state, action: PayloadAction<boolean>) => {
 			state.dockFullWidth = action.payload;
-		},
-		setSiteSlugToRename: (
-			state,
-			action: PayloadAction<string | undefined>
-		) => {
-			state.siteSlugToRename = action.payload;
 		},
 		setSiteSlugToDelete: (
 			state,
@@ -440,31 +464,67 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 			 * loading a URL with the modal parameter.
 			 */
 			if (
-				query.get('modal') === 'error-report' ||
-				query.get('modal') === 'save-site' ||
-				query.get('modal') === 'github-private-repo-auth'
+				query.has('modal') &&
+				shouldClearModalParamOnInitialLoad(query.get('modal'))
 			) {
 				setTimeout(() => {
 					store.dispatch(uiSlice.actions.setActiveModal(null));
 				}, 0);
 			}
 		}
-		return next(action);
+		const result = next(action);
+		if (
+			uiSlice.actions.setSiteManagerOpen.match(action) &&
+			action.payload === false
+		) {
+			clearSiteManagerUrlParams();
+		}
+		return result;
 	};
+
+function clearSiteManagerUrlParams() {
+	if (typeof window === 'undefined') {
+		return;
+	}
+	const url = new URL(window.location.href);
+	if (
+		!url.searchParams.has('overlay') &&
+		!url.searchParams.has('page-title')
+	) {
+		return;
+	}
+	url.searchParams.delete('overlay');
+	url.searchParams.delete('page-title');
+	window.history.replaceState({}, '', url.href);
+}
+
+function shouldClearModalParamOnInitialLoad(modal: string | null) {
+	return (
+		modal === modalSlugs.ERROR_REPORT ||
+		modal === modalSlugs.SAVE_SITE ||
+		modal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH ||
+		modal === modalSlugs.DELETE_SITE ||
+		// Old URLs can still contain the removed rename modal. Leaving that
+		// unknown modal in Redux blocks Escape-close handlers even though no
+		// modal is visible.
+		modal === 'rename-site'
+	);
+}
 
 export const {
 	setActiveModal,
 	setActiveSiteError,
 	clearActiveSiteError,
+	retryActiveSiteBoot,
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteManagerPaneCloseBlocked,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 	setShareExportOpen,
 	setDockFullWidth,
-	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
 	setAutosaveNudge,

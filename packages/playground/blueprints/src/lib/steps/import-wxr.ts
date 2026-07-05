@@ -21,6 +21,30 @@ export interface ImportWxrStep<ResourceType> {
 	/** The file to import */
 	file: ResourceType;
 	/**
+	 * Whether to fetch and import attachment files referenced by the WXR file.
+	 *
+	 * @default true
+	 */
+	fetchAttachments?: boolean;
+	/**
+	 * Whether to rewrite imported URLs to the current site URL.
+	 *
+	 * @default true
+	 */
+	rewriteUrls?: boolean;
+	/**
+	 * Whether to import comments from the WXR file.
+	 *
+	 * @default true
+	 */
+	importComments?: boolean;
+	/**
+	 * The fallback local user for imported authors that cannot be mapped.
+	 *
+	 * When omitted, the importer uses the first Administrator user.
+	 */
+	defaultAuthorUsername?: string;
+	/**
 	 * The importer to use. Possible values:
 	 *
 	 * - `default`: The importer from https://github.com/humanmade/WordPress-Importer
@@ -44,16 +68,34 @@ export interface ImportWxrStep<ResourceType> {
  */
 export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	playground,
-	{ file },
+	{
+		file,
+		fetchAttachments = true,
+		rewriteUrls = true,
+		importComments = true,
+		defaultAuthorUsername,
+	},
 	progress?
 ) => {
-	await importWithDefaultImporter(playground, file, progress);
+	const fallbackAuthorUsername = defaultAuthorUsername?.trim() ?? '';
+	await importWithDefaultImporter(playground, file, progress, {
+		fetchAttachments,
+		rewriteUrls,
+		importComments,
+		fallbackAuthorUsername,
+	});
 };
 
 async function importWithDefaultImporter(
 	playground: UniversalPHP,
 	file: File,
-	progress?: StepProgress | undefined
+	progress: StepProgress | undefined,
+	options: {
+		fetchAttachments: boolean;
+		rewriteUrls: boolean;
+		importComments: boolean;
+		fallbackAuthorUsername: string;
+	}
 ) {
 	progress?.tracker?.setCaption('Importing content');
 	await writeFile(playground, {
@@ -89,16 +131,44 @@ async function importWithDefaultImporter(
 	 */
 	kses_remove_filters();
 
-	// Set current user for the importer to pick it up as the default
-	// post author.
-	$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
-	wp_set_current_user( $admin_id );
+	// The WordPress importer assigns unmapped imported authors to the current
+	// user. Preserve the historical default of the first Administrator user when
+	// no fallback username was explicitly requested.
+	$fallback_author_username = getenv('FALLBACK_AUTHOR_USERNAME');
+	if ($fallback_author_username) {
+		$fallback_author = get_user_by('login', $fallback_author_username);
+		if (!$fallback_author) {
+			throw new Exception(
+				sprintf('Could not find fallback WXR import author "%s".', $fallback_author_username)
+			);
+		}
+	} else {
+		$fallback_administrators = get_users(
+			array(
+				'role'    => 'Administrator',
+				'number'  => 1,
+				'orderby' => 'ID',
+				'order'   => 'ASC',
+			)
+		);
+		if (!$fallback_administrators) {
+			throw new Exception(
+				'Could not find an Administrator user to use as the fallback WXR import author.'
+			);
+		}
+		$fallback_author = $fallback_administrators[0];
+	}
+	wp_set_current_user( $fallback_author->ID );
 
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
 
 	// Prepare the data to be used in process_author_mapping();
 	$wp_import->get_authors_from_import( $import_data );
+
+	if (getenv('IMPORT_COMMENTS') === 'false') {
+		add_filter('wp_import_post_comments', '__return_empty_array');
+	}
 
 	// We no longer need the original data, so unset to avoid using excess
 	// memory.
@@ -117,14 +187,17 @@ async function importWithDefaultImporter(
 		'fetch_attachments' => $wp_import->fetch_attachments,
 	);
 
-	$GLOBALS['wpcli_import_current_file'] = basename( $file );
+	$GLOBALS['wpcli_import_current_file'] = basename( getenv('IMPORT_FILE') );
 	$wp_import->import( getenv('IMPORT_FILE'), [
-		'rewrite_urls' => true,
+		'rewrite_urls' => getenv('REWRITE_URLS') === 'true',
 	] );
 	`,
 		env: {
 			IMPORT_FILE: '/tmp/import.wxr',
-			FETCH_ATTACHMENTS: 'true',
+			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
+			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
+			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
+			FALLBACK_AUTHOR_USERNAME: options.fallbackAuthorUsername,
 		},
 	});
 }

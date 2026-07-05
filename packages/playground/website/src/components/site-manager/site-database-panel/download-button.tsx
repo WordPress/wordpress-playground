@@ -5,30 +5,6 @@ import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
 
-async function downloadDatabase(
-	playground: PlaygroundClient,
-	databasePath: string
-): Promise<void> {
-	const fileExists = await playground.fileExists(databasePath);
-	if (!fileExists) {
-		throw new Error('Database file does not exist');
-	}
-
-	const buffer = await playground.readFileAsBuffer(databasePath);
-	const blob = new Blob([new Uint8Array(buffer)], {
-		type: 'application/x-sqlite3',
-	});
-
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = 'database.sqlite';
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
 export function DownloadButton({
 	playground,
 	databasePath,
@@ -73,4 +49,31 @@ export function DownloadButton({
 			{error && <div className={css.error}>{error}</div>}
 		</>
 	);
+}
+
+async function downloadDatabase(
+	playground: PlaygroundClient,
+	databasePath: string
+): Promise<void> {
+	const fileExists = await playground.fileExists(databasePath);
+	if (!fileExists) {
+		throw new Error('Database file does not exist');
+	}
+
+	const buffer = await playground.readFileAsBuffer(databasePath);
+	const blob = new Blob([new Uint8Array(buffer)], {
+		type: 'application/x-sqlite3',
+	});
+
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+	try {
+		link.href = url;
+		link.download = 'database.sqlite';
+		document.body.appendChild(link);
+		link.click();
+	} finally {
+		link.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 60_000);
+	}
 }

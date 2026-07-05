@@ -141,9 +141,25 @@ async function createBlueprintBundleFromZip(
 ): Promise<BlueprintBundle> {
 	const zipFs = ZipFilesystem.fromArrayBuffer(arrayBuffer);
 	const entryPaths = await zipFs.getAllFilePaths();
+	assertZipEntryPathsStayInsideBundle(entryPaths);
 	const blueprintPath = findBlueprintJsonPath(entryPaths);
 	const dir = dirname(blueprintPath);
 	return dir === '' ? zipFs : new ChrootFilesystem(dir, zipFs);
+}
+
+function assertZipEntryPathsStayInsideBundle(entryPaths: string[]) {
+	for (const entryPath of entryPaths) {
+		const normalizedSeparators = entryPath.replace(/\\/g, '/');
+		if (
+			!entryPath ||
+			entryPath.includes('\0') ||
+			normalizedSeparators.startsWith('/') ||
+			/^[A-Za-z]:\//.test(normalizedSeparators) ||
+			normalizedSeparators.split('/').includes('..')
+		) {
+			throw new Error(`Unsafe Blueprint ZIP entry path: ${entryPath}`);
+		}
+	}
 }
 
 async function looksLikeZipFile(bytes: ArrayBuffer): Promise<boolean> {

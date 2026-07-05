@@ -9,7 +9,7 @@ import css from './style.module.css';
 import { SiteInfoPanel, type SiteInfoPanelTabName } from './site-info-panel';
 import classNames from 'classnames';
 
-import { forwardRef, useCallback } from 'react';
+import { forwardRef, useCallback, useEffect } from 'react';
 import { SavedPlaygroundsPane } from '../saved-playgrounds-overlay';
 import { SiteSharePanel } from './site-share-panel';
 import { SaveSiteModal } from '../save-site-modal';
@@ -28,8 +28,9 @@ export const SiteManager = forwardRef<
 	HTMLDivElement,
 	{
 		className?: string;
+		onPaneCloseBlockedChange?: (isBlocked: boolean) => void;
 	}
->(({ className }, ref) => {
+>(({ className, onPaneCloseBlockedChange }, ref) => {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	// Match the dock's MOBILE_QUERY (1024px) so the inner panel switches to its
@@ -51,7 +52,11 @@ export const SiteManager = forwardRef<
 			break;
 		case 'save':
 			activePanel = activeSite ? (
-				<SaveSiteModal asPane onClose={closeSavePane} />
+				<SaveSiteModal
+					asPane
+					onClose={closeSavePane}
+					onCloseBlockedChange={onPaneCloseBlockedChange}
+				/>
 			) : null;
 			break;
 		case 'new':
@@ -69,7 +74,7 @@ export const SiteManager = forwardRef<
 			activePanel =
 				activeSite && activeTabName ? (
 					<SiteInfoPanel
-						key={`${activeSite.slug}-${activeTabName}`}
+						key={activeSite.slug}
 						className={css.siteManagerSiteInfo}
 						site={activeSite}
 						mobileUi={fullScreenSections}
@@ -80,9 +85,15 @@ export const SiteManager = forwardRef<
 		}
 	}
 
-	// If the site manager is open but there's no active panel,
-	// close it (this can happen if the sidebar was the only content)
-	if (!activePanel) {
+	const hasActivePanel = !!activePanel;
+
+	useEffect(() => {
+		if (!hasActivePanel) {
+			dispatch(setSiteManagerOpen(false));
+		}
+	}, [dispatch, hasActivePanel]);
+
+	if (!hasActivePanel) {
 		return null;
 	}
 

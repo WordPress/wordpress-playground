@@ -1,9 +1,11 @@
-import { dirname, joinPaths } from '@php-wasm/util';
+import { dirname, isParentOf, joinPaths } from '@php-wasm/util';
 import type { UniversalPHP } from './universal-php';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FileTree
-	extends Record<string, Uint8Array | string | FileTree> {}
+export interface FileTree extends Record<
+	string,
+	Uint8Array | string | FileTree
+> {}
 
 export interface WriteFilesOptions {
 	/**
@@ -36,6 +38,7 @@ export async function writeFiles(
 	newFiles: FileTree,
 	{ rmRoot = false }: WriteFilesOptions = {}
 ) {
+	assertFileTreePathsStayInsideRoot(root, newFiles);
 	if (rmRoot) {
 		if (await php.isDir(root)) {
 			await php.rmdir(root, { recursive: true });
@@ -51,5 +54,37 @@ export async function writeFiles(
 		} else {
 			await writeFiles(php, filePath, content);
 		}
+	}
+}
+
+function assertFileTreePathsStayInsideRoot(root: string, files: FileTree) {
+	for (const [relativePath, content] of Object.entries(files)) {
+		assertValidFileTreePath(root, relativePath);
+		const filePath = joinPaths(root, relativePath);
+		if (!isParentOf(root, filePath)) {
+			throw new Error(
+				'File paths must stay inside the target directory.'
+			);
+		}
+		if (!(content instanceof Uint8Array || typeof content === 'string')) {
+			assertFileTreePathsStayInsideRoot(filePath, content);
+		}
+	}
+}
+
+function assertValidFileTreePath(root: string, relativePath: string) {
+	const pathWithoutRootSlash =
+		root === '/' && relativePath.startsWith('/')
+			? relativePath.slice(1)
+			: relativePath;
+	if (
+		!pathWithoutRootSlash ||
+		(root !== '/' && relativePath.startsWith('/')) ||
+		relativePath.includes('\0') ||
+		pathWithoutRootSlash
+			.split('/')
+			.some((segment) => !segment || segment === '.' || segment === '..')
+	) {
+		throw new Error('File tree paths must be relative file paths.');
 	}
 }

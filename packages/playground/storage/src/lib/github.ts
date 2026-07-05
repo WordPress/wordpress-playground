@@ -1,5 +1,5 @@
 import { Semaphore } from '@php-wasm/util';
-import { Octokit } from 'octokit';
+import { Octokit } from '@octokit/rest';
 import type { Changeset } from './changeset';
 
 export type GithubClient = ReturnType<typeof createClient>;
@@ -118,15 +118,34 @@ async function getFileContent(
 		return {
 			name: item.name,
 			path: item.path,
-			content: base64ToUint8Array(fileContent.content),
+			content: decodeGitHubBase64Content(fileContent, item.path),
 		};
 	} finally {
 		release();
 	}
 }
 
+export function decodeGitHubBase64Content(
+	fileContent: { content?: unknown; encoding?: unknown },
+	path: string
+) {
+	if (
+		fileContent.encoding !== undefined &&
+		fileContent.encoding !== 'base64'
+	) {
+		throw new Error(
+			`GitHub did not return inline file content for ${path}. ` +
+				'This usually means the file is too large for the repository Contents API.'
+		);
+	}
+	if (typeof fileContent.content !== 'string') {
+		throw new Error(`No content found for ${path}`);
+	}
+	return base64ToUint8Array(fileContent.content);
+}
+
 function base64ToUint8Array(base64: string) {
-	const binaryString = window.atob(base64); // This will convert base64 to binary string
+	const binaryString = globalThis.atob(base64.replace(/\s/g, ''));
 	const len = binaryString.length;
 	const bytes = new Uint8Array(len);
 	for (let i = 0; i < len; i++) {
@@ -203,16 +222,20 @@ export async function createOrUpdateBranch(
 	branch: string,
 	newHead: string
 ) {
-	const branchExists = await octokit
-		.request('GET /repos/{owner}/{repo}/branches/{branch}', {
+	let branchExists: boolean;
+	try {
+		await octokit.request('GET /repos/{owner}/{repo}/branches/{branch}', {
 			owner,
 			repo,
 			branch,
-		})
-		.then(
-			() => true,
-			() => false
-		);
+		});
+		branchExists = true;
+	} catch (error) {
+		if (!isNotFoundError(error)) {
+			throw error;
+		}
+		branchExists = false;
+	}
 
 	if (branchExists) {
 		await octokit.request('PATCH /repos/{owner}/{repo}/git/refs/{ref}', {
@@ -252,9 +275,39 @@ export async function fork(octokit: Octokit, owner: string, repo: string) {
 			owner,
 			repo,
 		});
+		await waitForForkRepository(octokit, user.data.login, repo);
 	}
 
 	return user.data.login;
+}
+
+const FORK_READY_ATTEMPTS = 10;
+const FORK_READY_RETRY_DELAY_MS = 1000;
+
+async function waitForForkRepository(
+	octokit: Octokit,
+	owner: string,
+	repo: string
+) {
+	for (let attempt = 1; attempt <= FORK_READY_ATTEMPTS; attempt++) {
+		try {
+			await octokit.request('GET /repos/{owner}/{repo}', {
+				owner,
+				repo,
+			});
+			return;
+		} catch (error) {
+			if (!isNotFoundError(error) || attempt === FORK_READY_ATTEMPTS) {
+				throw error;
+			}
+		}
+
+		// GitHub creates forks asynchronously. Wait until the new repository is
+		// readable before creating trees and refs in it.
+		await new Promise((resolve) =>
+			setTimeout(resolve, FORK_READY_RETRY_DELAY_MS)
+		);
+	}
 }
 
 export async function createCommit(
@@ -295,21 +348,44 @@ export async function createTree(
 	if (tree.length === 0) {
 		return null;
 	}
+	const baseTreeSha = await getCommitTreeSha(octokit, owner, repo, parentSha);
 
 	const {
 		data: { sha: newTreeSha },
 	} = await octokit.request('POST /repos/{owner}/{repo}/git/trees', {
 		owner,
 		repo,
-		base_tree: parentSha,
+		base_tree: baseTreeSha,
 		tree,
 	});
 	return newTreeSha;
 }
 
+async function getCommitTreeSha(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	commitSha: string
+) {
+	const {
+		data: {
+			tree: { sha },
+		},
+	} = await octokit.request(
+		'GET /repos/{owner}/{repo}/git/commits/{commit_sha}',
+		{
+			owner,
+			repo,
+			commit_sha: commitSha,
+		}
+	);
+	return sha;
+}
+
 export type GitHubTreeNode = {
 	path: string;
 	mode: '100644';
+	type: 'blob';
 } & (
 	| {
 			sha: string | null;
@@ -360,6 +436,7 @@ export async function createTreeNode(
 					path,
 					content: stringContent,
 					mode: '100644',
+					type: 'blob',
 				};
 			} catch {
 				// If an error occurs, the byteArray is not valid UTF-8 and we must
@@ -376,6 +453,7 @@ export async function createTreeNode(
 					path,
 					sha,
 					mode: '100644',
+					type: 'blob',
 				};
 			}
 		} else {
@@ -384,6 +462,7 @@ export async function createTreeNode(
 				path,
 				content,
 				mode: '100644',
+				type: 'blob',
 			};
 		}
 	} finally {
@@ -403,7 +482,7 @@ export async function deleteFile(
 		// Deleting a non-existent file from a tree leads to an
 		// "GitRPC::BadObjectState" error, so we only attempt to delete the file if
 		// it exists.
-		await octokit.request('HEAD /repos/{owner}/{repo}/contents/:path', {
+		await octokit.request('HEAD /repos/{owner}/{repo}/contents/{path}', {
 			owner,
 			repo,
 			ref: parentSha,
@@ -413,14 +492,21 @@ export async function deleteFile(
 		return {
 			path,
 			mode: '100644',
+			type: 'blob',
 			sha: null,
 		};
-	} catch {
-		// Pass
+	} catch (error) {
+		if (!isNotFoundError(error)) {
+			throw error;
+		}
 		return undefined;
 	} finally {
 		release();
 	}
+}
+
+function isNotFoundError(error: unknown) {
+	return (error as { status?: number })?.status === 404;
 }
 
 function uint8ArrayToBase64(bytes: Uint8Array) {
@@ -429,5 +515,5 @@ function uint8ArrayToBase64(bytes: Uint8Array) {
 	for (let i = 0; i < len; i++) {
 		binary.push(String.fromCharCode(bytes[i]));
 	}
-	return window.btoa(binary.join(''));
+	return globalThis.btoa(binary.join(''));
 }

@@ -7,6 +7,7 @@ import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import { PlaygroundBootNotice } from '../../pane-loading';
 import css from './style.module.css';
+import { logger } from '@php-wasm/logger';
 
 const RELATIVE_DATABASE_PATH = 'wp-content/database/.ht.sqlite';
 
@@ -15,7 +16,10 @@ export function SiteDatabasePanel({
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
-	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	const [documentRoot, setDocumentRoot] = useState<{
+		playground: PlaygroundClient;
+		root: string;
+	} | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
 	const [sizeStatus, setSizeStatus] = useState<
 		'loading' | 'ready' | 'unavailable'
@@ -26,21 +30,40 @@ export function SiteDatabasePanel({
 	useEffect(() => {
 		if (!playground) {
 			setDocumentRoot(null);
+			setDatabaseSize(null);
 			return;
 		}
 		let cancelled = false;
-		void playground.documentRoot.then((root) => {
-			if (!cancelled) {
-				setDocumentRoot(root);
+		setDocumentRoot(null);
+		setDatabaseSize(null);
+		void playground.documentRoot.then(
+			(root) => {
+				if (!cancelled) {
+					setDocumentRoot({ playground, root });
+				}
+			},
+			(error) => {
+				logger.error(
+					'Could not resolve Playground document root',
+					error
+				);
+				if (!cancelled) {
+					setDocumentRoot(null);
+					setSizeStatus('unavailable');
+				}
 			}
-		});
+		);
 		return () => {
 			cancelled = true;
 		};
 	}, [playground]);
 
-	const databasePath = documentRoot
-		? joinPaths(documentRoot, RELATIVE_DATABASE_PATH)
+	const currentDocumentRoot =
+		documentRoot && documentRoot.playground === playground
+			? documentRoot.root
+			: null;
+	const databasePath = currentDocumentRoot
+		? joinPaths(currentDocumentRoot, RELATIVE_DATABASE_PATH)
 		: null;
 
 	useEffect(() => {
@@ -63,10 +86,12 @@ export function SiteDatabasePanel({
 				const fileExists = await playground.fileExists(databasePath);
 				if (cancelled) return;
 				if (fileExists) {
-					const buffer =
-						await playground.readFileAsBuffer(databasePath);
+					const size = await getRemoteFileSize(
+						playground,
+						databasePath
+					);
 					if (cancelled) return;
-					setDatabaseSize(buffer.byteLength);
+					setDatabaseSize(size);
 					setSizeStatus('ready');
 				} else {
 					setSizeStatus('unavailable');
@@ -85,11 +110,17 @@ export function SiteDatabasePanel({
 	}, [playground, databasePath]);
 
 	const formatBytes = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
+		const safeBytes = Math.max(0, bytes);
+		if (safeBytes === 0) return '0 B';
 		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		const i = Math.min(
+			Math.floor(Math.log(safeBytes) / Math.log(k)),
+			sizes.length - 1
+		);
+		return `${parseFloat((safeBytes / Math.pow(k, i)).toFixed(2))} ${
+			sizes[i]
+		}`;
 	};
 
 	return (
@@ -154,4 +185,25 @@ export function SiteDatabasePanel({
 			</div>
 		</div>
 	);
+}
+
+async function getRemoteFileSize(
+	playground: PlaygroundClient,
+	path: string
+): Promise<number> {
+	const escapedPath = escapePhpSingleQuotedString(path);
+	const response = await playground.run({
+		code:
+			`<?php clearstatcache(true, '${escapedPath}');` +
+			` echo filesize('${escapedPath}');`,
+	});
+	const sizeText = response.text.trim();
+	if (!/^\d+$/.test(sizeText)) {
+		throw new Error(`Could not read the size of ${path}.`);
+	}
+	return Number(sizeText);
+}
+
+function escapePhpSingleQuotedString(value: string): string {
+	return value.replace(/['\\]/g, '\\$&');
 }

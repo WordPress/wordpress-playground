@@ -6,7 +6,11 @@ import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { ResolvedRef } from './resolve-pr-input';
-import { resolvePrInput } from './resolve-pr-input';
+import {
+	getPreviewPrInputFromQuery,
+	isWordPressPrBeforePreviewer,
+	resolvePrInput,
+} from './resolve-pr-input';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
@@ -20,8 +24,6 @@ interface PreviewPRFormProps {
 	 *  modal's right-aligned Cancel/Submit row. */
 	inline?: boolean;
 }
-
-const urlParams = new URLSearchParams(window.location.search);
 
 // This structure is from plugin-proxy.php
 // where we set allowed inputs for WordPress and Gutenberg repositories
@@ -48,32 +50,43 @@ export default function PreviewPRForm({
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	const previewRequestIdRef = React.useRef(0);
 	// Track retry timers so they can be cancelled if the form unmounts mid-wait
 	// (e.g. closing the dock pane), instead of firing a retry after teardown.
 	const retryTimersRef = React.useRef<Array<ReturnType<typeof setTimeout>>>(
 		[]
 	);
+	const clearRetryTimers = React.useCallback(() => {
+		for (const timer of retryTimersRef.current) {
+			clearTimeout(timer);
+			clearInterval(timer);
+		}
+		retryTimersRef.current = [];
+	}, []);
+	const isCurrentPreviewRequest = React.useCallback((requestId: number) => {
+		return previewRequestIdRef.current === requestId;
+	}, []);
 
 	useEffect(() => {
-		const query = new URLSearchParams(window.location.search);
-		if (query.has('core-pr')) {
-			const prNumber = query.get('core-pr');
-			prNumber && setValue(prNumber);
+		const initialValue = getPreviewPrInputFromQuery(
+			new URLSearchParams(window.location.search),
+			target
+		);
+		if (initialValue) {
+			setValue(initialValue);
 		}
-	}, []);
+	}, [target]);
 
 	useEffect(() => {
 		return () => {
-			for (const timer of retryTimersRef.current) {
-				clearTimeout(timer);
-				clearInterval(timer);
-			}
-			retryTimersRef.current = [];
+			previewRequestIdRef.current += 1;
+			clearRetryTimers();
 		};
-	}, []);
+	}, [clearRetryTimers]);
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
+		clearRetryTimers();
 
 		if (!value.trim()) {
 			return;
@@ -85,10 +98,19 @@ export default function PreviewPRForm({
 			return;
 		}
 		setError('');
-		await previewRef(resolved.value);
+		const requestId = previewRequestIdRef.current + 1;
+		previewRequestIdRef.current = requestId;
+		await previewRef(resolved.value, requestId);
 	}
 
-	function renderRetryIn(resolved: ResolvedRef, retryIn: number) {
+	function renderRetryIn(
+		resolved: ResolvedRef,
+		retryIn: number,
+		requestId: number
+	) {
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		setError(
 			`Waiting for GitHub to finish building ${
 				resolved.isBranch ? 'branch' : 'PR'
@@ -105,11 +127,16 @@ export default function PreviewPRForm({
 		// For Gutenberg PRs/branches: artifact name is always gutenberg-plugin
 		//   (branches use prefix matching with a trailing dash).
 		const artifactSuffix = repo === 'wordpress' ? ref : '';
-		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${ref}`;
+		const encodedRef = encodeURIComponent(ref);
+		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodedRef}`;
 	}
 
-	async function previewRef(resolved: ResolvedRef) {
+	async function previewRef(resolved: ResolvedRef, requestId: number) {
 		const { target: repo, ref, isBranch } = resolved;
+		const urlParams = new URLSearchParams(window.location.search);
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		setSubmitting(true);
 
 		// For branches, skip verification since we'll use the most recent
@@ -120,11 +147,17 @@ export default function PreviewPRForm({
 			try {
 				response = await fetch(zipArtifactUrl + '&verify_only=true');
 			} catch (e) {
+				if (!isCurrentPreviewRequest(requestId)) {
+					return;
+				}
 				logger.error(e);
 				setError(
 					'Could not reach the build server. Check your connection and try again.'
 				);
 				setSubmitting(false);
+				return;
+			}
+			if (!isCurrentPreviewRequest(requestId)) {
 				return;
 			}
 			if (response.status !== 200) {
@@ -135,9 +168,15 @@ export default function PreviewPRForm({
 						error = json.error;
 					}
 				} catch (e) {
+					if (!isCurrentPreviewRequest(requestId)) {
+						return;
+					}
 					logger.error(e);
 					setError('An unexpected error occurred. Please try again.');
 					setSubmitting(false);
+					return;
+				}
+				if (!isCurrentPreviewRequest(requestId)) {
 					return;
 				}
 
@@ -147,32 +186,31 @@ export default function PreviewPRForm({
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'
 				) {
-					if (parseInt(ref) < 5749) {
+					if (isWordPressPrBeforePreviewer(resolved)) {
 						setError(
 							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
 						);
 					} else {
 						// For PRs, retry since we expect a specific build to complete
 						let retryIn = 30000;
-						renderRetryIn(resolved, retryIn);
+						renderRetryIn(resolved, retryIn, requestId);
 						const timerInterval = setInterval(() => {
 							retryIn -= 1000;
 							if (retryIn <= 0) {
 								retryIn = 0;
 							}
-							renderRetryIn(resolved, retryIn);
+							renderRetryIn(resolved, retryIn, requestId);
 						}, 1000);
 						const retryTimeout = setTimeout(() => {
 							clearInterval(timerInterval);
-							previewRef(resolved);
+							if (isCurrentPreviewRequest(requestId)) {
+								previewRef(resolved, requestId);
+							}
 						}, retryIn);
 						// Only one retry is ever pending at a time; clear any
 						// already-finished handles so the list can't grow
 						// unbounded across a long (15min+) retry loop.
-						retryTimersRef.current.forEach((timer) => {
-							clearTimeout(timer);
-							clearInterval(timer);
-						});
+						clearRetryTimers();
 						retryTimersRef.current = [timerInterval, retryTimeout];
 					}
 				} else if (error === 'artifact_invalid') {
@@ -224,11 +262,10 @@ export default function PreviewPRForm({
 			urlWithPreview.searchParams.set(refParam, ref);
 		} else if (repo === 'gutenberg') {
 			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
-			try {
-				const importSite = new URL(
-					urlParams.get('import-site') as string
-				);
-				if (importSite) {
+			const importSiteParam = urlParams.get('import-site');
+			if (importSiteParam) {
+				try {
+					const importSite = new URL(importSiteParam);
 					// Add it as the first step in the blueprint
 					blueprint.steps!.unshift({
 						step: 'importWordPressFiles',
@@ -237,14 +274,17 @@ export default function PreviewPRForm({
 							url: importSite.origin + importSite.pathname,
 						},
 					});
+				} catch (error) {
+					logger.error('Invalid import-site URL', error);
 				}
-			} catch {
-				logger.error('Invalid import-site URL');
 			}
 			urlWithPreview.searchParams.set(refParam, ref);
 		}
 
 		urlWithPreview.hash = encodeURI(JSON.stringify(blueprint));
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		window.location.href = urlWithPreview.toString();
 	}
 
@@ -259,9 +299,12 @@ export default function PreviewPRForm({
 				<TextControl
 					disabled={submitting}
 					label="Pull request URL or number"
+					name="pull-request-reference"
 					value={value}
 					autoFocus
 					onChange={(e) => {
+						previewRequestIdRef.current += 1;
+						clearRetryTimers();
 						setError('');
 						setValue(e);
 					}}

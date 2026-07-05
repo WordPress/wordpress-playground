@@ -226,7 +226,6 @@ export async function bootWordPress(
 	if (isLegacyPHPVersion(options.phpVersion)) {
 		return bootLegacyWordPress(requestHandler, options);
 	}
-
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
@@ -367,6 +366,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	const constants = bootRequestHandlerConstants(options.constants);
 	const createSpawnHandler =
 		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
@@ -396,9 +396,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 		// Define any custom constants provided via CLI or configuration
-		if (options.constants) {
-			for (const key in options.constants) {
-				php.defineConstant(key, options.constants[key]);
+		if (constants) {
+			for (const key in constants) {
+				php.defineConstant(key, constants[key]);
 			}
 		}
 
@@ -499,6 +499,23 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	});
 
 	return requestHandler;
+}
+
+function bootRequestHandlerConstants(
+	constants: BootRequestHandlerOptions['constants']
+) {
+	if ('SQLITE_JOURNAL_MODE' in (constants ?? {})) {
+		return constants;
+	}
+
+	/*
+	 * Blueprint constants are applied after SQLite may have opened the first
+	 * connection. Define Playground's default through auto-prepend first.
+	 */
+	return {
+		...constants,
+		SQLITE_JOURNAL_MODE: 'DELETE',
+	};
 }
 
 /**

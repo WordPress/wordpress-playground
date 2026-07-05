@@ -42,6 +42,21 @@ describe('PlaygroundRoute', () => {
 			`${url}&site-slug=second-site`
 		);
 	});
+
+	it('preserves the experimental Blueprint runner when adding site slugs', () => {
+		const url = appBaseUrlWithSearch(
+			'experimental-blueprints-v2-runner=yes&app-store=1'
+		);
+		const result = new URL(
+			PlaygroundRoute.site(createSite('second-site'), url)
+		);
+
+		expect(result.searchParams.get('site-slug')).toBe('second-site');
+		expect(
+			result.searchParams.get('experimental-blueprints-v2-runner')
+		).toBe('yes');
+		expect(result.searchParams.has('app-store')).toBe(false);
+	});
 });
 
 function appBaseUrlWithSearch(search: string): string {

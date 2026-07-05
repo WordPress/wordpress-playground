@@ -99,7 +99,7 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 
 					const button = document.createElement('button');
 					button.className = 'cm-string-editor-button';
-					button.innerHTML = '✎ Multiline Edit';
+					button.textContent = '✎ Multiline Edit';
 					button.title = 'Edit string (Cmd/Ctrl+E)';
 					button.onmousedown = (e) => {
 						e.preventDefault();

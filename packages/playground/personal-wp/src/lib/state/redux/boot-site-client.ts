@@ -32,7 +32,7 @@ import {
 	selectBlueprintResolvedFromUrl,
 	setBlueprintResolvedFromUrl,
 } from './slice-sites';
-import type { SiteMetadata } from './slice-sites';
+import type { SiteInfo, SiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import {
@@ -274,6 +274,12 @@ export function bootSiteClient(
 			onReady?.();
 		});
 		try {
+			const experimentalBlueprintsV2Runner =
+				!isWordPressInstalled &&
+				getSetupSearchParam(
+					site,
+					'experimental-blueprints-v2-runner'
+				) === 'yes';
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
@@ -281,11 +287,7 @@ export function bootSiteClient(
 				blueprint,
 				disableProgressBar: true,
 				progressTracker,
-				experimentalBlueprintsV2Runner:
-					!isWordPressInstalled &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
+				experimentalBlueprintsV2Runner,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
@@ -424,6 +426,17 @@ export function bootSiteClient(
 			dispatch(removeClientInfo(site.slug));
 		};
 	};
+}
+
+function getSetupSearchParam(site: SiteInfo, name: string) {
+	const storedValue = site.originalUrlParams?.searchParams?.[name];
+	if (Array.isArray(storedValue)) {
+		return storedValue[0];
+	}
+	if (storedValue !== undefined) {
+		return storedValue;
+	}
+	return new URLSearchParams(window.location.search).get(name) ?? undefined;
 }
 
 function logBootUsageStats({

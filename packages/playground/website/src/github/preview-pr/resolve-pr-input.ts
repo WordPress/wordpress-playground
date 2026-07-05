@@ -12,6 +12,18 @@ export type ResolvePrInputResult =
 // name (or branch URL) can't be previewed. Gutenberg branches still work.
 const WP_BRANCH_ERROR =
 	"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)";
+const PULL_REQUEST_NUMBER = /^[1-9]\d*$/;
+const FIRST_WORDPRESS_PREVIEWABLE_PR = 5749;
+
+export function getPreviewPrInputFromQuery(
+	query: URLSearchParams,
+	target: 'wordpress' | 'gutenberg'
+): string {
+	if (target === 'wordpress') {
+		return query.get('core-pr') || '';
+	}
+	return query.get('gutenberg-pr') || query.get('gutenberg-branch') || '';
+}
 
 /**
  * Resolves free-form input into a repository + reference. A recognized GitHub
@@ -27,57 +39,90 @@ export function resolvePrInput(
 		return { ok: false, error: 'Enter a pull request number or URL.' };
 	}
 
-	const gutenbergPr = input.match(
-		/github\.com\/[^/]+\/gutenberg\/pull\/(\d+)/i
-	);
-	if (gutenbergPr) {
+	const githubUrl = parseGitHubUrl(input);
+	if (githubUrl) {
+		if (
+			!['http:', 'https:'].includes(githubUrl.protocol) ||
+			githubUrl.hostname.toLowerCase() !== 'github.com'
+		) {
+			return {
+				ok: false,
+				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+			};
+		}
+		const githubPath = decodeGitHubPath(githubUrl.pathname);
+		if (!githubPath) {
+			return {
+				ok: false,
+				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+			};
+		}
+		const [owner, repoRaw, kindRaw, ...rest] = githubPath
+			.split('/')
+			.filter(Boolean);
+		if (owner?.toLowerCase() !== 'wordpress') {
+			return {
+				ok: false,
+				error: 'Only WordPress/wordpress-develop and WordPress/gutenberg URLs are supported.',
+			};
+		}
+		const repo = repoRaw?.toLowerCase();
+		const kind = kindRaw?.toLowerCase();
+		if (
+			repo === 'gutenberg' &&
+			kind === 'pull' &&
+			PULL_REQUEST_NUMBER.test(rest[0])
+		) {
+			return {
+				ok: true,
+				value: {
+					target: 'gutenberg',
+					ref: rest[0],
+					isBranch: false,
+				},
+			};
+		}
+		if (repo === 'gutenberg' && kind === 'tree' && rest.length > 0) {
+			return {
+				ok: true,
+				value: {
+					target: 'gutenberg',
+					ref: rest.join('/').replace(/\/+$/, ''),
+					isBranch: true,
+				},
+			};
+		}
+		if (
+			repo === 'wordpress-develop' &&
+			kind === 'pull' &&
+			PULL_REQUEST_NUMBER.test(rest[0])
+		) {
+			return {
+				ok: true,
+				value: {
+					target: 'wordpress',
+					ref: rest[0],
+					isBranch: false,
+				},
+			};
+		}
+		if (repo === 'wordpress-develop' && kind === 'tree') {
+			return { ok: false, error: WP_BRANCH_ERROR };
+		}
 		return {
-			ok: true,
-			value: {
-				target: 'gutenberg',
-				ref: gutenbergPr[1],
-				isBranch: false,
-			},
+			ok: false,
+			error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
 		};
 	}
 
-	const gutenbergBranch = input.match(
-		/github\.com\/[^/]+\/gutenberg\/tree\/(.+)$/i
-	);
-	if (gutenbergBranch) {
-		return {
-			ok: true,
-			value: {
-				target: 'gutenberg',
-				ref: gutenbergBranch[1].replace(/\/+$/, ''),
-				isBranch: true,
-			},
-		};
-	}
-
-	const wordpressPr = input.match(
-		/github\.com\/[^/]+\/wordpress-develop\/pull\/(\d+)/i
-	);
-	if (wordpressPr) {
-		return {
-			ok: true,
-			value: {
-				target: 'wordpress',
-				ref: wordpressPr[1],
-				isBranch: false,
-			},
-		};
-	}
-
-	if (/github\.com\/[^/]+\/wordpress-develop\/tree\//i.test(input)) {
-		return { ok: false, error: WP_BRANCH_ERROR };
-	}
-
-	if (/^\d+$/.test(input)) {
+	if (PULL_REQUEST_NUMBER.test(input)) {
 		return {
 			ok: true,
 			value: { target: preferredTarget, ref: input, isBranch: false },
 		};
+	}
+	if (/^\d+$/.test(input)) {
+		return { ok: false, error: 'Enter a valid pull request number.' };
 	}
 
 	// Bare, non-numeric, no recognized URL: treat as a branch name. Gutenberg
@@ -89,4 +134,36 @@ export function resolvePrInput(
 		};
 	}
 	return { ok: false, error: WP_BRANCH_ERROR };
+}
+
+export function isWordPressPrBeforePreviewer(resolved: ResolvedRef) {
+	return (
+		resolved.target === 'wordpress' &&
+		!resolved.isBranch &&
+		PULL_REQUEST_NUMBER.test(resolved.ref) &&
+		Number(resolved.ref) < FIRST_WORDPRESS_PREVIEWABLE_PR
+	);
+}
+
+function parseGitHubUrl(input: string): URL | undefined {
+	try {
+		return new URL(input);
+	} catch {
+		if (!/^github\.com\//i.test(input)) {
+			return undefined;
+		}
+		try {
+			return new URL(`https://${input}`);
+		} catch {
+			return undefined;
+		}
+	}
+}
+
+function decodeGitHubPath(pathname: string): string | undefined {
+	try {
+		return decodeURIComponent(pathname);
+	} catch {
+		return undefined;
+	}
 }

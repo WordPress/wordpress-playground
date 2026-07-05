@@ -1,5 +1,5 @@
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
-import { normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import type {
 	BlueprintAnalysisResult,
 	BlueprintWarning,
@@ -266,14 +266,72 @@ function analyzeWriteFilesStep(
 	step: Record<string, unknown>,
 	stepIndex: number
 ): BlueprintWarning[] {
-	const files = step.files;
-	if (!files || typeof files !== 'object' || Array.isArray(files)) {
+	if (typeof step.writeToPath !== 'string') {
 		return [];
 	}
 
-	return Object.keys(files).flatMap((path) =>
-		analyzeWritePath(path, stepIndex)
-	);
+	const filesTree =
+		step.filesTree &&
+		typeof step.filesTree === 'object' &&
+		!Array.isArray(step.filesTree)
+			? (step.filesTree as Record<string, unknown>)
+			: null;
+	const files =
+		filesTree?.files &&
+		typeof filesTree.files === 'object' &&
+		!Array.isArray(filesTree.files)
+			? (filesTree.files as Record<string, unknown>)
+			: null;
+	if (!files) {
+		return analyzeWriteDirectoryPath(step.writeToPath, stepIndex);
+	}
+
+	return analyzeFileTreeFiles(step.writeToPath, files, stepIndex);
+}
+
+function analyzeFileTreeFiles(
+	rootPath: string,
+	files: Record<string, unknown>,
+	stepIndex: number
+): BlueprintWarning[] {
+	return Object.entries(files).flatMap(([relativePath, content]) => {
+		const path = joinPaths(rootPath, relativePath);
+		if (
+			content &&
+			typeof content === 'object' &&
+			!(content instanceof Uint8Array)
+		) {
+			return analyzeFileTreeFiles(
+				path,
+				content as Record<string, unknown>,
+				stepIndex
+			);
+		}
+		return analyzeWritePath(path, stepIndex);
+	});
+}
+
+function analyzeWriteDirectoryPath(
+	path: unknown,
+	stepIndex: number
+): BlueprintWarning[] {
+	if (typeof path !== 'string') {
+		return [];
+	}
+
+	const normalizedPath = normalizeWordPressPath(path);
+	if (!isSensitivePath(normalizedPath)) {
+		return [];
+	}
+
+	return [
+		{
+			severity: 'danger',
+			title: 'Writes files to a sensitive location',
+			description: normalizedPath,
+			stepIndex,
+		},
+	];
 }
 
 function analyzeRemovePath(

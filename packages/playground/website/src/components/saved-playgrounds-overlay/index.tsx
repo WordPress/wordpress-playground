@@ -20,8 +20,13 @@ import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
+import {
+	createGitHubImportBaselineForExport,
+	rememberGitHubImportBaselineForExport,
+} from '../../github/github-export-form/import-baseline';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
 import { isValidBlueprintDraft } from './is-valid-blueprint-draft';
+import { getPlaygroundStorageActions } from './storage-actions';
 import {
 	useState,
 	useEffect,
@@ -48,16 +53,18 @@ import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	selectSortedSites,
-	selectTemporarySite,
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import { readSiteBlueprintJson } from '../blueprint-editor/SiteBlueprintBundleEditor';
+import { writeBlueprintJsonToFilesystemBackend } from '../blueprint-editor/blueprint-filesystem';
 import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToDelete,
+	setAutosaveNudgeMuted,
+	setSiteManagerPaneCloseBlocked,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 } from '../../lib/state/redux/slice-ui';
@@ -66,6 +73,8 @@ import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
+import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import { writeAutosaveNudgeMuted } from '../../lib/autosave-nudge-muted';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -96,10 +105,10 @@ const STARTER_BLUEPRINT = `{
 const MAX_VISIBLE_STORED_SITES = 8;
 
 type BlueprintsIndexEntry = {
-	title: string;
-	description: string;
+	title?: string;
+	description?: string;
 	author: string;
-	categories: string[];
+	categories?: string[];
 	path: string;
 	screenshot_url?: string;
 	featured?: boolean;
@@ -202,10 +211,12 @@ export function SavedPlaygroundsOverlay({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
-	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const activeClientInfo = useAppSelector(getActiveClientInfo);
 	const activeSiteSyncLabel = getActiveSiteSyncLabel(activeClientInfo);
+	const autosaveNudgeMuted = useAppSelector(
+		(state) => state.ui.autosaveNudgeMuted
+	);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
@@ -231,6 +242,20 @@ export function SavedPlaygroundsOverlay({
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
+
+	useEffect(() => {
+		dispatch(setSiteManagerPaneCloseBlocked(isImportingZip));
+		return () => {
+			dispatch(setSiteManagerPaneCloseBlocked(false));
+		};
+	}, [dispatch, isImportingZip]);
+
+	useEffect(() => {
+		if (isCreationTabDisabled(activeCreationTab, offline)) {
+			setActiveCreationTab('gallery');
+		}
+	}, [activeCreationTab, offline]);
+
 	// The "Write a Blueprint" draft lives in Redux so it survives closing and
 	// reopening the New pane (which unmounts this component). Falls back to the
 	// starter Blueprint until the user edits it.
@@ -274,7 +299,13 @@ export function SavedPlaygroundsOverlay({
 					dispatch(setWriteOwnBlueprintDraft(json));
 				}
 			} catch {
-				// Keep the starter Blueprint if the site's can't be read.
+				// Keep this site on the starter Blueprint if its declaration
+				// can't be read. Without this reset, switching from another
+				// Playground could leave that previous site's draft in the New
+				// pane.
+				if (!cancelled && writeOwnDraftRef.current === draftAtStart) {
+					dispatch(setWriteOwnBlueprintDraft(STARTER_BLUEPRINT));
+				}
 			}
 		})();
 		return () => {
@@ -320,6 +351,24 @@ export function SavedPlaygroundsOverlay({
 			return;
 		}
 
+		// `createNewSavedSite()` resolves once the iframe is usable, while its
+		// first MEMFS → OPFS copy continues in the background. Importing into that
+		// filesystem during the copy can race the initial save, so wait until the
+		// new Playground has settled before writing the zip contents.
+		if (activeClientInfo?.opfsSync?.status === 'syncing') {
+			return;
+		}
+		if (activeClientInfo?.opfsSync?.status === 'error') {
+			setPendingZipFile(null);
+			setPendingZipTargetSlug(null);
+			setIsImportingZip(false);
+			if (zipFileInputRef.current) {
+				zipFileInputRef.current.value = '';
+			}
+			alert('Unable to save the new Playground before import.');
+			return;
+		}
+
 		// Capture the file and clear the pending request synchronously, BEFORE the
 		// async work, so a re-render (new onClose/activeSite identity) re-running
 		// this effect can't kick off a second concurrent import into the same site.
@@ -330,17 +379,14 @@ export function SavedPlaygroundsOverlay({
 
 		const doImport = async () => {
 			try {
-				if (activeClientInfo?.opfsSync?.status === 'error') {
-					throw new Error(
-						'Unable to save the new Playground before import.'
-					);
-				}
 				await importWordPressFiles(playground, {
 					wordPressFilesZip: zipFile,
 				});
 				await flushImportedWordPressFiles(playground);
-				setTimeout(async () => {
-					await playground.goTo('/');
+				window.setTimeout(() => {
+					void playground.goTo('/').catch((error) => {
+						logger.error('Failed to refresh imported site', error);
+					});
 				}, 200);
 				alert(
 					'File imported! This Playground instance has been updated and will refresh shortly.'
@@ -370,20 +416,19 @@ export function SavedPlaygroundsOverlay({
 	]);
 
 	/**
-	 * Creates or selects a target Playground before importing a zip archive.
+	 * Creates a target Playground before importing a zip archive.
 	 *
 	 * Imports prefer a new OPFS-backed site so the result survives a refresh.
-	 * If that cannot be created, the import falls back to an existing or new
-	 * temporary site.
+	 * If that cannot be created, the import falls back to a new temporary site.
 	 */
 	async function createSiteForImport() {
 		try {
 			return await sitesAPI.createNewSavedSite();
-		} catch {
-			if (temporarySite) {
-				await sitesAPI.setActiveSite(temporarySite.slug);
-				return temporarySite.slug;
-			}
+		} catch (error) {
+			logger.error(
+				'Error creating saved Playground for zip import; falling back to a temporary Playground.',
+				error
+			);
 			return await sitesAPI.createNewTemporarySite();
 		}
 	}
@@ -417,9 +462,7 @@ export function SavedPlaygroundsOverlay({
 		data: blueprintsData,
 		isLoading: blueprintsLoading,
 		isError: blueprintsError,
-	} = useFetch<Record<string, BlueprintsIndexEntry>>(
-		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json'
-	);
+	} = useFetch<Record<string, BlueprintsIndexEntry>>(getBlueprintsIndexUrl());
 
 	const allBlueprints: BlueprintsIndexEntry[] = [
 		// Vanilla WordPress is always the first card and shows immediately, even
@@ -437,8 +480,8 @@ export function SavedPlaygroundsOverlay({
 		const query = searchQuery.toLowerCase();
 		const matchesSearch =
 			!searchQuery ||
-			blueprint.title.toLowerCase().includes(query) ||
-			blueprint.description.toLowerCase().includes(query) ||
+			blueprint.title?.toLowerCase().includes(query) ||
+			blueprint.description?.toLowerCase().includes(query) ||
 			blueprint.categories?.some((cat) =>
 				cat.toLowerCase().includes(query)
 			);
@@ -449,7 +492,7 @@ export function SavedPlaygroundsOverlay({
 	const onSiteClick = (slug: string) => {
 		// Just switch to the Playground and close the pane. We intentionally do
 		// NOT change the dock section here: doing so made the closing pane
-		// re-render as the "This Playground" settings pane mid-exit-animation,
+		// re-render as the "Site details" settings pane mid-exit-animation,
 		// which read as a confusing flash when restoring an autosaved Playground.
 		onClose();
 		void sitesAPI.setActiveSite(slug).catch((error) => {
@@ -465,6 +508,11 @@ export function SavedPlaygroundsOverlay({
 		dispatch(setSiteSlugToDelete(site.slug));
 		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
 		closeMenu();
+	};
+
+	const handleUnmuteAutosaveNotices = () => {
+		writeAutosaveNudgeMuted(false);
+		dispatch(setAutosaveNudgeMuted(false));
 	};
 
 	// Rename happens inline in the row (no modal): start editing, commit on
@@ -494,6 +542,13 @@ export function SavedPlaygroundsOverlay({
 		return rects;
 	};
 
+	const findPlaygroundRow = (slug: string) =>
+		Array.from(
+			document.querySelectorAll<HTMLElement>('[data-playground-row]')
+		).find(
+			(element) => element.getAttribute('data-playground-row') === slug
+		);
+
 	useLayoutEffect(() => {
 		// Only touch the DOM on the render that follows a "Store" — every other
 		// render returns immediately, so we never read layout (and never thrash
@@ -515,9 +570,7 @@ export function SavedPlaygroundsOverlay({
 				if (!dx && !dy) {
 					return;
 				}
-				const element = document.querySelector<HTMLElement>(
-					`[data-playground-row="${slug}"]`
-				);
+				const element = findPlaygroundRow(slug);
 				if (!element) {
 					return;
 				}
@@ -534,17 +587,15 @@ export function SavedPlaygroundsOverlay({
 						element.style.transition = '';
 						element.style.zIndex = '';
 						element.removeEventListener('transitionend', cleanup);
+						window.clearTimeout(cleanupTimer);
 					};
 					element.addEventListener('transitionend', cleanup);
+					const cleanupTimer = window.setTimeout(cleanup, 500);
 				});
 			});
 		}
 	});
 
-	// Store an autosaved Playground permanently in place — no modal, no leaving
-	// the pane. It's a metadata-only lifecycle change (autosave -> explicit), so
-	// the Playground simply moves into the "Saved" group, animated by the effect
-	// above.
 	// Store a browser-side Playground permanently in the browser (OPFS), in place —
 	// no modal, no leaving the pane. An autosave is just marked permanent; a
 	// temporary Playground is persisted to OPFS. Either way it moves into the
@@ -554,12 +605,24 @@ export function SavedPlaygroundsOverlay({
 		rowRectsRef.current = snapshotRowRects();
 		animateMoveRef.current = true;
 		const stored = isAutosavedSite(site)
-			? sitesAPI.keep(site.slug)
-			: sitesAPI.saveInBrowser();
+			? site.slug === activeSite?.slug
+				? sitesAPI.saveInBrowser()
+				: sitesAPI.keep(site.slug)
+			: storeTemporarySiteInBrowser(site.slug);
 		void stored.catch((error) => {
 			animateMoveRef.current = false;
 			logger.error('Error storing Playground in the browser', error);
+			alert(
+				'Unable to store this Playground in the browser. Please try again.'
+			);
 		});
+	};
+
+	const storeTemporarySiteInBrowser = async (slug: string) => {
+		if (slug !== activeSite?.slug) {
+			await sitesAPI.setActiveSite(slug);
+		}
+		await sitesAPI.saveInBrowser();
 	};
 
 	// Save a browser-side Playground's files to a folder the user picks. Saving
@@ -572,15 +635,18 @@ export function SavedPlaygroundsOverlay({
 		closeMenu: () => void
 	) => {
 		try {
-			if (site.slug === activeSite?.slug) {
-				closeMenu();
-				await sitesAPI.saveToLocalFileSystem();
-				return;
-			}
 			const directoryHandle = await (window as any).showDirectoryPicker({
 				id: 'playground-local-fs',
 				mode: 'readwrite',
 			});
+			if (site.slug === activeSite?.slug) {
+				closeMenu();
+				await sitesAPI.saveToLocalFileSystem(
+					undefined,
+					directoryHandle
+				);
+				return;
+			}
 			closeMenu();
 			await sitesAPI.setActiveSite(site.slug);
 			await sitesAPI.saveToLocalFileSystem(undefined, directoryHandle);
@@ -589,6 +655,9 @@ export function SavedPlaygroundsOverlay({
 				return; // The user dismissed the directory picker.
 			}
 			logger.error('Error saving Playground to a local directory', error);
+			alert(
+				'Unable to save this Playground to a local directory. Please try again.'
+			);
 		}
 	};
 
@@ -607,8 +676,21 @@ export function SavedPlaygroundsOverlay({
 	const getCurrentSiteDetails = (site: SiteInfo) => {
 		return [
 			getRuntimeLabel(site),
+			getCurrentSiteStorageLabel(site),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
+	};
+
+	const getCurrentSiteStorageLabel = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return 'Not saved to browser storage';
+		}
+		if (site.metadata.storage === 'local-fs') {
+			return 'Saved in a local directory';
+		}
+		return isAutosavedSite(site)
+			? 'Autosaved in this browser'
+			: 'Stored in this browser';
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -692,15 +774,21 @@ export function SavedPlaygroundsOverlay({
 	 * in-app Blueprint previews follow the default browser autosave policy.
 	 */
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
+		const blueprintUrl = getBlueprintRawUrlFromIndexPath(blueprintPath);
+		if (!blueprintUrl) {
+			logger.error(
+				'Invalid Blueprint index path; refusing to preview.',
+				blueprintPath
+			);
+			alert('Unable to open this Blueprint. Please try another one.');
+			return;
+		}
 		dispatch(setSiteManagerOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				query: {
 					name: 'Blueprint preview',
-					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
-						/^\//,
-						''
-					)}`,
+					'blueprint-url': blueprintUrl,
 				},
 			})
 		);
@@ -723,19 +811,41 @@ export function SavedPlaygroundsOverlay({
 	const createSiteForGitHubImport = async () => {
 		try {
 			await sitesAPI.createNewTemporarySite();
+			const temporaryClient = sitesAPI.getClient();
 			await sitesAPI.saveInBrowser();
-		} catch {
-			if (temporarySite) {
-				await sitesAPI.setActiveSite(temporarySite.slug);
-			} else {
-				await sitesAPI.createNewTemporarySite();
-			}
+			// Saving a temporary Playground changes `whenCreated`, which remounts
+			// the iframe. Import into the post-save client, not the temporary iframe
+			// that React is about to remove.
+			return await waitForSavedGitHubImportClient(temporaryClient);
+		} catch (error) {
+			logger.error(
+				'Error creating saved Playground for GitHub import; falling back to a temporary Playground.',
+				error
+			);
+			await sitesAPI.createNewTemporarySite();
 		}
 		const client = sitesAPI.getClient();
 		if (!client) {
 			throw new Error('No active Playground to import into.');
 		}
 		return client;
+	};
+
+	const waitForSavedGitHubImportClient = async (
+		temporaryClient: PlaygroundClient | undefined
+	) => {
+		const timeoutAt = Date.now() + 30_000;
+		while (Date.now() < timeoutAt) {
+			await waitForNextFrame();
+			const client = sitesAPI.getClient();
+			if (client && client !== temporaryClient) {
+				await client.isReady();
+				return client;
+			}
+		}
+		throw new Error(
+			'Timed out waiting for the saved Playground to boot before GitHub import.'
+		);
 	};
 
 	const submitBlueprintUrl = () => {
@@ -777,11 +887,10 @@ export function SavedPlaygroundsOverlay({
 	 * the draft there first preserves any modifications. This only updates the
 	 * Blueprint (applied later via "Run"), so the running Playground is not
 	 * reloaded.
-	 *
 	 * Saved Playgrounds are the exception: their stored Blueprint must stay
 	 * untouched, so we never write the draft into them (that would persist to
-	 * OPFS). The full editor opens on their existing Blueprint instead, where
-	 * editing is ephemeral and running spins up a new Playground.
+	 * OPFS). The full editor opens on their existing Blueprint in read-only
+	 * mode instead.
 	 */
 	const openInFullEditor = async () => {
 		if (
@@ -792,20 +901,46 @@ export function SavedPlaygroundsOverlay({
 			// a Blueprint the boot resolver rejects.
 			isValidBlueprintDraft(writeOwnDraft)
 		) {
+			let parsed: unknown;
 			try {
-				const parsed = JSON.parse(writeOwnDraft);
-				await dispatch(
-					updateSiteMetadata({
-						slug: activeSite.slug,
-						changes: {
-							originalBlueprint: parsed,
-							originalBlueprintSource: { type: 'inline-string' },
-						},
-					})
-				);
+				parsed = JSON.parse(writeOwnDraft);
 			} catch {
 				// Invalid JSON — open the full editor on the site's current
 				// Blueprint rather than blocking the handoff.
+			}
+			if (parsed) {
+				try {
+					// Preserve bundled files when the source Blueprint already has
+					// a file tree; only replace declaration-only Blueprints in metadata.
+					const updatedExistingBundle =
+						await writeBlueprintJsonToFilesystemBackend(
+							activeSite.metadata.originalBlueprint,
+							writeOwnDraft
+						);
+					if (!updatedExistingBundle) {
+						await dispatch(
+							updateSiteMetadata({
+								slug: activeSite.slug,
+								changes: {
+									originalBlueprint:
+										parsed as SiteInfo['metadata']['originalBlueprint'],
+									originalBlueprintSource: {
+										type: 'inline-string',
+									},
+								},
+							})
+						);
+					}
+				} catch (error) {
+					logger.error(
+						'Could not open the Blueprint draft in the full editor.',
+						error
+					);
+					alert(
+						'Unable to open this Blueprint in the full editor. Please try again.'
+					);
+					return;
+				}
 			}
 		}
 		dispatch(setSiteManagerSection('blueprint'));
@@ -854,14 +989,14 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'github',
-			label: 'GitHub',
+			label: 'From GitHub',
 			panelTitle: 'Import from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
 		},
 		{
 			id: 'zip',
-			label: 'Import zip',
+			label: 'Import .zip',
 			panelTitle: 'Import a .zip export',
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
@@ -934,10 +1069,11 @@ export function SavedPlaygroundsOverlay({
 		});
 	}
 
-	// Every row carries one calm "..." menu (no separate buttons). It groups the
-	// two save destinations — "Save in browser storage" (OPFS) and "Save in a
-	// local directory…" — above Rename / Delete. Clicking anywhere on the row switches
-	// to it. The menu only lists what applies to that Playground's storage.
+	// Every row carries one calm "..." menu (no separate buttons). It groups
+	// the save destinations — "Store in this browser" (OPFS) and "Save in a
+	// local directory…" — above Rename / Delete. Clicking anywhere on the row
+	// switches to it. The menu only lists what applies to that Playground's
+	// storage.
 	function renderRowActions(site: SiteInfo) {
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
@@ -945,9 +1081,13 @@ export function SavedPlaygroundsOverlay({
 		// Temporary and autosaved Playgrounds live in the browser and can be
 		// stored permanently in the browser (OPFS) and/or copied to a local
 		// directory. Already-saved and local-directory Playgrounds can't.
-		const canStoreInBrowser = isTemporary || isAutosave;
-		const canSaveToLocal =
-			canStoreInBrowser && localFsAvailability === 'available';
+		const { canStoreInBrowser, canSaveToLocal } =
+			getPlaygroundStorageActions({
+				isTemporary,
+				isAutosave,
+				isOpfsAvailable,
+				localFsAvailability,
+			});
 		const hasSaveActions = canStoreInBrowser || canSaveToLocal;
 		if (!hasSaveActions && !isStored) {
 			return null;
@@ -956,7 +1096,7 @@ export function SavedPlaygroundsOverlay({
 			<div className={css.siteRowActions}>
 				<DropdownMenu
 					icon={moreVertical}
-					label="Playground actions"
+					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					popoverProps={{ placement: 'bottom-end' }}
 				>
@@ -973,7 +1113,7 @@ export function SavedPlaygroundsOverlay({
 												)
 											}
 										>
-											Save in browser storage
+											Store in this browser
 										</MenuItem>
 									)}
 									{canSaveToLocal && (
@@ -1183,6 +1323,17 @@ export function SavedPlaygroundsOverlay({
 						{renderSiteGroup('Saved', visibleSavedSites)}
 					</>
 				)}
+				{autosaveNudgeMuted && (
+					<div className={css.autosaveNoticesMuted}>
+						<span>Autosave restore notices are off.</span>
+						<button
+							type="button"
+							onClick={handleUnmuteAutosaveNotices}
+						>
+							Turn notices back on
+						</button>
+					</div>
+				)}
 				{savedSites.length > MAX_VISIBLE_STORED_SITES && (
 					<button
 						type="button"
@@ -1386,7 +1537,18 @@ export function SavedPlaygroundsOverlay({
 								createSiteForGitHubImport
 							}
 							onClose={() => setActiveCreationTab('gallery')}
-							onImported={() => {
+							onImported={(details) => {
+								const activeSiteSlug = sitesAPI
+									.list()
+									.find((site) => site.isActive)?.slug;
+								if (activeSiteSlug) {
+									rememberGitHubImportBaselineForExport(
+										activeSiteSlug,
+										createGitHubImportBaselineForExport(
+											details
+										)
+									);
+								}
 								// eslint-disable-next-line no-alert
 								alert(
 									'Import finished! Your Playground has been updated.'
@@ -1408,6 +1570,7 @@ export function SavedPlaygroundsOverlay({
 						<TextControl
 							__nextHasNoMarginBottom
 							label="Blueprint URL"
+							name="blueprint-url"
 							hideLabelFromVision
 							value={blueprintUrlInput}
 							onChange={(value: string) =>
@@ -1477,9 +1640,11 @@ export function SavedPlaygroundsOverlay({
 					</div>
 					<input
 						type="text"
+						name="blueprint-search"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						placeholder="Search Blueprints"
+						aria-label="Search Blueprints"
 						className={css.searchField}
 					/>
 				</div>
@@ -1516,7 +1681,7 @@ export function SavedPlaygroundsOverlay({
 				</div>
 				<span className={css.blueprintPreviewBody}>
 					<span className={css.blueprintPreviewTitle}>
-						{blueprint.title}
+						{blueprint.title ?? blueprint.path}
 					</span>
 					{blueprint.description && (
 						<span className={css.blueprintPreviewDescription}>
@@ -1536,6 +1701,7 @@ export function SavedPlaygroundsOverlay({
 		>
 			<input
 				type="file"
+				name="playground-zip-import"
 				ref={zipFileInputRef}
 				onChange={handleImportZip}
 				accept=".zip,application/zip"
@@ -1547,9 +1713,46 @@ export function SavedPlaygroundsOverlay({
 	);
 }
 
+function isCreationTabDisabled(tab: CreationTabId, offline: boolean) {
+	return (
+		offline &&
+		(tab === 'blueprint-url' || tab === 'github' || tab === 'pull-request')
+	);
+}
+
+function getBlueprintRawUrlFromIndexPath(path: string) {
+	const segments = path.replace(/\\/g, '/').split('/').filter(Boolean);
+	if (
+		segments.length === 0 ||
+		segments.some((segment) => segment === '.' || segment === '..')
+	) {
+		return null;
+	}
+	return `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${segments
+		.map((segment) => encodeURIComponent(segment))
+		.join('/')}`;
+}
+
+function getBlueprintsIndexUrl() {
+	const indexUrl =
+		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json';
+	if (window.location.port === '5400') {
+		// The local Vite dev server has no `/proxy/network-first-fetch/` route;
+		// direct GitHub fetches are CORS-enabled and keep the New pane usable.
+		return indexUrl;
+	}
+	return `/proxy/network-first-fetch/${indexUrl}`;
+}
+
 async function flushImportedWordPressFiles(playground: PlaygroundClient) {
 	const documentRoot = await playground.documentRoot;
 	if (await playground.hasOpfsMount(documentRoot)) {
 		await playground.flushOpfs(documentRoot);
 	}
+}
+
+function waitForNextFrame() {
+	return new Promise<void>((resolve) => {
+		requestAnimationFrame(() => resolve());
+	});
 }

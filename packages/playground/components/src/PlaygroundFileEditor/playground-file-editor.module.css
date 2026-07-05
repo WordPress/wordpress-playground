@@ -166,6 +166,29 @@
 	color: var(--accent-hover, #135e96);
 }
 
+.recovery {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--line-subtle, #ddd);
+	background: var(--paper-1, #ffffff);
+}
+
+.recoveryBuffer {
+	width: 100%;
+	min-height: 120px;
+	padding: 8px;
+	border: 1px solid var(--line-subtle, #ddd);
+	border-radius: 4px;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	resize: vertical;
+}
+
 /* Scoped under .editorHeader (0,2,0) so it reliably outranks WordPress'
    `.components-button { display }` regardless of stylesheet load order. */
 .editorHeader .mobileToggle {
@@ -213,14 +236,17 @@
 		flex-wrap: wrap;
 		gap: 8px;
 		background: var(--paper-2, #ffffff);
+		/* The dock pane's close X is absolutely positioned in this corner. Keep
+		   the first header row clear of it instead of letting toolbar buttons sit
+		   underneath the X. */
+		padding-right: 56px;
 	}
 
 	.editorPath {
-		width: 100%;
+		flex: 1 0 100%;
+		width: auto;
 		order: 2;
-		/* Keep the (potentially long) filename clear of the dock pane's close X
-		   in the top-right corner; it shares this first row with "Browse files". */
-		margin-right: 48px;
+		margin-right: 0;
 	}
 
 	.editorHeader .mobileToggle {
@@ -231,6 +257,8 @@
 	/* Drop the save-status cluster below the "Browse files" / filename rows so
 	   that sparse first row leaves its right corner free for the pane's close X. */
 	.editorHeaderActions {
+		flex: 1 0 100%;
+		justify-content: flex-start;
 		order: 3;
 	}
 

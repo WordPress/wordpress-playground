@@ -734,10 +734,15 @@ export function SiteInfoPanel({
 		return 'about';
 	});
 
-	// Resolve documentRoot from playground client, or use fallback for direct OPFS access
-	// Initialize to "/" for OPFS sites so the file browser can render immediately
-	const [documentRoot, setDocumentRoot] = useState<string | null>(
-		site.metadata.storage === 'opfs' ? '/' : null
+	// Resolve documentRoot from playground client, or use fallback for direct OPFS access.
+	const [documentRoot, setDocumentRoot] = useState<{
+		playground: PlaygroundClient | null;
+		siteSlug: string;
+		root: string;
+	} | null>(() =>
+		site.metadata.storage === 'opfs'
+			? { playground: null, siteSlug: site.slug, root: '/' }
+			: null
 	);
 
 	// Save the tab when it changes
@@ -762,18 +767,51 @@ export function SiteInfoPanel({
 	// Resolve documentRoot from playground, or use fallback for direct OPFS access
 	useEffect(() => {
 		if (playground) {
-			void playground.documentRoot.then((root) => {
-				setDocumentRoot(root);
-			});
+			let cancelled = false;
+			setDocumentRoot(null);
+			void playground.documentRoot.then(
+				(root) => {
+					if (!cancelled) {
+						setDocumentRoot({
+							playground,
+							siteSlug: site.slug,
+							root,
+						});
+					}
+				},
+				(error) => {
+					logger.error(
+						'Could not resolve Playground document root',
+						error
+					);
+					if (!cancelled) {
+						setDocumentRoot(null);
+					}
+				}
+			);
+			return () => {
+				cancelled = true;
+			};
 		} else if (site.metadata.storage === 'opfs') {
 			// When accessing OPFS directly (no client), the root is "/".
 			// This also handles the case where playground becomes null after being set
 			// (e.g., site crashes mid-session), resetting documentRoot for direct OPFS access.
-			setDocumentRoot('/');
+			setDocumentRoot({
+				playground: null,
+				siteSlug: site.slug,
+				root: '/',
+			});
 		} else {
 			setDocumentRoot(null);
 		}
-	}, [playground, site.metadata.storage]);
+	}, [playground, site.metadata.storage, site.slug]);
+
+	const currentDocumentRoot =
+		documentRoot?.siteSlug === site.slug &&
+		documentRoot.playground === (playground ?? null) &&
+		(playground || site.metadata.storage === 'opfs')
+			? documentRoot.root
+			: null;
 
 	function navigateTo(path: string) {
 		if (siteViewHidden) {
@@ -932,12 +970,14 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										{documentRoot && (
+										{currentDocumentRoot && (
 											<SiteFileBrowser
 												key={site.slug}
 												site={site}
 												isVisible={tab.name === 'files'}
-												documentRoot={documentRoot}
+												documentRoot={
+													currentDocumentRoot
+												}
 											/>
 										)}
 									</Suspense>
@@ -971,7 +1011,12 @@ export function SiteInfoPanel({
 									<div
 										className={classNames(css.logsWrapper)}
 									>
-										<SiteLogs className={css.logsSection} />
+										<SiteLogs
+											className={css.logsSection}
+											autoFocusSearch={
+												tab.name === 'logs'
+											}
+										/>
 									</div>
 								</div>
 							</>

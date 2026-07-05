@@ -14,6 +14,16 @@ export interface UseBlueprintUrlHashResult {
 	 * Whether the bundle can be shared via URL (only contains blueprint.json).
 	 */
 	isShareable: boolean;
+
+	/**
+	 * Whether the current filesystem is still being checked for URL shareability.
+	 */
+	isCheckingShareability: boolean;
+
+	/**
+	 * Whether urlHash has been computed for the current content/shareability.
+	 */
+	hasComputedUrlHash: boolean;
 }
 
 export interface UseBlueprintUrlHashOptions {
@@ -40,42 +50,64 @@ export function useBlueprintUrlHash(
 ): UseBlueprintUrlHashResult {
 	const { disabled = false, debounceMs = 500 } = options;
 
-	const [isShareable, setIsShareable] = useState(true);
+	const [isShareable, setIsShareable] = useState(false);
+	const [isCheckingShareability, setIsCheckingShareability] = useState(false);
+	const [checkedFilesystem, setCheckedFilesystem] =
+		useState<EventedFilesystem | null>(null);
 	const [urlHash, setUrlHash] = useState<string | null>(null);
+	const [hasComputedUrlHash, setHasComputedUrlHash] = useState(false);
 
 	// Check if the bundle only contains blueprint.json (can be shared via URL).
 	// Blueprint bundles with additional files cannot be encoded in a URL hash.
 	const checkBundleShareability = useCallback(async () => {
 		if (!filesystem) {
-			setIsShareable(false);
 			return false;
 		}
 		try {
 			const rootEntries = await filesystem.listFiles('/');
-			const shareable =
-				rootEntries.length === 1 && rootEntries[0] === 'blueprint.json';
-			setIsShareable(shareable);
-			return shareable;
+			return (
+				rootEntries.length === 1 && rootEntries[0] === 'blueprint.json'
+			);
 		} catch {
-			setIsShareable(false);
 			return false;
 		}
 	}, [filesystem]);
 
-	// Check shareability on initial load and whenever the filesystem changes
+	// Check shareability on initial load and whenever the filesystem changes. The
+	// previous filesystem's result must not briefly enable Copy Blueprint URL for
+	// a newly selected multi-file bundle while this async check is still pending.
 	useEffect(() => {
+		let cancelled = false;
+		let latestRun = 0;
+		setIsShareable(false);
+		setCheckedFilesystem(null);
+		setUrlHash(null);
+
 		if (!filesystem) {
+			setIsCheckingShareability(false);
 			return;
 		}
 
-		checkBundleShareability();
-
-		const handleFilesystemChange = () => {
-			checkBundleShareability();
+		const runShareabilityCheck = () => {
+			const run = ++latestRun;
+			setIsCheckingShareability(true);
+			void (async () => {
+				const shareable = await checkBundleShareability();
+				if (cancelled || run !== latestRun) {
+					return;
+				}
+				setIsShareable(shareable);
+				setCheckedFilesystem(filesystem);
+				setIsCheckingShareability(false);
+			})();
 		};
-		filesystem.addEventListener('change', handleFilesystemChange);
+
+		runShareabilityCheck();
+
+		filesystem.addEventListener('change', runShareabilityCheck);
 		return () => {
-			filesystem.removeEventListener('change', handleFilesystemChange);
+			cancelled = true;
+			filesystem.removeEventListener('change', runShareabilityCheck);
 		};
 	}, [filesystem, checkBundleShareability]);
 
@@ -85,30 +117,40 @@ export function useBlueprintUrlHash(
 		(content: string, shareable: boolean) => {
 			if (disabled || !shareable) {
 				setUrlHash(null);
+				setHasComputedUrlHash(true);
 				return;
 			}
 
 			try {
-				// Validate that it's valid JSON before encoding
+				// Validate that it's valid JSON before encoding.
 				JSON.parse(content);
 				const encoded = encodeStringAsBase64(content);
 				setUrlHash(encoded);
 			} catch {
-				// Don't update hash if blueprint is invalid JSON
+				// Don't update hash if blueprint is invalid JSON.
 				setUrlHash(null);
 			}
+			setHasComputedUrlHash(true);
 		},
 		debounceMs,
 		[]
 	);
 
 	useEffect(() => {
+		setHasComputedUrlHash(false);
 		if (disabled) {
 			setUrlHash(null);
+			setHasComputedUrlHash(true);
 			return;
 		}
 		computeUrlHash(blueprintContent, isShareable);
 	}, [blueprintContent, isShareable, disabled, computeUrlHash]);
 
-	return { urlHash, isShareable };
+	return {
+		urlHash,
+		isShareable,
+		isCheckingShareability:
+			isCheckingShareability || checkedFilesystem !== filesystem,
+		hasComputedUrlHash,
+	};
 }

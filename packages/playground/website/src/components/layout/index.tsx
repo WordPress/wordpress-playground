@@ -1,10 +1,18 @@
 import css from './style.module.css';
 
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	selectActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { useState, lazy, Suspense, useEffect, useRef } from 'react';
-import type { ExportFormValues } from '../../github/github-export-form/form';
-import { asPullRequestAction } from '../../github/github-export-form/form';
+import type { ExportFormValues } from '../../github/github-export-form/form-types';
+import { asPullRequestAction } from '../../github/github-export-form/form-types';
+import {
+	clearGitHubImportBaselineForExport,
+	createGitHubImportBaselineForExport,
+} from '../../github/github-export-form/import-baseline';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import { asContentType } from '../../github/import-from-github';
 import { LogModal } from '../log-modal';
@@ -28,6 +36,7 @@ import { ModalLoadingFallback } from '../modal-loading-fallback';
 import { Dock } from '../dock';
 import { SaveInProgressUnloadGuard } from '../save-in-progress-unload-guard';
 import classNames from 'classnames';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 
 /**
  * Lazy modal wrapper component to reduce Suspense repetition
@@ -55,40 +64,39 @@ const PreviewPRModal = lazy(() =>
 	}))
 );
 
-const displayMode = getDisplayModeFromQuery();
-function getDisplayModeFromQuery(): DisplayMode {
-	const query = new URLSearchParams(document.location.search);
+function getDisplayModeFromQuery(query: URLSearchParams): DisplayMode {
 	return supportedDisplayModes.includes(query.get('mode') as any)
 		? (query.get('mode') as DisplayMode)
 		: 'browser-full-screen';
 }
 
 export function Layout() {
+	const currentUrl = useCurrentUrl();
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const siteManagerPaneCloseBlocked = useAppSelector(
+		(state) => state.ui.siteManagerPaneCloseBlocked
+	);
 	const dockFullWidth = useAppSelector((state) => state.ui.dockFullWidth);
 	const dispatch = useAppDispatch();
+	const displayMode = getDisplayModeFromQuery(currentUrl.searchParams);
 	const showDock = displayMode !== 'seamless';
+	const overlayParam = currentUrl.searchParams.get('overlay');
 
 	useEffect(() => {
-		const overlayParam = new URL(document.location.href).searchParams.get(
-			'overlay'
-		);
 		if (!showDock || overlayParam === null) {
 			return;
 		}
-		dispatch(
-			setSiteManagerSection(
-				overlayParam === 'blueprints' ? 'new' : 'playgrounds'
-			)
-		);
+		dispatch(setSiteManagerSection(getSectionForOverlay(overlayParam)));
 		dispatch(setSiteManagerOpen(true));
-	}, [dispatch, showDock]);
+	}, [dispatch, overlayParam, showDock]);
 
 	const closeDockPane = () => {
+		if (siteManagerPaneCloseBlocked) {
+			return;
+		}
 		dispatch(setSiteManagerOpen(false));
-		clearOverlayQueryParam();
 	};
 
 	// While a dock pane is open the preview is visually obscured (blurred,
@@ -139,6 +147,7 @@ export function Layout() {
 						// the pane with Escape or its X.
 						aria-hidden="true"
 						tabIndex={-1}
+						disabled={siteManagerPaneCloseBlocked}
 						onClick={closeDockPane}
 					/>
 				)}
@@ -149,13 +158,11 @@ export function Layout() {
 	);
 }
 
-function clearOverlayQueryParam() {
-	const url = new URL(window.location.href);
-	if (!url.searchParams.has('overlay')) {
-		return;
+function getSectionForOverlay(overlay: string) {
+	if (overlay === 'blueprints' || overlay === 'new') {
+		return 'new';
 	}
-	url.searchParams.delete('overlay');
-	window.history.replaceState({}, '', url.toString());
+	return 'playgrounds';
 }
 
 /**
@@ -174,7 +181,8 @@ function clearOverlayQueryParam() {
 function Modals() {
 	const query = new URL(document.location.href).searchParams;
 
-	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
+	const [githubExportFilesCommitSha, setGithubExportFilesCommitSha] =
+		useState<string>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
 	>(() => {
@@ -219,6 +227,7 @@ function Modals() {
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
+	const activeSite = useAppSelector(selectActiveSite);
 
 	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
@@ -261,21 +270,24 @@ function Modals() {
 					onImported={({
 						url,
 						path,
-						files,
 						pluginOrThemeName,
 						contentType,
-						urlInformation: { owner, repo, type, pr },
+						filesCommitSha,
+						urlInformation,
 					}) => {
-						setGithubExportValues({
-							repoUrl: url,
-							prNumber: pr?.toString(),
-							toPathInRepo: path,
-							prAction: pr ? 'update' : 'create',
-							contentType,
-							plugin: pluginOrThemeName,
-							theme: pluginOrThemeName,
-						});
-						setGithubExportFiles(files);
+						const importBaseline =
+							createGitHubImportBaselineForExport({
+								url,
+								path,
+								pluginOrThemeName,
+								contentType,
+								filesCommitSha,
+								urlInformation,
+							});
+						setGithubExportValues(importBaseline.initialValues);
+						setGithubExportFilesCommitSha(
+							importBaseline.filesCommitSha
+						);
 					}}
 				/>
 			</LazyModal>
@@ -289,10 +301,15 @@ function Modals() {
 						'yes'
 					}
 					initialValues={githubExportValues}
-					initialFilesBeforeChanges={githubExportFiles}
-					onExported={(prUrl, formValues) => {
+					initialFilesBeforeChangesCommitSha={
+						githubExportFilesCommitSha
+					}
+					onExported={(_prUrl, formValues) => {
 						setGithubExportValues(formValues);
-						setGithubExportFiles(undefined);
+						setGithubExportFilesCommitSha(undefined);
+						if (activeSite) {
+							clearGitHubImportBaselineForExport(activeSite.slug);
+						}
 					}}
 				/>
 			</LazyModal>

@@ -1,5 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, randomFilename } from '@php-wasm/util';
+import { basename, joinPaths, randomFilename } from '@php-wasm/util';
 import { unzip } from './unzip';
 
 export interface InstallAssetOptions {
@@ -91,9 +91,21 @@ export async function installAsset(
 		if (targetFolderName && targetFolderName.length) {
 			assetFolderName = targetFolderName;
 		}
+		if (
+			!assetFolderName ||
+			assetFolderName === '.' ||
+			assetFolderName === '..' ||
+			assetFolderName.includes('\\') ||
+			assetFolderName.includes('\0') ||
+			basename(assetFolderName) !== assetFolderName
+		) {
+			throw new Error(
+				'Asset folder name must be a single directory name.'
+			);
+		}
 
 		// Move asset folder to target path
-		const assetFolderPath = `${targetPath}/${assetFolderName}`;
+		const assetFolderPath = joinPaths(targetPath, assetFolderName);
 
 		// Handle the scenario when the asset is already installed.
 		if (await playground.fileExists(assetFolderPath)) {

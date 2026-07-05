@@ -4,6 +4,7 @@ import React, {
 	useRef,
 	useState,
 	type Dispatch,
+	type ReactNode,
 	type SetStateAction,
 } from 'react';
 import classNames from 'classnames';
@@ -16,14 +17,14 @@ import {
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { dirname, normalizePath } from '@php-wasm/util';
+import { basename, dirname, joinPaths, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
-	MAX_INLINE_FILE_BYTES,
 	seemsLikeBinary,
 	createDownloadUrl,
 	getMimeType,
 	isPreviewableBinary,
+	readFileForInlinePreview,
 } from './file-utils';
 
 const FilePlusIcon = () => (
@@ -98,7 +99,7 @@ export type FileExplorerSidebarProps = {
 	onShowMessage: (
 		path: string | null,
 		message: string | JSX.Element
-	) => Promise<void> | void;
+	) => Promise<boolean | void> | boolean | void;
 	documentRoot: string;
 };
 
@@ -115,6 +116,15 @@ export function FileExplorerSidebar({
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+	const openFileRequestIdRef = useRef(0);
+
+	useEffect(() => {
+		return () => {
+			// Slow reads from the previous filesystem must not reopen a file
+			// after this tree starts browsing another Playground or folder.
+			openFileRequestIdRef.current += 1;
+		};
+	}, [filesystem, documentRoot]);
 
 	const treeInitialPath = useMemo(() => {
 		return normalizePath(
@@ -188,7 +198,14 @@ export function FileExplorerSidebar({
 	};
 
 	const getAvailablePath = async (baseDir: string, desiredName: string) => {
-		const safeName = desiredName || 'upload';
+		const uploadName = basename(desiredName.replace(/\\/g, '/'));
+		const safeName =
+			uploadName &&
+			uploadName !== '/' &&
+			uploadName !== '.' &&
+			uploadName !== '..'
+				? uploadName
+				: 'upload';
 		const basePath = baseDir === '/' ? '/' : baseDir;
 		const splitExt = (name: string) => {
 			const dot = name.lastIndexOf('.');
@@ -202,10 +219,7 @@ export function FileExplorerSidebar({
 			const { stem, ext } = splitExt(safeName);
 			const suffix = counter ? ` (${counter})` : '';
 			const candidateName = `${stem}${suffix}${ext}`;
-			const candidatePath =
-				basePath === '/'
-					? `/${candidateName}`
-					: `${basePath}/${candidateName}`;
+			const candidatePath = joinPaths(basePath, candidateName);
 			const exists = await filesystem
 				.fileExists(candidatePath)
 				.catch(() => false);
@@ -225,6 +239,7 @@ export function FileExplorerSidebar({
 		}
 		const baseDir = await resolveUploadDirectory();
 		const createdPaths: string[] = [];
+		let failedCount = 0;
 		for (const file of Array.from(files)) {
 			try {
 				const targetPath = await getAvailablePath(baseDir, file.name);
@@ -232,12 +247,18 @@ export function FileExplorerSidebar({
 				await filesystem.writeFile(targetPath, buffer);
 				createdPaths.push(targetPath);
 			} catch (error) {
+				failedCount += 1;
 				logger.error('Failed to import file', error);
 			}
 		}
 		if (createdPaths.length) {
 			setLastSelectedPath(baseDir);
 			await treeRef.current?.refresh(baseDir);
+		}
+		if (failedCount) {
+			alert(
+				`Could not upload ${failedCount === 1 ? '1 file' : `${failedCount} files`}.`
+			);
 		}
 	};
 
@@ -288,30 +309,34 @@ export function FileExplorerSidebar({
 	};
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
+		const requestId = ++openFileRequestIdRef.current;
+		const isCurrentRequest = () =>
+			openFileRequestIdRef.current === requestId;
 		try {
 			const file = await filesystem.read(path);
-			const data = new Uint8Array(await file.arrayBuffer());
-			const size = data.byteLength;
-			const filename = path.split('/').pop() || 'download';
-
-			if (size > MAX_INLINE_FILE_BYTES) {
-				const { url, filename: fname } = createDownloadUrl(
-					data,
-					filename
-				);
-				await onShowMessage(
-					path,
-					<>
-						<p>File too large to open (&gt;1MB).</p>
-						<p>
-							<a href={url} download={fname}>
-								Download {fname}
-							</a>
-						</p>
-					</>
-				);
+			if (!isCurrentRequest()) {
 				return;
 			}
+			const filename = path.split('/').pop() || 'download';
+			const previewRead = await readFileForInlinePreview(file);
+			if (!isCurrentRequest()) {
+				if (previewRead.type === 'too-large') {
+					revokeMaybe(previewRead.downloadUrl);
+				}
+				return;
+			}
+			if (previewRead.type === 'too-large') {
+				if (
+					!(await showFileMessage(
+						path,
+						renderTooLargeMessage(filename, previewRead.downloadUrl)
+					))
+				) {
+					revokeMaybe(previewRead.downloadUrl);
+				}
+				return;
+			}
+			const data = previewRead.data;
 
 			if (seemsLikeBinary(data)) {
 				const mimeType = getMimeType(filename);
@@ -319,47 +344,103 @@ export function FileExplorerSidebar({
 					data,
 					filename
 				);
+				if (!isCurrentRequest()) {
+					URL.revokeObjectURL(downloadUrl);
+					return;
+				}
 
 				// Check if this is a previewable binary file
 				if (isPreviewableBinary(mimeType)) {
 					// Create a data URL for the preview
 					const blob = new Blob([data], { type: mimeType });
 					const dataUrl = URL.createObjectURL(blob);
+					if (!isCurrentRequest()) {
+						URL.revokeObjectURL(dataUrl);
+						URL.revokeObjectURL(downloadUrl);
+						return;
+					}
 
-					await onShowMessage(
-						path,
-						<BinaryFilePreview
-							filename={fname}
-							mimeType={mimeType}
-							dataUrl={dataUrl}
-							downloadUrl={downloadUrl}
-						/>
-					);
+					if (
+						!(await showFileMessage(
+							path,
+							<OwnedBinaryFilePreview
+								filename={fname}
+								mimeType={mimeType}
+								dataUrl={dataUrl}
+								downloadUrl={downloadUrl}
+							/>
+						))
+					) {
+						URL.revokeObjectURL(dataUrl);
+						URL.revokeObjectURL(downloadUrl);
+					}
 					return;
 				}
 
 				// Non-previewable binary file
-				await onShowMessage(
-					path,
-					<>
-						<p>Binary file. Cannot be edited.</p>
-						<p>
-							<a href={downloadUrl} download={fname}>
-								Download {fname}
-							</a>
-						</p>
-					</>
-				);
+				if (
+					!(await showFileMessage(
+						path,
+						<>
+							<p>Binary file. Cannot be edited.</p>
+							<p>
+								<OwnedDownloadLink
+									url={downloadUrl}
+									filename={fname}
+								>
+									Download {fname}
+								</OwnedDownloadLink>
+							</p>
+						</>
+					))
+				) {
+					URL.revokeObjectURL(downloadUrl);
+				}
 				return;
 			}
 
 			const text = new TextDecoder('utf-8').decode(data);
-			await onFileOpened(path, text, shouldFocus);
+			if (!isCurrentRequest()) {
+				return;
+			}
+			await openFileInEditor(path, text, shouldFocus);
 		} catch (error) {
+			if (!isCurrentRequest()) {
+				return;
+			}
 			logger.error('Could not open file', error);
-			await onShowMessage(null, 'Could not open file.');
+			await showFileMessage(null, 'Could not open file.');
 		}
 	};
+
+	function cancelPendingFileOpen() {
+		openFileRequestIdRef.current += 1;
+	}
+
+	async function showFileMessage(
+		path: string | null,
+		message: string | JSX.Element
+	) {
+		try {
+			const didShow = await onShowMessage(path, message);
+			return didShow !== false;
+		} catch (error) {
+			logger.error('Could not show file message', error);
+			return false;
+		}
+	}
+
+	async function openFileInEditor(
+		path: string,
+		content: string,
+		shouldFocus: boolean
+	) {
+		try {
+			await onFileOpened(path, content, shouldFocus);
+		} catch (error) {
+			logger.error('Could not switch files', error);
+		}
+	}
 
 	return (
 		<div
@@ -428,6 +509,7 @@ export function FileExplorerSidebar({
 					</button>
 					<input
 						ref={uploadInputRef}
+						name="playground-file-upload"
 						type="file"
 						multiple
 						style={{ display: 'none' }}
@@ -445,11 +527,20 @@ export function FileExplorerSidebar({
 					onSelect={async (path) => {
 						setLastSelectedPath(path);
 						if (!path) {
-							await onSelectionCleared();
+							cancelPendingFileOpen();
+							try {
+								await onSelectionCleared();
+							} catch (error) {
+								logger.error(
+									'Could not clear file selection',
+									error
+								);
+							}
 							return;
 						}
 						try {
 							if (await filesystem.isDir(path)) {
+								cancelPendingFileOpen();
 								setSelectedDirPath(path);
 								return;
 							}
@@ -466,5 +557,65 @@ export function FileExplorerSidebar({
 				/>
 			</div>
 		</div>
+	);
+}
+
+function renderTooLargeMessage(filename: string, downloadUrl?: string) {
+	return (
+		<>
+			<p>File too large to open (&gt;1MB).</p>
+			<p>
+				{downloadUrl ? (
+					<OwnedDownloadLink url={downloadUrl} filename={filename}>
+						Download {filename}
+					</OwnedDownloadLink>
+				) : (
+					'Open or download it outside the in-browser editor.'
+				)}
+			</p>
+		</>
+	);
+}
+
+function revokeMaybe(url: string | undefined) {
+	if (url) {
+		URL.revokeObjectURL(url);
+	}
+}
+
+function OwnedBinaryFilePreview(
+	props: React.ComponentProps<typeof BinaryFilePreview>
+) {
+	useEffect(() => {
+		const dataUrl = props.dataUrl;
+		const downloadUrl = props.downloadUrl;
+		return () => {
+			URL.revokeObjectURL(dataUrl);
+			if (downloadUrl) {
+				URL.revokeObjectURL(downloadUrl);
+			}
+		};
+	}, [props.dataUrl, props.downloadUrl]);
+
+	return <BinaryFilePreview {...props} />;
+}
+
+function OwnedDownloadLink({
+	url,
+	filename,
+	children,
+}: {
+	url: string;
+	filename: string;
+	children: ReactNode;
+}) {
+	useEffect(() => {
+		return () => URL.revokeObjectURL(url);
+	}, [url]);
+
+	return (
+		<a href={url} download={filename}>
+			{children}
+		</a>
 	);
 }

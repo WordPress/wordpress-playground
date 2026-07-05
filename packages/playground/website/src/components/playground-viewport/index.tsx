@@ -209,6 +209,11 @@ export const JustViewport = function JustViewport({
 	const runtimeBootFingerprint = getRuntimeBootFingerprint(
 		site.metadata.runtimeConfiguration
 	);
+	const bootRetryKey = useAppSelector((state) =>
+		state.ui.activeSite?.slug === siteSlug
+			? (state.ui.activeSite.bootRetryKey ?? 0)
+			: 0
+	);
 	useEffect(() => {
 		const iframe = iframeRef.current;
 		if (!iframe) {
@@ -227,7 +232,7 @@ export const JustViewport = function JustViewport({
 			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
+	}, [siteSlug, iframeRef, runtimeBootFingerprint, bootRetryKey]);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);

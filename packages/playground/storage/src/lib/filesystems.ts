@@ -1,6 +1,6 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
-import { joinPaths, normalizePath } from '@php-wasm/util';
+import { isParentOf, joinPaths, normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
@@ -48,31 +48,178 @@ export interface AsyncWritableFilesystem extends EventTarget {
 }
 
 /**
- * Copy all files from source filesystem to destination filesystem.
- * Clears the destination before copying.
+ * Copy all files from source filesystem to destination filesystem, replacing
+ * destination contents only after every source entry has been read into a
+ * staging directory.
  */
 export async function copyFilesystem(
 	source: TraversableFilesystemBackend,
 	destination: WritableFilesystemBackend
 ): Promise<void> {
-	await destination.clear();
+	const entriesToCopy = await collectFilesystemEntries(source, '/');
+	const sourceRootEntryNames = new Set(
+		entriesToCopy.map(({ path }) => getRootEntryName(path))
+	);
+	const stagingDirectoryName = await getAvailableStagingDirectoryName(
+		destination,
+		sourceRootEntryNames
+	);
+	const stagingRoot = joinFilesystemEntryPath('/', stagingDirectoryName);
 
-	const copyDir = async (path: string) => {
-		const entries = await source.listFiles(path);
-		for (const name of entries) {
-			const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
-			if (await source.isDir(fullPath)) {
-				await destination.mkdir(fullPath);
-				await copyDir(fullPath);
-			} else {
-				const file = await source.read(fullPath);
-				const content = new Uint8Array(await file.arrayBuffer());
-				await destination.writeFile(fullPath, content);
-			}
+	await destination.mkdir(stagingRoot);
+
+	try {
+		await copyEntriesIntoDirectory(
+			source,
+			destination,
+			entriesToCopy,
+			stagingRoot
+		);
+	} catch (error) {
+		await removeStagingDirectory(destination, stagingRoot, {
+			ignoreErrors: true,
+		});
+		throw error;
+	}
+
+	await replaceRootWithStagingDirectory(destination, stagingRoot);
+}
+
+type FilesystemCopyEntry =
+	| { type: 'dir'; path: string }
+	| { type: 'file'; path: string };
+
+async function collectFilesystemEntries(
+	source: TraversableFilesystemBackend,
+	path: string
+): Promise<FilesystemCopyEntry[]> {
+	const entries = await source.listFiles(path);
+	const entriesToCopy: FilesystemCopyEntry[] = [];
+	for (const name of entries) {
+		const fullPath = joinFilesystemEntryPath(path, name);
+		if (await source.isDir(fullPath)) {
+			entriesToCopy.push({ type: 'dir', path: fullPath });
+			entriesToCopy.push(
+				...(await collectFilesystemEntries(source, fullPath))
+			);
+		} else {
+			entriesToCopy.push({ type: 'file', path: fullPath });
 		}
-	};
+	}
+	return entriesToCopy;
+}
 
-	await copyDir('/');
+async function copyEntriesIntoDirectory(
+	source: TraversableFilesystemBackend,
+	destination: WritableFilesystemBackend,
+	entriesToCopy: FilesystemCopyEntry[],
+	destinationRoot: string
+) {
+	for (const entry of entriesToCopy) {
+		const destinationPath = joinPaths(destinationRoot, entry.path);
+		if (entry.type === 'dir') {
+			await destination.mkdir(destinationPath);
+		} else {
+			const file = await source.read(entry.path);
+			const content = new Uint8Array(await file.arrayBuffer());
+			await destination.writeFile(destinationPath, content);
+		}
+	}
+}
+
+async function replaceRootWithStagingDirectory(
+	destination: WritableFilesystemBackend,
+	stagingRoot: string
+) {
+	const stagingDirectoryName = getRootEntryName(stagingRoot);
+	const existingNames = await destination.listFiles('/');
+	for (const name of existingNames) {
+		if (name !== stagingDirectoryName) {
+			await removeRootEntry(destination, name);
+		}
+	}
+
+	const stagedNames = await destination.listFiles(stagingRoot);
+	for (const name of stagedNames) {
+		await destination.mv(
+			joinFilesystemEntryPath(stagingRoot, name),
+			joinFilesystemEntryPath('/', name)
+		);
+	}
+	await removeStagingDirectory(destination, stagingRoot);
+}
+
+async function removeRootEntry(
+	destination: WritableFilesystemBackend,
+	name: string
+) {
+	const path = joinFilesystemEntryPath('/', name);
+	if (await destination.isDir(path)) {
+		await destination.rmdir(path, true);
+	} else {
+		await destination.unlink(path);
+	}
+}
+
+async function getAvailableStagingDirectoryName(
+	destination: WritableFilesystemBackend,
+	sourceRootEntryNames: Set<string>
+) {
+	let counter = 0;
+	while (true) {
+		const suffix = counter === 0 ? '' : `-${counter}`;
+		const name = `.playground-copy-staging${suffix}`;
+		if (
+			!sourceRootEntryNames.has(name) &&
+			!(await destination.fileExists(joinFilesystemEntryPath('/', name)))
+		) {
+			return name;
+		}
+		counter += 1;
+	}
+}
+
+async function removeStagingDirectory(
+	destination: WritableFilesystemBackend,
+	stagingRoot: string,
+	{ ignoreErrors = false }: { ignoreErrors?: boolean } = {}
+) {
+	try {
+		await destination.rmdir(stagingRoot, true);
+	} catch (error) {
+		if (!ignoreErrors) {
+			throw error;
+		}
+		// Best-effort cleanup; preserve the original copy error.
+	}
+}
+
+function getRootEntryName(path: string) {
+	const name = path.split('/').filter(Boolean)[0];
+	if (!name) {
+		throw new Error(`Invalid filesystem entry path: ${path}`);
+	}
+	return name;
+}
+
+function joinFilesystemEntryPath(path: string, name: string): string {
+	assertFilesystemEntryName(name);
+	return path === '/' ? `/${name}` : `${path}/${name}`;
+}
+
+function assertFilesystemEntryName(name: string): void {
+	if (
+		!name ||
+		name === '.' ||
+		name === '..' ||
+		name.includes('/') ||
+		name.includes('\\') ||
+		name.includes('\0')
+	) {
+		throw new Error(
+			`Refused to copy invalid filesystem entry name: ${name}`
+		);
+	}
 }
 
 /**
@@ -273,8 +420,19 @@ export class ChrootFilesystem implements ReadableFilesystemBackend {
 	}
 
 	async read(path: string): Promise<StreamedFile> {
-		const chrootedPath = joinPaths(this.chroot, path);
+		const chrootedPath = this.resolveChrootedPath(path);
 		return this.backend.read(chrootedPath);
+	}
+
+	private resolveChrootedPath(path: string): string {
+		const chroot = normalizePath(this.chroot);
+		const chrootedPath = joinPaths(chroot, path);
+		if (!isParentOf(chroot, chrootedPath)) {
+			throw new Error(
+				`Refused to read a file outside of the chroot: ${path}`
+			);
+		}
+		return chrootedPath;
 	}
 }
 
@@ -542,11 +700,17 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 	}
 
 	async clear(): Promise<void> {
+		const names: string[] = [];
 		for await (const [name] of this.opfsRoot.entries()) {
+			names.push(name);
+		}
+		for (const name of names) {
 			try {
 				await this.opfsRoot.removeEntry(name, { recursive: true });
-			} catch {
-				/* ignore */
+			} catch (error) {
+				if (!isMissingOpfsEntry(error)) {
+					throw error;
+				}
 			}
 		}
 	}
@@ -634,7 +798,18 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 		}
 		const handle = await dir.getFileHandle(fileName, { create: true });
 		const writable = await handle.createWritable();
-		await writable.write(data);
+		try {
+			await writable.write(data);
+		} catch (writeError) {
+			try {
+				await writable.close();
+			} catch {
+				// Preserve the write failure. A close failure during cleanup is
+				// secondary and would otherwise hide the reason the data was not
+				// written.
+			}
+			throw writeError;
+		}
 		await writable.close();
 	}
 
@@ -691,8 +866,10 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 		}
 		try {
 			await dir.removeEntry(name);
-		} catch {
-			/* ignore */
+		} catch (error) {
+			if (!isMissingOpfsEntry(error)) {
+				throw error;
+			}
 		}
 	}
 
@@ -727,6 +904,11 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 			}
 		}
 	}
+}
+
+function isMissingOpfsEntry(error: unknown) {
+	const name = (error as DOMException | undefined)?.name;
+	return name === 'NotFoundError' || name === 'TypeMismatchError';
 }
 
 type FileNode = { type: 'file'; content: Uint8Array };

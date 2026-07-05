@@ -64,6 +64,55 @@ describe('writeFiles', () => {
 		]);
 	});
 
+	it('rejects file paths outside the target directory', async () => {
+		await expect(
+			writeFiles(php, '/test', {
+				'../escape.txt': 'file',
+			})
+		).rejects.toThrow('File tree paths must be relative file paths.');
+
+		expect(php.fileExists('/escape.txt')).toBe(false);
+	});
+
+	it.each(['', '.', 'sub/../escape.txt', '/absolute.txt', 'sub//file.txt'])(
+		'rejects invalid file tree path "%s"',
+		async (path) => {
+			await expect(
+				writeFiles(php, '/test', {
+					[path]: 'file',
+				})
+			).rejects.toThrow('File tree paths must be relative file paths.');
+		}
+	);
+
+	it('allows absolute file tree paths when writing from the filesystem root', async () => {
+		await writeFiles(php, '/', {
+			'/tmp/root-file.txt': 'file',
+		});
+
+		expect(php.fileExists('/tmp/root-file.txt')).toBe(true);
+	});
+
+	it('validates paths before removing existing files', async () => {
+		php.writeFile('/test/keep.txt', 'file');
+
+		await expect(
+			writeFiles(
+				php,
+				'/test',
+				{
+					'safe/nested': {
+						'../../escape.txt': 'file',
+					},
+				},
+				{ rmRoot: true }
+			)
+		).rejects.toThrow('File tree paths must be relative file paths.');
+
+		expect(php.fileExists('/test/keep.txt')).toBe(true);
+		expect(php.fileExists('/escape.txt')).toBe(false);
+	});
+
 	it('removes any pre-existing when ran with rmRoot: true', async () => {
 		php.writeFile('/test/file.txt', 'file');
 		php.mkdir('/test/subdirectory1');

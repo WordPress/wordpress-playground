@@ -10,6 +10,7 @@ interface GithubExportModalProps {
 	allowZipExport: GitHubExportFormProps['allowZipExport'];
 	onExported?: GitHubExportFormProps['onExported'];
 	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
+	initialFilesBeforeChangesCommitSha?: GitHubExportFormProps['initialFilesBeforeChangesCommitSha'];
 	initialValues?: GitHubExportFormProps['initialValues'];
 }
 export function GithubExportModal({
@@ -17,6 +18,7 @@ export function GithubExportModal({
 	allowZipExport,
 	initialValues,
 	initialFilesBeforeChanges,
+	initialFilesBeforeChangesCommitSha,
 }: GithubExportModalProps) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
@@ -33,6 +35,9 @@ export function GithubExportModal({
 				playground={playground!}
 				initialValues={initialValues}
 				initialFilesBeforeChanges={initialFilesBeforeChanges}
+				initialFilesBeforeChangesCommitSha={
+					initialFilesBeforeChangesCommitSha
+				}
 				allowZipExport={allowZipExport}
 			/>
 		</Modal>

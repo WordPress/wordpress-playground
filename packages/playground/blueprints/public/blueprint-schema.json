@@ -721,6 +721,25 @@
 							"$ref": "#/definitions/FileReference",
 							"description": "The file to import"
 						},
+						"fetchAttachments": {
+							"type": "boolean",
+							"description": "Whether to fetch and import attachment files referenced by the WXR file.",
+							"default": true
+						},
+						"rewriteUrls": {
+							"type": "boolean",
+							"description": "Whether to rewrite imported URLs to the current site URL.",
+							"default": true
+						},
+						"importComments": {
+							"type": "boolean",
+							"description": "Whether to import comments from the WXR file.",
+							"default": true
+						},
+						"defaultAuthorUsername": {
+							"type": "string",
+							"description": "The fallback local user for imported authors that cannot be mapped.\n\nWhen omitted, the importer uses the first Administrator user."
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],

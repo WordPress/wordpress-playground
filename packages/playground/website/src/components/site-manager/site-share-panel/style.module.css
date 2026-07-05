@@ -95,6 +95,7 @@
 }
 
 .actions {
+	align-items: center;
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-3);
@@ -106,4 +107,10 @@
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
+}
+
+.error {
+	color: var(--color-alert-red, #cc1818);
+	font-size: 13px;
+	line-height: 1.4;
 }

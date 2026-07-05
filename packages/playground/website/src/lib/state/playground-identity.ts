@@ -17,6 +17,7 @@ const SETUP_QUERY_PARAM_KEYS = Object.keys({
 	'import-content': true,
 	'import-site': true,
 	'import-wxr': true,
+	'experimental-blueprints-v2-runner': true,
 	language: true,
 	login: true,
 	multisite: true,

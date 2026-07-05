@@ -97,10 +97,19 @@ export default function AddressBar({
 	const optionId = (index: number) => `address-bar-suggestion-${index}`;
 
 	useEffect(() => {
-		if (!isFocused && url) {
-			setValue(url);
+		if (!isFocused) {
+			setValue(url ?? '');
 		}
 	}, [isFocused, url]);
+
+	useEffect(() => {
+		if (disabled) {
+			setIsOpen(false);
+			setActiveIndex(-1);
+			setIsFocused(false);
+			setValue(url ?? '');
+		}
+	}, [disabled, url]);
 
 	// Update listbox width when it opens and track resize.
 	useEffect(() => {
@@ -108,6 +117,9 @@ export default function AddressBar({
 			return;
 		}
 		setMenuWidth(inputRef.current.offsetWidth);
+		if (typeof ResizeObserver === 'undefined') {
+			return;
+		}
 
 		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
@@ -300,6 +312,7 @@ export default function AddressBar({
 			<input
 				className={css.submit}
 				type="submit"
+				name="go"
 				value="Go"
 				tabIndex={-1}
 				aria-hidden="true"

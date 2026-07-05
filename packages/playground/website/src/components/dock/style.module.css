@@ -88,89 +88,6 @@
 	width: 1px;
 }
 
-.drag-handle {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 8px;
-	color: rgba(247, 245, 242, 0.4);
-	cursor: grab;
-	display: flex;
-	flex-shrink: 0;
-	justify-content: center;
-	padding: 8px 4px;
-	touch-action: none;
-	transition:
-		background 120ms ease,
-		color 120ms ease;
-}
-
-.drag-handle:hover {
-	background: rgba(247, 245, 242, 0.12);
-	color: rgba(247, 245, 242, 0.8);
-}
-
-.drag-handle:active {
-	cursor: grabbing;
-}
-
-.drag-handle:focus-visible {
-	color: #f7f5f2;
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
-}
-
-/* Subtle chevron that collapses the dock to just its top row. */
-.collapse-toggle {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 8px;
-	color: rgba(247, 245, 242, 0.4);
-	cursor: pointer;
-	display: flex;
-	flex-shrink: 0;
-	justify-content: center;
-	padding: 6px 2px;
-	transition:
-		background 120ms ease,
-		color 120ms ease;
-}
-
-.collapse-toggle svg {
-	fill: currentColor;
-}
-
-.collapse-toggle:hover {
-	background: rgba(247, 245, 242, 0.12);
-	color: rgba(247, 245, 242, 0.8);
-}
-
-.collapse-toggle:focus-visible {
-	color: #f7f5f2;
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
-}
-
-/* Collapse the tools row's HEIGHT (animated) but keep its WIDTH, so the dock
-   doesn't narrow and re-center — that would make the expand chevron jump.
-   Compound selector beats `.dock-tools` regardless of source order. The negative
-   margin cancels the column gap so the collapsed dock stays evenly padded;
-   visibility flips to hidden only after the animation so the tools leave the tab
-   order without a flash. */
-.dock-tools.dock-tools-hidden {
-	margin-top: -6px;
-	max-height: 0;
-	opacity: 0;
-	pointer-events: none;
-	visibility: hidden;
-	transition:
-		max-height 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		opacity 160ms ease,
-		margin-top 280ms cubic-bezier(0.65, 0, 0.35, 1),
-		visibility 0s 280ms;
-}
-
 .dock-tools {
 	align-items: stretch;
 	display: flex;
@@ -267,7 +184,7 @@
 	letter-spacing: 0.015em;
 	line-height: 1;
 	/* One line per label so every tool button is the same height and the icons
-	   stay on a shared baseline (a 2-line label like "This Playground" otherwise
+	   stay on a shared baseline (a 2-line label like "Site details" otherwise
 	   made its button taller than its neighbours). */
 	white-space: nowrap;
 }
@@ -318,8 +235,8 @@
 	background: var(--paper-1);
 	border-radius: 14px;
 	bottom: 94px;
-	/* Shadow only — a floating element doesn't also need a hard border
-	   (the doubled edge is a slop tell). A faint top highlight fakes a lit top. */
+	/* Shadow only — a floating element doesn't also need a hard border.
+	   A faint top highlight fakes a lit top. */
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
 		0 1px 2px rgba(40, 33, 23, 0.05),
@@ -367,7 +284,7 @@
 	overflow: hidden;
 }
 
-/* "Store permanently" / "This Playground" hold short forms, so they get a
+/* "Store permanently" / "Site details" hold short forms, so they get a
    narrower pane. Compound selector so it also beats the `.pane` width override
    in the max-width:720px media query below (equal specificity, later in source). */
 .pane.pane-compact {
@@ -484,7 +401,7 @@
 	margin: var(--space-2) 0 0;
 }
 
-/* The active Playground's name sits right under the "This Playground" title as
+/* The active Playground's name sits right under the "Site details" title as
    the header's subtitle line, with a quiet pencil to rename — so the pane names
    the specific Playground without a separate row. */
 .settings-identity {
@@ -535,7 +452,7 @@
 	fill: currentColor;
 }
 
-/* Inline rename field for the "This Playground" header. Matches the name's
+/* Inline rename field for the "Site details" header. Matches the name's
    metrics with negative margins (== padding + border) so toggling edit mode
    shifts nothing. */
 .settings-name-input {
@@ -558,7 +475,7 @@
 
 /* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
    NO outer shadow, so they read as carved-in context that never out-shouts the
-   title. (A bordered, filled box rivaling the H1 is the classic AI-slop tell.) */
+   title. */
 .pane :global(.components-notice) {
 	background: var(--paper-3);
 	border: 0;
@@ -656,7 +573,7 @@
 }
 
 /* Form fields — warm, consistent, refined across every pane (Store permanently,
-   This Playground, Share). The default WordPress controls otherwise read as
+   Site details, Share). The default WordPress controls otherwise read as
    admin chrome and clash with the paper surface. */
 .pane :global(.components-text-control__input),
 .pane :global(.components-select-control__input) {
@@ -722,23 +639,18 @@
 	.dock {
 		border-radius: 0;
 		bottom: 0;
+		clip-path: inset(0 0 0 0);
 		left: 0;
 		right: 0;
 		top: auto;
 		max-width: none;
 		width: auto;
 		flex-direction: column-reverse;
-		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
 		transform: none;
 		cursor: default;
 		box-shadow:
 			0 -1px 0 rgba(247, 245, 242, 0.08),
 			0 -10px 30px rgba(33, 30, 25, 0.4);
-	}
-
-	/* A fixed bottom bar isn't draggable. */
-	.drag-handle {
-		display: none;
 	}
 
 	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
@@ -877,8 +789,6 @@
 	}
 }
 
-/* --- Restored from the deployed build --- */
-
 .dock-switching {
 	transition: none;
 }
@@ -887,6 +797,14 @@
    measures the tools), leaving the address row resting on the edge. */
 .dock-collapsed {
 	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
+}
+
+.dock-collapsed .dock-tools {
+	/* The row is visually below the viewport after the slide. Hide it from
+	   focus/a11y then too, so Tab does not land on invisible tools. */
+	pointer-events: none;
+	transition: visibility 0s 360ms;
+	visibility: hidden;
 }
 
 .dock-dragged {
@@ -1042,6 +960,10 @@
 
 	.dock-corner {
 		animation: none;
+	}
+
+	.dock-collapsed .dock-tools {
+		transition-delay: 0s;
 	}
 }
 
@@ -1219,5 +1141,64 @@
 	.dock-body {
 		flex-direction: column-reverse;
 		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+}
+
+@media (max-width: 520px) {
+	/* Phone widths cannot fit all eight tools without crowding the Playground
+	   viewport. Keep one compact, horizontally scrollable row so the editor panes
+	   keep enough height to be useful. */
+	.dock-tools {
+		gap: 1px;
+		justify-content: flex-start;
+		max-width: 100%;
+		overflow-x: auto;
+		overflow-y: hidden;
+		overscroll-behavior-x: contain;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.dock-tools::-webkit-scrollbar {
+		display: none;
+	}
+
+	.dock-body {
+		gap: 4px;
+		padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.dock-top-row {
+		gap: 6px;
+	}
+
+	.dock-tools > span {
+		flex: 0 0 auto;
+		min-width: 0;
+	}
+
+	.with-separator {
+		margin-left: 7px;
+	}
+
+	.dock-item {
+		border-radius: 10px;
+		gap: 2px;
+		min-height: 44px;
+		min-width: 56px;
+		padding: 5px 4px;
+	}
+
+	.dock-icon {
+		min-height: 20px;
+	}
+
+	.dock-icon svg {
+		height: 22px;
+		width: 22px;
+	}
+
+	.dock-label {
+		font-size: 10px;
 	}
 }

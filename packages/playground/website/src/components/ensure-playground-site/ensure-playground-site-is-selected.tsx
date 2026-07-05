@@ -51,6 +51,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const sitesAPI = useSitesAPI();
 	const url = useCurrentUrl();
 	const initialUrlHref = useRef(window.location.href);
+	const defaultDocumentTitle = useRef(document.title);
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
@@ -73,6 +74,8 @@ export function EnsurePlaygroundSiteIsSelected({
 	const autosaveNudgeMuted = useAppSelector(
 		(state) => state.ui.autosaveNudgeMuted
 	);
+	const selectionRequestIdRef = useRef(0);
+	const [selectionRetryCount, setSelectionRetryCount] = useState(0);
 	const currentSetupUrlFingerprint = useMemo(
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
@@ -97,9 +100,29 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
+		const selectionRequestId = ++selectionRequestIdRef.current;
+		let retryRequested = false;
+		const retryLatestRouteIfStale = () => {
+			if (selectionRequestIdRef.current === selectionRequestId) {
+				return false;
+			}
+			if (!retryRequested) {
+				retryRequested = true;
+				setSelectionRetryCount((count) => count + 1);
+			}
+			return true;
+		};
+
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
-			if (!isInitialPageLoadUrl) {
+			const onlyUiChromeParamsChanged = didOnlyUiChromeParamsChange(
+				prevUrl,
+				url
+			);
+			// UI-only URL churn (opening/closing a pane or modal) must not
+			// dismiss the autosave dot; only a real setup/site navigation means
+			// the prompt no longer belongs to the current route.
+			if (!isInitialPageLoadUrl && !onlyUiChromeParamsChanged) {
 				dispatch(dismissAutosaveNudge());
 			}
 
@@ -125,6 +148,9 @@ export function EnsurePlaygroundSiteIsSelected({
 						await sitesAPI.createNewTemporarySite(
 							requestedSiteSlug
 						);
+						if (retryLatestRouteIfStale()) {
+							return;
+						}
 						if (!isSavingDisabled) {
 							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
@@ -133,7 +159,13 @@ export function EnsurePlaygroundSiteIsSelected({
 							await sitesAPI.createNewSavedSite(
 								requestedSiteSlug
 							);
+							if (retryLatestRouteIfStale()) {
+								return;
+							}
 						} catch (error) {
+							if (retryLatestRouteIfStale()) {
+								return;
+							}
 							logger.error(
 								'Error creating saved site. Falling back to a temporary site.',
 								error
@@ -141,6 +173,9 @@ export function EnsurePlaygroundSiteIsSelected({
 							await sitesAPI.createNewTemporarySite(
 								requestedSiteSlug
 							);
+							if (retryLatestRouteIfStale()) {
+								return;
+							}
 							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
 					}
@@ -148,23 +183,27 @@ export function EnsurePlaygroundSiteIsSelected({
 				}
 
 				await sitesAPI.setActiveSite(requestedSiteSlug);
+				if (retryLatestRouteIfStale()) {
+					return;
+				}
 				return;
 			}
 
-			// If only the 'modal' parameter changes in searchParams, don't reload the page
-			const notRefreshingParam = 'modal';
-			const oldParams = new URLSearchParams(prevUrl?.search);
-			const newParams = new URLSearchParams(url?.search);
-			oldParams.delete(notRefreshingParam);
-			newParams.delete(notRefreshingParam);
+			// If only UI-chrome parameters change, don't reload the Playground.
+			// `overlay` is removed when the dock pane closes; treating that as
+			// a setup change would create a fresh site just because the user
+			// dismissed the pane.
 			const avoidUnnecessaryTempSiteReload =
-				activeSite && oldParams.toString() === newParams.toString();
+				activeSite && onlyUiChromeParamsChanged;
 			if (avoidUnnecessaryTempSiteReload) {
 				return;
 			}
 
 			if (shouldUseTemporarySite) {
 				await sitesAPI.createNewTemporarySite();
+				if (retryLatestRouteIfStale()) {
+					return;
+				}
 			} else {
 				// Recreating an autosave resets the same slug before routing to
 				// its new setup URL. Keep that pending site selected instead of
@@ -189,6 +228,24 @@ export function EnsurePlaygroundSiteIsSelected({
 							getAutosaveFingerprintFromSite(site) ===
 							currentSetupUrlFingerprint
 					);
+				const activeSiteMatchesCurrentSetup =
+					activeSite &&
+					getAutosaveFingerprintFromSite(activeSite) ===
+						currentSetupUrlFingerprint;
+				if (
+					matchingAutosave &&
+					activeSiteMatchesCurrentSetup &&
+					(autosaveNudgeMuted ||
+						declinedAutosaveRestoreFingerprints.includes(
+							currentSetupUrlFingerprint
+						))
+				) {
+					// Dismissing or muting the restore prompt autosaves the fresh
+					// Playground asynchronously. That state change re-runs this
+					// effect; do not start a second autosave when the current
+					// Playground already represents this setup URL.
+					return;
+				}
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
@@ -206,6 +263,9 @@ export function EnsurePlaygroundSiteIsSelected({
 						})
 					);
 					await sitesAPI.createNewTemporarySite();
+					if (retryLatestRouteIfStale()) {
+						return;
+					}
 					return;
 				}
 
@@ -214,21 +274,38 @@ export function EnsurePlaygroundSiteIsSelected({
 						persistence: 'autosave',
 						updateUrl: false,
 					});
+					if (retryLatestRouteIfStale()) {
+						return;
+					}
 				} catch (error) {
+					if (retryLatestRouteIfStale()) {
+						return;
+					}
 					logger.error(
 						'Error creating saved site. Falling back to a temporary site.',
 						error
 					);
 					await sitesAPI.createNewTemporarySite();
+					if (retryLatestRouteIfStale()) {
+						return;
+					}
 				}
 			}
 		}
 
-		ensureSiteIsSelected();
+		void ensureSiteIsSelected().catch((error) => {
+			if (retryLatestRouteIfStale()) {
+				return;
+			}
+			logger.error('Error selecting Playground site.', error);
+		});
 		// Site and client state are outputs of this effect, not triggers.
 		// Re-running while `createNewSavedSite()` is between the OPFS metadata
 		// write and the iframe boot can mistake that half-created autosave for
 		// a restore candidate and create a second temporary site.
+		// `selectionRetryCount` is only incremented by stale async work after a
+		// newer URL already started resolving. It makes the latest route win if
+		// an older boot finishes last and changes the active Playground.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		declinedAutosaveRestoreFingerprints,
@@ -236,6 +313,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		url.href,
 		requestedSiteSlug,
 		siteListingStatus,
+		selectionRetryCount,
 	]);
 
 	useEffect(() => {
@@ -256,14 +334,29 @@ export function EnsurePlaygroundSiteIsSelected({
 
 	useEffect(() => {
 		const pageTitle = url.searchParams.get('page-title');
-		if (pageTitle) {
-			document.title = pageTitle;
-		}
+		document.title = pageTitle || defaultDocumentTitle.current;
 	}, [url.searchParams]);
 
-	// The restore-autosave nudge renders as a panel anchored to the dock's
-	// Playgrounds tool (see Dock + AutosaveNudge); this component only detects
-	// the matching autosave and publishes it to the store.
-	// eslint-disable-next-line react/jsx-no-useless-fragment
-	return <>{children}</>;
+	return children;
+}
+
+function didOnlyUiChromeParamsChange(
+	previousUrl: URL | undefined,
+	nextUrl: URL
+): boolean {
+	if (!previousUrl) {
+		return false;
+	}
+	const oldParams = new URLSearchParams(previousUrl.search);
+	const newParams = new URLSearchParams(nextUrl.search);
+	for (const param of ['modal', 'overlay', 'page-title']) {
+		oldParams.delete(param);
+		newParams.delete(param);
+	}
+	return (
+		previousUrl.origin === nextUrl.origin &&
+		previousUrl.pathname === nextUrl.pathname &&
+		oldParams.toString() === newParams.toString() &&
+		previousUrl.hash === nextUrl.hash
+	);
 }

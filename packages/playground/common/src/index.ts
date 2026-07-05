@@ -30,21 +30,24 @@ export const unzipFile = async (
 	 * calls.
 	 */
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
-	if (zipPath instanceof File) {
-		const zipFile = zipPath;
-		zipPath = tmpPath;
-		await php.writeFile(
+	let shouldRemoveTmpPath = false;
+	try {
+		if (zipPath instanceof File) {
+			const zipFile = zipPath;
+			zipPath = tmpPath;
+			shouldRemoveTmpPath = true;
+			await php.writeFile(
+				zipPath,
+				new Uint8Array(await zipFile.arrayBuffer())
+			);
+		}
+		const js = phpVars({
 			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
-	}
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-		overwriteFiles,
-	});
-	await php.run({
-		code: `<?php
+			extractToPath,
+			overwriteFiles,
+		});
+		await php.run({
+			code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -53,28 +56,121 @@ export const unzipFile = async (
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$filename = $zip->getNameIndex($i);
-					$fileinfo = pathinfo($filename);
-					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
-					// Check if file exists and $overwriteFiles is false
-					if (!file_exists($extractFilePath) || $overwriteFiles) {
-						// Extract file
-						$zip->extractTo($extractTo, $filename);
+				try {
+					$entries = array();
+					for ($i = 0; $i < $zip->numFiles; $i++) {
+						$filename = $zip->getNameIndex($i);
+						$entries[] = array(
+							'filename' => $filename,
+							'extractFilePath' => get_safe_zip_entry_path(
+								$extractTo,
+								$filename
+							),
+							'isDirectory' => substr($filename, -1) === '/',
+						);
 					}
+					foreach ($entries as $entry) {
+						if (
+							!file_exists($entry['extractFilePath']) ||
+							$overwriteFiles
+						) {
+							extract_zip_entry($zip, $entry);
+						}
+					}
+				} finally {
+					$zip->close();
 				}
-				$zip->close();
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
                 throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
             }
         }
+
+		function get_safe_zip_entry_path($extractTo, $entryName) {
+			if ($entryName === '' || strpos($entryName, "\0") !== false) {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			$entryNameForValidation = ltrim($entryName, '/');
+			if ($entryNameForValidation === '') {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			if ($entryNameForValidation[0] === '\\\\') {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			if (preg_match('/^[A-Za-z]:[\\\\\\\\\\/]/', $entryNameForValidation)) {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			if (strpos($entryNameForValidation, '\\\\') !== false) {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			$normalizedParts = array();
+			foreach (explode('/', $entryNameForValidation) as $part) {
+				if ($part === '' || $part === '.') {
+					continue;
+				}
+				if ($part === '..') {
+					throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+				}
+				$normalizedParts[] = $part;
+			}
+			if (count($normalizedParts) === 0) {
+				throw new Exception('Unsafe ZIP entry name: ' . $entryName);
+			}
+			return rtrim($extractTo, '/') . '/' . implode('/', $normalizedParts);
+		}
+
+		function extract_zip_entry($zip, $entry) {
+			$extractFilePath = $entry['extractFilePath'];
+			if ($entry['isDirectory']) {
+				if (!is_dir($extractFilePath)) {
+					mkdir($extractFilePath, 0777, true);
+				}
+				return;
+			}
+
+			$parentDirectory = dirname($extractFilePath);
+			if (!is_dir($parentDirectory)) {
+				mkdir($parentDirectory, 0777, true);
+			}
+			$source = $zip->getStream($entry['filename']);
+			if ($source === false) {
+				throw new Exception(
+					'Could not read ZIP entry: ' . $entry['filename']
+				);
+			}
+			$target = fopen($extractFilePath, 'wb');
+			if ($target === false) {
+				fclose($source);
+				throw new Exception(
+					'Could not write ZIP entry: ' . $entry['filename']
+				);
+			}
+			try {
+				if (stream_copy_to_stream($source, $target) === false) {
+					throw new Exception(
+						'Could not extract ZIP entry: ' . $entry['filename']
+					);
+				}
+			} finally {
+				fclose($source);
+				fclose($target);
+			}
+		}
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
-	});
-	if (await php.fileExists(tmpPath)) {
-		await php.unlink(tmpPath);
+		});
+	} finally {
+		if (shouldRemoveTmpPath) {
+			try {
+				if (await php.fileExists(tmpPath)) {
+					await php.unlink(tmpPath);
+				}
+			} catch {
+				// Best-effort cleanup: preserving the unzip error matters more than
+				// surfacing a leftover temporary file.
+			}
+		}
 	}
 };
 
@@ -83,15 +179,16 @@ export const zipDirectory = async (
 	directoryPath: string
 ) => {
 	const outputPath = `/tmp/file${Math.random()}.zip`;
-	const js = phpVars({
-		directoryPath,
-		outputPath,
-	});
-	await php.run({
-		code: `<?php
-		function zipDirectory($directoryPath, $outputPath) {
-			$zip = new ZipArchive;
-			$res = $zip->open($outputPath, ZipArchive::CREATE);
+	try {
+		const js = phpVars({
+			directoryPath,
+			outputPath,
+		});
+		await php.run({
+			code: `<?php
+			function zipDirectory($directoryPath, $outputPath) {
+				$zip = new ZipArchive;
+				$res = $zip->open($outputPath, ZipArchive::CREATE);
 			if ($res !== TRUE) {
 				throw new Exception('Failed to create ZIP');
 			}
@@ -108,11 +205,19 @@ export const zipDirectory = async (
 			$zip->close();
 			chmod($outputPath, 0777);
 		}
-		zipDirectory(${js.directoryPath}, ${js.outputPath});
-		`,
-	});
+			zipDirectory(${js.directoryPath}, ${js.outputPath});
+			`,
+		});
 
-	const fileBuffer = await php.readFileAsBuffer(outputPath);
-	php.unlink(outputPath);
-	return fileBuffer;
+		return await php.readFileAsBuffer(outputPath);
+	} finally {
+		try {
+			if (await php.fileExists(outputPath)) {
+				await php.unlink(outputPath);
+			}
+		} catch {
+			// Best-effort cleanup: preserving the ZIP error matters more than
+			// surfacing a leftover temporary file.
+		}
+	}
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import {
@@ -10,6 +10,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import { PlaygroundFileEditor } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import { getDirectoryPathForSlug } from '../../../lib/state/opfs/opfs-site-storage';
+import { joinPaths } from '@php-wasm/util';
 
 export function SiteFileBrowser({
 	site,
@@ -27,43 +28,15 @@ export function SiteFileBrowser({
 	const client =
 		clientInfo && !clientInfo.isDependentMode ? clientInfo.client : null;
 	const filesystem = useFilesystem(client, site);
-	const clientRef = useRef<PlaygroundClient | null>(client);
-	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
 
-	// Keep refs in sync
-	clientRef.current = client;
-	filesystemRef.current = filesystem;
-
-	// Handle filesystem changes - flush pending saves to the old filesystem
-	const handleBeforeFilesystemChange = useCallback(
-		async (_oldFilesystem: AsyncWritableFilesystem) => {
-			// The old filesystem was a wrapper around a client
-			// We need to save any pending changes before switching
-			// This is handled by the fact that we're just writing to the filesystem
-			// which proxies to the client
-			logger.debug(
-				'Filesystem changing, any pending saves will be flushed'
-			);
-		},
-		[]
-	);
-
-	// Custom save handler that writes to either the client or OPFS directly
 	const handleSaveFile = useCallback(
 		async (path: string, content: string) => {
-			// Prefer the client if available (keeps memfs and OPFS in sync)
-			if (clientRef.current) {
-				await clientRef.current.writeFile(path, content);
-				return;
+			if (!filesystem) {
+				throw new Error('No filesystem available');
 			}
-			// Fall back to direct OPFS filesystem
-			if (filesystemRef.current) {
-				await filesystemRef.current.writeFile(path, content);
-				return;
-			}
-			throw new Error('No filesystem available');
+			await filesystem.writeFile(path, content);
 		},
-		[]
+		[filesystem]
 	);
 
 	return (
@@ -71,10 +44,9 @@ export function SiteFileBrowser({
 			filesystem={filesystem}
 			documentRoot={documentRoot}
 			isVisible={isVisible}
-			initialPath={`${documentRoot}/wp-config.php`}
+			initialPath={joinPaths(documentRoot, 'wp-config.php')}
 			placeholderText="Start this Playground to browse and edit its files."
 			onSaveFile={handleSaveFile}
-			onBeforeFilesystemChange={handleBeforeFilesystemChange}
 		/>
 	);
 }
@@ -102,7 +74,11 @@ class ClientFilesystemWrapper
 	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
 		const buffer = await this.client.readFileAsBuffer(path);
 		return {
-			arrayBuffer: async () => buffer.buffer as ArrayBuffer,
+			arrayBuffer: async () =>
+				buffer.buffer.slice(
+					buffer.byteOffset,
+					buffer.byteOffset + buffer.byteLength
+				) as ArrayBuffer,
 		};
 	}
 	readFileAsText(path: string) {
@@ -151,6 +127,7 @@ function useFilesystem(
 		// This allows file browsing/editing even when Playground crashed.
 		if (site.metadata.storage === 'opfs') {
 			let cancelled = false;
+			setOpfsFilesystem(null);
 			const opfsPath = getDirectoryPathForSlug(site.slug);
 			OpfsFilesystemBackend.fromPath(opfsPath)
 				.then((backend) => {

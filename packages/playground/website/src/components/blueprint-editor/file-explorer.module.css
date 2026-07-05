@@ -20,7 +20,7 @@
 	gap: 8px;
 	min-height: 56px;
 	/* Left padding matches the 24px title inset every other pane uses, so the
-	   "Blueprint" title lines up with "Logs", "This Playground", etc. */
+	   "Blueprint" title lines up with "Logs", "Site details", etc. */
 	padding: 8px 16px 8px 24px;
 	background: var(--paper-2, #ffffff);
 	border-bottom: 1px solid var(--line-subtle, #ddd);

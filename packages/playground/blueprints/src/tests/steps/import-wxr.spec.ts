@@ -208,6 +208,276 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should preserve site URLs in imported content when URL rewriting is disabled',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-base-url-rewriting.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await importWxr(php, {
+				file,
+				rewriteUrls: false,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$posts = get_posts();
+			echo json_encode([
+				'post_content' => $posts[0]->post_content,
+			]);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json.post_content).toContain(
+				'https://🚀-science.com/science'
+			);
+			expect(result.json.post_content).not.toContain(handler.absoluteUrl);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should pass the attachment fetching option to the importer',
+		async () => {
+			await php.run({
+				code: `<?php
+			$mu_plugins_dir = getenv('DOCROOT') . '/wp-content/mu-plugins';
+			if (!is_dir($mu_plugins_dir)) {
+				mkdir($mu_plugins_dir, 0777, true);
+			}
+			file_put_contents(
+				$mu_plugins_dir . '/capture-wxr-fetch-attachments.php',
+				<<<'PHP'
+				<?php
+				add_filter('pre_http_request', function($preempt, $parsed_args, $url) {
+					update_option(
+						'playground_wxr_attachment_request_count',
+						(int) get_option('playground_wxr_attachment_request_count', 0) + 1
+					);
+					return new WP_Error('playground_blocked_attachment_fetch', 'Blocked test attachment fetch.');
+				}, 10, 3);
+				PHP
+			);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			const createAttachmentWxr = (
+				postId: number
+			) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Attachment import</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	<item>
+		<title>Remote image</title>
+		<link>https://example.com/wp-content/uploads/image.jpg</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/wp-content/uploads/image.jpg</guid>
+		<description></description>
+		<content:encoded><![CDATA[]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${postId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[remote-image]]></wp:post_name>
+		<wp:status><![CDATA[inherit]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[attachment]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<wp:attachment_url><![CDATA[https://example.com/wp-content/uploads/image.jpg]]></wp:attachment_url>
+	</item>
+</channel>
+</rss>`;
+
+			await importWxr(php, {
+				file: new File([createAttachmentWxr(9001)], 'import.wxr'),
+			});
+
+			const defaultResult = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((int) get_option('playground_wxr_attachment_request_count', 0));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(defaultResult.json).toBeGreaterThan(0);
+
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			update_option('playground_wxr_attachment_request_count', 0);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file: new File([createAttachmentWxr(9002)], 'import.wxr'),
+				fetchAttachments: false,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((int) get_option('playground_wxr_attachment_request_count', 0));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toBe(0);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should skip WXR comments when comment importing is disabled',
+		async () => {
+			const createCommentWxr = ({
+				postId,
+				commentId,
+				postSlug,
+			}: {
+				postId: number;
+				commentId: number;
+				postSlug: string;
+			}) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Comment import</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	<item>
+		<title>Commented post ${postId}</title>
+		<link>https://example.com/${postSlug}/</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=${postId}</guid>
+		<description></description>
+		<content:encoded><![CDATA[<p>Commented post</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${postId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[${postSlug}]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<wp:comment>
+			<wp:comment_id>${commentId}</wp:comment_id>
+			<wp:comment_author><![CDATA[Commenter]]></wp:comment_author>
+			<wp:comment_author_email><![CDATA[commenter@example.com]]></wp:comment_author_email>
+			<wp:comment_author_url><![CDATA[https://example.com/commenter]]></wp:comment_author_url>
+			<wp:comment_author_IP><![CDATA[]]></wp:comment_author_IP>
+			<wp:comment_date><![CDATA[2025-01-01 00:00:00]]></wp:comment_date>
+			<wp:comment_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:comment_date_gmt>
+			<wp:comment_content><![CDATA[Imported comment]]></wp:comment_content>
+			<wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+			<wp:comment_type><![CDATA[]]></wp:comment_type>
+			<wp:comment_parent>0</wp:comment_parent>
+			<wp:comment_user_id>0</wp:comment_user_id>
+		</wp:comment>
+	</item>
+</channel>
+</rss>`;
+
+			const countComments = async (postSlug: string) => {
+				const result = await php.run({
+					code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$posts = get_posts([
+				'name' => getenv('POST_SLUG'),
+				'post_type' => 'post',
+				'post_status' => 'any',
+				'numberposts' => 1,
+			]);
+			$post = $posts ? $posts[0] : null;
+			echo json_encode($post ? count(get_comments(['post_id' => $post->ID])) : null);
+			`,
+					env: {
+						DOCROOT: handler.documentRoot,
+						POST_SLUG: postSlug,
+					},
+				});
+				return result.json;
+			};
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createCommentWxr({
+							postId: 9101,
+							commentId: 9201,
+							postSlug: 'comments-enabled',
+						}),
+					],
+					'import.wxr'
+				),
+			});
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createCommentWxr({
+							postId: 9102,
+							commentId: 9202,
+							postSlug: 'comments-disabled',
+						}),
+					],
+					'import.wxr'
+				),
+				importComments: false,
+			});
+
+			expect(await countComments('comments-enabled')).toBe(1);
+			expect(await countComments('comments-disabled')).toBe(0);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should rewrite site URLs in the imported content (tt5 playground content)',
 		async () => {
 			const fileData = await readFile(
@@ -262,7 +532,7 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
-		'Should replace all post authors with admin user',
+		'Should assign unmapped post authors to admin user by default',
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
@@ -331,6 +601,160 @@ describe('Blueprint step importWxr', () => {
 			const postTitles = json.post_authors.map((p: any) => p.post_title);
 			expect(postTitles).toContain('Comprehensive Post');
 			expect(postTitles).toContain('Comprehensive Page');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should assign unmapped post authors to the first Administrator by default',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+
+			$new_admin_id = wp_create_user(
+				'site_owner',
+				'password',
+				'site_owner@example.com'
+			);
+			$new_admin = new WP_User($new_admin_id);
+			$new_admin->set_role('administrator');
+
+			$admin = get_user_by('login', 'admin');
+			wp_delete_user($admin->ID, $new_admin_id);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, { file });
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC',
+			]);
+
+			$post_author_logins = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_author_logins[] = $author ? $author->user_login : null;
+			}
+
+			echo json_encode($post_author_logins);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json.length).toBeGreaterThan(0);
+			expect(
+				result.json.every(
+					(authorLogin: string) => authorLogin === 'site_owner'
+				)
+			).toBe(true);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should assign unmapped post authors to the configured default user',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$user_id = wp_create_user(
+				'wxr_default_author',
+				'password',
+				'wxr_default_author@example.com'
+			);
+			$user = new WP_User($user_id);
+			$user->set_role('author');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file,
+				defaultAuthorUsername: ' wxr_default_author ',
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC',
+			]);
+
+			$post_author_logins = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_author_logins[] = $author ? $author->user_login : null;
+			}
+
+			echo json_encode($post_author_logins);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json.length).toBeGreaterThan(0);
+			expect(
+				result.json.every(
+					(authorLogin: string) =>
+						authorLogin === 'wxr_default_author'
+				)
+			).toBe(true);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should fail when the configured default author does not exist',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/../fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
+
+			await resetData(php, {});
+			await expect(
+				importWxr(php, {
+					file,
+					defaultAuthorUsername: 'missing_wxr_author',
+				})
+			).rejects.toThrow(
+				/Could not find fallback WXR import author .*missing_wxr_author/
+			);
 		},
 		{ timeout: 30_000 }
 	);

@@ -64,7 +64,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	const [caretLeft, setCaretLeft] = useState<number | null>(null);
 
 	useEffect(() => {
-		if (!panelReady || !anchor) {
+		if (muted || !nudge || !panelReady || !anchor || activeSiteError) {
 			return;
 		}
 		// Track every frame while the panel is open: the dock re-centers as its
@@ -120,7 +120,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 		};
 		raf = window.requestAnimationFrame(measure);
 		return () => window.cancelAnimationFrame(raf);
-	}, [panelReady, anchor]);
+	}, [muted, nudge, panelReady, anchor, activeSiteError]);
 
 	// Once-per-prompt guard so the dismiss paths that can fire together (the ✕, the
 	// click-away listener, and the Popover's own onClose) don't autosave the
@@ -174,7 +174,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 	// The blur check is armed after a short delay so a focus shuffle during boot
 	// doesn't close the panel the moment it opens.
 	useEffect(() => {
-		if (!panelReady) {
+		if (muted || !nudge || !panelReady || !anchor || activeSiteError) {
 			return;
 		}
 		let blurArmed = false;
@@ -208,7 +208,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 			document.removeEventListener('mousedown', onPointerDown, true);
 			window.removeEventListener('blur', onWindowBlur);
 		};
-	}, [panelReady]);
+	}, [muted, nudge, panelReady, anchor, activeSiteError]);
 
 	// Don't offer to restore an autosave while the current Playground is in an
 	// error state: the prompt is moot, and its buttons would sit behind the
@@ -220,7 +220,7 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 		}
 	}, [activeSiteError, nudge, dispatch]);
 
-	if (!nudge || !panelReady || !anchor || activeSiteError) {
+	if (muted || !nudge || !panelReady || !anchor || activeSiteError) {
 		return null;
 	}
 
@@ -247,21 +247,18 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 		void keepCurrentSession();
 		writeAutosaveNudgeMuted(true);
 		dispatch(setAutosaveNudgeMuted(true));
-	};
-
-	const handleUnmute = () => {
-		writeAutosaveNudgeMuted(false);
-		dispatch(setAutosaveNudgeMuted(false));
+		dispatch(dismissAutosaveNudge());
 	};
 
 	return (
 		<Popover
 			anchor={anchor}
-			placement="top"
+			placement="top-start"
 			offset={12}
-			// Slide along the anchor to stay within the viewport. Without this the
-			// panel overflows the screen edge on narrow/mobile layouts, where the
-			// Playgrounds tool sits near the left of the full-width bottom bar.
+			// Open to the side of the Playgrounds tool instead of centered above
+			// it, so the prompt points at its source without covering the main
+			// content directly above the dock. Shift keeps it on-screen when the
+			// tool sits near the left edge on mobile.
 			shift
 			focusOnMount={false}
 			className={css.popover}
@@ -280,64 +277,46 @@ export function AutosaveNudge({ anchor }: { anchor: HTMLElement | null }) {
 				>
 					<Icon icon={close} size={18} />
 				</button>
-				{muted ? (
-					<div className={css.muted}>
-						<p className={css.mutedText}>
-							Autosave notices are off. You can still restore
-							autosaves from Your&nbsp;Playgrounds.
-						</p>
-						<button
-							type="button"
-							className={css.link}
-							onClick={handleUnmute}
-						>
-							Turn notices back on
-						</button>
+				<p className={css.title}>Recent autosave</p>
+				<div className={css.card}>
+					<span className={css.icon} aria-hidden="true">
+						<Icon icon={wordpress} size={26} />
+					</span>
+					<div className={css.cardBody}>
+						<div className={css.name} title={siteName}>
+							{siteName}
+						</div>
+						<div className={css.meta}>
+							Autosaved {getRelativeDate(createdAt)}
+						</div>
 					</div>
-				) : (
-					<>
-						<p className={css.title}>Recent autosave</p>
-						<div className={css.card}>
-							<span className={css.icon} aria-hidden="true">
-								<Icon icon={wordpress} size={26} />
-							</span>
-							<div className={css.cardBody}>
-								<div className={css.name} title={siteName}>
-									{siteName}
-								</div>
-								<div className={css.meta}>
-									Autosaved {getRelativeDate(createdAt)}
-								</div>
-							</div>
-						</div>
-						<Button
-							variant="primary"
-							className={css.restore}
-							onClick={handleRestore}
-							disabled={isRestoring}
-						>
-							{isRestoring ? 'Restoring…' : 'Restore autosave'}
-						</Button>
-						{error && (
-							<p className={css.error} role="alert">
-								{error}
-							</p>
-						)}
-						<p className={css.fine}>
-							Kept in this browser as a periodic snapshot — not
-							every change is saved.
-						</p>
-						<div className={css.foot}>
-							<button
-								type="button"
-								className={css.link}
-								onClick={handleMute}
-							>
-								Don’t notify me about autosaves
-							</button>
-						</div>
-					</>
+				</div>
+				<Button
+					variant="primary"
+					className={css.restore}
+					onClick={handleRestore}
+					disabled={isRestoring}
+				>
+					{isRestoring ? 'Restoring…' : 'Restore autosave'}
+				</Button>
+				{error && (
+					<p className={css.error} role="alert">
+						{error}
+					</p>
 				)}
+				<p className={css.fine}>
+					Kept in this browser as a periodic snapshot — not every
+					change is saved.
+				</p>
+				<div className={css.foot}>
+					<button
+						type="button"
+						className={css.link}
+						onClick={handleMute}
+					>
+						Don’t notify me about autosaves
+					</button>
+				</div>
 				<span
 					className={css.caret}
 					style={

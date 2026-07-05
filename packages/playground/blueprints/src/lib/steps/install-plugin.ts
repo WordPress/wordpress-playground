@@ -5,7 +5,7 @@ import { activatePlugin } from './activate-plugin';
 import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import type { Directory } from '../v1/resources';
-import { joinPaths } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 import { writeFiles, type UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 
@@ -126,7 +126,10 @@ export const installPlugin: StepHandler<
 			return true;
 		}
 
-		const filePrefix = new Uint8Array(await file.arrayBuffer(), 0, 4);
+		const filePrefix = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+		if (filePrefix.length < 4) {
+			return false;
+		}
 		// Check against the signature for non-empty, non-spanned zip files.
 		const matchesZipSignature =
 			filePrefix[0] === 0x50 &&
@@ -165,14 +168,33 @@ export const installPlugin: StepHandler<
 				assetFolderPath = assetResult.assetFolderPath;
 				assetNiceName = assetResult.assetFolderName;
 			} else if (pluginData.name.endsWith('.php')) {
+				assertSinglePluginEntryName(pluginData.name);
 				const destinationFilePath = joinPaths(
 					pluginsDirectoryPath,
 					pluginData.name
 				);
-				await writeFile(playground, {
-					path: destinationFilePath,
-					data: pluginData,
-				});
+				let shouldWritePluginFile = true;
+				if (await playground.fileExists(destinationFilePath)) {
+					if (await playground.isDir(destinationFilePath)) {
+						throw new Error(
+							`Cannot install plugin ${pluginData.name} to ${destinationFilePath} because a directory with the same name already exists.`
+						);
+					}
+					if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+						shouldWritePluginFile = false;
+					} else if (ifAlreadyInstalled === 'error') {
+						throw new Error(
+							`Cannot install plugin ${pluginData.name} to ${pluginsDirectoryPath} because it already exists and ` +
+								`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+						);
+					}
+				}
+				if (shouldWritePluginFile) {
+					await writeFile(playground, {
+						path: destinationFilePath,
+						data: pluginData,
+					});
+				}
 				assetFolderPath = pluginsDirectoryPath;
 				assetNiceName = pluginData.name;
 			} else {
@@ -183,6 +205,7 @@ export const installPlugin: StepHandler<
 			}
 		} else if (pluginData) {
 			assetNiceName = pluginData.name;
+			assertSinglePluginEntryName(targetFolderName || pluginData.name);
 			progress?.tracker.setCaption(
 				`Installing the ${progressName()} plugin`
 			);
@@ -191,14 +214,32 @@ export const installPlugin: StepHandler<
 				pluginsDirectoryPath,
 				targetFolderName || pluginData.name
 			);
-			await writeFiles(
-				playground,
-				pluginDirectoryPath,
-				pluginData.files,
-				{
-					rmRoot: true,
+			let shouldWritePluginFiles = true;
+			if (await playground.fileExists(pluginDirectoryPath)) {
+				if (!(await playground.isDir(pluginDirectoryPath))) {
+					throw new Error(
+						`Cannot install plugin ${targetFolderName || pluginData.name} to ${pluginDirectoryPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+					);
 				}
-			);
+				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+					shouldWritePluginFiles = false;
+				} else if (ifAlreadyInstalled === 'error') {
+					throw new Error(
+						`Cannot install plugin ${targetFolderName || pluginData.name} to ${pluginsDirectoryPath} because it already exists and ` +
+							`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+					);
+				}
+			}
+			if (shouldWritePluginFiles) {
+				await writeFiles(
+					playground,
+					pluginDirectoryPath,
+					pluginData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 			assetFolderPath = pluginDirectoryPath;
 		}
 
@@ -245,6 +286,21 @@ export const installPlugin: StepHandler<
 		throw error;
 	}
 };
+
+function assertSinglePluginEntryName(name: string) {
+	if (
+		!name ||
+		name === '.' ||
+		name === '..' ||
+		name.includes('\\') ||
+		name.includes('\0') ||
+		basename(name) !== name
+	) {
+		throw new Error(
+			'Plugin file or folder name must be a single path segment.'
+		);
+	}
+}
 
 /**
  * Stages activation options for a plugin before its activation hook runs.

@@ -15,6 +15,8 @@ export {
 	MAX_INLINE_FILE_BYTES,
 	seemsLikeBinary,
 	createDownloadUrl,
+	readFileForInlinePreview,
+	type InlineFilePreviewReadResult,
 	getMimeType,
 	isPreviewableBinary,
 } from './file-utils';

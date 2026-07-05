@@ -37,44 +37,16 @@ const helpTextStyle: CSSProperties = {
 	fontSize: 12,
 	marginTop: 8,
 };
-
-// Echoes the dock status pill the user clicked, so the pane reads as a direct
-// continuation of "Autosaved"/"Unsaved" rather than an unrelated dialog.
-/**
- * Hosts the save form either in the centered Modal (default) or, when embedded
- * in the dock's "Store permanently" pane, as a bare passthrough so the pane
- * supplies the chrome.
- */
-function SaveSurface({
-	asPane,
-	isSaving,
-	onRequestClose,
-	children,
-}: {
-	asPane: boolean;
-	isSaving: boolean;
-	onRequestClose: () => void;
-	children: ReactElement;
-}) {
-	if (asPane) {
-		return children;
-	}
-	return (
-		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
-			onRequestClose={onRequestClose}
-			isDismissible={!isSaving}
-			small
-		>
-			{children}
-		</Modal>
-	);
-}
+const fieldsetStyle: CSSProperties = {
+	border: 0,
+	margin: 0,
+	padding: 0,
+};
 
 export function SaveSiteModal({
 	asPane = false,
 	onClose,
+	onCloseBlockedChange,
 }: {
 	/**
 	 * Render the bare form for embedding in a dock pane ("Store permanently")
@@ -82,6 +54,7 @@ export function SaveSiteModal({
 	 */
 	asPane?: boolean;
 	onClose?: () => void;
+	onCloseBlockedChange?: (isBlocked: boolean) => void;
 } = {}) {
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
@@ -173,9 +146,21 @@ export function SaveSiteModal({
 
 	// Monitor save progress through opfsSync status
 	const saveProgress = clientInfo?.opfsSync;
-	const isSaving = isSubmitting || saveProgress?.status === 'syncing';
+	const isStorageCopyInProgress = saveProgress?.status === 'syncing';
+	const isSaving = isSubmitting || isStorageCopyInProgress;
 	const savingProgress =
 		saveProgress?.status === 'syncing' ? saveProgress.progress : undefined;
+
+	useEffect(() => {
+		if (!asPane) {
+			return;
+		}
+		// A background autosave can already be copying storage when the user opens
+		// this pane. Keep the submit action disabled then, but do not trap the
+		// user in the pane unless this form started the save they are watching.
+		onCloseBlockedChange?.(isSubmitting);
+		return () => onCloseBlockedChange?.(false);
+	}, [asPane, isSubmitting, onCloseBlockedChange]);
 
 	const isAutosaved = site && isAutosavedSite(site);
 	const canSaveSite =
@@ -326,7 +311,7 @@ export function SaveSiteModal({
 					directoryHandle
 				);
 			} else {
-				if (isAutosaved) {
+				if (isAutosaved && !targetIsActive) {
 					await sitesAPI.keep(site.slug, trimmedName);
 				} else {
 					await sitesAPI.saveInBrowser(trimmedName);
@@ -368,7 +353,7 @@ export function SaveSiteModal({
 				: 'Preparing to save...';
 
 	const handleRequestClose = () => {
-		if (!isSaving) {
+		if (!isSubmitting) {
 			closeModal();
 		}
 	};
@@ -376,7 +361,7 @@ export function SaveSiteModal({
 	return (
 		<SaveSurface
 			asPane={asPane}
-			isSaving={isSaving}
+			isDismissible={!isSubmitting}
 			onRequestClose={handleRequestClose}
 		>
 			<form
@@ -404,6 +389,7 @@ export function SaveSiteModal({
 				</p>
 				<TextControl
 					label="Playground name"
+					name="playground-name"
 					value={name}
 					onChange={(value) => setName(value)}
 					autoFocus
@@ -413,26 +399,36 @@ export function SaveSiteModal({
 					data-bwignore="true"
 					disabled={isSaving}
 				/>
-				<RadioControl
-					label="Storage location"
-					selected={selectedStorage}
-					options={[
-						{
-							label:
-								'Save in browser storage' +
-								(!isOpfsAvailable ? ' (not available)' : ''),
-							value: 'opfs',
-						},
-						{
-							label:
-								'Save in a local directory' +
-								(!localIsAvailable ? ' (not available)' : ''),
-							value: 'local-fs',
-						},
-					]}
-					onChange={(value) => chooseStorage(value as StorageOption)}
-					disabled={isSaving}
-				/>
+				<fieldset style={fieldsetStyle}>
+					<legend className="components-base-control__label">
+						Storage location
+					</legend>
+					<RadioControl
+						selected={selectedStorage}
+						options={[
+							{
+								label:
+									'Store in this browser' +
+									(!isOpfsAvailable
+										? ' (not available)'
+										: ''),
+								value: 'opfs',
+							},
+							{
+								label:
+									'Save in a local directory' +
+									(!localIsAvailable
+										? ' (not available)'
+										: ''),
+								value: 'local-fs',
+							},
+						]}
+						onChange={(value) =>
+							chooseStorage(value as StorageOption)
+						}
+						disabled={isSaving}
+					/>
+				</fieldset>
 				{!isOpfsAvailable && selectedStorage === 'opfs' && (
 					<p style={helpTextStyle}>Not available in this browser</p>
 				)}
@@ -450,6 +446,7 @@ export function SaveSiteModal({
 						>
 							<input
 								type="text"
+								name="local-directory"
 								className="components-text-control__input"
 								value={directoryHandle?.name ?? ''}
 								readOnly
@@ -495,16 +492,50 @@ export function SaveSiteModal({
 					</Notice>
 				) : null}
 				<ModalButtons
-					// One label regardless of storage target — the pane title and
-					// the storage-location choice already say what "Save" does.
-					submitText="Save"
+					submitText={
+						selectedStorage === 'opfs'
+							? 'Store permanently'
+							: 'Save'
+					}
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
-					cancelDisabled={isSaving}
+					cancelDisabled={isSubmitting}
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
 			</form>
 		</SaveSurface>
+	);
+}
+
+/**
+ * Hosts the save form either in the centered Modal (default) or, when embedded
+ * in the dock's "Store permanently" pane, as a bare passthrough so the pane
+ * supplies the chrome.
+ */
+function SaveSurface({
+	asPane,
+	isDismissible,
+	onRequestClose,
+	children,
+}: {
+	asPane: boolean;
+	isDismissible: boolean;
+	onRequestClose: () => void;
+	children: ReactElement;
+}) {
+	if (asPane) {
+		return children;
+	}
+	return (
+		<Modal
+			title="Save Playground"
+			contentLabel="Save Playground"
+			onRequestClose={onRequestClose}
+			isDismissible={isDismissible}
+			small
+		>
+			{children}
+		</Modal>
 	);
 }

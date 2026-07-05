@@ -8,19 +8,21 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const callbackRef = useRef(callback);
 
-	// Keep callback ref up to date
 	useEffect(() => {
 		callbackRef.current = callback;
 	}, [callback, ...dependencies]);
 
-	// Cleanup on unmount
+	// Cleanup when the debounced callback's execution context changes. A pending
+	// call scheduled for one filesystem/site must not later run against another
+	// one after the hook dependencies have changed.
 	useEffect(() => {
 		return () => {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
+				timeoutRef.current = null;
 			}
 		};
-	}, []);
+	}, [delay, ...dependencies]);
 
 	return useCallback(
 		(...args: Parameters<T>) => {

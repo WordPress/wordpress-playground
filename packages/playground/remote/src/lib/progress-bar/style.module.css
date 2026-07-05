@@ -209,6 +209,11 @@
 	.progress-bar {
 		box-shadow: 0 0 18px rgb(72 103 255 / 0.45);
 	}
+
+	.label,
+	.caption {
+		color: #b7bbc3;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

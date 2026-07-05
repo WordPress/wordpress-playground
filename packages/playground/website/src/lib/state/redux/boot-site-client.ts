@@ -1,8 +1,8 @@
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
-	getDirectoryPathForSlug,
-	legacyOpfsPathSymbol,
+	getDirectoryPathForSite,
+	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
@@ -25,11 +25,13 @@ import {
 	setActiveModal,
 	setActiveSiteError,
 	setGitHubAuthRepoUrl,
+	type SiteError,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
+	type SiteInfo,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -45,6 +47,12 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import {
+	isFileSystemPermissionError,
+	isMissingFileSystemEntryError,
+	storedDirectoryHasPlaygroundFiles,
+	storedDirectoryHasWordPressCoreFiles,
+} from './wordpress-core-file-check';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -58,17 +66,98 @@ export function bootSiteClient(
 		signal.onabort = () => {
 			dispatch(removeClientInfo(siteSlug));
 		};
-		const site = selectSiteBySlug(getState(), siteSlug);
+		const setBootSiteError = (error: SiteError, details?: unknown) =>
+			setActiveSiteError({ siteSlug, error, details });
+		let site = selectSiteBySlug(getState(), siteSlug);
+		if (!site) {
+			dispatch(
+				setBootSiteError(
+					'site-boot-failed',
+					new Error(`Site not found: ${siteSlug}`)
+				)
+			);
+			return;
+		}
+		if (signal.aborted) {
+			return;
+		}
+
+		if (
+			site.metadata.storage === 'opfs' &&
+			site.metadata.opfsResetPending
+		) {
+			if (!opfsSiteStorage) {
+				dispatch(
+					setBootSiteError(
+						'directory-handle-unknown-error',
+						new Error(
+							'Cannot finish resetting the saved Playground because browser storage is not available.'
+						)
+					)
+				);
+				return;
+			}
+			try {
+				await opfsSiteStorage.resetSiteFiles(site.slug);
+				if (signal.aborted) {
+					return;
+				}
+			} catch (error) {
+				if (signal.aborted) {
+					return;
+				}
+				logger.error(error);
+				if (isFileSystemPermissionError(error)) {
+					dispatch(
+						setBootSiteError(
+							'directory-handle-permission-denied',
+							error
+						)
+					);
+					return;
+				}
+				dispatch(
+					setBootSiteError('directory-handle-unknown-error', error)
+				);
+				return;
+			}
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							opfsResetPending: undefined,
+						},
+					})
+				);
+				site = selectSiteBySlug(getState(), siteSlug) ?? site;
+			} catch (error) {
+				logger.error(
+					'Error clearing pending Playground reset marker',
+					error
+				);
+				if (isFileSystemPermissionError(error)) {
+					dispatch(
+						setBootSiteError(
+							'directory-handle-permission-denied',
+							error
+						)
+					);
+					return;
+				}
+				dispatch(
+					setBootSiteError('directory-handle-unknown-error', error)
+				);
+				return;
+			}
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					// @TODO: Remove backcompat code after 2024-12-01.
-					path: (site.metadata as any)[legacyOpfsPathSymbol]
-						? (site.metadata as any)[legacyOpfsPathSymbol]
-						: getDirectoryPathForSlug(site.slug),
+					path: getDirectoryPathForSite(site),
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -76,13 +165,19 @@ export function bootSiteClient(
 			let localDirectoryHandle;
 			try {
 				localDirectoryHandle = await loadDirectoryHandle(site.slug);
+				if (signal.aborted) {
+					return;
+				}
 			} catch (e) {
+				if (signal.aborted) {
+					return;
+				}
 				logger.error(e);
 				dispatch(
-					setActiveSiteError({
-						error: 'directory-handle-not-found-in-indexeddb',
-						details: e,
-					})
+					setBootSiteError(
+						'directory-handle-not-found-in-indexeddb',
+						e
+					)
 				);
 				return;
 			}
@@ -103,33 +198,34 @@ export function bootSiteClient(
 					mountDescriptor.device
 				);
 				isWordPressInstalled =
-					await playgroundAvailableInOpfs(storedDirHandle);
+					await storedDirectoryHasPlaygroundFiles(storedDirHandle);
+				if (signal.aborted) {
+					return;
+				}
 			} catch (e) {
+				if (signal.aborted) {
+					return;
+				}
 				logger.error(e);
-				if (e instanceof DOMException && e.name === 'NotFoundError') {
+				if (isMissingFileSystemEntryError(e)) {
 					dispatch(
-						setActiveSiteError({
-							error: 'directory-handle-not-found-in-indexeddb',
-							details: e,
-						})
+						setBootSiteError(
+							'directory-handle-not-found-in-indexeddb',
+							e
+						)
 					);
 					return;
 				}
-				if (e instanceof DOMException && e.name === 'NotAllowedError') {
+				if (isFileSystemPermissionError(e)) {
 					dispatch(
-						setActiveSiteError({
-							error: 'directory-handle-permission-denied',
-							details: e,
-						})
+						setBootSiteError(
+							'directory-handle-permission-denied',
+							e
+						)
 					);
 					return;
 				}
-				dispatch(
-					setActiveSiteError({
-						error: 'directory-handle-unknown-error',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('directory-handle-unknown-error', e));
 				return;
 			}
 		}
@@ -141,14 +237,40 @@ export function bootSiteClient(
 		// memory, so there is nothing left to recover. Be upfront and stop here
 		// instead of booting into a fatal require() of a missing core file.
 		if (isWordPressInstalled && storedDirHandle) {
-			const coreFilesPresent =
-				await opfsHasWordPressCoreFiles(storedDirHandle);
+			let coreFilesPresent: boolean;
+			try {
+				coreFilesPresent = await storedDirectoryHasWordPressCoreFiles(
+					storedDirHandle,
+					site.metadata.runtimeConfiguration.wpVersion
+				);
+			} catch (error) {
+				if (signal.aborted) {
+					return;
+				}
+				logger.error(error);
+				if (isFileSystemPermissionError(error)) {
+					dispatch(
+						setBootSiteError(
+							'directory-handle-permission-denied',
+							error
+						)
+					);
+					return;
+				}
+				dispatch(
+					setBootSiteError('directory-handle-unknown-error', error)
+				);
+				return;
+			}
+			if (signal.aborted) {
+				return;
+			}
 			if (!coreFilesPresent) {
 				logger.error(
 					'Saved Playground is missing core WordPress files; its ' +
 						'initial save did not finish. Showing the incomplete-save notice.'
 				);
-				dispatch(setActiveSiteError({ error: 'incomplete-save' }));
+				dispatch(setBootSiteError('incomplete-save'));
 				return;
 			}
 		}
@@ -220,6 +342,12 @@ export function bootSiteClient(
 				site.originalUrlParams?.searchParams?.['php-extension'],
 				document.location.href
 			);
+			const experimentalBlueprintsV2Runner =
+				!isWordPressInstalled &&
+				getSetupSearchParam(
+					site,
+					'experimental-blueprints-v2-runner'
+				) === 'yes';
 
 			await startPlaygroundWeb({
 				iframe: iframe!,
@@ -230,11 +358,7 @@ export function bootSiteClient(
 				siteName: site.metadata.name,
 				blueprint,
 				extensions: phpExtensions,
-				experimentalBlueprintsV2Runner:
-					!isWordPressInstalled &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
+				experimentalBlueprintsV2Runner,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
@@ -255,6 +379,9 @@ export function bootSiteClient(
 				],
 			});
 		} catch (e) {
+			if (signal.aborted) {
+				return;
+			}
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });
 
@@ -263,40 +390,20 @@ export function bootSiteClient(
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
-				dispatch(
-					setActiveSiteError({
-						error: 'github-artifact-expired',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('github-artifact-expired', e));
 			} else if (e instanceof BlueprintFilesystemRequiredError) {
-				dispatch(
-					setActiveSiteError({
-						error: 'blueprint-filesystem-required',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('blueprint-filesystem-required', e));
 			} else if (e instanceof InvalidBlueprintError) {
-				dispatch(
-					setActiveSiteError({
-						error: 'blueprint-validation-failed',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('blueprint-validation-failed', e));
 			} else if (firewallError) {
 				dispatch(
-					setActiveSiteError({
-						error: 'network-firewall-interference',
-						details: firewallError,
-					})
+					setBootSiteError(
+						'network-firewall-interference',
+						firewallError
+					)
 				);
 			} else if (findDownloadErrorInCauseChain(e)) {
-				dispatch(
-					setActiveSiteError({
-						error: 'resource-download-failed',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('resource-download-failed', e));
 			} else if (
 				(e as any).name === 'GitAuthenticationError' ||
 				(e as any).originalErrorClassName ===
@@ -316,21 +423,11 @@ export function bootSiteClient(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
 					);
 				} else {
-					dispatch(
-						setActiveSiteError({
-							error: 'site-boot-failed',
-							details: e,
-						})
-					);
+					dispatch(setBootSiteError('site-boot-failed', e));
 					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 				}
 			} else {
-				dispatch(
-					setActiveSiteError({
-						error: 'site-boot-failed',
-						details: e,
-					})
-				);
+				dispatch(setBootSiteError('site-boot-failed', e));
 			}
 			// Don't continue to client setup after an error
 			return;
@@ -374,6 +471,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				operation: syncOperation,
 				dispatch,
+				signal,
 			});
 		} else {
 			try {
@@ -410,6 +508,9 @@ export function bootSiteClient(
 		}
 
 		connectedPlayground.onNavigation((url) => {
+			if (signal.aborted) {
+				return;
+			}
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -424,6 +525,17 @@ export function bootSiteClient(
 	};
 }
 
+function getSetupSearchParam(site: SiteInfo, name: string) {
+	const storedValue = site.originalUrlParams?.searchParams?.[name];
+	if (Array.isArray(storedValue)) {
+		return storedValue[0];
+	}
+	if (storedValue !== undefined) {
+		return storedValue;
+	}
+	return new URLSearchParams(window.location.search).get(name) ?? undefined;
+}
+
 /**
  * Copies files created during a saved site's first boot from MEMFS into OPFS.
  *
@@ -436,22 +548,27 @@ async function syncInitialOpfsFilesInBackground({
 	siteSlug,
 	operation,
 	dispatch,
+	signal,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 	siteSlug: string;
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
+	signal: AbortSignal;
 }) {
 	let shouldReportProgress = true;
 	try {
+		// The first OPFS copy can outlive the iframe that started it. Once the
+		// viewport aborts, stale worker progress must not recreate client state
+		// that the unmount cleanup already removed.
 		await playground.mountOpfs(
 			{
 				...mountDescriptor,
 				initialSyncDirection: 'memfs-to-opfs',
 			},
 			(progress: SyncProgress) => {
-				if (!shouldReportProgress) {
+				if (!shouldReportProgress || signal.aborted) {
 					return;
 				}
 				dispatch(
@@ -468,6 +585,9 @@ async function syncInitialOpfsFilesInBackground({
 				);
 			}
 		);
+		if (signal.aborted) {
+			return;
+		}
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
@@ -477,6 +597,9 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		if (signal.aborted) {
+			return;
+		}
 		dispatch(
 			updateClientInfo({
 				siteSlug,
@@ -486,6 +609,9 @@ async function syncInitialOpfsFilesInBackground({
 			})
 		);
 	} catch (error: unknown) {
+		if (signal.aborted) {
+			return;
+		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
 			updateClientInfo({
@@ -504,85 +630,4 @@ async function syncInitialOpfsFilesInBackground({
 		// queued progress message so it cannot overwrite the final UI state.
 		shouldReportProgress = false;
 	}
-}
-
-/**
- * Check if the given directory handle directory is a Playground directory.
- *
- * @TODO: Create a shared package like @wp-playground/wordpress for such utilities
- * and bring in the context detection logic from wp-now – only express it in terms of
- * either abstract FS operations or isomorphic PHP FS operations.
- * (we can't just use Node.js require('fs') in the browser, for example)
- *
- * @TODO: Reuse the "isWordPressInstalled" logic implemented in the boot protocol.
- *        Perhaps mount OPFS first, and only then check for the presence of the
- *        WordPress installation? Or, if not, perhaps implement a shared file access
- * 		  abstraction that can be used both with the PHP module and OPFS directory handles?
- *
- * @param dirHandle
- */
-export async function playgroundAvailableInOpfs(
-	dirHandle: FileSystemDirectoryHandle
-) {
-	// Run this loop just to trigger an exception if the directory handle is no good.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	for await (const _ of dirHandle.keys()) {
-		break;
-	}
-
-	try {
-		/**
-		 * Assume it's a Playground directory if these files exist:
-		 * - wp-config.php
-		 * - wp-content/database/.ht.sqlite
-		 */
-		await dirHandle.getFileHandle('wp-config.php', { create: false });
-		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
-			create: false,
-		});
-		const database = await wpContent.getDirectoryHandle('database', {
-			create: false,
-		});
-		await database.getFileHandle('.ht.sqlite', { create: false });
-	} catch {
-		return false;
-	}
-	return true;
-}
-
-/**
- * Whether a stored Playground directory still holds the WordPress core files a
- * boot fatally depends on.
- *
- * `playgroundAvailableInOpfs` only proves a site was *started* here (wp-config.php
- * and the SQLite database exist); it can't tell a complete copy from a partial
- * one. A save interrupted mid-copy can keep wp-config.php while dropping core
- * files, and the next boot then fatals on the first missing `require()` (the
- * reported case was `wp-includes/sodium_compat/autoload.php`). Sampling a few
- * load-bearing files that every supported WordPress ships — one at the root, one
- * in wp-includes, and the sodium_compat entry that actually crashed — catches
- * that partial state. It's a heuristic (a partial copy could in principle retain
- * all of these), but a false negative just falls back to the generic boot-error
- * view, while the checked files are universal enough to avoid false positives.
- */
-async function opfsHasWordPressCoreFiles(
-	dirHandle: FileSystemDirectoryHandle
-): Promise<boolean> {
-	try {
-		const wpIncludes = await dirHandle.getDirectoryHandle('wp-includes', {
-			create: false,
-		});
-		const sodiumCompat = await wpIncludes.getDirectoryHandle(
-			'sodium_compat',
-			{ create: false }
-		);
-		await Promise.all([
-			dirHandle.getFileHandle('wp-settings.php', { create: false }),
-			wpIncludes.getFileHandle('version.php', { create: false }),
-			sodiumCompat.getFileHandle('autoload.php', { create: false }),
-		]);
-	} catch {
-		return false;
-	}
-	return true;
 }

@@ -4,21 +4,27 @@ import type { PHPConstants } from '@wp-playground/blueprints';
 import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	opfsSiteStorage,
-	getDirectoryPathForSlug,
+	getDirectoryPathForSite,
 } from '../opfs/opfs-site-storage';
-import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import { persistBlueprintBundleAtSitePath } from '../opfs/opfs-blueprint-bundle-storage';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
-import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import {
 	selectSiteBySlug,
+	type SiteInfo,
 	type SitePersistence,
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
+import { getSetupUrlFromUrl } from '../playground-identity';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -42,16 +48,24 @@ export function persistTemporarySite(
 		getState: () => PlaygroundReduxState
 	) => {
 		const state = getState();
-		const playground = selectClientBySiteSlug(state, siteSlug);
+		const clientInfo = selectClientInfoBySiteSlug(state, siteSlug);
+		const playground =
+			clientInfo?.client ?? selectClientBySiteSlug(state, siteSlug);
 		if (!playground) {
 			throw new Error(
 				`Site ${siteSlug} must have an active client to be saved, but none was found.`
 			);
 		}
+		const previousMountDescriptor = clientInfo?.opfsMountDescriptor;
 
 		let siteInfo = selectSiteBySlug(state, siteSlug)!;
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
+		}
+		if (storageType === 'opfs' && !opfsSiteStorage) {
+			throw new Error(
+				'Cannot save this Playground because browser storage is not available.'
+			);
 		}
 		const trimmedName = options.siteName?.trim();
 		if (trimmedName && trimmedName !== siteInfo.metadata.name) {
@@ -65,15 +79,26 @@ export function persistTemporarySite(
 		}
 
 		const isTemporarySite = siteInfo.metadata.storage === 'none';
-		if (isTemporarySite) {
+		let reuseTemporaryPlaceholder = false;
+		if (isTemporarySite && opfsSiteStorage) {
 			try {
 				const existingSiteInfo = await opfsSiteStorage?.read(
 					siteInfo.slug
 				);
 				if (existingSiteInfo?.metadata.storage === 'none') {
-					// It is likely we are dealing with the remnants of a failed save
-					// of a temporary site to OPFS. Let's clean up and try again.
-					await opfsSiteStorage?.delete(siteInfo.slug);
+					reuseTemporaryPlaceholder =
+						await hasMountedTemporaryPlaceholder(
+							playground,
+							previousMountDescriptor,
+							getDirectoryPathForSite(siteInfo)
+						);
+					if (!reuseTemporaryPlaceholder) {
+						// A failed save from another tab can leave a partial OPFS
+						// copy. If this runtime is not still mounted to that copy,
+						// discard it before trying again so stale files cannot mix
+						// into the next save.
+						await opfsSiteStorage?.delete(siteInfo.slug);
+					}
 				}
 			} catch (error: any) {
 				if (error?.name === 'NotFoundError') {
@@ -83,13 +108,19 @@ export function persistTemporarySite(
 					throw error;
 				}
 			}
-			await opfsSiteStorage?.create(siteInfo.slug, {
-				...siteInfo.metadata,
-				// The placeholder stays marked as temporary until the copy
-				// succeeds, so a later save can recognize and clean up a failed
-				// attempt.
-				storage: 'none',
-			});
+			if (!reuseTemporaryPlaceholder) {
+				await opfsSiteStorage?.create(
+					siteInfo.slug,
+					{
+						...siteInfo.metadata,
+						// The placeholder stays marked as temporary until the copy
+						// succeeds, so a later save can recognize and clean up a
+						// failed attempt.
+						storage: 'none',
+					},
+					siteInfo.originalUrlParams
+				);
+			}
 		}
 
 		// Persist a Blueprint bundle only after the user has run the edited
@@ -110,9 +141,12 @@ export function persistTemporarySite(
 		}
 
 		let bundleWasPersisted = false;
-		if (bundleToPersist) {
+		if (bundleToPersist && opfsSiteStorage) {
 			try {
-				await persistBlueprintBundle(siteSlug, bundleToPersist);
+				await persistBlueprintBundleAtSitePath(
+					getDirectoryPathForSite(siteInfo),
+					bundleToPersist
+				);
 				bundleWasPersisted = true;
 			} catch (error) {
 				logger.error('Failed to persist blueprint bundle', error);
@@ -125,7 +159,7 @@ export function persistTemporarySite(
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					path: getDirectoryPathForSlug(siteSlug),
+					path: getDirectoryPathForSite(siteInfo),
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -171,6 +205,11 @@ export function persistTemporarySite(
 				},
 			})
 		);
+		let restorePreviousMount = false;
+		let currentRuntimeMountDescriptor:
+			| typeof mountDescriptor
+			| typeof previousMountDescriptor
+			| undefined = previousMountDescriptor;
 		try {
 			/**
 			 * Autosaved browser sites already mount OPFS at `/wordpress`.
@@ -184,6 +223,8 @@ export function persistTemporarySite(
 			 */
 			if (await playground.hasOpfsMount(mountDescriptor.mountpoint)) {
 				await playground.unmountOpfs(mountDescriptor.mountpoint);
+				currentRuntimeMountDescriptor = undefined;
+				restorePreviousMount = Boolean(previousMountDescriptor);
 			}
 			await playground.mountOpfs(
 				{
@@ -205,6 +246,55 @@ export function persistTemporarySite(
 					);
 				}
 			);
+			restorePreviousMount = false;
+			currentRuntimeMountDescriptor = mountDescriptor;
+
+			const persistedAt = Date.now();
+			const playgroundDefinedConstants =
+				await getPlaygroundDefinedPHPConstants(playground);
+			const siteChanges = {
+				// Autosaves stay tied to their source setup URL so restore
+				// matching and boot-time query options can still inspect it.
+				// Explicit saves open by slug, but they still keep their setup
+				// URL for settings and sharing.
+				...(isAutosave
+					? {}
+					: {
+							originalUrlParams:
+								getSetupOriginalUrlParams(siteInfo),
+						}),
+				metadata: {
+					...siteInfo.metadata,
+					storage: storageType,
+					persistence: options.persistence ?? 'explicit',
+					// The viewport key includes whenCreated. Changing it
+					// would remount the iframe, so autosave keeps the
+					// current value while explicit saves reset the creation
+					// time.
+					...(isAutosave ? {} : { whenCreated: persistedAt }),
+					whenLastUsed: persistedAt,
+					// Keep these outside runtimeConfiguration so autosave
+					// does not change the running iframe's boot fingerprint.
+					playgroundDefinedConstants,
+					// If we persisted a blueprint bundle, point to it so we
+					// can load the full bundle (not just the declaration) on
+					// next load.
+					...(bundleWasPersisted
+						? {
+								originalBlueprintSource: {
+									type: 'opfs-site' as const,
+								},
+							}
+						: {}),
+					...(trimmedName ? { name: trimmedName } : {}),
+				},
+			};
+			await dispatch(
+				updateSite({
+					slug: siteSlug,
+					changes: siteChanges,
+				})
+			);
 
 			// @TODO: Create a notification to tell the user the operation is complete
 			dispatch(
@@ -216,10 +306,40 @@ export function persistTemporarySite(
 				})
 			);
 		} catch (error) {
+			if (
+				storageType === 'local-fs' &&
+				currentRuntimeMountDescriptor === mountDescriptor
+			) {
+				try {
+					await playground.unmountOpfs(mountDescriptor.mountpoint);
+					currentRuntimeMountDescriptor = undefined;
+					restorePreviousMount = Boolean(previousMountDescriptor);
+				} catch (unmountNewMountError) {
+					logger.error(
+						'Error unmounting the local directory after save failure.',
+						unmountNewMountError
+					);
+				}
+			}
+			if (restorePreviousMount && previousMountDescriptor) {
+				try {
+					await playground.mountOpfs({
+						...previousMountDescriptor,
+						initialSyncDirection: 'memfs-to-opfs',
+					});
+					currentRuntimeMountDescriptor = previousMountDescriptor;
+				} catch (restoreError) {
+					logger.error(
+						'Error restoring the previous storage mount after save failure.',
+						restoreError
+					);
+				}
+			}
 			dispatch(
 				updateClientInfo({
 					siteSlug,
 					changes: {
+						opfsMountDescriptor: currentRuntimeMountDescriptor,
 						opfsSync: {
 							status: 'error',
 							operation: syncOperation,
@@ -229,51 +349,6 @@ export function persistTemporarySite(
 			);
 			throw error;
 		}
-
-		// Autosaves stay tied to their source setup URL so restore matching and
-		// boot-time query options can still inspect it. Explicit saves open by
-		// slug, so drop the temporary route params after persistence.
-		if (!isAutosave) {
-			await dispatch(
-				updateSite({
-					slug: siteSlug,
-					changes: {
-						originalUrlParams: undefined,
-					},
-				})
-			);
-		}
-
-		const persistedAt = Date.now();
-		const playgroundDefinedConstants =
-			await getPlaygroundDefinedPHPConstants(playground);
-		await dispatch(
-			updateSiteMetadata({
-				slug: siteSlug,
-				changes: {
-					storage: storageType,
-					persistence: options.persistence ?? 'explicit',
-					// The viewport key includes whenCreated. Changing it would
-					// remount the iframe, so autosave keeps the current value
-					// while explicit saves reset the creation time.
-					...(isAutosave ? {} : { whenCreated: persistedAt }),
-					whenLastUsed: persistedAt,
-					// Keep these outside runtimeConfiguration so autosave does not
-					// change the running iframe's boot fingerprint.
-					playgroundDefinedConstants,
-					// If we persisted a blueprint bundle, point to it so we can
-					// load the full bundle (not just the declaration) on next load.
-					...(bundleWasPersisted
-						? {
-								originalBlueprintSource: {
-									type: 'opfs-site' as const,
-								},
-							}
-						: {}),
-					...(trimmedName ? { name: trimmedName } : {}),
-				},
-			})
-		);
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
@@ -281,12 +356,58 @@ export function persistTemporarySite(
 		 * respond with another message and these unexpected exchange throws off
 		 * Comlink. We should make Comlink ignore those.
 		 */
-		// @TODO: ^ Is this fixed now?
 		const updatedSite = selectSiteBySlug(getState(), siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
 		if (options.updateUrl) {
 			redirectTo(persistentSiteUrl);
 		}
+	};
+}
+
+async function hasMountedTemporaryPlaceholder(
+	playground: PlaygroundClient,
+	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'> | undefined,
+	expectedPath: string
+) {
+	return (
+		mountDescriptor?.device.type === 'opfs' &&
+		mountDescriptor.device.path === expectedPath &&
+		(await playground
+			.hasOpfsMount(mountDescriptor.mountpoint)
+			.catch(() => false))
+	);
+}
+
+function getSetupOriginalUrlParams(
+	siteInfo: SiteInfo
+): NonNullable<SiteInfo['originalUrlParams']> {
+	const sourceUrl = new URL(window.location.href);
+	if (siteInfo.originalUrlParams) {
+		sourceUrl.search = '';
+		for (const [key, value] of Object.entries(
+			siteInfo.originalUrlParams.searchParams ?? {}
+		)) {
+			const values = Array.isArray(value) ? value : [value];
+			for (const item of values) {
+				sourceUrl.searchParams.append(key, item);
+			}
+		}
+		sourceUrl.hash = siteInfo.originalUrlParams.hash ?? '';
+	}
+	return getOriginalUrlParamsFromUrl(getSetupUrlFromUrl(sourceUrl));
+}
+
+function getOriginalUrlParamsFromUrl(
+	url: URL
+): NonNullable<SiteInfo['originalUrlParams']> {
+	const searchParams: Record<string, string | string[]> = {};
+	for (const key of new Set(url.searchParams.keys())) {
+		const value = url.searchParams.getAll(key);
+		searchParams[key] = value.length > 1 ? value : value[0];
+	}
+	return {
+		searchParams,
+		hash: url.hash,
 	};
 }
 
@@ -300,14 +421,22 @@ export function persistTemporarySite(
  * writing them into `runtimeConfiguration` during autosave would change the
  * running iframe's boot fingerprint and force an unnecessary reboot.
  */
-async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
-	let constants: PHPConstants = {};
-	try {
-		constants = JSON.parse(
-			await playground.readFileAsText('/internal/shared/consts.json')
-		);
-	} catch {
-		// The file is absent until code defines constants through Playground.
+export async function getPlaygroundDefinedPHPConstants(
+	playground: PlaygroundClient
+) {
+	const constsPath = '/internal/shared/consts.json';
+	if (!(await playground.fileExists(constsPath))) {
+		return {};
+	}
+	const constants = JSON.parse(
+		await playground.readFileAsText(constsPath)
+	) as PHPConstants;
+	if (
+		typeof constants !== 'object' ||
+		constants === null ||
+		Array.isArray(constants)
+	) {
+		throw new Error(`${constsPath} must contain a JSON object.`);
 	}
 	return constants;
 }

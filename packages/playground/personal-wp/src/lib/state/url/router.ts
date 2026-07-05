@@ -24,6 +24,7 @@ interface QueryAPIParams {
 	'import-wxr'?: string;
 	'import-content'?: string;
 	'blueprint-url'?: string;
+	'experimental-blueprints-v2-runner'?: 'yes' | 'no';
 	'page-title'?: string;
 }
 
@@ -138,6 +139,7 @@ export class PlaygroundRoute {
 				'networking',
 				'login',
 				'page-title',
+				'experimental-blueprints-v2-runner',
 			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {

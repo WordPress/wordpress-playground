@@ -67,6 +67,10 @@ body {
 	transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.preview-dismiss:disabled {
+	cursor: default;
+}
+
 .preview-dismiss:focus-visible {
 	outline: 2px solid #3858e9;
 	outline-offset: -4px;
@@ -75,8 +79,6 @@ body {
 .has-dock-pane .site-view-content {
 	pointer-events: none;
 }
-
-/* --- Restored from the deployed build --- */
 
 @media (min-width: 1025px) {
 	.dock-docked .site-view {

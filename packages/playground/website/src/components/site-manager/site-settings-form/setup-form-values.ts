@@ -19,13 +19,22 @@ export function getSetupFormDefaultValues(
 	const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 	const language = searchParams.language;
 	const multisite = searchParams.multisite;
-	return {
-		phpVersion: runtimeConf?.phpVersion as any,
-		wpVersion: runtimeConf?.wpVersion as any,
-		withNetworking: runtimeConf?.networking,
+	const defaults: Partial<SiteFormData> = {
 		language: typeof language === 'string' ? language : '',
 		multisite: multisite === 'yes',
 	};
+
+	if (runtimeConf.phpVersion !== undefined) {
+		defaults.phpVersion = runtimeConf.phpVersion as any;
+	}
+	if (runtimeConf.wpVersion !== undefined) {
+		defaults.wpVersion = runtimeConf.wpVersion;
+	}
+	if (runtimeConf.networking !== undefined) {
+		defaults.withNetworking = runtimeConf.networking;
+	}
+
+	return defaults;
 }
 
 /**

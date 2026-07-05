@@ -34,6 +34,18 @@ describe('getAutosaveFingerprintFromURL', () => {
 		);
 	});
 
+	it('keeps the experimental Blueprint runner in the setup fingerprint', () => {
+		expect(
+			getAutosaveFingerprintFromURL(
+				new URL(
+					'https://playground.test/?experimental-blueprints-v2-runner=yes'
+				)
+			)
+		).not.toBe(
+			getAutosaveFingerprintFromURL(new URL('https://playground.test/'))
+		);
+	});
+
 	it('includes the blueprint fragment', () => {
 		expect(
 			getAutosaveFingerprintFromURL(
@@ -107,12 +119,14 @@ describe('getSetupUrlFromUrl', () => {
 			new URL(
 				'https://playground.test/?php=8.3&php-extension=https://example.com/ext.json&plugin=a&plugin=b' +
 					'&site-slug=demo&storage=temp&random=abc&modal=save-site' +
-					'&can-save=no#blueprint'
+					'&can-save=no&experimental-blueprints-v2-runner=yes#blueprint'
 			)
 		);
 
 		expect(setupUrl.toString()).toBe(
-			'https://playground.test/?php=8.3&php-extension=https%3A%2F%2Fexample.com%2Fext.json&plugin=a&plugin=b#blueprint'
+			'https://playground.test/?php=8.3&php-extension=' +
+				'https%3A%2F%2Fexample.com%2Fext.json&plugin=a&plugin=b' +
+				'&experimental-blueprints-v2-runner=yes#blueprint'
 		);
 	});
 });

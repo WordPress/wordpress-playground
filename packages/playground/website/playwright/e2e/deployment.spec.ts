@@ -73,9 +73,7 @@ for (const cachingEnabled of [true, false]) {
 		server!.switchToNewVersion();
 		await page.goto(url.href);
 		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByRole('button', { name: /This Playground/ })
-		).toBeVisible();
+		await website.waitForPlaygroundShell();
 		await expect(wordpress.locator('body')).toContainText(
 			'My WordPress Website'
 		);
@@ -112,7 +110,7 @@ test.skip(
 		);
 		if (await siteManagerHeading.isHidden({ timeout: 5000 })) {
 			await website.page
-				.getByRole('button', { name: /This Playground/ })
+				.getByRole('button', { name: /Site details/ })
 				.click();
 		}
 		await expect(siteManagerHeading).toBeVisible();
@@ -157,9 +155,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
-	await expect(
-		website.page.getByRole('button', { name: /This Playground/ })
-	).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);
@@ -175,9 +171,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.reload();
 	await website.waitForNestedIframes();
 
-	await expect(
-		website.page.getByRole('button', { name: /This Playground/ })
-	).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);

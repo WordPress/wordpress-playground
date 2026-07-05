@@ -2,7 +2,7 @@ import type { AllPHPVersion } from '@php-wasm/universal';
 import { PHPNextVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
@@ -80,6 +80,20 @@ export function UnconnectedSiteSettingsForm({
 	const [includeOlderVersions, setIncludeOlderVersions] = useState(() =>
 		isOlderWordPressVersion(mergedDefaults.wpVersion)
 	);
+	const defaultWpVersionRef = useRef(mergedDefaults.wpVersion);
+
+	// Switching sites can replace defaultValues without remounting the form.
+	// Sync the older-version group to the new site, but don't override a user's
+	// manual toggle while the current default value is unchanged.
+	useEffect(() => {
+		if (defaultWpVersionRef.current === mergedDefaults.wpVersion) {
+			return;
+		}
+		defaultWpVersionRef.current = mergedDefaults.wpVersion;
+		setIncludeOlderVersions(
+			isOlderWordPressVersion(mergedDefaults.wpVersion)
+		);
+	}, [mergedDefaults.wpVersion]);
 
 	const currentWpVersion = useWatch({ control, name: 'wpVersion' });
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);

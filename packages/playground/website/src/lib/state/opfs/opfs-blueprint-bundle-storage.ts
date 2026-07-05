@@ -45,8 +45,22 @@ export async function persistBlueprintBundle(
 	siteSlug: string,
 	source: TraversableFilesystemBackend
 ): Promise<void> {
+	await persistBlueprintBundleAtSitePath(
+		getDirectoryPathForSlug(siteSlug),
+		source
+	);
+}
+
+/**
+ * Copy files from a source filesystem to a resolved site's blueprint bundle
+ * storage path.
+ */
+export async function persistBlueprintBundleAtSitePath(
+	sitePath: string,
+	source: TraversableFilesystemBackend
+): Promise<void> {
 	const destination = await OpfsFilesystemBackend.fromPath(
-		getBundlePath(siteSlug),
+		getBundlePathForSitePath(sitePath),
 		true
 	);
 	await copyFilesystem(source, destination);

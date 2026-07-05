@@ -121,9 +121,22 @@ export function initOutboundWebsocketProxyServer(
 		);
 		response.end();
 	});
-	return new Promise((resolve) => {
+	let isListening = false;
+	const handleRuntimeError = (error: Error) => {
+		if (isListening) {
+			log('WebSockets server runtime error', error);
+		}
+	};
+	webServer.on('error', handleRuntimeError);
+	return new Promise((resolve, reject) => {
+		webServer.once('error', reject);
 		webServer.listen(listenPort, listenHost, function () {
+			isListening = true;
+			webServer.off('error', reject);
 			const wsServer = new WebSocketServer({ server: webServer });
+			wsServer.on('error', (error) => {
+				log('WebSockets proxy error', error);
+			});
 			wsServer.on('connection', onWsConnect);
 			resolve(webServer);
 		});
@@ -152,16 +165,21 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 
 	// Parse the search params (the host doesn't matter):
 	const reqUrl = new URL(`ws://0.0.0.0` + request.url);
-	const reqTargetPort = Number(reqUrl.searchParams.get('port'));
+	const reqTargetPortParam = reqUrl.searchParams.get('port');
+	const reqTargetPort = Number(reqTargetPortParam);
 	const reqTargetHost = reqUrl.searchParams.get('host');
-	if (!reqTargetPort || !reqTargetHost) {
+	if (!reqTargetPortParam || !reqTargetHost) {
 		clientLog('Missing host or port information');
 		client.close(3000);
 		return;
 	}
 
 	// Validate port range
-	if (reqTargetPort < 0 || reqTargetPort > 65535) {
+	if (
+		!Number.isInteger(reqTargetPort) ||
+		reqTargetPort <= 0 ||
+		reqTargetPort > 65535
+	) {
 		clientLog('Invalid port number: ' + reqTargetPort);
 		// Send empty binary data to notify requester that connection failed
 		client.send([]);
@@ -170,9 +188,13 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	}
 
 	// eslint-disable-next-line prefer-const
-	let target: any;
+	let target: net.Socket | undefined;
+	let clientClosed = false;
 	const recvQueue: Buffer[] = [];
 	function flushMessagesQueue() {
+		if (!target) {
+			return;
+		}
 		while (recvQueue.length > 0) {
 			const msg = recvQueue.pop()! as Buffer;
 			const commandType = msg[0];
@@ -186,13 +208,16 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 				const IPPROTO_TCP = 6;
 				const TCP_NODELAY = 1;
 				if (msg[1] === SOL_SOCKET && msg[2] === SO_KEEPALIVE) {
-					target.setKeepAlive(msg[3]);
+					target.setKeepAlive(Boolean(msg[3]));
 				} else if (msg[1] === IPPROTO_TCP && msg[2] === TCP_NODELAY) {
-					target.setNoDelay(msg[3]);
+					target.setNoDelay(Boolean(msg[3]));
 				}
 			} else {
 				clientLog('Unknown command type: ' + commandType);
-				process.exit();
+				recvQueue.length = 0;
+				client.close(3000);
+				target.end();
+				return;
 			}
 		}
 	}
@@ -205,16 +230,16 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		}
 	});
 	client.on('close', function (code: any, reason: any) {
+		clientClosed = true;
 		clientLog(
 			'WebSocket client disconnected: ' + code + ' [' + reason + ']'
 		);
-		if (target) {
-			target.end();
-		}
+		target?.end();
 	} as any);
 	client.on('error', function (a: string | Buffer) {
+		clientClosed = true;
 		clientLog('WebSocket client error: ' + a);
-		target.end();
+		target?.end();
 	});
 
 	// Resolve the target host to an IP address if it isn't one already.
@@ -228,6 +253,12 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
 		} catch (e) {
 			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
+			if (clientClosed) {
+				clientLog(
+					'WebSocket client closed before the DNS failure response'
+				);
+				return;
+			}
 			// Send empty binary data to notify requester that connection was
 			// initiated
 			client.send([]);
@@ -240,6 +271,10 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		}
 	} else {
 		reqTargetIp = reqTargetHost;
+	}
+	if (clientClosed) {
+		clientLog('WebSocket client closed before the target socket opened');
+		return;
 	}
 	clientLog(
 		'Opening a socket connection to ' + reqTargetIp + ':' + reqTargetPort
@@ -257,7 +292,7 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			client.send(data);
 		} catch {
 			clientLog('Client closed, cleaning up target');
-			target.end();
+			target?.end();
 		}
 	});
 	target.on('end', function () {
@@ -266,13 +301,17 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	});
 	target.on('error', function (e: any) {
 		clientLog('target connection error', e);
-		client.send([]);
+		if (!clientClosed) {
+			client.send([]);
+		}
 		// Without this random timeout, PHP sometimes doesn't notice the socket
 		// disconnected. TODO: figure out why.
 		setTimeout(() => {
-			client.close(3000);
+			if (!clientClosed) {
+				client.close(3000);
+			}
 			try {
-				target.end();
+				target?.end();
 			} catch {
 				// Ignore
 			}

@@ -158,6 +158,38 @@ describe('PlaygroundRoute site creation routes', () => {
 		expect(params.get('php')).toBe('8.0');
 		expect(params.get('wp')).toBe('6.6');
 	});
+
+	it('preserves the experimental Blueprint runner when selecting a saved site', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/website-server/?experimental-blueprints-v2-runner=yes'
+		);
+		const params = new URL(url).searchParams;
+		expect(params.get('site-slug')).toBe('saved-site');
+		expect(params.get('experimental-blueprints-v2-runner')).toBe('yes');
+	});
+
+	it('does not fold the current hash into preserved saved-site params', () => {
+		const url = new URL(
+			PlaygroundRoute.site(
+				{
+					slug: 'saved-site',
+					metadata: {
+						storage: 'opfs',
+					},
+				} as unknown as SiteInfo,
+				'https://playground.test/website-server/?php=8.0#%7B%22steps%22:%5B%5D%7D'
+			)
+		);
+
+		expect(url.searchParams.get('php')).toBe('8.0');
+		expect(url.hash).toBe('');
+	});
 });
 
 describe('isSiteSavingDisabled', () => {

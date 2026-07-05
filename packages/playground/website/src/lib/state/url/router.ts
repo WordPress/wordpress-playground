@@ -26,6 +26,7 @@ export interface QueryAPIParams {
 	'import-content'?: string;
 	url?: string;
 	'blueprint-url'?: string;
+	'experimental-blueprints-v2-runner'?: 'yes' | 'no';
 	'page-title'?: string;
 }
 
@@ -101,7 +102,7 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const baseParams = new URL(baseUrl).searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
@@ -115,11 +116,15 @@ export class PlaygroundRoute {
 				'mcp',
 				'mcp-port',
 				'can-save',
+				'experimental-blueprints-v2-runner',
 			];
-			const preserveParams: Record<string, string | null> = {};
+			const preserveParams: Record<string, string | string[]> = {};
 			for (const param of preserveParamsKeys) {
-				if (baseParams.has(param)) {
-					preserveParams[param] = baseParams.get(param);
+				const values = baseParams.getAll(param);
+				if (values.length === 1) {
+					preserveParams[param] = values[0];
+				} else if (values.length > 1) {
+					preserveParams[param] = values;
 				}
 			}
 			return updateUrl(baseUrl, {

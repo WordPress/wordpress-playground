@@ -5,7 +5,11 @@ import {
 	OverlayFilesystem,
 	FetchFilesystem,
 	NodeJsFilesystem,
+	ChrootFilesystem,
+	OpfsFilesystemBackend,
+	copyFilesystem,
 	type ReadableFilesystemBackend,
+	type TraversableFilesystemBackend,
 } from '../lib/filesystems';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
@@ -134,6 +138,35 @@ describe('ZipFilesystem', () => {
 	});
 });
 
+describe('ChrootFilesystem', () => {
+	it('reads files inside the chroot', async () => {
+		const backend: ReadableFilesystemBackend = {
+			read: vi.fn(async (path: string) =>
+				createMockStreamedFile('content', path)
+			),
+		};
+		const filesystem = new ChrootFilesystem('bundle', backend);
+
+		await filesystem.read('blueprint.json');
+
+		expect(backend.read).toHaveBeenCalledWith('bundle/blueprint.json');
+	});
+
+	it('refuses paths that escape the chroot', async () => {
+		const backend: ReadableFilesystemBackend = {
+			read: vi.fn(async (path: string) =>
+				createMockStreamedFile('content', path)
+			),
+		};
+		const filesystem = new ChrootFilesystem('bundle', backend);
+
+		await expect(filesystem.read('../outside.txt')).rejects.toThrow(
+			'Refused to read a file outside of the chroot'
+		);
+		expect(backend.read).not.toHaveBeenCalled();
+	});
+});
+
 describe('OverlayFilesystem', () => {
 	let primaryFs: ReadableFilesystemBackend;
 	let fallbackFs: ReadableFilesystemBackend;
@@ -208,6 +241,212 @@ describe('OverlayFilesystem', () => {
 		// Should try all filesystems
 		expect(primaryFs.read).toHaveBeenCalledTimes(3);
 		expect(fallbackFs.read).toHaveBeenCalledTimes(3);
+	});
+});
+
+describe('copyFilesystem', () => {
+	it('copies all files and directories from source to destination', async () => {
+		const source = new InMemoryFilesystemBackend();
+		await source.mkdir('/folder/nested', true);
+		await source.writeFile('/root.txt', new TextEncoder().encode('Root'));
+		await source.writeFile(
+			'/folder/nested/file.txt',
+			new TextEncoder().encode('Nested')
+		);
+
+		const destination = new InMemoryFilesystemBackend();
+		await destination.writeFile(
+			'/stale.txt',
+			new TextEncoder().encode('Stale')
+		);
+
+		await copyFilesystem(source, destination);
+
+		await expect(destination.fileExists('/stale.txt')).resolves.toBe(false);
+		await expect(destination.fileExists('/root.txt')).resolves.toBe(true);
+		await expect(
+			destination.fileExists('/folder/nested/file.txt')
+		).resolves.toBe(true);
+	});
+
+	it('validates source paths before clearing the destination', async () => {
+		const source: TraversableFilesystemBackend = {
+			async listFiles(path: string) {
+				return path === '/' ? ['safe.txt', '../escape.txt'] : [];
+			},
+			async isDir() {
+				return false;
+			},
+			async read(path: string) {
+				return createMockStreamedFile('safe', path);
+			},
+		};
+		const destination = new InMemoryFilesystemBackend();
+		await destination.writeFile(
+			'/existing.txt',
+			new TextEncoder().encode('Existing')
+		);
+
+		await expect(copyFilesystem(source, destination)).rejects.toThrow(
+			'Refused to copy invalid filesystem entry name'
+		);
+		await expect(destination.fileExists('/existing.txt')).resolves.toBe(
+			true
+		);
+		await expect(destination.fileExists('/safe.txt')).resolves.toBe(false);
+	});
+
+	it('keeps existing destination files when source file reads fail', async () => {
+		const source: TraversableFilesystemBackend = {
+			async listFiles(path: string) {
+				return path === '/' ? ['safe.txt'] : [];
+			},
+			async isDir() {
+				return false;
+			},
+			async read() {
+				throw new Error('source read failed');
+			},
+		};
+		const destination = new InMemoryFilesystemBackend();
+		await destination.writeFile(
+			'/existing.txt',
+			new TextEncoder().encode('Existing')
+		);
+
+		await expect(copyFilesystem(source, destination)).rejects.toThrow(
+			'source read failed'
+		);
+		await expect(destination.fileExists('/existing.txt')).resolves.toBe(
+			true
+		);
+		await expect(destination.fileExists('/safe.txt')).resolves.toBe(false);
+		await expect(destination.listFiles('/')).resolves.toEqual([
+			'existing.txt',
+		]);
+	});
+
+	it('copies source entries that match the staging directory base name', async () => {
+		const source = new InMemoryFilesystemBackend();
+		await source.mkdir('/.playground-copy-staging');
+		await source.writeFile(
+			'/.playground-copy-staging/file.txt',
+			new TextEncoder().encode('Staging name from source')
+		);
+		const destination = new InMemoryFilesystemBackend();
+
+		await copyFilesystem(source, destination);
+
+		await expect(
+			destination.fileExists('/.playground-copy-staging/file.txt')
+		).resolves.toBe(true);
+	});
+
+	it('reports staging cleanup errors after a successful copy', async () => {
+		class CleanupFailureFilesystem extends InMemoryFilesystemBackend {
+			async rmdir(path: string, recursive: boolean): Promise<void> {
+				if (path === '/.playground-copy-staging') {
+					throw new Error('staging cleanup failed');
+				}
+				return super.rmdir(path, recursive);
+			}
+		}
+		const source = new InMemoryFilesystemBackend();
+		await source.writeFile('/root.txt', new TextEncoder().encode('Copied'));
+		const destination = new CleanupFailureFilesystem();
+
+		await expect(copyFilesystem(source, destination)).rejects.toThrow(
+			'staging cleanup failed'
+		);
+	});
+});
+
+describe('OpfsFilesystemBackend', () => {
+	it('reports non-missing errors when clearing entries', async () => {
+		const root = createOpfsRoot({
+			entries: ['stuck.txt'],
+			removeEntry: async () => {
+				throw createDomException('NotAllowedError');
+			},
+		});
+		const backend = OpfsFilesystemBackend.fromDirectoryHandle(root);
+
+		await expect(backend.clear()).rejects.toMatchObject({
+			name: 'NotAllowedError',
+		});
+	});
+
+	it('ignores missing-entry races when clearing entries', async () => {
+		const root = createOpfsRoot({
+			entries: ['already-gone.txt'],
+			removeEntry: async () => {
+				throw createDomException('NotFoundError');
+			},
+		});
+		const backend = OpfsFilesystemBackend.fromDirectoryHandle(root);
+
+		await expect(backend.clear()).resolves.toBeUndefined();
+	});
+
+	it('reports non-missing errors when unlinking entries', async () => {
+		const root = createOpfsRoot({
+			removeEntry: async () => {
+				throw createDomException('NotAllowedError');
+			},
+		});
+		const backend = OpfsFilesystemBackend.fromDirectoryHandle(root);
+
+		await expect(backend.unlink('/stuck.txt')).rejects.toMatchObject({
+			name: 'NotAllowedError',
+		});
+	});
+
+	it('closes writable handles after failed writes', async () => {
+		const close = vi.fn(async () => {});
+		const root = {
+			async getFileHandle() {
+				return {
+					async createWritable() {
+						return {
+							async write() {
+								throw new Error('write failed');
+							},
+							close,
+						};
+					},
+				};
+			},
+		} as unknown as FileSystemDirectoryHandle;
+		const backend = OpfsFilesystemBackend.fromDirectoryHandle(root);
+
+		await expect(
+			backend.writeFile('/stuck.txt', new Uint8Array([1]))
+		).rejects.toThrow('write failed');
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it('preserves write errors when cleanup close also fails', async () => {
+		const root = {
+			async getFileHandle() {
+				return {
+					async createWritable() {
+						return {
+							async write() {
+								throw new Error('write failed');
+							},
+							async close() {
+								throw new Error('close failed');
+							},
+						};
+					},
+				};
+			},
+		} as unknown as FileSystemDirectoryHandle;
+		const backend = OpfsFilesystemBackend.fromDirectoryHandle(root);
+
+		await expect(
+			backend.writeFile('/stuck.txt', new Uint8Array([1]))
+		).rejects.toThrow('write failed');
 	});
 });
 
@@ -415,6 +654,29 @@ function createMockStreamedFile(content: string, path: string): StreamedFile {
 	return new StreamedFile(stream, path, {
 		filesize: data.byteLength,
 	});
+}
+
+function createOpfsRoot({
+	entries = [],
+	removeEntry,
+}: {
+	entries?: string[];
+	removeEntry: FileSystemDirectoryHandle['removeEntry'];
+}) {
+	return {
+		async *entries() {
+			for (const entry of entries) {
+				yield [entry, {}];
+			}
+		},
+		removeEntry,
+	} as unknown as FileSystemDirectoryHandle;
+}
+
+function createDomException(name: string) {
+	const error = new Error(name);
+	error.name = name;
+	return error;
 }
 
 describe('NodeJsFilesystem', () => {

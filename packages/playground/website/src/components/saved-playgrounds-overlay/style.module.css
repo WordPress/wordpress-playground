@@ -17,6 +17,11 @@
 	border-radius: 24px;
 }
 
+.searchWrapper:focus-within {
+	border-color: #8fa3f7;
+	box-shadow: 0 0 0 2px rgba(143, 163, 247, 0.25);
+}
+
 .searchField {
 	flex: 1;
 	background: transparent;
@@ -1594,6 +1599,11 @@
 	max-width: none;
 }
 
+.playgrounds-pane .searchWrapper:focus-within {
+	border-color: var(--accent, #3858e9);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+}
+
 .playgrounds-pane .searchField {
 	color: #21201d;
 	font-size: 15px;
@@ -1728,6 +1738,31 @@
 	color: #21201d;
 }
 
+.playgrounds-pane .autosaveNoticesMuted {
+	align-items: center;
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 13px;
+	gap: var(--space-2, 8px);
+	line-height: 1.4;
+	margin-top: var(--space-3, 12px);
+}
+
+.playgrounds-pane .autosaveNoticesMuted button {
+	background: none;
+	border: 0;
+	color: var(--accent, #3858e9);
+	cursor: pointer;
+	font: inherit;
+	font-weight: 500;
+	padding: 0;
+}
+
+.playgrounds-pane .autosaveNoticesMuted button:hover {
+	text-decoration: underline;
+}
+
 @media (max-width: 640px) {
 	.playgrounds-pane {
 		padding: 0 20px 24px;
@@ -1735,22 +1770,6 @@
 
 	.playgrounds-pane .creationRow {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
-
-/* --- Restored from the deployed build --- */
-
-@keyframes _siteRowSavingSpin_113k7_440 {
-	to {
-		transform: rotate(360deg);
-	}
-}
-
-/* --- Restored from the deployed build --- */
-
-@keyframes siteRowSavingSpin {
-	100% {
-		transform: rotate(360deg);
 	}
 }
 

@@ -153,8 +153,7 @@
 	width: 100%;
 	height: 100%;
 	path {
-		/* TODO: Confirm or switch color */
-		fill: black;
+		fill: var(--color-gray-900);
 	}
 }
 

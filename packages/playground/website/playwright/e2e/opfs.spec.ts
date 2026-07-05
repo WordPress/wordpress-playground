@@ -77,9 +77,9 @@ async function saveSiteViaModal(
 		await dialog.getByText('Store in this browser').waitFor();
 		await dialog.getByText('Store in this browser').click({ force: true });
 	} else {
-		await dialog.getByText('Save to a local directory').waitFor();
+		await dialog.getByText('Save in a local directory').waitFor();
 		await dialog
-			.getByText('Save to a local directory')
+			.getByText('Save in a local directory')
 			.click({ force: true });
 	}
 
@@ -147,10 +147,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 		.toBe('opfs:autosave');
 
 	await website.openSavedPlaygroundsOverlay();
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: firstSiteName })
-		.click();
+	await website.openSavedPlayground(firstSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	await expect(website.page.getByLabel('Playground title')).toContainText(
@@ -214,10 +211,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await website.openSavedPlaygroundsOverlay();
 
 	// Switch back to the stored site and confirm the PHP constant is still present.
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: storedPlaygroundTitleText! })
-		.click();
+	await website.openSavedPlayground(storedPlaygroundTitleText!);
 
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
 });
@@ -244,7 +238,7 @@ test('should rename a saved Playground and persist after reload', async ({
 		}
 	);
 
-	// Rename via the shortcut in the "This Playground" pane.
+	// Rename via the shortcut in the "Site details" pane.
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByRole('button', { name: 'Rename' }).click();
 
@@ -302,7 +296,7 @@ test('should show save site modal with correct elements', async ({
 	// Verify storage location radio buttons exist
 	await expect(dialog.getByText('Storage location')).toBeVisible();
 	await expect(dialog.getByText('Store in this browser')).toBeVisible();
-	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
+	await expect(dialog.getByText('Save in a local directory')).toBeVisible();
 
 	// Verify action buttons exist (OPFS is selected by default, so the submit
 	// button reads "Store permanently").
@@ -546,10 +540,7 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 	// Open the saved playgrounds overlay and switch to the saved site
 	await website.openSavedPlaygroundsOverlay();
 
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
-		.click();
+	await website.openSavedPlayground(savedSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
@@ -660,10 +651,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	// Verify the saved site is still intact by switching to it
 	await website.openSavedPlaygroundsOverlay();
 
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
-		.click();
+	await website.openSavedPlayground(savedSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten

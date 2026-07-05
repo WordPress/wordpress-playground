@@ -101,6 +101,108 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 	});
 
+	it('should reject directory theme names outside the themes directory', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '../escape',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+
+		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
+
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '..\\escape',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+	});
+
+	it('should reject dot-segment directory theme names', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '..',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+	});
+
+	it('should reject directory theme targetFolderName values with subdirectories', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+					targetFolderName: 'nested/theme',
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+
+		expect(php.fileExists('/wordpress/wp-content/themes/nested')).toBe(
+			false
+		);
+
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+					targetFolderName: 'nested\\theme',
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+	});
+
+	it('should reject directory theme file paths outside the theme directory', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'../escape.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('File tree paths must be relative file paths.');
+
+		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
+	});
+
 	it('should skip installation errors when onError is skip-theme', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
@@ -305,6 +407,7 @@ describe('Blueprint step installTheme', () => {
 			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
 			php.unlink(unexpectedZipFilePath);
 
+			// @ts-expect-error themeZipFile is deprecated but still supported at runtime.
 			await installTheme(php, {
 				themeZipFile: new File([zip], unexpectedZipFileName),
 				ifAlreadyInstalled: 'overwrite',
