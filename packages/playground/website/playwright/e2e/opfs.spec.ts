@@ -368,8 +368,17 @@ test('should have playground name input text selected by default', async ({
 	await expect(nameInput).toBeFocused();
 
 	// The input text should be pre-selected, but selection timing can be flaky.
-	// Use Ctrl+A to ensure all text is selected before typing.
-	await website.page.keyboard.press('ControlOrMeta+a');
+	await expect
+		.poll(async () => {
+			return nameInput.evaluate((element) => {
+				const input = element as HTMLInputElement;
+				return (
+					input.selectionStart === 0 &&
+					input.selectionEnd === input.value.length
+				);
+			});
+		})
+		.toBe(true);
 
 	// Type to replace the selected text
 	await website.page.keyboard.type('New Name');
@@ -515,10 +524,14 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler for the import success alert
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
+	// Wait for the import success alert; the site title changes as soon as the
+	// new saved Playground is created, before the ZIP import itself is complete.
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			expect(dialog.message()).toContain('File imported!');
+			await dialog.accept();
+		});
 
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
@@ -526,6 +539,10 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await importComplete;
+	await expect(
+		website.page.getByRole('dialog', { name: 'Your Playgrounds pane' })
+	).not.toBeVisible();
 
 	// The import should switch us to a new saved Playground by default.
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
@@ -627,10 +644,14 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
+	// Wait for the import success alert; the site title changes as soon as the
+	// new saved Playground is created, before the ZIP import itself is complete.
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			expect(dialog.message()).toContain('File imported!');
+			await dialog.accept();
+		});
 
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
@@ -638,6 +659,10 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await importComplete;
+	await expect(
+		website.page.getByRole('dialog', { name: 'New Playground pane' })
+	).not.toBeVisible();
 
 	// The import should trigger creation of a new saved site by default.
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
