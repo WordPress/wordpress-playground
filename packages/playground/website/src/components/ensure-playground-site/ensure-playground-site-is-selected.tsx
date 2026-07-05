@@ -61,13 +61,13 @@ export function EnsurePlaygroundSiteIsSelected({
 		url.searchParams.get('storage') === 'temp' ||
 		isSavingDisabled ||
 		!opfsSiteStorage;
-	const requestedClientInfo = useAppSelector(
-		(state) =>
-			requestedSiteSlug &&
-			selectClientBySiteSlug(state, requestedSiteSlug)
-	);
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
+	const missingSitePromptClientInfo = useAppSelector((state) =>
+		needMissingSitePromptForSlug
+			? selectClientBySiteSlug(state, needMissingSitePromptForSlug)
+			: undefined
+	);
 	const declinedAutosaveRestoreFingerprints = useAppSelector(
 		(state) => state.ui.declinedAutosaveRestoreFingerprints
 	);
@@ -145,14 +145,17 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 
 					if (shouldUseTemporarySite) {
+						// Activating the temporary site normalizes the URL and strips
+						// `site-slug`, making this request stale. Record the prompt
+						// first; the follow-up effect waits for this slug to boot.
+						if (!isSavingDisabled) {
+							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+						}
 						await sitesAPI.createNewTemporarySite(
 							requestedSiteSlug
 						);
 						if (retryLatestRouteIfStale()) {
 							return;
-						}
-						if (!isSavingDisabled) {
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
 					} else {
 						try {
@@ -170,13 +173,13 @@ export function EnsurePlaygroundSiteIsSelected({
 								'Error creating saved site. Falling back to a temporary site.',
 								error
 							);
+							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 							await sitesAPI.createNewTemporarySite(
 								requestedSiteSlug
 							);
 							if (retryLatestRouteIfStale()) {
 								return;
 							}
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
 					}
 					return;
@@ -319,16 +322,16 @@ export function EnsurePlaygroundSiteIsSelected({
 	useEffect(() => {
 		if (
 			needMissingSitePromptForSlug &&
-			needMissingSitePromptForSlug === requestedSiteSlug &&
-			requestedClientInfo
+			needMissingSitePromptForSlug === activeSite?.slug &&
+			missingSitePromptClientInfo
 		) {
 			dispatch(setActiveModal(modalSlugs.MISSING_SITE_PROMPT));
 			setNeedMissingSitePromptForSlug(false);
 		}
 	}, [
 		needMissingSitePromptForSlug,
-		requestedSiteSlug,
-		requestedClientInfo,
+		activeSite?.slug,
+		missingSitePromptClientInfo,
 		dispatch,
 	]);
 
