@@ -1,3 +1,4 @@
+import type { Emscripten } from '@php-wasm/universal';
 import { SQLiteSharedMemory } from './sqlite-shared-memory';
 
 describe('SQLiteSharedMemory', () => {
@@ -89,6 +90,33 @@ describe('SQLiteSharedMemory', () => {
 		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
 	});
 
+	it('drops writable mappings after doMsync cleanup', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const doMsync = vi.fn();
+		const writer = createRuntime(1, doMsync);
+		const reader = createRuntime(2);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		const writerMapping = mmap(writer.context, path, 4);
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+
+		writer.context.syscalls.doMsync!(
+			writerMapping.ptr,
+			{ path } as unknown as Emscripten.FS.FSStream,
+			4,
+			0,
+			0
+		);
+		writer.context.FS.unlink(path);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(doMsync).toHaveBeenCalledTimes(1);
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
+	});
+
 	it('drops runtime mappings when process-exit flushing fails', () => {
 		const sharedMemory = new SQLiteSharedMemory();
 		const writer = createRuntime(1);
@@ -129,7 +157,9 @@ type TestContext = Parameters<SQLiteSharedMemory['install']>[0] & {
 	};
 };
 
-function createRuntime(pid: number) {
+type TestDoMsync = NonNullable<TestContext['syscalls']['doMsync']>;
+
+function createRuntime(pid: number, doMsync?: TestDoMsync) {
 	const heap = createHeap();
 	let nextPtr = 128;
 	const FS = {
@@ -148,7 +178,7 @@ function createRuntime(pid: number) {
 			memory: {
 				HEAPU8: heap,
 			},
-			syscalls: {},
+			syscalls: doMsync ? { doMsync } : {},
 			FS,
 		} satisfies TestContext,
 	};

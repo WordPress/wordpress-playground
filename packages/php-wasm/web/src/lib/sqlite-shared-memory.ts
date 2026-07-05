@@ -42,7 +42,8 @@ type SharedFile = {
 type ResolveStreamPath = (stream: Emscripten.FS.FSStream) => string | undefined;
 type ResolveVfsPath = (path: string) => string;
 
-// Emscripten passes mmap flags/protection values through from musl's sys/mman.h.
+// Emscripten passes mmap flags/protection values through from musl's sys/mman.h:
+// emscripten-core/emscripten@6d61ffd, system/lib/libc/musl/include/sys/mman.h.
 const MAP_PRIVATE = 2;
 const PROT_WRITE = 2;
 const patchedRuntimes = new WeakSet<object>();

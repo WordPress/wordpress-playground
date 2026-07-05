@@ -257,6 +257,13 @@ export function bindFileLockingUserSpace(
 
 				try {
 					adapter.beforeRangeLock?.(target, rangeLock);
+					/*
+					 * Keep passing F_SETLKW through even though
+					 * FileLockManagerInMemory does not block today. PHP 8.5
+					 * has been observed issuing this command, and native lock
+					 * managers can use the signal to wait instead of returning
+					 * EAGAIN immediately.
+					 */
 					const succeeded = fileLockManager.lockFileByteRange(
 						target.path,
 						rangeLock,
