@@ -349,7 +349,9 @@ function didOnlyUiChromeParamsChange(
 	}
 	const oldParams = new URLSearchParams(previousUrl.search);
 	const newParams = new URLSearchParams(nextUrl.search);
-	for (const param of ['modal', 'overlay', 'page-title']) {
+	// Cache busters are stripped when a fresh temporary site is created;
+	// that URL cleanup should not dismiss the autosave restore nudge.
+	for (const param of ['modal', 'overlay', 'page-title', 'cb']) {
 		oldParams.delete(param);
 		newParams.delete(param);
 	}

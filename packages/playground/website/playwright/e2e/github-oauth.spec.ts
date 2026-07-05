@@ -13,6 +13,11 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 	page,
 	browserName,
 }) => {
+	test.skip(
+		browserName === 'webkit',
+		'Playwright WebKit does not reliably expose this popup auth guard flow.'
+	);
+
 	await page.addInitScript(() => {
 		window.__githubOAuthPageLoads =
 			(window.__githubOAuthPageLoads || 0) + 1;

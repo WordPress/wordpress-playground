@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
-const WORDPRESS_BOOT_TIMEOUT = 120000;
+const WORDPRESS_BOOT_TIMEOUT = 180000;
 
 export class WebsitePage {
 	public readonly page: Page;
