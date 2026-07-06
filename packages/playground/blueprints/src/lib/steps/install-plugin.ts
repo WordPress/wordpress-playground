@@ -287,6 +287,13 @@ export const installPlugin: StepHandler<
 	}
 };
 
+/**
+ * Validates plugin file and folder names before joining them into wp-content.
+ *
+ * `basename()` catches POSIX path separators after normalization; the explicit
+ * checks reject backslashes, null bytes, and dot segments before a plugin name
+ * can be interpreted as a path.
+ */
 function assertSinglePluginEntryName(name: string) {
 	if (
 		!name ||

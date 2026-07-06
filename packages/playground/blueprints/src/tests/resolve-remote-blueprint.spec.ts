@@ -31,6 +31,9 @@ it('loads Blueprint ZIPs with blueprint.json inside one directory', async () => 
 	).resolves.toBe('resource');
 });
 
+/**
+ * Creates a ZIP fixture with exact archive paths for bundle-layout tests.
+ */
 async function createZipBuffer(entries: Record<string, string>) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
 	for (const [path, content] of Object.entries(entries)) {

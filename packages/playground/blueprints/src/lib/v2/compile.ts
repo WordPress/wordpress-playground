@@ -844,6 +844,12 @@ function pathContainsParentDirectorySegment(path: string) {
 	return vfsPath.replace(/\\/g, '/').split('/').includes('..');
 }
 
+/**
+ * Indicates whether a v2 target-site path names only the site root marker.
+ *
+ * Empty, slash-only, and dot-only paths are rejected for destructive file
+ * operations because they would target the whole WordPress document root.
+ */
 function isEmptyTargetSitePath(path: string) {
 	const vfsPath = path.startsWith('site:')
 		? path.slice('site:'.length)
@@ -879,6 +885,12 @@ function wordpressOrgResource(
 	} as FileReference;
 }
 
+/**
+ * Parses the limited WordPress.org reference syntax supported by Blueprint v2.
+ *
+ * Only slugs and explicit `@latest`, `@x.y`, or `@x.y.z` versions are accepted
+ * so arbitrary strings cannot be mistaken for download URLs or file paths.
+ */
 function parseWordPressOrgReference(
 	reference: string,
 	type: 'plugins' | 'themes'

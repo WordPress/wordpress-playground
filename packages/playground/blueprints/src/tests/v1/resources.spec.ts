@@ -606,6 +606,9 @@ describe('Resource.create with github-proxy.com URLs', () => {
 	});
 });
 
+/**
+ * Removes credentials before asserting on git remotes echoed by test fixtures.
+ */
 function stripGitRemoteCredentials(rawRemoteUrl: string) {
 	const remoteUrl = new URL(rawRemoteUrl);
 	remoteUrl.username = '';

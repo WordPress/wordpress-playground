@@ -56,6 +56,13 @@ export async function compileBlueprintForExecution(
 	return compileBlueprintV1ForExecution(input, declaration, options);
 }
 
+/**
+ * Compiles a v2 Blueprint while preserving bundle-relative resource access.
+ *
+ * Bundled resources are streamed from the BlueprintBundle rather than fetched
+ * over the network. The validation callback still receives the original v2
+ * declaration after compile-time resolution succeeds.
+ */
 async function compileBlueprintV2ForExecution(
 	input: Blueprint | BlueprintBundle,
 	declaration: BlueprintV2Declaration,

@@ -147,6 +147,13 @@ async function createBlueprintBundleFromZip(
 	return dir === '' ? zipFs : new ChrootFilesystem(dir, zipFs);
 }
 
+/**
+ * Validates raw ZIP entry paths before they are exposed as bundle files.
+ *
+ * Path helpers such as `normalizePath()` collapse traversal segments, but a
+ * remote bundle must reject those raw entries instead of silently rewriting
+ * where they point.
+ */
 function assertZipEntryPathsStayInsideBundle(entryPaths: string[]) {
 	for (const entryPath of entryPaths) {
 		const normalizedSeparators = entryPath.replace(/\\/g, '/');
