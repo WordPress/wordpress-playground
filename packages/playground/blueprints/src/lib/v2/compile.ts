@@ -178,9 +178,9 @@ export type CompiledBlueprintV2 = {
  * understand today.
  *
  * It resolves runtime options, creates an ordered v2 execution plan, and lowers
- * supported plan items into v1 step records the existing runner can execute.
- * Unsupported plan items stay visible and fail at run time instead of being
- * silently dropped.
+ * supported plan items into v1 step records. Fully lowered plans run through the
+ * existing v1 runner; unsupported items stay visible and block execution before
+ * any partial work is applied.
  */
 export async function compileBlueprintV2(
 	declaration: BlueprintV2Declaration,
