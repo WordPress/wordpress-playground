@@ -5,6 +5,7 @@ FROM playground-php-wasm:base
 ARG PHP_VERSION
 
 ARG JSPI
+ARG WITH_WASMTIME_ASYNC
 
 ARG DEBUG
 
@@ -137,7 +138,9 @@ RUN set -euxo pipefail; \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
-	if [ "$JSPI" = "yes" ]; then \
+	if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0"; \
+	elif [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \

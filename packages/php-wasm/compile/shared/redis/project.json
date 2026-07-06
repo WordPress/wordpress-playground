@@ -25,6 +25,30 @@
 				],
 				"parallel": false
 			}
+		},
+		"wasmtime-async": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=redis --PLATFORM=node --WITH_WASMTIME_ASYNC=yes"
+				],
+				"parallel": false
+			}
+		},
+		"wasmtime-async:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-redis:wasmtime-async --PHP_VERSION=7.4"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []

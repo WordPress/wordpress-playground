@@ -11,8 +11,8 @@ use wp_playground_native::{
     packaging::{
         default_package_name, default_release_binary_path, package_native_cli,
         run_packaged_build_snapshot_smoke, run_packaged_php_smoke,
-        run_packaged_run_blueprint_smoke, run_packaged_wordpress_server_smoke, PackageOptions,
-        PackageSummary,
+        run_packaged_run_blueprint_smoke, run_packaged_wordpress_server_smoke,
+        validate_package_name, PackageOptions, PackageSummary,
     },
     runtime::asset_root_from_manifest_dir,
     CliError, Result,
@@ -83,9 +83,13 @@ fn run() -> Result<()> {
     let has_wordpress_smokes = parsed.smoke_wordpress_server.is_some()
         || parsed.smoke_run_blueprint.is_some()
         || parsed.smoke_build_snapshot.is_some();
+    let wordpress_smoke_versions = wordpress_smoke_versions(&parsed)?;
     let wordpress_smoke_summary =
         if has_wordpress_smokes && !parsed.options.include_wordpress_assets {
-            Some(package_wordpress_smoke_assets(&parsed.options)?)
+            Some(package_wordpress_smoke_assets(
+                &parsed.options,
+                &wordpress_smoke_versions,
+            )?)
         } else {
             None
         };
@@ -196,13 +200,37 @@ fn println_smoke_result(smoke_name: &str, php_version: &str, wordpress_version: 
     println!("smoke: {smoke_name} php {php_version} wp {wordpress_version} ok");
 }
 
-fn package_wordpress_smoke_assets(options: &PackageOptions) -> Result<PackageSummary> {
+fn package_wordpress_smoke_assets(
+    options: &PackageOptions,
+    wordpress_versions: &[String],
+) -> Result<PackageSummary> {
     let mut smoke_options = options.clone();
     smoke_options.out_dir = unique_temp_dir("wordpress-smoke-package")?;
     smoke_options.package_name = format!("{}-wordpress-smoke-assets", options.package_name);
     smoke_options.include_wordpress_assets = true;
+    smoke_options.wordpress_versions = wordpress_versions.to_vec();
+    smoke_options.create_archive = false;
     smoke_options.precompile_wasmtime = false;
     package_native_cli(&smoke_options)
+}
+
+fn wordpress_smoke_versions(parsed: &ParsedArgs) -> Result<Vec<String>> {
+    let mut versions = Vec::new();
+    for smoke in [
+        parsed.smoke_wordpress_server.as_ref(),
+        parsed.smoke_run_blueprint.as_ref(),
+        parsed.smoke_build_snapshot.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let version =
+            resolve_smoke_wordpress_version(&parsed.options.asset_root, &smoke.wordpress_version)?;
+        if !versions.iter().any(|existing| existing == &version) {
+            versions.push(version);
+        }
+    }
+    Ok(versions)
 }
 
 fn unique_temp_dir(name: &str) -> Result<PathBuf> {
@@ -387,9 +415,7 @@ fn parse_args(args: Vec<String>) -> Result<ParsedArgs> {
         index += 1;
     }
 
-    if options.package_name.is_empty() {
-        return Err(CliError::new("--name must not be empty"));
-    }
+    validate_package_name(&options.package_name)?;
     if options.out_dir == PathBuf::new() {
         return Err(CliError::new("--out-dir must not be empty"));
     }
@@ -692,6 +718,15 @@ mod tests {
             .to_string();
         assert!(error.contains("--binary requires a value"));
         assert!(error.contains("got option `--out-dir=/tmp`"), "{error}");
+    }
+
+    #[test]
+    fn rejects_package_name_path_traversal() {
+        let error = parse_args(vec!["--name=../escaped".to_string()])
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("plain package directory name"), "{error}");
     }
 
     #[test]

@@ -147,6 +147,20 @@ The Node CLI compatibility contract for native v1 is tracked in
 `compatibility.json`; parser tests validate representative supported and
 intentionally unsupported rows.
 
+Native v1 supports the same bundled PHP extension flags as the original
+Playground CLI: `intl`, `redis`, `memcached`, and `xdebug`. `intl` is enabled by
+default and can be disabled with `--no-intl`; the other extensions are opt-in
+with `--redis`, `--memcached`, and `--xdebug`.
+
+Each extension must be bundled as a Wasmtime async side module at
+`packages/php-wasm/node-builds/<php>/wasmtime-async/extensions/<name>/<name>.so`.
+The native host mounts those directories under `/internal/shared/extensions` and
+configures php.ini with `extension=` or `zend_extension=` entries that point at
+that internal path. Native does not fall back to asyncify or JSPI extension
+artifacts. Browser devtools and IDE configuration automation from the Node CLI
+are still not part of native v1, and DBGp auto-start transport needs additional
+native-side validation before it is enabled by default.
+
 ## CLI help and diagnostics
 
 Running `wp-playground-native` with no command shows the same command list as

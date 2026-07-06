@@ -30,64 +30,338 @@
 	],
 	"options": [
 		{ "name": "--path", "commands": ["start"], "status": "supported" },
-		{ "name": "--wp", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--php", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--port", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--site-url", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--mount", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--mount-before-install", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--mount-dir", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--mount-dir-before-install", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--auto-mount", "commands": ["start", "server", "run-blueprint", "build-snapshot"], "status": "supported" },
-		{ "name": "--no-auto-mount", "commands": ["start", "server", "run-blueprint", "build-snapshot"], "status": "supported" },
-		{ "name": "--reset", "commands": ["start"], "status": "supported" },
-		{ "name": "--login", "commands": ["start", "server"], "status": "supported" },
-		{ "name": "--no-login", "commands": ["start", "server"], "status": "supported" },
-		{ "name": "--skip-browser", "commands": ["start"], "status": "supported" },
-		{ "name": "--blueprint", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
 		{
-			"name": "--blueprint-may-read-adjacent-files",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"name": "--wp",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "supported"
 		},
-		{ "name": "--wordpress-install-mode", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--skip-wordpress-install", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--skip-sqlite-setup", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--workers", "commands": ["server", "start"], "status": "supported" },
-		{ "name": "--verbosity", "commands": ["start", "server", "run-blueprint", "build-snapshot"], "status": "supported" },
-		{ "name": "--quiet", "commands": ["start", "server", "run-blueprint", "build-snapshot"], "status": "supported" },
-		{ "name": "--debug", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--follow-symlinks", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
+		{
+			"name": "--php",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--port",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--site-url",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--mount",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-before-install",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-dir",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-dir-before-install",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--auto-mount",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--no-auto-mount",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{ "name": "--reset", "commands": ["start"], "status": "supported" },
+		{
+			"name": "--login",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--no-login",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-browser",
+			"commands": ["start"],
+			"status": "supported"
+		},
+		{
+			"name": "--blueprint",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--blueprint-may-read-adjacent-files",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--wordpress-install-mode",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-wordpress-install",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-sqlite-setup",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--workers",
+			"commands": ["server", "start"],
+			"status": "supported"
+		},
+		{
+			"name": "--verbosity",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--quiet",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--debug",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--follow-symlinks",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
 		{
 			"name": "--intl",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "supported",
-			"notes": "Accepted as a compatibility no-op because Intl is built into the packaged PHP wasm assets."
+			"notes": "Enabled by default. Requires the bundled Wasmtime async Intl side module under node-builds/<php>/wasmtime-async and never falls back to asyncify or JSPI extension artifacts."
 		},
 		{
 			"name": "--opcache",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "supported",
-				"notes": "Native-only OPcache policy: validate preserves live edits; revalidate and immutable trade fresher PHP files for warm-request speed; low-memory and off are benchmark/diagnostic modes."
+			"notes": "Native-only OPcache policy: validate preserves live edits; revalidate and immutable trade fresher PHP files for warm-request speed; low-memory and off are benchmark/diagnostic modes."
 		},
-		{ "name": "--define", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--define-bool", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
-		{ "name": "--define-number", "commands": ["start", "server", "run-blueprint", "build-snapshot", "php"], "status": "supported" },
+		{
+			"name": "--define",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--define-bool",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
+		{
+			"name": "--define-number",
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported"
+		},
 		{
 			"name": "--phpmyadmin",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "phpMyAdmin installation"
 		},
 		{
 			"name": "--xdebug",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
-			"status": "unsupported",
-			"errorContains": "Xdebug bridge"
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported",
+			"notes": "Requires the bundled Wasmtime async Xdebug side module under node-builds/<php>/wasmtime-async and never falls back to asyncify or JSPI extension artifacts."
 		},
 		{
 			"name": "--experimental-unsafe-ide-integration",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "unsafe IDE integration"
 		},
@@ -99,7 +373,13 @@
 		},
 		{
 			"name": "--experimental-blueprints-v2-runner",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "Blueprints v2 runner"
 		},
@@ -111,31 +391,55 @@
 		},
 		{
 			"name": "--experimental-trace",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "Node CLI trace output"
 		},
 		{
 			"name": "--internal-cookie-store",
-			"commands": ["server"],
+			"commands": ["server", "run-blueprint", "build-snapshot", "php"],
 			"status": "unsupported",
 			"errorContains": "Node cookie-store mediation"
 		},
 		{
 			"name": "--php-extension",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "custom PHP extension loading"
 		},
 		{
 			"name": "--no-intl",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
-			"status": "unsupported",
-			"errorContains": "disabling bundled Intl"
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported",
+			"notes": "Disables the default bundled Wasmtime async Intl side module."
 		},
 		{
 			"name": "--mode",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot", "php"],
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
 			"status": "unsupported",
 			"errorContains": "Blueprints v2 mode selection"
 		},
@@ -146,15 +450,27 @@
 		},
 		{
 			"name": "--redis",
-			"commands": ["server"],
-			"status": "unsupported",
-			"errorContains": "Redis integration"
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported",
+			"notes": "Requires the bundled Wasmtime async Redis side module under node-builds/<php>/wasmtime-async and never falls back to asyncify or JSPI extension artifacts."
 		},
 		{
 			"name": "--memcached",
-			"commands": ["server"],
-			"status": "unsupported",
-			"errorContains": "Memcached integration"
+			"commands": [
+				"start",
+				"server",
+				"run-blueprint",
+				"build-snapshot",
+				"php"
+			],
+			"status": "supported",
+			"notes": "Requires the bundled Wasmtime async Memcached side module under node-builds/<php>/wasmtime-async and never falls back to asyncify or JSPI extension artifacts."
 		}
 	]
 }

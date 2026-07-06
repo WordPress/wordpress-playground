@@ -1,8 +1,9 @@
 use std::{
+    collections::BTreeSet,
     env, fs,
     io::{BufRead, BufReader, Read, Write},
     net::TcpStream,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::mpsc,
     thread,
@@ -18,6 +19,7 @@ use crate::{
         find_php_assets_manifest, load_php_assets_manifest, select_php_asset, sha256_file,
         verify_file_asset, AssetManifest, FileAsset, SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
     },
+    host::{builtin_php_extension_relative_path, BuiltInPhpExtension, INTL_ICU_DATA_RELATIVE_PATH},
     runtime::{
         asset_root_from_manifest_dir, precompile_wasm_module_for_target, WasmEngineProfile,
         ASSET_ROOT_ENV_VAR, DISABLE_SOURCE_FALLBACK_ENV_VAR,
@@ -41,6 +43,7 @@ pub struct PackageOptions {
     pub out_dir: PathBuf,
     pub package_name: String,
     pub php_versions: Vec<String>,
+    pub wordpress_versions: Vec<String>,
     pub include_wordpress_assets: bool,
     pub create_archive: bool,
     pub precompile_wasmtime: bool,
@@ -112,6 +115,7 @@ impl Default for PackageOptions {
                 .join("package"),
             package_name: default_package_name(),
             php_versions: Vec::new(),
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -128,6 +132,36 @@ pub fn default_package_name() -> String {
     )
 }
 
+pub fn validate_package_name(package_name: &str) -> Result<()> {
+    if package_name.is_empty() {
+        return Err(CliError::new("--name must not be empty"));
+    }
+    if package_name == "." || package_name == ".." {
+        return Err(CliError::new(format!(
+            "--name must be a plain package directory name, got `{package_name}`"
+        )));
+    }
+    if package_name
+        .chars()
+        .any(|character| matches!(character, '/' | '\\') || character.is_control())
+    {
+        return Err(CliError::new(format!(
+            "--name must be a plain package directory name without path separators or control characters, got `{package_name}`"
+        )));
+    }
+    let path = Path::new(package_name);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(CliError::new(format!(
+            "--name must be a plain package directory name, got `{package_name}`"
+        )));
+    }
+    Ok(())
+}
+
 pub fn default_release_binary_path() -> PathBuf {
     let mut target_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target");
     if let Some(target_triple) = configured_target_triple() {
@@ -139,6 +173,7 @@ pub fn default_release_binary_path() -> PathBuf {
 }
 
 pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
+    validate_package_name(&options.package_name)?;
     if !options.binary_path.is_file() {
         return Err(CliError::new(format!(
             "Native CLI binary not found: {}",
@@ -211,7 +246,18 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
                 "php-wasmtime",
             )?);
         }
+        files.extend(copy_builtin_extension_assets(
+            &options.asset_root,
+            &package_asset_root,
+            &package_root,
+            &asset.version,
+        )?);
     }
+    files.push(copy_intl_icu_data_asset(
+        &options.asset_root,
+        &package_asset_root,
+        &package_root,
+    )?);
     fs::write(&package_manifest_path, selected_manifest.to_json())?;
     files.push(package_file_manifest(
         &package_root,
@@ -226,13 +272,11 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
         &selected_manifest,
     )?);
     if options.include_wordpress_assets {
-        files.extend(copy_zip_asset_directory(
+        files.extend(copy_wordpress_assets(
             &options.asset_root,
             &package_asset_root,
             &package_root,
-            WORDPRESS_BUILDS_DIR,
-            validate_wordpress_zip,
-            "wordpress",
+            &options.wordpress_versions,
         )?);
     }
 
@@ -840,8 +884,12 @@ fn selected_php_manifest(
             .collect::<Vec<_>>()
     } else {
         let mut selected = Vec::new();
+        let mut seen = BTreeSet::new();
         for version in php_versions {
             validate_packaged_php_version(version)?;
+            if !seen.insert(version.as_str()) {
+                continue;
+            }
             let asset = manifest
                 .php
                 .iter()
@@ -890,6 +938,78 @@ fn copy_verified_asset(
         package_root,
         Path::new(PACKAGE_SHARE_DIR).join(&asset.path),
         kind,
+    )
+}
+
+const BUILT_IN_PHP_EXTENSIONS: &[BuiltInPhpExtension] = &[
+    BuiltInPhpExtension::Intl,
+    BuiltInPhpExtension::Redis,
+    BuiltInPhpExtension::Memcached,
+    BuiltInPhpExtension::Xdebug,
+];
+
+fn copy_builtin_extension_assets(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    php_version: &str,
+) -> Result<Vec<PackageFileManifest>> {
+    BUILT_IN_PHP_EXTENSIONS
+        .iter()
+        .map(|extension| {
+            copy_builtin_extension_asset(
+                asset_root,
+                package_asset_root,
+                package_root,
+                php_version,
+                *extension,
+            )
+        })
+        .collect()
+}
+
+fn copy_builtin_extension_asset(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    php_version: &str,
+    extension: BuiltInPhpExtension,
+) -> Result<PackageFileManifest> {
+    let relative_path = builtin_php_extension_relative_path(php_version, extension);
+    let source = asset_root.join(&relative_path);
+    if !source.is_file() {
+        return Err(CliError::new(format!(
+            "Required Wasmtime async {} extension asset not found for PHP {php_version}: {}",
+            extension.name(),
+            source.display()
+        )));
+    }
+    copy_relative_asset(asset_root, &relative_path, package_asset_root)?;
+    package_file_manifest(
+        package_root,
+        Path::new(PACKAGE_SHARE_DIR).join(relative_path),
+        &format!("php-extension-{}", extension.name()),
+    )
+}
+
+fn copy_intl_icu_data_asset(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+) -> Result<PackageFileManifest> {
+    let relative_path = Path::new(INTL_ICU_DATA_RELATIVE_PATH);
+    let source = asset_root.join(relative_path);
+    if !source.is_file() {
+        return Err(CliError::new(format!(
+            "Required Intl ICU data asset not found: {}",
+            source.display()
+        )));
+    }
+    copy_relative_asset(asset_root, relative_path, package_asset_root)?;
+    package_file_manifest(
+        package_root,
+        Path::new(PACKAGE_SHARE_DIR).join(relative_path),
+        "php-extension-intl-data",
     )
 }
 
@@ -1028,6 +1148,81 @@ fn copy_zip_asset_directory(
         }
     }
     Ok(copied)
+}
+
+fn copy_wordpress_assets(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    wordpress_versions: &[String],
+) -> Result<Vec<PackageFileManifest>> {
+    if wordpress_versions.is_empty() {
+        return copy_zip_asset_directory(
+            asset_root,
+            package_asset_root,
+            package_root,
+            WORDPRESS_BUILDS_DIR,
+            validate_wordpress_zip,
+            "wordpress",
+        );
+    }
+
+    let mut copied = Vec::new();
+    let mut seen = BTreeSet::new();
+    for version in wordpress_versions {
+        if !seen.insert(version.as_str()) {
+            continue;
+        }
+        let filename = wordpress_zip_filename(asset_root, version)?;
+        copied.push(copy_validated_zip_asset(
+            asset_root,
+            package_asset_root,
+            package_root,
+            Path::new(WORDPRESS_BUILDS_DIR).join(filename),
+            validate_wordpress_zip,
+            "wordpress",
+        )?);
+    }
+    Ok(copied)
+}
+
+fn wordpress_zip_filename(asset_root: &Path, version: &str) -> Result<String> {
+    if version == "latest" {
+        let dir = asset_root.join(WORDPRESS_BUILDS_DIR);
+        let mut versions = fs::read_dir(&dir)
+            .map_err(|error| {
+                CliError::new(format!(
+                    "Failed to read bundled WordPress assets from {}: {error}",
+                    dir.display()
+                ))
+            })?
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter_map(|path| {
+                let name = path.file_name()?.to_str()?;
+                let version = name.strip_prefix("wp-")?.strip_suffix(".zip")?;
+                (version != "beta").then(|| version.to_string())
+            })
+            .collect::<Vec<_>>();
+        versions.sort_by_key(|version| version_sort_key(version));
+        let version = versions.pop().ok_or_else(|| {
+            CliError::new(format!(
+                "No bundled WordPress release ZIPs found under {}",
+                dir.display()
+            ))
+        })?;
+        return Ok(format!("wp-{version}.zip"));
+    }
+    if version == "beta" {
+        return Ok("wp-beta.zip".to_string());
+    }
+    Ok(format!("wp-{version}.zip"))
+}
+
+fn version_sort_key(version: &str) -> Vec<u16> {
+    version
+        .split('.')
+        .map(|part| part.parse::<u16>().unwrap_or(0))
+        .collect()
 }
 
 fn is_zip_file(path: &Path) -> bool {
@@ -1505,6 +1700,24 @@ mod tests {
         )
     }
 
+    fn write_fake_builtin_extension_assets(root: &Path, version: &str) {
+        let build_dir = version.replace('.', "-");
+        for extension in ["intl", "redis", "memcached", "xdebug"] {
+            write_file(
+                root,
+                &format!(
+                    "packages/php-wasm/node-builds/{build_dir}/wasmtime-async/extensions/{extension}/{extension}.so"
+                ),
+                format!("{extension}-{version}").as_bytes(),
+            );
+        }
+        write_file(
+            root,
+            "packages/php-wasm/node/src/lib/extensions/intl/shared/icu.dat",
+            b"icu-data",
+        );
+    }
+
     fn write_fake_asset_root(root: &Path) {
         write_file(
             root,
@@ -1536,6 +1749,7 @@ mod tests {
             let wasm = format!("wasm{version}");
             write_file(root, &js_path, js.as_bytes());
             write_file(root, &wasm_path, wasm.as_bytes());
+            write_fake_builtin_extension_assets(root, version);
             manifest_entries.push(format!(
                 r#""{version}": {{
                     "js": {{
@@ -1654,6 +1868,7 @@ mod tests {
             "packages/php-wasm/node-builds/8-5/wasmtime-async/8_5_6/php_8_5.wasm",
             wasm,
         );
+        write_fake_builtin_extension_assets(root, "8.5");
         write_file(
             root,
             "packages/playground/cli-native/assets/php-assets.json",
@@ -1725,6 +1940,55 @@ mod tests {
     }
 
     #[test]
+    fn selected_php_manifest_deduplicates_repeated_versions() {
+        let manifest = AssetManifest {
+            schema_version: 1,
+            runtime: "node-builds/wasmtime-async".to_string(),
+            php: vec![fake_php_asset("8.4"), fake_php_asset("8.5")],
+        };
+
+        let selected = selected_php_manifest(
+            &manifest,
+            &["8.5".to_string(), "8.5".to_string(), "8.4".to_string()],
+        )
+        .unwrap();
+        let versions = selected
+            .php
+            .iter()
+            .map(|asset| asset.version.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(versions, vec!["8.5", "8.4"]);
+    }
+
+    #[test]
+    fn rejects_package_name_path_traversal_before_removing_output() {
+        let root = temp_dir("traversal-root");
+        let out_dir = temp_dir("traversal-out").join("inside");
+        fs::create_dir_all(&out_dir).unwrap();
+        let sibling = out_dir.parent().unwrap().join("sibling-package");
+        fs::create_dir_all(&sibling).unwrap();
+        fs::write(sibling.join("sentinel.txt"), b"keep").unwrap();
+
+        let error = package_native_cli(&PackageOptions {
+            binary_path: root.join("missing-binary"),
+            asset_root: root,
+            out_dir,
+            package_name: "../sibling-package".to_string(),
+            php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
+            include_wordpress_assets: false,
+            create_archive: false,
+            precompile_wasmtime: false,
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("plain package directory name"), "{error}");
+        assert!(sibling.join("sentinel.txt").is_file());
+    }
+
+    #[test]
     fn packages_supported_assets_by_default() {
         let root = temp_dir("supported-asset-root");
         let out_dir = temp_dir("supported-out");
@@ -1741,6 +2005,7 @@ mod tests {
             out_dir,
             package_name: "native-supported-test".to_string(),
             php_versions: Vec::new(),
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,
@@ -1810,6 +2075,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -1839,6 +2105,18 @@ mod tests {
         assert!(!files.iter().any(|file| file["kind"] == "php-js"));
         assert!(!files.iter().any(|file| file["kind"] == "wordpress"));
         assert!(files.iter().any(|file| file["kind"] == "sqlite"));
+        for kind in [
+            "php-extension-intl",
+            "php-extension-redis",
+            "php-extension-memcached",
+            "php-extension-xdebug",
+            "php-extension-intl-data",
+        ] {
+            assert!(
+                files.iter().any(|file| file["kind"] == kind),
+                "missing package manifest entry for {kind}"
+            );
+        }
         let archive_manifest =
             fs::read_to_string(summary.archive_manifest_path.as_ref().unwrap()).unwrap();
         let archive_manifest: serde_json::Value = serde_json::from_str(&archive_manifest).unwrap();
@@ -1861,6 +2139,18 @@ mod tests {
             .asset_root
             .join(fake_php_wasmtime_paths("8.5").0)
             .exists());
+        for extension in ["intl", "redis", "memcached", "xdebug"] {
+            assert!(summary
+                .asset_root
+                .join(format!(
+                    "packages/php-wasm/node-builds/8-5/wasmtime-async/extensions/{extension}/{extension}.so"
+                ))
+                .is_file());
+        }
+        assert!(summary
+            .asset_root
+            .join("packages/php-wasm/node/src/lib/extensions/intl/shared/icu.dat")
+            .is_file());
         assert!(!summary
             .package_root
             .join(PACKAGE_SHARE_DIR)
@@ -1916,6 +2206,7 @@ mod tests {
             out_dir,
             package_name: "native-wordpress-assets-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: true,
             create_archive: false,
             precompile_wasmtime: false,
@@ -1937,6 +2228,51 @@ mod tests {
     }
 
     #[test]
+    fn filters_wordpress_release_zips_when_versions_are_requested() {
+        let root = temp_dir("wordpress-filter-root");
+        let out_dir = temp_dir("wordpress-filter-out");
+        let binary = root.join(format!(
+            "wp-playground-native{}",
+            std::env::consts::EXE_SUFFIX
+        ));
+        fs::write(&binary, b"binary").unwrap();
+        write_fake_asset_root(&root);
+        write_zip(
+            &root,
+            "packages/playground/wordpress-builds/src/wordpress/wp-7.0.zip",
+            &[
+                ("wp-config-sample.php", b"<?php"),
+                ("wp-load.php", b"<?php"),
+                ("wp-admin/install.php", b"<?php"),
+                ("wp-includes/version.php", b"<?php"),
+                ("wp-content/", b""),
+            ],
+        );
+
+        let summary = package_native_cli(&PackageOptions {
+            binary_path: binary,
+            asset_root: root,
+            out_dir,
+            package_name: "native-wordpress-filter-test".to_string(),
+            php_versions: vec!["8.5".to_string()],
+            wordpress_versions: vec!["6.9".to_string()],
+            include_wordpress_assets: true,
+            create_archive: false,
+            precompile_wasmtime: false,
+        })
+        .unwrap();
+
+        assert!(summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/wp-6.9.zip")
+            .is_file());
+        assert!(!summary
+            .asset_root
+            .join("packages/playground/wordpress-builds/src/wordpress/wp-7.0.zip")
+            .exists());
+    }
+
+    #[test]
     fn precompiles_selected_wasm_assets_into_package_manifest() {
         let root = temp_dir("precompile-root");
         let out_dir = temp_dir("precompile-out");
@@ -1953,6 +2289,7 @@ mod tests {
             out_dir,
             package_name: "native-precompile-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: true,
@@ -2059,6 +2396,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2094,6 +2432,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2125,6 +2464,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: true,
             create_archive: true,
             precompile_wasmtime: false,
@@ -2162,6 +2502,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["9.9".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,
@@ -2189,6 +2530,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["5.2".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,
@@ -2221,6 +2563,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: true,
             create_archive: false,
             precompile_wasmtime: false,
@@ -2253,6 +2596,7 @@ mod tests {
             out_dir,
             package_name: "native-test".to_string(),
             php_versions: vec!["8.5".to_string()],
+            wordpress_versions: Vec::new(),
             include_wordpress_assets: false,
             create_archive: false,
             precompile_wasmtime: false,

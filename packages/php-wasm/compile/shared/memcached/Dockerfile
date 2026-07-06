@@ -5,6 +5,7 @@ FROM playground-php-wasm:base
 ARG PHP_VERSION
 
 ARG JSPI
+ARG WITH_WASMTIME_ASYNC
 
 ARG DEBUG
 
@@ -82,17 +83,21 @@ RUN mkdir -p /usr/local/include/php/ext/standard && \
 	fi
 
 # Copy prebuilt zlib from the repo (already compiled for Emscripten)
-# Use the asyncify or jspi version based on the build mode
+# Use the asyncify, jspi, or Wasmtime async version based on the build mode
 # The prebuilt zlib has structure: dist/root/lib/include and dist/root/lib/lib/libz.a
 # We flatten it to: /root/zlib/include and /root/zlib/lib/libz.a
 COPY ./libz/asyncify/dist/root/lib/include /root/zlib-asyncify/include
 COPY ./libz/asyncify/dist/root/lib/lib /root/zlib-asyncify/lib
 COPY ./libz/jspi/dist/root/lib/include /root/zlib-jspi/include
 COPY ./libz/jspi/dist/root/lib/lib /root/zlib-jspi/lib
-RUN if [ "$JSPI" = "yes" ]; then \
-		mv /root/zlib-jspi /root/zlib && rm -rf /root/zlib-asyncify; \
+COPY ./libz/wasmtime-async/dist/root/lib/include /root/zlib-wasmtime-async/include
+COPY ./libz/wasmtime-async/dist/root/lib/lib /root/zlib-wasmtime-async/lib
+RUN if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		mv /root/zlib-wasmtime-async /root/zlib && rm -rf /root/zlib-asyncify /root/zlib-jspi; \
+	elif [ "$JSPI" = "yes" ]; then \
+		mv /root/zlib-jspi /root/zlib && rm -rf /root/zlib-asyncify /root/zlib-wasmtime-async; \
 	else \
-		mv /root/zlib-asyncify /root/zlib && rm -rf /root/zlib-jspi; \
+		mv /root/zlib-asyncify /root/zlib && rm -rf /root/zlib-jspi /root/zlib-wasmtime-async; \
 	fi
 
 # Build libmemcached for Emscripten
@@ -187,7 +192,9 @@ RUN set -euxo pipefail; \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
-	if [ "$JSPI" = "yes" ]; then \
+	if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0"; \
+	elif [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \

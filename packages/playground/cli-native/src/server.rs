@@ -22,7 +22,10 @@ use crate::{
     args::{CliOptions, CommandName, RuntimeConfig, Verbosity, WorkerCount, DEFAULT_PORT},
     automount::BlueprintStep,
     download::{cached_download_with_validator, download_bytes, url_cache_key},
-    host::{HostMount, HostOptions, PhpConstantValue},
+    host::{
+        configure_builtin_php_extensions, BuiltInPhpExtension, HostMount, HostOptions,
+        PhpConstantValue,
+    },
     mount::Mount,
     paths::{SiteStorage, WordPressInstallMode},
     php::{PhpInstance, PhpRequest, PhpResponse},
@@ -813,7 +816,7 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
         );
     }
 
-    let host_options = HostOptions {
+    let mut host_options = HostOptions {
         echo_output: false,
         capture_import_trace: config.options.debug,
         max_import_calls: config.options.debug.then_some(100_000),
@@ -829,13 +832,83 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
             .collect(),
         ..HostOptions::default()
     };
+    configure_builtin_php_extensions(
+        &mut host_options,
+        runtime.repo_root(),
+        &config.options.php,
+        &selected_builtin_php_extensions(&config.options),
+    )?;
     run_listener(config, &mounts, runtime, host_options)
+}
+
+fn selected_builtin_php_extensions(options: &CliOptions) -> Vec<BuiltInPhpExtension> {
+    let mut extensions = Vec::new();
+    if options.intl {
+        extensions.push(BuiltInPhpExtension::Intl);
+    }
+    if options.redis {
+        extensions.push(BuiltInPhpExtension::Redis);
+    }
+    if options.memcached {
+        extensions.push(BuiltInPhpExtension::Memcached);
+    }
+    if options.xdebug {
+        extensions.push(BuiltInPhpExtension::Xdebug);
+    }
+    extensions
 }
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {
     if !matches!(options.verbosity, Verbosity::Quiet) {
         eprintln!("{}", message.as_ref());
     }
+}
+
+fn server_banner_and_config(options: &CliOptions) -> String {
+    let mut lines = vec![
+        String::new(),
+        "WordPress Playground CLI".to_string(),
+        String::new(),
+        format!("PHP {}  WordPress {}", options.php, options.wp),
+    ];
+    let mut extensions = Vec::new();
+    if options.intl {
+        extensions.push("intl");
+    }
+    if !extensions.is_empty() {
+        lines.push(format!("Extensions {}", extensions.join(", ")));
+    }
+    for mount in options
+        .mounts
+        .iter()
+        .chain(options.mounts_before_install.iter())
+    {
+        let auto_mount_label = if mount.auto_mounted {
+            " (auto-mount)"
+        } else {
+            ""
+        };
+        lines.push(format!(
+            "Mount {} -> {}{}",
+            mount.host_path.display(),
+            mount.vfs_path,
+            auto_mount_label
+        ));
+    }
+    if let Some(blueprint) = &options.blueprint {
+        lines.push(format!("Blueprint {blueprint}"));
+    }
+    lines.push(String::new());
+    lines.join("\n")
+}
+
+fn ready_message(server_url: &str, worker_count: usize) -> String {
+    let worker_label = if worker_count == 1 {
+        "worker"
+    } else {
+        "workers"
+    };
+    format!("Ready! WordPress is running on {server_url} ({worker_count} {worker_label})")
 }
 
 fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
@@ -954,6 +1027,11 @@ fn run_listener(
         .site_url
         .clone()
         .unwrap_or_else(|| format!("http://127.0.0.1:{actual_port}"));
+    if !matches!(config.options.verbosity, Verbosity::Quiet) {
+        let mut stdout = io::stdout().lock();
+        let _ = writeln!(stdout, "{}", server_banner_and_config(&config.options));
+        let _ = stdout.flush();
+    }
     host_options.string_constants.push((
         "WP_HOME".to_string(),
         PhpConstantValue::string(server_url.clone()),
@@ -1020,6 +1098,9 @@ fn run_listener(
     release_unused_process_memory();
 
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
+        let mut stdout = io::stdout().lock();
+        let _ = writeln!(stdout, "\n{}\n", ready_message(&server_url, worker_count));
+        let _ = stdout.flush();
         eprintln!("wp-playground-native listening on {server_url}");
     }
 
@@ -9123,29 +9204,29 @@ mod tests {
         multisite_url_settings, normalize_git_directory_path, parse_http_request,
         parse_http_request_owned, parse_http_request_owned_with_counter, parse_php_headers,
         php_request_from_http, php_request_from_run_options, php_single_quoted_string,
-        read_http_request, reason_phrase, recycle_wasm_memory_threshold_from_env,
+        read_http_request, ready_message, reason_phrase, recycle_wasm_memory_threshold_from_env,
         remove_wp_allow_multisite_define, request_error_total_counter, request_path_from_target,
         request_total_fields, requested_worker_count, reserve_lazy_worker_retirement,
         reset_data_script, resolve_git_directory_resource, resolve_route, route_target_label,
         run_git, run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
-        server_mounts, server_response_counter_stats, set_site_language_metadata_script,
-        should_clear_auto_login_cookie, split_shell_command, startup_steps_from_blueprint_json,
-        startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
-        startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
-        validate_install_asset_zip, wordpress_importer_install_step,
-        wordpress_translation_url_from_api_response, worker_after_request_label,
-        worker_recycle_idle_delay_from_env, wp_cli_runner_script, wp_installation_wizard_request,
-        write_http_response_with_counter, write_server_http_response_with_counter,
-        write_static_file_response, write_wordpress_snapshot_zip, zip_path_to_string,
-        DefineWpConfigMethod, DownloadableAsset, FileContentSource, FileTreeEntry, FileTreeSource,
-        GitDirectoryResource, HttpRequest, HttpResponse, IfAlreadyInstalled, InstallAssetSource,
-        InstallAssetStep, PhpConstantValue, PhpRunOptions, PhpRunScript, PhpWorker,
-        RequestTotalRequest, RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep,
-        WorkerAfterRequest, AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE,
-        DEFAULT_RECYCLE_WASM_MEMORY_MIB, DEFAULT_WP_CLI_PATH,
-        MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER, MAX_REQUESTS_PER_WORKER_ENV_VAR,
-        RECYCLE_WASM_MEMORY_MIB_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
-        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        server_banner_and_config, server_mounts, server_response_counter_stats,
+        set_site_language_metadata_script, should_clear_auto_login_cookie, split_shell_command,
+        startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
+        startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
+        unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
+        wordpress_importer_install_step, wordpress_translation_url_from_api_response,
+        worker_after_request_label, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
+        wp_installation_wizard_request, write_http_response_with_counter,
+        write_server_http_response_with_counter, write_static_file_response,
+        write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
+        FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
+        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
+        PhpRunOptions, PhpRunScript, PhpWorker, RequestTotalRequest, RouteTarget,
+        ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest,
+        AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB,
+        DEFAULT_WP_CLI_PATH, MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER,
+        MAX_REQUESTS_PER_WORKER_ENV_VAR, RECYCLE_WASM_MEMORY_MIB_ENV_VAR,
+        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -10485,6 +10566,50 @@ mod tests {
         assert!(lazy_worker_pool_enabled(&default));
         assert!(!lazy_worker_pool_enabled(&fixed));
         assert!(!lazy_worker_pool_enabled(&auto));
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn ready_message_matches_node_cli_contract() {
+        assert_eq!(
+            ready_message("http://127.0.0.1:9400", 1),
+            "Ready! WordPress is running on http://127.0.0.1:9400 (1 worker)"
+        );
+        assert_eq!(
+            ready_message("http://127.0.0.1:9400", 2),
+            "Ready! WordPress is running on http://127.0.0.1:9400 (2 workers)"
+        );
+    }
+
+    #[test]
+    fn server_banner_and_config_summarizes_node_cli_fields() {
+        let cwd = temp_dir("server-config-summary");
+        let mount_dir = cwd.join("plugin");
+        fs::create_dir_all(&mount_dir).unwrap();
+        let mut options = parse_cli_args_from(
+            vec![
+                "server".to_string(),
+                "--php=8.5".to_string(),
+                "--wp=6.9".to_string(),
+                "--blueprint=blueprint.json".to_string(),
+            ],
+            &cwd,
+        )
+        .unwrap();
+        options
+            .mounts
+            .push(Mount::auto(&mount_dir, "/wordpress/wp-content/plugins/plugin").unwrap());
+
+        let summary = server_banner_and_config(&options);
+
+        assert!(summary.contains("WordPress Playground CLI"));
+        assert!(summary.contains("PHP 8.5  WordPress 6.9"));
+        assert!(summary.contains("Extensions intl"));
+        assert!(summary.contains("Mount "));
+        assert!(summary.contains(" -> /wordpress/wp-content/plugins/plugin (auto-mount)"));
+        assert!(summary.contains("Blueprint "));
+        assert!(summary.contains("blueprint.json"));
+
         let _ = fs::remove_dir_all(cwd);
     }
 

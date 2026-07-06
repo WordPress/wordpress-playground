@@ -7,6 +7,7 @@ FROM playground-php-wasm:base
 ARG PHP_VERSION
 
 ARG JSPI
+ARG WITH_WASMTIME_ASYNC
 
 ARG DEBUG
 
@@ -114,6 +115,13 @@ RUN set -euxo pipefail; \
 	phpize . ; \
 
 	source /root/emsdk/emsdk_env.sh; \
+	if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		embuilder --pic build libc++-wasmexcept libc++abi-wasmexcept libunwind-wasmexcept; \
+		mkdir -p /tmp/compiler-rt; \
+		cd /tmp/compiler-rt; \
+		/root/emsdk/upstream/bin/llvm-ar x /root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libcompiler_rt-wasmsjlj.a ashlti3.o comparetf2.o divti3.o extenddftf2.o floatunditf.o lshrti3.o multi3.o trunctfdf2.o udivmodti4.o; \
+		cd /root/php-src/ext/intl; \
+	fi; \
 
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
@@ -125,7 +133,11 @@ RUN set -euxo pipefail; \
 	# Replace the default compiler invocation ($CC) with emcc and force-link the required ICU static libraries
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
-	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicuio.a /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="em++ \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicuio.a /root/lib/libicui18n.a /root/lib/libicuuc.a /root/lib/libicudata.a --no-whole-archive /root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/pic/libc++-wasmexcept.a /root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/pic/libc++abi-wasmexcept.a /root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/pic/libunwind-wasmexcept.a /tmp/compiler-rt/ashlti3.o /tmp/compiler-rt/comparetf2.o /tmp/compiler-rt/divti3.o /tmp/compiler-rt/extenddftf2.o /tmp/compiler-rt/floatunditf.o /tmp/compiler-rt/lshrti3.o /tmp/compiler-rt/multi3.o /tmp/compiler-rt/trunctfdf2.o /tmp/compiler-rt/udivmodti4.o|' libtool; \
+	else \
+		/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicuio.a /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	fi; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 
@@ -135,7 +147,9 @@ RUN set -euxo pipefail; \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
-	if [ "$JSPI" = "yes" ]; then \
+	if [ "$WITH_WASMTIME_ASYNC" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0"; \
+	elif [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
@@ -150,6 +164,7 @@ RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
 		--enable-sign-ext \
 		--enable-mutable-globals \
 		--enable-exception-handling \
+		--enable-reference-types \
 		/root/php-src/ext/intl/modules/intl.so \
 		-o /root/php-src/ext/intl/modules/intl.so;
 

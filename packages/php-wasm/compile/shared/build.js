@@ -30,6 +30,12 @@ const argParser = yargs(process.argv.slice(2))
 			default: 'no',
 			description: 'Build with JSPI support',
 		},
+		WITH_WASMTIME_ASYNC: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			default: 'no',
+			description: 'Build with Wasmtime async ABI support',
+		},
 		DEBUG: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -67,6 +73,13 @@ await asyncSpawn('make', ['base-image'], {
 
 const library = args['LIBRARY'];
 
+if (args.WITH_WASMTIME_ASYNC === 'yes' && library === 'memcached') {
+	await asyncSpawn('make', ['libz_wasmtime_async'], {
+		cwd: path.dirname(sourceDir),
+		stdio: 'inherit',
+	});
+}
+
 // Build the shared library
 await asyncSpawn(
 	'docker',
@@ -83,6 +96,8 @@ await asyncSpawn(
 		getArg('DEBUG'),
 		'--build-arg',
 		getArg('JSPI'),
+		'--build-arg',
+		getArg('WITH_WASMTIME_ASYNC'),
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
@@ -165,10 +180,15 @@ function fullyQualifiedPHPVersion(requestedVersion) {
 function computeOutputDir() {
 	const platformDir = `${args.PLATFORM}-builds`;
 	const versionDir = args.PHP_VERSION.split('.').slice(0, 2).join('-');
-	const jspiOrAsyncify = args.JSPI === 'yes' ? 'jspi' : 'asyncify';
+	const runtimeDir =
+		args.WITH_WASMTIME_ASYNC === 'yes'
+			? 'wasmtime-async'
+			: args.JSPI === 'yes'
+				? 'jspi'
+				: 'asyncify';
 	return path.resolve(
 		process.cwd(),
-		`packages/php-wasm/${platformDir}/${versionDir}/${jspiOrAsyncify}`
+		`packages/php-wasm/${platformDir}/${versionDir}/${runtimeDir}`
 	);
 }
 

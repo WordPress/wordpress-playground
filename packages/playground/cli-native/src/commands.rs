@@ -2,7 +2,10 @@ use std::{env, path::PathBuf};
 
 use crate::{
     args::{normalize_for_runtime, CliOptions, RuntimeCommand, Verbosity, DEFAULT_PORT},
-    host::{HostMount, HostOptions, PhpConstantValue},
+    host::{
+        configure_builtin_php_extensions, BuiltInPhpExtension, HostMount, HostOptions,
+        PhpConstantValue,
+    },
     mount::Mount,
     paths::WordPressInstallMode,
     runtime::{NativeRuntime, WasmEngineProfile},
@@ -100,6 +103,7 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
     let mut host_options = php_host_options_for_mounts(options, &mounts, &site_url);
+    configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     host_options.echo_output = false;
     if options.debug {
         host_options.max_import_calls = Some(100_000);
@@ -151,6 +155,7 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
     let mut host_options = php_host_options_for_mounts(options, &mounts, &site_url);
+    configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     host_options.echo_output = false;
     if options.debug {
         host_options.max_import_calls = Some(100_000);
@@ -209,6 +214,7 @@ fn run_php_command(runtime: &NativeRuntime, options: &CliOptions) -> Result<u8> 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
     let mut host_options = php_host_options_for_mounts(options, &mounts, &site_url);
+    configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     let argv = php_argv(options);
     add_cli_allowed_host_paths(&mut host_options, &argv);
     if options.debug {
@@ -236,6 +242,36 @@ fn run_php_command(runtime: &NativeRuntime, options: &CliOptions) -> Result<u8> 
     let mut php = runtime.instantiate_php_with_host_options(&options.php, host_options)?;
     let exit_code = php.run_cli_session_with_trace(&argv, options.debug)?;
     Ok(normalize_exit_code(exit_code))
+}
+
+fn configure_builtin_extensions_from_options(
+    host_options: &mut HostOptions,
+    asset_root: &std::path::Path,
+    options: &CliOptions,
+) -> Result<()> {
+    configure_builtin_php_extensions(
+        host_options,
+        asset_root,
+        &options.php,
+        &selected_builtin_php_extensions(options),
+    )
+}
+
+fn selected_builtin_php_extensions(options: &CliOptions) -> Vec<BuiltInPhpExtension> {
+    let mut extensions = Vec::new();
+    if options.intl {
+        extensions.push(BuiltInPhpExtension::Intl);
+    }
+    if options.redis {
+        extensions.push(BuiltInPhpExtension::Redis);
+    }
+    if options.memcached {
+        extensions.push(BuiltInPhpExtension::Memcached);
+    }
+    if options.xdebug {
+        extensions.push(BuiltInPhpExtension::Xdebug);
+    }
+    extensions
 }
 
 fn php_mounts(options: &CliOptions) -> Result<Vec<Mount>> {

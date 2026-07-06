@@ -45,13 +45,16 @@ const SUPPORTED_OPTION_NAMES: &[&str] = &[
     "verbosity",
     "quiet",
     "debug",
+    "xdebug",
     "follow-symlinks",
     "intl",
+    "no-intl",
+    "redis",
+    "memcached",
     "opcache",
 ];
 const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
     "phpmyadmin",
-    "xdebug",
     "experimental-unsafe-ide-integration",
     "experimental-devtools",
     "experimental-blueprints-v2-runner",
@@ -59,10 +62,7 @@ const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
     "experimental-trace",
     "internal-cookie-store",
     "php-extension",
-    "no-intl",
     "mode",
-    "redis",
-    "memcached",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,8 +146,11 @@ pub struct CliOptions {
     pub workers: Option<WorkerCount>,
     pub verbosity: Verbosity,
     pub debug: bool,
+    pub xdebug: bool,
     pub follow_symlinks: bool,
     pub intl: bool,
+    pub redis: bool,
+    pub memcached: bool,
     pub opcache: OpcacheMode,
     pub defined_constants: Vec<DefinedConstant>,
     pub mode: Option<String>,
@@ -403,6 +406,10 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
                 options.debug = true;
                 options.verbosity = Verbosity::Debug;
             }
+            "xdebug" => {
+                reject_value(flag, inline_value)?;
+                options.xdebug = true;
+            }
             "follow-symlinks" => {
                 reject_value(flag, inline_value)?;
                 options.follow_symlinks = true;
@@ -410,6 +417,18 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
             "intl" => {
                 reject_value(flag, inline_value)?;
                 options.intl = true;
+            }
+            "no-intl" => {
+                reject_value(flag, inline_value)?;
+                options.intl = false;
+            }
+            "redis" => {
+                reject_value(flag, inline_value)?;
+                options.redis = true;
+            }
+            "memcached" => {
+                reject_value(flag, inline_value)?;
+                options.memcached = true;
             }
             "opcache" => {
                 options.opcache = parse_opcache_mode(&parser.value(flag, inline_value)?)?;
@@ -458,13 +477,7 @@ pub fn normalize_for_runtime(
         CommandName::Server => normalize_server(options, cwd),
         CommandName::RunBlueprint => normalize_run_blueprint(options, cwd),
         CommandName::BuildSnapshot => normalize_build_snapshot(options, cwd),
-        CommandName::Php => Ok(RuntimeConfig {
-            command: RuntimeCommand::Php,
-            original_command: CommandName::Php,
-            options,
-            site_storage: None,
-            server_url: None,
-        }),
+        CommandName::Php => normalize_php(options, cwd),
     }
 }
 
@@ -474,6 +487,10 @@ fn normalize_build_snapshot(options: CliOptions, cwd: &Path) -> Result<RuntimeCo
 
 fn normalize_run_blueprint(options: CliOptions, cwd: &Path) -> Result<RuntimeConfig> {
     normalize_one_shot_wordpress_command(options, cwd, RuntimeCommand::RunBlueprint)
+}
+
+fn normalize_php(options: CliOptions, cwd: &Path) -> Result<RuntimeConfig> {
+    normalize_one_shot_wordpress_command(options, cwd, RuntimeCommand::Php)
 }
 
 fn normalize_one_shot_wordpress_command(
@@ -672,8 +689,11 @@ fn default_options(command: CommandName, cwd: &Path) -> CliOptions {
         workers: None,
         verbosity: Verbosity::Normal,
         debug: false,
+        xdebug: false,
         follow_symlinks: false,
         intl: true,
+        redis: false,
+        memcached: false,
         opcache: OpcacheMode::Middle,
         defined_constants: Vec::new(),
         mode: None,
@@ -770,19 +790,27 @@ fn supported_option_command_scope(flag: &str) -> Option<&'static [&'static str]>
         | "skip-wordpress-install"
         | "skip-sqlite-setup"
         | "debug"
+        | "xdebug"
         | "follow-symlinks"
         | "intl"
+        | "no-intl"
+        | "redis"
+        | "memcached"
         | "opcache"
         | "define"
         | "define-bool"
         | "define-number" => Some(&["start", "server", "run-blueprint", "build-snapshot", "php"]),
         "auto-mount" | "no-auto-mount" => {
-            Some(&["start", "server", "run-blueprint", "build-snapshot"])
+            Some(&["start", "server", "run-blueprint", "build-snapshot", "php"])
         }
         "reset" | "skip-browser" => Some(&["start"]),
-        "login" | "no-login" => Some(&["start", "server"]),
+        "login" | "no-login" => {
+            Some(&["start", "server", "run-blueprint", "build-snapshot", "php"])
+        }
         "workers" => Some(&["start", "server"]),
-        "verbosity" | "quiet" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
+        "verbosity" | "quiet" => {
+            Some(&["start", "server", "run-blueprint", "build-snapshot", "php"])
+        }
         "outfile" => Some(&["build-snapshot"]),
         _ => None,
     }
@@ -953,7 +981,6 @@ fn reject_value(flag: &str, value: Option<&str>) -> Result<()> {
 fn unsupported_native_v1_option(flag: &str) -> Option<&'static str> {
     match flag {
         "phpmyadmin" => Some("phpMyAdmin installation"),
-        "xdebug" => Some("Xdebug bridge"),
         "experimental-unsafe-ide-integration" => Some("unsafe IDE integration"),
         "experimental-devtools" => Some("browser devtools bridge"),
         "experimental-blueprints-v2-runner" => Some("Blueprints v2 runner"),
@@ -961,10 +988,7 @@ fn unsupported_native_v1_option(flag: &str) -> Option<&'static str> {
         "experimental-trace" => Some("Node CLI trace output"),
         "internal-cookie-store" => Some("Node cookie-store mediation"),
         "php-extension" => Some("custom PHP extension loading"),
-        "no-intl" => Some("disabling bundled Intl"),
         "mode" => Some("Blueprints v2 mode selection"),
-        "redis" => Some("Redis integration"),
-        "memcached" => Some("Memcached integration"),
         _ => None,
     }
 }
@@ -1280,6 +1304,7 @@ mod tests {
             "--debug",
             "--follow-symlinks",
             "--intl",
+            "--opcache",
             "--define",
             "--define-bool",
             "--define-number",
@@ -1396,7 +1421,7 @@ mod tests {
                     "/tmp".to_string(),
                 ]);
             }
-            "--auto-mount" => argv.push("--auto-mount".to_string()),
+            "--auto-mount" => argv.push("--auto-mount=.".to_string()),
             "--no-auto-mount" => argv.push("--no-auto-mount".to_string()),
             "--reset" => argv.push("--reset".to_string()),
             "--login" => argv.push("--login".to_string()),
@@ -1415,8 +1440,12 @@ mod tests {
             "--verbosity" => argv.push("--verbosity=debug".to_string()),
             "--quiet" => argv.push("--quiet".to_string()),
             "--debug" => argv.push("--debug".to_string()),
+            "--xdebug" => argv.push("--xdebug".to_string()),
             "--follow-symlinks" => argv.push("--follow-symlinks".to_string()),
             "--intl" => argv.push("--intl".to_string()),
+            "--no-intl" => argv.push("--no-intl".to_string()),
+            "--redis" => argv.push("--redis".to_string()),
+            "--memcached" => argv.push("--memcached".to_string()),
             "--opcache" => argv.push("--opcache=immutable".to_string()),
             "--define" => argv.extend([
                 "--define".to_string(),
@@ -1609,6 +1638,9 @@ mod tests {
                 "--php=8.5",
                 "--wp=6.9",
                 "--site-url=http://127.0.0.1:9400",
+                "--auto-mount=.",
+                "--no-login",
+                "--verbosity=debug",
                 "--mount-dir-before-install",
                 "before",
                 "/tools",
@@ -1626,6 +1658,8 @@ mod tests {
         assert_eq!(php.command, CommandName::Php);
         assert_eq!(php.script, Some(cwd.join("script.php")));
         assert_eq!(php.php_args, vec!["script.php", "--script-arg"]);
+        assert!(!php.login);
+        assert_eq!(php.verbosity, Verbosity::Debug);
 
         let run_blueprint = parse_cli_args_from(
             args(&[
@@ -1716,9 +1750,8 @@ mod tests {
         for (tokens, expected) in [
             (&["server", "--path=."][..], "the start command"),
             (&["server", "--skip-browser"], "the start command"),
-            (&["php", "--auto-mount=."], "run-blueprint"),
             (&["run-blueprint", "--workers=1"], "start and server"),
-            (&["build-snapshot", "--login"], "start and server"),
+            (&["php", "--workers=1", "script.php"], "start and server"),
             (&["server", "--outfile=snapshot.zip"], "build-snapshot"),
         ] {
             let error = parse_cli_args_from(args(tokens), &cwd).unwrap_err();
@@ -1876,11 +1909,51 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_php_with_plugin_auto_mount() {
+        let cwd = temp_dir("php-auto-mount");
+        let home = temp_dir("php-auto-mount-home");
+        let plugin = cwd.join("sample-plugin");
+        fs::create_dir_all(&plugin).unwrap();
+        fs::write(
+            plugin.join("sample-plugin.php"),
+            "<?php\n/*\nPlugin Name: Sample Plugin\n*/\n",
+        )
+        .unwrap();
+
+        let options = parse_cli_args_from(
+            args(&[
+                "php",
+                "--auto-mount=sample-plugin",
+                "--quiet",
+                "--no-login",
+                "script.php",
+            ]),
+            &cwd,
+        )
+        .unwrap();
+        let runtime = normalize_for_runtime(options, &cwd, &home).unwrap();
+
+        assert_eq!(runtime.command, RuntimeCommand::Php);
+        assert_eq!(runtime.original_command, CommandName::Php);
+        assert!(runtime.site_storage.is_none());
+        assert!(runtime.server_url.is_none());
+        assert_eq!(runtime.options.verbosity, Verbosity::Quiet);
+        assert!(!runtime.options.login);
+        assert!(runtime
+            .options
+            .mounts
+            .iter()
+            .any(|mount| mount.vfs_path == "/wordpress/wp-content/plugins/sample-plugin"));
+
+        let _ = fs::remove_dir_all(cwd);
+        let _ = fs::remove_dir_all(home);
+    }
+
+    #[test]
     fn compatibility_intentionally_unsupported_options_have_stable_errors() {
         let cwd = temp_dir("compat-unsupported-options");
         for (flag, expected) in [
             ("--phpmyadmin", "phpMyAdmin installation"),
-            ("--xdebug", "Xdebug bridge"),
             (
                 "--experimental-unsafe-ide-integration=vscode",
                 "unsafe IDE integration",
@@ -1897,13 +1970,10 @@ mod tests {
             ("--experimental-trace", "Node CLI trace output"),
             ("--internal-cookie-store", "Node cookie-store mediation"),
             ("--php-extension=ext.json", "custom PHP extension loading"),
-            ("--no-intl", "disabling bundled Intl"),
             (
                 "--mode=apply-to-existing-site",
                 "Blueprints v2 mode selection",
             ),
-            ("--redis", "Redis integration"),
-            ("--memcached", "Memcached integration"),
         ] {
             let error = parse_cli_args_from(args(&["server", flag]), &cwd).unwrap_err();
             assert!(
@@ -1918,8 +1988,19 @@ mod tests {
             );
         }
 
-        let error = parse_cli_args_from(args(&["php", "--xdebug", "-v"]), &cwd).unwrap_err();
-        assert!(error.message().contains("Xdebug bridge"));
+        let parsed = parse_cli_args_from(args(&["php", "--xdebug", "-v"]), &cwd).unwrap();
+        assert!(parsed.xdebug);
+        assert_eq!(parsed.php_args, vec!["-v"]);
+
+        let parsed = parse_cli_args_from(
+            args(&["php", "--no-intl", "--redis", "--memcached", "-m"]),
+            &cwd,
+        )
+        .unwrap();
+        assert!(!parsed.intl);
+        assert!(parsed.redis);
+        assert!(parsed.memcached);
+        assert_eq!(parsed.php_args, vec!["-m"]);
 
         let error =
             parse_cli_args_from(args(&["server", "--outfile=snapshot.zip"]), &cwd).unwrap_err();

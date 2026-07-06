@@ -38,7 +38,8 @@
 			"options": {
 				"commands": [
 					"cp -rf packages/php-wasm/node-builds/8-1/jspi dist/packages/php-wasm/node-builds/8-1/",
-					"cp -rf packages/php-wasm/node-builds/8-1/asyncify dist/packages/php-wasm/node-builds/8-1/"
+					"cp -rf packages/php-wasm/node-builds/8-1/asyncify dist/packages/php-wasm/node-builds/8-1/",
+					"cp -rf packages/php-wasm/node-builds/8-1/wasmtime-async dist/packages/php-wasm/node-builds/8-1/"
 				],
 				"parallel": false
 			},

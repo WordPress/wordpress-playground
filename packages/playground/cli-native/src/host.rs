@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fmt::{Display, Formatter},
     fs,
     io::{self, Read, Seek, SeekFrom, Write},
@@ -21,8 +21,10 @@ use socket2::{
     Domain as SocketDomain, Protocol as SocketProtocol, SockAddr, Socket as Socket2,
     Type as SocketType,
 };
+use wasmparser::{Dylink0Subsection, KnownCustom, Parser, Payload, SymbolFlags};
 use wasmtime::{
-    Caller, ExternType, Func, Global, Linker, Memory, Module, Ref, Store, Val, ValType,
+    Caller, ExternType, Func, Global, Instance, Linker, Memory, Module, Mutability, Ref, Store,
+    Table, Val, ValType,
 };
 
 use futures_executor::block_on;
@@ -42,6 +44,7 @@ const EALREADY: i32 = 7;
 const ECONNABORTED: i32 = 13;
 const ECONNREFUSED: i32 = 14;
 const EEXIST: i32 = 20;
+const EFAULT: i32 = 21;
 const EINVAL: i32 = 28;
 const EINPROGRESS: i32 = 26;
 const ENOENT: i32 = 44;
@@ -254,12 +257,49 @@ pub struct HostState {
     captured_headers: Vec<u8>,
     asyncify_state: AsyncifyState,
     asyncify_data: Option<u32>,
+    dynamic_libraries: HashMap<i32, LoadedDynamicLibrary>,
+    pthread_specific: HashMap<i32, i32>,
+    next_pthread_key: i32,
     lock_owner_id: u64,
     host_cache_enabled: bool,
     host_cache_generation: Cell<u64>,
     host_path_cache: RefCell<HashMap<(String, bool, bool), Option<PathBuf>>>,
     host_stat_cache: RefCell<HashMap<(String, bool), std::result::Result<VfsStat, i32>>>,
     emscripten_now_base: Option<EmscriptenNowBase>,
+}
+
+#[derive(Debug)]
+struct LoadedDynamicLibrary {
+    name: String,
+    _instance: Instance,
+    symbols: HashMap<String, DynamicSymbol>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DynamicSymbol {
+    value: i32,
+    export_index: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DynamicGotEntry {
+    global: Global,
+    weak: bool,
+}
+
+struct DynamicSelfFuncImport {
+    name: String,
+    target: Arc<Mutex<Option<Func>>>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct DynamicDylinkMetadata {
+    memory_size: u32,
+    memory_alignment: u32,
+    table_size: u32,
+    table_alignment: u32,
+    needed_dynlibs: Vec<String>,
+    weak_imports: HashSet<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -346,6 +386,9 @@ pub struct HostOptions {
     pub host_cache: bool,
     pub php_version: Option<String>,
     pub php_runtime: PhpAssetRuntime,
+    pub php_ini_entries: Vec<String>,
+    pub env_entries: Vec<(String, String)>,
+    pub internal_files: Vec<(String, Arc<[u8]>)>,
 }
 
 impl Default for HostOptions {
@@ -363,8 +406,208 @@ impl Default for HostOptions {
             host_cache: false,
             php_version: None,
             php_runtime: PhpAssetRuntime::Asyncify,
+            php_ini_entries: Vec::new(),
+            env_entries: Vec::new(),
+            internal_files: Vec::new(),
         }
     }
+}
+
+pub const PHP_EXTENSIONS_VFS_DIR: &str = "/internal/shared/extensions";
+pub const INTL_ICU_DATA_VFS_PATH: &str = "/internal/shared/icudt74l.dat";
+pub const INTL_ICU_DATA_RELATIVE_PATH: &str =
+    "packages/php-wasm/node/src/lib/extensions/intl/shared/icu.dat";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuiltInPhpExtension {
+    Intl,
+    Xdebug,
+    Redis,
+    Memcached,
+}
+
+impl BuiltInPhpExtension {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Intl => "intl",
+            Self::Xdebug => "xdebug",
+            Self::Redis => "redis",
+            Self::Memcached => "memcached",
+        }
+    }
+
+    fn ini_directive(self) -> &'static str {
+        match self {
+            Self::Xdebug => "zend_extension",
+            Self::Intl | Self::Redis | Self::Memcached => "extension",
+        }
+    }
+
+    fn vfs_dir(self) -> String {
+        format!("{PHP_EXTENSIONS_VFS_DIR}/{}", self.name())
+    }
+
+    fn vfs_path(self) -> String {
+        format!("{}/{name}.so", self.vfs_dir(), name = self.name())
+    }
+}
+
+pub fn configure_builtin_php_extension(
+    host_options: &mut HostOptions,
+    asset_root: &Path,
+    php_version: &str,
+    extension: BuiltInPhpExtension,
+) -> Result<()> {
+    let relative = builtin_php_extension_relative_path(php_version, extension);
+    let extension_path = asset_root.join(&relative);
+    if !extension_path.is_file() {
+        return Err(CliError::new(format!(
+            "Wasmtime async {} extension asset not found for PHP {php_version}: {}. Native built-in extensions do not load asyncify or JSPI extension artifacts.",
+            extension.name(),
+            extension_path.display()
+        )));
+    }
+    let Some(extension_dir) = extension_path.parent() else {
+        return Err(CliError::new(format!(
+            "{} extension path has no parent directory: {}",
+            extension.name(),
+            extension_path.display()
+        )));
+    };
+    ensure_host_mount(
+        &mut host_options.mounts,
+        extension_dir.to_path_buf(),
+        extension.vfs_dir(),
+    );
+    push_php_ini_entry(
+        &mut host_options.php_ini_entries,
+        format!("{}={}", extension.ini_directive(), extension.vfs_path()),
+    );
+
+    match extension {
+        BuiltInPhpExtension::Intl => {
+            stage_internal_file_from_asset(
+                host_options,
+                asset_root,
+                Path::new(INTL_ICU_DATA_RELATIVE_PATH),
+                INTL_ICU_DATA_VFS_PATH,
+            )?;
+            push_env_entry(
+                &mut host_options.env_entries,
+                "ICU_DATA",
+                "/internal/shared",
+            );
+        }
+        BuiltInPhpExtension::Xdebug => {
+            push_php_ini_entry(
+                &mut host_options.php_ini_entries,
+                "xdebug.mode=debug,develop",
+            );
+            push_php_ini_entry(
+                &mut host_options.php_ini_entries,
+                "xdebug.client_host=127.0.0.1",
+            );
+            push_php_ini_entry(&mut host_options.php_ini_entries, "xdebug.client_port=9003");
+        }
+        BuiltInPhpExtension::Redis | BuiltInPhpExtension::Memcached => {}
+    }
+    Ok(())
+}
+
+pub fn configure_builtin_php_extensions(
+    host_options: &mut HostOptions,
+    asset_root: &Path,
+    php_version: &str,
+    extensions: &[BuiltInPhpExtension],
+) -> Result<()> {
+    for extension in extensions {
+        configure_builtin_php_extension(host_options, asset_root, php_version, *extension)?;
+    }
+    Ok(())
+}
+
+pub fn configure_xdebug_extension(
+    host_options: &mut HostOptions,
+    asset_root: &Path,
+    php_version: &str,
+) -> Result<()> {
+    configure_builtin_php_extension(
+        host_options,
+        asset_root,
+        php_version,
+        BuiltInPhpExtension::Xdebug,
+    )
+}
+
+pub fn xdebug_extension_relative_path(php_version: &str) -> PathBuf {
+    builtin_php_extension_relative_path(php_version, BuiltInPhpExtension::Xdebug)
+}
+
+pub fn builtin_php_extension_relative_path(
+    php_version: &str,
+    extension: BuiltInPhpExtension,
+) -> PathBuf {
+    PathBuf::from(format!(
+        "packages/php-wasm/node-builds/{}/wasmtime-async/extensions/{name}/{name}.so",
+        php_version.replace('.', "-"),
+        name = extension.name()
+    ))
+}
+
+fn push_php_ini_entry(entries: &mut Vec<String>, entry: impl Into<String>) {
+    let entry = entry.into();
+    if !entries.iter().any(|existing| existing == &entry) {
+        entries.push(entry);
+    }
+}
+
+fn push_env_entry(entries: &mut Vec<(String, String)>, name: &str, value: &str) {
+    if let Some((_, existing_value)) = entries
+        .iter_mut()
+        .find(|(existing_name, _)| existing_name == name)
+    {
+        *existing_value = value.to_string();
+    } else {
+        entries.push((name.to_string(), value.to_string()));
+    }
+}
+
+fn ensure_host_mount(mounts: &mut Vec<HostMount>, host_path: PathBuf, vfs_path: String) {
+    if mounts.iter().any(|mount| mount.vfs_path == vfs_path) {
+        return;
+    }
+    mounts.push(HostMount {
+        host_path,
+        vfs_path,
+    });
+}
+
+fn stage_internal_file_from_asset(
+    host_options: &mut HostOptions,
+    asset_root: &Path,
+    relative_path: &Path,
+    vfs_path: &str,
+) -> Result<()> {
+    let source = asset_root.join(relative_path);
+    let bytes = fs::read(&source).map_err(|error| {
+        CliError::new(format!(
+            "Failed to read PHP extension sidecar asset {}: {error}",
+            source.display()
+        ))
+    })?;
+    let bytes = Arc::<[u8]>::from(bytes.into_boxed_slice());
+    if let Some((_, existing)) = host_options
+        .internal_files
+        .iter_mut()
+        .find(|(existing_path, _)| existing_path == vfs_path)
+    {
+        *existing = bytes;
+    } else {
+        host_options
+            .internal_files
+            .push((vfs_path.to_string(), bytes));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -654,6 +897,12 @@ fn default_php_ini(options: &HostOptions) -> Vec<u8> {
         OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR,
         "opcache.max_accelerated_files",
     );
+    for entry in &options.php_ini_entries {
+        ini.push_str(entry);
+        if !entry.ends_with('\n') {
+            ini.push('\n');
+        }
+    }
     append_experimental_php_ini(&mut ini);
     ini.into_bytes()
 }
@@ -875,6 +1124,29 @@ impl HostState {
             "/internal/shared/consts.json".to_string(),
             constants_json(&options.string_constants).into(),
         );
+        for (path, bytes) in &options.internal_files {
+            internal_files.insert(path.clone(), bytes.clone());
+        }
+        let env = {
+            let mut env = vec![
+                "USER=web_user".to_string(),
+                "LOGNAME=web_user".to_string(),
+                "PATH=/".to_string(),
+                "PWD=/".to_string(),
+                "HOME=/home/web_user".to_string(),
+                "LANG=C.UTF-8".to_string(),
+                "_=php".to_string(),
+            ];
+            for (name, value) in &options.env_entries {
+                let prefix = format!("{name}=");
+                if let Some(existing) = env.iter_mut().find(|entry| entry.starts_with(&prefix)) {
+                    *existing = format!("{name}={value}");
+                } else {
+                    env.push(format!("{name}={value}"));
+                }
+            }
+            env
+        };
 
         let mut resolved_mounts: Vec<ResolvedHostMount> = options
             .mounts
@@ -905,15 +1177,7 @@ impl HostState {
             canonical_allowed_host_paths,
             options,
             cwd: "/".to_string(),
-            env: vec![
-                "USER=web_user".to_string(),
-                "LOGNAME=web_user".to_string(),
-                "PATH=/".to_string(),
-                "PWD=/".to_string(),
-                "HOME=/home/web_user".to_string(),
-                "LANG=C.UTF-8".to_string(),
-                "_=php".to_string(),
-            ],
+            env,
             internal_files,
             followed_symlink_roots: Vec::new(),
             fds: vec![
@@ -932,6 +1196,9 @@ impl HostState {
             captured_headers: Vec::new(),
             asyncify_state: AsyncifyState::Normal,
             asyncify_data: None,
+            dynamic_libraries: HashMap::new(),
+            pthread_specific: HashMap::new(),
+            next_pthread_key: 1,
             lock_owner_id: NEXT_HOST_LOCK_OWNER_ID.fetch_add(1, Ordering::Relaxed),
             host_cache_enabled,
             host_cache_generation: Cell::new(0),
@@ -2538,6 +2805,8 @@ fn is_special_func_import(module_name: &str, import_name: &str) -> bool {
                 | "emscripten_sleep"
                 | "_emscripten_throw_longjmp"
                 | "exit"
+                | "_dlopen_js"
+                | "_dlsym_js"
                 | "_tzset_js"
                 | "_gmtime_js"
                 | "_localtime_js"
@@ -3509,6 +3778,64 @@ fn define_special_func_import(
                               -> wasmtime::Result<()> {
                             caller.data_mut().record_import(&label)?;
                             Err(wasmtime::Error::new(PhpExitStatus(code)))
+                        },
+                    )
+                    .map_err(|error| define_error(import_label, error))?;
+                return Ok(true);
+            }
+            "_dlopen_js" => {
+                let label = import_label.to_string();
+                linker
+                    .func_wrap(
+                        module_name,
+                        import_name,
+                        move |mut caller: Caller<'_, HostState>,
+                              handle: i32|
+                              -> wasmtime::Result<i32> {
+                            caller.data_mut().record_import(&label)?;
+                            match dynamic_dlopen(&mut caller, handle) {
+                                Ok(result) => Ok(result),
+                                Err(error) => {
+                                    let message = error.to_string();
+                                    if let Err(set_error) = set_dlopen_error(&mut caller, &message)
+                                    {
+                                        return Err(wasmtime::Error::msg(format!(
+                                            "{message}; additionally failed to set dlerror: {set_error}"
+                                        )));
+                                    }
+                                    Ok(0)
+                                }
+                            }
+                        },
+                    )
+                    .map_err(|error| define_error(import_label, error))?;
+                return Ok(true);
+            }
+            "_dlsym_js" => {
+                let label = import_label.to_string();
+                linker
+                    .func_wrap(
+                        module_name,
+                        import_name,
+                        move |mut caller: Caller<'_, HostState>,
+                              handle: i32,
+                              symbol: i32,
+                              symbol_index: i32|
+                              -> wasmtime::Result<i32> {
+                            caller.data_mut().record_import(&label)?;
+                            match dynamic_dlsym(&mut caller, handle, symbol, symbol_index) {
+                                Ok(result) => Ok(result),
+                                Err(error) => {
+                                    let message = error.to_string();
+                                    if let Err(set_error) = set_dlopen_error(&mut caller, &message)
+                                    {
+                                        return Err(wasmtime::Error::msg(format!(
+                                            "{message}; additionally failed to set dlerror: {set_error}"
+                                        )));
+                                    }
+                                    Ok(0)
+                                }
+                            }
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -4712,6 +5039,2168 @@ fn invoke_indirect_function(
                 )))
             }
         }
+    }
+}
+
+fn dynamic_dlopen(caller: &mut Caller<'_, HostState>, handle: i32) -> wasmtime::Result<i32> {
+    if handle == 0 {
+        return Err(wasmtime::Error::msg("dlopen called with a null handle"));
+    }
+
+    let raw_filename = read_c_string(caller, handle + 36)?;
+    let filename = normalize_dynamic_library_path(&raw_filename)?;
+    if caller.data().dynamic_libraries.contains_key(&handle) {
+        return Ok(1);
+    }
+
+    let library_bytes = read_dynamic_library_bytes(caller, handle, &filename)?;
+    let metadata = parse_dynamic_dylink_metadata(&library_bytes)?;
+    if !metadata.needed_dynlibs.is_empty() {
+        return Err(wasmtime::Error::msg(format!(
+            "dynamic library {filename} requires unsupported dependent libraries: {}",
+            metadata.needed_dynlibs.join(", ")
+        )));
+    }
+
+    let memory_base = allocate_dynamic_memory(caller, &metadata)?;
+    let table_base = allocate_dynamic_table(caller, &metadata)?;
+    write_dynamic_handle_metadata(caller, handle, memory_base, table_base, &metadata)?;
+
+    let engine = caller.engine().clone();
+    let module = Module::new(&engine, &library_bytes).map_err(|error| {
+        wasmtime::Error::msg(format!(
+            "failed to compile dynamic library {filename}: {error:#}"
+        ))
+    })?;
+    let export_names = module
+        .exports()
+        .map(|export| export.name().to_string())
+        .collect::<HashSet<_>>();
+    let mut linker = Linker::new(&engine);
+    let mut got_globals = HashMap::new();
+    let mut self_func_imports = Vec::new();
+    for import in module.imports() {
+        define_dynamic_import(
+            caller,
+            &mut linker,
+            &import,
+            memory_base,
+            table_base,
+            &metadata,
+            &mut got_globals,
+            &export_names,
+            &mut self_func_imports,
+        )?;
+    }
+
+    let instance = linker.instantiate(&mut *caller, &module).map_err(|error| {
+        wasmtime::Error::msg(format!(
+            "failed to instantiate dynamic library {filename}: {error:#}"
+        ))
+    })?;
+    resolve_dynamic_self_func_imports(caller, &instance, &self_func_imports)?;
+    let symbols = resolve_dynamic_exports(caller, &instance, memory_base, &got_globals)?;
+    resolve_dynamic_got(caller, &got_globals, &metadata)?;
+    call_dynamic_void_export(caller, &instance, "__wasm_apply_data_relocs")?;
+    call_dynamic_void_export(caller, &instance, "__wasm_call_ctors")?;
+
+    caller.data_mut().dynamic_libraries.insert(
+        handle,
+        LoadedDynamicLibrary {
+            name: filename,
+            _instance: instance,
+            symbols,
+        },
+    );
+    Ok(1)
+}
+
+fn dynamic_dlsym(
+    caller: &mut Caller<'_, HostState>,
+    handle: i32,
+    symbol_ptr: i32,
+    symbol_index: i32,
+) -> wasmtime::Result<i32> {
+    let symbol = read_c_string(caller, symbol_ptr)?;
+    let (library_name, resolved) = {
+        let Some(library) = caller.data().dynamic_libraries.get(&handle) else {
+            return Err(wasmtime::Error::msg(format!(
+                "Tried to lookup symbol \"{symbol}\" in an unknown dynamic library handle {handle}"
+            )));
+        };
+        (library.name.clone(), library.symbols.get(&symbol).copied())
+    };
+    let Some(resolved) = resolved else {
+        return Err(wasmtime::Error::msg(format!(
+            "Tried to lookup unknown symbol \"{symbol}\" in dynamic lib: {library_name}"
+        )));
+    };
+    if symbol_index != 0 {
+        write_u32(caller, symbol_index, resolved.export_index)?;
+    }
+    Ok(resolved.value)
+}
+
+fn set_dlopen_error(caller: &mut Caller<'_, HostState>, message: &str) -> wasmtime::Result<()> {
+    let Some(dl_seterr) = caller
+        .get_export("__dl_seterr")
+        .and_then(|export| export.into_func())
+    else {
+        return Ok(());
+    };
+    let message_ptr = write_malloced_c_string(caller, message)?;
+    dl_seterr.call(&mut *caller, &[Val::I32(message_ptr), Val::I32(0)], &mut [])?;
+    Ok(())
+}
+
+fn normalize_dynamic_library_path(raw: &str) -> wasmtime::Result<String> {
+    if raw.is_empty() {
+        return Err(wasmtime::Error::msg("dlopen called with an empty filename"));
+    }
+    let path = if raw.starts_with('/') {
+        raw.to_string()
+    } else {
+        format!("/{raw}")
+    };
+    normalize_vfs_path(&path).map_err(|error| {
+        wasmtime::Error::msg(format!("invalid dynamic library path {raw}: {error}"))
+    })
+}
+
+fn read_dynamic_library_bytes(
+    caller: &mut Caller<'_, HostState>,
+    handle: i32,
+    filename: &str,
+) -> wasmtime::Result<Vec<u8>> {
+    let data = read_u32(caller, handle + 28)? as i32;
+    let data_size = read_u32(caller, handle + 32)?;
+    if data != 0 && data_size != 0 {
+        return read_bytes(caller, data, data_size as usize);
+    }
+
+    if let Some(bytes) = caller.data().internal_files.get(filename) {
+        return Ok(bytes.as_ref().to_vec());
+    }
+    let Some(host_path) = caller.data().resolve_host_path(filename) else {
+        return Err(wasmtime::Error::msg(format!(
+            "dynamic library {filename} was not found in the mounted filesystem"
+        )));
+    };
+    fs::read(&host_path).map_err(|error| {
+        wasmtime::Error::msg(format!(
+            "failed to read dynamic library {} from {}: {error}",
+            filename,
+            host_path.display()
+        ))
+    })
+}
+
+fn parse_dynamic_dylink_metadata(bytes: &[u8]) -> wasmtime::Result<DynamicDylinkMetadata> {
+    let mut metadata = DynamicDylinkMetadata::default();
+    for payload in Parser::new(0).parse_all(bytes) {
+        let payload = payload
+            .map_err(|error| wasmtime::Error::msg(format!("failed to parse wasm: {error}")))?;
+        let Payload::CustomSection(section) = payload else {
+            continue;
+        };
+        let KnownCustom::Dylink0(reader) = section.as_known() else {
+            continue;
+        };
+        for subsection in reader {
+            match subsection.map_err(|error| {
+                wasmtime::Error::msg(format!("failed to parse dylink.0 metadata: {error}"))
+            })? {
+                Dylink0Subsection::MemInfo(mem_info) => {
+                    metadata.memory_size = mem_info.memory_size;
+                    metadata.memory_alignment = mem_info.memory_alignment;
+                    metadata.table_size = mem_info.table_size;
+                    metadata.table_alignment = mem_info.table_alignment;
+                }
+                Dylink0Subsection::Needed(needed) => {
+                    metadata
+                        .needed_dynlibs
+                        .extend(needed.into_iter().map(str::to_string));
+                }
+                Dylink0Subsection::ImportInfo(imports) => {
+                    for import in imports {
+                        if import.flags.contains(SymbolFlags::BINDING_WEAK) {
+                            metadata.weak_imports.insert(import.field.to_string());
+                        }
+                    }
+                }
+                Dylink0Subsection::ExportInfo(_)
+                | Dylink0Subsection::RuntimePath(_)
+                | Dylink0Subsection::Unknown { .. } => {}
+            }
+        }
+    }
+    Ok(metadata)
+}
+
+fn allocate_dynamic_memory(
+    caller: &mut Caller<'_, HostState>,
+    metadata: &DynamicDylinkMetadata,
+) -> wasmtime::Result<u32> {
+    if metadata.memory_size == 0 {
+        return Ok(0);
+    }
+    let alignment = dynamic_alignment(metadata.memory_alignment)?;
+    let allocation_size = metadata
+        .memory_size
+        .checked_add(alignment)
+        .ok_or_else(|| wasmtime::Error::msg("dynamic library memory allocation overflow"))?;
+    let allocation = wasm_calloc(caller, allocation_size)?;
+    align_dynamic_address(allocation, alignment)
+}
+
+fn allocate_dynamic_table(
+    caller: &mut Caller<'_, HostState>,
+    metadata: &DynamicDylinkMetadata,
+) -> wasmtime::Result<u32> {
+    if metadata.table_size == 0 {
+        return Ok(0);
+    }
+    let table = exported_table(caller)?;
+    let table_base = table.size(&mut *caller);
+    table.grow(&mut *caller, metadata.table_size as u64, Ref::Func(None))?;
+    u32::try_from(table_base).map_err(|_| wasmtime::Error::msg("function table offset overflow"))
+}
+
+fn dynamic_alignment(exponent: u32) -> wasmtime::Result<u32> {
+    1u32.checked_shl(exponent).ok_or_else(|| {
+        wasmtime::Error::msg(format!("unsupported dynamic alignment exponent {exponent}"))
+    })
+}
+
+fn align_dynamic_address(address: u32, alignment: u32) -> wasmtime::Result<u32> {
+    if alignment <= 1 {
+        return Ok(address);
+    }
+    let mask = alignment - 1;
+    address
+        .checked_add(mask)
+        .map(|value| value & !mask)
+        .ok_or_else(|| wasmtime::Error::msg("dynamic memory alignment overflow"))
+}
+
+fn write_dynamic_handle_metadata(
+    caller: &mut Caller<'_, HostState>,
+    handle: i32,
+    memory_base: u32,
+    table_base: u32,
+    metadata: &DynamicDylinkMetadata,
+) -> wasmtime::Result<()> {
+    write_u8(caller, handle + 8, 1)?;
+    write_u32(caller, handle + 12, memory_base)?;
+    write_u32(caller, handle + 16, metadata.memory_size)?;
+    write_u32(caller, handle + 20, table_base)?;
+    write_u32(caller, handle + 24, metadata.table_size)?;
+    Ok(())
+}
+
+fn define_dynamic_import(
+    caller: &mut Caller<'_, HostState>,
+    linker: &mut Linker<HostState>,
+    import: &wasmtime::ImportType<'_>,
+    memory_base: u32,
+    table_base: u32,
+    metadata: &DynamicDylinkMetadata,
+    got_globals: &mut HashMap<String, DynamicGotEntry>,
+    export_names: &HashSet<String>,
+    self_func_imports: &mut Vec<DynamicSelfFuncImport>,
+) -> wasmtime::Result<()> {
+    let module_name = import.module();
+    let import_name = import.name();
+    let import_label = format!("{module_name}.{import_name}");
+
+    match import.ty() {
+        ExternType::Global(global_ty) if module_name == "env" && import_name == "__memory_base" => {
+            let global = dynamic_i32_global(caller, global_ty, memory_base as i32)?;
+            define_dynamic_extern(
+                caller,
+                linker,
+                module_name,
+                import_name,
+                global,
+                &import_label,
+            )
+        }
+        ExternType::Global(global_ty) if module_name == "env" && import_name == "__table_base" => {
+            let global = dynamic_i32_global(caller, global_ty, table_base as i32)?;
+            define_dynamic_extern(
+                caller,
+                linker,
+                module_name,
+                import_name,
+                global,
+                &import_label,
+            )
+        }
+        ExternType::Global(global_ty) if matches!(module_name, "GOT.mem" | "GOT.func") => {
+            let global = dynamic_i32_global(caller, global_ty, -1)?;
+            let weak = metadata.weak_imports.contains(import_name);
+            got_globals.insert(import_name.to_string(), DynamicGotEntry { global, weak });
+            define_dynamic_extern(
+                caller,
+                linker,
+                module_name,
+                import_name,
+                global,
+                &import_label,
+            )
+        }
+        ExternType::Func(_)
+            if module_name == "env" && define_dynamic_host_func(linker, import_name)? =>
+        {
+            Ok(())
+        }
+        _ => {
+            if let Some(export) = caller.get_export(import_name) {
+                return define_dynamic_extern(
+                    caller,
+                    linker,
+                    module_name,
+                    import_name,
+                    export,
+                    &import_label,
+                );
+            }
+            if module_name == "env" && import_name == "_php_stream_stat" {
+                return define_dynamic_php_stream_stat_stub(linker, import_name, &import_label);
+            }
+            if module_name == "env" && export_names.contains(import_name) {
+                if let ExternType::Func(func_ty) = import.ty() {
+                    return define_dynamic_self_func_import(
+                        caller,
+                        linker,
+                        module_name,
+                        import_name,
+                        &import_label,
+                        func_ty,
+                        self_func_imports,
+                    );
+                }
+            }
+            Err(wasmtime::Error::msg(format!(
+                "dynamic import {import_label} is not provided by the main PHP module"
+            )))
+        }
+    }
+}
+
+fn define_dynamic_php_stream_stat_stub(
+    linker: &mut Linker<HostState>,
+    import_name: &str,
+    import_label: &str,
+) -> wasmtime::Result<()> {
+    linker
+        .func_wrap(
+            "env",
+            import_name,
+            |mut caller: Caller<'_, HostState>,
+             _stream: i32,
+             _stat_buffer: i32|
+             -> wasmtime::Result<i32> {
+                set_errno(&mut caller, ENOSYS)?;
+                Ok(-1)
+            },
+        )
+        .map(|_| ())
+        .map_err(|error| {
+            wasmtime::Error::msg(format!(
+                "failed to define dynamic import {import_label}: {error}"
+            ))
+        })
+}
+
+fn define_dynamic_self_func_import(
+    caller: &mut Caller<'_, HostState>,
+    linker: &mut Linker<HostState>,
+    module_name: &str,
+    import_name: &str,
+    import_label: &str,
+    func_ty: wasmtime::FuncType,
+    self_func_imports: &mut Vec<DynamicSelfFuncImport>,
+) -> wasmtime::Result<()> {
+    let target: Arc<Mutex<Option<Func>>> = Arc::new(Mutex::new(None));
+    let target_for_call = Arc::clone(&target);
+    let import_name_for_call = import_name.to_string();
+    let func = Func::new(&mut *caller, func_ty, move |mut caller, params, results| {
+        let target: Func = target_for_call
+            .lock()
+            .map_err(|_| {
+                wasmtime::Error::msg(format!(
+                    "dynamic self import {} lock poisoned",
+                    import_name_for_call
+                ))
+            })?
+            .ok_or_else(|| {
+                wasmtime::Error::msg(format!(
+                    "dynamic self import {} was called before it was resolved",
+                    import_name_for_call
+                ))
+            })?;
+        target.call(&mut caller, params, results)
+    });
+    self_func_imports.push(DynamicSelfFuncImport {
+        name: import_name.to_string(),
+        target,
+    });
+    define_dynamic_extern(caller, linker, module_name, import_name, func, import_label)
+}
+
+fn resolve_dynamic_self_func_imports(
+    caller: &mut Caller<'_, HostState>,
+    instance: &Instance,
+    self_func_imports: &[DynamicSelfFuncImport],
+) -> wasmtime::Result<()> {
+    for self_import in self_func_imports {
+        let func = instance
+            .get_func(&mut *caller, &self_import.name)
+            .ok_or_else(|| {
+                wasmtime::Error::msg(format!(
+                    "dynamic self import {} has no matching export",
+                    self_import.name
+                ))
+            })?;
+        *self_import.target.lock().map_err(|_| {
+            wasmtime::Error::msg(format!(
+                "dynamic self import {} lock poisoned",
+                self_import.name
+            ))
+        })? = Some(func);
+    }
+    Ok(())
+}
+
+fn dynamic_i32_global(
+    caller: &mut Caller<'_, HostState>,
+    global_ty: wasmtime::GlobalType,
+    value: i32,
+) -> wasmtime::Result<Global> {
+    if !matches!(global_ty.content(), ValType::I32) {
+        return Err(wasmtime::Error::msg(format!(
+            "dynamic i32 global expected an i32 import, got {:?}",
+            global_ty.content()
+        )));
+    }
+    Global::new(&mut *caller, global_ty, Val::I32(value))
+}
+
+fn define_dynamic_extern(
+    caller: &mut Caller<'_, HostState>,
+    linker: &mut Linker<HostState>,
+    module_name: &str,
+    import_name: &str,
+    item: impl Into<wasmtime::Extern>,
+    import_label: &str,
+) -> wasmtime::Result<()> {
+    linker
+        .define(&mut *caller, module_name, import_name, item)
+        .map(|_| ())
+        .map_err(|error| {
+            wasmtime::Error::msg(format!(
+                "failed to define dynamic import {import_label}: {error}"
+            ))
+        })
+}
+
+fn define_dynamic_host_func(
+    linker: &mut Linker<HostState>,
+    import_name: &str,
+) -> wasmtime::Result<bool> {
+    match import_name {
+        "__assert_fail" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_assertion: i32, _file: i32, _line: i32, _function: i32| -> wasmtime::Result<()> {
+                    Err(wasmtime::Error::msg(
+                        "__assert_fail was called by a dynamic PHP extension",
+                    ))
+                },
+            )?;
+            Ok(true)
+        }
+        "getaddrinfo" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 node: i32,
+                 service: i32,
+                 hints: i32,
+                 out: i32|
+                 -> wasmtime::Result<i32> {
+                    getaddrinfo(&mut caller, node, service, hints, out)
+                },
+            )?;
+            Ok(true)
+        }
+        "wasm_setsockopt" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 socket: i32,
+                 level: i32,
+                 option_name: i32,
+                 option_value: i32,
+                 option_len: i32|
+                 -> wasmtime::Result<i32> {
+                    wasm_setsockopt(
+                        &mut caller,
+                        socket,
+                        level,
+                        option_name,
+                        option_value,
+                        option_len,
+                    )
+                },
+            )?;
+            Ok(true)
+        }
+        "wasm_recv" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 sockfd: i32,
+                 buffer: i32,
+                 size: i32,
+                 flags: i32|
+                 -> wasmtime::Result<i32> {
+                    wasm_recv(&mut caller, sockfd, buffer, size, flags)
+                },
+            )?;
+            Ok(true)
+        }
+        "nanosleep" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, req: i32, rem: i32| -> wasmtime::Result<i32> {
+                    dynamic_nanosleep(&mut caller, req, rem)
+                },
+            )?;
+            Ok(true)
+        }
+        "sched_yield" => {
+            linker.func_wrap("env", import_name, || -> wasmtime::Result<i32> {
+                thread::yield_now();
+                Ok(0)
+            })?;
+            Ok(true)
+        }
+        "pthread_self" => {
+            linker.func_wrap("env", import_name, || -> wasmtime::Result<i32> { Ok(1) })?;
+            Ok(true)
+        }
+        "pthread_mutex_lock"
+        | "pthread_mutex_unlock"
+        | "pthread_mutex_trylock"
+        | "pthread_mutexattr_init"
+        | "pthread_mutexattr_destroy"
+        | "pthread_mutex_destroy"
+        | "pthread_cond_signal"
+        | "pthread_cond_broadcast"
+        | "pthread_cond_destroy"
+        | "pthread_detach" => {
+            linker.func_wrap("env", import_name, |_ptr: i32| -> wasmtime::Result<i32> {
+                Ok(0)
+            })?;
+            Ok(true)
+        }
+        "pthread_cond_wait"
+        | "pthread_mutexattr_settype"
+        | "pthread_mutex_init"
+        | "pthread_join" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_cond: i32, _mutex: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "pthread_cond_timedwait" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_cond: i32, _mutex: i32, _abstime: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "pthread_key_create" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 key_ptr: i32,
+                 _destructor: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_pthread_key_create(&mut caller, key_ptr)
+                },
+            )?;
+            Ok(true)
+        }
+        "pthread_getspecific" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |caller: Caller<'_, HostState>, key: i32| -> wasmtime::Result<i32> {
+                    Ok(caller
+                        .data()
+                        .pthread_specific
+                        .get(&key)
+                        .copied()
+                        .unwrap_or(0))
+                },
+            )?;
+            Ok(true)
+        }
+        "pthread_setspecific" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 key: i32,
+                 value: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().pthread_specific.insert(key, value);
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "lstat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 path_ptr: i32,
+                 buf: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_stat(&mut caller, path_ptr, buf, false)
+                },
+            )?;
+            Ok(true)
+        }
+        "realpath" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 path_ptr: i32,
+                 resolved_ptr: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_realpath(&mut caller, path_ptr, resolved_ptr)
+                },
+            )?;
+            Ok(true)
+        }
+        "mkdir" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 path_ptr: i32,
+                 _mode: i32|
+                 -> wasmtime::Result<i32> { dynamic_mkdir(&mut caller, path_ptr) },
+            )?;
+            Ok(true)
+        }
+        "readlink" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 path_ptr: i32,
+                 buf: i32,
+                 buf_size: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_readlink(&mut caller, path_ptr, buf, buf_size)
+                },
+            )?;
+            Ok(true)
+        }
+        "openat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dirfd: i32,
+                 path_ptr: i32,
+                 flags: i32,
+                 _mode: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_openat(&mut caller, dirfd, path_ptr, flags)
+                },
+            )?;
+            Ok(true)
+        }
+        "link" | "symlink" | "rename" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _old: i32,
+                 _new: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "truncate" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _path: i32,
+                 _length: i64|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "fchmod" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _fd: i32,
+                 _mode: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "fchmodat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _dirfd: i32,
+                 _path: i32,
+                 _mode: i32,
+                 _flags: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "ftruncate" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _fd: i32,
+                 _length: i64|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "fstat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, fd: i32, buf: i32| -> wasmtime::Result<i32> {
+                    dynamic_fstat(&mut caller, fd, buf)
+                },
+            )?;
+            Ok(true)
+        }
+        "fdopen" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _fd: i32,
+                 _mode: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "fdopendir" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, _fd: i32| -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "unlinkat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _dirfd: i32,
+                 _path: i32,
+                 _flags: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "remove" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, _path: i32| -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "utimensat" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _dirfd: i32,
+                 _path: i32,
+                 _times: i32,
+                 _flags: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "pathconf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_path: i32, _name: i32| -> wasmtime::Result<i32> { Ok(4096) },
+            )?;
+            Ok(true)
+        }
+        "statvfs" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _path: i32,
+                 _buf: i32|
+                 -> wasmtime::Result<i32> {
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "chdir" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, path_ptr: i32| -> wasmtime::Result<i32> {
+                    dynamic_chdir(&mut caller, path_ptr)
+                },
+            )?;
+            Ok(true)
+        }
+        "sysconf" => {
+            linker.func_wrap("env", import_name, |_name: i32| -> wasmtime::Result<i32> {
+                Ok(4096)
+            })?;
+            Ok(true)
+        }
+        "setbuf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_stream: i32, _buf: i32| -> wasmtime::Result<()> { Ok(()) },
+            )?;
+            Ok(true)
+        }
+        "fseeko" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 stream: i32,
+                 offset: i64,
+                 whence: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_fseeko(&mut caller, stream, offset, whence)
+                },
+            )?;
+            Ok(true)
+        }
+        "ftello" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, stream: i32| -> wasmtime::Result<i64> {
+                    dynamic_ftello(&mut caller, stream)
+                },
+            )?;
+            Ok(true)
+        }
+        "ungetc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _stream: i32| -> wasmtime::Result<i32> { Ok(ch) },
+            )?;
+            Ok(true)
+        }
+        "getc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_stream: i32| -> wasmtime::Result<i32> { Ok(-1) },
+            )?;
+            Ok(true)
+        }
+        "getwc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_stream: i32| -> wasmtime::Result<i32> { Ok(-1) },
+            )?;
+            Ok(true)
+        }
+        "ungetwc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _stream: i32| -> wasmtime::Result<i32> { Ok(ch) },
+            )?;
+            Ok(true)
+        }
+        "fputwc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _stream: i32| -> wasmtime::Result<i32> { Ok(ch) },
+            )?;
+            Ok(true)
+        }
+        "sscanf" | "vsscanf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _format: i32, _out: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "asprintf" | "vasprintf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 output_ptr: i32,
+                 _format: i32,
+                 _arg: i32|
+                 -> wasmtime::Result<i32> {
+                    if output_ptr != 0 {
+                        write_u32(&mut caller, output_ptr, 0)?;
+                    }
+                    set_errno(&mut caller, ENOSYS)?;
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "swprintf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_buf: i32, _size: i32, _format: i32, _arg: i32| -> wasmtime::Result<i32> {
+                    Ok(-1)
+                },
+            )?;
+            Ok(true)
+        }
+        "vfprintf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_stream: i32, _format: i32, _arg: i32| -> wasmtime::Result<i32> { Ok(-1) },
+            )?;
+            Ok(true)
+        }
+        "siprintf" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 buf: i32,
+                 _format: i32,
+                 _arg: i32|
+                 -> wasmtime::Result<i32> {
+                    if buf != 0 {
+                        write_u8(&mut caller, buf, 0)?;
+                    }
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "aligned_alloc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 _alignment: i32,
+                 size: i32|
+                 -> wasmtime::Result<i32> {
+                    if size < 0 {
+                        set_errno(&mut caller, EINVAL)?;
+                        return Ok(0);
+                    }
+                    wasm_malloc(&mut caller, size as u32).map(|ptr| ptr as i32)
+                },
+            )?;
+            Ok(true)
+        }
+        "_ZnamRKSt9nothrow_t" | "_ZnwmRKSt9nothrow_t" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 size: i32,
+                 _nothrow: i32|
+                 -> wasmtime::Result<i32> {
+                    if size < 0 {
+                        set_errno(&mut caller, EINVAL)?;
+                        return Ok(0);
+                    }
+                    wasm_malloc(&mut caller, size.max(1) as u32).map(|ptr| ptr as i32)
+                },
+            )?;
+            Ok(true)
+        }
+        "_ZdaPv" | "_ZdlPv" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, ptr: i32| -> wasmtime::Result<()> {
+                    if ptr != 0 {
+                        wasm_free(&mut caller, ptr as u32)?;
+                    }
+                    Ok(())
+                },
+            )?;
+            Ok(true)
+        }
+        "newlocale" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_mask: i32, _name: i32, _base: i32| -> wasmtime::Result<i32> { Ok(1) },
+            )?;
+            Ok(true)
+        }
+        "freelocale" => {
+            linker.func_wrap("env", import_name, |_locale: i32| -> wasmtime::Result<()> {
+                Ok(())
+            })?;
+            Ok(true)
+        }
+        "uselocale" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_locale: i32| -> wasmtime::Result<i32> { Ok(1) },
+            )?;
+            Ok(true)
+        }
+        "localeconv" => {
+            linker.func_wrap("env", import_name, || -> wasmtime::Result<i32> { Ok(0) })?;
+            Ok(true)
+        }
+        "strcoll_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 left: i32,
+                 right: i32,
+                 _locale: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_strcmp(&mut caller, left, right)
+                },
+            )?;
+            Ok(true)
+        }
+        "strxfrm_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src: i32,
+                 len: i32,
+                 _locale: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_strxfrm(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "wcscoll_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_left: i32, _right: i32, _locale: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "wcsxfrm_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_dest: i32, _src: i32, _len: i32, _locale: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "strftime_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_dest: i32,
+                 _max: i32,
+                 _format: i32,
+                 _tm: i32,
+                 _locale: i32|
+                 -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "strtoll_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _base: i32, _locale: i32| -> wasmtime::Result<i64> {
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "strtoull_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _base: i32, _locale: i32| -> wasmtime::Result<i64> {
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "strtof_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _locale: i32| -> wasmtime::Result<f32> { Ok(0.0) },
+            )?;
+            Ok(true)
+        }
+        "strtod_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _locale: i32| -> wasmtime::Result<f64> { Ok(0.0) },
+            )?;
+            Ok(true)
+        }
+        "strtold_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_out: i32, _input: i32, _end: i32, _locale: i32| -> wasmtime::Result<()> {
+                    Ok(())
+                },
+            )?;
+            Ok(true)
+        }
+        "strtoll" | "wcstoll" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _base: i32| -> wasmtime::Result<i64> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "strtoull" | "wcstoull" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _base: i32| -> wasmtime::Result<i64> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "strtof" | "wcstof" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32| -> wasmtime::Result<f32> { Ok(0.0) },
+            )?;
+            Ok(true)
+        }
+        "wcstod" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32| -> wasmtime::Result<f64> { Ok(0.0) },
+            )?;
+            Ok(true)
+        }
+        "wcstol" | "wcstoul" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_input: i32, _end: i32, _base: i32| -> wasmtime::Result<i32> { Ok(0) },
+            )?;
+            Ok(true)
+        }
+        "strtold" | "wcstold" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_out: i32, _input: i32, _end: i32| -> wasmtime::Result<()> { Ok(()) },
+            )?;
+            Ok(true)
+        }
+        "wmemchr" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 ptr: i32,
+                 needle: i32,
+                 len: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_wmemchr(&mut caller, ptr, needle, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "btowc" => {
+            linker.func_wrap("env", import_name, |ch: i32| -> wasmtime::Result<i32> {
+                Ok(if ch < 0 { -1 } else { ch & 0xff })
+            })?;
+            Ok(true)
+        }
+        "wctob" => {
+            linker.func_wrap("env", import_name, |ch: i32| -> wasmtime::Result<i32> {
+                Ok(if (0..=0xff).contains(&ch) { ch } else { -1 })
+            })?;
+            Ok(true)
+        }
+        "mbtowc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src: i32,
+                 len: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_mbtowc(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "mbrtowc" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src: i32,
+                 len: i32,
+                 _state: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_mbtowc(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "mbrlen" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 src: i32,
+                 len: i32,
+                 _state: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_mbtowc(&mut caller, 0, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "wcrtomb" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 ch: i32,
+                 _state: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_wcrtomb(&mut caller, dest, ch)
+                },
+            )?;
+            Ok(true)
+        }
+        "mbstowcs" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src: i32,
+                 len: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_mbstowcs(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "mbsrtowcs" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src_ptr: i32,
+                 len: i32,
+                 _state: i32|
+                 -> wasmtime::Result<i32> {
+                    let src = read_i32(&mut caller, src_ptr)?;
+                    dynamic_mbstowcs(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "wcstombs" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 dest: i32,
+                 src: i32,
+                 len: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_wcstombs(&mut caller, dest, src, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "wcslen" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, src: i32| -> wasmtime::Result<i32> {
+                    dynamic_wcslen(&mut caller, src)
+                },
+            )?;
+            Ok(true)
+        }
+        "wmemcmp" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 left: i32,
+                 right: i32,
+                 len: i32|
+                 -> wasmtime::Result<i32> {
+                    dynamic_wmemcmp(&mut caller, left, right, len)
+                },
+            )?;
+            Ok(true)
+        }
+        "wcsnrtombs" | "mbsnrtowcs" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_dest: i32, _src: i32, _n: i32, _len: i32, _state: i32| -> wasmtime::Result<i32> {
+                    Ok(0)
+                },
+            )?;
+            Ok(true)
+        }
+        "__ctype_get_mb_cur_max" => {
+            linker.func_wrap("env", import_name, || -> wasmtime::Result<i32> { Ok(4) })?;
+            Ok(true)
+        }
+        "__ctype_toupper_loc" | "__ctype_tolower_loc" => {
+            linker.func_wrap("env", import_name, || -> wasmtime::Result<i32> { Ok(0) })?;
+            Ok(true)
+        }
+        "isdigit_l" | "iswdigit_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool((b'0' as i32..=b'9' as i32).contains(&ch)))
+                },
+            )?;
+            Ok(true)
+        }
+        "isxdigit_l" | "iswxdigit_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool(
+                        (b'0' as i32..=b'9' as i32).contains(&ch)
+                            || (b'a' as i32..=b'f' as i32).contains(&ch)
+                            || (b'A' as i32..=b'F' as i32).contains(&ch),
+                    ))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswspace_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool(matches!(ch, 9..=13 | 32)))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswprint_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool((0x20..=0x7e).contains(&ch)))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswcntrl_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool((0..0x20).contains(&ch) || ch == 0x7f))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswupper_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool((b'A' as i32..=b'Z' as i32).contains(&ch)))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswlower_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool((b'a' as i32..=b'z' as i32).contains(&ch)))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswalpha_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool(
+                        (b'a' as i32..=b'z' as i32).contains(&ch)
+                            || (b'A' as i32..=b'Z' as i32).contains(&ch),
+                    ))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswpunct_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool(
+                        (0x21..=0x2f).contains(&ch)
+                            || (0x3a..=0x40).contains(&ch)
+                            || (0x5b..=0x60).contains(&ch)
+                            || (0x7b..=0x7e).contains(&ch),
+                    ))
+                },
+            )?;
+            Ok(true)
+        }
+        "iswblank_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> {
+                    Ok(c_bool(matches!(ch, 9 | 32)))
+                },
+            )?;
+            Ok(true)
+        }
+        "toupper_l" | "towupper_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> { Ok(ascii_toupper(ch)) },
+            )?;
+            Ok(true)
+        }
+        "tolower_l" | "towlower_l" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |ch: i32, _locale: i32| -> wasmtime::Result<i32> { Ok(ascii_tolower(ch)) },
+            )?;
+            Ok(true)
+        }
+        "tolower" => {
+            linker.func_wrap("env", import_name, |ch: i32| -> wasmtime::Result<i32> {
+                Ok(ascii_tolower(ch))
+            })?;
+            Ok(true)
+        }
+        "isspace" => {
+            linker.func_wrap("env", import_name, |ch: i32| -> wasmtime::Result<i32> {
+                Ok(if matches!(ch, 9..=13 | 32) { 1 } else { 0 })
+            })?;
+            Ok(true)
+        }
+        "exit" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |_caller: Caller<'_, HostState>, code: i32| -> wasmtime::Result<()> {
+                    Err(wasmtime::Error::new(PhpExitStatus(code)))
+                },
+            )?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+fn dynamic_nanosleep(
+    caller: &mut Caller<'_, HostState>,
+    req: i32,
+    rem: i32,
+) -> wasmtime::Result<i32> {
+    if req == 0 {
+        set_errno(caller, EFAULT)?;
+        return Ok(-1);
+    }
+
+    let seconds = read_i64(caller, req)?;
+    let nanoseconds = read_i32(caller, req + 8)?;
+    if seconds < 0 || !(0..1_000_000_000).contains(&nanoseconds) {
+        set_errno(caller, EINVAL)?;
+        return Ok(-1);
+    }
+
+    thread::sleep(Duration::new(seconds as u64, nanoseconds as u32));
+    if rem != 0 {
+        write_u64(caller, rem, 0)?;
+        write_u32(caller, rem + 8, 0)?;
+    }
+    Ok(0)
+}
+
+fn dynamic_pthread_key_create(
+    caller: &mut Caller<'_, HostState>,
+    key_ptr: i32,
+) -> wasmtime::Result<i32> {
+    if key_ptr == 0 {
+        return Ok(EINVAL);
+    }
+    let key = caller.data().next_pthread_key;
+    caller.data_mut().next_pthread_key = key.saturating_add(1).max(1);
+    write_u32(caller, key_ptr, key as u32)?;
+    Ok(0)
+}
+
+fn dynamic_stat(
+    caller: &mut Caller<'_, HostState>,
+    path_ptr: i32,
+    buf: i32,
+    follow_final_symlink: bool,
+) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let result = syscall_stat_path(caller, &path, buf, follow_final_symlink)?;
+    if result < 0 {
+        set_errno(caller, -result)?;
+        Ok(-1)
+    } else {
+        Ok(result)
+    }
+}
+
+fn dynamic_realpath(
+    caller: &mut Caller<'_, HostState>,
+    path_ptr: i32,
+    resolved_ptr: i32,
+) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let resolved = match caller.data().resolve_at(AT_FDCWD, &path, false) {
+        Ok(path) => path,
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            return Ok(0);
+        }
+    };
+    if let Err(errno) = caller.data().stat_path_with_follow(&resolved, true) {
+        set_errno(caller, errno)?;
+        return Ok(0);
+    }
+
+    let bytes = resolved.as_bytes();
+    let dest = if resolved_ptr != 0 {
+        resolved_ptr
+    } else {
+        wasm_malloc(caller, bytes.len().saturating_add(1) as u32)? as i32
+    };
+    write_bytes(caller, dest, bytes)?;
+    write_u8(caller, dest + bytes.len() as i32, 0)?;
+    Ok(dest)
+}
+
+fn dynamic_mkdir(caller: &mut Caller<'_, HostState>, path_ptr: i32) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let path = match caller.data().resolve_at(AT_FDCWD, &path, false) {
+        Ok(path) => path,
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            return Ok(-1);
+        }
+    };
+    let result = caller.data().mkdir_path(&path);
+    if result == 0 {
+        Ok(0)
+    } else {
+        set_errno(caller, -result)?;
+        Ok(-1)
+    }
+}
+
+fn dynamic_chdir(caller: &mut Caller<'_, HostState>, path_ptr: i32) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let result = caller.data_mut().chdir_path(&path);
+    if result == 0 {
+        Ok(0)
+    } else {
+        set_errno(caller, -result)?;
+        Ok(-1)
+    }
+}
+
+fn dynamic_readlink(
+    caller: &mut Caller<'_, HostState>,
+    path_ptr: i32,
+    buf: i32,
+    buf_size: i32,
+) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let path = match caller.data().resolve_at(AT_FDCWD, &path, false) {
+        Ok(path) => path,
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            return Ok(-1);
+        }
+    };
+    let target = match caller.data_mut().readlink_path(&path) {
+        Ok(target) => target,
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            return Ok(-1);
+        }
+    };
+    let bytes = target.as_bytes();
+    let copy_len = bytes.len().min(buf_size.max(0) as usize);
+    write_bytes(caller, buf, &bytes[..copy_len])?;
+    Ok(copy_len as i32)
+}
+
+fn dynamic_openat(
+    caller: &mut Caller<'_, HostState>,
+    dirfd: i32,
+    path_ptr: i32,
+    flags: i32,
+) -> wasmtime::Result<i32> {
+    let path = read_c_string(caller, path_ptr)?;
+    let result = match caller.data().resolve_at(dirfd, &path, false) {
+        Ok(path) => caller.data_mut().open_path(&path, flags),
+        Err(errno) => -errno,
+    };
+    if result >= 0 {
+        Ok(result)
+    } else {
+        set_errno(caller, -result)?;
+        Ok(-1)
+    }
+}
+
+fn dynamic_fstat(caller: &mut Caller<'_, HostState>, fd: i32, buf: i32) -> wasmtime::Result<i32> {
+    let stat = match caller.data().fd_stat(fd) {
+        Ok(stat) => stat,
+        Err(errno) => {
+            set_errno(caller, errno)?;
+            return Ok(-1);
+        }
+    };
+    write_stat(caller, buf, &stat)?;
+    Ok(0)
+}
+
+fn dynamic_fseeko(
+    caller: &mut Caller<'_, HostState>,
+    stream: i32,
+    offset: i64,
+    whence: i32,
+) -> wasmtime::Result<i32> {
+    let Ok(offset) = i32::try_from(offset) else {
+        set_errno(caller, EINVAL)?;
+        return Ok(-1);
+    };
+    let Some(fseek) = caller
+        .get_export("fseek")
+        .and_then(|export| export.into_func())
+    else {
+        set_errno(caller, ENOSYS)?;
+        return Ok(-1);
+    };
+    let mut results = [Val::I32(0)];
+    fseek.call(
+        &mut *caller,
+        &[Val::I32(stream), Val::I32(offset), Val::I32(whence)],
+        &mut results,
+    )?;
+    let Val::I32(result) = results[0] else {
+        return Err(wasmtime::Error::msg("fseek returned a non-i32 value"));
+    };
+    Ok(result)
+}
+
+fn dynamic_ftello(caller: &mut Caller<'_, HostState>, stream: i32) -> wasmtime::Result<i64> {
+    let Some(ftell) = caller
+        .get_export("ftell")
+        .and_then(|export| export.into_func())
+    else {
+        set_errno(caller, ENOSYS)?;
+        return Ok(-1);
+    };
+    let mut results = [Val::I32(0)];
+    ftell.call(&mut *caller, &[Val::I32(stream)], &mut results)?;
+    let Val::I32(result) = results[0] else {
+        return Err(wasmtime::Error::msg("ftell returned a non-i32 value"));
+    };
+    Ok(i64::from(result))
+}
+
+fn c_bool(value: bool) -> i32 {
+    if value {
+        1
+    } else {
+        0
+    }
+}
+
+fn ascii_tolower(ch: i32) -> i32 {
+    if (b'A' as i32..=b'Z' as i32).contains(&ch) {
+        ch + (b'a' - b'A') as i32
+    } else {
+        ch
+    }
+}
+
+fn ascii_toupper(ch: i32) -> i32 {
+    if (b'a' as i32..=b'z' as i32).contains(&ch) {
+        ch - (b'a' - b'A') as i32
+    } else {
+        ch
+    }
+}
+
+fn dynamic_strcmp(
+    caller: &mut Caller<'_, HostState>,
+    left: i32,
+    right: i32,
+) -> wasmtime::Result<i32> {
+    let left = read_c_string(caller, left)?;
+    let right = read_c_string(caller, right)?;
+    Ok(match left.as_bytes().cmp(right.as_bytes()) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    })
+}
+
+fn dynamic_strxfrm(
+    caller: &mut Caller<'_, HostState>,
+    dest: i32,
+    src: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    let src = read_c_string(caller, src)?;
+    if dest != 0 && len > 0 {
+        let bytes = src.as_bytes();
+        let copy_len = bytes.len().min(len as usize - 1);
+        write_bytes(caller, dest, &bytes[..copy_len])?;
+        write_u8(caller, dest + copy_len as i32, 0)?;
+    }
+    Ok(src.len() as i32)
+}
+
+fn dynamic_wmemchr(
+    caller: &mut Caller<'_, HostState>,
+    ptr: i32,
+    needle: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    if ptr == 0 || len <= 0 {
+        return Ok(0);
+    }
+    for index in 0..len {
+        let current_ptr = ptr + index * 4;
+        if read_u32(caller, current_ptr)? == needle as u32 {
+            return Ok(current_ptr);
+        }
+    }
+    Ok(0)
+}
+
+fn dynamic_mbtowc(
+    caller: &mut Caller<'_, HostState>,
+    dest: i32,
+    src: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    if src == 0 {
+        return Ok(0);
+    }
+    if len <= 0 {
+        return Ok(-1);
+    }
+    let byte = read_u8(caller, src)?;
+    if dest != 0 {
+        write_u32(caller, dest, u32::from(byte))?;
+    }
+    Ok(if byte == 0 { 0 } else { 1 })
+}
+
+fn dynamic_wcrtomb(
+    caller: &mut Caller<'_, HostState>,
+    dest: i32,
+    ch: i32,
+) -> wasmtime::Result<i32> {
+    if dest == 0 {
+        return Ok(1);
+    }
+    write_u8(
+        caller,
+        dest,
+        if (0..=0x7f).contains(&ch) {
+            ch as u8
+        } else {
+            b'?'
+        },
+    )?;
+    Ok(1)
+}
+
+fn dynamic_mbstowcs(
+    caller: &mut Caller<'_, HostState>,
+    dest: i32,
+    src: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    if src == 0 || len < 0 {
+        return Ok(-1);
+    }
+    let text = read_c_string(caller, src)?;
+    let count = text.len().min(len as usize);
+    if dest != 0 {
+        for (index, byte) in text.as_bytes().iter().copied().take(count).enumerate() {
+            write_u32(caller, dest + (index as i32 * 4), u32::from(byte))?;
+        }
+        if count < len as usize {
+            write_u32(caller, dest + (count as i32 * 4), 0)?;
+        }
+    }
+    Ok(count as i32)
+}
+
+fn dynamic_wcstombs(
+    caller: &mut Caller<'_, HostState>,
+    dest: i32,
+    src: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    if src == 0 || len < 0 {
+        return Ok(-1);
+    }
+    let mut count = 0usize;
+    while count < len as usize {
+        let ch = read_u32(caller, src + (count as i32 * 4))?;
+        if ch == 0 {
+            if dest != 0 {
+                write_u8(caller, dest + count as i32, 0)?;
+            }
+            return Ok(count as i32);
+        }
+        if dest != 0 {
+            write_u8(
+                caller,
+                dest + count as i32,
+                if ch <= 0x7f { ch as u8 } else { b'?' },
+            )?;
+        }
+        count += 1;
+    }
+    Ok(count as i32)
+}
+
+fn dynamic_wcslen(caller: &mut Caller<'_, HostState>, src: i32) -> wasmtime::Result<i32> {
+    if src == 0 {
+        return Ok(0);
+    }
+    let mut len = 0i32;
+    loop {
+        if read_u32(caller, src + len * 4)? == 0 {
+            return Ok(len);
+        }
+        len = len.saturating_add(1);
+    }
+}
+
+fn dynamic_wmemcmp(
+    caller: &mut Caller<'_, HostState>,
+    left: i32,
+    right: i32,
+    len: i32,
+) -> wasmtime::Result<i32> {
+    for index in 0..len.max(0) {
+        let left_ch = read_u32(caller, left + index * 4)?;
+        let right_ch = read_u32(caller, right + index * 4)?;
+        if left_ch != right_ch {
+            return Ok(if left_ch < right_ch { -1 } else { 1 });
+        }
+    }
+    Ok(0)
+}
+
+fn resolve_dynamic_exports(
+    caller: &mut Caller<'_, HostState>,
+    instance: &Instance,
+    memory_base: u32,
+    got_globals: &HashMap<String, DynamicGotEntry>,
+) -> wasmtime::Result<HashMap<String, DynamicSymbol>> {
+    let mut symbols = HashMap::new();
+    let exports = instance
+        .exports(&mut *caller)
+        .map(|export| (export.name().to_string(), export.into_extern()))
+        .collect::<Vec<_>>();
+    for (export_index, (name, export)) in exports.into_iter().enumerate() {
+        let Some(value) = dynamic_export_value(caller, export, memory_base)? else {
+            continue;
+        };
+        let symbol = DynamicSymbol {
+            value,
+            export_index: u32::try_from(export_index)
+                .map_err(|_| wasmtime::Error::msg("dynamic export index overflow"))?,
+        };
+        symbols.insert(name.clone(), symbol);
+        if !is_internal_dynamic_symbol(&name) {
+            if let Some(got_entry) = got_globals.get(&name) {
+                set_dynamic_got(caller, got_entry.global, value)?;
+            }
+        }
+    }
+    Ok(symbols)
+}
+
+fn dynamic_export_value(
+    caller: &mut Caller<'_, HostState>,
+    export: wasmtime::Extern,
+    memory_base: u32,
+) -> wasmtime::Result<Option<i32>> {
+    match export {
+        wasmtime::Extern::Func(func) => Ok(Some(add_dynamic_func_to_table(caller, func)?)),
+        wasmtime::Extern::Global(global) => {
+            let value = global_i32_value(caller, global)?;
+            let ty = global.ty(&mut *caller);
+            if ty.mutability() == Mutability::Const {
+                Ok(Some(value.wrapping_add(memory_base as i32)))
+            } else {
+                Ok(Some(value))
+            }
+        }
+        wasmtime::Extern::Memory(_) | wasmtime::Extern::Table(_) | wasmtime::Extern::Tag(_) => {
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+fn resolve_dynamic_got(
+    caller: &mut Caller<'_, HostState>,
+    got_globals: &HashMap<String, DynamicGotEntry>,
+    metadata: &DynamicDylinkMetadata,
+) -> wasmtime::Result<()> {
+    for (name, got_entry) in got_globals {
+        if global_i32_value(caller, got_entry.global)? != -1 {
+            continue;
+        }
+        if let Some(value) = resolve_main_dynamic_symbol(caller, name)? {
+            set_dynamic_got(caller, got_entry.global, value)?;
+        } else if got_entry.weak || metadata.weak_imports.contains(name) {
+            set_dynamic_got(caller, got_entry.global, 0)?;
+        } else {
+            return Err(wasmtime::Error::msg(format!(
+                "unresolved dynamic symbol {name}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn resolve_main_dynamic_symbol(
+    caller: &mut Caller<'_, HostState>,
+    name: &str,
+) -> wasmtime::Result<Option<i32>> {
+    let Some(export) = caller.get_export(name) else {
+        return Ok(None);
+    };
+    match export {
+        wasmtime::Extern::Func(func) => Ok(Some(add_dynamic_func_to_table(caller, func)?)),
+        wasmtime::Extern::Global(global) => Ok(Some(global_i32_value(caller, global)?)),
+        wasmtime::Extern::Memory(_) | wasmtime::Extern::Table(_) | wasmtime::Extern::Tag(_) => {
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+fn global_i32_value(caller: &mut Caller<'_, HostState>, global: Global) -> wasmtime::Result<i32> {
+    match global.get(&mut *caller) {
+        Val::I32(value) => Ok(value),
+        value => Err(wasmtime::Error::msg(format!(
+            "dynamic global is not i32: {value:?}"
+        ))),
+    }
+}
+
+fn set_dynamic_got(
+    caller: &mut Caller<'_, HostState>,
+    global: Global,
+    value: i32,
+) -> wasmtime::Result<()> {
+    global.set(&mut *caller, Val::I32(value))
+}
+
+fn add_dynamic_func_to_table(
+    caller: &mut Caller<'_, HostState>,
+    func: Func,
+) -> wasmtime::Result<i32> {
+    let table = exported_table(caller)?;
+    let slot = table.grow(&mut *caller, 1, Ref::Func(None))?;
+    table.set(&mut *caller, slot, Ref::Func(Some(func)))?;
+    i32::try_from(slot).map_err(|_| wasmtime::Error::msg("function table slot overflow"))
+}
+
+fn call_dynamic_void_export(
+    caller: &mut Caller<'_, HostState>,
+    instance: &Instance,
+    name: &str,
+) -> wasmtime::Result<()> {
+    let Some(func) = instance.get_func(&mut *caller, name) else {
+        return Ok(());
+    };
+    func.call(&mut *caller, &[], &mut [])
+}
+
+fn is_internal_dynamic_symbol(name: &str) -> bool {
+    matches!(
+        name,
+        "memory"
+            | "__memory_base"
+            | "__table_base"
+            | "__stack_pointer"
+            | "__indirect_function_table"
+            | "__cpp_exception"
+            | "__c_longjmp"
+            | "__wasm_apply_data_relocs"
+            | "__dso_handle"
+            | "__tls_size"
+            | "__tls_align"
+            | "__set_stack_limits"
+            | "_emscripten_tls_init"
+            | "__wasm_init_tls"
+            | "__wasm_call_ctors"
+            | "__start_em_asm"
+            | "__stop_em_asm"
+            | "__start_em_js"
+            | "__stop_em_js"
+    ) || name.starts_with("__em_js__")
+}
+
+fn wasm_calloc(caller: &mut Caller<'_, HostState>, len: u32) -> wasmtime::Result<u32> {
+    if let Some(calloc) = caller
+        .get_export("calloc")
+        .and_then(|export| export.into_func())
+    {
+        let mut results = [Val::I32(0)];
+        calloc.call(
+            &mut *caller,
+            &[Val::I32(len as i32), Val::I32(1)],
+            &mut results,
+        )?;
+        return match results[0] {
+            Val::I32(ptr) => Ok(ptr as u32),
+            _ => Err(wasmtime::Error::msg("calloc returned a non-i32 value")),
+        };
+    }
+    let ptr = wasm_malloc(caller, len)?;
+    write_bytes(caller, ptr as i32, &vec![0; len as usize])?;
+    Ok(ptr)
+}
+
+fn wasm_recv(
+    caller: &mut Caller<'_, HostState>,
+    sockfd: i32,
+    buffer: i32,
+    size: i32,
+    flags: i32,
+) -> wasmtime::Result<i32> {
+    let result = syscall_recvfrom(caller, sockfd, buffer, size, flags, 0, 0)?;
+    if result > 0 || result == -EAGAIN {
+        Ok(result)
+    } else {
+        Ok(0)
     }
 }
 
@@ -9536,6 +12025,13 @@ fn exported_memory(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<Memor
         .ok_or_else(|| wasmtime::Error::msg("caller does not export memory"))
 }
 
+fn exported_table(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<Table> {
+    caller
+        .get_export("__indirect_function_table")
+        .and_then(|export| export.into_table())
+        .ok_or_else(|| wasmtime::Error::msg("caller does not export __indirect_function_table"))
+}
+
 fn read_bytes(
     caller: &mut Caller<'_, HostState>,
     ptr: i32,
@@ -9551,6 +12047,10 @@ fn read_bytes(
         .get(ptr..end)
         .ok_or_else(|| wasmtime::Error::msg("failed reading wasm memory: out of bounds"))?;
     Ok(bytes.to_vec())
+}
+
+fn read_u8(caller: &mut Caller<'_, HostState>, ptr: i32) -> wasmtime::Result<u8> {
+    Ok(read_bytes(caller, ptr, 1)?[0])
 }
 
 fn write_bytes(caller: &mut Caller<'_, HostState>, ptr: i32, bytes: &[u8]) -> wasmtime::Result<()> {
@@ -9818,6 +12318,15 @@ fn wasm_malloc(caller: &mut Caller<'_, HostState>, len: u32) -> wasmtime::Result
     }
 }
 
+fn wasm_free(caller: &mut Caller<'_, HostState>, ptr: u32) -> wasmtime::Result<()> {
+    let free = caller
+        .get_export("free")
+        .and_then(|export| export.into_func())
+        .ok_or_else(|| wasmtime::Error::msg("caller does not export free"))?;
+    free.call(&mut *caller, &[Val::I32(ptr as i32)], &mut [])?;
+    Ok(())
+}
+
 fn write_malloced_c_string(
     caller: &mut Caller<'_, HostState>,
     value: &str,
@@ -9923,12 +12432,14 @@ mod tests {
     use wasmtime::{Engine, Memory, Module, Store, Val};
 
     use super::{
-        cached_host_read_file_len, create_stub_import_linker,
+        builtin_php_extension_relative_path, cached_host_read_file_len,
+        configure_builtin_php_extension, create_stub_import_linker,
         create_stub_import_linker_with_options, read_host_file_iovs, AdvisoryLockRange,
-        FcntlLockRequest, FdEntry, HostMount, HostOptions, HostState, ImportClassification,
-        OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME, EALREADY, EINPROGRESS,
-        EINVAL, ENOENT, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK,
-        LOCK_EX, LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
+        BuiltInPhpExtension, FcntlLockRequest, FdEntry, HostMount, HostOptions, HostState,
+        ImportClassification, OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME,
+        EALREADY, EINPROGRESS, EINVAL, ENOENT, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR,
+        F_RDLCK, F_UNLCK, F_WRLCK, INTL_ICU_DATA_RELATIVE_PATH, INTL_ICU_DATA_VFS_PATH, LOCK_EX,
+        LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
         OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR,
         O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT,
         PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR, SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
@@ -9952,6 +12463,68 @@ mod tests {
 
     fn internal_file_text(state: &HostState, path: &str) -> String {
         String::from_utf8(state.internal_files.get(path).unwrap().as_ref().to_vec()).unwrap()
+    }
+
+    fn write_test_asset(root: &std::path::Path, relative_path: &std::path::Path, contents: &[u8]) {
+        let path = root.join(relative_path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, contents).unwrap();
+    }
+
+    #[test]
+    fn builtin_extension_paths_use_wasmtime_async_runtime() {
+        for extension in [
+            BuiltInPhpExtension::Intl,
+            BuiltInPhpExtension::Redis,
+            BuiltInPhpExtension::Memcached,
+            BuiltInPhpExtension::Xdebug,
+        ] {
+            let path = builtin_php_extension_relative_path("8.3", extension);
+            let name = extension.name();
+
+            assert_eq!(
+                path,
+                std::path::PathBuf::from(format!(
+                    "packages/php-wasm/node-builds/8-3/wasmtime-async/extensions/{name}/{name}.so"
+                ))
+            );
+            let path = path.to_string_lossy();
+            assert!(!path.contains("/asyncify/"));
+            assert!(!path.contains("/jspi/"));
+        }
+    }
+
+    #[test]
+    fn configure_intl_extension_stages_icu_data() {
+        let root = temp_dir("intl-extension");
+        write_test_asset(
+            &root,
+            &builtin_php_extension_relative_path("8.3", BuiltInPhpExtension::Intl),
+            b"intl",
+        );
+        write_test_asset(
+            &root,
+            std::path::Path::new(INTL_ICU_DATA_RELATIVE_PATH),
+            b"icu",
+        );
+        let mut options = HostOptions::default();
+
+        configure_builtin_php_extension(&mut options, &root, "8.3", BuiltInPhpExtension::Intl)
+            .unwrap();
+
+        assert!(options
+            .php_ini_entries
+            .iter()
+            .any(|entry| { entry == "extension=/internal/shared/extensions/intl/intl.so" }));
+        assert!(options
+            .env_entries
+            .contains(&("ICU_DATA".to_string(), "/internal/shared".to_string())));
+        assert!(options.mounts.iter().any(|mount| {
+            mount.vfs_path == "/internal/shared/extensions/intl"
+                && mount.host_path.ends_with("wasmtime-async/extensions/intl")
+        }));
+        let state = HostState::new(options);
+        assert_eq!(internal_file_text(&state, INTL_ICU_DATA_VFS_PATH), "icu");
     }
 
     struct EnvVarGuard {
@@ -12701,10 +15274,25 @@ mod tests {
         )
         .unwrap();
         let mut linker = create_stub_import_linker(&module).unwrap();
-        assert!(linker
-            .imports
-            .iter()
-            .all(|import| import.classification == ImportClassification::IntentionalUnsupported));
+        assert_eq!(
+            linker
+                .imports
+                .iter()
+                .map(|import| (import.name.as_str(), import.classification))
+                .collect::<Vec<_>>(),
+            vec![
+                ("_dlopen_js", ImportClassification::NativeHost),
+                ("_dlsym_js", ImportClassification::NativeHost),
+                (
+                    "_emscripten_system",
+                    ImportClassification::IntentionalUnsupported,
+                ),
+                (
+                    "_setitimer_js",
+                    ImportClassification::IntentionalUnsupported
+                ),
+            ]
+        );
         let instance = linker.instantiate(&module).unwrap();
         let call_unsupported = instance
             .get_func(&mut linker.store, "call_unsupported")
