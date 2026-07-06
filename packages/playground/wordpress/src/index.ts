@@ -419,15 +419,18 @@ export async function preloadSqliteIntegration(
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
-	const stopIfDbPhpExists = `<?php
-	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)})) {
-		return;
-	}
-	?>`;
+	const stopIfDbPhpExists = `
+		// Do not preload this if WordPress comes with a custom db.php file.
+		if(file_exists(${phpVar(dbPhpPath)})) {
+			return;
+		}
+		`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
+	await php.writeFile(
+		SQLITE_MUPLUGIN_PATH,
+		`<?php${stopIfDbPhpExists}?>` + dbPhp
+	);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
 		buildModernSqlitePreload(stopIfDbPhpExists, SQLITE_MUPLUGIN_PATH)
@@ -458,20 +461,16 @@ function buildModernSqlitePreload(
 	stopIfDbPhpExists: string,
 	muPluginPath: string
 ): string {
-	return (
-		`<?php
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
+	return `<?php
+	if(!function_exists('mysqli_connect')) {
+		function mysqli_connect() {}
+	}
 
-		?>` +
-		stopIfDbPhpExists +
-		`<?php
+	${stopIfDbPhpExists}
 
-${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
+	${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
 
-		`
-	);
+		`;
 }
 
 /**

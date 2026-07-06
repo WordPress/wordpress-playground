@@ -192,9 +192,7 @@ echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
 			const preload = await php.readFileAsText(
 				'/internal/shared/preload/0-sqlite.php'
 			);
-			const guardPosition = preload.indexOf(
-				'// Do not preload this if WordPress comes with a custom db.php file.'
-			);
+			const guardPosition = preload.search(/if\s*\(\s*file_exists\s*\(/);
 			const stubPosition = preload.indexOf('function mysqli_connect()');
 
 			expect(guardPosition).toBeGreaterThanOrEqual(0);
