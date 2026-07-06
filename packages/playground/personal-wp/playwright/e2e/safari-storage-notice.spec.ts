@@ -14,6 +14,9 @@ const MACOS_SAFARI_UA =
 	'AppleWebKit/605.1.15 (KHTML, like Gecko) ' +
 	'Version/18.0 Safari/605.1.15';
 
+const noticeHeading = (page: Page) =>
+	page.getByText(NOTICE_HEADING, { exact: true }).first();
+
 test.describe('Safari storage notice on iOS Safari', () => {
 	test.use({
 		userAgent: IOS_SAFARI_UA,
@@ -23,26 +26,25 @@ test.describe('Safari storage notice on iOS Safari', () => {
 	});
 
 	test('shows Add to Home Screen instructions and persists dismissal', async ({
-		website,
 		page,
 	}) => {
 		await clearNoticeDismissal(page);
 
-		await website.goto('./');
+		await page.goto('./');
 
-		await expect(page.getByText(NOTICE_HEADING)).toBeVisible();
-		await expect(page.getByText('Add to Home Screen')).toBeVisible();
+		await expect(noticeHeading(page)).toBeVisible();
+		await expect(
+			page.locator('p').filter({ hasText: 'Add to Home Screen' })
+		).toBeVisible();
 
 		await page.getByRole('button', { name: 'Dismiss' }).click();
-		await expect(page.getByText(NOTICE_HEADING)).toBeHidden();
+		await expect(noticeHeading(page)).toBeHidden();
 
 		await page.reload();
-		await website.waitForNestedIframes();
-		await expect(page.getByText(NOTICE_HEADING)).toBeHidden();
+		await expect(noticeHeading(page)).toBeHidden();
 	});
 
 	test('does not show when running as an installed web app', async ({
-		website,
 		page,
 	}) => {
 		await clearNoticeDismissal(page);
@@ -53,9 +55,9 @@ test.describe('Safari storage notice on iOS Safari', () => {
 			});
 		});
 
-		await website.goto('./');
+		await page.goto('./');
 
-		await expect(page.getByText(NOTICE_HEADING)).toBeHidden();
+		await expect(noticeHeading(page)).toBeHidden();
 	});
 });
 
@@ -67,13 +69,15 @@ test.describe('Safari storage notice on macOS Safari', () => {
 		hasTouch: false,
 	});
 
-	test('shows Add to Dock instructions', async ({ website, page }) => {
+	test('shows Add to Dock instructions', async ({ page }) => {
 		await clearNoticeDismissal(page);
 
-		await website.goto('./');
+		await page.goto('./');
 
-		await expect(page.getByText(NOTICE_HEADING)).toBeVisible();
-		await expect(page.getByText('Add to Dock')).toBeVisible();
+		await expect(noticeHeading(page)).toBeVisible();
+		await expect(
+			page.locator('p').filter({ hasText: 'Add to Dock' })
+		).toBeVisible();
 	});
 });
 
