@@ -175,6 +175,7 @@ pub(crate) const PROFILE_IMPORT_SELF_TIME_ENV_VAR: &str =
 pub(crate) const PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_INCLUSIVE_TIME";
 static NEXT_HOST_LOCK_OWNER_ID: AtomicU64 = AtomicU64::new(1);
+static DYNAMIC_RANDOM_STATE: AtomicU64 = AtomicU64::new(1);
 static ADVISORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Vec<AdvisoryLock>>>> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -257,6 +258,12 @@ pub struct HostState {
     captured_headers: Vec<u8>,
     asyncify_state: AsyncifyState,
     asyncify_data: Option<u32>,
+    main_memory: Option<Memory>,
+    main_table: Option<Table>,
+    main_malloc: Option<Func>,
+    main_calloc: Option<Func>,
+    main_free: Option<Func>,
+    main_errno_location: Option<Func>,
     dynamic_libraries: HashMap<i32, LoadedDynamicLibrary>,
     pthread_specific: HashMap<i32, i32>,
     next_pthread_key: i32,
@@ -573,7 +580,8 @@ fn push_env_entry(entries: &mut Vec<(String, String)>, name: &str, value: &str) 
 }
 
 fn ensure_host_mount(mounts: &mut Vec<HostMount>, host_path: PathBuf, vfs_path: String) {
-    if mounts.iter().any(|mount| mount.vfs_path == vfs_path) {
+    if let Some(mount) = mounts.iter_mut().find(|mount| mount.vfs_path == vfs_path) {
+        mount.host_path = host_path;
         return;
     }
     mounts.push(HostMount {
@@ -1196,6 +1204,12 @@ impl HostState {
             captured_headers: Vec::new(),
             asyncify_state: AsyncifyState::Normal,
             asyncify_data: None,
+            main_memory: None,
+            main_table: None,
+            main_malloc: None,
+            main_calloc: None,
+            main_free: None,
+            main_errno_location: None,
             dynamic_libraries: HashMap::new(),
             pthread_specific: HashMap::new(),
             next_pthread_key: 1,
@@ -2535,6 +2549,14 @@ impl StubImportLinker {
             self.linker.instantiate(&mut self.store, module)
         }
         .map_err(|error| CliError::new(format!("Failed to instantiate wasm module: {error}")))?;
+        self.store.data_mut().main_memory = instance.get_memory(&mut self.store, "memory");
+        self.store.data_mut().main_table =
+            instance.get_table(&mut self.store, "__indirect_function_table");
+        self.store.data_mut().main_malloc = instance.get_func(&mut self.store, "malloc");
+        self.store.data_mut().main_calloc = instance.get_func(&mut self.store, "calloc");
+        self.store.data_mut().main_free = instance.get_func(&mut self.store, "free");
+        self.store.data_mut().main_errno_location =
+            instance.get_func(&mut self.store, "__errno_location");
         self.patch_got_func_exit(&instance)?;
         Ok(instance)
     }
@@ -4715,15 +4737,15 @@ fn define_special_func_import(
                         module_name,
                         import_name,
                         move |mut caller: Caller<'_, HostState>,
-                              _fd: i32,
-                              _message: i32,
-                              _flags: i32,
+                              fd: i32,
+                              message: i32,
+                              flags: i32,
                               _d: i32,
                               _e: i32,
                               _f: i32|
                               -> wasmtime::Result<i32> {
                             caller.data_mut().record_import(&label)?;
-                            Ok(-ENOSYS)
+                            syscall_sendmsg(&mut caller, fd, message, flags)
                         },
                     )
                     .map_err(|error| define_error(import_label, error))?;
@@ -5514,10 +5536,21 @@ fn define_dynamic_host_func(
             linker.func_wrap(
                 "env",
                 import_name,
-                |_assertion: i32, _file: i32, _line: i32, _function: i32| -> wasmtime::Result<()> {
-                    Err(wasmtime::Error::msg(
-                        "__assert_fail was called by a dynamic PHP extension",
-                    ))
+                |mut caller: Caller<'_, HostState>,
+                 assertion: i32,
+                 file: i32,
+                 line: i32,
+                 function: i32|
+                 -> wasmtime::Result<()> {
+                    let assertion = read_c_string_lossy(&mut caller, assertion)
+                        .unwrap_or_else(|| "<unknown assertion>".to_string());
+                    let file = read_c_string_lossy(&mut caller, file)
+                        .unwrap_or_else(|| "<unknown file>".to_string());
+                    let function = read_c_string_lossy(&mut caller, function)
+                        .unwrap_or_else(|| "<unknown function>".to_string());
+                    Err(wasmtime::Error::msg(format!(
+                        "__assert_fail was called by a dynamic PHP extension: {assertion} at {file}:{line} in {function}"
+                    )))
                 },
             )?;
             Ok(true)
@@ -5532,7 +5565,337 @@ fn define_dynamic_host_func(
                  hints: i32,
                  out: i32|
                  -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.getaddrinfo")?;
                     getaddrinfo(&mut caller, node, service, hints, out)
+                },
+            )?;
+            Ok(true)
+        }
+        "getnameinfo" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 sa: i32,
+                 salen: i32,
+                 node: i32,
+                 nodelen: i32,
+                 serv: i32,
+                 servlen: i32,
+                 flags: i32|
+                 -> wasmtime::Result<i32> {
+                    syscall_getnameinfo(
+                        &mut caller,
+                        GetNameInfoArgs {
+                            sa,
+                            salen,
+                            node,
+                            nodelen,
+                            serv,
+                            servlen,
+                            flags,
+                        },
+                    )
+                },
+            )?;
+            Ok(true)
+        }
+        "freeaddrinfo" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, addrinfo: i32| -> wasmtime::Result<()> {
+                    caller
+                        .data_mut()
+                        .record_import("dynamic.env.freeaddrinfo")?;
+                    freeaddrinfo(&mut caller, addrinfo)?;
+                    Ok(())
+                },
+            )?;
+            Ok(true)
+        }
+        "gai_strerror" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, code: i32| -> wasmtime::Result<i32> {
+                    caller
+                        .data_mut()
+                        .record_import("dynamic.env.gai_strerror")?;
+                    let message = match code {
+                        EAI_SERVICE => "Service not supported",
+                        EAI_OVERFLOW => "Result too large",
+                        EAI_NONAME => "Name lookup failed",
+                        _ => "Address lookup failed",
+                    };
+                    write_malloced_c_string(&mut caller, message)
+                },
+            )?;
+            Ok(true)
+        }
+        "htons" | "ntohs" => {
+            linker.func_wrap("env", import_name, |value: i32| -> wasmtime::Result<i32> {
+                Ok((value as u16).swap_bytes() as i32)
+            })?;
+            Ok(true)
+        }
+        "htonl" | "ntohl" => {
+            linker.func_wrap("env", import_name, |value: i32| -> wasmtime::Result<i32> {
+                Ok((value as u32).swap_bytes() as i32)
+            })?;
+            Ok(true)
+        }
+        "time" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, time_ptr: i32| -> wasmtime::Result<i64> {
+                    caller.data_mut().record_import("dynamic.env.time")?;
+                    dynamic_time(&mut caller, time_ptr)
+                },
+            )?;
+            Ok(true)
+        }
+        "gettimeofday" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, tv: i32, tz: i32| -> wasmtime::Result<i32> {
+                    caller
+                        .data_mut()
+                        .record_import("dynamic.env.gettimeofday")?;
+                    dynamic_gettimeofday(&mut caller, tv, tz)
+                },
+            )?;
+            Ok(true)
+        }
+        "clock_gettime" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 clock_id: i32,
+                 tp: i32|
+                 -> wasmtime::Result<i32> {
+                    caller
+                        .data_mut()
+                        .record_import("dynamic.env.clock_gettime")?;
+                    dynamic_clock_gettime(&mut caller, clock_id, tp)
+                },
+            )?;
+            Ok(true)
+        }
+        "srandom" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, seed: i32| -> wasmtime::Result<()> {
+                    caller.data_mut().record_import("dynamic.env.srandom")?;
+                    DYNAMIC_RANDOM_STATE.store(seed as u32 as u64, Ordering::Relaxed);
+                    Ok(())
+                },
+            )?;
+            Ok(true)
+        }
+        "random" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>| -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.random")?;
+                    Ok(dynamic_random())
+                },
+            )?;
+            Ok(true)
+        }
+        "getenv" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, name: i32| -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.getenv")?;
+                    dynamic_getenv(&mut caller, name)
+                },
+            )?;
+            Ok(true)
+        }
+        "socket" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 domain: i32,
+                 socket_type: i32,
+                 protocol: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.socket")?;
+                    let result = caller
+                        .data_mut()
+                        .create_socket(domain, socket_type, protocol);
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "connect" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 addr: i32,
+                 addrlen: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.connect")?;
+                    let result = syscall_connect(&mut caller, fd, addr, addrlen)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "send" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 message: i32,
+                 length: i32,
+                 flags: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.send")?;
+                    let result = syscall_sendto(&mut caller, fd, message, length, flags, 0, 0)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "sendmsg" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 message: i32,
+                 flags: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.sendmsg")?;
+                    let result = syscall_sendmsg(&mut caller, fd, message, flags)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "recv" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 buf: i32,
+                 len: i32,
+                 flags: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.recv")?;
+                    let result = syscall_recvfrom(&mut caller, fd, buf, len, flags, 0, 0)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "poll" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fds: i32,
+                 nfds: i32,
+                 timeout: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.poll")?;
+                    let result = syscall_poll(&mut caller, fds, nfds, timeout)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "getsockopt" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 level: i32,
+                 optname: i32,
+                 optval: i32,
+                 optlen: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.getsockopt")?;
+                    let result =
+                        syscall_getsockopt(&mut caller, fd, level, optname, optval, optlen)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "getsockname" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 addr: i32,
+                 addrlen: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.getsockname")?;
+                    let result = syscall_getsockname(&mut caller, fd, addr, addrlen)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "setsockopt" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>,
+                 fd: i32,
+                 level: i32,
+                 optname: i32,
+                 optval: i32,
+                 optlen: i32|
+                 -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.setsockopt")?;
+                    let result = wasm_setsockopt(&mut caller, fd, level, optname, optval, optlen)?;
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "shutdown" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, fd: i32, how: i32| -> wasmtime::Result<i32> {
+                    caller.data_mut().record_import("dynamic.env.shutdown")?;
+                    let result = wasm_shutdown(&mut caller, fd, how);
+                    libc_errno_result(&mut caller, result)
+                },
+            )?;
+            Ok(true)
+        }
+        "close" => {
+            linker.func_wrap(
+                "env",
+                import_name,
+                |mut caller: Caller<'_, HostState>, fd: i32| -> wasmtime::Result<i32> {
+                    let errno = caller.data_mut().close_fd(fd);
+                    if errno == 0 {
+                        Ok(0)
+                    } else {
+                        set_errno(&mut caller, errno)?;
+                        Ok(-1)
+                    }
                 },
             )?;
             Ok(true)
@@ -7172,6 +7535,7 @@ fn wasm_calloc(caller: &mut Caller<'_, HostState>, len: u32) -> wasmtime::Result
     if let Some(calloc) = caller
         .get_export("calloc")
         .and_then(|export| export.into_func())
+        .or(caller.data().main_calloc)
     {
         let mut results = [Val::I32(0)];
         calloc.call(
@@ -7201,6 +7565,100 @@ fn wasm_recv(
         Ok(result)
     } else {
         Ok(0)
+    }
+}
+
+fn libc_errno_result(caller: &mut Caller<'_, HostState>, result: i32) -> wasmtime::Result<i32> {
+    if result < 0 {
+        set_errno(caller, -result)?;
+        Ok(-1)
+    } else {
+        Ok(result)
+    }
+}
+
+fn dynamic_time(caller: &mut Caller<'_, HostState>, time_ptr: i32) -> wasmtime::Result<i64> {
+    let duration = unix_time_duration()?;
+    let seconds = i64::try_from(duration.as_secs()).unwrap_or(i64::MAX);
+    if time_ptr != 0 {
+        write_i64(caller, time_ptr, seconds)?;
+    }
+    Ok(seconds)
+}
+
+fn dynamic_gettimeofday(
+    caller: &mut Caller<'_, HostState>,
+    tv: i32,
+    tz: i32,
+) -> wasmtime::Result<i32> {
+    let duration = unix_time_duration()?;
+    if tv != 0 {
+        write_i64(
+            caller,
+            tv,
+            i64::try_from(duration.as_secs()).unwrap_or(i64::MAX),
+        )?;
+        write_i64(caller, tv + 8, i64::from(duration.subsec_micros()))?;
+    }
+    if tz != 0 {
+        write_i32(caller, tz, 0)?;
+        write_i32(caller, tz + 4, 0)?;
+    }
+    Ok(0)
+}
+
+fn dynamic_clock_gettime(
+    caller: &mut Caller<'_, HostState>,
+    clock_id: i32,
+    tp: i32,
+) -> wasmtime::Result<i32> {
+    if !(0..=3).contains(&clock_id) || tp == 0 {
+        set_errno(caller, EINVAL)?;
+        return Ok(-1);
+    }
+    let duration = unix_time_duration()?;
+    write_i64(
+        caller,
+        tp,
+        i64::try_from(duration.as_secs()).unwrap_or(i64::MAX),
+    )?;
+    write_i64(caller, tp + 8, i64::from(duration.subsec_nanos()))?;
+    Ok(0)
+}
+
+fn dynamic_getenv(caller: &mut Caller<'_, HostState>, name: i32) -> wasmtime::Result<i32> {
+    if name == 0 {
+        return Ok(0);
+    }
+    let name = read_c_string(caller, name)?;
+    let prefix = format!("{name}=");
+    let value = caller
+        .data()
+        .env
+        .iter()
+        .rev()
+        .find_map(|entry| entry.strip_prefix(&prefix).map(str::to_string));
+    match value {
+        Some(value) => write_malloced_c_string(caller, &value),
+        None => Ok(0),
+    }
+}
+
+fn dynamic_random() -> i32 {
+    let mut current = DYNAMIC_RANDOM_STATE.load(Ordering::Relaxed);
+    loop {
+        let next = current
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
+        match DYNAMIC_RANDOM_STATE.compare_exchange_weak(
+            current,
+            next,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => return ((next >> 33) & 0x7fff_ffff) as i32,
+            Err(observed) => current = observed,
+        }
     }
 }
 
@@ -9059,6 +9517,25 @@ fn getaddrinfo(
     Ok(0)
 }
 
+fn freeaddrinfo(caller: &mut Caller<'_, HostState>, addrinfo: i32) -> wasmtime::Result<()> {
+    let mut current = addrinfo;
+    for _ in 0..1024 {
+        if current == 0 {
+            return Ok(());
+        }
+        let sockaddr = read_u32(caller, current + 20)?;
+        let next = read_u32(caller, current + 28)?;
+        if sockaddr != 0 {
+            wasm_free(caller, sockaddr)?;
+        }
+        wasm_free(caller, current as u32)?;
+        current = next as i32;
+    }
+    Err(wasmtime::Error::msg(
+        "freeaddrinfo reached addrinfo list traversal limit",
+    ))
+}
+
 fn read_addrinfo_hints(
     caller: &mut Caller<'_, HostState>,
     hints: i32,
@@ -9597,6 +10074,46 @@ fn syscall_sendto(
         Ok(written) => Ok(written as i32),
         Err(errno) => Ok(-errno),
     }
+}
+
+fn syscall_sendmsg(
+    caller: &mut Caller<'_, HostState>,
+    fd: i32,
+    message: i32,
+    _flags: i32,
+) -> wasmtime::Result<i32> {
+    if message == 0 {
+        return Ok(-EFAULT);
+    }
+
+    let name = read_u32(caller, message)? as i32;
+    let name_len = read_u32(caller, message + 4)? as i32;
+    let iov = read_u32(caller, message + 8)? as i32;
+    let iovcnt = read_i32(caller, message + 12)?;
+    if name != 0 {
+        match read_sockaddr(caller, name, name_len)? {
+            Ok(_) => {}
+            Err(errno) => return Ok(-errno),
+        }
+    }
+
+    let iovs = read_iovs(caller, iov, iovcnt)?;
+    let mut total = 0usize;
+    for (ptr, len) in iovs {
+        if len == 0 {
+            continue;
+        }
+        let bytes = read_bytes(caller, ptr, len)?;
+        let written = match socket_write_bytes(caller.data_mut(), fd, &bytes) {
+            Ok(written) => written,
+            Err(errno) => return Ok(-errno),
+        };
+        total += written;
+        if written < len {
+            break;
+        }
+    }
+    Ok(total as i32)
 }
 
 fn syscall_recvfrom(
@@ -12019,16 +12536,28 @@ fn capture_fd_write_iovs(
 }
 
 fn exported_memory(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<Memory> {
-    caller
+    if let Some(memory) = caller
         .get_export("memory")
         .and_then(|export| export.into_memory())
+    {
+        return Ok(memory);
+    }
+    caller
+        .data()
+        .main_memory
         .ok_or_else(|| wasmtime::Error::msg("caller does not export memory"))
 }
 
 fn exported_table(caller: &mut Caller<'_, HostState>) -> wasmtime::Result<Table> {
-    caller
+    if let Some(table) = caller
         .get_export("__indirect_function_table")
         .and_then(|export| export.into_table())
+    {
+        return Ok(table);
+    }
+    caller
+        .data()
+        .main_table
         .ok_or_else(|| wasmtime::Error::msg("caller does not export __indirect_function_table"))
 }
 
@@ -12143,6 +12672,14 @@ fn write_i64(caller: &mut Caller<'_, HostState>, ptr: i32, value: i64) -> wasmti
 fn read_c_string(caller: &mut Caller<'_, HostState>, ptr: i32) -> wasmtime::Result<String> {
     String::from_utf8(read_c_string_bytes(caller, ptr)?)
         .map_err(|error| wasmtime::Error::msg(format!("invalid UTF-8 string: {error}")))
+}
+
+fn read_c_string_lossy(caller: &mut Caller<'_, HostState>, ptr: i32) -> Option<String> {
+    if ptr == 0 {
+        return None;
+    }
+    let bytes = read_c_string_bytes(caller, ptr).ok()?;
+    Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 fn read_c_string_bytes(caller: &mut Caller<'_, HostState>, ptr: i32) -> wasmtime::Result<Vec<u8>> {
@@ -12309,6 +12846,7 @@ fn wasm_malloc(caller: &mut Caller<'_, HostState>, len: u32) -> wasmtime::Result
     let malloc = caller
         .get_export("malloc")
         .and_then(|export| export.into_func())
+        .or(caller.data().main_malloc)
         .ok_or_else(|| wasmtime::Error::msg("caller does not export malloc"))?;
     let mut results = [Val::I32(0)];
     malloc.call(&mut *caller, &[Val::I32(len as i32)], &mut results)?;
@@ -12322,6 +12860,7 @@ fn wasm_free(caller: &mut Caller<'_, HostState>, ptr: u32) -> wasmtime::Result<(
     let free = caller
         .get_export("free")
         .and_then(|export| export.into_func())
+        .or(caller.data().main_free)
         .ok_or_else(|| wasmtime::Error::msg("caller does not export free"))?;
     free.call(&mut *caller, &[Val::I32(ptr as i32)], &mut [])?;
     Ok(())
@@ -12383,6 +12922,7 @@ fn set_errno(caller: &mut Caller<'_, HostState>, errno: i32) -> wasmtime::Result
     let Some(errno_location) = caller
         .get_export("__errno_location")
         .and_then(|export| export.into_func())
+        .or(caller.data().main_errno_location)
     else {
         return Ok(());
     };
@@ -12400,12 +12940,13 @@ fn set_errno(caller: &mut Caller<'_, HostState>, errno: i32) -> wasmtime::Result
 }
 
 fn unix_time_ns() -> wasmtime::Result<u64> {
-    let duration = SystemTime::now()
+    Ok(unix_time_duration()?.as_nanos() as u64)
+}
+
+fn unix_time_duration() -> wasmtime::Result<Duration> {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|error| {
-            wasmtime::Error::msg(format!("system clock before UNIX epoch: {error}"))
-        })?;
-    Ok(duration.as_nanos() as u64)
+        .map_err(|error| wasmtime::Error::msg(format!("system clock before UNIX epoch: {error}")))
 }
 
 fn stable_inode(path: &str) -> u64 {
@@ -12429,21 +12970,21 @@ mod tests {
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
-    use wasmtime::{Engine, Memory, Module, Store, Val};
+    use wasmtime::{Engine, Linker, Memory, MemoryType, Module, Store, Val};
 
     use super::{
         builtin_php_extension_relative_path, cached_host_read_file_len,
         configure_builtin_php_extension, create_stub_import_linker,
-        create_stub_import_linker_with_options, read_host_file_iovs, AdvisoryLockRange,
-        BuiltInPhpExtension, FcntlLockRequest, FdEntry, HostMount, HostOptions, HostState,
-        ImportClassification, OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN, EAI_NONAME,
-        EALREADY, EINPROGRESS, EINVAL, ENOENT, ENOSYS, EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR,
-        F_RDLCK, F_UNLCK, F_WRLCK, INTL_ICU_DATA_RELATIVE_PATH, INTL_ICU_DATA_VFS_PATH, LOCK_EX,
-        LOCK_NB, LOCK_SH, LOCK_UN, MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR,
-        OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR, OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR,
-        O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR, POLLIN, POLLOUT,
-        PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR, SEEK_CUR, SEEK_END, SEEK_SET, SOCK_STREAM, S_IFDIR,
-        S_IFREG,
+        create_stub_import_linker_with_options, define_dynamic_host_func, read_host_file_iovs,
+        AdvisoryLockRange, BuiltInPhpExtension, FcntlLockRequest, FdEntry, HostMount, HostOptions,
+        HostState, ImportClassification, OpcacheMode, PhpConstantValue, AF_INET, EACCES, EAGAIN,
+        EAI_NONAME, EALREADY, EINPROGRESS, EINVAL, ENOENT, ENOSYS,
+        EXPERIMENTAL_PHP_INI_APPEND_ENV_VAR, F_RDLCK, F_UNLCK, F_WRLCK,
+        INTL_ICU_DATA_RELATIVE_PATH, INTL_ICU_DATA_VFS_PATH, LOCK_EX, LOCK_NB, LOCK_SH, LOCK_UN,
+        MAX_LOCK_OFFSET, OPCACHE_INTERNED_STRINGS_ENV_VAR, OPCACHE_MAX_ACCELERATED_FILES_ENV_VAR,
+        OPCACHE_MEMORY_ENV_VAR, O_EXCL, O_NONBLOCK, O_RDWR, O_TMPFILE, O_TRUNC, O_WRONLY, POLLERR,
+        POLLIN, POLLOUT, PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR, SEEK_CUR, SEEK_END, SEEK_SET,
+        SOCK_STREAM, S_IFDIR, S_IFREG,
     };
     #[cfg(unix)]
     use super::{HostProcessCommand, HostProcessPolicy};
@@ -12525,6 +13066,33 @@ mod tests {
         }));
         let state = HostState::new(options);
         assert_eq!(internal_file_text(&state, INTL_ICU_DATA_VFS_PATH), "icu");
+    }
+
+    #[test]
+    fn configure_builtin_extension_overrides_reserved_mount_collision() {
+        let root = temp_dir("reserved-extension-mount");
+        let user_mount = root.join("user-mount");
+        fs::create_dir_all(&user_mount).unwrap();
+        write_test_asset(
+            &root,
+            &builtin_php_extension_relative_path("8.3", BuiltInPhpExtension::Redis),
+            b"redis",
+        );
+        let mut options = HostOptions {
+            mounts: vec![HostMount {
+                host_path: user_mount,
+                vfs_path: "/internal/shared/extensions/redis".to_string(),
+            }],
+            ..HostOptions::default()
+        };
+
+        configure_builtin_php_extension(&mut options, &root, "8.3", BuiltInPhpExtension::Redis)
+            .unwrap();
+
+        assert_eq!(options.mounts.len(), 1);
+        assert!(options.mounts[0]
+            .host_path
+            .ends_with("wasmtime-async/extensions/redis"));
     }
 
     struct EnvVarGuard {
@@ -15187,6 +15755,116 @@ mod tests {
             .unwrap();
 
         assert!(matches!(results, [Val::I32(value)] if value == EAI_NONAME));
+    }
+
+    #[test]
+    fn dynamic_host_callbacks_use_main_memory_for_imported_memory_modules() {
+        let engine = Engine::default();
+        let module = Module::new(
+            &engine,
+            r#"
+            (module
+                (import "env" "memory" (memory 1))
+                (import "env" "gettimeofday"
+                    (func $gettimeofday (param i32 i32) (result i32)))
+                (func (export "call_gettimeofday") (result i64)
+                    i32.const 16
+                    i32.const 0
+                    call $gettimeofday
+                    drop
+                    i32.const 16
+                    i64.load
+                )
+            )
+            "#,
+        )
+        .unwrap();
+        let mut store = Store::new(&engine, HostState::default());
+        let memory = Memory::new(&mut store, MemoryType::new(1, None)).unwrap();
+        store.data_mut().main_memory = Some(memory);
+        let mut linker = Linker::new(&engine);
+        linker.define(&mut store, "env", "memory", memory).unwrap();
+        define_dynamic_host_func(&mut linker, "gettimeofday").unwrap();
+        let instance = linker.instantiate(&mut store, &module).unwrap();
+        assert!(instance.get_memory(&mut store, "memory").is_none());
+        let call_gettimeofday = instance.get_func(&mut store, "call_gettimeofday").unwrap();
+        let mut results = [Val::I64(0)];
+        call_gettimeofday
+            .call(&mut store, &[], &mut results)
+            .unwrap();
+
+        assert!(matches!(results, [Val::I64(value)] if value > 0));
+        assert_eq!(
+            store.data().called_imports,
+            vec!["dynamic.env.gettimeofday".to_string()]
+        );
+    }
+
+    #[test]
+    fn dynamic_getenv_reads_host_environment_entries() {
+        let engine = Engine::default();
+        let module = Module::new(
+            &engine,
+            r#"
+            (module
+                (import "env" "getenv" (func $getenv (param i32) (result i32)))
+                (memory (export "memory") 1)
+                (global $heap (mut i32) (i32.const 256))
+                (data (i32.const 16) "ICU_DATA\00")
+                (data (i32.const 64) "MISSING_ENV\00")
+                (func (export "malloc") (param $len i32) (result i32)
+                    global.get $heap
+                    global.get $heap
+                    local.get $len
+                    i32.add
+                    global.set $heap
+                )
+                (func (export "call_getenv") (result i32)
+                    i32.const 16
+                    call $getenv
+                )
+                (func (export "call_missing") (result i32)
+                    i32.const 64
+                    call $getenv
+                )
+            )
+            "#,
+        )
+        .unwrap();
+        let mut store = Store::new(
+            &engine,
+            HostState::new(HostOptions {
+                env_entries: vec![("ICU_DATA".to_string(), "/internal/shared".to_string())],
+                ..HostOptions::default()
+            }),
+        );
+        let mut linker = Linker::new(&engine);
+        define_dynamic_host_func(&mut linker, "getenv").unwrap();
+        let instance = linker.instantiate(&mut store, &module).unwrap();
+        let call_getenv = instance
+            .get_typed_func::<(), i32>(&mut store, "call_getenv")
+            .unwrap();
+        let call_missing = instance
+            .get_typed_func::<(), i32>(&mut store, "call_missing")
+            .unwrap();
+
+        let value_ptr = call_getenv.call(&mut store, ()).unwrap();
+        assert!(value_ptr > 0);
+        let memory = instance.get_memory(&mut store, "memory").unwrap();
+        let mut value = vec![0; "/internal/shared\0".len()];
+        memory
+            .read(&store, usize::try_from(value_ptr).unwrap(), &mut value)
+            .unwrap();
+
+        assert_eq!(value, b"/internal/shared\0");
+        assert_eq!(call_missing.call(&mut store, ()).unwrap(), 0);
+        assert_eq!(
+            store.data().called_imports,
+            vec![
+                "dynamic.env.getenv".to_string(),
+                "dynamic.env.getenv".to_string()
+            ]
+        );
     }
 
     #[test]
