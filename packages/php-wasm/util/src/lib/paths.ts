@@ -46,6 +46,37 @@ export function joinPaths(...paths: string[]) {
 }
 
 /**
+ * Resolves a path and returns it only when it stays under a parent path.
+ *
+ * Absolute paths are checked as-is. Relative paths are resolved from the
+ * parent path. The parent itself is not considered to be under the parent.
+ * Paths containing null bytes are rejected before resolution.
+ *
+ * @param path The absolute or relative path to resolve.
+ * @param parentPath The path the result must stay under.
+ * @returns The normalized resolved path, or undefined when it is not a child.
+ */
+export function resolvePathUnder(path: string, parentPath: string) {
+	if (path.includes('\0') || parentPath.includes('\0')) {
+		return undefined;
+	}
+	const normalizedParentPath = normalizePath(parentPath);
+	if (!normalizedParentPath) {
+		return undefined;
+	}
+	const resolvedPath = normalizePath(
+		path.startsWith('/') ? path : joinPaths(normalizedParentPath, path)
+	);
+	if (
+		resolvedPath === normalizedParentPath ||
+		!isParentOf(normalizedParentPath, resolvedPath)
+	) {
+		return undefined;
+	}
+	return resolvedPath;
+}
+
+/**
  * Returns the directory name of a path.
  *
  * @param path
