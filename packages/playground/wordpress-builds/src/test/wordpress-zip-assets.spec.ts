@@ -21,6 +21,8 @@ describe('WordPress zip assets', () => {
 			);
 			const files = await listZipFiles(zipPath);
 
+			expect(files.has('wordpress-static.zip')).toBe(false);
+
 			if (!files.has('wp-includes/view-transitions.php')) {
 				continue;
 			}
