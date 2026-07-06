@@ -149,6 +149,5 @@ RUN cd wordpress && \
 # Build the final wp.zip file
 RUN mv wordpress /wordpress && \
     cp wordpress-remote-asset-paths /wordpress/ && \
-    cp wordpress-static.zip /wordpress/ && \
     cd /wordpress && \
     zip /root/output/$OUT_FILENAME.zip -r .
