@@ -42,7 +42,7 @@ describe('logBlueprintEvents', () => {
 		});
 	});
 
-	it('logs the resource type as plugin or theme when there is no slug', async () => {
+	it('logs the prefixed resource type when there is no slug', async () => {
 		const gtag = vi.fn();
 		window.gtag = gtag;
 
@@ -67,11 +67,11 @@ describe('logBlueprintEvents', () => {
 
 		expect(gtag).toHaveBeenCalledWith('event', 'installPlugin', {
 			resource: 'url',
-			plugin: 'url',
+			plugin: 'resource:url',
 		});
 		expect(gtag).toHaveBeenCalledWith('event', 'installTheme', {
 			resource: 'git:directory',
-			theme: 'git:directory',
+			theme: 'resource:git:directory',
 		});
 	});
 });

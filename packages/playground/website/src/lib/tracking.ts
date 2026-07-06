@@ -54,7 +54,7 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 	 * code, password, URLs are never sent anywhere.
 	 *
 	 * For installPlugin and installTheme, the plugin/theme slug is logged.
-	 * When there is no slug, the resource type is logged instead.
+	 * When there is no slug, the prefixed resource type is logged instead.
 	 */
 	const blueprintDeclaration = await getBlueprintDeclaration(blueprint);
 	if (blueprintDeclaration.steps) {
@@ -64,22 +64,27 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 			}
 			logTrackingEvent('step', { step: step.step });
 			if (step.step === 'installPlugin') {
+				const { pluginData } = step;
 				const data = {
-					resource: (step as any).pluginData.resource,
-					plugin:
-						(step as any).pluginData.slug ||
-						(step as any).pluginData.resource,
+					resource: pluginData.resource,
+					plugin: getResourceIdentifier(pluginData),
 				};
 				logTrackingEvent('installPlugin', data);
 			} else if (step.step === 'installTheme') {
+				const { themeData } = step;
 				const data = {
-					resource: (step as any).themeData.resource,
-					theme:
-						(step as any).themeData.slug ||
-						(step as any).themeData.resource,
+					resource: themeData.resource,
+					theme: getResourceIdentifier(themeData),
 				};
 				logTrackingEvent('installTheme', data);
 			}
 		}
 	}
 };
+
+function getResourceIdentifier(resource: { resource: string; slug?: string }) {
+	if (resource.slug) {
+		return resource.slug;
+	}
+	return `resource:${resource.resource}`;
+}
