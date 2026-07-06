@@ -52,12 +52,12 @@ export function joinPaths(...paths: string[]) {
  * parent path. The parent itself is not considered to be under the parent.
  * Paths containing null bytes are rejected before resolution.
  *
- * @param parentPath The path the result must stay under.
  * @param path The absolute or relative path to resolve.
+ * @param parentPath The path the result must stay under.
  * @returns The normalized resolved path, or undefined when it is not a child.
  */
-export function resolvePathUnder(parentPath: string, path: string) {
-	if (parentPath.includes('\0') || path.includes('\0')) {
+export function resolvePathUnder(path: string, parentPath: string) {
+	if (path.includes('\0') || parentPath.includes('\0')) {
 		return undefined;
 	}
 	const normalizedParentPath = normalizePath(parentPath);

@@ -33,75 +33,75 @@ describe('joinPaths', () => {
 
 describe('resolvePathUnder', () => {
 	it('resolves relative paths under the parent path', () => {
-		expect(resolvePathUnder('/wordpress', 'wp-content/plugin.php')).toEqual(
+		expect(resolvePathUnder('wp-content/plugin.php', '/wordpress')).toEqual(
 			'/wordpress/wp-content/plugin.php'
 		);
 	});
 
 	it('normalizes redundant path segments that stay under the parent path', () => {
 		expect(
-			resolvePathUnder('/wordpress', 'wp-content/./plugins//plugin.php')
+			resolvePathUnder('wp-content/./plugins//plugin.php', '/wordpress')
 		).toEqual('/wordpress/wp-content/plugins/plugin.php');
 		expect(
-			resolvePathUnder('/wordpress', 'wp-content/../index.php')
+			resolvePathUnder('wp-content/../index.php', '/wordpress')
 		).toEqual('/wordpress/index.php');
 	});
 
 	it('checks absolute paths as already-resolved paths', () => {
 		expect(
-			resolvePathUnder('/wordpress', '/wordpress/wp-content/index.php')
+			resolvePathUnder('/wordpress/wp-content/index.php', '/wordpress')
 		).toEqual('/wordpress/wp-content/index.php');
 		expect(
-			resolvePathUnder('/wordpress', '/tmp/index.php')
+			resolvePathUnder('/tmp/index.php', '/wordpress')
 		).toBeUndefined();
 	});
 
 	it('allows absolute paths under the filesystem root', () => {
-		expect(resolvePathUnder('/', '/./tmp/file.php')).toEqual(
+		expect(resolvePathUnder('/./tmp/file.php', '/')).toEqual(
 			'/tmp/file.php'
 		);
-		expect(resolvePathUnder('/', 'tmp/file.php')).toEqual('/tmp/file.php');
+		expect(resolvePathUnder('tmp/file.php', '/')).toEqual('/tmp/file.php');
 	});
 
 	it('returns undefined for empty or current-directory parent paths', () => {
-		expect(resolvePathUnder('', 'file.php')).toBeUndefined();
-		expect(resolvePathUnder('.', 'file.php')).toBeUndefined();
-		expect(resolvePathUnder('./', 'file.php')).toBeUndefined();
-		expect(resolvePathUnder('', '/file.php')).toBeUndefined();
+		expect(resolvePathUnder('file.php', '')).toBeUndefined();
+		expect(resolvePathUnder('file.php', '.')).toBeUndefined();
+		expect(resolvePathUnder('file.php', './')).toBeUndefined();
+		expect(resolvePathUnder('/file.php', '')).toBeUndefined();
 	});
 
 	it('returns undefined when the path names the parent itself', () => {
-		expect(resolvePathUnder('/wordpress', '')).toBeUndefined();
-		expect(resolvePathUnder('/wordpress', '.')).toBeUndefined();
+		expect(resolvePathUnder('', '/wordpress')).toBeUndefined();
+		expect(resolvePathUnder('.', '/wordpress')).toBeUndefined();
 		expect(resolvePathUnder('/wordpress', '/wordpress')).toBeUndefined();
-		expect(resolvePathUnder('/wordpress', '/wordpress/')).toBeUndefined();
+		expect(resolvePathUnder('/wordpress/', '/wordpress')).toBeUndefined();
 		expect(resolvePathUnder('/', '/')).toBeUndefined();
 	});
 
 	it('returns undefined when the resolved path escapes the parent path', () => {
-		expect(resolvePathUnder('/wordpress', '../escape.php')).toBeUndefined();
+		expect(resolvePathUnder('../escape.php', '/wordpress')).toBeUndefined();
 		expect(
-			resolvePathUnder('/wordpress', 'wp-content/../../escape.php')
+			resolvePathUnder('wp-content/../../escape.php', '/wordpress')
 		).toBeUndefined();
 		expect(
-			resolvePathUnder('/wordpress', '/wordpress-backup/file.php')
+			resolvePathUnder('/wordpress-backup/file.php', '/wordpress')
 		).toBeUndefined();
 	});
 
 	it('returns undefined for paths containing null bytes', () => {
 		expect(
-			resolvePathUnder('/wordpress', 'wp-content/\0.php')
+			resolvePathUnder('wp-content/\0.php', '/wordpress')
 		).toBeUndefined();
 		expect(
-			resolvePathUnder('/wordpress\0', 'wp-content/file.php')
+			resolvePathUnder('wp-content/file.php', '/wordpress\0')
 		).toBeUndefined();
 	});
 
 	it('supports relative parent paths', () => {
-		expect(resolvePathUnder('wordpress', 'wp-content/plugin.php')).toEqual(
+		expect(resolvePathUnder('wp-content/plugin.php', 'wordpress')).toEqual(
 			'wordpress/wp-content/plugin.php'
 		);
-		expect(resolvePathUnder('wordpress', '../escape.php')).toBeUndefined();
+		expect(resolvePathUnder('../escape.php', 'wordpress')).toBeUndefined();
 	});
 });
 
