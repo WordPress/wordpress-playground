@@ -11,7 +11,7 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
-import { IosPwaNotice } from '../ios-pwa-notice';
+import { SafariStorageNotice } from '../safari-storage-notice';
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
@@ -44,7 +44,7 @@ export function Layout() {
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
-				<IosPwaNotice />
+				<SafariStorageNotice />
 				<div className={css.siteViewContent}>
 					<PlaygroundViewport />
 				</div>

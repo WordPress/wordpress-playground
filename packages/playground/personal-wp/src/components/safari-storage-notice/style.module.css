@@ -1,12 +1,10 @@
-.iosPwaNotice {
+.safariStorageNotice {
 	margin: 0;
-	color: #1e1e1e;
 	font-size: inherit;
-	border-left-color: #dba617;
+}
 
-	.components-notice__content {
-		margin-right: 0;
-	}
+.safariStorageNotice :global(.components-notice__content) {
+	margin-right: 0;
 }
 
 .content {
@@ -43,7 +41,7 @@
 	vertical-align: middle;
 }
 
-.shareIcon svg {
+.shareIcon :global(svg) {
 	width: 14px;
 	height: 14px;
 	vertical-align: middle;
