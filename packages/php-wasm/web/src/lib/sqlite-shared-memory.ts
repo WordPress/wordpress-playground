@@ -175,16 +175,6 @@ export class SQLiteSharedMemory {
 		context.syscalls.doMsync = (addr, stream, len, flags, offset) => {
 			const path = resolveStreamPath(stream);
 			if (!isPrivateMapping(flags) && isSQLiteSharedMemoryPath(path)) {
-				this.copyMappingIntoSharedBytes({
-					pid: context.pid,
-					path,
-					ptr: addr,
-					length: len,
-					position: offset,
-					heap: context.memory.HEAPU8,
-					version: -1,
-					writable: true,
-				});
 				/*
 				 * Keep the mapping registered if the underlying msync fails.
 				 * A failed munmap is not a clean lifecycle boundary, and later
@@ -197,6 +187,16 @@ export class SQLiteSharedMemory {
 					flags,
 					offset
 				);
+				this.copyMappingIntoSharedBytes({
+					pid: context.pid,
+					path,
+					ptr: addr,
+					length: len,
+					position: offset,
+					heap: context.memory.HEAPU8,
+					version: -1,
+					writable: true,
+				});
 				this.unregisterMapping(context.pid, path, addr, offset);
 				return result;
 			}
@@ -213,7 +213,7 @@ export class SQLiteSharedMemory {
 			const resolvedPath = resolveVfsPath(path);
 			const result = originalUnlink(path);
 			if (isSQLiteSharedMemoryPath(resolvedPath)) {
-				this.deleteFileIfNotMapped(resolvedPath);
+				this.deleteFile(resolvedPath);
 			}
 			return result;
 		};
@@ -236,7 +236,7 @@ export class SQLiteSharedMemory {
 				typeof path === 'string' ? resolveVfsPath(path) : undefined;
 			const result = originalTruncate(path, len);
 			if (isSQLiteSharedMemoryPath(resolvedPath) && len === 0) {
-				this.deleteFileIfNotMapped(resolvedPath);
+				this.deleteFile(resolvedPath);
 			}
 			return result;
 		};
@@ -276,6 +276,15 @@ export class SQLiteSharedMemory {
 		if (!file || file.mappings.size === 0) {
 			this.files.delete(path);
 		}
+	}
+
+	private deleteFile(path: string) {
+		/*
+		 * Unlink/truncate starts a new file generation at this path. Drop the
+		 * mirror even if stale mappings are still registered; Emscripten does
+		 * not notify us when read-only mappings unmap.
+		 */
+		this.files.delete(path);
 	}
 
 	private getOrCreateFile(mapping: Mapping) {

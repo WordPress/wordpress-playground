@@ -90,6 +90,50 @@ describe('SQLiteSharedMemory', () => {
 		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
 	});
 
+	it('drops shared bytes on unlink even when stale mappings remain', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const writer = createRuntime(1);
+		const staleReader = createRuntime(2);
+		const reader = createRuntime(3);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		sharedMemory.install(staleReader.context, resolveStreamPath, identity);
+		const writerMapping = mmap(writer.context, path, 4);
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+		sharedMemory.beforeUnlock(writer.context.pid, path);
+		mmap(staleReader.context, path, 4, PROT_READ);
+
+		writer.context.FS.unlink(path);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
+	});
+
+	it('drops shared bytes on zero truncate even when stale mappings remain', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const writer = createRuntime(1);
+		const staleReader = createRuntime(2);
+		const reader = createRuntime(3);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		sharedMemory.install(staleReader.context, resolveStreamPath, identity);
+		const writerMapping = mmap(writer.context, path, 4);
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+		sharedMemory.beforeUnlock(writer.context.pid, path);
+		mmap(staleReader.context, path, 4, PROT_READ);
+
+		writer.context.FS.truncate(path, 0);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
+	});
+
 	it('drops writable mappings after doMsync cleanup', () => {
 		const sharedMemory = new SQLiteSharedMemory();
 		const doMsync = vi.fn();
@@ -124,6 +168,7 @@ describe('SQLiteSharedMemory', () => {
 		});
 		const writer = createRuntime(1, doMsync);
 		const reader = createRuntime(2);
+		const observer = createRuntime(3);
 		const path = '/tmp/database.sqlite-shm';
 
 		sharedMemory.install(writer.context, resolveStreamPath, identity);
@@ -139,6 +184,12 @@ describe('SQLiteSharedMemory', () => {
 				0
 			)
 		).toThrow('sync failed');
+
+		sharedMemory.install(observer.context, resolveStreamPath, identity);
+		const observerMapping = mmap(observer.context, path, 4);
+		expect(observer.heap.read(observerMapping.ptr, 4)).toEqual([
+			0, 0, 0, 0,
+		]);
 
 		writer.heap.write(writerMapping.ptr, [5, 6, 7, 8]);
 		sharedMemory.beforeUnlock(writer.context.pid, path);
@@ -186,6 +237,7 @@ type TestContext = Parameters<SQLiteSharedMemory['install']>[0] & {
 			prot: number,
 			flags: number
 		) => { ptr: number };
+		truncate: (path: string, len: number) => void;
 	};
 };
 
@@ -201,6 +253,7 @@ function createRuntime(pid: number, doMsync?: TestDoMsync) {
 			return { ptr };
 		}),
 		unlink: vi.fn(),
+		truncate: vi.fn(),
 	} as unknown as TestContext['FS'];
 
 	return {
