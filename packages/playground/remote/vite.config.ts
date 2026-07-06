@@ -70,6 +70,7 @@ export default defineConfig(({ mode }) => {
 			'**/*.dat',
 			'**/*.phar',
 			'*.zip',
+			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
 		resolve: {

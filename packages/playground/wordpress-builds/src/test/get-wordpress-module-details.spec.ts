@@ -10,44 +10,38 @@
 import { createHash } from 'node:crypto';
 import { statSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- in-package build helper
+import { readUstarTar } from '../../build/lib/tar-ustar.mjs';
 import { getWordPressModule } from '../wordpress/get-wordpress-module';
 import { getWordPressModuleDetails } from '../wordpress/get-wordpress-module-details';
+import { ZSTDDecoder } from 'zstddec/stream';
 
 describe('getWordPressModuleDetails()', () => {
 	it('should return a data loader module', async () => {
 		const module = getWordPressModuleDetails();
-		expect(module.url).toMatch(/\/wp-\d\.\d\.zip$/);
-		expect(module.format).toBe('zip');
-		expect(module.container).toBe('zip');
-		expect(module.codec).toBe('deflate');
+		// The core bundle ships as a solid tar.zst so the runtime can stream
+		// extract it instead of materializing a full uncompressed archive.
+		expect(module.url).toMatch(/\/wp-\d\.\d\.tar\.zst$/);
+		expect(module.format).toBe('tar.zst');
+		expect(module.container).toBe('tar');
+		expect(module.codec).toBe('zstd');
 		expect(module.sha256).toMatch(/^[0-9a-f]{64}$/);
 		expect(module.fileCount).toBeGreaterThan(0);
 	});
 
-	it('reports committed ZIP artifact metadata', async () => {
+	it('reports committed tar.zst artifact metadata', async () => {
 		const module = getWordPressModuleDetails('6.8');
-		const zipPath = fileURLToPath(
-			new URL('../wordpress/wp-6.8.zip', import.meta.url)
+		const bundlePath = fileURLToPath(
+			new URL('../wordpress/wp-6.8.tar.zst', import.meta.url)
 		);
-		const zipBytes = readFileSync(zipPath);
-		const reader = new ZipReader(
-			new Uint8ArrayReader(new Uint8Array(zipBytes))
-		);
-		let entries;
-		try {
-			entries = await reader.getEntries();
-		} finally {
-			await reader.close();
-		}
+		const compressedBytes = new Uint8Array(readFileSync(bundlePath));
+		const entries = readUstarTar(await decompressZstd(compressedBytes));
 
-		expect(module.size).toBe(statSync(zipPath).size);
+		expect(module.size).toBe(statSync(bundlePath).size);
 		expect(module.sha256).toBe(
-			createHash('sha256').update(zipBytes).digest('hex')
+			createHash('sha256').update(compressedBytes).digest('hex')
 		);
-		expect(module.fileCount).toBe(
-			entries.filter((entry) => !entry.directory).length
-		);
+		expect(module.fileCount).toBe(entries.length);
 	});
 
 	it('keeps remote trunk modules classified as ZIPs without local metadata', () => {
@@ -74,3 +68,10 @@ describe('getWordPressModuleDetails()', () => {
 		}
 	});
 });
+
+async function decompressZstd(compressedBytes: Uint8Array) {
+	const decoder = new ZSTDDecoder();
+	await decoder.init();
+	const chunks = [...decoder.decodeStreaming([compressedBytes])] as Uint8Array[];
+	return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+}
