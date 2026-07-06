@@ -5101,18 +5101,16 @@ fn dynamic_dlopen(caller: &mut Caller<'_, HostState>, handle: i32) -> wasmtime::
     let mut linker = Linker::new(&engine);
     let mut got_globals = HashMap::new();
     let mut self_func_imports = Vec::new();
+    let mut import_context = DynamicImportContext {
+        memory_base,
+        table_base,
+        metadata: &metadata,
+        got_globals: &mut got_globals,
+        export_names: &export_names,
+        self_func_imports: &mut self_func_imports,
+    };
     for import in module.imports() {
-        define_dynamic_import(
-            caller,
-            &mut linker,
-            &import,
-            memory_base,
-            table_base,
-            &metadata,
-            &mut got_globals,
-            &export_names,
-            &mut self_func_imports,
-        )?;
+        define_dynamic_import(caller, &mut linker, &import, &mut import_context)?;
     }
 
     let instance = linker.instantiate(&mut *caller, &module).map_err(|error| {
@@ -5320,16 +5318,20 @@ fn write_dynamic_handle_metadata(
     Ok(())
 }
 
+struct DynamicImportContext<'a> {
+    memory_base: u32,
+    table_base: u32,
+    metadata: &'a DynamicDylinkMetadata,
+    got_globals: &'a mut HashMap<String, DynamicGotEntry>,
+    export_names: &'a HashSet<String>,
+    self_func_imports: &'a mut Vec<DynamicSelfFuncImport>,
+}
+
 fn define_dynamic_import(
     caller: &mut Caller<'_, HostState>,
     linker: &mut Linker<HostState>,
     import: &wasmtime::ImportType<'_>,
-    memory_base: u32,
-    table_base: u32,
-    metadata: &DynamicDylinkMetadata,
-    got_globals: &mut HashMap<String, DynamicGotEntry>,
-    export_names: &HashSet<String>,
-    self_func_imports: &mut Vec<DynamicSelfFuncImport>,
+    context: &mut DynamicImportContext<'_>,
 ) -> wasmtime::Result<()> {
     let module_name = import.module();
     let import_name = import.name();
@@ -5337,7 +5339,7 @@ fn define_dynamic_import(
 
     match import.ty() {
         ExternType::Global(global_ty) if module_name == "env" && import_name == "__memory_base" => {
-            let global = dynamic_i32_global(caller, global_ty, memory_base as i32)?;
+            let global = dynamic_i32_global(caller, global_ty, context.memory_base as i32)?;
             define_dynamic_extern(
                 caller,
                 linker,
@@ -5348,7 +5350,7 @@ fn define_dynamic_import(
             )
         }
         ExternType::Global(global_ty) if module_name == "env" && import_name == "__table_base" => {
-            let global = dynamic_i32_global(caller, global_ty, table_base as i32)?;
+            let global = dynamic_i32_global(caller, global_ty, context.table_base as i32)?;
             define_dynamic_extern(
                 caller,
                 linker,
@@ -5360,8 +5362,10 @@ fn define_dynamic_import(
         }
         ExternType::Global(global_ty) if matches!(module_name, "GOT.mem" | "GOT.func") => {
             let global = dynamic_i32_global(caller, global_ty, -1)?;
-            let weak = metadata.weak_imports.contains(import_name);
-            got_globals.insert(import_name.to_string(), DynamicGotEntry { global, weak });
+            let weak = context.metadata.weak_imports.contains(import_name);
+            context
+                .got_globals
+                .insert(import_name.to_string(), DynamicGotEntry { global, weak });
             define_dynamic_extern(
                 caller,
                 linker,
@@ -5390,7 +5394,7 @@ fn define_dynamic_import(
             if module_name == "env" && import_name == "_php_stream_stat" {
                 return define_dynamic_php_stream_stat_stub(linker, import_name, &import_label);
             }
-            if module_name == "env" && export_names.contains(import_name) {
+            if module_name == "env" && context.export_names.contains(import_name) {
                 if let ExternType::Func(func_ty) = import.ty() {
                     return define_dynamic_self_func_import(
                         caller,
@@ -5399,7 +5403,7 @@ fn define_dynamic_import(
                         import_name,
                         &import_label,
                         func_ty,
-                        self_func_imports,
+                        context.self_func_imports,
                     );
                 }
             }
