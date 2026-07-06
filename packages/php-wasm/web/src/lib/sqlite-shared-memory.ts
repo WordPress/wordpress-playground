@@ -185,7 +185,20 @@ export class SQLiteSharedMemory {
 					version: -1,
 					writable: true,
 				});
+				/*
+				 * Keep the mapping registered if the underlying msync fails.
+				 * A failed munmap is not a clean lifecycle boundary, and later
+				 * lock or process cleanup still needs to flush this mapping.
+				 */
+				const result = originalDoMsync(
+					addr,
+					stream,
+					len,
+					flags,
+					offset
+				);
 				this.unregisterMapping(context.pid, path, addr, offset);
+				return result;
 			}
 			return originalDoMsync(addr, stream, len, flags, offset);
 		};

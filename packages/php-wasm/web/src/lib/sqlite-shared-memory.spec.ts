@@ -117,6 +117,38 @@ describe('SQLiteSharedMemory', () => {
 		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([0, 0, 0, 0]);
 	});
 
+	it('keeps writable mappings registered when doMsync fails', () => {
+		const sharedMemory = new SQLiteSharedMemory();
+		const doMsync = vi.fn(() => {
+			throw new Error('sync failed');
+		});
+		const writer = createRuntime(1, doMsync);
+		const reader = createRuntime(2);
+		const path = '/tmp/database.sqlite-shm';
+
+		sharedMemory.install(writer.context, resolveStreamPath, identity);
+		const writerMapping = mmap(writer.context, path, 4);
+		writer.heap.write(writerMapping.ptr, [1, 2, 3, 4]);
+
+		expect(() =>
+			writer.context.syscalls.doMsync!(
+				writerMapping.ptr,
+				{ path } as unknown as Emscripten.FS.FSStream,
+				4,
+				0,
+				0
+			)
+		).toThrow('sync failed');
+
+		writer.heap.write(writerMapping.ptr, [5, 6, 7, 8]);
+		sharedMemory.beforeUnlock(writer.context.pid, path);
+
+		sharedMemory.install(reader.context, resolveStreamPath, identity);
+		const readerMapping = mmap(reader.context, path, 4);
+
+		expect(reader.heap.read(readerMapping.ptr, 4)).toEqual([5, 6, 7, 8]);
+	});
+
 	it('drops runtime mappings when process-exit flushing fails', () => {
 		const sharedMemory = new SQLiteSharedMemory();
 		const writer = createRuntime(1);
