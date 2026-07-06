@@ -389,6 +389,7 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		try {
 			setIsRecreating(true);
+			setSaveError(null);
 			const isAutosaved = isAutosavedSite(site);
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??

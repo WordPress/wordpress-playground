@@ -23,6 +23,8 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const personalWPDevServerPort = 5401;
 
@@ -63,6 +65,9 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-personal-wp',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {

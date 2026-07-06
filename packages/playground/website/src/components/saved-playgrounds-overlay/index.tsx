@@ -10,8 +10,12 @@ import { moreVertical, upload, link, close } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useState, useEffect, useRef } from 'react';
-import { usePlaygroundClient } from '../../lib/use-playground-client';
+import {
+	usePlaygroundClient,
+	usePlaygroundClientInfo,
+} from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -112,7 +116,9 @@ export function SavedPlaygroundsOverlay({
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const playground = usePlaygroundClient();
+	const activeClientInfo = usePlaygroundClientInfo();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+	const zipImportInProgressRef = useRef(false);
 
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -123,22 +129,42 @@ export function SavedPlaygroundsOverlay({
 		string | null
 	>(null);
 	const isCompactLayout = useIsCompactLayout();
+	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
 
 	useEffect(() => {
 		if (
 			!pendingZipFile ||
 			!playground ||
 			!activeSite ||
-			activeSite.slug !== pendingZipTargetSlug
+			activeSite.slug !== pendingZipTargetSlug ||
+			zipImportInProgressRef.current
 		) {
 			return;
 		}
 
+		if (activeOpfsSyncStatus === 'syncing') {
+			return;
+		}
+
+		const zipFile = pendingZipFile;
+		zipImportInProgressRef.current = true;
+		setPendingZipFile(null);
+		setPendingZipTargetSlug(null);
+		if (zipFileInputRef.current) {
+			zipFileInputRef.current.value = '';
+		}
+
 		const doImport = async () => {
 			try {
+				if (activeOpfsSyncStatus === 'error') {
+					throw new Error(
+						'Unable to save the new Playground before import.'
+					);
+				}
 				await importWordPressFiles(playground, {
-					wordPressFilesZip: pendingZipFile,
+					wordPressFilesZip: zipFile,
 				});
+				await flushImportedWordPressFiles(playground);
 				setTimeout(async () => {
 					await playground.goTo('/');
 				}, 200);
@@ -152,15 +178,18 @@ export function SavedPlaygroundsOverlay({
 					'Unable to import file. Is it a valid WordPress Playground export?'
 				);
 			} finally {
-				setPendingZipFile(null);
-				setPendingZipTargetSlug(null);
-				if (zipFileInputRef.current) {
-					zipFileInputRef.current.value = '';
-				}
+				zipImportInProgressRef.current = false;
 			}
 		};
 		doImport();
-	}, [pendingZipFile, pendingZipTargetSlug, activeSite, playground, onClose]);
+	}, [
+		pendingZipFile,
+		pendingZipTargetSlug,
+		activeSite,
+		playground,
+		activeOpfsSyncStatus,
+		onClose,
+	]);
 
 	/**
 	 * Creates or selects a target Playground before importing a zip archive.
@@ -184,6 +213,10 @@ export function SavedPlaygroundsOverlay({
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
+		if (zipImportInProgressRef.current || pendingZipFile) {
+			e.target.value = '';
+			return;
+		}
 
 		try {
 			const targetSlug = await createSiteForImport();
@@ -876,4 +909,11 @@ export function SavedPlaygroundsOverlay({
 			</OverlayBody>
 		</Overlay>
 	);
+}
+
+async function flushImportedWordPressFiles(playground: PlaygroundClient) {
+	const documentRoot = await playground.documentRoot;
+	if (await playground.hasOpfsMount(documentRoot)) {
+		await playground.flushOpfs(documentRoot);
+	}
 }

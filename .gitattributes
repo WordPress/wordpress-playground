@@ -1,4 +1,6 @@
 package-lock.json linguist-generated=true
+tsconfig.json linguist-language=JSON-with-Comments
+tsconfig.*.json linguist-language=JSON-with-Comments
 packages/docs/site/docs/site/docs/ linguist-documentation=true
 packages/docs/site/static/diagrams.excalidraw linguist-documentation=true
 packages/php-wasm/compile/*/dist linguist-vendored

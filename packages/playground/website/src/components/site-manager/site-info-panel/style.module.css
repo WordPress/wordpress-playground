@@ -34,6 +34,7 @@
 		overflow-x: auto;
 		overflow-y: hidden;
 		-webkit-overflow-scrolling: touch;
+		flex-shrink: 0;
 	}
 	& :global(.components-tab-panel__tabs-item) {
 		flex: 0 0 auto;

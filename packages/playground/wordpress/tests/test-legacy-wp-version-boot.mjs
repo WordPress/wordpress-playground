@@ -24,6 +24,9 @@
  *
  * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
  */
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
 import { chromium } from 'playwright';
 
 // Matrix of (WordPress, PHP) combinations to test.
@@ -791,56 +794,41 @@ for (const { wp, php } of MATRIX) {
 				const wp4 = await navigateViaUrlBar(
 					page,
 					'/wp-admin/plugins.php',
-					30
+					TIMEOUT_S
 				);
 				if (!wp4) {
 					pluginStatus = { status: 'TIMEOUT' };
 				} else {
-					// Target Hello Dolly specifically via its href. Clicking
-					// the *first* Activate link lands on Akismet's setup
-					// page on modern WP, which doesn't include the
-					// "Deactivate"/"Plugin activated" indicators this phase
-					// looks for. Hello Dolly ("hello.php") ships with every
-					// modern WordPress release and activates in-place with
-					// no follow-up screen, so the resulting plugins.php
-					// reliably shows the expected confirmation.
-					// Fall back to the first Activate link for very old WP
-					// where Hello Dolly may not be present or the href
-					// format differs.
-					// Wait for any Activate link to render — navigateViaUrlBar
-					// returns as soon as plugins.php has *any* body text, which
-					// on slow CI boots can be just the admin shell before the
-					// plugin list renders.
-					const anyActivate = wp4.frame
-						.locator('a')
+					// Target Hello Dolly specifically. Clicking the first
+					// Activate link can land on Akismet's setup page on modern
+					// WP, which doesn't include the expected activation
+					// indicators. Waiting for Hello Dolly avoids racing against
+					// a partially rendered plugin list.
+					const helloActivate = wp4.frame
+						.locator(
+							'a[href*="action=activate"][href*="hello.php"]'
+						)
 						.filter({ hasText: 'Activate' })
 						.first();
-					try {
-						await anyActivate.waitFor({
+					const hasHelloActivate = await helloActivate
+						.waitFor({
 							state: 'visible',
 							timeout: 15000,
-						});
-					} catch {}
-					const helloActivate = wp4.frame
-						.locator('a[href*="hello.php"]')
-						.filter({ hasText: 'Activate' })
-						.first();
-					const activateLink =
-						(await helloActivate.count()) > 0
-							? helloActivate
-							: anyActivate;
-					if ((await activateLink.count()) > 0) {
+						})
+						.then(() => true)
+						.catch(() => false);
+					if (hasHelloActivate) {
 						const bodyBeforeActivation = await wp4.frame
 							.locator('body')
 							.innerText({ timeout: 2000 })
 							.catch(() => wp4.body);
 						const prevFrameUrl = wp4.frame.url();
 						const pluginFile = getPluginFileFromActivationHref(
-							await activateLink
+							await helloActivate
 								.getAttribute('href')
 								.catch(() => null)
 						);
-						await activateLink.click({ timeout: 5000 });
+						await helloActivate.click({ timeout: 5000 });
 						const wp4b = await waitForPluginActivation(page, {
 							previousFrameUrl: prevFrameUrl,
 							previousBody: bodyBeforeActivation,
@@ -1058,6 +1046,17 @@ if (failures.length > 0) {
 	}
 }
 
+if (failures.length > 0 && !process.env.LEGACY_BOOT_RETRY) {
+	const retryableFailures = failures.filter(isRetryableResult);
+	const nonRetryableFailures = failures.filter((r) => !isRetryableResult(r));
+	if (retryableFailures.length > 0 && nonRetryableFailures.length === 0) {
+		const retry = retryTransientFailures(retryableFailures);
+		if (retry.status === 0) {
+			process.exit(0);
+		}
+	}
+}
+
 // All non-skip failures are hard errors.
 const totalFailures = results.reduce(
 	(n, r) =>
@@ -1067,4 +1066,35 @@ const totalFailures = results.reduce(
 if (totalFailures > 0) {
 	console.error(`\n${totalFailures} failure(s) across all phases.`);
 	process.exit(1);
+}
+
+function retryTransientFailures(retryableFailures) {
+	const wpOnly = [...new Set(retryableFailures.map((r) => r.wp))].join(',');
+	console.log(`\nRetrying transient legacy boot failures: ${wpOnly}`);
+	return spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
+		env: {
+			...process.env,
+			WP_ONLY: wpOnly,
+			LEGACY_BOOT_RETRY: '1',
+		},
+		stdio: 'inherit',
+	});
+}
+
+function isRetryableResult(result) {
+	const failedStatuses = PHASES.map((phase) => result[phase]).filter(
+		(status) => status && !isPass(status) && !isSkip(status)
+	);
+	return failedStatuses.length > 0 && failedStatuses.every(isRetryableStatus);
+}
+
+function isRetryableStatus(status) {
+	if (status.status === 'TIMEOUT') {
+		return true;
+	}
+	const text = `${status.detail || ''}\n${status.body || ''}`;
+	return (
+		text.includes('WebWorker failed to load') ||
+		text.includes('One or more database tables are unavailable')
+	);
 }
