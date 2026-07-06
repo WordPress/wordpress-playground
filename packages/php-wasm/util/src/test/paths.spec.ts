@@ -63,6 +63,13 @@ describe('resolvePathUnder', () => {
 		expect(resolvePathUnder('/', 'tmp/file.php')).toEqual('/tmp/file.php');
 	});
 
+	it('returns undefined for empty or current-directory parent paths', () => {
+		expect(resolvePathUnder('', 'file.php')).toBeUndefined();
+		expect(resolvePathUnder('.', 'file.php')).toBeUndefined();
+		expect(resolvePathUnder('./', 'file.php')).toBeUndefined();
+		expect(resolvePathUnder('', '/file.php')).toBeUndefined();
+	});
+
 	it('returns undefined when the path names the parent itself', () => {
 		expect(resolvePathUnder('/wordpress', '')).toBeUndefined();
 		expect(resolvePathUnder('/wordpress', '.')).toBeUndefined();

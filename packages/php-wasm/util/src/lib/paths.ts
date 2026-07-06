@@ -61,6 +61,9 @@ export function resolvePathUnder(parentPath: string, path: string) {
 		return undefined;
 	}
 	const normalizedParentPath = normalizePath(parentPath);
+	if (!normalizedParentPath) {
+		return undefined;
+	}
 	const resolvedPath = normalizePath(
 		path.startsWith('/') ? path : joinPaths(normalizedParentPath, path)
 	);
