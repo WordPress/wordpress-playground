@@ -338,30 +338,22 @@ export class SmtpSink {
 					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
 					break;
 				}
-				// RFC 4954 §4 extends SMTP with the AUTH command.
-				// Match exactly `AUTH <mechanism>` or
-				// `AUTH <mechanism> <initial-response>`.
-				// The separator is one literal space; the response is `=` or a
-				// single base64 string.
+				// RFC 4954 §4: `AUTH <mechanism> [<initial-response>]`. Match
+				// group 1 = mechanism (1-20 of letter/digit/-/_); group 2 =
+				// one optional non-whitespace token. base64 is validated on
+				// decode below, so we don't check it here. `=` means empty.
 				// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
-				const authArgumentMatch = commandArgument.match(
-					/^([A-Za-z0-9_-]{1,20})(?: ((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|=))?$/
+				const authMatch = commandArgument.match(
+					/^([A-Za-z0-9_-]{1,20})(?: (\S*))?$/
 				);
-				if (!authArgumentMatch) {
+				if (!authMatch) {
 					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
-				const mechanism =
-					authArgumentMatch[1].toUpperCase() as SaslMechanism;
-				const initialResponseRaw = authArgumentMatch[2];
-				let initialResponse: string | null = null;
-				if (initialResponseRaw !== undefined) {
-					const trimmedInitialResponse = initialResponseRaw.trim();
-					initialResponse =
-						trimmedInitialResponse === '='
-							? ''
-							: trimmedInitialResponse || null;
-				}
+				const mechanism = authMatch[1].toUpperCase() as SaslMechanism;
+				const arg = authMatch[2];
+				const initialResponse =
+					arg === undefined ? null : arg === '=' ? '' : arg || null;
 
 				if (this.authenticated) {
 					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
@@ -553,6 +545,10 @@ export class SmtpSink {
 				this.resetEnvelope();
 				return;
 			}
+			// Reassemble the on-wire payload: reader stripped the CRLF
+			// terminators when splitting lines, so re-join with CRLF (the
+			// SMTP line ending) and append one for the final line.
+			// https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.8
 			const raw = this.dataLines.join('\r\n') + '\r\n';
 			const { headers, subject, text, from, to } = parseMessage(
 				raw,
@@ -592,6 +588,10 @@ export class SmtpSink {
 			this.authPending = false;
 			return;
 		}
+		// RFC 4954 §4: during a SASL exchange the client may send a
+		// single "*" to abort the authentication; the server must then
+		// reject it with a 501 rather than continuing the challenge.
+		// https://www.rfc-editor.org/rfc/rfc4954.html#section-4
 		if (line === '*') {
 			this.authPending = false;
 			this.authState = null;
@@ -803,6 +803,8 @@ function decodeRfc2047EncodedWords(headerValue: string): string {
 		/(=\?[^?]+\?[BbQq]\?[^?]+\?=)[ \t\r\n]+(?==\?[^?]+\?[BbQq]\?[^?]+\?=)/g,
 		'$1'
 	);
+	// Match the encoded-word grammar `=?charset?encoding?encoded-text?=`.
+	// https://www.rfc-editor.org/rfc/rfc2047.html#section-2
 	return adjacentEncodedWordsCollapsed.replace(
 		/=\?([^?]+)\?([BbQq])\?([^?]+)\?=/g,
 		(encodedWord, charsetRaw, encodingRaw, encodedText) => {
@@ -823,7 +825,16 @@ function decodeRfc2047EncodedWords(headerValue: string): string {
 			} catch {
 				return encodedWord;
 			}
-			return decodeBytes(bytes, charset);
+			// Decode the reconstructed octets using the declared charset,
+			// falling back to UTF-8 when the label is unsupported. Charset
+			// labels are matched case-insensitively and aliases like `utf8`
+			// resolve to `utf-8`, so the sender's spelling is passed as-is.
+			// https://encoding.spec.whatwg.org/#names-and-labels
+			try {
+				return new TextDecoder(charset).decode(bytes);
+			} catch {
+				return new TextDecoder().decode(bytes);
+			}
 		}
 	);
 }
@@ -839,38 +850,6 @@ function decodeRfc2047QEncodedWord(encodedText: string): Uint8Array {
 			String.fromCharCode(parseInt(hexByte, 16))
 		);
 	return new Uint8Array([...binaryText].map((char) => char.charCodeAt(0)));
-}
-
-function decodeBytes(bytes: Uint8Array, charset: string): string {
-	const normalizedCharset = charset.toLowerCase();
-	const textDecoderEncodingLabel =
-		normalizedCharset === 'utf8' ? 'utf-8' : normalizedCharset;
-	try {
-		// TextDecoder performs charset decoding and replacement-character
-		// handling for malformed byte sequences. Unsupported charset labels
-		// fall back to the default UTF-8 decoder below.
-		return new TextDecoder(textDecoderEncodingLabel).decode(bytes);
-	} catch {
-		return new TextDecoder().decode(bytes);
-	}
-}
-
-function decodeQuotedPrintableToBytes(content: string): Uint8Array {
-	const softLineBreaksRemoved = content.replace(/=\r\n/g, '');
-	const bytes: number[] = [];
-	for (let i = 0; i < softLineBreaksRemoved.length; i++) {
-		const char = softLineBreaksRemoved[i];
-		if (char === '=' && i + 2 < softLineBreaksRemoved.length) {
-			const hexByte = softLineBreaksRemoved.slice(i + 1, i + 3);
-			if (/^[0-9A-Fa-f]{2}$/.test(hexByte)) {
-				bytes.push(parseInt(hexByte, 16));
-				i += 2;
-				continue;
-			}
-		}
-		bytes.push(char.charCodeAt(0));
-	}
-	return new Uint8Array(bytes);
 }
 
 function getHeaderParameter(headerValue: string, name: string): string | null {
@@ -939,14 +918,33 @@ function decodeTextPart(
 			return content;
 		}
 	} else if (encoding === 'quoted-printable') {
-		bytes = decodeQuotedPrintableToBytes(content);
+		const softLineBreaksRemoved = content.replace(/=\r\n/g, '');
+		const decodedBytes: number[] = [];
+		for (let i = 0; i < softLineBreaksRemoved.length; i++) {
+			const char = softLineBreaksRemoved[i];
+			if (char === '=' && i + 2 < softLineBreaksRemoved.length) {
+				const hexByte = softLineBreaksRemoved.slice(i + 1, i + 3);
+				if (/^[0-9A-Fa-f]{2}$/.test(hexByte)) {
+					decodedBytes.push(parseInt(hexByte, 16));
+					i += 2;
+					continue;
+				}
+			}
+			decodedBytes.push(char.charCodeAt(0));
+		}
+		bytes = new Uint8Array(decodedBytes);
 	} else {
 		return content;
 	}
-	return decodeBytes(
-		bytes,
-		getHeaderParameter(headers['content-type'] || '', 'charset') || 'utf-8'
-	);
+	const charset =
+		getHeaderParameter(headers['content-type'] || '', 'charset') || 'utf-8';
+	// Decode with the declared charset, falling back to UTF-8 when the label
+	// is unsupported. https://encoding.spec.whatwg.org/#names-and-labels
+	try {
+		return new TextDecoder(charset).decode(bytes);
+	} catch {
+		return new TextDecoder().decode(bytes);
+	}
 }
 
 /**

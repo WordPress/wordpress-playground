@@ -85,7 +85,7 @@ export function createSendmailSpawnHandler(
 			// Since Playground supports PHP 7.4–8.5, both line endings can
 			// arrive here. Our parseMessage helpers expect RFC 5322 canonical
 			// CRLF, so normalize before parsing:
-			// https://www.rfc-editor.org/rfc/rfc5322#section-2.1
+			// https://www.rfc-editor.org/rfc/rfc5322.html#section-2.1
 			const raw = rawText.replace(/\r?\n/g, '\r\n');
 
 			// Parse folded headers, MIME boundaries, and transfer encodings only

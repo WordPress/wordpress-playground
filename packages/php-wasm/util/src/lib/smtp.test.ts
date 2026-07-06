@@ -504,6 +504,23 @@ describe('SmtpSink – AUTH edge cases', () => {
 		expect(resp).toMatch(/^501 /);
 	});
 
+	it('rejects AUTH initial responses split across whitespace', async () => {
+		// RFC 4954 §4 allows one optional initial-response token. Whitespace
+		// inside the base64 data creates an extra token and is a syntax error.
+		const client = createClient({
+			auth: { mechanisms: ['PLAIN'] },
+		});
+		await client.read();
+		await ehlo(client);
+		const credentials = btoa('\0user\0pass');
+		const splitCredentials = `${credentials.slice(0, 8)} ${credentials.slice(
+			8
+		)}`;
+		await client.write(`AUTH PLAIN ${splitCredentials}\r\n`);
+		const resp = await client.read();
+		expect(resp).toBe('501 Syntax error in parameters or arguments\r\n');
+	});
+
 	it('rejects already-authenticated client', async () => {
 		// RFC 4954 §4: after a successful AUTH, further AUTH commands
 		// in the same session must be rejected with 503.
@@ -758,7 +775,7 @@ describe('SmtpSink – command edge cases', () => {
 			// - https://www.rfc-editor.org/rfc/rfc5321.html#section-4.2.4
 			// - https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.7
 			// - https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.8
-			// - https://www.rfc-editor.org/rfc/rfc821.html#section-3.8
+			// - https://www.rfc-editor.org/rfc/rfc821.html#page-18 (§3.8)
 			// - https://www.rfc-editor.org/rfc/rfc5321.html#appendix-F.1
 			const client = createClient();
 			await client.read();
@@ -1079,11 +1096,11 @@ describe('SmtpSink – data handling', () => {
 describe('parseMessage', () => {
 	it('parses a simple text/plain email', () => {
 		// RFC 5322 §2.1: a message is header fields followed by an
-		// empty line followed by the body. RFC 2045 §5 defaults the
+		// empty line followed by the body. RFC 2045 §5.2 defaults the
 		// Content-Type to text/plain when no header is present.
 		// References:
 		// - https://www.rfc-editor.org/rfc/rfc5322.html#section-2.1
-		// - https://www.rfc-editor.org/rfc/rfc2045.html#section-5
+		// - https://www.rfc-editor.org/rfc/rfc2045.html#section-5.2
 		const raw =
 			'Subject: Hello\r\n' +
 			'From: a@b.com\r\n' +
