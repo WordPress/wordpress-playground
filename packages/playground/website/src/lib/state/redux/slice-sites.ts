@@ -8,14 +8,12 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
-	type BlueprintV1,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
 	BlueprintFetchError,
 } from '@wp-playground/blueprints';
-import type { WritableFilesystemBackend } from '@wp-playground/storage';
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
@@ -700,7 +698,7 @@ async function prepareResolvedBlueprint(
 	);
 	if (reflection.getVersion() === 1) {
 		resolvedBlueprint.blueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint,
+			resolvedBlueprint.blueprint as any,
 			playgroundUrlWithQueryApiArgs.searchParams
 		);
 	}
@@ -791,7 +789,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
-	originalBlueprint: BlueprintV1 | WritableFilesystemBackend;
+	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
 
