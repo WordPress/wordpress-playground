@@ -29,9 +29,11 @@ Ang [WordPress Playground block](https://wordpress.org/plugins/interactive-code-
 
 Sa block na ito ay mayroon kang diretso at epektibong paraan upang lumikha ng live WordPress environment na maaaring i-embed sa loob ng iyong mga blog post.
 
-:::info
+<div class="callout callout-info">
+
 Para sa anumang isyu o katanungan tungkol sa WordPress Playground Block, mangyaring magbukas ng GitHub issue sa repositoryang [playground-tools](https://github.com/WordPress/playground-tools).
-:::
+
+</div>
 
 ## Ilagay ang isang native app na nagpapatakbo ng WordPress sa App Store
 

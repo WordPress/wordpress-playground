@@ -93,7 +93,19 @@ const sitesSlice = createSlice({
 			const { slug, metadata } = action.payload;
 			const site = state.entities[slug];
 			if (site) {
-				site.metadata = { ...site.metadata, ...metadata };
+				const appliedMigrations =
+					metadata.appliedMigrations ||
+					site.metadata.appliedMigrations
+						? {
+								...site.metadata.appliedMigrations,
+								...metadata.appliedMigrations,
+							}
+						: undefined;
+				site.metadata = {
+					...site.metadata,
+					...metadata,
+					...(appliedMigrations ? { appliedMigrations } : {}),
+				};
 			}
 		},
 
@@ -151,10 +163,10 @@ export function deriveSiteNameFromSlug(slug: string) {
  */
 export function updateSiteMetadata({
 	slug,
-	changes,
+	metadata,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	metadata: Partial<SiteMetadata>;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -167,7 +179,35 @@ export function updateSiteMetadata({
 				changes: {
 					metadata: {
 						...storedSite.metadata,
-						...changes,
+						...metadata,
+					},
+				},
+			})
+		);
+	};
+}
+
+export function markSiteMigrationApplied({
+	slug,
+	migration,
+	timestamp = Date.now(),
+}: {
+	slug: string;
+	migration: string;
+	timestamp?: number;
+}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const storedSite = selectSiteBySlug(getState(), slug);
+		await dispatch(
+			updateSiteMetadata({
+				slug,
+				metadata: {
+					appliedMigrations: {
+						...storedSite.metadata.appliedMigrations,
+						[migration]: timestamp,
 					},
 				},
 			})
@@ -527,20 +567,14 @@ export interface SiteMetadata {
 	originalBlueprintSource: BlueprintSource;
 
 	/**
-	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a personal site.
-	 */
-	lastUrl?: string;
-
-	/**
 	 * History of backups for this site.
 	 */
 	backupHistory?: Array<{ filename: string; timestamp: number }>;
 
 	/**
-	 * Auto-backup interval setting.
-	 * - 'none': No auto-backup (default)
-	 * - 'daily': Backup every day
+	 * Auto-backup interval setting. Defaults to 'daily' when unset.
+	 * - 'none': No auto-backup
+	 * - 'daily': Backup every day (default)
 	 * - 'every-2-days': Backup every 2 days
 	 * - 'weekly': Backup every week
 	 * - 'ignore': Never show backup reminders
@@ -556,6 +590,16 @@ export interface SiteMetadata {
 	 * Timestamp of the last time this site was accessed.
 	 */
 	lastAccessDate?: number;
+
+	/**
+	 * UTC date of the last returning-visit usage stats event for this site.
+	 */
+	lastUsageStatsReturningVisitDate?: string;
+
+	/**
+	 * Timestamps for one-off migrations applied to this site.
+	 */
+	appliedMigrations?: Record<string, number>;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

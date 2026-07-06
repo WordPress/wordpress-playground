@@ -14,6 +14,8 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
@@ -70,6 +72,9 @@ export default defineConfig(({ mode }) => {
 			'*.zip',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
 		// dependencies.
@@ -139,6 +144,29 @@ export default defineConfig(({ mode }) => {
 							return 'assets/extensions/[name]-[hash].js';
 						}
 						return 'assets/[name]-[hash].js';
+					},
+					/**
+					 * Keep `wasm-feature-detect` out of worker entry chunks.
+					 *
+					 * The PHP loader chunks import `jspi` from
+					 * `wasm-feature-detect` to choose between JSPI and
+					 * Asyncify builds. Rollup may otherwise decide that the
+					 * Blueprints worker entry chunk is the cheapest place to
+					 * host that shared import. In WebKit, dynamically loading a
+					 * PHP loader chunk would then import the worker entrypoint as
+					 * a normal module dependency inside the same worker global.
+					 * That re-evaluates the entrypoint and tries to expose the
+					 * Comlink endpoint a second time.
+					 *
+					 * A dedicated, side-effect-free chunk makes PHP loader chunks
+					 * import `wasm-feature-detect` directly instead of importing
+					 * the worker entrypoint.
+					 */
+					manualChunks(id) {
+						if (/[\\/]wasm-feature-detect[\\/]/.test(id)) {
+							return 'wasm-feature-detect';
+						}
+						return undefined;
 					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {

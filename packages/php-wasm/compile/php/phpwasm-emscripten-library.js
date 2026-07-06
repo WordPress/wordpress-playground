@@ -24,6 +24,7 @@ const LibraryExample = {
 		POLLHUP: Number('{{{cDefs.POLLHUP}}}'),
 		SETFL_MASK:
 			Number('{{{cDefs.O_APPEND}}}') | Number('{{{cDefs.O_NONBLOCK}}}'),
+		socketTimeouts: new Map(),
 		// These macros are not defined in Emscripten at the time of writing:
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
@@ -467,6 +468,33 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
+		parseSocketTimeout: function (optionValuePtr, optionLen) {
+			if (!optionValuePtr || optionLen < 8) {
+				return null;
+			}
+
+			let seconds;
+			let microseconds;
+			if (optionLen >= 16) {
+				seconds = Number(HEAP64[optionValuePtr >> 3]);
+				microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+			} else {
+				seconds = HEAP32[optionValuePtr >> 2];
+				microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+			}
+
+			if (
+				!Number.isFinite(seconds) ||
+				!Number.isFinite(microseconds) ||
+				seconds < 0 ||
+				microseconds < 0
+			) {
+				return null;
+			}
+
+			return seconds * 1000 + Math.ceil(microseconds / 1000);
+		},
+
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawned = Module['spawnProcess'](
@@ -529,6 +557,8 @@ const LibraryExample = {
 		 * @returns 0 on success, -1 on failure
 		 */
 		shutdownSocket: function (socketd, how) {
+			PHPWASM.socketTimeouts.delete(socketd);
+
 			// This implementation only supports websockets at the moment
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
@@ -661,8 +691,12 @@ const LibraryExample = {
 				stdoutParentFd = std[1]?.parent,
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
+			const detachPipeDataListeners = [];
 
 			cp.on('exit', function (code) {
+				for (const detach of detachPipeDataListeners) {
+					detach();
+				}
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
@@ -689,16 +723,27 @@ const LibraryExample = {
 					stdoutChildFd
 				);
 				let stdoutAt = 0;
-				cp.stdout.on('data', function (data) {
-					stdoutStream.stream_ops.write(
-						stdoutStream,
-						data,
-						0,
-						data.length,
-						stdoutAt
-					);
-					stdoutAt += data.length;
-				});
+				const onStdoutData = function (data) {
+					try {
+						stdoutStream.stream_ops.write(
+							stdoutStream,
+							data,
+							0,
+							data.length,
+							stdoutAt
+						);
+						stdoutAt += data.length;
+					} catch {
+						// PHP may close the child pipe before Node finishes
+						// draining already-buffered stdout data. Late chunks are
+						// no longer deliverable, so detach the listener and stop.
+						cp.stdout.off('data', onStdoutData);
+					}
+				};
+				cp.stdout.on('data', onStdoutData);
+				detachPipeDataListeners.push(() =>
+					cp.stdout.off('data', onStdoutData)
+				);
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -707,16 +752,24 @@ const LibraryExample = {
 					stderrChildFd
 				);
 				let stderrAt = 0;
-				cp.stderr.on('data', function (data) {
-					stderrStream.stream_ops.write(
-						stderrStream,
-						data,
-						0,
-						data.length,
-						stderrAt
-					);
-					stderrAt += data.length;
-				});
+				const onStderrData = function (data) {
+					try {
+						stderrStream.stream_ops.write(
+							stderrStream,
+							data,
+							0,
+							data.length,
+							stderrAt
+						);
+						stderrAt += data.length;
+					} catch {
+						cp.stderr.off('data', onStderrData);
+					}
+				};
+				cp.stderr.on('data', onStderrData);
+				detachPipeDataListeners.push(() =>
+					cp.stderr.off('data', onStderrData)
+				);
 			}
 
 			/**
@@ -964,7 +1017,15 @@ const LibraryExample = {
 	 */
 	wasm_recv: function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
+			const receiveTimeout =
+				PHPWASM.socketTimeouts.get(sockfd)?.receive;
+			const startedAt = Date.now();
+			let resolved = false;
+
 			const poll = function () {
+				if (resolved) {
+					return;
+				}
 				let newl = ___syscall_recvfrom(
 					sockfd,
 					buffer,
@@ -974,10 +1035,20 @@ const LibraryExample = {
 					null
 				);
 				if (newl > 0) {
+					resolved = true;
 					wakeUp(newl);
-				} else if (newl === -6) {
+				} else if (newl === -ERRNO_CODES.EAGAIN) {
+					if (
+						receiveTimeout > 0 &&
+						Date.now() - startedAt >= receiveTimeout
+					) {
+						resolved = true;
+						wakeUp(-ERRNO_CODES.EAGAIN);
+						return;
+					}
 					setTimeout(poll, 20);
 				} else {
+					resolved = true;
 					wakeUp(0);
 				}
 			};
@@ -988,10 +1059,14 @@ const LibraryExample = {
 	/**
 	 * Shims setsockopt(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
-	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
+	 * The supported options are SO_KEEPALIVE, TCP_NODELAY, SO_RCVTIMEO,
+	 * and SO_SNDTIMEO.
 	 *
-	 * Technically these options are propagated to the WebSockets proxy
-	 * server which then sets them on the underlying TCP connection.
+	 * SO_KEEPALIVE and TCP_NODELAY are propagated to the WebSockets proxy
+	 * server, which then sets them on the underlying TCP connection.
+	 *
+		 * SO_RCVTIMEO and SO_SNDTIMEO are stored per socket. wasm_recv()
+		 * uses SO_RCVTIMEO and wasm_connect() uses SO_SNDTIMEO.
 	 *
 	 * @param {int} socketd Socket descriptor
 	 * @param {int} level  Level at which the option is defined
@@ -1015,27 +1090,38 @@ const LibraryExample = {
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
 
+		if (
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)
+		) {
+			const timeoutMs = PHPWASM.parseSocketTimeout(
+				optionValuePtr,
+				optionLen
+			);
+			if (timeoutMs === null) {
+				return -1;
+			}
+
+			const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+			if (optionName === SO_RCVTIMEO) {
+				timeouts.receive = timeoutMs;
+			} else {
+				timeouts.send = timeoutMs;
+			}
+			PHPWASM.socketTimeouts.set(socketd, timeouts);
+			return 0;
+		}
+
 		// Options that we can forward to the WebSocket proxy
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
 
-		// Options that we acknowledge but don't actually implement
-		// (WebSocket connections handle timeouts differently)
-		const isIgnorable =
-			level === SOL_SOCKET &&
-			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-
-		if (!isForwardable && !isIgnorable) {
+		if (!isForwardable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
-		}
-
-		// For ignorable options, just return success
-		if (isIgnorable) {
-			return 0;
 		}
 
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
@@ -1135,45 +1221,73 @@ const LibraryExample = {
 				return;
 			}
 
-			// Wait for the connection to be established
-			const timeout = 30000; // 30 second timeout
+			// Wait for the connection to be established. A zero timeval
+			// disables the timeout, matching SO_SNDTIMEO semantics.
+			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+			const timeout = sendTimeout ?? 30000;
 			let resolved = false;
+			let timeoutId;
+			let handleOpen;
+			let handleError;
+			let handleClose;
+			const peer = PHPWASM.getAllPeers(sock).find(
+				(candidate) => candidate.socket === ws
+			);
 
-			const timeoutId = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					wakeUp(-ERRNO_CODES.ETIMEDOUT);
-				}
-			}, timeout);
-
-			const handleOpen = () => {
-				if (!resolved) {
-					resolved = true;
+			const cleanupConnectListeners = () => {
+				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
-					ws.removeEventListener('error', handleError);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(0);
+				}
+				ws.removeEventListener('open', handleOpen);
+				ws.removeEventListener('error', handleError);
+				ws.removeEventListener('close', handleClose);
+			};
+
+			const cleanupFailedConnect = (errno) => {
+				try {
+					if (
+						ws.readyState !== ws.CLOSING &&
+						ws.readyState !== ws.CLOSED
+					) {
+						ws.close();
+					}
+				} catch (e) {
+					// Ignore close errors on an already-failed connect.
+				}
+				if (peer) {
+					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				}
+				sock.connecting = false;
+				sock.error = errno;
+			};
+
+			const finishConnect = (result) => {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
+					if (result < 0) {
+						cleanupFailedConnect(-result);
+					}
+					wakeUp(result);
 				}
 			};
 
-			const handleError = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+			if (timeout > 0) {
+				timeoutId = setTimeout(() => {
+					finishConnect(-ERRNO_CODES.ETIMEDOUT);
+				}, timeout);
+			}
+
+			handleOpen = () => {
+				finishConnect(0);
 			};
 
-			const handleClose = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('error', handleError);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+			handleError = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
+			};
+
+			handleClose = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
 
 			ws.addEventListener('open', handleOpen);

@@ -1,4 +1,11 @@
 <?php
+// PHP < 5.3 doesn't support anonymous functions (closures) at all,
+// and WordPress < 3.0 can't handle them as hook callbacks. Skip this
+// mu-plugin entirely for either.
+if (version_compare(PHP_VERSION, '5.3', '<')
+	|| (isset($GLOBALS['wp_version']) && version_compare($GLOBALS['wp_version'], '3.0', '<'))) {
+	return;
+}
 
 /**
  * Add a notice to wp-login.php offering the username and password.
@@ -37,6 +44,75 @@ add_action('admin_head', function () {
 				}
 		</style>';
 });
+
+/**
+ * Opt Playground pages into browser-native cross-document View Transitions.
+ *
+ * This lets the browser keep the outgoing page visible until the incoming page
+ * is ready, without intercepting clicks or emulating navigation.
+ * The rules are intentionally low-specificity and printed early, so themes,
+ * plugins, and user code can override them with ordinary CSS.
+ */
+function playground_enable_view_transitions() {
+	if ( playground_has_wordpress_view_transitions() ) {
+		return;
+	}
+
+	?>
+	<style>
+		@media (prefers-reduced-motion: no-preference) {
+			@view-transition {
+				navigation: auto;
+			}
+
+			::view-transition-group(root),
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				animation-delay: 0s;
+				animation-duration: 0s;
+			}
+
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				mix-blend-mode: normal;
+			}
+		}
+	</style>
+	<?php
+}
+
+/**
+ * Checks whether WordPress already owns View Transitions for this request.
+ *
+ * The Playground fallback avoids named transitions, but it should still step
+ * aside when Core or the feature plugin can define its own root transition.
+ */
+function playground_has_wordpress_view_transitions() {
+	// The standalone View Transitions feature plugin defines these globally.
+	if ( defined( 'VIEW_TRANSITIONS_VERSION' )
+		|| function_exists( 'plvt_load_view_transitions' ) ) {
+		return true;
+	}
+
+	if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
+		return false;
+	}
+
+	// Core exposes these helpers while its admin View Transitions are available.
+	if ( function_exists( 'wp_get_view_transitions_admin_css' )
+		|| function_exists( 'wp_enqueue_view_transitions_admin_css' ) ) {
+		return true;
+	}
+
+	return function_exists( 'wp_style_is' )
+		&& (
+			wp_style_is( 'wp-view-transitions-admin', 'enqueued' )
+			|| wp_style_is( 'wp-view-transitions-admin', 'done' )
+		);
+}
+add_action( 'wp_head', 'playground_enable_view_transitions', 0 );
+add_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
+add_action( 'login_head', 'playground_enable_view_transitions', 0 );
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {
@@ -97,7 +173,7 @@ add_action('admin_print_scripts', function () {
  */
 function playground_add_target_blank_to_external_links() {
 	// Only run on frontend and admin pages, not during AJAX requests or CLI
-	if (empty($_SERVER['REQUEST_URI']) || wp_doing_ajax() || wp_doing_cron()) {
+	if (empty($_SERVER['REQUEST_URI']) || (function_exists('wp_doing_ajax') && wp_doing_ajax()) || (function_exists('wp_doing_cron') && wp_doing_cron())) {
 		return;
 	}
 
@@ -193,7 +269,7 @@ add_action('admin_head', 'playground_report_url_to_parent');
  * * WP_Http_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
-$__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
+$__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : ( class_exists( 'Requests' ) ? 'Requests' : null );
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
 	/**
@@ -209,7 +285,7 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	 * @see https://core.trac.wordpress.org/ticket/37708
 	 */
 	add_filter('http_api_transports', function() {
-		return [ 'Fetch' ];
+		return array( 'Fetch' );
 	});
 
 	/**
@@ -222,18 +298,20 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	 * @TODO Investigate why.
 	 */
 	add_filter('wp_signature_hosts', function ($hosts) {
-		return [];
+		return array();
 	});
 } else {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
-	$__requests_class::add_transport('Wp_Http_Dummy');
+	if ( $__requests_class ) {
+		$__requests_class::add_transport('Wp_Http_Dummy');
+	}
 
 	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
 		$options['transport'] = 'Wp_Http_Dummy';
 	}, 10, 5 );
 
 	add_filter('http_api_transports', function() {
-		return [ 'Dummy' ];
+		return array( 'Dummy' );
 	});
 }
 
@@ -243,25 +321,15 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
  */
 add_action('init', function() {
 	if (defined('PLAYGROUND_ALLOW_PATTERN_PICKER') && PLAYGROUND_ALLOW_PATTERN_PICKER) return;
+	if (!function_exists('get_current_user_id')) return;
 	$user_id = get_current_user_id();
 	if (!$user_id) return;
 
-	$prefs = get_user_meta($user_id, 'wp_persisted_preferences', true) ?: [];
-	if (!isset($prefs['core'])) $prefs['core'] = [];
+	$prefs = get_user_meta($user_id, 'wp_persisted_preferences', true) ?: array();
+	if (!isset($prefs['core'])) $prefs['core'] = array();
 	$prefs['core']['enableChoosePatternModal'] = false;
 	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
 });
-
-/**
- * ¡TEMPORARY WORKAROUND!
- * On 2026-02-26, with Gutenberg v22.6.0 and above, the site editor and post
- * editor fail to load. This appears related the `cross-origin-embedder-policy: credentialless`
- * header which is added when client side media is enabled by default.
- *
- * This has something to do with our /wp-includes/empty.html workaround.
- * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
- */
-add_filter('wp_client_side_media_processing_enabled', '__return_false');
 
 /**
  * Disable the WP Cron.

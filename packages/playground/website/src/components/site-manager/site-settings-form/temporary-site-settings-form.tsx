@@ -3,9 +3,13 @@ import css from './style.module.css';
 import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
-import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
+import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
+import {
+	getSetupFormDefaultValues,
+	getSiteSettingsFromFormData,
+} from './setup-form-values';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,
@@ -17,37 +21,18 @@ export function TemporarySiteSettingsForm({
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
+	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		redirectTo(
-			PlaygroundRoute.newTemporarySite({
-				...(siteInfo.originalUrlParams || {}),
-				query: {
-					...(siteInfo.originalUrlParams?.searchParams || {}),
-					php: data.phpVersion,
-					wp: data.wpVersion,
-					networking: data.withNetworking ? 'yes' : 'no',
-					language: data.language,
-					multisite: data.multisite ? 'yes' : 'no',
-				},
-			})
+		await sitesAPI.createNewTemporarySite(
+			undefined,
+			getSiteSettingsFromFormData(data)
 		);
 		onSubmit?.();
-		// @TODO: Display a notification of updated site or forked site
 	};
-	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
-		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
-		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
-		return {
-			phpVersion: runtimeConf?.phpVersion as any,
-			wpVersion: runtimeConf?.wpVersion as any,
-			withNetworking: runtimeConf?.networking,
-			language: 'language' in searchParams ? searchParams.language : '',
-			multisite:
-				'multisite' in searchParams
-					? searchParams.multisite === 'yes'
-					: false,
-		};
-	}, [siteInfo]);
+	const defaultValues = useMemo(
+		() => getSetupFormDefaultValues(siteInfo),
+		[siteInfo]
+	);
 
 	return (
 		<UnconnectedSiteSettingsForm

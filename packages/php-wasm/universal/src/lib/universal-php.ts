@@ -67,6 +67,7 @@ export type MessageListener = (
 ) => Promise<string | Uint8Array | void> | string | void;
 export interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
+	off(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;
 }
 export type ChildProcess = EventEmitter & {

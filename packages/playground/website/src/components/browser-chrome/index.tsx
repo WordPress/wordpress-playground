@@ -22,11 +22,12 @@ import {
 	type OverlayViewMode,
 } from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
-import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
+import { isSiteSavingDisabled } from '../../lib/state/url/router';
 
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
 const shouldOpenOverlay = overlayParam !== null;
+const isSavingDisabled = isSiteSavingDisabled();
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -93,12 +94,12 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					{!isSaveDisabledByQueryParam() && <SaveStatusIndicator />}
+					{!isSavingDisabled && <SaveStatusIndicator />}
 
 					<div className={css.toolbarButtons}>
 						<Button
 							variant="browser-chrome"
-							aria-label="Saved Playgrounds"
+							aria-label="Your Playgrounds"
 							onClick={() => setIsPlaygroundsOverlayOpen(true)}
 							aria-expanded={isPlaygroundsOverlayOpen}
 							className={css.savedPlaygroundsButton}

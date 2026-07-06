@@ -12,14 +12,18 @@ End-to-end testing verifies that your WordPress plugin or theme works correctly 
 Las pruebas de extremo a extremo verifican que tu plugin o tema WordPress funciona correctamente desde la perspectiva del usuario: haciendo clic en botones, completando formularios y navegando por páginas en un navegador real. Esta guía muestra cómo combinar [Playwright](https://playwright.dev/) con la [CLI de WordPress Playground](/developers/local-development/wp-playground-cli) para escribir pruebas E2E fiables sin Docker, bases de datos ni configuración manual.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started).
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Esta guía asume familiaridad con el desarrollo de plugins o temas WordPress. Para una introducción al uso de Playground en tu flujo de desarrollo, consulta [WordPress Playground para desarrolladores de plugins](/guides/for-plugin-developers). Para detalles de configuración de Blueprint, consulta [Introducción a Blueprints](/blueprints/getting-started).
-:::
+
+</div>
 
 <!--
 ## Prerequisites
@@ -70,23 +74,23 @@ Esto instala Playwright como ejecutor de pruebas, la CLI de Playground para crea
 Crea un archivo `playwright.config.ts` en la raíz de tu proyecto:
 
 ```typescript
-import { defineConfig } from "@playwright/test";
+import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: "./tests/e2e",
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1,
-  reporter: "html",
-  timeout: 120_000,
-  expect: {
-    timeout: 30_000,
-  },
-  use: {
-    screenshot: "only-on-failure",
-    trace: "on-first-retry",
-  },
+	testDir: './tests/e2e',
+	fullyParallel: false,
+	forbidOnly: !!process.env.CI,
+	retries: process.env.CI ? 2 : 0,
+	workers: 1,
+	reporter: 'html',
+	timeout: 120_000,
+	expect: {
+		timeout: 30_000,
+	},
+	use: {
+		screenshot: 'only-on-failure',
+		trace: 'on-first-retry',
+	},
 });
 ```
 
@@ -97,7 +101,10 @@ WordPress Playground needs more time to start than a typical web app. The 120-se
 WordPress Playground necesita más tiempo para iniciarse que una aplicación web típica. El timeout de prueba de 120 segundos y el timeout de aserción de 30 segundos tienen en cuenta el tiempo de arranque de WordPress y la carga de páginas. Configurar `workers: 1` evita conflictos de puertos cuando varias pruebas comparten un servidor Playground.
 
 <!--
-:::tip[Using baseURL with dynamic ports]
+<div class="callout callout-tip">
+
+**Using baseURL with dynamic ports**
+
 By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
 
 ```typescript
@@ -105,28 +112,37 @@ const cli = await runCLI({ command: "server", port: 9500, blueprint });
 ```
 
 Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
-:::
+
+</div>
 -->
 
-:::tip[Usar baseURL con puertos dinámicos]
+<div class="callout callout-tip">
+
+**Usar baseURL con puertos dinámicos**
+
 Por defecto, Playground usará el puerto `9400`. Si quieres seleccionar un puerto diferente, pasa `port: [NUEVO_NÚMERO_DE_PUERTO]` en las opciones de `runCLI` para seleccionar un puerto diferente:
 
 ```typescript
-const cli = await runCLI({ command: "server", port: 9500, blueprint });
+const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
 Luego añade `baseURL: "http://localhost:9500"` a la sección `use` anterior. Nota que `testMatch` tiene por defecto `**/*.spec.ts` — personalízalo si tus archivos de prueba usan un patrón de nombres diferente.
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 The WordPress Playground project uses even longer timeouts (300s test, 60s assertion) for its own tests. Start with the values above and increase if your CI environment is slower.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 El proyecto WordPress Playground usa timeouts aún mayores (300s de prueba, 60s de aserción) para sus propias pruebas. Empieza con los valores anteriores y aumenta si tu entorno CI es más lento.
-:::
+
+</div>
 
 <!--
 ### First test file
@@ -139,30 +155,30 @@ Create `tests/e2e/plugin.spec.ts`:
 Crea `tests/e2e/plugin.spec.ts`:
 
 ```typescript
-import { test, expect } from "@playwright/test";
-import { runCLI } from "@wp-playground/cli";
+import { test, expect } from '@playwright/test';
+import { runCLI } from '@wp-playground/cli';
 
 let cli: Awaited<ReturnType<typeof runCLI>>;
 
 test.beforeAll(async () => {
-  cli = await runCLI({
-    command: "server",
-    blueprint: {
-      preferredVersions: { php: "8.3", wp: "latest" },
-      login: true,
-    },
-  });
+	cli = await runCLI({
+		command: 'server',
+		blueprint: {
+			preferredVersions: { php: '8.3', wp: 'latest' },
+			login: true,
+		},
+	});
 });
 
 test.afterAll(async () => {
-  await cli?.server?.close();
+	await cli?.server?.close();
 });
 
-test("WordPress dashboard loads", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/wp-admin/`);
-  // WordPress core admin elements lack ARIA roles — CSS selectors are acceptable here
-  await expect(page.locator("#wpbody-content")).toBeVisible();
-  await expect(page).toHaveTitle(/Dashboard/);
+test('WordPress dashboard loads', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/wp-admin/`);
+	// WordPress core admin elements lack ARIA roles — CSS selectors are acceptable here
+	await expect(page.locator('#wpbody-content')).toBeVisible();
+	await expect(page).toHaveTitle(/Dashboard/);
 });
 ```
 
@@ -243,24 +259,32 @@ await page.locator("#submit").click();
 
 ```typescript
 // ✅ Preferido: localizador semántico (funciona porque WP renderiza un <button> real)
-await page.getByRole("button", { name: "Guardar cambios" }).click();
+await page.getByRole('button', { name: 'Guardar cambios' }).click();
 
 // ⚠️ Aceptable: ID de prueba que añadiste al markup de tu plugin
-await page.getByTestId("save-settings").click();
+await page.getByTestId('save-settings').click();
 
 // ❌ Evitar: selector CSS frágil ligado al markup de WordPress
-await page.locator("#submit").click();
+await page.locator('#submit').click();
 ```
 
 <!--
-:::tip[Generate locators automatically]
+<div class="callout callout-tip">
+
+**Generate locators automatically**
+
 Run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
-:::
+
+</div>
 -->
 
-:::tip[Generar localizadores automáticamente]
+<div class="callout callout-tip">
+
+**Generar localizadores automáticamente**
+
 Ejecuta `npx playwright codegen localhost:9400/wp-admin/` para abrir un navegador y grabar interacciones. Playwright genera código de localizador mientras haces clic, ayudándote a descubrir qué localizadores semánticos funcionan para cada elemento.
-:::
+
+</div>
 
 <!--
 ## Auto-waiting and web-first assertions
@@ -282,10 +306,10 @@ Las aserciones web-first reintentan automáticamente hasta que se cumpla la cond
 
 ```typescript
 // ✅ Aserción web-first (reintenta hasta visible o timeout)
-await expect(page.getByText("Configuración guardada")).toBeVisible();
+await expect(page.getByText('Configuración guardada')).toBeVisible();
 
 // ❌ Comprobación manual (sin retry — inestable si el elemento aparece con retraso)
-expect(await page.getByText("Configuración guardada").isVisible()).toBe(true);
+expect(await page.getByText('Configuración guardada').isVisible()).toBe(true);
 ```
 
 <!--
@@ -299,9 +323,9 @@ Use `expect.soft()` to check multiple things on one page without stopping at the
 Usa `expect.soft()` para comprobar varias cosas en una página sin parar en el primer fallo. Todos los fallos aparecen en el informe de pruebas:
 
 ```typescript
-await expect.soft(page.getByLabel("API Key")).toHaveValue("test-key-123");
-await expect.soft(page.getByText("Settings saved")).toBeVisible();
-await expect.soft(page.getByRole("heading", { level: 1 })).toContainText("Settings");
+await expect.soft(page.getByLabel('API Key')).toHaveValue('test-key-123');
+await expect.soft(page.getByText('Settings saved')).toBeVisible();
+await expect.soft(page.getByRole('heading', { level: 1 })).toContainText('Settings');
 ```
 
 <!--
@@ -320,20 +344,20 @@ La función `runCLI` inicia un servidor Playground local y devuelve un objeto co
 
 ```typescript
 const cli = await runCLI({
-  command: "server",
-  blueprint: {
-    preferredVersions: { php: "8.3", wp: "latest" },
-    login: true,
-    steps: [
-      {
-        step: "installPlugin",
-        pluginData: {
-          resource: "wordpress.org/plugins",
-          slug: "woocommerce",
-        },
-      },
-    ],
-  },
+	command: 'server',
+	blueprint: {
+		preferredVersions: { php: '8.3', wp: 'latest' },
+		login: true,
+		steps: [
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'woocommerce',
+				},
+			},
+		],
+	},
 });
 ```
 
@@ -348,14 +372,14 @@ const cli = await runCLI({
 **Servidor compartido (`beforeAll`/`afterAll`)** — una instancia Playground sirve todas las pruebas en un bloque describe. Más rápido, pero las pruebas pueden afectarse entre sí:
 
 ```typescript
-test.describe("Plugin settings", () => {
-  test.beforeAll(async () => {
-    cli = await runCLI({ command: "server", blueprint });
-  });
-  test.afterAll(async () => {
-    await cli?.server?.close();
-  });
-  // Tests share the same WordPress instance
+test.describe('Plugin settings', () => {
+	test.beforeAll(async () => {
+		cli = await runCLI({ command: 'server', blueprint });
+	});
+	test.afterAll(async () => {
+		await cli?.server?.close();
+	});
+	// Tests share the same WordPress instance
 });
 ```
 
@@ -367,10 +391,10 @@ test.describe("Plugin settings", () => {
 
 ```typescript
 test.beforeEach(async () => {
-  cli = await runCLI({ command: "server", blueprint });
+	cli = await runCLI({ command: 'server', blueprint });
 });
 test.afterEach(async () => {
-  await cli?.server?.close();
+	await cli?.server?.close();
 });
 ```
 
@@ -396,17 +420,17 @@ Los Blueprints definen el estado de WordPress que cada escenario de prueba neces
 
 ```typescript
 const blueprint = {
-  preferredVersions: { php: "8.3", wp: "latest" },
-  login: true,
-  steps: [
-    {
-      step: "installPlugin",
-      pluginData: {
-        resource: "wordpress.org/plugins",
-        slug: "contact-form-7",
-      },
-    },
-  ],
+	preferredVersions: { php: '8.3', wp: 'latest' },
+	login: true,
+	steps: [
+		{
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'wordpress.org/plugins',
+				slug: 'contact-form-7',
+			},
+		},
+	],
 };
 ```
 
@@ -422,20 +446,20 @@ Monta el directorio de tu plugin local en la instancia Playground:
 
 ```typescript
 const cli = await runCLI({
-  command: "server",
-  mount: {
-    "./": "/wordpress/wp-content/plugins/my-plugin",
-  },
-  blueprint: {
-    preferredVersions: { php: "8.3", wp: "latest" },
-    login: true,
-    steps: [
-      {
-        step: "activatePlugin",
-        pluginPath: "my-plugin/my-plugin.php",
-      },
-    ],
-  },
+	command: 'server',
+	mount: {
+		'./': '/wordpress/wp-content/plugins/my-plugin',
+	},
+	blueprint: {
+		preferredVersions: { php: '8.3', wp: 'latest' },
+		login: true,
+		steps: [
+			{
+				step: 'activatePlugin',
+				pluginPath: 'my-plugin/my-plugin.php',
+			},
+		],
+	},
 });
 ```
 
@@ -451,18 +475,18 @@ Esto mapea tu directorio actual al path del plugin dentro de WordPress, luego ac
 
 ```typescript
 const blueprint = {
-  login: true,
-  steps: [
-    {
-      step: "setSiteOptions",
-      options: {
-        blogname: "Test Site",
-        permalink_structure: "/%postname%/",
-      },
-    },
-    {
-      step: "runPHP",
-      code: `<?php
+	login: true,
+	steps: [
+		{
+			step: 'setSiteOptions',
+			options: {
+				blogname: 'Test Site',
+				permalink_structure: '/%postname%/',
+			},
+		},
+		{
+			step: 'runPHP',
+			code: `<?php
         require '/wordpress/wp-load.php';
         wp_insert_post([
           'post_title' => 'Test Post',
@@ -470,20 +494,24 @@ const blueprint = {
           'post_status' => 'publish',
         ]);
       `,
-    },
-  ],
+		},
+	],
 };
 ```
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Usa la [Playground Step Library](https://akirk.github.io/playground-step-library/) o [Pootle Playground](https://pootleplayground.com/) para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
-:::
+
+</div>
 
 <!--
 ### Testing WordPress admin pages
@@ -496,14 +524,14 @@ Navigate to admin pages and interact with the WordPress UI:
 Navega a las páginas del admin e interactúa con la interfaz de WordPress:
 
 ```typescript
-test("plugin settings page saves options", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
+test('plugin settings page saves options', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
 
-  await page.getByLabel("API Key").fill("test-key-123");
-  await page.getByRole("button", { name: "Guardar cambios" }).click();
+	await page.getByLabel('API Key').fill('test-key-123');
+	await page.getByRole('button', { name: 'Guardar cambios' }).click();
 
-  await expect(page.getByText("Configuración guardada")).toBeVisible();
-  await expect(page.getByLabel("API Key")).toHaveValue("test-key-123");
+	await expect(page.getByText('Configuración guardada')).toBeVisible();
+	await expect(page.getByLabel('API Key')).toHaveValue('test-key-123');
 });
 ```
 
@@ -526,13 +554,13 @@ await page.getByRole("link", { name: "My Plugin" }).first().click();
 
 ```typescript
 // Descartar avisos del admin de WordPress (WP añade aria-label a los botones descartar)
-await page.getByRole("button", { name: "Dismiss this notice" }).first().click();
+await page.getByRole('button', { name: 'Dismiss this notice' }).first().click();
 
 // Esperar carga de la barra admin — no hay rol ARIA disponible, usar locator
-await page.locator("#wpadminbar").waitFor();
+await page.locator('#wpadminbar').waitFor();
 
 // Navegar por el menú admin
-await page.getByRole("link", { name: "My Plugin" }).first().click();
+await page.getByRole('link', { name: 'My Plugin' }).first().click();
 ```
 
 <!--
@@ -542,24 +570,22 @@ await page.getByRole("link", { name: "My Plugin" }).first().click();
 ### Probar el front-end
 
 ```typescript
-test("plugin shortcode renders on front end", async ({ page }) => {
-  // Navigate to a page with the shortcode
-  await page.goto(`${cli.serverUrl}/?p=2`);
+test('plugin shortcode renders on front end', async ({ page }) => {
+	// Navigate to a page with the shortcode
+	await page.goto(`${cli.serverUrl}/?p=2`);
 
-  // Recommend: add data-testid="my-plugin-widget" to your plugin markup
-  await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
-  await expect(page.getByTestId("my-plugin-widget")).toContainText(
-    "Expected content"
-  );
-  // Or use CSS if you don't control the markup:
-  // await expect(page.locator(".my-plugin-widget")).toBeVisible();
+	// Recommend: add data-testid="my-plugin-widget" to your plugin markup
+	await expect(page.getByTestId('my-plugin-widget')).toBeVisible();
+	await expect(page.getByTestId('my-plugin-widget')).toContainText('Expected content');
+	// Or use CSS if you don't control the markup:
+	// await expect(page.locator(".my-plugin-widget")).toBeVisible();
 });
 
-test("theme displays post correctly", async ({ page }) => {
-  await page.goto(`${cli.serverUrl}/test-post/`);
+test('theme displays post correctly', async ({ page }) => {
+	await page.goto(`${cli.serverUrl}/test-post/`);
 
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Test Post");
-  await expect(page.getByText("Hello World", { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Test Post');
+	await expect(page.getByText('Hello World', { exact: true })).toBeVisible();
 });
 ```
 
@@ -575,35 +601,33 @@ El Page Object Model (POM) encapsula las interacciones de página en clases reut
 
 ```typescript
 // tests/e2e/pages/plugin-settings.ts
-import { type Page, type Locator, expect } from "@playwright/test";
+import { type Page, type Locator, expect } from '@playwright/test';
 
 export class PluginSettingsPage {
-  readonly page: Page;
-  readonly apiKeyInput: Locator;
-  readonly saveButton: Locator;
-  readonly successNotice: Locator;
+	readonly page: Page;
+	readonly apiKeyInput: Locator;
+	readonly saveButton: Locator;
+	readonly successNotice: Locator;
 
-  constructor(page: Page) {
-    this.page = page;
-    this.apiKeyInput = page.getByLabel("API Key");
-    this.saveButton = page.getByRole("button", { name: "Guardar cambios" });
-    this.successNotice = page.getByText("Configuración guardada");
-  }
+	constructor(page: Page) {
+		this.page = page;
+		this.apiKeyInput = page.getByLabel('API Key');
+		this.saveButton = page.getByRole('button', { name: 'Guardar cambios' });
+		this.successNotice = page.getByText('Configuración guardada');
+	}
 
-  async goto(baseUrl: string) {
-    await this.page.goto(
-      `${baseUrl}/wp-admin/options-general.php?page=my-plugin`
-    );
-  }
+	async goto(baseUrl: string) {
+		await this.page.goto(`${baseUrl}/wp-admin/options-general.php?page=my-plugin`);
+	}
 
-  async setApiKey(key: string) {
-    await this.apiKeyInput.fill(key);
-    await this.saveButton.click();
-  }
+	async setApiKey(key: string) {
+		await this.apiKeyInput.fill(key);
+		await this.saveButton.click();
+	}
 
-  async expectSaved() {
-    await expect(this.successNotice).toBeVisible();
-  }
+	async expectSaved() {
+		await expect(this.successNotice).toBeVisible();
+	}
 }
 ```
 
@@ -614,13 +638,13 @@ Use the POM in tests:
 Usa el POM en las pruebas:
 
 ```typescript
-import { PluginSettingsPage } from "./pages/plugin-settings";
+import { PluginSettingsPage } from './pages/plugin-settings';
 
-test("save plugin settings", async ({ page }) => {
-  const settings = new PluginSettingsPage(page);
-  await settings.goto(cli.serverUrl);
-  await settings.setApiKey("test-key-123");
-  await settings.expectSaved();
+test('save plugin settings', async ({ page }) => {
+	const settings = new PluginSettingsPage(page);
+	await settings.goto(cli.serverUrl);
+	await settings.setApiKey('test-key-123');
+	await settings.expectSaved();
 });
 ```
 
@@ -640,49 +664,47 @@ Las pruebas parametrizadas cubren múltiples combinaciones de versiones sin dupl
 
 ```typescript
 const versionMatrix = [
-  { php: "8.1", wp: "6.5" },
-  { php: "8.2", wp: "6.7" },
-  { php: "8.3", wp: "latest" },
+	{ php: '8.1', wp: '6.5' },
+	{ php: '8.2', wp: '6.7' },
+	{ php: '8.3', wp: 'latest' },
 ];
 
 for (const { php, wp } of versionMatrix) {
-  test.describe(`PHP ${php} + WP ${wp}`, () => {
-    let versionCli: Awaited<ReturnType<typeof runCLI>>;
+	test.describe(`PHP ${php} + WP ${wp}`, () => {
+		let versionCli: Awaited<ReturnType<typeof runCLI>>;
 
-    test.beforeAll(async () => {
-      versionCli = await runCLI({
-        command: "server",
-        blueprint: {
-          preferredVersions: { php, wp },
-          login: true,
-          steps: [
-            {
-              step: "activatePlugin",
-              pluginPath: "my-plugin/my-plugin.php",
-            },
-          ],
-        },
-      });
-    });
+		test.beforeAll(async () => {
+			versionCli = await runCLI({
+				command: 'server',
+				blueprint: {
+					preferredVersions: { php, wp },
+					login: true,
+					steps: [
+						{
+							step: 'activatePlugin',
+							pluginPath: 'my-plugin/my-plugin.php',
+						},
+					],
+				},
+			});
+		});
 
-    test("admin page loads without errors", async ({ page }) => {
-      await page.goto(
-        `${versionCli.serverUrl}/wp-admin/options-general.php?page=my-plugin`
-      );
-      // WordPress core elements use CSS selectors — no ARIA roles available
-      await expect(page.locator(".error")).not.toBeVisible();
-      await expect(page.locator("#wpbody-content")).toBeVisible();
-    });
+		test('admin page loads without errors', async ({ page }) => {
+			await page.goto(`${versionCli.serverUrl}/wp-admin/options-general.php?page=my-plugin`);
+			// WordPress core elements use CSS selectors — no ARIA roles available
+			await expect(page.locator('.error')).not.toBeVisible();
+			await expect(page.locator('#wpbody-content')).toBeVisible();
+		});
 
-    test("front-end output renders", async ({ page }) => {
-      await page.goto(versionCli.serverUrl);
-      await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
-    });
+		test('front-end output renders', async ({ page }) => {
+			await page.goto(versionCli.serverUrl);
+			await expect(page.getByTestId('my-plugin-widget')).toBeVisible();
+		});
 
-    test.afterAll(async () => {
-      await versionCli?.server?.close();
-    });
-  });
+		test.afterAll(async () => {
+			await versionCli?.server?.close();
+		});
+	});
 }
 ```
 
@@ -708,58 +730,64 @@ Crea `.github/workflows/e2e-tests.yml`:
 name: E2E Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    e2e:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}
+            - name: Cache Playwright browsers
+              uses: actions/cache@v4
+              id: playwright-cache
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+            - name: Install Playwright browsers
+              if: steps.playwright-cache.outputs.cache-hit != 'true'
+              run: npx playwright install chromium --with-deps
 
-      - name: Run E2E tests
-        run: npx playwright test
+            - name: Run E2E tests
+              run: npx playwright test
 
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+            - name: Upload test report
+              uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report
+                  path: playwright-report/
+                  retention-days: 30
 ```
 
 <!--
 This workflow installs dependencies, downloads Chromium, runs the tests, and uploads the HTML report as an artifact. The `--with-deps` flag installs system libraries Chromium needs on Ubuntu.
 
-:::tip[Sharding for faster CI]
+<div class="callout callout-tip">
+
+**Sharding for faster CI**
+
 Split tests across multiple CI jobs with Playwright's built-in sharding:
 -->
 
 Este workflow instala dependencias, descarga Chromium, ejecuta las pruebas y sube el informe HTML como artefacto. La opción `--with-deps` instala las bibliotecas del sistema que Chromium necesita en Ubuntu.
 
-:::tip[Fragmentación para CI más rápido]
+<div class="callout callout-tip">
+
+**Fragmentación para CI más rápido**
+
 Divide las pruebas en múltiples jobs de CI con la fragmentación incorporada de Playwright:
 
 ```bash
@@ -768,19 +796,23 @@ npx playwright test --shard=2/3
 npx playwright test --shard=3/3
 ```
 
-
 Crea tres jobs paralelos en la matriz de tu workflow, cada uno ejecutando un fragmento diferente. Esto reduce el tiempo total de CI proporcionalmente.
-:::
+
+</div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For manual PR testing alongside automated E2E tests, see [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview).
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para pruebas manuales de PR junto con pruebas E2E automatizadas, consulta [Añadir botones de vista previa de PR con GitHub Actions](/guides/github-action-pr-preview).
-:::
+
+</div>
 
 <!--
 ## Troubleshooting
@@ -859,9 +891,11 @@ npx playwright test --ui
 **Screenshot en fallo** — la configuración `screenshot: "only-on-failure"` en el config guarda un screenshot cada vez que una prueba falla. Encuentra los screenshots en el directorio `test-results/`.
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Combine `--debug` with a specific test file to focus your investigation: `npx playwright test tests/e2e/settings.spec.ts --debug`
-:::
+
+</div>
 
 ## Next steps
 
@@ -871,9 +905,11 @@ Combine `--debug` with a specific test file to focus your investigation: `npx pl
 - [Adding PR Preview Buttons](/guides/github-action-pr-preview) — combine automated tests with manual PR previews
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Combina `--debug` con un archivo de prueba específico para centrar tu investigación: `npx playwright test tests/e2e/settings.spec.ts --debug`
-:::
+
+</div>
 
 ## Próximos pasos
 

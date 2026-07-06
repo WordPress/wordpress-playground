@@ -42,14 +42,49 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 ### 2. Open the Playground website
 
 Your AI assistant will ask you to open the Playground website and provide the exact URL. You can also ask it: _"What's the Playground website URL?"_
+The MCP server chooses the local bridge connection automatically, so you do not need to configure it in your MCP client.
+
+To connect to Personal Playground, pass its URL to the MCP server:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://my.wordpress.net/"]
+		}
+	}
+}
+```
+
+For a staging deployment, use that origin instead:
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp", "--url=https://mywp.kirk.at/"]
+		}
+	}
+}
+```
 
 ## How it works
 
 ```
-AI Client (stdio) → MCP Server (Node.js) → WebSocket (port 7999) → Browser (Playground website)
+AI Client (stdio) → MCP Server (Node.js) → WebSocket → Browser (Playground website)
 ```
 
 The MCP server communicates with AI clients via stdio and with the browser via WebSocket. A bridge client (`bridge-client.ts`) integrated into the Playground website via Redux middleware auto-connects to the WebSocket server and proxies commands to the PlaygroundClient API.
+
+## WebMCP
+
+The [Playground Website](https://playground.wordpress.net/) also supports [WebMCP](https://github.com/webmachinelearning/webmcp) — a browser-native MCP proposal that exposes tools via `navigator.modelContext`. When a Playground site loads, its tools are registered automatically with no CLI or WebSocket bridge needed.
+
+> **Note:** WebMCP is still a draft proposal and not widely supported.
 
 ## Security
 
@@ -59,7 +94,7 @@ The MCP bridge runs locally and is only accessible from your machine — connect
 
 ## Available tools
 
-**Site management**: `playground_get_website_url`, `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`
+**Site management**: `playground_get_website_url`, `playground_list_sites`, `playground_open_site_in_new_tab`, `playground_rename_site`, `playground_save_in_browser`
 
 **Code execution**: `playground_execute_php`, `playground_request`
 
@@ -99,4 +134,4 @@ Replace `ABS_PATH_TO_PLAYGROUND` with the absolute path to your local checkout o
 
 ### 3. Open the Playground website
 
-Navigate to http://127.0.0.1:5400/website-server/?mcp=yes in your browser. The MCP bridge connects automatically.
+Ask your AI assistant for the Playground website URL and open it in your browser. The MCP bridge connects automatically.

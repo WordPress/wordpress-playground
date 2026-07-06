@@ -13,7 +13,11 @@ export interface ToolAnnotations {
 	openWorldHint?: boolean;
 }
 
-export type ToolParamType = 'string' | 'boolean' | 'object';
+export type ToolParamType =
+	| 'string'
+	| 'boolean'
+	| 'object'
+	| 'string_or_object';
 
 export interface ToolParam {
 	name: string;
@@ -34,8 +38,13 @@ export interface ToolDefinition {
 
 const PLAYGROUND_BASE_URL = 'https://playground.wordpress.net/';
 
-export function playgroundUrl(port: number): string {
-	return `${PLAYGROUND_BASE_URL}?mcp=yes&mcp-port=${port}`;
+export function playgroundUrl(port: number, baseUrl?: string): string {
+	if (!baseUrl) {
+		return `${PLAYGROUND_BASE_URL}?mcp-port=${port}`;
+	}
+	const url = new URL(baseUrl);
+	url.searchParams.set('mcp-port', String(port));
+	return url.toString();
 }
 
 // -- Per-site tool definitions --
@@ -84,18 +93,67 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		title: 'HTTP Request',
 		errorPrefix: 'Error making request',
 		description: `Make an HTTP request to the WordPress site
-			running in Playground. Requests are authenticated
-			automatically via the browser session's cookie
-			store.
+			running in Playground. REST API requests
+			(/wp-json/* or ?rest_route=) are automatically
+			authenticated with a valid nonce — no manual
+			auth needed.
 
-			Prefer playground_execute_php for reading WordPress
-			data (posts, options, plugin state) — it is faster
-			and returns only what you echo. Use this tool only
-			when the HTTP layer itself is what you are testing,
-			for example: verifying that a URL returns a 301
-			redirect, that a form submission sets a cookie, or
-			that a REST endpoint returns the correct status
-			code.
+			Tool selection guide:
+			1. Use this tool (playground_request) with the
+			   REST API for standard content CRUD — posts,
+			   pages, users, terms, comments, settings, etc.
+			   The REST API handles serialization, pagination,
+			   and field filtering for you. Prefer compact
+			   REST responses: use _fields to request only the
+			   fields needed and per_page/page for large
+			   collections. Before using endpoint-specific
+			   filters, inspect the route metadata from
+			   /wp-json/ and use only args documented for that
+			   route.
+			2. Use this tool with the WordPress REST API to
+			   discover and call registered abilities when the
+			   site exposes the Abilities API:
+			   - GET /wp-json/wp-abilities/v1/abilities
+			     lists registered abilities. Always assume this
+			     response may be large and start with _fields,
+			     e.g.
+			     /wp-json/wp-abilities/v1/abilities?_fields=name,category,label,description
+			     Do not assume filters like search or category
+			     exist unless /wp-json/ route metadata documents
+			     them.
+			   - GET /wp-json/wp-abilities/v1/abilities/{name}
+			     gets one ability, including schemas and
+			     metadata. Ability names include "/" in the
+			     path; do not encode it. For example, use
+			     /wp-json/wp-abilities/v1/abilities/memex/save-note
+			     for "memex/save-note".
+			   - GET, POST, or DELETE
+			     /wp-json/wp-abilities/v1/abilities/{name}/run
+			     executes the ability. Inspect the ability
+			     metadata first, then call /run with the
+			     documented method. POST bodies usually wrap
+			     arguments in an "input" object, e.g.
+			     {"input":{"title":"Hello"}}.
+			   - GET /wp-json/wp-abilities/v1/categories
+			     lists ability categories. Each category includes
+			     _links.abilities; follow that URL to list
+			     abilities in that category. The abilities
+			     collection can also be filtered directly with
+			     /wp-json/wp-abilities/v1/abilities?category={slug}.
+			3. Use playground_execute_php when the data you
+			   need is not exposed by the REST API (e.g.
+			   raw options, direct database queries, or
+			   custom table access).
+			4. Use this tool as a plain HTTP request (non-REST)
+			   when the HTTP layer itself matters: verifying
+			   redirects, status codes, cookies, or response
+			   headers.
+
+			The response JSON contains three fields:
+			- "text": the response body as a string
+			- "httpStatusCode": HTTP status code (200, 404…)
+			- "headers": response headers as key-value pairs
+			Check "httpStatusCode" to determine success.
 
 			Note: full HTML responses can be very large and may
 			fill the context window. To change the URL the user
@@ -126,14 +184,17 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			{
 				name: 'headers',
 				type: 'object',
-				description: 'Request headers as key-value pairs',
+				description: `Request headers as string key-value
+					pairs, e.g. {"Content-Type":
+					"application/json"}`,
 				required: false,
 				additionalProperties: true,
 			},
 			{
 				name: 'body',
-				type: 'string',
-				description: 'Request body (for POST/PUT requests)',
+				type: 'string_or_object',
+				description: `Request body (for POST/PUT requests).
+					Accepts a JSON string or an object.`,
 				required: false,
 			},
 		],
@@ -403,7 +464,7 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 
 			Returns site names and storage type. "temporary"
 			sites are lost on page reload, "opfs" sites persist
-			across reloads. Call playground_save_site to persist
+			across reloads. Call playground_save_in_browser to persist
 			a temporary site.`,
 			annotations: {
 				readOnlyHint: true,
@@ -411,9 +472,9 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 			},
 			params: [],
 		},
-		playground_open_site: {
-			title: 'Open Site in Browser',
-			errorPrefix: 'Error opening site',
+		playground_open_site_in_new_tab: {
+			title: 'Open Site in New Tab',
+			errorPrefix: 'Error opening site in new tab',
 			description: `Open a WordPress Playground site in a new
 			browser tab. The site must appear in
 			playground_list_sites.
@@ -446,8 +507,8 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 				},
 			],
 		},
-		playground_save_site: {
-			title: 'Save Site',
+		playground_save_in_browser: {
+			title: 'Save in Browser',
 			errorPrefix: 'Error saving site',
 			description: `Save a temporary WordPress Playground site
 			to browser storage so it survives page reloads.
@@ -501,7 +562,7 @@ export function stringifyError(error: unknown): string {
 /**
  * Translate internal Playground storage types to user-facing names.
  */
-export function presentStorage(raw: string): string {
+export function formatStorageLabel(raw: string): string {
 	return raw === 'none' ? 'temporary' : raw;
 }
 
@@ -516,10 +577,13 @@ export function paramsToJsonSchema(
 	const required: string[] = [];
 
 	for (const param of params) {
-		const prop: Record<string, unknown> = {
-			type: param.type,
-			description: param.description,
-		};
+		const prop: Record<string, unknown> = {};
+		if (param.type === 'string_or_object') {
+			prop['oneOf'] = [{ type: 'string' }, { type: 'object' }];
+		} else {
+			prop['type'] = param.type;
+		}
+		prop['description'] = param.description;
 		if (param.additionalProperties !== undefined) {
 			prop['additionalProperties'] = param.additionalProperties;
 		}

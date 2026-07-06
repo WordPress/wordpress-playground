@@ -50,7 +50,48 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 ### Multi-Tab Support
 
-Sophisticated tab coordination ensures only one worker runs per site. Dependent tabs connect automatically, and a takeover protocol handles tab conflicts gracefully.
+Browser-managed tab coordination ensures only one worker runs per site. Dependent tabs can view and navigate the site while operations that need the active WordPress runtime are forwarded to the active tab.
+
+### WordPress Page Relay Messages
+
+WordPress pages running inside Personal Playground can send supported relay messages to
+the parent window. Messages must use `type: 'relay'` and are only accepted from the
+active Playground iframe tree.
+
+#### Install Blueprint
+
+Use `install-blueprint` to ask Personal Playground to install a blueprint into the
+current site. Personal Playground confirms the action with the user before applying
+the blueprint. Dependent tabs forward the install to the active tab and keep the
+final blueprint navigation in the requesting tab.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'install-blueprint',
+		blueprintUrl: 'https://example.com/blueprint.json',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'install-blueprint-result';
+	blueprintUrl: string;
+	requestId?: string;
+	status: 'success' | 'error' | 'cancelled';
+	error?: string;
+}
+```
+
+Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
+cannot install blueprints and will return an error result.
 
 ### Offline Support
 
@@ -100,7 +141,7 @@ Personal Playground is deployed to my.wordpress.net via the `deploy-my-wordpress
 1. Builds the package with `npx nx build playground-personal-wp`
 2. Uploads the build as an artifact
 3. Deploys to WP Cloud hosting via rsync/SSH
-4. Uses the shared `website-deployment/` scripts for server configuration
+4. Applies the update with `website-deployment/my-wordpress-net/apply-update.sh`
 
 ### Required Secrets
 
@@ -125,7 +166,6 @@ personal-wp/
 │   ├── components/
 │   │   ├── layout/              # Main application layout
 │   │   ├── site-manager/        # Site info, files, and database panels
-│   │   ├── browser-chrome/      # Browser-like UI chrome
 │   │   ├── playground-viewport/ # WordPress iframe container
 │   │   └── ...
 │   └── lib/

@@ -9,9 +9,15 @@ on:
 concurrency:
     group: my-wordpress-net-deployment
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
-    build_and_deploy:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+    # Check preconditions in a separate job because secrets aren't
+    # available in job-level `if` conditions.
+    check_preconditions:
+        # Only run from the trunk branch when triggered by a Playground maintainer
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
@@ -26,8 +32,40 @@ jobs:
                 github.actor == 'mho22' ||
                 github.actor == 'ashfame'
             )
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions: {}
+        environment:
+            name: my-wordpress-net-wp-cloud
+        outputs:
+            meets_deploy_preconditions: ${{ steps.check.outputs.meets_deploy_preconditions }}
+        steps:
+            # Confirm deploy secrets are configured. This way, this workflow won't
+            # run on a repo fork by default. It will only run when the fork admin opts
+            # in by configuring the workflow's required secrets.
+            #
+            # Secrets aren't available in job-level `if` conditions,
+            # so we check for them here.
+            - name: Check deploy secrets are configured
+              id: check
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }}
+              run: |
+                  if [ -z "$DEPLOY_HOST" ]; then
+                    echo "Deploy secrets are not configured. Skipping deployment."
+                    echo "meets_deploy_preconditions=false" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "meets_deploy_preconditions=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+    build_and_deploy:
+        needs: check_preconditions
+        if: needs.check_preconditions.outputs.meets_deploy_preconditions == 'true'
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read # Required to clone the repo.
         environment:
             name: my-wordpress-net-wp-cloud
         steps:
@@ -40,6 +78,7 @@ jobs:
               run: npx nx build playground-personal-wp
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+                  PERSONAL_WP_USAGE_STATS_ENDPOINT: https://my.wordpress.net/mywp-event.php
             - run: tar -czf my-wordpress-net.tar.gz dist/packages/playground/my-wordpress-net
             - uses: actions/upload-artifact@v4
               with:
@@ -62,6 +101,8 @@ jobs:
                   # Include MIME types for use with PHP-served files
                   cp packages/php-wasm/universal/src/lib/mime-types.json \
                     packages/playground/website-deployment/
+                  cp packages/playground/remote-access/relay.php \
+                    packages/playground/website-deployment/my-wordpress-net/
 
                   # Host-specific deployment scripts and server config (reuse website-deployment)
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
@@ -71,4 +112,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }} \
-                    -tt -C '~/website-deployment/apply-update.sh'
+                    -tt -C '~/website-deployment/my-wordpress-net/apply-update.sh'

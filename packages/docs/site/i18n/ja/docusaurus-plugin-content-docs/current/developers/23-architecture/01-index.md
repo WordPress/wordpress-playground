@@ -54,11 +54,11 @@ WordPress Playground uses [NX](https://nx.dev/), a build system designed for mon
  -->
 
 Playground パッケージとプロジェクト間の依存関係は、Webpack のようなバンドラーにとっては [複雑すぎる](https://github.com/WordPress/wordpress-playground/pull/151) ですが、NX はこの複雑さをはるかに適切に処理します。
-![Dependency graph](@site/static/img/dependencies.webp)
+![Dependency graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dependencies.webp)
 
 <!--
 The dependencies between Playground packages and projects [are too complex](https://github.com/WordPress/wordpress-playground/pull/151) for a bundler like Webpack, and NX handles this complexity much better:
-![Dependency graph](@site/static/img/dependencies.webp)
+![Dependency graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dependencies.webp)
  -->
 
 詳細については、[NX 開発者ドキュメント](https://nx.dev/getting-started/intro)をご覧ください。

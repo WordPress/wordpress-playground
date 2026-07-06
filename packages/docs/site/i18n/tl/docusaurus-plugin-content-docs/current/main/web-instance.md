@@ -5,10 +5,10 @@ description: Isang detalyadong gabay sa web interface sa playground.wordpress.ne
 ---
 
 <!--
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 -->
 
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 
 <!--
 [https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
@@ -42,13 +42,13 @@ The Playground website includes toolbars that customize your instance and provid
 
 Ang Playground website ay may kasamang mga toolbar na nagpapasadya sa iyong instance at nagbibigay ng mabilis na access sa mga resources at utilities.
 
-![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
+![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
-## Customize Playground {#customize-playground}
+## Customize Playground
 -->
 
-## I-customize ang Playground {#customize-playground}
+## I-customize ang Playground
 
 <!--
 On the toolbar, you'll find:
@@ -65,12 +65,12 @@ Sa toolbar, makikita mo ang:
 - **Playground Launch Panel**: Ang Launch Panel ay nagpapakita ng lahat ng paraan para maglunsad ng WordPress Playground instance.
 
 <!--
-### Playground Settings {#playground-settings}
+### Playground Settings
 -->
 
-### Playground Settings {#playground-settings}
+### Playground Settings
 
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
 <!--
 The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
@@ -91,12 +91,12 @@ Ang **Playground Settings Panel** ay may kasamang mga [Query API options](/devel
 - `networking`: Pinapagana ang network access sa WordPress Plugin Directory at WordPress APIs.
 
 <!--
-## Playground Manager {#playground-manager}
+## Playground Manager
 -->
 
-## Playground Manager {#playground-manager}
+## Playground Manager
 
-![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
+![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel lets you manage Playground instances and provides access to the following panels:
@@ -116,7 +116,7 @@ Ang panel na ito ay nagbibigay-daan sa iyo na pamahalaan ang mga Playground inst
 - **Database**: Mga tool para sa pamamahala ng database gamit ang Adminer at phpMyAdmin, at pag-download bilang `.sqlite` file.
 - **Logs**: Nagpapakita ng mga log message kapag may problema.
 
-![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
@@ -125,12 +125,12 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch Panel. Ang Playground Dashboard ay nag-aalok din ng mga export at download options sa pamamagitan ng Additional actions menu:
 
 <!--
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 -->
 
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 
-![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 
 <!--
 - **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
@@ -141,12 +141,12 @@ I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch P
 - **Download as .zip**: Gumagawa ng `.zip` file na may setup ng Playground instance, kasama ang anumang naka-install na theme o plugin. Ang `.zip` na ito ay hindi kasama ang content at database changes.
 
 <!--
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 -->
 
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 
-![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
 
 <!--
 The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
@@ -155,12 +155,12 @@ The Blueprint editor replaced the older Blueprint builder, offering the ability 
 Ang Blueprint editor ay pinalitan ang lumang Blueprint builder, na nag-aalok ng kakayahang pamahalaan ang maraming Blueprint at code validation.
 
 <!--
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 -->
 
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 
-![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
@@ -173,17 +173,19 @@ Ang panel na ito ay nagpapakita ng lahat ng paraan para ilunsad ang WordPress Pl
 Ang Launch Panel ay naglilista rin ng higit sa 40 blueprints mula sa Blueprint Gallery at iyong mga Saved Playground.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
 
 Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

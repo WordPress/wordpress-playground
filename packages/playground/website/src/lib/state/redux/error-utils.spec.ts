@@ -98,6 +98,14 @@ describe('findDownloadErrorInCauseChain', () => {
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);
 	});
 
+	it('should detect ResourceDownloadError by name', () => {
+		const error = new Error(
+			'Could not download "https://example.com/file.zip"'
+		);
+		error.name = 'ResourceDownloadError';
+		expect(findDownloadErrorInCauseChain(error)).toBe(error);
+	});
+
 	it('should return the first matching error in the chain', () => {
 		const deeper = new TypeError('Load failed');
 		const shallower = new TypeError('Failed to fetch', {

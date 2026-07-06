@@ -64,6 +64,16 @@ describe('writeFiles', () => {
 		]);
 	});
 
+	it('rejects file paths outside the target directory', async () => {
+		await expect(
+			writeFiles(php, '/test', {
+				'../escape.txt': 'file',
+			})
+		).rejects.toThrow('File paths must stay inside the target directory.');
+
+		expect(php.fileExists('/escape.txt')).toBe(false);
+	});
+
 	it('removes any pre-existing when ran with rmRoot: true', async () => {
 		php.writeFile('/test/file.txt', 'file');
 		php.mkdir('/test/subdirectory1');

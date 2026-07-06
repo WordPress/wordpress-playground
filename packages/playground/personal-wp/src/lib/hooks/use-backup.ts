@@ -101,7 +101,7 @@ export function useBackup() {
 				await dispatch(
 					updateSiteMetadata({
 						slug: activeSite.slug,
-						changes: {
+						metadata: {
 							backupHistory: newHistory,
 						},
 					})

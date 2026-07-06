@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <head>
 	<title>WordPress PR Previewer</title>
 	<meta charset="utf-8" />
@@ -134,13 +134,38 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
+			prNumber = prNumber.trim();
+
 			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/wordpress-develop/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
+			const wordpressDevelopPr = prNumber.match(
+				/github\.com\/wordpress\/wordpress-develop\/pull\/(\d+)/i
+			);
+			if (wordpressDevelopPr) {
+				prNumber = wordpressDevelopPr[1];
+			}
+
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/gutenberg/pull')
+				) {
+					const link = document.createElement('a');
+					link.href = './gutenberg.html';
+					link.textContent = 'Gutenberg PR previewer';
+					errorDiv.replaceChildren(
+						'This looks like a Gutenberg PR. Use the ',
+						link,
+						' instead.'
+					);
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid wordpress-develop PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
@@ -190,8 +215,10 @@
 					}
 				} else if (error === 'artifact_invalid') {
 					errorDiv.innerText = `The PR ${prNumber} requires a rebase before it can be previewed.`;
+				} else if (error === 'artifact_expired') {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`;
 				} else {
-					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`;
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`;
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
 				submitting = false;

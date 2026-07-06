@@ -5,7 +5,7 @@ import {
 	getWordPressModule,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { mkdirSync, rmdirSync } from 'fs';
+import { mkdirSync, readFileSync, rmdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { bootWordPressAndRequestHandler } from '../boot';
@@ -50,7 +50,7 @@ describe('Test database', () => {
 	});
 
 	it(
-		'should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory',
+		'should install WordPress in DELETE journal mode when SQL data path specified',
 		async () => {
 			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
@@ -67,8 +67,98 @@ describe('Test database', () => {
 			expect(Object.keys(MinifiedWordPressVersions)).toContain(
 				loadedWordPressVersion
 			);
+
+			const php = await handler.getPrimaryPhp();
+			const response = await php.run({
+				code: `<?php
+ob_start();
+require getenv('DOCUMENT_ROOT') . '/wp-load.php';
+ob_clean();
+echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
+`,
+				env: {
+					DOCUMENT_ROOT: '/wordpress',
+				},
+			});
+			expect(response.errors).toHaveLength(0);
+			expect(response.text).toBe('delete');
 		},
 		{ timeout: 30_000 }
+	);
+
+	it(
+		'should honor explicit WAL journal mode',
+		async () => {
+			await using handler = await bootWordPressAndRequestHandler({
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(RecommendedPHPVersion),
+				siteUrl: 'http://playground-domain/',
+				wordPressZip: await getWordPressModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+				constants: {
+					SQLITE_JOURNAL_MODE: 'WAL',
+				},
+			});
+
+			const php = await handler.getPrimaryPhp();
+			const response = await php.run({
+				code: `<?php
+ob_start();
+require getenv('DOCUMENT_ROOT') . '/wp-load.php';
+ob_clean();
+echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
+`,
+				env: {
+					DOCUMENT_ROOT: '/wordpress',
+				},
+			});
+			expect(response.errors).toHaveLength(0);
+			expect(response.text).toBe('wal');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'should not throw a pre-flight database error when SQLite is skipped and MySQL wp-config.php is provided',
+		{ timeout: 30_000 },
+		async () => {
+			const wpConfigContent = readFileSync(
+				join(__dirname, 'fixtures/wp-config-sample.php'),
+				'utf-8'
+			);
+			const dbStubContent = readFileSync(
+				join(__dirname, 'fixtures/mysql-db-stub.php'),
+				'utf-8'
+			);
+
+			await expect(async () => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				await using handler = await bootWordPressAndRequestHandler({
+					createPhpRuntime: async () =>
+						await loadNodeRuntime(RecommendedPHPVersion),
+					siteUrl: 'http://playground-domain/',
+					wordPressZip: await getWordPressModule(),
+					// Simulates --skip-sqlite-setup from the CLI
+					sqliteIntegrationPluginZip: undefined,
+					hooks: {
+						beforeDatabaseSetup: async (php) => {
+							php.writeFile(
+								'/wordpress/wp-config.php',
+								wpConfigContent
+									.replace('database_name_here', 'foo')
+									.replace('username_here', 'bar')
+							);
+							php.mkdir('/wordpress/wp-content');
+							php.writeFile(
+								'/wordpress/wp-content/db.php',
+								dbStubContent
+							);
+						},
+					},
+				});
+			}).rejects.not.toThrow('Error connecting to the MySQL database.');
+		}
 	);
 
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {

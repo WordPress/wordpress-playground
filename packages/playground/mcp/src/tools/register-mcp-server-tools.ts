@@ -8,7 +8,7 @@ import {
 	toolDefinitions,
 	getSiteToolDefinitions,
 	playgroundUrl,
-	presentStorage,
+	formatStorageLabel,
 	stringifyError,
 } from './tool-definitions';
 import type { ToolParam } from './tool-definitions';
@@ -53,7 +53,13 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 				zodType = z.boolean();
 				break;
 			case 'object':
-				zodType = z.record(z.string(), z.string());
+				zodType = z.record(z.string(), z.unknown());
+				break;
+			case 'string_or_object':
+				zodType = z.union([
+					z.string(),
+					z.record(z.string(), z.unknown()),
+				]);
 				break;
 			default:
 				throw new Error(
@@ -80,11 +86,12 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 export function registerMcpServerTools(
 	server: McpServer,
 	bridge: PlaygroundBridge,
-	port: number
+	port: number,
+	baseUrl?: string
 ) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
 	const siteToolDefinitions = getSiteToolDefinitions();
-	const url = playgroundUrl(port);
+	const url = playgroundUrl(port, baseUrl);
 
 	// -- Site management tools --
 	// These operate on the bridge itself, not on a PlaygroundClient.
@@ -138,20 +145,21 @@ export function registerMcpServerTools(
 		}
 	);
 
-	const openSite = siteToolDefinitions['playground_open_site'];
+	const openSiteInNewTab =
+		siteToolDefinitions['playground_open_site_in_new_tab'];
 	server.registerTool(
-		'playground_open_site',
+		'playground_open_site_in_new_tab',
 		{
-			title: openSite.title,
-			description: openSite.description,
+			title: openSiteInNewTab.title,
+			description: openSiteInNewTab.description,
 			inputSchema: {
 				siteId: siteIdSchema,
 			},
-			annotations: openSite.annotations,
+			annotations: openSiteInNewTab.annotations,
 		},
 		async ({ siteId }) => {
 			try {
-				await bridge.sendCommand(siteId, '__open_site');
+				await bridge.sendCommand(siteId, '__open_site_in_new_tab');
 				const site = await bridge.waitForSiteActive(siteId, 30000);
 				return {
 					content: [
@@ -166,7 +174,7 @@ export function registerMcpServerTools(
 					],
 				};
 			} catch (error) {
-				return errorResult(openSite.errorPrefix, error);
+				return errorResult(openSiteInNewTab.errorPrefix, error);
 			}
 		}
 	);
@@ -220,9 +228,9 @@ export function registerMcpServerTools(
 		})
 	);
 
-	const saveSite = siteToolDefinitions['playground_save_site'];
+	const saveSite = siteToolDefinitions['playground_save_in_browser'];
 	server.registerTool(
-		'playground_save_site',
+		'playground_save_in_browser',
 		{
 			title: saveSite.title,
 			description: saveSite.description,
@@ -270,7 +278,7 @@ export function registerMcpServerTools(
 								alreadySaved: false,
 								siteId,
 								name: site.name,
-								storage: presentStorage(result.storage),
+								storage: formatStorageLabel(result.storage),
 							}),
 						},
 					],

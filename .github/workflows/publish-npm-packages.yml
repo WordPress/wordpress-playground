@@ -15,15 +15,19 @@ on:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
 
-permissions:
-    id-token: write
-    contents: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+concurrency:
+    group: npm-release
 
 jobs:
     release:
-        # Only allow Playground maintainers to trigger this workflow.
+        # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
         # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             (
               github.actor == 'adamziel' ||
               github.actor == 'dmsnell' ||
@@ -36,6 +40,12 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        # Timeout is set to an hour as Lerna sequentially publishes a large number of packages
+        # and the workflow regularly takes more than 30 minutes to complete.
+        timeout-minutes: 60
+        permissions:
+            id-token: write # Required for OIDC-based npm trusted publishing.
+            contents: write # Required to push the version bump commit and tags.
         environment:
             name: npm
 
@@ -83,6 +93,9 @@ jobs:
               run: npm install -g npm@latest lerna@9
 
             - uses: ./.github/actions/prepare-playground
+
+            - name: Validate publish package overrides
+              run: node tools/scripts/check-publish-package-overrides.mjs
 
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub.

@@ -13,10 +13,10 @@ const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
-const dependencyFilename = path.join(currentDirPath, '8_5_3', 'php_8_5.wasm');
+const dependencyFilename = path.join(currentDirPath, '8_5_5', 'php_8_5.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26648185;
-const phpVersionString = '8.5.3';
+export const dependenciesTotalSize = 26660154;
+const phpVersionString = '8.5.5';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -6243,6 +6243,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
+		socketTimeouts: new Map,
 		init: function () {
 			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
 			if (PHPLoader.bindUserSpace) {
@@ -6672,6 +6673,29 @@ export function init(RuntimeName, PHPLoader) {
 			return [promise, cancel];
 		},
 		noop: function () {},
+		parseSocketTimeout: function (optionValuePtr, optionLen) {
+			if (!optionValuePtr || optionLen < 8) {
+				return null;
+			}
+			let seconds;
+			let microseconds;
+			if (optionLen >= 16) {
+				seconds = Number(HEAP64[optionValuePtr >> 3]);
+				microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+			} else {
+				seconds = HEAP32[optionValuePtr >> 2];
+				microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+			}
+			if (
+				!Number.isFinite(seconds) ||
+				!Number.isFinite(microseconds) ||
+				seconds < 0 ||
+				microseconds < 0
+			) {
+				return null;
+			}
+			return seconds * 1e3 + Math.ceil(microseconds / 1e3);
+		},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawned = Module['spawnProcess'](
@@ -6720,6 +6744,7 @@ export function init(RuntimeName, PHPLoader) {
 			throw e;
 		},
 		shutdownSocket: function (socketd, how) {
+			PHPWASM.socketTimeouts.delete(socketd);
 			// This implementation only supports websockets at the moment
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
@@ -6804,42 +6829,73 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
-			// Wait for the connection to be established
-			const timeout = 3e4;
-			// 30 second timeout
+			// Wait for the connection to be established. A zero timeval
+			// disables the timeout, matching SO_SNDTIMEO semantics.
+			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+			const timeout = sendTimeout ?? 3e4;
 			let resolved = false;
-			const timeoutId = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					wakeUp(-ERRNO_CODES.ETIMEDOUT);
-				}
-			}, timeout);
-			const handleOpen = () => {
-				if (!resolved) {
-					resolved = true;
+			let timeoutId;
+			let handleOpen;
+			let handleError;
+			let handleClose;
+			const peer = PHPWASM.getAllPeers(sock).find(
+				(candidate) => candidate.socket === ws
+			);
+
+			const cleanupConnectListeners = () => {
+				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
-					ws.removeEventListener('error', handleError);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(0);
+				}
+				ws.removeEventListener('open', handleOpen);
+				ws.removeEventListener('error', handleError);
+				ws.removeEventListener('close', handleClose);
+			};
+
+			const cleanupFailedConnect = (errno) => {
+				try {
+					if (
+						ws.readyState !== ws.CLOSING &&
+						ws.readyState !== ws.CLOSED
+					) {
+						ws.close();
+					}
+				} catch (e) {
+					// Ignore close errors on an already-failed connect.
+				}
+				if (peer) {
+					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				}
+				sock.connecting = false;
+				sock.error = errno;
+			};
+
+			const finishConnect = (result) => {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
+					if (result < 0) {
+						cleanupFailedConnect(-result);
+					}
+					wakeUp(result);
 				}
 			};
-			const handleError = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			if (timeout > 0) {
+				timeoutId = setTimeout(() => {
+					finishConnect(-ERRNO_CODES.ETIMEDOUT);
+				}, timeout);
+			}
+
+			handleOpen = () => {
+				finishConnect(0);
 			};
-			const handleClose = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('error', handleError);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			handleError = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
+			};
+
+			handleClose = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
 			ws.addEventListener('open', handleOpen);
 			ws.addEventListener('error', handleError);
@@ -9157,7 +9213,11 @@ export function init(RuntimeName, PHPLoader) {
 				stdoutParentFd = std[1]?.parent,
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
+			const detachPipeDataListeners = [];
 			cp.on('exit', function (code) {
+				for (const detach of detachPipeDataListeners) {
+					detach();
+				}
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
@@ -9175,31 +9235,50 @@ export function init(RuntimeName, PHPLoader) {
 			if (stdoutChildFd) {
 				const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
 				let stdoutAt = 0;
-				cp.stdout.on('data', function (data) {
-					stdoutStream.stream_ops.write(
-						stdoutStream,
-						data,
-						0,
-						data.length,
-						stdoutAt
-					);
-					stdoutAt += data.length;
-				});
+				const onStdoutData = function (data) {
+					try {
+						stdoutStream.stream_ops.write(
+							stdoutStream,
+							data,
+							0,
+							data.length,
+							stdoutAt
+						);
+						stdoutAt += data.length;
+					} catch {
+						// PHP may close the child pipe before Node finishes
+						// draining already-buffered stdout data. Late chunks are
+						// no longer deliverable, so detach the listener and stop.
+						cp.stdout.off('data', onStdoutData);
+					}
+				};
+				cp.stdout.on('data', onStdoutData);
+				detachPipeDataListeners.push(() =>
+					cp.stdout.off('data', onStdoutData)
+				);
 			}
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
 			if (stderrChildFd) {
 				const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
 				let stderrAt = 0;
-				cp.stderr.on('data', function (data) {
-					stderrStream.stream_ops.write(
-						stderrStream,
-						data,
-						0,
-						data.length,
-						stderrAt
-					);
-					stderrAt += data.length;
-				});
+				const onStderrData = function (data) {
+					try {
+						stderrStream.stream_ops.write(
+							stderrStream,
+							data,
+							0,
+							data.length,
+							stderrAt
+						);
+						stderrAt += data.length;
+					} catch {
+						cp.stderr.off('data', onStderrData);
+					}
+				};
+				cp.stderr.on('data', onStderrData);
+				detachPipeDataListeners.push(() =>
+					cp.stderr.off('data', onStderrData)
+				);
 			}
 			/**
 			 * Wait until the child process has been spawned.
@@ -9797,24 +9876,34 @@ export function init(RuntimeName, PHPLoader) {
 		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
-		// Options that we can forward to the WebSocket proxy
+		if (
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)
+		) {
+			const timeoutMs = PHPWASM.parseSocketTimeout(
+				optionValuePtr,
+				optionLen
+			);
+			if (timeoutMs === null) {
+				return -1;
+			}
+			const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+			if (optionName === SO_RCVTIMEO) {
+				timeouts.receive = timeoutMs;
+			} else {
+				timeouts.send = timeoutMs;
+			}
+			PHPWASM.socketTimeouts.set(socketd, timeouts);
+			return 0;
+		}
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		// Options that we acknowledge but don't actually implement
-		// (WebSocket connections handle timeouts differently)
-		const isIgnorable =
-			level === SOL_SOCKET &&
-			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-		if (!isForwardable && !isIgnorable) {
+		if (!isForwardable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
-		}
-		// For ignorable options, just return success
-		if (isIgnorable) {
-			return 0;
 		}
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
@@ -10178,7 +10267,15 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _wasm_recv = function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
+			const receiveTimeout =
+				PHPWASM.socketTimeouts.get(sockfd)?.receive;
+			const startedAt = Date.now();
+			let resolved = false;
+
 			const poll = function () {
+				if (resolved) {
+					return;
+				}
 				let newl = ___syscall_recvfrom(
 					sockfd,
 					buffer,
@@ -10188,10 +10285,20 @@ export function init(RuntimeName, PHPLoader) {
 					null
 				);
 				if (newl > 0) {
+					resolved = true;
 					wakeUp(newl);
-				} else if (newl === -6) {
+				} else if (newl === -ERRNO_CODES.EAGAIN) {
+					if (
+						receiveTimeout > 0 &&
+						Date.now() - startedAt >= receiveTimeout
+					) {
+						resolved = true;
+						wakeUp(-ERRNO_CODES.EAGAIN);
+						return;
+					}
 					setTimeout(poll, 20);
 				} else {
+					resolved = true;
 					wakeUp(0);
 				}
 			};
@@ -11899,110 +12006,110 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var _core_globals = (Module['_core_globals'] = 18168792);
+	var _core_globals = (Module['_core_globals'] = 18169816);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 18056640);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 18057664);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 18056644);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 18057668);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 18056648);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 18057672);
 
-	var _sapi_module = (Module['_sapi_module'] = 18051808);
+	var _sapi_module = (Module['_sapi_module'] = 18052832);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 18051960);
+	var _sapi_globals = (Module['_sapi_globals'] = 18052984);
 
-	var _module_registry = (Module['_module_registry'] = 18171728);
+	var _module_registry = (Module['_module_registry'] = 18172752);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 18169660);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 18170684);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 18173352);
+	var _compiler_globals = (Module['_compiler_globals'] = 18174376);
 
-	var _executor_globals = (Module['_executor_globals'] = 18173768);
+	var _executor_globals = (Module['_executor_globals'] = 18174792);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 18175184);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 18176208);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 18169788);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 18170812);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 18169912);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 18170936);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		18169784);
+		18170808);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 18169792);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 18170816);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 18171712);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 18172736);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 18171716);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 18172740);
 
-	var _zend_pass_function = (Module['_zend_pass_function'] = 17533552);
+	var _zend_pass_function = (Module['_zend_pass_function'] = 17534576);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 18169628);
+	var _zend_extensions = (Module['_zend_extensions'] = 18170652);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 18172112);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 18173136);
 
-	var _zend_empty_array = (Module['_zend_empty_array'] = 17548864);
+	var _zend_empty_array = (Module['_zend_empty_array'] = 17549888);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 18051168);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 18052192);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 18051172);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 18052196);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 18051184);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 18052208);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 17532256);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 17533280);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 18172116);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 18173140);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 18172120);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 18173144);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		18172188);
+		18173212);
 
-	var _zend_write = (Module['_zend_write'] = 18173268);
+	var _zend_write = (Module['_zend_write'] = 18174292);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 18173272);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 18174296);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 18173240);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 18174264);
 
 	var ___memory_base = (Module['___memory_base'] = 0);
 
 	var ___table_base = (Module['___table_base'] = 1);
 
-	var _stderr = (Module['_stderr'] = 18043760);
+	var _stderr = (Module['_stderr'] = 18044784);
 
-	var ___THREW__ = (Module['___THREW__'] = 18523540);
+	var ___THREW__ = (Module['___THREW__'] = 18524564);
 
-	var ___threwValue = (Module['___threwValue'] = 18523544);
+	var ___threwValue = (Module['___threwValue'] = 18524568);
 
-	var _stdout = (Module['_stdout'] = 18044064);
+	var _stdout = (Module['_stdout'] = 18045088);
 
-	var _timezone = (Module['_timezone'] = 18510464);
+	var _timezone = (Module['_timezone'] = 18511488);
 
-	var _tzname = (Module['_tzname'] = 18510472);
+	var _tzname = (Module['_tzname'] = 18511496);
 
-	var ___heap_base = 19572208;
+	var ___heap_base = 19573232;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		18523620);
+		18524644);
 
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 18044312);
+	] = 18045336);
 
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 18044272);
+	] = 18045296);
 
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 18044364);
+	] = 18045388);
 
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 18044436);
+	] = 18045460);
 
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 18044480);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 18045504);
 
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 18044500);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 18045524);
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,

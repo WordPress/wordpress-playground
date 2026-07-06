@@ -15,13 +15,18 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	isAutosavedSite,
+	isExplicitlySavedSite,
+	MAX_AUTOSAVED_SITES,
+} from '../../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
 	setActiveModal,
 	setSiteManagerOpen,
-	setSiteManagerSection,
+	setSiteSlugToDelete,
 	setSiteSlugToRename,
+	setSiteSlugToSave,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -38,12 +43,10 @@ const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
 
-const AutosavedBlueprintBundleEditor = lazy(() =>
-	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
-		(m) => ({
-			default: m.AutosavedBlueprintBundleEditor,
-		})
-	)
+const SiteBlueprintBundleEditor = lazy(() =>
+	import('../../blueprint-editor/SiteBlueprintBundleEditor').then((m) => ({
+		default: m.SiteBlueprintBundleEditor,
+	}))
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
@@ -85,7 +88,6 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
-
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
@@ -101,17 +103,17 @@ export function SiteInfoPanel({
 	};
 
 	const isTemporary = site.metadata.storage === 'none';
+	const isAutosaved = isAutosavedSite(site);
+	const isBlueprintReadOnly = isExplicitlySavedSite(site);
 
-	const removeSiteAndCloseMenu = async (onClose: () => void) => {
-		// TODO: Replace with HTML-based dialog
-		const proceed = window.confirm(
-			`Are you sure you want to delete the site '${site.metadata.name}'?`
-		);
-		if (proceed) {
-			await dispatch(removeSite(site.slug));
-			dispatch(setSiteManagerSection('sidebar'));
-			onClose();
-		}
+	const removeSiteAndCloseMenu = (onClose: () => void) => {
+		dispatch(setSiteSlugToDelete(site.slug));
+		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
+		onClose();
+	};
+	const openSaveModal = () => {
+		dispatch(setSiteSlugToSave(site.slug));
+		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
@@ -289,6 +291,9 @@ export function SiteInfoPanel({
 														` ${createdAgo}`
 													);
 												case 'opfs':
+													if (isAutosaved) {
+														return `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`;
+													}
 													return `Saved in this browser ${createdAgo}`;
 											}
 										})()}{' '}
@@ -296,6 +301,16 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
+						{isAutosaved && (
+							<FlexItem className={css.siteInfoHeaderAction}>
+								<Button
+									variant="primary"
+									onClick={openSaveModal}
+								>
+									Store permanently
+								</Button>
+							</FlexItem>
+						)}
 						{mobileUi ? (
 							<FlexItem style={{ flexShrink: 0 }}>
 								<Button
@@ -463,7 +478,7 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'blueprint'}
 								>
-									{!isTemporary && (
+									{isBlueprintReadOnly && (
 										<div className={css.blueprintNotice}>
 											This Blueprint is read-only for
 											saved Playgrounds. Create an Unsaved
@@ -478,10 +493,9 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										<AutosavedBlueprintBundleEditor
+										<SiteBlueprintBundleEditor
 											key={site.slug}
 											site={site}
-											isVisible={tab.name === 'blueprint'}
 											className={classNames(
 												css.blueprintEditor
 											)}

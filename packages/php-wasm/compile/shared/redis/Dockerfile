@@ -97,6 +97,13 @@ RUN git clone https://github.com/phpredis/phpredis.git /root/phpredis \
 	--single-branch \
 	--depth 1;
 
+# Fix va_arg(ap, long) in redis_spprintf: on WASM32, long is 4 bytes but
+# zend_long is 8 bytes (due to -D__x86_64__), causing argument misalignment
+# in variadic calls. This corrupts values in commands like setex(key, ttl, value)
+# where the 8-byte zend_long TTL is read as 4-byte long, shifting subsequent args.
+# See https://github.com/WordPress/wordpress-playground/issues/3406
+RUN sed -i 's/va_arg(ap, long)/va_arg(ap, zend_long)/g' /root/phpredis/library.c
+
 # Build Redis extension
 RUN set -euxo pipefail; \
 	cd /root/phpredis; \

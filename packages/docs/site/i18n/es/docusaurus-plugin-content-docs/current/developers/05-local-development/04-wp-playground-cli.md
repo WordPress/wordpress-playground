@@ -126,7 +126,7 @@ El comando `server` ofrece control total sobre la configuración:
 npx @wp-playground/cli@latest server
 ```
 
-![Playground CLI en acción](@site/static/img/developers/npx-wp-playground-server.gif)
+![Playground CLI en acción](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
 
 <!--
 **Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.
@@ -149,14 +149,18 @@ Es útil cuando:
 - Los datos de tu sitio se han corrompido o son inconsistentes
 
 <!--
-:::info
+<div class="callout callout-info">
+
 The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 La opción `--reset` solo funciona con `start`. Para `server`, elimina manualmente el directorio del sitio persistido en `~/.wordpress-playground/sites/<path-hash>/`.
-:::
+
+</div>
 
 <!--
 ### Choosing a WordPress and PHP Version
@@ -248,14 +252,18 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 En Windows, el formato de ruta `/host/path:/vfs/path` puede causar problemas. Para resolverlo, usa las opciones `--mount-dir` y `--mount-dir-before-install`. Estas opciones permiten especificar las rutas del host y del sistema de archivos virtual en un formato alternativo: `"/host/path"` `"/vfs/path"`.
-:::
+
+</div>
 
 <!--
 ### Understanding Data Persistence and SQLite Location in `server` mode
@@ -507,14 +515,18 @@ El comando `server` admite los siguientes argumentos opcionales:
 - `--experimental-multi-worker=<number>`: Habilita soporte experimental multi-worker, que requiere un directorio `/wordpress` respaldado por un sistema de archivos real. Pasa un número positivo para el número de workers; en caso contrario, por defecto es el número de CPUs menos 1.
 
 <!--
-:::caution
+<div class="callout callout-warning">
+
 With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
+
 Con la opción `--follow-symlinks`, los enlaces simbólicos pueden exponer archivos fuera de los directorios montados a Playground y suponer un riesgo de seguridad.
-:::
+
+</div>
 
 <!--
 ## Need some help with the CLI?

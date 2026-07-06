@@ -42,9 +42,15 @@ Every visitor will get their own private WordPress instance for free. You can th
 
 Cada visitante obtendrá su propia instancia privada de WordPress de forma gratuita. Luego puedes personalizarla usando una de las [APIs de Playground](/developers/apis/).
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+<div class="callout callout-warning">
 
-<PlaygroundWpNetWarning />
+**Careful with the demo site**
+
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+</div>
 
 <!--
 ## Control the embedded website
@@ -58,9 +64,9 @@ WordPress Playground provides three APIs you can use to control the iframed webs
 
 WordPress Playground proporciona tres APIs que puedes usar para controlar el sitio web incrustado. Todos los ejemplos en esta sección están construidos usando una de estas:
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 <!--
 Learn more about each of these APIs in the [APIs overview section](/developers/apis/).
@@ -74,15 +80,13 @@ Aprende más sobre cada una de estas APIs en la [sección de descripción genera
 
 ## Mostrar un plugin o tema del directorio de WordPress
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!--
 You can install plugins and themes from the WordPress directory with only URL parameters. This iframe preinstalls the `coblocks` and `friends` plugins and the `pendant` theme.
 -->
 
 Puedes instalar plugins y temas del directorio de WordPress solo con parámetros de URL. Este iframe preinstala los plugins `coblocks` y `friends` y el tema `pendant`.
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
@@ -176,9 +180,11 @@ Puedes previsualizar código del repositorio de dos maneras: directamente con `g
 
 En el código anterior, se instalará un complemento desde un repositorio ubicado en `url`, y la referencia para encontrar la rama es `refType`; en este caso, se utilizará `refname`, pero también se puede utilizar `branch`, `tag` y `commit`.
 
-:::tip
+<div class="callout callout-tip">
+
 Puedes automatizar este proceso usando la [Acción de GitHub para generar enlaces de vista previa](/guides/github-action-pr-preview), lo que te ayudará a agilizarlo.
-:::
+
+</div>
 
 <!--
 Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).

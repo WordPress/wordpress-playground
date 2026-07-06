@@ -6,24 +6,12 @@ import { useAppSelector } from '../../lib/state/redux/store';
 import { useRef } from 'react';
 import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
-import type { DisplayMode } from '../playground-viewport';
-import {
-	supportedDisplayModes,
-	PlaygroundViewport,
-} from '../playground-viewport';
+import { PlaygroundViewport } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
 import { IosPwaNotice } from '../ios-pwa-notice';
-
-const displayMode = getDisplayModeFromQuery();
-function getDisplayModeFromQuery(): DisplayMode {
-	const query = new URLSearchParams(document.location.search);
-	return supportedDisplayModes.includes(query.get('mode') as any)
-		? (query.get('mode') as DisplayMode)
-		: 'browser-full-screen';
-}
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
@@ -58,7 +46,7 @@ export function Layout() {
 			<div className={css.siteView}>
 				<IosPwaNotice />
 				<div className={css.siteViewContent}>
-					<PlaygroundViewport displayMode={displayMode} />
+					<PlaygroundViewport />
 				</div>
 			</div>
 		</div>

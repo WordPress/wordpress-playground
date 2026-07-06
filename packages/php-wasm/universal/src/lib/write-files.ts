@@ -1,9 +1,11 @@
-import { dirname, joinPaths } from '@php-wasm/util';
+import { dirname, isParentOf, joinPaths } from '@php-wasm/util';
 import type { UniversalPHP } from './universal-php';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface FileTree
-	extends Record<string, Uint8Array | string | FileTree> {}
+export interface FileTree extends Record<
+	string,
+	Uint8Array | string | FileTree
+> {}
 
 export interface WriteFilesOptions {
 	/**
@@ -43,6 +45,11 @@ export async function writeFiles(
 	}
 	for (const [relativePath, content] of Object.entries(newFiles)) {
 		const filePath = joinPaths(root, relativePath);
+		if (!isParentOf(root, filePath)) {
+			throw new Error(
+				'File paths must stay inside the target directory.'
+			);
+		}
 		if (!(await php.fileExists(dirname(filePath)))) {
 			await php.mkdir(dirname(filePath));
 		}

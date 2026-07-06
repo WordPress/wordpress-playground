@@ -18,6 +18,8 @@ import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 
+type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
+
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
@@ -35,14 +37,18 @@ import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&ur
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
-	const runner = new URL(document.location.href).searchParams.get(
-		'blueprints-runner'
-	);
+	const query = new URL(document.location.href).searchParams;
+	const runner = query.get('blueprints-runner');
 	const isV2 = runner === 'v2';
 	const selected = isV2 ? workerV2Url : workerV1Url;
-	return new URL(selected, origin) + '';
+	const workerUrl = new URL(selected, origin);
+	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
+		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
+	}
+	return workerUrl + '';
 }
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -128,9 +134,18 @@ export async function bootPlaygroundRemote() {
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const phpRemoteApi: WebClientMixin = {
+	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
+		},
+		/**
+		 * Re-expose cli() from this iframe instead of piping through the
+		 * worker proxy. WebKit otherwise receives a Comlink function proxy
+		 * from another Comlink proxy and may dispatch the call to an endpoint
+		 * that has not booted yet.
+		 */
+		async cli(argv, options) {
+			return await phpWorkerApi.cli(argv, options);
 		},
 		async journalFSEvents(root: string, callback) {
 			return phpWorkerApi.journalFSEvents(root, callback);
@@ -380,6 +395,10 @@ export async function bootPlaygroundRemote() {
 			onProgress?: SyncProgressCallback
 		) {
 			return await phpWorkerApi.mountOpfs(options, onProgress);
+		},
+
+		async flushOpfs(mountpoint: string) {
+			return await phpWorkerApi.flushOpfs(mountpoint);
 		},
 
 		/**

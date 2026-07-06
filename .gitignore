@@ -62,6 +62,7 @@ vite.config.ts.timestamp-*.mjs
 Thumbs.db
 
 # Playground artifacts
+packages/playground/website/public/php-next/
 php.js.bak
 **/test-results/
 **/playwright-report/

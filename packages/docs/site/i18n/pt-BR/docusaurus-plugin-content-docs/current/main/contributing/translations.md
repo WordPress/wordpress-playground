@@ -17,14 +17,18 @@ Help make WordPress Playground accessible to a global audience by translating it
 Ajude a tornar o WordPress Playground acessível a um público global traduzindo sua documentação. Este guia fornece tudo o que você precisa saber para começar. Contribuir com traduções segue o mesmo fluxo de trabalho que qualquer outra alteração de documentação. Você pode fazer um fork do repositório [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) e criar um pull request (PR) com suas alterações, ou editar páginas diretamente usando a interface do GitHub.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para um guia detalhado sobre o fluxo de trabalho de contribuição (fork, criação de PRs, etc.), consulte nosso [guia de contribuição para documentação](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -39,14 +43,18 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 O site de documentação do Playground é construído com Docusaurus, que gerencia os recursos de internacionalização (i18n).
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Para saber mais sobre como o Docusaurus gerencia traduções, consulte a [seção de Internacionalização](https://docusaurus.io/docs/i18n/introduction) da documentação oficial do Docusaurus.
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -177,10 +185,10 @@ The language switcher is a dropdown menu that allows users to select their prefe
 O seletor de idioma é um menu suspenso que permite aos usuários selecionar seu idioma preferido.
 
 <!--
-![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 -->
 
-![Seletor de idioma da documentação](@site/static/img/contributing/language-switcher-docs.webp)
+![Seletor de idioma da documentação](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher
@@ -313,14 +321,18 @@ Siga estes passos para traduzir uma página:
 - Solicite uma revisão em `#playground` ou `#polyglots` no `wordpress.slack.com`
 
 <!--
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Recomendamos enfaticamente enviar pull requests com um pequeno número de páginas traduzidas. Esta abordagem simplifica o processo de revisão e permite uma integração mais gradual e gerenciável do seu trabalho.
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template
@@ -586,11 +598,11 @@ Este guia mostrará como atualizar uma tradução existente e adicionar uma nova
 
 <!--
 2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
-    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
+    ![Editing existing translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 -->
 
 2.  **Abra o editor.** Selecione o arquivo que deseja editar e clique no ícone de lápis (**Edit this file**) no canto superior direito.
-    ![Editando tradução existente](@site/static/img/contributing/editing-translations.webp)
+    ![Editando tradução existente](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 <!--
 3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
@@ -637,13 +649,13 @@ Este guia mostrará como atualizar uma tradução existente e adicionar uma nova
 
 <!--
 2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
-    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creating a new translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
     -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
 -->
 
 2.  **Crie o novo arquivo.** Navegue até a pasta de idioma correta (por exemplo, `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Clique em **Add file** > **Create new file**.
-    ![Criando uma nova tradução](@site/static/img/contributing/adding-file-github-ui.webp)
+    ![Criando uma nova tradução](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
     - **Dica profissional:** Na caixa de nome do arquivo, você pode criar novas pastas digitando o nome da pasta seguido por `/`. Por exemplo, digitar `main/contributing/documentation.md` criará as pastas `main` e `contributing` automaticamente.
 
 <!--
@@ -664,7 +676,7 @@ Este guia mostrará como atualizar uma tradução existente e adicionar uma nova
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
+    ![GitHub UI Editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 -->
 
@@ -679,7 +691,7 @@ Este guia mostrará como atualizar uma tradução existente e adicionar uma nova
     Este é o conteúdo traduzido em português.
     ```
 
-    ![Editor de UI do GitHub](@site/static/img/contributing/editor-github-ui.webp)
+    ![Editor de UI do GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 <!--
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
@@ -735,14 +747,18 @@ WordPress Playground é uma ferramenta online onde você pode testar e aprender 
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Esta prática também ajuda a equipe de manutenção a identificar traduções desatualizadas. Quando o conteúdo original em inglês é atualizado, podemos pesquisar no código base o texto antigo (agora em comentários) e sinalizar a tradução correspondente para revisão.
-:::
+
+</div>
 
 <!--
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).

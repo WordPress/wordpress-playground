@@ -9,9 +9,9 @@ WordPress Playground is under active development and has some limitations you sh
 
 You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
 
-## In the browser {#in-the-browser}
+## In the browser
 
-### Temporary by design {#temporary-by-design}
+### Temporary by design
 
 Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
 
@@ -22,29 +22,31 @@ Playground creates fresh WordPress instances on each page load. Refreshing the b
 - **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar.
 - **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
 
-:::tip
-The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
-:::
+<div class="callout callout-tip">
 
-![Refresh Playground Button](@site/static/img/refresh-playground-button.webp)
+The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
+
+</div>
+
+![Refresh Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
 <figcaption><i>1. Exporting Playground:</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
 <figure>
 <figcaption><i>2. Save button:</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
 
-### Browser support {#browser-support}
+### Browser support
 
 WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:
 
@@ -53,7 +55,7 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 
-### Performance expectations {#performance-expectations}
+### Performance expectations
 
 Loading times vary based on what Playground needs to set up:
 
@@ -64,7 +66,7 @@ Loading times vary based on what Playground needs to set up:
 | With large plugins (e.g., WooCommerce) | 30-60 seconds              |
 | On mobile devices                      | 1.5-2x slower than desktop |
 
-![Save Button](@site/static/img/playground-performance-graph.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **Factors that affect performance:**
 
@@ -77,14 +79,14 @@ Loading times vary based on what Playground needs to set up:
 <strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
 
-## When developing with Playground {#when-developing-with-playground}
+## When developing with Playground
 
-### Iframe quirks {#iframe-quirks}
+### Iframe quirks
 
 Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you’re working on.
 Also, JavaScript popups originating in the `iframe` may not always display.
 
-### Run WordPress PHP functions {#run-wordpress-php-functions}
+### Run WordPress PHP functions
 
 Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
@@ -95,6 +97,6 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 }
 ```
 
-### Using WP-CLI {#using-wp-cli}
+### Using WP-CLI
 
 You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.

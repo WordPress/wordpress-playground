@@ -8,11 +8,11 @@ description: પ્લગઇન ડેવલપર્સ માટે એક મ
 
 આ માર્ગદર્શિકા તમને બતાવશે કે તમારી પ્લગઇન ડેવલપમેન્ટ વર્કફ્લો સુધારવા, તમારા પ્લગઇનને દર્શાવવા માટે લાઇવ ડેમો બનાવવા અને તમારા પ્લગઇન પરીક્ષણ અને સમીક્ષા સરળ બનાવવા માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ નો ઉપયોગ કેવી રીતે કરવો તે શીખવશે.
 
-:::info
+<div class="callout callout-info">
 
 તમારા ઉત્પાદોને વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે કેવી રીતે [બનાવવું](/about/build), [પરીક્ષણ કરવું](/about/test), અને [લોંચ કરવું](/about/launch) તે જાણો [પ્લેગ્રાઉન્ડ વિશે](/about) વિભાગમાં.
 
-:::
+</div>
 
 ## પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ સાથે પ્લગઇન લોડ કરવું
 
@@ -20,9 +20,11 @@ description: પ્લગઇન ડેવલપર્સ માટે એક મ
 
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે, તમે [વર્ડપ્રેસ પ્લગઈન્સ ડિરેક્ટરી](https://wordpress.org/plugins/) માંથી લગભગ કોઈપણ પ્લગઇન સાથે વર્ડપ્રેસ ઇન્સ્ટોલેશન ઝડપથી લોડ કરી શકો છો. તમારે ફક્ત પ્લેગ્રાઉન્ડ URL માં `પ્લગઇન` [ક્વેરી પેરામીટર](/developers/apis/query-api) ઉમેરવાની જરૂર છે અને વર્ડપ્રેસ ડિરેક્ટરીમાંથી પ્લગઈનનો સ્લગ મૂલ્ય તરીકે ઉપયોગ કરવો. ઉદાહરણ તરીકે: https://playground.wordpress.net/?plugin=create-block-theme
 
-:::tip
+<div class="callout callout-tip">
+
 તમે ક્વેરી પેરામીટર્સ દ્વારા અને પ્લગઈન પેરામીટર્સ ને પુનરાવર્તિત કરીને વર્ડપ્રેસ ડિરેક્ટરીમાંથી બહુવિધ પ્લગઈન્સ ઇન્સ્ટોલ અને સક્રિય કરી શકો છો. ઉદાહરણ તરીકે: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo.
-:::
+
+</div>
 
 તમે પણ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને પસ કરેલ [બ્લુપ્રિન્ટ](/blueprints/getting-started) ના [`પ્લગઇન ઇન્સ્ટોલ કરો` પગલું](/blueprints/steps#InstallPluginStep) સેટ કરીને વર્ડપ્રેસ પ્લગઈન ડિરેક્ટરીમાંથી કોઈપણ પ્લગઈન લોડ કરી શકો છો.
 
@@ -52,9 +54,11 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 
 [`પ્લગઇન ઇન્સ્ટોલ કરો` બ્લુપ્રિન્ટ પગલું](/blueprints/steps#installPlugin) ના `પ્લગઇન ડેટા` સંપત્તિ સાથે, તમે [`git:directory` સંસાધન](/blueprints/steps/resources#gitdirectoryreference) વ્યાખ્યાયિત કરી શકો છો જે પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં રિપોઝિટરીમાંથી ફાઇલોમાંથી પ્લગઇન બનાશે.
 
-:::info
+<div class="callout callout-info">
+
 છેલ્લાં કેટલાક મહિનાથી, [GitHub proxy](https://playground.wordpress.net/proxy) એક અવિશ્વાસનીય રીતે ઉપયોગી સાધન હતું GitHub રિપોઝિટરીમાંથી પ્લગઈન લોડ કરવા માટે, કારણ કે તે તમને ચોક્કસ શાખા, ચોક્કસ ડિરેક્ટરી, ચોક્કસ commit, અથવા ચોક્કસ PR માંથી પ્લગઈન લોડ કરવા દે છે. પરંતુ પ્લેગ્રાઉન્ડ માં તાજેતરના સુધારો સાથે, આ વૈશિષ્ટ્ય આવશ્યક નથી. GitHub Proxy શીઘ્ર બંધ થશે, કૃપया તમારા blueprints ને `git:directory` સંસાધનમાં અપડેટ કરો.
-:::
+
+</div>
 
 ઉદાહરણ તરીકે, નીચેનો `blueprint.json` GitHub રિપોઝિટરીમાંથી પ્લગઈન ઇન્સ્ટોલ કરે છે:
 
@@ -76,9 +80,11 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 }
 ```
 
-:::tip
+<div class="callout callout-tip">
+
 જો તમારો પ્લગઇન GitHub પર હોસ્ટ કરેલો છે, તો તમે પ્લેગ્રાઉન્ડ PR Preview GitHub Action નો ઉપયોગ કરીને તમારા pull requests માં સ્વચાલિતપણે પૂર્વદર્શન બટનો ઉમેરી શકો છો. આ સમીક્ષાકારોને કોઈ સેટআપ વિના તમારા પરિવર્તનો ચોક્કસ રીતે પરીક્ષણ કરવા દે છે. વધુ વિગતો માટે [GitHub Actions સાથે PR Preview બટનો ઉમેરવું](/guides/github-action-pr-preview) જુઓ.
-:::
+
+</div>
 
 [<kbd> બ્લુપ્રિન્ટ ચલાવો </kbd>](https://playground.wordpress.net/#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/wptrainingteam/devblog-dataviews-plugin%22,%22ref%22:%22HEAD%22,%22refType%22:%22refname%22}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
@@ -112,17 +118,17 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 
 [<kbd> બ્લુપ્રિન્ટ ચલાવો </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/cpt-books.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php%22}},{%22step%22:%22activatePlugin%22,%22pluginPath%22:%22cpt-books.php%22}]})
 
-:::info
+<div class="callout callout-info">
 
 [Gist માંથી પ્લગઇન ઇન્સ્ટોલ કરો](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) ઉદાહરણ [બ્લુપ્રિન્ટ્સ ગેલેરી](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) માં દર્શાવેલ છે કે gist માંથી કોડમાંથી પ્લગઇન કેવી રીતે લોડ કરવું
 
-:::
+</div>
 
 ## તમારા પ્લગઇન માટે બ્લુપ્રિન્ટ સાથે ડેમો સેટ અપ કરવું
 
 જ્યારે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં કેટલાક પ્લગઈન્સ સક્રિય કરેલા હોય તેવી લિંક પ્રદાન કરતી હો, તો તમે તે પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ માટે પ્રારંભિક સેટ અપ કસ્ટમાઇઝ કરવા માંગી શકો છો. પ્લેગ્રાઉન્ડ ના [બ્લુપ્રિન્ટ](/blueprints/getting-started) સાથે તમે પ્લગઈન્સ લોડ/સક્રિય કરી શકો છો અને પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ કોંફિગર કરી શકો છો.
 
-:::tip
+<div class="callout callout-tip">
 
 પ્લેગ્રાઉન્ડ પ્રોજેક્ટ દ્વારા પ્રદાન કરેલ કેટલાક ઉપયોગી સાધનો અને સંસાધનો છે:
 
@@ -130,15 +136,15 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 - [વર્ડપ્રેસ પ્લેટ પ્લેટફોર્મ સ્ટેપ લાઇબ્રેરી](https://akirk.github.io/playground-step-library/#) સાધન બ્લુપ્રિન્ટ્ માટે પગલાંઓ ખેંચીને અથવા ક્લિક કરીને દ્રશ્ય ઇન્ટરફેસ પ્રદાન કરે છે. તમે તમારા પોતાના પગલાંઓ પણ બનાવી શકો છો!
 - [બ્લુપ્રિન્ટ્સ બિલ્ડર](https://playground.wordpress.net/builder/builder.html) સાધન તમને તમારો બ્લુપ્રિન્ટ્ ઑનલાઇન સંપાદિત કરવા અને તેને સીધું પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં ચલાવવા દે છે.
 
-:::
+</div>
 
 બ્લુપ્રિન્ટ્ ના ગુણધર્મો અને [`પગલાં`](/blueprints/steps) દ્વારા, તમે પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સનું પ્રારંભિક સેટ કોંફિગર કરી શકો છો, તમારા પ્લગઈન્સને તમારા પ્લગઈનની આકર્ષણીય વૈશિષ્ટ્યો અને કાર્યક્ષમતા પ્રદર્શિત કરવા માટે જરૂરી સામગ્રી અને કોંફિગરેશન સાથે પ્રદાન કરે છે.
 
-:::info
+<div class="callout callout-info">
 
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે મહાન ડેમો તમારે પ્લગઇન અને થીમ માટે ડિફોલ્ટ સામગ્રી લોડ કરવી પડશે, જેમાં ચિત્રો અને અન્ય એસેટ્સ શામેલ છે. વધુ જાણવા માટે [તમારા ડેમો માટે સામગ્રી પ્રદાન કરવું](/guides/providing-content-for-your-demo) માર્ગદર્શિકા તપાસો.
 
-:::
+</div>
 
 ### `પ્લગઈન્સ`
 
@@ -221,8 +227,8 @@ Google Chrome સાથે તમે પ્લેગ્રાઉન્ડ ઇન
 <iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 <p></p>
 
-:::info
+<div class="callout callout-info">
 
-[પ્લેગ્રાઉન્ડ વિશે > Build > તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને સ્થાનિક ફોલ્ડર સાથે સમન્વય કરો અને GitHub Pull Requests બનાવો](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) માટે વધુ માહિતી તપાસો.
+[પ્લેગ્રાઉન્ડ વિશે &gt; Build &gt; તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને સ્થાનિક ફોલ્ડર સાથે સમન્વય કરો અને GitHub Pull Requests બનાવો](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) માટે વધુ માહિતી તપાસો.
 
-:::
+</div>

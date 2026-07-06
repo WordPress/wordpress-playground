@@ -5,7 +5,6 @@ import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
 import { useState, useRef, lazy, Suspense } from 'react';
-import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import type { ExportFormValues } from '../../github/github-export-form/form';
 import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
@@ -19,6 +18,7 @@ import {
 } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
+import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
@@ -51,7 +51,6 @@ const PreviewPRModal = lazy(() =>
 	}))
 );
 
-acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
@@ -167,6 +166,8 @@ function Modals() {
 		return <MissingSiteModal />;
 	} else if (currentModal === modalSlugs.RENAME_SITE) {
 		return <RenameSiteModal />;
+	} else if (currentModal === modalSlugs.DELETE_SITE) {
+		return <DeleteSiteModal />;
 	} else if (currentModal === modalSlugs.SAVE_SITE) {
 		return <SaveSiteModal />;
 	} else if (currentModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH) {
@@ -187,10 +188,16 @@ function Modals() {
 				<PreviewPRModal target="gutenberg" />
 			</LazyModal>
 		);
-	} else if (currentModal === modalSlugs.GITHUB_IMPORT) {
+	} else if (
+		currentModal === modalSlugs.GITHUB_IMPORT ||
+		currentModal === modalSlugs.GITHUB_IMPORT_NEW_SITE
+	) {
 		return (
 			<LazyModal>
 				<GithubImportModal
+					createNewSiteBeforeImport={
+						currentModal === modalSlugs.GITHUB_IMPORT_NEW_SITE
+					}
 					onImported={({
 						url,
 						path,

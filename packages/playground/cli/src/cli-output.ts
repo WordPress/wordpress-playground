@@ -1,24 +1,18 @@
 /**
  * Manages formatted terminal output for the WordPress Playground CLI.
  *
- * This class handles two distinct output modes:
- * - TTY (terminal): Uses ANSI escape codes for colors and in-place progress updates
- * - Non-TTY (pipes/logs): Skips progress updates entirely, outputs plain text only
+ * Extends the base CLIOutput from @php-wasm/cli-util with
+ * Playground-specific output: config summary, progress indicators,
+ * and server-ready messages.
  *
- * Progress updates rewrite the same line in TTY mode to create smooth animations.
- * When output is piped or redirected, progress is suppressed to avoid cluttering
- * logs with intermediate states - only the final "Ready!" message appears.
+ * Progress updates rewrite the same line in TTY mode to create smooth
+ * animations. When output is piped or redirected, progress is suppressed
+ * to avoid cluttering logs with intermediate states.
  */
 
+import { CLIOutput as BaseCLIOutput } from '@php-wasm/cli-util';
 import { shouldRenderProgress } from './utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
-
-export interface CLIOutputOptions {
-	/** Verbosity level: 'quiet', 'normal', or 'debug' */
-	verbosity: string;
-	/** Output stream to write to. Defaults to process.stdout */
-	writeStream?: NodeJS.WriteStream;
-}
 
 /**
  * Configuration details displayed at CLI startup.
@@ -36,20 +30,9 @@ export interface ConfigSummary {
 	blueprint?: string;
 }
 
-export class CLIOutput {
-	private verbosity: string;
-	private writeStream: NodeJS.WriteStream;
+export class CLIOutput extends BaseCLIOutput {
 	private lastProgressLine = '';
 	private progressActive = false;
-
-	constructor(options: CLIOutputOptions) {
-		this.verbosity = options.verbosity;
-		this.writeStream = options.writeStream || process.stdout;
-	}
-
-	get isTTY(): boolean {
-		return Boolean(this.writeStream.isTTY);
-	}
 
 	/**
 	 * Determines if progress updates should be rendered.
@@ -59,41 +42,6 @@ export class CLIOutput {
 	 */
 	get shouldRender(): boolean {
 		return shouldRenderProgress(this.writeStream);
-	}
-
-	get isQuiet(): boolean {
-		return this.verbosity === 'quiet';
-	}
-
-	/**
-	 * ANSI formatting helpers.
-	 *
-	 * These only apply color codes when outputting to a terminal (TTY).
-	 * When piped to files or non-TTY streams, they return plain text to
-	 * avoid polluting logs with escape sequences.
-	 */
-	private bold(text: string): string {
-		return this.isTTY ? `\x1b[1m${text}\x1b[0m` : text;
-	}
-
-	private dim(text: string): string {
-		return this.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
-	}
-
-	private green(text: string): string {
-		return this.isTTY ? `\x1b[32m${text}\x1b[0m` : text;
-	}
-
-	private cyan(text: string): string {
-		return this.isTTY ? `\x1b[36m${text}\x1b[0m` : text;
-	}
-
-	private yellow(text: string): string {
-		return this.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
-	}
-
-	private red(text: string): string {
-		return this.isTTY ? `\x1b[31m${text}\x1b[0m` : text;
 	}
 
 	printBanner(): void {
@@ -254,7 +202,7 @@ export class CLIOutput {
 	 * Errors are always shown, even in quiet mode, and interrupt any
 	 * active progress display to ensure visibility.
 	 */
-	printError(message: string): void {
+	override printError(message: string): void {
 		// Clear any active progress first
 		if (this.progressActive && this.isTTY) {
 			this.writeStream.cursorTo(0);
@@ -278,12 +226,6 @@ export class CLIOutput {
 		this.writeStream.write(
 			`\n${this.green('Ready!')} WordPress is running on ${this.bold(url)} ${this.dim(`(${workerCount} ${workerLabel})`)}\n\n`
 		);
-	}
-
-	printWarning(message: string): void {
-		if (this.isQuiet) return;
-
-		this.writeStream.write(`${this.yellow('Warning:')} ${message}\n`);
 	}
 
 	/**

@@ -77,13 +77,13 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 phpLoaderOptions.forEach((options) => {
 	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
 	// output format and process behavior, which breaks exact text assertions.
 	// These tests cover core features that only need to run once without Xdebug.
-	const skip = !!options.withXdebug;
+	const skip = options.extensions?.includes('xdebug') ?? false;
 
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
@@ -1407,33 +1407,27 @@ phpLoaderOptions.forEach((options) => {
 				php.setSpawnHandler(handler);
 
 				const startTime = Date.now();
-				try {
-					await php.run({
-						code: `<?php
-							$res = proc_open(
-								"hanging_command",
-								array(
-									array("pipe","r"),
-									array("pipe","w"),
-									array("pipe","w"),
-								),
-								$pipes
-							);
-							// This will block – it's a blocking pipe and will never
-							// output any data.
-							fread($pipes[1], 1024);
-						`,
-					});
-					// Should not reach here
-					expect(false).toBe(true);
-				} catch (e) {
-					console.log(e);
-					const elapsed = Date.now() - startTime;
-					// Should timeout around 5 seconds (allowing some margin)
-					expect(elapsed).toBeGreaterThan(4500);
-					expect(elapsed).toBeLessThan(6000);
-					expect(spawnHandlerCalled).toBe(true);
-				}
+				await php.run({
+					code: `<?php
+						$res = proc_open(
+							"hanging_command",
+							array(
+								array("pipe","r"),
+								array("pipe","w"),
+								array("pipe","w"),
+							),
+							$pipes
+						);
+						// This will block – it's a blocking pipe and will never
+						// output any data.
+						fread($pipes[1], 1024);
+					`,
+				});
+				const elapsed = Date.now() - startTime;
+				// Should timeout around 5 seconds (allowing some margin)
+				expect(elapsed).toBeGreaterThan(4500);
+				expect(elapsed).toBeLessThan(6000);
+				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 		});
 

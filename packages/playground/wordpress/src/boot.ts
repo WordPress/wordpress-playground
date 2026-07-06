@@ -9,6 +9,7 @@ import type {
 	Remote,
 } from '@php-wasm/universal';
 import {
+	isLegacyPHPVersion,
 	PHP,
 	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
@@ -26,6 +27,12 @@ import {
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './wp-config';
+import { assertDatabasePrerequisites } from './database-prerequisites';
+import {
+	applyLegacyPhpIniOverrides,
+	bootLegacyWordPress,
+} from './legacy-wp/legacy-boot';
+import { backportWpPreV62MysqlCheck } from './legacy-wp/legacy-fixes';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -51,6 +58,11 @@ export async function bootWordPressAndRequestHandler(
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	/**
+	 * PHP version string (e.g. '8.3', '5.2'). Used to gate
+	 * legacy-PHP-specific behavior in the boot chain.
+	 */
+	phpVersion?: string;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
@@ -141,6 +153,8 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** PHP version string (e.g. '8.3', '5.2'). */
+	phpVersion?: string;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -209,6 +223,9 @@ export async function bootWordPress(
 	requestHandler: PHPRequestHandler,
 	options: BootWordPressOptions
 ) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return bootLegacyWordPress(requestHandler, options);
+	}
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
@@ -233,9 +250,9 @@ export async function bootWordPress(
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	/*
-	 * Add required constants to "wp-config.php" if they are not already defined.
-	 * This is needed, because some WordPress backups and exports may not include
-	 * definitions for some of the necessary constants.
+	 * Ensure required constants are defined if "wp-config.php" doesn't define
+	 * them. This is needed because some WordPress backups and exports may not
+	 * include definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
@@ -250,8 +267,10 @@ export async function bootWordPress(
 		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
-			await options.sqliteIntegrationPluginZip
+			await options.sqliteIntegrationPluginZip,
+			{ phpVersion: options.phpVersion }
 		);
+		await backportWpPreV62MysqlCheck(php, requestHandler.documentRoot);
 	}
 
 	const installationMode =
@@ -313,56 +332,6 @@ export async function bootWordPress(
 	return requestHandler;
 }
 
-/**
- * Checks if database prerequisites are in place before attempting WordPress installation.
- * This performs lightweight checks that don't require WordPress to be installed.
- */
-async function assertDatabasePrerequisites(
-	requestHandler: PHPRequestHandler,
-	{
-		usesSqlite,
-		hasCustomDatabasePath,
-	}: {
-		usesSqlite: boolean;
-		hasCustomDatabasePath: boolean;
-	}
-) {
-	const php = await requestHandler.getPrimaryPhp();
-
-	// If SQLite integration is preloaded via core, we're good
-	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
-		return;
-	}
-
-	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
-	// This handles cases where the directory is mounted via hooks
-	const sqlitePluginPath = joinPaths(
-		requestHandler.documentRoot,
-		'wp-content/mu-plugins/sqlite-database-integration'
-	);
-
-	if (php.isDir(sqlitePluginPath)) {
-		// The directory exists, we'll validate it after WordPress is installed
-		return;
-	}
-
-	// Check if we provided a SQLite integration zip
-	if (usesSqlite) {
-		// We provided a zip, so SQLite will be set up during boot
-		return;
-	}
-
-	// If we have a custom database path (dataSqlPath option was provided),
-	// assume it's configured - the actual connection will be validated after installation
-	if (hasCustomDatabasePath) {
-		return;
-	}
-
-	// No SQLite integration and no MySQL support available
-	// Throw early to avoid attempting installation with no database
-	throw new Error('Error connecting to the MySQL database.');
-}
-
 async function assertValidDatabaseConnection(
 	requestHandler: PHPRequestHandler
 ) {
@@ -397,6 +366,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	defaultSqliteJournalMode(options);
 	const createSpawnHandler =
 		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
@@ -414,6 +384,11 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		if (options.phpIniEntries) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
+
+		applyLegacyPhpIniOverrides(php, {
+			phpVersion: options.phpVersion,
+			phpIniEntries: options.phpIniEntries,
+		});
 
 		// Use the new AST-based SQLite driver.
 		// TODO: Remove this once the new driver is the default; when this is closed:
@@ -452,7 +427,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			!php.isFile('/internal/.boot-files-written')
 		) {
 			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
-			await setupPlatformLevelMuPlugins(php);
+			await setupPlatformLevelMuPlugins(php, {
+				phpVersion: options.phpVersion,
+			});
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
@@ -522,6 +499,21 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	});
 
 	return requestHandler;
+}
+
+function defaultSqliteJournalMode(options: BootRequestHandlerOptions) {
+	if ('SQLITE_JOURNAL_MODE' in (options.constants ?? {})) {
+		return;
+	}
+
+	/*
+	 * Blueprint constants are applied after SQLite may have opened the first
+	 * connection. Define Playground's default through auto-prepend first.
+	 */
+	options.constants = {
+		...options.constants,
+		SQLITE_JOURNAL_MODE: 'DELETE',
+	};
 }
 
 /**

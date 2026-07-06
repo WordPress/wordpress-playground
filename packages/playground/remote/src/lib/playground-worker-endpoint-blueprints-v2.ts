@@ -21,7 +21,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		wpVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withIntl = false,
+		extensions = [],
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
@@ -45,7 +45,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 				sapiName,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
-				withIntl,
+				extensions,
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
@@ -84,6 +84,25 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 	}
 }
 
+const workerGlobal = self as unknown as {
+	__playgroundWorkerEndpointBlueprintsV2?: boolean;
+};
+const alreadyExposedComlinkEndpoint =
+	workerGlobal.__playgroundWorkerEndpointBlueprintsV2;
+if (alreadyExposedComlinkEndpoint) {
+	/*
+	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
+	 * guard means the same module was evaluated twice in the same worker
+	 * global, most likely because a generated chunk imported the worker
+	 * entrypoint to reuse one of its exports. Keep shared imports in
+	 * side-effect-free modules so loading PHP chunks cannot re-run worker
+	 * startup code.
+	 */
+	throw new Error(
+		'The Blueprints v2 Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
+	);
+}
+workerGlobal.__playgroundWorkerEndpointBlueprintsV2 = true;
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointV2(downloadMonitor)
 );

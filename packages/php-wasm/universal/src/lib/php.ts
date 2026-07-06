@@ -3,6 +3,7 @@ import {
 	Semaphore,
 	basename,
 	createSpawnHandler,
+	dirname,
 	joinPaths,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
@@ -63,6 +64,21 @@ type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
 };
+
+/**
+ * Describes the VFS node shape visible at a mount point before rotation.
+ */
+type MountPointSnapshot =
+	| {
+			kind: 'directory';
+	  }
+	| {
+			kind: 'file';
+	  }
+	| {
+			kind: 'symlink';
+			target: string;
+	  };
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -1057,10 +1073,14 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
-				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
-				stdout.controller.error(e);
-				stderr.controller.error(e);
-				headers.controller.error(e);
+				// Non-exit-code errors indicate a WASM runtime crash.
+				// Let's clean up and throw. We use safeStreamError()
+				// because the headers controller may already be closed
+				// if onStdout fired before the crash (onStdout calls
+				// closeHeadersStream()).
+				safeStreamError(stdout.controller, e);
+				safeStreamError(stderr.controller, e);
+				safeStreamError(headers.controller, e);
 				streamsClosed = true;
 
 				/**
@@ -1083,8 +1103,11 @@ export class PHP implements Disposable {
 				throw e;
 			} finally {
 				if (!streamsClosed) {
-					stdout.controller.close();
-					stderr.controller.close();
+					// Close each stream individually so that a failure
+					// in one (e.g. stream cancelled by the consumer)
+					// doesn't prevent the others from being closed.
+					safeStreamClose(stdout.controller);
+					safeStreamClose(stderr.controller);
 					closeHeadersStream();
 					streamsClosed = true;
 				}
@@ -1419,6 +1442,7 @@ export class PHP implements Disposable {
 		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
 			([vfsPath, mount]) => ({
 				mountHandler: mount.mountHandler,
+				mountPointSnapshot: snapshotMountPoint(oldFS, vfsPath),
 				vfsPath,
 			})
 		);
@@ -1468,9 +1492,31 @@ export class PHP implements Disposable {
 		}
 
 		// Re-mount all the mount handlers in order
-		for (const { mountHandler, vfsPath } of mountHandlersToReapplyInOrder) {
-			this.mkdir(vfsPath);
-			await this.mount(vfsPath, mountHandler);
+		for (const {
+			mountHandler,
+			mountPointSnapshot,
+			vfsPath,
+		} of mountHandlersToReapplyInOrder) {
+			try {
+				await this.mount(vfsPath, mountHandler);
+			} catch (e) {
+				if (isMissingMountSourceError(e)) {
+					// Initial mounts still reject missing sources. During rotation,
+					// keep the pre-rotation VFS shape and drop the stale mount.
+					restoreMountPointSnapshot(
+						newFs,
+						vfsPath,
+						mountPointSnapshot
+					);
+					continue;
+				}
+				if (!isMissingMountTargetPathError(e)) {
+					throw e;
+				}
+
+				this.mkdir(vfsPath);
+				await this.mount(vfsPath, mountHandler);
+			}
 		}
 		try {
 			newFs.chdir(oldCWD);
@@ -1503,14 +1549,19 @@ export class PHP implements Disposable {
 		const mountObject = {
 			mountHandler,
 			unmount: async () => {
-				await unmountCallback();
-				delete this.#mounts[virtualFSPath];
+				try {
+					await unmountCallback();
+				} finally {
+					// JS mount tracking is authoritative. Even if the
+					// underlying filesystem unmount fails, forget this entry
+					// so later runtime swaps and remounts cannot reuse a stale
+					// mount handler.
+					delete this.#mounts[virtualFSPath];
+				}
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return () => {
-			mountObject.unmount();
-		};
+		return () => mountObject.unmount();
 	}
 
 	/**
@@ -1592,16 +1643,38 @@ export class PHP implements Disposable {
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
-			stderrStream.controller.error(error);
+			safeStreamError(stderrStream.controller, error);
 		});
-		process.stderr.on('data', (data) => {
-			stderrStream.controller.enqueue(data);
-		});
+		const onStderrData = (data: Uint8Array) => {
+			try {
+				stderrStream.controller.enqueue(data);
+			} catch {
+				// enqueue() throws when the stream is no longer
+				// readable — the consumer cancelled it, someone
+				// called controller.error(), or the stream was
+				// already closed. We swallow the error because
+				// the consumer already knows why the stream ended
+				// (they cancelled, or received the error, or read
+				// all the data). Re-throwing here would propagate
+				// into Node's EventEmitter and crash the process,
+				// which is exactly what this PR fixes. The only
+				// actionable response is to detach the listener
+				// so we stop receiving data we can't deliver.
+				process.stderr.off('data', onStderrData);
+			}
+		};
+		process.stderr.on('data', onStderrData);
 
 		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
-		process.stdout.on('data', (data) => {
-			stdoutStream.controller.enqueue(data);
-		});
+		const onStdoutData = (data: Uint8Array) => {
+			try {
+				stdoutStream.controller.enqueue(data);
+			} catch {
+				// See the comment in onStderrData above.
+				process.stdout.off('data', onStdoutData);
+			}
+		};
+		process.stdout.on('data', onStdoutData);
 
 		process.on('exit', () => {
 			// Delay until next tick to ensure we don't close the streams before
@@ -1704,7 +1777,12 @@ function copyMEMFSNodes(
 		return;
 	}
 
-	const oldNode = source.lookupPath(path);
+	const oldNode = source.lookupPath(path, { follow: false });
+	if (source.isLink(oldNode.node.mode)) {
+		const linkTarget = source.readlink(path);
+		target.symlink(linkTarget, path);
+		return;
+	}
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1717,6 +1795,75 @@ function copyMEMFSNodes(
 	for (const filename of filenames) {
 		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
+}
+
+/**
+ * Captures the VFS node shape hidden by a mount before rotation removes it.
+ */
+function snapshotMountPoint(
+	source: Emscripten.FileSystemInstance,
+	path: string
+): MountPointSnapshot | undefined {
+	try {
+		const oldNode = source.lookupPath(path, { follow: false });
+		if (source.isLink(oldNode.node.mode)) {
+			return { kind: 'symlink', target: source.readlink(path) };
+		}
+		if (source.isDir(oldNode.node.mode)) {
+			return { kind: 'directory' };
+		}
+
+		return { kind: 'file' };
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Recreates the pre-rotation mount point when its backing source disappeared.
+ */
+function restoreMountPointSnapshot(
+	target: Emscripten.FileSystemInstance,
+	path: string,
+	snapshot: MountPointSnapshot | undefined
+) {
+	if (!snapshot || getNodeType(target, path) !== 'missing') {
+		return;
+	}
+
+	if (snapshot.kind === 'directory') {
+		target.mkdirTree(path);
+		return;
+	}
+
+	target.mkdirTree(dirname(path));
+	if (snapshot.kind === 'symlink') {
+		target.symlink(snapshot.target, path);
+	} else {
+		target.writeFile(path, new Uint8Array());
+	}
+}
+
+/**
+ * Indicates whether a mount handler reported that its backing source is gone.
+ */
+function isMissingMountSourceError(error: unknown) {
+	const maybeMissingSourceError = error as {
+		phpWasmMountSourceMissing?: boolean;
+	};
+	return maybeMissingSourceError.phpWasmMountSourceMissing === true;
+}
+
+/**
+ * Indicates whether a mount failed because its target path does not exist yet
+ * inside PHP's filesystem.
+ *
+ * Emscripten reports this as errno 44. Rotation handles it by creating that
+ * target path and trying the mount again; other mount failures should bubble up.
+ */
+function isMissingMountTargetPathError(error: unknown) {
+	const maybeErrnoError = error as { errno?: number };
+	return maybeErrnoError.errno === 44;
 }
 
 /**
@@ -1762,6 +1909,40 @@ async function createInvertedReadableStream<T = BufferSource>(
 		stream,
 		controller,
 	};
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit. This commonly happens
+ * when onStdout closes the headers stream before a WASM crash
+ * propagates to the error-handling code.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * prevent sibling streams from being cleaned up and crash the
+ * Node process.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }
 
 const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {

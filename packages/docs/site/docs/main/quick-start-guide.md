@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: A 5-minute guide to get started with Playground. Learn how to test plugins, try themes, and use different WP/PHP versions.
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 # Start using WordPress Playground in 5 minutes
 
 WordPress Playground can help you with any of the following:
@@ -28,11 +26,13 @@ It's that easy to start!
 
 The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
 
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
 
 ## Try a block, a theme, or a plugin
 
@@ -54,7 +54,7 @@ You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ## Save your site
 
@@ -62,11 +62,11 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 1. Open the Playground site manager panel:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 2. Use the "Download as .zip" button in the additional actions menu
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
 
@@ -78,39 +78,46 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 1. Open the Playground dashboard panel:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 ## Use a specific WordPress or PHP version
 
 The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
 
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
 
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?php=next
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+
+Use `php=next` to preview the next PHP version built from the php-src development branch. For example, see the [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html).
 
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
 
-:::info Major versions only
+<div class="callout callout-info">
 
-You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
+**Major versions only**
 
-:::
+You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. Generic aliases like `latest` and `next` are exceptions.
+
+</div>
 
 ## Import a WXR file
 

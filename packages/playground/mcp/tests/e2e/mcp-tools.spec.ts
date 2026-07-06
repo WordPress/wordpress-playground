@@ -1,0 +1,901 @@
+import { test as base, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import WebSocket from 'ws';
+
+// Use a random port so tests are isolated from real browser tabs
+// that might also connect to the default MCP WebSocket port.
+const MCP_WS_PORT = 17999 + Math.floor(Math.random() * 1000);
+
+type McpTestFixtures = {
+	siteId: string;
+};
+
+type McpWorkerFixtures = {
+	mcpClient: Client;
+	playgroundPage: Page;
+};
+
+const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
+	mcpClient: [
+		// eslint-disable-next-line no-empty-pattern
+		async ({}, use) => {
+			const transport = new StdioClientTransport({
+				command: 'node',
+				args: [
+					'--experimental-strip-types',
+					'--experimental-transform-types',
+					'--import',
+					'../../../../meta/src/node-es-module-loader/register.mts',
+					'../../src/index.ts',
+					`--port=${MCP_WS_PORT}`,
+				],
+				cwd: dirname(fileURLToPath(import.meta.url)),
+				env: {
+					...process.env,
+					NODE_NO_WARNINGS: '1',
+				} as Record<string, string>,
+			});
+			const client = new Client({
+				name: 'playwright-mcp-test',
+				version: '1.0.0',
+			});
+			await client.connect(transport);
+			await use(client);
+			await client.close();
+		},
+		{ scope: 'worker' },
+	],
+
+	// Auto-fixture: loads the Playground website in a real browser.
+	// The MCP bridge auto-connects via WebSocket and registers sites
+	// from the Redux store. The bridge reconnects every 5s if dropped.
+	playgroundPage: [
+		async ({ browser, mcpClient }, use) => {
+			const page = await browser.newPage();
+			await page.goto(
+				`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+			);
+
+			// Wait for WordPress to load inside the nested iframes
+			await expect(
+				page
+					.frameLocator(
+						'#playground-viewport:visible,.playground-viewport:visible'
+					)
+					.frameLocator('#wp')
+					.locator('body')
+			).not.toBeEmpty();
+
+			// Wait for the MCP bridge to register at least one active
+			// site. The Playground website may do internal navigation
+			// after the initial load, causing the bridge to disconnect
+			// and reconnect. We wait long enough for the connection to
+			// stabilize.
+			await waitForActiveSite(mcpClient);
+
+			await use(page);
+			await page.close();
+		},
+		{ scope: 'worker', auto: true },
+	],
+
+	siteId: async ({ mcpClient }, use) => {
+		const siteId = await waitForActiveSite(mcpClient, 30_000);
+		await use(siteId);
+	},
+});
+
+function resultText(result: Awaited<ReturnType<Client['callTool']>>): string {
+	return (result.content as Array<{ text: string }>)[0].text;
+}
+
+/**
+ * Poll playground_list_sites until at least one active site is found
+ * AND verify the site can actually handle commands. The MCP bridge
+ * reconnects every 5s, so this may need to wait through a
+ * disconnect/reconnect cycle. After finding an active site, we
+ * verify it's operational by calling getCurrentURL — the
+ * PlaygroundClient in the browser may not be ready immediately
+ * after the site is registered.
+ */
+async function waitForActiveSite(
+	client: Client,
+	timeoutMs = 60_000,
+	{ probe: shouldProbe = true } = {}
+): Promise<string> {
+	const start = Date.now();
+	let lastError: Error | undefined;
+	while (Date.now() - start < timeoutMs) {
+		try {
+			const result = await client.callTool({
+				name: 'playground_list_sites',
+				arguments: {},
+			});
+			const parsed = JSON.parse(resultText(result));
+			if (parsed.connectedTabs === 0) {
+				throw new Error('No browser connected yet');
+			}
+			const activeSite = parsed.sites.find((s) => s.isActive);
+			if (!activeSite) {
+				throw new Error('No active site yet');
+			}
+			const siteId = activeSite.siteId;
+			if (shouldProbe) {
+				// Verify the site can actually handle commands.
+				// The PlaygroundClient may not be ready immediately
+				// after the bridge registers the site.
+				const probeResult = await client.callTool({
+					name: 'playground_get_site_info',
+					arguments: { siteId },
+				});
+				if (probeResult.isError) {
+					throw new Error('Site not ready for commands yet');
+				}
+			}
+			return siteId;
+		} catch (error) {
+			lastError = error as Error;
+			await new Promise((r) => setTimeout(r, 2_000));
+		}
+	}
+	throw lastError ?? new Error('Timeout waiting for active site');
+}
+
+test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
+	let needsReset = false;
+
+	for (const context of browser.contexts()) {
+		for (const page of context.pages()) {
+			if (page !== playgroundPage) {
+				await page.close();
+				needsReset = true;
+			}
+		}
+	}
+
+	if (!playgroundPage.url().includes('website-server')) {
+		needsReset = true;
+	}
+
+	if (needsReset) {
+		await playgroundPage.goto(
+			`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+		);
+		await waitForActiveSite(mcpClient, 60_000, { probe: false });
+	}
+});
+
+test('lists all registered tools', async ({ mcpClient }) => {
+	const result = await mcpClient.listTools();
+	const names = result.tools.map((t) => t.name).sort();
+	expect(names).toEqual([
+		'playground_delete_directory',
+		'playground_delete_file',
+		'playground_execute_php',
+		'playground_file_exists',
+		'playground_get_current_url',
+		'playground_get_site_info',
+		'playground_get_website_url',
+		'playground_list_files',
+		'playground_list_sites',
+		'playground_mkdir',
+		'playground_navigate',
+		'playground_open_site_in_new_tab',
+		'playground_read_file',
+		'playground_rename_site',
+		'playground_request',
+		'playground_save_in_browser',
+		'playground_write_file',
+	]);
+});
+
+test('playground_list_sites includes playground url with mcp params', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const parsed = JSON.parse(resultText(result));
+	const site = parsed.sites.find(
+		(s: { siteId: string }) => s.siteId === siteId
+	);
+	expect(site).toBeDefined();
+	expect(site.url).toMatch(new RegExp(`\\?mcp-port=${MCP_WS_PORT}$`));
+});
+
+test('playground_open_site_in_new_tab activates an inactive site in a new tab', async ({
+	mcpClient,
+	playgroundPage,
+	siteId,
+}) => {
+	// Save the site so it persists in OPFS across page reloads
+	await mcpClient.callTool({
+		name: 'playground_save_in_browser',
+		arguments: { siteId },
+	});
+
+	// Reload the Playground without ?site-slug. This creates a
+	// new temporary site (active) while loading the saved site
+	// from OPFS (inactive).
+	await playgroundPage.goto(
+		`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+	);
+	await expect(
+		playgroundPage
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp')
+			.locator('body')
+	).not.toBeEmpty();
+
+	// Wait for the saved site to appear as inactive
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				const site = parsed.sites.find((s) => s.siteId === siteId);
+				return site?.isActive;
+			},
+			{ timeout: 30_000, intervals: [2_000] }
+		)
+		.toBe(false);
+
+	// Open the inactive site — the browser calls window.open(),
+	// a new tab loads, and the site becomes active.
+	await mcpClient.callTool({
+		name: 'playground_open_site_in_new_tab',
+		arguments: { siteId },
+	});
+
+	// Verify list_sites now reports the site as active
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				const site = parsed.sites.find((s) => s.siteId === siteId);
+				return site?.isActive;
+			},
+			{ timeout: 30_000, intervals: [2_000] }
+		)
+		.toBe(true);
+});
+
+test('playground_list_sites returns at least one site', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.connectedTabs).toBeGreaterThan(0);
+	expect(parsed.sites.length).toBeGreaterThan(0);
+	expect(parsed.sites.find((s) => s.siteId === siteId)).toBeTruthy();
+});
+
+test('playground_navigate goes to /wp-admin/', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_navigate',
+		arguments: { siteId, path: '/wp-admin/' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.url).toContain('wp-admin');
+});
+
+test('playground_execute_php runs code and returns output', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_execute_php',
+		arguments: {
+			siteId,
+			code: '<?php echo "Hello from PHP " . phpversion();',
+		},
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.text).toContain('Hello from PHP');
+	expect(parsed.exitCode).toBe(0);
+});
+
+test('playground_request fetches the homepage', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_request',
+		arguments: { siteId, url: '/wp-admin/' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.httpStatusCode).toBe(200);
+	expect(parsed.text).toContain('Dashboard');
+});
+
+test('playground_write_file, playground_read_file, and playground_delete_file', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const testPath = '/wordpress/wp-content/e2e-test.txt';
+	const testContent = `E2E test at ${Date.now()}`;
+
+	const writeResult = await mcpClient.callTool({
+		name: 'playground_write_file',
+		arguments: { siteId, path: testPath, contents: testContent },
+	});
+	expect(JSON.parse(resultText(writeResult)).success).toBe(true);
+
+	const readResult = await mcpClient.callTool({
+		name: 'playground_read_file',
+		arguments: { siteId, path: testPath },
+	});
+	expect(JSON.parse(resultText(readResult)).contents).toBe(testContent);
+
+	await mcpClient.callTool({
+		name: 'playground_delete_file',
+		arguments: { siteId, path: testPath },
+	});
+
+	const readAfterDelete = await mcpClient.callTool({
+		name: 'playground_read_file',
+		arguments: { siteId, path: testPath },
+	});
+	expect(resultText(readAfterDelete)).toContain('Error');
+});
+
+test('playground_list_files lists the plugins directory', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_list_files',
+		arguments: { siteId, path: '/wordpress/' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.files).toBeInstanceOf(Array);
+	const files = parsed.files as string[];
+	expect(files.length).toBeGreaterThan(0);
+	expect(parsed.files).toContain('wp-content');
+	expect(parsed.files).toContain('wp-load.php');
+});
+
+test('playground_mkdir creates and verifies a directory and playground_delete_directory removes it', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const testDir = '/wordpress/wp-content/e2e-test-dir';
+
+	const mkdirResult = await mcpClient.callTool({
+		name: 'playground_mkdir',
+		arguments: { siteId, path: testDir },
+	});
+	expect(JSON.parse(resultText(mkdirResult)).success).toBe(true);
+
+	const listResult = await mcpClient.callTool({
+		name: 'playground_list_files',
+		arguments: { siteId, path: '/wordpress/wp-content' },
+	});
+	const files = JSON.parse(resultText(listResult)).files as string[];
+	expect(files).toContain('e2e-test-dir');
+
+	await mcpClient.callTool({
+		name: 'playground_delete_directory',
+		arguments: { siteId, path: testDir },
+	});
+
+	const listAfterDelete = await mcpClient.callTool({
+		name: 'playground_list_files',
+		arguments: { siteId, path: '/wordpress/wp-content' },
+	});
+	const filesAfterDelete = JSON.parse(resultText(listAfterDelete))
+		.files as string[];
+	expect(filesAfterDelete).not.toContain('e2e-test-dir');
+});
+
+test('playground_delete_directory with recursive=true removes a non-empty directory', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const testDir = '/wordpress/wp-content/e2e-recursive-dir';
+	const nestedFile = `${testDir}/subdir/nested.txt`;
+
+	// Create a nested structure: e2e-recursive-dir/subdir/nested.txt
+	await mcpClient.callTool({
+		name: 'playground_mkdir',
+		arguments: { siteId, path: `${testDir}/subdir` },
+	});
+	await mcpClient.callTool({
+		name: 'playground_write_file',
+		arguments: { siteId, path: nestedFile, contents: 'nested content' },
+	});
+
+	// Verify the file exists
+	const readResult = await mcpClient.callTool({
+		name: 'playground_read_file',
+		arguments: { siteId, path: nestedFile },
+	});
+	expect(JSON.parse(resultText(readResult)).contents).toBe('nested content');
+
+	// Recursive delete should remove the entire tree
+	const deleteResult = await mcpClient.callTool({
+		name: 'playground_delete_directory',
+		arguments: { siteId, path: testDir, recursive: true },
+	});
+	expect(JSON.parse(resultText(deleteResult)).success).toBe(true);
+
+	// Verify the directory is gone
+	const listAfterDelete = await mcpClient.callTool({
+		name: 'playground_list_files',
+		arguments: { siteId, path: '/wordpress/wp-content' },
+	});
+	const filesAfterDelete = JSON.parse(resultText(listAfterDelete))
+		.files as string[];
+	expect(filesAfterDelete).not.toContain('e2e-recursive-dir');
+});
+
+test('playground_get_site_info returns WordPress details', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_get_site_info',
+		arguments: { siteId },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.wpVersion).toBeTruthy();
+	expect(parsed.wpVersion).not.toBe('unknown');
+	expect(parsed.phpVersion).toBeTruthy();
+	expect(parsed.phpVersion).not.toBe('unknown');
+	expect(parsed.documentRoot).toMatch('/wordpress');
+	expect(parsed.siteUrl).toMatch(new RegExp(`http(.)+`));
+});
+
+test('playground_rename_site renames an active site', async ({
+	mcpClient,
+	siteId,
+}) => {
+	// Save the site first — temporary sites cannot be renamed.
+	const saveResult = await mcpClient.callTool({
+		name: 'playground_save_in_browser',
+		arguments: { siteId },
+	});
+	expect(saveResult.isError).toBeFalsy();
+
+	// Get the original name so we can restore it
+	const listBefore = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const originalName = JSON.parse(resultText(listBefore)).sites.find(
+		(s) => s.siteId === siteId
+	)?.name;
+
+	const result = await mcpClient.callTool({
+		name: 'playground_rename_site',
+		arguments: { siteId, newName: 'E2E Renamed Site' },
+	});
+	expect(result.isError).toBeFalsy();
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.success).toBe(true);
+	expect(parsed.newName).toBe('E2E Renamed Site');
+
+	// Verify the name changed in list_sites
+	const listAfter = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const renamedSite = JSON.parse(resultText(listAfter)).sites.find(
+		(s) => s.siteId === siteId
+	);
+	expect(renamedSite?.name).toBe('E2E Renamed Site');
+
+	// Restore the original name
+	if (originalName) {
+		await mcpClient.callTool({
+			name: 'playground_rename_site',
+			arguments: { siteId, newName: originalName },
+		});
+	}
+});
+
+test('playground_save_in_browser persists a temporary site', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_save_in_browser',
+		arguments: { siteId },
+	});
+	expect(result.isError).toBeFalsy();
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.success).toBe(true);
+
+	// Verify the site is now stored in opfs
+	const listResult = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const savedSite = JSON.parse(resultText(listResult)).sites.find(
+		(s) => s.siteId === siteId
+	);
+	expect(savedSite?.storage).toBe('opfs');
+});
+
+test('playground_get_current_url returns a path', async ({
+	mcpClient,
+	siteId,
+}) => {
+	await mcpClient.callTool({
+		name: 'playground_navigate',
+		arguments: { siteId, path: '/wp-admin/' },
+	});
+	const result = await mcpClient.callTool({
+		name: 'playground_get_current_url',
+		arguments: { siteId },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.url).toBe('/wp-admin/');
+});
+
+test('playground_file_exists checks for wp-config.php', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_file_exists',
+		arguments: { siteId, path: '/wordpress/wp-config.php' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.exists).toBe(true);
+
+	const missing = await mcpClient.callTool({
+		name: 'playground_file_exists',
+		arguments: { siteId, path: '/wordpress/does-not-exist.txt' },
+	});
+	const missingParsed = JSON.parse(resultText(missing));
+	expect(missingParsed.exists).toBe(false);
+});
+
+test('playground_list_sites reports no browser when page navigates away', async ({
+	mcpClient,
+	playgroundPage,
+}) => {
+	await playgroundPage.goto('about:blank');
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				return parsed.connectedTabs;
+			},
+			{ timeout: 15_000, intervals: [1_000] }
+		)
+		.toBe(0);
+});
+
+test('playground_list_sites reports connected but no sites when browser has no playground tab', async ({
+	mcpClient,
+	playgroundPage,
+	browser,
+}) => {
+	// Disconnect the real Playground bridge
+	await playgroundPage.goto('about:blank');
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				return JSON.parse(resultText(result)).connectedTabs;
+			},
+			{ timeout: 15_000, intervals: [1_000] }
+		)
+		.toBe(0);
+
+	// Open a bare page and connect a WebSocket that registers
+	// with zero sites — simulating a browser tab that has no
+	// Playground loaded.
+	const wsPort = MCP_WS_PORT;
+	const fakePage = await browser.newPage();
+	// Navigate to an allowed origin so the WebSocket connection
+	// passes the origin check in the bridge server.
+	await fakePage.goto(`http://127.0.0.1:5400`);
+	await fakePage.evaluate(async (port) => {
+		// Fetch the session token before connecting
+		const res = await fetch(`http://127.0.0.1:${port}/bridge-token`);
+		const { token } = await res.json();
+
+		return new Promise<void>((resolve, reject) => {
+			const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`);
+			ws.addEventListener('open', () => {
+				ws.send(
+					JSON.stringify({
+						type: 'register',
+						tabId: 'test-empty-tab',
+						sites: [],
+					})
+				);
+				resolve();
+			});
+			ws.addEventListener('error', () =>
+				reject(new Error('WebSocket failed'))
+			);
+		});
+	}, wsPort);
+
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				return {
+					connectedTabs: parsed.connectedTabs,
+					siteCount: parsed.sites.length,
+				};
+			},
+			{ timeout: 15_000, intervals: [1_000] }
+		)
+		.toEqual({ connectedTabs: 1, siteCount: 0 });
+});
+
+test('rejects WebSocket connections without a valid token', async ({
+	mcpClient,
+}) => {
+	// Verify the bridge is running
+	const tools = await mcpClient.listTools();
+	expect(tools.tools.length).toBeGreaterThan(0);
+
+	// Try connecting without a token — should be rejected.
+	// The server rejects during the HTTP upgrade with 401,
+	// which the ws library surfaces as an 'unexpected-response'
+	// event (or an error + close).
+	const ws = new WebSocket(`ws://127.0.0.1:${MCP_WS_PORT}`);
+	const rejected = new Promise<void>((resolve) => {
+		ws.on('unexpected-response', (_req, res) => {
+			expect(res.statusCode).toBe(401);
+			resolve();
+		});
+	});
+
+	await rejected;
+});
+
+// -- REST API authentication tests --
+// These must run in order: CRUD while logged in, then logout,
+// then verify logged-out behavior.
+test.describe.serial('playground_request REST API auth', () => {
+	test('authenticated CRUD', async ({ mcpClient, siteId }) => {
+		// CREATE
+		const createResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title: 'E2E REST Test',
+					content: 'Created via MCP',
+					status: 'publish',
+				}),
+			},
+		});
+		const created = JSON.parse(resultText(createResult));
+		expect(created.httpStatusCode).toBe(201);
+		const body = JSON.parse(created.text);
+		expect(body.title.raw).toBe('E2E REST Test');
+		const postId = body.id;
+
+		// READ
+		const readResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: { siteId, url: `/wp-json/wp/v2/posts/${postId}` },
+		});
+		const read = JSON.parse(resultText(readResult));
+		expect(read.httpStatusCode).toBe(200);
+		expect(JSON.parse(read.text).title.rendered).toBe('E2E REST Test');
+
+		// UPDATE
+		const updateResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}`,
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title: 'E2E REST Test Updated' }),
+			},
+		});
+		const updated = JSON.parse(resultText(updateResult));
+		expect(updated.httpStatusCode).toBe(200);
+		expect(JSON.parse(updated.text).title.raw).toBe(
+			'E2E REST Test Updated'
+		);
+
+		// DELETE
+		const deleteResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}?force=true`,
+				method: 'DELETE',
+			},
+		});
+		const deleted = JSON.parse(resultText(deleteResult));
+		expect(deleted.httpStatusCode).toBe(200);
+		expect(JSON.parse(deleted.text).deleted).toBe(true);
+
+		// Verify gone
+		const goneResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}`,
+			},
+		});
+		const gone = JSON.parse(resultText(goneResult));
+		expect(JSON.parse(gone.text).code).toBe('rest_post_invalid_id');
+	});
+
+	test('accepts object body without JSON.stringify', async ({
+		mcpClient,
+		siteId,
+	}) => {
+		const createResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				body: {
+					title: 'Object Body Test',
+					content: 'Created with object body',
+					status: 'publish',
+				},
+			},
+		});
+		const created = JSON.parse(resultText(createResult));
+		expect(created.httpStatusCode).toBe(201);
+		const post = JSON.parse(created.text);
+		expect(post.title.raw).toBe('Object Body Test');
+
+		await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${post.id}?force=true`,
+				method: 'DELETE',
+			},
+		});
+	});
+
+	test('accepts URL-encoded string body', async ({ mcpClient, siteId }) => {
+		const body = new URLSearchParams({
+			title: 'URL-encoded Body Test',
+			content: 'Created with form encoding',
+			status: 'publish',
+		}).toString();
+		const createResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body,
+			},
+		});
+		const created = JSON.parse(resultText(createResult));
+		expect(created.httpStatusCode).toBe(201);
+		const post = JSON.parse(created.text);
+		expect(post.title.raw).toBe('URL-encoded Body Test');
+
+		await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${post.id}?force=true`,
+				method: 'DELETE',
+			},
+		});
+	});
+
+	test('logged-out user cannot create posts', async ({
+		mcpClient,
+		siteId,
+	}) => {
+		// Log out first
+		const logoutEndpoint = '/wordpress/wp-content/mcp-logout.php';
+		const logoutPhp = `<?php
+require_once '/wordpress/wp-load.php';
+wp_logout();
+wp_set_current_user(0);
+echo json_encode(array('loggedOut' => true, 'user' => get_current_user_id()));
+`;
+		await mcpClient.callTool({
+			name: 'playground_write_file',
+			arguments: {
+				siteId,
+				path: logoutEndpoint,
+				contents: logoutPhp,
+			},
+		});
+		try {
+			const logoutResult = await mcpClient.callTool({
+				name: 'playground_request',
+				arguments: {
+					siteId,
+					url: '/wp-content/mcp-logout.php',
+					headers: {},
+				},
+			});
+			const logoutResp = JSON.parse(resultText(logoutResult));
+			expect(logoutResp.httpStatusCode).toBe(200);
+			const logoutBody = JSON.parse(logoutResp.text);
+			expect(logoutBody.loggedOut).toBe(true);
+			expect(logoutBody.user).toBe(0);
+		} finally {
+			await mcpClient.callTool({
+				name: 'playground_delete_file',
+				arguments: { siteId, path: logoutEndpoint },
+			});
+		}
+
+		const result = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title: 'Should fail',
+					status: 'publish',
+				}),
+			},
+		});
+		const resp = JSON.parse(resultText(result));
+		expect(resp.httpStatusCode).toBe(401);
+	});
+
+	test('logged-out user can read public posts', async ({
+		mcpClient,
+		siteId,
+	}) => {
+		const result = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: { siteId, url: '/wp-json/wp/v2/posts' },
+		});
+		const resp = JSON.parse(resultText(result));
+		expect(resp.httpStatusCode).toBe(200);
+		const posts = JSON.parse(resp.text);
+		expect(Array.isArray(posts)).toBe(true);
+	});
+});

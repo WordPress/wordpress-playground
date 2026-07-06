@@ -11,11 +11,13 @@ Key Features:
 - **Integrated Development**: Develop WordPress sites directly within VS Code.
 - **Ease of Use**: Simplifies the development workflow with integrated tools.
 
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
 
-:::
+</div>
 
 ## Installation and Usage:
 
