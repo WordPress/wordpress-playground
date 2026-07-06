@@ -561,7 +561,6 @@ export namespace V2Schema {
 		 * @default false.
 		 */
 		importComments?: boolean;
-
 	} & URLMappingConfig;
 
 	type MediaDefinition =

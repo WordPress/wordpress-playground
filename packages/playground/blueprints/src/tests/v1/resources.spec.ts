@@ -142,7 +142,7 @@ describe('GitDirectoryResource', () => {
 				const remoteUrl = execSync('git remote get-url origin', gitEnv)
 					.toString()
 					.trim();
-				expect(remoteUrl).toBe(
+				expect(stripGitRemoteCredentials(remoteUrl)).toBe(
 					'https://github.com/WordPress/wordpress-playground'
 				);
 
@@ -605,3 +605,10 @@ describe('Resource.create with github-proxy.com URLs', () => {
 		expect(consoleWarnSpy).not.toHaveBeenCalled();
 	});
 });
+
+function stripGitRemoteCredentials(rawRemoteUrl: string) {
+	const remoteUrl = new URL(rawRemoteUrl);
+	remoteUrl.username = '';
+	remoteUrl.password = '';
+	return remoteUrl.toString();
+}

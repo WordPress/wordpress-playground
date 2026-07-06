@@ -10,6 +10,7 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import { vi } from 'vitest';
 
 async function zipFiles(
 	php: PHP,
@@ -126,6 +127,33 @@ describe('Blueprint step installPlugin', () => {
 		expect(php.readFileAsText(pluginFilePath)).toBe(rawPluginContent);
 	});
 
+	it('should install a short single PHP file as a plugin', async () => {
+		await installPlugin(php, {
+			pluginData: new File(['<?'], 'short-plugin.php'),
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+
+		expect(php.readFileAsText(`${pluginsPath}/short-plugin.php`)).toBe(
+			'<?'
+		);
+	});
+
+	it('rejects single PHP plugin filenames with path separators', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: new File(['<?php'], '..\\escape.php'),
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow(
+			'Plugin file or folder name must be a single path segment.'
+		);
+	});
+
 	it('should throw plugin installation errors by default', async () => {
 		await expect(
 			installPlugin(php, {
@@ -134,6 +162,23 @@ describe('Blueprint step installPlugin', () => {
 		).rejects.toThrow(
 			'pluginData looks like a file but does not look like a .zip or .php file.'
 		);
+	});
+
+	it('checks only the zip signature when classifying non-zip files', async () => {
+		const pluginData = new File(['not a plugin'], 'not-a-plugin.txt');
+		const arrayBufferSpy = vi
+			.spyOn(pluginData, 'arrayBuffer')
+			.mockRejectedValue(new Error('Full file read'));
+
+		await expect(
+			installPlugin(php, {
+				pluginData,
+			})
+		).rejects.toThrow(
+			'pluginData looks like a file but does not look like a .zip or .php file.'
+		);
+
+		expect(arrayBufferSpy).not.toHaveBeenCalled();
 	});
 
 	it('should skip plugin installation errors when onError is skip-plugin', async () => {
@@ -367,6 +412,110 @@ echo json_encode(array(
 				})
 			).rejects.toThrowError();
 		});
+
+		it('should apply ifAlreadyInstalled to directory plugin resources', async () => {
+			await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Skipped Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Test Plugin');
+
+			await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Overwritten Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Overwritten Plugin');
+
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: pluginName,
+						files: {
+							'index.php': `/**\n * Plugin Name: Error Plugin`,
+						},
+					},
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
+		});
+
+		it('should apply ifAlreadyInstalled to single-file plugins', async () => {
+			const pluginFilePath = `${pluginsPath}/single-plugin.php`;
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Existing Plugin'],
+					'single-plugin.php'
+				),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Skipped Plugin'],
+					'single-plugin.php'
+				),
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(pluginFilePath)).toContain(
+				'Plugin Name: Existing Plugin'
+			);
+
+			await installPlugin(php, {
+				pluginData: new File(
+					['<?php\n/**\n * Plugin Name: Overwritten Plugin'],
+					'single-plugin.php'
+				),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(php.readFileAsText(pluginFilePath)).toContain(
+				'Plugin Name: Overwritten Plugin'
+			);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: new File(
+						['<?php\n/**\n * Plugin Name: Error Plugin'],
+						'single-plugin.php'
+					),
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
+		});
 	});
 
 	describe('targetFolderName option', () => {
@@ -383,6 +532,112 @@ echo json_encode(array(
 				},
 			});
 			expect(php.fileExists(installedPluginPath)).toBe(true);
+		});
+
+		it('rejects target folder names with path separators', async () => {
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+					}),
+					options: {
+						activate: false,
+						targetFolderName: '../mu-plugins/test-plugin',
+					},
+				})
+			).rejects.toThrow(
+				'Asset folder name must be a single directory name.'
+			);
+
+			expect(php.fileExists(`${rootPath}/wp-content/mu-plugins`)).toBe(
+				false
+			);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+					}),
+					options: {
+						activate: false,
+						targetFolderName: '..\\mu-plugins\\test-plugin',
+					},
+				})
+			).rejects.toThrow(
+				'Asset folder name must be a single directory name.'
+			);
+		});
+
+		it('rejects dot-segment target folder names', async () => {
+			await expect(
+				installPlugin(php, {
+					pluginData: await zipFiles(php, zipFileName, {
+						[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+					}),
+					options: {
+						activate: false,
+						targetFolderName: '..',
+					},
+				})
+			).rejects.toThrow(
+				'Asset folder name must be a single directory name.'
+			);
+		});
+
+		it('rejects directory resource names with path separators', async () => {
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: '../test-plugin',
+						files: {
+							'index.php': `/**\n * Plugin Name: Test Plugin`,
+						},
+					},
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(
+				'Plugin file or folder name must be a single path segment.'
+			);
+
+			expect(php.fileExists(`${rootPath}/wp-content/test-plugin`)).toBe(
+				false
+			);
+
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: '..\\test-plugin',
+						files: {
+							'index.php': `/**\n * Plugin Name: Test Plugin`,
+						},
+					},
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(
+				'Plugin file or folder name must be a single path segment.'
+			);
+		});
+
+		it('rejects dot-segment directory resource names', async () => {
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: '..',
+						files: {
+							'index.php': `/**\n * Plugin Name: Test Plugin`,
+						},
+					},
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(
+				'Plugin file or folder name must be a single path segment.'
+			);
 		});
 	});
 });

@@ -117,6 +117,36 @@ describe('Blueprint step installTheme', () => {
 		).rejects.toThrow('Theme folder name must be a single directory name.');
 
 		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
+
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '..\\escape',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
+	});
+
+	it('should reject dot-segment directory theme names', async () => {
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: '..',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
 	});
 
 	it('should reject directory theme targetFolderName values with subdirectories', async () => {
@@ -138,6 +168,21 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists('/wordpress/wp-content/themes/nested')).toBe(
 			false
 		);
+
+		await expect(
+			installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `/**\n * Theme Name: Test Theme`,
+					},
+				},
+				options: {
+					activate: false,
+					targetFolderName: 'nested\\theme',
+				},
+			})
+		).rejects.toThrow('Theme folder name must be a single directory name.');
 	});
 
 	it('should reject directory theme file paths outside the theme directory', async () => {
