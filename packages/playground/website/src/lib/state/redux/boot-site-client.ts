@@ -12,6 +12,7 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
+	type BlueprintDeclaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -152,7 +153,7 @@ export function bootSiteClient(
 				},
 			};
 		} else {
-			blueprint = site.metadata.originalBlueprint;
+			blueprint = site.metadata.originalBlueprint as Blueprint;
 		}
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
@@ -161,6 +162,7 @@ export function bootSiteClient(
 		const blueprintRequestedNoWordPress =
 			blueprint &&
 			!isBlueprintBundle(blueprint) &&
+			'preferredVersions' in blueprint &&
 			blueprint.preferredVersions?.wp === false;
 		const wordpressInstallMode = blueprintRequestedNoWordPress
 			? 'do-not-attempt-installing'
@@ -217,7 +219,7 @@ export function bootSiteClient(
 						playgroundClient;
 				},
 				// Log Blueprint events
-				onBlueprintValidated: logBlueprintEvents,
+				onBlueprintValidated: logSupportedBlueprintEvents,
 				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
@@ -397,6 +399,13 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {
+	if ('version' in blueprint && blueprint.version === 2) {
+		return;
+	}
+	return logBlueprintEvents(blueprint as any);
 }
 
 /**
