@@ -352,6 +352,36 @@ test('renaming a file updates the label and filesystem entry', async ({
 	).resolves.toContain('Hello');
 });
 
+test('renaming a file still attempts the move when preflight existence checks fail', async ({
+	page,
+}) => {
+	await page.evaluate(() => {
+		const filesystem = window.__filePickerHarness!.filesystem;
+		const originalFileExists = filesystem.fileExists.bind(filesystem);
+		filesystem.fileExists = async (path: string) => {
+			if (path === '/wordpress/workspace/flaky.php') {
+				throw new Error('metadata lookup failed');
+			}
+			return originalFileExists(path);
+		};
+	});
+	await expandToPath(page, 'wordpress/workspace');
+	await nodeButton(page, 'wordpress/workspace/index.php').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+	const input = renameInput(page, 'wordpress/workspace/index.php');
+	await input.fill('flaky.php');
+	await input.press('Enter');
+
+	await expect(
+		nodeButton(page, 'wordpress/workspace/flaky.php')
+	).toBeVisible();
+	await expect(
+		readFileAsText(page, '/wordpress/workspace/flaky.php')
+	).resolves.toContain('Hello');
+});
+
 test('renaming a directory keeps it expanded with its children', async ({
 	page,
 }) => {

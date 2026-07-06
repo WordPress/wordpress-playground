@@ -1317,9 +1317,8 @@ export const FilePickerTree = forwardRef<
 			}, 0);
 			return;
 		}
-		const exists = await filesystem.fileExists(candidateNormalized);
-		const existsDir = await filesystem.isDir(candidateNormalized);
-		if ((exists || existsDir) && candidateNormalized !== path) {
+		const candidateExists = await pathExists(candidateNormalized);
+		if (candidateExists && candidateNormalized !== path) {
 			if (isPending) {
 				try {
 					const unique = await findAvailableName(
