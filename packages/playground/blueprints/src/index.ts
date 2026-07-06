@@ -66,6 +66,11 @@ export type {
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
+export { compileBlueprintV2 } from './lib/v2/compile';
+export type {
+	CompiledBlueprintV2,
+	CompileBlueprintV2Options,
+} from './lib/v2/compile';
 
 export {
 	resolveRemoteBlueprint,

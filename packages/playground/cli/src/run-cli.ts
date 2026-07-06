@@ -24,6 +24,7 @@ import type {
 } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
+	BlueprintReflection,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -217,7 +218,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
-				default: 'download-and-install',
+				defaultDescription: 'download-and-install',
 				choices: [
 					'download-and-install',
 					'install-from-existing-files',
@@ -337,7 +338,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe:
 					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
 				type: 'string',
-				choices: ['create-new-site', 'apply-to-existing-site'],
+				choices: [
+					'create-new-site',
+					'apply-to-existing-site',
+					'mount-only',
+				],
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
 				hidden: true,
 			},
@@ -626,41 +631,66 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['experimental-blueprints-v2-runner'] === true) {
-					// TODO: Remove this once we have reworked the Blueprints v2 runner.
-					throw new Error(
-						'Blueprints v2 are temporarily disabled while we rework their runtime implementation.'
-					);
+				const hasExplicitBlueprintsV2Mode = argsToParse.some(
+					(arg) => arg === '--mode' || arg.startsWith('--mode=')
+				);
 
+				if (args['experimental-blueprints-v2-runner'] === true) {
 					if (args['mode'] !== undefined) {
 						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
 								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
-						if ('skip-sqlite-setup' in args) {
+						if (
+							argsToParse.some(
+								(arg) =>
+									arg === '--skip-sqlite-setup' ||
+									arg.startsWith('--skip-sqlite-setup=')
+							)
+						) {
 							throw new Error(
 								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
 							);
 						}
-						if (args['auto-mount'] !== undefined) {
+						// `--mode` is an explicit v2 execution-mode choice,
+						// while `--auto-mount` infers the mode from the
+						// detected project type. Check the raw argv here
+						// because parsed `auto-mount` values include parser
+						// defaults and do not reliably tell us whether the
+						// user passed the option explicitly.
+						if (
+							argsToParse.some(
+								(arg) =>
+									arg === '--auto-mount' ||
+									arg.startsWith('--auto-mount=') ||
+									arg === '--no-auto-mount' ||
+									arg.startsWith('--no-auto-mount=')
+							)
+						) {
 							throw new Error(
 								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
 							);
 						}
 					} else {
-						// Support the legacy v1 runner options
+						// Support the legacy v1 runner option while the native
+						// v2 CLI path remains experimental. The old v2 runner
+						// only had two modes and used `apply-to-existing-site`
+						// for this case; the native v2 path has `mount-only`,
+						// which maps directly to the same "do not install
+						// WordPress" worker behavior.
 						if (
 							args['wordpress-install-mode'] ===
 							'do-not-attempt-installing'
 						) {
-							args['mode'] = 'apply-to-existing-site';
+							args['mode'] = 'mount-only';
 						} else {
 							args['mode'] = 'create-new-site';
 						}
 					}
 
-					// Support the legacy v1 runner options
+					// Support the legacy v1 runner options while the native
+					// v2 CLI path remains experimental.
 					const allow = (args['allow'] as string[]) || [];
 
 					if (args['followSymlinks'] === true) {
@@ -672,13 +702,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 
 					args['allow'] = allow;
-				} else {
-					if (args['mode'] !== undefined) {
-						throw new Error(
-							'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
-						);
-					}
+				} else if (hasExplicitBlueprintsV2Mode) {
+					throw new Error(
+						'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
+					);
 				}
+
+				args['hasExplicitBlueprintsV2Mode'] =
+					hasExplicitBlueprintsV2Mode;
 
 				return true;
 			});
@@ -716,20 +747,23 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
 		// (pre-2.3) prints E_NOTICE output before headers are sent,
 		// which corrupts redirects and breaks the installer. The web
-		// worker path applies the same gate in
-		// @wp-playground/client/src/blueprints-v1-handler.ts.
+		// worker path applies the same gate when resolving runtime options.
 		const phpVersionForDebug = (args['php'] ||
 			RecommendedPHPVersion) as AllPHPVersion;
 		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		const defaultedDebugConstants: string[] = [];
 		if (!isLegacyPhpForDebug) {
 			if (!hasDebugDefine('WP_DEBUG')) {
 				defineBool['WP_DEBUG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG');
 			}
 			if (!hasDebugDefine('WP_DEBUG_LOG')) {
 				defineBool['WP_DEBUG_LOG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG_LOG');
 			}
 			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
 				defineBool['WP_DEBUG_DISPLAY'] = false;
+				defaultedDebugConstants.push('WP_DEBUG_DISPLAY');
 			}
 		}
 
@@ -738,6 +772,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			define,
 			'define-bool': defineBool,
 			'define-number': defineNumber,
+			defaultedDebugConstants,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -889,6 +924,7 @@ export interface RunCLIArgs {
 	 * Set via php.defineConstant(), process-specific only.
 	 */
 	'define-number'?: Record<string, number>;
+	defaultedDebugConstants?: string[];
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -897,6 +933,7 @@ export interface RunCLIArgs {
 
 	// --------- Blueprint V2 args -----------
 	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+	hasExplicitBlueprintsV2Mode?: boolean;
 
 	// --------- Blueprint V2 args (not available via CLI yet) -----------
 	'db-engine'?: 'sqlite' | 'mysql';
@@ -914,7 +951,6 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
-// TODO: Maybe we should just be declaring an interface instead of a type union
 export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
@@ -969,6 +1005,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		verbosity: args.verbosity || 'normal',
 	});
 
+	// Full WordPress auto-mounts have historically set
+	// `mode=apply-to-existing-site` even for the v1 flow. Capture whether the
+	// user supplied a mode before `start` or auto-mount expansion can add that
+	// compatibility value.
+	const hasExplicitBlueprintsV2Mode =
+		args.hasExplicitBlueprintsV2Mode ?? args.mode !== undefined;
+
 	if (args.command === 'start') {
 		args = expandStartCommandArgs(args, cliOutput);
 	}
@@ -981,10 +1024,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
-	}
-
-	if (args.wordpressInstallMode === undefined) {
-		args.wordpressInstallMode = 'download-and-install';
 	}
 
 	// Keeping the '--quiet' option to preserve backward compatibility
@@ -1421,8 +1460,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			}
 
+			if (typeof args.blueprint === 'string') {
+				args.blueprint = await resolveBlueprint({
+					sourceString: args.blueprint,
+					blueprintMayReadAdjacentFiles:
+						args['blueprint-may-read-adjacent-files'] === true,
+				});
+			}
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			if (args['experimental-blueprints-v2-runner']) {
+			const useBlueprintsV2Handler =
+				await shouldUseBlueprintsV2Handler(
+					args,
+					hasExplicitBlueprintsV2Mode
+				);
+			if (useBlueprintsV2Handler) {
+				validateAndNormalizeBlueprintsV2Args(
+					args,
+					hasExplicitBlueprintsV2Mode
+				);
+			}
+			if (args.wordpressInstallMode === undefined) {
+				args.wordpressInstallMode = 'download-and-install';
+			}
+			if (useBlueprintsV2Handler) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
 					cliOutput,
@@ -1432,14 +1493,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					siteUrl,
 					cliOutput,
 				});
-
-				if (typeof args.blueprint === 'string') {
-					args.blueprint = await resolveBlueprint({
-						sourceString: args.blueprint,
-						blueprintMayReadAdjacentFiles:
-							args['blueprint-may-read-adjacent-files'] === true,
-					});
-				}
 			}
 
 			// Remember whether we are already disposing so we can avoid:
@@ -1582,7 +1635,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					wordPressReady = true;
 
-					if (!args['experimental-blueprints-v2-runner']) {
+					if (useBlueprintsV2Handler) {
+						const compiledInputBlueprint =
+							await handler.compileInputBlueprint(
+								args['additional-blueprint-steps'] || []
+							);
+						if (compiledInputBlueprint) {
+							await compiledInputBlueprint.run(playgroundPool);
+						}
+					} else {
 						const compiledBlueprint = await (
 							handler as BlueprintsV1Handler
 						).compileInputBlueprint(
@@ -1768,6 +1829,87 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 }
 
 /**
+ * Selects the native Blueprint v2 CLI path.
+ *
+ * The default CLI path remains the v1 handler. We switch to v2 only when the
+ * caller opts in with `--experimental-blueprints-v2-runner`, passes a resolved
+ * Blueprint v2 declaration, or calls `runCLI()` directly with a v2 `mode`.
+ * The yargs parser still rejects public `--mode` usage without the experimental
+ * flag while the option remains hidden.
+ *
+ * `hasExplicitBlueprintsV2Mode` must be captured before `start` or auto-mount
+ * expansion because full WordPress auto-mounts still set
+ * `mode=apply-to-existing-site` for compatibility with the existing v1 CLI
+ * shape. That internal value must not route ordinary v1 auto-mounts to the
+ * native v2 handler. `args.blueprint` must already be resolved before this
+ * function runs so bundled Blueprints can be inspected via
+ * `BlueprintReflection`.
+ */
+async function shouldUseBlueprintsV2Handler(
+	args: RunCLIArgs,
+	hasExplicitBlueprintsV2Mode: boolean
+) {
+	if (args['experimental-blueprints-v2-runner']) {
+		return true;
+	}
+	if (hasExplicitBlueprintsV2Mode) {
+		return true;
+	}
+	if (!args.blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(args.blueprint);
+	return reflection.getVersion() === 2;
+}
+
+function validateAndNormalizeBlueprintsV2Args(
+	args: RunCLIArgs,
+	hasExplicitBlueprintsV2Mode: boolean
+) {
+	if (hasExplicitBlueprintsV2Mode) {
+		// `--auto-mount` infers how to prepare WordPress from the detected
+		// project type. `--mode` is an explicit user choice for the same
+		// decision, so accepting both would hide which one won. For `start`,
+		// auto-mount expansion may already have consumed `autoMount`, so also
+		// check the generated auto-mounted WordPress root mount.
+		const autoMountedSiteRoot =
+			getMountForVfsPath(
+				args['mount-before-install'] || [],
+				'/wordpress'
+			) || getMountForVfsPath(args.mount || [], '/wordpress');
+		if (
+			typeof args.autoMount === 'string' ||
+			autoMountedSiteRoot?.autoMounted
+		) {
+			throw new Error(
+				'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+			);
+		}
+		// `--mode` is the v2 execution model. Keep it separate from the
+		// older install-mode switch until we settle a public compatibility
+		// story between the two option families.
+		if (args.wordpressInstallMode !== undefined) {
+			throw new Error(
+				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
+			);
+		}
+		// `--skip-sqlite-setup` belongs to the v1-style boot/install path.
+		// The native v2 mode path resolves database setup from the v2 runtime
+		// configuration instead.
+		if (args.skipSqliteSetup === true) {
+			throw new Error(
+				'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+			);
+		}
+		return;
+	}
+
+	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
+		args.mode = 'mount-only';
+	}
+}
+
+/**
  * Transforms CLI args for the `start` command into the `server` command arguments.
  *
  * (Yes, the `start` command is just a convenience wrapper to provide useful defaults
@@ -1806,6 +1948,14 @@ function expandStartCommandArgs(
 			newArgs['mount-before-install'] || [],
 			'/wordpress'
 		) || getMountForVfsPath(newArgs.mount || [], '/wordpress');
+	if (
+		existingSiteRootMount?.autoMounted &&
+		newArgs.mode === 'create-new-site'
+	) {
+		throw new Error(
+			'Cannot use --mode=create-new-site with an auto-detected WordPress directory. Use --no-auto-mount, or choose --mode=apply-to-existing-site or --mode=mount-only.'
+		);
+	}
 
 	/**
 	 * Persist the site into a ~/.wordpress-playground/sites/<site-id> directory,
