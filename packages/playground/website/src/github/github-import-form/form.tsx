@@ -22,8 +22,9 @@ import type { ContentType } from '../import-from-github';
 import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { basename, normalizePath } from '@php-wasm/util';
+import { normalizePath } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { getGitHubImportDirectoryName } from './import-directory-name';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
@@ -92,10 +93,10 @@ export default function GitHubImportForm({
 				});
 				return;
 			}
-			const octokit = getClient();
 			const analysisRun = ++analysisRunRef.current;
 			setIsAnalyzing(true);
 			try {
+				const octokit = getClient();
 				const importSource = await resolveImportSource(octokit, info);
 				if (
 					analysisRunRef.current !== analysisRun ||
@@ -158,7 +159,10 @@ export default function GitHubImportForm({
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
-			const pluginOrThemeName = basename(path!) || urlInformation!.repo!;
+			const pluginOrThemeName = getGitHubImportDirectoryName(
+				path!,
+				urlInformation!.repo!
+			);
 
 			const relativeRepoPath = path!.replace(/^\//g, '');
 			// Use the commit resolved during analysis so a branch moving
