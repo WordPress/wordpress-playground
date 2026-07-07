@@ -75,6 +75,12 @@ type BlueprintV2DataReference =
 type BlueprintV2InlineDirectory = {
 	files: Record<string, string | BlueprintV2InlineDirectory>;
 };
+type BlueprintV2FileDataReference =
+	| string
+	| {
+			filename: string;
+			content: string;
+	  };
 type BlueprintV2InstallAssetDefinition = {
 	source: BlueprintV2DataReference;
 	active?: boolean;
@@ -247,14 +253,28 @@ function createV1BlueprintForLoweredV2Steps(
 }
 
 function getUnsupportedPlanMessage(unsupportedPlan: BlueprintV2ExecutionPlan) {
-	const unsupportedTypes = Array.from(
-		new Set(unsupportedPlan.map((item) => item.type))
-	).join(', ');
+	const unsupportedItems = unsupportedPlan
+		.map(
+			(item) =>
+				`${getUnsupportedPlanItemPath(item)} (${getUnsupportedPlanItemName(item)})`
+		)
+		.join(', ');
 
 	return (
 		`Blueprint v2 execution plan contains unsupported items: ` +
-		`${unsupportedTypes}.`
+		`${unsupportedItems}.`
 	);
+}
+
+function getUnsupportedPlanItemName(item: BlueprintV2ExecutionPlanItem) {
+	if (item.type === 'runStep') {
+		return item.step.step;
+	}
+	return item.type;
+}
+
+function getUnsupportedPlanItemPath(item: BlueprintV2ExecutionPlanItem) {
+	return 'sourcePath' in item ? item.sourcePath : `/${item.type}`;
 }
 
 /**
@@ -535,6 +555,16 @@ function lowerAdditionalBlueprintV2Step(
 					path: toPlaygroundPath(step.path),
 				},
 			];
+		case 'runSQL':
+			return [
+				{
+					step: 'runSql',
+					sql: convertV2FileDataReferenceToV1(
+						step.source,
+						'runSQL.source'
+					),
+				},
+			];
 		case 'setSiteLanguage':
 			return [
 				{
@@ -753,6 +783,40 @@ function convertV2DataReferenceToV1(
 	);
 }
 
+function convertV2FileDataReferenceToV1(
+	reference: BlueprintV2FileDataReference,
+	featurePath: string
+): FileReference {
+	if (typeof reference === 'string') {
+		if (isHttpUrl(reference)) {
+			return { resource: 'url', url: reference };
+		}
+		if (isExecutionContextPath(reference)) {
+			return {
+				resource: 'bundled',
+				path: normalizeExecutionContextPath(reference),
+			};
+		}
+		throw new UnsupportedBlueprintV2FeatureError(
+			featurePath,
+			'Blueprint v2 file references must be URLs or execution-context paths.'
+		);
+	}
+
+	if (isInlineFile(reference)) {
+		return {
+			resource: 'literal',
+			name: reference.filename,
+			contents: reference.content,
+		};
+	}
+
+	throw new UnsupportedBlueprintV2FeatureError(
+		featurePath,
+		'Unsupported Blueprint v2 file reference.'
+	);
+}
+
 /**
  * Converts a v2 target-site path into the absolute WordPress VFS path that v1
  * file steps expect.
@@ -837,7 +901,7 @@ function wordpressOrgResource(
 	reference: string,
 	type: 'plugins' | 'themes'
 ): FileReference {
-	const [slug, version] = reference.split('@');
+	const { slug, version } = splitWordPressOrgVersionSuffix(reference);
 	if (version && version !== 'latest') {
 		const singular = type === 'plugins' ? 'plugin' : 'theme';
 		return {
@@ -852,6 +916,31 @@ function wordpressOrgResource(
 				: 'wordpress.org/themes',
 		slug,
 	} as FileReference;
+}
+
+/**
+ * Splits only the optional `@version` suffix defined by Blueprint v2. The slug
+ * itself stays opaque so future WordPress.org slug formats keep working.
+ */
+function splitWordPressOrgVersionSuffix(reference: string) {
+	const separatorIndex = reference.lastIndexOf('@');
+	if (separatorIndex === -1) {
+		return { slug: reference };
+	}
+
+	const version = reference.slice(separatorIndex + 1);
+	if (!isSupportedWordPressOrgReferenceVersion(version)) {
+		return { slug: reference };
+	}
+
+	return {
+		slug: reference.slice(0, separatorIndex),
+		version,
+	};
+}
+
+function isSupportedWordPressOrgReferenceVersion(version: string) {
+	return version === 'latest' || /^\d+\.\d+(?:\.\d+)?$/.test(version);
 }
 
 /**

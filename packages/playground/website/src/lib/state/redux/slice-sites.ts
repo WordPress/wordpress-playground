@@ -20,6 +20,10 @@ import {
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import {
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -44,6 +48,7 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
+	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	wasSiteRecentlyInteractedWith,
@@ -61,6 +66,7 @@ const DEFAULT_BLUEPRINT =
  */
 export interface SiteInfo {
 	slug: string;
+	loadedFromStorage?: boolean;
 	originalUrlParams?: {
 		searchParams?: Record<string, string | string[]>;
 		hash?: string;
@@ -130,7 +136,10 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		const currentSites = getState().sites.entities;
 		const allSites = { ...currentSites };
 		sites.forEach((site) => {
-			allSites[site.slug] = site;
+			allSites[site.slug] = {
+				...site,
+				loadedFromStorage: true,
+			};
 		});
 		dispatch(sitesSlice.actions.setSites(allSites));
 		dispatch(setOPFSSitesLoadingState('loaded'));
@@ -566,6 +575,16 @@ export function setStoredSiteSpec(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			resolvedBlueprint.blueprint
+		))!;
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
@@ -581,10 +600,8 @@ export function setStoredSiteSpec(
 					playgroundUrlWithQueryApiArgs
 				),
 				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
+				originalBlueprintSource,
+				runtimeConfiguration,
 			},
 		};
 
@@ -624,6 +641,13 @@ export function resetAutosavedSiteSpec(
 		const runtimeConfiguration = (await resolveRuntimeConfiguration(
 			resolvedBlueprint.blueprint
 		))!;
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		// Validate the new setup before deleting the old WordPress files so a
 		// broken Blueprint URL does not destroy the existing autosave.
 		// `isAutosavedSite()` requires OPFS storage; an autosaved site cannot be
@@ -634,6 +658,7 @@ export function resetAutosavedSiteSpec(
 			updateSite({
 				slug: siteSlug,
 				changes: {
+					loadedFromStorage: false,
 					originalUrlParams: getOriginalUrlParams(
 						playgroundUrlWithQueryApiArgs
 					),
@@ -655,7 +680,7 @@ export function resetAutosavedSiteSpec(
 								playgroundUrlWithQueryApiArgs
 							),
 						originalBlueprint: resolvedBlueprint.blueprint,
-						originalBlueprintSource: resolvedBlueprint.source!,
+						originalBlueprintSource,
 						runtimeConfiguration,
 					},
 				},

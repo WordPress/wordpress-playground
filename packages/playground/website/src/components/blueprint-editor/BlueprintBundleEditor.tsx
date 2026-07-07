@@ -421,6 +421,9 @@ export const BlueprintBundleEditor = forwardRef<
 				updateSite({
 					slug: site.slug,
 					changes: {
+						...(isAutosaved
+							? { loadedFromStorage: false }
+							: {}),
 						metadata: {
 							...site.metadata,
 							originalBlueprintSource: isAutosaved

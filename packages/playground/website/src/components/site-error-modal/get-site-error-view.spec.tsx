@@ -25,6 +25,19 @@ describe('getSiteErrorView', () => {
 		expect(renderToStaticMarkup(view.body)).toContain(url);
 	});
 
+	it('uses generic browser-storage wording for interrupted initial OPFS syncs', () => {
+		const view = getSiteErrorView({
+			error: 'initial-opfs-sync-interrupted',
+			site: createSite(),
+			helpers,
+		});
+
+		expect(view.title).toBe('Browser storage save was interrupted');
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'the browser-storage save finished'
+		);
+	});
+
 	it('says when the entire Blueprint could not be downloaded', () => {
 		const url = 'https://example.com/blueprint.json';
 		const view = getSiteErrorView({
