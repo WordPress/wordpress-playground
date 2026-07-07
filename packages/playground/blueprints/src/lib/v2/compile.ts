@@ -171,7 +171,7 @@ export type CompiledBlueprintV2 = {
 
 export type CompileBlueprintV2Options = Pick<
 	CompileBlueprintV1Options,
-	'streamBundledFile'
+	'progress' | 'streamBundledFile'
 >;
 
 /**
