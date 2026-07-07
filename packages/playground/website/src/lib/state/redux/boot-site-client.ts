@@ -46,6 +46,7 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { isPlaygroundDirectory } from '../../is-playground-directory';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -99,7 +100,7 @@ export function bootSiteClient(
 		let isWordPressInstalled = false;
 		if (mountDescriptor) {
 			try {
-				isWordPressInstalled = await playgroundAvailableInOpfs(
+				isWordPressInstalled = await isPlaygroundDirectory(
 					await directoryHandleFromMountDevice(mountDescriptor.device)
 				);
 			} catch (e) {
@@ -176,16 +177,17 @@ export function bootSiteClient(
 		 * Only then, on subsequent boots, we can synchronize WordPress files
 		 * back from OPFS to MEMFS.
 		 */
-		const isFirstOpfsBoot =
-			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
-			!isWordPressInstalled;
+		const isFirstPersistentBoot =
+			(site.metadata.initialSyncPending === true ||
+				site.metadata.initialOpfsSyncPending === true) &&
+			(site.metadata.storage === 'opfs' ||
+				(site.metadata.storage === 'local-fs' &&
+					!isWordPressInstalled));
 		const mounts: MountDescriptor[] = [];
-		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
-			undefined;
+		let mountDescriptorForInitialSync: typeof mountDescriptor = undefined;
 		if (mountDescriptor) {
-			if (isFirstOpfsBoot) {
-				mountDescriptorForInitialOpfsSync = mountDescriptor;
+			if (isFirstPersistentBoot) {
+				mountDescriptorForInitialSync = mountDescriptor;
 			} else {
 				mounts.push({
 					...mountDescriptor,
@@ -327,7 +329,7 @@ export function bootSiteClient(
 				url: '/',
 				client: connectedPlayground,
 				opfsMountDescriptor: mountDescriptor,
-				opfsSync: mountDescriptorForInitialOpfsSync
+				opfsSync: mountDescriptorForInitialSync
 					? {
 							status: 'syncing',
 							operation: syncOperation,
@@ -335,19 +337,20 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
-		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
-		// If OPFS already contains WordPress files, the initial sync either
+		// `initialSyncPending` is a recovery flag, not the source of truth.
+		// If local-fs already contains WordPress files, the initial sync either
 		// completed earlier or is no longer needed. Clear the stale flag so
-		// future boots mount OPFS normally.
-		const hasStaleInitialOpfsSyncPendingFlag =
-			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
+		// future boots mount local-fs normally.
+		const hasStaleInitialSyncPendingFlag =
+			(site.metadata.initialSyncPending === true ||
+				site.metadata.initialOpfsSyncPending === true) &&
+			site.metadata.storage === 'local-fs' &&
 			isWordPressInstalled;
 
-		if (mountDescriptorForInitialOpfsSync) {
-			void syncInitialOpfsFilesInBackground({
+		if (mountDescriptorForInitialSync) {
+			void syncInitialFilesInBackground({
 				playground: connectedPlayground,
-				mountDescriptor: mountDescriptorForInitialOpfsSync,
+				mountDescriptor: mountDescriptorForInitialSync,
 				siteSlug: site.slug,
 				operation: syncOperation,
 				dispatch,
@@ -358,8 +361,11 @@ export function bootSiteClient(
 					...(site.metadata.storage !== 'none'
 						? { whenLastUsed: Date.now() }
 						: {}),
-					...(hasStaleInitialOpfsSyncPendingFlag
-						? { initialOpfsSyncPending: false }
+					...(hasStaleInitialSyncPendingFlag
+						? {
+								initialSyncPending: false,
+								initialOpfsSyncPending: false,
+							}
 						: {}),
 				};
 				if (Object.keys(metadataChanges).length > 0) {
@@ -414,7 +420,7 @@ function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {
  * The iframe is already usable when this runs. Redux keeps showing sync
  * progress until the copy succeeds, then future boots can mount OPFS normally.
  */
-async function syncInitialOpfsFilesInBackground({
+async function syncInitialFilesInBackground({
 	playground,
 	mountDescriptor,
 	siteSlug,
@@ -456,6 +462,7 @@ async function syncInitialOpfsFilesInBackground({
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
+					initialSyncPending: false,
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
 				},
@@ -488,48 +495,4 @@ async function syncInitialOpfsFilesInBackground({
 		// queued progress message so it cannot overwrite the final UI state.
 		shouldReportProgress = false;
 	}
-}
-
-/**
- * Check if the given directory handle directory is a Playground directory.
- *
- * @TODO: Create a shared package like @wp-playground/wordpress for such utilities
- * and bring in the context detection logic from wp-now – only express it in terms of
- * either abstract FS operations or isomorphic PHP FS operations.
- * (we can't just use Node.js require('fs') in the browser, for example)
- *
- * @TODO: Reuse the "isWordPressInstalled" logic implemented in the boot protocol.
- *        Perhaps mount OPFS first, and only then check for the presence of the
- *        WordPress installation? Or, if not, perhaps implement a shared file access
- * 		  abstraction that can be used both with the PHP module and OPFS directory handles?
- *
- * @param dirHandle
- */
-export async function playgroundAvailableInOpfs(
-	dirHandle: FileSystemDirectoryHandle
-) {
-	// Run this loop just to trigger an exception if the directory handle is no good.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	for await (const _ of dirHandle.keys()) {
-		break;
-	}
-
-	try {
-		/**
-		 * Assume it's a Playground directory if these files exist:
-		 * - wp-config.php
-		 * - wp-content/database/.ht.sqlite
-		 */
-		await dirHandle.getFileHandle('wp-config.php', { create: false });
-		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
-			create: false,
-		});
-		const database = await wpContent.getDirectoryHandle('database', {
-			create: false,
-		});
-		await database.getFileHandle('.ht.sqlite', { create: false });
-	} catch {
-		return false;
-	}
-	return true;
 }

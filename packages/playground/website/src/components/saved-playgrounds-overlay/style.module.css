@@ -909,3 +909,7 @@
 		--playgrounds-close-button-offset: 16px;
 	}
 }
+
+.localDirectoryError {
+	margin-bottom: 18px;
+}

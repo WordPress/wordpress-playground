@@ -59,3 +59,15 @@ export async function loadDirectoryHandle(siteSlug: string) {
 		handleDataRequest.onerror = reject;
 	});
 }
+
+// Function to delete directory handle from IndexedDB
+export async function deleteDirectoryHandle(siteSlug: string) {
+	const db = await getIndexedDB();
+	return new Promise<void>((resolve, reject) => {
+		const tx = db.transaction(['fileSystemStore'], 'readwrite');
+		const store = tx.objectStore('fileSystemStore');
+		const request = store.delete(siteSlug);
+		request.onsuccess = () => resolve();
+		request.onerror = reject;
+	});
+}

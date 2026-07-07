@@ -36,7 +36,12 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import {
+	saveDirectoryHandle,
+	deleteDirectoryHandle,
+} from '../opfs/opfs-directory-handle-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { logger } from '@php-wasm/logger';
 import { redirectTo } from '../url/router';
 
 export interface SiteSettings {
@@ -620,6 +625,63 @@ export function createSitesAPI(
 					],
 				})
 			);
+			return newSiteInfo.slug;
+		},
+
+		/**
+		 * Creates a new site backed by a local directory and boots it.
+		 *
+		 * The directory handle is saved in IndexedDB so the site can be
+		 * reopened on subsequent page loads. First boot creates the WordPress
+		 * files from the setup URL, then copies that initialized filesystem
+		 * into the local directory.
+		 *
+		 * @param localFsHandle The directory handle from a
+		 *   `showDirectoryPicker` call.
+		 * @param requestedSiteSlug Optional slug hint.
+		 * @param settings Optional site settings.
+		 * @returns The new site's slug.
+		 */
+		async createNewLocalFsSite(
+			localFsHandle: FileSystemDirectoryHandle,
+			requestedSiteSlug?: string,
+			settings?: SiteSettings
+		): Promise<string> {
+			const siteName = requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName();
+			const url = getSetupUrlForNewSite(settings, {
+				onlySetupParams: true,
+			});
+			const newSiteInfo = await dispatch(
+				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+					storage: 'local-fs',
+				})
+			);
+
+			try {
+				await saveDirectoryHandle(newSiteInfo.slug, localFsHandle);
+				await api.setActiveSite(newSiteInfo.slug);
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [newSiteInfo.slug],
+					})
+				);
+			} catch (error) {
+				logger.error(
+					'Failed to boot local-fs site, rolling back:',
+					error
+				);
+				// Rollback
+				await dispatch(removeSite(newSiteInfo.slug));
+				await deleteDirectoryHandle(newSiteInfo.slug).catch((err) => {
+					logger.error(
+						'Error deleting directory handle during rollback:',
+						err
+					);
+				});
+				throw error;
+			}
 			return newSiteInfo.slug;
 		},
 	};

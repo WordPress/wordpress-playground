@@ -5,6 +5,7 @@ import {
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
+	Notice,
 } from '@wordpress/components';
 import { moreVertical, upload, link, close } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
@@ -38,6 +39,7 @@ import {
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
+import { isPlaygroundDirectory } from '../../lib/is-playground-directory';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
@@ -100,6 +102,20 @@ function PullRequestIcon() {
 	);
 }
 
+function LocalDirectoryIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="currentColor"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path d="M2 6C2 4.89543 2.89543 4 4 4H9L11 6H20C21.1046 6 22 6.89543 22 8V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6Z" />
+		</svg>
+	);
+}
+
 /**
  * Displays saved Playgrounds, recent autosaves, and entry points for new sites.
  */
@@ -129,6 +145,9 @@ export function SavedPlaygroundsOverlay({
 		string | null
 	>(null);
 	const isCompactLayout = useIsCompactLayout();
+	const [localDirectoryError, setLocalDirectoryError] = useState<
+		string | null
+	>(null);
 	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
 
 	useEffect(() => {
@@ -414,6 +433,101 @@ export function SavedPlaygroundsOverlay({
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
+			},
+			disabled: false,
+		},
+		{
+			id: 'local-directory',
+			title: 'Local directory',
+			ariaLabel:
+				'Local directory - Create Playground from a local directory',
+			iconComponent: <LocalDirectoryIcon />,
+			onClick: async () => {
+				if (
+					!('showDirectoryPicker' in window) ||
+					typeof window.showDirectoryPicker !== 'function'
+				) {
+					setLocalDirectoryError(
+						'Your browser does not support the File System Access API required to select a local directory.'
+					);
+					return;
+				}
+				try {
+					setLocalDirectoryError(null);
+					const handle = await window.showDirectoryPicker({
+						id: 'playground-directory',
+						mode: 'readwrite',
+					});
+
+					// Validate permissions
+					try {
+						const options = { mode: 'readwrite' as const };
+						if (
+							(await handle.queryPermission(options)) !==
+							'granted'
+						) {
+							const result =
+								await handle.requestPermission(options);
+							if (result !== 'granted') {
+								setLocalDirectoryError(
+									'Permission to access the directory was denied.'
+								);
+								return;
+							}
+						}
+					} catch {
+						setLocalDirectoryError(
+							'Permission to access the directory was denied.'
+						);
+						return;
+					}
+
+					// Check if it's a valid WordPress installation
+					const isWpInstall = await isPlaygroundDirectory(handle);
+
+					if (!isWpInstall) {
+						// Check if the directory is empty
+						let isEmpty = true;
+						try {
+							// eslint-disable-next-line @typescript-eslint/no-unused-vars
+							for await (const _ of handle.values()) {
+								isEmpty = false;
+								break;
+							}
+						} catch {
+							setLocalDirectoryError(
+								'Could not read the selected directory.'
+							);
+							return;
+						}
+
+						if (!isEmpty) {
+							setLocalDirectoryError(
+								'This directory contains files but is not a valid Playground directory. Please select an empty directory or a directory that already contains a WordPress site using SQLite (with wp-config.php and wp-content/database/.ht.sqlite).'
+							);
+							return;
+						}
+					}
+
+					await sitesAPI.createNewLocalFsSite(handle);
+				} catch (e: any) {
+					if (e instanceof DOMException && e.name === 'AbortError') {
+						return;
+					}
+					if (
+						e instanceof DOMException &&
+						e.name === 'NotAllowedError'
+					) {
+						setLocalDirectoryError(
+							'Permission to access the directory was denied.'
+						);
+						return;
+					}
+					logger.error(e);
+					setLocalDirectoryError(
+						'An error occurred while creating the site from the local directory.'
+					);
+				}
 			},
 			disabled: false,
 		},
@@ -802,6 +916,16 @@ export function SavedPlaygroundsOverlay({
 						title="Start a new Playground"
 						className={css.playgroundsSection}
 					>
+						{localDirectoryError && (
+							<Notice
+								status="error"
+								isDismissible={true}
+								onRemove={() => setLocalDirectoryError(null)}
+								className={css.localDirectoryError}
+							>
+								{localDirectoryError}
+							</Notice>
+						)}
 						<div className={css.creationRow}>
 							{creationOptions.map((option) => {
 								const hasIcon =
