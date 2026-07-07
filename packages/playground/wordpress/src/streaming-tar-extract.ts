@@ -554,7 +554,7 @@ export async function extractTarStreamToPhp(
 	options: ExtractTarStreamOptions = {}
 ): Promise<TarExtractStats> {
 	const { onProgress = () => {}, overwriteFiles = true } = options;
-	const root = String(targetRoot).replace(/\/+$/, '');
+	const root = String(targetRoot).replace(/\/+$/, '') || '/';
 	const createdDirs = new Set<string>();
 
 	const ensureDir = (dir: string): void => {

@@ -505,8 +505,7 @@ export async function unzipWordPress(
 	// uncompressed tar is never materialized.
 	const magic = new Uint8Array(await wpZip.slice(0, 4).arrayBuffer());
 	if (isZstdBundle(magic)) {
-		const bytes = new Uint8Array(await wpZip.arrayBuffer());
-		const tarStream = await createDecodedTarStream(bytes, 'zstd');
+		const tarStream = await createDecodedTarStream(wpZip.stream(), 'zstd');
 		const stats = await extractTarStreamToPhp(
 			tarStream,
 			php,

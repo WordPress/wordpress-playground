@@ -597,6 +597,18 @@ describe('extractTarStreamToPhp', () => {
 			false
 		);
 	});
+
+	it('keeps targetRoot=/ writes absolute', async () => {
+		const { php, files } = fakePhp();
+		const stream = streamOf(
+			buildTar([{ name: 'index.php', data: 'x' }])
+		);
+
+		await extractTarStreamToPhp(stream, php, '/');
+
+		expect(text(files.get('/index.php'))).toBe('x');
+		expect(files.has('index.php')).toBe(false);
+	});
 });
 
 
