@@ -55,6 +55,12 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 			case 'object':
 				zodType = z.record(z.string(), z.unknown());
 				break;
+			case 'string_or_object':
+				zodType = z.union([
+					z.string(),
+					z.record(z.string(), z.unknown()),
+				]);
+				break;
 			default:
 				throw new Error(
 					`Unknown param type "${param.type}" for "${param.name}"`

@@ -3,6 +3,7 @@ import {
 	Semaphore,
 	basename,
 	createSpawnHandler,
+	dirname,
 	joinPaths,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
@@ -63,6 +64,21 @@ type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
 };
+
+/**
+ * Describes the VFS node shape visible at a mount point before rotation.
+ */
+type MountPointSnapshot =
+	| {
+			kind: 'directory';
+	  }
+	| {
+			kind: 'file';
+	  }
+	| {
+			kind: 'symlink';
+			target: string;
+	  };
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -1426,6 +1442,7 @@ export class PHP implements Disposable {
 		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
 			([vfsPath, mount]) => ({
 				mountHandler: mount.mountHandler,
+				mountPointSnapshot: snapshotMountPoint(oldFS, vfsPath),
 				vfsPath,
 			})
 		);
@@ -1475,9 +1492,31 @@ export class PHP implements Disposable {
 		}
 
 		// Re-mount all the mount handlers in order
-		for (const { mountHandler, vfsPath } of mountHandlersToReapplyInOrder) {
-			this.mkdir(vfsPath);
-			await this.mount(vfsPath, mountHandler);
+		for (const {
+			mountHandler,
+			mountPointSnapshot,
+			vfsPath,
+		} of mountHandlersToReapplyInOrder) {
+			try {
+				await this.mount(vfsPath, mountHandler);
+			} catch (e) {
+				if (isMissingMountSourceError(e)) {
+					// Initial mounts still reject missing sources. During rotation,
+					// keep the pre-rotation VFS shape and drop the stale mount.
+					restoreMountPointSnapshot(
+						newFs,
+						vfsPath,
+						mountPointSnapshot
+					);
+					continue;
+				}
+				if (!isMissingMountTargetPathError(e)) {
+					throw e;
+				}
+
+				this.mkdir(vfsPath);
+				await this.mount(vfsPath, mountHandler);
+			}
 		}
 		try {
 			newFs.chdir(oldCWD);
@@ -1756,6 +1795,75 @@ function copyMEMFSNodes(
 	for (const filename of filenames) {
 		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
+}
+
+/**
+ * Captures the VFS node shape hidden by a mount before rotation removes it.
+ */
+function snapshotMountPoint(
+	source: Emscripten.FileSystemInstance,
+	path: string
+): MountPointSnapshot | undefined {
+	try {
+		const oldNode = source.lookupPath(path, { follow: false });
+		if (source.isLink(oldNode.node.mode)) {
+			return { kind: 'symlink', target: source.readlink(path) };
+		}
+		if (source.isDir(oldNode.node.mode)) {
+			return { kind: 'directory' };
+		}
+
+		return { kind: 'file' };
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Recreates the pre-rotation mount point when its backing source disappeared.
+ */
+function restoreMountPointSnapshot(
+	target: Emscripten.FileSystemInstance,
+	path: string,
+	snapshot: MountPointSnapshot | undefined
+) {
+	if (!snapshot || getNodeType(target, path) !== 'missing') {
+		return;
+	}
+
+	if (snapshot.kind === 'directory') {
+		target.mkdirTree(path);
+		return;
+	}
+
+	target.mkdirTree(dirname(path));
+	if (snapshot.kind === 'symlink') {
+		target.symlink(snapshot.target, path);
+	} else {
+		target.writeFile(path, new Uint8Array());
+	}
+}
+
+/**
+ * Indicates whether a mount handler reported that its backing source is gone.
+ */
+function isMissingMountSourceError(error: unknown) {
+	const maybeMissingSourceError = error as {
+		phpWasmMountSourceMissing?: boolean;
+	};
+	return maybeMissingSourceError.phpWasmMountSourceMissing === true;
+}
+
+/**
+ * Indicates whether a mount failed because its target path does not exist yet
+ * inside PHP's filesystem.
+ *
+ * Emscripten reports this as errno 44. Rotation handles it by creating that
+ * target path and trying the mount again; other mount failures should bubble up.
+ */
+function isMissingMountTargetPathError(error: unknown) {
+	const maybeErrnoError = error as { errno?: number };
+	return maybeErrnoError.errno === 44;
 }
 
 /**

@@ -112,6 +112,116 @@ describe.each([true, false])(
 			expect(php.readFileAsText('/test-root/file')).toBe('playground');
 		});
 
+		it('Preserves a single-file NODEFS mount through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+			const tempFile = path.join(tempDir, 'file');
+			fs.writeFileSync(tempFile, 'playground');
+
+			try {
+				await php.mount(
+					'/test-file',
+					createNodeFsMountHandler(tempFile)
+				);
+				expect(php.isFile('/test-file')).toBe(true);
+				expect(php.readFileAsText('/test-file')).toBe('playground');
+
+				await php.run({ code: `` });
+				await php.run({ code: `` });
+
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+				expect(php.isFile('/test-file')).toBe(true);
+				expect(php.readFileAsText('/test-file')).toBe('playground');
+			} finally {
+				fs.rmSync(tempDir, { recursive: true, force: true });
+				php.exit();
+			}
+		});
+
+		it('Preserves VFS mount points when NODEFS sources disappear before runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+			const tempFile = path.join(tempDir, 'uploads-tail.txt');
+			const tempMountedDir = path.join(tempDir, 'static-pages');
+			fs.writeFileSync(tempFile, 'tail');
+			fs.mkdirSync(tempMountedDir);
+			fs.writeFileSync(path.join(tempMountedDir, 'index.html'), 'static');
+
+			try {
+				await php.mount(
+					'/wordpress/wp-content/uploads/uploads-tail.txt',
+					createNodeFsMountHandler(tempFile)
+				);
+				await php.mount(
+					'/wordpress/wp-content/uploads/static-pages',
+					createNodeFsMountHandler(tempMountedDir)
+				);
+				php.writeFile(
+					'/wordpress/wp-content/uploads/memfs-sibling.txt',
+					'preserved'
+				);
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+
+				await php.run({ code: `` });
+				fs.unlinkSync(tempFile);
+				fs.rmSync(tempMountedDir, { recursive: true });
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+
+				await expect(php.run({ code: `` })).resolves.toBeDefined();
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+				expect(
+					php.readFileAsText(
+						'/wordpress/wp-content/uploads/memfs-sibling.txt'
+					)
+				).toBe('preserved');
+
+				await expect(php.run({ code: `` })).resolves.toBeDefined();
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+			} finally {
+				fs.rmSync(tempDir, { recursive: true, force: true });
+				php.exit();
+			}
+		});
+
 		it('Preserves 4 WordPress plugin mounts through PHP runtime recreation', async () => {
 			// Rotate the PHP runtime
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
