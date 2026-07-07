@@ -577,6 +577,9 @@ export function setStoredSiteSpec(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			resolvedBlueprint.blueprint
+		))!;
 		let originalBlueprintSource = resolvedBlueprint.source!;
 		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
 			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
@@ -600,9 +603,7 @@ export function setStoredSiteSpec(
 				),
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
+				runtimeConfiguration,
 			},
 		};
 

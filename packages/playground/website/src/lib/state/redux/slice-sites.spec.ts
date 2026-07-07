@@ -1,4 +1,4 @@
-describe('resetAutosavedSiteSpec', () => {
+describe('stored site specs', () => {
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
 	let resetSiteFiles: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
@@ -94,7 +94,35 @@ describe('resetAutosavedSiteSpec', () => {
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
 		expect(resetSiteFiles).not.toHaveBeenCalled();
 	});
+
+	it('does not persist a bundle for a new stored site before validating setup', async () => {
+		resolveRuntimeConfiguration.mockRejectedValue(new Error('Invalid setup'));
+		const { setStoredSiteSpec } = await import('./slice-sites');
+		const addSite = setStoredSiteSpec(
+			'Autosaved site',
+			new URL('https://playground.test/?blueprint-url=https://example.com'),
+			'autosaved-site',
+			{ persistence: 'autosave' }
+		);
+
+		await expect(
+			addSite(createDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Invalid setup');
+
+		expect(persistBlueprintBundle).not.toHaveBeenCalled();
+	});
 });
+
+function createEmptyGetState() {
+	return () => ({
+		sites: {
+			ids: [],
+			entities: {},
+			opfsSitesLoadingState: 'loaded',
+			firstTemporarySiteCreated: false,
+		},
+	});
+}
 
 function createGetState() {
 	return () => ({
