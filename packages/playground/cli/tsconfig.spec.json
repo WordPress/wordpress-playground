@@ -4,5 +4,10 @@
 		"outDir": "../../../dist/out-tsc",
 		"types": ["vitest/globals", "vitest/importMeta", "node"]
 	},
-	"include": ["tests/**/*.test.ts", "tests/**/*.spec.ts", "tests/**/*.d.ts"]
+	"include": [
+		"../wordpress/src/zstddec-stream.d.ts",
+		"tests/**/*.test.ts",
+		"tests/**/*.spec.ts",
+		"tests/**/*.d.ts"
+	]
 }

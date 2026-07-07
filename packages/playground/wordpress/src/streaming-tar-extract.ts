@@ -31,10 +31,20 @@
  * erseco/wordpress-playground#2 and the sibling *-playground forks.
  */
 
-import { normalizePath, resolvePathUnder } from '@php-wasm/util';
+import {
+	dirname,
+	joinPaths,
+	normalizePath,
+	resolvePathUnder,
+} from '@php-wasm/util';
 
 const BLOCK = 512;
 const TAR_ROOT = '/__tar-root__';
+
+/** zstd frame magic number: 0x28 0xB5 0x2F 0xFD (little-endian 0xFD2FB528). */
+const ZSTD_MAGIC = [0x28, 0xb5, 0x2f, 0xfd];
+/** ZIP local-file-header magic: "PK\x03\x04". */
+const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
 const textDecoder = new TextDecoder();
 
 export type TarCodec = 'zstd' | 'gzip' | 'deflate' | 'br';
@@ -57,6 +67,23 @@ export interface TarExtractStats {
 	bytesWritten: number;
 	/** Peak JS-side working buffer in bytes (leftover + current entry). */
 	maxBuffered: number;
+}
+
+/** Minimal PHP-WASM filesystem surface needed to write an extracted tree. */
+export interface PhpFsTarget {
+	mkdirTree(path: string): void;
+	writeFile(path: string, data: Uint8Array): void;
+	fileExists?(path: string): boolean;
+}
+
+/** Indicates whether bytes start with the zstd frame magic. */
+export function isZstdBundle(bytes: Uint8Array): boolean {
+	return ZSTD_MAGIC.every((b, i) => bytes[i] === b);
+}
+
+/** Indicates whether bytes start with the ZIP local-file-header magic. */
+export function isZipBundle(bytes: Uint8Array): boolean {
+	return ZIP_MAGIC.every((b, i) => bytes[i] === b);
 }
 
 /**
@@ -503,6 +530,73 @@ export async function createDecodedTarStream(
 		});
 	}
 	throw new Error(`No streaming decoder available for codec "${codec}".`);
+}
+
+export interface ExtractTarStreamOptions {
+	onProgress?: (progress: { fileCount: number; bytes: number }) => void;
+	/** When false, existing files are skipped (parity with unzip overwrite=false). */
+	overwriteFiles?: boolean;
+}
+
+/**
+ * Streams decoded tar bytes into MEMFS one entry at a time.
+ *
+ * The parser validates entry paths before this function joins them under the
+ * target root. Directory entries create directories immediately. File entries
+ * ensure their parent directory exists, then write or skip according to
+ * `overwriteFiles`. The full tar is never buffered here; each file body is
+ * passed through as soon as the parser completes that entry.
+ */
+export async function extractTarStreamToPhp(
+	tarStream: ReadableStream<Uint8Array>,
+	php: PhpFsTarget,
+	targetRoot: string,
+	options: ExtractTarStreamOptions = {}
+): Promise<TarExtractStats> {
+	const { onProgress = () => {}, overwriteFiles = true } = options;
+	const root = String(targetRoot).replace(/\/+$/, '') || '/';
+	const createdDirs = new Set<string>();
+
+	const ensureDir = (dir: string): void => {
+		if (!dir || createdDirs.has(dir)) return;
+		php.mkdirTree(dir);
+		let d: string | null = dir;
+		while (d && !createdDirs.has(d)) {
+			createdDirs.add(d);
+			const parent = dirname(d);
+			d = parent && parent !== d ? parent : null;
+		}
+	};
+
+	const parser = new StreamingTarParser({
+		onEntry: (entry) => {
+			const dest = joinPaths(root, entry.path);
+			if (entry.type === 'dir') {
+				ensureDir(dest);
+				return;
+			}
+			ensureDir(dirname(dest));
+			if (!overwriteFiles && php.fileExists?.(dest)) {
+				return;
+			}
+			php.writeFile(dest, entry.data);
+			if (parser.fileCount % 1000 === 0) {
+				onProgress({
+					fileCount: parser.fileCount,
+					bytes: parser.bytesWritten,
+				});
+			}
+		},
+	});
+
+	ensureDir(root);
+	const reader = tarStream.getReader();
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value) parser.push(value);
+	}
+	return parser.end();
 }
 
 /**

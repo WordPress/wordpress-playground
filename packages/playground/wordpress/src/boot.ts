@@ -167,8 +167,20 @@ export interface BootWordPressOptions {
 	dataSqlPath?: string;
 	/** How to handle WordPress installation. */
 	wordpressInstallMode?: WordPressInstallMode;
-	/** Zip with the WordPress installation to extract in /wordpress. */
+	/**
+	 * Core bundle with the WordPress installation to extract in /wordpress.
+	 * Either a solid `tar.zst` (stream-extracted) or a ZIP (wordpress.org
+	 * release, custom URL, GitHub artifact); the format is detected from the
+	 * bundle's magic bytes.
+	 */
 	wordPressZip?: File | Promise<File> | undefined;
+	/**
+	 * Expected regular-file count of the `tar.zst` core bundle, used for a
+	 * streaming-extraction parity check (fails loud on a truncated/corrupt
+	 * download). Ignored for ZIP bundles. Sourced from the bundle descriptor
+	 * (`getWordPressModuleDetails().fileCount`).
+	 */
+	wordPressBundleFileCount?: number;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	/**
@@ -232,7 +244,9 @@ export async function bootWordPress(
 	}
 
 	if (options.wordPressZip) {
-		await unzipWordPress(php, await options.wordPressZip);
+		await unzipWordPress(php, await options.wordPressZip, {
+			expectedFileCount: options.wordPressBundleFileCount,
+		});
 	}
 
 	if (options.constants) {

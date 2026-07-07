@@ -87,6 +87,9 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
+			// Only tar.zst descriptors opt into the streaming extractor's file-count
+			// parity check. Custom URLs and wordpress.org ZIPs skip it.
+			let expectedBundleFileCount: number | undefined;
 			if (resolvedWordPressInstallMode === 'download-and-install') {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
@@ -152,6 +155,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					this.downloadMonitor.expectAssets({
 						[downloadUrl]: wpDetails.size,
 					});
+					expectedBundleFileCount =
+						wpDetails.format === 'tar.zst'
+							? wpDetails.fileCount
+							: undefined;
 					wordPressRequest = this.downloadMonitor.monitorFetch(
 						fetch(downloadUrl)
 					);
@@ -222,7 +229,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// @see https://github.com/WordPress/wordpress-playground/issues/2769
 				wordPressZip: wordPressRequest
 					?.then((r) => r.arrayBuffer())
-					.then((b) => new File([b], 'wp.zip')),
+					.then((b) => new File([b], 'wp.bundle')),
+				wordPressBundleFileCount: expectedBundleFileCount,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),
