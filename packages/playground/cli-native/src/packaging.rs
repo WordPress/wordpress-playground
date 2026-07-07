@@ -393,6 +393,8 @@ pub fn run_packaged_wordpress_server_smoke(
         .arg(format!("--wp={wordpress_version}"))
         .arg("--port=0")
         .arg("--workers=1")
+        .arg("--login")
+        .arg("--verbosity=debug")
         .arg("--mount-dir-before-install")
         .arg(&site_root)
         .arg("/wordpress")
@@ -423,7 +425,9 @@ pub fn run_packaged_wordpress_server_smoke(
     });
 
     let server_url = wait_for_packaged_server_url(&rx)?;
-    let response = http_get(&server_url, "/")?;
+    let response = http_get_following_login(&server_url, "/")?;
+    let editor_response =
+        http_get_following_login(&server_url, "/wp-admin/post-new.php?post_type=page")?;
     guard.stop();
     let _ = stderr_thread.join();
 
@@ -437,6 +441,18 @@ pub fn run_packaged_wordpress_server_smoke(
         return Err(CliError::new(format!(
             "Packaged WordPress server smoke did not return the installed site homepage:\n{}",
             response_excerpt_text(&response)
+        )));
+    }
+    if !editor_response.starts_with("HTTP/1.1 200 OK\r\n") {
+        return Err(CliError::new(format!(
+            "Packaged WordPress editor smoke returned unexpected response:\n{}",
+            response_excerpt_text(&editor_response)
+        )));
+    }
+    if !editor_response.contains("Add Page") || !editor_response.contains("wp-admin-bar") {
+        return Err(CliError::new(format!(
+            "Packaged WordPress editor smoke did not return the Add Page admin editor:\n{}",
+            response_excerpt_text(&editor_response)
         )));
     }
     let database = site_root
@@ -771,6 +787,29 @@ fn wait_for_packaged_server_url(rx: &mpsc::Receiver<String>) -> Result<String> {
 }
 
 fn http_get(server_url: &str, path: &str) -> Result<String> {
+    http_get_with_cookie_header(server_url, path, None)
+}
+
+fn http_get_following_login(server_url: &str, path: &str) -> Result<String> {
+    let response = http_get(server_url, path)?;
+    if response.starts_with("HTTP/1.1 200 OK\r\n") {
+        return Ok(response);
+    }
+    if !response.starts_with("HTTP/1.1 302 Found\r\n") {
+        return Ok(response);
+    }
+    let cookies = response_set_cookie_header(&response);
+    if cookies.is_empty() {
+        return Ok(response);
+    }
+    http_get_with_cookie_header(server_url, path, Some(&cookies))
+}
+
+fn http_get_with_cookie_header(
+    server_url: &str,
+    path: &str,
+    cookie_header: Option<&str>,
+) -> Result<String> {
     let address = server_url
         .strip_prefix("http://")
         .ok_or_else(|| CliError::new(format!("Unsupported packaged server URL: {server_url}")))?;
@@ -781,9 +820,13 @@ fn http_get(server_url: &str, path: &str) -> Result<String> {
     })?;
     stream.set_read_timeout(Some(Duration::from_secs(180)))?;
     stream.set_write_timeout(Some(Duration::from_secs(30)))?;
+    let cookie_line = cookie_header
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("Cookie: {value}\r\n"))
+        .unwrap_or_default();
     write!(
         stream,
-        "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+        "GET {path} HTTP/1.1\r\nHost: {address}\r\n{cookie_line}Connection: close\r\n\r\n"
     )?;
     let mut response = Vec::new();
     let mut buffer = [0u8; 8192];
@@ -812,6 +855,27 @@ fn http_get(server_url: &str, path: &str) -> Result<String> {
         )));
     }
     Ok(String::from_utf8_lossy(&response).to_string())
+}
+
+fn response_set_cookie_header(response: &str) -> String {
+    response
+        .split_once("\r\n\r\n")
+        .map(|(head, _)| head)
+        .unwrap_or(response)
+        .lines()
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("set-cookie").then(|| {
+                value
+                    .trim()
+                    .split_once(';')
+                    .map(|(cookie, _)| cookie)
+                    .unwrap_or_else(|| value.trim())
+                    .to_string()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 fn response_excerpt_text(response: &str) -> String {

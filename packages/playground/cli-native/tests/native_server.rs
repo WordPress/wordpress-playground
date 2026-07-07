@@ -112,9 +112,23 @@ struct HttpResponse {
 }
 
 fn send_get(address: &str, path: &str) -> HttpResponse {
+    send_get_with_cookie_header(address, path, None)
+}
+
+fn send_get_with_cookie_header(
+    address: &str,
+    path: &str,
+    cookie_header: Option<&str>,
+) -> HttpResponse {
+    let cookie_line = cookie_header
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("Cookie: {value}\r\n"))
+        .unwrap_or_default();
     let response = send_raw_http(
         address,
-        &format!("GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"),
+        &format!(
+            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n{cookie_line}Connection: close\r\n\r\n"
+        ),
     );
     parse_http_response(response)
 }
@@ -142,6 +156,25 @@ fn assert_ok(response: &HttpResponse) {
     );
 }
 
+fn response_set_cookie_header(response: &HttpResponse) -> String {
+    response
+        .headers
+        .lines()
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("set-cookie").then(|| {
+                value
+                    .trim()
+                    .split_once(';')
+                    .map(|(cookie, _)| cookie)
+                    .unwrap_or_else(|| value.trim())
+                    .to_string()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
 fn response_json(response: &HttpResponse) -> serde_json::Value {
     assert_ok(response);
     serde_json::from_str(response.body.trim()).unwrap_or_else(|error| {
@@ -150,6 +183,91 @@ fn response_json(response: &HttpResponse) -> serde_json::Value {
             response.body, response.headers
         )
     })
+}
+
+#[test]
+#[ignore = "Full native start command execution is an explicit smoke test."]
+fn native_start_command_serves_admin_editor_page_with_auto_login() {
+    let home = temp_dir("start-editor-home");
+    let cwd = temp_dir("start-editor-cwd");
+    let serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut child = Command::new(env!("CARGO_BIN_EXE_wp-playground-native"))
+        .args([
+            "start",
+            "--skip-browser",
+            "--port=0",
+            "--workers=1",
+            "--reset",
+            "--php=8.5",
+            "--wp=6.9",
+            "--login",
+            "--verbosity=debug",
+        ])
+        .current_dir(&cwd)
+        .env("HOME", &home)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let stderr = child.stderr.take().unwrap();
+    let guard = ChildGuard::new(child, serial_guard);
+    let (tx, rx) = mpsc::channel();
+    let stderr_thread = thread::spawn(move || {
+        for line in BufReader::new(stderr).lines() {
+            if tx.send(line.unwrap_or_default()).is_err() {
+                break;
+            }
+        }
+    });
+
+    let mut stderr_lines = Vec::new();
+    let listening_line = loop {
+        match rx.recv_timeout(SERVER_START_TIMEOUT) {
+            Ok(line) if line.contains("wp-playground-native listening on ") => break line,
+            Ok(line) => stderr_lines.push(line),
+            Err(error) => {
+                panic!(
+                    "start did not report a listening URL before timeout: {error}; stderr={stderr_lines:?}"
+                );
+            }
+        }
+    };
+    let url = listening_line
+        .split("wp-playground-native listening on ")
+        .nth(1)
+        .unwrap()
+        .trim();
+    let address = url.strip_prefix("http://").unwrap().to_string();
+    let editor_path = "/wp-admin/post-new.php?post_type=page";
+
+    let login_redirect = send_get(&address, editor_path);
+    assert!(
+        login_redirect.status_line.starts_with("HTTP/1.1 302 Found"),
+        "{}\n{}\n{}",
+        login_redirect.status_line,
+        login_redirect.headers,
+        login_redirect.body
+    );
+    let cookies = response_set_cookie_header(&login_redirect);
+    assert!(cookies.contains("wordpress_"), "{cookies}");
+
+    let editor = send_get_with_cookie_header(&address, editor_path, Some(&cookies));
+    assert_ok(&editor);
+    assert!(editor.body.contains("Add Page"), "{}", editor.body);
+    assert!(editor.body.contains("wp-admin-bar"), "{}", editor.body);
+    assert!(
+        !editor.body.contains("Internal Server Error"),
+        "{}",
+        editor.body
+    );
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(home);
+    let _ = fs::remove_dir_all(cwd);
 }
 
 #[test]
