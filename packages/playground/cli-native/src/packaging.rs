@@ -7,7 +7,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::mpsc,
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
@@ -830,6 +830,7 @@ fn http_get_with_cookie_header(
     )?;
     let mut response = Vec::new();
     let mut buffer = [0u8; 8192];
+    let deadline = Instant::now() + Duration::from_secs(180);
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => break,
@@ -841,6 +842,14 @@ fn http_get_with_cookie_header(
                 ) && !response.is_empty() =>
             {
                 break;
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) && Instant::now() < deadline =>
+            {
+                thread::sleep(Duration::from_millis(10));
             }
             Err(error) => {
                 return Err(CliError::new(format!(

@@ -6,7 +6,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{mpsc, Mutex, MutexGuard},
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 const SERVER_START_TIMEOUT: Duration = Duration::from_secs(300);
@@ -281,19 +281,10 @@ fn native_server_binary_serves_mounted_php_index() {
     .unwrap();
 
     let (address, guard, stderr_thread) = start_native_server(&root, 1);
-    let mut stream = TcpStream::connect(&address).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(20)))
-        .unwrap();
-    stream
-        .set_write_timeout(Some(Duration::from_secs(20)))
-        .unwrap();
-    stream
-        .write_all(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
-        .unwrap();
-
-    let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
+    let response = send_raw_http(
+        &address,
+        "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
 
     assert!(response.starts_with("HTTP/1.1 200 OK\r\n"), "{response}");
     assert!(response.contains("X-Native-Server: ok\r\n"), "{response}");
@@ -308,6 +299,9 @@ fn native_server_binary_serves_mounted_php_index() {
 #[test]
 #[ignore = "Full packaged Wasmtime async execution is an explicit smoke test."]
 fn packaged_wasmtime_async_runs_full_wordpress_smokes() {
+    let _serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let out_dir = temp_dir("packaged-wasmtime-async");
     let package_name = "wp-playground-native-wasmtime-async-smoke";
     let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
@@ -343,6 +337,9 @@ fn packaged_wasmtime_async_runs_full_wordpress_smokes() {
 #[test]
 #[ignore = "Full packaged start command execution is an explicit smoke test."]
 fn packaged_start_command_serves_default_wordpress() {
+    let serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let out_dir = temp_dir("packaged-start");
     let package_name = "wp-playground-native-start-smoke";
     let output = Command::new(env!("CARGO_BIN_EXE_package-native-cli"))
@@ -352,6 +349,7 @@ fn packaged_start_command_serves_default_wordpress() {
         .arg(&out_dir)
         .arg("--name")
         .arg(package_name)
+        .arg("--include-wordpress-assets")
         .arg("--skip-archive")
         .arg("--no-precompile-wasmtime")
         .output()
@@ -368,9 +366,6 @@ fn packaged_start_command_serves_default_wordpress() {
     let package_root = out_dir.join(package_name);
     let home = temp_dir("packaged-start-home");
     let cwd = temp_dir("packaged-start-cwd");
-    let serial_guard = SERVER_SMOKE_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut child = Command::new(package_root.join("bin/wp-playground-native"))
         .args(["start", "--skip-browser", "--port=0"])
         .current_dir(&cwd)
@@ -722,7 +717,35 @@ fn send_raw_http(address: &str, request: &str) -> String {
         .unwrap();
     stream.write_all(request.as_bytes()).unwrap();
 
-    let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
-    response
+    let mut response = Vec::new();
+    let mut buffer = [0u8; 8192];
+    let deadline = Instant::now() + HTTP_RESPONSE_TIMEOUT;
+    loop {
+        match stream.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(count) => response.extend_from_slice(&buffer[..count]),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) && !response.is_empty() =>
+            {
+                break;
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) && Instant::now() < deadline =>
+            {
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => panic!("failed reading HTTP response from {address}: {error}"),
+        }
+    }
+    assert!(
+        !response.is_empty(),
+        "server at {address} returned no HTTP response"
+    );
+    String::from_utf8_lossy(&response).to_string()
 }
