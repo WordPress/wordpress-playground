@@ -179,7 +179,14 @@ function handleResolveAccessCode(string $rawAccessCode): void {
 function handleStatus(string $sessionId): void {
     $queryString = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY) ?? '';
     parse_str($queryString, $queryParams);
-    $guestId = getGuestIdQueryParam($queryParams);
+    $guestId = null;
+    if (array_key_exists('gid', $queryParams)) {
+        $guestId = $queryParams['gid'];
+        if (!is_string($guestId) || !isBoundedString($guestId, 1, MAX_GUEST_ID_BYTES)) {
+            jsonResponse(['error' => 'Invalid guest id'], 400);
+            return;
+        }
+    }
     $now = nowMs();
 
     $session = getSession($sessionId);
@@ -262,7 +269,14 @@ function handlePollSignal(string $sessionId): void {
     parse_str($queryString, $queryParams);
     $to = (string) ($queryParams['to'] ?? '');
     $since = (int) ($queryParams['since'] ?? 0);
-    $guestId = getGuestIdQueryParam($queryParams);
+    $guestId = null;
+    if (array_key_exists('gid', $queryParams)) {
+        $guestId = $queryParams['gid'];
+        if (!is_string($guestId) || !isBoundedString($guestId, 1, MAX_GUEST_ID_BYTES)) {
+            jsonResponse(['error' => 'Invalid guest id'], 400);
+            return;
+        }
+    }
     if (!in_array($to, ['host', 'guest'], true)) {
         jsonResponse(['error' => 'Invalid signal recipient'], 400);
         return;
@@ -413,31 +427,6 @@ function isNullableInt($value): bool {
 
 function isNullableBoundedString($value, int $minBytes, int $maxBytes): bool {
     return $value === null || isBoundedString($value, $minBytes, $maxBytes);
-}
-
-/**
- * Returns the optional guest id after validating it as a bounded query string.
- *
- * Invalid guest ids stop request handling immediately so status and signal
- * endpoints do not accidentally read or write unbounded session metadata.
- */
-function getGuestIdQueryParam(array $queryParams): ?string {
-    if (!array_key_exists('gid', $queryParams)) {
-        return null;
-    }
-    $guestId = $queryParams['gid'];
-    if (!is_string($guestId) || !isValidGuestId($guestId)) {
-        jsonResponse(['error' => 'Invalid guest id'], 400);
-        exit;
-    }
-    return $guestId;
-}
-
-/**
- * Checks whether a guest id is small enough to persist with session status.
- */
-function isValidGuestId(string $guestId): bool {
-    return isBoundedString($guestId, 1, MAX_GUEST_ID_BYTES);
 }
 
 function isBoundedString($value, int $minBytes, int $maxBytes): bool {
