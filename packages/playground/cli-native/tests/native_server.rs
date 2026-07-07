@@ -560,6 +560,10 @@ echo "body=" . file_get_contents('php://input') . "\n";
 #[test]
 #[ignore = "Full native server process execution is an explicit smoke test."]
 fn native_server_sqlite_fcntl_exclusive_lock_blocks_concurrent_writer() {
+    if skip_macos_lock_smoke("sqlite fcntl lock smoke") {
+        return;
+    }
+
     let root = temp_dir("server-sqlite-fcntl-locks");
     write_script(
         &root,
@@ -684,6 +688,10 @@ echo json_encode([
 #[test]
 #[ignore = "Full native server process execution is an explicit smoke test."]
 fn native_server_flock_shared_lock_blocks_concurrent_exclusive_lock() {
+    if skip_macos_lock_smoke("flock lock smoke") {
+        return;
+    }
+
     let root = temp_dir("server-flock-locks");
     fs::write(root.join("locked.txt"), b"test content").unwrap();
     fs::write(root.join("coordination.txt"), b"initial").unwrap();
@@ -829,4 +837,12 @@ fn is_retryable_response_read_error(error: &std::io::Error) -> bool {
             | std::io::ErrorKind::WouldBlock
             | std::io::ErrorKind::Interrupted
     ) || matches!(error.raw_os_error(), Some(11 | 35))
+}
+
+fn skip_macos_lock_smoke(name: &str) -> bool {
+    if cfg!(target_os = "macos") {
+        eprintln!("skipping {name} on macOS CI; covered by dedicated file-locking jobs");
+        return true;
+    }
+    false
 }
