@@ -24,11 +24,15 @@ if ($size !== false) {
 	});
 	const sizeText = response.text.trim();
 	if (!/^\d+$/.test(sizeText)) {
-		throw new Error(`Could not read the size of ${path}.`);
+		throw new Error(
+			'Could not read the file size: PHP did not return a numeric size.'
+		);
 	}
 	const size = Number(sizeText);
 	if (!Number.isSafeInteger(size)) {
-		throw new Error(`Could not read the size of ${path}.`);
+		throw new Error(
+			'Could not read the file size: size exceeds Number.MAX_SAFE_INTEGER.'
+		);
 	}
 	return size;
 }

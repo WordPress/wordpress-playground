@@ -26,7 +26,9 @@ describe('getRemoteFileSize', () => {
 
 		await expect(
 			getRemoteFileSize(playground, '/wordpress/missing.zip')
-		).rejects.toThrow('Could not read the size of /wordpress/missing.zip.');
+		).rejects.toThrow(
+			'Could not read the file size: PHP did not return a numeric size.'
+		);
 	});
 
 	it('throws when PHP prints a size JavaScript cannot represent safely', async () => {
@@ -38,6 +40,8 @@ describe('getRemoteFileSize', () => {
 
 		await expect(
 			getRemoteFileSize(playground, '/wordpress/huge.zip')
-		).rejects.toThrow('Could not read the size of /wordpress/huge.zip.');
+		).rejects.toThrow(
+			'Could not read the file size: size exceeds Number.MAX_SAFE_INTEGER.'
+		);
 	});
 });
