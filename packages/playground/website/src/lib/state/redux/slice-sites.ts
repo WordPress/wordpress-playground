@@ -639,6 +639,13 @@ export function resetAutosavedSiteSpec(
 		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
 			playgroundUrlWithQueryApiArgs
 		);
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const runtimeConfiguration = (await resolveRuntimeConfiguration(
 			resolvedBlueprint.blueprint
 		))!;
@@ -652,6 +659,7 @@ export function resetAutosavedSiteSpec(
 			updateSite({
 				slug: siteSlug,
 				changes: {
+					loadedFromStorage: false,
 					originalUrlParams: getOriginalUrlParams(
 						playgroundUrlWithQueryApiArgs
 					),
@@ -673,7 +681,7 @@ export function resetAutosavedSiteSpec(
 								playgroundUrlWithQueryApiArgs
 							),
 						originalBlueprint: resolvedBlueprint.blueprint,
-						originalBlueprintSource: resolvedBlueprint.source!,
+						originalBlueprintSource,
 						runtimeConfiguration,
 					},
 				},

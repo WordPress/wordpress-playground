@@ -74,7 +74,7 @@ function initialOpfsSyncInterruptedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Autosave was interrupted',
+		title: 'Browser storage save was interrupted',
 		isDeveloperError: false,
 		body: (
 			<>

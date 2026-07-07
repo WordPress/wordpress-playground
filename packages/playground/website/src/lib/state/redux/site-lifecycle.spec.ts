@@ -155,6 +155,15 @@ describe('autosaved site helpers', () => {
 		).toBe(false);
 		expect(
 			hasInterruptedInitialOpfsSync(
+				createSite('recreated-loaded-opfs', {
+					loadedFromStorage: false,
+					storage: 'opfs',
+					initialOpfsSyncPending: true,
+				})
+			)
+		).toBe(false);
+		expect(
+			hasInterruptedInitialOpfsSync(
 				createSite('finished-opfs', {
 					loadedFromStorage: true,
 					storage: 'opfs',
