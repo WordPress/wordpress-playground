@@ -62,7 +62,15 @@ export const unzipFile = async (
 							throw new Exception('Could not extract ZIP file.');
 						}
 					} else {
-						extract_zip_without_overwriting($zip, $extractTo);
+						for ($i = 0; $i < $zip->numFiles; $i++) {
+							$filename = $zip->getNameIndex($i);
+							$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
+							// Check if file exists and $overwriteFiles is false
+							if (!file_exists($extractFilePath)) {
+								// Extract file
+								$zip->extractTo($extractTo, $filename);
+							}
+						}
 					}
 				} catch (Exception $e) {
 					$zip->close();
@@ -72,126 +80,8 @@ export const unzipFile = async (
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
-                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
-            }
-		}
-
-		/**
-		 * Extracts ZIP entries without overwriting existing target files.
-		 *
-		 * ZipArchive owns entry-name normalization. Extract the whole archive into
-		 * a temporary directory first, then copy only paths that do not exist in
-		 * the target directory.
-		 */
-		function extract_zip_without_overwriting($zip, $extractTo) {
-			$tmpExtractTo = '/tmp/unzip-' . uniqid('', true);
-			if (!mkdir($tmpExtractTo, 0777, true) && !is_dir($tmpExtractTo)) {
-				throw new Exception(
-					'Could not create temporary ZIP extraction directory.'
-				);
-			}
-			try {
-				if (!$zip->extractTo($tmpExtractTo)) {
-					throw new Exception('Could not extract ZIP file.');
-				}
-				copy_directory_without_overwriting($tmpExtractTo, $extractTo);
-			} finally {
-				remove_directory($tmpExtractTo);
-			}
-		}
-
-		/**
-		 * Copies extracted files into the target directory without replacing any
-		 * paths that are already there.
-		 */
-		function copy_directory_without_overwriting($source, $target) {
-			$sourceRoot = rtrim($source, '/');
-			$targetRoot = rtrim($target, '/');
-			$files = new RecursiveIteratorIterator(
-				new RecursiveDirectoryIterator(
-					$sourceRoot,
-					FilesystemIterator::SKIP_DOTS
-				),
-				RecursiveIteratorIterator::SELF_FIRST
-			);
-			foreach ($files as $file) {
-				$sourcePath = strval($file);
-				$relativePath = substr($sourcePath, strlen($sourceRoot) + 1);
-				$targetPath = $targetRoot . '/' . $relativePath;
-				if (file_exists($targetPath)) {
-					continue;
-				}
-				if ($file->isDir()) {
-					if (has_blocking_parent_path($targetPath, $targetRoot)) {
-						continue;
-					}
-					if (!mkdir($targetPath, 0777, true) && !is_dir($targetPath)) {
-						throw new Exception(
-							'Could not create ZIP target directory: ' . $relativePath
-						);
-					}
-					continue;
-				}
-				if (has_blocking_parent_path($targetPath, $targetRoot)) {
-					continue;
-				}
-				$parentDirectory = dirname($targetPath);
-				if (
-					!is_dir($parentDirectory) &&
-					!mkdir($parentDirectory, 0777, true) &&
-					!is_dir($parentDirectory)
-				) {
-					throw new Exception(
-						'Could not create ZIP target directory: ' .
-							dirname($relativePath)
-					);
-				}
-				if (!copy($sourcePath, $targetPath)) {
-					throw new Exception(
-						'Could not copy ZIP entry: ' . $relativePath
-					);
-				}
-			}
-		}
-
-		/**
-		 * Checks whether a file entry should be skipped because writing it would
-		 * require replacing an existing parent file.
-		 */
-		function has_blocking_parent_path($path, $root) {
-			$parent = dirname($path);
-			while ($parent !== $root && strlen($parent) >= strlen($root)) {
-				if (file_exists($parent)) {
-					return !is_dir($parent);
-				}
-				$nextParent = dirname($parent);
-				if ($nextParent === $parent) {
-					return false;
-				}
-				$parent = $nextParent;
-			}
-			return false;
-		}
-
-		/**
-		 * Recursively removes a temporary extraction directory.
-		 */
-		function remove_directory($path) {
-			if (!is_dir($path)) {
-				return;
-			}
-			$files = new RecursiveIteratorIterator(
-				new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-				RecursiveIteratorIterator::CHILD_FIRST
-			);
-			foreach ($files as $file) {
-				if ($file->isDir()) {
-					rmdir(strval($file));
-				} else {
-					unlink(strval($file));
-				}
-			}
-			rmdir($path);
+	                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
+	            }
 		}
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,

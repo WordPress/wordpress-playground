@@ -95,54 +95,6 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
 
 		expect(php.readFileAsText('/dst/existing.txt')).toBe('old');
 		expect(php.readFileAsText('/dst/fresh.txt')).toBe('fresh');
-		const tmpFiles = php.listFiles('/tmp');
-		const leftoverExtractDirs = tmpFiles.filter((f) =>
-			f.startsWith('unzip-')
-		);
-		expect(leftoverExtractDirs).toHaveLength(0);
-	});
-
-	it('normalizes ZIP entry names when overwriteFiles is false', async () => {
-		php.mkdir('/dst');
-		php.writeFile('/dst/existing.txt', 'old');
-		const zip = await createZipBuffer(php, {
-			'../existing.txt': 'new',
-			'/absolute.txt': 'absolute',
-			'fresh.txt': 'fresh',
-		});
-
-		await unzipFile(
-			php,
-			new File([zip], 'normalized-no-overwrite.zip'),
-			'/dst',
-			false
-		);
-
-		expect(php.readFileAsText('/dst/existing.txt')).toBe('old');
-		expect(php.readFileAsText('/dst/absolute.txt')).toBe('absolute');
-		expect(php.readFileAsText('/dst/fresh.txt')).toBe('fresh');
-		expect(php.fileExists('/absolute.txt')).toBe(false);
-		expect(php.fileExists('/existing.txt')).toBe(false);
-	});
-
-	it('skips entries blocked by existing parent files when overwriteFiles is false', async () => {
-		php.mkdir('/dst');
-		php.writeFile('/dst/conflict', 'old');
-		const zip = await createZipBuffer(php, {
-			'conflict/nested.txt': 'new',
-			'fresh.txt': 'fresh',
-		});
-
-		await unzipFile(
-			php,
-			new File([zip], 'blocked-no-overwrite.zip'),
-			'/dst',
-			false
-		);
-
-		expect(php.readFileAsText('/dst/conflict')).toBe('old');
-		expect(php.fileExists('/dst/conflict/nested.txt')).toBe(false);
-		expect(php.readFileAsText('/dst/fresh.txt')).toBe('fresh');
 	});
 });
 
