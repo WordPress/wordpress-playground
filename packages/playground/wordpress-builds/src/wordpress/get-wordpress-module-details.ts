@@ -1,4 +1,3 @@
-
 // @ts-ignore
 import url_beta from './wp-beta.zip?url';
 // @ts-ignore
@@ -24,85 +23,153 @@ import url_6_3 from './wp-6.3.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = "7.0"): { size: number, url: string } {
+export interface WordPressModuleDetails {
+	/** Archive file format used by the WordPress core bundle. */
+	format: 'zip' | 'tar.zst';
+	/** Archive container. */
+	container: 'zip' | 'tar';
+	/** Compression codec used by the archive payload. */
+	codec: 'deflate' | 'zstd';
+	/** Compressed byte length of the bundle. */
+	size: number;
+	/** URL (or dev filesystem path) of the bundle. */
+	url: string;
+	/** SHA-256 of the compressed bundle, when known for committed local bundles. */
+	sha256?: string;
+	/** Number of regular files in the bundle, when known for committed local bundles. */
+	fileCount?: number;
+}
+
+export function getWordPressModuleDetails(
+	wpVersion: string = "7.0"
+): WordPressModuleDetails {
 	switch (wpVersion) {
-		
+
 		case 'trunk':
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 0,
 				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
 			};
-			
+
 		case 'beta':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 6535647,
+				sha256: "38548d16c90ca6b3ac044ff1882e15fafab6f765dac506fb14892110a07cb010",
+				fileCount: 1816,
 				url: url_beta,
 			};
-			
+
 		case '7.0':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 6530259,
+				sha256: "1adcb69b4e695ff16346188021155d94b7b07e173d0794e3a33847b8edf2ed96",
+				fileCount: 1815,
 				url: url_7_0,
 			};
-			
+
 		case '6.9':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 5966666,
+				sha256: "3b4df38aa00a5868ed580bfc1643e32e8cc6ee2b0f4fd38ce36177b3a6a7d4f9",
+				fileCount: 1594,
 				url: url_6_9,
 			};
-			
+
 		case '6.8':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 5987405,
+				sha256: "bf783f24b94b06811c2d30f7780f32bf33359457819de93d92c01a4ce8889635",
+				fileCount: 1534,
 				url: url_6_8,
 			};
-			
+
 		case '6.7':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 5941818,
+				sha256: "99aa6f0315a047d89619d1523c14832703926c6429b88ae5df125c95f6c8836e",
+				fileCount: 1528,
 				url: url_6_7,
 			};
-			
+
 		case '6.6':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 4964307,
+				sha256: "6dc98257dd3a354e1bf2c33b33d557b99ee294824597cef30ec87e07c95d125e",
+				fileCount: 1367,
 				url: url_6_6,
 			};
-			
+
 		case '6.5':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 4886359,
+				sha256: "5b5a62038d6c57e9e5965dd5c89ddc6003242ae52958f8d567bb50827fe25d30",
+				fileCount: 1359,
 				url: url_6_5,
 			};
-			
+
 		case '6.4':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 4768241,
+				sha256: "b0d62625210cc47c0cbc05ed828825e15da8123d4206fd431241f69559716b5d",
+				fileCount: 1331,
 				url: url_6_4,
 			};
-			
+
 		case '6.3':
 			/** @ts-ignore */
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 3595053,
+				sha256: "cad7e42ece26fb462d40b2b249bf80a2f791c1fca3f9b986ff9bce277ed89a50",
+				fileCount: 1253,
 				url: url_6_3,
 			};
-			
-		
+
 		case 'nightly':
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: 0,
 				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
 			};
-		
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

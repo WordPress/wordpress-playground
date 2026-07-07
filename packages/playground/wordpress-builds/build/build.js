@@ -3,6 +3,8 @@ import { spawn } from 'child_process';
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
 import semver from 'semver';
+import { createHash } from 'crypto';
+import { Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 
 const remoteWordPressModules = {
 	trunk: {
@@ -271,13 +273,23 @@ const latestStableVersion = Object.keys(versions).filter((v) =>
 	v.match(/^\d/)
 )[0];
 
-const sizes = {};
+const bundleMetadata = {};
 for (const version of Object.keys(versions)) {
 	const zipPath = `${outputJsDir}/wp-${version}.zip`;
 	try {
-		sizes[version] = statSync(zipPath).size;
+		const bytes = await fs.readFile(zipPath);
+		const reader = new ZipReader(new Uint8ArrayReader(new Uint8Array(bytes)));
+		const entries = await reader.getEntries();
+		await reader.close();
+		bundleMetadata[version] = {
+			size: statSync(zipPath).size,
+			sha256: createHash('sha256').update(bytes).digest('hex'),
+			fileCount: entries.filter((entry) => !entry.directory).length,
+		};
 	} catch (e) {
-		sizes[version] = 0;
+		bundleMetadata[version] = {
+			size: 0,
+		};
 	}
 }
 
@@ -298,9 +310,28 @@ import url_${slugify(version)} from './wp-${version}.zip?url';`
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
-	latestStableVersion
-)}): { size: number, url: string } {
+export interface WordPressModuleDetails {
+	/** Archive file format used by the WordPress core bundle. */
+	format: 'zip' | 'tar.zst';
+	/** Archive container. */
+	container: 'zip' | 'tar';
+	/** Compression codec used by the archive payload. */
+	codec: 'deflate' | 'zstd';
+	/** Compressed byte length of the bundle. */
+	size: number;
+	/** URL (or dev filesystem path) of the bundle. */
+	url: string;
+	/** SHA-256 of the compressed bundle, when known for committed local bundles. */
+	sha256?: string;
+	/** Number of regular files in the bundle, when known for committed local bundles. */
+	fileCount?: number;
+}
+
+export function getWordPressModuleDetails(
+	wpVersion: string = ${JSON.stringify(
+		latestStableVersion
+	)}
+): WordPressModuleDetails {
 	switch (wpVersion) {
 		${Object.keys(versions)
 			.map(
@@ -309,6 +340,9 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 						? `
 		case '${version}':
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: ${JSON.stringify(
 					remoteWordPressModules[version].size ?? 0
 				)},
@@ -319,7 +353,12 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 		case '${version}':
 			/** @ts-ignore */
 			return {
-				size: ${JSON.stringify(sizes[version])},
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
+				size: ${JSON.stringify(bundleMetadata[version].size)},
+				sha256: ${JSON.stringify(bundleMetadata[version].sha256)},
+				fileCount: ${JSON.stringify(bundleMetadata[version].fileCount)},
 				url: url_${slugify(version)},
 			};
 			`
@@ -330,6 +369,9 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 				? `
 		case 'nightly':
 			return {
+				format: 'zip',
+				container: 'zip',
+				codec: 'deflate',
 				size: ${JSON.stringify(remoteWordPressModules.trunk.size ?? 0)},
 				url: ${JSON.stringify(remoteWordPressModules.trunk.url)},
 			};

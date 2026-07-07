@@ -7,11 +7,70 @@
  * and should still be linted and picked up by the test runner.
  */
 
+import { createHash } from 'node:crypto';
+import { statSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
+import { getWordPressModule } from '../wordpress/get-wordpress-module';
 import { getWordPressModuleDetails } from '../wordpress/get-wordpress-module-details';
 
 describe('getWordPressModuleDetails()', () => {
 	it('should return a data loader module', async () => {
 		const module = getWordPressModuleDetails();
 		expect(module.url).toMatch(/\/wp-\d\.\d\.zip$/);
+		expect(module.format).toBe('zip');
+		expect(module.container).toBe('zip');
+		expect(module.codec).toBe('deflate');
+		expect(module.sha256).toMatch(/^[0-9a-f]{64}$/);
+		expect(module.fileCount).toBeGreaterThan(0);
+	});
+
+	it('reports committed ZIP artifact metadata', async () => {
+		const module = getWordPressModuleDetails('6.8');
+		const zipPath = fileURLToPath(
+			new URL('../wordpress/wp-6.8.zip', import.meta.url)
+		);
+		const zipBytes = readFileSync(zipPath);
+		const reader = new ZipReader(
+			new Uint8ArrayReader(new Uint8Array(zipBytes))
+		);
+		let entries;
+		try {
+			entries = await reader.getEntries();
+		} finally {
+			await reader.close();
+		}
+
+		expect(module.size).toBe(statSync(zipPath).size);
+		expect(module.sha256).toBe(
+			createHash('sha256').update(zipBytes).digest('hex')
+		);
+		expect(module.fileCount).toBe(
+			entries.filter((entry) => !entry.directory).length
+		);
+	});
+
+	it('keeps remote trunk modules classified as ZIPs without local metadata', () => {
+		const module = getWordPressModuleDetails('trunk');
+		expect(module.format).toBe('zip');
+		expect(module.container).toBe('zip');
+		expect(module.codec).toBe('deflate');
+		expect(module.sha256).toBeUndefined();
+		expect(module.fileCount).toBeUndefined();
+	});
+
+	it('uses descriptor metadata when creating the module File', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3])))
+		);
+
+		try {
+			const module = await getWordPressModule('trunk');
+			expect(module.name).toBe('trunk.zip');
+			expect(module.type).toBe('application/zip');
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });
