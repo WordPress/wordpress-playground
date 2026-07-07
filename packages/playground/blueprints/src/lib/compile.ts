@@ -34,6 +34,8 @@ export interface CompileBlueprintForExecutionOptions extends Omit<
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
+type BlueprintExecutionInput = Blueprint | BlueprintBundle | string;
+
 /**
  * Compiles a Blueprint into the shape consumers need before execution.
  *
@@ -42,12 +44,21 @@ export interface CompileBlueprintForExecutionOptions extends Omit<
  * newer callers can migrate to as Blueprint v2 support grows.
  */
 export async function compileBlueprintForExecution(
-	input: Blueprint | BlueprintBundle,
+	input: BlueprintExecutionInput,
 	options: CompileBlueprintForExecutionOptions = {}
 ): Promise<CompiledBlueprintForExecution> {
+	const isRawJsonInput = typeof input === 'string';
 	const declaration = await getBlueprintDeclaration(input);
 	if (isBlueprintV2Declaration(declaration)) {
-		return compileBlueprintV2ForExecution(input, declaration);
+		return compileBlueprintV2ForExecution(
+			isRawJsonInput ? declaration : input,
+			declaration
+		);
+	}
+	if (isRawJsonInput) {
+		throw new Error(
+			'Raw JSON input is only supported for Blueprint v2 declarations.'
+		);
 	}
 	return compileBlueprintV1ForExecution(input, declaration, options);
 }
