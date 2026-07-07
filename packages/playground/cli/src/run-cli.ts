@@ -1790,15 +1790,22 @@ export async function runCLI(
 					},
 				};
 			} catch (error) {
-				if (args.verbosity !== 'debug') {
-					throw error;
-				}
+				// In debug mode, read the PHP error log before disposing —
+				// disposeCLI() terminates the worker that owns the log file.
 				let phpLogs = '';
-				if (await playgroundPool?.fileExists(errorLogPath)) {
+				if (
+					args.verbosity === 'debug' &&
+					(await playgroundPool?.fileExists(errorLogPath))
+				) {
 					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
 				}
+				// Always tear down spawned workers, the server, and the temp
+				// dir. A failed boot must not leak worker threads: they keep a
+				// library caller's event loop alive after runCLI() rejects.
 				await disposeCLI();
-				throw new Error(phpLogs, { cause: error });
+				throw args.verbosity === 'debug'
+					? new Error(phpLogs, { cause: error })
+					: error;
 			}
 		},
 		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {

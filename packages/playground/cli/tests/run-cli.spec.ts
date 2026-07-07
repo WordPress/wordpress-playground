@@ -1,6 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import { Worker } from 'node:worker_threads';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
@@ -1461,6 +1462,36 @@ describe('other run-cli behaviors', () => {
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);
 		});
+
+		test('disposes spawned workers when boot fails on the non-debug path', async () => {
+			// Regression: a boot failure now rejects instead of calling
+			// process.exit(), so the non-debug catch must still run
+			// disposeCLI() to terminate spawned workers — otherwise they keep
+			// a library caller's event loop alive. An invalid Blueprint step
+			// fails boot after the worker has spawned.
+			const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
+			try {
+				await expect(
+					runCLI({
+						command: 'server',
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						verbosity: 'normal',
+						workers: 1,
+						blueprint: {
+							steps: [
+								{
+									step: 'thisStepDoesNotExistForTesting',
+								} as any,
+							],
+						},
+					} as RunCLIArgs & { command: 'server' })
+				).rejects.toThrow();
+				expect(terminateSpy).toHaveBeenCalled();
+			} finally {
+				terminateSpy.mockRestore();
+			}
+		}, 60_000 /* full boot before the failing step; allow Windows headroom */);
 	});
 
 	describe('streaming responses', () => {
