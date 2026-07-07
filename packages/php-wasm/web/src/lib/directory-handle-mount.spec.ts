@@ -407,7 +407,12 @@ describe('createDirectoryHandleMountHandler', () => {
 				opfsRoot as unknown as FileSystemDirectoryHandle,
 				'/wordpress'
 			)
-		).rejects.toThrow(/incomplete/i);
+		).rejects.toMatchObject({
+			message: expect.stringContaining('/wordpress/autoload.php'),
+			cause: expect.objectContaining({
+				message: 'UnknownError: Invalid platform file handle',
+			}),
+		});
 
 		// The healthy file was written; the failing one was dropped — a partial
 		// copy, which is exactly why the whole operation must reject.

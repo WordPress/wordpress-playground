@@ -14,7 +14,7 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 
 describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 	/**
-	 * This broke at one point in the built package. It bundler tried really
+	 * This broke at one point in the built package. The bundler tried really
 	 * hard to create an isomorphic package, but ended shipping the following
 	 * code which always returned false:
 	 *
@@ -43,7 +43,7 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 							pluginData: {
 								resource: 'git:directory',
 								url: 'https://github.com/dmsnell/blocky-formats.git',
-								ref: 'HEAD',
+								ref: '372b8820fff1d49f24f865a6178d059a53e5df5b',
 								path: '/',
 							},
 						},

@@ -248,7 +248,7 @@ export async function copyMemfsToOpfs(
 	// and the copy would resolve as "100% complete" while silently missing a
 	// file. That is how a saved Playground lands on disk without, say,
 	// wp-includes/sodium_compat/autoload.php and then fatals on the next boot.
-	const failedWrites: Array<{ entryName: string; error: unknown }> = [];
+	const failedWrites: Array<{ memfsPath: string; error: unknown }> = [];
 
 	try {
 		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
@@ -264,7 +264,7 @@ export async function copyMemfsToOpfs(
 					// Record the rejection rather than letting it escape here;
 					// it is re-raised as one error once every write has settled.
 					(error) => {
-						failedWrites.push({ entryName, error });
+						failedWrites.push({ memfsPath, error });
 					}
 				)
 				.finally(() => {
@@ -293,14 +293,13 @@ export async function copyMemfsToOpfs(
 	// place) instead of recording a complete, durable save that cannot boot.
 	if (failedWrites.length > 0) {
 		const failedNames = failedWrites
-			.map(({ entryName }) => entryName)
+			.map(({ memfsPath }) => memfsPath)
 			.join(', ');
-		const error = new Error(
+		throw new Error(
 			`Failed to copy ${failedWrites.length} of ${filesToCreate.length} ` +
-				`file(s) to OPFS (${failedNames}). The save is incomplete.`
+				`file(s) to OPFS (${failedNames}). The save is incomplete.`,
+			{ cause: failedWrites[0].error }
 		);
-		(error as { cause?: unknown }).cause = failedWrites[0].error;
-		throw error;
 	}
 
 	await onProgress?.({
