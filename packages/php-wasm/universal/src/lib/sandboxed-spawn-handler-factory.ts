@@ -117,21 +117,27 @@ export function sandboxedSpawnHandlerFactory(
 						},
 					});
 
-					result.stdout.pipeTo(
+					// processApi.exit() closes the parent's pipe file
+					// descriptors, so the child's stdout and stderr must be
+					// fully drained into them before we exit. Any output still
+					// in flight once the pipes close would be discarded.
+					const stdoutDone = result.stdout.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stdout(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					result.stderr.pipeTo(
+					const stderrDone = result.stderr.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stderr(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					processApi.exit(await result.exitCode);
+					const exitCode = await result.exitCode;
+					await Promise.all([stdoutDone, stderrDone]);
+					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
@@ -158,11 +164,12 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;

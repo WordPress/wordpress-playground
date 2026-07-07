@@ -35,6 +35,7 @@ _wasm_set_query_string
 _wasm_set_request_body
 _wasm_set_request_host
 _wasm_set_request_method
+_wasm_set_request_no_chdir
 _wasm_set_request_port
 _wasm_set_request_uri
 _wasm_set_sapi_name

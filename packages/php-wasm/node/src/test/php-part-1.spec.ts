@@ -234,6 +234,20 @@ phpLoaderOptions.forEach((options) => {
 				expect(text).toBe('from file');
 			});
 
+			it('should set CWD to the script directory', async () => {
+				php.mkdir('/test-dir');
+				php.mkdir('/test-dir/subdir');
+				php.writeFile(
+					'/test-dir/subdir/getcwd.php',
+					'<?php echo getcwd();'
+				);
+
+				const streamed = await php.runStream({
+					scriptPath: '/test-dir/subdir/getcwd.php',
+				});
+				expect(await streamed.stdoutText).toBe('/test-dir/subdir');
+			});
+
 			it('should handle large output correctly', async () => {
 				const largeString = 'x'.repeat(10000);
 				const streamed = await php.runStream({
