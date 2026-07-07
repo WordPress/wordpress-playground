@@ -140,6 +140,27 @@ describe('remote access tunnel helpers', () => {
 			'Incomplete remote access relay response'
 		);
 	});
+
+	it('rejects chunked remote access relay responses with mismatched byte counts', () => {
+		const response = assembleChunkedDataChannelResponse(
+			{
+				status: 200,
+				headers: { 'Content-Type': 'text/plain' },
+				totalBytes: 4,
+				totalChunks: 2,
+				chunks: [
+					new TextEncoder().encode('hello '),
+					new TextEncoder().encode('world'),
+				],
+			},
+			'Incomplete remote access relay response'
+		);
+
+		expect(response).toBeInstanceOf(Error);
+		expect((response as Error).message).toBe(
+			'Incomplete remote access relay response'
+		);
+	});
 });
 
 describe('remote access direct tunnel', () => {
@@ -310,5 +331,29 @@ describe('remote access direct tunnel', () => {
 				}),
 			})
 		);
+	});
+
+	it('surfaces relay errors when posting a retry request', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ error: 'Invalid signal' }), {
+				status: 400,
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			})
+		);
+		const guest = new DirectTunnelGuest({
+			sessionId: 'session-1',
+			relayUrl: 'https://example.test',
+			guestId: 'guest-1',
+			verificationCode: '42',
+			onStatusChange: vi.fn(),
+		});
+
+		await expect(
+			(
+				guest as unknown as { requestFreshOffer: () => Promise<void> }
+			).requestFreshOffer()
+		).rejects.toThrow('Signal post failed: 400: Invalid signal');
 	});
 });
