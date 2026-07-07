@@ -29,7 +29,16 @@ export type CaughtMessage = {
 	to: string;
 	subject: string;
 	headers: Record<string, string>;
+	/**
+	 * Decoded text/plain body part. In multipart/alternative messages this is
+	 * separate from the richer text/html alternative.
+	 */
 	text?: string;
+	/**
+	 * Decoded text/html body part. Mail clients typically render this when
+	 * available and fall back to text/plain.
+	 */
+	html?: string;
 	raw: string;
 	rawSize: number;
 };
@@ -433,12 +442,38 @@ export class SmtpSink {
 				// be the literal `<>` for the null reverse-path,
 				// §4.5.5).
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-3.3
-				const path = parseEnvelopeArg(commandArgument, 'FROM');
-				if (path === null) {
+				const envelope = parseEnvelopeArg(commandArgument, 'FROM');
+				if (envelope === null) {
 					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
-				this.mailFrom = path;
+				// RFC 1870 §6.1: the EHLO response advertises a fixed
+				// maximum message size, so a MAIL command declaring a
+				// larger SIZE is rejected up front with 552 and the
+				// transaction never starts.
+				// https://www.rfc-editor.org/rfc/rfc1870.html#section-6.1
+				const declaredSize = getEsmtpParameterValue(
+					envelope.parameters,
+					'SIZE'
+				);
+				if (declaredSize !== null) {
+					// RFC 1870 §4: size-value ::= 1*20DIGIT.
+					// https://www.rfc-editor.org/rfc/rfc1870.html#section-4
+					// Use the exact grammar instead of number parsing, which
+					// would accept SMTP-invalid forms like `1e2` or `+12`.
+					if (!/^[0-9]{1,20}$/.test(declaredSize)) {
+						await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
+						break;
+					}
+					if (Number(declaredSize) > this.maxSize) {
+						await this.reply(
+							552,
+							SMTP_REPLY_TEXT.messageSizeExceeded
+						);
+						break;
+					}
+				}
+				this.mailFrom = envelope.path;
 				this.recipientPaths = [];
 				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
@@ -453,8 +488,8 @@ export class SmtpSink {
 				// `RCPT TO:<forward-path>`. Same no-space, mandatory-
 				// brackets rule as MAIL FROM.
 				// https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
-				const path = parseEnvelopeArg(commandArgument, 'TO');
-				if (path === null || path === '') {
+				const envelope = parseEnvelopeArg(commandArgument, 'TO');
+				if (envelope === null || envelope.path === '') {
 					await this.reply(501, SMTP_REPLY_TEXT.syntaxError);
 					break;
 				}
@@ -465,7 +500,7 @@ export class SmtpSink {
 					await this.reply(503, SMTP_REPLY_TEXT.badSequence);
 					break;
 				}
-				this.recipientPaths.push(path);
+				this.recipientPaths.push(envelope.path);
 				await this.reply(250, SMTP_REPLY_TEXT.ok);
 				break;
 			}
@@ -550,7 +585,7 @@ export class SmtpSink {
 			// SMTP line ending) and append one for the final line.
 			// https://www.rfc-editor.org/rfc/rfc5321.html#section-2.3.8
 			const raw = this.dataLines.join('\r\n') + '\r\n';
-			const { headers, subject, text, from, to } = parseMessage(
+			const { headers, subject, text, html, from, to } = parseMessage(
 				raw,
 				this.mailFrom ?? '',
 				this.recipientPaths
@@ -562,6 +597,7 @@ export class SmtpSink {
 				subject,
 				headers,
 				text,
+				html,
 				raw,
 				rawSize: this.dataBytes,
 			};
@@ -715,7 +751,8 @@ export class SmtpSink {
 
 /**
  * Parses the argument of a MAIL or RCPT command into the envelope
- * path. Returns `null` if the syntax does not match RFC 5321.
+ * path and the trailing ESMTP parameter list. Returns `null` if the
+ * syntax does not match RFC 5321.
  *
  * RFC 5321 §3.3 + §4.1.1.2/3 require:
  *   - the keyword (`FROM` or `TO`) is followed immediately by a
@@ -736,7 +773,7 @@ export class SmtpSink {
 export function parseEnvelopeArg(
 	commandArgument: string,
 	keyword: 'FROM' | 'TO'
-): string | null {
+): { path: string; parameters: string } | null {
 	const prefix = `${keyword}:<`;
 	if (commandArgument.length < prefix.length + 1) return null;
 	if (commandArgument.slice(0, prefix.length).toUpperCase() !== prefix) {
@@ -748,7 +785,29 @@ export function parseEnvelopeArg(
 	// begin with a single space introducing ESMTP parameters.
 	const tail = commandArgument.slice(close + 1);
 	if (tail !== '' && !tail.startsWith(' ')) return null;
-	return commandArgument.slice(prefix.length, close);
+	return {
+		path: commandArgument.slice(prefix.length, close),
+		parameters: tail.slice(1),
+	};
+}
+
+/**
+ * Reads a value from a space-separated ESMTP command parameter list.
+ * This intentionally does not use `getHeaderParameter()` below: MIME
+ * headers use semicolon-separated parameters, while SMTP commands do not.
+ */
+function getEsmtpParameterValue(
+	parameters: string,
+	name: string
+): string | null {
+	for (const parameter of parameters.split(' ')) {
+		const separator = parameter.indexOf('=');
+		const parameterKeyword =
+			separator < 0 ? parameter : parameter.slice(0, separator);
+		if (parameterKeyword.toUpperCase() !== name.toUpperCase()) continue;
+		return separator < 0 ? '' : parameter.slice(separator + 1);
+	}
+	return null;
 }
 
 /**
@@ -860,10 +919,21 @@ function getHeaderParameter(headerValue: string, name: string): string | null {
 	return quotedValueMatch ? quotedValueMatch[1] : match[1];
 }
 
-function pickTextPlainFromMultipart(
+type MimeBodyPart = {
+	headers: Record<string, string>;
+	content: string;
+};
+
+type MimeBodyParts = {
+	text?: MimeBodyPart;
+	html?: MimeBodyPart;
+};
+
+function collectBodyPartsFromMultipart(
 	body: string,
 	boundary: string
-): { headers: Record<string, string>; content: string } | null {
+): MimeBodyParts {
+	const found: MimeBodyParts = {};
 	// RFC 2046 §5.1 defines multipart boundary delimiter lines.
 	// https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1
 	const boundaryDelimiter = `--${boundary}`;
@@ -893,16 +963,53 @@ function pickTextPlainFromMultipart(
 		parts.push(currentPartLines.join('\r\n'));
 	}
 	for (const part of parts) {
+		if (found.text && found.html) {
+			break;
+		}
 		const { headerRaw, bodyRaw } = splitHeaderBody(part);
 		const partHeaders = parseHeaderLines(headerRaw);
+		// RFC 2183 §2: parts marked "attachment" are separate from the main
+		// document, so they never provide the message body.
+		// https://www.rfc-editor.org/rfc/rfc2183.html#section-2
+		const disposition = (
+			partHeaders['content-disposition'] || ''
+		).toLowerCase();
+		if (disposition.startsWith('attachment')) {
+			continue;
+		}
 		const contentType = (
 			partHeaders['content-type'] || 'text/plain'
 		).toLowerCase();
-		if (contentType.startsWith('text/plain')) {
-			return { headers: partHeaders, content: bodyRaw };
+		if (!found.text && contentType.startsWith('text/plain')) {
+			found.text = { headers: partHeaders, content: bodyRaw };
+		} else if (!found.html && contentType.startsWith('text/html')) {
+			found.html = { headers: partHeaders, content: bodyRaw };
+		} else if (contentType.startsWith('multipart/')) {
+			// RFC 2046 §5.1.3 allows nested multipart entities — e.g.
+			// PHPMailer wraps a multipart/alternative body in multipart/mixed
+			// when the message carries attachments, and multipart/related
+			// groups an HTML body with its inline resources. Recurse to find
+			// the body parts.
+			// https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1.3
+			const nestedBoundary = getHeaderParameter(
+				partHeaders['content-type'],
+				'boundary'
+			);
+			if (nestedBoundary) {
+				const nestedParts = collectBodyPartsFromMultipart(
+					bodyRaw,
+					nestedBoundary
+				);
+				if (!found.text) {
+					found.text = nestedParts.text;
+				}
+				if (!found.html) {
+					found.html = nestedParts.html;
+				}
+			}
 		}
 	}
-	return null;
+	return found;
 }
 
 function decodeTextPart(
@@ -953,7 +1060,13 @@ function decodeTextPart(
  * This is intentionally a small RFC 5322/MIME helper for the SMTP sink, not a
  * full mail user-agent parser. It handles the header/body split, folded
  * headers, RFC 2047 encoded words, common text transfer encodings, and the
- * first text/plain part in multipart messages.
+ * first non-attachment text/plain and text/html parts in multipart messages,
+ * including nested multiparts such as multipart/mixed wrapping
+ * multipart/alternative or multipart/related.
+ *
+ * Attachments and inline resources (e.g. cid: images) are not extracted; they
+ * remain available in the raw message only and never populate the `text` or
+ * `html` fields.
  */
 export function parseMessage(
 	raw: string,
@@ -963,6 +1076,7 @@ export function parseMessage(
 	headers: Record<string, string>;
 	subject: string;
 	text?: string;
+	html?: string;
 	from: string;
 	to: string;
 } {
@@ -988,23 +1102,35 @@ export function parseMessage(
 
 	const contentType = (headers['content-type'] || 'text/plain').toLowerCase();
 	let text: string | undefined;
+	let html: string | undefined;
 	if (contentType.startsWith('multipart/')) {
 		const boundary = getHeaderParameter(
 			headers['content-type'],
 			'boundary'
 		);
 		if (boundary) {
-			const part = pickTextPlainFromMultipart(bodyRaw, boundary);
-			if (part) {
-				text = decodeTextPart(part.headers, part.content);
+			const bodyParts = collectBodyPartsFromMultipart(bodyRaw, boundary);
+			if (bodyParts.text) {
+				text = decodeTextPart(
+					bodyParts.text.headers,
+					bodyParts.text.content
+				);
+			}
+			if (bodyParts.html) {
+				html = decodeTextPart(
+					bodyParts.html.headers,
+					bodyParts.html.content
+				);
 			}
 		}
 	} else if (contentType.startsWith('text/plain')) {
 		text = decodeTextPart(headers, bodyRaw);
+	} else if (contentType.startsWith('text/html')) {
+		html = decodeTextPart(headers, bodyRaw);
 	} else {
 		text = bodyRaw;
 	}
-	return { headers, subject, text, from, to };
+	return { headers, subject, text, html, from, to };
 }
 
 /**

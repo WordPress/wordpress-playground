@@ -893,6 +893,57 @@ describe('SmtpSink – command edge cases', () => {
 		expect(await client.read()).toMatch(/^250 /);
 	});
 
+	it('rejects MAIL FROM declaring SIZE above the fixed maximum', async () => {
+		// RFC 1870 §6.1: when the SIZE parameter exceeds the fixed
+		// maximum message size the server advertised, the server
+		// responds with 552 and the transaction does not start.
+		// Reference: https://www.rfc-editor.org/rfc/rfc1870.html#section-6.1
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> SIZE=101\r\n');
+		expect(await client.read()).toBe(
+			'552 Message size exceeds fixed maximum message size\r\n'
+		);
+		// The envelope must not have started: RCPT is out of sequence.
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^503 /);
+	});
+
+	it('accepts MAIL FROM declaring SIZE equal to the fixed maximum', async () => {
+		// RFC 1870 §6.1 rejects only sizes *exceeding* the fixed
+		// maximum; a declaration equal to it is acceptable.
+		// Reference: https://www.rfc-editor.org/rfc/rfc1870.html#section-6.1
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> SIZE=100\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+	});
+
+	it('matches the SIZE parameter keyword case-insensitively', async () => {
+		// RFC 5321 §2.4: ESMTP parameter keywords are case-insensitive.
+		// Reference: https://www.rfc-editor.org/rfc/rfc5321.html#section-2.4
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> size=101\r\n');
+		expect(await client.read()).toBe(
+			'552 Message size exceeds fixed maximum message size\r\n'
+		);
+	});
+
+	it('rejects MAIL FROM with a malformed SIZE value', async () => {
+		// RFC 1870 §4 ABNF: size-value ::= 1*20DIGIT. A non-numeric
+		// value is a parameter syntax error (501).
+		// Reference: https://www.rfc-editor.org/rfc/rfc1870.html#section-4
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> SIZE=12x\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
 	it('rejects RCPT before MAIL', async () => {
 		// RFC 5321 §3.3 + §4.1.1.3: RCPT TO can only follow a MAIL
 		// FROM in the current transaction; otherwise the server
@@ -1343,6 +1394,223 @@ describe('parseMessage', () => {
 		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Multi');
 		expect(result.text?.trim()).toBe('Plain text part.');
+	});
+
+	it('recurses into nested multipart parts to find the text body', () => {
+		// PHPMailer emits multipart/mixed wrapping a multipart/alternative
+		// body whenever an HTML mail with an AltBody carries attachments.
+		// RFC 2046 §5.1.3 allows arbitrary nesting of multipart entities.
+		// Reference: https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1.3
+		const outer = 'OUTER';
+		const inner = 'INNER';
+		const raw =
+			`Subject: Nested\r\n` +
+			`Content-Type: multipart/mixed; boundary="${outer}"\r\n` +
+			`\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: multipart/alternative; boundary="${inner}"\r\n` +
+			`\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${inner}--\r\n` +
+			`--${outer}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+	});
+
+	it('prefers the message body over a text/plain attachment', () => {
+		// RFC 2183 §2: Content-Disposition "attachment" marks a part as
+		// separate from the main document; it is not the message body.
+		// Reference: https://www.rfc-editor.org/rfc/rfc2183.html#section-2
+		const outer = 'OUTER';
+		const inner = 'INNER';
+		const raw =
+			`Subject: With attachment\r\n` +
+			`Content-Type: multipart/mixed; boundary="${outer}"\r\n` +
+			`\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: multipart/alternative; boundary="${inner}"\r\n` +
+			`\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${inner}--\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: text/plain; name="notes.txt"\r\n` +
+			`Content-Disposition: attachment; filename="notes.txt"\r\n` +
+			`\r\n` +
+			`Attachment text.\r\n` +
+			`--${outer}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+	});
+
+	it('silently drops attachments when no text body exists', () => {
+		const boundary = 'OUTER';
+		const raw =
+			`Subject: Attachment only\r\n` +
+			`Content-Type: multipart/mixed; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; name="notes.txt"\r\n` +
+			`Content-Disposition: attachment; filename="notes.txt"\r\n` +
+			`\r\n` +
+			`Attachment text.\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('Attachment only');
+		expect(result.text).toBeUndefined();
+	});
+
+	it('extracts the html body from a single-part text/html email', () => {
+		const raw =
+			'Subject: HTML only\r\n' +
+			'Content-Type: text/html; charset=utf-8\r\n' +
+			'Content-Transfer-Encoding: quoted-printable\r\n' +
+			'\r\n' +
+			'<p>Caf=C3=A9</p>\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.html?.trim()).toBe('<p>Café</p>');
+		expect(result.text).toBeUndefined();
+	});
+
+	it('extracts both text and html from multipart/alternative', () => {
+		const boundary = 'ALT';
+		const raw =
+			`Subject: Both\r\n` +
+			`Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+	});
+
+	it('extracts the html body from nested multipart with attachments', () => {
+		const outer = 'OUTER';
+		const inner = 'INNER';
+		const raw =
+			`Subject: Nested html\r\n` +
+			`Content-Type: multipart/mixed; boundary="${outer}"\r\n` +
+			`\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: multipart/alternative; boundary="${inner}"\r\n` +
+			`\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${inner}--\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: application/pdf; name="invoice.pdf"\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-Disposition: attachment; filename="invoice.pdf"\r\n` +
+			`\r\n` +
+			`JVBERi0=\r\n` +
+			`--${outer}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+	});
+
+	it('keeps a top-level text body while finding nested html', () => {
+		const outer = 'OUTER';
+		const related = 'RELATED';
+		const raw =
+			`Subject: Mixed nested html\r\n` +
+			`Content-Type: multipart/mixed; boundary="${outer}"\r\n` +
+			`\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: multipart/related; boundary="${related}"\r\n` +
+			`\r\n` +
+			`--${related}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${related}\r\n` +
+			`Content-Type: image/png\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-ID: <logo>\r\n` +
+			`\r\n` +
+			`iVBORw0KGgo=\r\n` +
+			`--${related}--\r\n` +
+			`--${outer}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+	});
+
+	it('extracts the html body from multipart/related with inline images', () => {
+		// RFC 2387: multipart/related groups an HTML root part with the
+		// inline resources (e.g. cid: images) it references.
+		// https://www.rfc-editor.org/rfc/rfc2387.html
+		const boundary = 'REL';
+		const raw =
+			`Subject: Inline image\r\n` +
+			`Content-Type: multipart/related; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<img src="cid:logo">\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: image/png\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-ID: <logo>\r\n` +
+			`Content-Disposition: inline; filename="logo.png"\r\n` +
+			`\r\n` +
+			`iVBORw0KGgo=\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.html?.trim()).toBe('<img src="cid:logo">');
+	});
+
+	it('does not treat a text/html attachment as the html body', () => {
+		const boundary = 'MIX';
+		const raw =
+			`Subject: HTML attachment\r\n` +
+			`Content-Type: multipart/mixed; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; name="page.html"\r\n` +
+			`Content-Disposition: attachment; filename="page.html"\r\n` +
+			`\r\n` +
+			`<p>Attached page.</p>\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html).toBeUndefined();
 	});
 
 	it('handles folded headers', () => {
