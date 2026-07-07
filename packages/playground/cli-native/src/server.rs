@@ -132,6 +132,7 @@ impl HttpProtocolError {
 }
 
 struct WorkerPool {
+    reserved_worker: Arc<Mutex<PhpWorker>>,
     available_workers: Mutex<Receiver<Arc<Mutex<PhpWorker>>>>,
     release_worker: SyncSender<Arc<Mutex<PhpWorker>>>,
     php_module: Module,
@@ -161,11 +162,15 @@ impl WorkerPool {
     ) -> Self {
         let created_workers = workers.len();
         let len = max_workers.max(created_workers).max(1);
-        let (release_worker, available_workers) = sync_channel(len);
-        for worker in workers
+        let available_worker_capacity = len.saturating_sub(1).max(1);
+        let (release_worker, available_workers) = sync_channel(available_worker_capacity);
+        let mut workers = workers
             .into_iter()
-            .map(|php| Arc::new(Mutex::new(PhpWorker::new(php))))
-        {
+            .map(|php| Arc::new(Mutex::new(PhpWorker::new(php))));
+        let reserved_worker = workers
+            .next()
+            .expect("worker pool is created with a primary PHP worker");
+        for worker in workers {
             release_worker
                 .send(worker)
                 .expect("worker pool receiver exists during initialization");
@@ -174,6 +179,7 @@ impl WorkerPool {
         let recycle_wasm_memory_threshold = recycle_wasm_memory_threshold_from_env();
         let recycle_idle_delay = worker_recycle_idle_delay_from_env();
         Self {
+            reserved_worker,
             available_workers: Mutex::new(available_workers),
             release_worker,
             php_module,
@@ -192,7 +198,15 @@ impl WorkerPool {
         self.len
     }
 
-    fn acquire(&self) -> Result<WorkerLease> {
+    fn acquire(&self, reserved: bool) -> Result<WorkerLease> {
+        if reserved || self.len == 1 {
+            return Ok(WorkerLease {
+                worker: Some(Arc::clone(&self.reserved_worker)),
+                release_worker: None,
+                retire_on_drop: false,
+            });
+        }
+
         if self.lazy {
             match self
                 .available_workers
@@ -203,7 +217,7 @@ impl WorkerPool {
                 Ok(worker) => {
                     return Ok(WorkerLease {
                         worker: Some(worker),
-                        release_worker: self.release_worker.clone(),
+                        release_worker: Some(self.release_worker.clone()),
                         retire_on_drop: false,
                     });
                 }
@@ -228,7 +242,7 @@ impl WorkerPool {
                         }
                         return Ok(WorkerLease {
                             worker: Some(Arc::new(Mutex::new(PhpWorker::new(php)))),
-                            release_worker: self.release_worker.clone(),
+                            release_worker: Some(self.release_worker.clone()),
                             retire_on_drop: false,
                         });
                     }
@@ -247,7 +261,7 @@ impl WorkerPool {
             .map_err(|_| CliError::new("PHP worker pool closed unexpectedly"))?;
         Ok(WorkerLease {
             worker: Some(worker),
-            release_worker: self.release_worker.clone(),
+            release_worker: Some(self.release_worker.clone()),
             retire_on_drop: false,
         })
     }
@@ -277,12 +291,13 @@ impl WorkerPool {
     fn mark_request_finished(
         &self,
         worker: &mut PhpWorker,
+        allow_lazy_retirement: bool,
         wasm_memory_size_bytes: Option<u64>,
     ) -> Result<WorkerAfterRequest> {
         mark_worker_request_finished(
             worker,
             &self.created_workers,
-            self.lazy,
+            self.lazy && allow_lazy_retirement,
             self.max_requests_per_worker,
             self.recycle_wasm_memory_threshold,
             self.recycle_idle_delay,
@@ -468,7 +483,7 @@ impl PhpWorker {
 
 struct WorkerLease {
     worker: Option<Arc<Mutex<PhpWorker>>>,
-    release_worker: SyncSender<Arc<Mutex<PhpWorker>>>,
+    release_worker: Option<SyncSender<Arc<Mutex<PhpWorker>>>>,
     retire_on_drop: bool,
 }
 
@@ -482,6 +497,10 @@ impl WorkerLease {
     fn retire_on_drop(&mut self) {
         self.retire_on_drop = true;
     }
+
+    fn can_retire(&self) -> bool {
+        self.release_worker.is_some()
+    }
 }
 
 impl Drop for WorkerLease {
@@ -490,8 +509,8 @@ impl Drop for WorkerLease {
             if self.retire_on_drop {
                 drop(worker);
                 release_unused_process_memory();
-            } else {
-                let _ = self.release_worker.send(worker);
+            } else if let Some(release_worker) = &self.release_worker {
+                let _ = release_worker.send(worker);
             }
         }
     }
@@ -1173,7 +1192,7 @@ fn run_listener(
                     let mut stream = stream;
                     let _ = stream.set_read_timeout(Some(HTTP_READ_TIMEOUT));
                     let _ = stream.set_write_timeout(Some(HTTP_WRITE_TIMEOUT));
-                    if let Err(error) = handle_stream(
+                    let result = handle_stream(
                         &mut stream,
                         &mounts,
                         &worker_pool,
@@ -1181,7 +1200,11 @@ fn run_listener(
                         debug,
                         follow_symlinks,
                         &first_request,
-                    ) {
+                    );
+                    if let Err(error) = result {
+                        if is_client_disconnect_error(&error) {
+                            return;
+                        }
                         let _ = write_http_response(
                             &mut stream,
                             &HttpResponse {
@@ -1357,6 +1380,24 @@ fn request_has_auto_login_cookie(request: &HttpRequest) -> bool {
         cookies
             .split(';')
             .any(|cookie| cookie.trim_start().starts_with(AUTO_LOGIN_COOKIE_NAME))
+    })
+}
+
+fn request_prefers_reserved_worker(request: &HttpRequest) -> bool {
+    request_targets_wordpress_admin(&request.target)
+        || header_value(&request.headers, "cookie").is_some_and(has_wordpress_authenticated_cookie)
+}
+
+fn request_targets_wordpress_admin(target: &str) -> bool {
+    target == "/wp-admin" || target.starts_with("/wp-admin/") || target.starts_with("/wp-login.php")
+}
+
+fn has_wordpress_authenticated_cookie(cookies: &str) -> bool {
+    cookies.split(';').any(|cookie| {
+        let cookie = cookie.trim_start();
+        cookie.starts_with("wordpress_logged_in_")
+            || cookie.starts_with("wordpress_sec_")
+            || cookie.starts_with("wp-settings-")
     })
 }
 
@@ -1670,7 +1711,9 @@ fn handle_http_request(
             path_info,
         } => {
             let request_target = request.target.clone();
-            let mut worker = worker_pool.acquire()?;
+            let use_reserved_worker = request_prefers_reserved_worker(&request);
+            let mut worker = worker_pool.acquire(use_reserved_worker)?;
+            let can_retire_worker = worker.can_retire();
             let mut php_worker = worker
                 .worker()
                 .lock()
@@ -1699,8 +1742,11 @@ fn handle_http_request(
                         .recycle_wasm_memory_threshold()
                         .and_then(|_| php_worker.php_mut().ok()?.memory_size_bytes().ok())
                 });
-            let worker_after_request =
-                worker_pool.mark_request_finished(&mut php_worker, wasm_memory_size_bytes)?;
+            let worker_after_request = worker_pool.mark_request_finished(
+                &mut php_worker,
+                can_retire_worker,
+                wasm_memory_size_bytes,
+            )?;
             let worker_action = if request_id.is_some() {
                 worker_after_request_label(&worker_after_request)
             } else {
@@ -2128,6 +2174,18 @@ fn http_response_from_php_with_counter(
 fn log_server_request_error(error: &CliError) {
     let style = TerminalStyle::stderr();
     eprintln!("{} {error}", style.red("Error:"));
+}
+
+fn is_client_disconnect_error(error: &CliError) -> bool {
+    matches!(
+        error.io_kind(),
+        Some(
+            io::ErrorKind::BrokenPipe
+                | io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+                | io::ErrorKind::NotConnected
+        )
+    )
 }
 
 fn log_php_request_response(request: &HttpRequest, response: &PhpResponse) {
@@ -8933,7 +8991,7 @@ fn write_http_response_with_counter(
             }
             stream.flush()
         })
-        .map_err(|error| CliError::new(format!("Failed to write HTTP response: {error}")));
+        .map_err(|error| CliError::from_io_context("Failed to write HTTP response", error));
     emit_response_write_counter(
         request_id,
         started_at,
@@ -9011,10 +9069,13 @@ fn write_static_file_response_with_counter(
             stream.flush()
         })
         .map_err(|error| {
-            CliError::new(format!(
-                "Failed to write static file response for {}: {error}",
-                host_path.display()
-            ))
+            CliError::from_io_context(
+                format!(
+                    "Failed to write static file response for {}",
+                    host_path.display()
+                ),
+                error,
+            )
         });
     emit_response_write_counter(
         request_id,
@@ -9292,7 +9353,7 @@ mod tests {
     use std::{
         collections::BTreeMap,
         fs,
-        io::{Cursor, Read, Write},
+        io::{self, Cursor, Read, Write},
         net::{TcpListener, TcpStream},
         path::{Path, PathBuf},
         sync::{
@@ -9313,17 +9374,17 @@ mod tests {
         import_theme_starter_content_script, import_wordpress_files_replace_files,
         import_wordpress_files_rewrite_scope_script, import_wxr_script,
         inject_http_host_into_wp_config, install_asset_zip, install_downloadable_asset,
-        install_plugin_asset, lazy_worker_pool_enabled, looks_like_zip_file,
-        mark_worker_request_finished, max_requests_per_worker_from_env, maybe_boot_wordpress_site,
-        multisite_url_settings, normalize_git_directory_path, parse_http_request,
-        parse_http_request_owned, parse_http_request_owned_with_counter, parse_php_headers,
-        php_failure_detail, php_request_from_http, php_request_from_run_options,
+        install_plugin_asset, is_client_disconnect_error, lazy_worker_pool_enabled,
+        looks_like_zip_file, mark_worker_request_finished, max_requests_per_worker_from_env,
+        maybe_boot_wordpress_site, multisite_url_settings, normalize_git_directory_path,
+        parse_http_request, parse_http_request_owned, parse_http_request_owned_with_counter,
+        parse_php_headers, php_failure_detail, php_request_from_http, php_request_from_run_options,
         php_response_status, php_single_quoted_string, read_http_request, ready_message,
         reason_phrase, recycle_wasm_memory_threshold_from_env, remove_wp_allow_multisite_define,
-        request_error_total_counter, request_path_from_target, request_total_fields,
-        requested_worker_count, reserve_lazy_worker_retirement, reset_data_script,
-        resolve_git_directory_resource, resolve_route, route_target_label, run_git,
-        run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
+        request_error_total_counter, request_path_from_target, request_prefers_reserved_worker,
+        request_total_fields, requested_worker_count, reserve_lazy_worker_retirement,
+        reset_data_script, resolve_git_directory_resource, resolve_route, route_target_label,
+        run_git, run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
         server_banner_and_config, server_mounts, server_response_counter_stats,
         set_host_options_php_runtime, set_site_language_metadata_script,
         should_clear_auto_login_cookie, split_shell_command, startup_steps_from_blueprint_json,
@@ -9362,6 +9423,7 @@ mod tests {
     use crate::{
         args::{parse_cli_args_from, CommandName, RuntimeCommand, RuntimeConfig},
         mount::Mount,
+        CliError,
     };
     #[cfg(unix)]
     use zip::ZipArchive;
@@ -9456,6 +9518,29 @@ mod tests {
         set_host_options_php_runtime(&runtime, "8.5", &mut host_options).unwrap();
 
         assert_eq!(host_options.php_runtime, PhpAssetRuntime::WasmtimeAsync);
+    }
+
+    #[test]
+    fn client_disconnect_write_errors_are_not_server_request_errors() {
+        for kind in [
+            io::ErrorKind::BrokenPipe,
+            io::ErrorKind::ConnectionReset,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::NotConnected,
+        ] {
+            let error =
+                CliError::from_io_context("Failed to write HTTP response", io::Error::from(kind));
+            assert!(is_client_disconnect_error(&error), "{kind:?}");
+        }
+
+        let error = CliError::from_io_context(
+            "Failed to write HTTP response",
+            io::Error::from(io::ErrorKind::TimedOut),
+        );
+        assert!(!is_client_disconnect_error(&error));
+
+        let error = CliError::new("Failed to write HTTP response: Broken pipe (os error 32)");
+        assert!(!is_client_disconnect_error(&error));
     }
 
     #[test]
@@ -10312,6 +10397,39 @@ mod tests {
             &request_without_cookie
         ));
         assert!(!first_request.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn wordpress_admin_and_authenticated_requests_prefer_reserved_worker() {
+        let admin_request = HttpRequest {
+            method: "GET".to_string(),
+            target: "/wp-admin/post-new.php?post_type=page".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: Vec::new(),
+            body: Vec::new(),
+        };
+        assert!(request_prefers_reserved_worker(&admin_request));
+
+        let rest_request = HttpRequest {
+            method: "POST".to_string(),
+            target: "/index.php?rest_route=%2Fwp%2Fv2%2Fposts%2F10&_locale=user".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: vec![(
+                "cookie".to_string(),
+                "wordpress_test_cookie=1; wordpress_logged_in_abc=admin".to_string(),
+            )],
+            body: Vec::new(),
+        };
+        assert!(request_prefers_reserved_worker(&rest_request));
+
+        let anonymous_request = HttpRequest {
+            method: "GET".to_string(),
+            target: "/".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: vec![("cookie".to_string(), "wordpress_test_cookie=1".to_string())],
+            body: Vec::new(),
+        };
+        assert!(!request_prefers_reserved_worker(&anonymous_request));
     }
 
     #[test]

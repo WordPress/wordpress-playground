@@ -176,6 +176,7 @@ pub(crate) const PROFILE_IMPORT_INCLUSIVE_TIME_ENV_VAR: &str =
     "WP_PLAYGROUND_NATIVE_PROFILE_IMPORT_INCLUSIVE_TIME";
 static NEXT_HOST_LOCK_OWNER_ID: AtomicU64 = AtomicU64::new(1);
 static DYNAMIC_RANDOM_STATE: AtomicU64 = AtomicU64::new(1);
+static HOST_CACHE_EPOCH: AtomicU64 = AtomicU64::new(1);
 static ADVISORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Vec<AdvisoryLock>>>> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1216,7 +1217,7 @@ impl HostState {
             next_pthread_key: 1,
             lock_owner_id: NEXT_HOST_LOCK_OWNER_ID.fetch_add(1, Ordering::Relaxed),
             host_cache_enabled,
-            host_cache_generation: Cell::new(0),
+            host_cache_generation: Cell::new(HOST_CACHE_EPOCH.load(Ordering::Acquire)),
             host_path_cache: RefCell::new(HashMap::new()),
             host_stat_cache: RefCell::new(HashMap::new()),
             emscripten_now_base: None,
@@ -8108,6 +8109,19 @@ fn env_flag(name: &str) -> bool {
 }
 
 impl HostState {
+    fn sync_host_cache_entries(&self) {
+        if !self.host_cache_enabled {
+            return;
+        }
+        let epoch = HOST_CACHE_EPOCH.load(Ordering::Acquire);
+        if self.host_cache_generation.get() == epoch {
+            return;
+        }
+        self.host_path_cache.borrow_mut().clear();
+        self.host_stat_cache.borrow_mut().clear();
+        self.host_cache_generation.set(epoch);
+    }
+
     #[cfg(test)]
     fn clear_host_cache(&self) {
         if self.host_cache_enabled {
@@ -8125,8 +8139,10 @@ impl HostState {
     fn clear_host_cache_entries(&self) {
         self.host_path_cache.borrow_mut().clear();
         self.host_stat_cache.borrow_mut().clear();
-        self.host_cache_generation
-            .set(self.host_cache_generation.get().wrapping_add(1));
+        let epoch = HOST_CACHE_EPOCH
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        self.host_cache_generation.set(epoch);
     }
 
     fn invalidate_host_cache_path_entries(&self, path: &str) {
@@ -8136,14 +8152,17 @@ impl HostState {
         self.host_stat_cache
             .borrow_mut()
             .retain(|(cached_path, _), _| !cache_path_related_to_change(cached_path, path));
-        self.host_cache_generation
-            .set(self.host_cache_generation.get().wrapping_add(1));
+        let epoch = HOST_CACHE_EPOCH
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1);
+        self.host_cache_generation.set(epoch);
     }
 
     fn cached_resolve_host_path_for_open(&self, path: &str, allow_create: bool) -> Option<PathBuf> {
         if !self.host_cache_enabled || allow_create {
             return self.resolve_host_path_for_open_uncached(path, allow_create);
         }
+        self.sync_host_cache_entries();
         let key = (path.to_string(), allow_create, true);
         if let Some(cached) = self.host_path_cache.borrow().get(&key) {
             return cached.clone();
@@ -8159,6 +8178,7 @@ impl HostState {
         if !self.host_cache_enabled {
             return self.resolve_host_path_no_follow_uncached(path);
         }
+        self.sync_host_cache_entries();
         let key = (path.to_string(), false, false);
         if let Some(cached) = self.host_path_cache.borrow().get(&key) {
             return cached.clone();
@@ -8365,6 +8385,7 @@ impl HostState {
         if !self.host_cache_enabled {
             return None;
         }
+        self.sync_host_cache_entries();
         let key = (path.to_string(), true);
         match self.host_stat_cache.borrow().get(&key) {
             Some(Ok(stat)) if stat.mode & S_IFREG == S_IFREG => Some(stat.clone()),
@@ -8432,6 +8453,7 @@ impl HostState {
             return Err(ENOENT);
         };
         if self.host_cache_enabled {
+            self.sync_host_cache_entries();
             let key = (path.to_string(), follow_final_symlink);
             if let Some(cached) = self.host_stat_cache.borrow().get(&key) {
                 return cached.clone();
@@ -8445,6 +8467,7 @@ impl HostState {
     }
 
     fn fd_stat(&self, fd: i32) -> std::result::Result<VfsStat, i32> {
+        self.sync_host_cache_entries();
         let host_read_file_cached_generation = if self.host_cache_enabled {
             Some(self.host_cache_generation.get())
         } else {
@@ -8466,6 +8489,7 @@ impl HostState {
 
     fn fd_directory_stat(&self, path: &str) -> VfsStat {
         if self.host_cache_enabled {
+            self.sync_host_cache_entries();
             let key = (path.to_string(), true);
             if let Some(Ok(stat)) = self.host_stat_cache.borrow().get(&key) {
                 return stat.clone();
@@ -11649,8 +11673,11 @@ fn fd_read(
     let iovs = read_iovs(caller, iov, iovcnt)?;
     let mut writes = Vec::new();
     let mut total = 0usize;
-    let host_cache_enabled = caller.data().host_cache_enabled;
-    let host_cache_generation = caller.data().host_cache_generation.get();
+    let (host_cache_enabled, host_cache_generation) = {
+        let state = caller.data();
+        state.sync_host_cache_entries();
+        (state.host_cache_enabled, state.host_cache_generation.get())
+    };
     if matches!(caller.data().get_fd(fd), Ok(FdEntry::Socket { .. })) {
         for (ptr, len) in iovs {
             if len == 0 {
@@ -11981,8 +12008,11 @@ fn fd_pread(
     let iovs = read_iovs(caller, iov, iovcnt)?;
     let mut writes = Vec::new();
     let mut total = 0usize;
-    let host_cache_enabled = caller.data().host_cache_enabled;
-    let host_cache_generation = caller.data().host_cache_generation.get();
+    let (host_cache_enabled, host_cache_generation) = {
+        let state = caller.data();
+        state.sync_host_cache_entries();
+        (state.host_cache_enabled, state.host_cache_generation.get())
+    };
     {
         let entry = match caller.data_mut().get_fd_mut(fd) {
             Ok(entry) => entry,
@@ -17469,6 +17499,37 @@ mod tests {
             .host_stat_cache
             .borrow()
             .contains_key(&("/wordpress/wp-content/cache/item.php".to_string(), true)));
+
+        let _ = fs::remove_dir_all(host_root);
+    }
+
+    #[test]
+    fn host_cache_invalidation_reaches_other_host_states() {
+        let host_root = temp_dir("shared-cache-invalidation");
+        let file_path = host_root.join("db.sqlite");
+        fs::write(&file_path, b"old").unwrap();
+        let options = HostOptions {
+            mounts: vec![HostMount {
+                host_path: host_root.clone(),
+                vfs_path: "/wordpress".to_string(),
+            }],
+            host_cache: true,
+            ..HostOptions::default()
+        };
+
+        let mut writer = HostState::new(options.clone());
+        let reader = HostState::new(options);
+        assert_eq!(reader.stat_path("/wordpress/db.sqlite").unwrap().size, 3);
+        assert!(reader
+            .host_stat_cache
+            .borrow()
+            .contains_key(&("/wordpress/db.sqlite".to_string(), true)));
+
+        let fd = writer.open_path("/wordpress/db.sqlite", O_WRONLY | O_TRUNC);
+        assert!(fd >= 3);
+        assert_eq!(writer.close_fd(fd), 0);
+
+        assert_eq!(reader.stat_path("/wordpress/db.sqlite").unwrap().size, 0);
 
         let _ = fs::remove_dir_all(host_root);
     }

@@ -1,21 +1,37 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    io,
+};
 
 pub type Result<T> = std::result::Result<T, CliError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CliError {
     message: String,
+    io_kind: Option<io::ErrorKind>,
 }
 
 impl CliError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            io_kind: None,
+        }
+    }
+
+    pub fn from_io_context(message: impl Into<String>, error: io::Error) -> Self {
+        Self {
+            message: format!("{}: {error}", message.into()),
+            io_kind: Some(error.kind()),
         }
     }
 
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    pub fn io_kind(&self) -> Option<io::ErrorKind> {
+        self.io_kind
     }
 }
 
@@ -29,6 +45,9 @@ impl std::error::Error for CliError {}
 
 impl From<std::io::Error> for CliError {
     fn from(error: std::io::Error) -> Self {
-        Self::new(error.to_string())
+        Self {
+            message: error.to_string(),
+            io_kind: Some(error.kind()),
+        }
     }
 }
