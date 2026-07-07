@@ -254,6 +254,11 @@ PHP binaries are pre-compiled and committed to the repository. Recompilation is 
 For compilation commands, build flags, and troubleshooting, see the `compile-php-wasm` skill.
 For debugging WASM crashes, see the `debug-php-wasm-main-module` and `debug-php-wasm-side-modules` skills.
 
+### Testing on Windows
+
+For testing and debugging Playground on Windows from macOS via Parallels Desktop,
+see the `windows-playground-debugging` skill.
+
 ### Custom NX Executors
 
 Located in `packages/nx-extensions/src/executors/`:

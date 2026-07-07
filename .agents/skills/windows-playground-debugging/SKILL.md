@@ -29,8 +29,8 @@ If any value is unclear, discover it with the commands below or ask the user.
 
 - Parallels Desktop Pro or Business Edition. Standard lacks `prlctl exec`.
 - Windows VM with Parallels Tools installed.
-- Node.js 22+ installed in the VM for source workflows. Published CLI testing can use
-  the current supported CLI Node.js version, but Node.js 22+ is a simple default.
+- Node.js installed in the VM. Use the version from the repo's `.nvmrc`; source
+  workflows need at least Node.js 22 for type stripping.
 
 ## Minimal Setup
 
@@ -141,8 +141,9 @@ prlctl exec "<VM_NAME>" powershell -NoProfile -Command "\$response = Invoke-WebR
 
 ### 2. Run Source CLI Directly Through Node
 
-Use this before Nx when debugging startup. Requires Node.js 22+, initialized submodules,
-and a Windows-side dependency install. On network shares, use
+Use this before Nx when debugging startup. Requires the `.nvmrc` Node.js version (at
+least 22 for type stripping), initialized submodules, and a Windows-side dependency
+install. On network shares, use
 `npm ci --install-links` or `npm install --install-links`.
 
 ```bash
@@ -221,7 +222,7 @@ details, see [references/details.md](references/details.md).
 | ----------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `prlctl exec` unavailable                 | Standard edition license                      | Upgrade to Pro/Business                                                                            |
 | ENOENT for npm                            | SYSTEM user missing npm dir                   | Create `C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\npm`                              |
-| `--experimental-strip-types` error        | Node.js < 22                                  | Install Node.js 22+                                                                                |
+| `--experimental-strip-types` error        | Node.js < 22                                  | Install the `.nvmrc` Node.js version (22+)                                                         |
 | Missing isomorphic-git module             | Submodule not initialized                     | `git submodule update --init --recursive` from macOS                                               |
 | Windows cannot see edits                  | Share points at another checkout              | Run the `.context/windows-share-smoke.txt` test                                                    |
 | Symlinks fail on network drive            | Windows/SMB limitation                        | Use local NTFS for symlink-sensitive workflows                                                     |
