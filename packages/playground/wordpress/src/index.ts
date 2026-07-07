@@ -73,6 +73,106 @@ export async function setupPlatformLevelMuPlugins(
     `
 	);
 
+	await php.writeFile(
+		'/internal/shared/mu-plugins/sqlite-snapshot.php',
+		`<?php
+		function playground_sqlite_snapshot( $dest_path ) {
+			$result = array(
+				'ok' => false,
+				'path' => $dest_path,
+				'size' => 0,
+				'integrity' => null,
+			);
+
+			try {
+				global $wpdb;
+
+				if ( ! is_string( $dest_path ) || '' === $dest_path ) {
+					throw new InvalidArgumentException( 'Snapshot destination path is required.' );
+				}
+
+				if ( ! isset( $GLOBALS['@pdo'] ) || ! ( $GLOBALS['@pdo'] instanceof PDO ) ) {
+					if ( isset( $wpdb ) && method_exists( $wpdb, 'query' ) ) {
+						$wpdb->query( 'SELECT 1' );
+					}
+				}
+
+				if ( ! isset( $GLOBALS['@pdo'] ) || ! ( $GLOBALS['@pdo'] instanceof PDO ) ) {
+					throw new RuntimeException( 'SQLite PDO connection is not available.' );
+				}
+
+				$pdo = $GLOBALS['@pdo'];
+				$dest_dir = dirname( $dest_path );
+				if ( ! is_dir( $dest_dir ) && ! mkdir( $dest_dir, 0777, true ) ) {
+					throw new RuntimeException( 'Could not create snapshot directory.' );
+				}
+
+				foreach ( array( $dest_path, $dest_path . '-journal', $dest_path . '-wal', $dest_path . '-shm' ) as $path ) {
+					if ( file_exists( $path ) && ! unlink( $path ) ) {
+						throw new RuntimeException( 'Could not remove stale snapshot file: ' . $path );
+					}
+				}
+
+				try {
+					$pdo->exec( 'PRAGMA wal_checkpoint(TRUNCATE)' );
+				} catch ( Exception $e ) {
+					// WAL may be disabled or busy; VACUUM INTO still produces a coherent file.
+				}
+
+				$stmt = $pdo->prepare( 'VACUUM INTO ?' );
+				$stmt->execute( array( $dest_path ) );
+
+				$snapshot_pdo = new PDO( 'sqlite:' . $dest_path );
+				$snapshot_pdo->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
+				$integrity = $snapshot_pdo->query( 'PRAGMA integrity_check' )->fetchColumn();
+
+				$result['ok'] = 'ok' === $integrity;
+				$result['size'] = file_exists( $dest_path ) ? filesize( $dest_path ) : 0;
+				$result['integrity'] = $integrity;
+				if ( ! $result['ok'] ) {
+					$result['error'] = 'SQLite integrity_check failed.';
+				}
+			} catch ( Exception $e ) {
+				$result['ok'] = false;
+				$result['error'] = $e->getMessage();
+				$result['exception'] = get_class( $e );
+			}
+
+			return $result;
+		}
+		`
+	);
+
+	await php.writeFile(
+		'/internal/shared/snapshot-sqlite.php',
+		`<?php
+		$dest_path = getenv( 'PLAYGROUND_SQLITE_SNAPSHOT_PATH' );
+		if ( ! $dest_path && isset( $argv[1] ) ) {
+			$dest_path = $argv[1];
+		}
+		if ( ! $dest_path ) {
+			$dest_path = '/tmp/playground-sqlite-snapshot.sqlite';
+		}
+
+		if ( ! defined( 'WP_USE_THEMES' ) ) {
+			define( 'WP_USE_THEMES', false );
+		}
+
+		ob_start();
+		require_once '/wordpress/wp-load.php';
+		ob_end_clean();
+
+		require_once '/internal/shared/mu-plugins/sqlite-snapshot.php';
+		$result = playground_sqlite_snapshot( $dest_path );
+
+		header( 'Content-Type: application/json' );
+		echo json_encode( $result );
+		if ( empty( $result['ok'] ) ) {
+			exit( 1 );
+		}
+		`
+	);
+
 	/**
 	 * Automatically logs the user in to aid the login Blueprint step and
 	 * the Playground runtimes.
