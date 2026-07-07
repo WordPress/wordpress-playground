@@ -639,6 +639,9 @@ export function resetAutosavedSiteSpec(
 		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
 			playgroundUrlWithQueryApiArgs
 		);
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			resolvedBlueprint.blueprint
+		))!;
 		let originalBlueprintSource = resolvedBlueprint.source!;
 		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
 			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
@@ -646,9 +649,6 @@ export function resetAutosavedSiteSpec(
 				type: 'opfs-site',
 			};
 		}
-		const runtimeConfiguration = (await resolveRuntimeConfiguration(
-			resolvedBlueprint.blueprint
-		))!;
 		// Validate the new setup before deleting the old WordPress files so a
 		// broken Blueprint URL does not destroy the existing autosave.
 		// `isAutosavedSite()` requires OPFS storage; an autosaved site cannot be
