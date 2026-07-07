@@ -30,21 +30,24 @@ export const unzipFile = async (
 	 * calls.
 	 */
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
-	if (zipPath instanceof File) {
-		const zipFile = zipPath;
-		zipPath = tmpPath;
-		await php.writeFile(
+	let shouldRemoveTmpPath = false;
+	try {
+		if (zipPath instanceof File) {
+			const zipFile = zipPath;
+			zipPath = tmpPath;
+			shouldRemoveTmpPath = true;
+			await php.writeFile(
+				zipPath,
+				new Uint8Array(await zipFile.arrayBuffer())
+			);
+		}
+		const js = phpVars({
 			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
-	}
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-		overwriteFiles,
-	});
-	await php.run({
-		code: `<?php
+			extractToPath,
+			overwriteFiles,
+		});
+		await php.run({
+			code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -53,15 +56,17 @@ export const unzipFile = async (
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$filename = $zip->getNameIndex($i);
-					$fileinfo = pathinfo($filename);
-					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
-					// Check if file exists and $overwriteFiles is false
-					if (!file_exists($extractFilePath) || $overwriteFiles) {
-						// Extract file
-						$zip->extractTo($extractTo, $filename);
+				try {
+					if ($overwriteFiles) {
+						if (!$zip->extractTo($extractTo)) {
+							throw new Exception('Could not extract ZIP file.');
+						}
+					} else {
+						extract_zip_without_overwriting($zip, $extractTo);
 					}
+				} catch (Exception $e) {
+					$zip->close();
+					throw $e;
 				}
 				$zip->close();
 				chmod($extractTo, 0777);
@@ -69,12 +74,115 @@ export const unzipFile = async (
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
                 throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
             }
-        }
+		}
+
+		/**
+		 * Extracts ZIP entries without overwriting existing target files.
+		 *
+		 * ZipArchive owns entry-name normalization. Extract each entry into a
+		 * temporary directory first, then copy only files that do not exist in the
+		 * target directory.
+		 */
+		function extract_zip_without_overwriting($zip, $extractTo) {
+			for ($i = 0; $i < $zip->numFiles; $i++) {
+				$entryName = $zip->getNameIndex($i);
+				if ($entryName === false) {
+					throw new Exception('Could not read ZIP entry name: ' . $i);
+				}
+				$tmpExtractTo = '/tmp/unzip-entry-' . uniqid('', true);
+				if (!mkdir($tmpExtractTo, 0777, true) && !is_dir($tmpExtractTo)) {
+					throw new Exception(
+						'Could not create temporary ZIP extraction directory.'
+					);
+				}
+				try {
+					if (!$zip->extractTo($tmpExtractTo, $entryName)) {
+						throw new Exception(
+							'Could not extract ZIP entry: ' . $entryName
+						);
+					}
+					copy_directory_without_overwriting($tmpExtractTo, $extractTo);
+				} catch (Exception $e) {
+					remove_directory($tmpExtractTo);
+					throw $e;
+				}
+				remove_directory($tmpExtractTo);
+			}
+		}
+
+		/**
+		 * Copies extracted files into the target directory without replacing any
+		 * paths that are already there.
+		 */
+		function copy_directory_without_overwriting($source, $target) {
+			$sourceRoot = rtrim($source, '/');
+			$targetRoot = rtrim($target, '/');
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator(
+					$sourceRoot,
+					FilesystemIterator::SKIP_DOTS
+				),
+				RecursiveIteratorIterator::SELF_FIRST
+			);
+			foreach ($files as $file) {
+				$sourcePath = strval($file);
+				$relativePath = substr($sourcePath, strlen($sourceRoot) + 1);
+				$targetPath = $targetRoot . '/' . $relativePath;
+				if ($file->isDir()) {
+					if (!is_dir($targetPath)) {
+						mkdir($targetPath, 0777, true);
+					}
+					continue;
+				}
+				if (file_exists($targetPath)) {
+					continue;
+				}
+				$parentDirectory = dirname($targetPath);
+				if (!is_dir($parentDirectory)) {
+					mkdir($parentDirectory, 0777, true);
+				}
+				if (!copy($sourcePath, $targetPath)) {
+					throw new Exception(
+						'Could not copy ZIP entry: ' . $relativePath
+					);
+				}
+			}
+		}
+
+		/**
+		 * Recursively removes a temporary extraction directory.
+		 */
+		function remove_directory($path) {
+			if (!is_dir($path)) {
+				return;
+			}
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+				RecursiveIteratorIterator::CHILD_FIRST
+			);
+			foreach ($files as $file) {
+				if ($file->isDir()) {
+					rmdir(strval($file));
+				} else {
+					unlink(strval($file));
+				}
+			}
+			rmdir($path);
+		}
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
-	});
-	if (await php.fileExists(tmpPath)) {
-		await php.unlink(tmpPath);
+		});
+	} finally {
+		if (shouldRemoveTmpPath) {
+			try {
+				if (await php.fileExists(tmpPath)) {
+					await php.unlink(tmpPath);
+				}
+			} catch {
+				// Best-effort cleanup: preserving the unzip error matters more than
+				// surfacing a leftover temporary file.
+			}
+		}
 	}
 };
 
@@ -83,15 +191,22 @@ export const zipDirectory = async (
 	directoryPath: string
 ) => {
 	const outputPath = `/tmp/file${Math.random()}.zip`;
-	const js = phpVars({
-		directoryPath,
-		outputPath,
-	});
-	await php.run({
-		code: `<?php
-		function zipDirectory($directoryPath, $outputPath) {
-			$zip = new ZipArchive;
-			$res = $zip->open($outputPath, ZipArchive::CREATE);
+	try {
+		const js = phpVars({
+			directoryPath,
+			outputPath,
+		});
+		await php.run({
+			code: `<?php
+			/**
+			 * Creates a ZIP archive from a Playground directory.
+			 *
+			 * The JavaScript wrapper removes the temporary archive in a finally
+			 * block, so this function only owns archive creation and permissions.
+			 */
+			function zipDirectory($directoryPath, $outputPath) {
+				$zip = new ZipArchive;
+				$res = $zip->open($outputPath, ZipArchive::CREATE);
 			if ($res !== TRUE) {
 				throw new Exception('Failed to create ZIP');
 			}
@@ -108,11 +223,19 @@ export const zipDirectory = async (
 			$zip->close();
 			chmod($outputPath, 0777);
 		}
-		zipDirectory(${js.directoryPath}, ${js.outputPath});
-		`,
-	});
+			zipDirectory(${js.directoryPath}, ${js.outputPath});
+			`,
+		});
 
-	const fileBuffer = await php.readFileAsBuffer(outputPath);
-	php.unlink(outputPath);
-	return fileBuffer;
+		return await php.readFileAsBuffer(outputPath);
+	} finally {
+		try {
+			if (await php.fileExists(outputPath)) {
+				await php.unlink(outputPath);
+			}
+		} catch {
+			// Best-effort cleanup: preserving the ZIP error matters more than
+			// surfacing a leftover temporary file.
+		}
+	}
 };
