@@ -34,7 +34,6 @@ export class SmtpSinkWebSocket {
 			.catch((error) => this.emitError(error));
 		this.writer = client.writable.getWriter();
 
-		this.emitOpen();
 		client.readable
 			.pipeTo(
 				new WritableStream({
@@ -45,6 +44,9 @@ export class SmtpSinkWebSocket {
 			.finally(() => {
 				if (this.readyState !== this.CLOSED) this.emitClose();
 			});
+		queueMicrotask(() => {
+			if (this.readyState === this.CONNECTING) this.emitOpen();
+		});
 	}
 
 	addEventListener(eventName: string, callback: (...args: any[]) => void) {
@@ -104,6 +106,7 @@ export class SmtpSinkWebSocket {
 		) {
 			return;
 		}
+		this.pendingWrites = null;
 		this.readyState = this.CLOSING;
 		void this.writer.close();
 	}
