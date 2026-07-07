@@ -4,6 +4,6 @@ export * from './FilePickerControl/index';
 export * from './BinaryFilePreview';
 export * from './PlaygroundFileEditor/index';
 export {
-	getRemoteFileSize,
+	getPlaygroundFileSize,
 	type PlaygroundFileSizeClient,
-} from './get-remote-file-size';
+} from './get-playground-file-size';

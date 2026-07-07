@@ -5,7 +5,7 @@ export type PlaygroundFileSizeClient = {
 	}): Promise<{ text: string }>;
 };
 
-export async function getRemoteFileSize(
+export async function getPlaygroundFileSize(
 	playground: PlaygroundFileSizeClient,
 	path: string
 ): Promise<number> {

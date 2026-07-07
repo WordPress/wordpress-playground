@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getRemoteFileSize } from './get-remote-file-size';
+import { getPlaygroundFileSize } from './get-playground-file-size';
 
-describe('getRemoteFileSize', () => {
+describe('getPlaygroundFileSize', () => {
 	it('asks PHP for the file size without reading the file into JavaScript', async () => {
 		const playground = {
 			run: vi.fn(async () => ({ text: '12345' })),
 		};
 
 		await expect(
-			getRemoteFileSize(playground, '/wordpress/wp-content/big.zip')
+			getPlaygroundFileSize(playground, '/wordpress/wp-content/big.zip')
 		).resolves.toBe(12345);
 
 		expect(playground.run).toHaveBeenCalledWith({
@@ -25,7 +25,7 @@ describe('getRemoteFileSize', () => {
 		};
 
 		await expect(
-			getRemoteFileSize(playground, '/wordpress/missing.zip')
+			getPlaygroundFileSize(playground, '/wordpress/missing.zip')
 		).rejects.toThrow(
 			'Could not read the file size: PHP did not return a numeric size.'
 		);
@@ -39,7 +39,7 @@ describe('getRemoteFileSize', () => {
 		};
 
 		await expect(
-			getRemoteFileSize(playground, '/wordpress/huge.zip')
+			getPlaygroundFileSize(playground, '/wordpress/huge.zip')
 		).rejects.toThrow(
 			'Could not read the file size: size exceeds Number.MAX_SAFE_INTEGER.'
 		);

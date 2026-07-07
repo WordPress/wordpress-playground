@@ -4,7 +4,7 @@ import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
-import { getRemoteFileSize } from '@wp-playground/components';
+import { getPlaygroundFileSize } from '@wp-playground/components';
 import css from './style.module.css';
 
 const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
@@ -29,7 +29,7 @@ export function SiteDatabasePanel({
 				const fileExists = await playground.fileExists(DATABASE_PATH);
 				if (fileExists) {
 					setDatabaseSize(
-						await getRemoteFileSize(playground, DATABASE_PATH)
+						await getPlaygroundFileSize(playground, DATABASE_PATH)
 					);
 				} else {
 					setDatabaseSize(null);
