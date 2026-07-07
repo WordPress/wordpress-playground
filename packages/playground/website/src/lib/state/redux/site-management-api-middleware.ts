@@ -415,7 +415,7 @@ export function createSitesAPI(
 				);
 			}
 			const setupUrl = getSetupUrlForNewSite(settings, {
-				baseUrl: getSetupUrlFromSite(site),
+				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
 			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));

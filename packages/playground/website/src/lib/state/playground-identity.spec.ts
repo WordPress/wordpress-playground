@@ -139,9 +139,14 @@ describe('getSetupUrlFromSite', () => {
 			'https://playground.test/?site-slug=test-site&php=8.4#current'
 		);
 
-		expect(setupUrl.toString()).toBe(
-			'https://playground.test/?plugin=a&plugin=b&theme=twentytwentyfive&php=8.3#blueprint'
+		expect(`${setupUrl.origin}${setupUrl.pathname}`).toBe(
+			'https://playground.test/'
 		);
+		expect(setupUrl.searchParams.getAll('plugin')).toEqual(['a', 'b']);
+		expect(setupUrl.searchParams.get('theme')).toBe('twentytwentyfive');
+		expect(setupUrl.searchParams.get('php')).toBe('8.3');
+		expect(setupUrl.searchParams.has('modal')).toBe(false);
+		expect(setupUrl.hash).toBe('#blueprint');
 	});
 });
 

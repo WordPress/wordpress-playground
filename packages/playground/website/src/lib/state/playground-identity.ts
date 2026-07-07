@@ -74,7 +74,7 @@ export function getSetupUrlFromUrl(url: URL) {
  */
 export function getSetupUrlFromSite(
 	site: SiteInfo,
-	baseUrl: string = window.location.href
+	baseUrl: string | URL
 ) {
 	if (!site.originalUrlParams) {
 		return getSetupUrlFromUrl(new URL(baseUrl));
