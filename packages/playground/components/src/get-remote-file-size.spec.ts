@@ -1,0 +1,43 @@
+import { describe, expect, it, vi } from 'vitest';
+import { getRemoteFileSize } from './get-remote-file-size';
+
+describe('getRemoteFileSize', () => {
+	it('asks PHP for the file size without reading the file into JavaScript', async () => {
+		const playground = {
+			run: vi.fn(async () => ({ text: '12345' })),
+		};
+
+		await expect(
+			getRemoteFileSize(playground, '/wordpress/wp-content/big.zip')
+		).resolves.toBe(12345);
+
+		expect(playground.run).toHaveBeenCalledWith({
+			code: expect.stringContaining('filesize($path)'),
+			env: {
+				PLAYGROUND_FILE_SIZE_PATH: '/wordpress/wp-content/big.zip',
+			},
+		});
+	});
+
+	it('throws when PHP does not print a numeric file size', async () => {
+		const playground = {
+			run: vi.fn(async () => ({ text: '' })),
+		};
+
+		await expect(
+			getRemoteFileSize(playground, '/wordpress/missing.zip')
+		).rejects.toThrow('Could not read the size of /wordpress/missing.zip.');
+	});
+
+	it('throws when PHP prints a size JavaScript cannot represent safely', async () => {
+		const playground = {
+			run: vi.fn(async () => ({
+				text: String(Number.MAX_SAFE_INTEGER + 1),
+			})),
+		};
+
+		await expect(
+			getRemoteFileSize(playground, '/wordpress/huge.zip')
+		).rejects.toThrow('Could not read the size of /wordpress/huge.zip.');
+	});
+});
