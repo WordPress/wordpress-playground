@@ -79,33 +79,23 @@ export const unzipFile = async (
 		/**
 		 * Extracts ZIP entries without overwriting existing target files.
 		 *
-		 * ZipArchive owns entry-name normalization. Extract each entry into a
-		 * temporary directory first, then copy only files that do not exist in the
-		 * target directory.
+		 * ZipArchive owns entry-name normalization. Extract the whole archive into
+		 * a temporary directory first, then copy only paths that do not exist in
+		 * the target directory.
 		 */
 		function extract_zip_without_overwriting($zip, $extractTo) {
-			for ($i = 0; $i < $zip->numFiles; $i++) {
-				$entryName = $zip->getNameIndex($i);
-				if ($entryName === false) {
-					throw new Exception('Could not read ZIP entry name: ' . $i);
+			$tmpExtractTo = '/tmp/unzip-' . uniqid('', true);
+			if (!mkdir($tmpExtractTo, 0777, true) && !is_dir($tmpExtractTo)) {
+				throw new Exception(
+					'Could not create temporary ZIP extraction directory.'
+				);
+			}
+			try {
+				if (!$zip->extractTo($tmpExtractTo)) {
+					throw new Exception('Could not extract ZIP file.');
 				}
-				$tmpExtractTo = '/tmp/unzip-entry-' . uniqid('', true);
-				if (!mkdir($tmpExtractTo, 0777, true) && !is_dir($tmpExtractTo)) {
-					throw new Exception(
-						'Could not create temporary ZIP extraction directory.'
-					);
-				}
-				try {
-					if (!$zip->extractTo($tmpExtractTo, $entryName)) {
-						throw new Exception(
-							'Could not extract ZIP entry: ' . $entryName
-						);
-					}
-					copy_directory_without_overwriting($tmpExtractTo, $extractTo);
-				} catch (Exception $e) {
-					remove_directory($tmpExtractTo);
-					throw $e;
-				}
+				copy_directory_without_overwriting($tmpExtractTo, $extractTo);
+			} finally {
 				remove_directory($tmpExtractTo);
 			}
 		}
@@ -128,18 +118,27 @@ export const unzipFile = async (
 				$sourcePath = strval($file);
 				$relativePath = substr($sourcePath, strlen($sourceRoot) + 1);
 				$targetPath = $targetRoot . '/' . $relativePath;
-				if ($file->isDir()) {
-					if (!is_dir($targetPath)) {
-						mkdir($targetPath, 0777, true);
-					}
-					continue;
-				}
 				if (file_exists($targetPath)) {
 					continue;
 				}
+				if ($file->isDir()) {
+					if (!mkdir($targetPath, 0777, true) && !is_dir($targetPath)) {
+						throw new Exception(
+							'Could not create ZIP target directory: ' . $relativePath
+						);
+					}
+					continue;
+				}
 				$parentDirectory = dirname($targetPath);
-				if (!is_dir($parentDirectory)) {
-					mkdir($parentDirectory, 0777, true);
+				if (
+					!is_dir($parentDirectory) &&
+					!mkdir($parentDirectory, 0777, true) &&
+					!is_dir($parentDirectory)
+				) {
+					throw new Exception(
+						'Could not create ZIP target directory: ' .
+							dirname($relativePath)
+					);
 				}
 				if (!copy($sourcePath, $targetPath)) {
 					throw new Exception(
