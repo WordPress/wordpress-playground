@@ -247,14 +247,28 @@ function createV1BlueprintForLoweredV2Steps(
 }
 
 function getUnsupportedPlanMessage(unsupportedPlan: BlueprintV2ExecutionPlan) {
-	const unsupportedTypes = Array.from(
-		new Set(unsupportedPlan.map((item) => item.type))
-	).join(', ');
+	const unsupportedItems = unsupportedPlan
+		.map(
+			(item) =>
+				`${getUnsupportedPlanItemPath(item)} (${getUnsupportedPlanItemName(item)})`
+		)
+		.join(', ');
 
 	return (
 		`Blueprint v2 execution plan contains unsupported items: ` +
-		`${unsupportedTypes}.`
+		`${unsupportedItems}.`
 	);
+}
+
+function getUnsupportedPlanItemName(item: BlueprintV2ExecutionPlanItem) {
+	if (item.type === 'runStep') {
+		return item.step.step;
+	}
+	return item.type;
+}
+
+function getUnsupportedPlanItemPath(item: BlueprintV2ExecutionPlanItem) {
+	return 'sourcePath' in item ? item.sourcePath : `/${item.type}`;
 }
 
 /**
