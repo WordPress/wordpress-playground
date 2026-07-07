@@ -153,7 +153,10 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			})
-		).rejects.toThrow('File paths must stay inside the target directory.');
+		).rejects.toThrow(
+			'Invalid file tree path "../escape.php": it must resolve inside ' +
+				'"/wordpress/wp-content/themes/test-theme".'
+		);
 
 		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
 	});
