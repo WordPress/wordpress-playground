@@ -39,6 +39,68 @@ export const createDownloadUrl = (
 	return { url, filename };
 };
 
+export type InlineFilePreviewReadResult =
+	| { type: 'inline'; data: Uint8Array }
+	| { type: 'too-large'; downloadUrl?: string };
+
+type BrowserReadableFile = {
+	arrayBuffer(): Promise<ArrayBuffer>;
+	size?: number;
+	filesize?: number;
+};
+
+/**
+ * Reads a file for inline editing without buffering files that already report
+ * they are larger than the editor limit.
+ */
+export async function readFileForInlinePreview(
+	file: BrowserReadableFile,
+	maxInlineBytes = MAX_INLINE_FILE_BYTES
+): Promise<InlineFilePreviewReadResult> {
+	const knownSize = getKnownFileSize(file);
+	if (knownSize !== undefined && knownSize > maxInlineBytes) {
+		return {
+			type: 'too-large',
+			downloadUrl: createObjectUrlForNativeBlob(file, knownSize),
+		};
+	}
+
+	const data = new Uint8Array(await file.arrayBuffer());
+	if (data.byteLength > maxInlineBytes) {
+		return {
+			type: 'too-large',
+			downloadUrl: createObjectUrlForNativeBlob(file, data.byteLength),
+		};
+	}
+	return { type: 'inline', data };
+}
+
+function getKnownFileSize(file: BrowserReadableFile): number | undefined {
+	if (isValidFileSize(file.filesize)) {
+		return file.filesize;
+	}
+	if (isValidFileSize(file.size)) {
+		return file.size;
+	}
+	return undefined;
+}
+
+function isValidFileSize(size: unknown): size is number {
+	return typeof size === 'number' && Number.isFinite(size) && size >= 0;
+}
+
+function createObjectUrlForNativeBlob(
+	file: BrowserReadableFile,
+	expectedSize: number
+): string | undefined {
+	if (file instanceof Blob && file.size === expectedSize) {
+		const url = URL.createObjectURL(file);
+		setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		return url;
+	}
+	return undefined;
+}
+
 /**
  * Gets the MIME type for a filename based on its extension.
  */

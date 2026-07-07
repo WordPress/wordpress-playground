@@ -17,11 +17,11 @@ import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
-	MAX_INLINE_FILE_BYTES,
 	seemsLikeBinary,
 	createDownloadUrl,
 	getMimeType,
 	isPreviewableBinary,
+	readFileForInlinePreview,
 } from './file-utils';
 
 export type FileExplorerSidebarProps = {
@@ -39,6 +39,11 @@ export type FileExplorerSidebarProps = {
 		path: string | null,
 		message: string | JSX.Element
 	) => Promise<void> | void;
+	onBeforePathChange?: (
+		path: string
+	) => Promise<boolean | void> | boolean | void;
+	onPathMoved?: (from: string, to: string) => Promise<void> | void;
+	onPathDeleted?: (path: string) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -50,6 +55,9 @@ export function FileExplorerSidebar({
 	onFileOpened,
 	onSelectionCleared,
 	onShowMessage,
+	onBeforePathChange,
+	onPathMoved,
+	onPathDeleted,
 	documentRoot,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
@@ -71,29 +79,30 @@ export function FileExplorerSidebar({
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
 			const file = await filesystem.read(path);
-			const data = new Uint8Array(await file.arrayBuffer());
-			const size = data.byteLength;
+			const fileRead = await readFileForInlinePreview(file);
 			const filename = path.split('/').pop() || 'download';
-
-			if (size > MAX_INLINE_FILE_BYTES) {
-				const { url, filename: fname } = createDownloadUrl(
-					data,
-					filename
-				);
+			if (fileRead.type === 'too-large') {
 				await onShowMessage(
 					path,
 					<>
 						<p>File too large to open (&gt;1MB).</p>
 						<p>
-							<a href={url} download={fname}>
-								Download {fname}
-							</a>
+							{fileRead.downloadUrl ? (
+								<a
+									href={fileRead.downloadUrl}
+									download={filename}
+								>
+									Download {filename}
+								</a>
+							) : (
+								'Open or download it outside the in-browser editor.'
+							)}
 						</p>
 					</>
 				);
 				return;
 			}
-
+			const data = fileRead.data;
 			if (seemsLikeBinary(data)) {
 				const mimeType = getMimeType(filename);
 				const { url: downloadUrl, filename: fname } = createDownloadUrl(
@@ -208,6 +217,9 @@ export function FileExplorerSidebar({
 						// On double-click, open the file and move focus to the editor
 						await handleOpenFile(path, true);
 					}}
+					onBeforePathChange={onBeforePathChange}
+					onPathMoved={onPathMoved}
+					onPathDeleted={onPathDeleted}
 				/>
 			</div>
 		</div>

@@ -6,6 +6,7 @@ import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
+import { dirname } from '@php-wasm/util';
 
 const SAVE_DEBOUNCE_MS = 1500;
 
@@ -394,6 +395,102 @@ export function PlaygroundFileEditor({
 		}
 	}, [onSaveFile]);
 
+	const flushCurrentFile = useCallback(async () => {
+		if (saveTimeoutRef.current !== null) {
+			window.clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+		}
+		if (!filesystemRef.current || !currentPathRef.current) {
+			return true;
+		}
+		setSaveState(SaveState.SAVING);
+		try {
+			const pathToSave = currentPathRef.current;
+			const contentToSave = codeRef.current;
+			if (onSaveFile) {
+				await onSaveFile(pathToSave, contentToSave);
+			} else {
+				await filesystemRef.current.writeFile(
+					pathToSave,
+					contentToSave
+				);
+			}
+			setSaveState(SaveState.SAVED);
+			setSaveError(null);
+			return true;
+		} catch (error) {
+			logger.error('Failed to save file', error);
+			setSaveState(SaveState.ERROR);
+			setSaveError('Could not save changes. Try again.');
+			return false;
+		}
+	}, [onSaveFile]);
+
+	const handleBeforePathChange = useCallback(
+		async (path: string) => {
+			if (!pathContainsCurrentFile(path, currentPathRef.current)) {
+				return true;
+			}
+			const didFlush = await flushCurrentFile();
+			if (!didFlush) {
+				setSaveError(
+					'Could not save changes before modifying this file. Try again.'
+				);
+				return false;
+			}
+			return true;
+		},
+		[flushCurrentFile]
+	);
+
+	const handlePathMoved = useCallback((from: string, to: string) => {
+		remapCursorPositions(cursorPositionsRef.current, from, to);
+		setSelectedDirPath((previous) => remapEditorPath(previous, from, to));
+
+		const mappedCurrentPath = remapEditorPath(
+			currentPathRef.current,
+			from,
+			to
+		);
+		if (mappedCurrentPath === currentPathRef.current) {
+			return;
+		}
+		skipNextSaveRef.current = true;
+		currentPathRef.current = mappedCurrentPath;
+		setCurrentPath(mappedCurrentPath);
+		setSaveState(SaveState.IDLE);
+		setSaveError(null);
+	}, []);
+
+	const handlePathDeleted = useCallback(
+		(path: string) => {
+			removeCursorPositionsForPath(cursorPositionsRef.current, path);
+			setSelectedDirPath((previous) =>
+				pathContainsCurrentFile(path, previous)
+					? dirname(path) || documentRoot
+					: previous
+			);
+			if (!pathContainsCurrentFile(path, currentPathRef.current)) {
+				return;
+			}
+			skipNextSaveRef.current = true;
+			if (saveTimeoutRef.current !== null) {
+				window.clearTimeout(saveTimeoutRef.current);
+				saveTimeoutRef.current = null;
+			}
+			currentPathRef.current = null;
+			codeRef.current = '';
+			setCurrentPath(null);
+			setCode('');
+			setMessageContent(null);
+			setReadOnly(true);
+			setSaveState(SaveState.IDLE);
+			setSaveError(null);
+			setShowExplorerOnMobile(false);
+		},
+		[documentRoot]
+	);
+
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
 
@@ -425,6 +522,9 @@ export function PlaygroundFileEditor({
 						onFileOpened={handleFileOpened}
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
+						onBeforePathChange={handleBeforePathChange}
+						onPathMoved={handlePathMoved}
+						onPathDeleted={handlePathDeleted}
 						documentRoot={documentRoot}
 					/>
 				</aside>
@@ -492,6 +592,58 @@ export function PlaygroundFileEditor({
 			</div>
 		</div>
 	);
+}
+
+function pathContainsCurrentFile(path: string, currentFilePath: string | null) {
+	if (!currentFilePath) {
+		return false;
+	}
+	return (
+		currentFilePath === path ||
+		currentFilePath.startsWith(path === '/' ? '/' : `${path}/`)
+	);
+}
+
+function remapEditorPath(
+	value: string | null,
+	from: string,
+	to: string
+): string | null {
+	if (!value) {
+		return value;
+	}
+	if (value === from) {
+		return to;
+	}
+	if (value.startsWith(from === '/' ? '/' : `${from}/`)) {
+		return to + value.slice(from.length);
+	}
+	return value;
+}
+
+function remapCursorPositions(
+	cursorPositions: Map<string, number>,
+	from: string,
+	to: string
+) {
+	for (const [path, position] of [...cursorPositions.entries()]) {
+		const mappedPath = remapEditorPath(path, from, to);
+		if (mappedPath && mappedPath !== path) {
+			cursorPositions.delete(path);
+			cursorPositions.set(mappedPath, position);
+		}
+	}
+}
+
+function removeCursorPositionsForPath(
+	cursorPositions: Map<string, number>,
+	pathToRemove: string
+) {
+	for (const path of [...cursorPositions.keys()]) {
+		if (pathContainsCurrentFile(pathToRemove, path)) {
+			cursorPositions.delete(path);
+		}
+	}
 }
 
 function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
