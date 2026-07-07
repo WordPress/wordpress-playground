@@ -269,7 +269,7 @@ async function metadataToStoredFormat(
 			originalBlueprint:
 				originalBlueprintSource?.type === 'opfs-site'
 					? undefined
-					: await getBlueprintDeclaration(originalBlueprint),
+					: await getBlueprintDeclaration(originalBlueprint as any),
 			...metadata,
 		},
 		undefined,

@@ -121,8 +121,10 @@ export function initOutboundWebsocketProxyServer(
 		);
 		response.end();
 	});
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
+		webServer.once('error', reject);
 		webServer.listen(listenPort, listenHost, function () {
+			webServer.off('error', reject);
 			const wsServer = new WebSocketServer({ server: webServer });
 			wsServer.on('connection', onWsConnect);
 			resolve(webServer);

@@ -18,6 +18,8 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 export default defineConfig(({ mode }) => {
 	const corsProxyUrl =
@@ -35,6 +37,9 @@ export default defineConfig(({ mode }) => {
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {

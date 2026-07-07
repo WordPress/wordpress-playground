@@ -74,7 +74,16 @@ export namespace DataSources {
 	 */
 	export type InlineDirectory = {
 		directoryName: string;
-		files: Record<string, InlineFileContent | InlineDirectory>;
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
+	};
+
+	/**
+	 * A child directory inside an inline directory.
+	 *
+	 * Its directory name comes from the parent `files` record key.
+	 */
+	export type NestedInlineDirectory = {
+		files: Record<string, InlineFileContent | NestedInlineDirectory>;
 	};
 
 	/**
@@ -112,6 +121,14 @@ export namespace DataSources {
 		| GitPath;
 
 	/**
+	 * A data reference that must resolve to a single file.
+	 */
+	export type FileDataReference =
+		| URLReference
+		| ExecutionContextPath
+		| InlineFile;
+
+	/**
 	 * }}}
 	 */
 
@@ -140,7 +157,20 @@ export namespace DataSources {
 		| 'latest'
 		| `${number}.${number}`
 		| `${number}.${number}.${number}`;
-	export type WordPressVersionSuffix = `beta${number}` | `rc${number}`;
+	export type VersionNumberComponent = `${bigint}`;
+	export type ComparableVersionExpression =
+		| `${VersionNumberComponent}.${VersionNumberComponent}`
+		| `${VersionNumberComponent}.${VersionNumberComponent}.${VersionNumberComponent}`;
+	export type WordPressVersionSuffix =
+		| `beta${VersionNumberComponent}`
+		| `rc${VersionNumberComponent}`;
+	export type WordPressVersionConstraintVersion =
+		| ComparableVersionExpression
+		| `${ComparableVersionExpression}-${WordPressVersionSuffix}`;
+	export type WordPressVersionPreferredVersion =
+		| 'latest'
+		| WordPressVersionConstraintVersion;
+	export type PHPVersionConstraintVersion = SimpleVersionExpression;
 	/** }}} Helper types */
 
 	/**
@@ -178,7 +208,8 @@ export namespace DataSources {
 		| `${Slug}@${SimpleVersionExpression}`;
 
 	/**
-	 * WordPress version, e.g. "6.4", "6.4.3", "6.8-RC1", or "6.7-beta2".
+	 * WordPress version, e.g. "latest", "beta", "trunk", "6.4",
+	 * "6.4.3", "6.8-RC1", or "6.7-beta2".
 	 *
 	 * These refer to slugs of specific WordPress releases as listed in
 	 * the first table column on https://wordpress.org/download/releases/.
@@ -187,18 +218,23 @@ export namespace DataSources {
 	 * `wordpressVersion` property.
 	 */
 	export type WordPressVersion =
+		| 'beta'
+		| 'trunk'
+		| 'nightly'
 		| SimpleVersionExpression
 		| `${SimpleVersionExpression}-${WordPressVersionSuffix}`;
 
 	/**
-	 * PHP version, e.g. "8.1" or "8.1.3".
+	 * PHP version, e.g. "8.1", "8.1.3", or "next".
 	 *
 	 * These refer to PHP versions as listed in https://www.php.net/releases/.
+	 * `next` previews the php-src development branch and is currently
+	 * supported by the web runtime only.
 	 *
 	 * The PHPVersion type is only meaningful in the top-level
 	 * `phpVersion` property.
 	 */
-	export type PHPVersion = SimpleVersionExpression;
+	export type PHPVersion = SimpleVersionExpression | 'next';
 
 	/**
 	 * A path within the built WordPress site, relative to the WordPress root

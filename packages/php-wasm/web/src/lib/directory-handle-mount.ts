@@ -241,23 +241,35 @@ export async function copyMemfsToOpfs(
 	// if needed.
 	const maxConcurrentWrites = 100;
 	const concurrentWrites = new Set();
+	// Records any file whose OPFS write rejected. A single failed write must
+	// fail the whole copy: otherwise a rejection that loses the `Promise.race`
+	// below — or that lands in the final sub-`maxConcurrentWrites` batch, which
+	// is never raced — would be swallowed by the `allSettled` in the finally,
+	// and the copy would resolve as "100% complete" while silently missing a
+	// file. That is how a saved Playground lands on disk without, say,
+	// wp-includes/sodium_compat/autoload.php and then fatals on the next boot.
+	const failedWrites: Array<{ memfsPath: string; error: unknown }> = [];
 
 	try {
 		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
-			const promise = overwriteOpfsFile(
-				opfsDir,
-				entryName,
-				FS,
-				memfsPath
-			).then(() => {
-				numFilesCompleted++;
-				concurrentWrites.delete(promise);
-
-				throttledProgressCallback?.({
-					files: numFilesCompleted,
-					total: filesToCreate.length,
+			const promise = overwriteOpfsFile(opfsDir, entryName, FS, memfsPath)
+				.then(
+					() => {
+						numFilesCompleted++;
+						throttledProgressCallback?.({
+							files: numFilesCompleted,
+							total: filesToCreate.length,
+						});
+					},
+					// Record the rejection rather than letting it escape here;
+					// it is re-raised as one error once every write has settled.
+					(error) => {
+						failedWrites.push({ memfsPath, error });
+					}
+				)
+				.finally(() => {
+					concurrentWrites.delete(promise);
 				});
-			});
 			concurrentWrites.add(promise);
 
 			if (concurrentWrites.size >= maxConcurrentWrites) {
@@ -275,6 +287,21 @@ export async function copyMemfsToOpfs(
 		await Promise.allSettled(concurrentWrites);
 	}
 	throttledProgressCallback?.cancel();
+
+	// Fail loud: a partial copy must reject so callers treat the save as failed
+	// (leaving the temporary-placeholder / "initial sync pending" markers in
+	// place) instead of recording a complete, durable save that cannot boot.
+	if (failedWrites.length > 0) {
+		const failedNames = failedWrites
+			.map(({ memfsPath }) => memfsPath)
+			.join(', ');
+		throw new Error(
+			`Failed to copy ${failedWrites.length} of ${filesToCreate.length} ` +
+				`file(s) to OPFS (${failedNames}). The save is incomplete.`,
+			{ cause: failedWrites[0].error }
+		);
+	}
+
 	await onProgress?.({
 		files: filesToCreate.length,
 		total: filesToCreate.length,

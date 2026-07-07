@@ -360,6 +360,66 @@ describe('journalFSEventsToOpfs', () => {
 });
 
 describe('createDirectoryHandleMountHandler', () => {
+	it('fails loud when a single OPFS write rejects instead of reporting a complete copy', async () => {
+		// Regression guard: a transient per-file OPFS write failure (e.g.
+		// Safari's "Invalid platform file handle" near the sync-access-handle
+		// limit) used to be swallowed — the rejected write lost the internal
+		// Promise.race / sat in the never-raced final batch, was absorbed by the
+		// finally's Promise.allSettled, and the copy resolved at "100%". The save
+		// then looked complete on disk while missing a core file, and the next
+		// boot fatally required() it. The copy must now reject so callers keep
+		// the save marked incomplete.
+		const { FS, files } = createFakePhp();
+		// Two files (< the 100-write concurrency limit) both land in the final
+		// batch that Promise.race never inspects — the exact swallowed regime.
+		FS.readdir.mockReturnValue(['.', '..', 'ok.txt', 'autoload.php']);
+		files.set('/wordpress/ok.txt', encode('ok'));
+		files.set('/wordpress/autoload.php', encode('<?php'));
+
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const realGetFileHandle = opfsRoot.getFileHandle.bind(opfsRoot);
+		opfsRoot.getFileHandle = (async (
+			name: string,
+			options?: { create?: boolean }
+		) => {
+			if (name === 'autoload.php') {
+				return {
+					kind: 'file',
+					name,
+					createWritable: async () => ({
+						truncate: async () => {},
+						write: async () => {
+							throw new Error(
+								'UnknownError: Invalid platform file handle'
+							);
+						},
+						close: async () => {},
+						seek: async () => {},
+					}),
+				} as unknown as FileSystemFileHandle;
+			}
+			return realGetFileHandle(name, options);
+		}) as typeof opfsRoot.getFileHandle;
+
+		await expect(
+			copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress'
+			)
+		).rejects.toMatchObject({
+			message: expect.stringContaining('/wordpress/autoload.php'),
+			cause: expect.objectContaining({
+				message: 'UnknownError: Invalid platform file handle',
+			}),
+		});
+
+		// The healthy file was written; the failing one was dropped — a partial
+		// copy, which is exactly why the whole operation must reject.
+		expect(decode(opfsRoot.files.get('ok.txt')!.bytes)).toBe('ok');
+		expect(opfsRoot.files.has('autoload.php')).toBe(false);
+	});
+
 	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {
 		let changedDuringInitialSync = false;
 		let mount: { flush(): Promise<void> } | undefined;
