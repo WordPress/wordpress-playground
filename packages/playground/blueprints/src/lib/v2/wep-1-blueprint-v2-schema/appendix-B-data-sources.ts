@@ -141,16 +141,11 @@ export namespace DataSources {
 
 	/** Helper types {{{ */
 	/**
-	 * A slug is a string matching the following regex:
+	 * A WordPress.org directory slug.
 	 *
-	 * ```
-	 * ^[a-zA-Z0-9_-]+$
-	 * ```
-	 *
-	 * This constraint may be expressed in TypeScript, but it would come at the
-	 * expense of readability. This document will thus alias the general `string`
-	 * type to `Slug`. Every reference to the `Slug` type should be treated as a
-	 * string matching the above regex.
+	 * Slugs are intentionally treated as opaque strings. Playground should not
+	 * reject future WordPress.org slug formats just because they do not match the
+	 * directory conventions common today.
 	 */
 	export type Slug = string;
 	export type SimpleVersionExpression =
