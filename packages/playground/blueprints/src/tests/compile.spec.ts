@@ -414,6 +414,7 @@ describe('compileBlueprintForExecution', () => {
 			'installPlugin',
 			'installTheme',
 			'wp-cli',
+			'runSql',
 		]);
 		expect(compiled.compiled.steps).toMatchObject([
 			{
@@ -514,10 +515,17 @@ describe('compileBlueprintForExecution', () => {
 				step: 'wp-cli',
 				command: 'plugin list',
 			},
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'bundled',
+					path: 'dump.sql',
+				},
+			},
 		]);
 		expect(
 			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importMedia', 'runStep']);
+		).toEqual(['importMedia']);
 	});
 
 	it('rejects empty Blueprint v2 target-site paths', async () => {
@@ -649,10 +657,6 @@ describe('compileBlueprintForExecution', () => {
 					step: 'mkdir',
 					path: 'site:wp-content/uploads/from-v2',
 				},
-				{
-					step: 'runSQL',
-					source: './dump.sql',
-				},
 			],
 		});
 		const playground = {
@@ -670,11 +674,6 @@ describe('compileBlueprintForExecution', () => {
 		expect(thrownError).toMatchObject({
 			featurePath: 'executionPlan',
 			message: expect.stringContaining('/media/0 (importMedia)'),
-		});
-		expect(thrownError).toMatchObject({
-			message: expect.stringContaining(
-				'/additionalStepsAfterExecution/1 (runSQL)'
-			),
 		});
 		expect(playground.mkdir).not.toHaveBeenCalled();
 	});

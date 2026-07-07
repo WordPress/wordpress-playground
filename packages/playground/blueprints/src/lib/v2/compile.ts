@@ -75,6 +75,12 @@ type BlueprintV2DataReference =
 type BlueprintV2InlineDirectory = {
 	files: Record<string, string | BlueprintV2InlineDirectory>;
 };
+type BlueprintV2FileDataReference =
+	| string
+	| {
+			filename: string;
+			content: string;
+	  };
 type BlueprintV2InstallAssetDefinition = {
 	source: BlueprintV2DataReference;
 	active?: boolean;
@@ -549,6 +555,16 @@ function lowerAdditionalBlueprintV2Step(
 					path: toPlaygroundPath(step.path),
 				},
 			];
+		case 'runSQL':
+			return [
+				{
+					step: 'runSql',
+					sql: convertV2FileDataReferenceToV1(
+						step.source,
+						'runSQL.source'
+					),
+				},
+			];
 		case 'setSiteLanguage':
 			return [
 				{
@@ -764,6 +780,40 @@ function convertV2DataReferenceToV1(
 	throw new UnsupportedBlueprintV2FeatureError(
 		context,
 		'Unsupported Blueprint v2 data reference.'
+	);
+}
+
+function convertV2FileDataReferenceToV1(
+	reference: BlueprintV2FileDataReference,
+	featurePath: string
+): FileReference {
+	if (typeof reference === 'string') {
+		if (isHttpUrl(reference)) {
+			return { resource: 'url', url: reference };
+		}
+		if (isExecutionContextPath(reference)) {
+			return {
+				resource: 'bundled',
+				path: normalizeExecutionContextPath(reference),
+			};
+		}
+		throw new UnsupportedBlueprintV2FeatureError(
+			featurePath,
+			'Blueprint v2 file references must be URLs or execution-context paths.'
+		);
+	}
+
+	if (isInlineFile(reference)) {
+		return {
+			resource: 'literal',
+			name: reference.filename,
+			contents: reference.content,
+		};
+	}
+
+	throw new UnsupportedBlueprintV2FeatureError(
+		featurePath,
+		'Unsupported Blueprint v2 file reference.'
 	);
 }
 
