@@ -3,6 +3,7 @@ import {
 	zipDirectory,
 	RecommendedPHPVersion,
 } from '@wp-playground/common';
+import { phpVars } from '@php-wasm/util';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 
@@ -133,12 +134,12 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
  */
 async function createZipBuffer(php: PHP, entries: Record<string, string>) {
 	const zipPath = `/tmp/source-${Math.random()}.zip`;
-	const entriesJson = JSON.stringify(entries);
+	const js = phpVars({ entries, zipPath });
 	await php.run({
 		code: `<?php
-		$entries = json_decode(${JSON.stringify(entriesJson)}, true);
+		$entries = ${js.entries};
 		$zip = new ZipArchive;
-		$res = $zip->open(${JSON.stringify(zipPath)}, ZipArchive::CREATE);
+		$res = $zip->open(${js.zipPath}, ZipArchive::CREATE);
 		if ($res !== TRUE) {
 			throw new Exception('Failed to create ZIP: ' . $res);
 		}
