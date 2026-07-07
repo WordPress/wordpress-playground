@@ -7,3 +7,7 @@ export {
 	getPlaygroundFileSize,
 	type PlaygroundFileSizeClient,
 } from './get-playground-file-size';
+export {
+	downloadDatabase,
+	type DatabaseDownloadPlayground,
+} from './download-database';
