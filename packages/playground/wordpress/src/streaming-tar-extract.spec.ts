@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
 import {
 	createDecodedTarStream,
+	extractTarStreamToPhp,
+	isZipBundle,
+	isZstdBundle,
 	sanitizeTarPath,
 	StreamingTarParser,
+	type PhpFsTarget,
 	type TarEntry,
 } from './streaming-tar-extract';
 
@@ -149,6 +153,35 @@ function readFixture(name: string): Uint8Array {
 	);
 }
 
+/** In-memory PHP-WASM filesystem stand-in. */
+function fakePhp() {
+	const files = new Map<string, Uint8Array>();
+	const dirs = new Set<string>(['']);
+	const php: PhpFsTarget = {
+		mkdirTree(p: string) {
+			dirs.add(p.replace(/\/+$/, ''));
+		},
+		writeFile(p: string, data: Uint8Array) {
+			files.set(p, data);
+		},
+		fileExists(p: string) {
+			return files.has(p) || dirs.has(p.replace(/\/+$/, ''));
+		},
+	};
+	return { php, files, dirs };
+}
+
+function streamOf(bytes: Uint8Array, chunkSize = 65536) {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (let i = 0; i < bytes.length; i += chunkSize) {
+				controller.enqueue(bytes.subarray(i, i + chunkSize));
+			}
+			controller.close();
+		},
+	});
+}
+
 // ---------------------------------------------------------------------------
 
 describe('sanitizeTarPath', () => {
@@ -182,6 +215,26 @@ describe('sanitizeTarPath', () => {
 	it('returns "" for empty / dot-only names', () => {
 		expect(sanitizeTarPath('.')).toBe('');
 		expect(sanitizeTarPath('')).toBe('');
+	});
+});
+
+describe('isZstdBundle / isZipBundle', () => {
+	it('detects zstd magic', () => {
+		expect(
+			isZstdBundle(new Uint8Array([0x28, 0xb5, 0x2f, 0xfd, 0x0]))
+		).toBe(true);
+		expect(isZstdBundle(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBe(
+			false
+		);
+	});
+
+	it('detects zip magic', () => {
+		expect(isZipBundle(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBe(
+			true
+		);
+		expect(isZipBundle(new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]))).toBe(
+			false
+		);
 	});
 });
 
@@ -492,6 +545,57 @@ describe('StreamingTarParser', () => {
 		// Never buffers more than one entry (~10 KiB) + a chunk + a header.
 		expect(stats.maxBuffered).toBeLessThan(32 * 1024);
 		expect(stats.fileCount).toBe(40);
+	});
+});
+
+
+describe('extractTarStreamToPhp', () => {
+	it('writes files and creates parent directories in MEMFS', async () => {
+		const { php, files, dirs } = fakePhp();
+		const stream = streamOf(
+			buildTar([
+				{ name: 'index.php', data: '<?php' },
+				{ name: 'wp-includes/version.php', data: 'v' },
+			])
+		);
+		const stats = await extractTarStreamToPhp(stream, php, '/wordpress');
+
+		expect(text(files.get('/wordpress/index.php'))).toBe('<?php');
+		expect(text(files.get('/wordpress/wp-includes/version.php'))).toBe('v');
+		expect(dirs.has('/wordpress/wp-includes')).toBe(true);
+		expect(stats.fileCount).toBe(2);
+	});
+
+	it('respects overwriteFiles=false by skipping existing files', async () => {
+		const { php, files } = fakePhp();
+		files.set('/wp/keep.txt', new TextEncoder().encode('original'));
+		const stream = streamOf(
+			buildTar([
+				{ name: 'keep.txt', data: 'REPLACED' },
+				{ name: 'new.txt', data: 'added' },
+			])
+		);
+
+		await extractTarStreamToPhp(stream, php, '/wp', {
+			overwriteFiles: false,
+		});
+
+		expect(text(files.get('/wp/keep.txt'))).toBe('original');
+		expect(text(files.get('/wp/new.txt'))).toBe('added');
+	});
+
+	it('rejects traversal entries before writing outside the root', async () => {
+		const { php, files } = fakePhp();
+		const stream = streamOf(
+			buildTar([{ name: '../../etc/evil', data: 'pwn' }])
+		);
+
+		await expect(extractTarStreamToPhp(stream, php, '/wp')).rejects.toThrow(
+			/path traversal/
+		);
+		expect([...files.keys()].some((k) => k.includes('etc/evil'))).toBe(
+			false
+		);
 	});
 });
 
