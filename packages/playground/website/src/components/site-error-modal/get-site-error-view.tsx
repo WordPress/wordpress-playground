@@ -85,7 +85,7 @@ function initialOpfsSyncInterruptedView({
 				<ul className={css.errorList}>
 					<li>
 						This can happen if the tab was closed or reloaded before
-						autosave finished.
+						the browser-storage save finished.
 					</li>
 					<li>
 						It can also happen if the browser interrupted storage,

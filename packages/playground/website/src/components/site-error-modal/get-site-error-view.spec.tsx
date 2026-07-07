@@ -33,6 +33,9 @@ describe('getSiteErrorView', () => {
 		});
 
 		expect(view.title).toBe('Browser storage save was interrupted');
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'the browser-storage save finished'
+		);
 	});
 
 	it('says when the entire Blueprint could not be downloaded', () => {
