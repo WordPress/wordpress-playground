@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
+import zlib from 'node:zlib';
 import {
+	createDecodedTarStream,
 	sanitizeTarPath,
 	StreamingTarParser,
 	type TarEntry,
@@ -493,3 +495,78 @@ describe('StreamingTarParser', () => {
 		expect(stats.fileCount).toBe(40);
 	});
 });
+
+
+async function collectStream(stream: ReadableStream<Uint8Array>) {
+	const entries: TarEntry[] = [];
+	const parser = new StreamingTarParser({ onEntry: (e) => entries.push(e) });
+	const reader = stream.getReader();
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value) parser.push(value);
+	}
+	const stats = parser.end();
+	return { entries, stats };
+}
+
+// node:zlib gained zstd in Node 22.15; the CI unit-test job runs Node 20, where
+// the fixture compression below is unavailable. The zstddec decode path still
+// typechecks and bundles on Node 20, and this round-trip runs on newer Node.
+const HAS_NODE_ZSTD = typeof (zlib as any).zstdCompressSync === 'function';
+
+describe.skipIf(!HAS_NODE_ZSTD)(
+	'createDecodedTarStream + round-trip (real zstd)',
+	() => {
+		function zstd(bytes: Uint8Array): Uint8Array {
+			// node:zlib zstd (Node >= 22.15) — cast because the installed
+			// @types/node may predate the zstd typings.
+			const z = zlib as any;
+			return new Uint8Array(
+				z.zstdCompressSync(bytes, {
+					params: {
+						[z.constants.ZSTD_c_compressionLevel]: 19,
+						[z.constants.ZSTD_c_windowLog]: 24,
+					},
+				})
+			);
+		}
+
+		it('streams a .tar.zst through zstddec into the tar parser', async () => {
+			const longName =
+				'wp-content/plugins/' + 'z'.repeat(140) + '/main.php';
+			const binary = Buffer.alloc(3000);
+			for (let i = 0; i < binary.length; i += 1)
+				binary[i] = (i * 7) % 256;
+			const tar = buildTar([
+				{ name: 'index.php', data: '<?php // root' },
+				{ name: 'wp-includes/version.php', data: "$wp_version='6.9';" },
+				{ longLink: longName, name: 'trunc', data: 'plugin' },
+				{ name: 'assets/blob.bin', data: binary },
+			]);
+
+			const stream = await createDecodedTarStream(zstd(tar), 'zstd');
+			const { entries, stats } = await collectStream(stream);
+
+			expect(stats.fileCount).toBe(4);
+			expect(text((entries[0] as any).data)).toBe('<?php // root');
+			expect(entries[2].path).toBe(longName);
+			expect(text((entries[2] as any).data)).toBe('plugin');
+			expect(Buffer.from((entries[3] as any).data).equals(binary)).toBe(
+				true
+			);
+		});
+
+		it('returns parser stats so callers can enforce file-count parity', async () => {
+			const tar = buildTar([
+				{ name: 'a.txt', data: '1' },
+				{ name: 'b.txt', data: '2' },
+			]);
+			const stream = await createDecodedTarStream(zstd(tar), 'zstd');
+			const { stats } = await collectStream(stream);
+			const expectedFileCount = 3; // deliberately wrong
+			expect(stats.fileCount).not.toBe(expectedFileCount);
+			expect(stats.fileCount).toBe(2);
+		});
+	}
+);

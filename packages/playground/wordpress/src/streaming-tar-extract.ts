@@ -29,6 +29,8 @@ const BLOCK = 512;
 const TAR_ROOT = '/__tar-root__';
 const textDecoder = new TextDecoder();
 
+export type TarCodec = 'zstd' | 'gzip' | 'deflate' | 'br';
+
 export interface TarFileEntry {
 	type: 'file';
 	path: string;
@@ -423,6 +425,111 @@ export class StreamingTarParser {
 		if (path.endsWith('.php')) this.phpCount += 1;
 		this.onEntry({ type: 'file', path, data });
 	}
+}
+
+/**
+ * Build a ReadableStream of decoded tar bytes from the compressed bundle.
+ * Feature-detected native DecompressionStream is used first. zstd falls back to
+ * zstddec's streaming generator. The generator is lazy — it yields ~128 KiB
+ * chunks and holds only the zstd window in WASM, so the JS side never sees the
+ * whole tar.
+ */
+export async function createDecodedTarStream(
+	compressed: Uint8Array | ReadableStream<Uint8Array>,
+	codec: TarCodec
+): Promise<ReadableStream<Uint8Array>> {
+	const normalized = codec === 'br' ? 'brotli' : codec;
+	const compressedStream = toReadableStream(compressed);
+	if (typeof DecompressionStream !== 'undefined') {
+		try {
+			const ds = new DecompressionStream(normalized as CompressionFormat);
+			return compressedStream.pipeThrough(ds);
+		} catch {
+			// Not natively supported — fall through to a bundled decoder.
+		}
+	}
+	if (normalized === 'zstd') {
+		// zstddec exposes the streaming decoder via its './stream' subpath export.
+		const { ZSTDDecoder } = await import('zstddec/stream');
+		const decoder = new ZSTDDecoder();
+		await decoder.init();
+
+		const reader = compressedStream.getReader();
+		let currentChunk: Uint8Array | undefined;
+		let sourceDone = false;
+		let decoderDone = false;
+		const compressedChunks: Iterable<Uint8Array> = {
+			[Symbol.iterator]() {
+				return {
+					next(): IteratorResult<Uint8Array> {
+						if (currentChunk) {
+							const value = currentChunk;
+							currentChunk = undefined;
+							return { value, done: false };
+						}
+						return { value: undefined, done: true };
+					},
+				};
+			},
+		};
+		const generator = decoder.decodeStreaming(compressedChunks);
+		return new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				if (decoderDone) {
+					controller.close();
+					return;
+				}
+				try {
+					for (;;) {
+						if (!currentChunk && !sourceDone) {
+							const next = await reader.read();
+							sourceDone = next.done;
+							if (!next.done) {
+								currentChunk = next.value;
+							}
+						}
+						const { value, done } = generator.next();
+						if (done) {
+							decoderDone = true;
+							controller.close();
+							return;
+						}
+						if (value.length === 0) {
+							continue;
+						}
+						controller.enqueue(value);
+						return;
+					}
+				} catch (e) {
+					decoderDone = true;
+					await reader.cancel(e).catch(() => {});
+					controller.error(e);
+				}
+			},
+			async cancel(reason) {
+				decoderDone = true;
+				await reader.cancel(reason);
+			},
+		});
+	}
+	throw new Error(`No streaming decoder available for codec "${codec}".`);
+}
+
+function toReadableStream(
+	bytesOrStream: Uint8Array | ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+	if (isReadableStream(bytesOrStream)) {
+		return bytesOrStream;
+	}
+	return new Blob([bytesOrStream]).stream();
+}
+
+function isReadableStream(
+	value: Uint8Array | ReadableStream<Uint8Array>
+): value is ReadableStream<Uint8Array> {
+	return (
+		typeof ReadableStream !== 'undefined' && value instanceof ReadableStream
+	);
 }
 
 /**
