@@ -8,6 +8,7 @@ export type SiteError =
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
+	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
 	| 'github-artifact-expired'

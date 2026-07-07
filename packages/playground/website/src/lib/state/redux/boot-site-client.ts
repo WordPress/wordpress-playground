@@ -31,6 +31,7 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
+	hasInterruptedInitialOpfsSync,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -94,6 +95,16 @@ export function bootSiteClient(
 				},
 				mountpoint: '/wordpress',
 			} as const;
+		}
+
+		const hasInterruptedSync = hasInterruptedInitialOpfsSync(site);
+		if (hasInterruptedSync) {
+			dispatch(
+				setActiveSiteError({
+					error: 'initial-opfs-sync-interrupted',
+				})
+			);
+			return;
 		}
 
 		let isWordPressInstalled = false;
@@ -335,15 +346,6 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
-		// `initialOpfsSyncPending` is a recovery flag, not the source of truth.
-		// If OPFS already contains WordPress files, the initial sync either
-		// completed earlier or is no longer needed. Clear the stale flag so
-		// future boots mount OPFS normally.
-		const hasStaleInitialOpfsSyncPendingFlag =
-			site.metadata.initialOpfsSyncPending === true &&
-			site.metadata.storage === 'opfs' &&
-			isWordPressInstalled;
-
 		if (mountDescriptorForInitialOpfsSync) {
 			void syncInitialOpfsFilesInBackground({
 				playground: connectedPlayground,
@@ -357,9 +359,6 @@ export function bootSiteClient(
 				const metadataChanges = {
 					...(site.metadata.storage !== 'none'
 						? { whenLastUsed: Date.now() }
-						: {}),
-					...(hasStaleInitialOpfsSyncPendingFlag
-						? { initialOpfsSyncPending: false }
 						: {}),
 				};
 				if (Object.keys(metadataChanges).length > 0) {

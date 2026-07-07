@@ -58,6 +58,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'initial-opfs-sync-interrupted':
+			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
 		case 'resource-download-failed':
@@ -66,6 +68,48 @@ export function getSiteErrorView(
 		default:
 			return genericSiteBootFailedView(context);
 	}
+}
+
+function initialOpfsSyncInterruptedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Browser storage save was interrupted',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground started saving this site to browser storage, but
+					the file copy did not finish.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						This can happen if the tab was closed or reloaded before
+						the browser-storage save finished.
+					</li>
+					<li>
+						It can also happen if the browser interrupted storage,
+						for example because the tab was suspended or storage
+						quota was reached.
+					</li>
+					<li>
+						Playground did not try to repair the stored files
+						because the WordPress copy may be incomplete or
+						corrupted.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-tab"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Reload Fresh Playground
+			</Button>,
+		],
+	};
 }
 
 function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
