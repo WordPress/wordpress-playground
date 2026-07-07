@@ -6,8 +6,9 @@ import type { Directory } from '../v1/resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
-import { basename, joinPaths } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { validateInstallFolderName } from './validate-install-folder-name';
 
 /**
  * @inheritDoc installTheme
@@ -102,7 +103,12 @@ export const installTheme: StepHandler<
 	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const targetFolderName =
-			'targetFolderName' in options ? options.targetFolderName : '';
+			'targetFolderName' in options && options.targetFolderName
+				? validateInstallFolderName(
+						options.targetFolderName,
+						'Theme target folder name'
+					)
+				: '';
 		let assetFolderName = '';
 		if (themeData instanceof File) {
 			// @TODO: Consider validating whether this is a zip file?
@@ -121,15 +127,10 @@ export const installTheme: StepHandler<
 			assetFolderName = assetResult.assetFolderName;
 		} else {
 			assetNiceName = themeData.name;
-			assetFolderName = targetFolderName || assetNiceName;
-			if (
-				!assetFolderName ||
-				basename(assetFolderName) !== assetFolderName
-			) {
-				throw new Error(
-					'Theme folder name must be a single directory name.'
-				);
-			}
+			assetFolderName = validateInstallFolderName(
+				targetFolderName || assetNiceName,
+				'Theme folder name'
+			);
 
 			progress?.tracker.setCaption(
 				`Installing the ${progressName()} theme`

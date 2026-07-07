@@ -133,7 +133,9 @@ describe('Blueprint step installTheme', () => {
 					targetFolderName: 'nested/theme',
 				},
 			})
-		).rejects.toThrow('Theme folder name must be a single directory name.');
+		).rejects.toThrow(
+			'Theme target folder name must be a single directory name.'
+		);
 
 		expect(php.fileExists('/wordpress/wp-content/themes/nested')).toBe(
 			false
@@ -380,5 +382,26 @@ describe('Blueprint step installTheme', () => {
 				)
 			).toBe(true);
 		});
+
+		it.each(['.', './.'])(
+			'should reject %s as a theme target folder name',
+			async (targetFolderName) => {
+				await expect(
+					installTheme(php, {
+						themeData: new File(
+							[php.readFileAsBuffer(zipFilePath)],
+							zipFileName
+						),
+						ifAlreadyInstalled: 'overwrite',
+						options: {
+							activate: false,
+							targetFolderName,
+						},
+					})
+				).rejects.toThrow(
+					'Theme target folder name must be a single directory name.'
+				);
+			}
+		);
 	});
 });

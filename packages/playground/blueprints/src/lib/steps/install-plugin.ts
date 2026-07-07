@@ -8,6 +8,10 @@ import type { Directory } from '../v1/resources';
 import { joinPaths } from '@php-wasm/util';
 import { writeFiles, type UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
+import {
+	validateInstallFileName,
+	validateInstallFolderName,
+} from './validate-install-folder-name';
 
 const ACTIVATION_OPTIONS_PAYLOAD_PREFIX = 'PLAYGROUND_ACTIVATION_OPTIONS:';
 
@@ -143,7 +147,12 @@ export const installPlugin: StepHandler<
 			'plugins'
 		);
 		const targetFolderName =
-			'targetFolderName' in options ? options.targetFolderName : '';
+			'targetFolderName' in options && options.targetFolderName
+				? validateInstallFolderName(
+						options.targetFolderName,
+						'Plugin target folder name'
+					)
+				: '';
 
 		if (pluginData instanceof File) {
 			if (await looksLikeZipFile(pluginData)) {
@@ -167,7 +176,7 @@ export const installPlugin: StepHandler<
 			} else if (pluginData.name.endsWith('.php')) {
 				const destinationFilePath = joinPaths(
 					pluginsDirectoryPath,
-					pluginData.name
+					validateInstallFileName(pluginData.name, 'Plugin file name')
 				);
 				await writeFile(playground, {
 					path: destinationFilePath,
@@ -189,7 +198,10 @@ export const installPlugin: StepHandler<
 
 			const pluginDirectoryPath = joinPaths(
 				pluginsDirectoryPath,
-				targetFolderName || pluginData.name
+				validateInstallFolderName(
+					targetFolderName || pluginData.name,
+					'Plugin folder name'
+				)
 			);
 			await writeFiles(
 				playground,

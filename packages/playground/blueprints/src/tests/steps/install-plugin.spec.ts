@@ -136,6 +136,16 @@ describe('Blueprint step installPlugin', () => {
 		);
 	});
 
+	it('should reject single-file plugin names outside the plugins directory', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: new File(['<?php'], '../escape.php'),
+			})
+		).rejects.toThrow('Plugin file name must be a single file name.');
+
+		expect(php.fileExists('/wordpress/wp-content/escape.php')).toBe(false);
+	});
+
 	it('should skip plugin installation errors when onError is skip-plugin', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
@@ -308,6 +318,26 @@ echo json_encode(array(
 		expect(php.fileExists(installedPluginPath)).toBe(true);
 	});
 
+	it('should reject directory plugin names outside the plugins directory', async () => {
+		await expect(
+			installPlugin(php, {
+				pluginData: {
+					name: '../escape',
+					files: {
+						'index.php': `/**\n * Plugin Name: Test Plugin`,
+					},
+				},
+				options: {
+					activate: false,
+				},
+			})
+		).rejects.toThrow(
+			'Plugin folder name must be a single directory name.'
+		);
+
+		expect(php.fileExists('/wordpress/wp-content/escape')).toBe(false);
+	});
+
 	describe('ifAlreadyInstalled option', () => {
 		beforeEach(async () => {
 			await installPlugin(php, {
@@ -384,5 +414,25 @@ echo json_encode(array(
 			});
 			expect(php.fileExists(installedPluginPath)).toBe(true);
 		});
+
+		it.each(['.', './.'])(
+			'should reject %s as a plugin target folder name',
+			async (targetFolderName) => {
+				await expect(
+					installPlugin(php, {
+						pluginData: await zipFiles(php, zipFileName, {
+							[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+						}),
+						ifAlreadyInstalled: 'overwrite',
+						options: {
+							activate: false,
+							targetFolderName,
+						},
+					})
+				).rejects.toThrow(
+					'Plugin target folder name must be a single directory name.'
+				);
+			}
+		);
 	});
 });
