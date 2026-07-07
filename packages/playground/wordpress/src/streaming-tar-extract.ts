@@ -19,6 +19,14 @@
  * TAR-slip. Symlinks and other exotic entry types are rejected. Malformed or
  * truncated archives throw before callers write files.
  *
+ * Compressed tar decoding lives in this file so callers can keep one extraction
+ * path. Native `DecompressionStream` is used for browser-supported codecs.
+ * zstd has a bundled `zstddec` fallback for browsers without native zstd
+ * support. That fallback receives a synchronous iterable, so `ReadableStream`
+ * input is first drained as compressed chunks; decoded tar bytes are still
+ * emitted incrementally and the full decompressed tar is never materialized in
+ * JS.
+ *
  * Adapted for wordpress-playground from the measured PoC in
  * erseco/wordpress-playground#2 and the sibling *-playground forks.
  */
@@ -428,13 +436,18 @@ export class StreamingTarParser {
 }
 
 /**
- * Build a ReadableStream of decoded tar bytes from the compressed bundle.
+ * Returns a stream of decoded tar bytes from a compressed tar bundle.
  *
- * Feature-detected native DecompressionStream is used first. zstd falls back to
- * zstddec's streaming generator. zstddec consumes a synchronous iterable, so a
- * ReadableStream source is first collected as compressed chunks. The fallback
- * still yields decompressed ~128 KiB chunks and never materializes the full tar
- * in JS.
+ * Native `DecompressionStream` is tried first for every codec, including `br`.
+ * If the runtime does not support the requested codec, only `zstd` has a
+ * bundled fallback. Unsupported native codecs without a fallback fail loudly
+ * instead of silently returning compressed bytes.
+ *
+ * The `zstddec` fallback is streaming on output but not on input: its API takes
+ * a synchronous iterable of compressed chunks. `ReadableStream` sources are
+ * therefore drained into compressed chunks before the decoded stream is
+ * returned. This keeps the full decompressed tar out of JS memory while making
+ * the input buffering tradeoff explicit.
  */
 export async function createDecodedTarStream(
 	compressed: Uint8Array | ReadableStream<Uint8Array>,
@@ -492,6 +505,13 @@ export async function createDecodedTarStream(
 	throw new Error(`No streaming decoder available for codec "${codec}".`);
 }
 
+/**
+ * Normalizes compressed bundle input for the native decompression path.
+ *
+ * Native `DecompressionStream` works with Web streams. `Uint8Array` input is
+ * wrapped with `Blob.stream()` so callers can pass either already-fetched bytes
+ * or a streaming response body.
+ */
 function toReadableStream(
 	bytesOrStream: Uint8Array | ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> {
@@ -501,6 +521,15 @@ function toReadableStream(
 	return new Blob([bytesOrStream]).stream();
 }
 
+/**
+ * Returns compressed chunks in the synchronous shape required by `zstddec`.
+ *
+ * `zstddec/stream` exposes `decodeStreaming()` as a synchronous generator over
+ * compressed chunks. It cannot await a `ReadableStream` between pulls, so stream
+ * input is drained here before decoding starts. Only compressed bytes are
+ * buffered; decoded tar chunks are still produced lazily by the returned
+ * decoder stream.
+ */
 async function toChunkIterable(
 	bytesOrStream: Uint8Array | ReadableStream<Uint8Array>
 ): Promise<Iterable<Uint8Array>> {
