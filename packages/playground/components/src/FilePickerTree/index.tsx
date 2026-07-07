@@ -26,6 +26,8 @@ import css from './style.module.css';
 
 type ExpandedNodePaths = Record<string, boolean>;
 
+const MAX_FILE_TRANSFER_BYTES = 100 * 1024 * 1024;
+
 type DropIndicatorState = 'valid' | 'invalid';
 
 type DropIndicator = {
@@ -66,6 +68,31 @@ interface FileSystemDirectoryEntryLike extends FileSystemEntryBaseLike {
 type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
+
+type FileTransferReadable = {
+	arrayBuffer(): Promise<ArrayBuffer>;
+	size?: number;
+	filesize?: number;
+};
+
+type FileTransferReadResult =
+	| { type: 'ready'; data: ArrayBuffer }
+	| { type: 'too-large'; sizeLimitLabel: string };
+
+type FileUploadReadResult =
+	| { type: 'ready'; data: Uint8Array }
+	| { type: 'too-large'; sizeLimitLabel: string };
+
+type FileUploadErrorSummary = {
+	failedCount: number;
+	tooLargeCount: number;
+	sizeLimitLabel: string;
+};
+
+type FileUploadBudget = {
+	usedBytes: number;
+	sizeLimitLabel: string;
+};
 
 export type FileNode = {
 	name: string;
@@ -176,6 +203,7 @@ export const FilePickerTree = forwardRef<
 	const isValidNameSegment = (name: string) => {
 		if (!name) return false;
 		if (name === '.' || name === '..') return false;
+		if (name.includes('\0')) return false;
 		return !/[\\/]/.test(name);
 	};
 
@@ -1019,33 +1047,87 @@ export const FilePickerTree = forwardRef<
 		});
 	};
 
-	const importFileBlob = async (file: File, destinationDir: string) => {
+	const importFileBlob = async (
+		file: File,
+		destinationDir: string,
+		summary: FileUploadErrorSummary,
+		uploadBudget: FileUploadBudget
+	) => {
 		if (!filesystem) return;
-		const safeName = file.name || 'untitled';
-		const targetName = await findAvailableName(destinationDir, safeName);
-		const targetPath = joinPaths(destinationDir, targetName);
-		const buffer = new Uint8Array(await file.arrayBuffer());
-		await filesystem.writeFile(targetPath, buffer);
+		let targetPath: string | undefined;
+		try {
+			const uploadFile = await readFileForUploadWithinBudget(
+				file,
+				uploadBudget
+			);
+			if (uploadFile.type === 'too-large') {
+				summary.tooLargeCount += 1;
+				summary.sizeLimitLabel = uploadFile.sizeLimitLabel;
+				return;
+			}
+			const safeName = getFileTransferName(file.name, 'untitled');
+			const targetName = await findAvailableName(
+				destinationDir,
+				safeName
+			);
+			targetPath = joinPaths(destinationDir, targetName);
+			await filesystem.writeFile(targetPath, uploadFile.data);
+		} catch (error) {
+			if (targetPath) {
+				await discardFailedImportedFile(targetPath);
+			}
+			summary.failedCount += 1;
+			logger.error('Failed to import file tree entry', error);
+		}
+	};
+
+	const discardFailedImportedFile = async (path: string) => {
+		if (!filesystem) {
+			return;
+		}
+		try {
+			if (await filesystem.fileExists(path)) {
+				await filesystem.unlink(path);
+			}
+		} catch (error) {
+			logger.error('Failed to clean up imported file tree entry', error);
+		}
 	};
 
 	const importFileEntry = async (
 		entry: FileSystemFileEntryLike,
-		destinationDir: string
+		destinationDir: string,
+		summary: FileUploadErrorSummary,
+		uploadBudget: FileUploadBudget
 	) => {
-		const file = await fileFromEntry(entry);
-		await importFileBlob(file, destinationDir);
+		try {
+			const file = await fileFromEntry(entry);
+			await importFileBlob(file, destinationDir, summary, uploadBudget);
+		} catch (error) {
+			summary.failedCount += 1;
+			logger.error('Failed to import file tree entry', error);
+		}
 	};
 
 	const importDirectoryEntry = async (
 		entry: FileSystemDirectoryEntryLike,
-		destinationDir: string
+		destinationDir: string,
+		summary: FileUploadErrorSummary,
+		uploadBudget: FileUploadBudget
 	) => {
-		const folderName = await findAvailableName(
-			destinationDir,
-			entry.name || 'New Folder'
-		);
-		const folderPath = joinPaths(destinationDir, folderName);
-		await ensureDirectory(folderPath);
+		let folderPath: string;
+		try {
+			const folderName = await findAvailableName(
+				destinationDir,
+				getFileTransferName(entry.name, 'New Folder')
+			);
+			folderPath = joinPaths(destinationDir, folderName);
+			await ensureDirectory(folderPath);
+		} catch (error) {
+			summary.failedCount += 1;
+			logger.error('Failed to import file tree directory', error);
+			return;
+		}
 		const reader = entry.createReader();
 		const readEntries = () =>
 			new Promise<FileSystemEntryLike[]>((resolve, reject) => {
@@ -1055,7 +1137,14 @@ export const FilePickerTree = forwardRef<
 				);
 			});
 		while (true) {
-			const batch = await readEntries();
+			let batch: FileSystemEntryLike[];
+			try {
+				batch = await readEntries();
+			} catch (error) {
+				summary.failedCount += 1;
+				logger.error('Failed to read dropped directory entries', error);
+				return;
+			}
 			if (!batch.length) {
 				break;
 			}
@@ -1063,12 +1152,16 @@ export const FilePickerTree = forwardRef<
 				if (child.isFile) {
 					await importFileEntry(
 						child as FileSystemFileEntryLike,
-						folderPath
+						folderPath,
+						summary,
+						uploadBudget
 					);
 				} else if (child.isDirectory) {
 					await importDirectoryEntry(
 						child as FileSystemDirectoryEntryLike,
-						folderPath
+						folderPath,
+						summary,
+						uploadBudget
 					);
 				}
 			}
@@ -1080,40 +1173,70 @@ export const FilePickerTree = forwardRef<
 		destinationDir: string
 	) => {
 		if (!filesystem) return;
+		const summary: FileUploadErrorSummary = {
+			failedCount: 0,
+			tooLargeCount: 0,
+			sizeLimitLabel: '',
+		};
+		const uploadBudget = createFileUploadBudget();
 		const items = event.dataTransfer?.items
 			? Array.from(event.dataTransfer.items)
 			: [];
-		const entries = items
-			.filter((item) => item.kind === 'file')
-			.map((item) => getEntryFromItem(item))
-			.filter((entry): entry is FileSystemEntryLike => Boolean(entry));
-		if (entries.length > 0) {
-			for (const entry of entries) {
+		let importedFromItems = false;
+		for (const item of items.filter((item) => item.kind === 'file')) {
+			const entry = getEntryFromItem(item);
+			if (entry) {
+				importedFromItems = true;
 				if (entry.isFile) {
 					await importFileEntry(
 						entry as FileSystemFileEntryLike,
-						destinationDir
+						destinationDir,
+						summary,
+						uploadBudget
 					);
 				} else if (entry.isDirectory) {
 					await importDirectoryEntry(
 						entry as FileSystemDirectoryEntryLike,
-						destinationDir
+						destinationDir,
+						summary,
+						uploadBudget
 					);
 				}
+				continue;
 			}
-		} else {
+			const file = item.getAsFile();
+			if (file) {
+				importedFromItems = true;
+				await importFileBlob(
+					file,
+					destinationDir,
+					summary,
+					uploadBudget
+				);
+			}
+		}
+		if (!importedFromItems) {
 			const files = event.dataTransfer?.files
 				? Array.from(event.dataTransfer.files)
 				: [];
 			for (const file of files) {
-				await importFileBlob(file, destinationDir);
+				await importFileBlob(
+					file,
+					destinationDir,
+					summary,
+					uploadBudget
+				);
 			}
 		}
+		const uploadErrors = getFileUploadErrorMessages(summary);
 		await refreshChildren(destinationDir);
 		setExpanded((prev) => ({
 			...prev,
 			[destinationDir]: true,
 		}));
+		if (uploadErrors.length) {
+			alert(uploadErrors.join('\n'));
+		}
 	};
 
 	const handleDeletePath = async (
@@ -1159,16 +1282,28 @@ export const FilePickerTree = forwardRef<
 		}
 		try {
 			const file = await filesystem.read(absPath);
-			const buffer = await file.arrayBuffer();
-			const blob = new Blob([buffer as BlobPart]);
+			const downloadFile = await readFileWithinLimit(
+				file,
+				MAX_FILE_TRANSFER_BYTES
+			);
+			if (downloadFile.type === 'too-large') {
+				alert(
+					`Cannot download files larger than ${downloadFile.sizeLimitLabel}.`
+				);
+				return;
+			}
+			const blob = new Blob([downloadFile.data as BlobPart]);
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement('a');
 			anchor.href = url;
 			anchor.download = basename(absPath) || 'download';
 			document.body.appendChild(anchor);
-			anchor.click();
-			document.body.removeChild(anchor);
-			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			try {
+				anchor.click();
+			} finally {
+				anchor.remove();
+				setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			}
 		} catch (error) {
 			logger.error('Failed to download file', error);
 		}
@@ -1912,5 +2047,124 @@ const FileName: React.FC<{
 		</>
 	);
 };
+
+function createFileUploadBudget(): FileUploadBudget {
+	return {
+		usedBytes: 0,
+		sizeLimitLabel: formatFileTransferSizeLimit(MAX_FILE_TRANSFER_BYTES),
+	};
+}
+
+async function readFileForUploadWithinBudget(
+	file: File,
+	budget: FileUploadBudget
+): Promise<FileUploadReadResult> {
+	const remainingBytes = Math.max(
+		0,
+		MAX_FILE_TRANSFER_BYTES - budget.usedBytes
+	);
+	const transferFile = await readFileWithinLimit(file, remainingBytes);
+	if (transferFile.type === 'too-large') {
+		return {
+			type: 'too-large',
+			sizeLimitLabel: budget.sizeLimitLabel,
+		};
+	}
+	budget.usedBytes += transferFile.data.byteLength;
+	return { type: 'ready', data: new Uint8Array(transferFile.data) };
+}
+
+async function readFileWithinLimit(
+	file: FileTransferReadable,
+	maxBytes: number
+): Promise<FileTransferReadResult> {
+	const knownSize = getKnownFileSize(file);
+	if (knownSize !== undefined && knownSize > maxBytes) {
+		return {
+			type: 'too-large',
+			sizeLimitLabel: formatFileTransferSizeLimit(maxBytes),
+		};
+	}
+
+	const data = await file.arrayBuffer();
+	if (data.byteLength > maxBytes) {
+		return {
+			type: 'too-large',
+			sizeLimitLabel: formatFileTransferSizeLimit(maxBytes),
+		};
+	}
+	return { type: 'ready', data };
+}
+
+function getKnownFileSize(file: FileTransferReadable): number | undefined {
+	if (isValidFileSize(file.filesize)) {
+		return file.filesize;
+	}
+	if (isValidFileSize(file.size)) {
+		return file.size;
+	}
+	return undefined;
+}
+
+function isValidFileSize(size: unknown): size is number {
+	return typeof size === 'number' && Number.isFinite(size) && size >= 0;
+}
+
+function getFileUploadErrorMessages({
+	failedCount,
+	tooLargeCount,
+	sizeLimitLabel,
+}: FileUploadErrorSummary): string[] {
+	const messages: string[] = [];
+	if (failedCount) {
+		messages.push(`Could not upload ${formatFileCount(failedCount)}.`);
+	}
+	if (tooLargeCount) {
+		messages.push(
+			`Could not upload ${formatFileCount(
+				tooLargeCount
+			)} because the transfer would exceed ${sizeLimitLabel}.`
+		);
+	}
+	return messages;
+}
+
+function getFileTransferName(
+	name: string | undefined,
+	fallback: string
+): string {
+	const segments = (name ?? '')
+		.replace(/\\+/g, '/')
+		.split('/')
+		.filter(Boolean);
+	const candidate = segments[segments.length - 1] ?? '';
+	if (
+		!candidate ||
+		candidate === '.' ||
+		candidate === '..' ||
+		candidate.includes('\0')
+	) {
+		return fallback;
+	}
+	return candidate;
+}
+
+function formatFileCount(count: number): string {
+	return count === 1 ? '1 file' : `${count} files`;
+}
+
+function formatFileTransferSizeLimit(bytes: number): string {
+	if (bytes < 1024) {
+		return bytes === 1 ? '1 byte' : `${bytes} bytes`;
+	}
+	if (bytes < 1024 * 1024) {
+		const kilobytes = bytes / 1024;
+		return `${
+			Number.isInteger(kilobytes) ? kilobytes : kilobytes.toFixed(1)
+		} KB`;
+	}
+	const megabytes = bytes / (1024 * 1024);
+	return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
+}
 
 export default FilePickerTree;
