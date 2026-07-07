@@ -837,7 +837,7 @@ function wordpressOrgResource(
 	reference: string,
 	type: 'plugins' | 'themes'
 ): FileReference {
-	const [slug, version] = reference.split('@');
+	const { slug, version } = splitWordPressOrgVersionSuffix(reference);
 	if (version && version !== 'latest') {
 		const singular = type === 'plugins' ? 'plugin' : 'theme';
 		return {
@@ -852,6 +852,31 @@ function wordpressOrgResource(
 				: 'wordpress.org/themes',
 		slug,
 	} as FileReference;
+}
+
+/**
+ * Splits only the optional `@version` suffix defined by Blueprint v2. The slug
+ * itself stays opaque so future WordPress.org slug formats keep working.
+ */
+function splitWordPressOrgVersionSuffix(reference: string) {
+	const separatorIndex = reference.lastIndexOf('@');
+	if (separatorIndex === -1) {
+		return { slug: reference };
+	}
+
+	const version = reference.slice(separatorIndex + 1);
+	if (!isSupportedWordPressOrgReferenceVersion(version)) {
+		return { slug: reference };
+	}
+
+	return {
+		slug: reference.slice(0, separatorIndex),
+		version,
+	};
+}
+
+function isSupportedWordPressOrgReferenceVersion(version: string) {
+	return version === 'latest' || /^\d+\.\d+(?:\.\d+)?$/.test(version);
 }
 
 /**

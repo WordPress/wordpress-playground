@@ -495,6 +495,41 @@ describe('compileBlueprintForExecution', () => {
 		});
 	});
 
+	it('treats Blueprint v2 WordPress.org slugs as opaque strings', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: 'wtyczka-żółć',
+				},
+				{
+					source: 'opaque@not-a-supported-version',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toMatchObject([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'wtyczka-żółć',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'opaque@not-a-supported-version',
+				},
+			},
+		]);
+	});
+
 	it('preserves special inline directory filenames as plain file entries', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
