@@ -4,7 +4,7 @@ import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import {
-	getRemoteFileSize,
+	getPlaygroundFileSize,
 	PlaygroundFileEditor,
 } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
@@ -86,7 +86,7 @@ class ClientFilesystemWrapper
 	async read(
 		path: string
 	): Promise<{ filesize: number; arrayBuffer(): Promise<ArrayBuffer> }> {
-		const filesize = await getRemoteFileSize(this.client, path);
+		const filesize = await getPlaygroundFileSize(this.client, path);
 		return {
 			filesize,
 			arrayBuffer: async () => {
