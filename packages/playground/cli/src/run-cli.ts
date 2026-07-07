@@ -123,15 +123,22 @@ export interface CLIServerResult extends AsyncDisposable {
 export type ParseCLIResult = CLIExitResult | CLIServerResult;
 
 /**
- * Internal sentinel thrown inside yargs callbacks (which can only
- * signal failure by throwing) when validation has already been
- * reported to the user. Caught within parseOptionsAndRunCLI and
- * converted to a CLIExitResult — never exposed to callers.
+ * Signals a validation failure whose guidance has already been shown to
+ * the user (via yargs' .fail() handler or a cliOutput message).
+ * parseOptionsAndRunCLI catches it and converts it to a CLIExitResult, so
+ * the CLI exits with the given code instead of dumping a stack trace for
+ * what is an expected, user-facing error.
+ *
+ * Usually thrown inside yargs callbacks (which can only signal failure by
+ * throwing) and never seen beyond parseOptionsAndRunCLI. The exception is
+ * the `start` command path (expandStartCommandArgs), which runs inside the
+ * public runCLI() export — a direct library caller can receive this error,
+ * so it carries a human-readable message.
  */
 class CLIArgsValidationError extends Error {
 	exitCode: number;
-	constructor(exitCode: number) {
-		super();
+	constructor(exitCode: number, message?: string) {
+		super(message);
 		this.exitCode = exitCode;
 	}
 }
@@ -1990,7 +1997,12 @@ function expandStartCommandArgs(
 			cliOutput.print(
 				`You may still remove the site's directory manually if you wish.`
 			);
-			throw new Error(
+			// The guidance above has already been printed. Use the
+			// validation sentinel so parseOptionsAndRunCLI exits cleanly
+			// instead of routing this expected case through the
+			// unexpected-error path (stack trace + duplicated message).
+			throw new CLIArgsValidationError(
+				1,
 				'This site is not managed by Playground CLI and cannot be reset.'
 			);
 		}

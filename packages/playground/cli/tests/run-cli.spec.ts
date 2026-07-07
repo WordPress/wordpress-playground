@@ -1127,6 +1127,73 @@ describe('start command', () => {
 		}
 	}, 180000);
 
+	test('resetting an unmanaged site rejects with a descriptive, catchable error', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+		mkdirSync(wordpressDir, { recursive: true });
+
+		let caught: any;
+		try {
+			await runCLI({
+				command: 'start',
+				skipBrowser: true,
+				reset: true,
+				autoMount: false,
+				'mount-before-install': [
+					{ hostPath: wordpressDir, vfsPath: '/wordpress' },
+				],
+			});
+		} catch (e) {
+			caught = e;
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+
+		// A direct library caller receives a meaningful message and exit
+		// code, not the validation sentinel's empty-message form.
+		expect(caught).toBeDefined();
+		expect(caught.message).toContain(
+			'This site is not managed by Playground CLI and cannot be reset.'
+		);
+		expect(caught.exitCode).toBe(1);
+	});
+
+	// Colon-delimited --mount can't express a Windows drive-letter host
+	// path (C:\...), so this end-to-end CLI check is POSIX-only. The
+	// cross-platform coverage is the runCLI test above.
+	test.skipIf(process.platform === 'win32')(
+		'parseOptionsAndRunCLI exits cleanly (no stack dump) when resetting an unmanaged site',
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+			mkdirSync(wordpressDir, { recursive: true });
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'start',
+					'--reset',
+					'--no-auto-mount',
+					'--skip-browser',
+					'--mount',
+					`${wordpressDir}:/wordpress`,
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(1);
+				// The expected validation case is converted to a clean exit,
+				// not routed through the unexpected-error path that
+				// console.error's a full stack trace.
+				expect(consoleErrorSpy).not.toHaveBeenCalled();
+			} finally {
+				consoleErrorSpy.mockRestore();
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+
 	test('should not persist when using explicit mount for /wordpress', async () => {
 		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
 		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
