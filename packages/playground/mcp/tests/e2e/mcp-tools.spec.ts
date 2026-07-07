@@ -60,16 +60,6 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 				`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
 			);
 
-			// Wait for WordPress to load inside the nested iframes
-			await expect(
-				page
-					.frameLocator(
-						'#playground-viewport:visible,.playground-viewport:visible'
-					)
-					.frameLocator('#wp')
-					.locator('body')
-			).not.toBeEmpty();
-
 			// Wait for the MCP bridge to register at least one active
 			// site. The Playground website may do internal navigation
 			// after the initial load, causing the bridge to disconnect
@@ -226,14 +216,7 @@ test('playground_open_site_in_new_tab activates an inactive site in a new tab', 
 	await playgroundPage.goto(
 		`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
 	);
-	await expect(
-		playgroundPage
-			.frameLocator(
-				'#playground-viewport:visible,.playground-viewport:visible'
-			)
-			.frameLocator('#wp')
-			.locator('body')
-	).not.toBeEmpty();
+	await waitForActiveSite(mcpClient);
 
 	// Wait for the saved site to appear as inactive
 	await expect

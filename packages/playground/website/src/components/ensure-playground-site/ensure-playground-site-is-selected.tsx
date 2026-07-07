@@ -55,9 +55,11 @@ export function EnsurePlaygroundSiteIsSelected({
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
 	const isSavingDisabled = isSiteSavingDisabled(url);
+	const isMcpServerBridgeEnabled = url.searchParams.has('mcp-port');
 	const shouldUseTemporarySite =
 		url.searchParams.get('storage') === 'temp' ||
 		isSavingDisabled ||
+		isMcpServerBridgeEnabled ||
 		!opfsSiteStorage;
 	const requestedClientInfo = useAppSelector(
 		(state) =>
@@ -200,6 +202,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 				if (
 					matchingAutosave &&
+					!isMcpServerBridgeEnabled &&
 					isInitialPageLoadUrl &&
 					!declinedAutosaveRestoreFingerprints.includes(
 						currentSetupUrlFingerprint
