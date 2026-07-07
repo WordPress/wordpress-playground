@@ -1,10 +1,10 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import { existsSync } from 'fs';
 import { createServer } from 'net';
-import { join } from 'path';
+import { delimiter, join } from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-describe('remote access relay.php', () => {
+describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 	let server: ChildProcessWithoutNullStreams;
 	let relayUrl: string;
 	let stderr = '';
@@ -23,7 +23,7 @@ describe('remote access relay.php', () => {
 			stderr += chunk.toString();
 		});
 		await waitForRelay(
-			() => stderr.includes('Development Server'),
+			relayUrl,
 			() => server.exitCode !== null,
 			() => stderr
 		);
@@ -48,7 +48,7 @@ describe('remote access relay.php', () => {
 });
 
 async function waitForRelay(
-	hasStarted: () => boolean,
+	relayUrl: string,
 	hasExited: () => boolean,
 	getStderr: () => string
 ) {
@@ -57,12 +57,21 @@ async function waitForRelay(
 		if (hasExited()) {
 			throw new Error(`relay.php server exited early:\n${getStderr()}`);
 		}
-		if (hasStarted()) {
+		try {
+			await fetch(`${relayUrl}?action=missing`);
 			return;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 100));
 		}
-		await new Promise((resolve) => setTimeout(resolve, 100));
 	}
 	throw new Error(`Timed out waiting for relay.php server:\n${getStderr()}`);
+}
+
+function isPhpBinaryAvailable() {
+	return (process.env.PATH ?? '')
+		.split(delimiter)
+		.filter(Boolean)
+		.some((path) => existsSync(join(path, 'php')));
 }
 
 async function getAvailablePort(): Promise<number> {
