@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import zlib from 'node:zlib';
 import {
 	createDecodedTarStream,
 	sanitizeTarPath,
@@ -510,63 +509,102 @@ async function collectStream(stream: ReadableStream<Uint8Array>) {
 	return { entries, stats };
 }
 
-// node:zlib gained zstd in Node 22.15; the CI unit-test job runs Node 20, where
-// the fixture compression below is unavailable. The zstddec decode path still
-// typechecks and bundles on Node 20, and this round-trip runs on newer Node.
-const HAS_NODE_ZSTD = typeof (zlib as any).zstdCompressSync === 'function';
+const ZSTD_FIXTURE_LONG_NAME =
+	'wp-content/plugins/' + 'z'.repeat(80) + '/main.php';
 
-describe.skipIf(!HAS_NODE_ZSTD)(
-	'createDecodedTarStream + round-trip (real zstd)',
-	() => {
-		function zstd(bytes: Uint8Array): Uint8Array {
-			// node:zlib zstd (Node >= 22.15) — cast because the installed
-			// @types/node may predate the zstd typings.
-			const z = zlib as any;
-			return new Uint8Array(
-				z.zstdCompressSync(bytes, {
-					params: {
-						[z.constants.ZSTD_c_compressionLevel]: 19,
-						[z.constants.ZSTD_c_windowLog]: 24,
-					},
-				})
-			);
-		}
+// Generated with bsdtar 3.7.7 and zstd 1.5.6 from a deterministic USTAR
+// archive. Keeping pre-compressed bytes here lets Node 20 CI exercise the
+// zstddec fallback without relying on node:zlib's newer zstd compressor.
+const ZSTD_TAR_FIXTURE = Buffer.from(
+	[
+		'KLUv/WQAIz0RAHQaaW5kZXgucGhwADAwMDY0NCAAMDE1IDA3MDMzMjMyNTYwIDAxMjY1MAAgMAB1',
+		'c3RhcgAwMHJvb3QAPD8gLy8gd3AtaW5jbHVkZXMvdmVyc2lvbjIyNTQ1NiR3cF89JzYuOSc7Y29u',
+		'dGVudC83NTUwMDMxMzIAIDVwbHVnaW5zLzQ2MTN6LzM3N21haTA2NDEzMDRhc3NldHMvYmxvYi5i',
+		'aW41NjcwMzcABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQ',
+		'V15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf',
+		'5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdu',
+		'dXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9',
+		'BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5LSDATCIJhjYPS1DBfe2pAgC1GqA/',
+		'ywacikFHxAGZCu7C83dVG1AXkaDAlQF2UNoyHhBJaBKFMXxOoKzqKEfHgDK7agY45QGMAIZqdPgw',
+		'CYB04u5Imf0uGVsl0KEPYFMYwed4R8qOXSD/A0iSVID9DGMDHP7ANBNMGRDOTQoJWdFM+Q==',
+	].join(''),
+	'base64'
+);
 
-		it('streams a .tar.zst through zstddec into the tar parser', async () => {
-			const longName =
-				'wp-content/plugins/' + 'z'.repeat(140) + '/main.php';
-			const binary = Buffer.alloc(3000);
-			for (let i = 0; i < binary.length; i += 1)
-				binary[i] = (i * 7) % 256;
-			const tar = buildTar([
-				{ name: 'index.php', data: '<?php // root' },
-				{ name: 'wp-includes/version.php', data: "$wp_version='6.9';" },
-				{ longLink: longName, name: 'trunc', data: 'plugin' },
-				{ name: 'assets/blob.bin', data: binary },
-			]);
+function chunkedStream(bytes: Uint8Array, chunkSizes: number[]) {
+	let offset = 0;
+	let chunkIndex = 0;
+	return new ReadableStream<Uint8Array>({
+		pull(controller) {
+			if (offset >= bytes.length) {
+				controller.close();
+				return;
+			}
+			const size = chunkSizes[chunkIndex++] ?? 17;
+			const nextOffset = Math.min(offset + size, bytes.length);
+			controller.enqueue(bytes.slice(offset, nextOffset));
+			offset = nextOffset;
+		},
+	});
+}
 
-			const stream = await createDecodedTarStream(zstd(tar), 'zstd');
+async function withoutNativeDecompressionStream<T>(callback: () => Promise<T>) {
+	const original = globalThis.DecompressionStream;
+	Object.defineProperty(globalThis, 'DecompressionStream', {
+		configurable: true,
+		value: undefined,
+		writable: true,
+	});
+	try {
+		return await callback();
+	} finally {
+		Object.defineProperty(globalThis, 'DecompressionStream', {
+			configurable: true,
+			value: original,
+			writable: true,
+		});
+	}
+}
+
+describe('createDecodedTarStream + zstddec fallback', () => {
+	it('streams a .tar.zst fixture through zstddec into the tar parser', async () => {
+		await withoutNativeDecompressionStream(async () => {
+			const stream = await createDecodedTarStream(ZSTD_TAR_FIXTURE, 'zstd');
 			const { entries, stats } = await collectStream(stream);
+			const binary = Buffer.alloc(3000);
+			for (let i = 0; i < binary.length; i += 1) {
+				binary[i] = (i * 7) % 256;
+			}
 
 			expect(stats.fileCount).toBe(4);
 			expect(text((entries[0] as any).data)).toBe('<?php // root');
-			expect(entries[2].path).toBe(longName);
-			expect(text((entries[2] as any).data)).toBe('plugin');
-			expect(Buffer.from((entries[3] as any).data).equals(binary)).toBe(
+			expect(text((entries[1] as any).data)).toBe("$wp_version='6.9';");
+			expect(entries[5].path).toBe(ZSTD_FIXTURE_LONG_NAME);
+			expect(text((entries[5] as any).data)).toBe('plugin');
+			expect(Buffer.from((entries[6] as any).data).equals(binary)).toBe(
 				true
 			);
 		});
+	});
 
-		it('returns parser stats so callers can enforce file-count parity', async () => {
-			const tar = buildTar([
-				{ name: 'a.txt', data: '1' },
-				{ name: 'b.txt', data: '2' },
-			]);
-			const stream = await createDecodedTarStream(zstd(tar), 'zstd');
-			const { stats } = await collectStream(stream);
+	it('accepts compressed source streams split across chunk boundaries', async () => {
+		await withoutNativeDecompressionStream(async () => {
+			const source = chunkedStream(ZSTD_TAR_FIXTURE, [1, 2, 3, 5, 8, 13]);
+			const stream = await createDecodedTarStream(source, 'zstd');
+			const { entries, stats } = await collectStream(stream);
 			const expectedFileCount = 3; // deliberately wrong
+
 			expect(stats.fileCount).not.toBe(expectedFileCount);
-			expect(stats.fileCount).toBe(2);
+			expect(stats.fileCount).toBe(4);
+			expect(entries.map((entry) => entry.path)).toEqual([
+				'index.php',
+				'wp-includes/version.php',
+				'wp-content',
+				'wp-content/plugins',
+				'wp-content/plugins/' + 'z'.repeat(80),
+				ZSTD_FIXTURE_LONG_NAME,
+				'assets/blob.bin',
+			]);
 		});
-	}
-);
+	});
+});

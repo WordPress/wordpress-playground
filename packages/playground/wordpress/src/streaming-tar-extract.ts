@@ -429,65 +429,43 @@ export class StreamingTarParser {
 
 /**
  * Build a ReadableStream of decoded tar bytes from the compressed bundle.
+ *
  * Feature-detected native DecompressionStream is used first. zstd falls back to
- * zstddec's streaming generator. The generator is lazy — it yields ~128 KiB
- * chunks and holds only the zstd window in WASM, so the JS side never sees the
- * whole tar.
+ * zstddec's streaming generator. zstddec consumes a synchronous iterable, so a
+ * ReadableStream source is first collected as compressed chunks. The fallback
+ * still yields decompressed ~128 KiB chunks and never materializes the full tar
+ * in JS.
  */
 export async function createDecodedTarStream(
 	compressed: Uint8Array | ReadableStream<Uint8Array>,
 	codec: TarCodec
 ): Promise<ReadableStream<Uint8Array>> {
-	const normalized = codec === 'br' ? 'brotli' : codec;
 	const compressedStream = toReadableStream(compressed);
 	if (typeof DecompressionStream !== 'undefined') {
 		try {
-			const ds = new DecompressionStream(normalized as CompressionFormat);
+			const ds = new DecompressionStream(codec as CompressionFormat);
 			return compressedStream.pipeThrough(ds);
 		} catch {
 			// Not natively supported — fall through to a bundled decoder.
 		}
 	}
-	if (normalized === 'zstd') {
+	if (codec === 'zstd') {
 		// zstddec exposes the streaming decoder via its './stream' subpath export.
 		const { ZSTDDecoder } = await import('zstddec/stream');
 		const decoder = new ZSTDDecoder();
 		await decoder.init();
 
-		const reader = compressedStream.getReader();
-		let currentChunk: Uint8Array | undefined;
-		let sourceDone = false;
-		let decoderDone = false;
-		const compressedChunks: Iterable<Uint8Array> = {
-			[Symbol.iterator]() {
-				return {
-					next(): IteratorResult<Uint8Array> {
-						if (currentChunk) {
-							const value = currentChunk;
-							currentChunk = undefined;
-							return { value, done: false };
-						}
-						return { value: undefined, done: true };
-					},
-				};
-			},
-		};
+		const compressedChunks = await toChunkIterable(compressed);
 		const generator = decoder.decodeStreaming(compressedChunks);
+		let decoderDone = false;
 		return new ReadableStream<Uint8Array>({
-			async pull(controller) {
+			pull(controller) {
 				if (decoderDone) {
 					controller.close();
 					return;
 				}
 				try {
 					for (;;) {
-						if (!currentChunk && !sourceDone) {
-							const next = await reader.read();
-							sourceDone = next.done;
-							if (!next.done) {
-								currentChunk = next.value;
-							}
-						}
 						const { value, done } = generator.next();
 						if (done) {
 							decoderDone = true;
@@ -502,13 +480,12 @@ export async function createDecodedTarStream(
 					}
 				} catch (e) {
 					decoderDone = true;
-					await reader.cancel(e).catch(() => {});
 					controller.error(e);
 				}
 			},
-			async cancel(reason) {
+			cancel() {
 				decoderDone = true;
-				await reader.cancel(reason);
+				generator.return?.(undefined);
 			},
 		});
 	}
@@ -522,6 +499,29 @@ function toReadableStream(
 		return bytesOrStream;
 	}
 	return new Blob([bytesOrStream]).stream();
+}
+
+async function toChunkIterable(
+	bytesOrStream: Uint8Array | ReadableStream<Uint8Array>
+): Promise<Iterable<Uint8Array>> {
+	if (!isReadableStream(bytesOrStream)) {
+		return [bytesOrStream];
+	}
+	const reader = bytesOrStream.getReader();
+	const chunks: Uint8Array[] = [];
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			chunks.push(value);
+		}
+		return chunks;
+	} catch (e) {
+		await reader.cancel(e).catch(() => {});
+		throw e;
+	} finally {
+		reader.releaseLock();
+	}
 }
 
 function isReadableStream(
