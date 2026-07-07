@@ -944,6 +944,54 @@ describe('SmtpSink – command edge cases', () => {
 		expect(await client.read()).toMatch(/^501 /);
 	});
 
+	it('aborts a previous transaction when a new MAIL FROM is rejected', async () => {
+		// RFC 1870 §6.1: after a 552 SIZE rejection "the transaction
+		// never starts" — including any transaction left over from an
+		// earlier MAIL command. Without this, DATA could flush an
+		// envelope the client believes was rejected.
+		// Reference: https://www.rfc-editor.org/rfc/rfc1870.html#section-6.1
+		const client = createClient({ maxSize: 100 });
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('MAIL FROM:<e@f.com> SIZE=101\r\n');
+		expect(await client.read()).toMatch(/^552 /);
+		await client.write('DATA\r\n');
+		expect(await client.read()).toMatch(/^503 /);
+		expect(client.messages).toHaveLength(0);
+	});
+
+	it('rejects MAIL FROM with a malformed ESMTP parameter token', async () => {
+		// RFC 5321 §4.1.1.2 ABNF: esmtp-keyword starts with ALPHA or
+		// DIGIT. The sink ignores unrecognized keywords, but a token
+		// that violates the grammar is a 501 syntax error.
+		// Reference: https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.2
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com> !!garbage\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
+	it('validates RCPT TO ESMTP parameters with the same grammar', async () => {
+		// RFC 5321 §4.1.1.3: Rcpt-parameters share the esmtp-param
+		// grammar. Well-formed keywords are ignored; malformed tokens
+		// are a 501 syntax error.
+		// Reference: https://www.rfc-editor.org/rfc/rfc5321.html#section-4.1.1.3
+		const client = createClient();
+		await client.read();
+		await ehlo(client);
+		await client.write('MAIL FROM:<a@b.com>\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com> NOTIFY=SUCCESS\r\n');
+		expect(await client.read()).toMatch(/^250 /);
+		await client.write('RCPT TO:<c@d.com> =broken\r\n');
+		expect(await client.read()).toMatch(/^501 /);
+	});
+
 	it('rejects RCPT before MAIL', async () => {
 		// RFC 5321 §3.3 + §4.1.1.3: RCPT TO can only follow a MAIL
 		// FROM in the current transaction; otherwise the server
@@ -1611,6 +1659,92 @@ describe('parseMessage', () => {
 		const result = parseMessage(raw, '', []);
 		expect(result.text?.trim()).toBe('Plain body.');
 		expect(result.html).toBeUndefined();
+	});
+
+	it('survives pathologically deep multipart nesting', () => {
+		// Recursion into nested multiparts is capped so a crafted
+		// message cannot overflow the call stack (a RangeError here
+		// would wedge the SMTP session's reply queue). 5000 levels
+		// comfortably exceeds the unguarded crash threshold.
+		const depth = 5000;
+		let body = 'Plain body.';
+		let contentType = 'text/plain; charset=utf-8';
+		for (let level = depth; level >= 1; level--) {
+			const boundary = `B${level}`;
+			body =
+				`--${boundary}\r\n` +
+				`Content-Type: ${contentType}\r\n` +
+				`\r\n` +
+				`${body}\r\n` +
+				`--${boundary}--`;
+			contentType = `multipart/mixed; boundary="${boundary}"`;
+		}
+		const raw =
+			`Subject: Deep\r\n` +
+			`Content-Type: ${contentType}\r\n` +
+			`\r\n` +
+			`${body}\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.subject).toBe('Deep');
+		// The body sits far below the recursion cap, so it is not
+		// extracted — the point is that parsing completes gracefully.
+		expect(result.text).toBeUndefined();
+	});
+
+	it('ignores transport padding after boundary delimiter lines', () => {
+		// RFC 2046 §5.1.1: the boundary delimiter line may end with
+		// transport padding (linear whitespace) that parsers must
+		// delete before matching.
+		// Reference: https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1.1
+		const boundary = 'PAD';
+		const raw =
+			`Subject: Padded\r\n` +
+			`Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary} \r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${boundary}--\t\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+	});
+
+	it('trims whitespace around an unquoted boundary parameter', () => {
+		// RFC 2045 §5.1: whitespace between a parameter value and the
+		// next ";" is a separator, not part of the value. An unquoted
+		// boundary followed by " ;" must still match delimiter lines.
+		const raw =
+			`Subject: Spaced boundary\r\n` +
+			`Content-Type: multipart/alternative; boundary=SP ; charset=utf-8\r\n` +
+			`\r\n` +
+			`--SP\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--SP--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+	});
+
+	it('keeps an empty first text/plain part over a later one', () => {
+		// First-match-wins must hold even when the first body part
+		// decodes to an empty string.
+		const boundary = 'EMPTY';
+		const raw =
+			`Subject: Empty first part\r\n` +
+			`Content-Type: multipart/mixed; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Later body.\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toBe('');
 	});
 
 	it('handles folded headers', () => {
