@@ -39,6 +39,11 @@ export type FileExplorerSidebarProps = {
 		path: string | null,
 		message: string | JSX.Element
 	) => Promise<void> | void;
+	onBeforePathChange?: (
+		path: string
+	) => Promise<boolean | void> | boolean | void;
+	onPathMoved?: (from: string, to: string) => Promise<void> | void;
+	onPathDeleted?: (path: string) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -50,6 +55,9 @@ export function FileExplorerSidebar({
 	onFileOpened,
 	onSelectionCleared,
 	onShowMessage,
+	onBeforePathChange,
+	onPathMoved,
+	onPathDeleted,
 	documentRoot,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
@@ -143,6 +151,18 @@ export function FileExplorerSidebar({
 		}
 	};
 
+	const handlePathMoved = async (from: string, to: string) => {
+		setLastSelectedPath((previous) => remapPath(previous, from, to));
+		await onPathMoved?.(from, to);
+	};
+
+	const handlePathDeleted = async (path: string) => {
+		setLastSelectedPath((previous) =>
+			pathContainsCurrentFile(path, previous) ? null : previous
+		);
+		await onPathDeleted?.(path);
+	};
+
 	return (
 		<div className={styles['fileExplorerContainer']}>
 			<div className={styles['fileExplorerHeader']}>
@@ -209,8 +229,38 @@ export function FileExplorerSidebar({
 						// On double-click, open the file and move focus to the editor
 						await handleOpenFile(path, true);
 					}}
+					onBeforePathChange={onBeforePathChange}
+					onPathMoved={handlePathMoved}
+					onPathDeleted={handlePathDeleted}
 				/>
 			</div>
 		</div>
+	);
+}
+
+function remapPath(
+	value: string | null,
+	from: string,
+	to: string
+): string | null {
+	if (!value) {
+		return value;
+	}
+	if (value === from) {
+		return to;
+	}
+	if (value.startsWith(from === '/' ? '/' : `${from}/`)) {
+		return to + value.slice(from.length);
+	}
+	return value;
+}
+
+function pathContainsCurrentFile(path: string, currentFilePath: string | null) {
+	if (!currentFilePath) {
+		return false;
+	}
+	return (
+		currentFilePath === path ||
+		currentFilePath.startsWith(path === '/' ? '/' : `${path}/`)
 	);
 }

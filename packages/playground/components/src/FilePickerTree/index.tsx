@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
@@ -79,6 +80,11 @@ export type FilePickerTreeProps = {
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
 	onDoubleClickFile?: (path: string) => void;
+	onBeforePathChange?: (
+		path: string
+	) => Promise<boolean | void> | boolean | void;
+	onPathMoved?: (from: string, to: string) => Promise<void> | void;
+	onPathDeleted?: (path: string) => Promise<void> | void;
 };
 
 export type FilePickerTreeHandle = {
@@ -153,6 +159,9 @@ export const FilePickerTree = forwardRef<
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
+		onBeforePathChange,
+		onPathMoved,
+		onPathDeleted,
 	},
 	ref
 ) {
@@ -474,6 +483,31 @@ export const FilePickerTree = forwardRef<
 		setDraggedPath(null);
 		setDropIndicator(null);
 		clearAllDragExpandTimeouts();
+	};
+
+	const notifyBeforePathChange = async (path: string) => {
+		try {
+			return (await onBeforePathChange?.(path)) !== false;
+		} catch (error) {
+			logger.error('Failed to prepare file tree entry change', error);
+			return false;
+		}
+	};
+
+	const notifyPathMoved = async (from: string, to: string) => {
+		try {
+			await onPathMoved?.(from, to);
+		} catch (error) {
+			logger.error('Failed to notify file tree entry move', error);
+		}
+	};
+
+	const notifyPathDeleted = async (path: string) => {
+		try {
+			await onPathDeleted?.(path);
+		} catch (error) {
+			logger.error('Failed to notify file tree entry deletion', error);
+		}
 	};
 
 	const selectPath = (path: string, notify = true) => {
@@ -929,9 +963,13 @@ export const FilePickerTree = forwardRef<
 		if (await pathExists(destinationPath)) {
 			return;
 		}
+		if (!(await notifyBeforePathChange(sourcePath))) {
+			return;
+		}
 		const sourceParent = dirname(sourcePath);
 		try {
 			await filesystem.mv(sourcePath, destinationPath);
+			await notifyPathMoved(sourcePath, destinationPath);
 			remapPathState(sourcePath, destinationPath);
 			const mappedSelected = remapSinglePath(
 				selectedPath,
@@ -960,8 +998,8 @@ export const FilePickerTree = forwardRef<
 				remapSinglePath(prev, sourcePath, destinationPath)
 			);
 			focusDomNode(destinationPath);
-		} catch {
-			// ignore move errors
+		} catch (error) {
+			logger.error('Failed to move file tree entry', error);
 		}
 	};
 
@@ -1084,27 +1122,34 @@ export const FilePickerTree = forwardRef<
 	) => {
 		if (!filesystem) return;
 		const normalized = absSelectedPath;
+		const parentDir = dirname(normalized);
+		let deleted = false;
 		setContextMenu(null);
 		try {
+			if (!(await notifyBeforePathChange(normalized))) {
+				return;
+			}
 			if (type === 'folder') {
 				await filesystem.rmdir(normalized, { recursive: true } as any);
 			} else {
 				await filesystem.unlink(normalized);
 			}
-		} catch {
-			// ignore
+			deleted = true;
+			await notifyPathDeleted(normalized);
+		} catch (error) {
+			logger.error('Failed to delete file tree entry', error);
 		} finally {
 			setRenamingAbsolutePath(null);
-			const parentDir = dirname(normalized);
 			await refreshChildren(parentDir);
-			// If current selection was removed, notify parent
-			if (
-				selectedPath &&
-				(selectedPath === normalized ||
-					selectedPath.startsWith(`${normalized}/`))
-			) {
-				onSelect(null);
-			}
+		}
+		// If current selection was removed, notify parent.
+		if (
+			deleted &&
+			selectedPath &&
+			(selectedPath === normalized ||
+				selectedPath.startsWith(`${normalized}/`))
+		) {
+			onSelect(null);
 		}
 	};
 
@@ -1125,7 +1170,7 @@ export const FilePickerTree = forwardRef<
 			document.body.removeChild(anchor);
 			setTimeout(() => URL.revokeObjectURL(url), 60_000);
 		} catch (error) {
-			console.error('Failed to download file', error);
+			logger.error('Failed to download file', error);
 		}
 	};
 
@@ -1248,7 +1293,12 @@ export const FilePickerTree = forwardRef<
 		}
 		let candidateIsDir = pending?.type === 'folder';
 		try {
+			if (!(await notifyBeforePathChange(path))) {
+				setRenamingAbsolutePath(path);
+				return;
+			}
 			await filesystem.mv(path, candidate);
+			await notifyPathMoved(path, candidateNormalized);
 			if (!pending) {
 				const isDir = await filesystem.isDir(candidate);
 				candidateIsDir = isDir;
@@ -1266,7 +1316,8 @@ export const FilePickerTree = forwardRef<
 			if (isPending && !candidateIsDir && onDoubleClickFile) {
 				onDoubleClickFile(candidateNormalized);
 			}
-		} catch {
+		} catch (error) {
+			logger.error('Failed to rename file tree entry', error);
 			if (isPending) {
 				try {
 					if (pending?.type === 'folder') {
