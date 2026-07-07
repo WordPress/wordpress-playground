@@ -12,7 +12,7 @@ import {
 	type TraversableFilesystemBackend,
 } from '@wp-playground/storage';
 import { joinPaths } from '@php-wasm/util';
-import { getDirectoryPathForSlug } from './opfs-site-path';
+import { getDirectoryPathForSlug } from '@wp-playground/storage';
 
 export const BUNDLE_DIR_NAME = 'blueprint-bundle';
 

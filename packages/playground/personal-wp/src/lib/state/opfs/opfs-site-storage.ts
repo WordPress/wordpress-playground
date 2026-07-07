@@ -11,6 +11,12 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import {
+	OPFS_SITE_METADATA_FILENAME,
+	OPFS_SITES_ROOT_PATH,
+	getCandidateDirectoryNamesForSlug,
+	getDirectoryNameForSlug,
+} from '@wp-playground/storage';
+import {
 	type ExtraLibrary,
 	type PHPConstants,
 	getBlueprintDeclaration,
@@ -18,10 +24,6 @@ import {
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
-
-const ROOT_PATH = '/sites';
-// TODO: Decide on metadata filename
-const SITE_METADATA_FILENAME = 'wp-runtime.json';
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -45,7 +47,7 @@ export interface StoredSiteMetadata extends SiteMetadata {
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
 	opfsSitesRoot = await navigator.storage.getDirectory();
-	for (const path of ROOT_PATH.replace(/^\//, '').split('/')) {
+	for (const path of OPFS_SITES_ROOT_PATH.replace(/^\//, '').split('/')) {
 		opfsSitesRoot = await opfsSitesRoot.getDirectoryHandle(path, {
 			create: true,
 		});
@@ -62,30 +64,27 @@ class OpfsSiteStorage {
 
 	async create(slug: string, metadata: SiteMetadata): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (await opfsChildExists(this.root, newSiteDirName)) {
-			const dir = await this.root.getDirectoryHandle(newSiteDirName);
-			if (await opfsChildExists(dir, SITE_METADATA_FILENAME)) {
-				throw new Error(`Site with slug '${slug}' already exists.`);
-			}
+		if (await this.findExistingSiteDirName(slug)) {
+			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
 
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			getSiteMetadataPath(newSiteDirName),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
 
 	async update(slug: string, metadata: SiteMetadata): Promise<void> {
-		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (!(await opfsChildExists(this.root, newSiteDirName))) {
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
 
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			getSiteMetadataPath(siteDirName),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
@@ -112,7 +111,11 @@ class OpfsSiteStorage {
 	}
 
 	async read(slug: string): Promise<SiteInfo | undefined> {
-		return await this.readSite(getDirectoryNameForSlug(slug));
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			return undefined;
+		}
+		return await this.readSite(siteDirName);
 	}
 
 	private async readSite(siteDirName: string) {
@@ -127,7 +130,7 @@ class OpfsSiteStorage {
 		siteDirectory: FileSystemDirectoryHandle
 	) {
 		const siteInfoFileHandle = await siteDirectory.getFileHandle(
-			SITE_METADATA_FILENAME
+			OPFS_SITE_METADATA_FILENAME
 		);
 		const file = await siteInfoFileHandle.getFile();
 		// TODO: Read metadata file and parse and validate via JSON schema
@@ -154,8 +157,25 @@ class OpfsSiteStorage {
 	}
 
 	async delete(slug: string): Promise<void> {
-		const siteDirName = getDirectoryNameForSlug(slug);
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			throw new Error(`Site with slug '${slug}' does not exist.`);
+		}
 		await this.root.removeEntry(siteDirName, { recursive: true });
+	}
+
+	private async findExistingSiteDirName(slug: string) {
+		for (const siteDirName of getCandidateDirectoryNamesForSlug(slug)) {
+			if (!(await opfsChildExists(this.root, siteDirName))) {
+				continue;
+			}
+			const dir = await this.root.getDirectoryHandle(siteDirName);
+			if (await opfsChildExists(dir, OPFS_SITE_METADATA_FILENAME)) {
+				return siteDirName;
+			}
+		}
+
+		return undefined;
 	}
 }
 
@@ -165,12 +185,12 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 
 export const isOpfsAvailable = !!opfsSiteStorage;
 
-export function getDirectoryPathForSlug(slug: string) {
-	return joinPaths(ROOT_PATH, getDirectoryNameForSlug(slug));
-}
-
-export function getDirectoryNameForSlug(slug: string) {
-	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
+function getSiteMetadataPath(siteDirName: string) {
+	return joinPaths(
+		OPFS_SITES_ROOT_PATH,
+		siteDirName,
+		OPFS_SITE_METADATA_FILENAME
+	);
 }
 
 async function metadataToStoredFormat(

@@ -3,6 +3,7 @@ export * from './lib/changeset';
 export * from './lib/playground';
 export * from './lib/browser-fs';
 export * from './lib/paths';
+export * from './lib/opfs-site-path';
 export * from './lib/filesystems';
 export { GitAuthenticationError } from './lib/git-authentication-error';
 import type * as GitCreateDotGitDirectoryModule from './lib/git-create-dotgit-directory';

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
 		bootPlaygroundV2: vi.fn(),
 		BlueprintsV1Handler: vi.fn(),
 		BlueprintsV2Handler: vi.fn(),
+		consumeAPI: vi.fn(),
 		createBlueprintReflection: vi.fn(),
 	};
 });
@@ -30,7 +31,15 @@ vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
 }));
 
-import { startPlaygroundWeb } from './index';
+vi.mock('@php-wasm/universal', async (importActual) => {
+	const actual = await importActual();
+	return {
+		...(actual as object),
+		consumeAPI: mocks.consumeAPI,
+	};
+});
+
+import { startOpfsBridge, startPlaygroundWeb } from './index';
 
 describe('startPlaygroundWeb', () => {
 	afterEach(() => {
@@ -87,11 +96,46 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).toContain('blueprints-runner=v1');
 	});
+
+	it('loads the OPFS bridge iframe and returns the bridge API', async () => {
+		const bridge = {
+			isConnected: vi.fn(async () => undefined),
+			isReady: vi.fn(async () => undefined),
+			zipSite: vi.fn(),
+		};
+		mocks.consumeAPI.mockReturnValue(bridge);
+		const iframe = createIframe();
+
+		await expect(startOpfsBridge({ iframe })).resolves.toBe(bridge);
+
+		expect(iframe.src).toBe('http://localhost/bridge.html');
+		expect(mocks.consumeAPI).toHaveBeenCalledWith(
+			iframe.contentWindow,
+			iframe.ownerDocument!.defaultView
+		);
+		expect(bridge.isConnected).toHaveBeenCalledTimes(1);
+		expect(bridge.isReady).toHaveBeenCalledTimes(1);
+	});
+
+	it('requires OPFS bridge URLs to point to bridge.html', async () => {
+		const iframe = createIframe();
+
+		await expect(
+			startOpfsBridge({
+				iframe,
+				bridgeUrl: 'http://localhost/remote.html',
+			})
+		).rejects.toThrow('/bridge.html');
+	});
 });
 
 function createIframe() {
 	return {
 		src: '',
+		contentWindow: {},
+		ownerDocument: {
+			defaultView: {},
+		},
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();
 		}),

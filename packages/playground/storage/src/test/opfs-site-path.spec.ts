@@ -1,7 +1,7 @@
 import {
 	getCandidateDirectoryNamesForSlug,
 	getDirectoryNameForSlug,
-} from './opfs-site-path';
+} from '../lib/opfs-site-path';
 
 describe('getDirectoryNameForSlug', () => {
 	it('keeps existing ASCII slug directory names stable', () => {

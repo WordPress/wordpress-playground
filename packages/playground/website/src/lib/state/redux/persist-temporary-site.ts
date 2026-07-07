@@ -2,10 +2,8 @@ import { logger } from '@php-wasm/logger';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import type { PHPConstants } from '@wp-playground/blueprints';
 import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
-import {
-	opfsSiteStorage,
-	getDirectoryPathForSlug,
-} from '../opfs/opfs-site-storage';
+import { getDirectoryPathForSlug } from '@wp-playground/storage';
+import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	isTraversableFilesystemBackend,
 	persistBlueprintBundle,

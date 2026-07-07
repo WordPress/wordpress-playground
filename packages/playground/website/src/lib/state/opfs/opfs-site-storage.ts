@@ -11,6 +11,12 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import {
+	OPFS_SITE_METADATA_FILENAME,
+	OPFS_SITES_ROOT_PATH,
+	getCandidateDirectoryNamesForSlug,
+	getDirectoryNameForSlug,
+} from '@wp-playground/storage';
+import {
 	type ExtraLibrary,
 	type PHPConstants,
 	getBlueprintDeclaration,
@@ -22,18 +28,10 @@ import {
 	loadPersistedBlueprintBundle,
 	loadPersistedBlueprintBundleFromPath,
 } from './opfs-blueprint-bundle-storage';
-import {
-	OPFS_SITES_ROOT_PATH,
-	getCandidateDirectoryNamesForSlug,
-	getDirectoryNameForSlug,
-} from './opfs-site-path';
 export {
 	getDirectoryNameForSlug,
 	getDirectoryPathForSlug,
-} from './opfs-site-path';
-
-// TODO: Decide on metadata filename
-const SITE_METADATA_FILENAME = 'wp-runtime.json';
+} from '@wp-playground/storage';
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -141,7 +139,7 @@ class OpfsSiteStorage {
 		siteDirectory: FileSystemDirectoryHandle
 	) {
 		const siteInfoFileHandle = await siteDirectory.getFileHandle(
-			SITE_METADATA_FILENAME
+			OPFS_SITE_METADATA_FILENAME
 		);
 		const file = await siteInfoFileHandle.getFile();
 		// TODO: Read metadata file and parse and validate via JSON schema
@@ -203,7 +201,10 @@ class OpfsSiteStorage {
 			// Recreating an autosaved Playground rebuilds WordPress in the same
 			// OPFS site directory. Keep the metadata and editable Blueprint
 			// bundle so the autosave keeps its slug and setup recipe.
-			if (name === SITE_METADATA_FILENAME || name === BUNDLE_DIR_NAME) {
+			if (
+				name === OPFS_SITE_METADATA_FILENAME ||
+				name === BUNDLE_DIR_NAME
+			) {
 				continue;
 			}
 			namesToDelete.push(name);
@@ -230,7 +231,10 @@ class OpfsSiteStorage {
 			);
 			if (
 				siteDirectory &&
-				(await opfsFileExists(siteDirectory, SITE_METADATA_FILENAME))
+				(await opfsFileExists(
+					siteDirectory,
+					OPFS_SITE_METADATA_FILENAME
+				))
 			) {
 				return siteDirName;
 			}
@@ -247,7 +251,11 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 export const isOpfsAvailable = !!opfsSiteStorage;
 
 function getSiteMetadataPath(siteDirName: string) {
-	return joinPaths(OPFS_SITES_ROOT_PATH, siteDirName, SITE_METADATA_FILENAME);
+	return joinPaths(
+		OPFS_SITES_ROOT_PATH,
+		siteDirName,
+		OPFS_SITE_METADATA_FILENAME
+	);
 }
 
 async function metadataToStoredFormat(

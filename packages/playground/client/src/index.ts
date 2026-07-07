@@ -26,7 +26,12 @@ export {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor };
+export type {
+	PlaygroundClient,
+	MountDescriptor,
+	OpfsBridgeClient,
+	ZipOpfsSiteOptions,
+};
 
 import {
 	BlueprintReflection,
@@ -41,7 +46,13 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import { consumeAPI } from '@php-wasm/universal';
+import type {
+	MountDescriptor,
+	OpfsBridgeClient,
+	PlaygroundClient,
+	ZipOpfsSiteOptions,
+} from '@wp-playground/remote';
 import type { PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
@@ -148,6 +159,11 @@ export interface StartPlaygroundWebOptions extends Omit<
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
+export interface StartOpfsBridgeOptions {
+	iframe: HTMLIFrameElement;
+	bridgeUrl?: string;
+}
+
 /**
  * Loads playground in iframe and returns a PlaygroundClient instance.
  *
@@ -194,6 +210,37 @@ export async function startPlaygroundWeb(
 	progressTracker.finish();
 
 	return playground;
+}
+
+/**
+ * Loads the OPFS bridge in an iframe and returns an OpfsBridgeClient instance.
+ *
+ * The bridge can read saved OPFS-backed Playground sites without booting
+ * Playground, WordPress, PHP, workers, or service workers.
+ */
+export async function startOpfsBridge(
+	options: StartOpfsBridgeOptions
+): Promise<OpfsBridgeClient> {
+	const { iframe } = options;
+	const bridgeUrl =
+		options.bridgeUrl ??
+		new URL('/bridge.html', location.origin).toString();
+	assertLikelyCompatibleBridgeOrigin(bridgeUrl);
+	allowStorageAccessByUserActivation(iframe);
+
+	await new Promise((resolve) => {
+		iframe.src = bridgeUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
+	const bridge = consumeAPI<OpfsBridgeClient>(
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
+	);
+	await bridge.isConnected();
+	await bridge.isReady();
+
+	return bridge;
 }
 
 async function shouldUseBlueprintV2Handler(options: StartPlaygroundWebOptions) {
@@ -267,16 +314,27 @@ const remoteOrigin =
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, remoteOrigin);
+	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html');
+}
+
+function assertLikelyCompatibleBridgeOrigin(bridgeUrl: string) {
+	assertLikelyCompatibleRemotePath(bridgeUrl, '/bridge.html');
+}
+
+function assertLikelyCompatibleRemotePath(
+	urlString: string,
+	expectedPath: string
+) {
+	const url = new URL(urlString, remoteOrigin);
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === '/remote.html';
+		url.pathname === expectedPath;
 
 	if (!validRemote) {
 		throw new Error(
 			`Invalid remote URL: ${url}. ` +
-				'Expected remote URL to have a path of "/remote.html" based ' +
+				`Expected remote URL to have a path of "${expectedPath}" based ` +
 				`on one of the following origins:\n ${validRemoteOrigins.join(
 					'\n'
 				)}`

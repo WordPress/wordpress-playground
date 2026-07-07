@@ -5,11 +5,11 @@ import {
 	type AsyncWritableFilesystem,
 	OpfsFilesystemBackend,
 	EventedFilesystem,
+	getDirectoryPathForSlug,
 } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { PlaygroundFileEditor } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
-import { getDirectoryPathForSlug } from '../../../lib/state/opfs/opfs-site-storage';
 
 export function SiteFileBrowser({
 	site,

@@ -1,13 +1,13 @@
 import { joinPaths } from '@php-wasm/util';
 
 export const OPFS_SITES_ROOT_PATH = '/sites';
+export const OPFS_SITE_METADATA_FILENAME = 'wp-runtime.json';
 
 /**
  * Computes the canonical OPFS path for writing a site slug.
  *
- * This does not perform legacy directory lookup. Use the site storage methods
- * when reading, updating, or deleting an existing site because those operations
- * need to check older directory names.
+ * This does not perform legacy directory lookup. Use
+ * getCandidateDirectoryNamesForSlug() when reading existing sites.
  */
 export function getDirectoryPathForSlug(slug: string) {
 	return joinPaths(OPFS_SITES_ROOT_PATH, getDirectoryNameForSlug(slug));
@@ -27,14 +27,11 @@ export function getDirectoryNameForSlug(slug: string) {
 /**
  * Returns the OPFS directory names that may contain the site data for a slug.
  *
- * Check the current reversible name first, then the legacy lossy name for sites
- * saved before slug path encoding was introduced.
+ * Check the current reversible name first, then the legacy lossy name for
+ * sites saved before slug path encoding was introduced.
  */
 export function getCandidateDirectoryNamesForSlug(slug: string) {
 	const directoryName = getDirectoryNameForSlug(slug);
-	// When the directory name is not the same as the slug, which happens
-	// for legacy sites stored using the older, unencoded slugs,
-	// return both the new and old directory names.
 	const legacyDirectoryName = `site-${slug}`.replaceAll(
 		/[^a-zA-Z0-9_-]/g,
 		'-'
@@ -43,6 +40,5 @@ export function getCandidateDirectoryNamesForSlug(slug: string) {
 		return [directoryName, legacyDirectoryName];
 	}
 
-	// Otherwise, return the single directory name.
 	return [directoryName];
 }

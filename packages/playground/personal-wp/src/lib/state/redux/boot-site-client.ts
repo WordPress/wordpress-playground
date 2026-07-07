@@ -1,9 +1,9 @@
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
+	directoryHandleFromMountDevice,
 	getDirectoryPathForSlug,
-	legacyOpfsPathSymbol,
-} from '../opfs/opfs-site-storage';
+} from '@wp-playground/storage';
+import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
+import { legacyOpfsPathSymbol } from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
 	removeClientInfo,

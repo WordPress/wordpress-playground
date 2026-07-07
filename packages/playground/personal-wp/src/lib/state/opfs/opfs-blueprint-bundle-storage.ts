@@ -9,9 +9,9 @@
 import {
 	OpfsFilesystemBackend,
 	copyFilesystem,
+	getDirectoryPathForSlug,
 	type TraversableFilesystemBackend,
 } from '@wp-playground/storage';
-import { getDirectoryPathForSlug } from './opfs-site-storage';
 
 const BUNDLE_DIR_NAME = 'blueprint-bundle';
 

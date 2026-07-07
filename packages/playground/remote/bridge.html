@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress Playground OPFS Bridge</title>
+	</head>
+	<body>
+		<script type="module">
+			import { bootOpfsBridge } from './src/index';
+
+			window.opfsBridge = await bootOpfsBridge();
+		</script>
+	</body>
+</html>
