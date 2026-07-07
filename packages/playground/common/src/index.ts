@@ -122,11 +122,17 @@ export const unzipFile = async (
 					continue;
 				}
 				if ($file->isDir()) {
+					if (has_blocking_parent_path($targetPath, $targetRoot)) {
+						continue;
+					}
 					if (!mkdir($targetPath, 0777, true) && !is_dir($targetPath)) {
 						throw new Exception(
 							'Could not create ZIP target directory: ' . $relativePath
 						);
 					}
+					continue;
+				}
+				if (has_blocking_parent_path($targetPath, $targetRoot)) {
 					continue;
 				}
 				$parentDirectory = dirname($targetPath);
@@ -146,6 +152,25 @@ export const unzipFile = async (
 					);
 				}
 			}
+		}
+
+		/**
+		 * Checks whether a file entry should be skipped because writing it would
+		 * require replacing an existing parent file.
+		 */
+		function has_blocking_parent_path($path, $root) {
+			$parent = dirname($path);
+			while ($parent !== $root && strlen($parent) >= strlen($root)) {
+				if (file_exists($parent)) {
+					return !is_dir($parent);
+				}
+				$nextParent = dirname($parent);
+				if ($nextParent === $parent) {
+					return false;
+				}
+				$parent = $nextParent;
+			}
+			return false;
 		}
 
 		/**
