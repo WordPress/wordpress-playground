@@ -277,10 +277,65 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
+	it('does not report remote asset paths that already exist after boot', async () => {
+		const endpoint = await createEndpoint({});
+		endpoint.requestedWordPressVersion = '6.8';
+		const knownRemoteAssetPaths = new Set<string>();
+		const knownAbsentRemoteAssetPaths = new Set<string>();
+		endpoint.knownAbsentRemoteAssetPaths = knownAbsentRemoteAssetPaths;
+		const primaryPhp = {
+			fileExists: vi.fn((path: string) =>
+				[
+					'/wordpress/wordpress-remote-asset-paths',
+					'/wordpress/wp-includes/js/local.js',
+				].includes(path)
+			),
+			isFile: vi.fn(
+				(path: string) =>
+					path === '/wordpress/wordpress-remote-asset-paths'
+			),
+			readFileAsText: vi.fn(
+				() => 'wp-includes/js/local.js\nwp-includes/js/remote.js\n'
+			),
+		};
+		const requestHandler = {
+			documentRoot: '/wordpress',
+			getPrimaryPhp: vi.fn(async () => primaryPhp),
+			instanceManager: {
+				acquirePHPInstance: vi.fn(async () => ({
+					php: {
+						run: vi.fn(async () => ({ text: '6.8' })),
+					},
+					reap: vi.fn(),
+				})),
+			},
+		};
+
+		await endpoint.finalizeAfterBoot(
+			requestHandler,
+			false,
+			knownRemoteAssetPaths,
+			knownAbsentRemoteAssetPaths
+		);
+
+		expect(Array.from(knownRemoteAssetPaths)).toEqual([
+			'/wp-includes/js/local.js',
+			'/wp-includes/js/remote.js',
+		]);
+		expect(Array.from(knownAbsentRemoteAssetPaths)).toEqual([
+			'/wp-includes/js/remote.js',
+		]);
+		await expect(endpoint.getWordPressModuleDetails()).resolves.toEqual(
+			expect.objectContaining({
+				remoteAssetPaths: ['/wp-includes/js/remote.js'],
+			})
+		);
+	});
+
 	it('reports known remote WordPress asset paths', async () => {
 		const endpoint = await createEndpoint({});
 		endpoint.loadedWordPressVersion = '6.8';
-		endpoint.knownRemoteAssetPaths = new Set([
+		endpoint.knownAbsentRemoteAssetPaths = new Set([
 			'/wp-includes/js/dist/editor.min.js',
 		]);
 
@@ -317,8 +372,15 @@ async function createEndpoint(
 		getWordPressModuleDetails(): Promise<{
 			remoteAssetPaths: string[];
 		}>;
+		finalizeAfterBoot(
+			requestHandler: any,
+			withNetworking: boolean,
+			knownRemoteAssetPaths: Set<string>,
+			knownAbsentRemoteAssetPaths: Set<string>
+		): Promise<void>;
 		loadedWordPressVersion?: string;
-		knownRemoteAssetPaths: Set<string>;
+		requestedWordPressVersion?: string;
+		knownAbsentRemoteAssetPaths: Set<string>;
 		opfsMounts: typeof opfsMounts;
 		unmounts: typeof unmounts;
 	};

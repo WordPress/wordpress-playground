@@ -39,6 +39,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 
 		try {
 			this.knownRemoteAssetPaths = new Set<string>();
+			this.knownAbsentRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
@@ -74,7 +75,8 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 			await this.finalizeAfterBoot(
 				requestHandler,
 				withNetworking,
-				this.knownRemoteAssetPaths
+				this.knownRemoteAssetPaths,
+				this.knownAbsentRemoteAssetPaths
 			);
 			setApiReady();
 		} catch (e) {

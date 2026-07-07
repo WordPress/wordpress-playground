@@ -58,6 +58,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			this.knownRemoteAssetPaths = new Set<string>();
+			this.knownAbsentRemoteAssetPaths = new Set<string>();
 			const resolvedWordPressInstallMode: WordPressInstallMode =
 				wordpressInstallMode ??
 				(shouldInstallWordPress === false
@@ -238,7 +239,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			await this.finalizeAfterBoot(
 				requestHandler,
 				withNetworking,
-				this.knownRemoteAssetPaths
+				this.knownRemoteAssetPaths,
+				this.knownAbsentRemoteAssetPaths
 			);
 			setApiReady();
 		} catch (e) {

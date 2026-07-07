@@ -126,21 +126,22 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
 	/**
-	 * Paths removed from the currently loaded minified WordPress build.
+	 * Paths listed in the currently loaded WordPress build's remote asset list.
 	 *
-	 * ## Lifecycle
-	 *
-	 * Each boot starts with a fresh set. `finalizeAfterBoot()` populates it
-	 * from `/wordpress/wordpress-remote-asset-paths`, fetching that list first
-	 * when a stored WordPress build does not already include it.
-	 *
-	 * ## Service worker handoff
-	 *
-	 * The service worker cannot read the PHP filesystem directly. Exposing this
-	 * set through `getWordPressModuleDetails()` lets it skip PHP for assets that
-	 * are known to be absent from the minified filesystem.
+	 * `getFileNotFoundAction()` uses this set only after PHP has confirmed a
+	 * path is absent, so it is safe to keep every listed path here.
 	 */
 	protected knownRemoteAssetPaths = new Set<string>();
+
+	/**
+	 * Remote asset paths that were still absent from the PHP filesystem after
+	 * boot and Blueprint execution completed.
+	 *
+	 * The service worker cannot read the PHP filesystem directly. Exposing only
+	 * the absent subset through `getWordPressModuleDetails()` lets it skip PHP
+	 * without overriding files that are already present in the site.
+	 */
+	protected knownAbsentRemoteAssetPaths = new Set<string>();
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -345,7 +346,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	protected async finalizeAfterBoot(
 		requestHandler: any,
 		withNetworking: boolean,
-		knownRemoteAssetPaths: Set<string>
+		knownRemoteAssetPaths: Set<string>,
+		knownAbsentRemoteAssetPaths: Set<string>
 	) {
 		const primaryPhp = await requestHandler.getPrimaryPhp();
 		primaryPhp.requestHandler ??= requestHandler;
@@ -410,17 +412,29 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 		if (primaryPhp.isFile(remoteAssetListPath)) {
 			/**
-			 * Keep the list in memory for the service worker and normalize every
-			 * entry to a site-relative absolute path. Empty lines must be ignored:
+			 * Keep the list in memory and normalize every entry to a
+			 * site-relative absolute path. Empty lines must be ignored:
 			 * otherwise they would normalize to `/`, making the front page look
 			 * like a remote static asset.
+			 *
+			 * Only expose paths that are absent after boot to the service worker.
+			 * If a Blueprint or a stored site already supplied one of these files,
+			 * the PHP request path must keep serving that local copy.
 			 */
 			const remoteAssetPaths = primaryPhp
 				.readFileAsText(remoteAssetListPath)
 				.split('\n')
 				.filter(Boolean);
 			remoteAssetPaths.forEach((wpRelativePath: string) => {
-				knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath));
+				const siteRelativePath = joinPaths('/', wpRelativePath);
+				knownRemoteAssetPaths.add(siteRelativePath);
+				if (
+					!primaryPhp.fileExists(
+						joinPaths(requestHandler.documentRoot, siteRelativePath)
+					)
+				) {
+					knownAbsentRemoteAssetPaths.add(siteRelativePath);
+				}
 			});
 		}
 
@@ -461,7 +475,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			staticAssetsDirectory: this.loadedWordPressVersion
 				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
 				: undefined,
-			remoteAssetPaths: Array.from(this.knownRemoteAssetPaths),
+			remoteAssetPaths: Array.from(this.knownAbsentRemoteAssetPaths),
 		};
 	}
 
