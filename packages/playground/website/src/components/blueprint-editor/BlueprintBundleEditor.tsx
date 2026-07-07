@@ -40,13 +40,19 @@ import {
 import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import {
+	removeClientInfo,
+	selectClientInfoBySiteSlug,
+} from '../../lib/state/redux/slice-clients';
 import {
 	isAutosavedSite,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch } from '../../lib/state/redux/store';
+import {
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
@@ -322,6 +328,9 @@ export const BlueprintBundleEditor = forwardRef<
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
 	const dispatch = useAppDispatch();
+	const playgroundClient = useAppSelector((state) =>
+		site ? selectClientInfoBySiteSlug(state, site.slug)?.client : undefined
+	);
 
 	// Save file to filesystem
 	const saveFile = useDebouncedCallback(
@@ -402,9 +411,12 @@ export const BlueprintBundleEditor = forwardRef<
 				bundle as any
 			);
 			if (isAutosaved) {
+				await playgroundClient?.unmountOpfs('/wordpress');
+				dispatch(removeClientInfo(site.slug));
 				await opfsSiteStorage!.resetSiteFiles(site.slug);
+			} else {
+				dispatch(removeClientInfo(site.slug));
 			}
-			dispatch(removeClientInfo(site.slug));
 			await dispatch(
 				updateSite({
 					slug: site.slug,
@@ -442,7 +454,7 @@ export const BlueprintBundleEditor = forwardRef<
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, readOnly, site]);
+	}, [dispatch, filesystem, playgroundClient, readOnly, site]);
 
 	// autorun token hook
 	useEffect(() => {
