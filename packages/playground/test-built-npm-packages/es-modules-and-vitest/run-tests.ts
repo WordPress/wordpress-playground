@@ -25,8 +25,10 @@ type Result = {
 };
 
 const results: Result[] = [];
+// `wp.spec.ts` boots WordPress more than once. Keep the per-file
+// timeout above the individual test timeout so slower PHP versions can finish.
 const timeoutMs = Number.parseInt(
-	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
 	10
 );
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
