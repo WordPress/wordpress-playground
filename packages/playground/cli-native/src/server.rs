@@ -1036,6 +1036,16 @@ fn create_worker_pool(
     ))
 }
 
+fn set_host_options_php_runtime(
+    runtime: &NativeRuntime,
+    php_version: &str,
+    host_options: &mut HostOptions,
+) -> Result<()> {
+    let asset = runtime.php_asset(php_version)?;
+    host_options.php_runtime = runtime.manifest().php_runtime_for_asset(asset)?;
+    Ok(())
+}
+
 fn run_listener(
     config: &RuntimeConfig,
     mounts: &[Mount],
@@ -1090,6 +1100,7 @@ fn run_listener(
         &config.options,
         format!("Loading PHP {} runtime", config.options.php),
     );
+    set_host_options_php_runtime(runtime, &config.options.php, &mut host_options)?;
     let mut php =
         runtime.instantiate_php_with_host_options(&config.options.php, host_options.clone())?;
 
@@ -9314,23 +9325,24 @@ mod tests {
         resolve_git_directory_resource, resolve_route, route_target_label, run_git,
         run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
         server_banner_and_config, server_mounts, server_response_counter_stats,
-        set_site_language_metadata_script, should_clear_auto_login_cookie, split_shell_command,
-        startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
-        startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
-        unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
-        wordpress_importer_install_step, wordpress_translation_url_from_api_response,
-        worker_after_request_label, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
-        wp_installation_wizard_request, write_http_response_with_counter,
-        write_server_http_response_with_counter, write_static_file_response,
-        write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
-        FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
-        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
-        PhpRunOptions, PhpRunScript, PhpWorker, RequestTotalRequest, RouteTarget,
-        ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest,
-        AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB,
-        DEFAULT_WP_CLI_PATH, MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER,
-        MAX_REQUESTS_PER_WORKER_ENV_VAR, RECYCLE_WASM_MEMORY_MIB_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        set_host_options_php_runtime, set_site_language_metadata_script,
+        should_clear_auto_login_cookie, split_shell_command, startup_steps_from_blueprint_json,
+        startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
+        startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
+        validate_install_asset_zip, wordpress_importer_install_step,
+        wordpress_translation_url_from_api_response, worker_after_request_label,
+        worker_recycle_idle_delay_from_env, wp_cli_runner_script, wp_installation_wizard_request,
+        write_http_response_with_counter, write_server_http_response_with_counter,
+        write_static_file_response, write_wordpress_snapshot_zip, zip_path_to_string,
+        DefineWpConfigMethod, DownloadableAsset, FileContentSource, FileTreeEntry, FileTreeSource,
+        GitDirectoryResource, HttpRequest, HttpResponse, IfAlreadyInstalled, InstallAssetSource,
+        InstallAssetStep, PhpConstantValue, PhpRunOptions, PhpRunScript, PhpWorker,
+        RequestTotalRequest, RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep,
+        WorkerAfterRequest, AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE,
+        DEFAULT_RECYCLE_WASM_MEMORY_MIB, DEFAULT_WP_CLI_PATH,
+        MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER, MAX_REQUESTS_PER_WORKER_ENV_VAR,
+        RECYCLE_WASM_MEMORY_MIB_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -9338,6 +9350,7 @@ mod tests {
         run_native_startup_step_with_symlink_policy,
         write_wordpress_snapshot_zip_with_symlink_policy, SymlinkPolicy,
     };
+    use crate::assets::PhpAssetRuntime;
     use crate::download::url_cache_key;
     use crate::host::{HostMount, HostOptions};
     use crate::paths::{SiteStorage, WordPressInstallMode};
@@ -9433,6 +9446,16 @@ mod tests {
             PhpConstantValue::string(site_url.to_string()),
         ));
         host_options
+    }
+
+    #[test]
+    fn resolved_host_options_use_wasmtime_async_for_worker_pool() {
+        let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
+        let mut host_options = HostOptions::default();
+
+        set_host_options_php_runtime(&runtime, "8.5", &mut host_options).unwrap();
+
+        assert_eq!(host_options.php_runtime, PhpAssetRuntime::WasmtimeAsync);
     }
 
     #[test]

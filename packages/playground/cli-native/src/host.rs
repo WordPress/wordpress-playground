@@ -412,7 +412,7 @@ impl Default for HostOptions {
             opcache_mode: OpcacheMode::default(),
             host_cache: false,
             php_version: None,
-            php_runtime: PhpAssetRuntime::Asyncify,
+            php_runtime: PhpAssetRuntime::WasmtimeAsync,
             php_ini_entries: Vec::new(),
             env_entries: Vec::new(),
             internal_files: Vec::new(),

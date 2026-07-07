@@ -198,15 +198,19 @@ fn native_start_command_serves_admin_editor_page_with_auto_login() {
             "start",
             "--skip-browser",
             "--port=0",
-            "--workers=1",
+            "--workers=4",
             "--reset",
             "--php=8.5",
             "--wp=6.9",
             "--login",
+            "--redis",
+            "--memcached",
+            "--xdebug",
             "--verbosity=debug",
         ])
         .current_dir(&cwd)
         .env("HOME", &home)
+        .env("WP_PLAYGROUND_NATIVE_LAZY_WORKERS", "1")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -262,6 +266,84 @@ fn native_start_command_serves_admin_editor_page_with_auto_login() {
         !editor.body.contains("Internal Server Error"),
         "{}",
         editor.body
+    );
+    assert!(
+        !editor.body.contains("asyncify_stop_unwind"),
+        "{}",
+        editor.body
+    );
+
+    let mut concurrent = Vec::new();
+    for index in 0..12 {
+        let address = address.clone();
+        let cookies = cookies.clone();
+        concurrent.push(thread::spawn(move || {
+            let path = if index % 2 == 0 { "/favicon.ico/" } else { "/" };
+            (
+                path,
+                send_get_with_cookie_header(&address, path, Some(&cookies)),
+            )
+        }));
+    }
+    for thread in concurrent {
+        let (path, response) = thread.join().unwrap();
+        assert!(
+            response.status_line.starts_with("HTTP/1.1 200 ")
+                || response.status_line.starts_with("HTTP/1.1 301 ")
+                || response.status_line.starts_with("HTTP/1.1 302 ")
+                || response.status_line.starts_with("HTTP/1.1 404 "),
+            "{path}\n{}\n{}\n{}",
+            response.status_line,
+            response.headers,
+            response.body
+        );
+        assert!(
+            !response.body.contains("asyncify_stop_unwind"),
+            "{}",
+            response.body
+        );
+        assert!(
+            !response.body.contains("Internal Server Error"),
+            "{}",
+            response.body
+        );
+    }
+    let editor_after_lazy_workers =
+        send_get_with_cookie_header(&address, editor_path, Some(&cookies));
+    assert_ok(&editor_after_lazy_workers);
+    assert!(
+        editor_after_lazy_workers.body.contains("Add Page"),
+        "{}",
+        editor_after_lazy_workers.body
+    );
+    assert!(
+        editor_after_lazy_workers.body.contains("wp-admin-bar"),
+        "{}",
+        editor_after_lazy_workers.body
+    );
+    assert!(
+        !editor_after_lazy_workers
+            .body
+            .contains("asyncify_stop_unwind"),
+        "{}",
+        editor_after_lazy_workers.body
+    );
+    assert!(
+        !editor_after_lazy_workers
+            .body
+            .contains("Internal Server Error"),
+        "{}",
+        editor_after_lazy_workers.body
+    );
+
+    let recent_stderr = rx.try_iter().collect::<Vec<_>>().join("\n");
+    assert!(
+        !recent_stderr.contains("asyncify_stop_unwind"),
+        "{recent_stderr}"
+    );
+    assert!(
+        !recent_stderr.contains("wasm_sapi_handle_request failed"),
+        "{recent_stderr}"
     );
 
     drop(guard);

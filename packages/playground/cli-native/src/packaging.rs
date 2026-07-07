@@ -392,14 +392,18 @@ pub fn run_packaged_wordpress_server_smoke(
         .arg(format!("--php={php_version}"))
         .arg(format!("--wp={wordpress_version}"))
         .arg("--port=0")
-        .arg("--workers=1")
+        .arg("--workers=4")
         .arg("--login")
+        .arg("--redis")
+        .arg("--memcached")
+        .arg("--xdebug")
         .arg("--verbosity=debug")
         .arg("--mount-dir-before-install")
         .arg(&site_root)
         .arg("/wordpress")
         .env_remove(ASSET_ROOT_ENV_VAR)
         .env(DISABLE_SOURCE_FALLBACK_ENV_VAR, "1")
+        .env("WP_PLAYGROUND_NATIVE_LAZY_WORKERS", "1")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -426,8 +430,64 @@ pub fn run_packaged_wordpress_server_smoke(
 
     let server_url = wait_for_packaged_server_url(&rx)?;
     let response = http_get_following_login(&server_url, "/")?;
-    let editor_response =
-        http_get_following_login(&server_url, "/wp-admin/post-new.php?post_type=page")?;
+    let editor_path = "/wp-admin/post-new.php?post_type=page";
+    let editor_login_response = http_get(&server_url, editor_path)?;
+    let cookies = response_set_cookie_header(&editor_login_response);
+    let editor_response = if cookies.is_empty() {
+        editor_login_response
+    } else {
+        http_get_with_cookie_header(&server_url, editor_path, Some(&cookies))?
+    };
+    if !cookies.is_empty() {
+        let mut concurrent = Vec::new();
+        for index in 0..12 {
+            let server_url = server_url.clone();
+            let cookies = cookies.clone();
+            concurrent.push(thread::spawn(move || {
+                let path = if index % 2 == 0 { "/favicon.ico/" } else { "/" };
+                http_get_with_cookie_header(&server_url, path, Some(&cookies))
+                    .map(|response| (path, response))
+            }));
+        }
+        for handle in concurrent {
+            let (path, response) = handle
+                .join()
+                .map_err(|_| CliError::new("Packaged WordPress concurrent smoke panicked"))??;
+            if response.contains("asyncify_stop_unwind")
+                || response.contains("wasm_sapi_handle_request failed")
+                || response.contains("Internal Server Error")
+            {
+                return Err(CliError::new(format!(
+                    "Packaged WordPress concurrent smoke failed for {path}:\n{}",
+                    response_excerpt_text(&response)
+                )));
+            }
+            if !(response.starts_with("HTTP/1.1 200 ")
+                || response.starts_with("HTTP/1.1 301 ")
+                || response.starts_with("HTTP/1.1 302 ")
+                || response.starts_with("HTTP/1.1 404 "))
+            {
+                return Err(CliError::new(format!(
+                    "Packaged WordPress concurrent smoke returned unexpected response for {path}:\n{}",
+                    response_excerpt_text(&response)
+                )));
+            }
+        }
+        let editor_after_lazy_workers =
+            http_get_with_cookie_header(&server_url, editor_path, Some(&cookies))?;
+        if !editor_after_lazy_workers.starts_with("HTTP/1.1 200 OK\r\n")
+            || !editor_after_lazy_workers.contains("Add Page")
+            || !editor_after_lazy_workers.contains("wp-admin-bar")
+            || editor_after_lazy_workers.contains("asyncify_stop_unwind")
+            || editor_after_lazy_workers.contains("wasm_sapi_handle_request failed")
+            || editor_after_lazy_workers.contains("Internal Server Error")
+        {
+            return Err(CliError::new(format!(
+                "Packaged WordPress post-lazy-worker editor smoke returned unexpected response:\n{}",
+                response_excerpt_text(&editor_after_lazy_workers)
+            )));
+        }
+    }
     guard.stop();
     let _ = stderr_thread.join();
 
