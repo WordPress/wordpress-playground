@@ -11,7 +11,7 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo } from './slice-clients';
+import { addClientInfo, removeClientInfo } from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
@@ -418,6 +418,11 @@ export function createSitesAPI(
 				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
+			await selectClientBySiteSlug(
+				getState(),
+				site.slug
+			)?.unmountOpfs('/wordpress');
+			dispatch(removeClientInfo(site.slug));
 			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
 			redirectTo(setupUrl.toString());
 		},
