@@ -806,20 +806,10 @@ fn send_raw_http(address: &str, request: &str) -> String {
         match stream.read(&mut buffer) {
             Ok(0) => break,
             Ok(count) => response.extend_from_slice(&buffer[..count]),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
-                ) && !response.is_empty() =>
-            {
+            Err(error) if is_retryable_response_read_error(&error) && !response.is_empty() => {
                 break;
             }
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
-                ) && Instant::now() < deadline =>
-            {
+            Err(error) if is_retryable_response_read_error(&error) && Instant::now() < deadline => {
                 thread::sleep(Duration::from_millis(10));
             }
             Err(error) => panic!("failed reading HTTP response from {address}: {error}"),
@@ -830,4 +820,13 @@ fn send_raw_http(address: &str, request: &str) -> String {
         "server at {address} returned no HTTP response"
     );
     String::from_utf8_lossy(&response).to_string()
+}
+
+fn is_retryable_response_read_error(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::TimedOut
+            | std::io::ErrorKind::WouldBlock
+            | std::io::ErrorKind::Interrupted
+    ) || matches!(error.raw_os_error(), Some(11 | 35))
 }
