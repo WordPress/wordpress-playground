@@ -674,7 +674,11 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 			},
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
+		const details: WPModuleDetails = await awaitReply(self, requestId);
+		scopeToWpModule[scope] = {
+			...details,
+			remoteAssetPathSet: new Set(details.remoteAssetPaths),
+		};
 	}
 	return scopeToWpModule[scope];
 }

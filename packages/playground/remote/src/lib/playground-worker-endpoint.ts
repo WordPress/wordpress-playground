@@ -413,8 +413,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (primaryPhp.isFile(remoteAssetListPath)) {
 			/**
 			 * Keep the list in memory and normalize every entry to a
-			 * site-relative absolute path. Empty lines must be ignored:
-			 * otherwise they would normalize to `/`, making the front page look
+			 * site-relative absolute path. Empty or whitespace-only lines must be
+			 * ignored: otherwise they would normalize to `/`, making the front page look
 			 * like a remote static asset.
 			 *
 			 * Only expose paths that are absent after boot to the service worker.
@@ -424,13 +424,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			const remoteAssetPaths = primaryPhp
 				.readFileAsText(remoteAssetListPath)
 				.split('\n')
+				.map((line: string) => line.trim().replace(/^\/+/, ''))
 				.filter(Boolean);
 			remoteAssetPaths.forEach((wpRelativePath: string) => {
 				const siteRelativePath = joinPaths('/', wpRelativePath);
 				knownRemoteAssetPaths.add(siteRelativePath);
 				if (
 					!primaryPhp.fileExists(
-						joinPaths(requestHandler.documentRoot, siteRelativePath)
+						joinPaths(requestHandler.documentRoot, wpRelativePath)
 					)
 				) {
 					knownAbsentRemoteAssetPaths.add(siteRelativePath);

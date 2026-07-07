@@ -29,6 +29,10 @@ export type WPModuleDetails = {
 	 * WordPress rewrite rules are applied.
 	 */
 	remoteAssetPaths?: string[];
+	/**
+	 * Service-worker-only membership cache derived from `remoteAssetPaths`.
+	 */
+	remoteAssetPathSet?: Set<string>;
 };
 
 /**
@@ -57,8 +61,9 @@ export type WPModuleDetails = {
  */
 export function resolveKnownRemoteAssetUrl(
 	unscopedUrl: URL,
-	{ staticAssetsDirectory, remoteAssetPaths }: WPModuleDetails
+	details: WPModuleDetails
 ) {
+	const { staticAssetsDirectory, remoteAssetPaths } = details;
 	if (!staticAssetsDirectory || !remoteAssetPaths?.length) {
 		return undefined;
 	}
@@ -68,7 +73,10 @@ export function resolveKnownRemoteAssetUrl(
 		wordPressRewriteRules
 	);
 	const normalizedPath = joinPaths('/', siteRelativePath);
-	if (normalizedPath === '/' || !remoteAssetPaths.includes(normalizedPath)) {
+	if (
+		normalizedPath === '/' ||
+		!hasRemoteAssetPath(details, normalizedPath)
+	) {
 		return undefined;
 	}
 
@@ -76,7 +84,18 @@ export function resolveKnownRemoteAssetUrl(
 	remoteAssetUrl.pathname = joinPaths(
 		'/',
 		staticAssetsDirectory,
-		siteRelativePath
+		normalizedPath.substring(1)
 	);
 	return remoteAssetUrl;
+}
+
+function hasRemoteAssetPath(
+	{ remoteAssetPaths, remoteAssetPathSet }: WPModuleDetails,
+	normalizedPath: string
+) {
+	return (
+		remoteAssetPathSet?.has(normalizedPath) ??
+		remoteAssetPaths?.includes(normalizedPath) ??
+		false
+	);
 }

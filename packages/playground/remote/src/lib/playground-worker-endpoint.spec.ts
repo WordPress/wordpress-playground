@@ -294,8 +294,13 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 				(path: string) =>
 					path === '/wordpress/wordpress-remote-asset-paths'
 			),
-			readFileAsText: vi.fn(
-				() => 'wp-includes/js/local.js\nwp-includes/js/remote.js\n'
+			readFileAsText: vi.fn(() =>
+				[
+					'  /wp-includes/js/local.js\r',
+					'wp-includes/js/remote.js',
+					'  ',
+					'',
+				].join('\n')
 			),
 		};
 		const requestHandler = {
