@@ -90,6 +90,68 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('compiles Blueprint v2 declarations from raw JSON', async () => {
+		const compiled = await compileBlueprintForExecution(
+			JSON.stringify({
+				version: 2,
+				constants: {
+					WP_DEBUG: true,
+				},
+			})
+		);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.declaration).toEqual({
+			version: 2,
+			constants: {
+				WP_DEBUG: true,
+			},
+		});
+		expect(compiled.compiled.plan).toEqual([
+			{
+				type: 'defineWpConfigConsts',
+				consts: {
+					WP_DEBUG: true,
+				},
+			},
+		]);
+	});
+
+	it('rejects Blueprint v1 declarations from raw JSON', async () => {
+		await expect(
+			compileBlueprintForExecution(
+				JSON.stringify({
+					steps: [
+						{
+							step: 'mkdir',
+							path: '/wordpress/cache',
+						},
+					],
+				})
+			)
+		).rejects.toThrow(
+			'Raw JSON input is only supported for Blueprint v2 declarations.'
+		);
+	});
+
+	it('rejects invalid raw JSON input', async () => {
+		await expect(
+			compileBlueprintForExecution('{ "version": 2')
+		).rejects.toThrow('Raw JSON input must be valid JSON.');
+	});
+
+	it.each(['null', '[]'])(
+		'rejects raw JSON %s as a Blueprint declaration',
+		async (rawJson) => {
+			await expect(compileBlueprintForExecution(rawJson)).rejects.toThrow(
+				'Raw JSON input must contain a Blueprint declaration object.'
+			);
+		}
+	);
+
 	it('runs Blueprint v2 bundles with bundled execution-context resources', async () => {
 		const bundle = new InMemoryFilesystem({
 			'plugin.php': '<?php /* Plugin Name: Bundled Plugin */',
