@@ -14,6 +14,7 @@ use crate::{
         startup_steps_from_options, write_wordpress_snapshot_zip_with_symlink_policy,
         SymlinkPolicy,
     },
+    terminal::TerminalStyle,
     wordpress::{
         defined_constants_for_host, ensure_wordpress_mount, prepare_wordpress, wordpress_mount_path,
     },
@@ -67,7 +68,7 @@ pub fn run(options: CliOptions) -> Result<u8> {
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {
     if !matches!(options.verbosity, Verbosity::Quiet) {
-        eprintln!("{}", message.as_ref());
+        eprintln!("{}", TerminalStyle::stderr().dim(message.as_ref()));
     }
 }
 
@@ -105,9 +106,7 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
     let mut host_options = php_host_options_for_mounts(options, &mounts, &site_url);
     configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     host_options.echo_output = false;
-    if options.debug {
-        host_options.max_import_calls = Some(100_000);
-    }
+    host_options.capture_import_trace = options.debug;
 
     let startup_steps = startup_steps_from_options(options)?;
     progress(options, format!("Loading PHP {} runtime", options.php));
@@ -157,9 +156,7 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
     let mut host_options = php_host_options_for_mounts(options, &mounts, &site_url);
     configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     host_options.echo_output = false;
-    if options.debug {
-        host_options.max_import_calls = Some(100_000);
-    }
+    host_options.capture_import_trace = options.debug;
 
     let startup_steps = startup_steps_from_options(options)?;
     progress(options, format!("Loading PHP {} runtime", options.php));
@@ -217,9 +214,7 @@ fn run_php_command(runtime: &NativeRuntime, options: &CliOptions) -> Result<u8> 
     configure_builtin_extensions_from_options(&mut host_options, runtime.repo_root(), options)?;
     let argv = php_argv(options);
     add_cli_allowed_host_paths(&mut host_options, &argv);
-    if options.debug {
-        host_options.max_import_calls = Some(1_000);
-    }
+    host_options.capture_import_trace = options.debug;
 
     let startup_steps = startup_steps_from_options(options)?;
     if should_boot_wordpress_for_php(options) || !startup_steps.is_empty() {

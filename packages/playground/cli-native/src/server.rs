@@ -31,6 +31,7 @@ use crate::{
     php::{PhpInstance, PhpRequest, PhpResponse},
     route_counters::{self, Field, RequestId},
     runtime::{release_unused_process_memory, NativeRuntime},
+    terminal::TerminalStyle,
     vfs::normalize_vfs_path,
     wordpress::{
         defined_constants_for_host, ensure_wordpress_mount, ensure_wp_config, prepare_wordpress,
@@ -819,7 +820,6 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
     let mut host_options = HostOptions {
         echo_output: false,
         capture_import_trace: config.options.debug,
-        max_import_calls: config.options.debug.then_some(100_000),
         follow_symlinks: config.options.follow_symlinks,
         opcache_mode: config.options.opcache,
         host_cache: config.options.opcache.enables_host_cache(),
@@ -860,23 +860,42 @@ fn selected_builtin_php_extensions(options: &CliOptions) -> Vec<BuiltInPhpExtens
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {
     if !matches!(options.verbosity, Verbosity::Quiet) {
-        eprintln!("{}", message.as_ref());
+        eprintln!("{}", TerminalStyle::stderr().dim(message.as_ref()));
     }
 }
 
-fn server_banner_and_config(options: &CliOptions) -> String {
+fn server_banner_and_config(options: &CliOptions, style: TerminalStyle) -> String {
     let mut lines = vec![
         String::new(),
-        "WordPress Playground CLI".to_string(),
+        style.bold("WordPress Playground CLI"),
         String::new(),
-        format!("PHP {}  WordPress {}", options.php, options.wp),
+        format!(
+            "{} {}  {} {}",
+            style.dim("PHP"),
+            style.cyan(&options.php),
+            style.dim("WordPress"),
+            style.cyan(&options.wp)
+        ),
     ];
     let mut extensions = Vec::new();
     if options.intl {
         extensions.push("intl");
     }
+    if options.redis {
+        extensions.push("redis");
+    }
+    if options.memcached {
+        extensions.push("memcached");
+    }
+    if options.xdebug {
+        extensions.push("xdebug");
+    }
     if !extensions.is_empty() {
-        lines.push(format!("Extensions {}", extensions.join(", ")));
+        lines.push(format!(
+            "{} {}",
+            style.dim("Extensions"),
+            extensions.join(", ")
+        ));
     }
     for mount in options
         .mounts
@@ -889,26 +908,33 @@ fn server_banner_and_config(options: &CliOptions) -> String {
             ""
         };
         lines.push(format!(
-            "Mount {} -> {}{}",
+            "{} {} {} {}{}",
+            style.dim("Mount"),
             mount.host_path.display(),
+            style.dim("->"),
             mount.vfs_path,
             auto_mount_label
         ));
     }
     if let Some(blueprint) = &options.blueprint {
-        lines.push(format!("Blueprint {blueprint}"));
+        lines.push(format!("{} {blueprint}", style.dim("Blueprint")));
     }
     lines.push(String::new());
     lines.join("\n")
 }
 
-fn ready_message(server_url: &str, worker_count: usize) -> String {
+fn ready_message(server_url: &str, worker_count: usize, style: TerminalStyle) -> String {
     let worker_label = if worker_count == 1 {
         "worker"
     } else {
         "workers"
     };
-    format!("Ready! WordPress is running on {server_url} ({worker_count} {worker_label})")
+    format!(
+        "{} WordPress is running on {} {}",
+        style.green("Ready!"),
+        style.cyan(server_url),
+        style.dim(format!("({worker_count} {worker_label})"))
+    )
 }
 
 fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
@@ -1028,8 +1054,13 @@ fn run_listener(
         .clone()
         .unwrap_or_else(|| format!("http://127.0.0.1:{actual_port}"));
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
+        let style = TerminalStyle::stdout();
         let mut stdout = io::stdout().lock();
-        let _ = writeln!(stdout, "{}", server_banner_and_config(&config.options));
+        let _ = writeln!(
+            stdout,
+            "{}",
+            server_banner_and_config(&config.options, style)
+        );
         let _ = stdout.flush();
     }
     host_options.string_constants.push((
@@ -1098,10 +1129,18 @@ fn run_listener(
     release_unused_process_memory();
 
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
+        let style = TerminalStyle::stdout();
         let mut stdout = io::stdout().lock();
-        let _ = writeln!(stdout, "\n{}\n", ready_message(&server_url, worker_count));
+        let _ = writeln!(
+            stdout,
+            "\n{}\n",
+            ready_message(&server_url, worker_count, style)
+        );
         let _ = stdout.flush();
-        eprintln!("wp-playground-native listening on {server_url}");
+        eprintln!(
+            "{}",
+            TerminalStyle::stderr().dim(format!("wp-playground-native listening on {server_url}"))
+        );
     }
 
     if matches!(config.original_command, CommandName::Start) && !config.options.skip_browser {
@@ -1144,9 +1183,7 @@ fn run_listener(
                             },
                             false,
                         );
-                        if debug {
-                            eprintln!("server request error: {error}");
-                        }
+                        log_server_request_error(&error);
                     }
                 });
             }
@@ -1665,7 +1702,7 @@ fn handle_http_request(
                     response.0,
                     php_worker.php()?.host_import_count(),
                     worker_pool.len(),
-                    php_worker.php()?.recent_host_imports(400)
+                    php_worker.php()?.recent_host_imports(20)
                 );
             }
             if log_memory_stats {
@@ -1738,20 +1775,35 @@ fn handle_php_route_request(
     let response_counter_request =
         request_id.map(|_| (request.method.clone(), request.target.clone()));
     let php_request =
-        php_request_from_http_with_counter(request, vfs_path, path_info, port, request_id);
+        php_request_from_http_with_counter(&request, vfs_path, path_info, port, request_id);
     let response = php
         .run_sapi_request_with_counter(&php_request, request_id)
         .map_err(|error| {
+            let stderr = php.take_captured_stderr();
+            let stdout = php.take_captured_stdout();
+            let detail = php_failure_detail(&stdout, &stderr);
+            let request_error = if detail.is_empty() {
+                format!(
+                    "PHP request {} {} failed: {error}",
+                    request.method, request.target
+                )
+            } else {
+                format!(
+                    "PHP request {} {} failed: {error}. {detail}",
+                    request.method, request.target
+                )
+            };
             if debug {
                 CliError::new(format!(
-                    "{error}\nrecent host imports: {}",
+                    "{request_error}\nrecent host imports: {}",
                     recent_host_imports(php.called_host_imports())
                 ))
             } else {
-                error
+                CliError::new(request_error)
             }
         })?;
     let exit_code = response.exit_code;
+    log_php_request_response(&request, &response);
     let (method, target) = response_counter_request
         .as_ref()
         .map_or(("", ""), |(method, target)| {
@@ -2060,6 +2112,57 @@ fn http_response_from_php_with_counter(
         stderr_bytes,
     });
     parsed
+}
+
+fn log_server_request_error(error: &CliError) {
+    let style = TerminalStyle::stderr();
+    eprintln!("{} {error}", style.red("Error:"));
+}
+
+fn log_php_request_response(request: &HttpRequest, response: &PhpResponse) {
+    let status = php_response_status(response);
+    if status < 500 && response.exit_code == 0 {
+        return;
+    }
+    let style = TerminalStyle::stderr();
+    eprintln!(
+        "{} PHP request {} {} returned HTTP {} with PHP exit code {}",
+        style.red("Error:"),
+        request.method,
+        request.target,
+        status,
+        response.exit_code
+    );
+    let detail = php_failure_detail(&response.stdout, &response.stderr);
+    if !detail.is_empty() {
+        eprintln!("{} {detail}", style.dim("PHP output:"));
+    }
+}
+
+fn php_response_status(response: &PhpResponse) -> u16 {
+    let mut status = parse_php_headers(&response.headers).status;
+    if (200..400).contains(&status) && response.exit_code != 0 {
+        status = 500;
+    }
+    status
+}
+
+fn php_failure_detail(stdout: &[u8], stderr: &[u8]) -> String {
+    let mut text = if !stderr.is_empty() {
+        String::from_utf8_lossy(stderr).into_owned()
+    } else {
+        String::from_utf8_lossy(stdout).into_owned()
+    };
+    if let Some(message) = extract_wp_die_message(&text) {
+        text = message;
+    }
+    text.replace(['\r', '\n'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(1000)
+        .collect()
 }
 
 fn recent_host_imports(imports: &[String]) -> String {
@@ -9203,12 +9306,13 @@ mod tests {
         mark_worker_request_finished, max_requests_per_worker_from_env, maybe_boot_wordpress_site,
         multisite_url_settings, normalize_git_directory_path, parse_http_request,
         parse_http_request_owned, parse_http_request_owned_with_counter, parse_php_headers,
-        php_request_from_http, php_request_from_run_options, php_single_quoted_string,
-        read_http_request, ready_message, reason_phrase, recycle_wasm_memory_threshold_from_env,
-        remove_wp_allow_multisite_define, request_error_total_counter, request_path_from_target,
-        request_total_fields, requested_worker_count, reserve_lazy_worker_retirement,
-        reset_data_script, resolve_git_directory_resource, resolve_route, route_target_label,
-        run_git, run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
+        php_failure_detail, php_request_from_http, php_request_from_run_options,
+        php_response_status, php_single_quoted_string, read_http_request, ready_message,
+        reason_phrase, recycle_wasm_memory_threshold_from_env, remove_wp_allow_multisite_define,
+        request_error_total_counter, request_path_from_target, request_total_fields,
+        requested_worker_count, reserve_lazy_worker_retirement, reset_data_script,
+        resolve_git_directory_resource, resolve_route, route_target_label, run_git,
+        run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
         server_banner_and_config, server_mounts, server_response_counter_stats,
         set_site_language_metadata_script, should_clear_auto_login_cookie, split_shell_command,
         startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
@@ -9237,8 +9341,10 @@ mod tests {
     use crate::download::url_cache_key;
     use crate::host::{HostMount, HostOptions};
     use crate::paths::{SiteStorage, WordPressInstallMode};
+    use crate::php::PhpResponse;
     use crate::route_counters;
     use crate::runtime::{repo_root_from_manifest_dir, NativeRuntime};
+    use crate::terminal::TerminalStyle;
     use crate::wordpress::prepare_wordpress;
     use crate::{
         args::{parse_cli_args_from, CommandName, RuntimeCommand, RuntimeConfig},
@@ -9909,6 +10015,33 @@ mod tests {
     }
 
     #[test]
+    fn php_response_status_turns_nonzero_success_into_500() {
+        let response = PhpResponse {
+            exit_code: 255,
+            stdout: Vec::new(),
+            stderr: b"fatal".to_vec(),
+            headers: br#"{ "status": 200, "headers": [] }"#.to_vec(),
+        };
+
+        assert_eq!(php_response_status(&response), 500);
+    }
+
+    #[test]
+    fn php_failure_detail_prefers_stderr_and_extracts_wp_die_text() {
+        assert_eq!(
+            php_failure_detail(
+                b"<html><div id=\"wp-die-message\">Database exploded</div></html>",
+                b""
+            ),
+            "Database exploded"
+        );
+        assert_eq!(
+            php_failure_detail(b"body", b"PHP Fatal error:\nboom\r\n"),
+            "PHP Fatal error: boom"
+        );
+    }
+
+    #[test]
     fn head_response_keeps_content_length_and_omits_body() {
         let response = HttpResponse {
             status: 200,
@@ -10572,11 +10705,11 @@ mod tests {
     #[test]
     fn ready_message_matches_node_cli_contract() {
         assert_eq!(
-            ready_message("http://127.0.0.1:9400", 1),
+            ready_message("http://127.0.0.1:9400", 1, TerminalStyle::plain()),
             "Ready! WordPress is running on http://127.0.0.1:9400 (1 worker)"
         );
         assert_eq!(
-            ready_message("http://127.0.0.1:9400", 2),
+            ready_message("http://127.0.0.1:9400", 2, TerminalStyle::plain()),
             "Ready! WordPress is running on http://127.0.0.1:9400 (2 workers)"
         );
     }
@@ -10591,6 +10724,9 @@ mod tests {
                 "server".to_string(),
                 "--php=8.5".to_string(),
                 "--wp=6.9".to_string(),
+                "--redis".to_string(),
+                "--memcached".to_string(),
+                "--xdebug".to_string(),
                 "--blueprint=blueprint.json".to_string(),
             ],
             &cwd,
@@ -10600,11 +10736,11 @@ mod tests {
             .mounts
             .push(Mount::auto(&mount_dir, "/wordpress/wp-content/plugins/plugin").unwrap());
 
-        let summary = server_banner_and_config(&options);
+        let summary = server_banner_and_config(&options, TerminalStyle::plain());
 
         assert!(summary.contains("WordPress Playground CLI"));
         assert!(summary.contains("PHP 8.5  WordPress 6.9"));
-        assert!(summary.contains("Extensions intl"));
+        assert!(summary.contains("Extensions intl, redis, memcached, xdebug"));
         assert!(summary.contains("Mount "));
         assert!(summary.contains(" -> /wordpress/wp-content/plugins/plugin (auto-mount)"));
         assert!(summary.contains("Blueprint "));

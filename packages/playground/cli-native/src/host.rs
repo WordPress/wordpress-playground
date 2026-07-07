@@ -1002,6 +1002,7 @@ if (!defined('WP_AUTO_UPDATE_CORE')) {
 if (file_exists('/internal/shared/preload/env.php')) {
     require_once '/internal/shared/preload/env.php';
 }
+ob_start();
 "#[..],
             ),
         );
@@ -1332,7 +1333,7 @@ impl HostState {
     }
 
     fn trace_enabled(&self) -> bool {
-        self.options.max_import_calls.is_some()
+        env_flag("WP_PLAYGROUND_NATIVE_HOST_TRACE")
     }
 
     fn synthetic_pid(&self) -> i32 {
@@ -18682,6 +18683,7 @@ mod tests {
             .contains_key("/internal/shared/mu-plugins/1-auto-login.php"));
         let auto_prepend = internal_file_text(&state, "/internal/shared/auto_prepend_file.php");
         assert!(auto_prepend.contains("require_once '/internal/shared/preload/env.php'"));
+        assert!(auto_prepend.contains("ob_start();"));
         assert!(consts.contains(r#""WP_HOME":"http://127.0.0.1:9400""#));
         assert!(consts.contains(r#""WP_DEBUG":true"#));
         assert!(consts.contains(r#""LIMIT":42.0"#) || consts.contains(r#""LIMIT":42"#));

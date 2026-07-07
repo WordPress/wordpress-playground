@@ -14,6 +14,7 @@ pub mod runtime;
 pub mod server;
 pub mod sha1;
 pub mod sha256;
+pub mod terminal;
 pub mod vfs;
 pub mod wordpress;
 

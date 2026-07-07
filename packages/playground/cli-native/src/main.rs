@@ -1,21 +1,18 @@
-use std::{
-    env,
-    io::{self, IsTerminal},
-    process::ExitCode,
-};
+use std::process::ExitCode;
 
-use wp_playground_native::{args::parse_cli_args, commands::run};
+use wp_playground_native::{args::parse_cli_args, commands::run, terminal::TerminalStyle};
 
 fn main() -> ExitCode {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if let Some(output) = immediate_output(&args, should_color_stdout()) {
+    if let Some(output) = immediate_output(&args, TerminalStyle::stdout().enabled()) {
         println!("{output}");
         return ExitCode::SUCCESS;
     }
     match parse_cli_args(args).and_then(run) {
         Ok(code) => ExitCode::from(code),
         Err(error) => {
-            eprintln!("error: {error}");
+            let style = TerminalStyle::stderr();
+            eprintln!("{} {error}", style.red("Error:"));
             ExitCode::from(1)
         }
     }
@@ -31,19 +28,6 @@ fn immediate_output(args: &[String], color: bool) -> Option<String> {
         }
         _ => None,
     }
-}
-
-fn should_color_stdout() -> bool {
-    if env::var_os("NO_COLOR").is_some() {
-        return false;
-    }
-    if env::var("TERM").is_ok_and(|term| term == "dumb") {
-        return false;
-    }
-    if env::var("FORCE_COLOR").is_ok_and(|value| value != "0" && !value.is_empty()) {
-        return true;
-    }
-    io::stdout().is_terminal()
 }
 
 fn has_help_flag_before_delimiter(args: &[String]) -> bool {
@@ -91,31 +75,27 @@ fn colorize_help(text: &str) -> String {
 }
 
 fn colorize_help_line(line: &str) -> String {
-    const BOLD_CYAN: &str = "\x1b[1;36m";
-    const BOLD_YELLOW: &str = "\x1b[1;33m";
-    const GREEN: &str = "\x1b[32m";
-    const DIM: &str = "\x1b[2m";
-    const RESET: &str = "\x1b[0m";
+    let style = TerminalStyle::color();
 
     if let Some(rest) = line.strip_prefix("Usage:") {
-        return format!("{BOLD_CYAN}Usage:{RESET}{rest}");
+        return format!("{}{rest}", style.bold_cyan("Usage:"));
     }
     if matches!(
         line,
         "Commands:" | "Global options:" | "Common options:" | "Examples:"
     ) {
-        return format!("{BOLD_YELLOW}{line}{RESET}");
+        return style.bold_yellow(line);
     }
     if let Some(rest) = line.strip_prefix("  wp-playground-native") {
-        return format!("  {BOLD_CYAN}wp-playground-native{RESET}{rest}");
+        return format!("  {}{rest}", style.bold_cyan("wp-playground-native"));
     }
     if let Some(rest) = line.strip_prefix("  package-native-cli") {
-        return format!("  {BOLD_CYAN}package-native-cli{RESET}{rest}");
+        return format!("  {}{rest}", style.bold_cyan("package-native-cli"));
     }
     if let Some(rest) = line.strip_prefix("  ") {
         if let Some((name, description)) = split_help_row(rest) {
             if is_command(name) || name.starts_with('-') {
-                return format!("  {GREEN}{name}{RESET}{DIM}{description}{RESET}");
+                return format!("  {}{}", style.green(name), style.dim(description));
             }
         }
     }
@@ -143,6 +123,7 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  --site-url <url>               Override WordPress site URL\n",
             "  --skip-browser                 Do not open the browser\n",
             "  --reset                        Reset managed site storage\n",
+            "  --login / --no-login           Enable or disable auto-login\n",
             "  --no-auto-mount                Disable project auto-detection\n",
             "  --blueprint <path|url>         Run a Blueprint on startup\n",
             "  --workers <n|auto>             PHP worker count\n",
