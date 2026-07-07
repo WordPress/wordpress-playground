@@ -7,7 +7,10 @@ import {
 	EventedFilesystem,
 } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { PlaygroundFileEditor } from '@wp-playground/components';
+import {
+	getRemoteFileSize,
+	PlaygroundFileEditor,
+} from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import { getDirectoryPathForSlug } from '../../../lib/state/opfs/opfs-site-storage';
 
@@ -99,10 +102,16 @@ class ClientFilesystemWrapper
 	fileExists(path: string) {
 		return this.client.fileExists(path);
 	}
-	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
-		const buffer = await this.client.readFileAsBuffer(path);
+	async read(
+		path: string
+	): Promise<{ filesize: number; arrayBuffer(): Promise<ArrayBuffer> }> {
+		const filesize = await getRemoteFileSize(this.client, path);
 		return {
-			arrayBuffer: async () => buffer.buffer as ArrayBuffer,
+			filesize,
+			arrayBuffer: async () => {
+				const buffer = await this.client.readFileAsBuffer(path);
+				return toArrayBuffer(buffer);
+			},
 		};
 	}
 	readFileAsText(path: string) {
@@ -178,4 +187,15 @@ function useFilesystem(
 		// Fall back to direct OPFS access
 		return opfsFilesystem;
 	}, [client, opfsFilesystem]);
+}
+
+function toArrayBuffer(buffer: Uint8Array): ArrayBuffer {
+	if (
+		buffer.buffer instanceof ArrayBuffer &&
+		buffer.byteOffset === 0 &&
+		buffer.byteLength === buffer.buffer.byteLength
+	) {
+		return buffer.buffer;
+	}
+	return new Uint8Array(buffer).buffer;
 }
