@@ -14,9 +14,11 @@ import {
 	HttpCookieStore,
 	exposeAPI,
 	exposeSyncAPI,
+	transfer,
 	printDebugDetails,
 	describeError,
 } from '@php-wasm/universal';
+import type { CreatedChildWorker } from './worker-boot-config';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
@@ -1070,10 +1072,6 @@ export async function runCLI(
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const fileLockManager = new FileLockManagerInMemory();
-	// Lets workers mint direct broker ports for the PHP children they spawn
-	// via proc_open()/system(). Disposed from disposeCLI().
-	const fileLockManagerService =
-		createFileLockManagerService(fileLockManager);
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
@@ -1151,6 +1149,10 @@ export async function runCLI(
 				await createPlaygroundCliTempDir(tempDirNameDelimiter);
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
+			let childWorkerService:
+				| ReturnType<typeof createChildWorkerService>
+				| undefined;
+
 			// Remember whether we are already disposing so we can avoid:
 			// - multiple, conflicting dispose attempts
 			// - logging that a worker exited while the CLI itself is exiting
@@ -1169,9 +1171,9 @@ export async function runCLI(
 						await spawnedWorker.worker.terminate();
 					})
 				);
-				// All workers are gone, so no one is using the lock-manager
-				// service ports anymore — close them.
-				fileLockManagerService.dispose();
+				// All workers are gone, so terminate any child workers still
+				// tracked by the service and close the ports it handed out.
+				childWorkerService?.dispose();
 				if (server) {
 					await new Promise((resolve) => {
 						server.close(resolve);
@@ -1511,6 +1513,10 @@ export async function runCLI(
 
 				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
+				childWorkerService = createChildWorkerService(
+					workerType,
+					fileLockManager
+				);
 				for (
 					let workerIndex = 0;
 					workerIndex < targetWorkerCount;
@@ -1545,13 +1551,13 @@ export async function runCLI(
 
 							const fileLockManagerPort =
 								await exposeFileLockManager(fileLockManager);
-							const fileLockManagerServicePort =
-								await fileLockManagerService.exposeServicePort();
+							const childWorkerServicePort =
+								await childWorkerService.exposeServicePort();
 							const playgroundApi =
 								await handler.bootRequestHandler({
 									worker: spawnResult,
 									fileLockManagerPort,
-									fileLockManagerServicePort,
+									childWorkerServicePort,
 									nativeInternalDirPath,
 								});
 
@@ -2061,7 +2067,7 @@ export type SpawnedWorker = {
  * @param workerType
  * @returns
  */
-export function spawnWorkerThread(
+function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
 	{ onExit }: { onExit?: (code: number) => void } = {}
 ) {
@@ -2149,29 +2155,38 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 }
 
 /**
- * Create the service that lets workers attach fresh MessagePorts to the
- * shared file lock manager.
+ * Create the service that lets request-handling workers spawn child workers for
+ * the PHP processes they start via proc_open()/system().
  *
- * Workers use it when they spawn a child PHP process (proc_open()/system()):
- * the child gets a direct line to the broker on the main thread instead of
- * relaying its synchronous flock() calls through the spawning worker — which is
- * blocked inside system() while the child runs and would deadlock it.
+ * The main thread owns everything needed to configure a worker — including the
+ * shared FileLockManager — so a worker that shells out just asks the main thread
+ * for a ready-made child instead of propagating ports to it. Each child receives
+ * a FileLockManager port exposed by the MAIN thread (so its synchronous flock()
+ * calls reach the broker directly instead of relaying through the spawning
+ * worker, which is blocked inside system() and would deadlock it) and its own
+ * service port (so PHP in the child can spawn grandchildren the same way).
  *
  * A single instance serves the whole CLI run. Each worker gets its own port to
- * it via exposeServicePort(), and dispose() — invoked from disposeCLI() —
- * closes every port the service ever handed out.
+ * the service via exposeServicePort(); dispose() — invoked from disposeCLI() —
+ * terminates any surviving children and closes every port the service handed
+ * out.
  *
  * @see comlink-sync.ts
  */
-function createFileLockManagerService(
+function createChildWorkerService(
+	workerType: WorkerType,
 	fileLockManager: FileLockManagerInMemory
 ) {
-	// A fresh channel is attached for every spawned child. Track the main-thread
-	// ends by id so the spawning worker can deterministically release them from
-	// its reap() path — otherwise a long-running server would accumulate ports
-	// and lock-manager listeners over time.
-	const attachedPorts = new Map<number, NodeMessagePort>();
-	let nextAttachmentId = 1;
+	// Every child worker the main thread has spawned for this run — a request
+	// worker's children, their grandchildren, etc. — keyed by processId so the
+	// spawning worker can deterministically reap them from its reap() path.
+	const children = new Map<
+		number,
+		{ worker: Worker; mainPorts: NodeMessagePort[] }
+	>();
+	// The main-thread ends of the per-worker channels the service is exposed on.
+	const servicePorts: NodeMessagePort[] = [];
+
 	const closePortQuietly = (port: NodeMessagePort) => {
 		try {
 			port.close();
@@ -2179,56 +2194,72 @@ function createFileLockManagerService(
 			/** */
 		}
 	};
-	const release = (id: number) => {
-		const port = attachedPorts.get(id);
-		if (port) {
-			attachedPorts.delete(id);
-			closePortQuietly(port);
+
+	const forgetChild = (processId: number) => {
+		const child = children.get(processId);
+		if (!child) {
+			return undefined;
 		}
+		children.delete(processId);
+		child.mainPorts.forEach(closePortQuietly);
+		return child;
 	};
-	const track = (port: NodeMessagePort) => {
-		const id = nextAttachmentId++;
-		attachedPorts.set(id, port);
-		// Don't let this per-child main-thread port keep the event loop alive on
-		// its own; the main thread is kept running by the HTTP server / the
-		// pending CLI promise, and unref() doesn't stop message delivery — it
-		// just means a leaked attachment can't block a clean process exit.
-		port.unref();
-		// The spawning worker releases this attachment from its reap() path.
-		// As a backstop — in case it never does (e.g. the child crashed) —
-		// also drop it when the port itself goes away. Node's MessagePort
-		// emits 'close' (and 'messageerror'), not 'error'.
-		port.once('close', () => release(id));
-		port.once('messageerror', () => release(id));
-		return id;
-	};
-	// The service is self-propagating: a spawned child also receives a port to
-	// it (via attachService) so that PHP running in the child can itself spawn
-	// further children that reach the shared lock manager directly.
-	// Only track a port once it has been successfully exposed; if exposing
-	// throws, close the port (best-effort) so a failed attach can't leak it.
-	const attach = async (port: NodeMessagePort, expose: () => unknown) => {
+
+	const disposeChildWorker = async (processId: number) => {
+		const child = forgetChild(processId);
+		if (!child) {
+			return;
+		}
 		try {
-			await expose();
-		} catch (e) {
-			closePortQuietly(port);
-			throw e;
+			await child.worker.terminate();
+		} catch {
+			/** */
 		}
-		return track(port);
 	};
-	const service = {
-		attachFileLockManager: (port: NodeMessagePort) =>
-			attach(port, () => exposeSyncAPI(fileLockManager, port)),
-		attachService: (port: NodeMessagePort) =>
-			attach(port, () => exposeAPI(service, undefined, port)),
-		// Synchronous on this side; callers go through comlink and observe a
-		// Promise either way.
-		detach: (id: number) => {
-			release(id);
-		},
+
+	const createChildWorker = async (): Promise<CreatedChildWorker> => {
+		const spawnedWorker = await spawnWorkerThread(workerType, {
+			// Backstop: if the spawning worker never reaps this child (e.g. it
+			// crashed), drop our tracking and close its main-thread ports when
+			// the worker exits so a long-running server can't leak them.
+			onExit: () => forgetChild(spawnedWorker.processId),
+		});
+
+		// Expose the shared lock manager (main thread) and the service itself on
+		// fresh channels; the worker ends are handed to the child below.
+		const lockChannel = new NodeMessageChannel();
+		await exposeSyncAPI(fileLockManager, lockChannel.port1);
+		const serviceChannel = new NodeMessageChannel();
+		await exposeAPI(service, undefined, serviceChannel.port1);
+
+		// Don't let the main-thread ends keep the event loop alive on their own;
+		// the main thread stays alive via the HTTP server / pending CLI promise,
+		// and unref() doesn't stop message delivery.
+		lockChannel.port1.unref();
+		serviceChannel.port1.unref();
+
+		children.set(spawnedWorker.processId, {
+			worker: spawnedWorker.worker,
+			mainPorts: [lockChannel.port1, serviceChannel.port1],
+		});
+
+		return transfer(
+			{
+				phpPort: spawnedWorker.phpPort,
+				lockPort: lockChannel.port2,
+				servicePort: serviceChannel.port2,
+				processId: spawnedWorker.processId,
+			},
+			[
+				spawnedWorker.phpPort as unknown as Transferable,
+				lockChannel.port2 as unknown as Transferable,
+				serviceChannel.port2 as unknown as Transferable,
+			]
+		);
 	};
-	// The main-thread ends of the per-worker channels the service is exposed on.
-	const servicePorts: NodeMessagePort[] = [];
+
+	const service = { createChildWorker, disposeChildWorker };
+
 	return {
 		/**
 		 * Expose the service on a fresh channel and return the worker's end.
@@ -2244,13 +2275,14 @@ function createFileLockManagerService(
 			return port2;
 		},
 		/**
-		 * Close every port the service handed out: the per-worker channels
-		 * and any per-child attachments that were never detached.
+		 * Terminate any child workers still tracked and close every port the
+		 * service handed out: the per-worker service channels and any per-child
+		 * ports that were never reaped.
 		 */
 		dispose() {
 			servicePorts.splice(0).forEach(closePortQuietly);
-			for (const id of [...attachedPorts.keys()]) {
-				release(id);
+			for (const processId of [...children.keys()]) {
+				void disposeChildWorker(processId);
 			}
 		},
 	};

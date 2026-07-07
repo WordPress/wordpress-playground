@@ -1,7 +1,7 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { AllPHPVersion, PathAlias, RemoteAPI } from '@php-wasm/universal';
+import type { RemoteAPI } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -21,7 +21,12 @@ import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import type {
+	ChildWorkerService,
+	WorkerBootRequestHandlerOptions,
+	WorkerConfig,
+	WorkerPlatformConfig,
+} from '../worker-boot-config';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -39,31 +44,6 @@ export type WorkerBootWordPressOptions = {
 	constants?: Record<string, string | number | boolean>;
 };
 
-interface WorkerBootRequestHandlerOptions {
-	siteUrl: string;
-	phpVersion: AllPHPVersion;
-	processId: number;
-	trace: boolean;
-	nativeInternalDirPath: string;
-	mountsBeforeWpInstall: Array<Mount>;
-	mountsAfterWpInstall: Array<Mount>;
-	followSymlinks: boolean;
-	extensions?: PHPExtension[];
-	pathAliases?: PathAlias[];
-	/**
-	 * Apply the post-install mounts as soon as the PHP instance is created,
-	 * instead of waiting for WordPress to be installed in this worker.
-	 *
-	 * Set when spawning a child PHP process (proc_open()/system()) from a
-	 * worker whose WordPress is already installed: the child is a fresh
-	 * worker that never installs WordPress itself, so without this flag its
-	 * `bootedWordPress` stays false and the post-install `--mount`s (e.g. the
-	 * plugin/theme directory) would never be applied — making mounted files
-	 * invisible to the spawned process.
-	 */
-	applyPostInstallMountsImmediately?: boolean;
-}
-
 /**
  * Print trace messages from PHP-WASM.
  *
@@ -80,34 +60,23 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-/**
- * Minimal API the main thread exposes so a worker can hand a spawned child a
- * direct MessagePort to the shared file lock manager.
- */
-type FileLockManagerService = {
-	/** Attach the shared lock manager to `port`; returns an attachment id. */
-	attachFileLockManager: (port: MessagePort) => Promise<number>;
-	/**
-	 * Attach the service itself to `port` so a spawned child can in turn spawn
-	 * its own children that reach the lock manager directly. Returns an id.
-	 */
-	attachService: (port: MessagePort) => Promise<number>;
-	/** Release a previously attached port (closes it on the main thread). */
-	detach: (id: number) => Promise<void>;
-};
-
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
 	/**
-	 * Service exposed by the main thread that connects a fresh MessagePort to
-	 * the shared file lock manager. Used when spawning a child PHP process so
-	 * the child talks to the broker directly instead of relaying through this
-	 * worker — which is synchronously blocked inside system()/proc_open() and
-	 * would otherwise deadlock the child's flock() calls.
+	 * Platform-wide boot config this worker was started with, forwarded verbatim
+	 * to any child worker it spawns via proc_open()/system().
 	 */
-	lockManagerService: RemoteAPI<FileLockManagerService> | undefined;
+	platformConfig: WorkerPlatformConfig | undefined;
+	/**
+	 * Service exposed by the main thread for creating child workers. Used when
+	 * PHP in this worker shells out (proc_open()/system()): the main thread
+	 * spawns and pre-wires the child so its synchronous flock() calls reach the
+	 * broker directly instead of relaying through this worker — which is blocked
+	 * inside system() while the child runs and would otherwise deadlock it.
+	 */
+	childWorkerService: RemoteAPI<ChildWorkerService> | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -127,11 +96,11 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	/**
-	 * Receive the main thread's file-lock-manager service so this worker can
-	 * mint direct broker ports for the PHP children it spawns.
+	 * Receive the main thread's child-worker service so this worker can spawn
+	 * child workers for the PHP processes it starts via proc_open()/system().
 	 */
-	async useFileLockManagerService(port: MessagePort) {
-		this.lockManagerService = consumeAPI<FileLockManagerService>(port);
+	async useChildWorkerService(port: MessagePort) {
+		this.childWorkerService = consumeAPI<ChildWorkerService>(port);
 	}
 
 	async bootWordPress(
@@ -197,11 +166,28 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
+	async bootRequestHandler(
+		platformConfig: WorkerPlatformConfig,
+		workerConfig: WorkerConfig
+	) {
 		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
+
+		// Remember the platform config so we can forward it verbatim to any
+		// child worker this one spawns via proc_open()/system().
+		this.platformConfig = platformConfig;
+		// A spawned child never installs WordPress itself, so it relies on the
+		// bootedWordPress state passed at boot to decide whether to apply the
+		// post-install (--mount) mounts.
+		this.bootedWordPress =
+			workerConfig.bootedWordPress ?? this.bootedWordPress;
+
+		const options: WorkerBootRequestHandlerOptions = {
+			...platformConfig,
+			...workerConfig,
+		};
 
 		try {
 			const requestHandler = await bootRequestHandler({
@@ -220,10 +206,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					// following WordPress install. But if we start creating
 					// request-handling workers on-demand, we will to apply post-install
 					// mounts here.
-					if (
-						this.bootedWordPress ||
-						options.applyPostInstallMountsImmediately
-					) {
+					if (this.bootedWordPress) {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
 				},
@@ -231,41 +214,80 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() => {
-						if (!this.lockManagerService) {
+					sandboxedSpawnHandlerFactory(async () => {
+						if (!this.childWorkerService) {
 							throw new Error(
 								'Cannot spawn a child PHP process: this ' +
-									'worker has no file-lock-manager ' +
-									'service. Call ' +
-									'useFileLockManagerService() on the ' +
+									'worker has no child-worker service. ' +
+									'Call useChildWorkerService() on the ' +
 									'worker to enable spawning via ' +
 									'proc_open()/system().'
 							);
 						}
 
-						let effectiveOptions = options;
-						if (!this.bootedWordPress) {
-							// WordPress is not yet booted so skip the post-install mounts.
-							effectiveOptions = {
-								...options,
-								mountsAfterWpInstall: [],
+						// Ask the main thread to create and pre-wire a child
+						// worker: it spawns the worker, exposes a direct
+						// FileLockManager port and a service port on it, and
+						// mints a fresh processId. We just plug the ports in
+						// and boot it.
+						const { phpPort, lockPort, servicePort, processId } =
+							await this.childWorkerService.createChildWorker();
+						try {
+							const child =
+								consumeAPI<PlaygroundCliBlueprintV1Worker>(
+									phpPort
+								);
+							// The child talks to the shared lock manager on the
+							// MAIN thread directly (lockPort's far end is
+							// exposed there), never relaying its synchronous
+							// flock() calls through this worker — which is
+							// blocked inside system() while the child runs and
+							// would otherwise deadlock it.
+							await child.useFileLockManager(lockPort);
+							// Let the child spawn its own children (nested
+							// proc_open()/system()) that also reach the main
+							// thread directly.
+							await child.useChildWorkerService(servicePort);
+							await child.bootRequestHandler(
+								this.platformConfig!,
+								{
+									processId,
+									// A spawned child never installs WordPress
+									// itself, so it applies the post-install mounts
+									// based on whether THIS worker has booted
+									// WordPress.
+									bootedWordPress: this.bootedWordPress,
+								}
+							);
+							return {
+								php: child,
+								reap: () => {
+									try {
+										child.dispose();
+									} catch {
+										/** */
+									}
+									// Deterministically terminate the child and
+									// release its main-thread ports. Best-effort:
+									// swallow the async rejection so reap() can't
+									// throw.
+									this.childWorkerService!.disposeChildWorker(
+										processId
+									).catch(() => {
+										/** */
+									});
+								},
 							};
+						} catch (e) {
+							// Roll back so a failed spawn can't leak the child
+							// worker or its main-thread ports.
+							this.childWorkerService
+								.disposeChildWorker(processId)
+								.catch(() => {
+									/** */
+								});
+							throw e;
 						}
-
-						return createPHPWorker(
-							{
-								...effectiveOptions,
-								// A spawned child never installs WordPress
-								// itself, so it must apply the post-install
-								// mounts as soon as it starts — otherwise
-								// mounted files would be invisible to the
-								// spawned process. (When the spawning worker
-								// hasn't booted WordPress yet, the mounts were
-								// already cleared above, so this is a no-op.)
-								applyPostInstallMountsImmediately: true,
-							},
-							this.lockManagerService
-						);
 					}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
@@ -316,120 +338,6 @@ function createPhpRuntimeFactory(
 				extensions: options.extensions,
 			}
 		);
-	};
-}
-
-/**
- * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v1.ts file, but is a separate process.
- *
- * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
- *
- * Why?
- *
- * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
- * syscalls. Running multiple PHP instances from the same OS process would allow them to
- * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
- * any locks that overlap between PHP instances conflict with each other as expected.
- *
- * @param options - The options for the worker.
- * @param lockManagerService - Main-thread service used to give the child a
- *   direct MessagePort to the shared file lock manager.
- * @returns A promise that resolves to the PHP worker.
- */
-async function createPHPWorker(
-	// NOTE: We explicitly remove processId from the options
-	// type so the type system will catch if we try to reuse
-	// our parent's process ID.
-	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
-	lockManagerService: RemoteAPI<FileLockManagerService>
-) {
-	const spawnedWorker = await spawnWorkerThread('v1');
-
-	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
-		spawnedWorker.phpPort
-	);
-
-	// Give the child a DIRECT line to the shared file lock manager. Passing this
-	// worker's own lock-manager proxy would route the child's synchronous
-	// flock() calls back through this worker — which is blocked inside system()
-	// while the child runs — deadlocking the child (it would time out waiting
-	// for a response). Instead, ask the main thread to attach the broker to a
-	// fresh channel and hand the child the other end.
-	//
-	// The child also gets its own port to the service, so PHP running in it can
-	// in turn spawn further children that reach the lock manager directly
-	// (otherwise a nested system()/proc_open() would have no service).
-	const lockChannel = new MessageChannel();
-	const serviceChannel = new MessageChannel();
-	let lockAttachmentId: number | undefined;
-	let serviceAttachmentId: number | undefined;
-	const detach = (id: number | undefined) => {
-		if (id !== undefined) {
-			lockManagerService.detach(id).catch(() => {
-				/** */
-			});
-		}
-	};
-	try {
-		lockAttachmentId = await lockManagerService.attachFileLockManager(
-			lockChannel.port1
-		);
-		await handler.useFileLockManager(lockChannel.port2);
-
-		serviceAttachmentId = await lockManagerService.attachService(
-			serviceChannel.port1
-		);
-		await handler.useFileLockManagerService(serviceChannel.port2);
-
-		await handler.bootRequestHandler({
-			...options,
-			processId: spawnedWorker.processId,
-		});
-	} catch (e) {
-		// Roll back partial setup so a failed spawn can't leak the worker, the
-		// main-thread attachments, or the channels.
-		detach(lockAttachmentId);
-		detach(serviceAttachmentId);
-		for (const port of [
-			lockChannel.port1,
-			lockChannel.port2,
-			serviceChannel.port1,
-			serviceChannel.port2,
-		]) {
-			try {
-				port.close();
-			} catch {
-				/** */
-			}
-		}
-		try {
-			spawnedWorker.worker.terminate();
-		} catch {
-			/** */
-		}
-		throw e;
-	}
-
-	return {
-		php: handler,
-		reap: () => {
-			try {
-				handler.dispose();
-			} catch {
-				/** */
-			}
-			try {
-				spawnedWorker.worker.terminate();
-			} catch {
-				/** */
-			}
-			// Deterministically release the main-thread ports for this child so
-			// the server doesn't leak ports/listeners. Best-effort: swallow the
-			// async rejection so reap() can't throw.
-			detach(lockAttachmentId);
-			detach(serviceAttachmentId);
-		},
 	};
 }
 

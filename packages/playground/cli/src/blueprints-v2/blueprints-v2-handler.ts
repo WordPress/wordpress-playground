@@ -184,10 +184,12 @@ export class BlueprintsV2Handler {
 	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
+		childWorkerServicePort,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
+		childWorkerServicePort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV2Worker>(
@@ -206,27 +208,30 @@ export class BlueprintsV2Handler {
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootRequestHandler({
-			phpVersion: runtimeConfiguration.phpVersion,
-			siteUrl: this.siteUrl,
-			networking: runtimeConfiguration.networking,
-			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
-			mountsAfterWpInstall: this.args.mount || [],
-			processId: worker.processId,
-			followSymlinks: this.args.followSymlinks === true,
-			trace: this.args.experimentalTrace === true,
-			extensions: cliExtensionArgsToExtensionsArray(
-				filterExtensionArgsForPHPVersion(
-					{
-						...this.args,
-						intl: runtimeConfiguration.intl,
-					},
-					runtimeConfiguration.phpVersion
-				)
-			),
-			nativeInternalDirPath,
-			pathAliases: this.args.pathAliases,
-		});
+		await playground.useChildWorkerService(childWorkerServicePort);
+		await playground.bootRequestHandler(
+			{
+				phpVersion: runtimeConfiguration.phpVersion,
+				siteUrl: this.siteUrl,
+				networking: runtimeConfiguration.networking,
+				mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+				mountsAfterWpInstall: this.args.mount || [],
+				followSymlinks: this.args.followSymlinks === true,
+				trace: this.args.experimentalTrace === true,
+				extensions: cliExtensionArgsToExtensionsArray(
+					filterExtensionArgsForPHPVersion(
+						{
+							...this.args,
+							intl: runtimeConfiguration.intl,
+						},
+						runtimeConfiguration.phpVersion
+					)
+				),
+				nativeInternalDirPath,
+				pathAliases: this.args.pathAliases,
+			},
+			{ processId: worker.processId }
+		);
 		await playground.isReady();
 		return playground;
 	}

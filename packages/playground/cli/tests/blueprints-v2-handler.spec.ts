@@ -358,12 +358,16 @@ describe('BlueprintsV2Handler', () => {
 		await handler.bootRequestHandler({
 			worker: { phpPort: {}, processId: 7 } as any,
 			fileLockManagerPort: {} as any,
+			childWorkerServicePort: {} as any,
 			nativeInternalDirPath: '/tmp/playground',
 		});
 
 		expect(playground.bootRequestHandler).toHaveBeenCalledWith(
 			expect.objectContaining({
 				extensions: [],
+			}),
+			expect.objectContaining({
+				processId: 7,
 			})
 		);
 	});
@@ -688,6 +692,7 @@ function createMockBlueprintV1Worker() {
 	return {
 		isConnected: vi.fn().mockResolvedValue(undefined),
 		useFileLockManager: vi.fn().mockResolvedValue(undefined),
+		useChildWorkerService: vi.fn().mockResolvedValue(undefined),
 		bootRequestHandler: vi.fn().mockResolvedValue(undefined),
 		isReady: vi.fn().mockResolvedValue(undefined),
 	};

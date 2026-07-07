@@ -176,12 +176,12 @@ export class BlueprintsV1Handler {
 	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		fileLockManagerServicePort,
+		childWorkerServicePort,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		fileLockManagerServicePort: NodeMessagePort;
+		childWorkerServicePort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
@@ -193,19 +193,21 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.useFileLockManagerService(fileLockManagerServicePort);
-		await playground.bootRequestHandler({
-			phpVersion: runtimeConfiguration.phpVersion,
-			siteUrl: this.siteUrl,
-			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
-			mountsAfterWpInstall: this.args['mount'] || [],
-			processId: worker.processId,
-			followSymlinks: this.args.followSymlinks === true,
-			trace: this.args.experimentalTrace === true,
-			extensions: cliExtensionArgsToExtensionsArray(this.args),
-			nativeInternalDirPath,
-			pathAliases: this.args.pathAliases,
-		});
+		await playground.useChildWorkerService(childWorkerServicePort);
+		await playground.bootRequestHandler(
+			{
+				phpVersion: runtimeConfiguration.phpVersion,
+				siteUrl: this.siteUrl,
+				mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+				mountsAfterWpInstall: this.args['mount'] || [],
+				followSymlinks: this.args.followSymlinks === true,
+				trace: this.args.experimentalTrace === true,
+				extensions: cliExtensionArgsToExtensionsArray(this.args),
+				nativeInternalDirPath,
+				pathAliases: this.args.pathAliases,
+			},
+			{ processId: worker.processId }
+		);
 		await playground.isReady();
 		return playground;
 	}
