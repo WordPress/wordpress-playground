@@ -528,6 +528,98 @@ describe('compileBlueprintForExecution', () => {
 		).toEqual(['importMedia']);
 	});
 
+	it('lowers Blueprint v2 mysql-dump content to runSql steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'mysql-dump',
+					source: [
+						'./dump.sql',
+						{
+							filename: 'inline.sql',
+							content: 'SELECT 1;',
+						},
+						'https://example.com/dump.sql',
+					],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'bundled',
+					path: 'dump.sql',
+				},
+			},
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'literal',
+					name: 'inline.sql',
+					contents: 'SELECT 1;',
+				},
+			},
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'url',
+					url: 'https://example.com/dump.sql',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers single-source Blueprint v2 mysql-dump content to a runSql step', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'mysql-dump',
+					source: './single-dump.sql',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'bundled',
+					path: 'single-dump.sql',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('reports the source index for unsupported Blueprint v2 mysql-dump sources', async () => {
+		const declaration = {
+			version: 2,
+			content: [
+				{
+					type: 'mysql-dump',
+					source: ['./ok.sql', 'not-a-file-reference'],
+				},
+			],
+		} as unknown as BlueprintV2Declaration;
+
+		await expect(compileBlueprintForExecution(declaration)).rejects.toThrow(
+			'content.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
+		);
+	});
+
 	it('rejects empty Blueprint v2 target-site paths', async () => {
 		await expect(
 			compileBlueprintForExecution({
