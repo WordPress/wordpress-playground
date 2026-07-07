@@ -9,7 +9,10 @@ import {
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import { staticAnalyzeGitHubURL } from '../analyze-github-url';
+import {
+	resolveGitHubBranchPath,
+	staticAnalyzeGitHubURL,
+} from '../analyze-github-url';
 import type {
 	Changeset,
 	FileEntry,
@@ -17,7 +20,6 @@ import type {
 } from '@wp-playground/storage';
 import {
 	changeset,
-	createClient,
 	createCommit,
 	createOrUpdateBranch,
 	createTree,
@@ -27,7 +29,11 @@ import {
 	iterateFiles,
 	mayPush,
 } from '@wp-playground/storage';
-import { oAuthState, setOAuthToken } from '../state';
+import { setOAuthToken } from '../state';
+import {
+	getAuthenticatedGitHubClient as getClient,
+	resetAuthenticatedGitHubClient as resetClient,
+} from '../client';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import type { ContentType } from '../import-from-github';
@@ -41,14 +47,6 @@ export interface GitHubExportFormProps {
 	allowZipExport?: boolean;
 	onExported?: (prURL: string, formValues: ExportFormValues) => void;
 	onClose: () => void;
-}
-
-let octokitClient: GithubClient;
-function getClient() {
-	if (!octokitClient) {
-		octokitClient = createClient(oAuthState.value.token!);
-	}
-	return octokitClient;
 }
 
 export type PullRequestAction = 'update' | 'create';
@@ -99,13 +97,11 @@ export default function GitHubExportForm({
 		repo: string;
 	}>(() => {
 		if (formValues.repoUrl) {
-			try {
-				const { owner, repo } = staticAnalyzeGitHubURL(
-					formValues.repoUrl
-				);
+			const { owner, repo, type } = staticAnalyzeGitHubURL(
+				formValues.repoUrl
+			);
+			if (type !== 'unknown' && owner && repo) {
 				return { owner: owner!, repo: repo! };
-			} catch {
-				// Ignore
 			}
 		}
 
@@ -210,12 +206,35 @@ export default function GitHubExportForm({
 			return;
 		}
 		if (URLNeedsAnalyzing) {
-			const { type, owner, repo, path, pr } = staticAnalyzeGitHubURL(
-				formValues.repoUrl
-			);
+			const analyzed = staticAnalyzeGitHubURL(formValues.repoUrl);
+			let { type, owner, repo, path, pr } = analyzed;
 			if (type === 'unknown') {
 				setError('repoUrl', 'This URL is not supported');
 				return;
+			}
+			if (!['pr', 'branch', 'repo'].includes(type)) {
+				setError('repoUrl', 'This URL is not supported');
+				return;
+			}
+			if (type === 'branch') {
+				try {
+					const resolved = await resolveGitHubBranchPath(
+						getClient(),
+						analyzed
+					);
+					({ type, owner, repo, path, pr } = resolved);
+				} catch (error: any) {
+					if (error?.status === 401) {
+						setOAuthToken(undefined);
+						resetClient();
+						return;
+					}
+					setError(
+						'repoUrl',
+						'Could not analyze this GitHub branch URL. Please paste the repository URL and enter the path manually.'
+					);
+					return;
+				}
 			}
 			setRepoDetails({
 				owner: owner || '',
@@ -417,7 +436,8 @@ export default function GitHubExportForm({
 			// Handle the "Bad Credentials" error
 			if (e && e.status === 401) {
 				setOAuthToken(undefined);
-				throw e;
+				resetClient();
+				return;
 			}
 
 			let eMessage = (e as any)?.message;
