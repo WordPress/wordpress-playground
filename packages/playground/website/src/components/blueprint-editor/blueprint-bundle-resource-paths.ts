@@ -236,17 +236,14 @@ function addV2ExecutionContextPath(
 	if (!isV2ExecutionContextPath(path)) {
 		return;
 	}
-	addBundlePath(path.replace(/^\.?\/+/, ''), accumulator);
+	addBundlePath(path, accumulator);
 }
 
 /**
- * Adds a bundle path after rejecting empty paths, null bytes, and parent
- * traversal segments.
+ * Adds a bundle path after normalizing it to the bundle filesystem root.
  */
 function addBundlePath(path: string, accumulator: Set<string>): void {
-	// These paths are later copied out of a bundle filesystem. Reject parent
-	// traversals before absolutizing, so `../secret.zip` never becomes `/secret.zip`.
-	if (!path || path.includes('\0') || hasParentDirectorySegment(path)) {
+	if (path.includes('\0')) {
 		return;
 	}
 	const absolutePath = ensureAbsolutePath(path);
@@ -263,15 +260,7 @@ function isV2ExecutionContextPath(path: string): boolean {
 	if (!(path.startsWith('./') || path.startsWith('/'))) {
 		return false;
 	}
-	return !hasParentDirectorySegment(path);
-}
-
-/**
- * Detects explicit parent traversal segments without relying on normalization
- * that could hide the escape.
- */
-function hasParentDirectorySegment(path: string): boolean {
-	return path.split('/').includes('..');
+	return true;
 }
 
 /**

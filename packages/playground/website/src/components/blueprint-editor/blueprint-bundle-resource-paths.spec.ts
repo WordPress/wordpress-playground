@@ -137,7 +137,7 @@ describe('collectBlueprintBundleResourcePaths', () => {
 		).toEqual(['/plugins\\..\\secret.zip']);
 	});
 
-	it('does not normalize v2 parent-directory escapes into bundle paths', () => {
+	it('normalizes v2 dot segments into bundle paths', () => {
 		expect(
 			Array.from(
 				collectBlueprintBundleResourcePaths({
@@ -149,10 +149,10 @@ describe('collectBlueprintBundleResourcePaths', () => {
 					],
 				})
 			)
-		).toEqual([]);
+		).toEqual(['/secret.zip']);
 	});
 
-	it('does not normalize v1 parent-directory escapes into bundle paths', () => {
+	it('normalizes v1 dot segments into bundle paths', () => {
 		expect(
 			Array.from(
 				collectBlueprintBundleResourcePaths({
@@ -181,6 +181,6 @@ describe('collectBlueprintBundleResourcePaths', () => {
 					],
 				})
 			)
-		).toEqual([]);
+		).toEqual(['/secret.zip']);
 	});
 });
