@@ -468,7 +468,7 @@ describe('compileBlueprintForExecution', () => {
 			},
 			{
 				step: 'writeFile',
-				path: '/tmp/blueprint-media-media-0-0-image.jpg',
+				path: '/tmp/blueprint-media-0',
 				data: {
 					resource: 'bundled',
 					path: 'media/image.jpg',
@@ -480,7 +480,7 @@ describe('compileBlueprintForExecution', () => {
 					env: {
 						BLUEPRINT_MEDIA: JSON.stringify([
 							{
-								path: '/tmp/blueprint-media-media-0-0-image.jpg',
+								path: '/tmp/blueprint-media-0',
 								filename: 'image.jpg',
 							},
 						]),
@@ -639,7 +639,7 @@ describe('compileBlueprintForExecution', () => {
 		} as unknown as BlueprintV2Declaration;
 
 		await expect(compileBlueprintForExecution(declaration)).rejects.toThrow(
-			'content.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
+			'/content/0.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
 		);
 	});
 
@@ -942,7 +942,7 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.steps).toEqual([
 			{
 				step: 'writeFile',
-				path: '/tmp/blueprint-run-php-additionalStepsAfterExecution-0-code-bootstrap.php',
+				path: '/tmp/blueprint-run-php-0.php',
 				data: {
 					resource: 'bundled',
 					path: 'scripts/bootstrap.php',
@@ -951,7 +951,7 @@ describe('compileBlueprintForExecution', () => {
 			{
 				step: 'runPHPWithOptions',
 				options: {
-					code: '<?php require "/tmp/blueprint-run-php-additionalStepsAfterExecution-0-code-bootstrap.php";',
+					code: '<?php require "/tmp/blueprint-run-php-0.php";',
 					env: {
 						MODE: 'test',
 					},
@@ -973,7 +973,7 @@ describe('compileBlueprintForExecution', () => {
 							post_content: '<p>Hello</p>',
 							post_status: 'publish',
 						},
-						'./posts/about.html',
+						'./posts/about.html' as any,
 					],
 					urlsMode: 'preserve',
 				},
@@ -986,7 +986,7 @@ describe('compileBlueprintForExecution', () => {
 		}
 		expect(compiled.compiled.steps[0]).toEqual({
 			step: 'writeFile',
-			path: '/tmp/blueprint-post-content-content-source-1-about.html',
+			path: '/tmp/blueprint-post-content-0',
 			data: {
 				resource: 'bundled',
 				path: 'posts/about.html',
@@ -1011,8 +1011,7 @@ describe('compileBlueprintForExecution', () => {
 		]);
 		expect(JSON.parse(env.BLUEPRINT_POST_FILES)).toEqual([
 			{
-				path: '/tmp/blueprint-post-content-content-source-1-about.html',
-				filename: 'about.html',
+				path: '/tmp/blueprint-post-content-0',
 				post_title: 'Untitled Post',
 				post_type: 'post',
 			},
@@ -1089,7 +1088,7 @@ describe('compileBlueprintForExecution', () => {
 		}
 		expect(compiled.compiled.steps[0]).toEqual({
 			step: 'writeFile',
-			path: '/tmp/blueprint-media-additionalStepsAfterExecution-0-media-0-logo.png',
+			path: '/tmp/blueprint-media-0',
 			data: {
 				resource: 'bundled',
 				path: 'media/logo.png',
@@ -1098,7 +1097,7 @@ describe('compileBlueprintForExecution', () => {
 		const env = (compiled.compiled.steps[1] as any).options.env;
 		expect(JSON.parse(env.BLUEPRINT_MEDIA)).toEqual([
 			{
-				path: '/tmp/blueprint-media-additionalStepsAfterExecution-0-media-0-logo.png',
+				path: '/tmp/blueprint-media-0',
 				filename: 'logo.png',
 				title: 'Logo',
 				alt: 'Site logo',
@@ -1156,7 +1155,7 @@ describe('compileBlueprintForExecution', () => {
 			'writeFile',
 		]);
 		expect(compiled.compiled.steps[0]).toMatchObject({
-			path: '/tmp/blueprint-font-fonts-brand-sans-source-brand-sans.woff2',
+			path: '/tmp/blueprint-font-0',
 			data: {
 				resource: 'literal',
 				name: 'brand-sans.woff2',
@@ -1172,7 +1171,7 @@ describe('compileBlueprintForExecution', () => {
 		);
 		expect(JSON.parse(fontEnv.BLUEPRINT_FONT_FILES)).toEqual({
 			'blueprint-font-file:font-0': {
-				path: '/tmp/blueprint-font-fonts-brand-sans-source-brand-sans.woff2',
+				path: '/tmp/blueprint-font-0',
 				filename: 'brand-sans.woff2',
 			},
 		});

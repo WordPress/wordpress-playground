@@ -1,5 +1,5 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { basename as pathBasename, joinPaths } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
@@ -113,6 +113,10 @@ export type BlueprintV2StepPlan = StepDefinition[];
 export type BlueprintV2StepPlanLoweringResult = {
 	steps: BlueprintV2StepPlan;
 	unsupportedPlan: BlueprintV2ExecutionPlan;
+};
+
+type BlueprintV2LoweringContext = {
+	nextTempFileIndex: number;
 };
 
 export type BlueprintV2ExecutionPlanItem =
@@ -438,9 +442,15 @@ export function lowerBlueprintV2ExecutionPlan(
 ): BlueprintV2StepPlanLoweringResult {
 	const steps: StepDefinition[] = [];
 	const unsupportedPlan: BlueprintV2ExecutionPlan = [];
+	const context: BlueprintV2LoweringContext = {
+		nextTempFileIndex: 0,
+	};
 
 	for (const planItem of plan) {
-		const loweredSteps = lowerBlueprintV2ExecutionPlanItem(planItem);
+		const loweredSteps = lowerBlueprintV2ExecutionPlanItem(
+			planItem,
+			context
+		);
 		if (loweredSteps) {
 			steps.push(...loweredSteps);
 		} else {
@@ -458,7 +468,8 @@ export function lowerBlueprintV2ExecutionPlan(
  * but this PR has not taught the TypeScript runner how to represent it yet."
  */
 function lowerBlueprintV2ExecutionPlanItem(
-	planItem: BlueprintV2ExecutionPlanItem
+	planItem: BlueprintV2ExecutionPlanItem,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	switch (planItem.type) {
 		case 'defineWpConfigConsts':
@@ -482,9 +493,13 @@ function lowerBlueprintV2ExecutionPlanItem(
 		case 'installMuPlugin':
 			return lowerMuPlugin(planItem.muPlugin, planItem.sourcePath);
 		case 'installFonts':
-			return lowerFonts(planItem.fonts);
+			return lowerFonts(planItem.fonts, context);
 		case 'importMedia':
-			return lowerMediaItems([planItem.media], planItem.sourcePath);
+			return lowerMediaItems(
+				[planItem.media],
+				planItem.sourcePath,
+				context
+			);
 		case 'defineRoles':
 			return [createRolesStep(planItem.roles)];
 		case 'defineUsers':
@@ -492,7 +507,11 @@ function lowerBlueprintV2ExecutionPlanItem(
 		case 'definePostTypes':
 			return lowerPostTypes(planItem.postTypes);
 		case 'importContent':
-			return lowerBlueprintV2Content(planItem.content, 'content');
+			return lowerBlueprintV2Content(
+				planItem.content,
+				planItem.sourcePath,
+				context
+			);
 		case 'setSiteLanguage':
 			return [
 				{
@@ -503,7 +522,8 @@ function lowerBlueprintV2ExecutionPlanItem(
 		case 'runStep':
 			return lowerAdditionalBlueprintV2Step(
 				planItem.step,
-				planItem.sourcePath
+				planItem.sourcePath,
+				context
 			);
 		default:
 			return undefined;
@@ -512,7 +532,8 @@ function lowerBlueprintV2ExecutionPlanItem(
 
 function lowerBlueprintV2Content(
 	content: BlueprintV2Content,
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	switch (content.type) {
 		case 'mysql-dump':
@@ -526,7 +547,7 @@ function lowerBlueprintV2Content(
 		case 'wxr':
 			return lowerBlueprintV2WxrContent(content, featurePath);
 		case 'posts':
-			return lowerPostsContent(content, featurePath);
+			return lowerPostsContent(content, featurePath, context);
 		default:
 			return undefined;
 	}
@@ -569,7 +590,8 @@ function lowerBlueprintV2WxrContent(
  */
 function lowerAdditionalBlueprintV2Step(
 	step: BlueprintV2Step,
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	switch (step.step) {
 		case 'activatePlugin':
@@ -603,9 +625,9 @@ function lowerAdditionalBlueprintV2Step(
 				},
 			];
 		case 'importContent':
-			return lowerImportContentStep(step);
+			return lowerImportContentStep(step, context);
 		case 'importMedia':
-			return lowerImportMediaStep(step, featurePath);
+			return lowerImportMediaStep(step, featurePath, context);
 		case 'importThemeStarterContent':
 			return [
 				{
@@ -647,7 +669,7 @@ function lowerAdditionalBlueprintV2Step(
 				},
 			];
 		case 'runPHP':
-			return lowerRunPHPStep(step, featurePath);
+			return lowerRunPHPStep(step, featurePath, context);
 		case 'runSQL':
 			return [
 				{
@@ -698,14 +720,20 @@ function lowerAdditionalBlueprintV2Step(
 	}
 }
 
+/**
+ * Lowers nested `importContent` entries one-by-one so unsupported content
+ * still bubbles up as an unsupported v2 plan item.
+ */
 function lowerImportContentStep(
-	step: BlueprintV2ImportContentStep
+	step: BlueprintV2ImportContentStep,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	const steps: StepDefinition[] = [];
 	for (const [index, content] of step.content.entries()) {
 		const loweredSteps = lowerBlueprintV2Content(
 			content,
-			`importContent.content[${index}]`
+			`importContent.content[${index}]`,
+			context
 		);
 		if (!loweredSteps) {
 			return undefined;
@@ -715,9 +743,14 @@ function lowerImportContentStep(
 	return steps;
 }
 
+/**
+ * Lowers file-backed `runPHP` steps by materializing the PHP script into a
+ * compiler-owned temp path before requiring it.
+ */
 function lowerRunPHPStep(
 	step: BlueprintV2RunPHPStep,
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	if (isInlineFile(step.code)) {
 		if (step.env) {
@@ -739,13 +772,7 @@ function lowerRunPHPStep(
 		];
 	}
 
-	const phpPath = tempFilePath(
-		'blueprint-run-php',
-		`${featurePath}/code`,
-		sanitizeFilenameForTempPath(
-			getDataReferenceBasename(step.code, 'script.php')
-		)
-	);
+	const phpPath = nextTempFilePath(context, 'blueprint-run-php', 'php');
 	return [
 		{
 			step: 'writeFile',
@@ -765,13 +792,24 @@ function lowerRunPHPStep(
 	];
 }
 
+/**
+ * Adapts step-local media declarations before delegating to the shared media
+ * lowering path.
+ */
 function lowerImportMediaStep(
 	step: BlueprintV2ImportMediaStep,
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] {
-	return lowerMediaItems(step.media, `${featurePath}/media`);
+	return lowerMediaItems(step.media, `${featurePath}/media`, context);
 }
 
+/**
+ * Writes a v2 mu-plugin reference directly into `mu-plugins`.
+ *
+ * Structured inline-file and inline-directory names are already filenames, so
+ * they are passed through without rewriting.
+ */
 function lowerMuPlugin(
 	muPlugin: BlueprintV2MuPlugin,
 	featurePath: string
@@ -796,9 +834,14 @@ function lowerMuPlugin(
 	];
 }
 
+/**
+ * Splits post declarations into inline posts and file-backed posts for the
+ * PHP importer.
+ */
 function lowerPostsContent(
 	content: BlueprintV2PostContent,
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] {
 	const steps: StepDefinition[] = [];
 	const inlinePosts: JsonObject[] = [];
@@ -815,14 +858,7 @@ function lowerPostsContent(
 			: `${featurePath}.source`;
 
 		if (isV2FileDataReferenceLike(source)) {
-			const filename = sanitizeFilenameForTempPath(
-				getDataReferenceBasename(source, `post-${index}.html`)
-			);
-			const path = tempFilePath(
-				'blueprint-post-content',
-				sourcePath,
-				filename
-			);
+			const path = nextTempFilePath(context, 'blueprint-post-content');
 			steps.push({
 				step: 'writeFile',
 				path,
@@ -830,7 +866,6 @@ function lowerPostsContent(
 			});
 			postFiles.push({
 				path,
-				filename,
 				post_title: 'Untitled Post',
 				post_type: 'post',
 			});
@@ -859,9 +894,14 @@ function lowerPostsContent(
 	return steps;
 }
 
+/**
+ * Materializes media file references and keeps user-facing media metadata
+ * separate from compiler-owned temporary file paths.
+ */
 function lowerMediaItems(
 	mediaItems: BlueprintV2Media[],
-	featurePath: string
+	featurePath: string,
+	context: BlueprintV2LoweringContext
 ): StepDefinition[] {
 	const steps: StepDefinition[] = [];
 	const materializedMedia: JsonObject[] = [];
@@ -872,10 +912,8 @@ function lowerMediaItems(
 				? item
 				: { source: item };
 		const sourcePath = `${featurePath}[${index}]`;
-		const filename = sanitizeFilenameForTempPath(
-			getDataReferenceBasename(definition.source, `media-${index}`)
-		);
-		const path = tempFilePath('blueprint-media', sourcePath, filename);
+		const filename = fileReferenceBasename(definition.source, sourcePath);
+		const path = nextTempFilePath(context, 'blueprint-media');
 		steps.push({
 			step: 'writeFile',
 			path,
@@ -907,6 +945,12 @@ function lowerMediaItems(
 	return steps;
 }
 
+/**
+ * Registers v2 post types by writing generated mu-plugins.
+ *
+ * File-backed argument objects stay in support files so PHP can load the JSON
+ * at runtime without embedding arbitrary file contents in code.
+ */
 function lowerPostTypes(postTypes: BlueprintV2PostTypes): StepDefinition[] {
 	return Object.entries(postTypes).flatMap(([slug, args], index) => {
 		const supportFileName = `blueprint-post-type-${index}`;
@@ -937,7 +981,7 @@ function lowerPostTypes(postTypes: BlueprintV2PostTypes): StepDefinition[] {
 
 		const postTypeArgs: JsonObject = { ...(args as JsonObject) };
 		if (postTypeArgs['label'] === undefined) {
-			postTypeArgs['label'] = humanizeSlug(slug);
+			postTypeArgs['label'] = defaultDisplayNameFromSlug(slug);
 		}
 		return [
 			{
@@ -956,6 +1000,10 @@ function lowerPostTypes(postTypes: BlueprintV2PostTypes): StepDefinition[] {
 	});
 }
 
+/**
+ * Packages role declarations for the PHP runtime code that applies WordPress
+ * role API changes.
+ */
 function createRolesStep(roles: BlueprintV2Role[]): StepDefinition {
 	return {
 		step: 'runPHPWithOptions',
@@ -968,6 +1016,10 @@ function createRolesStep(roles: BlueprintV2Role[]): StepDefinition {
 	};
 }
 
+/**
+ * Packages user declarations for the PHP runtime code that creates or updates
+ * WordPress users.
+ */
 function createUsersStep(users: BlueprintV2User[]): StepDefinition {
 	return {
 		step: 'runPHPWithOptions',
@@ -980,7 +1032,17 @@ function createUsersStep(users: BlueprintV2User[]): StepDefinition {
 	};
 }
 
-function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
+/**
+ * Lowers v2 font collections and inline font shortcuts into WordPress font
+ * library records.
+ *
+ * Font binaries are materialized separately and referenced by opaque tokens in
+ * the collection JSON consumed by the PHP installer.
+ */
+function lowerFonts(
+	fonts: BlueprintV2Fonts,
+	context: BlueprintV2LoweringContext
+): StepDefinition[] {
 	const steps: StepDefinition[] = [];
 	const collections: JsonObject[] = [];
 	const fontFiles: Record<string, JsonObject> = {};
@@ -995,9 +1057,10 @@ function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
 				slug,
 				steps,
 				fontFiles,
-				fileIndex++
+				fileIndex++,
+				context
 			);
-			const name = humanizeSlug(slug);
+			const name = defaultDisplayNameFromSlug(slug);
 			collections.push({
 				slug,
 				name,
@@ -1022,7 +1085,8 @@ function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
 
 		const collection = cloneJson(definition as JsonObject);
 		collection['slug'] = slug;
-		collection['name'] = collection['name'] || humanizeSlug(slug);
+		collection['name'] =
+			collection['name'] || defaultDisplayNameFromSlug(slug);
 		collection['font_families'] = (collection['font_families'] || []).map(
 			(family: JsonObject, familyIndex: number) => {
 				const nextFamily = cloneJson(family);
@@ -1041,7 +1105,8 @@ function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
 								(settings['slug'] as string) || slug,
 								steps,
 								fontFiles,
-								() => fileIndex++
+								() => fileIndex++,
+								context
 							);
 							return nextFace;
 						}
@@ -1071,6 +1136,10 @@ function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
 	return steps;
 }
 
+/**
+ * Lowers v2 `writeFiles` entries while preserving whether each source is a
+ * single file or a directory tree.
+ */
 function lowerWriteFilesStep(
 	step: BlueprintV2WriteFilesStep
 ): StepDefinition[] {
@@ -1098,13 +1167,18 @@ function lowerWriteFilesStep(
 	return steps;
 }
 
+/**
+ * Lowers a font face `src` value while preserving whether the declaration used
+ * one source or an ordered fallback list.
+ */
 function materializeFontFaceSource(
 	source: BlueprintV2FileDataReference | BlueprintV2FileDataReference[],
 	sourcePath: string,
 	slug: string,
 	steps: StepDefinition[],
 	fontFiles: Record<string, JsonObject>,
-	nextIndex: () => number
+	nextIndex: () => number,
+	context: BlueprintV2LoweringContext
 ) {
 	if (Array.isArray(source)) {
 		return source.map((item, index) =>
@@ -1114,7 +1188,8 @@ function materializeFontFaceSource(
 				slug,
 				steps,
 				fontFiles,
-				nextIndex()
+				nextIndex(),
+				context
 			)
 		);
 	}
@@ -1124,29 +1199,33 @@ function materializeFontFaceSource(
 		slug,
 		steps,
 		fontFiles,
-		nextIndex()
+		nextIndex(),
+		context
 	);
 }
 
+/**
+ * Materializes one font binary and returns the token that the generated PHP
+ * installer later replaces with copied font-file metadata.
+ */
 function materializeFontSource(
 	source: BlueprintV2FileDataReference,
 	sourcePath: string,
 	slug: string,
 	steps: StepDefinition[],
 	fontFiles: Record<string, JsonObject>,
-	index: number
+	index: number,
+	context: BlueprintV2LoweringContext
 ) {
-	const filename = sanitizeFilenameForTempPath(
-		getDataReferenceBasename(source, `${slug}.woff2`)
-	);
-	if (!isAllowedFontFilename(filename)) {
+	const filename = fileReferenceBasename(source, sourcePath);
+	if (!/\.(woff2|woff|ttf|otf)$/i.test(filename)) {
 		throw new UnsupportedBlueprintV2FeatureError(
 			sourcePath,
 			'Blueprint v2 font sources must reference .woff2, .woff, .ttf, or .otf files.'
 		);
 	}
 	const token = `font-${index}`;
-	const path = tempFilePath('blueprint-font', sourcePath, filename);
+	const path = nextTempFilePath(context, 'blueprint-font');
 	steps.push({
 		step: 'writeFile',
 		path,
@@ -1159,6 +1238,9 @@ function materializeFontSource(
 	return `blueprint-font-file:${token}`;
 }
 
+/**
+ * Builds a mu-plugin that registers a post type from an inline JSON object.
+ */
 function createInlinePostTypePluginCode(slug: string, args: JsonObject) {
 	return `<?php
 add_action('init', function () {
@@ -1169,8 +1251,12 @@ add_action('init', function () {
 `;
 }
 
+/**
+ * Builds a mu-plugin that registers a post type from a support JSON file
+ * written next to the generated plugin.
+ */
 function createPostTypePluginCode(slug: string, argsPath: string) {
-	const argsFilename = pathBasename(argsPath);
+	const argsFilename = basename(argsPath);
 	return `<?php
 add_action('init', function () {
 	$args = json_decode(file_get_contents(__DIR__ . '/${argsFilename}'), true);
@@ -1178,7 +1264,7 @@ add_action('init', function () {
 		$args = array();
 	}
 	if (!isset($args['label'])) {
-		$args['label'] = ${JSON.stringify(humanizeSlug(slug))};
+		$args['label'] = ${JSON.stringify(defaultDisplayNameFromSlug(slug))};
 	}
 	register_post_type(${JSON.stringify(slug)}, $args);
 }, 0);
@@ -1204,6 +1290,9 @@ foreach ($roles as $role) {
 		add_role($role_name, $display_name, array('read' => true));
 	}
 	$role_object = get_role($role_name);
+	if (!$role_object) {
+		throw new Exception('Could not create Blueprint role: ' . $role_name);
+	}
 	foreach ($capabilities as $capability => $grant) {
 		if (filter_var($grant, FILTER_VALIDATE_BOOLEAN)) {
 			$role_object->add_cap($capability);
@@ -1318,6 +1407,9 @@ try {
 	blueprint_cleanup_post_temp_files($blueprint_temp_files);
 }
 
+/**
+ * Builds the wp_insert_post() payload for one Blueprint post.
+ */
 function blueprint_prepare_post(array $post, int $default_author, string $urls_mode, array $urls_map): array {
 	if (!isset($post['post_author'])) {
 		$post['post_author'] = $default_author;
@@ -1352,6 +1444,9 @@ function blueprint_prepare_post(array $post, int $default_author, string $urls_m
 	return $post;
 }
 
+/**
+ * Returns the author used when imported post data omits one.
+ */
 function blueprint_default_post_author(): int {
 	$admins = get_users(array(
 		'role' => 'administrator',
@@ -1390,24 +1485,23 @@ function blueprint_default_post_author(): int {
 	return (int) $user_id;
 }
 
+/**
+ * Resolves a parent post by title for hierarchical post declarations.
+ */
 function blueprint_find_parent_post_id(string $name, string $post_type): int {
 	$parent = get_page_by_path(sanitize_title($name), OBJECT, $post_type);
 	if (!$parent) {
-		$query = new WP_Query(array(
-			'post_type' => $post_type,
-			'title' => $name,
-			'post_status' => 'any',
-			'posts_per_page' => 1,
-			'fields' => 'ids',
-		));
-		if (!empty($query->posts)) {
-			return (int) $query->posts[0];
-		}
+		$parent = get_page_by_title($name, OBJECT, $post_type);
+	}
+	if (!$parent) {
 		throw new Exception('Could not resolve post_parent_name: ' . $name);
 	}
 	return (int) $parent->ID;
 }
 
+/**
+ * Ensures and assigns taxonomy terms for one imported post.
+ */
 function blueprint_set_terms(int $post_id, string $taxonomy, array $terms): void {
 	$term_ids = blueprint_ensure_terms($taxonomy, $terms);
 	if (!empty($term_ids)) {
@@ -1418,6 +1512,9 @@ function blueprint_set_terms(int $post_id, string $taxonomy, array $terms): void
 	}
 }
 
+/**
+ * Creates missing terms and returns IDs ready for wp_set_post_terms().
+ */
 function blueprint_ensure_terms(string $taxonomy, array $terms): array {
 	$term_ids = array();
 	foreach ($terms as $term_name) {
@@ -1443,6 +1540,9 @@ function blueprint_ensure_terms(string $taxonomy, array $terms): array {
 	return $term_ids;
 }
 
+/**
+ * Applies the requested URL-preservation or URL-rewrite policy recursively.
+ */
 function blueprint_rewrite_urls($value, string $urls_mode, array $urls_map) {
 	if ($urls_mode === 'preserve' || empty($urls_map)) {
 		return $value;
@@ -1459,6 +1559,9 @@ function blueprint_rewrite_urls($value, string $urls_mode, array $urls_map) {
 	return $value;
 }
 
+/**
+ * Removes temporary files used while importing file-backed posts.
+ */
 function blueprint_cleanup_post_temp_files(array $paths): void {
 	foreach (array_unique($paths) as $path) {
 		if (is_string($path) && file_exists($path)) {
@@ -1500,7 +1603,11 @@ try {
 			throw new Exception('Could not create uploads directory: ' . $uploads['path']);
 		}
 
-		$filename = wp_unique_filename($uploads['path'], basename($item['filename'] ?? $source_path));
+		$filename = basename($item['filename'] ?? $source_path);
+		if (!is_string($filename) || basename($filename) !== $filename || sanitize_file_name($filename) !== $filename) {
+			throw new Exception('Invalid Blueprint media filename: must already be a valid filename.');
+		}
+		$filename = wp_unique_filename($uploads['path'], $filename);
 		$target_path = trailingslashit($uploads['path']) . $filename;
 		if (!copy($source_path, $target_path)) {
 			throw new Exception('Could not copy media file to uploads directory.');
@@ -1533,6 +1640,9 @@ try {
 	blueprint_cleanup_media_temp_files($blueprint_temp_files);
 }
 
+/**
+ * Removes temporary files used while importing media attachments.
+ */
 function blueprint_cleanup_media_temp_files(array $paths): void {
 	foreach (array_unique($paths) as $path) {
 		if (is_string($path) && file_exists($path)) {
@@ -1555,6 +1665,16 @@ if (!function_exists('wp_get_font_dir') || !post_type_exists('wp_font_family') |
 	throw new Exception('Blueprint fonts require WordPress 6.5 or newer.');
 }
 
+/**
+ * Requires a Blueprint slug field to already be a WordPress slug.
+ */
+function blueprint_require_valid_slug(string $slug, string $field): string {
+	if ($slug === '' || sanitize_title($slug) !== $slug) {
+		throw new Exception('Invalid Blueprint ' . $field . ': must already be a valid slug.');
+	}
+	return $slug;
+}
+
 $blueprint_temp_files = blueprint_font_temp_files($files);
 try {
 	$font_dir = wp_get_font_dir();
@@ -1571,7 +1691,7 @@ try {
 			throw new Exception('Each Blueprint font collection must have a slug.');
 		}
 
-		$slug = sanitize_title($collection['slug']);
+		$slug = blueprint_require_valid_slug($collection['slug'], 'font collection slug');
 		$families = isset($collection['font_families']) && is_array($collection['font_families'])
 			? $collection['font_families']
 			: array();
@@ -1597,7 +1717,7 @@ try {
 		}
 
 		$collection_args = array(
-			'name' => $collection['name'] ?? blueprint_humanize_slug($slug),
+			'name' => $collection['name'] ?? blueprint_default_display_name_from_slug($slug),
 			'font_families' => $families,
 		);
 		$categories = blueprint_collect_font_categories($families);
@@ -1613,6 +1733,9 @@ try {
 	blueprint_cleanup_font_temp_files($blueprint_temp_files);
 }
 
+/**
+ * Creates or updates a WordPress font-family post for a font collection.
+ */
 function blueprint_upsert_font_family(array $settings): int {
 	foreach (array('name', 'slug', 'fontFamily') as $field) {
 		if (empty($settings[$field]) || !is_string($settings[$field])) {
@@ -1620,7 +1743,7 @@ function blueprint_upsert_font_family(array $settings): int {
 		}
 	}
 
-	$slug = sanitize_title($settings['slug']);
+	$slug = blueprint_require_valid_slug($settings['slug'], 'font family slug');
 	$post_content = $settings;
 	unset($post_content['name'], $post_content['slug']);
 
@@ -1648,6 +1771,9 @@ function blueprint_upsert_font_family(array $settings): int {
 	return (int) $post_id;
 }
 
+/**
+ * Converts Blueprint font-face settings into WordPress font-library fields.
+ */
 function blueprint_prepare_font_face(array $settings, array $files, array $font_dir): array {
 	if (empty($settings['fontFamily']) || empty($settings['src'])) {
 		throw new Exception('Font face settings require fontFamily and src.');
@@ -1674,13 +1800,19 @@ function blueprint_prepare_font_face(array $settings, array $files, array $font_
 	);
 }
 
+/**
+ * Copies one materialized font binary into the WordPress uploads directory.
+ */
 function blueprint_copy_font_file(array $file, array $font_dir): array {
 	$source_path = $file['path'] ?? '';
 	if (!$source_path || !is_readable($source_path)) {
 		throw new Exception('Font source is not readable: ' . $source_path);
 	}
 
-	$filename = sanitize_file_name($file['filename'] ?? basename($source_path));
+	$filename = $file['filename'] ?? basename($source_path);
+	if (!is_string($filename) || basename($filename) !== $filename || sanitize_file_name($filename) !== $filename) {
+		throw new Exception('Invalid Blueprint font filename: must already be a valid filename.');
+	}
 	if (!preg_match('/\\.(woff2|woff|ttf|otf)$/i', $filename)) {
 		throw new Exception('Unsupported font file extension: ' . $filename);
 	}
@@ -1697,6 +1829,9 @@ function blueprint_copy_font_file(array $file, array $font_dir): array {
 	);
 }
 
+/**
+ * Creates or updates a font-face post belonging to a font family.
+ */
 function blueprint_upsert_font_face(int $family_id, array $settings, array $file_meta): int {
 	$title = blueprint_font_face_slug($settings);
 	$existing = get_posts(array(
@@ -1731,6 +1866,9 @@ function blueprint_upsert_font_face(int $family_id, array $settings, array $file
 	return (int) $post_id;
 }
 
+/**
+ * Builds the stable slug used to find an existing font-face post.
+ */
 function blueprint_font_face_slug(array $settings): string {
 	if (class_exists('WP_Font_Utils') && method_exists('WP_Font_Utils', 'get_font_face_slug')) {
 		return WP_Font_Utils::get_font_face_slug($settings);
@@ -1744,6 +1882,9 @@ function blueprint_font_face_slug(array $settings): string {
 	return implode('-', $parts);
 }
 
+/**
+ * Collects category slugs declared by all families in a collection.
+ */
 function blueprint_collect_font_categories(array $families): array {
 	$categories = array();
 	foreach ($families as $family) {
@@ -1751,9 +1892,9 @@ function blueprint_collect_font_categories(array $families): array {
 			if (!is_string($category) || $category === '') {
 				continue;
 			}
-			$slug = sanitize_title($category);
+			$slug = blueprint_require_valid_slug($category, 'font category slug');
 			$categories[$slug] = array(
-				'name' => blueprint_humanize_slug($slug),
+				'name' => blueprint_default_display_name_from_slug($slug),
 				'slug' => $slug,
 			);
 		}
@@ -1761,6 +1902,9 @@ function blueprint_collect_font_categories(array $families): array {
 	return array_values($categories);
 }
 
+/**
+ * Registers collection metadata after font posts have been imported.
+ */
 function blueprint_register_font_collection(string $slug, array $collection_args): void {
 	if (!function_exists('wp_register_font_collection') || !class_exists('WP_Font_Library')) {
 		return;
@@ -1775,6 +1919,9 @@ function blueprint_register_font_collection(string $slug, array $collection_args
 	}
 }
 
+/**
+ * Persists imported font collections so they are registered on every boot.
+ */
 function blueprint_write_font_collections_mu_plugin(array $collections): void {
 	if (empty($collections)) {
 		return;
@@ -1795,10 +1942,16 @@ function blueprint_write_font_collections_mu_plugin(array $collections): void {
 	file_put_contents($dir . '/blueprint-font-collections.php', $code);
 }
 
-function blueprint_humanize_slug(string $slug): string {
+/**
+ * Converts a slug into the fallback label used by generated font settings.
+ */
+function blueprint_default_display_name_from_slug(string $slug): string {
 	return ucwords(str_replace(array('-', '_'), ' ', $slug));
 }
 
+/**
+ * Extracts temp paths from the materialized font-file map for cleanup.
+ */
 function blueprint_font_temp_files(array $files): array {
 	$paths = array();
 	foreach ($files as $file) {
@@ -1809,6 +1962,9 @@ function blueprint_font_temp_files(array $files): array {
 	return $paths;
 }
 
+/**
+ * Removes temporary files used while importing fonts.
+ */
 function blueprint_cleanup_font_temp_files(array $paths): void {
 	foreach (array_unique($paths) as $path) {
 		if (is_string($path) && file_exists($path)) {
@@ -2103,94 +2259,124 @@ function isDirectoryReference(
 	);
 }
 
+/**
+ * Computes the mu-plugin installation path from structured data-reference
+ * fields without rewriting explicit inline filenames or directory names.
+ */
 function getMuPluginTargetPath(
 	reference: BlueprintV2DataReference,
 	featurePath: string
 ) {
+	const muPluginsPath = '/wordpress/wp-content/mu-plugins';
 	if (isInlineFile(reference)) {
-		return `/wordpress/wp-content/mu-plugins/${reference.filename}`;
+		return joinPaths(muPluginsPath, reference.filename);
 	}
 	if (isInlineDirectory(reference)) {
-		return `/wordpress/wp-content/mu-plugins/${reference.directoryName}`;
+		return joinPaths(muPluginsPath, reference.directoryName);
 	}
 	if (isGitPath(reference)) {
-		return `/wordpress/wp-content/mu-plugins/${getDataReferenceBasename(
-			reference,
-			sanitizePathForTempFile(featurePath)
-		)}`;
+		return joinPaths(
+			muPluginsPath,
+			gitPathBasename(reference, featurePath)
+		);
 	}
 	if (typeof reference === 'string') {
-		return `/wordpress/wp-content/mu-plugins/${basenameFromUrlOrPath(
-			reference
-		)}`;
+		return joinPaths(
+			muPluginsPath,
+			fileReferenceBasename(reference, featurePath)
+		);
 	}
-	return `/wordpress/wp-content/mu-plugins/${sanitizePathForTempFile(
-		featurePath
-	)}`;
+	throw new UnsupportedBlueprintV2FeatureError(
+		featurePath,
+		'Unsupported Blueprint v2 mu-plugin data reference.'
+	);
 }
 
+/**
+ * Distinguishes file references from inline JSON objects in union fields such
+ * as posts and media declarations.
+ */
 function isV2FileDataReferenceLike(
 	value: any
 ): value is BlueprintV2FileDataReference {
 	return typeof value === 'string' || isInlineFile(value);
 }
 
-function tempFilePath(prefix: string, featurePath: string, filename: string) {
-	return `/tmp/${prefix}-${sanitizePathForTempFile(featurePath)}-${filename}`;
+/**
+ * Allocates a compiler-owned temp path for generated support files.
+ *
+ * The path intentionally does not include Blueprint-provided names.
+ */
+function nextTempFilePath(
+	context: BlueprintV2LoweringContext,
+	prefix: string,
+	extension?: string
+) {
+	const suffix = extension ? `.${extension}` : '';
+	return `/tmp/${prefix}-${context.nextTempFileIndex++}${suffix}`;
 }
 
-function getDataReferenceBasename(
-	reference: BlueprintV2DataReference,
-	fallback: string
+/**
+ * Extracts the user-facing filename from supported file-reference shapes.
+ *
+ * This is used for WordPress metadata such as media and font filenames, not
+ * for compiler temporary paths.
+ */
+function fileReferenceBasename(
+	reference: BlueprintV2FileDataReference,
+	featurePath: string
 ) {
 	if (typeof reference === 'string') {
-		return basenameFromUrlOrPath(reference) || fallback;
+		if (isHttpUrl(reference)) {
+			return basename(new URL(reference).pathname);
+		}
+		if (isExecutionContextPath(reference)) {
+			return basename(normalizeExecutionContextPath(reference));
+		}
 	}
 	if (isInlineFile(reference)) {
-		return basenameFromUrlOrPath(reference.filename) || fallback;
+		return reference.filename;
 	}
-	if (isInlineDirectory(reference)) {
-		return basenameFromUrlOrPath(reference.directoryName) || fallback;
-	}
-	if (isGitPath(reference)) {
-		return (
-			basenameFromUrlOrPath(
-				reference.pathInRepository || reference.path || ''
-			) || fallback
-		);
-	}
-	return fallback;
-}
-
-function basenameFromUrlOrPath(path: string) {
-	try {
-		path = new URL(path).pathname;
-	} catch {
-		// Plain execution-context path.
-	}
-	return pathBasename(path.replace(/\/+$/, '')) || 'file';
-}
-
-function sanitizePathForTempFile(path: string) {
-	return (
-		path.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'step'
+	throw new UnsupportedBlueprintV2FeatureError(
+		featurePath,
+		'Blueprint v2 file references must be URLs, execution-context paths, or inline files.'
 	);
 }
 
-function sanitizeFilenameForTempPath(filename: string) {
-	return filename.replace(/[^a-zA-Z0-9._-]+/g, '-') || 'file';
+/**
+ * Gets the target name for a git data reference from its structured repository
+ * path, or from the repository URL when no path is provided.
+ */
+function gitPathBasename(
+	reference: Extract<BlueprintV2DataReference, { gitRepository: string }>,
+	featurePath: string
+) {
+	const pathInRepository = reference.pathInRepository || reference.path;
+	if (pathInRepository) {
+		if (pathContainsParentDirectorySegment(pathInRepository)) {
+			throw new UnsupportedBlueprintV2FeatureError(
+				`${featurePath}.pathInRepository`,
+				'Blueprint v2 git paths must not contain parent directory segments.'
+			);
+		}
+		return basename(pathInRepository);
+	}
+	return basename(new URL(reference.gitRepository).pathname);
 }
 
-function isAllowedFontFilename(filename: string) {
-	return /\.(woff2|woff|ttf|otf)$/i.test(filename);
-}
-
-function humanizeSlug(slug: string) {
+/**
+ * Converts a machine slug into a fallback display name for generated
+ * WordPress records.
+ */
+function defaultDisplayNameFromSlug(slug: string) {
 	return slug
 		.replace(/[-_]+/g, ' ')
 		.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/**
+ * Clones JSON-compatible Blueprint data before adding compiler defaults.
+ */
 function cloneJson<T>(value: T): T {
 	return JSON.parse(JSON.stringify(value));
 }
