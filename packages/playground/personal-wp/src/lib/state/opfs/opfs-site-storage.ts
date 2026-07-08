@@ -138,6 +138,13 @@ class OpfsSiteStorage {
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
 		const siteInfo = storedFormatToMetadata(await file.text());
+		if (siteDirectory.name !== getDirectoryNameForSlug(siteInfo.slug)) {
+			(siteInfo.metadata as any)[legacyOpfsPathSymbol] = joinPaths(
+				OPFS_SITES_ROOT_PATH,
+				siteDirectory.name
+			);
+		}
+
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
