@@ -79,4 +79,22 @@ describe('splitShellCommand', () => {
 			'args',
 		]);
 	});
+
+	it('Should preserve empty quoted arguments', () => {
+		const command = 'mail "" --';
+		const result = splitShellCommand(command);
+		expect(result).toEqual(['mail', '', '--']);
+	});
+
+	it('Should preserve an empty argument between options', () => {
+		const command = 'sendmail -f "" -t';
+		const result = splitShellCommand(command);
+		expect(result).toEqual(['sendmail', '-f', '', '-t']);
+	});
+
+	it('Should preserve whitespace inside quoted arguments', () => {
+		const command = 'printf " leading and trailing "';
+		const result = splitShellCommand(command);
+		expect(result).toEqual(['printf', ' leading and trailing ']);
+	});
 });
