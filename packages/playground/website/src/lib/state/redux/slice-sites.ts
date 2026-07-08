@@ -236,20 +236,42 @@ export function updateSite({
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
 		}
-		dispatch(
-			sitesSlice.actions.updateSite({
-				id: slug,
-				changes,
-			})
-		);
-		const updatedSite = selectSiteBySlug(getState(), slug);
+		const existingSite = selectSiteBySlug(getState(), slug);
+		if (!existingSite) {
+			throw new Error(`Site not found: ${slug}`);
+		}
+		const { metadata, ...topLevelChanges } = changes;
+		const updatedSite = {
+			...existingSite,
+			...topLevelChanges,
+			metadata: metadata
+				? {
+						...existingSite.metadata,
+						...metadata,
+					}
+				: existingSite.metadata,
+		};
 		if (updatedSite.metadata.storage !== 'none') {
-			await opfsSiteStorage?.update(
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot update a saved Playground because browser storage is not available.'
+				);
+			}
+			await opfsSiteStorage.update(
 				updatedSite.slug,
 				updatedSite.metadata,
 				updatedSite.originalUrlParams
 			);
 		}
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: slug,
+				changes: {
+					...topLevelChanges,
+					...(metadata ? { metadata: updatedSite.metadata } : {}),
+				},
+			})
+		);
 	};
 }
 
