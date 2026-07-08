@@ -420,7 +420,7 @@ export function bootSiteClient(
 /**
  * Finishes deleting old WordPress files after a tab closed during reset.
  *
- * `opfsResetPending` means `wp-runtime.json` already describes the new setup,
+ * `opfsSiteRemovalPending` means `wp-runtime.json` already describes the new setup,
  * but the OPFS directory may still contain WordPress files from the previous
  * autosave. Boot must delete those files before it mounts OPFS or installs
  * WordPress from the new setup. Otherwise the previous site can open while the

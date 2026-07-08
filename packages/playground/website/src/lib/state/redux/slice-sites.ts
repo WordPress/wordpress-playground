@@ -647,7 +647,7 @@ export function setStoredSiteSpec(
  * changing PHP version or networking. Those should update site metadata and
  * reboot. Longer term, the Dock UI should create a new Playground for setup
  * changes and leave the previous Playground untouched. Until that UX exists,
- * this function writes `opfsResetPending` so a reload can finish deleting old
+ * this function writes `opfsSiteRemovalPending` so a reload can finish deleting old
  * WordPress files if the tab closes during the deletion.
  */
 export function resetAutosavedSiteSpec(
