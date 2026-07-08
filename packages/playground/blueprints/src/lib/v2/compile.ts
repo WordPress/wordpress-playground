@@ -515,7 +515,7 @@ function lowerBlueprintV2WxrContent(
 ): StepDefinition[] | undefined {
 	if (
 		content.urlsMap ||
-		content.importUsers ||
+		content.importUsers !== undefined ||
 		content.authorsMode !== 'default-author' ||
 		content.authorsMap
 	) {

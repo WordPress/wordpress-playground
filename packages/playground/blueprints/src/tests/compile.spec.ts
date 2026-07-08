@@ -637,7 +637,6 @@ describe('compileBlueprintForExecution', () => {
 					urlsMode: 'preserve',
 					authorsMode: 'default-author',
 					defaultAuthorUsername: 'editor',
-					importUsers: false,
 					importComments: true,
 				},
 			],
@@ -686,6 +685,29 @@ describe('compileBlueprintForExecution', () => {
 					authorsMap: {
 						remote: 'admin',
 					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([]);
+		expect(
+			compiled.compiled.unsupportedPlan.map((item) => item.type)
+		).toEqual(['importContent']);
+	});
+
+	it('keeps WXR content with unsupported importer behavior in the unsupported plan', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: './content.wxr',
+					authorsMode: 'default-author',
+					importUsers: false,
 				},
 			],
 		});
