@@ -1,5 +1,4 @@
 import {
-	getPreviewPrInputFromQuery,
 	isWordPressPrBeforePreviewer,
 	resolvePrInput,
 } from './resolve-pr-input';
@@ -128,29 +127,6 @@ describe('resolvePrInput', () => {
 			ok: true,
 			value: { target: 'gutenberg', ref: 'feature/foo', isBranch: true },
 		});
-	});
-});
-
-describe('getPreviewPrInputFromQuery', () => {
-	it('prefills the matching repository reference only', () => {
-		const query = new URLSearchParams({
-			'core-pr': '123',
-			'gutenberg-pr': '456',
-		});
-
-		expect(getPreviewPrInputFromQuery(query, 'wordpress')).toBe('123');
-		expect(getPreviewPrInputFromQuery(query, 'gutenberg')).toBe('456');
-	});
-
-	it('prefills Gutenberg branches', () => {
-		const query = new URLSearchParams({
-			'gutenberg-branch': 'feature/foo',
-		});
-
-		expect(getPreviewPrInputFromQuery(query, 'gutenberg')).toBe(
-			'feature/foo'
-		);
-		expect(getPreviewPrInputFromQuery(query, 'wordpress')).toBe('');
 	});
 });
 

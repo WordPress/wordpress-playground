@@ -208,10 +208,6 @@ export default function GitHubExportForm({
 		if (URLNeedsAnalyzing) {
 			const analyzed = staticAnalyzeGitHubURL(formValues.repoUrl);
 			let { type, owner, repo, path, pr } = analyzed;
-			if (type === 'unknown') {
-				setError('repoUrl', 'This URL is not supported');
-				return;
-			}
 			if (!['pr', 'branch', 'repo'].includes(type)) {
 				setError('repoUrl', 'This URL is not supported');
 				return;

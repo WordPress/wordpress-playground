@@ -87,7 +87,17 @@ export function staticAnalyzeGitHubURL(url: string): GitHubURLInformation {
 }
 
 /**
- * Resolves branch URLs whose branch names may contain slashes.
+ * Resolves the ambiguous branch-and-path suffix in GitHub tree/blob URLs.
+ *
+ * GitHub does not mark where the branch name ends:
+ * - `/tree/trunk/packages/playground` means branch `trunk`, path `packages/playground`.
+ * - `/tree/feature/export-form/packages/playground` may mean branch `feature`
+ *   plus path `export-form/packages/playground`, or branch `feature/export-form`
+ *   plus path `packages/playground`.
+ *
+ * Try the longest possible branch name first, matching GitHub's routing for
+ * branch names that contain `/`. If no candidate exists, keep the parser's
+ * original first-segment branch guess.
  */
 export async function resolveGitHubBranchPath(
 	octokit: GitHubBranchClient,

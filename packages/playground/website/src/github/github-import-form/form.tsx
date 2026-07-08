@@ -80,12 +80,6 @@ export default function GitHubImportForm({
 		}
 		if (!urlInformation) {
 			const info = staticAnalyzeGitHubURL(newUrl);
-			if (info.type === 'unknown') {
-				setErrors({
-					url: 'This URL is not supported',
-				});
-				return;
-			}
 			if (!['pr', 'branch', 'repo'].includes(info.type)) {
 				setErrors({
 					url: 'This URL is not supported',
@@ -93,6 +87,8 @@ export default function GitHubImportForm({
 				return;
 			}
 			const octokit = getClient();
+			// Only keep the most recent analysis run if the user triggers
+			// multiple analysis attempts.
 			const analysisRun = ++analysisRunRef.current;
 			setIsAnalyzing(true);
 			try {

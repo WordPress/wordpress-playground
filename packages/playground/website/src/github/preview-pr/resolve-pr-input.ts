@@ -15,16 +15,6 @@ const WP_BRANCH_ERROR =
 const PULL_REQUEST_NUMBER = /^[1-9]\d*$/;
 const FIRST_WORDPRESS_PREVIEWABLE_PR = 5749;
 
-export function getPreviewPrInputFromQuery(
-	query: URLSearchParams,
-	target: 'wordpress' | 'gutenberg'
-): string {
-	if (target === 'wordpress') {
-		return query.get('core-pr') || '';
-	}
-	return query.get('gutenberg-pr') || query.get('gutenberg-branch') || '';
-}
-
 /**
  * Resolves free-form input into a repository + reference. A recognized GitHub
  * URL decides the repository; a bare number is a pull request on the preferred
@@ -52,8 +42,10 @@ export function resolvePrInput(
 				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
 			};
 		}
-		const githubPath = decodeGitHubPath(githubUrl.pathname);
-		if (!githubPath) {
+		let githubPath = undefined;
+		try {
+			githubPath = decodeURIComponent(githubUrl.pathname);
+		} catch {
 			return {
 				ok: false,
 				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
@@ -160,13 +152,5 @@ function parseGitHubUrl(input: string): URL | undefined {
 		} catch {
 			return undefined;
 		}
-	}
-}
-
-function decodeGitHubPath(pathname: string): string | undefined {
-	try {
-		return decodeURIComponent(pathname);
-	} catch {
-		return undefined;
 	}
 }

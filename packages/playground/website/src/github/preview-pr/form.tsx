@@ -7,7 +7,6 @@ import ModalButtons from '../../components/modal/modal-buttons';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { ResolvedRef } from './resolve-pr-input';
 import {
-	getPreviewPrInputFromQuery,
 	isWordPressPrBeforePreviewer,
 	resolvePrInput,
 } from './resolve-pr-input';
@@ -45,10 +44,16 @@ export default function PreviewPRForm({
 	const [errorMsg, setError] = useState<string>('');
 
 	useEffect(() => {
-		const initialValue = getPreviewPrInputFromQuery(
-			new URLSearchParams(window.location.search),
-			target
-		);
+		const query = new URLSearchParams(window.location.search);
+		let initialValue = '';
+		if (target === 'wordpress') {
+			initialValue = query.get('core-pr') || '';
+		} else {
+			initialValue =
+				query.get('gutenberg-pr') ||
+				query.get('gutenberg-branch') ||
+				'';
+		}
 		if (initialValue) {
 			setValue(initialValue);
 		}
