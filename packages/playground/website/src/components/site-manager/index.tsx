@@ -1,4 +1,5 @@
 import { useMediaQuery } from '@wordpress/compose';
+import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import { useActiveSite, useAppSelector } from '../../lib/state/redux/store';
 
 import css from './style.module.css';
@@ -60,6 +61,7 @@ export const SiteManager = forwardRef<
 	};
 
 	let activePanel;
+	const initialTabName = getSiteInfoInitialTabName(activeSiteManagerSection);
 	switch (activeSiteManagerSection) {
 		case 'blueprints':
 			activePanel = (
@@ -71,17 +73,23 @@ export const SiteManager = forwardRef<
 			break;
 		default:
 		case 'site-details':
+		case 'settings':
+		case 'files':
+		case 'blueprint':
+		case 'database':
+		case 'logs':
 			activePanel = activeSite ? (
 				fullScreenSections ? (
 					<SiteInfoPanel
-						key={activeSite?.slug}
+						key={`${activeSite?.slug}-${initialTabName ?? 'last'}`}
 						className={css.siteManagerSiteInfo}
 						site={activeSite}
 						mobileUi={fullScreenSections}
+						initialTabName={initialTabName}
 					/>
 				) : (
 					<ResizableBox
-						key={activeSite?.slug}
+						key={`${activeSite?.slug}-${initialTabName ?? 'last'}`}
 						className={css.siteInfoResizable}
 						minWidth={SITE_INFO_MIN_WIDTH}
 						size={{
@@ -104,6 +112,7 @@ export const SiteManager = forwardRef<
 							className={css.siteManagerSiteInfo}
 							site={activeSite}
 							mobileUi={fullScreenSections}
+							initialTabName={initialTabName}
 						/>
 					</ResizableBox>
 				)
@@ -123,3 +132,9 @@ export const SiteManager = forwardRef<
 		</div>
 	);
 });
+
+function getSiteInfoInitialTabName(section: SiteManagerSection) {
+	return section === 'site-details' || section === 'sidebar'
+		? undefined
+		: section;
+}

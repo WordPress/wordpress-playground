@@ -1,0 +1,52 @@
+.dock {
+	position: absolute;
+	left: 50%;
+	bottom: 16px;
+	z-index: 6;
+	max-width: calc(100% - 32px);
+	transform: translateX(-50%);
+	padding: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 999px;
+	background: rgba(30, 35, 39, 0.96);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+}
+
+.tools {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.tools::-webkit-scrollbar {
+	display: none;
+}
+
+.tool {
+	padding: 8px 12px;
+	border: 0;
+	border-radius: 999px;
+	background: transparent;
+	color: #fff;
+	font: inherit;
+	font-size: 13px;
+	line-height: 16px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.tool:hover,
+.tool:focus-visible,
+.tool.active {
+	background: rgba(255, 255, 255, 0.14);
+}
+
+.syncButton :global(button) {
+	min-height: 32px;
+	padding: 8px 12px;
+	border-radius: 999px;
+	color: #fff;
+	font-size: 13px;
+}

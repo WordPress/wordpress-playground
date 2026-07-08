@@ -80,16 +80,18 @@ export function SiteInfoPanel({
 	site,
 	mobileUi,
 	siteViewHidden,
+	initialTabName,
 }: {
 	className: string;
 	site: SiteInfo;
 	mobileUi?: boolean;
 	siteViewHidden?: boolean;
+	initialTabName?: string;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
 	// Load the last active tab for this site
-	const [initialTabName] = useState(() => {
+	const [storedInitialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
 		return lastTab || 'settings';
 	});
@@ -390,7 +392,7 @@ export function SiteInfoPanel({
 				<FlexItem style={{ flexGrow: 1 }}>
 					<TabPanel
 						className={css.tabs}
-						initialTabName={initialTabName}
+						initialTabName={initialTabName ?? storedInitialTabName}
 						onSelect={handleTabSelect}
 						tabs={[
 							{

@@ -18,7 +18,15 @@ export type SiteError =
 	| 'network-firewall-interference'
 	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type SiteManagerSection =
+	| 'sidebar'
+	| 'site-details'
+	| 'settings'
+	| 'files'
+	| 'blueprint'
+	| 'database'
+	| 'logs'
+	| 'blueprints';
 
 export const modalSlugs = {
 	LOG: 'log',
