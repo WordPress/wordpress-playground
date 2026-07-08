@@ -240,12 +240,24 @@ export function updateSite({
 		if (!existingSite) {
 			throw new Error(`Site not found: ${slug}`);
 		}
+		const { metadata, ...topLevelChanges } = changes;
 		const updatedSite = {
 			...existingSite,
-			...changes,
+			...topLevelChanges,
+			metadata: metadata
+				? {
+						...existingSite.metadata,
+						...metadata,
+					}
+				: existingSite.metadata,
 		};
 		if (updatedSite.metadata.storage !== 'none') {
-			await opfsSiteStorage?.update(
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot update a saved Playground because browser storage is not available.'
+				);
+			}
+			await opfsSiteStorage.update(
 				updatedSite.slug,
 				updatedSite.metadata,
 				updatedSite.originalUrlParams
@@ -254,7 +266,10 @@ export function updateSite({
 		dispatch(
 			sitesSlice.actions.updateSite({
 				id: slug,
-				changes,
+				changes: {
+					...topLevelChanges,
+					...(metadata ? { metadata: updatedSite.metadata } : {}),
+				},
 			})
 		);
 	};

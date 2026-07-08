@@ -193,8 +193,7 @@ describe('stored site specs', () => {
 	it('does not update redux when persisted metadata write fails', async () => {
 		const storageError = new Error('metadata write failed');
 		updateSiteStorage.mockRejectedValue(storageError);
-		const { sitesSlice, updateSite, selectSiteBySlug } =
-			await import('./slice-sites');
+		const { sitesSlice, updateSite } = await import('./slice-sites');
 		const site = createSiteInfo();
 		const state = {
 			sites: sitesSlice.reducer(
@@ -221,9 +220,79 @@ describe('stored site specs', () => {
 		).rejects.toThrow(storageError);
 
 		expect(dispatch).not.toHaveBeenCalled();
-		expect(selectSiteBySlug(state as any, site.slug)?.metadata.name).toBe(
+		expect(state.sites.entities[site.slug]?.metadata.name).toBe(
 			'Stored site'
 		);
+	});
+
+	it('merges partial metadata before writing and dispatching', async () => {
+		const { sitesSlice, updateSite } = await import('./slice-sites');
+		const site = createSiteInfo();
+		const state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state.sites = sitesSlice.reducer(state.sites, action);
+			return action;
+		});
+
+		await updateSite({
+			slug: site.slug,
+			changes: {
+				metadata: {
+					name: 'Renamed Playground',
+				} as any,
+			},
+		})(dispatch as any, () => state as any);
+
+		expect(updateSiteStorage).toHaveBeenCalledWith(
+			site.slug,
+			expect.objectContaining({
+				name: 'Renamed Playground',
+				storage: 'opfs',
+				runtimeConfiguration: site.metadata.runtimeConfiguration,
+			}),
+			undefined
+		);
+		expect(state.sites.entities[site.slug]?.metadata).toEqual({
+			...site.metadata,
+			name: 'Renamed Playground',
+		});
+	});
+
+	it('does not update redux when saved-site storage is unavailable', async () => {
+		vi.doMock('../opfs/opfs-site-storage', () => ({
+			opfsSiteStorage: undefined,
+		}));
+		const { sitesSlice, updateSite } = await import('./slice-sites');
+		const site = createSiteInfo();
+		const state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state.sites = sitesSlice.reducer(state.sites, action);
+			return action;
+		});
+
+		await expect(
+			updateSite({
+				slug: site.slug,
+				changes: {
+					metadata: {
+						...site.metadata,
+						name: 'Renamed Playground',
+					},
+				},
+			})(dispatch as any, () => state as any)
+		).rejects.toThrow('browser storage is not available');
+
+		expect(dispatch).not.toHaveBeenCalled();
 	});
 
 	it('does not replace a persisted bundle before validating the new setup', async () => {

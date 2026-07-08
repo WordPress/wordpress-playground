@@ -62,7 +62,7 @@ export function persistTemporarySite(
 		}
 		const previousMountDescriptor = clientInfo?.opfsMountDescriptor;
 
-		const siteInfo = selectSiteBySlug(state, siteSlug)!;
+		const siteInfo = selectSiteBySlug(state, siteSlug);
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
 		}
