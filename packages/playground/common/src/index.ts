@@ -30,21 +30,24 @@ export const unzipFile = async (
 	 * calls.
 	 */
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
-	if (zipPath instanceof File) {
-		const zipFile = zipPath;
-		zipPath = tmpPath;
-		await php.writeFile(
+	let shouldRemoveTmpPath = false;
+	try {
+		if (zipPath instanceof File) {
+			const zipFile = zipPath;
+			zipPath = tmpPath;
+			shouldRemoveTmpPath = true;
+			await php.writeFile(
+				zipPath,
+				new Uint8Array(await zipFile.arrayBuffer())
+			);
+		}
+		const js = phpVars({
 			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
-	}
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-		overwriteFiles,
-	});
-	await php.run({
-		code: `<?php
+			extractToPath,
+			overwriteFiles,
+		});
+		await php.run({
+			code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -53,28 +56,47 @@ export const unzipFile = async (
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$filename = $zip->getNameIndex($i);
-					$fileinfo = pathinfo($filename);
-					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
-					// Check if file exists and $overwriteFiles is false
-					if (!file_exists($extractFilePath) || $overwriteFiles) {
-						// Extract file
-						$zip->extractTo($extractTo, $filename);
+				try {
+					if ($overwriteFiles) {
+						if (!$zip->extractTo($extractTo)) {
+							throw new Exception('Could not extract ZIP file.');
+						}
+					} else {
+						for ($i = 0; $i < $zip->numFiles; $i++) {
+							$filename = $zip->getNameIndex($i);
+							$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
+							// Check if file exists and $overwriteFiles is false
+							if (!file_exists($extractFilePath)) {
+								// Extract file
+								$zip->extractTo($extractTo, $filename);
+							}
+						}
 					}
+				} catch (Exception $e) {
+					$zip->close();
+					throw $e;
 				}
 				$zip->close();
 				chmod($extractTo, 0777);
             } else {
                 $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
-                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
-            }
-        }
+	                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
+	            }
+		}
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
-	});
-	if (await php.fileExists(tmpPath)) {
-		await php.unlink(tmpPath);
+		});
+	} finally {
+		if (shouldRemoveTmpPath) {
+			try {
+				if (await php.fileExists(tmpPath)) {
+					await php.unlink(tmpPath);
+				}
+			} catch {
+				// Best-effort cleanup: preserving the unzip error matters more than
+				// surfacing a leftover temporary file.
+			}
+		}
 	}
 };
 
@@ -83,15 +105,22 @@ export const zipDirectory = async (
 	directoryPath: string
 ) => {
 	const outputPath = `/tmp/file${Math.random()}.zip`;
-	const js = phpVars({
-		directoryPath,
-		outputPath,
-	});
-	await php.run({
-		code: `<?php
-		function zipDirectory($directoryPath, $outputPath) {
-			$zip = new ZipArchive;
-			$res = $zip->open($outputPath, ZipArchive::CREATE);
+	try {
+		const js = phpVars({
+			directoryPath,
+			outputPath,
+		});
+		await php.run({
+			code: `<?php
+			/**
+			 * Creates a ZIP archive from a Playground directory.
+			 *
+			 * The JavaScript wrapper removes the temporary archive in a finally
+			 * block, so this function only owns archive creation and permissions.
+			 */
+			function zipDirectory($directoryPath, $outputPath) {
+				$zip = new ZipArchive;
+				$res = $zip->open($outputPath, ZipArchive::CREATE);
 			if ($res !== TRUE) {
 				throw new Exception('Failed to create ZIP');
 			}
@@ -108,11 +137,19 @@ export const zipDirectory = async (
 			$zip->close();
 			chmod($outputPath, 0777);
 		}
-		zipDirectory(${js.directoryPath}, ${js.outputPath});
-		`,
-	});
+			zipDirectory(${js.directoryPath}, ${js.outputPath});
+			`,
+		});
 
-	const fileBuffer = await php.readFileAsBuffer(outputPath);
-	php.unlink(outputPath);
-	return fileBuffer;
+		return await php.readFileAsBuffer(outputPath);
+	} finally {
+		try {
+			if (await php.fileExists(outputPath)) {
+				await php.unlink(outputPath);
+			}
+		} catch {
+			// Best-effort cleanup: preserving the ZIP error matters more than
+			// surfacing a leftover temporary file.
+		}
+	}
 };

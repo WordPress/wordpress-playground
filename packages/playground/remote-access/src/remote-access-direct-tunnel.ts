@@ -268,8 +268,14 @@ export function assembleChunkedDataChannelResponse(
 		if (!chunk) {
 			return new Error(errorMessage);
 		}
+		if (offset + chunk.length > pending.totalBytes) {
+			return new Error(errorMessage);
+		}
 		bytes.set(chunk, offset);
 		offset += chunk.length;
+	}
+	if (offset !== pending.totalBytes) {
+		return new Error(errorMessage);
 	}
 	return {
 		requestId: '',
@@ -298,6 +304,9 @@ function assembleDataChannelChunks(
 	let offset = 0;
 	for (const chunk of pending.chunks) {
 		if (!chunk) {
+			return new Error(errorMessage);
+		}
+		if (offset + chunk.length > pending.totalBytes) {
 			return new Error(errorMessage);
 		}
 		bytes.set(chunk, offset);
@@ -1383,7 +1392,7 @@ export class DirectTunnelHost {
 		if (!this.sessionId) {
 			return;
 		}
-		await fetch(
+		const response = await fetch(
 			buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
 				sessionId: this.sessionId,
 			}),
@@ -1398,6 +1407,11 @@ export class DirectTunnelHost {
 				}),
 			}
 		);
+		if (!response.ok) {
+			throw new Error(
+				`Signal post failed: ${await getResponseErrorMessage(response)}`
+			);
+		}
 	}
 
 	private emit<K extends keyof TunnelHostEvents>(
@@ -2117,7 +2131,7 @@ export class DirectTunnelGuest {
 		type: SignalType,
 		data: unknown
 	): Promise<void> {
-		await fetch(
+		const response = await fetch(
 			buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'signal', {
 				sessionId: this.sessionId,
 			}),
@@ -2132,5 +2146,10 @@ export class DirectTunnelGuest {
 				}),
 			}
 		);
+		if (!response.ok) {
+			throw new Error(
+				`Signal post failed: ${await getResponseErrorMessage(response)}`
+			);
+		}
 	}
 }

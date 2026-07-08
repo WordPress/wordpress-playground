@@ -273,6 +273,13 @@ To use a Blueprint, create a file (e.g., my-blueprint.json) and run the followin
 npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 ```
 
+Blueprint v2 declarations are routed to the native TypeScript v2 runner
+automatically.
+
+CLI runtime flags such as `--php`, `--wp`, and `--login` fill missing v2
+runtime fields. When the Blueprint declares `phpVersion`, `wordpressVersion`,
+or WordPress Playground login settings, the Blueprint value takes precedence.
+
 ## Programmatic Usage with JavaScript
 
 The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.

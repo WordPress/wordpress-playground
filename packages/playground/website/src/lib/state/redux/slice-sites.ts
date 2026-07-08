@@ -8,20 +8,22 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
-	type BlueprintV1,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
 	BlueprintFetchError,
 } from '@wp-playground/blueprints';
-import type { WritableFilesystemBackend } from '@wp-playground/storage';
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import {
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -46,6 +48,7 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
+	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	wasSiteRecentlyInteractedWith,
@@ -63,6 +66,7 @@ const DEFAULT_BLUEPRINT =
  */
 export interface SiteInfo {
 	slug: string;
+	loadedFromStorage?: boolean;
 	originalUrlParams?: {
 		searchParams?: Record<string, string | string[]>;
 		hash?: string;
@@ -132,7 +136,10 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		const currentSites = getState().sites.entities;
 		const allSites = { ...currentSites };
 		sites.forEach((site) => {
-			allSites[site.slug] = site;
+			allSites[site.slug] = {
+				...site,
+				loadedFromStorage: true,
+			};
 		});
 		dispatch(sitesSlice.actions.setSites(allSites));
 		dispatch(setOPFSSitesLoadingState('loaded'));
@@ -568,6 +575,16 @@ export function setStoredSiteSpec(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			resolvedBlueprint.blueprint
+		))!;
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
@@ -583,10 +600,8 @@ export function setStoredSiteSpec(
 					playgroundUrlWithQueryApiArgs
 				),
 				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
+				originalBlueprintSource,
+				runtimeConfiguration,
 			},
 		};
 
@@ -626,6 +641,13 @@ export function resetAutosavedSiteSpec(
 		const runtimeConfiguration = (await resolveRuntimeConfiguration(
 			resolvedBlueprint.blueprint
 		))!;
+		let originalBlueprintSource = resolvedBlueprint.source!;
+		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
+			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		// Validate the new setup before deleting the old WordPress files so a
 		// broken Blueprint URL does not destroy the existing autosave.
 		// `isAutosavedSite()` requires OPFS storage; an autosaved site cannot be
@@ -636,6 +658,7 @@ export function resetAutosavedSiteSpec(
 			updateSite({
 				slug: siteSlug,
 				changes: {
+					loadedFromStorage: false,
 					originalUrlParams: getOriginalUrlParams(
 						playgroundUrlWithQueryApiArgs
 					),
@@ -657,7 +680,7 @@ export function resetAutosavedSiteSpec(
 								playgroundUrlWithQueryApiArgs
 							),
 						originalBlueprint: resolvedBlueprint.blueprint,
-						originalBlueprintSource: resolvedBlueprint.source!,
+						originalBlueprintSource,
 						runtimeConfiguration,
 					},
 				},
@@ -700,7 +723,7 @@ async function prepareResolvedBlueprint(
 	);
 	if (reflection.getVersion() === 1) {
 		resolvedBlueprint.blueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint,
+			resolvedBlueprint.blueprint as any,
 			playgroundUrlWithQueryApiArgs.searchParams
 		);
 	}
@@ -791,7 +814,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
-	originalBlueprint: BlueprintV1 | WritableFilesystemBackend;
+	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
 

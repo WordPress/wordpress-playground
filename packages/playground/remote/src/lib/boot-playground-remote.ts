@@ -37,14 +37,18 @@ import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&ur
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
-	const runner = new URL(document.location.href).searchParams.get(
-		'blueprints-runner'
-	);
+	const query = new URL(document.location.href).searchParams;
+	const runner = query.get('blueprints-runner');
 	const isV2 = runner === 'v2';
 	const selected = isV2 ? workerV2Url : workerV1Url;
-	return new URL(selected, origin) + '';
+	const workerUrl = new URL(selected, origin);
+	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
+		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
+	}
+	return workerUrl + '';
 }
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);

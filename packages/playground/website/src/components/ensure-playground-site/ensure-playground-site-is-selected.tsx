@@ -64,6 +64,9 @@ export function EnsurePlaygroundSiteIsSelected({
 			requestedSiteSlug &&
 			selectClientBySiteSlug(state, requestedSiteSlug)
 	);
+	const activeClientInfo = useAppSelector((state) =>
+		activeSite ? selectClientBySiteSlug(state, activeSite.slug) : undefined
+	);
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
 	const [autosaveNudge, setAutosaveNudge] = useState<{
@@ -81,6 +84,13 @@ export function EnsurePlaygroundSiteIsSelected({
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
 	);
+	const canShowAutosaveNudge =
+		autosaveNudge &&
+		activeSite &&
+		activeSite.slug !== autosaveNudge.site.slug &&
+		!!activeClientInfo &&
+		getAutosaveFingerprintFromSite(activeSite) ===
+			autosaveNudge.setupUrlFingerprint;
 
 	const prevUrl = usePrevious(url);
 
@@ -264,7 +274,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	return (
 		<>
 			{children}
-			{autosaveNudge && (
+			{canShowAutosaveNudge && (
 				<RestoreAutosaveNudge
 					site={autosaveNudge.site}
 					error={autosaveNudgeError}

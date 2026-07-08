@@ -21,6 +21,7 @@ packages/playground/blueprints/public/ linguist-generated=true
 # Avoid large non-essential files in release archives
 packages/playground/wordpress-builds/public/**/* export-ignore
 packages/playground/wordpress-builds/src/wordpress/**/*.zip export-ignore
+packages/playground/wordpress-builds/src/wordpress/**/*.tar.zst export-ignore
 packages/php-wasm/web-builds/**/*.wasm export-ignore
 packages/php-wasm/node-builds/**/*.wasm export-ignore
 packages/playground/website/playwright/**/* export-ignore
