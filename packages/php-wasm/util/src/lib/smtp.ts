@@ -21,6 +21,43 @@ export type ByteDuplex = {
 };
 
 /**
+ * A non-body MIME part captured from a message: a regular attachment, an
+ * inline resource such as a `cid:` image, or a metadata-less binary part.
+ */
+export type CaughtAttachment = {
+	/**
+	 * Decoded filename from `Content-Disposition: filename=`, falling back
+	 * to `Content-Type: name=`. Absent when neither parameter exists.
+	 */
+	filename?: string;
+	/** Lower-cased media type without parameters, e.g. `application/pdf`. */
+	contentType: string;
+	/**
+	 * Lower-cased `Content-Disposition` type token with parameters stripped,
+	 * or `''` when the header is absent or carries no parseable token. RFC
+	 * 2183 allows extension tokens (e.g. `x-foo`), so this is deliberately
+	 * not restricted to `'attachment' | 'inline'` — the sink preserves what
+	 * the sender said.
+	 */
+	contentDisposition: string;
+	/**
+	 * `Content-ID` value with one pair of surrounding angle brackets
+	 * stripped, so `<logo>` matches `cid:logo` references. Absent when the
+	 * header is missing.
+	 */
+	contentId?: string;
+	/** Parsed part headers as a lower-cased name/value map. */
+	headers: Record<string, string>;
+	/**
+	 * Decoded bytes. Survives structured clone (postMessage/comlink) but not
+	 * `JSON.stringify` — JSON consumers must base64-encode it themselves.
+	 */
+	content: Uint8Array;
+	/** Decoded byte length, so serialized views can report sizes. */
+	size: number;
+};
+
+/**
  * Message captured by `SmtpSink` after a complete SMTP DATA transaction.
  */
 export type CaughtMessage = {
@@ -39,6 +76,11 @@ export type CaughtMessage = {
 	 * available and fall back to text/plain.
 	 */
 	html?: string;
+	/**
+	 * Non-body MIME parts in message order. Empty when the message carries
+	 * no attachments.
+	 */
+	attachments: CaughtAttachment[];
 	raw: string;
 	rawSize: number;
 };
@@ -626,6 +668,7 @@ export class SmtpSink {
 					to: this.recipientPaths.join(', '),
 					subject: '(no subject)',
 					headers: {},
+					attachments: [],
 					raw,
 					rawSize: this.dataBytes,
 				};
@@ -951,23 +994,140 @@ function decodeRfc2047QEncodedWord(encodedText: string): Uint8Array {
 	return new Uint8Array([...binaryText].map((char) => char.charCodeAt(0)));
 }
 
-function getHeaderParameter(headerValue: string, name: string): string | null {
-	const parameterPattern = new RegExp(`;\\s*${name}=([^;]+)`, 'i');
-	const match = headerValue.match(parameterPattern);
-	if (!match) return null;
-	// RFC 2045 §5.1 values cannot contain unquoted whitespace; whitespace
-	// before the next ";" (or the end of the header) is a separator, not
-	// part of the value.
-	const value = match[1].trim();
-	const quotedValueMatch = value.match(/^"(.*)"$/);
-	return quotedValueMatch ? quotedValueMatch[1] : value;
+/**
+ * Splits a MIME header value into its main value and a lower-cased
+ * parameter name → value map, e.g. `multipart/mixed; boundary="B"` becomes
+ * `{ value: 'multipart/mixed', parameters: { boundary: 'B' } }`.
+ *
+ * Best-effort RFC 2045 §5.1 parameter parsing that never throws:
+ *
+ * - quoted values may contain ";" and use backslash quoted-pairs
+ * - unquoted values end at the next ";" with surrounding whitespace
+ *   treated as a separator, not as part of the value
+ * - the first occurrence of a duplicated parameter wins
+ *
+ * RFC 2231 extended parameters (`filename*`, `filename*0`, …) are kept as
+ * distinct names so a `filename` lookup never matches them; this sink does
+ * not decode them.
+ *
+ * https://www.rfc-editor.org/rfc/rfc2045.html#section-5.1
+ */
+function parseHeaderValueAndParameters(headerValue: string): {
+	value: string;
+	parameters: Record<string, string>;
+} {
+	const semicolonIndex = headerValue.indexOf(';');
+	if (semicolonIndex < 0) {
+		return { value: headerValue.trim(), parameters: {} };
+	}
+	const value = headerValue.slice(0, semicolonIndex).trim();
+	const parameters: Record<string, string> = {};
+	let position = semicolonIndex + 1;
+	while (position < headerValue.length) {
+		// Skip separators between parameters.
+		while (
+			position < headerValue.length &&
+			(headerValue[position] === ';' ||
+				headerValue[position] === ' ' ||
+				headerValue[position] === '\t')
+		) {
+			position++;
+		}
+		let nameEnd = position;
+		while (
+			nameEnd < headerValue.length &&
+			headerValue[nameEnd] !== '=' &&
+			headerValue[nameEnd] !== ';'
+		) {
+			nameEnd++;
+		}
+		const name = headerValue.slice(position, nameEnd).trim().toLowerCase();
+		if (nameEnd >= headerValue.length || headerValue[nameEnd] === ';') {
+			// A parameter without "=" carries no value.
+			if (name && !(name in parameters)) parameters[name] = '';
+			position = nameEnd;
+			continue;
+		}
+		position = nameEnd + 1;
+		while (
+			position < headerValue.length &&
+			(headerValue[position] === ' ' || headerValue[position] === '\t')
+		) {
+			position++;
+		}
+		let parameterValue: string;
+		if (headerValue[position] === '"') {
+			position++;
+			let unquoted = '';
+			while (
+				position < headerValue.length &&
+				headerValue[position] !== '"'
+			) {
+				// RFC 822 quoted-pair: a backslash escapes the next character.
+				if (
+					headerValue[position] === '\\' &&
+					position + 1 < headerValue.length
+				) {
+					unquoted += headerValue[position + 1];
+					position += 2;
+				} else {
+					unquoted += headerValue[position];
+					position++;
+				}
+			}
+			position++;
+			parameterValue = unquoted;
+			// Discard any garbage between the closing quote and the next ";".
+			while (
+				position < headerValue.length &&
+				headerValue[position] !== ';'
+			) {
+				position++;
+			}
+		} else {
+			let valueEnd = position;
+			while (
+				valueEnd < headerValue.length &&
+				headerValue[valueEnd] !== ';'
+			) {
+				valueEnd++;
+			}
+			parameterValue = headerValue.slice(position, valueEnd).trim();
+			position = valueEnd;
+		}
+		if (name && !(name in parameters)) parameters[name] = parameterValue;
+	}
+	return { value, parameters };
 }
 
-type MultipartBodies = {
+/**
+ * Result of walking a message's MIME tree: the selected body parts plus
+ * every non-body part collected as an attachment.
+ */
+type ParsedMimeParts = {
 	/** Decoded first non-attachment text/plain part, if any. */
 	text?: string;
 	/** Decoded first non-attachment text/html part, if any. */
 	html?: string;
+	/** Non-body parts in message order. */
+	attachments: CaughtAttachment[];
+};
+
+/**
+ * Classification-relevant metadata of one MIME part, extracted from its
+ * parsed headers.
+ */
+type MimePartMetadata = {
+	/** Lower-cased media type without parameters. */
+	mediaType: string;
+	/** `boundary` parameter of multipart media types. */
+	boundary?: string;
+	/** Lower-cased Content-Disposition type token; `''` when absent. */
+	dispositionType: string;
+	/** Decoded filename; `undefined` when absent. */
+	filename?: string;
+	/** Content-ID without its angle brackets; `undefined` when absent. */
+	contentId?: string;
 };
 
 // PHPMailer nests at most three multipart levels (mixed > related >
@@ -975,12 +1135,12 @@ type MultipartBodies = {
 // cap the recursion so a crafted message cannot overflow the call stack.
 const MAX_MULTIPART_NESTING_DEPTH = 10;
 
-function collectBodyPartsFromMultipart(
+function collectMimePartsFromMultipart(
 	body: string,
 	boundary: string,
 	depth = 0
-): MultipartBodies {
-	const found: MultipartBodies = {};
+): ParsedMimeParts {
+	const found: ParsedMimeParts = { attachments: [] };
 	// RFC 2046 §5.1 defines multipart boundary delimiter lines.
 	// https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1
 	const boundaryDelimiter = `--${boundary}`;
@@ -1012,56 +1172,150 @@ function collectBodyPartsFromMultipart(
 	if (inPart && currentPartLines.length) {
 		parts.push(currentPartLines.join('\r\n'));
 	}
+	// Walk every part in message order — even after both body slots are
+	// taken, later parts may still be attachments.
 	for (const part of parts) {
-		// A decoded part may legitimately be an empty string, so the
-		// first-match-wins checks compare against undefined, not truthiness.
-		if (found.text !== undefined && found.html !== undefined) {
-			break;
-		}
 		const { headerRaw, bodyRaw } = splitHeaderBody(part);
 		const partHeaders = parseHeaderLines(headerRaw);
-		// RFC 2183 §2: parts marked "attachment" are separate from the main
-		// document, so they never provide the message body.
-		// https://www.rfc-editor.org/rfc/rfc2183.html#section-2
-		const disposition = (
-			partHeaders['content-disposition'] || ''
-		).toLowerCase();
-		if (disposition.startsWith('attachment')) {
-			continue;
-		}
-		const contentType = (
-			partHeaders['content-type'] || 'text/plain'
-		).toLowerCase();
-		if (found.text === undefined && contentType.startsWith('text/plain')) {
-			found.text = decodeTextPart(partHeaders, bodyRaw);
-		} else if (
-			found.html === undefined &&
-			contentType.startsWith('text/html')
-		) {
-			found.html = decodeTextPart(partHeaders, bodyRaw);
-		} else if (contentType.startsWith('multipart/')) {
+		const metadata = parseMimePartMetadata(partHeaders);
+		if (metadata.mediaType.startsWith('multipart/')) {
 			// RFC 2046 §5.1.3 allows nested multipart entities — e.g.
 			// PHPMailer wraps a multipart/alternative body in multipart/mixed
 			// when the message carries attachments, and multipart/related
-			// groups an HTML body with its inline resources. Recurse to find
-			// the body parts.
+			// groups an HTML body with its inline resources. Recurse and
+			// merge: first-found bodies win, attachments accumulate in
+			// message order.
 			// https://www.rfc-editor.org/rfc/rfc2046.html#section-5.1.3
-			const nestedBoundary = getHeaderParameter(
-				partHeaders['content-type'],
-				'boundary'
-			);
-			if (nestedBoundary && depth < MAX_MULTIPART_NESTING_DEPTH) {
-				const nestedParts = collectBodyPartsFromMultipart(
+			if (metadata.boundary && depth < MAX_MULTIPART_NESTING_DEPTH) {
+				const nestedParts = collectMimePartsFromMultipart(
 					bodyRaw,
-					nestedBoundary,
+					metadata.boundary,
 					depth + 1
 				);
 				found.text ??= nestedParts.text;
 				found.html ??= nestedParts.html;
+				found.attachments.push(...nestedParts.attachments);
 			}
+			continue;
 		}
+		classifyMimePart(metadata, partHeaders, bodyRaw, found);
 	}
 	return found;
+}
+
+/**
+ * Classifies one non-multipart MIME part by the first matching rule,
+ * mutating `found`:
+ *
+ *   1. `Content-Disposition: attachment` → attachment (RFC 2183 §2: such
+ *      parts are separate from the main document).
+ *   2. has a filename → attachment regardless of disposition: a text part
+ *      WITH a filename is a text-file attachment, not the message body.
+ *   3. text/plain and the text slot is empty → text body.
+ *   4. text/html and the html slot is empty → html body.
+ *   5. `Content-Disposition: inline` → attachment (e.g. cid: images in
+ *      multipart/related). Checked after rules 3-4 because some mailers
+ *      mark the main body "inline" — a filename-less inline text part must
+ *      win an empty body slot, never become an attachment.
+ *   6. has a Content-ID → attachment. RFC 2387 does not require a
+ *      Content-Disposition on multipart/related resources, and some
+ *      clients emit cid: resources with only a Content-ID.
+ *   7. media type is not text/* → attachment: hand-rolled mail() MIME
+ *      sometimes ships binary parts with no disposition, filename, or
+ *      Content-ID, and a debugging sink should still surface them.
+ *   8. otherwise ignore — leftover text/* parts with no attachment signal,
+ *      e.g. a second text/plain part after the text slot is taken. They
+ *      remain available in the raw message.
+ *
+ * https://www.rfc-editor.org/rfc/rfc2183.html#section-2
+ * https://www.rfc-editor.org/rfc/rfc2387.html
+ */
+function classifyMimePart(
+	metadata: MimePartMetadata,
+	partHeaders: Record<string, string>,
+	bodyRaw: string,
+	found: ParsedMimeParts
+): void {
+	// Rules 1-2.
+	if (
+		metadata.dispositionType === 'attachment' ||
+		metadata.filename !== undefined
+	) {
+		found.attachments.push(
+			makeCaughtAttachment(metadata, partHeaders, bodyRaw)
+		);
+		return;
+	}
+	// Rules 3-4. A decoded body part may legitimately be an empty string,
+	// so the first-match-wins checks compare against undefined, not
+	// truthiness.
+	if (metadata.mediaType === 'text/plain' && found.text === undefined) {
+		found.text = decodeTextPart(partHeaders, bodyRaw);
+		return;
+	}
+	if (metadata.mediaType === 'text/html' && found.html === undefined) {
+		found.html = decodeTextPart(partHeaders, bodyRaw);
+		return;
+	}
+	// Rules 5-7; anything left over is rule 8 and is ignored.
+	if (
+		metadata.dispositionType === 'inline' ||
+		metadata.contentId !== undefined ||
+		!metadata.mediaType.startsWith('text/')
+	) {
+		found.attachments.push(
+			makeCaughtAttachment(metadata, partHeaders, bodyRaw)
+		);
+	}
+}
+
+function parseMimePartMetadata(
+	partHeaders: Record<string, string>
+): MimePartMetadata {
+	const contentType = parseHeaderValueAndParameters(
+		partHeaders['content-type'] || 'text/plain'
+	);
+	const disposition = parseHeaderValueAndParameters(
+		partHeaders['content-disposition'] || ''
+	);
+	// Prefer `Content-Disposition: filename=`, fall back to
+	// `Content-Type: name=`. PHPMailer nests RFC 2047 encoded-words inside
+	// the quotes (`filename="=?utf-8?B?...?="`), so the parameter parser
+	// unquotes first and encoded-word decoding comes second.
+	const rawFilename =
+		disposition.parameters['filename'] || contentType.parameters['name'];
+	const contentIdRaw = partHeaders['content-id'];
+	return {
+		mediaType: contentType.value.toLowerCase() || 'text/plain',
+		boundary: contentType.parameters['boundary'],
+		dispositionType: disposition.value.toLowerCase(),
+		filename: rawFilename
+			? decodeRfc2047EncodedWords(rawFilename)
+			: undefined,
+		// Strip one pair of surrounding angle brackets so `<logo>` matches
+		// `cid:logo` references; keep malformed bracket-less values as-is.
+		contentId:
+			contentIdRaw === undefined
+				? undefined
+				: contentIdRaw.replace(/^<(.*)>$/, '$1'),
+	};
+}
+
+function makeCaughtAttachment(
+	metadata: MimePartMetadata,
+	partHeaders: Record<string, string>,
+	bodyRaw: string
+): CaughtAttachment {
+	const content = decodeAttachmentBytes(partHeaders, bodyRaw);
+	return {
+		filename: metadata.filename,
+		contentType: metadata.mediaType,
+		contentDisposition: metadata.dispositionType,
+		contentId: metadata.contentId,
+		headers: partHeaders,
+		content,
+		size: content.byteLength,
+	};
 }
 
 function decodeTextPart(
@@ -1069,14 +1323,64 @@ function decodeTextPart(
 	content: string
 ): string {
 	const encoding = (headers['content-transfer-encoding'] || '').toLowerCase();
-	let bytes: Uint8Array;
+	const bytes = decodeTransferEncodedBytes(encoding, content);
+	// Invalid base64 and non-base64/quoted-printable encodings pass the
+	// content string through untouched, with no charset decoding: those
+	// wire bytes were already UTF-8-decoded once at intake, and re-encoding
+	// them through a mislabeled charset (PHPMailer defaults to iso-8859-1)
+	// would turn valid UTF-8 bodies into mojibake.
+	if (bytes === null) {
+		return content;
+	}
+	const charset =
+		parseHeaderValueAndParameters(headers['content-type'] || '').parameters[
+			'charset'
+		] || 'utf-8';
+	// Decode with the declared charset, falling back to UTF-8 when the label
+	// is unsupported. https://encoding.spec.whatwg.org/#names-and-labels
+	try {
+		return new TextDecoder(charset).decode(bytes);
+	} catch {
+		return new TextDecoder().decode(bytes);
+	}
+}
+
+function decodeAttachmentBytes(
+	headers: Record<string, string>,
+	content: string
+): Uint8Array {
+	const encoding = (headers['content-transfer-encoding'] || '').toLowerCase();
+	const bytes = decodeTransferEncodedBytes(encoding, content);
+	// 7bit, 8bit, absent, unknown encodings, and invalid base64 all fall
+	// back to the UTF-8 bytes of the content string. Raw 8-bit binary
+	// cannot survive either capture path (both decode intake as UTF-8
+	// text), so there is no lossless-binary case to preserve here.
+	return bytes ?? new TextEncoder().encode(content);
+}
+
+/**
+ * Decodes a base64 or quoted-printable part body into bytes. Returns `null`
+ * for any other transfer encoding, or when base64 input is invalid — each
+ * caller chooses its own fallback for those cases.
+ *
+ * `decodeBase64ToUint8Array` is `atob`-based and therefore implements WHATWG
+ * forgiving-base64, so line-wrapped MIME base64 decodes without stripping
+ * the CRLFs first.
+ */
+function decodeTransferEncodedBytes(
+	encoding: string,
+	content: string
+): Uint8Array | null {
 	if (encoding === 'base64') {
 		try {
-			bytes = decodeBase64ToUint8Array(content);
+			return decodeBase64ToUint8Array(content);
 		} catch {
-			return content;
+			return null;
 		}
-	} else if (encoding === 'quoted-printable') {
+	}
+	if (encoding === 'quoted-printable') {
+		// RFC 2045 §6.7: "=\r\n" is a soft line break; "=XX" injects one
+		// raw octet. https://www.rfc-editor.org/rfc/rfc2045.html#section-6.7
 		const softLineBreaksRemoved = content.replace(/=\r\n/g, '');
 		const decodedBytes: number[] = [];
 		for (let i = 0; i < softLineBreaksRemoved.length; i++) {
@@ -1091,19 +1395,9 @@ function decodeTextPart(
 			}
 			decodedBytes.push(char.charCodeAt(0));
 		}
-		bytes = new Uint8Array(decodedBytes);
-	} else {
-		return content;
+		return new Uint8Array(decodedBytes);
 	}
-	const charset =
-		getHeaderParameter(headers['content-type'] || '', 'charset') || 'utf-8';
-	// Decode with the declared charset, falling back to UTF-8 when the label
-	// is unsupported. https://encoding.spec.whatwg.org/#names-and-labels
-	try {
-		return new TextDecoder(charset).decode(bytes);
-	} catch {
-		return new TextDecoder().decode(bytes);
-	}
+	return null;
 }
 
 /**
@@ -1111,16 +1405,19 @@ function decodeTextPart(
  *
  * This is intentionally a small RFC 5322/MIME helper for the SMTP sink, not a
  * full mail user-agent parser. It handles the header/body split, folded
- * headers, RFC 2047 encoded words, common text transfer encodings, and the
- * first non-attachment text/plain and text/html parts in multipart messages,
- * including nested multiparts such as multipart/mixed wrapping
- * multipart/alternative or multipart/related.
+ * headers, RFC 2047 encoded words, common text transfer encodings, and walks
+ * the MIME tree — including nested multiparts such as multipart/mixed
+ * wrapping multipart/alternative or multipart/related — selecting the first
+ * non-attachment text/plain and text/html parts as the message body.
  *
- * In multipart messages, parts marked `Content-Disposition: attachment` and
- * non-text resources (e.g. inline cid: images) are not extracted into `text`
- * or `html`; they remain available in the raw message only. A single-part
- * message's body is returned even when it declares an attachment disposition
- * — there is no competing body part to prefer over it.
+ * Non-body parts are collected into `attachments` in message order: parts
+ * marked `Content-Disposition: attachment`, parts carrying a filename,
+ * inline resources such as cid: images (with or without a
+ * Content-Disposition header), and metadata-less non-text parts. A
+ * single-part message whose body declares attachment metadata becomes one
+ * attachment with no `text`/`html`. Leftover text parts with no attachment
+ * signal — e.g. a second text/plain part after the text slot is taken — are
+ * dropped from the structured fields but remain available in `raw`.
  */
 export function parseMessage(
 	raw: string,
@@ -1131,6 +1428,7 @@ export function parseMessage(
 	subject: string;
 	text?: string;
 	html?: string;
+	attachments: CaughtAttachment[];
 	from: string;
 	to: string;
 } {
@@ -1154,25 +1452,37 @@ export function parseMessage(
 			? recipientParts.join(', ')
 			: fallbackRecipients.join(', ');
 
-	const contentType = (headers['content-type'] || 'text/plain').toLowerCase();
+	const metadata = parseMimePartMetadata(headers);
 	let text: string | undefined;
 	let html: string | undefined;
-	if (contentType.startsWith('multipart/')) {
-		const boundary = getHeaderParameter(
-			headers['content-type'],
-			'boundary'
-		);
-		if (boundary) {
-			({ text, html } = collectBodyPartsFromMultipart(bodyRaw, boundary));
+	let attachments: CaughtAttachment[] = [];
+	if (metadata.mediaType.startsWith('multipart/')) {
+		if (metadata.boundary) {
+			({ text, html, attachments } = collectMimePartsFromMultipart(
+				bodyRaw,
+				metadata.boundary
+			));
 		}
-	} else if (contentType.startsWith('text/plain')) {
+	} else if (
+		metadata.dispositionType === 'attachment' ||
+		metadata.filename !== undefined
+	) {
+		// Classification rules 1-2 apply to the top-level body of a
+		// single-part message: attachment metadata beats the body slots,
+		// e.g. a hand-rolled mail() call sending one attachment without a
+		// multipart wrapper.
+		attachments.push(makeCaughtAttachment(metadata, headers, bodyRaw));
+	} else if (metadata.mediaType === 'text/plain') {
 		text = decodeTextPart(headers, bodyRaw);
-	} else if (contentType.startsWith('text/html')) {
+	} else if (metadata.mediaType === 'text/html') {
 		html = decodeTextPart(headers, bodyRaw);
 	} else {
+		// Rules 5-8 do not apply at the top level: a metadata-less body of
+		// an unknown type keeps the text fallback so no such message
+		// arrives fully empty.
 		text = bodyRaw;
 	}
-	return { headers, subject, text, html, from, to };
+	return { headers, subject, text, html, attachments, from, to };
 }
 
 /**

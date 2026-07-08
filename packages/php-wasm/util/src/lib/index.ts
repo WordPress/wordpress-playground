@@ -33,6 +33,7 @@ export {
 	makeLoopbackPair,
 	type AuthValidator,
 	type ByteDuplex,
+	type CaughtAttachment,
 	type CaughtMessage,
 	type SaslMechanism,
 	type SmtpSinkOptions,

@@ -1502,9 +1502,12 @@ describe('parseMessage', () => {
 			`--${outer}--\r\n`;
 		const result = parseMessage(raw, '', []);
 		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('notes.txt');
+		expect(result.attachments[0].contentDisposition).toBe('attachment');
 	});
 
-	it('silently drops attachments when no text body exists', () => {
+	it('captures an attachment even when no text body exists', () => {
 		const boundary = 'OUTER';
 		const raw =
 			`Subject: Attachment only\r\n` +
@@ -1519,6 +1522,11 @@ describe('parseMessage', () => {
 		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Attachment only');
 		expect(result.text).toBeUndefined();
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('notes.txt');
+		expect(decoder.decode(result.attachments[0].content)).toBe(
+			'Attachment text.'
+		);
 	});
 
 	it('extracts the html body from a single-part text/html email', () => {
@@ -1773,5 +1781,498 @@ describe('parseMessage', () => {
 		const result = parseMessage(raw, '', []);
 		expect(result.subject).toBe('Empty');
 		expect(result.text).toBe('');
+	});
+});
+
+describe('parseMessage – attachments', () => {
+	const PDF_BYTES = encoder.encode('%PDF-fake');
+
+	/** Wraps MIME parts into a multipart/mixed message. */
+	function multipartMixed(boundary: string, ...parts: string[]): string {
+		return (
+			`Subject: Test\r\n` +
+			`Content-Type: multipart/mixed; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			parts.map((part) => `--${boundary}\r\n${part}\r\n`).join('') +
+			`--${boundary}--\r\n`
+		);
+	}
+
+	it('decodes a base64 attachment with filename, type, and disposition', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+				`\r\n` +
+				`Plain body.`,
+			`Content-Type: application/pdf; name="invoice.pdf"\r\n` +
+				`Content-Transfer-Encoding: base64\r\n` +
+				`Content-Disposition: attachment; filename="invoice.pdf"\r\n` +
+				`\r\n` +
+				encodeUint8ArrayAsBase64(PDF_BYTES)
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.attachments).toHaveLength(1);
+		const attachment = result.attachments[0];
+		expect(attachment.filename).toBe('invoice.pdf');
+		expect(attachment.contentType).toBe('application/pdf');
+		expect(attachment.contentDisposition).toBe('attachment');
+		expect(attachment.content).toEqual(PDF_BYTES);
+		expect(attachment.size).toBe(PDF_BYTES.byteLength);
+	});
+
+	it('decodes a quoted-printable attachment to the expected bytes', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/octet-stream\r\n` +
+				`Content-Transfer-Encoding: quoted-printable\r\n` +
+				`Content-Disposition: attachment; filename="data.bin"\r\n` +
+				`\r\n` +
+				// "=42" is one raw octet; "=\r\n" is a soft line break.
+				`A=42C=\r\n` +
+				`D`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(decoder.decode(result.attachments[0].content)).toBe('ABCD');
+	});
+
+	it('classifies a text/plain part with a filename as an attachment, not the body', () => {
+		// Behavior change 2: a filename beats an empty body slot.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; name="notes.txt"\r\n` +
+				`\r\n` +
+				`Attached notes.`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toBeUndefined();
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('notes.txt');
+		expect(result.attachments[0].contentDisposition).toBe('');
+	});
+
+	it('selects an inline text/plain part without a filename as the text body', () => {
+		// Classification rule 3 beats rule 5: some mailers mark the main
+		// body "inline"; it must never be misclassified as an attachment.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+				`Content-Disposition: inline\r\n` +
+				`\r\n` +
+				`Inline body.`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Inline body.');
+		expect(result.attachments).toEqual([]);
+	});
+
+	it('collects an inline image in multipart/related as an attachment', () => {
+		const pngBytes = encoder.encode('fake-png');
+		const boundary = 'REL';
+		const raw =
+			`Subject: Inline image\r\n` +
+			`Content-Type: multipart/related; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<img src="cid:logo">\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: image/png\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-ID: <logo>\r\n` +
+			`Content-Disposition: inline; filename="logo.png"\r\n` +
+			`\r\n` +
+			`${encodeUint8ArrayAsBase64(pngBytes)}\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.html?.trim()).toBe('<img src="cid:logo">');
+		expect(result.attachments).toHaveLength(1);
+		const attachment = result.attachments[0];
+		expect(attachment.contentDisposition).toBe('inline');
+		expect(attachment.contentType).toBe('image/png');
+		expect(attachment.filename).toBe('logo.png');
+		expect(attachment.content).toEqual(pngBytes);
+	});
+
+	it('strips one pair of angle brackets from Content-ID', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: image/png\r\n` +
+				`Content-ID: <logo>\r\n` +
+				`Content-Disposition: attachment\r\n` +
+				`\r\n` +
+				`png`,
+			`Content-Type: image/png\r\n` +
+				`Content-ID: logo-no-brackets\r\n` +
+				`Content-Disposition: attachment\r\n` +
+				`\r\n` +
+				`png`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(2);
+		expect(result.attachments[0].contentId).toBe('logo');
+		// A malformed value without brackets is kept as-is.
+		expect(result.attachments[1].contentId).toBe('logo-no-brackets');
+	});
+
+	it('collects multiple attachments in message order', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n\r\nBody.`,
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+				`Content-Disposition: attachment; filename="a.txt"\r\n` +
+				`\r\n` +
+				`First.`,
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+				`Content-Disposition: attachment; filename="b.txt"\r\n` +
+				`\r\n` +
+				`Second.`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments.map((a) => a.filename)).toEqual([
+			'a.txt',
+			'b.txt',
+		]);
+	});
+
+	it('collects attachments nested under multipart/mixed wrapping multipart/alternative', () => {
+		const outer = 'OUTER';
+		const inner = 'INNER';
+		const raw =
+			`Subject: Nested\r\n` +
+			`Content-Type: multipart/mixed; boundary="${outer}"\r\n` +
+			`\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: multipart/alternative; boundary="${inner}"\r\n` +
+			`\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${inner}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${inner}--\r\n` +
+			`--${outer}\r\n` +
+			`Content-Type: application/pdf; name="invoice.pdf"\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-Disposition: attachment; filename="invoice.pdf"\r\n` +
+			`\r\n` +
+			`${encodeUint8ArrayAsBase64(PDF_BYTES)}\r\n` +
+			`--${outer}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('invoice.pdf');
+		expect(result.attachments[0].content).toEqual(PDF_BYTES);
+	});
+
+	it('returns an empty attachments array for a plain text email', () => {
+		const raw = 'Subject: Plain\r\n\r\nBody.\r\n';
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Body.');
+		expect(result.attachments).toEqual([]);
+	});
+
+	it('reads the filename from Content-Type name= when disposition is missing', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf; name="report.pdf"\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('report.pdf');
+		expect(result.attachments[0].contentDisposition).toBe('');
+	});
+
+	it('preserves semicolons inside quoted filenames', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment; filename="weekly; report.pdf"; size=3\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('weekly; report.pdf');
+	});
+
+	it('decodes RFC 2047 encoded-word filenames inside quotes', () => {
+		// PHPMailer emits quotedString(encodeHeader(...)) — the encoded
+		// word sits inside the quotes.
+		const encodedWord = `=?utf-8?B?${encodeUint8ArrayAsBase64(
+			encoder.encode('Ünïcöde.pdf')
+		)}?=`;
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment; filename="${encodedWord}"\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('Ünïcöde.pdf');
+	});
+
+	it('ignores RFC 2231 filename* parameters', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment; filename*=utf-8''report.pdf\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		// filename* must never satisfy a filename lookup; with only
+		// filename* present, filename is absent.
+		expect(result.attachments[0].filename).toBeUndefined();
+	});
+
+	it('preserves unknown disposition tokens', () => {
+		// RFC 2183 allows extension tokens; the sink preserves what the
+		// sender said instead of forcing a lossy mapping.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: x-foo; filename="report.pdf"\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].contentDisposition).toBe('x-foo');
+		expect(result.attachments[0].filename).toBe('report.pdf');
+	});
+
+	it('captures a top-level single-part application/pdf attachment', () => {
+		const raw =
+			`Subject: Single PDF\r\n` +
+			`Content-Type: application/pdf; name="invoice.pdf"\r\n` +
+			`Content-Transfer-Encoding: base64\r\n` +
+			`Content-Disposition: attachment; filename="invoice.pdf"\r\n` +
+			`\r\n` +
+			`${encodeUint8ArrayAsBase64(PDF_BYTES)}\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toBeUndefined();
+		expect(result.html).toBeUndefined();
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('invoice.pdf');
+		expect(result.attachments[0].content).toEqual(PDF_BYTES);
+	});
+
+	it('captures a top-level single-part text/plain attachment with no text body', () => {
+		// Behavior change 1: a single-part body declaring an attachment
+		// disposition becomes an attachment instead of the message body.
+		const raw =
+			`Subject: Single text attachment\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`Content-Disposition: attachment; filename="notes.txt"\r\n` +
+			`\r\n` +
+			`Attached notes.\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text).toBeUndefined();
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('notes.txt');
+		expect(decoder.decode(result.attachments[0].content).trim()).toBe(
+			'Attached notes.'
+		);
+	});
+
+	it('matches the attachment disposition case-insensitively', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: ATTACHMENT; FILENAME="A.pdf"\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].contentDisposition).toBe('attachment');
+		expect(result.attachments[0].filename).toBe('A.pdf');
+	});
+
+	it('collects an attachment without a filename', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBeUndefined();
+		expect(result.attachments[0].contentType).toBe('application/pdf');
+	});
+
+	it('collects a multipart/related resource carrying only a Content-ID', () => {
+		// Classification rule 6: RFC 2387 does not require a
+		// Content-Disposition on multipart/related resources.
+		const boundary = 'REL';
+		const raw =
+			`Subject: Related\r\n` +
+			`Content-Type: multipart/related; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<img src="cid:logo">\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: image/png\r\n` +
+			`Content-ID: <logo>\r\n` +
+			`\r\n` +
+			`png\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].contentId).toBe('logo');
+		expect(result.attachments[0].contentDisposition).toBe('');
+		expect(result.attachments[0].filename).toBeUndefined();
+	});
+
+	it('collects a metadata-less binary part', () => {
+		// Classification rule 7: hand-rolled mail() MIME sometimes ships
+		// binary parts with no disposition, filename, or Content-ID.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n\r\nBody.`,
+			`Content-Type: application/octet-stream\r\n` + `\r\n` + `binary`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Body.');
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].contentType).toBe(
+			'application/octet-stream'
+		);
+		expect(result.attachments[0].filename).toBeUndefined();
+	});
+
+	it('ignores a second metadata-less text/plain part', () => {
+		// Classification rule 8: leftover text parts with no attachment
+		// signal are dropped from the structured fields.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n\r\nFirst body.`,
+			`Content-Type: text/plain; charset=utf-8\r\n\r\nSecond body.`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('First body.');
+		expect(result.attachments).toEqual([]);
+	});
+
+	it('falls back to UTF-8 bytes when there is no transfer encoding', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/octet-stream\r\n` +
+				`Content-Disposition: attachment; filename="cafe.txt"\r\n` +
+				`\r\n` +
+				`Café`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].content).toEqual(encoder.encode('Café'));
+	});
+
+	it('captures an empty attachment body as zero bytes', () => {
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment; filename="empty.pdf"\r\n`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].content).toHaveLength(0);
+		expect(result.attachments[0].size).toBe(0);
+	});
+
+	it('keeps two attachments with identical filenames', () => {
+		const part =
+			`Content-Type: application/pdf\r\n` +
+			`Content-Disposition: attachment; filename="dup.pdf"\r\n` +
+			`\r\n` +
+			`pdf`;
+		const raw = multipartMixed('MIX', part, part);
+		const result = parseMessage(raw, '', []);
+		expect(result.attachments).toHaveLength(2);
+		expect(result.attachments.map((a) => a.filename)).toEqual([
+			'dup.pdf',
+			'dup.pdf',
+		]);
+	});
+
+	it('retains both text and html with no attachments for multipart/alternative', () => {
+		const boundary = 'ALT';
+		const raw =
+			`Subject: Both\r\n` +
+			`Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`Plain body.\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>HTML body.</p>\r\n` +
+			`--${boundary}--\r\n`;
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+		expect(result.attachments).toEqual([]);
+	});
+
+	it('collects attachments appearing after both body variants', () => {
+		// Pins the removal of the early break after finding both bodies.
+		const raw = multipartMixed(
+			'MIX',
+			`Content-Type: text/plain; charset=utf-8\r\n\r\nPlain body.`,
+			`Content-Type: text/html; charset=utf-8\r\n\r\n<p>HTML body.</p>`,
+			`Content-Type: application/pdf\r\n` +
+				`Content-Disposition: attachment; filename="late.pdf"\r\n` +
+				`\r\n` +
+				`pdf`
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('Plain body.');
+		expect(result.html?.trim()).toBe('<p>HTML body.</p>');
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0].filename).toBe('late.pdf');
+	});
+
+	it('keeps the first-found bodies across multiple nested multiparts', () => {
+		const outer = 'OUTER';
+		const first = 'FIRST';
+		const second = 'SECOND';
+		const alternative = (boundary: string, label: string) =>
+			`Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
+			`\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/plain; charset=utf-8\r\n` +
+			`\r\n` +
+			`${label} plain.\r\n` +
+			`--${boundary}\r\n` +
+			`Content-Type: text/html; charset=utf-8\r\n` +
+			`\r\n` +
+			`<p>${label} html.</p>\r\n` +
+			`--${boundary}--`;
+		const raw = multipartMixed(
+			outer,
+			alternative(first, 'First'),
+			alternative(second, 'Second')
+		);
+		const result = parseMessage(raw, '', []);
+		expect(result.text?.trim()).toBe('First plain.');
+		expect(result.html?.trim()).toBe('<p>First html.</p>');
+		expect(result.attachments).toEqual([]);
 	});
 });

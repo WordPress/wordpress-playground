@@ -100,6 +100,7 @@ export function createSendmailSpawnHandler(
 				headers: parsed.headers,
 				text: parsed.text,
 				html: parsed.html,
+				attachments: parsed.attachments,
 				raw,
 				// RFC 1870 SIZE values are measured in octets.
 				// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
