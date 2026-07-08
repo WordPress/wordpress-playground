@@ -48,9 +48,8 @@ vi.mock('./store', () => ({
 
 vi.mock('../opfs/opfs-site-storage', () => ({
 	getDirectoryPathForSlug: (slug: string) => `/sites/${slug}`,
-	legacyOpfsPathSymbol: Symbol('legacyOpfsPath'),
 	opfsSiteStorage: {
-		resetSiteFiles: vi.fn(),
+		removeWordPressFilesKeepMetadata: vi.fn(),
 		update: vi.fn(),
 	},
 }));
@@ -73,8 +72,12 @@ describe('bootSiteClient', () => {
 				return playground;
 			}
 		);
-		vi.mocked(opfsSiteStorage!.resetSiteFiles).mockReset();
-		vi.mocked(opfsSiteStorage!.resetSiteFiles).mockResolvedValue(undefined);
+		vi.mocked(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).mockReset();
+		vi.mocked(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).mockResolvedValue(undefined);
 		vi.mocked(opfsSiteStorage!.update).mockReset();
 		vi.mocked(opfsSiteStorage!.update).mockResolvedValue(undefined);
 	});
@@ -97,7 +100,7 @@ describe('bootSiteClient', () => {
 			loadedFromStorage: true,
 			metadata: {
 				initialOpfsSyncPending: true,
-				opfsResetPending: true,
+				opfsSiteRemovalPending: true,
 			},
 		});
 		const state = createState(site);
@@ -107,18 +110,18 @@ describe('bootSiteClient', () => {
 			signal: new AbortController().signal,
 		})(dispatch, () => state);
 
-		expect(opfsSiteStorage!.resetSiteFiles).toHaveBeenCalledWith(
-			'autosaved'
-		);
 		expect(
-			vi.mocked(opfsSiteStorage!.resetSiteFiles).mock
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledWith('autosaved');
+		expect(
+			vi.mocked(opfsSiteStorage!.removeWordPressFilesKeepMetadata).mock
 				.invocationCallOrder[0]
 		).toBeLessThan(
 			vi.mocked(startPlaygroundWeb).mock.invocationCallOrder[0]
 		);
 		expect(opfsSiteStorage!.update).toHaveBeenCalledWith(
 			'autosaved',
-			expect.objectContaining({ opfsResetPending: undefined }),
+			expect.objectContaining({ opfsSiteRemovalPending: undefined }),
 			undefined
 		);
 		expect(startPlaygroundWeb).toHaveBeenCalled();
@@ -128,7 +131,7 @@ describe('bootSiteClient', () => {
 		const markerError = new Error('metadata write failed');
 		vi.mocked(opfsSiteStorage!.update).mockRejectedValueOnce(markerError);
 		const site = createSite('autosaved', {
-			metadata: { opfsResetPending: true },
+			metadata: { opfsSiteRemovalPending: true },
 		});
 		const state = createState(site);
 		const dispatch = createDispatch(state);
@@ -137,9 +140,9 @@ describe('bootSiteClient', () => {
 			signal: new AbortController().signal,
 		})(dispatch, () => state);
 
-		expect(opfsSiteStorage!.resetSiteFiles).toHaveBeenCalledWith(
-			'autosaved'
-		);
+		expect(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledWith('autosaved');
 		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
