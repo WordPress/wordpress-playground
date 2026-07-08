@@ -56,6 +56,16 @@ type BlueprintV2Content = NonNullable<
 type BlueprintV2Step = NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
 >[number];
+type BlueprintV2ImportContentStep = Extract<
+	BlueprintV2Step,
+	{ step: 'importContent' }
+>;
+type BlueprintV2RunPHPStep = Extract<BlueprintV2Step, { step: 'runPHP' }>;
+type BlueprintV2WriteFilesStep = Extract<
+	BlueprintV2Step,
+	{ step: 'writeFiles' }
+>;
+type BlueprintV2WxrContent = Extract<BlueprintV2Content, { type: 'wxr' }>;
 type BlueprintV2DataReference =
 	| string
 	| {
@@ -464,7 +474,7 @@ function lowerBlueprintV2ExecutionPlanItem(
 		case 'installPlugin':
 			return [createInstallPluginStep(planItem.plugin)];
 		case 'importContent':
-			return lowerBlueprintV2Content(planItem.content);
+			return lowerBlueprintV2Content(planItem.content, 'content');
 		case 'setSiteLanguage':
 			return [
 				{
@@ -480,16 +490,54 @@ function lowerBlueprintV2ExecutionPlanItem(
 }
 
 function lowerBlueprintV2Content(
-	content: BlueprintV2Content
+	content: BlueprintV2Content,
+	featurePath: string
 ): StepDefinition[] | undefined {
-	if (content.type !== 'mysql-dump') {
+	switch (content.type) {
+		case 'mysql-dump':
+			return asArray(content.source).map((source, index) => ({
+				step: 'runSql',
+				sql: convertV2FileDataReferenceToV1(
+					source,
+					`${featurePath}.source[${index}]`
+				),
+			}));
+		case 'wxr':
+			return lowerBlueprintV2WxrContent(content, featurePath);
+		default:
+			return undefined;
+	}
+}
+
+function lowerBlueprintV2WxrContent(
+	content: BlueprintV2WxrContent,
+	featurePath: string
+): StepDefinition[] | undefined {
+	if (
+		content.urlsMap ||
+		content.importUsers !== undefined ||
+		content.authorsMode !== 'default-author' ||
+		content.authorsMap
+	) {
 		return undefined;
 	}
 
-	return asArray(content.source).map((source, index) => ({
-		step: 'runSql',
-		sql: convertV2FileDataReferenceToV1(source, `content.source[${index}]`),
-	}));
+	return asArray(content.source).map((source, index) => {
+		const step: StepDefinition = {
+			step: 'importWxr',
+			file: convertV2FileDataReferenceToV1(
+				source,
+				`${featurePath}.source[${index}]`
+			),
+			fetchAttachments: content.staticAssets !== 'hotlink',
+			rewriteUrls: content.urlsMode !== 'preserve',
+			importComments: content.importComments ?? false,
+		};
+		if (content.defaultAuthorUsername !== undefined) {
+			step.defaultAuthorUsername = content.defaultAuthorUsername;
+		}
+		return step;
+	});
 }
 
 /**
@@ -530,6 +578,8 @@ function lowerAdditionalBlueprintV2Step(
 					consts: step.constants,
 				},
 			];
+		case 'importContent':
+			return lowerImportContentStep(step);
 		case 'importThemeStarterContent':
 			return [
 				{
@@ -570,6 +620,8 @@ function lowerAdditionalBlueprintV2Step(
 					path: toPlaygroundPath(step.path),
 				},
 			];
+		case 'runPHP':
+			return lowerRunPHPStep(step);
 		case 'runSQL':
 			return [
 				{
@@ -602,9 +654,91 @@ function lowerAdditionalBlueprintV2Step(
 					wpCliPath: step.wpCliPath,
 				},
 			];
+		case 'unzip':
+			return [
+				{
+					step: 'unzip',
+					zipFile: convertV2FileDataReferenceToV1(
+						step.zipFile,
+						'unzip.zipFile'
+					),
+					extractToPath: toPlaygroundPath(step.extractToPath),
+				},
+			];
+		case 'writeFiles':
+			return lowerWriteFilesStep(step);
 		default:
 			return undefined;
 	}
+}
+
+function lowerImportContentStep(
+	step: BlueprintV2ImportContentStep
+): StepDefinition[] | undefined {
+	const steps: StepDefinition[] = [];
+	for (const [index, content] of step.content.entries()) {
+		const loweredSteps = lowerBlueprintV2Content(
+			content,
+			`importContent.content[${index}]`
+		);
+		if (!loweredSteps) {
+			return undefined;
+		}
+		steps.push(...loweredSteps);
+	}
+	return steps;
+}
+
+function lowerRunPHPStep(
+	step: BlueprintV2RunPHPStep
+): StepDefinition[] | undefined {
+	if (!isInlineFile(step.code)) {
+		return undefined;
+	}
+	if (step.env) {
+		return [
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					code: step.code.content,
+					env: step.env,
+				},
+			},
+		];
+	}
+	return [
+		{
+			step: 'runPHP',
+			code: step.code,
+		},
+	];
+}
+
+function lowerWriteFilesStep(
+	step: BlueprintV2WriteFilesStep
+): StepDefinition[] {
+	const steps: StepDefinition[] = [];
+	for (const [path, dataReference] of Object.entries(step.files)) {
+		const writeToPath = toPlaygroundPath(path);
+		const resource = convertV2WritableDataReferenceToV1(
+			dataReference,
+			`writeFiles.files[${JSON.stringify(path)}]`
+		);
+		if (isDirectoryReference(resource)) {
+			steps.push({
+				step: 'writeFiles',
+				writeToPath,
+				filesTree: resource,
+			});
+		} else {
+			steps.push({
+				step: 'writeFile',
+				path: writeToPath,
+				data: resource,
+			});
+		}
+	}
+	return steps;
 }
 
 /**
@@ -829,6 +963,66 @@ function convertV2FileDataReferenceToV1(
 	throw new UnsupportedBlueprintV2FeatureError(
 		featurePath,
 		'Unsupported Blueprint v2 file reference.'
+	);
+}
+
+function convertV2WritableDataReferenceToV1(
+	reference: BlueprintV2DataReference,
+	featurePath: string
+): FileReference | DirectoryReference {
+	if (typeof reference === 'string') {
+		if (isHttpUrl(reference)) {
+			return { resource: 'url', url: reference };
+		}
+		if (isExecutionContextPath(reference)) {
+			return {
+				resource: 'bundled',
+				path: normalizeExecutionContextPath(reference),
+			};
+		}
+		throw new UnsupportedBlueprintV2FeatureError(
+			featurePath,
+			'Blueprint v2 writable data references must be URLs or execution-context paths.'
+		);
+	}
+
+	if (isInlineFile(reference)) {
+		return {
+			resource: 'literal',
+			name: reference.filename,
+			contents: reference.content,
+		};
+	}
+
+	if (isInlineDirectory(reference)) {
+		return {
+			resource: 'literal:directory',
+			name: reference.directoryName,
+			files: inlineDirectoryFilesToFileTree(reference.files),
+		};
+	}
+
+	if (isGitPath(reference)) {
+		return {
+			resource: 'git:directory',
+			url: reference.gitRepository,
+			ref: reference.ref || 'HEAD',
+			path: reference.pathInRepository || reference.path || '',
+		};
+	}
+
+	throw new UnsupportedBlueprintV2FeatureError(
+		featurePath,
+		'Unsupported Blueprint v2 writable data reference.'
+	);
+}
+
+function isDirectoryReference(
+	resource: FileReference | DirectoryReference
+): resource is DirectoryReference {
+	return (
+		resource.resource === 'literal:directory' ||
+		resource.resource === 'git:directory'
 	);
 }
 
