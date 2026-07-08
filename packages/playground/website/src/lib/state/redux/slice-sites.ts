@@ -236,13 +236,14 @@ export function updateSite({
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
 		}
-		dispatch(
-			sitesSlice.actions.updateSite({
-				id: slug,
-				changes,
-			})
-		);
-		const updatedSite = selectSiteBySlug(getState(), slug);
+		const existingSite = selectSiteBySlug(getState(), slug);
+		if (!existingSite) {
+			throw new Error(`Site not found: ${slug}`);
+		}
+		const updatedSite = {
+			...existingSite,
+			...changes,
+		};
 		if (updatedSite.metadata.storage !== 'none') {
 			await opfsSiteStorage?.update(
 				updatedSite.slug,
@@ -250,6 +251,12 @@ export function updateSite({
 				updatedSite.originalUrlParams
 			);
 		}
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: slug,
+				changes,
+			})
+		);
 	};
 }
 
