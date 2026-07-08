@@ -20,6 +20,8 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
+            --disable-shared \
+            --enable-static \
             --prefix=/root/install/
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \

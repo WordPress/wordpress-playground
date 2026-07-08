@@ -39,5 +39,9 @@ RUN set -euxo pipefail &&\
         )\
     "; \
     emmake make && \
-    emmake make install
+    emmake make install && \
+    # Only the static archive is consumed by the PHP build. Under
+    # Emscripten 6 the .so files are real WASM dylibs which would
+    # shadow libsqlite3.a in -lsqlite3 configure probes.
+    rm -f /root/lib/lib/libsqlite3*.so*
 

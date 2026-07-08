@@ -5,10 +5,10 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libwebpmux.so.3'
+dlname=''
 
 # Names of this library.
-library_names='libwebpmux.so.3.1.0 libwebpmux.so.3 libwebpmux.so'
+library_names=''
 
 # The name of the static archive.
 old_library='libwebpmux.a'

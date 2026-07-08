@@ -1082,6 +1082,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "findReusableFd",\
 "flock",\
 "fread",\
+"fsync",\
+"fdatasync",\
+"full_fsync",\
 "functionDestroy",\
 "fwrite",\
 "get_http_body",\
@@ -1340,6 +1343,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_stream_url_wrap_http_ex",\
 "php_stream_url_wrap_http",\
 "php_stream_write",\
+"php_stream_xport_create",\
 "php_stream_xport_crypto_enable",\
 "php_stream_xport_crypto_setup",\
 "php_stream_xport_register",\
@@ -1471,6 +1475,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "sqlite3BtreeBeginTrans",\
 "sqlite3BtreeClose",\
 "sqlite3BtreeCommit",\
+"sqlite3BtreeCommitPhaseOne",\
 "sqlite3BtreeCommitPhaseTwo",\
 "sqlite3BtreeDelete",\
 "sqlite3BtreeIndexMoveto",\
@@ -1542,6 +1547,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "sqlite3OsWrite",\
 "sqlite3PagerBegin",\
 "sqlite3PagerClose",\
+"sqlite3PagerCommitPhaseOne",\
 "sqlite3PagerCommitPhaseTwo",\
 "sqlite3PagerExclusiveLock",\
 "sqlite3PagerGet",\
@@ -1607,6 +1613,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "strfilter_convert_append_bucket",\
 "strfilter_convert_dtor",\
 "sub_function_slow",\
+"syncJournal",\
 "syscall",\
 "tsrm_realpath",\
 "unixAccess",\
@@ -2332,6 +2339,12 @@ RUN	set -eux; \
 		| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
 		| sed '/^invoke_/d' \
 		| sed '/^_Z/d' \
+		# The Asyncify state globals are injected into the main module by
+		# Binaryen's post-link asyncify pass. They do not exist at link
+		# time, so they must not be listed in EXPORTED_FUNCTIONS. The
+		# asyncify pass exports them; a wasm-metadce patch in the base
+		# image (see base-image/Dockerfile) keeps those exports at -O3.
+		| sed '/^__asyncify_/d' \
 		| sed 's/^/_/' \
 		| sort \
 		>> /root/.JS_ABI_EXPORTS; \
@@ -2401,6 +2414,10 @@ RUN set -euxo pipefail; \
 		ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT,worker"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
+	# Emscripten 6 whitespace-minifies the JS glue of web builds at -O3.
+	# Keep it readable like on 4.0.19: the post-link replace.sh patches
+	# below and php-socket-timeouts.spec.ts inspect the loader source.
+	--minify 0 \
 	--js-library /root/phpwasm-emscripten-library.js \
 	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
@@ -2482,7 +2499,11 @@ RUN set -euxo pipefail; \
 		# Emscripten produces an if that checks a stream.stream_ops.poll property. However,
 		# stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
 		# tolerate a null stream.stream_ops value.
-		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
+		# Our __syscall_poll override in phpwasm-emscripten-library.js already
+		# ships the ?. guard, so depending on the build only Emscripten's own
+		# doPoll helpers (may be absent) still match — plain sed, not
+		# replace.sh, because zero matches is fine here.
+		sed -i -E "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
 	# Emscripten allows only directories to be mounted, but in Playground we support mounting files, directories, and symlinks.
 		# For file mounting to work, we need to remove the directory check.
 		/root/replace-across-lines.sh 's/(\s*)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s*throw\s*new\s*FS\.ErrnoError\(54\)\s*;?\s*\}(\s*)/$1$2/s' /root/output/php.js; \
@@ -2583,6 +2604,22 @@ RUN set -euxo pipefail; \
 				/root/output/php.js; \
 			/root/replace-across-lines.sh \
 				's/runAndAbortIfError\(_asyncify_stop_rewind\);\s*_free\(Asyncify\.currData\);/runAndAbortIfError(_asyncify_stop_rewind);/s' \
+				/root/output/php.js; \
+	# Do not exit the Emscripten runtime after an Asyncify rewind completes
+			#
+			# Since emscripten-core/emscripten#26095, Asyncify.doRewind() runs the
+			# rewound export under callUserCallback(), which calls maybeExit() when
+			# the call returns. When a PHP script that suspended (e.g. usleep())
+			# finishes, the runtime keepalive count is zero, so maybeExit() exits
+			# the Emscripten runtime: atexit handlers (__funcs_on_exit) run PHP's
+			# module shutdown and fflush mid-lifecycle. php-wasm manages the
+			# runtime lifecycle itself and keeps using the instance afterwards,
+			# which then traps ("RuntimeError: unreachable", re-entrant
+			# exitRuntime with ASSERTIONS). Restore the pre-#26095 behavior of
+			# calling the rewound function directly; ExitStatus exceptions still
+			# propagate to handleSleep's try/catch like they did on 4.0.19.
+			/root/replace.sh \
+				's/return callUserCallback\(func\);/return func();/' \
 				/root/output/php.js; \
 		fi; \
 	# Node.js: Create a require() function and add 'currentDirPath' declaration

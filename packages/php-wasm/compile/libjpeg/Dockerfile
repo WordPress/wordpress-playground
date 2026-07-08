@@ -18,7 +18,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
         CPPFLAGS="-I/root/lib/include " \
         LDFLAGS="-L/root/lib/lib " \
         CMAKE_INSTALL_DEFAULT_PREFIX="/root/lib " \
-        emcmake cmake -G"Unix Makefiles" -DCMAKE_INSTALL_DEFAULT_PREFIX=/root/lib
+        emcmake cmake -G"Unix Makefiles" -DCMAKE_INSTALL_DEFAULT_PREFIX=/root/lib -DENABLE_SHARED=0 -DENABLE_STATIC=1
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     EMCC_SKIP="-lc -lz" EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make

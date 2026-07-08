@@ -5,10 +5,10 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libsharpyuv.so.0'
+dlname=''
 
 # Names of this library.
-library_names='libsharpyuv.so.0.1.0 libsharpyuv.so.0 libsharpyuv.so'
+library_names=''
 
 # The name of the static archive.
 old_library='libsharpyuv.a'

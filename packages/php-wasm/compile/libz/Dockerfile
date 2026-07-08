@@ -8,7 +8,7 @@ RUN wget https://www.zlib.net/fossils/zlib-1.2.13.tar.gz && \
 RUN chmod a+x /root/zlib/configure
 RUN source /root/emsdk/emsdk_env.sh && \
     cd /root/zlib && \
-    emconfigure ./configure --prefix=/root/lib && \
+    emconfigure ./configure --prefix=/root/lib --static && \
     # emmake make fails, but only after it builds the library files.
     # Let's just ignore the errors and proceed with the built libraries.
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \

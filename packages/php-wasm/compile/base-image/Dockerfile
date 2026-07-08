@@ -49,14 +49,16 @@ RUN set -euxo pipefail;\
 # WASM libraries to rebuild live here:
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
 #
-# Version 4.0.19 is required. MAIN_MODULE should not be built as RELOCATABLE.
+# Version 6.0.2 is required. MAIN_MODULE should not be built as RELOCATABLE.
+# That behavior shipped in 4.0.19 and the RELOCATABLE setting was removed
+# entirely in Emscripten 5.0.3:
 # https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
 #
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN bash -euxo pipefail <<'EOF'
     git clone https://github.com/emscripten-core/emsdk.git
-    EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 4.0.19
-    EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 4.0.19
+    EMSDK_NOTTY=1 EMSDK_USE_CURL=1 ./emsdk/emsdk install --notty 6.0.2
+    EMSDK_NOTTY=1 /root/emsdk/emsdk activate --notty 6.0.2
 EOF
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
@@ -78,6 +80,22 @@ COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
 
 # Disable compiler-rt profiling runtime introduced by emscripten 4.0.11 #24160
 RUN /root/replace.sh "s/src_files\s*\+=\s*glob_in_path\(profile_src_dir,\s*'\*\.cpp'\)//g" /root/emsdk/upstream/emscripten/tools/system_libs.py
+
+# Keep the Asyncify shared globals exported from MAIN_MODULE builds at -O3.
+#
+# Since emscripten 4.0.22 (emscripten-core/emscripten#25877), an Asyncify main
+# module no longer imports __asyncify_state/__asyncify_data from JS. Instead,
+# Binaryen's post-link asyncify pass defines AND exports them from the main
+# module, and side modules import them from it. However, at -O3 emcc also runs
+# wasm-metadce, which only roots user-requested exports — the asyncify globals
+# are not among them and nothing in the JS glue references them, so metadce
+# strips the exports. Side modules then fail to instantiate with:
+#   LinkError: import env.__asyncify_state: imported mutable global must be a
+#   WebAssembly.Global object
+# Root the two globals in metadce's graph so the exports survive. This is a
+# no-op for non-main-module and JSPI (ASYNCIFY=2) builds, where these exports
+# don't exist.
+RUN /root/replace.sh "s/required_symbols = user_requested_exports\.union\(set\(settings\.SIDE_MODULE_IMPORTS\)\)/required_symbols = user_requested_exports.union(set(settings.SIDE_MODULE_IMPORTS)).union({'__asyncify_state', '__asyncify_data'})/g" /root/emsdk/upstream/emscripten/tools/building.py
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #

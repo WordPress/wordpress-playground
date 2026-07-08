@@ -175,6 +175,9 @@ libopenssl/asyncify/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_asyncify
 	mkdir -p ./libopenssl/asyncify/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/asyncify/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/asyncify/dist/1.1.1/root/lib
+	# dist/root is the default OpenSSL consumed by the libcurl and PHP builds.
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/asyncify/dist/root/lib
 
 libopenssl_jspi: libopenssl/jspi/dist/1.1.0h/root/lib/lib/libssl.a libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a
 
@@ -191,6 +194,9 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	mkdir -p ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
+	# dist/root is the default OpenSSL consumed by the libcurl and PHP builds.
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/root/lib
 
 WITH_DEBUG ?= no
 
@@ -329,6 +335,10 @@ clean:
 	rm -rf ./libaom/asyncify/dist
 	rm -rf ./libavif/jspi/dist
 	rm -rf ./libavif/asyncify/dist
+	rm -rf ./libgd/jspi/dist
+	rm -rf ./libgd/asyncify/dist
+	rm -rf ./libcurl/jspi/dist
+	rm -rf ./libcurl/asyncify/dist
 	rm -rf ./libxml2/jspi/dist
 	rm -rf ./libxml2/asyncify/dist
 	rm -rf ./libopenssl/jspi/dist

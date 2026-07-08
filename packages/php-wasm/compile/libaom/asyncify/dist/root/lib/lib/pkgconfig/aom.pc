@@ -10,5 +10,5 @@ Version: 3.13.1
 Requires:
 Conflicts:
 Libs: -L${libdir} -laom
-Libs.private:
+Libs.private: -lm
 Cflags: -I${includedir}

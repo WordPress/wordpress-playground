@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_5_8', 'php_8_5.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26696369;
+export const dependenciesTotalSize = 26668425;
 const phpVersionString = '8.5.8';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -43,7 +43,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	// --pre-jses are emitted after the Module integration code, so that they can
 	// refer to Module (if they choose; they can also define Module)
-	var arguments_ = [];
+	var programArgs = [];
 
 	var thisProgram = './this.program';
 
@@ -75,7 +75,7 @@ export function init(RuntimeName, PHPLoader) {
 	if (ENVIRONMENT_IS_NODE) {
 		// These modules will usually be used on Node.js. Load them eagerly to avoid
 		// the complexity of lazy-loading.
-		var fs = require('fs');
+		var fs = require('node:fs');
 		scriptDirectory = currentDirPath + '/';
 		// include: node_shell_read.js
 		readBinary = (filename) => {
@@ -94,7 +94,7 @@ export function init(RuntimeName, PHPLoader) {
 		if (process.argv.length > 1) {
 			thisProgram = process.argv[1].replace(/\\/g, '/');
 		}
-		arguments_ = process.argv.slice(2);
+		programArgs = process.argv.slice(2);
 		// MODULARIZE will export the module in the proper place outside, we don't need to export here
 		if (typeof module != 'undefined') {
 			module['exports'] = Module;
@@ -136,7 +136,7 @@ export function init(RuntimeName, PHPLoader) {
 	var ABORT = false;
 
 	// set by exit() and abort().  Passed to 'onExit' handler.
-	// NOTE: This is also used as the process return code code in shell environments
+	// NOTE: This is also used as the process return code in shell environments
 	// but only when noExitRuntime is false.
 	var EXITSTATUS;
 
@@ -149,30 +149,35 @@ export function init(RuntimeName, PHPLoader) {
 	// include: runtime_stack_check.js
 	// end include: runtime_stack_check.js
 	// include: runtime_exceptions.js
+	// Base Emscripten EH error class
+	class EmscriptenEH {}
+
+	class EmscriptenSjLj extends EmscriptenEH {}
+
 	// end include: runtime_exceptions.js
 	// include: runtime_debug.js
 	// end include: runtime_debug.js
 	// Memory management
-	var /** @type {!Int8Array} */ HEAP8,
-		/** @type {!Uint8Array} */ HEAPU8,
-		/** @type {!Int16Array} */ HEAP16,
-		/** @type {!Uint16Array} */ HEAPU16,
-		/** @type {!Int32Array} */ HEAP32,
-		/** @type {!Uint32Array} */ HEAPU32,
-		/** @type {!Float32Array} */ HEAPF32,
-		/** @type {!Float64Array} */ HEAPF64;
-
-	// BigInt64Array type is not correctly defined in closure
-	var /** not-@type {!BigInt64Array} */ HEAP64,
-		/* BigUint64Array type is not correctly defined in closure
-/** not-@type {!BigUint64Array} */ HEAPU64;
-
 	var runtimeInitialized = false;
 
 	var runtimeExited = false;
 
+	// When ALLOW_MEMORY_GROWTH is enabled, the conversion from Wasm
+	// memory to ArrayBuffer requires some additional logic.
+	function getMemoryBuffer() {
+		try {
+			// This method may be missing or could fail with `Memory must have a maximum`
+			var b = wasmMemory.toResizableBuffer();
+			return b;
+		} catch {}
+		return wasmMemory.buffer;
+	}
+
 	function updateMemoryViews() {
-		var b = wasmMemory.buffer;
+		// If we already have a heap that is resizeable/growable buffer we don't
+		// need to do anything in updateMemoryViews.
+		if (HEAP8?.buffer?.resizable) return;
+		var b = getMemoryBuffer();
 		HEAP8 = new Int8Array(b);
 		HEAP16 = new Int16Array(b);
 		Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
@@ -191,12 +196,10 @@ export function init(RuntimeName, PHPLoader) {
 	var __RELOC_FUNCS__ = [];
 
 	function preRun() {
-		if (Module['preRun']) {
-			if (typeof Module['preRun'] == 'function')
-				Module['preRun'] = [Module['preRun']];
-			while (Module['preRun'].length) {
-				addOnPreRun(Module['preRun'].shift());
-			}
+		var preRun = Module['preRun'];
+		if (preRun) {
+			if (typeof preRun == 'function') preRun = [preRun];
+			onPreRuns.push(...preRun);
 		}
 		// Begin ATPRERUNS hooks
 		callRuntimeCallbacks(onPreRuns);
@@ -218,35 +221,32 @@ export function init(RuntimeName, PHPLoader) {
 		FS.ignorePermissions = false;
 	}
 
-	function preMain() {}
-
 	function exitRuntime() {
-		// PThreads reuse the runtime from the main thread.
 		___funcs_on_exit();
 		// Native atexit() functions
 		// Begin ATEXITS hooks
 		FS.quit();
 		TTY.shutdown();
+		clearTimers();
 		// End ATEXITS hooks
 		runtimeExited = true;
 	}
 
 	function postRun() {
-		// PThreads reuse the runtime from the main thread.
-		if (Module['postRun']) {
-			if (typeof Module['postRun'] == 'function')
-				Module['postRun'] = [Module['postRun']];
-			while (Module['postRun'].length) {
-				addOnPostRun(Module['postRun'].shift());
-			}
+		var postRun = Module['postRun'];
+		if (postRun) {
+			if (typeof postRun == 'function') postRun = [postRun];
+			onPostRuns.push(...postRun);
 		}
 		// Begin ATPOSTRUNS hooks
 		callRuntimeCallbacks(onPostRuns);
 	}
 
-	/** @param {string|number=} what */ function abort(what) {
+	/**
+	 * @param {string|number=} what
+	 */ function abort(what) {
 		Module['onAbort']?.(what);
-		what = 'Aborted(' + what + ')';
+		what = `Aborted(${what})`;
 		// TODO(sbc): Should we remove printing and leave it up to whoever
 		// catches the exception?
 		err(what);
@@ -280,13 +280,10 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function getBinarySync(file) {
-		if (file == wasmBinaryFile && wasmBinary) {
-			return new Uint8Array(wasmBinary);
-		}
 		if (readBinary) {
 			return readBinary(file);
 		}
-		// Throwing a plain string here, even though it not normally adviables since
+		// Throwing a plain string here, even though it not normally advisable since
 		// this gets turning into an `abort` in instantiateArrayBuffer.
 		throw 'both async and sync fetching of the wasm failed';
 	}
@@ -336,11 +333,12 @@ export function init(RuntimeName, PHPLoader) {
 
 	function getWasmImports() {
 		// prepare imports
+		var GOTProxyHandler = new Proxy(new Set([]), GOTHandler);
 		var imports = {
 			env: wasmImports,
 			wasi_snapshot_preview1: wasmImports,
-			'GOT.mem': new Proxy(wasmImports, GOTHandler),
-			'GOT.func': new Proxy(wasmImports, GOTHandler),
+			'GOT.mem': GOTProxyHandler,
+			'GOT.func': GOTProxyHandler,
 		};
 		return imports;
 	}
@@ -351,14 +349,9 @@ export function init(RuntimeName, PHPLoader) {
 		// Load the wasm module and create an instance of using native support in the JS engine.
 		// handle a generated wasm instance, receiving its exports and
 		// performing other necessary setup
-		/** @param {WebAssembly.Module=} module*/ function receiveInstance(
-			instance,
-			module
-		) {
+		async function receiveInstance(instance, module) {
 			wasmExports = instance.exports;
-			// No relocation needed here.. but calling this just so that updateGOT is
-			// called.
-			var origExports = (wasmExports = relocateExports(wasmExports));
+			var origExports = wasmExports;
 			wasmExports = Asyncify.instrumentWasmExports(wasmExports);
 			mergeLibSymbols(wasmExports, 'main');
 			var metadata = getDylinkMetadata(module);
@@ -369,13 +362,11 @@ export function init(RuntimeName, PHPLoader) {
 			assignWasmExports(wasmExports);
 			updateGOT(origExports);
 			Module['wasmExports'] = wasmExports;
-			LDSO.init();
-			loadDylibs();
 			updateMemoryViews();
-			removeRunDependency('wasm-instantiate');
+			LDSO.init();
+			await loadDylibs();
 			return wasmExports;
 		}
-		addRunDependency('wasm-instantiate');
 		// Prefer streaming instantiation if available.
 		function receiveInstantiationResult(result) {
 			// 'result' is a ResultObject object which has both the module and instance.
@@ -389,16 +380,17 @@ export function init(RuntimeName, PHPLoader) {
 		// performing.
 		// Also pthreads and wasm workers initialize the wasm instance through this
 		// path.
-		if (Module['instantiateWasm']) {
-			return new Promise((resolve, reject) => {
-				Module['instantiateWasm'](info, (inst, mod) => {
-					resolve(receiveInstance(inst, mod));
-				});
+		var instantiateWasm = Module['instantiateWasm'];
+		if (instantiateWasm) {
+			return new Promise((resolve) => {
+				instantiateWasm(info, (inst, mod) =>
+					resolve(receiveInstance(inst, mod))
+				);
 			});
 		}
 		wasmBinaryFile ??= findWasmBinary();
 		var result = await instantiateAsync(wasmBinary, wasmBinaryFile, info);
-		var exports = receiveInstantiationResult(result);
+		var exports = await receiveInstantiationResult(result);
 		return exports;
 	}
 
@@ -429,10 +421,8 @@ export function init(RuntimeName, PHPLoader) {
 
 	var GOT = {};
 
-	var currentModuleWeakSymbols = new Set([]);
-
 	var GOTHandler = {
-		get(obj, symName) {
+		get(weakImports, symName) {
 			var rtn = GOT[symName];
 			if (!rtn) {
 				rtn = GOT[symName] = new WebAssembly.Global(
@@ -443,7 +433,7 @@ export function init(RuntimeName, PHPLoader) {
 					-1
 				);
 			}
-			if (!currentModuleWeakSymbols.has(symName)) {
+			if (!weakImports.has(symName)) {
 				// Any non-weak reference to a symbol marks it as `required`, which
 				// enabled `reportUndefinedSymbols` to report undefined symbol errors
 				// correctly.
@@ -452,6 +442,26 @@ export function init(RuntimeName, PHPLoader) {
 			return rtn;
 		},
 	};
+
+	/** @type {!Int16Array} */ var HEAP16;
+
+	/** @type {!Int32Array} */ var HEAP32;
+
+	/** not-@type {!BigInt64Array} */ var HEAP64;
+
+	/** @type {!Int8Array} */ var HEAP8;
+
+	/** @type {!Float32Array} */ var HEAPF32;
+
+	/** @type {!Float64Array} */ var HEAPF64;
+
+	/** @type {!Uint16Array} */ var HEAPU16;
+
+	/** @type {!Uint32Array} */ var HEAPU32;
+
+	/** not-@type {!BigUint64Array} */ var HEAPU64;
+
+	/** @type {!Uint8Array} */ var HEAPU8;
 
 	var callRuntimeCallbacks = (callbacks) => {
 		while (callbacks.length > 0) {
@@ -462,32 +472,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var onPostRuns = [];
 
-	var addOnPostRun = (cb) => onPostRuns.push(cb);
-
 	var onPreRuns = [];
-
-	var addOnPreRun = (cb) => onPreRuns.push(cb);
-
-	var runDependencies = 0;
-
-	var dependenciesFulfilled = null;
-
-	var removeRunDependency = (id) => {
-		runDependencies--;
-		Module['monitorRunDependencies']?.(runDependencies);
-		if (runDependencies == 0) {
-			if (dependenciesFulfilled) {
-				var callback = dependenciesFulfilled;
-				dependenciesFulfilled = null;
-				callback();
-			}
-		}
-	};
-
-	var addRunDependency = (id) => {
-		runDependencies++;
-		Module['monitorRunDependencies']?.(runDependencies);
-	};
 
 	var dynCalls = {};
 
@@ -507,7 +492,13 @@ export function init(RuntimeName, PHPLoader) {
 
 	var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
 
-	var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
+	/**
+	 * heapOrArray is either a regular array, or a JavaScript typed array view.
+	 * @param {number} idx
+	 * @param {number=} maxBytesToRead
+	 * @param {boolean=} ignoreNul
+	 * @return {number}
+	 */ var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
 		var maxIdx = idx + maxBytesToRead;
 		if (ignoreNul) return maxIdx;
 		// TextDecoder needs to know the byte length in advance, it doesn't stop on
@@ -627,7 +618,7 @@ export function init(RuntimeName, PHPLoader) {
 			failIf(binary[8] !== 0, 'need the dylink section to be first');
 			offset = 9;
 			var section_size = getLEB();
-			//section size
+			// section size
 			end = offset + section_size;
 			var name = getString();
 			failIf(name !== 'dylink.0');
@@ -729,10 +720,6 @@ export function init(RuntimeName, PHPLoader) {
 		// that once the program starts it doesn't use this region.  In relocatable
 		// mode we can just update the __heap_base symbol that we are exporting to
 		// the main module.
-		// When not relocatable `__heap_base` is fixed and exported by the main
-		// module, but we can update the `sbrk_ptr` value instead.  We call
-		// `_emscripten_get_sbrk_ptr` knowing that it is safe to call prior to
-		// runtime initialization (unlike, the higher level sbrk function)
 		var sbrk_ptr = _emscripten_get_sbrk_ptr();
 		HEAPU32[sbrk_ptr >> 2] = end;
 		return ret;
@@ -844,7 +831,8 @@ export function init(RuntimeName, PHPLoader) {
 		);
 
 	var convertJsFunctionToWasm = (func, sig) => {
-		// Rest of the module is static
+		// TODO: If the type reflection proposal ever makes progress we can use
+		// it here instead of creatign a new module.
 		var bytes = Uint8Array.of(
 			0,
 			97,
@@ -905,7 +893,7 @@ export function init(RuntimeName, PHPLoader) {
 		var ret = getEmptyTableSlot();
 		// Set the new value.
 		try {
-			// Attempting to call this with JS function will cause of table.set() to fail
+			// Attempting to call this with JS function will cause table.set() to fail
 			setWasmTableEntry(ret, func);
 		} catch (err) {
 			if (!(err instanceof TypeError)) {
@@ -929,7 +917,7 @@ export function init(RuntimeName, PHPLoader) {
 				var newValue;
 				if (typeof value == 'function') {
 					newValue = addFunction(value);
-				} else if (typeof value == 'number') {
+				} else if (typeof value.value == 'number') {
 					newValue = value;
 				} else {
 					// The GOT can only contain addresses (i.e data addresses or function
@@ -958,10 +946,15 @@ export function init(RuntimeName, PHPLoader) {
 
 	var relocateExports = (exports, memoryBase = 0) => {
 		function relocateExport(name, value) {
-			// Detect immuable wasm global exports. These represent data addresses
+			// Detect immutable wasm global exports. These represent data addresses
 			// which are relative to `memoryBase`
 			if (isImmutableGlobal(value)) {
-				return value.value + memoryBase;
+				return new WebAssembly.Global(
+					{
+						value: 'i32',
+					},
+					value.value + memoryBase
+				);
 			}
 			// Return unmodified value (no relocation required).
 			return value;
@@ -1006,10 +999,9 @@ export function init(RuntimeName, PHPLoader) {
 			} catch (e) {
 				stackRestore(sp);
 				// Create a try-catch guard that rethrows the Emscripten EH exception.
-				// Exceptions thrown from C++ will be a pointer (number) and longjmp
-				// will throw the number Infinity. Use the compact and fast "e !== e+0"
-				// test to check if e was not a Number.
-				if (e !== e + 0) throw e;
+				// Exceptions thrown from C++ and longjmps will be an instance of
+				// EmscriptenEH.
+				if (!(e instanceof EmscriptenEH)) throw e;
 				_setThrew(1, 0);
 				// In theory this if statement could be done on
 				// creating the function, but I just added this to
@@ -1092,7 +1084,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			// This is the export map that we ultimately return.  We declare it here
 			// so it can be used within resolveSymbol.  We resolve symbols against
-			// this local symbol map in the case there they are not present on the
+			// this local symbol map in the case where they are not present on the
 			// global Module object.  We need this fallback because Modules sometime
 			// need to import their own symbols
 			var moduleExports;
@@ -1148,10 +1140,10 @@ export function init(RuntimeName, PHPLoader) {
 				},
 			};
 			var proxy = new Proxy({}, proxyHandler);
-			currentModuleWeakSymbols = metadata.weakImports;
+			var GOTProxy = new Proxy(metadata.weakImports, GOTHandler);
 			var info = {
-				'GOT.mem': new Proxy({}, GOTHandler),
-				'GOT.func': new Proxy({}, GOTHandler),
+				'GOT.mem': GOTProxy,
+				'GOT.func': GOTProxy,
 				env: proxy,
 				wasi_snapshot_preview1: proxy,
 			};
@@ -1171,14 +1163,14 @@ export function init(RuntimeName, PHPLoader) {
 						if (!body.includes(argName)) break;
 						args.push(argName);
 					}
-					args = args.join(',');
+					args = args.join();
 					var func = `(${args}) => { ${body} };`;
 					ASM_CONSTS[start] = eval(func);
 				}
-				// Add any EM_ASM function that exist in the side module
+				// Add any EM_ASM functions that exist in the side module
 				if ('__start_em_asm' in moduleExports) {
-					var start = moduleExports['__start_em_asm'];
-					var stop = moduleExports['__stop_em_asm'];
+					var start = moduleExports['__start_em_asm'].value;
+					var stop = moduleExports['__stop_em_asm'].value;
 					while (start < stop) {
 						var jsString = UTF8ToString(start);
 						addEmAsm(start, jsString);
@@ -1195,7 +1187,7 @@ export function init(RuntimeName, PHPLoader) {
 						cSig = cSig.split(',');
 						for (var arg of cSig) {
 							var jsArg = arg.split(' ').pop();
-							jsArgs.push(jsArg.replace('*', ''));
+							jsArgs.push(jsArg.replaceAll('*', ''));
 						}
 					}
 					var func = `(${jsArgs}) => ${body};`;
@@ -1203,7 +1195,7 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				for (var name in moduleExports) {
 					if (name.startsWith('__em_js__')) {
-						var start = moduleExports[name];
+						var start = moduleExports[name].value;
 						var jsString = UTF8ToString(start);
 						// EM_JS strings are stored in the data section in the form
 						// SIG<::>BODY.
@@ -1268,15 +1260,22 @@ export function init(RuntimeName, PHPLoader) {
 		if (flags.loadAsync) {
 			return metadata.neededDynlibs
 				.reduce(
-					(chain, dynNeeded) =>
-						chain.then(() =>
-							loadDynamicLibrary(dynNeeded, flags, localScope)
-						),
+					(chain, needed) =>
+						chain.then(() => {
+							needed =
+								findLibraryFS(needed, flags.rpath) ?? needed;
+							return loadDynamicLibrary(
+								needed,
+								flags,
+								localScope
+							);
+						}),
 					Promise.resolve()
 				)
 				.then(loadModule);
 		}
 		for (var needed of metadata.neededDynlibs) {
+			needed = findLibraryFS(needed, flags.rpath) ?? needed;
 			loadDynamicLibrary(needed, flags, localScope);
 		}
 		return loadModule();
@@ -1516,12 +1515,9 @@ export function init(RuntimeName, PHPLoader) {
 		return ret;
 	};
 
-	var initRandomFill = () => (view) => crypto.getRandomValues(view);
+	var initRandomFill = () => (view) => (crypto.getRandomValues(view), 0);
 
-	var randomFill = (view) => {
-		// Lazily init on the first invocation.
-		(randomFill = initRandomFill())(view);
-	};
+	var randomFill = (view) => (randomFill = initRandomFill())(view);
 
 	var PATH_FS = {
 		resolve: (...args) => {
@@ -1777,7 +1773,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 		createNode(parent, name, mode, dev) {
 			if (FS.isBlkdev(mode) || FS.isFIFO(mode)) {
-				// no supported
+				// not supported
 				throw new FS.ErrnoError(63);
 			}
 			MEMFS.ops_table ||= {
@@ -1834,12 +1830,14 @@ export function init(RuntimeName, PHPLoader) {
 			} else if (FS.isFile(node.mode)) {
 				node.node_ops = MEMFS.ops_table.file.node;
 				node.stream_ops = MEMFS.ops_table.file.stream;
+				// The actual number of bytes used in the typed array, as opposed to
+				// contents.length which gives the whole capacity.
 				node.usedBytes = 0;
-				// The actual number of bytes used in the typed array, as opposed to contents.length which gives the whole capacity.
-				// When the byte data of the file is populated, this will point to either a typed array, or a normal JS array. Typed arrays are preferred
-				// for performance, and used by default. However, typed arrays are not resizable like normal JS arrays are, so there is a small disk size
-				// penalty involved for appending file writes that continuously grow a file similar to std::vector capacity vs used -scheme.
-				node.contents = null;
+				// The byte data of the file is stored in a typed array.
+				// Note: typed arrays are not resizable like normal JS arrays are, so
+				// there is a small penalty involved for appending file writes that
+				// continuously grow a file similar to std::vector capacity vs used.
+				node.contents = MEMFS.emptyFileContents ??= new Uint8Array(0);
 			} else if (FS.isLink(node.mode)) {
 				node.node_ops = MEMFS.ops_table.link.node;
 				node.stream_ops = MEMFS.ops_table.link.stream;
@@ -1856,19 +1854,17 @@ export function init(RuntimeName, PHPLoader) {
 			return node;
 		},
 		getFileDataAsTypedArray(node) {
-			if (!node.contents) return new Uint8Array(0);
-			if (node.contents.subarray)
-				return node.contents.subarray(0, node.usedBytes);
-			// Make sure to not return excess unused bytes.
-			return new Uint8Array(node.contents);
+			return node.contents.subarray(0, node.usedBytes);
 		},
 		expandFileStorage(node, newCapacity) {
-			var prevCapacity = node.contents ? node.contents.length : 0;
+			var prevCapacity = node.contents.length;
 			if (prevCapacity >= newCapacity) return;
 			// No need to expand, the storage was already large enough.
-			// Don't expand strictly to the given requested limit if it's only a very small increase, but instead geometrically grow capacity.
-			// For small filesizes (<1MB), perform size*2 geometric increase, but for large sizes, do a much more conservative size*1.125 increase to
-			// avoid overshooting the allocation cap by a very large margin.
+			// Don't expand strictly to the given requested limit if it's only a very
+			// small increase, but instead geometrically grow capacity.
+			// For small filesizes (<1MB), perform size*2 geometric increase, but for
+			// large sizes, do a much more conservative size*1.125 increase to avoid
+			// overshooting the allocation cap by a very large margin.
 			var CAPACITY_DOUBLING_MAX = 1024 * 1024;
 			newCapacity = Math.max(
 				newCapacity,
@@ -1876,34 +1872,23 @@ export function init(RuntimeName, PHPLoader) {
 					(prevCapacity < CAPACITY_DOUBLING_MAX ? 2 : 1.125)) >>>
 					0
 			);
-			if (prevCapacity != 0) newCapacity = Math.max(newCapacity, 256);
+			if (prevCapacity) newCapacity = Math.max(newCapacity, 256);
 			// At minimum allocate 256b for each file when expanding.
-			var oldContents = node.contents;
+			var oldContents = MEMFS.getFileDataAsTypedArray(node);
 			node.contents = new Uint8Array(newCapacity);
 			// Allocate new storage.
-			if (node.usedBytes > 0)
-				node.contents.set(oldContents.subarray(0, node.usedBytes), 0);
+			node.contents.set(oldContents);
 		},
 		resizeFileStorage(node, newSize) {
 			if (node.usedBytes == newSize) return;
-			if (newSize == 0) {
-				node.contents = null;
-				// Fully decommit when requesting a resize to zero.
-				node.usedBytes = 0;
-			} else {
-				var oldContents = node.contents;
-				node.contents = new Uint8Array(newSize);
-				// Allocate new storage.
-				if (oldContents) {
-					node.contents.set(
-						oldContents.subarray(
-							0,
-							Math.min(newSize, node.usedBytes)
-						)
-					);
-				}
-				node.usedBytes = newSize;
-			}
+			var oldContents = node.contents;
+			node.contents = new Uint8Array(newSize);
+			// Allocate new storage.
+			node.contents.set(
+				oldContents.subarray(0, Math.min(newSize, node.usedBytes))
+			);
+			// Copy old data over to the new storage.
+			node.usedBytes = newSize;
 		},
 		node_ops: {
 			getattr(node) {
@@ -2013,69 +1998,42 @@ export function init(RuntimeName, PHPLoader) {
 				var contents = stream.node.contents;
 				if (position >= stream.node.usedBytes) return 0;
 				var size = Math.min(stream.node.usedBytes - position, length);
-				if (size > 8 && contents.subarray) {
-					// non-trivial, and typed array
-					buffer.set(
-						contents.subarray(position, position + size),
-						offset
-					);
-				} else {
-					for (var i = 0; i < size; i++)
-						buffer[offset + i] = contents[position + i];
-				}
+				buffer.set(
+					contents.subarray(position, position + size),
+					offset
+				);
 				return size;
 			},
 			write(stream, buffer, offset, length, position, canOwn) {
 				// If the buffer is located in main memory (HEAP), and if
 				// memory can grow, we can't hold on to references of the
 				// memory buffer, as they may get invalidated. That means we
-				// need to do copy its contents.
+				// need to copy its contents.
 				if (buffer.buffer === HEAP8.buffer) {
 					canOwn = false;
 				}
 				if (!length) return 0;
 				var node = stream.node;
 				node.mtime = node.ctime = Date.now();
-				if (
-					buffer.subarray &&
-					(!node.contents || node.contents.subarray)
-				) {
-					// This write is from a typed array to a typed array?
-					if (canOwn) {
-						node.contents = buffer.subarray(
-							offset,
-							offset + length
-						);
-						node.usedBytes = length;
-						return length;
-					} else if (node.usedBytes === 0 && position === 0) {
-						// If this is a simple first write to an empty file, do a fast set since we don't need to care about old data.
-						node.contents = buffer.slice(offset, offset + length);
-						node.usedBytes = length;
-						return length;
-					} else if (position + length <= node.usedBytes) {
-						// Writing to an already allocated and used subrange of the file?
-						node.contents.set(
-							buffer.subarray(offset, offset + length),
-							position
-						);
-						return length;
-					}
-				}
-				// Appending to an existing file and we need to reallocate, or source data did not come as a typed array.
-				MEMFS.expandFileStorage(node, position + length);
-				if (node.contents.subarray && buffer.subarray) {
+				if (canOwn) {
+					node.contents = buffer.subarray(offset, offset + length);
+					node.usedBytes = length;
+				} else if (node.usedBytes === 0 && position === 0) {
+					// If this is a simple first write to an empty file, do a fast set since we don't need to care about old data.
+					node.contents = buffer.slice(offset, offset + length);
+					node.usedBytes = length;
+				} else {
+					MEMFS.expandFileStorage(node, position + length);
 					// Use typed array write which is available.
 					node.contents.set(
 						buffer.subarray(offset, offset + length),
 						position
 					);
-				} else {
-					for (var i = 0; i < length; i++) {
-						node.contents[position + i] = buffer[offset + i];
-					}
+					node.usedBytes = Math.max(
+						node.usedBytes,
+						position + length
+					);
 				}
-				node.usedBytes = Math.max(node.usedBytes, position + length);
 				return length;
 			},
 			llseek(stream, offset, whence) {
@@ -2100,11 +2058,7 @@ export function init(RuntimeName, PHPLoader) {
 				var allocated;
 				var contents = stream.node.contents;
 				// Only make a new copy when MAP_PRIVATE is specified.
-				if (
-					!(flags & 2) &&
-					contents &&
-					contents.buffer === HEAP8.buffer
-				) {
+				if (!(flags & 2) && contents.buffer === HEAP8.buffer) {
 					// We can't emulate MAP_SHARED when the file is not backed by the
 					// buffer we're mapping to (e.g. the HEAP buffer).
 					allocated = false;
@@ -2158,6 +2112,7 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var FS_modeStringToFlags = (str) => {
+		if (typeof str != 'string') return str;
 		var flagModes = {
 			r: 0,
 			'r+': 2,
@@ -2171,6 +2126,16 @@ export function init(RuntimeName, PHPLoader) {
 			throw new Error(`Unknown file open mode: ${str}`);
 		}
 		return flags;
+	};
+
+	var FS_fileDataToTypedArray = (data) => {
+		if (typeof data == 'string') {
+			data = intArrayFromString(data, true);
+		}
+		if (!data.subarray) {
+			data = new Uint8Array(data);
+		}
+		return data;
 	};
 
 	var FS_getMode = (canRead, canWrite) => {
@@ -2576,24 +2541,12 @@ export function init(RuntimeName, PHPLoader) {
 			},
 			read(stream, buffer, offset, length, position) {
 				return NODEFS.tryFSOperation(() =>
-					fs.readSync(
-						stream.nfd,
-						new Int8Array(buffer.buffer, offset, length),
-						0,
-						length,
-						position
-					)
+					fs.readSync(stream.nfd, buffer, offset, length, position)
 				);
 			},
 			write(stream, buffer, offset, length, position) {
 				return NODEFS.tryFSOperation(() =>
-					fs.writeSync(
-						stream.nfd,
-						new Int8Array(buffer.buffer, offset, length),
-						0,
-						length,
-						position
-					)
+					fs.writeSync(stream.nfd, buffer, offset, length, position)
 				);
 			},
 			llseek(stream, offset, whence) {
@@ -2877,6 +2830,30 @@ export function init(RuntimeName, PHPLoader) {
 
 	var getUniqueRunDependency = (id) => id;
 
+	var dependenciesPromise = null;
+
+	var resolveRunDependencies = async () => dependenciesPromise;
+
+	var runDependencies = 0;
+
+	var removeRunDependency = (id) => {
+		runDependencies--;
+		Module['monitorRunDependencies']?.(runDependencies);
+		if (!runDependencies) {
+			dependenciesPromise.resolve();
+		}
+	};
+
+	var addRunDependency = (id) => {
+		if (!runDependencies) {
+			var resolve;
+			dependenciesPromise = new Promise((r) => (resolve = r));
+			dependenciesPromise.resolve = resolve;
+		}
+		runDependencies++;
+		Module['monitorRunDependencies']?.(runDependencies);
+	};
+
 	var FS_handledByPreloadPlugin = async (byteArray, fullname) => {
 		// Ensure plugins are ready.
 		if (typeof Browser != 'undefined') Browser.init();
@@ -2885,7 +2862,7 @@ export function init(RuntimeName, PHPLoader) {
 				return plugin['handle'](byteArray, fullname);
 			}
 		}
-		// In no plugin handled this file then return the original/unmodified
+		// If no plugin handled this file then return the original/unmodified
 		// byteArray.
 		return byteArray;
 	};
@@ -2968,7 +2945,6 @@ export function init(RuntimeName, PHPLoader) {
 		ignorePermissions: true,
 		filesystems: null,
 		syncFSRequests: 0,
-		readFiles: {},
 		ErrnoError: class {
 			name = 'ErrnoError';
 			// We set the `name` property to be able to identify `FS.ErrnoError`
@@ -3060,7 +3036,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (!PATH.isAbs(path)) {
 				path = FS.cwd() + '/' + path;
 			}
-			// limit max consecutive symlinks to 40 (SYMLOOP_MAX).
+			// limit max consecutive symlinks to SYMLOOP_MAX.
 			linkloop: for (var nlinks = 0; nlinks < 40; nlinks++) {
 				// split the absolute path
 				var parts = path.split('/').filter((p) => !!p);
@@ -3239,9 +3215,11 @@ export function init(RuntimeName, PHPLoader) {
 			// return 0 if any user, group or owner bits are set.
 			if (perms.includes('r') && !(node.mode & 292)) {
 				return 2;
-			} else if (perms.includes('w') && !(node.mode & 146)) {
+			}
+			if (perms.includes('w') && !(node.mode & 146)) {
 				return 2;
-			} else if (perms.includes('x') && !(node.mode & 73)) {
+			}
+			if (perms.includes('x') && !(node.mode & 73)) {
 				return 2;
 			}
 			return 0;
@@ -3281,10 +3259,8 @@ export function init(RuntimeName, PHPLoader) {
 				if (FS.isRoot(node) || FS.getPath(node) === FS.cwd()) {
 					return 10;
 				}
-			} else {
-				if (FS.isDir(node.mode)) {
-					return 31;
-				}
+			} else if (FS.isDir(node.mode)) {
+				return 31;
 			}
 			return 0;
 		},
@@ -3294,16 +3270,16 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			if (FS.isLink(node.mode)) {
 				return 32;
-			} else if (FS.isDir(node.mode)) {
-				if (
-					FS.flagsToPermissionString(flags) !== 'r' ||
-					flags & (512 | 64)
-				) {
-					// TODO: check for O_SEARCH? (== search for dir only)
+			}
+			var mode = FS.flagsToPermissionString(flags);
+			if (FS.isDir(node.mode)) {
+				// opening for write
+				// TODO: check for O_SEARCH? (== search for dir only)
+				if (mode !== 'r' || flags & (512 | 64)) {
 					return 31;
 				}
 			}
-			return FS.nodePermissions(node, FS.flagsToPermissionString(flags));
+			return FS.nodePermissions(node, mode);
 		},
 		checkOpExists(op, err) {
 			if (!op) {
@@ -3351,7 +3327,14 @@ export function init(RuntimeName, PHPLoader) {
 			var arg = setattr ? stream : node;
 			setattr ??= node.node_ops.setattr;
 			FS.checkOpExists(setattr, 63);
-			setattr(arg, attr);
+			try {
+				setattr(arg, attr);
+			} catch (e) {
+				if (e instanceof RangeError) {
+					throw new FS.ErrnoError(22);
+				}
+				throw e;
+			}
 		},
 		chrdev_stream_ops: {
 			open(stream) {
@@ -3875,8 +3858,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (path === '') {
 				throw new FS.ErrnoError(44);
 			}
-			flags =
-				typeof flags == 'string' ? FS_modeStringToFlags(flags) : flags;
+			flags = FS_modeStringToFlags(flags);
 			if (flags & 64) {
 				mode = (mode & 4095) | 32768;
 			} else {
@@ -3911,7 +3893,7 @@ export function init(RuntimeName, PHPLoader) {
 				} else {
 					// node doesn't exist, try to create it
 					// Ignore the permission bits here to ensure we can `open` this new
-					// file below. We use chmod below the apply the permissions once the
+					// file below. We use chmod below to apply the permissions once the
 					// file is open.
 					node = FS.mknod(path, mode | 511, 0);
 					created = true;
@@ -3962,11 +3944,6 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			if (created) {
 				FS.chmod(node, mode & 511);
-			}
-			if (Module['logReadFiles'] && !(flags & 1)) {
-				if (!(path in FS.readFiles)) {
-					FS.readFiles[path] = 1;
-				}
 			}
 			return stream;
 		},
@@ -4123,8 +4100,8 @@ export function init(RuntimeName, PHPLoader) {
 			return stream.stream_ops.ioctl(stream, cmd, arg);
 		},
 		readFile(path, opts = {}) {
-			opts.flags = opts.flags || 0;
-			opts.encoding = opts.encoding || 'binary';
+			opts.flags = opts.flags ?? 0;
+			opts.encoding = opts.encoding ?? 'binary';
 			if (opts.encoding !== 'utf8' && opts.encoding !== 'binary') {
 				abort(`Invalid encoding type "${opts.encoding}"`);
 			}
@@ -4140,23 +4117,10 @@ export function init(RuntimeName, PHPLoader) {
 			return buf;
 		},
 		writeFile(path, data, opts = {}) {
-			opts.flags = opts.flags || 577;
+			opts.flags = opts.flags ?? 577;
 			var stream = FS.open(path, opts.flags, opts.mode);
-			if (typeof data == 'string') {
-				data = new Uint8Array(intArrayFromString(data, true));
-			}
-			if (ArrayBuffer.isView(data)) {
-				FS.write(
-					stream,
-					data,
-					0,
-					data.byteLength,
-					undefined,
-					opts.canOwn
-				);
-			} else {
-				abort('Unsupported data type');
-			}
+			data = FS_fileDataToTypedArray(data);
+			FS.write(stream, data, 0, data.byteLength, undefined, opts.canOwn);
 			FS.close(stream);
 		},
 		cwd: () => FS.currentPath,
@@ -4400,12 +4364,7 @@ export function init(RuntimeName, PHPLoader) {
 			var mode = FS_getMode(canRead, canWrite);
 			var node = FS.create(path, mode);
 			if (data) {
-				if (typeof data == 'string') {
-					var arr = new Array(data.length);
-					for (var i = 0, len = data.length; i < len; ++i)
-						arr[i] = data.charCodeAt(i);
-					data = arr;
-				}
+				data = FS_fileDataToTypedArray(data);
 				// make sure we can write to the file
 				FS.chmod(node, mode | 146);
 				var stream = FS.open(node, 577);
@@ -4536,17 +4495,11 @@ export function init(RuntimeName, PHPLoader) {
 					var doXHR = (from, to) => {
 						if (from > to)
 							abort(
-								'invalid range (' +
-									from +
-									', ' +
-									to +
-									') or no bytes requested!'
+								`invalid range (${from}, ${to}) or no bytes requested!`
 							);
 						if (to > datalength - 1)
 							abort(
-								'only ' +
-									datalength +
-									' bytes available! programmer error!'
+								`only ${datalength} bytes available! programmer error!`
 							);
 						// TODO: Use mozResponseArrayBuffer, responseStream, etc. if available.
 						var xhr = new XMLHttpRequest();
@@ -4581,7 +4534,7 @@ export function init(RuntimeName, PHPLoader) {
 								/** @type{Array<number>} */ (xhr.response || [])
 							);
 						}
-						return intArrayFromString(xhr.responseText || '', true);
+						return intArrayFromString(xhr.responseText ?? '', true);
 					};
 					var lazyArray = this;
 					lazyArray.setDataGetter((chunkNum) => {
@@ -4783,7 +4736,7 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				registerDynCallSymbols(dso.exports);
 			} else if (!dso.global) {
-				// The library was previously loaded only locally but not
+				// The library was previously loaded only locally but now
 				// we have a request with global=true.
 				dso.global = true;
 				mergeLibSymbols(dso.exports, libName);
@@ -4895,6 +4848,8 @@ export function init(RuntimeName, PHPLoader) {
 					);
 				} else if (typeof value == 'number') {
 					entry.value = value;
+				} else if (typeof value.value == 'number') {
+					entry.value = value;
 				} else {
 					throw new Error(
 						`bad export type for '${symName}': ${typeof value} (${value})`
@@ -4909,7 +4864,6 @@ export function init(RuntimeName, PHPLoader) {
 			reportUndefinedSymbols();
 			return;
 		}
-		addRunDependency('loadDylibs');
 		// Load binaries asynchronously
 		for (var lib of dynamicLibraries) {
 			await loadDynamicLibrary(lib, {
@@ -4921,7 +4875,6 @@ export function init(RuntimeName, PHPLoader) {
 		}
 		// we got them all, wonderful
 		reportUndefinedSymbols();
-		removeRunDependency('loadDylibs');
 	};
 
 	var noExitRuntime = false;
@@ -4938,109 +4891,13 @@ export function init(RuntimeName, PHPLoader) {
 
 	___assert_fail.sig = 'vppip';
 
-	var ___asyncify_data = new WebAssembly.Global(
-		{
-			value: 'i32',
-			mutable: true,
-		},
-		0
-	);
-
-	var ___asyncify_state = new WebAssembly.Global(
-		{
-			value: 'i32',
-			mutable: true,
-		},
-		0
-	);
-
 	var ___call_sighandler = (fp, sig) => ((a1) => dynCall_vi(fp, a1))(sig);
 
 	___call_sighandler.sig = 'vpi';
 
-	var exceptionLast = 0;
-
-	class ExceptionInfo {
-		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-		constructor(excPtr) {
-			this.excPtr = excPtr;
-			this.ptr = excPtr - 24;
-		}
-		set_type(type) {
-			HEAPU32[(this.ptr + 4) >> 2] = type;
-		}
-		get_type() {
-			return HEAPU32[(this.ptr + 4) >> 2];
-		}
-		set_destructor(destructor) {
-			HEAPU32[(this.ptr + 8) >> 2] = destructor;
-		}
-		get_destructor() {
-			return HEAPU32[(this.ptr + 8) >> 2];
-		}
-		set_caught(caught) {
-			caught = caught ? 1 : 0;
-			HEAP8[this.ptr + 12] = caught;
-		}
-		get_caught() {
-			return HEAP8[this.ptr + 12] != 0;
-		}
-		set_rethrown(rethrown) {
-			rethrown = rethrown ? 1 : 0;
-			HEAP8[this.ptr + 13] = rethrown;
-		}
-		get_rethrown() {
-			return HEAP8[this.ptr + 13] != 0;
-		}
-		// Initialize native structure fields. Should be called once after allocated.
-		init(type, destructor) {
-			this.set_adjusted_ptr(0);
-			this.set_type(type);
-			this.set_destructor(destructor);
-		}
-		set_adjusted_ptr(adjustedPtr) {
-			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
-		}
-		get_adjusted_ptr() {
-			return HEAPU32[(this.ptr + 16) >> 2];
-		}
-	}
-
-	var setTempRet0 = (val) => __emscripten_tempret_set(val);
-
 	var findMatchingCatch = (args) => {
-		var thrown = exceptionLast;
-		if (!thrown) {
-			// just pass through the null ptr
-			setTempRet0(0);
-			return 0;
-		}
-		var info = new ExceptionInfo(thrown);
-		info.set_adjusted_ptr(thrown);
-		var thrownType = info.get_type();
-		if (!thrownType) {
-			// just pass through the thrown ptr
-			setTempRet0(0);
-			return thrown;
-		}
-		// can_catch receives a **, add indirection
-		// The different catch blocks are denoted by different types.
-		// Due to inheritance, those types may not precisely match the
-		// type of the thrown object. Find one which matches, and
-		// return the type of the catch block which should be called.
-		for (var caughtType of args) {
-			if (caughtType === 0 || caughtType === thrownType) {
-				// Catch all clause matched or exactly the same type is caught
-				break;
-			}
-			var adjusted_ptr_addr = info.ptr + 16;
-			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
-				setTempRet0(caughtType);
-				return thrown;
-			}
-		}
-		setTempRet0(thrownType);
-		return thrown;
+		setTempRet0(0);
+		return 0;
 	};
 
 	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
@@ -5048,10 +4905,7 @@ export function init(RuntimeName, PHPLoader) {
 	___cxa_find_matching_catch_2.sig = 'p';
 
 	var ___resumeException = (ptr) => {
-		if (!exceptionLast) {
-			exceptionLast = ptr;
-		}
-		throw exceptionLast;
+		abort();
 	};
 
 	___resumeException.sig = 'vp';
@@ -5066,8 +4920,8 @@ export function init(RuntimeName, PHPLoader) {
 			SOCKFS.callbacks[event]?.(param);
 		},
 		mount(mount) {
-			// The incomming Module['websocket'] can be used for configuring
-			// configuring subprotocol/url, etc
+			// The incoming Module['websocket'] can be used for configuring
+			// subprotocol/url, etc
 			SOCKFS.websocketArgs = Module['websocket'] || {};
 			// Add the Event registration mechanism to the exported websocket configuration
 			// object so we can register network callbacks from native JavaScript too.
@@ -5076,7 +4930,6 @@ export function init(RuntimeName, PHPLoader) {
 			return FS.createNode(null, '/', 16895, 0);
 		},
 		createSocket(family, type, protocol) {
-			// Emscripten only supports AF_INET
 			if (family != 2) {
 				throw new FS.ErrnoError(5);
 			}
@@ -5225,7 +5078,7 @@ export function init(RuntimeName, PHPLoader) {
 								parts.slice(1).join('/');
 						}
 						if (subProtocols !== 'null') {
-							// The regex trims the string (removes spaces at the beginning and end, then splits the string by
+							// The regex trims the string (removes spaces at the beginning and end), then splits the string by
 							// <any space>,<any space> into an Array. Whitespace removal is important for Websockify and ws.
 							subProtocols = subProtocols
 								.replace(/^ +| +$/g, '')
@@ -5294,7 +5147,7 @@ export function init(RuntimeName, PHPLoader) {
 			},
 			handlePeerEvents(sock, peer) {
 				var first = true;
-				var handleOpen = function () {
+				function handleOpen() {
 					sock.connecting = false;
 					SOCKFS.emit('open', sock.stream.fd);
 					try {
@@ -5308,7 +5161,7 @@ export function init(RuntimeName, PHPLoader) {
 						// lied and said this data was sent. shut it down.
 						peer.socket.close();
 					}
-				};
+				}
 				function handleMessage(data) {
 					if (typeof data == 'string') {
 						var encoder = new TextEncoder();
@@ -5338,7 +5191,7 @@ export function init(RuntimeName, PHPLoader) {
 						data[6] === 'r'.charCodeAt(0) &&
 						data[7] === 't'.charCodeAt(0)
 					) {
-						// update the peer's port and it's key in the peer map
+						// update the peer's port and its key in the peer map
 						var newport = (data[8] << 8) | data[9];
 						SOCKFS.websocket_sock_ops.removePeer(sock, peer);
 						peer.port = newport;
@@ -5353,17 +5206,18 @@ export function init(RuntimeName, PHPLoader) {
 					SOCKFS.emit('message', sock.stream.fd);
 				}
 				if (ENVIRONMENT_IS_NODE) {
+					// EventEmitter-style events use by ws library objects in Node.js).
 					peer.socket.on('open', handleOpen);
-					peer.socket.on('message', function (data, isBinary) {
+					peer.socket.on('message', (data, isBinary) => {
 						if (!isBinary) {
 							return;
 						}
 						handleMessage(new Uint8Array(data).buffer);
 					});
-					peer.socket.on('close', function () {
-						SOCKFS.emit('close', sock.stream.fd);
-					});
-					peer.socket.on('error', function (error) {
+					peer.socket.on('close', () =>
+						SOCKFS.emit('close', sock.stream.fd)
+					);
+					peer.socket.on('error', (error) => {
 						// Although the ws library may pass errors that may be more descriptive than
 						// ECONNREFUSED they are not necessarily the expected error code e.g.
 						// ENOTFOUND on getaddrinfo seems to be node.js specific, so using ECONNREFUSED
@@ -5376,28 +5230,23 @@ export function init(RuntimeName, PHPLoader) {
 							'ECONNREFUSED: Connection refused',
 						]);
 					});
-				} else {
-					peer.socket.onopen = handleOpen;
-					peer.socket.onclose = function () {
-						SOCKFS.emit('close', sock.stream.fd);
-					};
-					peer.socket.onmessage = function peer_socket_onmessage(
-						event
-					) {
-						handleMessage(event.data);
-					};
-					peer.socket.onerror = function (error) {
-						// The WebSocket spec only allows a 'simple event' to be thrown on error,
-						// so we only really know as much as ECONNREFUSED.
-						sock.error = 14;
-						// Used in getsockopt for SOL_SOCKET/SO_ERROR test.
-						SOCKFS.emit('error', [
-							sock.stream.fd,
-							sock.error,
-							'ECONNREFUSED: Connection refused',
-						]);
-					};
+					return;
 				}
+				peer.socket.onopen = handleOpen;
+				peer.socket.onclose = () =>
+					SOCKFS.emit('close', sock.stream.fd);
+				peer.socket.onmessage = (event) => handleMessage(event.data);
+				peer.socket.onerror = (error) => {
+					// The WebSocket spec only allows a 'simple event' to be thrown on error,
+					// so we only really know as much as ECONNREFUSED.
+					sock.error = 14;
+					// Used in getsockopt for SOL_SOCKET/SO_ERROR test.
+					SOCKFS.emit('error', [
+						sock.stream.fd,
+						sock.error,
+						'ECONNREFUSED: Connection refused',
+					]);
+				};
 			},
 			poll(sock) {
 				if (sock.type === 1 && sock.server) {
@@ -5571,7 +5420,7 @@ export function init(RuntimeName, PHPLoader) {
 				});
 				SOCKFS.emit('listen', sock.stream.fd);
 				// Send Event with listen fd.
-				sock.server.on('connection', function (ws) {
+				sock.server.on('connection', (ws) => {
 					if (sock.type === 1) {
 						var newsock = SOCKFS.createSocket(
 							sock.family,
@@ -5596,11 +5445,11 @@ export function init(RuntimeName, PHPLoader) {
 						SOCKFS.emit('connection', sock.stream.fd);
 					}
 				});
-				sock.server.on('close', function () {
+				sock.server.on('close', () => {
 					SOCKFS.emit('close', sock.stream.fd);
 					sock.server = null;
 				});
-				sock.server.on('error', function (error) {
+				sock.server.on('error', (error) => {
 					// Although the ws library may pass errors that may be more descriptive than
 					// ECONNREFUSED they are not necessarily the expected error code e.g.
 					// ENOTFOUND on getaddrinfo seems to be node.js specific, so using EHOSTUNREACH
@@ -5807,7 +5656,7 @@ export function init(RuntimeName, PHPLoader) {
 			str = str.replace('::', ':Z:');
 		}
 		if (str.indexOf('.') > 0) {
-			// parse IPv4 embedded stress
+			// parse IPv4 embedded address
 			str = str.replace(new RegExp('[.]', 'g'), ':');
 			words = str.split(':');
 			words[words.length - 4] =
@@ -5831,7 +5680,7 @@ export function init(RuntimeName, PHPLoader) {
 					}
 					offset = z - 1;
 				} else {
-					// parse hex to field to 16-bit value and write it in network byte-order
+					// parse hex field to 16-bit value and write it in network byte-order
 					parts[w + offset] = _htons(parseInt(words[w], 16));
 				}
 			} else {
@@ -5922,7 +5771,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	function ___syscall_accept4(fd, addr, addrlen, flags, d1, d2) {
+	function ___syscall_accept4(fd, addr, len, flags, u1, u2) {
 		try {
 			var sock = getSocketFromFD(fd);
 			var newsock = sock.sock_ops.accept(sock);
@@ -5932,7 +5781,7 @@ export function init(RuntimeName, PHPLoader) {
 					newsock.family,
 					DNS.lookup_name(newsock.daddr),
 					newsock.dport,
-					addrlen
+					len
 				);
 			}
 			return newsock.stream.fd;
@@ -6007,7 +5856,7 @@ export function init(RuntimeName, PHPLoader) {
 			// IPv4-compatible IPv6 address if 16-bit value (bytes 11 and 12) == 0x0000 (6th word)
 			if (parts[5] === 0) {
 				str = '::';
-				//special case IPv6 addresses
+				// special case IPv6 addresses
 				if (v4part === '0.0.0.0') v4part = '';
 				// any/unspecified address
 				if (v4part === '0.0.0.1') v4part = '1';
@@ -6103,10 +5952,10 @@ export function init(RuntimeName, PHPLoader) {
 		return info;
 	};
 
-	function ___syscall_bind(fd, addr, addrlen, d1, d2, d3) {
+	function ___syscall_bind(fd, addr, len, u1, u2, u3) {
 		try {
 			var sock = getSocketFromFD(fd);
-			var info = getSocketAddress(addr, addrlen);
+			var info = getSocketAddress(addr, len);
 			sock.sock_ops.bind(sock, info.addr, info.port);
 			return 0;
 		} catch (e) {
@@ -6115,10 +5964,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	___syscall_bind.sig = 'iippiii';
+	___syscall_bind.sig = 'iipiiii';
 
 	var SYSCALLS = {
-		DEFAULT_POLLMASK: 5,
+		currentUmask: 18,
 		calculateAt(dirfd, path, allowEmpty) {
 			if (PATH.isAbs(path)) {
 				return path;
@@ -6182,7 +6031,7 @@ export function init(RuntimeName, PHPLoader) {
 				// MAP_PRIVATE calls need not to be synced back to underlying fs
 				return 0;
 			}
-			var buffer = HEAPU8.slice(addr, addr + len);
+			var buffer = HEAPU8.subarray(addr, addr + len);
 			FS.msync(stream, buffer, offset, len, flags);
 		},
 		getStreamFromFD(fd) {
@@ -6898,7 +6747,7 @@ export function init(RuntimeName, PHPLoader) {
 		return _wasm_connect(sockfd, addr, addrlen);
 	}
 
-	___syscall_connect.sig = 'iippiii';
+	___syscall_connect.sig = 'iipiiii';
 
 	function ___syscall_dup(fd) {
 		try {
@@ -6914,13 +6763,18 @@ export function init(RuntimeName, PHPLoader) {
 
 	function ___syscall_dup3(fd, newfd, flags) {
 		try {
+			if (fd === newfd) return -28;
+			if (flags & ~524288) return -28;
 			var old = SYSCALLS.getStreamFromFD(fd);
-			if (old.fd === newfd) return -28;
 			// Check newfd is within range of valid open file descriptors.
 			if (newfd < 0 || newfd >= FS.MAX_OPEN_FDS) return -8;
 			var existing = FS.getStream(newfd);
 			if (existing) FS.close(existing);
-			return FS.dupStream(old, newfd).fd;
+			var stream = FS.dupStream(old, newfd);
+			if (flags & 524288) {
+				stream.flags |= 524288;
+			}
+			return stream.fd;
 		} catch (e) {
 			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
 			return -e.errno;
@@ -6971,7 +6825,7 @@ export function init(RuntimeName, PHPLoader) {
 		offset = bigintToI53Checked(offset);
 		len = bigintToI53Checked(len);
 		try {
-			if (isNaN(offset) || isNaN(len)) return -61;
+			if (isNaN(offset) || isNaN(len)) return -22;
 			if (mode != 0) {
 				return -138;
 			}
@@ -7091,7 +6945,8 @@ export function init(RuntimeName, PHPLoader) {
 
 				case 4: {
 					var arg = syscallGetVarargI();
-					stream.flags |= arg;
+					var mask = 289792;
+					stream.flags = (stream.flags & ~mask) | (arg & mask);
 					return 0;
 				}
 
@@ -7153,7 +7008,7 @@ export function init(RuntimeName, PHPLoader) {
 	function ___syscall_ftruncate64(fd, length) {
 		length = bigintToI53Checked(length);
 		try {
-			if (isNaN(length)) return -61;
+			if (isNaN(length)) return -22;
 			FS.ftruncate(fd, length);
 			return 0;
 		} catch (e) {
@@ -7219,11 +7074,11 @@ export function init(RuntimeName, PHPLoader) {
 					}
 					id = child.id;
 					type = FS.isChrdev(child.mode)
-						? 2 // DT_CHR, character device.
+						? 2 // character device.
 						: FS.isDir(child.mode)
-							? 4 // DT_DIR, directory.
+							? 4 // directory
 							: FS.isLink(child.mode)
-								? 10 // DT_LNK, symbolic link.
+								? 10 // symbolic link.
 								: 8;
 				}
 				HEAP64[(dirp + pos) >> 3] = BigInt(id);
@@ -7243,7 +7098,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_getdents64.sig = 'iipp';
 
-	function ___syscall_getpeername(fd, addr, addrlen, d1, d2, d3) {
+	function ___syscall_getpeername(fd, addr, len, u1, u2, u3) {
 		try {
 			var sock = getSocketFromFD(fd);
 			if (!sock.daddr) {
@@ -7254,7 +7109,7 @@ export function init(RuntimeName, PHPLoader) {
 				sock.family,
 				DNS.lookup_name(sock.daddr),
 				sock.dport,
-				addrlen
+				len
 			);
 			return 0;
 		} catch (e) {
@@ -7265,7 +7120,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_getpeername.sig = 'iippiii';
 
-	function ___syscall_getsockname(fd, addr, addrlen, d1, d2, d3) {
+	function ___syscall_getsockname(fd, addr, len, u1, u2, u3) {
 		try {
 			var sock = getSocketFromFD(fd);
 			// TODO: sock.saddr should never be undefined, see TODO in websocket_sock_ops.getname
@@ -7274,7 +7129,7 @@ export function init(RuntimeName, PHPLoader) {
 				sock.family,
 				DNS.lookup_name(sock.saddr || '0.0.0.0'),
 				sock.sport,
-				addrlen
+				len
 			);
 			return 0;
 		} catch (e) {
@@ -7285,7 +7140,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_getsockname.sig = 'iippiii';
 
-	function ___syscall_getsockopt(fd, level, optname, optval, optlen, d1) {
+	function ___syscall_getsockopt(fd, level, optname, optval, optlen, unused) {
 		try {
 			var sock = getSocketFromFD(fd);
 			// Minimal getsockopt aimed at resolving https://github.com/emscripten-core/emscripten/issues/2211
@@ -7424,7 +7279,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_ioctl.sig = 'iiip';
 
-	function ___syscall_listen(fd, backlog) {
+	function ___syscall_listen(fd, backlog, u1, u2, u3, u4) {
 		try {
 			var sock = getSocketFromFD(fd);
 			sock.sock_ops.listen(sock, backlog);
@@ -7453,6 +7308,7 @@ export function init(RuntimeName, PHPLoader) {
 		try {
 			path = SYSCALLS.getStr(path);
 			path = SYSCALLS.calculateAt(dirfd, path);
+			mode &= ~SYSCALLS.currentUmask;
 			FS.mkdir(path, mode, 0);
 			return 0;
 		} catch (e) {
@@ -7488,6 +7344,9 @@ export function init(RuntimeName, PHPLoader) {
 			path = SYSCALLS.getStr(path);
 			path = SYSCALLS.calculateAt(dirfd, path);
 			var mode = varargs ? syscallGetVarargI() : 0;
+			if (flags & 64) {
+				mode &= ~SYSCALLS.currentUmask;
+			}
 			return FS.open(path, flags, mode).fd;
 		} catch (e) {
 			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
@@ -7511,6 +7370,21 @@ export function init(RuntimeName, PHPLoader) {
 				// able to read from the read end after write end is closed.
 				refcnt: 2,
 				timestamp: new Date(),
+				readableHandlers: [],
+				registerReadableHandler: (callback) => {
+					callback.registerCleanupFunc(() => {
+						const i = pipe.readableHandlers.indexOf(callback);
+						if (i !== -1) pipe.readableHandlers.splice(i, 1);
+					});
+					pipe.readableHandlers.push(callback);
+				},
+				notifyReadableHandlers: () => {
+					while (pipe.readableHandlers.length > 0) {
+						const cb = pipe.readableHandlers.shift();
+						if (cb) cb(64 | 1);
+					}
+					pipe.readableHandlers = [];
+				},
 			};
 			pipe.buckets.push({
 				buffer: new Uint8Array(PIPEFS.BUCKET_BUFFER_SIZE),
@@ -7564,7 +7438,7 @@ export function init(RuntimeName, PHPLoader) {
 					blocks: 0,
 				};
 			},
-			poll(stream) {
+			poll(stream, timeout, notifyCallback) {
 				var pipe = stream.node.pipe;
 				if ((stream.flags & 2097155) === 1) {
 					return 256 | 4;
@@ -7574,12 +7448,23 @@ export function init(RuntimeName, PHPLoader) {
 						return 64 | 1;
 					}
 				}
+				if (notifyCallback)
+					pipe.registerReadableHandler(notifyCallback);
 				return 0;
 			},
 			dup(stream) {
 				stream.node.pipe.refcnt++;
 			},
-			ioctl(stream, request, varargs) {
+			ioctl(stream, request, argp) {
+				if (request == 21531) {
+					var pipe = stream.node.pipe;
+					var currentLength = 0;
+					for (var bucket of pipe.buckets) {
+						currentLength += bucket.offset - bucket.roffset;
+					}
+					HEAP32[argp >> 2] = currentLength;
+					return 0;
+				}
 				return 28;
 			},
 			fsync(stream) {
@@ -7663,6 +7548,7 @@ export function init(RuntimeName, PHPLoader) {
 				if (freeBytesInCurrBuffer >= dataLen) {
 					currBucket.buffer.set(data, currBucket.offset);
 					currBucket.offset += dataLen;
+					pipe.notifyReadableHandlers();
 					return dataLen;
 				} else if (freeBytesInCurrBuffer > 0) {
 					currBucket.buffer.set(
@@ -7702,6 +7588,7 @@ export function init(RuntimeName, PHPLoader) {
 					pipe.buckets.push(newBucket);
 					newBucket.buffer.set(data);
 				}
+				pipe.notifyReadableHandlers();
 				return dataLen;
 			},
 			close(stream) {
@@ -7720,12 +7607,20 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	function ___syscall_pipe(fdPtr) {
+	function ___syscall_pipe2(fdPtr, flags) {
 		try {
 			if (fdPtr == 0) {
 				throw new FS.ErrnoError(21);
 			}
+			var validFlags = 524288 | 2048;
+			if (flags & ~validFlags) {
+				throw new FS.ErrnoError(138);
+			}
 			var res = PIPEFS.createPipe();
+			if (flags & 2048) {
+				FS.getStream(res.readable_fd).flags |= 2048;
+				FS.getStream(res.writable_fd).flags |= 2048;
+			}
 			HEAP32[fdPtr >> 2] = res.readable_fd;
 			HEAP32[(fdPtr + 4) >> 2] = res.writable_fd;
 			return 0;
@@ -7735,35 +7630,69 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	___syscall_pipe.sig = 'ip';
+	___syscall_pipe2.sig = 'ipi';
 
 	function ___syscall_poll(fds, nfds, timeout) {
-		try {
-			var nonzero = 0;
-			for (var i = 0; i < nfds; i++) {
-				var pollfd = fds + 8 * i;
-				var fd = HEAP32[pollfd >> 2];
-				var events = HEAP16[(pollfd + 4) >> 1];
-				var mask = 32;
-				var stream = FS.getStream(fd);
-				if (stream) {
-					mask = SYSCALLS.DEFAULT_POLLMASK;
-					if (stream.stream_ops?.poll) {
-						mask = stream.stream_ops.poll(stream, -1);
-					}
+		var nonzero = 0;
+		for (var i = 0; i < nfds; i++) {
+			var pollfd = fds + 8 * i;
+			var fd = HEAP32[pollfd >> 2];
+			var events = HEAP16[(pollfd + 4) >> 1];
+			var mask = Number('32');
+			var stream = FS.getStream(fd);
+			if (stream) {
+				mask = SYSCALLS.DEFAULT_POLLMASK;
+				if (stream.stream_ops?.poll) {
+					mask = stream.stream_ops.poll(stream, -1);
 				}
-				mask &= events | 8 | 16;
-				if (mask) nonzero++;
-				HEAP16[(pollfd + 6) >> 1] = mask;
 			}
-			return nonzero;
+			mask &= events | Number('8') | Number('16');
+			if (mask) nonzero++;
+			HEAP16[(pollfd + 6) >> 1] = mask;
+		}
+		return nonzero;
+	}
+
+	___syscall_poll.sig = 'ipii';
+
+	var doPoll = (fds, nfds, timeout, makeNotifyCallback) => {
+		var count = 0;
+		for (var i = 0; i < nfds; i++) {
+			var pollfd = fds + 8 * i;
+			var fd = HEAP32[pollfd >> 2];
+			var events = HEAP16[(pollfd + 4) >> 1];
+			var flags = 32;
+			var stream = FS.getStream(fd);
+			if (stream) {
+				if (stream.stream_ops?.poll) {
+					flags = timeout
+						? stream.stream_ops.poll(
+								stream,
+								timeout,
+								makeNotifyCallback(stream, pollfd)
+							)
+						: stream.stream_ops.poll(stream, -1);
+				} else {
+					flags = 5;
+				}
+			}
+			flags &= events | 8 | 16 | 32;
+			if (flags) count++;
+			HEAP16[(pollfd + 6) >> 1] = flags;
+		}
+		return count;
+	};
+
+	function ___syscall_poll_nonblocking(fds, nfds) {
+		try {
+			return doPoll(fds, nfds, 0, undefined);
 		} catch (e) {
 			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
 			return -e.errno;
 		}
 	}
 
-	___syscall_poll.sig = 'ipii';
+	___syscall_poll_nonblocking.sig = 'ipi';
 
 	function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
 		try {
@@ -7786,7 +7715,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_readlinkat.sig = 'iippp';
 
-	function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
+	function ___syscall_recvfrom(fd, buf, len, flags, addr, alen) {
 		try {
 			var sock = getSocketFromFD(fd);
 			var msg = sock.sock_ops.recvmsg(
@@ -7802,7 +7731,7 @@ export function init(RuntimeName, PHPLoader) {
 					sock.family,
 					DNS.lookup_name(msg.addr),
 					msg.port,
-					addrlen
+					alen
 				);
 			}
 			HEAPU8.set(msg.buffer, buf);
@@ -7844,20 +7773,58 @@ export function init(RuntimeName, PHPLoader) {
 
 	___syscall_rmdir.sig = 'ip';
 
-	function ___syscall_sendto(fd, message, length, flags, addr, addr_len) {
+	function ___syscall_sendmsg(fd, message, flags, u1, u2, u3) {
+		try {
+			var sock = getSocketFromFD(fd);
+			var iov = HEAPU32[(message + 8) >> 2];
+			var num = HEAP32[(message + 12) >> 2];
+			// read the address and port to send to
+			var addr, port;
+			var name = HEAPU32[message >> 2];
+			var namelen = HEAP32[(message + 4) >> 2];
+			if (name) {
+				var info = getSocketAddress(name, namelen);
+				port = info.port;
+				addr = info.addr;
+			}
+			// concatenate scatter-gather arrays into one message buffer
+			var total = 0;
+			for (var i = 0; i < num; i++) {
+				total += HEAP32[(iov + (8 * i + 4)) >> 2];
+			}
+			var view = new Uint8Array(total);
+			var offset = 0;
+			for (var i = 0; i < num; i++) {
+				var iovbase = HEAPU32[(iov + (8 * i + 0)) >> 2];
+				var iovlen = HEAP32[(iov + (8 * i + 4)) >> 2];
+				for (var j = 0; j < iovlen; j++) {
+					view[offset++] = HEAP8[iovbase + j];
+				}
+			}
+			// write the buffer
+			return sock.sock_ops.sendmsg(sock, view, 0, total, addr, port);
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+
+	___syscall_sendmsg.sig = 'iipiiii';
+
+	function ___syscall_sendto(fd, buf, len, flags, addr, alen) {
 		try {
 			var sock = getSocketFromFD(fd);
 			if (!addr) {
 				// send, no address provided
-				return FS.write(sock.stream, HEAP8, message, length);
+				return FS.write(sock.stream, HEAP8, buf, len);
 			}
-			var dest = getSocketAddress(addr, addr_len);
+			var dest = getSocketAddress(addr, alen);
 			// sendto an address
 			return sock.sock_ops.sendmsg(
 				sock,
 				HEAP8,
-				message,
-				length,
+				buf,
+				len,
 				dest.addr,
 				dest.port
 			);
@@ -7867,9 +7834,34 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	___syscall_sendto.sig = 'iippipp';
+	___syscall_sendto.sig = 'iippipi';
 
-	function ___syscall_socket(domain, type, protocol) {
+	function ___syscall_setsockopt(fd, level, optname, optval, optlen, unused) {
+		try {
+			getSocketFromFD(fd);
+			// validate the fd (and keep this syscall's catch reachable)
+			return -50;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+
+	___syscall_setsockopt.sig = 'iiiipii';
+
+	function ___syscall_shutdown(fd, how, u1, u2, u3, u4) {
+		try {
+			var sock = getSocketFromFD(fd);
+			return -52;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+
+	___syscall_shutdown.sig = 'iiiiiii';
+
+	function ___syscall_socket(domain, type, protocol, u1, u2, u3) {
 		try {
 			var sock = SOCKFS.createSocket(domain, type, protocol);
 			return sock.stream.fd;
@@ -7919,6 +7911,19 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	___syscall_symlinkat.sig = 'ipip';
+
+	function ___syscall_umask(mask) {
+		try {
+			var old = SYSCALLS.currentUmask;
+			SYSCALLS.currentUmask = mask;
+			return old;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+
+	___syscall_umask.sig = 'ii';
 
 	function ___syscall_unlinkat(dirfd, path, flags) {
 		try {
@@ -8067,8 +8072,8 @@ export function init(RuntimeName, PHPLoader) {
 			if (addr) {
 				result = addr;
 			} else {
-				// Insert the function into the wasm table.  If its a direct wasm
-				// function the second argument will not be needed.  If its a JS
+				// Insert the function into the wasm table.  If it's a direct wasm
+				// function the second argument will not be needed.  If it's a JS
 				// function we rely on the `sig` attribute being set based on the
 				// `<func>__sig` specified in library JS file.
 				result = addFunction(result, result.sig);
@@ -8104,7 +8109,7 @@ export function init(RuntimeName, PHPLoader) {
 			var cmdstr = UTF8ToString(command);
 			if (!cmdstr.length) return 0;
 			// this is what glibc seems to do (shell works test?)
-			var cp = require('child_process');
+			var cp = require('node:child_process');
 			var ret = cp.spawnSync(cmdstr, [], {
 				shell: true,
 				stdio: 'inherit',
@@ -8153,7 +8158,7 @@ export function init(RuntimeName, PHPLoader) {
 	__emscripten_system.sig = 'ip';
 
 	var __emscripten_throw_longjmp = () => {
-		throw Infinity;
+		throw new EmscriptenSjLj();
 	};
 
 	__emscripten_throw_longjmp.sig = 'v';
@@ -8161,6 +8166,9 @@ export function init(RuntimeName, PHPLoader) {
 	function __gmtime_js(time, tmPtr) {
 		time = bigintToI53Checked(time);
 		var date = new Date(time * 1e3);
+		if (isNaN(date.getTime())) {
+			return 1;
+		}
 		HEAP32[tmPtr >> 2] = date.getUTCSeconds();
 		HEAP32[(tmPtr + 4) >> 2] = date.getUTCMinutes();
 		HEAP32[(tmPtr + 8) >> 2] = date.getUTCHours();
@@ -8171,9 +8179,10 @@ export function init(RuntimeName, PHPLoader) {
 		var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
 		var yday = ((date.getTime() - start) / (1e3 * 60 * 60 * 24)) | 0;
 		HEAP32[(tmPtr + 28) >> 2] = yday;
+		return 0;
 	}
 
-	__gmtime_js.sig = 'vjp';
+	__gmtime_js.sig = 'ijp';
 
 	var isLeapYear = (year) =>
 		year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -8199,6 +8208,9 @@ export function init(RuntimeName, PHPLoader) {
 	function __localtime_js(time, tmPtr) {
 		time = bigintToI53Checked(time);
 		var date = new Date(time * 1e3);
+		if (isNaN(date.getTime())) {
+			return 1;
+		}
 		HEAP32[tmPtr >> 2] = date.getSeconds();
 		HEAP32[(tmPtr + 4) >> 2] = date.getMinutes();
 		HEAP32[(tmPtr + 8) >> 2] = date.getHours();
@@ -8222,9 +8234,10 @@ export function init(RuntimeName, PHPLoader) {
 				date.getTimezoneOffset() ==
 					Math.min(winterOffset, summerOffset)) | 0;
 		HEAP32[(tmPtr + 32) >> 2] = dst;
+		return 0;
 	}
 
-	__localtime_js.sig = 'vjp';
+	__localtime_js.sig = 'ijp';
 
 	var __mktime_js = function (tmPtr) {
 		var ret = (() => {
@@ -8237,6 +8250,9 @@ export function init(RuntimeName, PHPLoader) {
 				HEAP32[tmPtr >> 2],
 				0
 			);
+			if (isNaN(date.getTime())) {
+				return -1;
+			}
 			// There's an ambiguous hour when the time goes back; the tm_isdst field is
 			// used to disambiguate it.  Date() basically guesses, so we fix it up if it
 			// guessed wrong, or fill in tm_isdst with the guess if it's -1.
@@ -8253,7 +8269,7 @@ export function init(RuntimeName, PHPLoader) {
 			// DST is in December in South
 			if (dst < 0) {
 				// Attention: some regions don't have DST at all.
-				HEAP32[(tmPtr + 32) >> 2] = Number(
+				dst = Number(
 					summerOffset != winterOffset && dstOffset == guessedOffset
 				);
 			} else if (dst > 0 != (dstOffset == guessedOffset)) {
@@ -8263,7 +8279,11 @@ export function init(RuntimeName, PHPLoader) {
 				date.setTime(
 					date.getTime() + (trueOffset - guessedOffset) * 6e4
 				);
+				if (isNaN(date.getTime())) {
+					return -1;
+				}
 			}
+			HEAP32[(tmPtr + 32) >> 2] = dst;
 			HEAP32[(tmPtr + 24) >> 2] = date.getDay();
 			var yday = ydayFromDate(date) | 0;
 			HEAP32[(tmPtr + 28) >> 2] = yday;
@@ -8274,12 +8294,8 @@ export function init(RuntimeName, PHPLoader) {
 			HEAP32[(tmPtr + 12) >> 2] = date.getDate();
 			HEAP32[(tmPtr + 16) >> 2] = date.getMonth();
 			HEAP32[(tmPtr + 20) >> 2] = date.getYear();
-			var timeMs = date.getTime();
-			if (isNaN(timeMs)) {
-				return -1;
-			}
-			// Return time in microseconds
-			return timeMs / 1e3;
+			// Return time in seconds
+			return date.getTime() / 1e3;
 		})();
 		return BigInt(ret);
 	};
@@ -8319,6 +8335,12 @@ export function init(RuntimeName, PHPLoader) {
 	__munmap_js.sig = 'ippiiij';
 
 	var timers = {};
+
+	var clearTimers = () => {
+		for (var t of Object.values(timers)) {
+			clearTimeout(t.id);
+		}
+	};
 
 	var handleException = (e) => {
 		// Certain exception types we do not treat as errors since they are used for
@@ -8378,10 +8400,11 @@ export function init(RuntimeName, PHPLoader) {
 			return;
 		}
 		try {
-			func();
-			maybeExit();
+			return func();
 		} catch (e) {
 			handleException(e);
+		} finally {
+			maybeExit();
 		}
 	};
 
@@ -8563,28 +8586,10 @@ export function init(RuntimeName, PHPLoader) {
 
 	_emscripten_resize_heap.sig = 'ip';
 
-	var runtimeKeepalivePush = () => {
-		runtimeKeepaliveCounter += 1;
+	var _emscripten_sleep = function (ms) {
+		let innerFunc = () => new Promise((resolve) => setTimeout(resolve, ms));
+		return Asyncify.handleAsync(innerFunc);
 	};
-
-	runtimeKeepalivePush.sig = 'v';
-
-	var runtimeKeepalivePop = () => {
-		runtimeKeepaliveCounter -= 1;
-	};
-
-	runtimeKeepalivePop.sig = 'v';
-
-	/** @param {number=} timeout */ var safeSetTimeout = (func, timeout) => {
-		runtimeKeepalivePush();
-		return setTimeout(() => {
-			runtimeKeepalivePop();
-			callUserCallback(func);
-		}, timeout);
-	};
-
-	var _emscripten_sleep = (ms) =>
-		Asyncify.handleSleep((wakeUp) => safeSetTimeout(wakeUp, ms));
 
 	_emscripten_sleep.sig = 'vi';
 
@@ -8592,17 +8597,14 @@ export function init(RuntimeName, PHPLoader) {
 
 	var ENV = PHPLoader.ENV || {};
 
-	var getExecutableName = () => thisProgram || './this.program';
+	var getExecutableName = () => thisProgram;
 
 	var getEnvStrings = () => {
 		if (!getEnvStrings.strings) {
 			// Default values.
-			// Browser language detection #8751
 			var lang =
-				(
-					(typeof navigator == 'object' && navigator.language) ||
-					'C'
-				).replace('-', '_') + '.UTF-8';
+				(globalThis.navigator?.language ?? 'C').replace('-', '_') +
+				'.UTF-8';
 			var env = {
 				USER: 'web_user',
 				LOGNAME: 'web_user',
@@ -8712,7 +8714,7 @@ export function init(RuntimeName, PHPLoader) {
 	function _fd_pread(fd, iov, iovcnt, offset, pnum) {
 		offset = bigintToI53Checked(offset);
 		try {
-			if (isNaN(offset)) return 61;
+			if (isNaN(offset)) return 22;
 			var stream = SYSCALLS.getStreamFromFD(fd);
 			var num = doReadv(stream, iov, iovcnt, offset);
 			HEAPU32[pnum >> 2] = num;
@@ -8753,7 +8755,7 @@ export function init(RuntimeName, PHPLoader) {
 	function _fd_pwrite(fd, iov, iovcnt, offset, pnum) {
 		offset = bigintToI53Checked(offset);
 		try {
-			if (isNaN(offset)) return 61;
+			if (isNaN(offset)) return 22;
 			var stream = SYSCALLS.getStreamFromFD(fd);
 			var num = doWritev(stream, iov, iovcnt, offset);
 			HEAPU32[pnum >> 2] = num;
@@ -8783,7 +8785,7 @@ export function init(RuntimeName, PHPLoader) {
 	function _fd_seek(fd, offset, whence, newOffset) {
 		offset = bigintToI53Checked(offset);
 		try {
-			if (isNaN(offset)) return 61;
+			if (isNaN(offset)) return 22;
 			var stream = SYSCALLS.getStreamFromFD(fd);
 			FS.llseek(stream, offset, whence);
 			HEAP64[newOffset >> 3] = BigInt(stream.position);
@@ -8800,23 +8802,19 @@ export function init(RuntimeName, PHPLoader) {
 	_fd_seek.sig = 'iijip';
 
 	var _fd_sync = function (fd) {
-		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			return Asyncify.handleSleep((wakeUp) => {
-				var mount = stream.node.mount;
-				if (!mount.type.syncfs) {
-					// We write directly to the file system, so there's nothing to do here.
-					wakeUp(0);
-					return;
-				}
-				mount.type.syncfs(mount, false, (err) => {
-					wakeUp(err ? 29 : 0);
-				});
+		var stream = SYSCALLS.getStreamFromFD(fd);
+		return Asyncify.handleSleep((wakeUp) => {
+			var mount = stream.node.mount;
+			if (!mount.type.syncfs) {
+				// We write directly to the file system, so there's
+				// nothing to do here.
+				wakeUp(0);
+				return;
+			}
+			mount.type.syncfs(mount, false, (err) => {
+				wakeUp(err ? Number('29') : 0);
 			});
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
+		});
 	};
 
 	_fd_sync.sig = 'ii';
@@ -9499,15 +9497,8 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _makecontext = () => abort('missing function: ${name}');
 
-	function _random_get(buffer, size) {
-		try {
-			randomFill(HEAPU8.subarray(buffer, buffer + size));
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
+	var _random_get = (buffer, size) =>
+		randomFill(HEAPU8.subarray(buffer, buffer + size));
 
 	_random_get.sig = 'ipp';
 
@@ -9825,17 +9816,17 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			}
 			/*
-        tm_sec  int seconds after the minute  0-61*
-        tm_min  int minutes after the hour  0-59
-        tm_hour int hours since midnight  0-23
-        tm_mday int day of the month  1-31
-        tm_mon  int months since January  0-11
-        tm_year int years since 1900
-        tm_wday int days since Sunday 0-6
-        tm_yday int days since January 1  0-365
-        tm_isdst  int Daylight Saving Time flag
-        tm_gmtoff long offset from GMT (seconds)
-        */ var fullDate = new Date(
+      tm_sec  int seconds after the minute  0-61*
+      tm_min  int minutes after the hour  0-59
+      tm_hour int hours since midnight  0-23
+      tm_mday int day of the month  1-31
+      tm_mon  int months since January  0-11
+      tm_year int years since 1900
+      tm_wday int days since Sunday 0-6
+      tm_yday int days since January 1  0-365
+      tm_isdst  int Daylight Saving Time flag
+      tm_gmtoff long offset from GMT (seconds)
+      */ var fullDate = new Date(
 				date.year,
 				date.month,
 				date.day,
@@ -9940,6 +9931,18 @@ export function init(RuntimeName, PHPLoader) {
 			abort(e);
 		}
 	};
+
+	var runtimeKeepalivePush = () => {
+		runtimeKeepaliveCounter += 1;
+	};
+
+	runtimeKeepalivePush.sig = 'v';
+
+	var runtimeKeepalivePop = () => {
+		runtimeKeepaliveCounter -= 1;
+	};
+
+	runtimeKeepalivePop.sig = 'v';
 
 	var Asyncify = {
 		instrumentWasmImports(imports) {
@@ -10112,7 +10115,7 @@ export function init(RuntimeName, PHPLoader) {
 						// `Asyncify.handleSleepReturnValue`.
 						// `Asyncify.handleSleepReturnValue` contains the return
 						// value of the last C function to have executed
-						// `Asyncify.handleSleep()`, where as `asyncWasmReturnValue`
+						// `Asyncify.handleSleep()`, whereas `asyncWasmReturnValue`
 						// contains the return value of the exported WASM function
 						// that may have called C functions that
 						// call `Asyncify.handleSleep()`.
@@ -10171,9 +10174,9 @@ export function init(RuntimeName, PHPLoader) {
 			return Asyncify.handleSleepReturnValue;
 		},
 		handleAsync: (startAsync) =>
-			Asyncify.handleSleep((wakeUp) => {
+			Asyncify.handleSleep(async (wakeUp) => {
 				// TODO: add error handling as a second param when handleSleep implements it.
-				startAsync().then(wakeUp);
+				wakeUp(await startAsync());
 			}),
 	};
 
@@ -10262,11 +10265,59 @@ export function init(RuntimeName, PHPLoader) {
 
 	var FS_createDevice = (...args) => FS.createDevice(...args);
 
+	var setTempRet0 = (val) => __emscripten_tempret_set(val);
+
 	var _setTempRet0 = setTempRet0;
 
 	var getTempRet0 = (val) => __emscripten_tempret_get();
 
 	var _getTempRet0 = getTempRet0;
+
+	class ExceptionInfo {
+		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
+		constructor(excPtr) {
+			this.excPtr = excPtr;
+			this.ptr = excPtr - 24;
+		}
+		set_type(type) {
+			HEAPU32[(this.ptr + 4) >> 2] = type;
+		}
+		get_type() {
+			return HEAPU32[(this.ptr + 4) >> 2];
+		}
+		set_destructor(destructor) {
+			HEAPU32[(this.ptr + 8) >> 2] = destructor;
+		}
+		get_destructor() {
+			return HEAPU32[(this.ptr + 8) >> 2];
+		}
+		set_caught(caught) {
+			caught = caught ? 1 : 0;
+			HEAP8[this.ptr + 12] = caught;
+		}
+		get_caught() {
+			return HEAP8[this.ptr + 12] != 0;
+		}
+		set_rethrown(rethrown) {
+			rethrown = rethrown ? 1 : 0;
+			HEAP8[this.ptr + 13] = rethrown;
+		}
+		get_rethrown() {
+			return HEAP8[this.ptr + 13] != 0;
+		}
+		// Initialize native structure fields. Should be called once after allocated.
+		init(type, destructor) {
+			this.set_adjusted_ptr(0);
+			this.set_type(type);
+			this.set_destructor(destructor);
+		}
+		set_adjusted_ptr(adjustedPtr) {
+			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
+		}
+		get_adjusted_ptr() {
+			return HEAPU32[(this.ptr + 16) >> 2];
+		}
+	}
 
 	var uncaughtExceptionCount = 0;
 
@@ -10274,9 +10325,8 @@ export function init(RuntimeName, PHPLoader) {
 		var info = new ExceptionInfo(ptr);
 		// Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
 		info.init(type, destructor);
-		exceptionLast = ptr;
 		uncaughtExceptionCount++;
-		throw exceptionLast;
+		abort();
 	};
 
 	___cxa_throw.sig = 'vppp';
@@ -10340,22 +10390,23 @@ export function init(RuntimeName, PHPLoader) {
 	// but before the wasm module is created.
 	{
 		// Begin ATMODULES hooks
-		if (Module['preloadPlugins']) preloadPlugins = Module['preloadPlugins'];
 		if (Module['noExitRuntime']) noExitRuntime = Module['noExitRuntime'];
 		if (Module['print']) out = Module['print'];
 		if (Module['printErr']) err = Module['printErr'];
 		if (Module['dynamicLibraries'])
 			dynamicLibraries = Module['dynamicLibraries'];
-		if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 		// End ATMODULES hooks
-		if (Module['arguments']) arguments_ = Module['arguments'];
+		if (Module['arguments']) programArgs = Module['arguments'];
 		if (Module['thisProgram']) thisProgram = Module['thisProgram'];
 		if (Module['quit']) quit_ = Module['quit'];
-		if (Module['preInit']) {
-			if (typeof Module['preInit'] == 'function')
-				Module['preInit'] = [Module['preInit']];
-			while (Module['preInit'].length > 0) {
-				Module['preInit'].shift()();
+		var preInit = Module['preInit'];
+		if (preInit) {
+			if (typeof preInit == 'function')
+				Module['preInit'] = preInit = [preInit];
+			// Written as a loop so that preInit functions that themselves add more
+			// preInit functions.  Is this actually needed?
+			while (preInit.length > 0) {
+				preInit.shift()();
 			}
 		}
 	}
@@ -10400,10 +10451,6 @@ export function init(RuntimeName, PHPLoader) {
 	Module['FS'] = FS;
 
 	Module['___assert_fail'] = ___assert_fail;
-
-	Module['___asyncify_data'] = ___asyncify_data;
-
-	Module['___asyncify_state'] = ___asyncify_state;
 
 	Module['_exit'] = _exit;
 
@@ -10725,7 +10772,12 @@ export function init(RuntimeName, PHPLoader) {
 		_php_date_get_interface_ce,
 		_php_date_get_timezone_ce,
 		_get_timezone_info,
+		_php_hash_fetch_ops,
+		_php_random_bytes,
 		_php_combined_lcg,
+		_php_mt_rand_range,
+		_php_get_nan,
+		_php_get_inf,
 		_php_setcookie,
 		_php_escape_html_entities,
 		_php_info_print_table_header,
@@ -10733,9 +10785,18 @@ export function init(RuntimeName, PHPLoader) {
 		_php_info_print_table_start,
 		_php_info_print_table_end,
 		_php_info_print_table_colspan_header,
+		_PHP_MD5Final,
+		_PHP_MD5InitArgs,
+		_PHP_MD5Update,
 		_php_str_to_str,
 		_php_addcslashes_str,
 		_php_addcslashes,
+		_php_var_unserialize_init,
+		_php_var_unserialize_destroy,
+		_php_var_unserialize,
+		_php_var_serialize,
+		_php_var_serialize_init,
+		_php_var_serialize_destroy,
 		_php_printf,
 		_php_get_module_initialized,
 		_php_log_err_with_severity,
@@ -10749,17 +10810,31 @@ export function init(RuntimeName, PHPLoader) {
 		_ap_php_slprintf,
 		_ap_php_snprintf,
 		_ap_php_vsnprintf,
+		__php_stream_cast,
 		__php_stream_free,
+		__php_stream_read,
 		__php_stream_eof,
+		__php_stream_set_option,
+		__php_stream_write,
+		__php_stream_getc,
+		__php_stream_stat,
 		__php_stream_get_line,
+		__php_stream_seek,
 		__php_stream_open_wrapper_ex,
+		_php_stream_context_alloc,
+		_php_stream_context_set_option,
+		__php_stream_xport_create,
+		__emalloc_16,
 		__emalloc_24,
 		__emalloc_32,
 		__emalloc_40,
 		__emalloc_48,
 		__emalloc_56,
+		__emalloc_80,
+		__emalloc_96,
 		__emalloc_128,
 		__emalloc_160,
+		__emalloc_192,
 		__efree_56,
 		__emalloc,
 		__efree,
@@ -10774,9 +10849,11 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_set_memory_limit,
 		_zend_memory_usage,
 		_zend_memory_peak_usage,
+		___zend_calloc,
 		_zend_get_parameters_array_ex,
 		_zend_wrong_param_count,
 		_zend_zval_value_name,
+		_zend_zval_type_name,
 		_zend_wrong_parameters_none_error,
 		_zend_wrong_parameters_count_error,
 		_zend_wrong_parameter_error,
@@ -10788,6 +10865,7 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_flf_parse_arg_bool_slow,
 		_zend_parse_arg_long_slow,
 		_zend_flf_parse_arg_long_slow,
+		_zend_parse_arg_double_slow,
 		_zend_parse_arg_str_slow,
 		_zend_flf_parse_arg_str_slow,
 		_zend_parse_arg_str_or_long_slow,
@@ -10809,12 +10887,17 @@ export function init(RuntimeName, PHPLoader) {
 		_add_index_null,
 		_add_index_stringl,
 		_add_next_index_long,
+		_add_next_index_null,
+		_add_next_index_bool,
+		_add_next_index_double,
 		_add_next_index_str,
 		_add_next_index_string,
 		_add_next_index_stringl,
 		_zend_startup_module,
+		_zend_register_internal_class_ex,
 		_zend_register_internal_class_with_flags,
 		_zend_class_implements,
+		_zend_is_callable_ex,
 		_zend_fcall_info_init,
 		_zend_get_module_version,
 		_zend_declare_typed_property,
@@ -10823,6 +10906,9 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_try_assign_typed_ref_str,
 		_zend_try_assign_typed_ref_arr,
 		_zend_declare_typed_class_constant,
+		_zend_declare_class_constant_ex,
+		_zend_declare_class_constant_long,
+		_zend_declare_class_constant_bool,
 		_zend_update_property,
 		_zend_read_property_ex,
 		_zend_read_property,
@@ -10848,6 +10934,7 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_get_executed_filename,
 		_zend_get_executed_filename_ex,
 		_zend_get_executed_lineno,
+		__call_user_function_impl,
 		_zend_call_function,
 		_zend_call_known_function,
 		_zend_call_known_instance_method_with_2_params,
@@ -10872,35 +10959,66 @@ export function init(RuntimeName, PHPLoader) {
 		__zend_new_array,
 		_zend_hash_real_init_packed,
 		_zend_array_dup,
+		_zend_hash_add,
 		_zend_hash_update,
 		_zend_hash_str_update,
+		_zend_hash_index_add_empty_element,
+		_zend_hash_add_empty_element,
+		_zend_hash_str_add_empty_element,
 		_zend_hash_next_index_insert,
+		_zend_hash_next_index_insert_new,
 		_zend_hash_index_update,
+		_zend_hash_del,
+		_zend_hash_str_del,
+		_zend_hash_index_del,
 		_zend_hash_destroy,
 		_zend_array_destroy,
+		_zend_hash_clean,
+		_zend_hash_apply,
 		_zend_hash_apply_with_arguments,
 		_zend_hash_copy,
+		_zend_array_to_list,
 		_zend_hash_find,
 		_zend_hash_index_find,
+		_zend_hash_internal_pointer_reset_ex,
+		_zend_hash_move_forward_ex,
+		_zend_hash_get_current_key_ex,
+		_zend_hash_get_current_key_type_ex,
+		_zend_hash_get_current_data_ex,
 		_zend_hash_sort_ex,
 		__zend_handle_numeric_str_ex,
 		_zend_html_puts,
 		_zend_register_ini_entries_ex,
 		_zend_unregister_ini_entries_ex,
 		_zend_alter_ini_entry,
+		_zend_ini_long,
 		_zend_ini_string_ex,
 		_zend_ini_string,
 		_zend_ini_get_value,
 		_zend_ini_parse_quantity_warn,
 		_zend_ini_boolean_displayer_cb,
+		_display_link_numbers,
 		_OnUpdateBool,
 		_OnUpdateLong,
+		_OnUpdateLongGEZero,
+		_OnUpdateReal,
 		_OnUpdateString,
 		_OnUpdateStringUnempty,
 		_zend_call_method,
 		_zend_create_internal_iterator_zval,
 		_zend_iterator_init,
+		_zend_register_list_destructors_ex,
 		_zend_rsrc_list_get_rsrc_type,
+		_zend_register_persistent_resource,
+		_zend_llist_init,
+		_zend_llist_add_element,
+		_zend_llist_prepend_element,
+		_zend_llist_destroy,
+		_zend_llist_remove_tail,
+		_zend_llist_count,
+		_zend_llist_get_first_ex,
+		_zend_llist_get_last_ex,
+		_zend_llist_get_next_ex,
 		_zend_std_get_properties,
 		_zend_get_properties_no_lazy_init,
 		_zend_get_property_info,
@@ -10923,6 +11041,7 @@ export function init(RuntimeName, PHPLoader) {
 		__try_convert_to_string,
 		_zval_get_double_func,
 		_zval_get_string_func,
+		_zend_is_true,
 		_zend_binary_strcasecmp,
 		_numeric_compare_function,
 		_compare_function,
@@ -10935,6 +11054,8 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_sort,
 		_zend_string_concat3,
 		_zend_strtod,
+		_zend_freedtoa,
+		_zend_dtoa,
 		_rc_dtor_func,
 		_zval_ptr_dtor,
 		_zval_ptr_safe_dtor,
@@ -10947,6 +11068,7 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_strpprintf,
 		__zend_bailout,
 		_zend_error,
+		_zend_error_noreturn,
 		_zend_throw_error,
 		_zend_illegal_container_offset,
 		_zend_argument_count_error,
@@ -10977,6 +11099,7 @@ export function init(RuntimeName, PHPLoader) {
 		_isalnum,
 		_fwrite,
 		_strncmp,
+		_iscntrl,
 		_isxdigit,
 		_strtok_r,
 		_unlink,
@@ -10995,11 +11118,14 @@ export function init(RuntimeName, PHPLoader) {
 		_fseek,
 		_stat,
 		_gettimeofday,
+		_time,
+		_toupper,
 		_iprintf,
 		_puts,
 		_putchar,
 		_fopen,
 		_getcwd,
+		_lstat,
 		_open,
 		_rename,
 		_mkdir,
@@ -11024,28 +11150,42 @@ export function init(RuntimeName, PHPLoader) {
 		_log,
 		_log2,
 		_fmod,
+		_ispunct,
 		_setlocale,
 		_strerror,
+		_read,
 		_calloc,
 		_qsort,
 		_readdir,
 		_closedir,
 		_isdigit,
+		_isgraph,
+		_isspace,
 		_wasm_php_exec,
 		_socket,
+		_gai_strerror,
 		_freeaddrinfo,
 		_fcntl,
 		_connect,
+		_strerror_r,
 		_php_pollfd_for,
+		_getsockopt,
 		_htons,
 		_ntohs,
 		_getpeername,
+		_getsockname,
 		_htonl,
+		_send,
+		_shutdown,
 		_fputs,
 		_tzset,
+		_ntohl,
 		_wasm_sleep,
+		_atoll,
 		_fflush,
 		_expf,
+		_lseek,
+		_fputc,
 		___small_fprintf,
 		_vfprintf,
 		_abort,
@@ -11091,11 +11231,24 @@ export function init(RuntimeName, PHPLoader) {
 		_wasm_get_end_offset,
 		___wrap_getpid,
 		_wasm_trace,
+		_srandom,
+		_random,
+		_vsnprintf,
 		_sqlite3_auto_extension,
 		_sqlite3_cancel_auto_extension,
+		_pthread_mutex_init,
+		_pthread_mutex_destroy,
+		_pthread_mutex_lock,
+		_pthread_mutex_unlock,
+		_srand,
+		_rand,
 		_rewind,
 		_modf,
+		_atof,
 		_gmtime,
+		_pthread_cond_init,
+		_pthread_cond_destroy,
+		_pthread_cond_broadcast,
 		___extenddftf2,
 		___letf2,
 		___floatunditf,
@@ -11105,6 +11258,7 @@ export function init(RuntimeName, PHPLoader) {
 		___dl_seterr,
 		__emscripten_find_dylib,
 		_freopen,
+		_pthread_cond_timedwait,
 		_mbstowcs,
 		_emscripten_builtin_memalign,
 		__emscripten_timeout,
@@ -11126,9 +11280,9 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_allocate_exception,
 		___cxa_pure_virtual,
 		___dynamic_cast,
-		___cxa_can_catch,
 		__ZNSt20bad_array_new_lengthD1Ev,
 		__ZNSt12length_errorD1Ev,
+		_sendmsg,
 		dynCall_vii,
 		dynCall_vi,
 		dynCall_viiiii,
@@ -11215,14 +11369,66 @@ export function init(RuntimeName, PHPLoader) {
 		dynCall_iifi,
 		dynCall_viid,
 		dynCall_viidddddddd,
-		dynCall_iidiiii,
+		dynCall_iidiiiii,
 		_asyncify_start_unwind,
 		_asyncify_stop_unwind,
 		_asyncify_start_rewind,
 		_asyncify_stop_rewind,
 		memory,
 		___stack_pointer,
+		_spl_ce_RuntimeException,
+		_core_globals,
+		_php_ini_opened_path,
+		_php_ini_scanned_path,
+		_php_ini_scanned_files,
+		_sapi_module,
+		_sapi_globals,
+		_module_registry,
+		_zend_ce_closure,
+		_compiler_globals,
+		_executor_globals,
+		_zend_compile_file,
+		_zend_ce_exception,
+		_zend_ce_error,
+		_zend_throw_exception_hook,
+		_zend_ce_throwable,
+		_zend_execute_ex,
+		_zend_execute_internal,
+		_zend_pass_function,
+		_zend_extensions,
+		_gc_collect_cycles,
+		_zend_empty_array,
+		_zend_ce_aggregate,
+		_zend_ce_iterator,
+		_zend_ce_countable,
+		_std_object_handlers,
+		_zend_empty_string,
+		_zend_known_strings,
+		_zend_string_init_interned,
+		_zend_one_char_string,
+		_zend_write,
+		_zend_error_cb,
+		_zend_post_startup_cb,
+		___memory_base,
+		___table_base,
 		__indirect_function_table,
+		_stderr,
+		___THREW__,
+		___threwValue,
+		_stdout,
+		_stdin,
+		_z_errmsg,
+		_timezone,
+		_tzname,
+		___heap_base,
+		__ZNSt3__25ctypeIcE2idE,
+		__ZSt7nothrow,
+		__ZTVN10__cxxabiv120__si_class_type_infoE,
+		__ZTVN10__cxxabiv117__class_type_infoE,
+		__ZTVN10__cxxabiv121__vmi_class_type_infoE,
+		__ZTISt20bad_array_new_length,
+		__ZTVSt12length_error,
+		__ZTISt12length_error,
 		wasmTable,
 		wasmMemory;
 
@@ -11235,8 +11441,16 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['php_date_get_timezone_ce'];
 		_get_timezone_info = Module['_get_timezone_info'] =
 			wasmExports['get_timezone_info'];
+		_php_hash_fetch_ops = Module['_php_hash_fetch_ops'] =
+			wasmExports['php_hash_fetch_ops'];
+		_php_random_bytes = Module['_php_random_bytes'] =
+			wasmExports['php_random_bytes'];
 		_php_combined_lcg = Module['_php_combined_lcg'] =
 			wasmExports['php_combined_lcg'];
+		_php_mt_rand_range = Module['_php_mt_rand_range'] =
+			wasmExports['php_mt_rand_range'];
+		_php_get_nan = Module['_php_get_nan'] = wasmExports['php_get_nan'];
+		_php_get_inf = Module['_php_get_inf'] = wasmExports['php_get_inf'];
 		_php_setcookie = Module['_php_setcookie'] =
 			wasmExports['php_setcookie'];
 		_php_escape_html_entities = Module['_php_escape_html_entities'] =
@@ -11252,12 +11466,29 @@ export function init(RuntimeName, PHPLoader) {
 		_php_info_print_table_colspan_header = Module[
 			'_php_info_print_table_colspan_header'
 		] = wasmExports['php_info_print_table_colspan_header'];
+		_PHP_MD5Final = Module['_PHP_MD5Final'] = wasmExports['PHP_MD5Final'];
+		_PHP_MD5InitArgs = Module['_PHP_MD5InitArgs'] =
+			wasmExports['PHP_MD5InitArgs'];
+		_PHP_MD5Update = Module['_PHP_MD5Update'] =
+			wasmExports['PHP_MD5Update'];
 		_php_str_to_str = Module['_php_str_to_str'] =
 			wasmExports['php_str_to_str'];
 		_php_addcslashes_str = Module['_php_addcslashes_str'] =
 			wasmExports['php_addcslashes_str'];
 		_php_addcslashes = Module['_php_addcslashes'] =
 			wasmExports['php_addcslashes'];
+		_php_var_unserialize_init = Module['_php_var_unserialize_init'] =
+			wasmExports['php_var_unserialize_init'];
+		_php_var_unserialize_destroy = Module['_php_var_unserialize_destroy'] =
+			wasmExports['php_var_unserialize_destroy'];
+		_php_var_unserialize = Module['_php_var_unserialize'] =
+			wasmExports['php_var_unserialize'];
+		_php_var_serialize = Module['_php_var_serialize'] =
+			wasmExports['php_var_serialize'];
+		_php_var_serialize_init = Module['_php_var_serialize_init'] =
+			wasmExports['php_var_serialize_init'];
+		_php_var_serialize_destroy = Module['_php_var_serialize_destroy'] =
+			wasmExports['php_var_serialize_destroy'];
 		_php_printf = Module['_php_printf'] = wasmExports['php_printf'];
 		_php_get_module_initialized = Module['_php_get_module_initialized'] =
 			wasmExports['php_get_module_initialized'];
@@ -11281,21 +11512,46 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['ap_php_snprintf'];
 		_ap_php_vsnprintf = Module['_ap_php_vsnprintf'] =
 			wasmExports['ap_php_vsnprintf'];
+		__php_stream_cast = Module['__php_stream_cast'] =
+			wasmExports['_php_stream_cast'];
 		__php_stream_free = Module['__php_stream_free'] =
 			wasmExports['_php_stream_free'];
+		__php_stream_read = Module['__php_stream_read'] =
+			wasmExports['_php_stream_read'];
 		__php_stream_eof = Module['__php_stream_eof'] =
 			wasmExports['_php_stream_eof'];
+		__php_stream_set_option = Module['__php_stream_set_option'] =
+			wasmExports['_php_stream_set_option'];
+		__php_stream_write = Module['__php_stream_write'] =
+			wasmExports['_php_stream_write'];
+		__php_stream_getc = Module['__php_stream_getc'] =
+			wasmExports['_php_stream_getc'];
+		__php_stream_stat = Module['__php_stream_stat'] =
+			wasmExports['_php_stream_stat'];
 		__php_stream_get_line = Module['__php_stream_get_line'] =
 			wasmExports['_php_stream_get_line'];
+		__php_stream_seek = Module['__php_stream_seek'] =
+			wasmExports['_php_stream_seek'];
 		__php_stream_open_wrapper_ex = Module['__php_stream_open_wrapper_ex'] =
 			wasmExports['_php_stream_open_wrapper_ex'];
+		_php_stream_context_alloc = Module['_php_stream_context_alloc'] =
+			wasmExports['php_stream_context_alloc'];
+		_php_stream_context_set_option = Module[
+			'_php_stream_context_set_option'
+		] = wasmExports['php_stream_context_set_option'];
+		__php_stream_xport_create = Module['__php_stream_xport_create'] =
+			wasmExports['_php_stream_xport_create'];
+		__emalloc_16 = Module['__emalloc_16'] = wasmExports['_emalloc_16'];
 		__emalloc_24 = Module['__emalloc_24'] = wasmExports['_emalloc_24'];
 		__emalloc_32 = Module['__emalloc_32'] = wasmExports['_emalloc_32'];
 		__emalloc_40 = Module['__emalloc_40'] = wasmExports['_emalloc_40'];
 		__emalloc_48 = Module['__emalloc_48'] = wasmExports['_emalloc_48'];
 		__emalloc_56 = Module['__emalloc_56'] = wasmExports['_emalloc_56'];
+		__emalloc_80 = Module['__emalloc_80'] = wasmExports['_emalloc_80'];
+		__emalloc_96 = Module['__emalloc_96'] = wasmExports['_emalloc_96'];
 		__emalloc_128 = Module['__emalloc_128'] = wasmExports['_emalloc_128'];
 		__emalloc_160 = Module['__emalloc_160'] = wasmExports['_emalloc_160'];
+		__emalloc_192 = Module['__emalloc_192'] = wasmExports['_emalloc_192'];
 		__efree_56 = Module['__efree_56'] = wasmExports['_efree_56'];
 		__emalloc = Module['__emalloc'] = wasmExports['_emalloc'];
 		__efree = Module['__efree'] = wasmExports['_efree'];
@@ -11317,6 +11573,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_memory_usage'];
 		_zend_memory_peak_usage = Module['_zend_memory_peak_usage'] =
 			wasmExports['zend_memory_peak_usage'];
+		___zend_calloc = Module['___zend_calloc'] =
+			wasmExports['__zend_calloc'];
 		_zend_get_parameters_array_ex = Module[
 			'_zend_get_parameters_array_ex'
 		] = wasmExports['zend_get_parameters_array_ex'];
@@ -11324,6 +11582,8 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_wrong_param_count'];
 		_zend_zval_value_name = Module['_zend_zval_value_name'] =
 			wasmExports['zend_zval_value_name'];
+		_zend_zval_type_name = Module['_zend_zval_type_name'] =
+			wasmExports['zend_zval_type_name'];
 		_zend_wrong_parameters_none_error = Module[
 			'_zend_wrong_parameters_none_error'
 		] = wasmExports['zend_wrong_parameters_none_error'];
@@ -11351,6 +11611,8 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_flf_parse_arg_long_slow = Module[
 			'_zend_flf_parse_arg_long_slow'
 		] = wasmExports['zend_flf_parse_arg_long_slow'];
+		_zend_parse_arg_double_slow = Module['_zend_parse_arg_double_slow'] =
+			wasmExports['zend_parse_arg_double_slow'];
 		_zend_parse_arg_str_slow = Module['_zend_parse_arg_str_slow'] =
 			wasmExports['zend_parse_arg_str_slow'];
 		_zend_flf_parse_arg_str_slow = Module['_zend_flf_parse_arg_str_slow'] =
@@ -11397,6 +11659,12 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['add_index_stringl'];
 		_add_next_index_long = Module['_add_next_index_long'] =
 			wasmExports['add_next_index_long'];
+		_add_next_index_null = Module['_add_next_index_null'] =
+			wasmExports['add_next_index_null'];
+		_add_next_index_bool = Module['_add_next_index_bool'] =
+			wasmExports['add_next_index_bool'];
+		_add_next_index_double = Module['_add_next_index_double'] =
+			wasmExports['add_next_index_double'];
 		_add_next_index_str = Module['_add_next_index_str'] =
 			wasmExports['add_next_index_str'];
 		_add_next_index_string = Module['_add_next_index_string'] =
@@ -11405,11 +11673,16 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['add_next_index_stringl'];
 		_zend_startup_module = Module['_zend_startup_module'] =
 			wasmExports['zend_startup_module'];
+		_zend_register_internal_class_ex = Module[
+			'_zend_register_internal_class_ex'
+		] = wasmExports['zend_register_internal_class_ex'];
 		_zend_register_internal_class_with_flags = Module[
 			'_zend_register_internal_class_with_flags'
 		] = wasmExports['zend_register_internal_class_with_flags'];
 		_zend_class_implements = Module['_zend_class_implements'] =
 			wasmExports['zend_class_implements'];
+		_zend_is_callable_ex = Module['_zend_is_callable_ex'] =
+			wasmExports['zend_is_callable_ex'];
 		_zend_fcall_info_init = Module['_zend_fcall_info_init'] =
 			wasmExports['zend_fcall_info_init'];
 		_zend_get_module_version = Module['_zend_get_module_version'] =
@@ -11431,6 +11704,15 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_declare_typed_class_constant = Module[
 			'_zend_declare_typed_class_constant'
 		] = wasmExports['zend_declare_typed_class_constant'];
+		_zend_declare_class_constant_ex = Module[
+			'_zend_declare_class_constant_ex'
+		] = wasmExports['zend_declare_class_constant_ex'];
+		_zend_declare_class_constant_long = Module[
+			'_zend_declare_class_constant_long'
+		] = wasmExports['zend_declare_class_constant_long'];
+		_zend_declare_class_constant_bool = Module[
+			'_zend_declare_class_constant_bool'
+		] = wasmExports['zend_declare_class_constant_bool'];
 		_zend_update_property = Module['_zend_update_property'] =
 			wasmExports['zend_update_property'];
 		_zend_read_property_ex = Module['_zend_read_property_ex'] =
@@ -11487,6 +11769,8 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['zend_get_executed_filename_ex'];
 		_zend_get_executed_lineno = Module['_zend_get_executed_lineno'] =
 			wasmExports['zend_get_executed_lineno'];
+		__call_user_function_impl = Module['__call_user_function_impl'] =
+			wasmExports['_call_user_function_impl'];
 		_zend_call_function = Module['_zend_call_function'] =
 			wasmExports['zend_call_function'];
 		_zend_call_known_function = Module['_zend_call_known_function'] =
@@ -11537,27 +11821,66 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_hash_real_init_packed'];
 		_zend_array_dup = Module['_zend_array_dup'] =
 			wasmExports['zend_array_dup'];
+		_zend_hash_add = Module['_zend_hash_add'] =
+			wasmExports['zend_hash_add'];
 		_zend_hash_update = Module['_zend_hash_update'] =
 			wasmExports['zend_hash_update'];
 		_zend_hash_str_update = Module['_zend_hash_str_update'] =
 			wasmExports['zend_hash_str_update'];
+		_zend_hash_index_add_empty_element = Module[
+			'_zend_hash_index_add_empty_element'
+		] = wasmExports['zend_hash_index_add_empty_element'];
+		_zend_hash_add_empty_element = Module['_zend_hash_add_empty_element'] =
+			wasmExports['zend_hash_add_empty_element'];
+		_zend_hash_str_add_empty_element = Module[
+			'_zend_hash_str_add_empty_element'
+		] = wasmExports['zend_hash_str_add_empty_element'];
 		_zend_hash_next_index_insert = Module['_zend_hash_next_index_insert'] =
 			wasmExports['zend_hash_next_index_insert'];
+		_zend_hash_next_index_insert_new = Module[
+			'_zend_hash_next_index_insert_new'
+		] = wasmExports['zend_hash_next_index_insert_new'];
 		_zend_hash_index_update = Module['_zend_hash_index_update'] =
 			wasmExports['zend_hash_index_update'];
+		_zend_hash_del = Module['_zend_hash_del'] =
+			wasmExports['zend_hash_del'];
+		_zend_hash_str_del = Module['_zend_hash_str_del'] =
+			wasmExports['zend_hash_str_del'];
+		_zend_hash_index_del = Module['_zend_hash_index_del'] =
+			wasmExports['zend_hash_index_del'];
 		_zend_hash_destroy = Module['_zend_hash_destroy'] =
 			wasmExports['zend_hash_destroy'];
 		_zend_array_destroy = Module['_zend_array_destroy'] =
 			wasmExports['zend_array_destroy'];
+		_zend_hash_clean = Module['_zend_hash_clean'] =
+			wasmExports['zend_hash_clean'];
+		_zend_hash_apply = Module['_zend_hash_apply'] =
+			wasmExports['zend_hash_apply'];
 		_zend_hash_apply_with_arguments = Module[
 			'_zend_hash_apply_with_arguments'
 		] = wasmExports['zend_hash_apply_with_arguments'];
 		_zend_hash_copy = Module['_zend_hash_copy'] =
 			wasmExports['zend_hash_copy'];
+		_zend_array_to_list = Module['_zend_array_to_list'] =
+			wasmExports['zend_array_to_list'];
 		_zend_hash_find = Module['_zend_hash_find'] =
 			wasmExports['zend_hash_find'];
 		_zend_hash_index_find = Module['_zend_hash_index_find'] =
 			wasmExports['zend_hash_index_find'];
+		_zend_hash_internal_pointer_reset_ex = Module[
+			'_zend_hash_internal_pointer_reset_ex'
+		] = wasmExports['zend_hash_internal_pointer_reset_ex'];
+		_zend_hash_move_forward_ex = Module['_zend_hash_move_forward_ex'] =
+			wasmExports['zend_hash_move_forward_ex'];
+		_zend_hash_get_current_key_ex = Module[
+			'_zend_hash_get_current_key_ex'
+		] = wasmExports['zend_hash_get_current_key_ex'];
+		_zend_hash_get_current_key_type_ex = Module[
+			'_zend_hash_get_current_key_type_ex'
+		] = wasmExports['zend_hash_get_current_key_type_ex'];
+		_zend_hash_get_current_data_ex = Module[
+			'_zend_hash_get_current_data_ex'
+		] = wasmExports['zend_hash_get_current_data_ex'];
 		_zend_hash_sort_ex = Module['_zend_hash_sort_ex'] =
 			wasmExports['zend_hash_sort_ex'];
 		__zend_handle_numeric_str_ex = Module['__zend_handle_numeric_str_ex'] =
@@ -11572,6 +11895,8 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['zend_unregister_ini_entries_ex'];
 		_zend_alter_ini_entry = Module['_zend_alter_ini_entry'] =
 			wasmExports['zend_alter_ini_entry'];
+		_zend_ini_long = Module['_zend_ini_long'] =
+			wasmExports['zend_ini_long'];
 		_zend_ini_string_ex = Module['_zend_ini_string_ex'] =
 			wasmExports['zend_ini_string_ex'];
 		_zend_ini_string = Module['_zend_ini_string'] =
@@ -11584,8 +11909,13 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_ini_boolean_displayer_cb = Module[
 			'_zend_ini_boolean_displayer_cb'
 		] = wasmExports['zend_ini_boolean_displayer_cb'];
+		_display_link_numbers = Module['_display_link_numbers'] =
+			wasmExports['display_link_numbers'];
 		_OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
 		_OnUpdateLong = Module['_OnUpdateLong'] = wasmExports['OnUpdateLong'];
+		_OnUpdateLongGEZero = Module['_OnUpdateLongGEZero'] =
+			wasmExports['OnUpdateLongGEZero'];
+		_OnUpdateReal = Module['_OnUpdateReal'] = wasmExports['OnUpdateReal'];
 		_OnUpdateString = Module['_OnUpdateString'] =
 			wasmExports['OnUpdateString'];
 		_OnUpdateStringUnempty = Module['_OnUpdateStringUnempty'] =
@@ -11597,9 +11927,33 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['zend_create_internal_iterator_zval'];
 		_zend_iterator_init = Module['_zend_iterator_init'] =
 			wasmExports['zend_iterator_init'];
+		_zend_register_list_destructors_ex = Module[
+			'_zend_register_list_destructors_ex'
+		] = wasmExports['zend_register_list_destructors_ex'];
 		_zend_rsrc_list_get_rsrc_type = Module[
 			'_zend_rsrc_list_get_rsrc_type'
 		] = wasmExports['zend_rsrc_list_get_rsrc_type'];
+		_zend_register_persistent_resource = Module[
+			'_zend_register_persistent_resource'
+		] = wasmExports['zend_register_persistent_resource'];
+		_zend_llist_init = Module['_zend_llist_init'] =
+			wasmExports['zend_llist_init'];
+		_zend_llist_add_element = Module['_zend_llist_add_element'] =
+			wasmExports['zend_llist_add_element'];
+		_zend_llist_prepend_element = Module['_zend_llist_prepend_element'] =
+			wasmExports['zend_llist_prepend_element'];
+		_zend_llist_destroy = Module['_zend_llist_destroy'] =
+			wasmExports['zend_llist_destroy'];
+		_zend_llist_remove_tail = Module['_zend_llist_remove_tail'] =
+			wasmExports['zend_llist_remove_tail'];
+		_zend_llist_count = Module['_zend_llist_count'] =
+			wasmExports['zend_llist_count'];
+		_zend_llist_get_first_ex = Module['_zend_llist_get_first_ex'] =
+			wasmExports['zend_llist_get_first_ex'];
+		_zend_llist_get_last_ex = Module['_zend_llist_get_last_ex'] =
+			wasmExports['zend_llist_get_last_ex'];
+		_zend_llist_get_next_ex = Module['_zend_llist_get_next_ex'] =
+			wasmExports['zend_llist_get_next_ex'];
 		_zend_std_get_properties = Module['_zend_std_get_properties'] =
 			wasmExports['zend_std_get_properties'];
 		_zend_get_properties_no_lazy_init = Module[
@@ -11648,6 +12002,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zval_get_double_func'];
 		_zval_get_string_func = Module['_zval_get_string_func'] =
 			wasmExports['zval_get_string_func'];
+		_zend_is_true = Module['_zend_is_true'] = wasmExports['zend_is_true'];
 		_zend_binary_strcasecmp = Module['_zend_binary_strcasecmp'] =
 			wasmExports['zend_binary_strcasecmp'];
 		_numeric_compare_function = Module['_numeric_compare_function'] =
@@ -11670,6 +12025,9 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_string_concat3 = Module['_zend_string_concat3'] =
 			wasmExports['zend_string_concat3'];
 		_zend_strtod = Module['_zend_strtod'] = wasmExports['zend_strtod'];
+		_zend_freedtoa = Module['_zend_freedtoa'] =
+			wasmExports['zend_freedtoa'];
+		_zend_dtoa = Module['_zend_dtoa'] = wasmExports['zend_dtoa'];
 		_rc_dtor_func = Module['_rc_dtor_func'] = wasmExports['rc_dtor_func'];
 		_zval_ptr_dtor = Module['_zval_ptr_dtor'] =
 			wasmExports['zval_ptr_dtor'];
@@ -11691,6 +12049,8 @@ export function init(RuntimeName, PHPLoader) {
 		__zend_bailout = Module['__zend_bailout'] =
 			wasmExports['_zend_bailout'];
 		_zend_error = Module['_zend_error'] = wasmExports['zend_error'];
+		_zend_error_noreturn = Module['_zend_error_noreturn'] =
+			wasmExports['zend_error_noreturn'];
 		_zend_throw_error = Module['_zend_throw_error'] =
 			wasmExports['zend_throw_error'];
 		_zend_illegal_container_offset = Module[
@@ -11734,6 +12094,7 @@ export function init(RuntimeName, PHPLoader) {
 		_isalnum = Module['_isalnum'] = wasmExports['isalnum'];
 		_fwrite = Module['_fwrite'] = wasmExports['fwrite'];
 		_strncmp = Module['_strncmp'] = wasmExports['strncmp'];
+		_iscntrl = Module['_iscntrl'] = wasmExports['iscntrl'];
 		_isxdigit = Module['_isxdigit'] = wasmExports['isxdigit'];
 		_strtok_r = Module['_strtok_r'] = wasmExports['strtok_r'];
 		_unlink = Module['_unlink'] = wasmExports['unlink'];
@@ -11752,11 +12113,14 @@ export function init(RuntimeName, PHPLoader) {
 		_fseek = Module['_fseek'] = wasmExports['fseek'];
 		_stat = Module['_stat'] = wasmExports['stat'];
 		_gettimeofday = Module['_gettimeofday'] = wasmExports['gettimeofday'];
+		_time = Module['_time'] = wasmExports['time'];
+		_toupper = Module['_toupper'] = wasmExports['toupper'];
 		_iprintf = Module['_iprintf'] = wasmExports['iprintf'];
 		_puts = Module['_puts'] = wasmExports['puts'];
 		_putchar = Module['_putchar'] = wasmExports['putchar'];
 		_fopen = Module['_fopen'] = wasmExports['fopen'];
 		_getcwd = Module['_getcwd'] = wasmExports['getcwd'];
+		_lstat = Module['_lstat'] = wasmExports['lstat'];
 		_open = Module['_open'] = wasmExports['open'];
 		_rename = Module['_rename'] = wasmExports['rename'];
 		_mkdir = Module['_mkdir'] = wasmExports['mkdir'];
@@ -11781,30 +12145,44 @@ export function init(RuntimeName, PHPLoader) {
 		_log = Module['_log'] = wasmExports['log'];
 		_log2 = Module['_log2'] = wasmExports['log2'];
 		_fmod = Module['_fmod'] = wasmExports['fmod'];
+		_ispunct = Module['_ispunct'] = wasmExports['ispunct'];
 		_setlocale = Module['_setlocale'] = wasmExports['setlocale'];
 		_strerror = Module['_strerror'] = wasmExports['strerror'];
+		_read = Module['_read'] = wasmExports['read'];
 		_calloc = Module['_calloc'] = wasmExports['calloc'];
 		_qsort = Module['_qsort'] = wasmExports['qsort'];
 		_readdir = Module['_readdir'] = wasmExports['readdir'];
 		_closedir = Module['_closedir'] = wasmExports['closedir'];
 		_isdigit = Module['_isdigit'] = wasmExports['isdigit'];
+		_isgraph = Module['_isgraph'] = wasmExports['isgraph'];
+		_isspace = Module['_isspace'] = wasmExports['isspace'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'];
 		_socket = Module['_socket'] = wasmExports['socket'];
+		_gai_strerror = Module['_gai_strerror'] = wasmExports['gai_strerror'];
 		_freeaddrinfo = Module['_freeaddrinfo'] = wasmExports['freeaddrinfo'];
 		_fcntl = Module['_fcntl'] = wasmExports['fcntl'];
 		_connect = Module['_connect'] = wasmExports['connect'];
+		_strerror_r = Module['_strerror_r'] = wasmExports['strerror_r'];
 		_php_pollfd_for = Module['_php_pollfd_for'] =
 			wasmExports['php_pollfd_for'];
-		_htons = wasmExports['htons'];
-		_ntohs = wasmExports['ntohs'];
+		_getsockopt = Module['_getsockopt'] = wasmExports['getsockopt'];
+		_htons = Module['_htons'] = wasmExports['htons'];
+		_ntohs = Module['_ntohs'] = wasmExports['ntohs'];
 		_getpeername = Module['_getpeername'] = wasmExports['getpeername'];
-		_htonl = wasmExports['htonl'];
+		_getsockname = Module['_getsockname'] = wasmExports['getsockname'];
+		_htonl = Module['_htonl'] = wasmExports['htonl'];
+		_send = Module['_send'] = wasmExports['send'];
+		_shutdown = Module['_shutdown'] = wasmExports['shutdown'];
 		_fputs = Module['_fputs'] = wasmExports['fputs'];
 		_tzset = Module['_tzset'] = wasmExports['tzset'];
+		_ntohl = Module['_ntohl'] = wasmExports['ntohl'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
+		_atoll = Module['_atoll'] = wasmExports['atoll'];
 		_fflush = Module['_fflush'] = wasmExports['fflush'];
 		_expf = Module['_expf'] = wasmExports['expf'];
+		_lseek = Module['_lseek'] = wasmExports['lseek'];
+		_fputc = Module['_fputc'] = wasmExports['fputc'];
 		___small_fprintf = Module['___small_fprintf'] =
 			wasmExports['__small_fprintf'];
 		_vfprintf = Module['_vfprintf'] = wasmExports['vfprintf'];
@@ -11878,14 +12256,34 @@ export function init(RuntimeName, PHPLoader) {
 		___wrap_getpid = Module['___wrap_getpid'] =
 			wasmExports['__wrap_getpid'];
 		_wasm_trace = Module['_wasm_trace'] = wasmExports['wasm_trace'];
+		_srandom = Module['_srandom'] = wasmExports['srandom'];
+		_random = Module['_random'] = wasmExports['random'];
+		_vsnprintf = Module['_vsnprintf'] = wasmExports['vsnprintf'];
 		_sqlite3_auto_extension = Module['_sqlite3_auto_extension'] =
 			wasmExports['sqlite3_auto_extension'];
 		_sqlite3_cancel_auto_extension = Module[
 			'_sqlite3_cancel_auto_extension'
 		] = wasmExports['sqlite3_cancel_auto_extension'];
+		_pthread_mutex_init = Module['_pthread_mutex_init'] =
+			wasmExports['pthread_mutex_init'];
+		_pthread_mutex_destroy = Module['_pthread_mutex_destroy'] =
+			wasmExports['pthread_mutex_destroy'];
+		_pthread_mutex_lock = Module['_pthread_mutex_lock'] =
+			wasmExports['pthread_mutex_lock'];
+		_pthread_mutex_unlock = Module['_pthread_mutex_unlock'] =
+			wasmExports['pthread_mutex_unlock'];
+		_srand = Module['_srand'] = wasmExports['srand'];
+		_rand = Module['_rand'] = wasmExports['rand'];
 		_rewind = Module['_rewind'] = wasmExports['rewind'];
 		_modf = Module['_modf'] = wasmExports['modf'];
+		_atof = Module['_atof'] = wasmExports['atof'];
 		_gmtime = Module['_gmtime'] = wasmExports['gmtime'];
+		_pthread_cond_init = Module['_pthread_cond_init'] =
+			wasmExports['pthread_cond_init'];
+		_pthread_cond_destroy = Module['_pthread_cond_destroy'] =
+			wasmExports['pthread_cond_destroy'];
+		_pthread_cond_broadcast = Module['_pthread_cond_broadcast'] =
+			wasmExports['pthread_cond_broadcast'];
 		___extenddftf2 = Module['___extenddftf2'] =
 			wasmExports['__extenddftf2'];
 		___letf2 = Module['___letf2'] = wasmExports['__letf2'];
@@ -11897,6 +12295,8 @@ export function init(RuntimeName, PHPLoader) {
 		___dl_seterr = wasmExports['__dl_seterr'];
 		__emscripten_find_dylib = wasmExports['_emscripten_find_dylib'];
 		_freopen = Module['_freopen'] = wasmExports['freopen'];
+		_pthread_cond_timedwait = Module['_pthread_cond_timedwait'] =
+			wasmExports['pthread_cond_timedwait'];
 		_mbstowcs = Module['_mbstowcs'] = wasmExports['mbstowcs'];
 		_emscripten_builtin_memalign =
 			wasmExports['emscripten_builtin_memalign'];
@@ -11930,12 +12330,12 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__cxa_pure_virtual'];
 		___dynamic_cast = Module['___dynamic_cast'] =
 			wasmExports['__dynamic_cast'];
-		___cxa_can_catch = wasmExports['__cxa_can_catch'];
 		__ZNSt20bad_array_new_lengthD1Ev = Module[
 			'__ZNSt20bad_array_new_lengthD1Ev'
 		] = wasmExports['_ZNSt20bad_array_new_lengthD1Ev'];
 		__ZNSt12length_errorD1Ev = Module['__ZNSt12length_errorD1Ev'] =
 			wasmExports['_ZNSt12length_errorD1Ev'];
+		_sendmsg = Module['_sendmsg'] = wasmExports['sendmsg'];
 		dynCall_vii = dynCalls['vii'] = wasmExports['dynCall_vii'];
 		dynCall_vi = dynCalls['vi'] = wasmExports['dynCall_vi'];
 		dynCall_viiiii = dynCalls['viiiii'] = wasmExports['dynCall_viiiii'];
@@ -12039,7 +12439,8 @@ export function init(RuntimeName, PHPLoader) {
 		dynCall_viid = dynCalls['viid'] = wasmExports['dynCall_viid'];
 		dynCall_viidddddddd = dynCalls['viidddddddd'] =
 			wasmExports['dynCall_viidddddddd'];
-		dynCall_iidiiii = dynCalls['iidiiii'] = wasmExports['dynCall_iidiiii'];
+		dynCall_iidiiiii = dynCalls['iidiiiii'] =
+			wasmExports['dynCall_iidiiiii'];
 		_asyncify_start_unwind = wasmExports['asyncify_start_unwind'];
 		_asyncify_stop_unwind = wasmExports['asyncify_stop_unwind'];
 		_asyncify_start_rewind = wasmExports['asyncify_start_rewind'];
@@ -12047,119 +12448,111 @@ export function init(RuntimeName, PHPLoader) {
 		memory = wasmMemory = wasmExports['memory'];
 		___stack_pointer = Module['___stack_pointer'] =
 			wasmExports['__stack_pointer'];
+		_spl_ce_RuntimeException = Module['_spl_ce_RuntimeException'] =
+			wasmExports['spl_ce_RuntimeException'].value;
+		_core_globals = Module['_core_globals'] =
+			wasmExports['core_globals'].value;
+		_php_ini_opened_path = Module['_php_ini_opened_path'] =
+			wasmExports['php_ini_opened_path'].value;
+		_php_ini_scanned_path = Module['_php_ini_scanned_path'] =
+			wasmExports['php_ini_scanned_path'].value;
+		_php_ini_scanned_files = Module['_php_ini_scanned_files'] =
+			wasmExports['php_ini_scanned_files'].value;
+		_sapi_module = Module['_sapi_module'] =
+			wasmExports['sapi_module'].value;
+		_sapi_globals = Module['_sapi_globals'] =
+			wasmExports['sapi_globals'].value;
+		_module_registry = Module['_module_registry'] =
+			wasmExports['module_registry'].value;
+		_zend_ce_closure = Module['_zend_ce_closure'] =
+			wasmExports['zend_ce_closure'].value;
+		_compiler_globals = Module['_compiler_globals'] =
+			wasmExports['compiler_globals'].value;
+		_executor_globals = Module['_executor_globals'] =
+			wasmExports['executor_globals'].value;
+		_zend_compile_file = Module['_zend_compile_file'] =
+			wasmExports['zend_compile_file'].value;
+		_zend_ce_exception = Module['_zend_ce_exception'] =
+			wasmExports['zend_ce_exception'].value;
+		_zend_ce_error = Module['_zend_ce_error'] =
+			wasmExports['zend_ce_error'].value;
+		_zend_throw_exception_hook = Module['_zend_throw_exception_hook'] =
+			wasmExports['zend_throw_exception_hook'].value;
+		_zend_ce_throwable = Module['_zend_ce_throwable'] =
+			wasmExports['zend_ce_throwable'].value;
+		_zend_execute_ex = Module['_zend_execute_ex'] =
+			wasmExports['zend_execute_ex'].value;
+		_zend_execute_internal = Module['_zend_execute_internal'] =
+			wasmExports['zend_execute_internal'].value;
+		_zend_pass_function = Module['_zend_pass_function'] =
+			wasmExports['zend_pass_function'].value;
+		_zend_extensions = Module['_zend_extensions'] =
+			wasmExports['zend_extensions'].value;
+		_gc_collect_cycles = Module['_gc_collect_cycles'] =
+			wasmExports['gc_collect_cycles'].value;
+		_zend_empty_array = Module['_zend_empty_array'] =
+			wasmExports['zend_empty_array'].value;
+		_zend_ce_aggregate = Module['_zend_ce_aggregate'] =
+			wasmExports['zend_ce_aggregate'].value;
+		_zend_ce_iterator = Module['_zend_ce_iterator'] =
+			wasmExports['zend_ce_iterator'].value;
+		_zend_ce_countable = Module['_zend_ce_countable'] =
+			wasmExports['zend_ce_countable'].value;
+		_std_object_handlers = Module['_std_object_handlers'] =
+			wasmExports['std_object_handlers'].value;
+		_zend_empty_string = Module['_zend_empty_string'] =
+			wasmExports['zend_empty_string'].value;
+		_zend_known_strings = Module['_zend_known_strings'] =
+			wasmExports['zend_known_strings'].value;
+		_zend_string_init_interned = Module['_zend_string_init_interned'] =
+			wasmExports['zend_string_init_interned'].value;
+		_zend_one_char_string = Module['_zend_one_char_string'] =
+			wasmExports['zend_one_char_string'].value;
+		_zend_write = Module['_zend_write'] = wasmExports['zend_write'].value;
+		_zend_error_cb = Module['_zend_error_cb'] =
+			wasmExports['zend_error_cb'].value;
+		_zend_post_startup_cb = Module['_zend_post_startup_cb'] =
+			wasmExports['zend_post_startup_cb'].value;
+		___memory_base = Module['___memory_base'] =
+			wasmExports['__memory_base'].value;
+		___table_base = Module['___table_base'] =
+			wasmExports['__table_base'].value;
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
+		_stderr = Module['_stderr'] = wasmExports['stderr'].value;
+		___THREW__ = Module['___THREW__'] = wasmExports['__THREW__'].value;
+		___threwValue = Module['___threwValue'] =
+			wasmExports['__threwValue'].value;
+		_stdout = Module['_stdout'] = wasmExports['stdout'].value;
+		_stdin = Module['_stdin'] = wasmExports['stdin'].value;
+		_z_errmsg = Module['_z_errmsg'] = wasmExports['z_errmsg'].value;
+		_timezone = Module['_timezone'] = wasmExports['timezone'].value;
+		_tzname = Module['_tzname'] = wasmExports['tzname'].value;
+		___heap_base = wasmExports['__heap_base'].value;
+		__ZNSt3__25ctypeIcE2idE = Module['__ZNSt3__25ctypeIcE2idE'] =
+			wasmExports['_ZNSt3__25ctypeIcE2idE'].value;
+		__ZSt7nothrow = Module['__ZSt7nothrow'] =
+			wasmExports['_ZSt7nothrow'].value;
+		__ZTVN10__cxxabiv120__si_class_type_infoE = Module[
+			'__ZTVN10__cxxabiv120__si_class_type_infoE'
+		] = wasmExports['_ZTVN10__cxxabiv120__si_class_type_infoE'].value;
+		__ZTVN10__cxxabiv117__class_type_infoE = Module[
+			'__ZTVN10__cxxabiv117__class_type_infoE'
+		] = wasmExports['_ZTVN10__cxxabiv117__class_type_infoE'].value;
+		__ZTVN10__cxxabiv121__vmi_class_type_infoE = Module[
+			'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
+		] = wasmExports['_ZTVN10__cxxabiv121__vmi_class_type_infoE'].value;
+		__ZTISt20bad_array_new_length = Module[
+			'__ZTISt20bad_array_new_length'
+		] = wasmExports['_ZTISt20bad_array_new_length'].value;
+		__ZTVSt12length_error = Module['__ZTVSt12length_error'] =
+			wasmExports['_ZTVSt12length_error'].value;
+		__ZTISt12length_error = Module['__ZTISt12length_error'] =
+			wasmExports['_ZTISt12length_error'].value;
 	}
-
-	var _core_globals = (Module['_core_globals'] = 18175896);
-
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 18063744);
-
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 18063748);
-
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 18063752);
-
-	var _sapi_module = (Module['_sapi_module'] = 18058912);
-
-	var _sapi_globals = (Module['_sapi_globals'] = 18059064);
-
-	var _module_registry = (Module['_module_registry'] = 18178832);
-
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 18176764);
-
-	var _compiler_globals = (Module['_compiler_globals'] = 18180456);
-
-	var _executor_globals = (Module['_executor_globals'] = 18180872);
-
-	var _zend_compile_file = (Module['_zend_compile_file'] = 18182288);
-
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 18176892);
-
-	var _zend_ce_error = (Module['_zend_ce_error'] = 18177016);
-
-	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		18176888);
-
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 18176896);
-
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 18178816);
-
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 18178820);
-
-	var _zend_pass_function = (Module['_zend_pass_function'] = 17540656);
-
-	var _zend_extensions = (Module['_zend_extensions'] = 18176732);
-
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 18179216);
-
-	var _zend_empty_array = (Module['_zend_empty_array'] = 17555968);
-
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 18058272);
-
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 18058276);
-
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 18058288);
-
-	var _std_object_handlers = (Module['_std_object_handlers'] = 17539360);
-
-	var _zend_empty_string = (Module['_zend_empty_string'] = 18179220);
-
-	var _zend_known_strings = (Module['_zend_known_strings'] = 18179224);
-
-	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		18179292);
-
-	var _zend_write = (Module['_zend_write'] = 18180372);
-
-	var _zend_error_cb = (Module['_zend_error_cb'] = 18180376);
-
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 18180344);
-
-	var ___memory_base = (Module['___memory_base'] = 0);
-
-	var ___table_base = (Module['___table_base'] = 1);
-
-	var _stderr = (Module['_stderr'] = 18050864);
-
-	var ___THREW__ = (Module['___THREW__'] = 18530644);
-
-	var ___threwValue = (Module['___threwValue'] = 18530648);
-
-	var _stdout = (Module['_stdout'] = 18051168);
-
-	var _timezone = (Module['_timezone'] = 18517568);
-
-	var _tzname = (Module['_tzname'] = 18517576);
-
-	var ___heap_base = 19579312;
-
-	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		18530724);
-
-	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
-		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 18051416);
-
-	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
-		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 18051376);
-
-	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
-		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 18051468);
-
-	var __ZTISt20bad_array_new_length = (Module[
-		'__ZTISt20bad_array_new_length'
-	] = 18051540);
-
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 18051584);
-
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 18051604);
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,
-		/** @export */ __asyncify_data: ___asyncify_data,
-		/** @export */ __asyncify_state: ___asyncify_state,
 		/** @export */ __asyncjs__js_module_onMessage,
 		/** @export */ __call_sighandler: ___call_sighandler,
 		/** @export */ __cxa_find_matching_catch_2:
@@ -12192,17 +12585,22 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ __syscall_mkdirat: ___syscall_mkdirat,
 		/** @export */ __syscall_newfstatat: ___syscall_newfstatat,
 		/** @export */ __syscall_openat: ___syscall_openat,
-		/** @export */ __syscall_pipe: ___syscall_pipe,
+		/** @export */ __syscall_pipe2: ___syscall_pipe2,
 		/** @export */ __syscall_poll: ___syscall_poll,
+		/** @export */ __syscall_poll_nonblocking: ___syscall_poll_nonblocking,
 		/** @export */ __syscall_readlinkat: ___syscall_readlinkat,
 		/** @export */ __syscall_recvfrom: ___syscall_recvfrom,
 		/** @export */ __syscall_renameat: ___syscall_renameat,
 		/** @export */ __syscall_rmdir: ___syscall_rmdir,
+		/** @export */ __syscall_sendmsg: ___syscall_sendmsg,
 		/** @export */ __syscall_sendto: ___syscall_sendto,
+		/** @export */ __syscall_setsockopt: ___syscall_setsockopt,
+		/** @export */ __syscall_shutdown: ___syscall_shutdown,
 		/** @export */ __syscall_socket: ___syscall_socket,
 		/** @export */ __syscall_stat64: ___syscall_stat64,
 		/** @export */ __syscall_statfs64: ___syscall_statfs64,
 		/** @export */ __syscall_symlinkat: ___syscall_symlinkat,
+		/** @export */ __syscall_umask: ___syscall_umask,
 		/** @export */ __syscall_unlinkat: ___syscall_unlinkat,
 		/** @export */ __syscall_utimensat: ___syscall_utimensat,
 		/** @export */ _abort_js: __abort_js,
@@ -12321,7 +12719,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiiiii'](index, a1, a2, a3, a4, a5, a6);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12332,7 +12730,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['vi'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12343,7 +12741,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iii'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12354,7 +12752,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiii'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12365,7 +12763,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['ii'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12376,7 +12774,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiii'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12387,7 +12785,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiii'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12409,7 +12807,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12420,7 +12818,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['jii'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 			return 0n;
 		}
@@ -12432,7 +12830,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['vii'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12443,7 +12841,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['v'](index);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12454,7 +12852,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['i'](index);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12465,7 +12863,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['vji'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12476,7 +12874,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiiii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12487,7 +12885,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiijii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12498,7 +12896,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiidii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12509,7 +12907,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viii'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12520,7 +12918,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['jiii'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 			return 0n;
 		}
@@ -12532,7 +12930,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiij'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12543,7 +12941,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['ji'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 			return 0n;
 		}
@@ -12555,7 +12953,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['vijj'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12566,7 +12964,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iij'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12577,7 +12975,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiiii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12588,7 +12986,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iijii'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12599,7 +12997,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iijiji'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12610,7 +13008,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12621,7 +13019,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiji'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12632,7 +13030,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiij'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12643,7 +13041,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12654,7 +13052,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12665,7 +13063,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12676,7 +13074,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiiiii'](index, a1, a2, a3, a4, a5, a6);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12687,7 +13085,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12728,7 +13126,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12773,7 +13171,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12810,7 +13208,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12821,7 +13219,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiiijj'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12832,7 +13230,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['ij'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12867,7 +13265,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12904,7 +13302,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12915,7 +13313,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['jiji'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 			return 0n;
 		}
@@ -12927,7 +13325,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iiijj'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12938,7 +13336,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['vij'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12949,7 +13347,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['dii'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12960,7 +13358,7 @@ export function init(RuntimeName, PHPLoader) {
 			dynCalls['viid'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -12995,7 +13393,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -13006,7 +13404,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['id'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -13017,7 +13415,7 @@ export function init(RuntimeName, PHPLoader) {
 			return dynCalls['iifi'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
-			if (e !== e + 0) throw e;
+			if (!(e instanceof EmscriptenEH)) throw e;
 			_setThrew(1, 0);
 		}
 	}
@@ -13048,47 +13446,33 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function run(args = arguments_) {
-		if (runDependencies > 0) {
-			dependenciesFulfilled = run;
-			return;
-		}
+	async function run(args = programArgs) {
 		preRun();
-		// a preRun added a dependency, run will be called later
-		if (runDependencies > 0) {
-			dependenciesFulfilled = run;
-			return;
+		if (runDependencies) {
+			await resolveRunDependencies();
 		}
-		function doRun() {
-			// run may have just been called through dependencies being fulfilled just in this very frame,
-			// or while the async setStatus time below was happening
-			Module['calledRun'] = true;
-			if (ABORT) return;
-			initRuntime();
-			preMain();
-			Module['onRuntimeInitialized']?.();
-			var noInitialRun = Module['noInitialRun'] || true;
-			if (!noInitialRun) callMain(args);
-			postRun();
+		var setStatus = Module['setStatus'];
+		if (setStatus) {
+			setStatus('Running...');
+			// Yield to the event loop to allow the browser to paint "Running..."
+			await new Promise((resolve) => setTimeout(resolve, 1));
+			// Then we want to clear the status text, but only after the rest of this function runs.
+			setTimeout(setStatus, 1, '');
 		}
-		if (Module['setStatus']) {
-			Module['setStatus']('Running...');
-			setTimeout(() => {
-				setTimeout(() => Module['setStatus'](''), 1);
-				doRun();
-			}, 1);
-		} else {
-			doRun();
-		}
+		if (ABORT) return;
+		initRuntime();
+		// No ATMAINS hooks
+		Module['onRuntimeInitialized']?.();
+		var noInitialRun = Module['noInitialRun'] || true;
+		if (!noInitialRun) callMain(args);
+		postRun();
 	}
 
 	var wasmExports;
 
 	// With async instantation wasmExports is assigned asynchronously when the
 	// instance is received.
-	createWasm();
-
-	run();
+	createWasm().then(() => run());
 	/**
 	 * Emscripten resolves `localhost` to a random IP address. Let's
 	 * make it always resolve to 127.0.0.1.

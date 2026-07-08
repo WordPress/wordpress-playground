@@ -5,10 +5,10 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libwebpdemux.so.2'
+dlname=''
 
 # Names of this library.
-library_names='libwebpdemux.so.2.0.15 libwebpdemux.so.2 libwebpdemux.so'
+library_names=''
 
 # The name of the static archive.
 old_library='libwebpdemux.a'

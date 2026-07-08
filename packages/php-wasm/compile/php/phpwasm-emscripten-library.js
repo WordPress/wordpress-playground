@@ -1332,6 +1332,91 @@ const LibraryExample = {
 	__syscall_connect__deps: ['wasm_connect'],
 
 	/**
+	 * Override Emscripten 6's fd_sync with the Emscripten 4.0.19
+	 * implementation.
+	 *
+	 * Emscripten 6 rewrote fd_sync to return a Promise unconditionally
+	 * (via Asyncify.handleAsync). Under Asyncify, that forces a full
+	 * unwind/rewind on EVERY fsync() call — even though none of the
+	 * filesystems used by php-wasm implement syncfs, so there is nothing
+	 * to wait for. Besides the overhead (SQLite calls fsync on every
+	 * commit), it means every C call chain that reaches fsync() must be
+	 * listed in ASYNCIFY_ONLY or PHP traps with "RuntimeError:
+	 * unreachable" — an unmaintainable requirement.
+	 *
+	 * The 4.0.19 implementation calls wakeUp() synchronously when the
+	 * mount has no syncfs, which takes Asyncify.handleSleep's fast path
+	 * and never suspends. Mounts with syncfs still suspend correctly.
+	 */
+	fd_sync: function (fd) {
+		var stream = SYSCALLS.getStreamFromFD(fd);
+		return Asyncify.handleSleep((wakeUp) => {
+			var mount = stream.node.mount;
+			if (!mount.type.syncfs) {
+				// We write directly to the file system, so there's
+				// nothing to do here.
+				wakeUp(0);
+				return;
+			}
+			mount.type.syncfs(mount, false, (err) => {
+				wakeUp(err ? Number('{{{cDefs.EIO}}}') : 0);
+			});
+		});
+	},
+	fd_sync__async: true,
+	fd_sync__deps: ['$SYSCALLS'],
+
+	/**
+	 * Override Emscripten 6's __syscall_poll with the Emscripten 4.0.19
+	 * implementation.
+	 *
+	 * Emscripten 6 rewrote __syscall_poll to actually wait for the
+	 * requested readiness (Promise-based, suspends under Asyncify).
+	 * php-wasm's socket layer signals readiness through wasm_poll_socket,
+	 * not through SOCKFS poll notifications, so the new implementation
+	 * waits on events that never fire. Symptom: every plain HTTP request
+	 * through PHP streams hangs (php_pollfd_for calls wasm_poll_socket to
+	 * do the actual waiting, then php_poll2 -> poll() just to collect
+	 * revents — that second poll() must not wait). This hung
+	 * php-networking, SOAP, imagick and image-extensions tests.
+	 *
+	 * The 4.0.19 implementation returns the current readiness mask
+	 * immediately, exactly what the php-wasm design expects.
+	 *
+	 * __async must be explicitly false: the upstream library declares
+	 * __syscall_poll__async: 'auto', which our override would otherwise
+	 * inherit, making the jsifier wrap this body in Asyncify.handleAsync.
+	 * That wrap defers the return value to a microtask, so every poll()
+	 * unwinds — and PHP's poll-retry loops then starve the event loop
+	 * (rewind microtasks preempt timers forever, 100% CPU hang).
+	 */
+	__syscall_poll: function (fds, nfds, timeout) {
+		var nonzero = 0;
+		for (var i = 0; i < nfds; i++) {
+			var pollfd = fds + 8 * i;
+			var fd = HEAP32[pollfd >> 2];
+			var events = HEAP16[(pollfd + 4) >> 1];
+			var mask = Number('{{{cDefs.POLLNVAL}}}');
+			var stream = FS.getStream(fd);
+			if (stream) {
+				mask = SYSCALLS.DEFAULT_POLLMASK;
+				if (stream.stream_ops?.poll) {
+					mask = stream.stream_ops.poll(stream, -1);
+				}
+			}
+			mask &=
+				events |
+				Number('{{{cDefs.POLLERR}}}') |
+				Number('{{{cDefs.POLLHUP}}}');
+			if (mask) nonzero++;
+			HEAP16[(pollfd + 6) >> 1] = mask;
+		}
+		return nonzero;
+	},
+	__syscall_poll__deps: ['$FS', '$SYSCALLS'],
+	__syscall_poll__async: false,
+
+	/**
 	 * Returns the assigned process ID of the current process or 42 if not available.
 	 *
 	 * Emscripten's built-in getpid() always returns 42,

@@ -17,7 +17,7 @@ RUN set -euxo pipefail && \
     wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz && \
     tar xf openssl-$OPENSSL_VERSION.tar.gz && \
     cd openssl-$OPENSSL_VERSION && \
-    emconfigure ./Configure -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/install linux-generic32;
+    emconfigure ./Configure -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads no-shared --prefix=/root/install linux-generic32;
 
 RUN source /root/emsdk/emsdk_env.sh && \
     cd openssl-$OPENSSL_VERSION && \

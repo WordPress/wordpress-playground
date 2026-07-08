@@ -11,7 +11,7 @@ RUN cd oniguruma && \
         autoreconf -vfi && \
         CPPFLAGS="-I/root/lib/include " \
         LDFLAGS="-L/root/lib/lib " \
-        emconfigure ./configure --prefix=/root/lib/ ;
+        emconfigure ./configure --prefix=/root/lib/ --disable-shared --enable-static ;
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \

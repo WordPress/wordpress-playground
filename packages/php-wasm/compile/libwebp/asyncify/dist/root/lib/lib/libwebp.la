@@ -5,10 +5,10 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libwebp.so.7'
+dlname=''
 
 # Names of this library.
-library_names='libwebp.so.7.1.9 libwebp.so.7 libwebp.so'
+library_names=''
 
 # The name of the static archive.
 old_library='libwebp.a'
