@@ -463,6 +463,8 @@ function lowerBlueprintV2ExecutionPlanItem(
 			return [createInstallThemeStep(planItem.theme, planItem.active)];
 		case 'installPlugin':
 			return [createInstallPluginStep(planItem.plugin)];
+		case 'importContent':
+			return lowerBlueprintV2Content(planItem.content);
 		case 'setSiteLanguage':
 			return [
 				{
@@ -475,6 +477,19 @@ function lowerBlueprintV2ExecutionPlanItem(
 		default:
 			return undefined;
 	}
+}
+
+function lowerBlueprintV2Content(
+	content: BlueprintV2Content
+): StepDefinition[] | undefined {
+	if (content.type !== 'mysql-dump') {
+		return undefined;
+	}
+
+	return asArray(content.source).map((source, index) => ({
+		step: 'runSql',
+		sql: convertV2FileDataReferenceToV1(source, `content.source[${index}]`),
+	}));
 }
 
 /**
@@ -815,6 +830,10 @@ function convertV2FileDataReferenceToV1(
 		featurePath,
 		'Unsupported Blueprint v2 file reference.'
 	);
+}
+
+function asArray<T>(value: T | T[]): T[] {
+	return Array.isArray(value) ? value : [value];
 }
 
 /**
