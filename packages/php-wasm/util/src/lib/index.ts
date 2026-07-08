@@ -18,6 +18,7 @@ export {
 	createSendmailCaptureSpawnHandler,
 } from './create-sendmail-capture-handler';
 export type { RawSendmailMessage } from './create-sendmail-capture-handler';
+export { createSendmailSpawnHandler } from './create-sendmail-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
@@ -30,6 +31,7 @@ export {
 } from './base64';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
+export { SmtpSinkWebSocket } from './smtp-sink-websocket';
 export * from './php-vars';
 export {
 	DEFAULT_SMTP_MAX_SIZE,
