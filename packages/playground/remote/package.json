@@ -18,14 +18,10 @@
 	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"files": [
-		"/.htaccess",
-		"/assets",
+		"/assets/bridge-*.js",
+		"/assets/index-*.css",
+		"/assets/index-*.js",
 		"/bridge.html",
-		"/remote.html",
-		"/sw.js",
-		"/sw.js.map",
-		"/*.js",
-		"/*.js.map",
 		"/lib",
 		"/index.d.ts"
 	],
