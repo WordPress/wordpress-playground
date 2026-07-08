@@ -1001,6 +1001,13 @@ export async function pushToGithub(
 	}
 }
 
+/**
+ * Adds before-merge and after-merge zip preview links to the commit message.
+ *
+ * The before-merge link must read from the branch that receives the export
+ * commit. The after-merge link must read from the target branch, because that
+ * is where the zip file becomes available after the pull request is merged.
+ */
 function appendZipPreviewLinks(
 	commitMessage: string,
 	{

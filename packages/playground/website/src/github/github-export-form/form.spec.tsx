@@ -36,6 +36,12 @@ vi.mock('../state', () => ({
 
 describe('pushToGithub', () => {
 	beforeEach(() => {
+		vi.stubGlobal('document', {
+			location: {
+				origin: 'https://playground.test',
+				pathname: '/website-server/',
+			},
+		});
 		for (const mock of Object.values(storageMocks)) {
 			mock.mockReset();
 		}
@@ -112,6 +118,45 @@ describe('pushToGithub', () => {
 		});
 	});
 
+	it('adds zip preview links that use the PR head before merge', async () => {
+		storageMocks.mayPush.mockResolvedValue(true);
+		const octokit = createOctokit({
+			pullRequest: createPullRequest({
+				headOwner: 'contributor',
+				headRepo: 'wordpress-playground-fork',
+				headRef: 'feature/export',
+				htmlUrl:
+					'https://github.com/WordPress/wordpress-playground/pull/12',
+			}),
+		});
+
+		await pushToGithub(octokit as any, {
+			owner: 'WordPress',
+			repo: 'wordpress-playground',
+			commitMessage: 'Changes from Playground',
+			changeset: createChangeset(),
+			zipPathForPreview: 'wp-content/plugins/demo/playground.zip',
+			shouldCreateNewPR: false,
+			create: {
+				againstBranch: 'unused',
+				branchName: 'unused',
+				title: 'Update plugin',
+			},
+			update: {
+				prNumber: 12,
+			},
+		});
+
+		const commitMessage = storageMocks.createCommit.mock.calls[0][3];
+		expect(commitMessage).toContain('Also exported as a zip file.');
+		expect(commitMessage).toContain(
+			'raw.githubusercontent.com%2Fcontributor%2Fwordpress-playground-fork%2Frefs%2Fheads%2Ffeature%2Fexport%2Fwp-content%2Fplugins%2Fdemo%2Fplayground.zip'
+		);
+		expect(commitMessage).toContain(
+			'raw.githubusercontent.com%2FWordPress%2Fwordpress-playground%2Frefs%2Fheads%2Ftrunk%2Fwp-content%2Fplugins%2Fdemo%2Fplayground.zip'
+		);
+	});
+
 	it('creates a fork branch when the target repository cannot be pushed', async () => {
 		storageMocks.mayPush.mockResolvedValue(false);
 		const changeset = createChangeset();
@@ -157,6 +202,36 @@ describe('pushToGithub', () => {
 			url: 'https://github.com/WordPress/wordpress-playground/pull/1',
 			forked: true,
 		});
+	});
+
+	it('does not push a commit when there are no changes to export', async () => {
+		storageMocks.mayPush.mockResolvedValue(true);
+		storageMocks.createTree.mockResolvedValue(null);
+		const octokit = createOctokit();
+
+		await expect(
+			pushToGithub(octokit as any, {
+				owner: 'WordPress',
+				repo: 'wordpress-playground',
+				commitMessage: 'Changes from Playground',
+				changeset: createChangeset(),
+				shouldCreateNewPR: true,
+				create: {
+					againstBranch: 'trunk',
+					branchName: 'playground-changes',
+					title: 'Update plugin',
+				},
+				update: {
+					prNumber: 0,
+				},
+			})
+		).rejects.toThrow(
+			'There are no changes to export. Make an edit in the Playground before exporting to GitHub.'
+		);
+
+		expect(storageMocks.createCommit).not.toHaveBeenCalled();
+		expect(octokit.rest.git.createRef).not.toHaveBeenCalled();
+		expect(storageMocks.createOrUpdateBranch).not.toHaveBeenCalled();
 	});
 });
 
