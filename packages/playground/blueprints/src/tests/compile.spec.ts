@@ -620,6 +620,262 @@ describe('compileBlueprintForExecution', () => {
 		);
 	});
 
+	it('lowers Blueprint v2 WXR content to importWxr steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: [
+						'./content.wxr',
+						{
+							filename: 'inline.wxr',
+							content: '<rss />',
+						},
+					],
+					staticAssets: 'hotlink',
+					urlsMode: 'preserve',
+					authorsMode: 'default-author',
+					defaultAuthorUsername: 'editor',
+					importUsers: false,
+					importComments: true,
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'bundled',
+					path: 'content.wxr',
+				},
+				fetchAttachments: false,
+				rewriteUrls: false,
+				importComments: true,
+				defaultAuthorUsername: 'editor',
+			},
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'literal',
+					name: 'inline.wxr',
+					contents: '<rss />',
+				},
+				fetchAttachments: false,
+				rewriteUrls: false,
+				importComments: true,
+				defaultAuthorUsername: 'editor',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('keeps WXR content with unsupported author behavior in the unsupported plan', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: './content.wxr',
+					authorsMode: 'map',
+					authorsMap: {
+						remote: 'admin',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([]);
+		expect(
+			compiled.compiled.unsupportedPlan.map((item) => item.type)
+		).toEqual(['importContent']);
+	});
+
+	it('lowers Blueprint v2 importContent steps through content lowering', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'importContent',
+					content: [
+						{
+							type: 'mysql-dump',
+							source: './dump.sql',
+						},
+						{
+							type: 'wxr',
+							source: 'https://example.com/content.wxr',
+							authorsMode: 'default-author',
+						},
+					],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'runSql',
+				sql: {
+					resource: 'bundled',
+					path: 'dump.sql',
+				},
+			},
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'url',
+					url: 'https://example.com/content.wxr',
+				},
+				fetchAttachments: true,
+				rewriteUrls: true,
+				importComments: false,
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 writeFiles steps to writeFile and writeFiles steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'writeFiles',
+					files: {
+						'site:wp-content/uploads/readme.txt': {
+							filename: 'readme.txt',
+							content: 'Hello',
+						},
+						'site:wp-content/plugins/inline-plugin': {
+							directoryName: 'inline-plugin',
+							files: {
+								'index.php': '<?php',
+							},
+						},
+						'site:wp-content/plugins/git-plugin': {
+							gitRepository:
+								'https://github.com/example/plugin.git',
+							ref: 'main',
+							pathInRepository: 'plugin',
+						},
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/uploads/readme.txt',
+				data: {
+					resource: 'literal',
+					name: 'readme.txt',
+					contents: 'Hello',
+				},
+			},
+			{
+				step: 'writeFiles',
+				writeToPath: '/wordpress/wp-content/plugins/inline-plugin',
+				filesTree: {
+					resource: 'literal:directory',
+					name: 'inline-plugin',
+					files: {
+						'index.php': '<?php',
+					},
+				},
+			},
+			{
+				step: 'writeFiles',
+				writeToPath: '/wordpress/wp-content/plugins/git-plugin',
+				filesTree: {
+					resource: 'git:directory',
+					url: 'https://github.com/example/plugin.git',
+					ref: 'main',
+					path: 'plugin',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 unzip and inline runPHP steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'unzip',
+					zipFile: './archive.zip',
+					extractToPath: 'site:wp-content/uploads/imported',
+				},
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'script.php',
+						content: '<?php echo "Hello";',
+					},
+				},
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'script-with-env.php',
+						content: '<?php echo getenv("MODE");',
+					},
+					env: {
+						MODE: 'test',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'unzip',
+				zipFile: {
+					resource: 'bundled',
+					path: 'archive.zip',
+				},
+				extractToPath: '/wordpress/wp-content/uploads/imported',
+			},
+			{
+				step: 'runPHP',
+				code: {
+					filename: 'script.php',
+					content: '<?php echo "Hello";',
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					code: '<?php echo getenv("MODE");',
+					env: {
+						MODE: 'test',
+					},
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
 	it('rejects empty Blueprint v2 target-site paths', async () => {
 		await expect(
 			compileBlueprintForExecution({
