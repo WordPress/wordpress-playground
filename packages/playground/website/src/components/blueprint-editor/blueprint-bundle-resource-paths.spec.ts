@@ -14,10 +14,17 @@ describe('collectBlueprintBundleResourcePaths', () => {
 								path: 'plugins/plugin.zip',
 							},
 						},
+						{
+							step: 'installTheme',
+							themeData: {
+								resource: 'bundled',
+								path: 'themes\\theme.zip',
+							},
+						},
 					],
 				})
-			)
-		).toEqual(['/plugins/plugin.zip']);
+			).sort()
+		).toEqual(['/plugins/plugin.zip', '/themes/theme.zip']);
 	});
 
 	it('collects v2 execution-context paths that carry bundle files', () => {
@@ -26,7 +33,10 @@ describe('collectBlueprintBundleResourcePaths', () => {
 				version: 2,
 				landingPage: '/wp-admin/',
 				activeTheme: { source: './themes/active-theme.zip' },
-				themes: ['/themes/secondary-theme.zip'],
+				themes: [
+					'/themes/secondary-theme.zip',
+					'.\\themes\\windows-theme.zip',
+				],
 				plugins: [
 					'jetpack',
 					'./plugins/query-monitor.zip',
@@ -100,10 +110,11 @@ describe('collectBlueprintBundleResourcePaths', () => {
 			'/sql/import.sql',
 			'/themes/active-theme.zip',
 			'/themes/secondary-theme.zip',
+			'/themes/windows-theme.zip',
 		]);
 	});
 
-	it('does not normalize parent-directory escapes into bundle paths', () => {
+	it('does not normalize v2 parent-directory escapes into bundle paths', () => {
 		expect(
 			Array.from(
 				collectBlueprintBundleResourcePaths({
@@ -112,6 +123,39 @@ describe('collectBlueprintBundleResourcePaths', () => {
 						'./../secret.zip',
 						'./plugins/../secret.zip',
 						'/../secret.zip',
+						'.\\plugins\\..\\secret.zip',
+					],
+				})
+			)
+		).toEqual([]);
+	});
+
+	it('does not normalize v1 parent-directory escapes into bundle paths', () => {
+		expect(
+			Array.from(
+				collectBlueprintBundleResourcePaths({
+					steps: [
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'bundled',
+								path: '../secret.zip',
+							},
+						},
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'bundled',
+								path: 'plugins/../secret.zip',
+							},
+						},
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'bundled',
+								path: 'plugins\\..\\secret.zip',
+							},
+						},
 					],
 				})
 			)

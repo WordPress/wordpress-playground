@@ -190,17 +190,25 @@ function addV2ExecutionContextPath(
 	path: string,
 	accumulator: Set<string>
 ): void {
-	if (!isV2ExecutionContextPath(path)) {
+	const normalizedPath = normalizePathSeparators(path);
+	if (!isV2ExecutionContextPath(normalizedPath)) {
 		return;
 	}
-	addBundlePath(path.replace(/^\.?\/+/, ''), accumulator);
+	addBundlePath(normalizedPath.replace(/^\.?\/+/, ''), accumulator);
 }
 
 function addBundlePath(path: string, accumulator: Set<string>): void {
-	if (!path || path.includes('\0')) {
+	const normalizedPath = normalizePathSeparators(path);
+	// These paths are later copied out of a bundle filesystem. Reject parent
+	// traversals before absolutizing, so `../secret.zip` never becomes `/secret.zip`.
+	if (
+		!normalizedPath ||
+		normalizedPath.includes('\0') ||
+		hasParentDirectorySegment(normalizedPath)
+	) {
 		return;
 	}
-	const absolutePath = ensureAbsolutePath(path);
+	const absolutePath = ensureAbsolutePath(normalizedPath);
 	if (absolutePath !== '/') {
 		accumulator.add(absolutePath);
 	}
@@ -210,7 +218,15 @@ function isV2ExecutionContextPath(path: string): boolean {
 	if (!(path.startsWith('./') || path.startsWith('/'))) {
 		return false;
 	}
-	return !path.replace(/\\/g, '/').split('/').includes('..');
+	return !hasParentDirectorySegment(path);
+}
+
+function normalizePathSeparators(path: string): string {
+	return path.replace(/\\/g, '/');
+}
+
+function hasParentDirectorySegment(path: string): boolean {
+	return path.split('/').includes('..');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
