@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { logEventType, logger } from '@php-wasm/logger';
 
 import classNames from 'classnames';
@@ -11,6 +11,7 @@ import type {
 } from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { splitLogHighlights } from './log-highlights';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
@@ -30,13 +31,23 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	);
 }
 
-export function SiteLogs({ className }: { className?: string }) {
+export function SiteLogs({
+	className,
+	autoFocusSearch = true,
+}: {
+	className?: string;
+	autoFocusSearch?: boolean;
+}) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
-	const filteredLogs = logs.filter((log) =>
-		log.toLowerCase().includes(searchTerm.toLowerCase())
-	);
+	// Keep each entry's original (append-only) index so it can be a stable React
+	// key. Newest-first display then doesn't churn keys when a log is added.
+	const filteredLogs = logs
+		.map((log, index) => ({ log, index }))
+		.filter(({ log }) =>
+			log.toLowerCase().includes(searchTerm.toLowerCase())
+		);
 
 	useEffect(() => {
 		getLogs();
@@ -52,15 +63,23 @@ export function SiteLogs({ className }: { className?: string }) {
 	}
 
 	function logList() {
-		return filteredLogs.reverse().map((log, index) => (
-			<div
-				className={css.logEntry}
-				key={index}
-				dangerouslySetInnerHTML={{
-					__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
-				}}
-			/>
-		));
+		// Newest first, without mutating filteredLogs (slice before reverse).
+		return filteredLogs
+			.slice()
+			.reverse()
+			.map(({ log, index }) => (
+				<div className={css.logEntry} key={index}>
+					{splitLogHighlights(log).map((segment, segmentIndex) =>
+						segment.highlight ? (
+							<mark key={segmentIndex}>{segment.text}</mark>
+						) : (
+							<Fragment key={segmentIndex}>
+								{segment.text}
+							</Fragment>
+						)
+					)}
+				</div>
+			));
 	}
 
 	return (
@@ -71,7 +90,7 @@ export function SiteLogs({ className }: { className?: string }) {
 					placeholder="Search logs"
 					value={searchTerm}
 					onChange={setSearchTerm}
-					autoFocus={true}
+					autoFocus={autoFocusSearch}
 					className={css.logSearch}
 				/>
 			) : null}
@@ -80,15 +99,51 @@ export function SiteLogs({ className }: { className?: string }) {
 					<main className={css.logList}>{logList()}</main>
 				) : logs.length > 0 ? (
 					<div className={css.logEmptyPlaceholder}>
-						No matching logs found.
+						<p className={css.logEmptyHint}>
+							No logs match “{searchTerm}”.
+						</p>
+						<button
+							type="button"
+							className={css.logClearSearch}
+							onClick={() => setSearchTerm('')}
+						>
+							Clear search
+						</button>
 					</div>
 				) : (
-					<div>
-						Error logs for Playground, WordPress, and PHP will show
-						up here when something goes wrong.
-						<br />
-						<br />
-						No problems so far – yay! 🎉
+					<div className={css.logEmptyState}>
+						<p className={css.logEmptyTitle}>Nothing logged yet</p>
+						<p className={css.logEmptyHint}>
+							This is the combined log for your Playground. Three
+							kinds of messages land here as you use it:
+						</p>
+						<ul className={css.logLegend}>
+							<li>
+								<span className={css.logLegendTerm}>PHP</span>
+								<span className={css.logLegendDesc}>
+									fatal errors, warnings, and notices from
+									your code
+								</span>
+							</li>
+							<li>
+								<span className={css.logLegendTerm}>
+									WordPress
+								</span>
+								<span className={css.logLegendDesc}>
+									entries written to the debug log when
+									WP_DEBUG is on
+								</span>
+							</li>
+							<li>
+								<span className={css.logLegendTerm}>
+									Playground
+								</span>
+								<span className={css.logLegendDesc}>
+									runtime messages from the Playground app
+									itself
+								</span>
+							</li>
+						</ul>
 					</div>
 				)}
 			</div>

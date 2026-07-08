@@ -11,44 +11,91 @@
 }
 
 .invalid-input :global(.components-input-control__backdrop) {
-	border-color: #e26f56 !important;
+	border-color: var(--color-alert-red, #cc1818) !important;
 }
 
 .invalid-input :global(.components-base-control__help) {
-	color: #e26f56;
+	color: var(--color-alert-red, #cc1818);
 }
 
 .form-section {
-	padding: 24px;
+	/* The header's bottom padding owns the gap to the first field, so the form
+	   starts flush at the top. */
+	padding: 0 var(--space-6) var(--space-6);
 }
 
 .form-section p {
 	margin: 0;
 }
 
+/* "Include older versions" is a sub-option of the WordPress Version select, so
+   its checkbox lines up with the control's left edge: 150px label column + the
+   8px flex gap WordPress puts between a side label and its control. */
+.sub-option {
+	margin-top: var(--space-1);
+	padding-left: 158px;
+}
+
+/* Side-label selects read like the spec sheet elsewhere: a fixed muted label
+   column + the control filling the rest, in warm tones. */
 .form-section :global(.components-select-control > :first-child) {
-	width: 50%;
+	flex: 0 0 150px;
+	width: 150px;
 }
 .form-section :global(.components-select-control > :first-child label) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
 	text-transform: none;
-	font-weight: normal;
-	font-size: 14px;
-	color: #757575;
 }
 .form-section :global(.components-select-control > :nth-child(2)) {
+	flex: 1;
 	width: auto;
-	flex-shrink: 1;
+}
+.form-section :global(.components-input-control__backdrop) {
+	border-color: var(--line-control) !important;
+	border-radius: var(--radius-control) !important;
+}
+/* Top-level toggles ("Allow network access", "Create a multisite network") are
+   real choices, so they sit on the darker ink-soft ramp — not the ink-muted
+   help-text tone. The sub-option below re-mutes itself. */
+.form-section :global(.components-checkbox-control__label) {
+	color: var(--ink-soft);
+	font-size: 13px;
 }
 
+.sub-option :global(.components-checkbox-control__label) {
+	color: var(--ink-muted);
+}
+.form-section :global(.components-base-control__help) {
+	color: var(--ink-muted);
+}
+
+/* A quiet inline caption, not a boxed alert — the muted text + small icon are
+   enough; the box read as heavy. */
 .notice {
-	background-color: #f3f6fd;
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
+/* The recreate/reset action. The destructive (red) button already signals the
+   consequence, so the footer stays calm — a hairline separator and one quiet
+   note — instead of a loud red danger field. */
 .footer {
-	background-color: #f3f6fd;
+	border-top: 1px solid var(--line-subtle);
+	/* Lift the note off the separator so the bottom section breathes evenly
+	   (the separator owns the break from the form above). */
+	padding-top: var(--space-4);
 	button {
 		width: 100%;
 		align-self: center;
 		justify-content: center;
 	}
+}
+
+.footer-note {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }

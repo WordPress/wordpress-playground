@@ -1,6 +1,9 @@
 import { Modal } from '../modal';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	retryActiveSiteBoot,
+	setActiveModal,
+} from '../../lib/state/redux/slice-ui';
 import { Icon, Spinner } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
@@ -65,6 +68,7 @@ export function GitHubPrivateRepoAuthModal() {
 									setError,
 									onSuccess: () => {
 										dispatch(setActiveModal(null));
+										dispatch(retryActiveSiteBoot());
 									},
 								});
 							}}

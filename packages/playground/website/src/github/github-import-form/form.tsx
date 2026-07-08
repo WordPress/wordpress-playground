@@ -22,9 +22,11 @@ import type { ContentType } from '../import-from-github';
 import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { normalizePath } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { getGitHubImportDirectoryName } from './import-directory-name';
+import {
+	getGitHubImportDirectoryName,
+	normalizeGitHubImportPath,
+} from './import-paths';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
@@ -33,6 +35,7 @@ export interface GitHubImportFormProps {
 		url: string;
 		urlInformation: GitHubURLInformation;
 		branch: string;
+		filesCommitSha?: string;
 		path: string;
 		contentType: ContentType;
 		pluginOrThemeName: string;
@@ -93,10 +96,10 @@ export default function GitHubImportForm({
 				});
 				return;
 			}
+			const octokit = getClient();
 			const analysisRun = ++analysisRunRef.current;
 			setIsAnalyzing(true);
 			try {
-				const octokit = getClient();
 				const importSource = await resolveImportSource(octokit, info);
 				if (
 					analysisRunRef.current !== analysisRun ||
@@ -155,23 +158,29 @@ export default function GitHubImportForm({
 			});
 			return;
 		}
+		let relativeRepoPath: string;
+		try {
+			relativeRepoPath = normalizeGitHubImportPath(path!);
+		} catch (error) {
+			setErrors({ path: (error as Error).message });
+			return;
+		}
+
 		setIsImporting(true);
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
 			const pluginOrThemeName = getGitHubImportDirectoryName(
-				path!,
+				relativeRepoPath,
 				urlInformation!.repo!
 			);
 
-			const relativeRepoPath = path!.replace(/^\//g, '');
-			// Use the commit resolved during analysis so a branch moving
-			// mid-flow cannot change the files being imported.
+			const filesRef = urlInformation!.commitSha || branch!;
 			const ghFiles = await getFilesFromDirectory(
 				octokit,
 				urlInformation!.owner!,
 				urlInformation!.repo!,
-				urlInformation!.commitSha || branch!,
+				filesRef,
 				relativeRepoPath,
 				{
 					onProgress: (progress) =>
@@ -188,18 +197,22 @@ export default function GitHubImportForm({
 				relativeRepoPath,
 				pluginOrThemeName
 			);
-			targetPlayground.goTo('/');
+			await flushImportedGitHubFiles(targetPlayground);
+			void targetPlayground.goTo('/').catch((error) => {
+				logger.error('Error refreshing imported Playground.', error);
+			});
 			onImported({
 				url: newUrl,
 				urlInformation: urlInformation!,
-				path: path!,
+				path: relativeRepoPath,
 				contentType,
 				branch: branch!,
+				filesCommitSha: urlInformation!.commitSha,
 				pluginOrThemeName,
 				files: ghFiles,
 			});
-		} catch (e) {
-			if ((e as any)?.status === 401) {
+		} catch (e: any) {
+			if (e && e.status === 401) {
 				setOAuthToken(undefined);
 				resetClient();
 				return;
@@ -228,6 +241,7 @@ export default function GitHubImportForm({
 						I want to import from this GitHub URL:
 						<input
 							type="text"
+							name="github-import-url"
 							value={url}
 							className={css.repoInput}
 							onChange={(
@@ -248,7 +262,9 @@ export default function GitHubImportForm({
 						/>
 					</label>
 					{'url' in errors ? (
-						<div className={forms.error}>{errors.url}</div>
+						<div role="alert" className={forms.error}>
+							{errors.url}
+						</div>
 					) : null}
 					<WPButton
 						variant="link"
@@ -322,12 +338,15 @@ export default function GitHubImportForm({
 									<label>
 										I am importing a:
 										<select
-											value={contentType}
+											name="github-import-content-type"
+											value={contentType ?? ''}
 											className={css.repoInput}
 											onChange={(e) =>
 												setContentType(
-													e.target
-														.value as ContentType
+													(e.target.value ||
+														undefined) as
+														| ContentType
+														| undefined
 												)
 											}
 										>
@@ -344,7 +363,10 @@ export default function GitHubImportForm({
 										</select>
 									</label>
 									{'contentType' in errors ? (
-										<div className={forms.error}>
+										<div
+											role="alert"
+											className={forms.error}
+										>
 											{errors.contentType}
 										</div>
 									) : null}
@@ -356,8 +378,9 @@ export default function GitHubImportForm({
 										From the following path in the repo:
 										<input
 											type="text"
+											name="github-import-path"
 											className={css.repoInput}
-											value={normalizePath('/' + path)}
+											value={`/${path}`}
 											onChange={(e) => {
 												setPath(
 													e.target.value.replace(
@@ -369,7 +392,10 @@ export default function GitHubImportForm({
 										/>
 									</label>
 									{'path' in errors ? (
-										<div className={forms.error}>
+										<div
+											role="alert"
+											className={forms.error}
+										>
 											{errors.path}
 										</div>
 									) : null}
@@ -409,9 +435,13 @@ export default function GitHubImportForm({
 	);
 }
 
-/**
- * Resolves the exact repository ref that should be imported.
- */
+async function flushImportedGitHubFiles(playground: PlaygroundClient) {
+	const documentRoot = await playground.documentRoot;
+	if (await playground.hasOpfsMount(documentRoot)) {
+		await playground.flushOpfs(documentRoot);
+	}
+}
+
 async function resolveImportSource(
 	octokit: GithubClient,
 	urlDetails: GitHubURLInformation

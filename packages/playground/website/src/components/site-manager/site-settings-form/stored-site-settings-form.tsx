@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAppSelector } from '../../../lib/state/redux/store';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import css from './style.module.css';
 import {
 	Icon,
@@ -8,10 +8,13 @@ import {
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
 import { info } from '@wordpress/icons';
-import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
+import {
+	selectSiteBySlug,
+	updateSiteMetadata,
+} from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
-import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
+import { getSetupFormDefaultValues } from './setup-form-values';
 
 export function StoredSiteSettingsForm({
 	siteSlug,
@@ -23,21 +26,25 @@ export function StoredSiteSettingsForm({
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
-	const sitesAPI = useSitesAPI();
+	const dispatch = useAppDispatch();
 	const updateSite = async (data: SiteFormData) => {
-		await sitesAPI.setPhpVersion(data.phpVersion);
-		await sitesAPI.setNetworking(data.withNetworking);
+		await dispatch(
+			updateSiteMetadata({
+				slug: siteSlug,
+				changes: {
+					runtimeConfiguration: {
+						...siteInfo.metadata.runtimeConfiguration,
+						phpVersion: data.phpVersion,
+						networking: data.withNetworking,
+					},
+				},
+			})
+		);
 		onSubmit?.();
 	};
 
 	const defaultValues = useMemo<Partial<SiteFormData>>(
-		() => ({
-			name: siteInfo.metadata.name,
-			// @TODO: Handle an unsupported PHP version coming up here
-			phpVersion: siteInfo.metadata.runtimeConfiguration
-				.phpVersion as any,
-			withNetworking: !!siteInfo.metadata.runtimeConfiguration.networking,
-		}),
+		() => getSetupFormDefaultValues(siteInfo),
 		[siteInfo]
 	);
 

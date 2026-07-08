@@ -11,7 +11,7 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo, removeClientInfo } from './slice-clients';
+import { addClientInfo } from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
@@ -36,11 +36,12 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { getSetupUrlFromUrl } from '../playground-identity';
 import {
-	getSetupUrlFromSite,
-	getSetupUrlFromUrl,
-} from '../playground-identity';
-import { redirectTo } from '../url/router';
+	PlaygroundRoute,
+	isSiteSavingDisabled,
+	redirectTo,
+} from '../url/router';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -243,13 +244,23 @@ export function createSitesAPI(
 			if (site.metadata.storage !== 'none') {
 				if (isAutosavedSite(site)) {
 					await api.keep(site.slug, name);
+					// Once the active autosave is explicitly kept, route to its slug.
+					// Otherwise a refresh of the setup URL creates a new autosave.
+					const keptSite = selectSiteBySlug(getState(), site.slug);
+					if (keptSite) {
+						redirectTo(PlaygroundRoute.site(keptSite));
+					}
+					return {
+						slug: site.slug,
+						storage:
+							keptSite?.metadata.storage ?? site.metadata.storage,
+					};
 				}
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 			await dispatch(
 				persistTemporarySite(site.slug, 'opfs', {
 					siteName: name,
-					skipRenameModal: true,
 					updateUrl: true,
 				})
 			);
@@ -286,7 +297,6 @@ export function createSitesAPI(
 			}
 			await dispatch(
 				persistTemporarySite(site.slug, 'opfs', {
-					skipRenameModal: true,
 					persistence: 'autosave',
 					updateUrl: options.updateUrl ?? false,
 				})
@@ -379,7 +389,6 @@ export function createSitesAPI(
 				persistTemporarySite(site.slug, 'local-fs', {
 					siteName: name,
 					localFsHandle,
-					skipRenameModal: true,
 					updateUrl: true,
 				})
 			);
@@ -415,14 +424,8 @@ export function createSitesAPI(
 				);
 			}
 			const setupUrl = getSetupUrlForNewSite(settings, {
-				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
-			await selectClientBySiteSlug(
-				getState(),
-				site.slug
-			)?.unmountOpfs('/wordpress');
-			dispatch(removeClientInfo(site.slug));
 			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
 			redirectTo(setupUrl.toString());
 		},
@@ -502,7 +505,15 @@ export function createSitesAPI(
 					'Cannot delete a temporary site. It will be reset on the next page load.'
 				);
 			}
+			const activeSiteSlug = selectActiveSite(getState())?.slug;
 			await dispatch(removeSite(siteSlug));
+			if (activeSiteSlug === siteSlug && !selectActiveSite(getState())) {
+				redirectTo(
+					isSiteSavingDisabled() || !opfsSiteStorage
+						? PlaygroundRoute.newTemporarySite()
+						: PlaygroundRoute.newSite()
+				);
+			}
 		},
 
 		/**
@@ -521,11 +532,24 @@ export function createSitesAPI(
 			if (!site) {
 				throw new Error(`Site not found: ${siteSlug}`);
 			}
-			// If the requested site is already active, avoid registering a
-			// listener that will never fire. The underlying setActiveSite
-			// thunk short-circuits in this case, so we can safely return.
 			const activeSite = selectActiveSite(state);
 			if (activeSite?.slug === siteSlug) {
+				// The store-level thunk short-circuits for the active site, so
+				// no boot action will be emitted. Dispatch it anyway so
+				// `{ updateUrl: true }` can still repair the browser route, then
+				// wait on the active client instead of registering a listener
+				// that can never resolve.
+				dispatch(setActiveSite(siteSlug, options));
+				await api.isReady();
+				return;
+			}
+			const existingClient = selectClientBySiteSlug(state, siteSlug);
+			if (existingClient) {
+				// Previously booted sites stay mounted while hidden. Switching
+				// back to one does not emit `addClientInfo`, so wait on the
+				// already-known client after changing the active slug.
+				dispatch(setActiveSite(siteSlug, options));
+				await existingClient.isReady();
 				return;
 			}
 			const bootPromise = new Promise<void>((resolve, reject) => {
@@ -533,7 +557,13 @@ export function createSitesAPI(
 					predicate: (action) =>
 						(addClientInfo.match(action) &&
 							action.payload.siteSlug === siteSlug) ||
-						setActiveSiteError.match(action),
+						// Errors are stored on the active site, so ignore an
+						// older boot's late error after selection moved on.
+						(setActiveSiteError.match(action) &&
+							(action.payload.siteSlug
+								? action.payload.siteSlug === siteSlug
+								: selectActiveSite(getState())?.slug ===
+									siteSlug)),
 					effect: (action) => {
 						unsubscribe();
 						if (setActiveSiteError.match(action)) {
@@ -571,9 +601,7 @@ export function createSitesAPI(
 			const siteName = requestedSiteSlug
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-			});
+			const url = getSetupUrlForNewSite(settings);
 			const newSiteInfo = await dispatch(
 				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
 			);
@@ -613,7 +641,6 @@ export function createSitesAPI(
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
 			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
 				onlySetupParams: true,
 			});
 			const newSiteInfo = await dispatch(
@@ -663,22 +690,19 @@ async function updateSiteNameIfProvided(
  *
  * Temporary sites keep the current query string for backwards compatibility.
  * Saved sites keep only setup params so routing, UI, and lifecycle params do
- * not leak into persisted metadata. Autosaved site recreation passes the
- * stored setup URL as the base so changing one setting does not discard
- * Blueprint, plugin, theme, or other setup params that are absent from the
- * current browser route. All paths use the same `SiteSettings` mapping so new
- * settings have one query representation.
+ * not leak into persisted metadata. Both paths use the same `SiteSettings`
+ * mapping so new settings have one query representation.
  */
 function getSetupUrlForNewSite(
-	settings: SiteSettings | undefined,
+	settings?: SiteSettings,
 	options: {
-		baseUrl: URL;
 		onlySetupParams?: boolean;
-	}
+	} = {}
 ) {
+	const currentUrl = new URL(window.location.href);
 	const url = options.onlySetupParams
-		? getSetupUrlFromUrl(options.baseUrl)
-		: new URL(options.baseUrl.href);
+		? getSetupUrlFromUrl(currentUrl)
+		: currentUrl;
 	if (settings) {
 		if (settings.phpVersion !== undefined) {
 			url.searchParams.set('php', settings.phpVersion);
@@ -693,7 +717,11 @@ function getSetupUrlForNewSite(
 			);
 		}
 		if (settings.language !== undefined) {
-			url.searchParams.set('language', settings.language);
+			if (settings.language === '') {
+				url.searchParams.delete('language');
+			} else {
+				url.searchParams.set('language', settings.language);
+			}
 		}
 		if (settings.multisite !== undefined) {
 			url.searchParams.set(

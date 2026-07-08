@@ -35,7 +35,6 @@ const MultiplePathsInput: React.FC<MultiplePathsInputProps> = ({
 		setCustomPaths(paths);
 	};
 
-	// Call the onChange callback whenever the paths change
 	React.useEffect(() => {
 		onChange(customPaths);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -47,6 +46,7 @@ const MultiplePathsInput: React.FC<MultiplePathsInputProps> = ({
 				<div key={index} className={css.multipleInputsRow}>
 					<input
 						type="text"
+						name={`github-export-relative-path-${index}`}
 						className={css.repoInput}
 						value={path}
 						onChange={(e) =>

@@ -26,6 +26,7 @@ import {
 	OPFS_SITES_ROOT_PATH,
 	getCandidateDirectoryNamesForSlug,
 	getDirectoryNameForSlug,
+	getDirectoryPathForSlug,
 } from './opfs-site-path';
 export {
 	getDirectoryNameForSlug,
@@ -45,13 +46,16 @@ export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
  * It's different from SiteInfo:
  * * It extends SiteMetadata instead of embedding it.
  * * It adds slug to SiteMetadata so we can recover it after a page reload.
- * * It's not concerned with any extra information stored in SiteInfo by the redux store.
+ * * It keeps the setup URL params that settings and sharing panes need after reload.
+ * * It's not concerned with any other extra information stored in SiteInfo by
+ *   the redux store.
  *
  * I'm not yet sure whether that's the right approach. Let's keep going and find out as the
  * design matures.
  */
 export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
+	originalUrlParams?: SiteInfo['originalUrlParams'];
 }
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
@@ -72,11 +76,24 @@ class OpfsSiteStorage {
 		this.root = root;
 	}
 
-	async create(slug: string, metadata: SiteMetadata): Promise<void> {
+	async create(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: SiteInfo['originalUrlParams']
+	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
+		}
+		const incompleteSiteDirectory = await getDirectoryHandleIfExists(
+			this.root,
+			newSiteDirName
+		);
+		if (incompleteSiteDirectory) {
+			// A failed first save can leave WordPress files without metadata.
+			// Reusing that directory would mix stale files into the next save.
+			await this.root.removeEntry(newSiteDirName, { recursive: true });
 		}
 
 		await this.root.getDirectoryHandle(newSiteDirName, {
@@ -84,11 +101,15 @@ class OpfsSiteStorage {
 		});
 		await opfsWriteFile(
 			getSiteMetadataPath(newSiteDirName),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
-	async update(slug: string, metadata: SiteMetadata): Promise<void> {
+	async update(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: SiteInfo['originalUrlParams']
+	): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
@@ -96,7 +117,7 @@ class OpfsSiteStorage {
 
 		await opfsWriteFile(
 			getSiteMetadataPath(siteDirName),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
@@ -106,7 +127,10 @@ class OpfsSiteStorage {
 			if (entry.kind === 'directory') {
 				try {
 					const site = await this.readSite(entry.name);
-					if (site) {
+					// Temporary metadata records are failed-save placeholders used
+					// only by the still-running tab that owns the retry. After a
+					// reload they must not appear as real saved Playgrounds.
+					if (site && site.metadata.storage !== 'none') {
 						sites.push(site);
 					}
 				} catch (e) {
@@ -168,7 +192,8 @@ class OpfsSiteStorage {
 					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
 					error
 				);
-				// Continue with the JSON declaration
+				// Keep the site visible; boot can surface the missing bundle if
+				// it needs that Blueprint to recreate files.
 			}
 		}
 
@@ -246,17 +271,29 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 
 export const isOpfsAvailable = !!opfsSiteStorage;
 
+export function getDirectoryPathForSite(
+	site: Pick<SiteInfo, 'metadata' | 'slug'>
+) {
+	// @TODO: Remove this backcompat code after 2024-12-01.
+	return (
+		((site.metadata as any)[legacyOpfsPathSymbol] as string | undefined) ??
+		getDirectoryPathForSlug(site.slug)
+	);
+}
+
 function getSiteMetadataPath(siteDirName: string) {
 	return joinPaths(OPFS_SITES_ROOT_PATH, siteDirName, SITE_METADATA_FILENAME);
 }
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata,
+	originalUrlParams?: SiteInfo['originalUrlParams']
 ): Promise<string> {
 	return JSON.stringify(
 		{
 			slug,
+			originalUrlParams,
 			originalBlueprintSource,
 			/**
 			 * Site metadata stores Blueprint declaration JSON, not arbitrary
@@ -269,7 +306,7 @@ async function metadataToStoredFormat(
 			originalBlueprint:
 				originalBlueprintSource?.type === 'opfs-site'
 					? undefined
-					: await getBlueprintDeclaration(originalBlueprint as any),
+					: await getBlueprintDeclaration(originalBlueprint),
 			...metadata,
 		},
 		undefined,
@@ -278,7 +315,9 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+	const { slug, originalUrlParams, ...metadata } = JSON.parse(
+		data
+	) as StoredSiteMetadata;
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
@@ -329,6 +368,7 @@ function storedFormatToMetadata(data: string) {
 
 	return {
 		slug,
+		originalUrlParams,
 		metadata,
 	};
 }
@@ -398,11 +438,17 @@ async function opfsWriteFile(path: string, content: string) {
 		};
 		worker.onerror = reject;
 	});
-	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(() => reject(new Error('timeout')), 5000);
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	const promiseToTimeout = new Promise<void>((_resolve, reject) => {
+		timeoutId = setTimeout(() => reject(new Error('timeout')), 5000);
 	});
 
-	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
-		worker.terminate()
+	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
+		() => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			worker.terminate();
+		}
 	);
 }

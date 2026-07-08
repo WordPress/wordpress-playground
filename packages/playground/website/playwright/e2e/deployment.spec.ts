@@ -109,7 +109,9 @@ test.skip(
 			'[class*="_site-manager-site-info"]'
 		);
 		if (await siteManagerHeading.isHidden({ timeout: 5000 })) {
-			await website.page.getByLabel('Open Site Manager').click();
+			await website.page
+				.getByRole('button', { name: /Site details/ })
+				.click();
 		}
 		await expect(siteManagerHeading).toBeVisible();
 
@@ -153,7 +155,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
-	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);

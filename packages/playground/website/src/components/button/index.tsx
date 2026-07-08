@@ -6,15 +6,25 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	size?: 'medium' | 'large';
 }
 export default function Button(props: ButtonProps) {
+	const { variant, size, className, type, ...rest } = props;
 	const classNames = [
 		css.button,
-		props.variant === 'primary'
+		variant === 'primary'
 			? css.isPrimary
-			: props.variant === 'browser-chrome'
-			? css.isBrowserChrome
-			: '',
-		props.size === 'large' ? css.isLarge : '',
-		props.className || '',
+			: variant === 'browser-chrome'
+				? css.isBrowserChrome
+				: '',
+		size === 'large' ? css.isLarge : '',
+		className || '',
 	];
-	return <button {...props} className={classNames.join(' ')} />;
+	// Default to type="button" so a Button placed inside a <form> (e.g. the
+	// export success "Close" action) does not implicitly submit the form and
+	// re-fire its handler. Submit buttons opt in explicitly with type="submit".
+	return (
+		<button
+			type={type ?? 'button'}
+			{...rest}
+			className={classNames.join(' ')}
+		/>
+	);
 }

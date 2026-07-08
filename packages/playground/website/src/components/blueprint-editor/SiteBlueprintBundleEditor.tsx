@@ -1,11 +1,10 @@
 import { logger } from '@php-wasm/logger';
-import { dirname, ensureAbsolutePath } from '@php-wasm/util';
+import { dirname } from '@php-wasm/util';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import {
 	type AsyncWritableFilesystem,
 	EventedFilesystem,
 	InMemoryFilesystemBackend,
-	type WritableFilesystemBackend,
 } from '@wp-playground/storage';
 import classNames from 'classnames';
 import {
@@ -16,14 +15,15 @@ import {
 	useState,
 } from 'react';
 import {
-	loadPersistedBlueprintBundle,
-	persistBlueprintBundle,
+	loadPersistedBlueprintBundleFromPath,
+	persistBlueprintBundleAtSitePath,
 } from '../../lib/state/opfs/opfs-blueprint-bundle-storage';
+import { getDirectoryPathForSite } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	type SiteInfo,
-	updateSite,
+	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from './blueprint-bundle-editor.module.css';
@@ -31,26 +31,13 @@ import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
+import { collectBlueprintBundleResourcePaths } from './blueprint-bundle-resource-paths';
+import { isFilesystemBackend } from './blueprint-filesystem';
 
-/**
- * Check if an object implements the writable filesystem backend interface.
- */
-function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
-	return (
-		typeof obj === 'object' &&
-		obj !== null &&
-		'listFiles' in obj &&
-		'isDir' in obj &&
-		'read' in obj &&
-		'fileExists' in obj &&
-		'writeFile' in obj &&
-		'mkdir' in obj &&
-		'rmdir' in obj &&
-		'mv' in obj &&
-		'unlink' in obj &&
-		'clear' in obj
-	);
-}
+// Temporary Playgrounds keep Blueprint edits in an in-memory bundle until the
+// user runs them. Cache that bundle across dock pane unmounts so closing the
+// editor or switching tools does not silently restore the original Blueprint.
+const editableBlueprintFilesystemCache = new Map<string, EventedFilesystem>();
 
 /**
  * Populate a filesystem with the contents of a Blueprint.
@@ -67,7 +54,9 @@ async function populateFilesystemFromBlueprint(
 	await fs.writeFile('/blueprint.json', JSON.stringify(declaration, null, 2));
 
 	if (bundle) {
-		for (const absolutePath of collectBundledResourcePaths(declaration)) {
+		for (const absolutePath of collectBlueprintBundleResourcePaths(
+			declaration
+		)) {
 			// For each path referenced in the blueprint, try to read the
 			// accompanying file from the bundle. Some files might be missing,
 			// this is fine – we'll just skip them here.
@@ -88,19 +77,58 @@ async function populateFilesystemFromBlueprint(
 }
 
 /**
+ * A minimal valid Blueprint. Every Playground starts from some Blueprint, so the
+ * editor should never open empty — when a site has no Blueprint on record we seed
+ * this stub so there is always a `blueprint.json` to view and edit.
+ */
+const STUB_BLUEPRINT_JSON = `${JSON.stringify(
+	{
+		$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+		steps: [],
+	},
+	null,
+	2
+)}\n`;
+
+/**
+ * Guarantees the editor always has a `blueprint.json` to show. A bundle (or a
+ * declaration-only Blueprint) that somehow carries none would otherwise render
+ * the editor empty.
+ */
+async function ensureBlueprintJson(fs: EventedFilesystem): Promise<void> {
+	if (!(await fs.fileExists('/blueprint.json'))) {
+		await fs.writeFile('/blueprint.json', STUB_BLUEPRINT_JSON);
+	}
+}
+
+/**
  * Returns an editable filesystem for a site's Blueprint declaration or bundle.
  *
  * Bundle backends can be used directly. Declaration-only Blueprints are copied
  * into a fresh in-memory filesystem so the editor always works with files.
+ * Either way, a stub `blueprint.json` is seeded if none exists so the editor is
+ * never empty.
  */
 async function createFilesystemFromOriginalBlueprint(
-	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint'],
+	options: {
+		/**
+		 * Whether a filesystem-backed bundle may be seeded with a missing
+		 * `blueprint.json`. Read-only callers leave persisted bundles untouched.
+		 */
+		seedMissingBlueprintJson?: boolean;
+	} = {}
 ): Promise<EventedFilesystem> {
+	const { seedMissingBlueprintJson = true } = options;
 	// If originalBlueprint is already a filesystem backend (e.g.,
 	// PersistedBlueprintBundle), use it directly instead of populating from
 	// Blueprint JSON.
 	if (isFilesystemBackend(originalBlueprint)) {
-		return new EventedFilesystem(originalBlueprint);
+		const fs = new EventedFilesystem(originalBlueprint);
+		if (seedMissingBlueprintJson) {
+			await ensureBlueprintJson(fs);
+		}
+		return fs;
 	}
 
 	// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
@@ -111,39 +139,74 @@ async function createFilesystemFromOriginalBlueprint(
 			originalBlueprint as Blueprint
 		);
 	}
+	await ensureBlueprintJson(fs);
 	return fs;
 }
 
-function collectBundledResourcePaths(value: unknown): Set<string> {
-	const accumulator = new Set<string>();
-	const stack: unknown[] = [value];
-	while (stack.length) {
-		const current = stack.pop();
-		if (!current || typeof current !== 'object') {
-			continue;
-		}
+/**
+ * Reads a site's `blueprint.json` as text. Used to seed the New pane's "Write a
+ * Blueprint" editor with the Playground's existing Blueprint declaration.
+ */
+export async function readSiteBlueprintJson(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+): Promise<string> {
+	const fs = await createFilesystemFromOriginalBlueprint(originalBlueprint, {
+		seedMissingBlueprintJson: !isFilesystemBackend(originalBlueprint),
+	});
+	return fs.readFileAsText('/blueprint.json');
+}
 
-		if (Array.isArray(current)) {
-			for (const item of current) {
-				stack.push(item);
-			}
-			continue;
-		}
+function getEditableBlueprintFilesystemCacheKey(
+	site: SiteInfo,
+	{
+		isAutosaved,
+		readOnly,
+	}: {
+		isAutosaved: boolean;
+		readOnly: boolean;
+	}
+) {
+	if (readOnly) {
+		return null;
+	}
+	return [
+		site.slug,
+		isAutosaved ? 'autosaved' : 'temporary',
+		site.metadata.whenCreated ?? '',
+		getOriginalBlueprintCacheFingerprint(site.metadata.originalBlueprint),
+	].join(':');
+}
 
-		const candidate = current as { resource?: unknown; path?: unknown };
-		if (
-			candidate.resource === 'bundled' &&
-			typeof candidate.path === 'string'
-		) {
-			accumulator.add(ensureAbsolutePath(candidate.path));
-		}
+function getOriginalBlueprintCacheFingerprint(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+) {
+	if (isFilesystemBackend(originalBlueprint)) {
+		return 'filesystem';
+	}
+	if (originalBlueprint === undefined) {
+		return 'none';
+	}
+	try {
+		return JSON.stringify(originalBlueprint);
+	} catch {
+		return String(originalBlueprint);
+	}
+}
 
-		for (const child of Object.values(current)) {
-			stack.push(child);
+function cacheEditableBlueprintFilesystem(
+	siteSlug: string,
+	cacheKey: string | null,
+	fs: EventedFilesystem
+) {
+	if (!cacheKey) {
+		return;
+	}
+	for (const key of editableBlueprintFilesystemCache.keys()) {
+		if (key.startsWith(`${siteSlug}:`) && key !== cacheKey) {
+			editableBlueprintFilesystemCache.delete(key);
 		}
 	}
-
-	return accumulator;
+	editableBlueprintFilesystemCache.set(cacheKey, fs);
 }
 
 export interface SiteBlueprintBundleEditorHandle {
@@ -177,20 +240,37 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	// user-preserved site artifacts, so their Blueprints remain read-only.
 	const isAutosaved = isAutosavedSite(site);
 	const readOnly = isExplicitlySavedSite(site);
+	const filesystemCacheKey = getEditableBlueprintFilesystemCacheKey(site, {
+		isAutosaved,
+		readOnly,
+	});
 
 	useEffect(() => {
 		let cancelled = false;
+		setFilesystem(null);
 		const setFilesystemIfMounted = (fs: EventedFilesystem) => {
-			if (!cancelled) {
-				setFilesystem(fs);
+			if (cancelled) {
+				return;
 			}
+			cacheEditableBlueprintFilesystem(site.slug, filesystemCacheKey, fs);
+			setFilesystem(fs);
 		};
 
 		const bootstrap = async () => {
+			const cachedFilesystem = filesystemCacheKey
+				? editableBlueprintFilesystemCache.get(filesystemCacheKey)
+				: undefined;
+			if (cachedFilesystem) {
+				setFilesystemIfMounted(cachedFilesystem);
+				return;
+			}
 			if (isAutosaved) {
 				const fs = await createFilesystemFromOriginalBlueprint(
 					site.metadata.originalBlueprint
 				);
+				if (cancelled) {
+					return;
+				}
 				if (isFilesystemBackend(site.metadata.originalBlueprint)) {
 					setFilesystemIfMounted(fs);
 					return;
@@ -199,20 +279,21 @@ export const SiteBlueprintBundleEditor = forwardRef<
 				// Autosaved Playgrounds keep editable Blueprint bundles beside their
 				// WordPress files. Declaration-only metadata is converted once into a
 				// per-site OPFS bundle so later edits cannot leak into another site.
-				await persistBlueprintBundle(site.slug, fs.backend);
+				const sitePath = getDirectoryPathForSite(site);
+				await persistBlueprintBundleAtSitePath(sitePath, fs.backend);
 				const opfsFilesystem = new EventedFilesystem(
-					await loadPersistedBlueprintBundle(site.slug)
+					await loadPersistedBlueprintBundleFromPath(sitePath)
 				);
+				if (cancelled) {
+					return;
+				}
 				await dispatch(
-					updateSite({
+					updateSiteMetadata({
 						slug: site.slug,
 						changes: {
-							metadata: {
-								...site.metadata,
-								originalBlueprint: opfsFilesystem.backend,
-								originalBlueprintSource: {
-									type: 'opfs-site',
-								},
+							originalBlueprint: opfsFilesystem.backend,
+							originalBlueprintSource: {
+								type: 'opfs-site',
 							},
 						},
 					})
@@ -223,7 +304,14 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 			setFilesystemIfMounted(
 				await createFilesystemFromOriginalBlueprint(
-					site.metadata.originalBlueprint
+					site.metadata.originalBlueprint,
+					{
+						seedMissingBlueprintJson:
+							!readOnly ||
+							!isFilesystemBackend(
+								site.metadata.originalBlueprint
+							),
+					}
 				)
 			);
 		};
@@ -241,11 +329,10 @@ export const SiteBlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 		// Rebuild the editor filesystem only when it switches to a different site
-		// or between regular and autosaved site lifecycles. Usage metadata such as
-		// `whenLastUsed` can change while the user is editing and should not
-		// remount the editor.
+		// or lifecycle/source Blueprint. Usage metadata such as `whenLastUsed` can
+		// change while the user is editing and should not remount the editor.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [dispatch, site.slug, isAutosaved]);
+	}, [dispatch, site.slug, isAutosaved, filesystemCacheKey]);
 
 	useImperativeHandle(
 		ref,

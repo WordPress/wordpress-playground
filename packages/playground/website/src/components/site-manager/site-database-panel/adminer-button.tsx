@@ -1,6 +1,6 @@
-import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { Button } from '@wordpress/components';
 import { external } from '@wordpress/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import css from './style.module.css';
 import {
 	type PlaygroundClient,
@@ -9,6 +9,8 @@ import {
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/client';
+import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -17,13 +19,16 @@ const adminerUrl =
 
 async function installAdminer(playground: PlaygroundClient) {
 	const documentRoot = await playground.documentRoot;
-	const adminerPath = `${documentRoot}/adminer/`;
+	const adminerPath = joinPaths(documentRoot, 'adminer');
 
-	const steps: StepDefinition[] = [
-		{ step: 'mkdir', path: adminerPath },
+	const steps: StepDefinition[] = [];
+	if (!(await playground.isDir(adminerPath).catch(() => false))) {
+		steps.push({ step: 'mkdir', path: adminerPath });
+	}
+	steps.push(
 		{
 			step: 'writeFile',
-			path: `${adminerPath}/adminer.php`,
+			path: joinPaths(adminerPath, 'adminer.php'),
 			data: {
 				resource: 'url',
 				url: adminerUrl,
@@ -31,18 +36,18 @@ async function installAdminer(playground: PlaygroundClient) {
 		},
 		{
 			step: 'writeFile',
-			path: `${adminerPath}/adminer-mysql-on-sqlite-driver.php`,
+			path: joinPaths(adminerPath, 'adminer-mysql-on-sqlite-driver.php'),
 			data: (
 				await import('./adminer-extensions/adminer-mysql-on-sqlite-driver.php?raw')
 			).default as string,
 		},
 		{
 			step: 'writeFile',
-			path: `${adminerPath}/index.php`,
+			path: joinPaths(adminerPath, 'index.php'),
 			data: (await import('./adminer-extensions/index.php?raw'))
 				.default as string,
-		},
-	];
+		}
+	);
 
 	const blueprint = await compileBlueprintV1(
 		{ steps },
@@ -59,23 +64,57 @@ export function AdminerButton({
 }) {
 	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
 	const [error, setError] = useState<string | null>(null);
+	const playgroundRef = useRef(playground);
+	const readyPlaygroundRef = useRef<PlaygroundClient | null>(null);
+	playgroundRef.current = playground;
 
 	useEffect(() => {
+		if (!playground) {
+			readyPlaygroundRef.current = null;
+			setState('idle');
+			setError(null);
+			return;
+		}
+		const currentPlayground: PlaygroundClient = playground;
+		let cancelled = false;
+		readyPlaygroundRef.current = null;
+		setState('idle');
+		setError(null);
+
 		async function detectAdminer() {
-			if (!playground) {
-				return;
-			}
-
-			const documentRoot = await playground.documentRoot;
-			const adminerPath = `${documentRoot}/adminer`;
-
-			if (await playground.isDir(adminerPath)) {
-				setState('ready');
-			} else {
-				setState('idle');
+			try {
+				const documentRoot = await currentPlayground.documentRoot;
+				if (cancelled) return;
+				const adminerPath = joinPaths(documentRoot, 'adminer');
+				const isReady =
+					(await currentPlayground.fileExists(
+						joinPaths(adminerPath, 'index.php')
+					)) &&
+					(await currentPlayground.fileExists(
+						joinPaths(adminerPath, 'adminer.php')
+					)) &&
+					(await currentPlayground.fileExists(
+						joinPaths(
+							adminerPath,
+							'adminer-mysql-on-sqlite-driver.php'
+						)
+					));
+				if (cancelled) return;
+				readyPlaygroundRef.current = isReady ? currentPlayground : null;
+				setState(isReady ? 'ready' : 'idle');
+			} catch (error) {
+				logger.error('Could not detect Adminer installation', error);
+				if (!cancelled) {
+					readyPlaygroundRef.current = null;
+					setState('idle');
+				}
 			}
 		}
-		detectAdminer();
+
+		void detectAdminer();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenAdminer = async () => {
@@ -86,13 +125,36 @@ export function AdminerButton({
 		if (state === 'loading') {
 			return;
 		}
+		const isReadyForCurrentPlayground =
+			state === 'ready' && readyPlaygroundRef.current === playground;
 
-		if (state === 'idle') {
+		setError(null);
+		const targetWindow = window.open('about:blank', '_blank');
+		if (!targetWindow) {
+			setError(
+				'The browser blocked the Adminer popup. Please allow popups and try again.'
+			);
+			return;
+		}
+		targetWindow.opener = null;
+
+		if (!isReadyForCurrentPlayground) {
 			setState('loading');
 			try {
 				await installAdminer(playground);
+				if (playgroundRef.current !== playground) {
+					targetWindow.close();
+					return;
+				}
+				readyPlaygroundRef.current = playground;
 				setState('ready');
 			} catch (error) {
+				targetWindow.close();
+				if (playgroundRef.current !== playground) {
+					return;
+				}
+				logger.error('Could not install Adminer', error);
+				readyPlaygroundRef.current = null;
 				setState('idle');
 				setError(
 					error instanceof Error ? error.message : 'Unknown error'
@@ -101,37 +163,48 @@ export function AdminerButton({
 			}
 		}
 
-		const playgroundUrl = await playground.absoluteUrl;
+		let playgroundUrl: string | undefined;
+		try {
+			playgroundUrl = await playground.absoluteUrl;
+			if (playgroundRef.current !== playground) {
+				targetWindow.close();
+				return;
+			}
+		} catch (error) {
+			targetWindow.close();
+			if (playgroundRef.current !== playground) {
+				return;
+			}
+			logger.error('Could not open Adminer', error);
+			setError(error instanceof Error ? error.message : 'Unknown error');
+			return;
+		}
 		if (playgroundUrl) {
-			window.open(
-				`${playgroundUrl}/adminer/`,
-				'_blank',
-				'noopener,noreferrer'
-			);
+			const adminerUrl = `${playgroundUrl}/adminer/`;
+			targetWindow.location.href = adminerUrl;
+		} else {
+			targetWindow.close();
+			setError('Could not determine the Playground URL.');
 		}
 	};
 
 	const isLoading = state === 'loading';
 	return (
 		<>
-			<Flex direction="column" gap={0} expanded={false}>
-				<Button
-					variant="primary"
-					disabled={!playground || isLoading}
-					isBusy={isLoading}
-					onClick={handleOpenAdminer}
-				>
-					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>Open Adminer</FlexItem>
-						<FlexItem>
-							<Icon icon={external} size={16} />
-						</FlexItem>
-					</Flex>
-				</Button>
-			</Flex>
+			<Button
+				variant="secondary"
+				disabled={!playground || isLoading}
+				isBusy={isLoading}
+				onClick={handleOpenAdminer}
+				icon={external}
+				iconPosition="right"
+				iconSize={16}
+			>
+				Open Adminer
+			</Button>
 			{error && (
 				<div className={css.error}>
-					Failed to install Adminer. Please try again. Error: {error}
+					Unable to open Adminer. Please try again. Error: {error}
 				</div>
 			)}
 		</>

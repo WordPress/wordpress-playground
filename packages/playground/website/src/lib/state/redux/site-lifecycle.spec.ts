@@ -3,7 +3,6 @@ import {
 	getAutosavedSitesToPrune,
 	getSitePublicPersistence,
 	getSitesSortedByRecency,
-	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
@@ -134,53 +133,6 @@ describe('autosaved site helpers', () => {
 			)
 		).toBe(false);
 	});
-
-	it('identifies stored OPFS sites with an interrupted initial sync', () => {
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('pending-opfs', {
-					loadedFromStorage: true,
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(true);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('fresh-pending-opfs', {
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('recreated-loaded-opfs', {
-					loadedFromStorage: false,
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('finished-opfs', {
-					loadedFromStorage: true,
-					storage: 'opfs',
-					initialOpfsSyncPending: false,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('temporary', {
-					loadedFromStorage: true,
-					storage: 'none',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(false);
-	});
 });
 
 describe('site recency helpers', () => {
@@ -199,13 +151,10 @@ describe('site recency helpers', () => {
 
 function createSite(
 	slug: string,
-	options: Partial<SiteInfo['metadata']> &
-		Pick<Partial<SiteInfo>, 'loadedFromStorage'> = {}
+	metadata: Partial<SiteInfo['metadata']> = {}
 ): SiteInfo {
-	const { loadedFromStorage, ...metadata } = options;
 	return {
 		slug,
-		loadedFromStorage,
 		metadata: {
 			storage: 'opfs',
 			id: slug,

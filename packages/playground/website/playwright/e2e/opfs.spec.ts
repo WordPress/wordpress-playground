@@ -33,7 +33,22 @@ function getTemporaryPlaygroundUrl(hash = '') {
 }
 
 /**
- * Helper function to handle the save site modal flow
+ * Opens the dock's "Store permanently" pane via the save-status button and
+ * returns the pane locator. This is the restored save flow (the old temporary
+ * site notice with a "Save site locally" button has been removed).
+ */
+async function openStorePermanentlyPane(page: Page) {
+	await page
+		.getByRole('button', { name: /Unsaved|Autosaved/ })
+		.first()
+		.click();
+	const pane = page.locator('section[aria-label="Store permanently pane"]');
+	await expect(pane).toBeVisible({ timeout: 10000 });
+	return pane;
+}
+
+/**
+ * Helper function to handle the save site flow via the "Store permanently" pane
  */
 async function saveSiteViaModal(
 	page: Page,
@@ -44,19 +59,9 @@ async function saveSiteViaModal(
 ) {
 	const { customName, storageType = 'opfs' } = options || {};
 
-	// The site manager remembers the last selected tab. The save notice only
-	// lives on the Settings tab, so select it before looking for the button.
-	await page.getByRole('tab', { name: 'Settings' }).click();
-
-	// Click the "Save site locally" button in the temporary site notice to open the modal.
-	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
-	const saveButton = page.getByRole('button', { name: 'Save site locally' });
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Wait for the Save Playground dialog to appear
-	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Saving opens the dock's "Store permanently" pane via the save-status
+	// button (the status pill in the dock).
+	const dialog = await openStorePermanentlyPane(page);
 
 	// If a custom name is provided, update it
 	if (customName) {
@@ -69,17 +74,20 @@ async function saveSiteViaModal(
 	if (storageType === 'opfs') {
 		// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
 		// Playwright logs that something "intercepts pointer events", that's probably related.
-		await dialog.getByText('Save in this browser').waitFor();
-		await dialog.getByText('Save in this browser').click({ force: true });
+		await dialog.getByText('Store in this browser').waitFor();
+		await dialog.getByText('Store in this browser').click({ force: true });
 	} else {
-		await dialog.getByText('Save to a local directory').waitFor();
+		await dialog.getByText('Save in a local directory').waitFor();
 		await dialog
-			.getByText('Save to a local directory')
+			.getByText('Save in a local directory')
 			.click({ force: true });
 	}
 
-	// Click the Save button in the modal
-	await dialog.getByRole('button', { name: 'Save' }).click();
+	// Click the submit button in the modal. Its label depends on the selected
+	// storage: "Save" for a local directory, "Store permanently" for the browser.
+	const submitName =
+		storageType === 'local-fs' ? 'Save' : 'Store permanently';
+	await dialog.getByRole('button', { name: submitName }).click();
 
 	// Wait for the dialog to close.
 	// The save operation syncs to OPFS which can take time, so we use a longer timeout.
@@ -115,7 +123,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 	await website.openSavedPlaygroundsOverlay();
 
 	// Start another saved Playground, then switch back to the first one.
-	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.startNewVanillaPlayground();
 	await website.waitForNestedIframes();
 	await website.ensureSiteManagerIsOpen();
 
@@ -123,7 +131,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 		firstSiteName
 	);
 	await expect(
-		website.page.getByText('Autosaved in this browser')
+		website.page.getByRole('button', { name: 'Autosaved' })
 	).toBeVisible({ timeout: 120000 });
 	await expect
 		.poll(() =>
@@ -139,10 +147,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 		.toBe('opfs:autosave');
 
 	await website.openSavedPlaygroundsOverlay();
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: firstSiteName })
-		.click();
+	await website.openSavedPlayground(firstSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	await expect(website.page.getByLabel('Playground title')).toContainText(
@@ -199,17 +204,14 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await website.openSavedPlaygroundsOverlay();
 
 	// Create another Playground, then switch back.
-	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.startNewVanillaPlayground();
 	await website.waitForNestedIframes();
 
 	// Open the overlay again to switch back to the stored site
 	await website.openSavedPlaygroundsOverlay();
 
 	// Switch back to the stored site and confirm the PHP constant is still present.
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: storedPlaygroundTitleText! })
-		.click();
+	await website.openSavedPlayground(storedPlaygroundTitleText!);
 
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
 });
@@ -236,26 +238,25 @@ test('should rename a saved Playground and persist after reload', async ({
 		}
 	);
 
-	// Click the pencil/edit button next to the playground name
-	await website.page
-		.getByRole('button', { name: 'Rename Playground' })
-		.click();
+	// Rename via the shortcut in the "Site details" pane.
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('button', { name: 'Rename' }).click();
 
 	const newName = 'My Renamed Playground';
-	const dialog = website.page.getByRole('dialog', {
+	// Renaming happens inline in the dock header (the title becomes an editable
+	// input), not in a modal dialog.
+	const nameInput = website.page.getByRole('textbox', {
 		name: 'Rename Playground',
 	});
-	const nameInput = dialog.getByRole('textbox', { name: 'Name' });
-	await nameInput.fill('');
-	await nameInput.type(newName);
+	await nameInput.fill(newName);
 	await nameInput.press('Enter');
 
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		newName
 	);
 
-	// Wait for the dialog to be closed
-	await expect(dialog).not.toBeVisible();
+	// The inline rename input closes once the rename is committed.
+	await expect(nameInput).not.toBeVisible();
 
 	// Reload and verify the name persists
 	await website.page.reload();
@@ -284,18 +285,8 @@ test('should show save site modal with correct elements', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Click the Save button in the site manager panel
-	const saveButton = website.page.getByRole('button', {
-		name: 'Save site locally',
-	});
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Verify the modal appears with correct title
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the "Store permanently" pane via the save-status button.
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Verify the playground name input exists and has default value
 	const nameInput = dialog.getByLabel('Playground name');
@@ -304,11 +295,14 @@ test('should show save site modal with correct elements', async ({
 
 	// Verify storage location radio buttons exist
 	await expect(dialog.getByText('Storage location')).toBeVisible();
-	await expect(dialog.getByText('Save in this browser')).toBeVisible();
-	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
+	await expect(dialog.getByText('Store in this browser')).toBeVisible();
+	await expect(dialog.getByText('Save in a local directory')).toBeVisible();
 
-	// Verify action buttons exist
-	await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
+	// Verify action buttons exist (OPFS is selected by default, so the submit
+	// button reads "Store permanently").
+	await expect(
+		dialog.getByRole('button', { name: 'Store permanently' })
+	).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
 
 	// Close the modal
@@ -328,14 +322,8 @@ test('should close save site modal without saving', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Close without saving using Cancel button
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -346,11 +334,8 @@ test('should close save site modal without saving', async ({
 		'Unsaved Playground'
 	);
 
-	// Open the modal again
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane again
+	await openStorePermanentlyPane(website.page);
 
 	// Close using ESC key
 	await website.page.keyboard.press('Escape');
@@ -374,14 +359,8 @@ test('should have playground name input text selected by default', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	const nameInput = dialog.getByLabel('Playground name');
 
@@ -389,8 +368,17 @@ test('should have playground name input text selected by default', async ({
 	await expect(nameInput).toBeFocused();
 
 	// The input text should be pre-selected, but selection timing can be flaky.
-	// Use Ctrl+A to ensure all text is selected before typing.
-	await website.page.keyboard.press('ControlOrMeta+a');
+	await expect
+		.poll(async () => {
+			return nameInput.evaluate((element) => {
+				const input = element as HTMLInputElement;
+				return (
+					input.selectionStart === 0 &&
+					input.selectionEnd === input.value.length
+				);
+			});
+		})
+		.toBe(true);
 
 	// Type to replace the selected text
 	await website.page.keyboard.type('New Name');
@@ -442,29 +430,20 @@ test('should not persist save site modal through page refresh', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
-	// Get the URL with the modal parameter
-	const urlWithModal = website.page.url();
-	expect(urlWithModal).toContain('modal=save-site');
+	// The dock's open pane is React/redux state, not a URL parameter, so it is
+	// never encoded in the URL.
+	expect(website.page.url()).not.toContain('modal=save-site');
 
 	// Reload the page
 	await website.page.reload();
 	await website.ensureSiteManagerIsOpen();
 
-	// Verify the modal is NOT shown after reload
+	// Verify the save pane is NOT shown after reload (the dock's open section
+	// does not persist through a refresh).
 	await expect(dialog).not.toBeVisible();
-
-	// Verify the modal parameter was removed from the URL
-	const urlAfterReload = website.page.url();
-	expect(urlAfterReload).not.toContain('modal=save-site');
 });
 
 test('should display OPFS storage option as selected by default', async ({
@@ -479,18 +458,12 @@ test('should display OPFS storage option as selected by default', async ({
 	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	// Open the save pane
+	const dialog = await openStorePermanentlyPane(website.page);
 
 	// Verify OPFS option is selected by default
 	const opfsRadio = dialog.getByRole('radio', {
-		name: /Save in this browser/,
+		name: /Store in this browser/,
 	});
 	await expect(opfsRadio).toBeChecked();
 
@@ -551,10 +524,14 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler for the import success alert
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
+	// Wait for the import success alert; the site title changes as soon as the
+	// new saved Playground is created, before the ZIP import itself is complete.
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			expect(dialog.message()).toContain('File imported!');
+			await dialog.accept();
+		});
 
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
@@ -562,6 +539,10 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await importComplete;
+	await expect(
+		website.page.getByRole('dialog', { name: 'Your Playgrounds pane' })
+	).not.toBeVisible();
 
 	// The import should switch us to a new saved Playground by default.
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
@@ -576,10 +557,7 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 	// Open the saved playgrounds overlay and switch to the saved site
 	await website.openSavedPlaygroundsOverlay();
 
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
-		.click();
+	await website.openSavedPlayground(savedSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
@@ -647,11 +625,15 @@ test('should create a saved site when importing ZIP while on a saved site with n
 
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
+	await website.page
+		.locator('nav[aria-label="Playground tools"]')
+		.getByRole('button', { name: 'New Playground' })
+		.click();
 
-	const importZipButton = website.page.getByRole('button', {
-		name: 'Import a .zip',
+	const importZipTab = website.page.getByRole('tab', {
+		name: 'Import .zip',
 	});
-	await expect(importZipButton).toBeVisible();
+	await expect(importZipTab).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
@@ -662,10 +644,14 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
+	// Wait for the import success alert; the site title changes as soon as the
+	// new saved Playground is created, before the ZIP import itself is complete.
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			expect(dialog.message()).toContain('File imported!');
+			await dialog.accept();
+		});
 
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
@@ -673,6 +659,10 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await importComplete;
+	await expect(
+		website.page.getByRole('dialog', { name: 'New Playground pane' })
+	).not.toBeVisible();
 
 	// The import should trigger creation of a new saved site by default.
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
@@ -686,10 +676,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	// Verify the saved site is still intact by switching to it
 	await website.openSavedPlaygroundsOverlay();
 
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
-		.click();
+	await website.openSavedPlayground(savedSiteName);
 	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten

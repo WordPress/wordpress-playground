@@ -16,21 +16,6 @@ import { getDirectoryPathForSlug } from './opfs-site-path';
 
 export const BUNDLE_DIR_NAME = 'blueprint-bundle';
 
-export function isTraversableFilesystemBackend(
-	value: unknown
-): value is TraversableFilesystemBackend {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		typeof (value as Partial<TraversableFilesystemBackend>).read ===
-			'function' &&
-		typeof (value as Partial<TraversableFilesystemBackend>).listFiles ===
-			'function' &&
-		typeof (value as Partial<TraversableFilesystemBackend>).isDir ===
-			'function'
-	);
-}
-
 /**
  * Get the OPFS path for a site's blueprint bundle directory.
  */
@@ -60,8 +45,22 @@ export async function persistBlueprintBundle(
 	siteSlug: string,
 	source: TraversableFilesystemBackend
 ): Promise<void> {
+	await persistBlueprintBundleAtSitePath(
+		getDirectoryPathForSlug(siteSlug),
+		source
+	);
+}
+
+/**
+ * Copy files from a source filesystem to a resolved site's blueprint bundle
+ * storage path.
+ */
+export async function persistBlueprintBundleAtSitePath(
+	sitePath: string,
+	source: TraversableFilesystemBackend
+): Promise<void> {
 	const destination = await OpfsFilesystemBackend.fromPath(
-		getBundlePath(siteSlug),
+		getBundlePathForSitePath(sitePath),
 		true
 	);
 	await copyFilesystem(source, destination);

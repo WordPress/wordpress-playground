@@ -550,7 +550,9 @@ test('CURLFile uploads via curl_exec() should work', async ({
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(wordpress.locator('body')).toContainText('HTTP_CODE:200');
 	await expect(wordpress.locator('body')).toContainText('POST_RECEIVED:YES');
-	await expect(wordpress.locator('body')).toContainText('MULTIPART_UPLOAD:YES');
+	await expect(wordpress.locator('body')).toContainText(
+		'MULTIPART_UPLOAD:YES'
+	);
 });
 
 /**

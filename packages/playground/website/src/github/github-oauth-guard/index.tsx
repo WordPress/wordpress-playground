@@ -35,10 +35,16 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 interface GitHubOAuthGuardProps {
 	children?: React.ReactNode;
 	mayLoseProgress?: boolean;
+	/**
+	 * Lead copy shown above the connect button. Defaults to import-oriented text;
+	 * the export flow passes its own so the guard doesn't say "Import…" there.
+	 */
+	intro?: React.ReactNode;
 }
 export default function GitHubOAuthGuard({
 	children,
 	mayLoseProgress,
+	intro,
 }: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (
@@ -56,14 +62,18 @@ export default function GitHubOAuthGuard({
 		return <div>{children}</div>;
 	}
 
-	return <Authenticate mayLoseProgress={mayLoseProgress} />;
+	return <Authenticate mayLoseProgress={mayLoseProgress} intro={intro} />;
 }
 
 interface AuthenticateProps {
 	mayLoseProgress?: boolean;
+	intro?: React.ReactNode;
 }
 
-function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
+function Authenticate({
+	mayLoseProgress = undefined,
+	intro,
+}: AuthenticateProps) {
 	const [exported, setExported] = useState(false);
 	const [error, setError] = useState<string>();
 	const buttonClass = classNames(css.githubButton, {
@@ -71,14 +81,10 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 	});
 
 	return (
-		<div>
+		<div className={css.authenticate}>
 			<p>
-				Importing plugins, themes, and wp-content directories directly
-				from your public GitHub repositories.
-			</p>
-			<p>
-				To enable this feature, connect your GitHub account with
-				WordPress Playground.
+				{intro ??
+					'Import plugins, themes, or a wp-content directory from any public GitHub repository.'}
 			</p>
 			{mayLoseProgress ? (
 				<>
@@ -97,27 +103,29 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 					</label>
 				</>
 			) : null}
-			<p>
-				<a
-					aria-label="Connect your GitHub account"
-					className={buttonClass}
-					href={new URL('oauth.php', window.location.href).toString()}
-					onClick={async (e) => {
-						e.preventDefault();
-						if (mayLoseProgress && !exported) {
-							return;
-						}
-						await connectToGitHub({ setError });
-					}}
-				>
-					<Icon icon={GitHubIcon} />
-					Connect your GitHub account
-				</a>
-			</p>
-			{error ? <p role="alert">{error}</p> : null}
-			<p>
-				Your access token is not stored anywhere, which means you'll
-				have to re-authenticate after every page refresh.
+			<a
+				aria-label="Connect your GitHub account"
+				className={buttonClass}
+				href={new URL('oauth.php', window.location.href).toString()}
+				onClick={async (e) => {
+					e.preventDefault();
+					if (mayLoseProgress && !exported) {
+						return;
+					}
+					await connectToGitHub({ setError });
+				}}
+			>
+				<Icon icon={GitHubIcon} />
+				Connect your GitHub account
+			</a>
+			{error ? (
+				<p role="alert" className={css.error}>
+					{error}
+				</p>
+			) : null}
+			<p className={css.note}>
+				Your token is never stored — you&apos;ll reconnect after each
+				refresh.
 			</p>
 		</div>
 	);

@@ -39,8 +39,6 @@ export function resolvePrInput(
 		return { ok: false, error: 'Enter a pull request number or URL.' };
 	}
 
-	// Extract number from a GitHub URL. Recognized URLs decide the
-	// repository even when the modal was opened for the other target.
 	const githubUrl = parseGitHubUrl(input);
 	if (githubUrl) {
 		if (
@@ -117,7 +115,6 @@ export function resolvePrInput(
 		};
 	}
 
-	// Bare numbers are PR numbers for whichever repository the modal prefers.
 	if (PULL_REQUEST_NUMBER.test(input)) {
 		return {
 			ok: true,

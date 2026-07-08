@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { Spinner, TextControl } from '@wordpress/components';
+import { Button, Notice, Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -14,10 +14,16 @@ import {
 
 interface PreviewPRFormProps {
 	onClose: () => void;
-	target: 'wordpress' | 'gutenberg';
+	/**
+	 * Preferred repository for ambiguous (bare) input. A recognized GitHub URL
+	 * always wins over this; it only decides whether a bare number/branch is a
+	 * WordPress Core or Gutenberg reference. Defaults to WordPress Core.
+	 */
+	target?: 'wordpress' | 'gutenberg';
+	/** Render a single left-aligned primary action (dock pane) instead of the
+	 *  modal's right-aligned Cancel/Submit row. */
+	inline?: boolean;
 }
-
-const urlParams = new URLSearchParams(window.location.search);
 
 // This structure is from plugin-proxy.php
 // where we set allowed inputs for WordPress and Gutenberg repositories
@@ -39,10 +45,27 @@ export const targetParams = {
 export default function PreviewPRForm({
 	onClose,
 	target = 'wordpress',
+	inline = false,
 }: PreviewPRFormProps) {
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	const previewRequestIdRef = React.useRef(0);
+	// Track retry timers so they can be cancelled if the form unmounts mid-wait
+	// (e.g. closing the dock pane), instead of firing a retry after teardown.
+	const retryTimersRef = React.useRef<Array<ReturnType<typeof setTimeout>>>(
+		[]
+	);
+	const clearRetryTimers = React.useCallback(() => {
+		for (const timer of retryTimersRef.current) {
+			clearTimeout(timer);
+			clearInterval(timer);
+		}
+		retryTimersRef.current = [];
+	}, []);
+	const isCurrentPreviewRequest = React.useCallback((requestId: number) => {
+		return previewRequestIdRef.current === requestId;
+	}, []);
 
 	useEffect(() => {
 		const initialValue = getPreviewPrInputFromQuery(
@@ -54,8 +77,16 @@ export default function PreviewPRForm({
 		}
 	}, [target]);
 
+	useEffect(() => {
+		return () => {
+			previewRequestIdRef.current += 1;
+			clearRetryTimers();
+		};
+	}, [clearRetryTimers]);
+
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
+		clearRetryTimers();
 
 		if (!value.trim()) {
 			return;
@@ -66,11 +97,20 @@ export default function PreviewPRForm({
 			setError(resolved.error);
 			return;
 		}
-
-		await previewPr(resolved.value);
+		setError('');
+		const requestId = previewRequestIdRef.current + 1;
+		previewRequestIdRef.current = requestId;
+		await previewRef(resolved.value, requestId);
 	}
 
-	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
+	function renderRetryIn(
+		resolved: ResolvedRef,
+		retryIn: number,
+		requestId: number
+	) {
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		setError(
 			`Waiting for GitHub to finish building ${
 				resolved.isBranch ? 'branch' : 'PR'
@@ -83,32 +123,43 @@ export default function PreviewPRForm({
 	function buildArtifactUrl(resolved: ResolvedRef): string {
 		const { target: repo, ref, isBranch } = resolved;
 		const refType = isBranch ? 'branch' : 'pr';
-		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For Gutenberg PRs: artifact name is always gutenberg-plugin
-		// For Gutenberg branches: artifact name is always gutenberg-plugin
-		//   (we use prefix matching with trailing dash for branches)
-		let artifactSuffix = '';
-		if (repo === 'wordpress') {
-			// WordPress only supports PRs, not branches
-			artifactSuffix = ref;
-		}
-		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodeURIComponent(ref)}`;
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}.
+		// For Gutenberg PRs/branches: artifact name is always gutenberg-plugin
+		//   (branches use prefix matching with a trailing dash).
+		const artifactSuffix = repo === 'wordpress' ? ref : '';
+		const encodedRef = encodeURIComponent(ref);
+		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodedRef}`;
 	}
 
-	async function previewPr(resolved: ResolvedRef) {
-		let cleanupRetry = () => {};
-		if (cleanupRetry) {
-			cleanupRetry();
-		}
-
+	async function previewRef(resolved: ResolvedRef, requestId: number) {
 		const { target: repo, ref, isBranch } = resolved;
+		const urlParams = new URLSearchParams(window.location.search);
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		setSubmitting(true);
 
-		// For branches, skip verification since we'll use the most recent artifact with prefix matching
-		// For PRs, verify that the specific PR build exists
+		// For branches, skip verification since we'll use the most recent
+		// artifact with prefix matching. For PRs, verify the build exists.
 		if (!isBranch) {
 			const zipArtifactUrl = buildArtifactUrl(resolved);
-			const response = await fetch(zipArtifactUrl + '&verify_only=true');
+			let response: Response;
+			try {
+				response = await fetch(zipArtifactUrl + '&verify_only=true');
+			} catch (e) {
+				if (!isCurrentPreviewRequest(requestId)) {
+					return;
+				}
+				logger.error(e);
+				setError(
+					'Could not reach the build server. Check your connection and try again.'
+				);
+				setSubmitting(false);
+				return;
+			}
+			if (!isCurrentPreviewRequest(requestId)) {
+				return;
+			}
 			if (response.status !== 200) {
 				let error = 'invalid_pr_number';
 				try {
@@ -117,9 +168,15 @@ export default function PreviewPRForm({
 						error = json.error;
 					}
 				} catch (e) {
+					if (!isCurrentPreviewRequest(requestId)) {
+						return;
+					}
 					logger.error(e);
 					setError('An unexpected error occurred. Please try again.');
 					setSubmitting(false);
+					return;
+				}
+				if (!isCurrentPreviewRequest(requestId)) {
 					return;
 				}
 
@@ -136,22 +193,25 @@ export default function PreviewPRForm({
 					} else {
 						// For PRs, retry since we expect a specific build to complete
 						let retryIn = 30000;
-						renderRetryIn(retryIn, resolved);
+						renderRetryIn(resolved, retryIn, requestId);
 						const timerInterval = setInterval(() => {
 							retryIn -= 1000;
 							if (retryIn <= 0) {
 								retryIn = 0;
 							}
-							renderRetryIn(retryIn, resolved);
+							renderRetryIn(resolved, retryIn, requestId);
 						}, 1000);
-						const scheduledRetry = setTimeout(() => {
-							previewPr(resolved);
-						}, retryIn);
-						cleanupRetry = () => {
+						const retryTimeout = setTimeout(() => {
 							clearInterval(timerInterval);
-							clearTimeout(scheduledRetry);
-							cleanupRetry = () => {};
-						};
+							if (isCurrentPreviewRequest(requestId)) {
+								previewRef(resolved, requestId);
+							}
+						}, retryIn);
+						// Only one retry is ever pending at a time; clear any
+						// already-finished handles so the list can't grow
+						// unbounded across a long (15min+) retry loop.
+						clearRetryTimers();
+						retryTimersRef.current = [timerInterval, retryTimeout];
 					}
 				} else if (error === 'artifact_invalid') {
 					setError(
@@ -202,11 +262,10 @@ export default function PreviewPRForm({
 			urlWithPreview.searchParams.set(refParam, ref);
 		} else if (repo === 'gutenberg') {
 			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
-			try {
-				const importSite = new URL(
-					urlParams.get('import-site') as string
-				);
-				if (importSite) {
+			const importSiteParam = urlParams.get('import-site');
+			if (importSiteParam) {
+				try {
+					const importSite = new URL(importSiteParam);
 					// Add it as the first step in the blueprint
 					blueprint.steps!.unshift({
 						step: 'importWordPressFiles',
@@ -215,21 +274,19 @@ export default function PreviewPRForm({
 							url: importSite.origin + importSite.pathname,
 						},
 					});
+				} catch (error) {
+					logger.error('Invalid import-site URL', error);
 				}
-			} catch {
-				logger.error('Invalid import-site URL');
 			}
 			urlWithPreview.searchParams.set(refParam, ref);
 		}
 
 		urlWithPreview.hash = encodeURI(JSON.stringify(blueprint));
+		if (!isCurrentPreviewRequest(requestId)) {
+			return;
+		}
 		window.location.href = urlWithPreview.toString();
 	}
-
-	const inputLabel =
-		target === 'wordpress'
-			? 'PR number or URL'
-			: 'PR number, URL, or a branch name';
 
 	return (
 		<form onSubmit={handleSubmit}>
@@ -241,22 +298,47 @@ export default function PreviewPRForm({
 				)}
 				<TextControl
 					disabled={submitting}
-					label={inputLabel}
+					label="Pull request URL or number"
+					name="pull-request-reference"
 					value={value}
 					autoFocus
 					onChange={(e) => {
+						previewRequestIdRef.current += 1;
+						clearRetryTimers();
 						setError('');
 						setValue(e);
 					}}
 				/>
-				{errorMsg && <div>{errorMsg}</div>}
+				<p className={css.hint}>
+					Paste a link to a WordPress Core or Gutenberg pull request —
+					or just the PR number for WordPress Core. Gutenberg branch
+					links work too.
+				</p>
+				{errorMsg && (
+					<Notice status="error" isDismissible={false}>
+						{errorMsg}
+					</Notice>
+				)}
 			</div>
-			<ModalButtons
-				areDisabled={submitting}
-				onCancel={onClose}
-				onSubmit={handleSubmit}
-				submitText="Preview"
-			/>
+			{inline ? (
+				<div className={css.inlineActions}>
+					<Button
+						variant="primary"
+						type="submit"
+						disabled={submitting}
+					>
+						Preview
+					</Button>
+				</div>
+			) : (
+				<ModalButtons
+					areDisabled={submitting}
+					cancelDisabled={submitting}
+					onCancel={onClose}
+					onSubmit={handleSubmit}
+					submitText="Preview"
+				/>
+			)}
 		</form>
 	);
 }

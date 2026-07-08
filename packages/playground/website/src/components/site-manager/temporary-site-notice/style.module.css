@@ -1,4 +1,17 @@
-.site-notice {
-	background-color: #f3f6fd;
-	border: 0;
+/* A borderless, on-paper note — no boxed warning callout. The muted copy and the
+   quiet header subtitle carry the "unsaved" state; this just adds the
+   consequence and the Save action. */
+.notice {
+	align-items: center;
+	display: flex;
+	gap: var(--space-3);
+	justify-content: space-between;
+	padding: 0 var(--space-6) var(--space-4);
+}
+
+.text {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.45;
+	margin: 0;
 }

@@ -2,6 +2,8 @@ import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
+import { readAutosaveNudgeMuted } from '../../autosave-nudge-muted';
+import { readDockFullWidth } from '../../dock-full-width';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -11,6 +13,9 @@ export type SiteError =
 	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
+	// A stored save whose initial copy never finished, so core WordPress files
+	// are missing and it can't boot. The lost files aren't recoverable.
+	| 'incomplete-save'
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
@@ -18,7 +23,19 @@ export type SiteError =
 	| 'network-firewall-interference'
 	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type SiteManagerSection =
+	| 'sidebar'
+	| 'site-details'
+	| 'playgrounds'
+	| 'new'
+	| 'settings'
+	| 'files'
+	| 'blueprint'
+	| 'database'
+	| 'logs'
+	| 'share'
+	| 'save'
+	| 'blueprints';
 
 export const modalSlugs = {
 	LOG: 'log',
@@ -31,7 +48,6 @@ export const modalSlugs = {
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
-	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
 	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
@@ -148,11 +164,11 @@ function findUrlInCauseChain(error: Error): string | undefined {
 export interface UIState {
 	activeSite?: {
 		slug: string;
+		bootRetryKey?: number;
 		error?: SiteError;
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
-	siteSlugToRename?: string;
 	siteSlugToDelete?: string;
 	/**
 	 * Site the save modal operates on. Defaults to the active site when unset.
@@ -162,6 +178,62 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	/**
+	 * Whether the current dock pane is running work that must not be hidden yet.
+	 * The dock owns the pane contents, while the preview scrim lives in Layout,
+	 * so this has to be shared instead of local component state.
+	 */
+	siteManagerPaneCloseBlocked: boolean;
+	/**
+	 * Draft kept by the New pane's "Write a Blueprint" editor so the user's
+	 * in-progress Blueprint survives closing and reopening the pane (which
+	 * unmounts it). Undefined means "use the starter Blueprint".
+	 */
+	writeOwnBlueprintDraft?: string;
+	/**
+	 * Slug of the Playground the New pane's "Write a Blueprint" editor was seeded
+	 * from, so reopening the pane for the same Playground reuses the existing
+	 * draft instead of reseeding it from the starter Blueprint.
+	 */
+	writeOwnSeededSlug?: string;
+	/**
+	 * Whether the Share pane is showing the inline "Export to GitHub" sub-view.
+	 * The dock reads this to drop its own pane header so the sub-view shows a
+	 * single header instead of two.
+	 */
+	shareExportOpen: boolean;
+	/**
+	 * Whether the dock is pinned full-width (docked to the bottom edge) rather
+	 * than free-floating. The layout reads this to obscure the preview behind a
+	 * docked pane.
+	 */
+	dockFullWidth: boolean;
+	/**
+	 * A recent autosave from the same setup URL that the user can restore.
+	 * Surfaced as a popover anchored to the dock's Playgrounds tool.
+	 */
+	autosaveNudge?: {
+		siteSlug: string;
+		setupUrlFingerprint: string;
+		whenCreated?: number;
+	} | null;
+	/**
+	 * Whether the autosave nudge panel is currently shown. The nudge itself can
+	 * stay set (so the dot on the Playgrounds tool persists) after the panel is
+	 * closed, so panel visibility is tracked separately.
+	 */
+	autosaveNudgePanelOpen: boolean;
+	/**
+	 * Whether the user muted the proactive autosave cues (the nudge panel and the
+	 * dot). Persisted across sessions; autosaves stay restorable from Your
+	 * Playgrounds regardless.
+	 */
+	autosaveNudgeMuted: boolean;
+	/**
+	 * Setup-URL fingerprints the user declined to restore, so we don't reprompt
+	 * for the same URL within this session.
+	 */
+	declinedAutosaveRestoreFingerprints: string[];
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -176,16 +248,13 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
-	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
-	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
-	 * restored from a URL parameter.
+	 * The delete-site modal requires Redux state (siteSlugToDelete) that is not
+	 * persisted in the URL, so it cannot be meaningfully restored from a URL
+	 * parameter.
 	 */
 	activeModal:
-		query.get('modal') === 'error-report' ||
-		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth' ||
-		query.get('modal') === 'delete-site' ||
-		query.get('modal') === 'rename-site'
+		query.has('modal') &&
+		shouldClearModalParamOnInitialLoad(query.get('modal'))
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -204,6 +273,13 @@ const initialState: UIState = {
 		// your entire screen – quite a confusing experience.
 		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
+	siteManagerPaneCloseBlocked: false,
+	shareExportOpen: false,
+	dockFullWidth: readDockFullWidth(),
+	autosaveNudge: null,
+	autosaveNudgePanelOpen: false,
+	autosaveNudgeMuted: readAutosaveNudgeMuted(),
+	declinedAutosaveRestoreFingerprints: [],
 };
 
 const uiSlice = createSlice({
@@ -223,17 +299,27 @@ const uiSlice = createSlice({
 			reducer: (
 				state,
 				action: PayloadAction<{
+					siteSlug?: string;
 					error: SiteError;
 					details?: SerializedSiteErrorDetails;
 				}>
 			) => {
-				if (state.activeSite) {
+				if (
+					state.activeSite &&
+					(!action.payload.siteSlug ||
+						action.payload.siteSlug === state.activeSite.slug)
+				) {
 					state.activeSite.error = action.payload.error;
 					state.activeSite.errorDetails = action.payload.details;
 				}
 			},
-			prepare: (payload: { error: SiteError; details?: unknown }) => ({
+			prepare: (payload: {
+				siteSlug?: string;
+				error: SiteError;
+				details?: unknown;
+			}) => ({
 				payload: {
+					siteSlug: payload.siteSlug,
 					error: payload.error,
 					details: serializeSiteErrorDetails(payload.details),
 				},
@@ -244,6 +330,15 @@ const uiSlice = createSlice({
 				state.activeSite.error = undefined;
 				state.activeSite.errorDetails = undefined;
 			}
+		},
+		retryActiveSiteBoot: (state) => {
+			if (!state.activeSite) {
+				return;
+			}
+			state.activeSite.error = undefined;
+			state.activeSite.errorDetails = undefined;
+			state.activeSite.bootRetryKey =
+				(state.activeSite.bootRetryKey ?? 0) + 1;
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			const url = new URL(window.location.href);
@@ -274,11 +369,29 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
-		setSiteSlugToRename: (
+		setSiteManagerPaneCloseBlocked: (
+			state,
+			action: PayloadAction<boolean>
+		) => {
+			state.siteManagerPaneCloseBlocked = action.payload;
+		},
+		setWriteOwnBlueprintDraft: (
 			state,
 			action: PayloadAction<string | undefined>
 		) => {
-			state.siteSlugToRename = action.payload;
+			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
+		},
+		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
+			state.shareExportOpen = action.payload;
+		},
+		setDockFullWidth: (state, action: PayloadAction<boolean>) => {
+			state.dockFullWidth = action.payload;
 		},
 		setSiteSlugToDelete: (
 			state,
@@ -291,6 +404,42 @@ const uiSlice = createSlice({
 			action: PayloadAction<string | undefined>
 		) => {
 			state.siteSlugToSave = action.payload;
+		},
+		setAutosaveNudge: (
+			state,
+			action: PayloadAction<{
+				siteSlug: string;
+				setupUrlFingerprint: string;
+				whenCreated?: number;
+			}>
+		) => {
+			state.autosaveNudge = action.payload;
+			// A fresh nudge auto-opens its panel once.
+			state.autosaveNudgePanelOpen = true;
+		},
+		dismissAutosaveNudge: (state) => {
+			state.autosaveNudge = null;
+			state.autosaveNudgePanelOpen = false;
+		},
+		// Hide the nudge panel but keep the nudge itself set, so the dot on the
+		// Playgrounds tool persists and the autosave stays one click away.
+		closeAutosaveNudgePanel: (state) => {
+			state.autosaveNudgePanelOpen = false;
+		},
+		setAutosaveNudgeMuted: (state, action: PayloadAction<boolean>) => {
+			state.autosaveNudgeMuted = action.payload;
+		},
+		addDeclinedAutosaveRestoreFingerprint: (
+			state,
+			action: PayloadAction<string>
+		) => {
+			if (
+				!state.declinedAutosaveRestoreFingerprints.includes(
+					action.payload
+				)
+			) {
+				state.declinedAutosaveRestoreFingerprints.push(action.payload);
+			}
 		},
 	},
 });
@@ -316,29 +465,74 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 			 * loading a URL with the modal parameter.
 			 */
 			if (
-				query.get('modal') === 'error-report' ||
-				query.get('modal') === 'save-site' ||
-				query.get('modal') === 'github-private-repo-auth'
+				query.has('modal') &&
+				shouldClearModalParamOnInitialLoad(query.get('modal'))
 			) {
 				setTimeout(() => {
 					store.dispatch(uiSlice.actions.setActiveModal(null));
 				}, 0);
 			}
 		}
-		return next(action);
+		const result = next(action);
+		if (
+			uiSlice.actions.setSiteManagerOpen.match(action) &&
+			action.payload === false
+		) {
+			clearSiteManagerUrlParams();
+		}
+		return result;
 	};
+
+function clearSiteManagerUrlParams() {
+	if (typeof window === 'undefined') {
+		return;
+	}
+	const url = new URL(window.location.href);
+	if (
+		!url.searchParams.has('overlay') &&
+		!url.searchParams.has('page-title')
+	) {
+		return;
+	}
+	url.searchParams.delete('overlay');
+	url.searchParams.delete('page-title');
+	window.history.replaceState({}, '', url.href);
+}
+
+function shouldClearModalParamOnInitialLoad(modal: string | null) {
+	return (
+		modal === modalSlugs.ERROR_REPORT ||
+		modal === modalSlugs.SAVE_SITE ||
+		modal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH ||
+		modal === modalSlugs.DELETE_SITE ||
+		// Old URLs can still contain the removed rename modal. Leaving that
+		// unknown modal in Redux blocks Escape-close handlers even though no
+		// modal is visible.
+		modal === 'rename-site'
+	);
+}
 
 export const {
 	setActiveModal,
 	setActiveSiteError,
 	clearActiveSiteError,
+	retryActiveSiteBoot,
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
-	setSiteSlugToRename,
+	setSiteManagerPaneCloseBlocked,
+	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
+	setShareExportOpen,
+	setDockFullWidth,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,
+	setAutosaveNudge,
+	dismissAutosaveNudge,
+	closeAutosaveNudgePanel,
+	setAutosaveNudgeMuted,
+	addDeclinedAutosaveRestoreFingerprint,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

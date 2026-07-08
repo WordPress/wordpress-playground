@@ -70,13 +70,11 @@ const loadLanguageExtension = async (
 		return php();
 	}
 
-	// Check cache first
-	const cacheKey = filePath;
+	const cacheKey = extension;
 	if (languageExtensionCache.has(cacheKey)) {
 		return languageExtensionCache.get(cacheKey)!;
 	}
 
-	// Load the appropriate extension
 	let langSupport: LanguageSupport;
 
 	switch (extension) {
@@ -212,6 +210,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		const extraCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
 		const onChangeRef = useRef(onChange);
+		const onSaveShortcutRef = useRef(onSaveShortcut);
 		const shouldRestoreFocusRef = useRef(false);
 
 		useImperativeHandle(ref, () => ({
@@ -255,6 +254,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		useEffect(() => {
 			onChangeRef.current = onChange;
 		}, [onChange]);
+
+		useEffect(() => {
+			onSaveShortcutRef.current = onSaveShortcut;
+		}, [onSaveShortcut]);
 
 		useEffect(() => {
 			if (viewRef.current) {
@@ -304,7 +307,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 							key: 'Mod-s',
 							preventDefault: true,
 							run: () => {
-								onSaveShortcut?.();
+								onSaveShortcutRef.current?.();
 								return true;
 							},
 						},
@@ -412,9 +415,12 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			if (!view) {
 				return;
 			}
-			if (shouldRestoreFocusRef.current && !view.hasFocus) {
+			if (!shouldRestoreFocusRef.current) {
+				return;
+			}
+			shouldRestoreFocusRef.current = false;
+			if (!view.hasFocus) {
 				view.focus();
-				shouldRestoreFocusRef.current = false;
 			}
 		}, [currentPath, readOnly]);
 

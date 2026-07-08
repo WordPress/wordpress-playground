@@ -118,15 +118,34 @@ async function getFileContent(
 		return {
 			name: item.name,
 			path: item.path,
-			content: base64ToUint8Array(fileContent.content),
+			content: decodeGitHubBase64Content(fileContent, item.path),
 		};
 	} finally {
 		release();
 	}
 }
 
+export function decodeGitHubBase64Content(
+	fileContent: { content?: unknown; encoding?: unknown },
+	path: string
+) {
+	if (
+		fileContent.encoding !== undefined &&
+		fileContent.encoding !== 'base64'
+	) {
+		throw new Error(
+			`GitHub did not return inline file content for ${path}. ` +
+				'This usually means the file is too large for the repository Contents API.'
+		);
+	}
+	if (typeof fileContent.content !== 'string') {
+		throw new Error(`No content found for ${path}`);
+	}
+	return base64ToUint8Array(fileContent.content);
+}
+
 function base64ToUint8Array(base64: string) {
-	const binaryString = window.atob(base64); // This will convert base64 to binary string
+	const binaryString = globalThis.atob(base64.replace(/\s/g, ''));
 	const len = binaryString.length;
 	const bytes = new Uint8Array(len);
 	for (let i = 0; i < len; i++) {

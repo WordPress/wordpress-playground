@@ -2,7 +2,7 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintBundle,
 	StepDefinition,
-	Blueprint,
+	BlueprintV1,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
@@ -32,7 +32,7 @@ export type BlueprintSource =
 	  };
 
 export type ResolvedBlueprint = {
-	blueprint: Blueprint;
+	blueprint: BlueprintV1;
 	source: BlueprintSource;
 };
 

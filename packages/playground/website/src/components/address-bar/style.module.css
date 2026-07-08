@@ -11,6 +11,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	width: 32px;
+	height: 32px;
 	padding: 5px;
 	background: transparent;
 	border: none;
@@ -24,8 +26,23 @@
 	color: #fff;
 }
 
+.refresh-button:focus-visible {
+	outline: 2px solid #8fa3f7;
+	outline-offset: 2px;
+}
+
 .refresh-button:active {
 	transform: scale(0.95);
+}
+
+/* Inert while the Playground is still booting (no client to navigate yet). */
+.refresh-button:disabled {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
+}
+
+.refresh-button:disabled:hover {
+	color: rgba(180, 190, 203, 0.4);
 }
 
 .input-container {
@@ -46,9 +63,9 @@
 .input {
 	flex-grow: 1;
 	padding: 5px 10px;
-	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 	font-size: 16px;
-	font-weight: 50;
+	font-weight: 400;
 	height: 26px;
 	border: 0;
 	background: #40464d;
@@ -64,7 +81,13 @@
 }
 
 .input:focus {
-	outline: none;
+	outline: 2px solid #8fa3f7;
+	outline-offset: 2px;
+}
+
+.input:disabled {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
 }
 
 /* Popover container */
@@ -135,9 +158,17 @@
 }
 
 .suggestion-path {
-	color: #9aa0a6;
+	color: #c8d0d9;
 	font-size: 13px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.suggestion-item:hover,
+.suggestion-item-active {
+	background: #4f5861;
+	color: #e0e6eb;
+	outline: none;
+	box-shadow: none;
 }

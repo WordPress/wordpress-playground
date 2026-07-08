@@ -1,4 +1,7 @@
-import type { BlueprintV1 } from '@wp-playground/blueprints';
+import type {
+	BlueprintDeclaration,
+	BlueprintV1,
+} from '@wp-playground/blueprints';
 import {
 	getBlueprintDeclaration,
 	isStepDefinition,
@@ -47,7 +50,9 @@ export const logTrackingEvent = (
  * Log Blueprint events
  * @param blueprint The Blueprint
  */
-export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
+export const logBlueprintEvents = async (
+	blueprint: BlueprintV1 | BlueprintDeclaration
+) => {
 	/**
 	 * Log the names of provided Blueprint steps.
 	 * Only the names (e.g. "runPhp" or "login") are logged. Step options like
@@ -56,8 +61,10 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 	 * For installPlugin and installTheme, the plugin/theme slug is logged.
 	 * When there is no slug, the prefixed resource type is logged instead.
 	 */
-	const blueprintDeclaration = await getBlueprintDeclaration(blueprint);
-	if (blueprintDeclaration.steps) {
+	const blueprintDeclaration = await getBlueprintDeclaration(
+		blueprint as BlueprintV1
+	);
+	if ('steps' in blueprintDeclaration && blueprintDeclaration.steps) {
 		for (const step of blueprintDeclaration.steps) {
 			if (!isStepDefinition(step)) {
 				continue;

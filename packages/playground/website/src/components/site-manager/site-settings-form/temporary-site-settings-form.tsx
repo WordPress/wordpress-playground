@@ -42,15 +42,15 @@ export function TemporarySiteSettingsForm({
 			footer={
 				<VStack
 					justify="flex-end"
-					spacing={6}
+					spacing={4}
 					style={{ margin: 0 }}
 					className={`${css.footer} ${css.formSection}`}
 				>
-					<p>
-						<b>Destructive action!</b> Applying these settings will
-						reset the WordPress site to its initial state.
+					<p className={css.footerNote}>
+						Applying changes rebuilds the Playground from its
+						initial state, discarding your current changes.
 					</p>
-					<Button type="submit" variant="primary">
+					<Button type="submit" variant="primary" isDestructive>
 						Apply Settings & Reset Playground
 					</Button>
 				</VStack>

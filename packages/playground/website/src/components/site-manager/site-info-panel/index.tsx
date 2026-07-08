@@ -1,42 +1,24 @@
-import {
-	Button,
-	DropdownMenu,
-	Flex,
-	FlexItem,
-	Icon,
-	MenuGroup,
-	MenuItem,
-	TabPanel,
-} from '@wordpress/components';
-import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
-import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
+import { Flex, FlexItem, TabPanel } from '@wordpress/components';
 import classNames from 'classnames';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { getRelativeDate } from '../../../lib/get-relative-date';
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from 'react';
+import { logger } from '@php-wasm/logger';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import {
-	isAutosavedSite,
-	isExplicitlySavedSite,
-	MAX_AUTOSAVED_SITES,
-} from '../../../lib/state/redux/slice-sites';
-import {
-	modalSlugs,
-	setActiveModal,
-	setSiteManagerOpen,
-	setSiteSlugToDelete,
-	setSiteSlugToRename,
-	setSiteSlugToSave,
-} from '../../../lib/state/redux/slice-ui';
+import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
-import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
-import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
-import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
+import { PaneLoading } from '../../pane-loading';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { TemporarySiteNotice } from '../temporary-site-notice';
+import type { PlaygroundClient } from '@wp-playground/remote';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -51,20 +33,57 @@ const SiteBlueprintBundleEditor = lazy(() =>
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
 
-function getSiteLastTab(siteSlug: string): string | null {
+export type SiteInfoPanelTabName =
+	| 'settings'
+	| 'files'
+	| 'blueprint'
+	| 'database'
+	| 'logs';
+
+const SITE_INFO_PANEL_TABS: Array<{
+	name: SiteInfoPanelTabName;
+	title: string;
+}> = [
+	{
+		name: 'settings',
+		title: 'Settings',
+	},
+	{
+		name: 'files',
+		title: 'File browser',
+	},
+	{
+		name: 'blueprint',
+		title: 'Blueprint',
+	},
+	{
+		name: 'database',
+		title: 'Database',
+	},
+	{
+		name: 'logs',
+		title: 'Logs',
+	},
+];
+
+function getSiteLastTab(siteSlug: string): SiteInfoPanelTabName | null {
 	try {
 		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
 		if (!stored) {
 			return null;
 		}
 		const tabs = JSON.parse(stored);
-		return tabs[siteSlug] || null;
+		const tab = tabs[siteSlug];
+		return isSiteInfoPanelTabName(tab) ? tab : null;
 	} catch {
 		return null;
 	}
 }
 
 function setSiteLastTab(siteSlug: string, tabName: string): void {
+	if (!isSiteInfoPanelTabName(tabName)) {
+		return;
+	}
 	try {
 		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
 		const tabs = stored ? JSON.parse(stored) : {};
@@ -75,50 +94,76 @@ function setSiteLastTab(siteSlug: string, tabName: string): void {
 	}
 }
 
+function isSiteInfoPanelTabName(
+	tabName: unknown
+): tabName is SiteInfoPanelTabName {
+	return (
+		typeof tabName === 'string' &&
+		SITE_INFO_PANEL_TABS.some((tab) => tab.name === tabName)
+	);
+}
+
 export function SiteInfoPanel({
 	className,
 	site,
 	mobileUi,
-	siteViewHidden,
+	activeTabName,
 }: {
 	className: string;
 	site: SiteInfo;
 	mobileUi?: boolean;
-	siteViewHidden?: boolean;
+	activeTabName?: SiteInfoPanelTabName;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
-	// Load the last active tab for this site
-	const [initialTabName] = useState(() => {
+	// Load the last active tab for this site.
+	const initialTabName = useMemo(() => {
 		const lastTab = getSiteLastTab(site.slug);
 		return lastTab || 'settings';
-	});
+	}, [site.slug]);
+	// Keep visited tabs mounted so editor state survives tool switches, but avoid
+	// booting every heavy pane (Files, Blueprint, Database) before it is opened.
+	const [visitedTabs, setVisitedTabs] = useState<
+		ReadonlySet<SiteInfoPanelTabName>
+	>(() => new Set([activeTabName || initialTabName]));
+	const rememberVisitedTab = useCallback((tabName: SiteInfoPanelTabName) => {
+		setVisitedTabs((currentTabs) => {
+			if (currentTabs.has(tabName)) {
+				return currentTabs;
+			}
+			return new Set([...currentTabs, tabName]);
+		});
+	}, []);
 
-	// Resolve documentRoot from playground client
-	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	// Resolve documentRoot from playground client.
+	const [documentRoot, setDocumentRoot] = useState<{
+		playground: PlaygroundClient;
+		root: string;
+	} | null>(null);
 
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
+		if (isSiteInfoPanelTabName(tabName)) {
+			rememberVisitedTab(tabName);
+		}
 	};
 
-	const isTemporary = site.metadata.storage === 'none';
-	const isAutosaved = isAutosavedSite(site);
-	const isBlueprintReadOnly = isExplicitlySavedSite(site);
+	useEffect(() => {
+		if (activeTabName) {
+			setSiteLastTab(site.slug, activeTabName);
+			rememberVisitedTab(activeTabName);
+		}
+	}, [activeTabName, rememberVisitedTab, site.slug]);
 
-	const removeSiteAndCloseMenu = (onClose: () => void) => {
-		dispatch(setSiteSlugToDelete(site.slug));
-		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
-		onClose();
-	};
-	const openSaveModal = () => {
-		dispatch(setSiteSlugToSave(site.slug));
-		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
-	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
 	const playground = clientInfo?.client;
+	const shouldRenderTab = (
+		tabName: SiteInfoPanelTabName,
+		selectedTabName: SiteInfoPanelTabName
+	) => selectedTabName === tabName || visitedTabs.has(tabName);
 
 	// Resolve documentRoot from playground
 	useEffect(() => {
@@ -127,33 +172,130 @@ export function SiteInfoPanel({
 			return;
 		}
 
-		void playground.documentRoot.then((root) => {
-			setDocumentRoot(root);
-		});
+		let cancelled = false;
+		setDocumentRoot(null);
+		void playground.documentRoot.then(
+			(root) => {
+				if (!cancelled) {
+					setDocumentRoot({ playground, root });
+				}
+			},
+			(error) => {
+				logger.error(
+					'Could not resolve Playground document root',
+					error
+				);
+				if (!cancelled) {
+					setDocumentRoot(null);
+				}
+			}
+		);
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
-	function navigateTo(path: string) {
-		if (siteViewHidden) {
-			// Close the site manager so the site view is visible.
-			dispatch(setSiteManagerOpen(false));
-		}
+	const currentDocumentRoot =
+		documentRoot && documentRoot.playground === playground
+			? documentRoot.root
+			: null;
 
-		if (playground) {
-			playground.goTo(path);
-		}
-	}
+	const renderTabContents = (selectedTabName: SiteInfoPanelTabName) => (
+		<>
+			<div
+				className={classNames(css.tabContents, {
+					[css.tabHidden]: selectedTabName !== 'settings',
+				})}
+				hidden={selectedTabName !== 'settings'}
+			>
+				{shouldRenderTab('settings', selectedTabName) ? (
+					<>
+						{offline ? (
+							<div className={css.padded}>
+								<OfflineNotice />
+							</div>
+						) : null}
 
-	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
-
-	const localDirName =
-		site.metadata?.storage === 'local-fs'
-			? (opfsMountDescriptor as any)?.device?.handle?.name
-			: undefined;
-
-	const title = isTemporary ? 'Unsaved Playground' : site.metadata.name;
-	const titleWords = title.split(' ');
-	const titleStart = titleWords.slice(0, -1).join(' ');
-	const titleEnd = titleWords[titleWords.length - 1];
+						<ActiveSiteSettingsForm
+							onSubmit={() => dispatch(setSiteManagerOpen(false))}
+						/>
+					</>
+				) : null}
+			</div>
+			<div
+				className={classNames(css.tabContents, css.fileBrowserTab, {
+					[css.tabHidden]: selectedTabName !== 'files',
+				})}
+				hidden={selectedTabName !== 'files'}
+			>
+				{shouldRenderTab('files', selectedTabName) ? (
+					<Suspense
+						fallback={
+							<PaneLoading message="Loading the file browser…" />
+						}
+					>
+						{currentDocumentRoot ? (
+							<SiteFileBrowser
+								key={site.slug}
+								site={site}
+								isVisible={selectedTabName === 'files'}
+								documentRoot={currentDocumentRoot}
+							/>
+						) : (
+							// The file browser needs the booted WordPress runtime;
+							// show a clear loading state instead of a blank tab.
+							<PaneLoading message="Waiting for the Playground to finish loading…" />
+						)}
+					</Suspense>
+				) : null}
+			</div>
+			<div
+				className={classNames(css.blueprintWrapper, {
+					[css.tabHidden]: selectedTabName !== 'blueprint',
+				})}
+				hidden={selectedTabName !== 'blueprint'}
+			>
+				{shouldRenderTab('blueprint', selectedTabName) ? (
+					<Suspense
+						fallback={
+							<PaneLoading message="Loading the Blueprint editor…" />
+						}
+					>
+						<SiteBlueprintBundleEditor
+							key={site.slug}
+							site={site}
+							className={classNames(css.blueprintEditor)}
+						/>
+					</Suspense>
+				) : null}
+			</div>
+			<div
+				className={classNames(css.tabContents, css.toolTabContents, {
+					[css.tabHidden]: selectedTabName !== 'database',
+				})}
+				hidden={selectedTabName !== 'database'}
+			>
+				{shouldRenderTab('database', selectedTabName) ? (
+					<SiteDatabasePanel playground={playground} />
+				) : null}
+			</div>
+			<div
+				className={classNames(css.tabContents, css.toolTabContents, {
+					[css.tabHidden]: selectedTabName !== 'logs',
+				})}
+				hidden={selectedTabName !== 'logs'}
+			>
+				{shouldRenderTab('logs', selectedTabName) ? (
+					<div className={classNames(css.logsWrapper)}>
+						<SiteLogs
+							className={css.logsSection}
+							autoFocusSearch={selectedTabName === 'logs'}
+						/>
+					</div>
+				) : null}
+			</div>
+		</>
+	);
 
 	return (
 		<section
@@ -168,375 +310,28 @@ export function SiteInfoPanel({
 				expanded={true}
 				className={css.siteInfoPanelContent}
 			>
-				<FlexItem style={{ flexShrink: 0 }}>
-					<Flex
-						direction="row"
-						gap={2}
-						justify="space-between"
-						align="flex-start"
-						expanded={true}
-						className={`${css.padded} ${css.siteInfoHeader}`}
-						style={{ paddingBottom: 10 }}
-					>
-						{mobileUi && (
-							<FlexItem style={{ marginLeft: -20 }}>
-								<Button
-									variant="link"
-									label="Back to Playground"
-									icon={() => (
-										<Icon icon={chevronLeft} size={38} />
-									)}
-									className={css.grayLinkDark}
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
-									}}
-								/>
-							</FlexItem>
-						)}
-						<FlexItem className={css.siteInfoHeaderIcon}>
-							{site.metadata.logo ? (
-								<img
-									src={getLogoDataURL(site.metadata.logo)}
-									alt={site.metadata.name + ' logo'}
-								/>
-							) : (
-								<WordPressIcon
-									className={css.siteInfoHeaderIconDefault}
-								/>
-							)}
-						</FlexItem>
-						<FlexItem style={{ flexGrow: 1 }}>
-							<Flex direction="column" gap={0.25} expanded={true}>
-								<Flex
-									direction="row"
-									align="flex-start"
-									className={css.siteInfoHeaderTitleRow}
-								>
-									<FlexItem
-										className={css.siteInfoHeaderTitle}
-									>
-										<h1
-											className={
-												css.siteInfoHeaderDetailsName
-											}
-											aria-label="Playground title"
-										>
-											<span
-												className={
-													css.siteInfoHeaderDetailsNameText
-												}
-											>
-												{titleStart}{' '}
-												<span
-													className={
-														css.siteInfoHeaderDetailsNameTextEnd
-													}
-												>
-													{titleEnd}
-													{!isTemporary && (
-														<Button
-															className={
-																css.siteInfoRenameButton
-															}
-															icon={edit}
-															label="Rename Playground"
-															showTooltip={true}
-															variant="tertiary"
-															isSmall={true}
-															onClick={() => {
-																dispatch(
-																	setSiteSlugToRename(
-																		site.slug
-																	)
-																);
-																dispatch(
-																	setActiveModal(
-																		modalSlugs.RENAME_SITE
-																	)
-																);
-															}}
-														/>
-													)}
-												</span>
-											</span>
-										</h1>
-									</FlexItem>
-								</Flex>
-								{!isTemporary && (
-									<span
-										className={
-											css.siteInfoHeaderDetailsCreatedAt
-										}
-									>
-										{(function () {
-											const createdAgo = site.metadata
-												.whenCreated
-												? getRelativeDate(
-														new Date(
-															// -2 to make sure it's in the past. We want to
-															// avoid accidentally signaling this happened in
-															// the future, e.g. "in 1 seconds"
-															site.metadata
-																.whenCreated - 2
-														)
-													)
-												: '';
-											switch (site.metadata.storage) {
-												case 'local-fs':
-													return (
-														'Saved in a local directory' +
-														(localDirName
-															? ` (${localDirName})`
-															: '') +
-														` ${createdAgo}`
-													);
-												case 'opfs':
-													if (isAutosaved) {
-														return `Autosaved in this browser ${createdAgo}. Removed after ${MAX_AUTOSAVED_SITES} newer autosaves unless saved.`;
-													}
-													return `Saved in this browser ${createdAgo}`;
-											}
-										})()}{' '}
-									</span>
-								)}
-							</Flex>
-						</FlexItem>
-						{isAutosaved && (
-							<FlexItem className={css.siteInfoHeaderAction}>
-								<Button
-									variant="primary"
-									onClick={openSaveModal}
-								>
-									Store permanently
-								</Button>
-							</FlexItem>
-						)}
-						{mobileUi ? (
-							<FlexItem style={{ flexShrink: 0 }}>
-								<Button
-									variant="primary"
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
-									}}
-								>
-									Open site
-								</Button>
-							</FlexItem>
-						) : (
-							<>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="tertiary"
-										disabled={!playground}
-										onClick={() => navigateTo('/wp-admin/')}
-									>
-										WP Admin
-									</Button>
-								</FlexItem>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="secondary"
-										disabled={!playground}
-										onClick={() => navigateTo('/')}
-									>
-										Homepage
-									</Button>
-								</FlexItem>
-							</>
-						)}
-						<FlexItem className={css.siteInfoHeaderAction}>
-							<DropdownMenu
-								icon={moreVertical}
-								label="Additional actions"
-								popoverProps={{
-									placement: 'bottom-end',
-								}}
-							>
-								{({ onClose }) => (
-									<>
-										{!isTemporary && (
-											<MenuGroup>
-												<MenuItem
-													aria-label="Delete this Playground"
-													className={css.danger}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
-													}
-												>
-													Delete
-												</MenuItem>
-											</MenuGroup>
-										)}
-										<MenuGroup>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-										</MenuGroup>
-									</>
-								)}
-							</DropdownMenu>
-						</FlexItem>
-					</Flex>
-				</FlexItem>
 				<FlexItem style={{ flexGrow: 1 }}>
-					<TabPanel
-						className={css.tabs}
-						initialTabName={initialTabName}
-						onSelect={handleTabSelect}
-						tabs={[
-							{
-								name: 'settings',
-								title: 'Settings',
-							},
-							{
-								name: 'files',
-								title: 'File browser',
-							},
-							{
-								name: 'blueprint',
-								title: 'Blueprint',
-							},
-							{
-								name: 'database',
-								title: 'Database',
-							},
-							{
-								name: 'logs',
-								title: 'Logs',
-							},
-						]}
-					>
-						{(tab) => (
-							<>
-								<div
-									className={classNames(css.tabContents, {
-										[css.tabHidden]:
-											tab.name !== 'settings',
-									})}
-									hidden={tab.name !== 'settings'}
-								>
-									{offline ? (
-										<div className={css.padded}>
-											<OfflineNotice />
-										</div>
-									) : null}
-
-									{isTemporary ? (
-										<div data-testid="temporary-site-notice">
-											<TemporarySiteNotice
-												className={css.siteNotice}
-											/>
-										</div>
-									) : null}
-
-									<ActiveSiteSettingsForm />
-								</div>
-								<div
-									className={classNames(
-										css.tabContents,
-										css.fileBrowserTab,
-										{
-											[css.tabHidden]:
-												tab.name !== 'files',
-										}
-									)}
-									hidden={tab.name !== 'files'}
-								>
-									<Suspense
-										fallback={
-											<div className={css.padded}>
-												Loading file browser...
-											</div>
-										}
-									>
-										{documentRoot && (
-											<SiteFileBrowser
-												key={site.slug}
-												site={site}
-												isVisible={tab.name === 'files'}
-												documentRoot={documentRoot}
-											/>
-										)}
-									</Suspense>
-								</div>
-								<div
-									className={classNames(
-										css.blueprintWrapper,
-										{
-											[css.tabHidden]:
-												tab.name !== 'blueprint',
-										}
-									)}
-									hidden={tab.name !== 'blueprint'}
-								>
-									{isBlueprintReadOnly && (
-										<div className={css.blueprintNotice}>
-											This Blueprint is read-only for
-											saved Playgrounds. Create an Unsaved
-											Playground to edit and test
-											Blueprint changes.
-										</div>
-									)}
-									<Suspense
-										fallback={
-											<div>
-												Loading Blueprint editor...
-											</div>
-										}
-									>
-										<SiteBlueprintBundleEditor
-											key={site.slug}
-											site={site}
-											className={classNames(
-												css.blueprintEditor
-											)}
-										/>
-									</Suspense>
-								</div>
-								<div
-									className={classNames(
-										css.tabContents,
-										css.padded,
-										{
-											[css.tabHidden]:
-												tab.name !== 'database',
-										}
-									)}
-									hidden={tab.name !== 'database'}
-								>
-									<SiteDatabasePanel
-										playground={playground}
-									/>
-								</div>
-								<div
-									className={classNames(
-										css.tabContents,
-										css.padded,
-										{
-											[css.tabHidden]:
-												tab.name !== 'logs',
-										}
-									)}
-									hidden={tab.name !== 'logs'}
-								>
-									<div
-										className={classNames(css.logsWrapper)}
-									>
-										<SiteLogs className={css.logsSection} />
-									</div>
-								</div>
-							</>
-						)}
-					</TabPanel>
+					{activeTabName ? (
+						<div className={classNames(css.tabs, css.tabsNoNav)}>
+							<div className="components-tab-panel__tab-content">
+								{renderTabContents(activeTabName)}
+							</div>
+						</div>
+					) : (
+						<TabPanel
+							key={site.slug}
+							className={css.tabs}
+							initialTabName={initialTabName}
+							onSelect={handleTabSelect}
+							tabs={SITE_INFO_PANEL_TABS}
+						>
+							{(tab) =>
+								renderTabContents(
+									tab.name as SiteInfoPanelTabName
+								)
+							}
+						</TabPanel>
+					)}
 				</FlexItem>
 			</Flex>
 		</section>
