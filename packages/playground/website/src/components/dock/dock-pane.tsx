@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import type { CSSProperties, MouseEventHandler, ReactNode } from 'react';
 import { Icon, close } from '@wordpress/icons';
 import css from './style.module.css';
@@ -45,6 +45,10 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		},
 		ref
 	) {
+		const closeDescriptionId = useId();
+		const closeDescription =
+			closeTitle && closeTitle !== 'Close' ? closeTitle : undefined;
+
 		return (
 			<section
 				ref={ref}
@@ -63,16 +67,31 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				aria-label={ariaLabel ?? `${title} pane`}
 			>
 				{onClose && (
-					<button
-						type="button"
-						className={css.paneClose}
-						aria-label="Close"
-						title={closeTitle ?? 'Close'}
-						disabled={closeDisabled}
-						onClick={onClose}
-					>
-						<Icon icon={close} size={24} />
-					</button>
+					<>
+						<button
+							type="button"
+							className={css.paneClose}
+							aria-label="Close"
+							aria-describedby={
+								closeDescription
+									? closeDescriptionId
+									: undefined
+							}
+							title={closeTitle ?? 'Close'}
+							disabled={closeDisabled}
+							onClick={onClose}
+						>
+							<Icon icon={close} size={24} />
+						</button>
+						{closeDescription && (
+							<span
+								id={closeDescriptionId}
+								className={css.visuallyHidden}
+							>
+								{closeDescription}
+							</span>
+						)}
+					</>
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>

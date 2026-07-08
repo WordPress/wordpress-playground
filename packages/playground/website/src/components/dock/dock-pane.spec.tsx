@@ -45,9 +45,11 @@ describe('DockPane', () => {
 		);
 
 		expect(markup).toContain('aria-label="Close"');
+		expect(markup).toContain('aria-describedby=');
 		expect(markup).toContain(
 			'title="Wait for the current action to finish"'
 		);
+		expect(markup).toContain('Wait for the current action to finish');
 		expect(markup).toContain('disabled=""');
 	});
 });

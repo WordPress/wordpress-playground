@@ -13,8 +13,10 @@ describe('DockTogglePill', () => {
 		);
 
 		expect(markup).toContain('aria-label="Show tools"');
+		expect(markup).toContain('aria-expanded="false"');
 		expect(markup).toContain('title="Show tools"');
 		expect(markup).toContain('aria-label="Exit full width"');
+		expect(markup).toContain('aria-pressed="true"');
 		expect(markup).toContain('title="Exit full width"');
 	});
 
@@ -29,6 +31,8 @@ describe('DockTogglePill', () => {
 		);
 
 		expect(markup).toContain('aria-label="Hide tools"');
+		expect(markup).toContain('aria-expanded="true"');
 		expect(markup).toContain('aria-label="Full width"');
+		expect(markup).toContain('aria-pressed="false"');
 	});
 });

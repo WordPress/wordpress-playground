@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DockItemButton } from './dock-item-button';
-import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
+import { DockDatabaseIcon } from './icons';
 
 describe('DockItemButton', () => {
 	it('renders a stable accessible name and pressed state', () => {
@@ -25,15 +25,20 @@ describe('DockItemButton', () => {
 			<DockItemButton
 				label="Blueprint"
 				ariaLabel="Current Blueprint"
-				icon={<DockBlueprintIcon />}
+				icon={<span>Blueprint icon</span>}
 				hasNotification
 				notificationAriaSuffix="recent autosave available"
 			/>
 		);
+		const hiddenMarkerCount = countMatches(markup, 'aria-hidden="true"');
 
 		expect(markup).toContain(
 			'aria-label="Current Blueprint — recent autosave available"'
 		);
-		expect(markup).toContain('aria-hidden="true"');
+		expect(hiddenMarkerCount).toBe(2);
 	});
 });
+
+function countMatches(value: string, substring: string) {
+	return value.split(substring).length - 1;
+}

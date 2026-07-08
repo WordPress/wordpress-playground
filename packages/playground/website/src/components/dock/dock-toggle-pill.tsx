@@ -31,11 +31,11 @@ export function DockTogglePill({
 			<button
 				type="button"
 				ref={collapseButtonRef}
-				className={classNames(css.dockPillBtn, {
-					[css.dockPillCollapse]: true,
+				className={classNames(css.dockPillBtn, css.dockPillCollapse, {
 					[css.dockPillCollapseClosed]: isCollapsed,
 				})}
 				aria-label={isCollapsed ? 'Show tools' : 'Hide tools'}
+				aria-expanded={!isCollapsed}
 				title={isCollapsed ? 'Show tools' : 'Hide tools'}
 				onClick={onToggleCollapsed}
 			>
@@ -45,6 +45,7 @@ export function DockTogglePill({
 				type="button"
 				className={css.dockPillBtn}
 				aria-label={isFullWidth ? 'Exit full width' : 'Full width'}
+				aria-pressed={isFullWidth}
 				title={isFullWidth ? 'Exit full width' : 'Full width'}
 				onClick={onToggleFullWidth}
 			>
