@@ -1,5 +1,5 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { joinPaths } from '@php-wasm/util';
+import { basename as pathBasename, joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
@@ -61,11 +61,17 @@ type BlueprintV2ImportContentStep = Extract<
 	{ step: 'importContent' }
 >;
 type BlueprintV2RunPHPStep = Extract<BlueprintV2Step, { step: 'runPHP' }>;
+type BlueprintV2ImportMediaStep = Extract<
+	BlueprintV2Step,
+	{ step: 'importMedia' }
+>;
 type BlueprintV2WriteFilesStep = Extract<
 	BlueprintV2Step,
 	{ step: 'writeFiles' }
 >;
+type BlueprintV2PostContent = Extract<BlueprintV2Content, { type: 'posts' }>;
 type BlueprintV2WxrContent = Extract<BlueprintV2Content, { type: 'wxr' }>;
+type JsonObject = Record<string, any>;
 type BlueprintV2DataReference =
 	| string
 	| {
@@ -473,6 +479,18 @@ function lowerBlueprintV2ExecutionPlanItem(
 			return [createInstallThemeStep(planItem.theme, planItem.active)];
 		case 'installPlugin':
 			return [createInstallPluginStep(planItem.plugin)];
+		case 'installMuPlugin':
+			return lowerMuPlugin(planItem.muPlugin, planItem.sourcePath);
+		case 'installFonts':
+			return lowerFonts(planItem.fonts);
+		case 'importMedia':
+			return lowerMediaItems([planItem.media], planItem.sourcePath);
+		case 'defineRoles':
+			return [createRolesStep(planItem.roles)];
+		case 'defineUsers':
+			return [createUsersStep(planItem.users)];
+		case 'definePostTypes':
+			return lowerPostTypes(planItem.postTypes);
 		case 'importContent':
 			return lowerBlueprintV2Content(planItem.content, 'content');
 		case 'setSiteLanguage':
@@ -483,7 +501,10 @@ function lowerBlueprintV2ExecutionPlanItem(
 				},
 			];
 		case 'runStep':
-			return lowerAdditionalBlueprintV2Step(planItem.step);
+			return lowerAdditionalBlueprintV2Step(
+				planItem.step,
+				planItem.sourcePath
+			);
 		default:
 			return undefined;
 	}
@@ -504,6 +525,8 @@ function lowerBlueprintV2Content(
 			}));
 		case 'wxr':
 			return lowerBlueprintV2WxrContent(content, featurePath);
+		case 'posts':
+			return lowerPostsContent(content, featurePath);
 		default:
 			return undefined;
 	}
@@ -545,7 +568,8 @@ function lowerBlueprintV2WxrContent(
  * steps closely enough to reuse their existing runner implementations.
  */
 function lowerAdditionalBlueprintV2Step(
-	step: BlueprintV2Step
+	step: BlueprintV2Step,
+	featurePath: string
 ): StepDefinition[] | undefined {
 	switch (step.step) {
 		case 'activatePlugin':
@@ -580,6 +604,8 @@ function lowerAdditionalBlueprintV2Step(
 			];
 		case 'importContent':
 			return lowerImportContentStep(step);
+		case 'importMedia':
+			return lowerImportMediaStep(step, featurePath);
 		case 'importThemeStarterContent':
 			return [
 				{
@@ -621,7 +647,7 @@ function lowerAdditionalBlueprintV2Step(
 				},
 			];
 		case 'runPHP':
-			return lowerRunPHPStep(step);
+			return lowerRunPHPStep(step, featurePath);
 		case 'runSQL':
 			return [
 				{
@@ -690,28 +716,359 @@ function lowerImportContentStep(
 }
 
 function lowerRunPHPStep(
-	step: BlueprintV2RunPHPStep
+	step: BlueprintV2RunPHPStep,
+	featurePath: string
 ): StepDefinition[] | undefined {
-	if (!isInlineFile(step.code)) {
-		return undefined;
-	}
-	if (step.env) {
+	if (isInlineFile(step.code)) {
+		if (step.env) {
+			return [
+				{
+					step: 'runPHPWithOptions',
+					options: {
+						code: step.code.content,
+						env: step.env,
+					},
+				},
+			];
+		}
 		return [
 			{
-				step: 'runPHPWithOptions',
-				options: {
-					code: step.code.content,
-					env: step.env,
-				},
+				step: 'runPHP',
+				code: step.code,
+			},
+		];
+	}
+
+	const phpPath = tempFilePath(
+		'blueprint-run-php',
+		`${featurePath}/code`,
+		sanitizeFilenameForTempPath(
+			getDataReferenceBasename(step.code, 'script.php')
+		)
+	);
+	return [
+		{
+			step: 'writeFile',
+			path: phpPath,
+			data: convertV2FileDataReferenceToV1(
+				step.code,
+				`${featurePath}/code`
+			),
+		},
+		{
+			step: 'runPHPWithOptions',
+			options: {
+				code: `<?php require ${JSON.stringify(phpPath)};`,
+				env: step.env || {},
+			},
+		},
+	];
+}
+
+function lowerImportMediaStep(
+	step: BlueprintV2ImportMediaStep,
+	featurePath: string
+): StepDefinition[] {
+	return lowerMediaItems(step.media, `${featurePath}/media`);
+}
+
+function lowerMuPlugin(
+	muPlugin: BlueprintV2MuPlugin,
+	featurePath: string
+): StepDefinition[] {
+	const targetPath = getMuPluginTargetPath(muPlugin, featurePath);
+	const resource = convertV2WritableDataReferenceToV1(muPlugin, featurePath);
+	if (isDirectoryReference(resource)) {
+		return [
+			{
+				step: 'writeFiles',
+				writeToPath: targetPath,
+				filesTree: resource,
 			},
 		];
 	}
 	return [
 		{
-			step: 'runPHP',
-			code: step.code,
+			step: 'writeFile',
+			path: targetPath,
+			data: resource,
 		},
 	];
+}
+
+function lowerPostsContent(
+	content: BlueprintV2PostContent,
+	featurePath: string
+): StepDefinition[] {
+	const steps: StepDefinition[] = [];
+	const inlinePosts: JsonObject[] = [];
+	const postFiles: JsonObject[] = [];
+	const sourceIsArray = Array.isArray(content.source);
+	const sources = (sourceIsArray ? content.source : [content.source]) as (
+		| BlueprintV2FileDataReference
+		| JsonObject
+	)[];
+
+	for (const [index, source] of sources.entries()) {
+		const sourcePath = sourceIsArray
+			? `${featurePath}.source[${index}]`
+			: `${featurePath}.source`;
+
+		if (isV2FileDataReferenceLike(source)) {
+			const filename = sanitizeFilenameForTempPath(
+				getDataReferenceBasename(source, `post-${index}.html`)
+			);
+			const path = tempFilePath(
+				'blueprint-post-content',
+				sourcePath,
+				filename
+			);
+			steps.push({
+				step: 'writeFile',
+				path,
+				data: convertV2FileDataReferenceToV1(source, sourcePath),
+			});
+			postFiles.push({
+				path,
+				filename,
+				post_title: 'Untitled Post',
+				post_type: 'post',
+			});
+			continue;
+		}
+
+		inlinePosts.push({ ...(source as JsonObject) });
+	}
+
+	if (inlinePosts.length === 0 && postFiles.length === 0) {
+		return steps;
+	}
+
+	steps.push({
+		step: 'runPHPWithOptions',
+		options: {
+			code: IMPORT_POSTS_PHP,
+			env: {
+				BLUEPRINT_POSTS: JSON.stringify(inlinePosts),
+				BLUEPRINT_POST_FILES: JSON.stringify(postFiles),
+				BLUEPRINT_URLS_MODE: content.urlsMode || 'rewrite',
+				BLUEPRINT_URLS_MAP: JSON.stringify(content.urlsMap || {}),
+			},
+		},
+	});
+	return steps;
+}
+
+function lowerMediaItems(
+	mediaItems: BlueprintV2Media[],
+	featurePath: string
+): StepDefinition[] {
+	const steps: StepDefinition[] = [];
+	const materializedMedia: JsonObject[] = [];
+
+	for (const [index, item] of mediaItems.entries()) {
+		const definition =
+			item && typeof item === 'object' && 'source' in item
+				? item
+				: { source: item };
+		const sourcePath = `${featurePath}[${index}]`;
+		const filename = sanitizeFilenameForTempPath(
+			getDataReferenceBasename(definition.source, `media-${index}`)
+		);
+		const path = tempFilePath('blueprint-media', sourcePath, filename);
+		steps.push({
+			step: 'writeFile',
+			path,
+			data: convertV2FileDataReferenceToV1(definition.source, sourcePath),
+		});
+
+		const media: JsonObject = { path, filename };
+		for (const field of ['title', 'description', 'alt', 'caption']) {
+			if ((definition as any)[field] !== undefined) {
+				media[field] = (definition as any)[field];
+			}
+		}
+		materializedMedia.push(media);
+	}
+
+	if (materializedMedia.length === 0) {
+		return steps;
+	}
+
+	steps.push({
+		step: 'runPHPWithOptions',
+		options: {
+			code: IMPORT_MEDIA_PHP,
+			env: {
+				BLUEPRINT_MEDIA: JSON.stringify(materializedMedia),
+			},
+		},
+	});
+	return steps;
+}
+
+function lowerPostTypes(postTypes: BlueprintV2PostTypes): StepDefinition[] {
+	return Object.entries(postTypes).flatMap(([slug, args], index) => {
+		const supportFileName = `blueprint-post-type-${index}`;
+		const pluginPath = `/wordpress/wp-content/mu-plugins/${supportFileName}.php`;
+
+		if (typeof args === 'string') {
+			const argsPath = `/wordpress/wp-content/mu-plugins/${supportFileName}.json`;
+			return [
+				{
+					step: 'writeFile',
+					path: argsPath,
+					data: convertV2FileDataReferenceToV1(
+						args,
+						`postTypes.${JSON.stringify(slug)}`
+					),
+				},
+				{
+					step: 'writeFile',
+					path: pluginPath,
+					data: {
+						resource: 'literal',
+						name: `${supportFileName}.php`,
+						contents: createPostTypePluginCode(slug, argsPath),
+					},
+				},
+			];
+		}
+
+		const postTypeArgs: JsonObject = { ...(args as JsonObject) };
+		if (postTypeArgs['label'] === undefined) {
+			postTypeArgs['label'] = humanizeSlug(slug);
+		}
+		return [
+			{
+				step: 'writeFile',
+				path: pluginPath,
+				data: {
+					resource: 'literal',
+					name: `${supportFileName}.php`,
+					contents: createInlinePostTypePluginCode(
+						slug,
+						postTypeArgs
+					),
+				},
+			},
+		];
+	});
+}
+
+function createRolesStep(roles: BlueprintV2Role[]): StepDefinition {
+	return {
+		step: 'runPHPWithOptions',
+		options: {
+			code: DEFINE_ROLES_PHP,
+			env: {
+				BLUEPRINT_ROLES: JSON.stringify(roles),
+			},
+		},
+	};
+}
+
+function createUsersStep(users: BlueprintV2User[]): StepDefinition {
+	return {
+		step: 'runPHPWithOptions',
+		options: {
+			code: DEFINE_USERS_PHP,
+			env: {
+				BLUEPRINT_USERS: JSON.stringify(users),
+			},
+		},
+	};
+}
+
+function lowerFonts(fonts: BlueprintV2Fonts): StepDefinition[] {
+	const steps: StepDefinition[] = [];
+	const collections: JsonObject[] = [];
+	const fontFiles: Record<string, JsonObject> = {};
+	let fileIndex = 0;
+
+	for (const [slug, definition] of Object.entries(fonts)) {
+		const fontPath = `fonts.${JSON.stringify(slug)}`;
+		if (isV2FileDataReferenceLike(definition)) {
+			const token = materializeFontSource(
+				definition,
+				`${fontPath}.source`,
+				slug,
+				steps,
+				fontFiles,
+				fileIndex++
+			);
+			const name = humanizeSlug(slug);
+			collections.push({
+				slug,
+				name,
+				font_families: [
+					{
+						font_family_settings: {
+							name,
+							slug,
+							fontFamily: name,
+							fontFace: [
+								{
+									fontFamily: name,
+									src: token,
+								},
+							],
+						},
+					},
+				],
+			});
+			continue;
+		}
+
+		const collection = cloneJson(definition as JsonObject);
+		collection['slug'] = slug;
+		collection['name'] = collection['name'] || humanizeSlug(slug);
+		collection['font_families'] = (collection['font_families'] || []).map(
+			(family: JsonObject, familyIndex: number) => {
+				const nextFamily = cloneJson(family);
+				const settings = {
+					...(nextFamily['font_family_settings'] || {}),
+				};
+				if (Array.isArray(settings['fontFace'])) {
+					settings['fontFace'] = settings['fontFace'].map(
+						(face: JsonObject, faceIndex: number) => {
+							const nextFace = { ...face };
+							nextFace['src'] = materializeFontFaceSource(
+								nextFace['src'] as
+									| BlueprintV2FileDataReference
+									| BlueprintV2FileDataReference[],
+								`${fontPath}.font_families[${familyIndex}].font_family_settings.fontFace[${faceIndex}].src`,
+								(settings['slug'] as string) || slug,
+								steps,
+								fontFiles,
+								() => fileIndex++
+							);
+							return nextFace;
+						}
+					);
+				}
+				nextFamily['font_family_settings'] = settings;
+				return nextFamily;
+			}
+		);
+		collections.push(collection);
+	}
+
+	if (collections.length === 0) {
+		return steps;
+	}
+
+	steps.push({
+		step: 'runPHPWithOptions',
+		options: {
+			code: INSTALL_FONTS_PHP,
+			env: {
+				BLUEPRINT_FONT_COLLECTIONS: JSON.stringify(collections),
+				BLUEPRINT_FONT_FILES: JSON.stringify(fontFiles),
+			},
+		},
+	});
+	return steps;
 }
 
 function lowerWriteFilesStep(
@@ -740,6 +1097,726 @@ function lowerWriteFilesStep(
 	}
 	return steps;
 }
+
+function materializeFontFaceSource(
+	source: BlueprintV2FileDataReference | BlueprintV2FileDataReference[],
+	sourcePath: string,
+	slug: string,
+	steps: StepDefinition[],
+	fontFiles: Record<string, JsonObject>,
+	nextIndex: () => number
+) {
+	if (Array.isArray(source)) {
+		return source.map((item, index) =>
+			materializeFontSource(
+				item,
+				`${sourcePath}[${index}]`,
+				slug,
+				steps,
+				fontFiles,
+				nextIndex()
+			)
+		);
+	}
+	return materializeFontSource(
+		source,
+		sourcePath,
+		slug,
+		steps,
+		fontFiles,
+		nextIndex()
+	);
+}
+
+function materializeFontSource(
+	source: BlueprintV2FileDataReference,
+	sourcePath: string,
+	slug: string,
+	steps: StepDefinition[],
+	fontFiles: Record<string, JsonObject>,
+	index: number
+) {
+	const filename = sanitizeFilenameForTempPath(
+		getDataReferenceBasename(source, `${slug}.woff2`)
+	);
+	if (!isAllowedFontFilename(filename)) {
+		throw new UnsupportedBlueprintV2FeatureError(
+			sourcePath,
+			'Blueprint v2 font sources must reference .woff2, .woff, .ttf, or .otf files.'
+		);
+	}
+	const token = `font-${index}`;
+	const path = tempFilePath('blueprint-font', sourcePath, filename);
+	steps.push({
+		step: 'writeFile',
+		path,
+		data: convertV2FileDataReferenceToV1(source, sourcePath),
+	});
+	fontFiles[`blueprint-font-file:${token}`] = {
+		path,
+		filename,
+	};
+	return `blueprint-font-file:${token}`;
+}
+
+function createInlinePostTypePluginCode(slug: string, args: JsonObject) {
+	return `<?php
+add_action('init', function () {
+	register_post_type(${JSON.stringify(slug)}, json_decode(${JSON.stringify(
+		JSON.stringify(args)
+	)}, true));
+}, 0);
+`;
+}
+
+function createPostTypePluginCode(slug: string, argsPath: string) {
+	const argsFilename = pathBasename(argsPath);
+	return `<?php
+add_action('init', function () {
+	$args = json_decode(file_get_contents(__DIR__ . '/${argsFilename}'), true);
+	if (!is_array($args)) {
+		$args = array();
+	}
+	if (!isset($args['label'])) {
+		$args['label'] = ${JSON.stringify(humanizeSlug(slug))};
+	}
+	register_post_type(${JSON.stringify(slug)}, $args);
+}, 0);
+`;
+}
+
+const DEFINE_ROLES_PHP = `<?php
+require '/wordpress/wp-load.php';
+
+$roles = json_decode(getenv('BLUEPRINT_ROLES') ?: '[]', true);
+if (!is_array($roles)) {
+	throw new Exception('Invalid Blueprint roles payload.');
+}
+
+foreach ($roles as $role) {
+	if (empty($role['name']) || !is_string($role['name'])) {
+		continue;
+	}
+	$role_name = $role['name'];
+	$display_name = $role['display_name'] ?? ucfirst($role_name);
+	$capabilities = $role['capabilities'] ?? array();
+	if (!get_role($role_name)) {
+		add_role($role_name, $display_name, array('read' => true));
+	}
+	$role_object = get_role($role_name);
+	foreach ($capabilities as $capability => $grant) {
+		if (filter_var($grant, FILTER_VALIDATE_BOOLEAN)) {
+			$role_object->add_cap($capability);
+		} else {
+			$role_object->remove_cap($capability);
+		}
+	}
+}
+`;
+
+const DEFINE_USERS_PHP = `<?php
+require '/wordpress/wp-load.php';
+
+$users = json_decode(getenv('BLUEPRINT_USERS') ?: '[]', true);
+if (!is_array($users)) {
+	throw new Exception('Invalid Blueprint users payload.');
+}
+
+foreach ($users as $user) {
+	if (empty($user['username']) || !is_string($user['username'])) {
+		continue;
+	}
+	$username = $user['username'];
+	$existing = get_user_by('login', $username);
+	if ($existing) {
+		$user_id = $existing->ID;
+	} else {
+		$email = $user['email'] ?? $username . '@example.com';
+		$password = $user['password'] ?? wp_generate_password(24, true, true);
+		$user_id = wp_create_user($username, $password, $email);
+		if (is_wp_error($user_id)) {
+			throw new Exception($user_id->get_error_message());
+		}
+	}
+	$user_object = new WP_User($user_id);
+	if (!empty($user['role']) && is_string($user['role'])) {
+		$user_object->set_role($user['role']);
+	}
+	foreach (($user['meta'] ?? array()) as $meta_key => $meta_value) {
+		update_user_meta($user_id, $meta_key, $meta_value);
+	}
+}
+`;
+
+const IMPORT_POSTS_PHP = `<?php
+require '/wordpress/wp-load.php';
+
+$posts = json_decode(getenv('BLUEPRINT_POSTS') ?: '[]', true);
+$post_files = json_decode(getenv('BLUEPRINT_POST_FILES') ?: '[]', true);
+$urls_mode = getenv('BLUEPRINT_URLS_MODE') ?: 'rewrite';
+$urls_map = json_decode(getenv('BLUEPRINT_URLS_MAP') ?: '{}', true);
+
+if (!is_array($posts) || !is_array($post_files) || !is_array($urls_map)) {
+	throw new Exception('Invalid Blueprint posts payload.');
+}
+
+$blueprint_temp_files = array();
+foreach ($post_files as $file) {
+	if (is_array($file) && !empty($file['path']) && is_string($file['path'])) {
+		$blueprint_temp_files[] = $file['path'];
+	}
+}
+
+try {
+	foreach ($post_files as $file) {
+		$source_path = $file['path'] ?? '';
+		if (!$source_path || !is_readable($source_path)) {
+			throw new Exception('Post content source is not readable: ' . $source_path);
+		}
+		$posts[] = array(
+			'post_title' => $file['post_title'] ?? 'Untitled Post',
+			'post_content' => file_get_contents($source_path),
+			'post_status' => 'publish',
+			'post_type' => $file['post_type'] ?? 'post',
+		);
+	}
+
+	$default_author = blueprint_default_post_author();
+	wp_set_current_user($default_author);
+
+	foreach ($posts as $post) {
+		if (!is_array($post)) {
+			throw new Exception('Each Blueprint post must be an object.');
+		}
+
+		$post = blueprint_prepare_post($post, $default_author, $urls_mode, $urls_map);
+		$post_tags = $post['post_tags'] ?? null;
+		$page_template = $post['page_template'] ?? null;
+		$tax_input = $post['tax_input'] ?? null;
+		unset($post['post_tags'], $post['page_template'], $post['tax_input']);
+
+		$post_id = wp_insert_post(wp_slash($post), true);
+		if (is_wp_error($post_id)) {
+			throw new Exception($post_id->get_error_message());
+		}
+
+		if (is_array($post_tags)) {
+			blueprint_set_terms($post_id, 'post_tag', $post_tags);
+		}
+		if (is_array($tax_input)) {
+			foreach ($tax_input as $taxonomy => $terms) {
+				if (taxonomy_exists($taxonomy) && is_array($terms)) {
+					blueprint_set_terms($post_id, $taxonomy, $terms);
+				}
+			}
+		}
+		if ($page_template && ($post['post_type'] ?? 'post') === 'page') {
+			update_post_meta($post_id, '_wp_page_template', $page_template);
+		}
+	}
+} finally {
+	blueprint_cleanup_post_temp_files($blueprint_temp_files);
+}
+
+function blueprint_prepare_post(array $post, int $default_author, string $urls_mode, array $urls_map): array {
+	if (!isset($post['post_author'])) {
+		$post['post_author'] = $default_author;
+	} else {
+		$post['post_author'] = (int) $post['post_author'];
+		if ($post['post_author'] <= 0 || !get_userdata($post['post_author'])) {
+			$post['post_author'] = $default_author;
+		}
+	}
+
+	if (isset($post['post_parent_name']) && !isset($post['post_parent'])) {
+		$post['post_parent'] = blueprint_find_parent_post_id(
+			$post['post_parent_name'],
+			$post['post_type'] ?? 'page'
+		);
+	}
+	unset($post['post_parent_name']);
+
+	if (isset($post['post_category']) && is_array($post['post_category'])) {
+		$post['post_category'] = blueprint_ensure_terms('category', $post['post_category']);
+	}
+
+	foreach (array('post_content', 'post_excerpt', 'guid') as $field) {
+		if (isset($post[$field]) && is_string($post[$field])) {
+			$post[$field] = blueprint_rewrite_urls($post[$field], $urls_mode, $urls_map);
+		}
+	}
+	if (isset($post['meta_input']) && is_array($post['meta_input'])) {
+		$post['meta_input'] = blueprint_rewrite_urls($post['meta_input'], $urls_mode, $urls_map);
+	}
+
+	return $post;
+}
+
+function blueprint_default_post_author(): int {
+	$admins = get_users(array(
+		'role' => 'administrator',
+		'number' => 1,
+		'orderby' => 'ID',
+		'order' => 'ASC',
+		'fields' => 'ID',
+	));
+	if (!empty($admins)) {
+		return (int) $admins[0];
+	}
+
+	$users = get_users(array(
+		'number' => 1,
+		'orderby' => 'ID',
+		'order' => 'ASC',
+		'fields' => 'ID',
+	));
+	if (!empty($users)) {
+		return (int) $users[0];
+	}
+
+	$existing = get_user_by('login', 'blueprint-author');
+	if ($existing) {
+		return (int) $existing->ID;
+	}
+
+	$user_id = wp_create_user(
+		'blueprint-author',
+		wp_generate_password(24, true, true),
+		'blueprint-author@example.com'
+	);
+	if (is_wp_error($user_id)) {
+		throw new Exception($user_id->get_error_message());
+	}
+	return (int) $user_id;
+}
+
+function blueprint_find_parent_post_id(string $name, string $post_type): int {
+	$parent = get_page_by_path(sanitize_title($name), OBJECT, $post_type);
+	if (!$parent) {
+		$query = new WP_Query(array(
+			'post_type' => $post_type,
+			'title' => $name,
+			'post_status' => 'any',
+			'posts_per_page' => 1,
+			'fields' => 'ids',
+		));
+		if (!empty($query->posts)) {
+			return (int) $query->posts[0];
+		}
+		throw new Exception('Could not resolve post_parent_name: ' . $name);
+	}
+	return (int) $parent->ID;
+}
+
+function blueprint_set_terms(int $post_id, string $taxonomy, array $terms): void {
+	$term_ids = blueprint_ensure_terms($taxonomy, $terms);
+	if (!empty($term_ids)) {
+		$result = wp_set_object_terms($post_id, $term_ids, $taxonomy, false);
+		if (is_wp_error($result)) {
+			throw new Exception($result->get_error_message());
+		}
+	}
+}
+
+function blueprint_ensure_terms(string $taxonomy, array $terms): array {
+	$term_ids = array();
+	foreach ($terms as $term_name) {
+		if (!is_string($term_name) || $term_name === '') {
+			continue;
+		}
+		$term = get_term_by('slug', sanitize_title($term_name), $taxonomy);
+		if (!$term) {
+			$term = get_term_by('name', $term_name, $taxonomy);
+		}
+		if (!$term) {
+			$created = wp_insert_term($term_name, $taxonomy, array(
+				'slug' => sanitize_title($term_name),
+			));
+			if (is_wp_error($created)) {
+				throw new Exception($created->get_error_message());
+			}
+			$term_ids[] = (int) $created['term_id'];
+			continue;
+		}
+		$term_ids[] = (int) $term->term_id;
+	}
+	return $term_ids;
+}
+
+function blueprint_rewrite_urls($value, string $urls_mode, array $urls_map) {
+	if ($urls_mode === 'preserve' || empty($urls_map)) {
+		return $value;
+	}
+	if (is_string($value)) {
+		return strtr($value, $urls_map);
+	}
+	if (is_array($value)) {
+		foreach ($value as $key => $item) {
+			$value[$key] = blueprint_rewrite_urls($item, $urls_mode, $urls_map);
+		}
+		return $value;
+	}
+	return $value;
+}
+
+function blueprint_cleanup_post_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
+	}
+}
+`;
+
+const IMPORT_MEDIA_PHP = `<?php
+require '/wordpress/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/image.php';
+require_once ABSPATH . 'wp-admin/includes/file.php';
+
+$media_items = json_decode(getenv('BLUEPRINT_MEDIA') ?: '[]', true);
+if (!is_array($media_items)) {
+	throw new Exception('Invalid Blueprint media payload.');
+}
+
+$blueprint_temp_files = array();
+foreach ($media_items as $item) {
+	if (is_array($item) && !empty($item['path']) && is_string($item['path'])) {
+		$blueprint_temp_files[] = $item['path'];
+	}
+}
+
+try {
+	foreach ($media_items as $item) {
+		$source_path = $item['path'] ?? '';
+		if (!$source_path || !is_readable($source_path)) {
+			throw new Exception('Media source is not readable: ' . $source_path);
+		}
+
+		$uploads = wp_upload_dir();
+		if (!empty($uploads['error'])) {
+			throw new Exception($uploads['error']);
+		}
+		if (!wp_mkdir_p($uploads['path'])) {
+			throw new Exception('Could not create uploads directory: ' . $uploads['path']);
+		}
+
+		$filename = wp_unique_filename($uploads['path'], basename($item['filename'] ?? $source_path));
+		$target_path = trailingslashit($uploads['path']) . $filename;
+		if (!copy($source_path, $target_path)) {
+			throw new Exception('Could not copy media file to uploads directory.');
+		}
+
+		$filetype = wp_check_filetype($filename, null);
+		$attachment = array(
+			'guid' => trailingslashit($uploads['url']) . $filename,
+			'post_mime_type' => $filetype['type'] ?: 'application/octet-stream',
+			'post_title' => $item['title'] ?? preg_replace('/\\.[^.]+$/', '', $filename),
+			'post_content' => $item['description'] ?? '',
+			'post_excerpt' => $item['caption'] ?? '',
+			'post_status' => 'inherit',
+		);
+
+		$attachment_id = wp_insert_attachment($attachment, $target_path, 0, true);
+		if (is_wp_error($attachment_id)) {
+			throw new Exception($attachment_id->get_error_message());
+		}
+
+		$metadata = wp_generate_attachment_metadata($attachment_id, $target_path);
+		if (!is_wp_error($metadata) && !empty($metadata)) {
+			wp_update_attachment_metadata($attachment_id, $metadata);
+		}
+		if (array_key_exists('alt', $item)) {
+			update_post_meta($attachment_id, '_wp_attachment_image_alt', $item['alt']);
+		}
+	}
+} finally {
+	blueprint_cleanup_media_temp_files($blueprint_temp_files);
+}
+
+function blueprint_cleanup_media_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
+	}
+}
+`;
+
+const INSTALL_FONTS_PHP = `<?php
+require '/wordpress/wp-load.php';
+
+$collections = json_decode(getenv('BLUEPRINT_FONT_COLLECTIONS') ?: '[]', true);
+$files = json_decode(getenv('BLUEPRINT_FONT_FILES') ?: '{}', true);
+
+if (!is_array($collections) || !is_array($files)) {
+	throw new Exception('Invalid Blueprint fonts payload.');
+}
+if (!function_exists('wp_get_font_dir') || !post_type_exists('wp_font_family') || !post_type_exists('wp_font_face')) {
+	throw new Exception('Blueprint fonts require WordPress 6.5 or newer.');
+}
+
+$blueprint_temp_files = blueprint_font_temp_files($files);
+try {
+	$font_dir = wp_get_font_dir();
+	if (!empty($font_dir['error'])) {
+		throw new Exception($font_dir['error']);
+	}
+	if (!wp_mkdir_p($font_dir['basedir'])) {
+		throw new Exception('Could not create font directory: ' . $font_dir['basedir']);
+	}
+
+	$registered_collections = array();
+	foreach ($collections as $collection) {
+		if (!is_array($collection) || empty($collection['slug']) || !is_string($collection['slug'])) {
+			throw new Exception('Each Blueprint font collection must have a slug.');
+		}
+
+		$slug = sanitize_title($collection['slug']);
+		$families = isset($collection['font_families']) && is_array($collection['font_families'])
+			? $collection['font_families']
+			: array();
+
+		foreach ($families as $family_index => $family) {
+			if (!is_array($family) || !isset($family['font_family_settings']) || !is_array($family['font_family_settings'])) {
+				throw new Exception('Each Blueprint font family must include font_family_settings.');
+			}
+
+			$settings = $family['font_family_settings'];
+			$family_id = blueprint_upsert_font_family($settings);
+			if (!empty($settings['fontFace']) && is_array($settings['fontFace'])) {
+				foreach ($settings['fontFace'] as $face_index => $face) {
+					if (!is_array($face)) {
+						throw new Exception('Each Blueprint fontFace entry must be an object.');
+					}
+					$prepared_face = blueprint_prepare_font_face($face, $files, $font_dir);
+					blueprint_upsert_font_face($family_id, $prepared_face['settings'], $prepared_face['files']);
+					$settings['fontFace'][$face_index] = $prepared_face['settings'];
+				}
+			}
+			$families[$family_index]['font_family_settings'] = $settings;
+		}
+
+		$collection_args = array(
+			'name' => $collection['name'] ?? blueprint_humanize_slug($slug),
+			'font_families' => $families,
+		);
+		$categories = blueprint_collect_font_categories($families);
+		if (!empty($categories)) {
+			$collection_args['categories'] = $categories;
+		}
+		$registered_collections[$slug] = $collection_args;
+		blueprint_register_font_collection($slug, $collection_args);
+	}
+
+	blueprint_write_font_collections_mu_plugin($registered_collections);
+} finally {
+	blueprint_cleanup_font_temp_files($blueprint_temp_files);
+}
+
+function blueprint_upsert_font_family(array $settings): int {
+	foreach (array('name', 'slug', 'fontFamily') as $field) {
+		if (empty($settings[$field]) || !is_string($settings[$field])) {
+			throw new Exception('Font family setting "' . $field . '" is required.');
+		}
+	}
+
+	$slug = sanitize_title($settings['slug']);
+	$post_content = $settings;
+	unset($post_content['name'], $post_content['slug']);
+
+	$existing = get_posts(array(
+		'post_type' => 'wp_font_family',
+		'name' => $slug,
+		'post_status' => 'any',
+		'numberposts' => 1,
+	));
+	$post = array(
+		'post_type' => 'wp_font_family',
+		'post_status' => 'publish',
+		'post_title' => $settings['name'],
+		'post_name' => $slug,
+		'post_content' => wp_json_encode($post_content),
+	);
+	if (!empty($existing)) {
+		$post['ID'] = $existing[0]->ID;
+	}
+
+	$post_id = wp_insert_post(wp_slash($post), true);
+	if (is_wp_error($post_id)) {
+		throw new Exception($post_id->get_error_message());
+	}
+	return (int) $post_id;
+}
+
+function blueprint_prepare_font_face(array $settings, array $files, array $font_dir): array {
+	if (empty($settings['fontFamily']) || empty($settings['src'])) {
+		throw new Exception('Font face settings require fontFamily and src.');
+	}
+
+	$srcs = is_array($settings['src']) ? $settings['src'] : array($settings['src']);
+	$processed_srcs = array();
+	$file_meta = array();
+
+	foreach ($srcs as $src) {
+		if (is_string($src) && isset($files[$src])) {
+			$copied = blueprint_copy_font_file($files[$src], $font_dir);
+			$processed_srcs[] = $copied['url'];
+			$file_meta[] = $copied['relative'];
+			continue;
+		}
+		$processed_srcs[] = $src;
+	}
+
+	$settings['src'] = count($processed_srcs) === 1 ? $processed_srcs[0] : $processed_srcs;
+	return array(
+		'settings' => $settings,
+		'files' => $file_meta,
+	);
+}
+
+function blueprint_copy_font_file(array $file, array $font_dir): array {
+	$source_path = $file['path'] ?? '';
+	if (!$source_path || !is_readable($source_path)) {
+		throw new Exception('Font source is not readable: ' . $source_path);
+	}
+
+	$filename = sanitize_file_name($file['filename'] ?? basename($source_path));
+	if (!preg_match('/\\.(woff2|woff|ttf|otf)$/i', $filename)) {
+		throw new Exception('Unsupported font file extension: ' . $filename);
+	}
+
+	$unique_filename = wp_unique_filename($font_dir['basedir'], $filename);
+	$target_path = trailingslashit($font_dir['basedir']) . $unique_filename;
+	if (!copy($source_path, $target_path)) {
+		throw new Exception('Could not copy font file to fonts directory.');
+	}
+
+	return array(
+		'url' => trailingslashit($font_dir['baseurl']) . $unique_filename,
+		'relative' => $unique_filename,
+	);
+}
+
+function blueprint_upsert_font_face(int $family_id, array $settings, array $file_meta): int {
+	$title = blueprint_font_face_slug($settings);
+	$existing = get_posts(array(
+		'post_type' => 'wp_font_face',
+		'post_parent' => $family_id,
+		'title' => $title,
+		'post_status' => 'any',
+		'numberposts' => 1,
+	));
+
+	$post = array(
+		'post_type' => 'wp_font_face',
+		'post_parent' => $family_id,
+		'post_status' => 'publish',
+		'post_title' => $title,
+		'post_name' => sanitize_title($title),
+		'post_content' => wp_json_encode($settings),
+	);
+	if (!empty($existing)) {
+		$post['ID'] = $existing[0]->ID;
+	}
+
+	$post_id = wp_insert_post(wp_slash($post), true);
+	if (is_wp_error($post_id)) {
+		throw new Exception($post_id->get_error_message());
+	}
+
+	delete_post_meta($post_id, '_wp_font_face_file');
+	foreach ($file_meta as $relative_path) {
+		add_post_meta($post_id, '_wp_font_face_file', $relative_path);
+	}
+	return (int) $post_id;
+}
+
+function blueprint_font_face_slug(array $settings): string {
+	if (class_exists('WP_Font_Utils') && method_exists('WP_Font_Utils', 'get_font_face_slug')) {
+		return WP_Font_Utils::get_font_face_slug($settings);
+	}
+	$parts = array($settings['fontFamily'] ?? 'font');
+	foreach (array('fontStyle', 'fontWeight', 'fontStretch') as $field) {
+		if (!empty($settings[$field])) {
+			$parts[] = (string) $settings[$field];
+		}
+	}
+	return implode('-', $parts);
+}
+
+function blueprint_collect_font_categories(array $families): array {
+	$categories = array();
+	foreach ($families as $family) {
+		foreach (($family['categories'] ?? array()) as $category) {
+			if (!is_string($category) || $category === '') {
+				continue;
+			}
+			$slug = sanitize_title($category);
+			$categories[$slug] = array(
+				'name' => blueprint_humanize_slug($slug),
+				'slug' => $slug,
+			);
+		}
+	}
+	return array_values($categories);
+}
+
+function blueprint_register_font_collection(string $slug, array $collection_args): void {
+	if (!function_exists('wp_register_font_collection') || !class_exists('WP_Font_Library')) {
+		return;
+	}
+	$library = WP_Font_Library::get_instance();
+	if ($library->get_font_collection($slug) && function_exists('wp_unregister_font_collection')) {
+		wp_unregister_font_collection($slug);
+	}
+	$result = wp_register_font_collection($slug, $collection_args);
+	if (is_wp_error($result)) {
+		throw new Exception($result->get_error_message());
+	}
+}
+
+function blueprint_write_font_collections_mu_plugin(array $collections): void {
+	if (empty($collections)) {
+		return;
+	}
+	$dir = WP_CONTENT_DIR . '/mu-plugins';
+	if (!wp_mkdir_p($dir)) {
+		throw new Exception('Could not create mu-plugins directory for font collections.');
+	}
+	$code = "<?php\\nadd_action('init', function () {\\n" .
+		"\\tif (!function_exists('wp_register_font_collection') || !class_exists('WP_Font_Library')) {\\n\\t\\treturn;\\n\\t}\\n" .
+		"\\t\\$collections = " . var_export($collections, true) . ";\\n" .
+		"\\t\\$library = WP_Font_Library::get_instance();\\n" .
+		"\\tforeach (\\$collections as \\$slug => \\$args) {\\n" .
+		"\\t\\tif (\\$library->get_font_collection(\\$slug) && function_exists('wp_unregister_font_collection')) {\\n\\t\\t\\twp_unregister_font_collection(\\$slug);\\n\\t\\t}\\n" .
+		"\\t\\twp_register_font_collection(\\$slug, \\$args);\\n" .
+		"\\t}\\n" .
+		"}, 0);\\n";
+	file_put_contents($dir . '/blueprint-font-collections.php', $code);
+}
+
+function blueprint_humanize_slug(string $slug): string {
+	return ucwords(str_replace(array('-', '_'), ' ', $slug));
+}
+
+function blueprint_font_temp_files(array $files): array {
+	$paths = array();
+	foreach ($files as $file) {
+		if (is_array($file) && !empty($file['path']) && is_string($file['path'])) {
+			$paths[] = $file['path'];
+		}
+	}
+	return $paths;
+}
+
+function blueprint_cleanup_font_temp_files(array $paths): void {
+	foreach (array_unique($paths) as $path) {
+		if (is_string($path) && file_exists($path)) {
+			@unlink($path);
+		}
+	}
+}
+`;
 
 /**
  * Creates the v1 `installPlugin` step for a v2 plugin declaration.
@@ -1024,6 +2101,98 @@ function isDirectoryReference(
 		resource.resource === 'literal:directory' ||
 		resource.resource === 'git:directory'
 	);
+}
+
+function getMuPluginTargetPath(
+	reference: BlueprintV2DataReference,
+	featurePath: string
+) {
+	if (isInlineFile(reference)) {
+		return `/wordpress/wp-content/mu-plugins/${reference.filename}`;
+	}
+	if (isInlineDirectory(reference)) {
+		return `/wordpress/wp-content/mu-plugins/${reference.directoryName}`;
+	}
+	if (isGitPath(reference)) {
+		return `/wordpress/wp-content/mu-plugins/${getDataReferenceBasename(
+			reference,
+			sanitizePathForTempFile(featurePath)
+		)}`;
+	}
+	if (typeof reference === 'string') {
+		return `/wordpress/wp-content/mu-plugins/${basenameFromUrlOrPath(
+			reference
+		)}`;
+	}
+	return `/wordpress/wp-content/mu-plugins/${sanitizePathForTempFile(
+		featurePath
+	)}`;
+}
+
+function isV2FileDataReferenceLike(
+	value: any
+): value is BlueprintV2FileDataReference {
+	return typeof value === 'string' || isInlineFile(value);
+}
+
+function tempFilePath(prefix: string, featurePath: string, filename: string) {
+	return `/tmp/${prefix}-${sanitizePathForTempFile(featurePath)}-${filename}`;
+}
+
+function getDataReferenceBasename(
+	reference: BlueprintV2DataReference,
+	fallback: string
+) {
+	if (typeof reference === 'string') {
+		return basenameFromUrlOrPath(reference) || fallback;
+	}
+	if (isInlineFile(reference)) {
+		return basenameFromUrlOrPath(reference.filename) || fallback;
+	}
+	if (isInlineDirectory(reference)) {
+		return basenameFromUrlOrPath(reference.directoryName) || fallback;
+	}
+	if (isGitPath(reference)) {
+		return (
+			basenameFromUrlOrPath(
+				reference.pathInRepository || reference.path || ''
+			) || fallback
+		);
+	}
+	return fallback;
+}
+
+function basenameFromUrlOrPath(path: string) {
+	try {
+		path = new URL(path).pathname;
+	} catch {
+		// Plain execution-context path.
+	}
+	return pathBasename(path.replace(/\/+$/, '')) || 'file';
+}
+
+function sanitizePathForTempFile(path: string) {
+	return (
+		path.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'step'
+	);
+}
+
+function sanitizeFilenameForTempPath(filename: string) {
+	return filename.replace(/[^a-zA-Z0-9._-]+/g, '-') || 'file';
+}
+
+function isAllowedFontFilename(filename: string) {
+	return /\.(woff2|woff|ttf|otf)$/i.test(filename);
+}
+
+function humanizeSlug(slug: string) {
+	return slug
+		.replace(/[-_]+/g, ' ')
+		.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function cloneJson<T>(value: T): T {
+	return JSON.parse(JSON.stringify(value));
 }
 
 function asArray<T>(value: T | T[]): T[] {
