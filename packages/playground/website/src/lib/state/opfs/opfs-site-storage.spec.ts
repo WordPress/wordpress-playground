@@ -17,6 +17,34 @@ describe('opfsSiteStorage', () => {
 				getDirectory: vi.fn(async () => opfsRoot),
 			},
 		});
+		vi.stubGlobal(
+			'Worker',
+			class {
+				postMessage(
+					message: { path: string; content: string },
+					options?: { transfer?: MessagePort[] }
+				) {
+					const port = options?.transfer?.[0];
+					setTimeout(async () => {
+						try {
+							await writeOpfsPath(
+								opfsRoot,
+								message.path,
+								message.content
+							);
+							port?.postMessage('done');
+						} catch (error) {
+							port?.postMessage(
+								error instanceof Error
+									? error.message
+									: String(error)
+							);
+						}
+					}, 0);
+				}
+				terminate() {}
+			}
+		);
 		vi.doMock('./opfs-blueprint-bundle-storage', () => ({
 			BUNDLE_DIR_NAME: 'blueprint-bundle',
 			loadPersistedBlueprintBundle,
@@ -57,6 +85,52 @@ describe('opfsSiteStorage', () => {
 		await expect(
 			storage.create('a/b', createSiteMetadata())
 		).rejects.toThrow("Site with slug 'a/b' already exists.");
+	});
+
+	it('stores setup URL params alongside site metadata', async () => {
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				plugin: ['akismet', 'gutenberg'],
+			},
+			hash: '#blueprint',
+		};
+
+		await storage.create(
+			'stored-site',
+			createSiteMetadata(),
+			originalUrlParams
+		);
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			slug: 'stored-site',
+			originalUrlParams,
+		});
+	});
+
+	it('updates setup URL params alongside site metadata', async () => {
+		await storage.create('stored-site', createSiteMetadata(), {
+			searchParams: { language: 'en_US' },
+		});
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				multisite: 'yes',
+			},
+		};
+
+		await storage.update(
+			'stored-site',
+			createSiteMetadata({ name: 'Renamed Playground' }),
+			originalUrlParams
+		);
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				name: 'Renamed Playground',
+			},
+			originalUrlParams,
+		});
 	});
 
 	it('deletes the legacy site directory when the encoded directory is incomplete', async () => {
@@ -111,6 +185,25 @@ async function writeSiteMetadata(
 			...createSiteMetadata(metadata),
 		})
 	);
+}
+
+async function writeOpfsPath(
+	opfsRoot: MemoryDirectoryHandle,
+	path: string,
+	content: string
+) {
+	const pathParts = path.split('/').filter(Boolean);
+	const fileName = pathParts.pop();
+	if (!fileName) {
+		throw new Error(`Cannot write OPFS file without a file name: ${path}`);
+	}
+	let directory = opfsRoot;
+	for (const pathPart of pathParts) {
+		directory = await directory.getDirectoryHandle(pathPart, {
+			create: true,
+		});
+	}
+	directory.setFile(fileName, content);
 }
 
 function createSiteMetadata(
