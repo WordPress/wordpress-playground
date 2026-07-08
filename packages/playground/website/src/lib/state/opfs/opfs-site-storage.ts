@@ -20,7 +20,6 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	BUNDLE_DIR_NAME,
 	loadPersistedBlueprintBundle,
-	loadPersistedBlueprintBundleFromPath,
 } from './opfs-blueprint-bundle-storage';
 import {
 	OPFS_SITES_ROOT_PATH,
@@ -34,10 +33,6 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
-
-// Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
-// @TODO: Remove this backcompat code after 2024-12-01.
-export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
 
 /**
  * StoredSiteMetadata is the data structure that is written to disk.
@@ -165,20 +160,13 @@ class OpfsSiteStorage {
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
 		const siteInfo = storedFormatToMetadata(await file.text());
-		const sitePath = joinPaths(OPFS_SITES_ROOT_PATH, siteDirectory.name);
-		const isLegacyDirectoryName =
-			siteDirectory.name !== getDirectoryNameForSlug(siteInfo.slug);
-		if (isLegacyDirectoryName) {
-			(siteInfo.metadata as any)[legacyOpfsPathSymbol] = sitePath;
-		}
 
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
-				siteInfo.metadata.originalBlueprint = isLegacyDirectoryName
-					? await loadPersistedBlueprintBundleFromPath(sitePath)
-					: await loadPersistedBlueprintBundle(siteInfo.slug);
+				siteInfo.metadata.originalBlueprint =
+					await loadPersistedBlueprintBundle(siteInfo.slug);
 			} catch (error) {
 				logger.error(
 					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
