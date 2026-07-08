@@ -3,7 +3,7 @@ import { test, expect } from '../playground-fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
-import { encodeStringAsBase64 } from '../../src/lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
