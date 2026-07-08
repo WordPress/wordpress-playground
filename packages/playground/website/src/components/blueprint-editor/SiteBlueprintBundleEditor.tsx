@@ -1,11 +1,10 @@
 import { logger } from '@php-wasm/logger';
-import { dirname, ensureAbsolutePath } from '@php-wasm/util';
+import { dirname } from '@php-wasm/util';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import {
 	type AsyncWritableFilesystem,
 	EventedFilesystem,
 	InMemoryFilesystemBackend,
-	type WritableFilesystemBackend,
 } from '@wp-playground/storage';
 import classNames from 'classnames';
 import {
@@ -27,30 +26,12 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from './blueprint-bundle-editor.module.css';
+import { collectBlueprintBundleResourcePaths } from './blueprint-bundle-resource-paths';
+import { isFilesystemBackend } from './blueprint-filesystem';
 import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
-
-/**
- * Check if an object implements the writable filesystem backend interface.
- */
-function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
-	return (
-		typeof obj === 'object' &&
-		obj !== null &&
-		'listFiles' in obj &&
-		'isDir' in obj &&
-		'read' in obj &&
-		'fileExists' in obj &&
-		'writeFile' in obj &&
-		'mkdir' in obj &&
-		'rmdir' in obj &&
-		'mv' in obj &&
-		'unlink' in obj &&
-		'clear' in obj
-	);
-}
 
 /**
  * Populate a filesystem with the contents of a Blueprint.
@@ -67,7 +48,9 @@ async function populateFilesystemFromBlueprint(
 	await fs.writeFile('/blueprint.json', JSON.stringify(declaration, null, 2));
 
 	if (bundle) {
-		for (const absolutePath of collectBundledResourcePaths(declaration)) {
+		for (const absolutePath of collectBlueprintBundleResourcePaths(
+			declaration
+		)) {
 			// For each path referenced in the blueprint, try to read the
 			// accompanying file from the bundle. Some files might be missing,
 			// this is fine – we'll just skip them here.
@@ -112,38 +95,6 @@ async function createFilesystemFromOriginalBlueprint(
 		);
 	}
 	return fs;
-}
-
-function collectBundledResourcePaths(value: unknown): Set<string> {
-	const accumulator = new Set<string>();
-	const stack: unknown[] = [value];
-	while (stack.length) {
-		const current = stack.pop();
-		if (!current || typeof current !== 'object') {
-			continue;
-		}
-
-		if (Array.isArray(current)) {
-			for (const item of current) {
-				stack.push(item);
-			}
-			continue;
-		}
-
-		const candidate = current as { resource?: unknown; path?: unknown };
-		if (
-			candidate.resource === 'bundled' &&
-			typeof candidate.path === 'string'
-		) {
-			accumulator.add(ensureAbsolutePath(candidate.path));
-		}
-
-		for (const child of Object.values(current)) {
-			stack.push(child);
-		}
-	}
-
-	return accumulator;
 }
 
 export interface SiteBlueprintBundleEditorHandle {
