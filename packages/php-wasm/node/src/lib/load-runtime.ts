@@ -10,6 +10,8 @@ import {
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	ProcessIdAllocator,
+	withMailCapture,
+	type WithMailCaptureOptions,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
@@ -53,6 +55,10 @@ export interface PHPLoaderOptions {
 	 * @deprecated Use `extensions: ['memcached']` instead.
 	 */
 	withMemcached?: boolean;
+	/**
+	 * Capture raw bytes written to sendmail stdin.
+	 */
+	withMailCapture?: WithMailCaptureOptions;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -376,6 +382,12 @@ export async function loadNodeRuntime(
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
+	if (options?.withMailCapture) {
+		emscriptenOptions = withMailCapture(
+			options.withMailCapture,
+			emscriptenOptions
+		);
+	}
 
 	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 
