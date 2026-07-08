@@ -256,8 +256,8 @@ For debugging WASM crashes, see the `debug-php-wasm-main-module` and `debug-php-
 
 ### Testing on Windows
 
-For testing and debugging Playground on Windows from macOS via Parallels Desktop,
-see the `windows-playground-debugging` skill.
+For testing and debugging Playground on Windows hosts, Windows VMs, or remote Windows
+shells, see the `windows-playground-debugging` skill.
 
 ### Custom NX Executors
 
