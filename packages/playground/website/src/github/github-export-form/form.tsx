@@ -61,6 +61,13 @@ export function asPullRequestAction(value: any): PullRequestAction | undefined {
 const NO_CHANGES_TO_EXPORT_MESSAGE =
 	'There are no changes to export. Make an edit in the Playground before exporting to GitHub.';
 
+class NoChangesToExportError extends Error {
+	constructor() {
+		super(NO_CHANGES_TO_EXPORT_MESSAGE);
+		this.name = 'NoChangesToExportError';
+	}
+}
+
 export interface ExportFormValues {
 	repoUrl: string;
 	prAction?: PullRequestAction;
@@ -433,7 +440,7 @@ export default function GitHubExportForm({
 				return;
 			}
 
-			if (e?.message === NO_CHANGES_TO_EXPORT_MESSAGE) {
+			if (e instanceof NoChangesToExportError) {
 				setError('repoUrl', e.message);
 				return;
 			}
@@ -940,7 +947,7 @@ export async function pushToGithub(
 			changeset
 		);
 		if (!newTreeSha) {
-			throw new Error(NO_CHANGES_TO_EXPORT_MESSAGE);
+			throw new NoChangesToExportError();
 		}
 		const commitSha = await createCommit(
 			octokit,
@@ -1031,10 +1038,10 @@ function appendZipPreviewLinks(
 	// The pre-merge preview reads from the commit we just pushed, while the
 	// post-merge preview reads from the branch the pull request targets.
 	const branchPreviewUrl = (owner: string, repo: string, branch: string) => {
-		const zipballURL = buildGitHubRawUrl(owner, repo, branch, zipPath);
+		const rawZipUrl = buildGitHubRawUrl(owner, repo, branch, zipPath);
 		const url = new URL(document.location.origin);
 		url.pathname = document.location.pathname;
-		url.searchParams.set('import-site', zipballURL);
+		url.searchParams.set('import-site', rawZipUrl);
 		return url.toString();
 	};
 
