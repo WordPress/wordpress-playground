@@ -1,10 +1,17 @@
+import type { OriginalUrlParams } from '../original-url-params';
+import type { SiteInfo } from './slice-sites';
+
 describe('stored site specs', () => {
+	let createSite: ReturnType<typeof vi.fn>;
+	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
 	let resetSiteFiles: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		vi.resetModules();
+		createSite = vi.fn();
+		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
 		resetSiteFiles = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
@@ -39,6 +46,8 @@ describe('stored site specs', () => {
 		}));
 		vi.doMock('../opfs/opfs-site-storage', () => ({
 			opfsSiteStorage: {
+				create: createSite,
+				update: updateSiteStorage,
 				resetSiteFiles,
 			},
 		}));
@@ -79,12 +88,83 @@ describe('stored site specs', () => {
 		vi.doUnmock('./store');
 	});
 
+	it('persists setup URL params when adding a saved site', async () => {
+		const { addSite } = await import('./slice-sites');
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				plugin: ['akismet', 'gutenberg'],
+			},
+			hash: '#blueprint',
+		};
+		const site = createSiteInfo({
+			originalUrlParams,
+		});
+
+		await addSite(site)(
+			createDispatch() as any,
+			createEmptyGetState() as any
+		);
+
+		expect(createSite).toHaveBeenCalledWith(
+			site.slug,
+			site.metadata,
+			originalUrlParams
+		);
+	});
+
+	it('keeps setup URL params when updating persisted metadata', async () => {
+		const { sitesSlice, updateSite } = await import('./slice-sites');
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				multisite: 'yes',
+			},
+		};
+		const site = createSiteInfo({
+			originalUrlParams,
+		});
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		const updatedMetadata = {
+			...site.metadata,
+			name: 'Renamed Playground',
+		};
+
+		await updateSite({
+			slug: site.slug,
+			changes: {
+				metadata: updatedMetadata,
+			},
+		})(dispatch as any, () => state as any);
+
+		expect(updateSiteStorage).toHaveBeenCalledWith(
+			site.slug,
+			updatedMetadata,
+			originalUrlParams
+		);
+	});
+
 	it('does not replace a persisted bundle before validating the new setup', async () => {
-		resolveRuntimeConfiguration.mockRejectedValue(new Error('Invalid setup'));
+		resolveRuntimeConfiguration.mockRejectedValue(
+			new Error('Invalid setup')
+		);
 		const { resetAutosavedSiteSpec } = await import('./slice-sites');
 		const resetSite = resetAutosavedSiteSpec(
 			'autosaved-site',
-			new URL('https://playground.test/?blueprint-url=https://example.com')
+			new URL(
+				'https://playground.test/?blueprint-url=https://example.com'
+			)
 		);
 
 		await expect(
@@ -96,11 +176,15 @@ describe('stored site specs', () => {
 	});
 
 	it('does not persist a bundle for a new stored site before validating setup', async () => {
-		resolveRuntimeConfiguration.mockRejectedValue(new Error('Invalid setup'));
+		resolveRuntimeConfiguration.mockRejectedValue(
+			new Error('Invalid setup')
+		);
 		const { setStoredSiteSpec } = await import('./slice-sites');
 		const addSite = setStoredSiteSpec(
 			'Autosaved site',
-			new URL('https://playground.test/?blueprint-url=https://example.com'),
+			new URL(
+				'https://playground.test/?blueprint-url=https://example.com'
+			),
 			'autosaved-site',
 			{ persistence: 'autosave' }
 		);
@@ -153,6 +237,32 @@ function createGetState() {
 			firstTemporarySiteCreated: false,
 		},
 	});
+}
+
+function createSiteInfo({
+	originalUrlParams,
+}: {
+	originalUrlParams?: OriginalUrlParams;
+} = {}): SiteInfo {
+	return {
+		slug: 'stored-site',
+		originalUrlParams,
+		metadata: {
+			id: 'stored-site',
+			name: 'Stored site',
+			storage: 'opfs' as const,
+			originalBlueprint: {},
+			originalBlueprintSource: { type: 'none' as const },
+			runtimeConfiguration: {
+				phpVersion: '8.3' as const,
+				wpVersion: 'latest',
+				intl: false,
+				networking: true,
+				extraLibraries: [],
+				constants: {},
+			},
+		},
+	};
 }
 
 function createDispatch() {

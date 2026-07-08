@@ -6,8 +6,8 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
-import type { SiteMetadata } from '../redux/slice-sites';
-import type { SiteInfo } from '../redux/slice-sites';
+import type { SiteInfo, SiteMetadata } from '../redux/slice-sites';
+import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import {
@@ -45,13 +45,16 @@ export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
  * It's different from SiteInfo:
  * * It extends SiteMetadata instead of embedding it.
  * * It adds slug to SiteMetadata so we can recover it after a page reload.
- * * It's not concerned with any extra information stored in SiteInfo by the redux store.
+ * * It keeps the setup URL params that settings and sharing panes need after reload.
+ * * It's not concerned with any other extra information stored in SiteInfo by
+ *   the redux store.
  *
  * I'm not yet sure whether that's the right approach. Let's keep going and find out as the
  * design matures.
  */
 export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
+	originalUrlParams?: OriginalUrlParams;
 }
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
@@ -72,23 +75,36 @@ class OpfsSiteStorage {
 		this.root = root;
 	}
 
-	async create(slug: string, metadata: SiteMetadata): Promise<void> {
+	/**
+	 * Creates an OPFS site directory and stores its reloadable metadata.
+	 */
+	async create(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: OriginalUrlParams
+	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
-
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
 		await opfsWriteFile(
 			getSiteMetadataPath(newSiteDirName),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
-	async update(slug: string, metadata: SiteMetadata): Promise<void> {
+	/**
+	 * Updates OPFS site metadata without changing the site directory name.
+	 */
+	async update(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: OriginalUrlParams
+	): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
@@ -96,7 +112,7 @@ class OpfsSiteStorage {
 
 		await opfsWriteFile(
 			getSiteMetadataPath(siteDirName),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
@@ -252,11 +268,13 @@ function getSiteMetadataPath(siteDirName: string) {
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata,
+	originalUrlParams?: OriginalUrlParams
 ): Promise<string> {
 	return JSON.stringify(
 		{
 			slug,
+			originalUrlParams,
 			originalBlueprintSource,
 			/**
 			 * Site metadata stores Blueprint declaration JSON, not arbitrary
@@ -278,7 +296,9 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+	const { slug, originalUrlParams, ...metadata } = JSON.parse(
+		data
+	) as StoredSiteMetadata;
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
@@ -329,6 +349,7 @@ function storedFormatToMetadata(data: string) {
 
 	return {
 		slug,
+		originalUrlParams,
 		metadata,
 	};
 }

@@ -7,6 +7,7 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import type { OriginalUrlParams } from '../original-url-params';
 import {
 	BlueprintReflection,
 	type RuntimeConfiguration,
@@ -67,10 +68,7 @@ const DEFAULT_BLUEPRINT =
 export interface SiteInfo {
 	slug: string;
 	loadedFromStorage?: boolean;
-	originalUrlParams?: {
-		searchParams?: Record<string, string | string[]>;
-		hash?: string;
-	};
+	originalUrlParams?: OriginalUrlParams;
 	metadata: SiteMetadata;
 }
 
@@ -248,7 +246,8 @@ export function updateSite({
 		if (updatedSite.metadata.storage !== 'none') {
 			await opfsSiteStorage?.update(
 				updatedSite.slug,
-				updatedSite.metadata
+				updatedSite.metadata,
+				updatedSite.originalUrlParams
 			);
 		}
 	};
@@ -277,7 +276,11 @@ export function addSite(siteInfo: SiteInfo) {
 				'Cannot add a saved Playground because browser storage is not available.'
 			);
 		}
-		await opfsSiteStorage.create(siteInfo.slug, siteInfo.metadata);
+		await opfsSiteStorage.create(
+			siteInfo.slug,
+			siteInfo.metadata,
+			siteInfo.originalUrlParams
+		);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
