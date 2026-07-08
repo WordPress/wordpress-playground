@@ -203,10 +203,11 @@ class OpfsSiteStorage {
 	 * Removes WordPress files from an OPFS-backed site while preserving the
 	 * site metadata file and the editable Blueprint bundle directory.
 	 *
-	 * Autosaved Playgrounds use this before running their edited setup again:
-	 * the Playground keeps the same slug, name, and Blueprint bundle, but
-	 * WordPress must be recreated from that setup instead of reusing files from
-	 * the previous run.
+	 * Autosaved reset paths use this after the user chooses to keep the same
+	 * sidebar entry but boot it from new settings or an edited Blueprint. Keep
+	 * the metadata file and editable Blueprint bundle; delete everything else
+	 * because those entries are the old WordPress runtime tree that the next
+	 * boot must recreate from the new setup.
 	 */
 	async resetSiteFiles(slug: string): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
@@ -216,9 +217,9 @@ class OpfsSiteStorage {
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		const namesToDelete: string[] = [];
 		for await (const [name] of siteDirectory.entries()) {
-			// Recreating an autosaved Playground rebuilds WordPress in the same
-			// OPFS site directory. Keep the metadata and editable Blueprint
-			// bundle so the autosave keeps its slug and setup recipe.
+			// The next boot still needs the site metadata and the edited
+			// Blueprint bundle. Everything else belongs to the old WordPress
+			// tree and must be removed before the new setup runs.
 			if (name === SITE_METADATA_FILENAME || name === BUNDLE_DIR_NAME) {
 				continue;
 			}

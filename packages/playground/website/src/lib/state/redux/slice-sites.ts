@@ -7,6 +7,7 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { resetAutosavedSiteFilesWithPendingMarker } from '../opfs/opfs-autosave-reset';
 import type { OriginalUrlParams } from '../original-url-params';
 import {
 	BlueprintReflection,
@@ -636,11 +637,19 @@ export function setStoredSiteSpec(
 }
 
 /**
- * Replaces the setup metadata and WordPress files for an autosaved Playground
- * without changing its slug or display name.
+ * Replaces an autosaved Playground's WordPress files with files from a new setup.
  *
- * Autosaves are recoverable unsaved work. Explicitly saved Playgrounds preserve
- * their WordPress files, so they must not use this reset path.
+ * This is used after the user clicks "Apply Settings & Recreate Playground"
+ * in the autosaved settings form. The site keeps the same slug and name in the
+ * sidebar, but the old WordPress directory is deleted and the next boot
+ * installs WordPress from `playgroundUrlWithQueryApiArgs`.
+ *
+ * Callers must not use this for edits that can keep the existing files, such as
+ * changing PHP version or networking. Those should update site metadata and
+ * reboot. Longer term, the Dock UI should create a new Playground for setup
+ * changes and leave the previous Playground untouched. Until that UX exists,
+ * this function writes `opfsResetPending` so a reload can finish deleting old
+ * WordPress files if the tab closes during the deletion.
  */
 export function resetAutosavedSiteSpec(
 	siteSlug: string,
@@ -656,7 +665,7 @@ export function resetAutosavedSiteSpec(
 		}
 		if (!isAutosavedSite(site)) {
 			throw new Error(
-				`Cannot reset ${siteSlug}; only autosaved Playgrounds can be recreated in place.`
+				`Cannot reset ${siteSlug}; only autosaved Playgrounds can replace their stored files.`
 			);
 		}
 
@@ -673,42 +682,50 @@ export function resetAutosavedSiteSpec(
 				type: 'opfs-site',
 			};
 		}
-		// Validate the new setup before deleting the old WordPress files so a
-		// broken Blueprint URL does not destroy the existing autosave.
-		// `isAutosavedSite()` requires OPFS storage; an autosaved site cannot be
-		// selected in a browser session where OPFS storage is unavailable.
-		await opfsSiteStorage!.resetSiteFiles(siteSlug);
 		const now = Date.now();
-		await dispatch(
-			updateSite({
-				slug: siteSlug,
-				changes: {
-					loadedFromStorage: false,
-					originalUrlParams: getOriginalUrlParams(
-						playgroundUrlWithQueryApiArgs
-					),
-					metadata: {
-						...site.metadata,
-						whenCreated: now,
-						whenLastUsed: now,
-						initialOpfsSyncPending: true,
-						/**
-						 * Recreating an autosaved Playground discards the old
-						 * WordPress files and boots from the updated setup.
-						 * Constants discovered from the previous runtime may no
-						 * longer exist in the recreated site, so they must be
-						 * rediscovered after the first OPFS sync.
-						 */
-						playgroundDefinedConstants: undefined,
-						sourceSetupUrlFingerprint:
-							getAutosaveFingerprintFromURL(
-								playgroundUrlWithQueryApiArgs
-							),
-						originalBlueprint: resolvedBlueprint.blueprint,
-						originalBlueprintSource,
-						runtimeConfiguration,
-					},
-				},
+		const changes = {
+			loadedFromStorage: false,
+			originalUrlParams: getOriginalUrlParams(
+				playgroundUrlWithQueryApiArgs
+			),
+			metadata: {
+				...site.metadata,
+				whenCreated: now,
+				whenLastUsed: now,
+				initialOpfsSyncPending: true,
+				/**
+				 * Recreating an autosaved Playground discards the old
+				 * WordPress files and boots from the updated setup.
+				 * Constants discovered from the previous runtime may no
+				 * longer exist in the recreated site, so they must be
+				 * rediscovered after the first OPFS sync.
+				 */
+				playgroundDefinedConstants: undefined,
+				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
+					playgroundUrlWithQueryApiArgs
+				),
+				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprintSource,
+				runtimeConfiguration,
+			},
+		};
+
+		// Resolve the new setup before deleting the old WordPress files so a
+		// broken Blueprint URL does not destroy the existing autosave. Keep
+		// Redux unchanged until the old files are gone; changing `whenCreated`
+		// remounts the iframe, and the old OPFS mount can still write files
+		// back into this site's OPFS directory until deletion finishes.
+		const completedChanges = await resetAutosavedSiteFilesWithPendingMarker(
+			siteSlug,
+			changes
+		);
+		// The helper already wrote these changes to OPFS before and after
+		// deleting files. Update Redux without writing the same metadata a
+		// third time.
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: siteSlug,
+				changes: completedChanges,
 			})
 		);
 	};
@@ -831,6 +848,17 @@ export interface SiteMetadata {
 	 * OPFS and clear this flag after a successful sync.
 	 */
 	initialOpfsSyncPending?: boolean;
+	/**
+	 * Crash-recovery marker for replacing autosaved WordPress files.
+	 *
+	 * The current autosaved settings/Blueprint flows can keep the same slug
+	 * while changing the setup. They write new setup metadata before deleting
+	 * old WordPress files, so a browser crash can otherwise leave old files
+	 * paired with new metadata. When this flag is present, boot must finish
+	 * deleting the old files before it decides whether to mount OPFS or install
+	 * WordPress from the new setup.
+	 */
+	opfsResetPending?: boolean;
 	/**
 	 * PHP constants discovered from the running Playground and persisted so
 	 * they can be replayed after reload without changing the live boot config.

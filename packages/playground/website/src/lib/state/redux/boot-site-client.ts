@@ -1,14 +1,10 @@
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
+	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
-import {
-	addClientInfo,
-	removeClientInfo,
-	updateClientInfo,
-} from './slice-clients';
+import { addClientInfo, updateClientInfo } from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
@@ -48,6 +44,13 @@ import {
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
+/**
+ * Boots one iframe and stops stale async work from writing Redux after unmount.
+ *
+ * `JustViewport` aborts `signal` when React removes or replaces that iframe.
+ * Booting and the first OPFS copy can finish after that cleanup, so every
+ * Redux write after an `await` or worker callback checks the signal first.
+ */
 export function bootSiteClient(
 	siteSlug: string,
 	iframe: HTMLIFrameElement,
@@ -57,10 +60,33 @@ export function bootSiteClient(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		signal.onabort = () => {
-			dispatch(removeClientInfo(siteSlug));
-		};
-		const site = selectSiteBySlug(getState(), siteSlug);
+		if (signal.aborted) {
+			return;
+		}
+		let site = selectSiteBySlug(getState(), siteSlug);
+		if (!site) {
+			dispatch(
+				setActiveSiteError({
+					error: 'site-boot-failed',
+					details: new Error(`Site not found: ${siteSlug}`),
+				})
+			);
+			return;
+		}
+
+		const pendingResetResult = await finishPendingAutosaveReset({
+			siteSlug,
+			dispatch,
+			signal,
+			getState,
+		});
+		if (pendingResetResult === 'failed' || signal.aborted) {
+			return;
+		}
+		const pendingResetWasCompleted = pendingResetResult === 'completed';
+		if (pendingResetWasCompleted) {
+			site = selectSiteBySlug(getState(), siteSlug) ?? site;
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -78,7 +104,13 @@ export function bootSiteClient(
 			let localDirectoryHandle;
 			try {
 				localDirectoryHandle = await loadDirectoryHandle(site.slug);
+				if (signal.aborted) {
+					return;
+				}
 			} catch (e) {
+				if (signal.aborted) {
+					return;
+				}
 				logger.error(e);
 				dispatch(
 					setActiveSiteError({
@@ -97,56 +129,26 @@ export function bootSiteClient(
 			} as const;
 		}
 
-		const hasInterruptedSync = hasInterruptedInitialOpfsSync(site);
+		const hasInterruptedSync =
+			!pendingResetWasCompleted && hasInterruptedInitialOpfsSync(site);
 		if (hasInterruptedSync) {
 			dispatch(
-				setActiveSiteError({
-					error: 'initial-opfs-sync-interrupted',
-				})
+				setActiveSiteError({ error: 'initial-opfs-sync-interrupted' })
 			);
 			return;
 		}
 
-		let isWordPressInstalled = false;
-		if (mountDescriptor) {
-			try {
-				isWordPressInstalled = await playgroundAvailableInOpfs(
-					await directoryHandleFromMountDevice(mountDescriptor.device)
-				);
-			} catch (e) {
-				logger.error(e);
-				if (e instanceof DOMException && e.name === 'NotFoundError') {
-					dispatch(
-						setActiveSiteError({
-							error: 'directory-handle-not-found-in-indexeddb',
-							details: e,
-						})
-					);
-					return;
-				}
-				if (e instanceof DOMException && e.name === 'NotAllowedError') {
-					dispatch(
-						setActiveSiteError({
-							error: 'directory-handle-permission-denied',
-							details: e,
-						})
-					);
-					return;
-				}
-				dispatch(
-					setActiveSiteError({
-						error: 'directory-handle-unknown-error',
-						details: e,
-					})
-				);
-				return;
-			}
-		}
+		const opfsInitialSyncPending =
+			site.metadata.storage === 'opfs' &&
+			site.metadata.initialOpfsSyncPending === true;
+		const shouldBootFromStoredFiles =
+			site.metadata.storage === 'local-fs' ||
+			(site.metadata.storage === 'opfs' && !opfsInitialSyncPending);
 
 		logTrackingEvent('load');
 
 		let blueprint: Blueprint;
-		if (isWordPressInstalled) {
+		if (shouldBootFromStoredFiles) {
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -168,17 +170,16 @@ export function bootSiteClient(
 		}
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
-		// declares it doesn't want WordPress, so honor that even if the
-		// storage layer thinks WP isn't installed yet.
+		// declares it does not want WordPress. Respect that on a first OPFS
+		// boot too, where there are no stored files to mount yet.
 		const blueprintRequestedNoWordPress =
 			blueprint &&
 			!isBlueprintBundle(blueprint) &&
 			'preferredVersions' in blueprint &&
 			blueprint.preferredVersions?.wp === false;
-		const wordpressInstallMode = blueprintRequestedNoWordPress
-			? 'do-not-attempt-installing'
-			: isWordPressInstalled
-				? 'install-from-existing-files-if-needed'
+		const wordpressInstallMode =
+			blueprintRequestedNoWordPress || shouldBootFromStoredFiles
+				? 'do-not-attempt-installing'
 				: 'download-and-install';
 
 		/**
@@ -190,7 +191,7 @@ export function bootSiteClient(
 		const isFirstOpfsBoot =
 			site.metadata.initialOpfsSyncPending === true &&
 			site.metadata.storage === 'opfs' &&
-			!isWordPressInstalled;
+			!shouldBootFromStoredFiles;
 		const mounts: MountDescriptor[] = [];
 		let mountDescriptorForInitialOpfsSync: typeof mountDescriptor =
 			undefined;
@@ -219,13 +220,16 @@ export function bootSiteClient(
 				blueprint,
 				extensions: phpExtensions,
 				experimentalBlueprintsV2Runner:
-					!isWordPressInstalled &&
+					!shouldBootFromStoredFiles &&
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
+					if (signal.aborted) {
+						return;
+					}
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
@@ -243,6 +247,9 @@ export function bootSiteClient(
 				],
 			});
 		} catch (e) {
+			if (signal.aborted) {
+				return;
+			}
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });
 
@@ -346,6 +353,9 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		// When metadata says the first OPFS copy is still pending, install
+		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
+		// the stored files are mounted and boot can only refresh recency metadata.
 		if (mountDescriptorForInitialOpfsSync) {
 			void syncInitialOpfsFilesInBackground({
 				playground: connectedPlayground,
@@ -353,6 +363,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				operation: syncOperation,
 				dispatch,
+				signal,
 			});
 		} else {
 			try {
@@ -370,6 +381,9 @@ export function bootSiteClient(
 					);
 				}
 			} catch (error) {
+				if (signal.aborted) {
+					return;
+				}
 				logger.error('Error updating Playground metadata', error);
 				dispatch(
 					updateClientInfo({
@@ -386,6 +400,9 @@ export function bootSiteClient(
 		}
 
 		connectedPlayground.onNavigation((url) => {
+			if (signal.aborted) {
+				return;
+			}
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -395,9 +412,98 @@ export function bootSiteClient(
 				})
 			);
 		});
-
-		signal.onabort = null;
 	};
+}
+
+type PendingResetResult = 'completed' | 'skipped' | 'failed';
+
+/**
+ * Finishes deleting old WordPress files after a tab closed during reset.
+ *
+ * `opfsResetPending` means `wp-runtime.json` already describes the new setup,
+ * but the OPFS directory may still contain WordPress files from the previous
+ * autosave. Boot must delete those files before it mounts OPFS or installs
+ * WordPress from the new setup. Otherwise the previous site can open while the
+ * metadata says the site should use the new settings or edited Blueprint.
+ */
+async function finishPendingAutosaveReset({
+	siteSlug,
+	dispatch,
+	signal,
+	getState,
+}: {
+	siteSlug: string;
+	dispatch: PlaygroundDispatch;
+	signal: AbortSignal;
+	getState: () => PlaygroundReduxState;
+}): Promise<PendingResetResult> {
+	const site = selectSiteBySlug(getState(), siteSlug);
+	if (site?.metadata.storage !== 'opfs' || !site.metadata.opfsResetPending) {
+		return 'skipped';
+	}
+	if (!opfsSiteStorage) {
+		dispatch(
+			setActiveSiteError({
+				error: 'directory-handle-unknown-error',
+				details: new Error(
+					'Cannot finish resetting the saved Playground because browser storage is not available.'
+				),
+			})
+		);
+		return 'failed';
+	}
+
+	try {
+		await opfsSiteStorage.resetSiteFiles(site.slug);
+		if (signal.aborted) {
+			return 'failed';
+		}
+	} catch (error) {
+		if (signal.aborted) {
+			return 'failed';
+		}
+		logger.error(error);
+		dispatch(
+			setActiveSiteError({
+				error:
+					(error instanceof DOMException || error instanceof Error) &&
+					error.name === 'NotAllowedError'
+						? 'directory-handle-permission-denied'
+						: 'directory-handle-unknown-error',
+				details: error,
+			})
+		);
+		return 'failed';
+	}
+
+	try {
+		await dispatch(
+			updateSiteMetadata({
+				slug: site.slug,
+				changes: {
+					opfsResetPending: undefined,
+				},
+			})
+		);
+	} catch (error) {
+		if (signal.aborted) {
+			return 'failed';
+		}
+		logger.error('Error clearing pending Playground reset marker', error);
+		dispatch(
+			setActiveSiteError({
+				error:
+					(error instanceof DOMException || error instanceof Error) &&
+					error.name === 'NotAllowedError'
+						? 'directory-handle-permission-denied'
+						: 'directory-handle-unknown-error',
+				details: error,
+			})
+		);
+		return 'failed';
+	}
+
+	return 'completed';
 }
 
 function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {
@@ -419,22 +525,27 @@ async function syncInitialOpfsFilesInBackground({
 	siteSlug,
 	operation,
 	dispatch,
+	signal,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 	siteSlug: string;
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
+	signal: AbortSignal;
 }) {
 	let shouldReportProgress = true;
 	try {
+		// The first OPFS copy can outlive the iframe that started it. Once the
+		// viewport aborts, stale worker progress must not recreate client state
+		// that the unmount cleanup already removed.
 		await playground.mountOpfs(
 			{
 				...mountDescriptor,
 				initialSyncDirection: 'memfs-to-opfs',
 			},
 			(progress: SyncProgress) => {
-				if (!shouldReportProgress) {
+				if (!shouldReportProgress || signal.aborted) {
 					return;
 				}
 				dispatch(
@@ -451,6 +562,9 @@ async function syncInitialOpfsFilesInBackground({
 				);
 			}
 		);
+		if (signal.aborted) {
+			return;
+		}
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
@@ -460,6 +574,9 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		if (signal.aborted) {
+			return;
+		}
 		dispatch(
 			updateClientInfo({
 				siteSlug,
@@ -469,6 +586,9 @@ async function syncInitialOpfsFilesInBackground({
 			})
 		);
 	} catch (error: unknown) {
+		if (signal.aborted) {
+			return;
+		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
 			updateClientInfo({
@@ -487,48 +607,4 @@ async function syncInitialOpfsFilesInBackground({
 		// queued progress message so it cannot overwrite the final UI state.
 		shouldReportProgress = false;
 	}
-}
-
-/**
- * Check if the given directory handle directory is a Playground directory.
- *
- * @TODO: Create a shared package like @wp-playground/wordpress for such utilities
- * and bring in the context detection logic from wp-now – only express it in terms of
- * either abstract FS operations or isomorphic PHP FS operations.
- * (we can't just use Node.js require('fs') in the browser, for example)
- *
- * @TODO: Reuse the "isWordPressInstalled" logic implemented in the boot protocol.
- *        Perhaps mount OPFS first, and only then check for the presence of the
- *        WordPress installation? Or, if not, perhaps implement a shared file access
- * 		  abstraction that can be used both with the PHP module and OPFS directory handles?
- *
- * @param dirHandle
- */
-export async function playgroundAvailableInOpfs(
-	dirHandle: FileSystemDirectoryHandle
-) {
-	// Run this loop just to trigger an exception if the directory handle is no good.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	for await (const _ of dirHandle.keys()) {
-		break;
-	}
-
-	try {
-		/**
-		 * Assume it's a Playground directory if these files exist:
-		 * - wp-config.php
-		 * - wp-content/database/.ht.sqlite
-		 */
-		await dirHandle.getFileHandle('wp-config.php', { create: false });
-		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
-			create: false,
-		});
-		const database = await wpContent.getDirectoryHandle('database', {
-			create: false,
-		});
-		await database.getFileHandle('.ht.sqlite', { create: false });
-	} catch {
-		return false;
-	}
-	return true;
 }
