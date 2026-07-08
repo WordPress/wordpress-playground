@@ -13,7 +13,9 @@ describe.each(phpVersions)('PHP %s - raw mail capture', (phpVersion) => {
 		php = new PHP(
 			await loadNodeRuntime(phpVersion as any, {
 				withMailCapture: {
-					onSendmail: (message) => messages.push(message),
+					onSendmail: (message) => {
+						messages.push(message);
+					},
 				},
 			})
 		);
