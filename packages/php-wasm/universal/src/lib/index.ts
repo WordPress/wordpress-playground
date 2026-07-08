@@ -128,6 +128,7 @@ export {
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem, isPathToSharedFS } from './proxy-file-system';
 export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
+export { withSMTPSink, type WithSmtpSinkOptions } from './with-smtp-sink';
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';

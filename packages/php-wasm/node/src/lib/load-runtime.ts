@@ -12,6 +12,8 @@ import {
 	ProcessIdAllocator,
 	withMailCapture,
 	type WithMailCaptureOptions,
+	withSMTPSink,
+	type WithSmtpSinkOptions,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
@@ -59,6 +61,7 @@ export interface PHPLoaderOptions {
 	 * Capture raw bytes written to sendmail stdin.
 	 */
 	withMailCapture?: WithMailCaptureOptions;
+	withSMTPSink?: WithSmtpSinkOptions;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -385,6 +388,12 @@ export async function loadNodeRuntime(
 	if (options?.withMailCapture) {
 		emscriptenOptions = withMailCapture(
 			options.withMailCapture,
+			emscriptenOptions
+		);
+	}
+	if (options?.withSMTPSink) {
+		emscriptenOptions = withSMTPSink(
+			options.withSMTPSink,
 			emscriptenOptions
 		);
 	}

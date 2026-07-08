@@ -172,6 +172,7 @@
 					"php-image-extensions.spec.ts",
 					"php-mail-capture.spec.ts",
 					"php-fsockopen.spec.ts",
+					"php-smtp.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
 			}
@@ -188,6 +189,7 @@
 					"php-image-extensions.spec.ts",
 					"php-mail-capture.spec.ts",
 					"php-fsockopen.spec.ts",
+					"php-smtp.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
 			}

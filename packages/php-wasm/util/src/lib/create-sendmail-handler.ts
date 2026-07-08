@@ -41,7 +41,7 @@ export function createSendmailSpawnHandler(
 	{ maxSize = DEFAULT_SMTP_MAX_SIZE }: { maxSize?: number } = {}
 ) {
 	return createSendmailCaptureSpawnHandler(
-		(captured) => {
+		async (captured) => {
 			// PHP 7 pipes LF-only to sendmail. PHP 8 changed the default to
 			// CRLF even on Unix to fix RFC non-compliance:
 			// https://bugs.php.net/47983
@@ -53,26 +53,51 @@ export function createSendmailSpawnHandler(
 
 			// Parse folded headers, MIME boundaries, and transfer encodings only
 			// after sendmail has received the complete stdin payload.
-			const parsed = parseMessage(raw, captured.envelopeSender, []);
-
-			const message: CaughtMessage = {
-				receivedAt: captured.receivedAt,
-				from: parsed.from,
-				to: parsed.to,
-				subject: parsed.subject,
-				headers: parsed.headers,
-				text: parsed.text,
-				html: parsed.html,
-				attachments: parsed.attachments,
-				raw,
-				// RFC 1870 SIZE values are measured in octets.
-				// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
-				rawSize: new TextEncoder().encode(raw).byteLength,
-			};
-
-			onEmail(message);
+			onEmail(
+				await parseCapturedSendmailMessage(
+					captured.receivedAt,
+					raw,
+					captured.envelopeSender
+				)
+			);
 		},
 		fallbackSpawnHandler,
 		{ maxSize }
 	);
+}
+
+async function parseCapturedSendmailMessage(
+	receivedAt: string,
+	raw: string,
+	envelopeSender: string
+): Promise<CaughtMessage> {
+	const rawSize = new TextEncoder().encode(raw).byteLength;
+	try {
+		const parsed = await parseMessage(raw, envelopeSender, []);
+		return {
+			receivedAt,
+			from: parsed.from,
+			to: parsed.to,
+			subject: parsed.subject,
+			headers: parsed.headers,
+			text: parsed.text,
+			html: parsed.html,
+			attachments: parsed.attachments,
+			raw,
+			// RFC 1870 SIZE values are measured in octets.
+			// https://www.rfc-editor.org/rfc/rfc1870.html#section-3
+			rawSize,
+		};
+	} catch {
+		return {
+			receivedAt,
+			from: envelopeSender,
+			to: '',
+			subject: '(no subject)',
+			headers: {},
+			attachments: [],
+			raw,
+			rawSize,
+		};
+	}
 }

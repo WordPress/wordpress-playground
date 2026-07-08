@@ -238,7 +238,7 @@ export class TCPOverFetchWebsocket {
 	 * Emscripten calls this method whenever the WASM module
 	 * writes bytes to the TCP socket.
 	 */
-	send(data: ArrayBuffer) {
+	send(data: ArrayBuffer | Uint8Array | string) {
 		if (
 			this.readyState === this.CLOSING ||
 			this.readyState === this.CLOSED
@@ -246,7 +246,14 @@ export class TCPOverFetchWebsocket {
 			return;
 		}
 
-		this.clientUpstreamWriter.write(new Uint8Array(data));
+		const bytes =
+			typeof data === 'string'
+				? new TextEncoder().encode(data)
+				: data instanceof ArrayBuffer
+					? new Uint8Array(data)
+					: data;
+
+		this.clientUpstreamWriter.write(bytes);
 
 		if (this.fetchInitiated) {
 			return;
@@ -256,7 +263,7 @@ export class TCPOverFetchWebsocket {
 		// what to do with the incoming bytes.
 		this.bufferedBytesFromClient = concatUint8Arrays([
 			this.bufferedBytesFromClient,
-			new Uint8Array(data),
+			bytes,
 		]);
 		switch (guessProtocol(this.port, this.bufferedBytesFromClient)) {
 			case false:

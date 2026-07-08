@@ -9,6 +9,8 @@ import {
 	loadPHPRuntime,
 	withMailCapture,
 	type WithMailCaptureOptions,
+	withSMTPSink,
+	type WithSmtpSinkOptions,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
@@ -38,6 +40,7 @@ export interface LoaderOptions {
 	 * Capture raw bytes written to sendmail stdin.
 	 */
 	withMailCapture?: WithMailCaptureOptions;
+	withSMTPSink?: WithSmtpSinkOptions;
 }
 
 /**
@@ -105,6 +108,13 @@ export async function loadWebRuntime(
 	if (loaderOptions.withMailCapture) {
 		emscriptenOptions = withMailCapture(
 			loaderOptions.withMailCapture,
+			await emscriptenOptions
+		);
+	}
+
+	if (loaderOptions.withSMTPSink) {
+		emscriptenOptions = withSMTPSink(
+			loaderOptions.withSMTPSink,
 			await emscriptenOptions
 		);
 	}
