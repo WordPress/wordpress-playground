@@ -209,7 +209,7 @@ class OpfsSiteStorage {
 	 * because those entries are the old WordPress runtime tree that the next
 	 * boot must recreate from the new setup.
 	 */
-	async resetSiteFiles(slug: string): Promise<void> {
+	async removeWordPressFilesKeepMetadata(slug: string): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);

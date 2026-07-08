@@ -50,7 +50,6 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
-	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	wasSiteRecentlyInteractedWith,
@@ -858,7 +857,7 @@ export interface SiteMetadata {
 	 * deleting the old files before it decides whether to mount OPFS or install
 	 * WordPress from the new setup.
 	 */
-	opfsResetPending?: boolean;
+	opfsSiteRemovalPending?: boolean;
 	/**
 	 * PHP constants discovered from the running Playground and persisted so
 	 * they can be replayed after reload without changing the live boot config.

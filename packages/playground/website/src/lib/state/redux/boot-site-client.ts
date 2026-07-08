@@ -1,7 +1,6 @@
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
-	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
 import { addClientInfo, updateClientInfo } from './slice-clients';
@@ -27,7 +26,6 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
 	selectSiteBySlug,
-	hasInterruptedInitialOpfsSync,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -45,11 +43,10 @@ import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
 /**
- * Boots one iframe and stops stale async work from writing Redux after unmount.
+ * Loads Playground in an iframe.
  *
- * `JustViewport` aborts `signal` when React removes or replaces that iframe.
- * Booting and the first OPFS copy can finish after that cleanup, so every
- * Redux write after an `await` or worker callback checks the signal first.
+ * Aborts any stale async writes once the iframe gets removed, as acknowledged
+ * by the AbortSignal.
  */
 export function bootSiteClient(
 	siteSlug: string,
@@ -74,18 +71,35 @@ export function bootSiteClient(
 			return;
 		}
 
-		const pendingResetResult = await finishPendingAutosaveReset({
-			siteSlug,
-			dispatch,
-			signal,
-			getState,
-		});
-		if (pendingResetResult === 'failed' || signal.aborted) {
-			return;
-		}
-		const pendingResetWasCompleted = pendingResetResult === 'completed';
-		if (pendingResetWasCompleted) {
-			site = selectSiteBySlug(getState(), siteSlug) ?? site;
+		if (site?.metadata.storage === 'opfs') {
+			if (site.metadata.opfsSiteRemovalPending) {
+				const removalResult = await finishPendingOpfsSiteRemoval({
+					siteSlug,
+					dispatch,
+					signal,
+					getState,
+				});
+				if (signal.aborted) {
+					return;
+				}
+				if (false === removalResult) {
+					// TODO: it seems like we should show some error here?
+					return;
+				}
+				site = selectSiteBySlug(getState(), siteSlug) ?? site;
+			} else if (
+				site.loadedFromStorage === true &&
+				site.metadata.initialOpfsSyncPending === true
+			) {
+				// If the initial OPFS sync was interrupted, the site files are incomplete
+				// and we can't boot this site.
+				dispatch(
+					setActiveSiteError({
+						error: 'initial-opfs-sync-interrupted',
+					})
+				);
+				return;
+			}
 		}
 
 		let mountDescriptor = undefined;
@@ -93,10 +107,7 @@ export function bootSiteClient(
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					// @TODO: Remove backcompat code after 2024-12-01.
-					path: (site.metadata as any)[legacyOpfsPathSymbol]
-						? (site.metadata as any)[legacyOpfsPathSymbol]
-						: getDirectoryPathForSlug(site.slug),
+					path: getDirectoryPathForSlug(site.slug),
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -127,15 +138,6 @@ export function bootSiteClient(
 				},
 				mountpoint: '/wordpress',
 			} as const;
-		}
-
-		const hasInterruptedSync =
-			!pendingResetWasCompleted && hasInterruptedInitialOpfsSync(site);
-		if (hasInterruptedSync) {
-			dispatch(
-				setActiveSiteError({ error: 'initial-opfs-sync-interrupted' })
-			);
-			return;
 		}
 
 		const opfsInitialSyncPending =
@@ -415,8 +417,6 @@ export function bootSiteClient(
 	};
 }
 
-type PendingResetResult = 'completed' | 'skipped' | 'failed';
-
 /**
  * Finishes deleting old WordPress files after a tab closed during reset.
  *
@@ -426,7 +426,7 @@ type PendingResetResult = 'completed' | 'skipped' | 'failed';
  * WordPress from the new setup. Otherwise the previous site can open while the
  * metadata says the site should use the new settings or edited Blueprint.
  */
-async function finishPendingAutosaveReset({
+async function finishPendingOpfsSiteRemoval({
 	siteSlug,
 	dispatch,
 	signal,
@@ -436,11 +436,8 @@ async function finishPendingAutosaveReset({
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
 	getState: () => PlaygroundReduxState;
-}): Promise<PendingResetResult> {
+}): Promise<boolean> {
 	const site = selectSiteBySlug(getState(), siteSlug);
-	if (site?.metadata.storage !== 'opfs' || !site.metadata.opfsResetPending) {
-		return 'skipped';
-	}
 	if (!opfsSiteStorage) {
 		dispatch(
 			setActiveSiteError({
@@ -450,17 +447,17 @@ async function finishPendingAutosaveReset({
 				),
 			})
 		);
-		return 'failed';
+		return false;
 	}
 
 	try {
-		await opfsSiteStorage.resetSiteFiles(site.slug);
+		await opfsSiteStorage.removeWordPressFilesKeepMetadata(site.slug);
 		if (signal.aborted) {
-			return 'failed';
+			return false;
 		}
 	} catch (error) {
 		if (signal.aborted) {
-			return 'failed';
+			return false;
 		}
 		logger.error(error);
 		dispatch(
@@ -473,7 +470,7 @@ async function finishPendingAutosaveReset({
 				details: error,
 			})
 		);
-		return 'failed';
+		return false;
 	}
 
 	try {
@@ -481,13 +478,13 @@ async function finishPendingAutosaveReset({
 			updateSiteMetadata({
 				slug: site.slug,
 				changes: {
-					opfsResetPending: undefined,
+					opfsSiteRemovalPending: undefined,
 				},
 			})
 		);
 	} catch (error) {
 		if (signal.aborted) {
-			return 'failed';
+			return false;
 		}
 		logger.error('Error clearing pending Playground reset marker', error);
 		dispatch(
@@ -500,10 +497,10 @@ async function finishPendingAutosaveReset({
 				details: error,
 			})
 		);
-		return 'failed';
+		return false;
 	}
 
-	return 'completed';
+	return true;
 }
 
 function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {

@@ -78,22 +78,6 @@ export function isExplicitlySavedSite(site: SiteInfo) {
 }
 
 /**
- * Indicates whether the restored site has an interrupted first OPFS sync.
- *
- * `initialOpfsSyncPending` is cleared only after a full MEMFS-to-OPFS copy.
- * While it remains set on a site loaded from storage, metadata says the first
- * copy never completed. Boot must not mount that directory even if some
- * WordPress files were already copied before the tab closed.
- */
-export function hasInterruptedInitialOpfsSync(site: SiteInfo) {
-	return (
-		site.metadata.storage === 'opfs' &&
-		site.loadedFromStorage === true &&
-		site.metadata.initialOpfsSyncPending === true
-	);
-}
-
-/**
  * Returns the persistence value exposed by the public site-management API.
  *
  * Persistence describes a stored Playground, so temporary Playgrounds do not

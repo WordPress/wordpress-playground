@@ -69,7 +69,7 @@ export async function resetAutosavedSiteFilesWithPendingMarker(
 		pendingChanges.metadata,
 		pendingChanges.originalUrlParams
 	);
-	await opfsSiteStorage.resetSiteFiles(siteSlug);
+	await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
 	await opfsSiteStorage.update(
 		siteSlug,
 		completedChanges.metadata,
