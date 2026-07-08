@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { writeBlueprintJsonToFilesystemBackend } from './blueprint-filesystem';
 
+/**
+ * Builds the smallest writable backend needed by the tests while still
+ * satisfying the real filesystem-backend shape.
+ */
 function createFilesystemBackend(
 	writeFile: (path: string, data: Uint8Array) => void
 ) {

@@ -16,6 +16,10 @@ export function collectBlueprintBundleResourcePaths(
 	return accumulator;
 }
 
+/**
+ * Walks the whole Blueprint tree to find legacy `{ resource: "bundled" }`
+ * declarations, regardless of which step owns them.
+ */
 function collectV1BundledResourcePaths(
 	value: unknown,
 	accumulator: Set<string>
@@ -48,6 +52,10 @@ function collectV1BundledResourcePaths(
 	}
 }
 
+/**
+ * Collects the bundle-backed fields that Blueprint v2 keeps as raw
+ * execution-context paths until compile time.
+ */
 function collectV2ExecutionContextResourcePaths(
 	value: unknown,
 	accumulator: Set<string>
@@ -67,6 +75,10 @@ function collectV2ExecutionContextResourcePaths(
 	collectAdditionalSteps(value.additionalStepsAfterExecution, accumulator);
 }
 
+/**
+ * Reads arrays of v2 data references, such as `plugins`, `themes`, or
+ * `muPlugins`.
+ */
 function collectDataReferenceList(
 	value: unknown,
 	accumulator: Set<string>
@@ -79,6 +91,10 @@ function collectDataReferenceList(
 	}
 }
 
+/**
+ * Reads one v2 data reference shape: a string path, a list, or an object with a
+ * nested `source` reference.
+ */
 function collectDataReference(value: unknown, accumulator: Set<string>): void {
 	if (typeof value === 'string') {
 		addV2ExecutionContextPath(value, accumulator);
@@ -96,6 +112,9 @@ function collectDataReference(value: unknown, accumulator: Set<string>): void {
 	collectDataReference(value.source, accumulator);
 }
 
+/**
+ * Reads v2 `postTypes`, whose values may point at JSON files in the bundle.
+ */
 function collectPostTypes(value: unknown, accumulator: Set<string>): void {
 	if (!isRecord(value)) {
 		return;
@@ -107,6 +126,10 @@ function collectPostTypes(value: unknown, accumulator: Set<string>): void {
 	}
 }
 
+/**
+ * Reads v2 media entries, each of which follows the same reference forms as
+ * plugin and theme sources.
+ */
 function collectMediaDefinitions(
 	value: unknown,
 	accumulator: Set<string>
@@ -119,6 +142,10 @@ function collectMediaDefinitions(
 	}
 }
 
+/**
+ * Reads v2 content import entries and records any bundled source files they
+ * reference.
+ */
 function collectContentDefinitions(
 	value: unknown,
 	accumulator: Set<string>
@@ -134,6 +161,10 @@ function collectContentDefinitions(
 	}
 }
 
+/**
+ * Reads v2 additional steps, whose nested properties reuse several different
+ * bundle reference shapes.
+ */
 function collectAdditionalSteps(
 	value: unknown,
 	accumulator: Set<string>
@@ -155,6 +186,10 @@ function collectAdditionalSteps(
 	}
 }
 
+/**
+ * Reads v2 `writeFiles` values, which may map target filenames to bundled
+ * source files.
+ */
 function collectWriteFiles(value: unknown, accumulator: Set<string>): void {
 	if (!isRecord(value)) {
 		return;
@@ -164,6 +199,10 @@ function collectWriteFiles(value: unknown, accumulator: Set<string>): void {
 	}
 }
 
+/**
+ * Recursively finds execution-context strings in arbitrary v2 option objects,
+ * such as nested font-face definitions.
+ */
 function collectExecutionContextStrings(
 	value: unknown,
 	accumulator: Set<string>
@@ -186,6 +225,10 @@ function collectExecutionContextStrings(
 	}
 }
 
+/**
+ * Converts a valid v2 execution-context path into the normalized bundle path
+ * stored in the accumulator.
+ */
 function addV2ExecutionContextPath(
 	path: string,
 	accumulator: Set<string>
@@ -197,6 +240,10 @@ function addV2ExecutionContextPath(
 	addBundlePath(normalizedPath.replace(/^\.?\/+/, ''), accumulator);
 }
 
+/**
+ * Adds a bundle path after rejecting empty paths, null bytes, and parent
+ * traversal segments.
+ */
 function addBundlePath(path: string, accumulator: Set<string>): void {
 	const normalizedPath = normalizePathSeparators(path);
 	// These paths are later copied out of a bundle filesystem. Reject parent
@@ -214,6 +261,10 @@ function addBundlePath(path: string, accumulator: Set<string>): void {
 	}
 }
 
+/**
+ * Checks whether a normalized string is a v2 bundle-local execution-context
+ * path rather than a package slug or remote URL.
+ */
 function isV2ExecutionContextPath(path: string): boolean {
 	if (!(path.startsWith('./') || path.startsWith('/'))) {
 		return false;
@@ -221,14 +272,25 @@ function isV2ExecutionContextPath(path: string): boolean {
 	return !hasParentDirectorySegment(path);
 }
 
+/**
+ * Treats Windows-style separators as path separators before safety checks and
+ * storage.
+ */
 function normalizePathSeparators(path: string): string {
 	return path.replace(/\\/g, '/');
 }
 
+/**
+ * Detects explicit parent traversal segments without relying on normalization
+ * that could hide the escape.
+ */
 function hasParentDirectorySegment(path: string): boolean {
 	return path.split('/').includes('..');
 }
 
+/**
+ * Narrows arbitrary JSON-like values to plain object records for property reads.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === 'object' && !Array.isArray(value);
 }
