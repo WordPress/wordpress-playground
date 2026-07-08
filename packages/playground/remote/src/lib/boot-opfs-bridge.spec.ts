@@ -29,10 +29,12 @@ describe('zipSite', () => {
 		plugins.setFile('hello.php', '<?php echo "Hello";');
 
 		const zipBytes = await zipSite('demo-site');
-		const entries = await readZipEntries(zipBytes);
+		const archive = await readZipEntries(zipBytes);
 
-		expect(entries.get('wp-runtime.json')).toBe('{"slug":"demo-site"}');
-		expect(entries.get('wp-content/plugins/hello.php')).toBe(
+		expect(archive.files.get('wp-runtime.json')).toBe(
+			'{"slug":"demo-site"}'
+		);
+		expect(archive.files.get('wp-content/plugins/hello.php')).toBe(
 			'<?php echo "Hello";'
 		);
 	});
@@ -47,33 +49,68 @@ describe('zipSite', () => {
 		legacySite.setFile('index.php', 'legacy');
 
 		const zipBytes = await zipSite('a/b');
-		const entries = await readZipEntries(zipBytes);
+		const archive = await readZipEntries(zipBytes);
 
-		expect(entries.get('index.php')).toBe('legacy');
+		expect(archive.files.get('index.php')).toBe('legacy');
 	});
 
 	it('applies glob-style exclusions to zip paths', async () => {
 		const site = await createSiteDirectory('excluded-site');
 		site.setFile('wp-runtime.json', '{}');
+		site.setFile('wp-config.php', 'secret');
+		site.setFile('debug.log', 'root log');
 		const bundle = await site.getDirectoryHandle('blueprint-bundle', {
 			create: true,
 		});
 		bundle.setFile('blueprint.json', '{}');
-		const plugins = await (
-			await site.getDirectoryHandle('wp-content', { create: true })
-		).getDirectoryHandle('plugins', { create: true });
+		const wpContent = await site.getDirectoryHandle('wp-content', {
+			create: true,
+		});
+		wpContent.setFile('debug.log', 'nested log');
+		const plugins = await wpContent.getDirectoryHandle('plugins', {
+			create: true,
+		});
 		plugins.setFile('excluded.php', '<?php excluded();');
 		plugins.setFile('readme.txt', 'keep');
 
 		const zipBytes = await zipSite('excluded-site', {
-			exclude: ['blueprint-bundle/**', 'wp-content/plugins/*.php'],
+			exclude: [
+				'/blueprint-bundle/**',
+				'/**/wp-config.php',
+				'**/*.log',
+				'/wp-content/plugins/*.php',
+			],
 		});
-		const entries = await readZipEntries(zipBytes);
+		const archive = await readZipEntries(zipBytes);
 
-		expect(entries.has('wp-runtime.json')).toBe(true);
-		expect(entries.has('blueprint-bundle/blueprint.json')).toBe(false);
-		expect(entries.has('wp-content/plugins/excluded.php')).toBe(false);
-		expect(entries.get('wp-content/plugins/readme.txt')).toBe('keep');
+		expect(archive.files.has('wp-runtime.json')).toBe(true);
+		expect(archive.directories.has('blueprint-bundle/')).toBe(false);
+		expect(archive.files.has('blueprint-bundle/blueprint.json')).toBe(
+			false
+		);
+		expect(archive.files.has('wp-config.php')).toBe(false);
+		expect(archive.files.has('debug.log')).toBe(false);
+		expect(archive.files.has('wp-content/debug.log')).toBe(false);
+		expect(archive.files.has('wp-content/plugins/excluded.php')).toBe(
+			false
+		);
+		expect(archive.files.get('wp-content/plugins/readme.txt')).toBe('keep');
+	});
+
+	it('preserves empty directories in the zip', async () => {
+		const site = await createSiteDirectory('empty-dir-site');
+		site.setFile('wp-runtime.json', '{}');
+		const uploads = await (
+			await site.getDirectoryHandle('wp-content', { create: true })
+		).getDirectoryHandle('uploads', { create: true });
+		await uploads.getDirectoryHandle('empty-cache', { create: true });
+
+		const zipBytes = await zipSite('empty-dir-site');
+		const archive = await readZipEntries(zipBytes);
+
+		expect(archive.directories.has('wp-content/uploads/empty-cache/')).toBe(
+			true
+		);
 	});
 
 	it('throws a NotFoundError when the saved site does not exist', async () => {
@@ -99,15 +136,21 @@ async function readZipEntries(zipBytes: Uint8Array) {
 	try {
 		const entries = await reader.getEntries();
 		const files = new Map<string, string>();
+		const directories = new Set<string>();
 		for (const entry of entries) {
-			if (!entry.directory) {
+			if (entry.directory) {
+				directories.add(entry.filename);
+			} else {
 				files.set(
 					entry.filename,
 					await entry.getData!(new TextWriter())
 				);
 			}
 		}
-		return files;
+		return {
+			files,
+			directories,
+		};
 	} finally {
 		await reader.close();
 	}

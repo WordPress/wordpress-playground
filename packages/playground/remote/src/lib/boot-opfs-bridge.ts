@@ -85,11 +85,17 @@ async function addDirectoryEntries(
 		const relativePath = relativeDirPath
 			? joinPaths(relativeDirPath, name)
 			: name;
-		if (shouldExclude(relativePath)) {
-			continue;
-		}
 
 		if (await filesystem.isDir(absolutePath)) {
+			if (
+				shouldExclude(relativePath) ||
+				shouldExclude(`${relativePath}/`)
+			) {
+				continue;
+			}
+			await zipWriter.add(`${relativePath}/`, undefined, {
+				directory: true,
+			});
 			await addDirectoryEntries(
 				zipWriter,
 				filesystem,
@@ -98,6 +104,9 @@ async function addDirectoryEntries(
 				shouldExclude
 			);
 		} else {
+			if (shouldExclude(relativePath)) {
+				continue;
+			}
 			const file = await filesystem.read(absolutePath);
 			const buffer = new Uint8Array(await file.arrayBuffer());
 			await zipWriter.add(relativePath, new Uint8ArrayReader(buffer));
@@ -126,7 +135,11 @@ function globPatternToRegExp(pattern: string) {
 	for (let i = 0; i < pattern.length; i++) {
 		const char = pattern[i];
 		const nextChar = pattern[i + 1];
-		if (char === '*' && nextChar === '*') {
+		const afterNextChar = pattern[i + 2];
+		if (char === '*' && nextChar === '*' && afterNextChar === '/') {
+			source += '(?:.*/)?';
+			i += 2;
+		} else if (char === '*' && nextChar === '*') {
 			source += '.*';
 			i++;
 		} else if (char === '*') {
