@@ -68,6 +68,18 @@ describe('resolvePrInput', () => {
 		});
 	});
 
+	it('accepts www.github.com URLs', () => {
+		expect(
+			resolvePrInput(
+				'https://www.github.com/WordPress/gutenberg/pull/789',
+				'wordpress'
+			)
+		).toEqual({
+			ok: true,
+			value: { target: 'gutenberg', ref: '789', isBranch: false },
+		});
+	});
+
 	it('resolves official Gutenberg branch URLs without including query parameters', () => {
 		expect(
 			resolvePrInput(

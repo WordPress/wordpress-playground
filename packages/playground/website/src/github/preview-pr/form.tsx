@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
@@ -42,6 +42,7 @@ export default function PreviewPRForm({
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	const cleanupRetryRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
 		const query = new URLSearchParams(window.location.search);
@@ -58,6 +59,10 @@ export default function PreviewPRForm({
 			setValue(initialValue);
 		}
 	}, [target]);
+
+	useEffect(() => {
+		return () => cleanupRetryRef.current();
+	}, []);
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -101,10 +106,8 @@ export default function PreviewPRForm({
 	}
 
 	async function previewPr(resolved: ResolvedRef) {
-		let cleanupRetry = () => {};
-		if (cleanupRetry) {
-			cleanupRetry();
-		}
+		cleanupRetryRef.current();
+		cleanupRetryRef.current = () => {};
 
 		const { target: repo, ref, isBranch } = resolved;
 		setSubmitting(true);
@@ -152,10 +155,10 @@ export default function PreviewPRForm({
 						const scheduledRetry = setTimeout(() => {
 							previewPr(resolved);
 						}, retryIn);
-						cleanupRetry = () => {
+						cleanupRetryRef.current = () => {
 							clearInterval(timerInterval);
 							clearTimeout(scheduledRetry);
-							cleanupRetry = () => {};
+							cleanupRetryRef.current = () => {};
 						};
 					}
 				} else if (error === 'artifact_invalid') {

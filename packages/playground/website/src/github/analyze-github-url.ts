@@ -50,7 +50,7 @@ export function staticAnalyzeGitHubURL(url: string): GitHubURLInformation {
 	if (hostname === 'raw.githubusercontent.com') {
 		type = 'rawfile';
 		path = urlObj.pathname.substring(1);
-	} else if (hostname !== 'github.com') {
+	} else if (hostname !== 'github.com' && hostname !== 'www.github.com') {
 		return {
 			type: 'unknown',
 		};

@@ -18,6 +18,16 @@ describe('staticAnalyzeGitHubURL', () => {
 		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
+	it('should accept www.github.com URLs', () => {
+		expect(
+			staticAnalyzeGitHubURL('https://www.github.com/owner/repo')
+		).toMatchObject({
+			owner: 'owner',
+			repo: 'repo',
+			type: 'repo',
+		});
+	});
+
 	it('should return correct GitHubURLInformation for a PR URL', () => {
 		const url = 'https://github.com/owner/repo/pull/123';
 		const expected: GitHubURLInformation = {

@@ -33,9 +33,10 @@ export function resolvePrInput(
 	// repository even when the modal was opened for the other target.
 	const githubUrl = parseGitHubUrl(input);
 	if (githubUrl) {
+		const hostname = githubUrl.hostname.toLowerCase();
 		if (
 			!['http:', 'https:'].includes(githubUrl.protocol) ||
-			githubUrl.hostname.toLowerCase() !== 'github.com'
+			(hostname !== 'github.com' && hostname !== 'www.github.com')
 		) {
 			return {
 				ok: false,
