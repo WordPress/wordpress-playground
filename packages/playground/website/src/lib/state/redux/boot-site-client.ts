@@ -183,9 +183,15 @@ export function bootSiteClient(
 			!isBlueprintBundle(blueprint) &&
 			'preferredVersions' in blueprint &&
 			blueprint.preferredVersions?.wp === false;
-		const wordpressInstallMode =
-			blueprintRequestedNoWordPress || shouldBootFromStoredFiles
-				? 'do-not-attempt-installing'
+		// Stored WordPress files cannot use `do-not-attempt-installing`:
+		// that mode is for PHP-only boots and returns before the worker loads
+		// the SQLite drop-in. Use the existing-files mode so saved SQLite
+		// sites boot from their database, while incomplete first OPFS saves
+		// are still blocked above by `initialOpfsSyncPending`.
+		const wordpressInstallMode = blueprintRequestedNoWordPress
+			? 'do-not-attempt-installing'
+			: shouldBootFromStoredFiles
+				? 'install-from-existing-files-if-needed'
 				: 'download-and-install';
 
 		/**

@@ -196,7 +196,7 @@ describe('bootSiteClient', () => {
 
 		expect(startPlaygroundWeb).toHaveBeenCalledWith(
 			expect.objectContaining({
-				wordpressInstallMode: 'do-not-attempt-installing',
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
 				mounts: [
 					expect.objectContaining({
 						initialSyncDirection: 'opfs-to-memfs',
@@ -247,7 +247,7 @@ describe('bootSiteClient', () => {
 		expect(loadDirectoryHandle).toHaveBeenCalledWith('local-save');
 		expect(startPlaygroundWeb).toHaveBeenCalledWith(
 			expect.objectContaining({
-				wordpressInstallMode: 'do-not-attempt-installing',
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			})
 		);
 	});
