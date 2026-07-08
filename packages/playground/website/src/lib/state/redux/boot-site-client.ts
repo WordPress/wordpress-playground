@@ -1,6 +1,7 @@
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
+	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
 import { addClientInfo, updateClientInfo } from './slice-clients';
@@ -107,7 +108,10 @@ export function bootSiteClient(
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					path: getDirectoryPathForSlug(site.slug),
+					// @TODO: Remove backcompat code after 2024-12-01.
+					path: (site.metadata as any)[legacyOpfsPathSymbol]
+						? (site.metadata as any)[legacyOpfsPathSymbol]
+						: getDirectoryPathForSlug(site.slug),
 				},
 				mountpoint: '/wordpress',
 			} as const;

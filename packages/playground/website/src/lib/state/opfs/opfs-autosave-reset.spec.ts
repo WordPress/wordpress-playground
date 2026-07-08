@@ -5,7 +5,7 @@ import type { SiteInfo } from '../redux/slice-sites';
 const mocks = vi.hoisted(() => ({
 	opfsSiteStorage: {
 		update: vi.fn(),
-		resetSiteFiles: vi.fn(),
+		removeWordPressFilesKeepMetadata: vi.fn(),
 	},
 }));
 
@@ -17,8 +17,10 @@ describe('resetAutosavedSiteFilesWithPendingMarker', () => {
 	beforeEach(() => {
 		mocks.opfsSiteStorage.update.mockReset();
 		mocks.opfsSiteStorage.update.mockResolvedValue(undefined);
-		mocks.opfsSiteStorage.resetSiteFiles.mockReset();
-		mocks.opfsSiteStorage.resetSiteFiles.mockResolvedValue(undefined);
+		mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata.mockReset();
+		mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata.mockResolvedValue(
+			undefined
+		);
 	});
 
 	it('persists a reset marker before deleting old WordPress files', async () => {
@@ -34,38 +36,44 @@ describe('resetAutosavedSiteFilesWithPendingMarker', () => {
 			'autosaved',
 			expect.objectContaining({
 				initialOpfsSyncPending: true,
-				opfsResetPending: true,
+				opfsSiteRemovalPending: true,
 			}),
 			changes.originalUrlParams
 		);
 		expect(
 			mocks.opfsSiteStorage.update.mock.invocationCallOrder[0]
 		).toBeLessThan(
-			mocks.opfsSiteStorage.resetSiteFiles.mock.invocationCallOrder[0]
+			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata.mock
+				.invocationCallOrder[0]
 		);
-		expect(mocks.opfsSiteStorage.resetSiteFiles).toHaveBeenCalledWith(
-			'autosaved'
-		);
+		expect(
+			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledWith('autosaved');
 		expect(mocks.opfsSiteStorage.update).toHaveBeenNthCalledWith(
 			2,
 			'autosaved',
 			expect.objectContaining({
 				initialOpfsSyncPending: true,
-				opfsResetPending: undefined,
+				opfsSiteRemovalPending: undefined,
 			}),
 			changes.originalUrlParams
 		);
 		expect(
-			mocks.opfsSiteStorage.resetSiteFiles.mock.invocationCallOrder[0]
+			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata.mock
+				.invocationCallOrder[0]
 		).toBeLessThan(
 			mocks.opfsSiteStorage.update.mock.invocationCallOrder[1]
 		);
-		expect(completedChanges.metadata.opfsResetPending).toBeUndefined();
+		expect(
+			completedChanges.metadata.opfsSiteRemovalPending
+		).toBeUndefined();
 	});
 
 	it('leaves the pending marker for boot recovery when deleting files fails', async () => {
 		const resetError = new Error('reset failed');
-		mocks.opfsSiteStorage.resetSiteFiles.mockRejectedValueOnce(resetError);
+		mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata.mockRejectedValueOnce(
+			resetError
+		);
 
 		await expect(
 			resetAutosavedSiteFilesWithPendingMarker(
@@ -78,13 +86,13 @@ describe('resetAutosavedSiteFilesWithPendingMarker', () => {
 		expect(mocks.opfsSiteStorage.update).toHaveBeenCalledWith(
 			'autosaved',
 			expect.objectContaining({
-				opfsResetPending: true,
+				opfsSiteRemovalPending: true,
 			}),
 			expect.anything()
 		);
-		expect(mocks.opfsSiteStorage.resetSiteFiles).toHaveBeenCalledWith(
-			'autosaved'
-		);
+		expect(
+			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledWith('autosaved');
 	});
 });
 

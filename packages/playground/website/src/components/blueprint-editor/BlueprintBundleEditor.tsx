@@ -440,8 +440,9 @@ export const BlueprintBundleEditor = forwardRef<
 				dispatch(removeClientInfo(site.slug));
 				// "Run Blueprint and reset site" changes the setup for this
 				// autosave. Delete the old WordPress files with
-				// `opfsResetPending` so a tab close after the metadata write
-				// cannot leave the old site booting under the edited Blueprint.
+				// `opfsSiteRemovalPending` so a tab close after the metadata
+				// write cannot leave the old site booting under the edited
+				// Blueprint.
 				const completedChanges =
 					await resetAutosavedSiteFilesWithPendingMarker(
 						site.slug,

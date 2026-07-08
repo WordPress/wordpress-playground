@@ -22,15 +22,15 @@ type SiteResetChanges = {
  *
  * How this makes that deletion safe across tab closes:
  *
- * 1. Write `opfsResetPending: true` into `wp-runtime.json`.
- * 2. Delete the old WordPress files. `resetSiteFiles()` keeps `wp-runtime.json`
- *    and the editable Blueprint bundle directory.
- * 3. Clear `opfsResetPending`.
+ * 1. Write `opfsSiteRemovalPending: true` into `wp-runtime.json`.
+ * 2. Delete the old WordPress files. `removeWordPressFilesKeepMetadata()`
+ *    keeps `wp-runtime.json` and the editable Blueprint bundle directory.
+ * 3. Clear `opfsSiteRemovalPending`.
  *
  * If the tab closes after step 1 or during step 2, the next boot sees
- * `opfsResetPending` and repeats the deletion before it mounts or installs
- * anything. That leaves the OPFS directory ready for the new setup instead of
- * opening files from the previous autosave.
+ * `opfsSiteRemovalPending` and repeats the deletion before it mounts or
+ * installs anything. That leaves the OPFS directory ready for the new setup
+ * instead of opening files from the previous autosave.
  *
  * Do not use this when the existing WordPress files can keep running, such as
  * changing PHP version or networking. Those should update metadata and reboot
@@ -53,14 +53,14 @@ export async function resetAutosavedSiteFilesWithPendingMarker(
 		...changes,
 		metadata: {
 			...changes.metadata,
-			opfsResetPending: true,
+			opfsSiteRemovalPending: true,
 		},
 	};
 	const completedChanges = {
 		...changes,
 		metadata: {
 			...changes.metadata,
-			opfsResetPending: undefined,
+			opfsSiteRemovalPending: undefined,
 		},
 	};
 
