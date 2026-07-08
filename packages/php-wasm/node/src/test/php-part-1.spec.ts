@@ -645,6 +645,97 @@ phpLoaderOptions.forEach((options) => {
 					rmSync('out', { force: true });
 				}
 			});
+
+			// @TODO remove skip after the initial code review and recompiling all PHP versions.
+			it.skipIf(phpVersion !== '8.4')(
+				'concurrent popen("w") calls use correct PIDs',
+				async () => {
+					try {
+						const result = await php.run({
+							code: `<?php
+						$firstWriter = popen(
+							"cat > concurrent-popen-first-output.txt",
+							"w"
+						);
+						$secondWriter = popen(
+							"cat > concurrent-popen-second-output.txt",
+							"w"
+						);
+						fwrite($firstWriter, "first");
+						fwrite($secondWriter, "second");
+						$firstExitCode = pclose($firstWriter);
+						$secondExitCode = pclose($secondWriter);
+
+						$firstReader = popen(
+							"cat concurrent-popen-first-output.txt",
+							"r"
+						);
+						$firstOutput = fread($firstReader, 1024);
+						pclose($firstReader);
+
+						$secondReader = popen(
+							"cat concurrent-popen-second-output.txt",
+							"r"
+						);
+						$secondOutput = fread($secondReader, 1024);
+						pclose($secondReader);
+
+						echo "$firstExitCode,$secondExitCode|$firstOutput|$secondOutput";
+					`,
+						});
+						expect(result.text).toEqual('0,0|first|second');
+					} finally {
+						rmSync('concurrent-popen-first-output.txt', {
+							force: true,
+						});
+						rmSync('concurrent-popen-second-output.txt', {
+							force: true,
+						});
+					}
+				}
+			);
+			// @TODO remove skip after the initial code review and recompiling all PHP versions.
+			it.skipIf(phpVersion !== '8.4')(
+				'concurrent popen("w") pclose returns correct exit codes',
+				async () => {
+					try {
+						const result = await php.run({
+							code: `<?php
+						$successfulWriter = popen(
+							"cat > concurrent-popen-successful-output.txt",
+							"w"
+						);
+						$failingWriter = popen(
+							"sh -c 'cat > /dev/null; exit 42'",
+							"w"
+						);
+						$secondSuccessfulWriter = popen(
+							"cat > concurrent-popen-second-successful-output.txt",
+							"w"
+						);
+						fwrite($successfulWriter, "a");
+						fwrite($failingWriter, "b");
+						fwrite($secondSuccessfulWriter, "c");
+						$successfulExitCode = pclose($successfulWriter);
+						$failingExitCode = pclose($failingWriter);
+						$secondSuccessfulExitCode = pclose($secondSuccessfulWriter);
+						echo "$successfulExitCode,$failingExitCode,$secondSuccessfulExitCode";
+					`,
+						});
+						expect(result.text).toEqual('0,42,0');
+					} finally {
+						rmSync('concurrent-popen-successful-output.txt', {
+							force: true,
+						});
+						rmSync(
+							'concurrent-popen-second-successful-output.txt',
+							{
+								force: true,
+							}
+						);
+					}
+				}
+			);
 		});
 
 		describe('proc_open()', () => {
