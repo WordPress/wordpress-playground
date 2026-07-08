@@ -78,7 +78,6 @@ export function bootSiteClient(
 					siteSlug,
 					dispatch,
 					signal,
-					getState,
 				});
 				if (signal.aborted) {
 					return;
@@ -440,14 +439,11 @@ async function finishPendingOpfsSiteRemoval({
 	siteSlug,
 	dispatch,
 	signal,
-	getState,
 }: {
 	siteSlug: string;
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
-	getState: () => PlaygroundReduxState;
 }): Promise<boolean> {
-	const site = selectSiteBySlug(getState(), siteSlug);
 	if (!opfsSiteStorage) {
 		dispatch(
 			setActiveSiteError({
@@ -461,7 +457,7 @@ async function finishPendingOpfsSiteRemoval({
 	}
 
 	try {
-		await opfsSiteStorage.removeWordPressFilesKeepMetadata(site.slug);
+		await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
 		if (signal.aborted) {
 			return false;
 		}
@@ -486,7 +482,7 @@ async function finishPendingOpfsSiteRemoval({
 	try {
 		await dispatch(
 			updateSiteMetadata({
-				slug: site.slug,
+				slug: siteSlug,
 				changes: {
 					opfsSiteRemovalPending: undefined,
 				},
