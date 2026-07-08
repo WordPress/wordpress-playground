@@ -226,18 +226,17 @@ function collectExecutionContextStrings(
 }
 
 /**
- * Converts a valid v2 execution-context path into the normalized bundle path
+ * Converts a valid v2 execution-context path into the absolute bundle path
  * stored in the accumulator.
  */
 function addV2ExecutionContextPath(
 	path: string,
 	accumulator: Set<string>
 ): void {
-	const normalizedPath = normalizePathSeparators(path);
-	if (!isV2ExecutionContextPath(normalizedPath)) {
+	if (!isV2ExecutionContextPath(path)) {
 		return;
 	}
-	addBundlePath(normalizedPath.replace(/^\.?\/+/, ''), accumulator);
+	addBundlePath(path.replace(/^\.?\/+/, ''), accumulator);
 }
 
 /**
@@ -245,24 +244,19 @@ function addV2ExecutionContextPath(
  * traversal segments.
  */
 function addBundlePath(path: string, accumulator: Set<string>): void {
-	const normalizedPath = normalizePathSeparators(path);
 	// These paths are later copied out of a bundle filesystem. Reject parent
 	// traversals before absolutizing, so `../secret.zip` never becomes `/secret.zip`.
-	if (
-		!normalizedPath ||
-		normalizedPath.includes('\0') ||
-		hasParentDirectorySegment(normalizedPath)
-	) {
+	if (!path || path.includes('\0') || hasParentDirectorySegment(path)) {
 		return;
 	}
-	const absolutePath = ensureAbsolutePath(normalizedPath);
+	const absolutePath = ensureAbsolutePath(path);
 	if (absolutePath !== '/') {
 		accumulator.add(absolutePath);
 	}
 }
 
 /**
- * Checks whether a normalized string is a v2 bundle-local execution-context
+ * Checks whether a string is a v2 bundle-local execution-context
  * path rather than a package slug or remote URL.
  */
 function isV2ExecutionContextPath(path: string): boolean {
@@ -270,14 +264,6 @@ function isV2ExecutionContextPath(path: string): boolean {
 		return false;
 	}
 	return !hasParentDirectorySegment(path);
-}
-
-/**
- * Treats Windows-style separators as path separators before safety checks and
- * storage.
- */
-function normalizePathSeparators(path: string): string {
-	return path.replace(/\\/g, '/');
 }
 
 /**

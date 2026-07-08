@@ -24,7 +24,7 @@ describe('collectBlueprintBundleResourcePaths', () => {
 					],
 				})
 			).sort()
-		).toEqual(['/plugins/plugin.zip', '/themes/theme.zip']);
+		).toEqual(['/plugins/plugin.zip', '/themes\\theme.zip']);
 	});
 
 	it('collects v2 execution-context paths that carry bundle files', () => {
@@ -110,8 +110,31 @@ describe('collectBlueprintBundleResourcePaths', () => {
 			'/sql/import.sql',
 			'/themes/active-theme.zip',
 			'/themes/secondary-theme.zip',
-			'/themes/windows-theme.zip',
 		]);
+	});
+
+	it('does not rewrite backslashes into path separators', () => {
+		expect(
+			Array.from(
+				collectBlueprintBundleResourcePaths({
+					version: 2,
+					plugins: [
+						// Backslashes are valid filename bytes in the POSIX-style
+						// bundle filesystem, not path separators.
+						'.\\plugins\\query-monitor.zip',
+					],
+					additionalStepsAfterExecution: [
+						{
+							step: 'installPlugin',
+							pluginData: {
+								resource: 'bundled',
+								path: 'plugins\\..\\secret.zip',
+							},
+						},
+					],
+				})
+			)
+		).toEqual(['/plugins\\..\\secret.zip']);
 	});
 
 	it('does not normalize v2 parent-directory escapes into bundle paths', () => {
@@ -123,7 +146,6 @@ describe('collectBlueprintBundleResourcePaths', () => {
 						'./../secret.zip',
 						'./plugins/../secret.zip',
 						'/../secret.zip',
-						'.\\plugins\\..\\secret.zip',
 					],
 				})
 			)
@@ -153,7 +175,7 @@ describe('collectBlueprintBundleResourcePaths', () => {
 							step: 'installPlugin',
 							pluginData: {
 								resource: 'bundled',
-								path: 'plugins\\..\\secret.zip',
+								path: '/plugins/../../secret.zip',
 							},
 						},
 					],
