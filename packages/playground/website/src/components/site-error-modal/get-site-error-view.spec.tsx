@@ -52,17 +52,20 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe('Try again to open this Playground');
+		expect(view.title).toBe('Close other Playground tabs, then reload');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'Click <strong>Try again</strong>'
+			'click <strong>Reload</strong>'
 		);
 		expect(renderToStaticMarkup(view.body)).toContain(
 			'old site files are still in this saved Playground'
 		);
 		expect(renderToStaticMarkup(view.body)).toContain(
+			'already tried to clean them up again'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
 			'could show the old site with the new settings'
 		);
-		expect(renderToStaticMarkup(view.actions[0])).toContain('Try again');
+		expect(renderToStaticMarkup(view.actions[0])).toContain('Reload');
 	});
 
 	it('says when the entire Blueprint could not be downloaded', () => {

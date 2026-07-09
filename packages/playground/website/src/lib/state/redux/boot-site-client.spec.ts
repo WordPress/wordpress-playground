@@ -131,18 +131,67 @@ describe('bootSiteClient', () => {
 		expect(startPlaygroundWeb).toHaveBeenCalled();
 	});
 
-	it('does not boot when a pending reset marker cannot be cleared', async () => {
-		const markerError = new Error('metadata write failed');
-		vi.mocked(opfsSiteStorage!.update).mockRejectedValueOnce(markerError);
+	it('retries pending OPFS reset cleanup before booting', async () => {
+		vi.useFakeTimers();
+		const removalError = new Error('OPFS delete failed once');
+		vi.mocked(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).mockRejectedValueOnce(removalError);
 		const site = createSite('autosaved', {
 			metadata: { opfsSiteRemovalPending: true },
 		});
 		const state = createState(site);
 		const dispatch = createDispatch(state);
 
-		await bootSiteClient('autosaved', document.createElement('iframe'), {
-			signal: new AbortController().signal,
-		})(dispatch, () => state);
+		try {
+			const boot = bootSiteClient(
+				'autosaved',
+				document.createElement('iframe'),
+				{
+					signal: new AbortController().signal,
+				}
+			)(dispatch, () => state);
+			await vi.runAllTimersAsync();
+			await boot;
+		} finally {
+			vi.useRealTimers();
+		}
+
+		expect(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledTimes(2);
+		expect(startPlaygroundWeb).toHaveBeenCalled();
+		expect(
+			dispatch.mock.calls.some((call: unknown[]) => {
+				const action = call[0] as { type?: string };
+				return action.type === 'ui/setActiveSiteError';
+			})
+		).toBe(false);
+	});
+
+	it('does not boot when a pending reset marker cannot be cleared', async () => {
+		vi.useFakeTimers();
+		const markerError = new Error('metadata write failed');
+		vi.mocked(opfsSiteStorage!.update).mockRejectedValue(markerError);
+		const site = createSite('autosaved', {
+			metadata: { opfsSiteRemovalPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		try {
+			const boot = bootSiteClient(
+				'autosaved',
+				document.createElement('iframe'),
+				{
+					signal: new AbortController().signal,
+				}
+			)(dispatch, () => state);
+			await vi.runAllTimersAsync();
+			await boot;
+		} finally {
+			vi.useRealTimers();
+		}
 
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
@@ -159,20 +208,34 @@ describe('bootSiteClient', () => {
 	});
 
 	it('does not boot when old autosaved WordPress files cannot be removed', async () => {
+		vi.useFakeTimers();
 		const removalError = new Error('OPFS delete failed');
 		vi.mocked(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
-		).mockRejectedValueOnce(removalError);
+		).mockRejectedValue(removalError);
 		const site = createSite('autosaved', {
 			metadata: { opfsSiteRemovalPending: true },
 		});
 		const state = createState(site);
 		const dispatch = createDispatch(state);
 
-		await bootSiteClient('autosaved', document.createElement('iframe'), {
-			signal: new AbortController().signal,
-		})(dispatch, () => state);
+		try {
+			const boot = bootSiteClient(
+				'autosaved',
+				document.createElement('iframe'),
+				{
+					signal: new AbortController().signal,
+				}
+			)(dispatch, () => state);
+			await vi.runAllTimersAsync();
+			await boot;
+		} finally {
+			vi.useRealTimers();
+		}
 
+		expect(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).toHaveBeenCalledTimes(4);
 		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({

@@ -43,6 +43,8 @@ import {
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
+const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [1000, 2000, 4000];
+
 /**
  * Loads Playground in an iframe.
  *
@@ -83,10 +85,10 @@ export function bootSiteClient(
 					return;
 				}
 				if (false === removalResult) {
-					// `finishPendingOpfsSiteRemoval()` returned false after
-					// dispatching `browser-storage-cleanup-failed` for the
-					// cleanup error. Stop here so we do not mount OPFS while
-					// it may still contain the previous autosave's WordPress files.
+					// `finishPendingOpfsSiteRemoval()` already retried and
+					// dispatched `browser-storage-cleanup-failed`. Stop here
+					// so we do not mount OPFS while it may still contain the
+					// previous autosave's WordPress files.
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
@@ -459,49 +461,78 @@ async function finishPendingOpfsSiteRemoval({
 		return false;
 	}
 
-	try {
-		await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
+	// Another Playground tab can keep OPFS entries locked long enough for
+	// the first cleanup attempt to fail. Retry before showing the modal; only
+	// ask the user to close tabs and reload after the browser refuses several times.
+	let cleanupError: unknown;
+	for (
+		let attempt = 0;
+		attempt <= PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS.length;
+		attempt++
+	) {
+		try {
+			await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
+			if (signal.aborted) {
+				return false;
+			}
+
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: {
+						opfsSiteRemovalPending: undefined,
+					},
+				})
+			);
+			return true;
+		} catch (error) {
+			if (signal.aborted) {
+				return false;
+			}
+			cleanupError = error;
+		}
+
+		const retryDelay = PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS[attempt];
+		if (retryDelay === undefined) {
+			break;
+		}
+		await waitForPendingOpfsSiteRemovalRetry(retryDelay, signal);
 		if (signal.aborted) {
 			return false;
 		}
-	} catch (error) {
-		if (signal.aborted) {
-			return false;
-		}
-		logger.error(error);
-		dispatch(
-			setActiveSiteError({
-				error: 'browser-storage-cleanup-failed',
-				details: error,
-			})
-		);
-		return false;
 	}
 
-	try {
-		await dispatch(
-			updateSiteMetadata({
-				slug: siteSlug,
-				changes: {
-					opfsSiteRemovalPending: undefined,
-				},
-			})
-		);
-	} catch (error) {
-		if (signal.aborted) {
-			return false;
-		}
-		logger.error('Error clearing pending Playground reset marker', error);
-		dispatch(
-			setActiveSiteError({
-				error: 'browser-storage-cleanup-failed',
-				details: error,
-			})
-		);
-		return false;
+	logger.error(
+		'Error finishing pending Playground reset cleanup',
+		cleanupError
+	);
+	dispatch(
+		setActiveSiteError({
+			error: 'browser-storage-cleanup-failed',
+			details: cleanupError,
+		})
+	);
+	return false;
+}
+
+function waitForPendingOpfsSiteRemovalRetry(
+	delayMs: number,
+	signal: AbortSignal
+): Promise<void> {
+	if (signal.aborted) {
+		return Promise.resolve();
 	}
 
-	return true;
+	return new Promise((resolve) => {
+		const timeout = setTimeout(done, delayMs);
+		signal.addEventListener('abort', done, { once: true });
+
+		function done() {
+			clearTimeout(timeout);
+			signal.removeEventListener('abort', done);
+			resolve();
+		}
+	});
 }
 
 function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {

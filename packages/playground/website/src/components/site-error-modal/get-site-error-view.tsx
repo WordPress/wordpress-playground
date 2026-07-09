@@ -76,26 +76,28 @@ function browserStorageCleanupFailedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Try again to open this Playground',
+		title: 'Close other Playground tabs, then reload',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Click <strong>Try again</strong>. Playground needs another
-					attempt to finish opening this saved site.
+					Close any other Playground tabs that may be using this saved
+					site, then click <strong>Reload</strong>.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						If this keeps happening, close other Playground tabs and
-						make sure your browser has free storage, then try again.
+						If no other Playground tabs are open, make sure your
+						browser has free storage, then reload.
 					</li>
 					<li>
 						What happened: an earlier reset was interrupted, and old
 						site files are still in this saved Playground.
 					</li>
 					<li>
-						Playground stopped because opening those files could
-						show the old site with the new settings.
+						Playground already tried to clean them up again, but the
+						browser still would not remove them. Playground stopped
+						because opening those files could show the old site with
+						the new settings.
 					</li>
 				</ul>
 			</>
@@ -106,7 +108,7 @@ function browserStorageCleanupFailedView({
 				key="reload-page"
 				onClick={helpers.reloadPage}
 			>
-				Try again
+				Reload
 			</Button>,
 		],
 	};
