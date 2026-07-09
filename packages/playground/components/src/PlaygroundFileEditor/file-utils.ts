@@ -1,3 +1,4 @@
+import { concatUint8Arrays } from '@php-wasm/util';
 import mimeTypes from '@php-wasm/universal/mime-types';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
@@ -108,7 +109,7 @@ async function readStreamForInlinePreview(
 			if (done) {
 				return {
 					type: 'inline',
-					data: concatChunks(chunks, totalBytes),
+					data: concatUint8Arrays(chunks),
 				};
 			}
 			if (!value) {
@@ -124,19 +125,6 @@ async function readStreamForInlinePreview(
 	} finally {
 		reader.releaseLock();
 	}
-}
-
-/**
- * Combines stream chunks that were already accepted for inline preview.
- */
-function concatChunks(chunks: Uint8Array[], totalBytes: number) {
-	const data = new Uint8Array(totalBytes);
-	let offset = 0;
-	for (const chunk of chunks) {
-		data.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return data;
 }
 
 /**
