@@ -731,6 +731,13 @@
 							"description": "Whether to rewrite imported URLs to the current site URL.",
 							"default": true
 						},
+						"urlMapping": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Explicit URL replacements to apply to imported WXR data."
+						},
 						"importComments": {
 							"type": "boolean",
 							"description": "Whether to import comments from the WXR file.",
