@@ -8,21 +8,31 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { readFile } from 'fs/promises';
-import { describe, beforeEach, afterEach, expect, it } from 'vitest';
+import { describe, beforeAll, beforeEach, afterEach, expect, it } from 'vitest';
 import { compileBlueprintForExecution } from '../../lib/compile';
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
 describe('Blueprint v2 runtime smoke tests', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
+	let wordPressZip: Awaited<ReturnType<typeof getWordPressModule>>;
+	let sqliteIntegrationPluginZip: Awaited<
+		ReturnType<typeof getSqliteDriverModule>
+	>;
+
+	beforeAll(async () => {
+		[wordPressZip, sqliteIntegrationPluginZip] = await Promise.all([
+			getWordPressModule(),
+			getSqliteDriverModule(),
+		]);
+	});
 
 	beforeEach(async () => {
 		handler = await bootWordPressAndRequestHandler({
-			createPhpRuntime: async () =>
-				await loadNodeRuntime(RecommendedPHPVersion),
+			createPhpRuntime: () => loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
-			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+			wordPressZip,
+			sqliteIntegrationPluginZip,
 		});
 		php = await handler.getPrimaryPhp();
 	});
