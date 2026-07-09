@@ -197,7 +197,6 @@ describe('Blueprint step importWordPressFiles', () => {
 			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 			$zip->addFromString(${phpVar(pluginPath)}, ${phpVar('<?php /* Plugin Name: Nested Plugin */')});
 			$zip->addFromString(${phpVar(themePath)}, ${phpVar('/* Theme Name: Nested Theme */')});
-			$zip->addFromString('__MACOSX/._ignored', '');
 			$zip->close();
 			`,
 		});

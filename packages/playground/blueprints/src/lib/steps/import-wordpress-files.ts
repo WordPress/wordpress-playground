@@ -296,8 +296,6 @@ async function inferSiteUrlFromDatabase(
 	return siteUrl || null;
 }
 
-const MAX_WORDPRESS_ROOT_SEARCH_DEPTH = 32;
-
 const WORDPRESS_ROOT_MARKERS = [
 	'wp-content',
 	'wp-admin',
@@ -313,6 +311,10 @@ const WORDPRESS_ROOT_MARKERS = [
  * unwrapping that directory, importWordPressFiles() reports success but moves
  * the wrapper into WordPress, leaving the live wp-content unchanged.
  *
+ * Only one wrapper directory is supported, and only when it is the only entry
+ * at the requested import path. Deeper layouts are ambiguous, so they are left
+ * unchanged instead of guessing.
+ *
  * wp-content is not required here. importWordPressFiles() can also replace
  * other top-level WordPress files such as wp-admin, wp-includes, or
  * wp-config.php.
@@ -321,30 +323,22 @@ async function findWordPressFilesRoot(
 	playground: UniversalPHP,
 	importPath: string
 ): Promise<string | null> {
-	let currentPath = importPath;
+	if (await hasWordPressRootMarker(playground, importPath)) {
+		return importPath;
+	}
 
-	for (let depth = 0; depth <= MAX_WORDPRESS_ROOT_SEARCH_DEPTH; depth++) {
-		if (await hasWordPressRootMarker(playground, currentPath)) {
-			return currentPath;
-		}
+	const fileNames = await playground.listFiles(importPath);
+	if (fileNames.length !== 1) {
+		return null;
+	}
 
-		if (depth === MAX_WORDPRESS_ROOT_SEARCH_DEPTH) {
-			return null;
-		}
+	const nestedPath = joinPaths(importPath, fileNames[0]);
+	if (!(await playground.isDir(nestedPath))) {
+		return null;
+	}
 
-		const fileNames = (await playground.listFiles(currentPath)).filter(
-			(fileName) => fileName !== '__MACOSX' && fileName !== '.DS_Store'
-		);
-		if (fileNames.length !== 1) {
-			return null;
-		}
-
-		const nestedPath = joinPaths(currentPath, fileNames[0]);
-		if (!(await playground.isDir(nestedPath))) {
-			return null;
-		}
-
-		currentPath = nestedPath;
+	if (await hasWordPressRootMarker(playground, nestedPath)) {
+		return nestedPath;
 	}
 
 	return null;
