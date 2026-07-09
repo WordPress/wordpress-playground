@@ -5,7 +5,12 @@
 export function getOpfsSyncProgressPercent(
 	progress: { files: number; total: number } | undefined | null
 ): number {
-	if (!progress || progress.total <= 0) {
+	if (
+		!progress ||
+		!Number.isFinite(progress.files) ||
+		!Number.isFinite(progress.total) ||
+		progress.total <= 0
+	) {
 		return 0;
 	}
 	return Math.max(

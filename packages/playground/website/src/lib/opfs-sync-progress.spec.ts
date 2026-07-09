@@ -6,6 +6,18 @@ describe('getOpfsSyncProgressPercent', () => {
 		expect(getOpfsSyncProgressPercent(undefined)).toBe(0);
 		expect(getOpfsSyncProgressPercent({ files: 10, total: 0 })).toBe(0);
 		expect(getOpfsSyncProgressPercent({ files: 10, total: -1 })).toBe(0);
+		expect(
+			getOpfsSyncProgressPercent({ files: Number.NaN, total: 10 })
+		).toBe(0);
+		expect(
+			getOpfsSyncProgressPercent({ files: 10, total: Number.NaN })
+		).toBe(0);
+		expect(
+			getOpfsSyncProgressPercent({
+				files: Number.POSITIVE_INFINITY,
+				total: 10,
+			})
+		).toBe(0);
 	});
 
 	it('rounds progress and clamps it into the visible progressbar range', () => {
