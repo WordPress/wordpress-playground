@@ -33,7 +33,7 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	rewriteUrls?: boolean;
 	/**
-	 * Explicit URL replacements to apply to imported WXR data.
+	 * Explicit URL replacements to apply when URL rewriting is enabled.
 	 */
 	urlMapping?: Record<string, string>;
 	/**
@@ -191,9 +191,16 @@ async function importWithDefaultImporter(
 		(int) $fallback_author->ID
 	);
 
-	$url_mapping = json_decode(getenv('URL_MAPPING') ?: '{}', true);
+	$url_mapping_payload = getenv('URL_MAPPING') ?: '{}';
+	$url_mapping         = json_decode($url_mapping_payload, true);
 	if (!is_array($url_mapping)) {
-		throw new Exception('Invalid WXR URL mapping payload.');
+		throw new Exception(
+			sprintf(
+				'Invalid WXR URL mapping payload (%d bytes): %s.',
+				strlen($url_mapping_payload),
+				json_last_error_msg()
+			)
+		);
 	}
 	if (!empty($url_mapping) && getenv('REWRITE_URLS') === 'true') {
 		add_filter('wp_import_post_data_raw', function($post) use ($url_mapping) {
