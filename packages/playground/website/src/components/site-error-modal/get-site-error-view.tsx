@@ -118,28 +118,28 @@ function initialOpfsSyncInterruptedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Browser storage save was interrupted',
+		title: 'This Playground was not saved completely',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground started saving this site to browser storage, but
-					the file copy did not finish.
+					Playground started saving this site, but the save stopped
+					before all files were copied. Playground cannot safely
+					reopen this saved copy because some WordPress files may be
+					missing.
 				</p>
 				<ul className={css.errorList}>
 					<li>
 						This can happen if the tab was closed or reloaded before
-						the browser-storage save finished.
+						the save finished.
 					</li>
 					<li>
-						It can also happen if the browser interrupted storage,
-						for example because the tab was suspended or storage
-						quota was reached.
+						It can also happen if the browser suspended the page or
+						ran out of space for saved sites.
 					</li>
 					<li>
-						Playground did not try to repair the stored files
-						because the WordPress copy may be incomplete or
-						corrupted.
+						Click <strong>Start a new Playground</strong> to
+						continue with a fresh site.
 					</li>
 				</ul>
 			</>
@@ -150,7 +150,7 @@ function initialOpfsSyncInterruptedView({
 				key="reload-tab"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Reload Fresh Playground
+				Start a new Playground
 			</Button>,
 		],
 	};

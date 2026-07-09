@@ -26,16 +26,22 @@ describe('getSiteErrorView', () => {
 		expect(renderToStaticMarkup(view.body)).toContain(url);
 	});
 
-	it('uses generic browser-storage wording for interrupted initial OPFS syncs', () => {
+	it('explains interrupted initial saves without storage jargon', () => {
 		const view = getSiteErrorView({
 			error: 'initial-opfs-sync-interrupted',
 			site: createSite(),
 			helpers,
 		});
 
-		expect(view.title).toBe('Browser storage save was interrupted');
+		expect(view.title).toBe('This Playground was not saved completely');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'the browser-storage save finished'
+			'before all files were copied'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'Start a new Playground'
+		);
+		expect(renderToStaticMarkup(view.actions[0])).toContain(
+			'Start a new Playground'
 		);
 	});
 
