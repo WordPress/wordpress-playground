@@ -741,6 +741,24 @@
 							"description": "The fallback local user for imported authors that cannot be mapped.",
 							"default": "admin"
 						},
+						"authorsMode": {
+							"type": "string",
+							"enum": ["create", "default-author", "map"],
+							"description": "How to assign imported WXR authors to local WordPress users.",
+							"default": "default-author"
+						},
+						"authorsMap": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Remote WXR author usernames keyed to existing local usernames."
+						},
+						"importUsers": {
+							"type": "boolean",
+							"description": "Whether to create local users for imported WXR authors.",
+							"default": false
+						},
 						"importer": {
 							"type": "string",
 							"enum": ["data-liberation", "default"],

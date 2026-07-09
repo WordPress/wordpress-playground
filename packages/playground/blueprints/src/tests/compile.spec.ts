@@ -679,6 +679,8 @@ describe('compileBlueprintForExecution', () => {
 				fetchAttachments: false,
 				rewriteUrls: false,
 				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
 				defaultAuthorUsername: 'editor',
 			},
 			{
@@ -691,13 +693,15 @@ describe('compileBlueprintForExecution', () => {
 				fetchAttachments: false,
 				rewriteUrls: false,
 				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
 				defaultAuthorUsername: 'editor',
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('keeps WXR content with unsupported author behavior in the unsupported plan', async () => {
+	it('lowers Blueprint v2 WXR author maps to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
 			content: [
@@ -716,21 +720,35 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([]);
-		expect(
-			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importContent']);
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'bundled',
+					path: 'content.wxr',
+				},
+				fetchAttachments: true,
+				rewriteUrls: true,
+				importComments: false,
+				authorsMode: 'map',
+				importUsers: false,
+				authorsMap: {
+					remote: 'admin',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('keeps WXR content with unsupported importer behavior in the unsupported plan', async () => {
+	it('lowers Blueprint v2 WXR user import options to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
 			content: [
 				{
 					type: 'wxr',
 					source: './content.wxr',
-					authorsMode: 'default-author',
-					importUsers: false,
+					authorsMode: 'create',
+					importUsers: true,
 				},
 			],
 		});
@@ -739,10 +757,21 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([]);
-		expect(
-			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importContent']);
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'bundled',
+					path: 'content.wxr',
+				},
+				fetchAttachments: true,
+				rewriteUrls: true,
+				importComments: false,
+				authorsMode: 'create',
+				importUsers: true,
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
 	it('lowers Blueprint v2 importContent steps through content lowering', async () => {
@@ -787,6 +816,8 @@ describe('compileBlueprintForExecution', () => {
 				fetchAttachments: true,
 				rewriteUrls: true,
 				importComments: false,
+				authorsMode: 'default-author',
+				importUsers: false,
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
@@ -1344,7 +1375,9 @@ describe('compileBlueprintForExecution', () => {
 					type: 'wxr',
 					source: './content.wxr',
 					authorsMode: 'default-author',
-					importUsers: false,
+					urlsMap: {
+						'https://example.com': 'https://mapped.example',
+					},
 				},
 			],
 			additionalStepsAfterExecution: [
