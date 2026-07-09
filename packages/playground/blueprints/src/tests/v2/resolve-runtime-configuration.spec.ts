@@ -10,7 +10,7 @@ describe('Blueprint v2 runtime configuration', () => {
 		phpVersion: RecommendedPHPVersion,
 		wpVersion: 'latest',
 		intl: false,
-		networking: true,
+		networking: false,
 		constants: {},
 		extraLibraries: [],
 	};
@@ -63,7 +63,7 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
-	it('uses the default networking value when network access is omitted', async () => {
+	it('disables networking by default when network access is omitted', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
 				version: 2,
@@ -72,7 +72,7 @@ describe('Blueprint v2 runtime configuration', () => {
 				},
 			})
 		).resolves.toMatchObject({
-			networking: true,
+			networking: false,
 		});
 	});
 
