@@ -696,7 +696,8 @@ describe('Blueprint step importWxr', () => {
 						createAuthorWxr(
 							'remote_author',
 							'Mapped Author Post',
-							'mapped-author-post'
+							'mapped-author-post',
+							501
 						),
 					],
 					'import.wxr'
@@ -733,7 +734,8 @@ describe('Blueprint step importWxr', () => {
 						createAuthorWxr(
 							'remote_author',
 							'Created Author Post',
-							'created-author-post'
+							'created-author-post',
+							502
 						),
 					],
 					'import.wxr'
@@ -793,7 +795,8 @@ describe('Blueprint step importWxr', () => {
 function createAuthorWxr(
 	authorLogin: string,
 	postTitle: string,
-	postSlug: string
+	postSlug: string,
+	importId: number
 ) {
 	return `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0"
@@ -809,7 +812,7 @@ function createAuthorWxr(
 	<wp:base_site_url>https://example.com</wp:base_site_url>
 	<wp:base_blog_url>https://example.com</wp:base_blog_url>
 	<wp:author>
-		<wp:author_id>5</wp:author_id>
+		<wp:author_id>${importId}</wp:author_id>
 		<wp:author_login><![CDATA[${authorLogin}]]></wp:author_login>
 		<wp:author_email><![CDATA[${authorLogin}@example.com]]></wp:author_email>
 		<wp:author_display_name><![CDATA[${authorLogin}]]></wp:author_display_name>
@@ -821,11 +824,11 @@ function createAuthorWxr(
 		<link>https://example.com/${postSlug}/</link>
 		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
 		<dc:creator><![CDATA[${authorLogin}]]></dc:creator>
-		<guid isPermaLink="false">https://example.com/?p=5</guid>
+		<guid isPermaLink="false">https://example.com/?p=${importId}</guid>
 		<description></description>
 		<content:encoded><![CDATA[<p>Imported author post</p>]]></content:encoded>
 		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
-		<wp:post_id>5</wp:post_id>
+		<wp:post_id>${importId}</wp:post_id>
 		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
 		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
 		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>

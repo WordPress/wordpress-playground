@@ -225,7 +225,7 @@ async function importWithDefaultImporter(
 		$user_map         = array();
 		$user_new         = array();
 
-		foreach (array_values($authors) as $index => $author) {
+		foreach ($authors as $index => $author) {
 			$remote_username = $author['author_login'] ?? '';
 			if (!is_string($remote_username) || $remote_username === '') {
 				continue;
@@ -264,8 +264,8 @@ async function importWithDefaultImporter(
 	/**
 	 * Finds the local user ID for an explicit WXR author map entry.
 	 */
-	function blueprint_wxr_author_id_for_username($local_username, string $remote_username): int {
-		if (!is_string($local_username) || $local_username === '') {
+	function blueprint_wxr_author_id_for_username(string $local_username, string $remote_username): int {
+		if ($local_username === '') {
 			throw new Exception(
 				sprintf('Invalid local user mapping for WXR author "%s".', $remote_username)
 			);
