@@ -8,7 +8,15 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { readFile } from 'fs/promises';
-import { describe, beforeAll, beforeEach, afterEach, expect, it } from 'vitest';
+import {
+	describe,
+	beforeAll,
+	beforeEach,
+	afterEach,
+	expect,
+	it,
+	vi,
+} from 'vitest';
 import { compileBlueprintForExecution } from '../../lib/compile';
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
@@ -40,6 +48,171 @@ describe('Blueprint v2 runtime smoke tests', () => {
 	afterEach(async () => {
 		php.exit();
 		await handler[Symbol.asyncDispose]();
+	});
+
+	it('applies site configuration options', async () => {
+		const originalFetch = global.fetch;
+		const goTo = vi.fn();
+		const emptyZip = new Uint8Array([
+			0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0,
+		]);
+		(php as any).pathToInternalUrl = async (path: string) =>
+			`http://playground-domain${path}`;
+		(php as any).goTo = goTo;
+		global.fetch = vi.fn(async (input) => {
+			const url = String(input);
+			if (url.includes('/translations/core/1.0/')) {
+				return {
+					json: async () => ({
+						translations: [
+							{
+								language: 'es_ES',
+								package: 'https://example.com/es_ES.zip',
+							},
+						],
+					}),
+				} as Response;
+			}
+			return {
+				ok: true,
+				arrayBuffer: async () => emptyZip.buffer,
+			} as Response;
+		});
+
+		try {
+			await applyBlueprint({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						landingPage: '/wp-admin/edit.php',
+						login: true,
+					},
+				},
+				constants: {
+					WP_DEBUG: true,
+				},
+				siteOptions: {
+					blogname: 'V2 Runtime Site',
+					timezone_string: 'Europe/Warsaw',
+				},
+				siteLanguage: 'es_ES',
+			});
+		} finally {
+			global.fetch = originalFetch;
+		}
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'wp_debug' => defined('WP_DEBUG') ? WP_DEBUG : null,
+					'auto_login_user' => defined('PLAYGROUND_AUTO_LOGIN_AS_USER') ? PLAYGROUND_AUTO_LOGIN_AS_USER : null,
+					'blogname' => get_option('blogname'),
+					'timezone' => get_option('timezone_string'),
+					'language' => get_option('WPLANG'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			wp_debug: true,
+			auto_login_user: 'admin',
+			blogname: 'V2 Runtime Site',
+			timezone: 'Europe/Warsaw',
+			language: 'es_ES',
+		});
+		expect(goTo).toHaveBeenCalledWith(
+			'/index.php?playground-redirection-handler&next=' +
+				encodeURIComponent('http://playground-domain/wp-admin/edit.php')
+		);
+	});
+
+	it('installs plugins and themes with their v2 activation state', async () => {
+		await applyBlueprint({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'v2-active-plugin',
+						files: {
+							'index.php': `<?php
+								/**
+								 * Plugin Name: V2 Active Plugin
+								 */
+								register_activation_hook(__FILE__, function () {
+									update_option('v2_active_plugin_activated', 'yes');
+								});
+							`,
+						},
+					},
+				},
+				{
+					source: {
+						directoryName: 'v2-inactive-plugin',
+						files: {
+							'index.php': `<?php
+								/**
+								 * Plugin Name: V2 Inactive Plugin
+								 */
+								register_activation_hook(__FILE__, function () {
+									update_option('v2_inactive_plugin_activated', 'yes');
+								});
+							`,
+						},
+					},
+					active: false,
+				},
+			],
+			themes: [
+				{
+					source: {
+						directoryName: 'v2-inactive-theme',
+						files: {
+							'style.css': `/*
+								Theme Name: V2 Inactive Theme
+							*/`,
+							'index.php': '<?php',
+						},
+					},
+				},
+			],
+			activeTheme: {
+				source: {
+					directoryName: 'v2-active-theme',
+					files: {
+						'style.css': `/*
+							Theme Name: V2 Active Theme
+						*/`,
+						'index.php': '<?php',
+					},
+				},
+			},
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+				echo json_encode([
+					'active_plugin_active' => is_plugin_active('v2-active-plugin/index.php'),
+					'inactive_plugin_active' => is_plugin_active('v2-inactive-plugin/index.php'),
+					'active_plugin_activated' => get_option('v2_active_plugin_activated'),
+					'inactive_plugin_activated' => get_option('v2_inactive_plugin_activated', 'no'),
+					'inactive_theme_exists' => wp_get_theme('v2-inactive-theme')->exists(),
+					'active_theme_stylesheet' => get_stylesheet(),
+					'active_theme_name' => wp_get_theme()->get('Name'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			active_plugin_active: true,
+			inactive_plugin_active: false,
+			active_plugin_activated: 'yes',
+			inactive_plugin_activated: 'no',
+			inactive_theme_exists: true,
+			active_theme_stylesheet: 'v2-active-theme',
+			active_theme_name: 'V2 Active Theme',
+		});
 	});
 
 	it('creates roles and users', async () => {
@@ -199,6 +372,46 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		expect(result).toEqual({
 			exists: true,
 			label: 'Movies',
+		});
+	});
+
+	it('registers post types from bundled support files', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				postTypes: {
+					event: './post-types/event.json',
+				},
+			}),
+			'post-types': {
+				'event.json': JSON.stringify({
+					label: 'Events',
+					public: true,
+					show_in_rest: true,
+					supports: ['title', 'editor'],
+				}),
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				$post_type = get_post_type_object('event');
+				echo json_encode([
+					'exists' => post_type_exists('event'),
+					'label' => $post_type ? $post_type->label : null,
+					'show_in_rest' => $post_type ? $post_type->show_in_rest : null,
+					'supports_editor' => post_type_supports('event', 'editor'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			exists: true,
+			label: 'Events',
+			show_in_rest: true,
+			supports_editor: true,
 		});
 	});
 
