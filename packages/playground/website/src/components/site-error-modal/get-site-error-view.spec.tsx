@@ -5,6 +5,7 @@ import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 
 const helpers = {
 	deleteSite: () => {},
+	reloadPage: () => {},
 	restartWithoutPr: () => {},
 	reloadWithoutBlueprint: () => {},
 };
@@ -45,13 +46,14 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe('Browser storage cleanup failed');
+		expect(view.title).toBe('Could not reopen this saved Playground');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'delete old WordPress files'
+			'an earlier reset of this saved site was interrupted'
 		);
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'files from the previous autosave'
+			'Click <strong>Try again</strong>'
 		);
+		expect(renderToStaticMarkup(view.actions[0])).toContain('Try again');
 	});
 
 	it('says when the entire Blueprint could not be downloaded', () => {

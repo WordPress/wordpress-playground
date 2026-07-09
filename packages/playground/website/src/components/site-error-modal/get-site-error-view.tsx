@@ -59,7 +59,7 @@ export function getSiteErrorView(
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
 		case 'browser-storage-cleanup-failed':
-			return browserStorageCleanupFailedView();
+			return browserStorageCleanupFailedView(context);
 		case 'initial-opfs-sync-interrupted':
 			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
@@ -72,33 +72,45 @@ export function getSiteErrorView(
 	}
 }
 
-function browserStorageCleanupFailedView(): SiteErrorViewConfig {
+function browserStorageCleanupFailedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Browser storage cleanup failed',
+		title: 'Could not reopen this saved Playground',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground needs to delete old WordPress files before it
-					opens this saved site, but the browser did not finish that
-					cleanup.
+					Playground found that an earlier reset of this saved site
+					was interrupted. It tried to finish cleaning up the old site
+					files before reopening it, but the browser could not remove
+					those files.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						The saved site metadata says a reset was interrupted.
+						Playground stopped here so it would not accidentally
+						open the old site with the new settings.
 					</li>
 					<li>
-						Playground stopped before booting so it would not open
-						files from the previous autosave under the new setup.
+						Click <strong>Try again</strong> to reload Playground
+						and retry the cleanup.
 					</li>
 					<li>
-						Reloading can try the cleanup again if the browser
-						storage problem was temporary.
+						If this keeps happening, close other Playground tabs and
+						make sure your browser has free storage, then try again.
 					</li>
 				</ul>
 			</>
 		),
-		actions: [],
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-page"
+				onClick={helpers.reloadPage}
+			>
+				Try again
+			</Button>,
+		],
 	};
 }
 
