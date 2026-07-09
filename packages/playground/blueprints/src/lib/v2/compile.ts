@@ -557,14 +557,15 @@ function lowerBlueprintV2WxrContent(
 	content: BlueprintV2WxrContent,
 	featurePath: string
 ): StepDefinition[] | undefined {
-	if (
-		content.urlsMap ||
-		content.importUsers !== undefined ||
-		content.authorsMode !== 'default-author' ||
-		content.authorsMap
-	) {
+	if (content.urlsMap) {
 		return undefined;
 	}
+
+	const authorsMode =
+		content.authorsMode ??
+		(content.importUsers ? 'create' : 'default-author');
+	const importUsers =
+		content.importUsers ?? (authorsMode === 'create' ? true : false);
 
 	return asArray(content.source).map((source, index) => {
 		const step: StepDefinition = {
@@ -576,7 +577,12 @@ function lowerBlueprintV2WxrContent(
 			fetchAttachments: content.staticAssets !== 'hotlink',
 			rewriteUrls: content.urlsMode !== 'preserve',
 			importComments: content.importComments ?? false,
+			authorsMode,
+			importUsers,
 		};
+		if (content.authorsMap !== undefined) {
+			step.authorsMap = content.authorsMap;
+		}
 		if (content.defaultAuthorUsername !== undefined) {
 			step.defaultAuthorUsername = content.defaultAuthorUsername;
 		}

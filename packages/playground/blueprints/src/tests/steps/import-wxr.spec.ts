@@ -672,6 +672,100 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should map imported authors to configured local users',
+		async () => {
+			await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$user_id = wp_create_user(
+				'wxr_mapped_author',
+				'password',
+				'wxr_mapped_author@example.com'
+			);
+			$user = new WP_User($user_id);
+			$user->set_role('author');
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Mapped Author Post',
+							'mapped-author-post'
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'map',
+				authorsMap: {
+					remote_author: 'wxr_mapped_author',
+				},
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post = get_page_by_path('mapped-author-post', OBJECT, 'post');
+			$author = $post ? get_user_by('ID', $post->post_author) : null;
+			echo json_encode($author ? $author->user_login : null);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toBe('wxr_mapped_author');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should create users for imported authors when requested',
+		async () => {
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Created Author Post',
+							'created-author-post'
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'create',
+				importUsers: true,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post = get_page_by_path('created-author-post', OBJECT, 'post');
+			$author = $post ? get_user_by('ID', $post->post_author) : null;
+			echo json_encode([
+				'user_exists' => (bool) get_user_by('login', 'remote_author'),
+				'post_author' => $author ? $author->user_login : null,
+			]);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toEqual({
+				user_exists: true,
+				post_author: 'remote_author',
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should fail when the configured default author does not exist',
 		async () => {
 			const fileData = await readFile(
@@ -692,3 +786,60 @@ describe('Blueprint step importWxr', () => {
 		{ timeout: 30_000 }
 	);
 });
+
+/**
+ * Creates a minimal WXR file with one author and one post.
+ */
+function createAuthorWxr(
+	authorLogin: string,
+	postTitle: string,
+	postSlug: string
+) {
+	return `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Author import</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	<wp:author>
+		<wp:author_id>5</wp:author_id>
+		<wp:author_login><![CDATA[${authorLogin}]]></wp:author_login>
+		<wp:author_email><![CDATA[${authorLogin}@example.com]]></wp:author_email>
+		<wp:author_display_name><![CDATA[${authorLogin}]]></wp:author_display_name>
+		<wp:author_first_name><![CDATA[]]></wp:author_first_name>
+		<wp:author_last_name><![CDATA[]]></wp:author_last_name>
+	</wp:author>
+	<item>
+		<title><![CDATA[${postTitle}]]></title>
+		<link>https://example.com/${postSlug}/</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[${authorLogin}]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=5</guid>
+		<description></description>
+		<content:encoded><![CDATA[<p>Imported author post</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>5</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[${postSlug}]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+</channel>
+</rss>`;
+}
