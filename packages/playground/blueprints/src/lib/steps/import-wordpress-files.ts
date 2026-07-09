@@ -59,6 +59,8 @@ export const importWordPressFiles: StepHandler<
 		extractToPath: importPath,
 	});
 	importPath = joinPaths(importPath, pathInZip);
+	importPath =
+		(await findWordPressFilesRoot(playground, importPath)) || importPath;
 
 	// Read the export manifest if it exists. The manifest contains the
 	// site URL (including scope) at export time, which we'll use later
@@ -290,6 +292,60 @@ async function inferSiteUrlFromDatabase(
 	});
 	const siteUrl = result.text.trim();
 	return siteUrl || null;
+}
+
+const WORDPRESS_ROOT_MARKERS = [
+	'wp-content',
+	'wp-admin',
+	'wp-includes',
+	'wp-config.php',
+	'wp-config-sample.php',
+];
+
+/**
+ * Finds the directory containing the WordPress files in an extracted archive.
+ *
+ * Some ZIP tools wrap the selected files in a single parent directory. Without
+ * unwrapping that directory, importWordPressFiles() reports success but moves
+ * the wrapper into WordPress, leaving the live wp-content unchanged.
+ *
+ * wp-content is not required here. importWordPressFiles() can also replace
+ * other top-level WordPress files such as wp-admin, wp-includes, or
+ * wp-config.php.
+ */
+async function findWordPressFilesRoot(
+	playground: UniversalPHP,
+	importPath: string
+): Promise<string | null> {
+	if (await hasWordPressRootMarker(playground, importPath)) {
+		return importPath;
+	}
+
+	const fileNames = (await playground.listFiles(importPath)).filter(
+		(fileName) => fileName !== '__MACOSX' && fileName !== '.DS_Store'
+	);
+	if (fileNames.length !== 1) {
+		return null;
+	}
+
+	const nestedPath = joinPaths(importPath, fileNames[0]);
+	if (!(await playground.isDir(nestedPath))) {
+		return null;
+	}
+
+	return await findWordPressFilesRoot(playground, nestedPath);
+}
+
+async function hasWordPressRootMarker(
+	playground: UniversalPHP,
+	path: string
+): Promise<boolean> {
+	for (const marker of WORDPRESS_ROOT_MARKERS) {
+		if (await playground.fileExists(joinPaths(path, marker))) {
+			return true;
+		}
+	}
+	return false;
 }
 
 async function removePath(playground: UniversalPHP, path: string) {

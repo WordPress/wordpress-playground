@@ -184,6 +184,83 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
+	it('should import WordPress files from a single wrapping directory', async () => {
+		const zipPath = '/tmp/nested-wordpress-files.zip';
+		const pluginPath =
+			'playground-export/wp-content/plugins/nested-plugin/nested-plugin.php';
+		const themePath =
+			'playground-export/wp-content/themes/nested-theme/style.css';
+
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE);
+			$zip->addFromString(${phpVar(pluginPath)}, ${phpVar('<?php /* Plugin Name: Nested Plugin */')});
+			$zip->addFromString(${phpVar(themePath)}, ${phpVar('/* Theme Name: Nested Theme */')});
+			$zip->addFromString('__MACOSX/._ignored', '');
+			$zip->close();
+			`,
+		});
+
+		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		const zipFile = new File([zipBuffer], 'nested-wordpress-files.zip');
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: zipFile,
+		});
+
+		const documentRoot = await targetPHP.documentRoot;
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/wp-content/plugins/nested-plugin/nested-plugin.php`
+			)
+		).toBe(true);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/wp-content/themes/nested-theme/style.css`
+			)
+		).toBe(true);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/playground-export/wp-content/plugins/nested-plugin/nested-plugin.php`
+			)
+		).toBe(false);
+	});
+
+	it('should unwrap WordPress file archives without wp-content', async () => {
+		const zipPath = '/tmp/nested-wordpress-config.zip';
+		const configSamplePath = 'playground-export/wp-config-sample.php';
+		const configSampleContents = '<?php /* Nested config sample */';
+
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE);
+			$zip->addFromString(${phpVar(configSamplePath)}, ${phpVar(configSampleContents)});
+			$zip->close();
+			`,
+		});
+
+		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		const zipFile = new File([zipBuffer], 'nested-wordpress-config.zip');
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: zipFile,
+		});
+
+		const documentRoot = await targetPHP.documentRoot;
+		expect(
+			await targetPHP.readFileAsText(
+				`${documentRoot}/wp-config-sample.php`
+			)
+		).toBe(configSampleContents);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/playground-export/wp-config-sample.php`
+			)
+		).toBe(false);
+	});
+
 	it('should infer scope from database when manifest is missing and still replace URLs', async () => {
 		// Create a post with an image URL containing the source scope
 		const sourceUrl = sourcePHP.absoluteUrl;
