@@ -3,7 +3,8 @@
  * but we have encountered V8 crashes with both Vitest and the Node.js test runner
  * when calling Playgroun CLI's runCLI() function multiple times.
  *
- * So here is a manual test runner that spawns a new node test process for each PHP version.
+ * So here is a manual test runner that spawns a new node test process
+ * for each PHP version and spec file.
  *
  * !! If we can manage to call runCLI() twice in a row in a process,
  * we might be able to return to using Vitest. 🙏
@@ -25,8 +26,10 @@ type Result = {
 };
 
 const results: Result[] = [];
+// CLI specs boot WordPress. Keep the per-file timeout above the
+// individual test timeout so slower PHP versions can finish.
 const timeoutMs = Number.parseInt(
-	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
 	10
 );
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -35,55 +38,64 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 	);
 }
 
+const testFiles = [
+	'./tests/deps.spec.ts',
+	'./tests/wp.spec.ts',
+	'./tests/git-directory.spec.ts',
+	'./tests/assets.spec.ts',
+];
+
 for (const phpVersion of SupportedPHPVersions) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
-	const child = spawn(
-		process.execPath,
-		[
-			'--experimental-strip-types',
-			'--experimental-transform-types',
-			'--test',
-			'--test-concurrency=1',
-			'./tests/wp.spec.ts',
-		],
-		{
-			env: {
-				...process.env,
-				PHP_VERSION: phpVersion,
-			},
-			stdio: 'inherit',
-		}
-	);
+	for (const file of testFiles) {
+		const child = spawn(
+			process.execPath,
+			[
+				'--experimental-strip-types',
+				'--experimental-transform-types',
+				'--test',
+				'--test-concurrency=1',
+				file,
+			],
+			{
+				env: {
+					...process.env,
+					PHP_VERSION: phpVersion,
+				},
+				stdio: 'inherit',
+			}
+		);
 
-	let timeoutHandle: NodeJS.Timeout | undefined;
-	const promiseToClose = new Promise<number | null>((resolve) => {
-		child.on('close', (code) => resolve(code));
-	});
-	const promiseToTimeout = new Promise<never>((_, reject) => {
-		timeoutHandle = setTimeout(() => {
-			reject(new Error(`Test timed out after ${timeoutMs}ms`));
-		}, timeoutMs);
-	});
+		let timeoutHandle: NodeJS.Timeout | undefined;
+		const promiseToClose = new Promise<number | null>((resolve) => {
+			child.on('close', (code) => resolve(code));
+		});
+		const promiseToTimeout = new Promise<never>((_, reject) => {
+			timeoutHandle = setTimeout(() => {
+				reject(new Error(`Test timed out after ${timeoutMs}ms`));
+			}, timeoutMs);
+		});
 
-	try {
-		const code = await Promise.race([promiseToClose, promiseToTimeout]);
-		results.push({
-			phpVersion,
-			code,
-		});
-	} catch (e) {
-		console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
-		results.push({
-			phpVersion,
-			code: null,
-			timeout: true,
-		});
-		child.kill('SIGKILL');
-		await promiseToClose;
-	} finally {
-		if (timeoutHandle) {
-			clearTimeout(timeoutHandle);
+		try {
+			const code = await Promise.race([promiseToClose, promiseToTimeout]);
+			results.push({
+				phpVersion,
+				code,
+			});
+		} catch (e) {
+			console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
+			results.push({
+				phpVersion,
+				code: null,
+				timeout: true,
+			});
+			child.kill('SIGKILL');
+			await promiseToClose;
+		} finally {
+			if (timeoutHandle) {
+				clearTimeout(timeoutHandle);
+			}
 		}
 	}
 }

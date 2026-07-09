@@ -57,8 +57,20 @@
 							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
-							"type": "string",
-							"description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "string",
+									"const": "latest"
+								},
+								{
+									"type": "boolean",
+									"const": false
+								}
+							],
+							"description": "The preferred WordPress version to use, or `false` to boot a PHP-only Playground without downloading or installing WordPress. If not specified, the latest supported version will be used.\n\nWhen set to `false`, WordPress-specific Blueprint fields (`plugins`, `siteOptions`, `login`, and WordPress-only steps) are rejected at compile time."
 						}
 					},
 					"required": ["php", "wp"],
@@ -191,12 +203,19 @@
 		"AllPHPVersion": {
 			"anyOf": [
 				{
+					"$ref": "#/definitions/PHPNextVersion"
+				},
+				{
 					"$ref": "#/definitions/SupportedPHPVersion"
 				},
 				{
 					"$ref": "#/definitions/LegacyPHPVersion"
 				}
 			]
+		},
+		"PHPNextVersion": {
+			"type": "string",
+			"const": "next"
 		},
 		"SupportedPHPVersion": {
 			"type": "string",
@@ -701,6 +720,51 @@
 						"file": {
 							"$ref": "#/definitions/FileReference",
 							"description": "The file to import"
+						},
+						"fetchAttachments": {
+							"type": "boolean",
+							"description": "Whether to fetch and import attachment files referenced by the WXR file.",
+							"default": true
+						},
+						"rewriteUrls": {
+							"type": "boolean",
+							"description": "Whether to rewrite imported URLs to the current site URL.",
+							"default": true
+						},
+						"urlMapping": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Explicit URL replacements to apply when URL rewriting is enabled."
+						},
+						"importComments": {
+							"type": "boolean",
+							"description": "Whether to import comments from the WXR file.",
+							"default": true
+						},
+						"defaultAuthorUsername": {
+							"type": "string",
+							"description": "The fallback local user for imported authors that cannot be mapped.",
+							"default": "admin"
+						},
+						"authorsMode": {
+							"type": "string",
+							"enum": ["create", "default-author", "map"],
+							"description": "How to assign imported WXR authors to local WordPress users.",
+							"default": "default-author"
+						},
+						"authorsMap": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string"
+							},
+							"description": "Remote WXR author usernames keyed to existing local usernames."
+						},
+						"importUsers": {
+							"type": "boolean",
+							"description": "Whether to create local users for imported WXR authors.",
+							"default": false
 						},
 						"importer": {
 							"type": "string",
@@ -1467,9 +1531,23 @@
 					"type": "boolean",
 					"description": "Whether to activate the plugin after installing it."
 				},
+				"activationOptions": {
+					"type": "object",
+					"additionalProperties": {},
+					"description": "Parameters to expose to the plugin during its activation hook."
+				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-plugin", "throw"],
+					"description": "Whether installation/activation failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the plugin to. Defaults to guessing from pluginData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable plugin name for progress captions and skip warnings."
 				}
 			},
 			"additionalProperties": false
@@ -1485,9 +1563,18 @@
 					"type": "boolean",
 					"description": "Whether to import the theme's starter content after installing it."
 				},
+				"onError": {
+					"type": "string",
+					"enum": ["skip-theme", "throw"],
+					"description": "Whether installation, activation, or starter-content failures should abort the Blueprint."
+				},
 				"targetFolderName": {
 					"type": "string",
 					"description": "The name of the folder to install the theme to. Defaults to guessing from themeData"
+				},
+				"humanReadableName": {
+					"type": "string",
+					"description": "Human-readable theme name for the progress caption and skip warning."
 				}
 			},
 			"additionalProperties": false

@@ -25,6 +25,19 @@ This is an NX monorepo with npm workspaces. All commands use NX for task orchest
 
 **Node.js version**: This project requires a specific Node.js version (defined in `.nvmrc` and the `engines` field in root `package.json`). Before running any commands, ensure the correct version is active (e.g., via `nvm use` or other version manager).
 
+### Initial Setup
+
+From a fresh clone or new worktree, set up the repository before running builds,
+tests, or dev servers:
+
+```bash
+nvm use
+npm ci
+```
+
+This is especially important for worktree-based agent tools, which may create a
+working tree without installing dependencies.
+
 ### Common Commands
 
 ```bash
@@ -55,6 +68,8 @@ npm run format:uncommitted               # Format only uncommitted files
 # PHP Recompilation (see compile-php-wasm skill for details)
 npm run recompile:php:web                # Recompile all PHP versions for web
 npm run recompile:php:node               # Recompile all PHP versions for Node.js
+npm run recompile:php:web:next         # Recompile PHP next web binaries
+npm run sync:php-next                  # Fetch gitignored PHP next assets for local dev
 
 # WordPress Builds
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
@@ -152,7 +167,21 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
 - **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
 - **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
-- **Path manipulation**: Never use ad-hoc string operations for file paths. Use the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`, `basename`, `normalizePath`, etc.) instead of Node.js `path` (which can produce Windows-style paths). If the package you're modifying has its own `paths.ts`, prefer that; otherwise import from `@php-wasm/util`. New path helpers should be co-located with the existing `paths.ts` in the relevant package, with tests.
+- **Path manipulation**: Never use ad-hoc string operations for file paths. Use
+  the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
+  `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
+  instead of Node.js `path` (which can produce Windows-style paths). If the
+  package you're modifying has its own `paths.ts`, prefer that; otherwise
+  import from `@php-wasm/util`. Do not invent regex/string-splitting path
+  normalization, prefix stripping, traversal checks, or separator rewriting
+  when an existing path utility applies. Preserve valid path bytes such as
+  backslashes unless an existing native-path conversion helper explicitly calls
+  for changing them. New path helpers should be co-located with the existing
+  `paths.ts` in the relevant package, with tests.
+- **Review feedback pattern**: When feedback points out invented regexes,
+  duplicate helpers, speculative wrappers, or byte-changing normalization,
+  treat that as a signal to simplify the model and use existing utilities
+  instead of defending the new abstraction.
 
 ### Testing
 
@@ -229,8 +258,7 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 
 - **Default branch**: `trunk` is the primary development branch
 - **Never use bare `git push`**: Always specify remote and branch explicitly
-- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1 --recurse-submodules`
-- **Submodules**: isomorphic-git submodule provides browser-based git operations
+- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1`
 
 ### Working with PHP Binaries
 
@@ -262,7 +290,6 @@ Located in `packages/nx-extensions/src/executors/`:
 - `packages/playground/cli/`: CLI tool implementation
 - `packages/docs/`: Docusaurus documentation site
 - `packages/meta/`: Internal tooling (ESLint plugin, changelog)
-- `isomorphic-git/`: Git operations in browser (submodule)
 
 ## Documentation
 

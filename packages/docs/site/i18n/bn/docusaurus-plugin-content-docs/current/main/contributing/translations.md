@@ -17,14 +17,18 @@ Help make WordPress Playground accessible to a global audience by translating it
 ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ডকুমেন্টেশন অনুবাদ করে বিশ্বব্যাপী দর্শকদের কাছে এটি সহজলভ্য করতে সাহায্য করুন। এই গাইড শুরু করার জন্য আপনার প্রয়োজনীয় সবকিছু প্রদান করে। অনুবাদ কন্ট্রিবিউশন অন্য যেকোনো ডকুমেন্টেশন পরিবর্তনের মতো একই ওয়ার্কফ্লো অনুসরণ করে। আপনি হয় [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) রিপোজিটরি ফর্ক করে আপনার পরিবর্তন সহ একটি পুল রিকোয়েস্ট (PR) তৈরি করতে পারেন অথবা গিটহাব UI ব্যবহার করে সরাসরি পেজ এডিট করতে পারেন।
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
+
 কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের [ডকুমেন্টেশন কন্ট্রিবিউশন গাইড](/contributing/documentation#how-can-i-contribute) দেখুন
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -39,14 +43,18 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 প্লেগ্রাউন্ডের ডকুমেন্টেশন সাইট Docusaurus দিয়ে তৈরি, যা ইন্টারন্যাশনালাইজেশন (i18n) ফিচার হ্যান্ডেল করে।
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
-:::
+
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
+
 Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের [ইন্টারন্যাশনালাইজেশন সেকশন](https://docusaurus.io/docs/i18n/introduction) দেখুন।
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -309,14 +317,18 @@ Follow these steps to translate a page:
 - `wordpress.slack.com`-এ `#playground` বা `#polyglots`-এ রিভিউ রিকোয়েস্ট করুন
 
 <!--
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
+
 আমরা অল্প সংখ্যক অনুবাদিত পেজ সহ পুল রিকোয়েস্ট জমা দেওয়ার জোর সুপারিশ করি। এই পদ্ধতি রিভিউ প্রক্রিয়া সহজ করে এবং আপনার কাজের আরো ধীরে ধীরে এবং ম্যানেজেবল ইন্টিগ্রেশনের সুযোগ দেয়।
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template
@@ -593,14 +605,18 @@ WordPress Playground é uma ferramenta online onde podes testar e aprender mais 
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
-:::
+
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
+
 এই অভ্যাসটি মেইনটেন্যান্স টিমকে পুরনো অনুবাদ চিহ্নিত করতেও সাহায্য করে। যখন মূল ইংরেজি কনটেন্ট আপডেট করা হয়, আমরা কোডবেসে পুরনো টেক্সট (এখন কমেন্টে) সার্চ করতে পারি এবং রিভিউয়ের জন্য সংশ্লিষ্ট অনুবাদ ফ্ল্যাগ করতে পারি।
-:::
+
+</div>
 
 <!--
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).

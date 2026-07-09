@@ -129,7 +129,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	 * a warning.
 	 */
 	protected __internal_getRequestHandler() {
-		return _private.get(this)!.requestHandler;
+		return this.getRequestHandler();
 	}
 
 	async setPrimaryPHP(php: PHP) {
@@ -141,14 +141,12 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
-		return _private.get(this)!.requestHandler!.pathToInternalUrl(path);
+		return this.getRequestHandler().pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
-		return _private
-			.get(this)!
-			.requestHandler!.internalUrlToPath(internalUrl);
+		return this.getRequestHandler().internalUrlToPath(internalUrl);
 	}
 
 	/**
@@ -174,7 +172,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.request */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		const requestHandler = _private.get(this)!.requestHandler!;
+		const requestHandler = this.getRequestHandler();
 		return await requestHandler.request(request);
 	}
 
@@ -189,12 +187,21 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	 * @param request - PHP Request data.
 	 */
 	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
-		const requestHandler = _private.get(this)!.requestHandler!;
+		const requestHandler = this.getRequestHandler();
 		return await requestHandler.requestStreamed(request);
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
+		const state = _private.get(this)!;
+		const primaryPhp = state.php;
+		if (
+			!state.requestHandler &&
+			!primaryPhp?.requestHandler &&
+			primaryPhp
+		) {
+			return await primaryPhp.run(request);
+		}
 		const { php, reap } = await this.acquirePHPInstance();
 		try {
 			return await php.run(request);
@@ -208,6 +215,15 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		argv: string[],
 		options?: { env?: Record<string, string> }
 	): Promise<StreamedPHPResponse> {
+		const state = _private.get(this)!;
+		const primaryPhp = state.php;
+		if (
+			!state.requestHandler &&
+			!primaryPhp?.requestHandler &&
+			primaryPhp
+		) {
+			return await primaryPhp.cli(argv, options);
+		}
 		const { php, reap } = await this.acquirePHPInstance();
 		let response: StreamedPHPResponse;
 		try {
@@ -244,9 +260,8 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	 * @returns A PHP instance with a consistent chroot.
 	 */
 	private async acquirePHPInstance() {
-		const { php, reap } = await _private
-			.get(this)!
-			.requestHandler!.instanceManager.acquirePHPInstance();
+		const { php, reap } =
+			await this.getRequestHandler().instanceManager.acquirePHPInstance();
 		if (this.chroot !== null) {
 			php.chdir(this.chroot);
 		}
@@ -373,6 +388,23 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	}
 
 	async [Symbol.asyncDispose]() {
-		await _private.get(this)!.requestHandler?.[Symbol.asyncDispose]();
+		await this.getRequestHandler(false)?.[Symbol.asyncDispose]();
+	}
+
+	protected getRequestHandler(required?: true): PHPRequestHandler;
+	protected getRequestHandler(required: false): PHPRequestHandler | undefined;
+	protected getRequestHandler(required = true) {
+		const state = _private.get(this)!;
+		if (state.requestHandler) {
+			return state.requestHandler;
+		}
+		if (state.php?.requestHandler) {
+			this.__internal_setRequestHandler(state.php.requestHandler);
+			return state.php.requestHandler;
+		}
+		if (!required) {
+			return undefined;
+		}
+		throw new Error('PHPWorker is not connected to a request handler.');
 	}
 }

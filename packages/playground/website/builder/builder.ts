@@ -5,6 +5,7 @@ import { startPlaygroundWeb } from '@wp-playground/client';
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { decodeBlueprintHash } from '../src/lib/state/url/decode-blueprint-hash';
 
 // Use parent dir of the /builder/ dir, reasoning that it is
 // the web app root. This works for:
@@ -572,7 +573,7 @@ const runBlueprint = async (editor) => {
 };
 
 const loadFromHash = (editor) => {
-	const hash = decodeURI(window.location.hash.substr(1));
+	const hash = decodeBlueprintHash(window.location.hash);
 	try {
 		let json = '';
 		try {

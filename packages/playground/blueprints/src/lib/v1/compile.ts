@@ -39,6 +39,7 @@ const keyedStepHandlers = {
 import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 
 export class InvalidBlueprintError extends Error {
 	public readonly validationErrors?: unknown;
@@ -141,7 +142,7 @@ export interface CompileBlueprintV1Options {
 
 export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
-	options: Omit<CompileBlueprintV1Options, 'streamBundledFile'> = {}
+	options: CompileBlueprintV1Options = {}
 ): Promise<CompiledBlueprintV1> {
 	const finalOptions: CompileBlueprintV1Options = {
 		...options,
@@ -207,6 +208,10 @@ function compileBlueprintJson(
 
 	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
 
+	if (blueprint.preferredVersions?.wp === false) {
+		assertNoWordPressFeatures(blueprint);
+	}
+
 	for (const step of blueprint.steps!) {
 		if (!step || typeof step !== 'object') {
 			continue;
@@ -255,14 +260,12 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (isGitRepoUrl(value)) {
+					if (seemsLikeGitRepoUrl(value)) {
 						return {
 							resource: 'zip',
 							inner: {
 								resource: 'git:directory',
-								url: value
-									.replace(/\.git\/?$/, '')
-									.replace(/\/$/, ''),
+								url: value.trim().replace(/\/+$/, ''),
 								ref: 'HEAD',
 							},
 						} as FileReference;
@@ -700,7 +703,8 @@ function compileStep<S extends StepDefinition>(
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight
+		(step.progress?.weight || 1) / totalProgressWeight,
+		step.progress?.caption
 	);
 
 	const args: any = {};
@@ -719,6 +723,9 @@ function compileStep<S extends StepDefinition>(
 
 	const run = async (playground: UniversalPHP) => {
 		try {
+			if (step.progress?.caption) {
+				stepProgress.setCaption(step.progress.caption);
+			}
 			stepProgress.fillSlowly();
 			return await keyedStepHandlers[step.step](
 				playground,
@@ -793,17 +800,51 @@ export async function runBlueprintV1Steps(
 	await compiledBlueprint.run(playground);
 }
 
-function isGitRepoUrl(url: string): boolean {
-	if (/^https:\/\/.+\.git\/?$/.test(url)) {
-		return true;
+/**
+ * Steps that require WordPress to be installed. When
+ * `preferredVersions.wp: false` is set on the Blueprint, these steps are
+ * rejected at compile time.
+ */
+const WORDPRESS_ONLY_STEPS = new Set([
+	'installPlugin',
+	'installTheme',
+	'activatePlugin',
+	'activateTheme',
+	'login',
+	'setSiteOptions',
+	'updateUserMeta',
+	'importWxr',
+	'importFile',
+	'importWordPressFiles',
+	'enableMultisite',
+	'wp-cli',
+	'resetData',
+]);
+
+function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
+	const offenders: string[] = [];
+	if (blueprint.plugins?.length) offenders.push('plugins');
+	if (blueprint.siteOptions) offenders.push('siteOptions');
+	if (blueprint.login) offenders.push('login');
+	if (blueprint.extraLibraries?.includes('wp-cli')) {
+		offenders.push("extraLibraries includes 'wp-cli'");
 	}
-	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
-		return true;
+	const badSteps = (blueprint.steps || [])
+		.filter(
+			(s): s is StepDefinition =>
+				!!s && typeof s === 'object' && 'step' in s
+		)
+		.map((s) => s.step)
+		.filter((name) => WORDPRESS_ONLY_STEPS.has(name as string));
+	if (badSteps.length) {
+		offenders.push(`steps: ${[...new Set(badSteps)].join(', ')}`);
 	}
-	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
-		return true;
+	if (offenders.length) {
+		throw new InvalidBlueprintError(
+			`Blueprint has \`preferredVersions.wp: false\` but uses ` +
+				`WordPress-only features: ${offenders.join('; ')}. Remove ` +
+				`these or drop \`preferredVersions.wp: false\`.`,
+			[]
+		);
 	}
-	return false;
 }

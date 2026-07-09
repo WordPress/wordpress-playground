@@ -66,13 +66,25 @@ export type {
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
+export { compileBlueprintV2 } from './lib/v2/compile';
+export type {
+	CompiledBlueprintV2,
+	CompileBlueprintV2Options,
+} from './lib/v2/compile';
 
 export {
 	resolveRemoteBlueprint,
 	BlueprintFetchError,
 } from './lib/resolve-remote-blueprint';
+export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
+export { compileBlueprintForExecution } from './lib/compile';
+export type {
+	BlueprintExecutionPath,
+	CompiledBlueprintForExecution,
+	CompileBlueprintForExecutionOptions,
+} from './lib/compile';
 
 /**
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.

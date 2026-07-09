@@ -32,6 +32,16 @@
 				"tsConfig": "packages/php-wasm/universal/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/universal",
 				"buildTarget": "php-wasm-universal:build:bundle:production"
+			},
+			"dependsOn": ["build:extension-manifest-schema"]
+		},
+		"build:extension-manifest-schema": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/universal/bin/generate-extension-manifest-schema.js"
+				],
+				"parallel": false
 			}
 		},
 		"build:bundle": {

@@ -12,14 +12,18 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 # Blueprints Examples
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 [Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) をチェックして、WordPress Playground を使用してさまざまな設定で WordPress サイトを起動する実際のコード例を確認してください。
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 -->
 
 ブループリントで実現できるクールな機能をいくつか見てみましょう。
@@ -382,10 +386,10 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 This Blueprint bundle would be zip file containing the following files:
 -->
 
--   `/blueprint.json` - 上記で説明したブループリントの宣言
--   `/my-theme.zip` - テーマパッケージ
--   `/my-plugin.zip` - プラグインパッケージ
--   `/assets/custom-page.html` - カスタム HTML ファイル
+- `/blueprint.json` - 上記で説明したブループリントの宣言
+- `/my-theme.zip` - テーマパッケージ
+- `/my-plugin.zip` - プラグインパッケージ
+- `/assets/custom-page.html` - カスタム HTML ファイル
 
 <!--
 -   `/blueprint.json` - The blueprint declaration outlined above

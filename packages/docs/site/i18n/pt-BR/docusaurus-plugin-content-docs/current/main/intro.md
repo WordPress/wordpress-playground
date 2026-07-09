@@ -12,18 +12,22 @@ description: Boas-vindas à documentação do WordPress Playground! Esta página
 # Documentação do WordPress Playground
 
 <!--
-:::info **Looking for the official Playground website?**
+<div class="callout callout-info">
+
+**Looking for the official Playground website?**
 
 WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
-:::
+</div>
 -->
 
-:::info **Está procurando a versão web do WordPress Playground?**
+<div class="callout callout-info">
+
+**Está procurando a versão web do WordPress Playground?**
 
 A página oficial do WordPress Playground está disponível em [wordpress.org/playground/](https://wordpress.org/playground/). Esta página abriga a documentação do WordPress Playground.
 
-:::
+</div>
 
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.
@@ -106,14 +110,18 @@ Seja você um desenvolvedor, um usuário sem conhecimentos técnicos ou alguém 
 - [WordCamp Contributor Day](/contributing/contributor-day)-
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 O artigo [**Introdução para o WordPress Playground: rodando WordPress no navegador(ENG)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) do [Blog para Desenvolvedores do WordPress](https://developer.wordpress.org/news) é uma ótima introdução ao WordPress Playground.
-:::
+
+</div>
 
 <!--
 ## Take a deep dive
@@ -128,7 +136,10 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](/resources)
--   Choose the right API for your app <APIList />
+-   Choose the right API for your app:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 
@@ -136,8 +147,8 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 - [Links e recursos](/resources)
 - Escolha a API adequada para a sua aplicação:
     - [API de Consulta](/developers/apis/query-api) permite realizar operações básicas usando apenas parâmetros de consulta.
-	- [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
-	- [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
+    - [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
+    - [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
 - Aprofunde-se na [arquitetura](/developers/architecture) e aprenda como o WP Playground funciona internamente.
 
 <!--

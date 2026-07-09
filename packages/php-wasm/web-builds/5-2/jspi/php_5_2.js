@@ -1,6 +1,6 @@
 import dependencyFilename from './5_2_17/php_5_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 9427349;
+export const dependenciesTotalSize = 9428070;
 const phpVersionString = '5.2.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -174,6 +174,9 @@ export function init(RuntimeName, PHPLoader) {
 	}
 	function getWasmImports() {
 		Asyncify.instrumentWasmImports(wasmImports);
+		wasmImports['__c_longjmp'] ??= new WebAssembly.Tag({
+			parameters: ['i32'],
+		});
 		var imports = {
 			env: wasmImports,
 			wasi_snapshot_preview1: wasmImports,
@@ -4670,6 +4673,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
+		socketTimeouts: new Map,
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
@@ -5033,6 +5037,29 @@ export function init(RuntimeName, PHPLoader) {
 			return [promise, cancel];
 		},
 		noop: function () {},
+		parseSocketTimeout: function (optionValuePtr, optionLen) {
+			if (!optionValuePtr || optionLen < 8) {
+				return null;
+			}
+			let seconds;
+			let microseconds;
+			if (optionLen >= 16) {
+				seconds = Number(HEAP64[optionValuePtr >> 3]);
+				microseconds = Number(HEAP64[(optionValuePtr + 8) >> 3]);
+			} else {
+				seconds = HEAP32[optionValuePtr >> 2];
+				microseconds = HEAP32[(optionValuePtr + 4) >> 2];
+			}
+			if (
+				!Number.isFinite(seconds) ||
+				!Number.isFinite(microseconds) ||
+				seconds < 0 ||
+				microseconds < 0
+			) {
+				return null;
+			}
+			return seconds * 1e3 + Math.ceil(microseconds / 1e3);
+		},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawned = Module['spawnProcess'](command, args, {
@@ -5061,6 +5088,7 @@ export function init(RuntimeName, PHPLoader) {
 			throw e;
 		},
 		shutdownSocket: function (socketd, how) {
+			PHPWASM.socketTimeouts.delete(socketd);
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
 			if (!peer) {
@@ -5130,40 +5158,73 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
-			const timeout = 3e4;
+			// Wait for the connection to be established. A zero timeval
+			// disables the timeout, matching SO_SNDTIMEO semantics.
+			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
+			const timeout = sendTimeout ?? 3e4;
 			let resolved = false;
-			const timeoutId = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					wakeUp(-ERRNO_CODES.ETIMEDOUT);
-				}
-			}, timeout);
-			const handleOpen = () => {
-				if (!resolved) {
-					resolved = true;
+			let timeoutId;
+			let handleOpen;
+			let handleError;
+			let handleClose;
+			const peer = PHPWASM.getAllPeers(sock).find(
+				(candidate) => candidate.socket === ws
+			);
+
+			const cleanupConnectListeners = () => {
+				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
-					ws.removeEventListener('error', handleError);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(0);
+				}
+				ws.removeEventListener('open', handleOpen);
+				ws.removeEventListener('error', handleError);
+				ws.removeEventListener('close', handleClose);
+			};
+
+			const cleanupFailedConnect = (errno) => {
+				try {
+					if (
+						ws.readyState !== ws.CLOSING &&
+						ws.readyState !== ws.CLOSED
+					) {
+						ws.close();
+					}
+				} catch (e) {
+					// Ignore close errors on an already-failed connect.
+				}
+				if (peer) {
+					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				}
+				sock.connecting = false;
+				sock.error = errno;
+			};
+
+			const finishConnect = (result) => {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
+					if (result < 0) {
+						cleanupFailedConnect(-result);
+					}
+					wakeUp(result);
 				}
 			};
-			const handleError = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('close', handleClose);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			if (timeout > 0) {
+				timeoutId = setTimeout(() => {
+					finishConnect(-ERRNO_CODES.ETIMEDOUT);
+				}, timeout);
+			}
+
+			handleOpen = () => {
+				finishConnect(0);
 			};
-			const handleClose = () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timeoutId);
-					ws.removeEventListener('open', handleOpen);
-					ws.removeEventListener('error', handleError);
-					wakeUp(-ERRNO_CODES.ECONNREFUSED);
-				}
+
+			handleError = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
+			};
+
+			handleClose = () => {
+				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
 			ws.addEventListener('open', handleOpen);
 			ws.addEventListener('error', handleError);
@@ -7398,20 +7459,34 @@ export function init(RuntimeName, PHPLoader) {
 		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
+		if (
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO)
+		) {
+			const timeoutMs = PHPWASM.parseSocketTimeout(
+				optionValuePtr,
+				optionLen
+			);
+			if (timeoutMs === null) {
+				return -1;
+			}
+			const timeouts = PHPWASM.socketTimeouts.get(socketd) || {};
+			if (optionName === SO_RCVTIMEO) {
+				timeouts.receive = timeoutMs;
+			} else {
+				timeouts.send = timeoutMs;
+			}
+			PHPWASM.socketTimeouts.set(socketd, timeouts);
+			return 0;
+		}
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		const isIgnorable =
-			level === SOL_SOCKET &&
-			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
-		if (!isForwardable && !isIgnorable) {
+		if (!isForwardable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
-		}
-		if (isIgnorable) {
-			return 0;
 		}
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
@@ -7420,6 +7495,7 @@ export function init(RuntimeName, PHPLoader) {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	}
+
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
@@ -7873,7 +7949,13 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 	__asyncjs__js_module_onMessage.sig = 'iii';
-	var _calloc,
+	var _compile_string,
+		__efree,
+		__zval_ptr_dtor,
+		_destroy_op_array,
+		__zend_bailout,
+		_execute,
+		_calloc,
 		_malloc,
 		___errno_location,
 		_wasm_sleep,
@@ -7929,6 +8011,16 @@ export function init(RuntimeName, PHPLoader) {
 		wasmTable,
 		wasmMemory;
 	function assignWasmExports(wasmExports) {
+		_compile_string = Module['_compile_string'] =
+			wasmExports['compile_string'];
+		__efree = Module['__efree'] = wasmExports['_efree'];
+		__zval_ptr_dtor = Module['__zval_ptr_dtor'] =
+			wasmExports['_zval_ptr_dtor'];
+		_destroy_op_array = Module['_destroy_op_array'] =
+			wasmExports['destroy_op_array'];
+		__zend_bailout = Module['__zend_bailout'] =
+			wasmExports['_zend_bailout'];
+		_execute = Module['_execute'] = wasmExports['execute'];
 		_calloc = wasmExports['calloc'];
 		_malloc =
 			PHPLoader['malloc'] =
@@ -8022,7 +8114,18 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var ___heap_base = 5123904;
+	var _file_globals = (Module['_file_globals'] = 4026816);
+	var _sapi_module = (Module['_sapi_module'] = 4032012);
+	var _sapi_globals = (Module['_sapi_globals'] = 4032152);
+	var _compiler_globals = (Module['_compiler_globals'] = 4025696);
+	var _executor_globals = (Module['_executor_globals'] = 4026040);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020136);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020140);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020144);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020148);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020152);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 3648076);
+	var ___heap_base = 5123888;
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,

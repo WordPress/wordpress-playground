@@ -32,13 +32,15 @@ Playground peut être intégré sur votre site en utilisant la balise HTML `<ifr
 
 Chaque visiteur obtiendra sa propre instance WordPress privée gratuitement. Vous pouvez ensuite la personnaliser en utilisant l'une des [APIs Playground](/developers/apis/).
 
-:::caution Careful with the demo site
+<div class="callout callout-warning">
+
+**Careful with the demo site**
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
-:::
+</div>
 
 <!-- ## Control the embedded website -->
 
@@ -300,8 +302,10 @@ L'API JavaScript fournit la méthode `run()` que vous pouvez utiliser pour exéc
 
 Combinez cela avec un éditeur de code comme Monaco ou CodeMirror, et vous obtiendrez des extraits de code en direct comme dans [cet article](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) !
 
-:::info
+<div class="callout callout-info">
+
 Traduction automatisée, relecture et corrections par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 
 Dernière mise à jour le 21 janvier 2026
-:::
+
+</div>

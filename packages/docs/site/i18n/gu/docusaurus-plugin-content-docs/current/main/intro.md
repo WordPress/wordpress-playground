@@ -7,11 +7,13 @@ description: વર્ડપ્રેસ પ્લેગ્રાઉન્ડ �
 
 # વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ડોક્સ
 
-:::info **શું તમે પ્લેગ્રાઉન્ડની સત્તાવાર વેબસાઇટ શોધી રહ્યા છો?**
+<div class="callout callout-info">
+
+**શું તમે પ્લેગ્રાઉન્ડની સત્તાવાર વેબસાઇટ શોધી રહ્યા છો?**
 
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબસાઇટ હવે [wordpress.org/playground/](https://wordpress.org/playground/)પર ખસેડાઈ ગઈ છે. તમે જે સાઇટ પર છો તે હવે માર્ગદર્શિકા માટે છે.
 
-:::
+</div>
 
 👋 નમસ્તે! વર્ડપ્રેસ પ્લેગ્રાઉન્ડ માર્ગદર્શિકામાં આપનું સ્વાગત છે.
 
@@ -52,9 +54,11 @@ description: વર્ડપ્રેસ પ્લેગ્રાઉન્ડ �
 - [મર્યાદાઓ](/developers/limitations) વિશે વાંચો
 - [વર્ડકેમ્પ યોગદાન દિવસ](/contributing/contributor-day)
 
-:::tip
+<div class="callout callout-tip">
+
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉત્તમ પરિચય મેળવવા માટે [WordPress Developer Blog](https://developer.wordpress.org/news) માં આવેલ [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) બ્લોગ પોસ્ટ વાંચો
-:::
+
+</div>
 
 ## વિસ્તૃત રીતે જાણો
 

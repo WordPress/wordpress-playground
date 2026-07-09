@@ -8,9 +8,11 @@ export type OpfsSync =
 	| {
 			status: 'syncing';
 			progress?: SyncProgress;
+			operation?: 'save' | 'autosave';
 	  }
 	| {
 			status: 'error';
+			operation?: 'save' | 'autosave';
 	  };
 
 export interface ClientInfo {

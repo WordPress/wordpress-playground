@@ -14,6 +14,10 @@ on:
 concurrency:
     group: refresh-wordpress-major-and-beta
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     build_wordpress_major_and_beta_push_to_github_and_deploy_website:
         # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
@@ -36,6 +40,9 @@ jobs:
         # Be conservative and set _some_ timeout to prevent a hanging
         # job from blocking the queue of scheduled runs.
         timeout-minutes: 120
+        permissions:
+            contents: write # Required to clone the repo and push the rebuilt WordPress commit.
+            actions: write  # Required to trigger the deploy-website workflow via workflow_dispatch.
         steps:
             - uses: actions/checkout@v4
               with:

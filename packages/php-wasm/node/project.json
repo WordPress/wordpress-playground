@@ -170,7 +170,8 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts"
+					"php-fsockopen.spec.ts",
+					"php-socket-timeouts.spec.ts"
 				]
 			}
 		},
@@ -184,7 +185,8 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts"
+					"php-fsockopen.spec.ts",
+					"php-socket-timeouts.spec.ts"
 				]
 			}
 		},
@@ -228,6 +230,7 @@
 					"symlinks.spec.ts",
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
+					"networking-port-allocation.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -245,6 +248,7 @@
 					"symlinks.spec.ts",
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
+					"networking-port-allocation.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -372,6 +376,18 @@
 					"file-lock-manager-composite.spec.ts"
 				]
 			}
+		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-group-1-asyncify",
+				"test-group-2-asyncify",
+				"test-group-3-asyncify",
+				"test-group-4-asyncify",
+				"test-group-5-asyncify",
+				"test-group-6-asyncify",
+				"test-file-locking-asyncify"
+			]
 		},
 		"lint": {
 			"executor": "@nx/eslint:lint",

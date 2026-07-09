@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>&lt;php-snippet&gt; demo</title>
+		<style>
+			body {
+				font-family:
+					system-ui,
+					-apple-system,
+					sans-serif;
+				max-width: 880px;
+				margin: 0 auto;
+				padding: 32px 20px 64px;
+				color: #1f2328;
+				line-height: 1.55;
+			}
+			h1 {
+				font-size: 28px;
+				margin: 0 0 8px;
+			}
+			h2 {
+				font-size: 20px;
+				margin: 32px 0 8px;
+			}
+			.lede {
+				color: #57606a;
+				margin: 0 0 24px;
+			}
+			code {
+				background: #eaeef2;
+				padding: 2px 5px;
+				border-radius: 4px;
+				font-size: 0.9em;
+			}
+			.note {
+				background: #ddf4ff;
+				border-left: 4px solid #218bff;
+				padding: 12px 14px;
+				margin: 16px 0;
+				border-radius: 4px;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>&lt;php-snippet&gt; demo</h1>
+		<p class="lede">
+			Three independent snippets on one page. Click Run on any of them —
+			the PHP &amp; WordPress runtime downloads
+			<strong>once</strong> and is shared across all of them.
+		</p>
+
+		<div class="note">
+			Open DevTools → Network and watch: the first Run downloads
+			<code>remote.html</code> + the PHP WASM binary + WordPress. The
+			second and third Runs reuse the same runtime — no extra downloads.
+		</div>
+
+		<h2>1. Pure PHP</h2>
+		<php-snippet name="hello.php">
+			<script type="application/x-php">
+				<?php
+				echo "Hello from PHP " . phpversion() . "\n";
+				echo "Today is " . date('Y-m-d') . "\n";
+				echo str_repeat('-', 30) . "\n";
+
+				$nums = [1, 2, 3, 4, 5];
+				echo "Sum of " . implode(',', $nums) . " = " . array_sum($nums) . "\n";
+			</script>
+		</php-snippet>
+
+		<h2>2. WordPress HTML API</h2>
+		<php-snippet name="lazy-load-images.php">
+			<script type="application/x-php">
+				<?php
+				require '/wordpress/wp-load.php';
+
+				$html = '<article>
+				    <img src="hero.jpg" alt="Hero">
+				    <img src="inline.jpg" alt="Inline">
+				</article>';
+
+				$tags = new WP_HTML_Tag_Processor( $html );
+				while ( $tags->next_tag( 'img' ) ) {
+				    $tags->set_attribute( 'loading', 'lazy' );
+				    $tags->add_class( 'responsive' );
+				}
+
+				echo $tags->get_updated_html();
+			</script>
+		</php-snippet>
+
+		<h2>3. Block parser</h2>
+		<php-snippet name="parse-blocks.php">
+			<script type="application/x-php">
+				<?php
+				require '/wordpress/wp-load.php';
+
+				$post_content = "<!-- wp:paragraph -->
+				<p>Hello, <strong>block editor</strong>!</p>
+				<!-- /wp:paragraph -->
+
+				<!-- wp:list -->
+				<ul><li>One</li><li>Two</li></ul>
+				<!-- /wp:list -->";
+
+				$blocks = parse_blocks( $post_content );
+				foreach ( $blocks as $block ) {
+				    if ( ! empty( $block['blockName'] ) ) {
+				        echo "- " . $block['blockName'] . "\n";
+				    }
+				}
+			</script>
+		</php-snippet>
+
+		<h2>4. Shared blueprint via JSON script</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Two snippets reference the same blueprint by id, so their runtime is
+			booted once with a pre-installed mu-plugin. Using
+			<code>&lt;script type="application/json"&gt;</code> lets the JSON
+			contain literal <code>&lt;?php</code> without escaping.
+		</p>
+
+		<script id="greeter-blueprint" type="application/json">
+			{
+				"steps": [
+					{
+						"step": "writeFile",
+						"path": "/wordpress/wp-content/mu-plugins/greeter.php",
+						"data": "<?php\nfunction greeter_say($name) { return 'Hello, ' . $name . '!'; }"
+					}
+				]
+			}
+		</script>
+
+		<php-snippet name="greet-alice.php" blueprint="greeter-blueprint">
+			<script type="application/x-php">
+				<?php
+				require '/wordpress/wp-load.php';
+				echo greeter_say('Alice');
+			</script>
+		</php-snippet>
+
+		<php-snippet name="greet-bob.php" blueprint="greeter-blueprint">
+			<script type="application/x-php">
+				<?php
+				require '/wordpress/wp-load.php';
+				echo greeter_say('Bob');
+			</script>
+		</php-snippet>
+
+		<h2>5. Editable by default</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Type into the snippet, then click Run.
+		</p>
+		<php-snippet name="scratch.php">
+			<script type="application/x-php">
+				<?php
+				$nums = range(1, 10);
+				echo "Sum: " . array_sum($nums) . "\n";
+				echo "Product: " . array_product($nums) . "\n";
+			</script>
+		</php-snippet>
+
+		<h2>6. Read-only runnable</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			<code>readonly</code> keeps a runnable snippet from becoming
+			editable.
+		</p>
+		<php-snippet name="reference.php" readonly>
+			<script type="application/x-php">
+				<?php
+				echo "Reference only";
+			</script>
+			<script type="text/expected-output">
+				Reference only
+			</script>
+		</php-snippet>
+
+		<h2>7. Expected output</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			When <code>expected-output</code> is provided (as an attribute or a
+			<code>&lt;script type="text/expected-output"&gt;</code> child), the
+			snippet displays that text before Run is clicked. Clicking Run still
+			loads the Playground runtime and replaces the placeholder with the
+			real output.
+		</p>
+		<php-snippet name="precomputed.php">
+			<script type="application/x-php">
+				<?php
+				echo "2 + 2 = " . (2 + 2) . "\n";
+				echo "WordPress is awesome.";
+			</script>
+			<script type="text/expected-output">
+				2 + 2 = 4
+				WordPress is awesome.
+			</script>
+		</php-snippet>
+
+		<h2>8. PHP-only (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			<code>wp="none"</code> boots PHP without downloading or installing
+			WordPress. The PHP runtime still loads, but no
+			<code>wp-*.zip</code> request fires — handy for snippets that
+			showcase plain PHP language features without paying the WP boot
+			cost.
+		</p>
+		<php-snippet name="just-php.php" wp="none">
+			<script type="application/x-php">
+				<?php
+				echo "PHP " . phpversion() . "\n";
+				echo "WordPress installed: " . (file_exists('/wordpress/wp-includes/version.php') ? 'yes' : 'no') . "\n";
+
+				// Pure-PHP feature demo: enums (PHP 8.1+).
+				enum Status: string {
+				    case Draft   = 'draft';
+				    case Pending = 'pending';
+				    case Live    = 'live';
+				}
+				foreach (Status::cases() as $status) {
+				    echo "- {$status->name}: {$status->value}\n";
+				}
+			</script>
+		</php-snippet>
+
+		<h2>9. Pure PHP toolkit (no WordPress)</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			Uses <code>wp="none"</code> together with a blueprint that installs
+			a tiny PHP toolkit at <code>/tmp/php-toolkit</code>. The snippet
+			boots PHP only, autoloads the toolkit, and uses
+			<code>WP_HTML_Tag_Processor</code> outside of WordPress.
+		</p>
+
+		<script id="toolkit-setup" type="application/json">
+			{
+				"steps": [
+					{ "step": "mkdir", "path": "/tmp/php-toolkit/vendor" },
+					{
+						"step": "writeFile",
+						"path": "/tmp/php-toolkit/vendor/autoload.php",
+						"data": {
+							"resource": "url",
+							"url": "/php-toolkit-autoload.txt"
+						}
+					}
+				]
+			}
+		</script>
+
+		<php-snippet wp="none" blueprint="toolkit-setup" name="quickstart.php">
+			<script type="application/x-php">
+				<?php
+				require '/tmp/php-toolkit/vendor/autoload.php';
+
+				$html = '<article>
+					<img src="hero.jpg" alt="Hero shot">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>';
+
+				$tags = new WP_HTML_Tag_Processor( $html );
+				while ( $tags->next_tag( 'img' ) ) {
+					if ( null === $tags->get_attribute( 'loading' ) ) {
+						$tags->set_attribute( 'loading', 'lazy' );
+					}
+				}
+
+				echo $tags->get_updated_html();
+			</script>
+			<script type="text/expected-output">
+				<article>
+					<img src="hero.jpg" alt="Hero shot" loading="lazy">
+					<p>Welcome to the site.</p>
+					<img src="diagram.png" alt="" loading="eager">
+				</article>
+			</script>
+		</php-snippet>
+
+		<h2>10. Read-only illustration</h2>
+		<p style="margin: 0 0 8px; color: #57606a; font-size: 14px">
+			This snippet is syntax-highlighted but is not meant to execute.
+		</p>
+		<php-snippet name="illustration.php" runnable="false">
+			<script type="application/x-php">
+				<?php
+				echo "Just an illustration";
+			</script>
+		</php-snippet>
+
+		<script type="module" src="./php-code-snippet.js"></script>
+	</body>
+</html>

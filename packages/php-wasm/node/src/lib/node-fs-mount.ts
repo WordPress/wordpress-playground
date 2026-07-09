@@ -4,7 +4,7 @@ import {
 	type MountHandler,
 } from '@php-wasm/universal';
 import { isParentOf } from '@php-wasm/util';
-import { lstatSync } from 'fs';
+import { realpathSync, statSync } from 'fs';
 import { dirname } from 'path';
 
 export function createNodeFsMountHandler(localPath: string): MountHandler {
@@ -23,16 +23,29 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 * PHP-WASM source: https://github.com/WordPress/wordpress-playground/blob/5821cee231f452d050fd337b99ad0b26ebda487e/packages/php-wasm/compile/php/Dockerfile#L2148
 		 */
 		let removeVfsNode = false;
+		let mountRoot: string;
+		try {
+			mountRoot = realpathSync(localPath);
+		} catch (e) {
+			throw markMissingMountSource(e, localPath);
+		}
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
-			const lstat = lstatSync(localPath);
-			if (lstat.isFile() || lstat.isSymbolicLink()) {
+			// Resolve symlinks so both the VFS placeholder and NODEFS root
+			// match the target's file-or-directory shape.
+			let stat: ReturnType<typeof statSync>;
+			try {
+				stat = statSync(mountRoot);
+			} catch (e) {
+				throw markMissingMountSource(e, localPath);
+			}
+			if (stat.isFile()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.writeFile(vfsMountPoint, '');
-			} else if (lstat.isDirectory()) {
+			} else if (stat.isDirectory()) {
 				FS.mkdirTree(vfsMountPoint);
 			} else {
 				throw new Error(
-					'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+					'Unsupported file type. PHP-wasm supports mounting only files and directories, including symlinks that resolve to files or directories.'
 				);
 			}
 			removeVfsNode = true;
@@ -49,7 +62,7 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			}
 			throw e;
 		}
-		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
+		FS.mount(FS.filesystems['NODEFS'], { root: mountRoot }, vfsMountPoint);
 		return () => {
 			FS!.unmount(vfsMountPoint);
 			if (removeVfsNode) {
@@ -67,4 +80,25 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			}
 		};
 	};
+}
+
+/**
+ * Marks ENOENT from NODEFS source lookup so rotation can handle only that race.
+ */
+function markMissingMountSource(error: unknown, localPath: string) {
+	const errnoError = error as NodeJS.ErrnoException;
+	if (errnoError.code === 'ENOENT') {
+		const missingSourceError = new Error(
+			`Unable to mount ${localPath}: source path does not exist.`,
+			{ cause: error }
+		) as NodeJS.ErrnoException & {
+			phpWasmMountSourceMissing: true;
+		};
+		missingSourceError.code = 'ENOENT';
+		missingSourceError.path = localPath;
+		missingSourceError.phpWasmMountSourceMissing = true;
+		return missingSourceError;
+	}
+
+	return error;
 }

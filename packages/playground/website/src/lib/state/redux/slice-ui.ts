@@ -8,6 +8,8 @@ export type SiteError =
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
+	| 'browser-storage-cleanup-failed'
+	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
 	| 'github-artifact-expired'
@@ -24,6 +26,7 @@ export const modalSlugs = {
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	GITHUB_IMPORT: 'github-import',
+	GITHUB_IMPORT_NEW_SITE: 'github-import-new-site',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
@@ -31,6 +34,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
@@ -58,21 +62,6 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
-		// Look for a url property in the cause chain
-		let url: string | undefined;
-		let current: unknown = details.cause;
-		while (current && !url) {
-			if (
-				current &&
-				typeof current === 'object' &&
-				'url' in current &&
-				typeof (current as any).url === 'string'
-			) {
-				url = (current as any).url;
-			}
-			current = current instanceof Error ? current.cause : undefined;
-		}
-
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -85,7 +74,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
-			url,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (details instanceof Error) {
@@ -93,10 +82,7 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
-			url:
-				'url' in details && typeof details.url === 'string'
-					? details.url
-					: undefined,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (typeof details === 'string') {
@@ -138,6 +124,28 @@ const serializeSiteErrorDetails = (
 	}
 };
 
+function findUrlInCauseChain(error: Error): string | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	while (current) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+		}
+		if (
+			typeof current === 'object' &&
+			'url' in current &&
+			typeof (current as any).url === 'string'
+		) {
+			return (current as any).url;
+		}
+		current = current instanceof Error ? current.cause : undefined;
+	}
+	return undefined;
+}
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -146,6 +154,11 @@ export interface UIState {
 	};
 	activeModal: string | null;
 	siteSlugToRename?: string;
+	siteSlugToDelete?: string;
+	/**
+	 * Site the save modal operates on. Defaults to the active site when unset.
+	 */
+	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -164,11 +177,16 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
+	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
+	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
+	 * restored from a URL parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
 		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth'
+		query.get('modal') === 'github-private-repo-auth' ||
+		query.get('modal') === 'delete-site' ||
+		query.get('modal') === 'rename-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -263,6 +281,18 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToRename = action.payload;
 		},
+		setSiteSlugToDelete: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToDelete = action.payload;
+		},
+		setSiteSlugToSave: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToSave = action.payload;
+		},
 	},
 });
 
@@ -308,6 +338,8 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
+	setSiteSlugToDelete,
+	setSiteSlugToSave,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

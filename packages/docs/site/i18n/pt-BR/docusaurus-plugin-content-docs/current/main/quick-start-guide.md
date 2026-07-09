@@ -59,18 +59,22 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 A estrutura inteira do site fica no seu navegador sendo copiado quando você fecha a aba. Quer recomeçar? Basta atualizar a página!
 
 <!--
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
 -->
 
-:::info O WordPress Playground é privado
+<div class="callout callout-info">
+
+**O WordPress Playground é privado**
 
 Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
 
-:::
+</div>
 
 <!--
 ## Try a block, a theme, or a plugin
@@ -204,18 +208,22 @@ A maneira mais rápida de trocar a versão do WordPress ou PHP no é utilizando 
 ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
 -->
 
-:::info Teste seu plugin ou tema
+<div class="callout callout-info">
+
+**Teste seu plugin ou tema**
 
 Testes de compatibilidade com tantas versões do WordPress e do PHP sempre foram um desafio. O WordPress Playground torna esse processo fácil – use-o a seu favor!
 
-:::
+</div>
 
 <!--
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
@@ -236,18 +244,22 @@ To learn more about preparing content for demos, see the [providing content for 
 Para saber mais sobre como preparar conteúdo para demonstrações, consulte o [guia de fornecimento de conteúdo para sua demonstração](/guides/providing-content-for-your-demo).
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
 
-:::
+</div>
 -->
 
-:::info Somente versões principais
+<div class="callout callout-info">
+
+**Somente versões principais**
 
 Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e esperar a versão mais recente nessa linha. No entanto, você não pode solicitar versões secundárias mais antigas, portanto, nem `wp=6.1.2` nem `php=7.4.9` funcionarão.
 
-:::
+</div>
 
 <!--
 ## Import a WXR file

@@ -19,6 +19,9 @@
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
 			"@php-wasm/cli-util": ["packages/php-wasm/cli-util/src/index.ts"],
+			"@php-wasm/compile-extension": [
+				"packages/php-wasm/compile-extension/src/cli.ts"
+			],
 			"@php-wasm/fs-journal": [
 				"packages/php-wasm/fs-journal/src/index.ts"
 			],
@@ -124,6 +127,12 @@
 			],
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
+			],
+			"@wp-playground/remote-access": [
+				"packages/playground/remote-access/src/index.ts"
+			],
+			"@wp-playground/remote/service-worker": [
+				"packages/playground/remote/service-worker.ts"
 			],
 			"@wp-playground/storage": [
 				"packages/playground/storage/src/index.ts"

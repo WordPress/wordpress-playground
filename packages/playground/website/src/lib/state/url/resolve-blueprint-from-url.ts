@@ -2,26 +2,24 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintBundle,
 	StepDefinition,
-	BlueprintV1,
+	Blueprint,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { OpfsFilesystemBackend } from '@wp-playground/storage';
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
-import { RecommendedPHPVersion } from '@wp-playground/common';
-import { logger } from '@php-wasm/logger';
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
+
+export { decodeBlueprintHash };
 
 export type BlueprintSource =
 	| {
 			type: 'remote-url';
 			url: string;
-	  }
-	| {
-			type: 'last-autosave';
 	  }
 	| {
 			type: 'inline-string';
@@ -34,7 +32,7 @@ export type BlueprintSource =
 	  };
 
 export type ResolvedBlueprint = {
-	blueprint: BlueprintV1;
+	blueprint: Blueprint;
 	source: BlueprintSource;
 };
 
@@ -66,7 +64,7 @@ export async function resolveBlueprintFromURL(
 	defaultBlueprint?: string
 ): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
-	const fragment = decodeURI(url.hash || '#').substring(1);
+	const fragment = decodeBlueprintHash(url.hash || '#');
 
 	/**
 	 * If the URL has no parameters or fragment, and a default blueprint is provided,
@@ -91,7 +89,7 @@ export async function resolveBlueprintFromURL(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the "blueprint-url" query parameter to proceed or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*
@@ -106,32 +104,13 @@ export async function resolveBlueprintFromURL(
 				url: blueprintUrl,
 			},
 		};
-	} else if (fragment === 'last-autosave') {
-		let bundle = undefined;
-		try {
-			bundle = await OpfsFilesystemBackend.fromPath(
-				'blueprints/last-edited-bundle',
-				true
-			);
-		} catch (error) {
-			logger.error(
-				'Failed to load the last edited blueprint from OPFS',
-				error
-			);
-		}
-		return {
-			blueprint:
-				bundle ||
-				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
-			source: { type: 'last-autosave' },
-		};
 	} else if (fragment.length) {
 		if (isMcpServerEnabled()) {
 			throw new Error(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the Blueprint hash from your URL or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*
@@ -226,6 +205,13 @@ function applyQueryOverridesToDeclaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
+	// PHP-only blueprints opt out of WordPress entirely. Skip the WP-bound
+	// query overrides — adding `login`, `enableMultisite`, etc. would
+	// trip the compile-time guard that rejects WP-only features when
+	// `preferredVersions.wp: false` is set.
+	if (blueprint.preferredVersions?.wp === false) {
+		return blueprint;
+	}
 	/**
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.
@@ -233,12 +219,12 @@ function applyQueryOverridesToDeclaration(
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;
 	}
+	blueprint.preferredVersions!.wp =
+		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 	blueprint.preferredVersions!.php =
 		(query.get('php') as any) ||
 		blueprint.preferredVersions!.php ||
-		RecommendedPHPVersion;
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
+		getDefaultPhpVersionForWordPress(blueprint.preferredVersions!.wp);
 
 	// Features
 	if (!blueprint.features) {
