@@ -32,6 +32,12 @@ type V2WordPressVersionConstraint = {
 	preferred?: string;
 };
 
+/**
+ * Resolves the runtime settings required before executing a Blueprint.
+ *
+ * Blueprint v1 settings come from its compiled form. Blueprint v2 settings are
+ * derived directly from the declaration fields supported by Playground.
+ */
 export async function resolveRuntimeConfiguration(
 	blueprint: Blueprint
 ): Promise<RuntimeConfiguration> {
@@ -77,12 +83,21 @@ export async function resolveRuntimeConfiguration(
 	}
 }
 
+/**
+ * Indicates whether a reflected declaration identifies itself as Blueprint v2.
+ */
 function isBlueprintV2Declaration(
 	declaration: BlueprintDeclaration
 ): declaration is BlueprintV2Declaration {
 	return (declaration as { version?: unknown }).version === 2;
 }
 
+/**
+ * Selects a supported PHP runtime from a Blueprint v2 version declaration.
+ *
+ * A constraint's recommended version takes precedence. Without a declaration,
+ * Playground uses its recommended PHP version.
+ */
 function resolveV2PHPVersion(
 	declaration: BlueprintV2Declaration
 ): AllPHPVersion {
@@ -111,6 +126,9 @@ function resolveV2PHPVersion(
 	return RecommendedPHPVersion;
 }
 
+/**
+ * Resolves the `latest` alias or validates a concrete PHP runtime version.
+ */
 function resolveV2PHPVersionString(phpVersion: string): AllPHPVersion {
 	if (phpVersion === 'latest') {
 		return LatestSupportedPHPVersion;
@@ -124,6 +142,9 @@ function resolveV2PHPVersionString(phpVersion: string): AllPHPVersion {
 	);
 }
 
+/**
+ * Returns a constraint's recommended PHP version when it is a string.
+ */
 function getV2PHPConstraintRecommendedVersion(
 	phpVersion: BlueprintV2Declaration['phpVersion']
 ): string | undefined {
@@ -138,6 +159,12 @@ function getV2PHPConstraintRecommendedVersion(
 		: undefined;
 }
 
+/**
+ * Selects a supported PHP version within the declared constraint bounds.
+ *
+ * Playground's recommended version wins when compatible; otherwise, the first
+ * compatible runtime in the supported-version list is returned.
+ */
 function resolveV2PHPConstraintVersion(
 	phpVersion: BlueprintV2Declaration['phpVersion']
 ): AllPHPVersion | undefined {
@@ -152,6 +179,12 @@ function resolveV2PHPConstraintVersion(
 	);
 }
 
+/**
+ * Indicates whether a PHP version satisfies inclusive Blueprint v2 bounds.
+ *
+ * The `next` development build is excluded because numeric constraints cannot
+ * establish its ordering relative to released versions.
+ */
 function isV2PHPVersionWithinConstraints(
 	phpVersion: AllPHPVersion,
 	constraints: Exclude<BlueprintV2Declaration['phpVersion'], string>
@@ -170,6 +203,9 @@ function isV2PHPVersionWithinConstraints(
 	return true;
 }
 
+/**
+ * Maps the `latest` PHP constraint label to the latest supported runtime.
+ */
 function normalizeV2PHPConstraintVersion(
 	phpVersion: string | undefined
 ): string | undefined {
@@ -179,6 +215,12 @@ function normalizeV2PHPConstraintVersion(
 	return phpVersion;
 }
 
+/**
+ * Compares PHP versions by major, minor, and patch components.
+ *
+ * Returns a negative number when `left` is older, a positive number when it is
+ * newer, and zero when both versions have equal components.
+ */
 function comparePHPVersions(left: string, right: string): number {
 	const leftParts = parsePHPVersion(left);
 	const rightParts = parsePHPVersion(right);
@@ -191,6 +233,9 @@ function comparePHPVersions(left: string, right: string): number {
 	return 0;
 }
 
+/**
+ * Parses a PHP version into numeric components, defaulting omitted parts to zero.
+ */
 function parsePHPVersion(phpVersion: string): [number, number, number] {
 	const [major = 0, minor = 0, patch = 0] = phpVersion
 		.split('.')
@@ -198,6 +243,12 @@ function parsePHPVersion(phpVersion: string): [number, number, number] {
 	return [major, minor, patch];
 }
 
+/**
+ * Resolves the WordPress runtime source from a Blueprint v2 declaration.
+ *
+ * Missing versions default to `latest`. Unsupported data references are
+ * rejected instead of silently booting a different WordPress version.
+ */
 function resolveV2WordPressVersion(
 	declaration: BlueprintV2Declaration
 ): string {
@@ -261,6 +312,11 @@ function resolveV2WordPressVersionString(wordpressVersion: string): string {
 	);
 }
 
+/**
+ * Identifies a constraint-shaped value without trusting its property types.
+ *
+ * Property validation happens before the object is used for version comparison.
+ */
 function isV2WordPressVersionConstraint(
 	wordpressVersion: unknown
 ): wordpressVersion is UnvalidatedV2WordPressVersionConstraint {
@@ -323,6 +379,9 @@ function resolveV2WordPressConstraintVersion(
 		: undefined;
 }
 
+/**
+ * Validates the property types of a constraint-shaped WordPress version value.
+ */
 function assertV2WordPressVersionConstraint(
 	wordpressVersion: UnvalidatedV2WordPressVersionConstraint
 ): asserts wordpressVersion is V2WordPressVersionConstraint {
@@ -344,6 +403,12 @@ function assertV2WordPressVersionConstraint(
 	}
 }
 
+/**
+ * Validates that a WordPress constraint field contains a string value.
+ *
+ * The supplied schema path is included in the error so malformed runtime input
+ * can be traced back to the exact Blueprint field.
+ */
 function assertV2StringWordPressConstraintVersion(
 	path: string,
 	value: unknown
@@ -358,6 +423,12 @@ function assertV2StringWordPressConstraintVersion(
 	);
 }
 
+/**
+ * Validates that a WordPress constraint field can participate in comparisons.
+ *
+ * Runtime labels and custom URLs are valid top-level sources but not constraint
+ * bounds, which must use concrete release versions.
+ */
 function assertV2ComparableWordPressConstraintVersion(
 	path: string,
 	wordpressVersion: string
@@ -372,6 +443,11 @@ function assertV2ComparableWordPressConstraintVersion(
 	);
 }
 
+/**
+ * Indicates whether a WordPress release satisfies inclusive constraint bounds.
+ *
+ * Non-comparable runtime labels and custom URLs never satisfy constraints.
+ */
 function isV2WordPressVersionWithinConstraints(
 	wordpressVersion: string,
 	constraints: V2WordPressVersionConstraint
@@ -394,6 +470,12 @@ function isV2WordPressVersionWithinConstraints(
 	);
 }
 
+/**
+ * Compares concrete WordPress releases using their parsed precedence components.
+ *
+ * Returns a negative number when `left` is older, a positive number when it is
+ * newer, and zero when both releases have equal precedence.
+ */
 function compareWordPressVersions(left: string, right: string): number {
 	const leftParts = parseComparableWordPressVersion(left);
 	const rightParts = parseComparableWordPressVersion(right);
@@ -411,6 +493,9 @@ function compareWordPressVersions(left: string, right: string): number {
 	return 0;
 }
 
+/**
+ * Indicates whether a WordPress version is a concrete, orderable release.
+ */
 function isComparableWordPressVersion(wordpressVersion: string): boolean {
 	return parseComparableWordPressVersion(wordpressVersion) !== null;
 }
@@ -442,10 +527,16 @@ function parseComparableWordPressVersion(
 	];
 }
 
+/**
+ * Indicates whether a runtime source uses a supported HTTP(S) URL prefix.
+ */
 function isHttpUrl(reference: string) {
 	return reference.startsWith('http://') || reference.startsWith('https://');
 }
 
+/**
+ * Indicates whether a source uses an absolute or explicit relative file path.
+ */
 function isExecutionContextPath(reference: string) {
 	return (
 		reference.startsWith('/') ||
