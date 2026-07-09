@@ -18,6 +18,25 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	return Buffer.from(zipBytes!);
 }
 
+async function createDefaultThemeExportZip(): Promise<Buffer> {
+	const marker = 'PRESERVED_DEFAULT_THEME_EXPORT_MARKER';
+	const files = [
+		new File([marker], 'wp-content/themes/twentytwentyfive/index.php'),
+		new File(
+			[
+				`/*
+Theme Name: Twenty Twenty-Five
+*/
+`,
+			],
+			'wp-content/themes/twentytwentyfive/style.css'
+		),
+	];
+	const zipStream = encodeZip(files);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
+
 // OPFS tests must run serially because OPFS storage is shared at the browser
 // level, so tests would interfere with each other's saved sites if run in parallel.
 test.describe.configure({ mode: 'serial' });
@@ -752,6 +771,61 @@ test('should display OPFS storage option as selected by default', async ({
 
 	// Close the modal
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should preserve default theme files included in a Playground export ZIP', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openSavedPlaygroundsOverlay();
+
+	const zipBuffer = await createDefaultThemeExportZip();
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			await dialog.accept();
+		});
+	await fileInput.setInputFiles({
+		name: 'playground-export-with-default-theme.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+	await importComplete;
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(async () => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					if (!playground) {
+						return false;
+					}
+					const documentRoot = await playground.documentRoot;
+					try {
+						const indexPhp = await playground.readFileAsText(
+							`${documentRoot}/wp-content/themes/twentytwentyfive/index.php`
+						);
+						return indexPhp.includes(
+							'PRESERVED_DEFAULT_THEME_EXPORT_MARKER'
+						);
+					} catch {
+						return false;
+					}
+				}),
+			{ timeout: 90000 }
+		)
+		.toBe(true);
 });
 
 test('should import ZIP into a new saved site when a saved site exists', async ({

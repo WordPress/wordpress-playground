@@ -6,6 +6,17 @@ import { ensureWpConfig } from '@wp-playground/wordpress';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
+// Import should always keep Playground runtime files from the target site.
+// Other export-excluded files, such as bundled default themes, may still be
+// intentionally included in self-contained Playground exports.
+const wpContentFilesAlwaysRestoredOnImport = [
+	'db.php',
+	'mu-plugins/sqlite-database-integration',
+	'mu-plugins/playground-includes',
+	'mu-plugins/0-playground.php',
+	'mu-plugins/0-sqlite.php',
+];
+
 /**
  * @inheritDoc importWordPressFiles
  * @example
@@ -84,12 +95,19 @@ export const importWordPressFiles: StepHandler<
 	const importedWpContentPath = joinPaths(importPath, 'wp-content');
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 	for (const relativePath of wpContentFilesExcludedFromExport) {
-		// Remove any paths that were supposed to be excluded from the export
-		// but maybe weren't
 		const excludedImportPath = joinPaths(
 			importedWpContentPath,
 			relativePath
 		);
+		const shouldRestoreFromLiveWpContent =
+			wpContentFilesAlwaysRestoredOnImport.includes(relativePath) ||
+			!(await playground.fileExists(excludedImportPath));
+		if (!shouldRestoreFromLiveWpContent) {
+			continue;
+		}
+
+		// Remove any paths that were supposed to be excluded from the export
+		// but maybe weren't
 		await removePath(playground, excludedImportPath);
 
 		// Replace them with files sourced from the live wp-content directory
