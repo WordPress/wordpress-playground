@@ -17,11 +17,11 @@ import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
-	MAX_INLINE_FILE_BYTES,
 	seemsLikeBinary,
 	createDownloadUrl,
 	getMimeType,
 	isPreviewableBinary,
+	readFileForInlinePreview,
 } from './file-utils';
 
 export type FileExplorerSidebarProps = {
@@ -71,28 +71,17 @@ export function FileExplorerSidebar({
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
 			const file = await filesystem.read(path);
-			const data = new Uint8Array(await file.arrayBuffer());
-			const size = data.byteLength;
 			const filename = path.split('/').pop() || 'download';
+			const previewRead = await readFileForInlinePreview(file);
 
-			if (size > MAX_INLINE_FILE_BYTES) {
-				const { url, filename: fname } = createDownloadUrl(
-					data,
-					filename
-				);
+			if (previewRead.type === 'too-large') {
 				await onShowMessage(
 					path,
-					<>
-						<p>File too large to open (&gt;1MB).</p>
-						<p>
-							<a href={url} download={fname}>
-								Download {fname}
-							</a>
-						</p>
-					</>
+					renderTooLargeMessage(filename, previewRead.downloadUrl)
 				);
 				return;
 			}
+			const data = previewRead.data;
 
 			if (seemsLikeBinary(data)) {
 				const mimeType = getMimeType(filename);
@@ -211,5 +200,22 @@ export function FileExplorerSidebar({
 				/>
 			</div>
 		</div>
+	);
+}
+
+function renderTooLargeMessage(filename: string, downloadUrl?: string) {
+	return (
+		<>
+			<p>File too large to open (&gt;1MB).</p>
+			<p>
+				{downloadUrl ? (
+					<a href={downloadUrl} download={filename}>
+						Download {filename}
+					</a>
+				) : (
+					'Open or download it outside the in-browser editor.'
+				)}
+			</p>
+		</>
 	);
 }
