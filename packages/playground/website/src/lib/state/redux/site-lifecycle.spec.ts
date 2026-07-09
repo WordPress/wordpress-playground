@@ -3,7 +3,6 @@ import {
 	getAutosavedSitesToPrune,
 	getSitePublicPersistence,
 	getSitesSortedByRecency,
-	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
@@ -131,53 +130,6 @@ describe('autosaved site helpers', () => {
 					whenLastUsed: now - RECENT_AUTOSAVE_RESTORE_WINDOW_MS - 1,
 				}),
 				now
-			)
-		).toBe(false);
-	});
-
-	it('identifies stored OPFS sites with an interrupted initial sync', () => {
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('pending-opfs', {
-					loadedFromStorage: true,
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(true);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('fresh-pending-opfs', {
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('recreated-loaded-opfs', {
-					loadedFromStorage: false,
-					storage: 'opfs',
-					initialOpfsSyncPending: true,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('finished-opfs', {
-					loadedFromStorage: true,
-					storage: 'opfs',
-					initialOpfsSyncPending: false,
-				})
-			)
-		).toBe(false);
-		expect(
-			hasInterruptedInitialOpfsSync(
-				createSite('temporary', {
-					loadedFromStorage: true,
-					storage: 'none',
-					initialOpfsSyncPending: true,
-				})
 			)
 		).toBe(false);
 	});

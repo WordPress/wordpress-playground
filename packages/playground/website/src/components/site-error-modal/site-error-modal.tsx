@@ -52,6 +52,9 @@ export function SiteErrorModal({
 				logger.error('Failed to delete site', error);
 			}
 		},
+		reloadPage: () => {
+			window.location.reload();
+		},
 		restartWithoutPr: () => {
 			const url = new URL(window.location.href);
 			url.searchParams.delete('core-pr');

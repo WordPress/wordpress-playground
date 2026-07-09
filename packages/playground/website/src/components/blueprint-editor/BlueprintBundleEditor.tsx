@@ -46,14 +46,12 @@ import {
 } from '../../lib/state/redux/slice-clients';
 import {
 	isAutosavedSite,
+	sitesSlice,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import {
-	useAppDispatch,
-	useAppSelector,
-} from '../../lib/state/redux/store';
-import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
+import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import { resetAutosavedSiteFilesWithPendingMarker } from '../../lib/state/opfs/opfs-autosave-reset';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -410,47 +408,64 @@ export const BlueprintBundleEditor = forwardRef<
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				bundle as any
 			);
+			const changes = {
+				...(isAutosaved ? { loadedFromStorage: false } : {}),
+				metadata: {
+					...site.metadata,
+					originalBlueprintSource: isAutosaved
+						? { type: 'opfs-site' as const }
+						: { type: 'none' as const },
+					originalBlueprint: isAutosaved
+						? (filesystem as EventedFilesystem).backend
+						: bundle,
+					runtimeConfiguration,
+					initialOpfsSyncPending:
+						isAutosaved || site.metadata.initialOpfsSyncPending,
+					/**
+					 * Recreating an autosaved Playground discards the old
+					 * WordPress files and boots from the edited Blueprint.
+					 * Constants discovered from the previous runtime may no
+					 * longer exist in the recreated site, so they must be
+					 * rediscovered after the first OPFS sync.
+					 */
+					playgroundDefinedConstants: isAutosaved
+						? undefined
+						: site.metadata.playgroundDefinedConstants,
+					whenCreated: Date.now(),
+				},
+				originalUrlParams: undefined,
+			};
 			if (isAutosaved) {
 				await playgroundClient?.unmountOpfs('/wordpress');
 				dispatch(removeClientInfo(site.slug));
-				await opfsSiteStorage!.resetSiteFiles(site.slug);
+				// "Run Blueprint and reset site" changes the setup for this
+				// autosave. Delete the old WordPress files with
+				// `opfsSiteRemovalPending` so a tab close after the metadata
+				// write cannot leave the old site booting under the edited
+				// Blueprint.
+				const completedChanges =
+					await resetAutosavedSiteFilesWithPendingMarker(
+						site.slug,
+						changes
+					);
+				// The helper already wrote these changes to OPFS before and
+				// after deleting files. Update Redux without writing the same
+				// metadata a third time.
+				dispatch(
+					sitesSlice.actions.updateSite({
+						id: site.slug,
+						changes: completedChanges,
+					})
+				);
 			} else {
 				dispatch(removeClientInfo(site.slug));
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes,
+					})
+				);
 			}
-			await dispatch(
-				updateSite({
-					slug: site.slug,
-					changes: {
-						...(isAutosaved
-							? { loadedFromStorage: false }
-							: {}),
-						metadata: {
-							...site.metadata,
-							originalBlueprintSource: isAutosaved
-								? { type: 'opfs-site' }
-								: { type: 'none' },
-							originalBlueprint: isAutosaved
-								? (filesystem as EventedFilesystem).backend
-								: bundle,
-							runtimeConfiguration,
-							initialOpfsSyncPending:
-								isAutosaved ||
-								site.metadata.initialOpfsSyncPending,
-							/**
-							 * Recreating an autosaved Playground discards the old WordPress
-							 * files and boots from the edited Blueprint. Constants discovered
-							 * from the previous runtime may no longer exist in the recreated
-							 * site, so they must be rediscovered after the first OPFS sync.
-							 */
-							playgroundDefinedConstants: isAutosaved
-								? undefined
-								: site.metadata.playgroundDefinedConstants,
-							whenCreated: Date.now(),
-						},
-						originalUrlParams: undefined,
-					},
-				})
-			);
 		} catch (error) {
 			logger.error('Failed to recreate from blueprint', error);
 			setSaveError('Could not recreate Playground. Try again.');

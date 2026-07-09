@@ -5,7 +5,7 @@ describe('stored site specs', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
-	let resetSiteFiles: ReturnType<typeof vi.fn>;
+	let removeWordPressFilesKeepMetadata: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
@@ -13,7 +13,7 @@ describe('stored site specs', () => {
 		createSite = vi.fn();
 		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
-		resetSiteFiles = vi.fn();
+		removeWordPressFilesKeepMetadata = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
 
 		vi.doMock('@php-wasm/logger', () => ({
@@ -48,7 +48,7 @@ describe('stored site specs', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				update: updateSiteStorage,
-				resetSiteFiles,
+				removeWordPressFilesKeepMetadata,
 			},
 		}));
 		vi.doMock('../playground-identity', () => ({
@@ -312,7 +312,7 @@ describe('stored site specs', () => {
 		).rejects.toThrow('Invalid setup');
 
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
-		expect(resetSiteFiles).not.toHaveBeenCalled();
+		expect(removeWordPressFilesKeepMetadata).not.toHaveBeenCalled();
 	});
 
 	it('does not persist a bundle for a new stored site before validating setup', async () => {

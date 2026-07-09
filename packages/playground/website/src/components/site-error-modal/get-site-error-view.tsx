@@ -58,6 +58,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'browser-storage-cleanup-failed':
+			return browserStorageCleanupFailedView(context);
 		case 'initial-opfs-sync-interrupted':
 			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
@@ -70,32 +72,70 @@ export function getSiteErrorView(
 	}
 }
 
-function initialOpfsSyncInterruptedView({
+function browserStorageCleanupFailedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Browser storage save was interrupted',
+		title: 'Close other Playground tabs, then reload',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground started saving this site to browser storage, but
-					the file copy did not finish.
+					An earlier reset was interrupted, and old site files are
+					still in this saved Playground.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						This can happen if the tab was closed or reloaded before
-						the browser-storage save finished.
+						Playground tried to remove those old files again before
+						opening the site, but the browser still would not remove
+						them.
 					</li>
 					<li>
-						It can also happen if the browser interrupted storage,
-						for example because the tab was suspended or storage
-						quota was reached.
+						Playground stopped because those old files may show the
+						old site instead of the reset site.
 					</li>
 					<li>
-						Playground did not try to repair the stored files
-						because the WordPress copy may be incomplete or
-						corrupted.
+						Close any other Playground tabs that may be using this
+						saved site, then click <strong>Reload</strong>. If no
+						other Playground tabs are open, make sure your browser
+						has free storage, then reload.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-page"
+				onClick={helpers.reloadPage}
+			>
+				Reload
+			</Button>,
+		],
+	};
+}
+
+function initialOpfsSyncInterruptedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Start a new Playground to continue',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					This saved Playground is incomplete and can’t be reopened.
+					Start a new Playground to keep working.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						What happened: the previous save stopped before all
+						WordPress files were copied.
+					</li>
+					<li>
+						This can happen if the tab was closed or reloaded, the
+						browser suspended the page, or the browser ran out of
+						space for saved sites.
 					</li>
 				</ul>
 			</>
@@ -106,7 +146,7 @@ function initialOpfsSyncInterruptedView({
 				key="reload-tab"
 				onClick={helpers.reloadWithoutBlueprint}
 			>
-				Reload Fresh Playground
+				Start a new Playground
 			</Button>,
 		],
 	};
