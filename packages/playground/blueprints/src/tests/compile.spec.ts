@@ -1,9 +1,23 @@
 import { InMemoryFilesystem } from '@wp-playground/storage';
+import { ProgressTracker } from '@php-wasm/progress';
 import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import type { BlueprintV2Declaration } from '../lib/v2/blueprint-v2-declaration';
-import { UnsupportedBlueprintV2FeatureError } from '../lib/v2/compile';
+import {
+	lowerBlueprintV2ExecutionPlan,
+	UnsupportedBlueprintV2FeatureError,
+} from '../lib/v2/compile';
+
+function withoutProgress(step: any) {
+	const rest = { ...step };
+	delete rest.progress;
+	return rest;
+}
+
+function withoutProgressFromSteps(steps: any[]) {
+	return steps.map(withoutProgress);
+}
 
 describe('compileBlueprintForExecution', () => {
 	it('compiles Blueprint v1 declarations through the v1 compiler', async () => {
@@ -551,6 +565,103 @@ describe('compileBlueprintForExecution', () => {
 		).toEqual([]);
 	});
 
+	it('adds useful progress metadata to Blueprint v2 generated steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			media: ['./media/image.jpg'],
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(
+			compiled.compiled.steps.map((step) => ({
+				step: step.step,
+				progress: step.progress,
+			}))
+		).toEqual([
+			{
+				step: 'writeFile',
+				progress: {
+					caption: 'Importing media',
+					weight: 0.5,
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				progress: {
+					caption: 'Importing media',
+					weight: 0.5,
+				},
+			},
+			{
+				step: 'mkdir',
+				progress: {
+					caption: 'Creating directory',
+					weight: 1,
+				},
+			},
+		]);
+	});
+
+	it('does not add progress metadata when a Blueprint v2 plan item produces no steps', () => {
+		const result = lowerBlueprintV2ExecutionPlan([
+			{
+				type: 'runStep',
+				step: {
+					step: 'writeFiles',
+					files: {},
+				},
+				sourcePath: '/additionalStepsAfterExecution/0',
+			},
+		]);
+
+		expect(result).toEqual({
+			steps: [],
+			unsupportedPlan: [],
+		});
+	});
+
+	it('reports Blueprint v2 progress through the provided progress tracker', async () => {
+		const progress = new ProgressTracker();
+		const events: Array<{ progress: number; caption: string }> = [];
+		progress.addEventListener('progress', (event: any) => {
+			events.push({
+				progress: event.detail.progress,
+				caption: event.detail.caption,
+			});
+		});
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'mkdir',
+						path: 'site:wp-content/uploads/from-v2',
+					},
+				],
+			},
+			{ progress }
+		);
+
+		await compiled.run({
+			mkdir: vi.fn(),
+		} as any);
+
+		expect(events).toContainEqual({
+			progress: 0,
+			caption: 'Creating directory',
+		});
+		expect(events.at(-1)?.progress).toBe(100);
+	});
+
 	it('lowers Blueprint v2 mysql-dump content to runSql steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
@@ -573,7 +684,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -615,7 +726,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -669,7 +780,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'importWxr',
 				file: {
@@ -799,7 +910,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -855,7 +966,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'writeFile',
 				path: '/wordpress/wp-content/uploads/readme.txt',
@@ -923,7 +1034,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'unzip',
 				zipFile: {
@@ -970,7 +1081,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'writeFile',
 				path: '/tmp/blueprint-run-php-0.php',
@@ -1015,7 +1126,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps[0]).toEqual({
+		expect(withoutProgress(compiled.compiled.steps[0])).toEqual({
 			step: 'writeFile',
 			path: '/tmp/blueprint-post-content-0',
 			data: {
@@ -1071,7 +1182,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'writeFile',
 				path: '/wordpress/wp-content/mu-plugins/demo-mu.php',
@@ -1117,7 +1228,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps[0]).toEqual({
+		expect(withoutProgress(compiled.compiled.steps[0])).toEqual({
 			step: 'writeFile',
 			path: '/tmp/blueprint-media-0',
 			data: {

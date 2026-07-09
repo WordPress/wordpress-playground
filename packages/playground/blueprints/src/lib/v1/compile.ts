@@ -703,7 +703,8 @@ function compileStep<S extends StepDefinition>(
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight
+		(step.progress?.weight || 1) / totalProgressWeight,
+		step.progress?.caption
 	);
 
 	const args: any = {};
@@ -722,6 +723,9 @@ function compileStep<S extends StepDefinition>(
 
 	const run = async (playground: UniversalPHP) => {
 		try {
+			if (step.progress?.caption) {
+				stepProgress.setCaption(step.progress.caption);
+			}
 			stepProgress.fillSlowly();
 			return await keyedStepHandlers[step.step](
 				playground,
