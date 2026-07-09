@@ -114,7 +114,10 @@ async function readStreamForInlinePreview(
 				await reader.cancel().catch(() => undefined);
 				return {
 					type: 'too-large',
-					downloadUrl: createObjectUrlForNativeBlob(file, totalBytes),
+					downloadUrl: createObjectUrlForNativeBlob(
+						file,
+						getKnownFileSize(file)
+					),
 				};
 			}
 			chunks.push(value);
@@ -136,12 +139,16 @@ function concatChunks(chunks: Uint8Array[], totalBytes: number) {
 
 function createObjectUrlForNativeBlob(
 	file: BrowserReadableFile,
-	expectedSize: number
+	expectedSize: number | undefined
 ): string | undefined {
 	// Native Blob/File objects can be downloaded without copying their bytes into
 	// JavaScript. Stream-backed files need a streaming download path instead; do
 	// not call arrayBuffer() here just to preserve the old download link.
-	if (file instanceof Blob && file.size === expectedSize) {
+	if (
+		typeof Blob !== 'undefined' &&
+		file instanceof Blob &&
+		file.size === expectedSize
+	) {
 		const url = URL.createObjectURL(file);
 		setTimeout(() => URL.revokeObjectURL(url), 60_000);
 		return url;

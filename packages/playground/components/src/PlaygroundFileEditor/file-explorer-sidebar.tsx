@@ -21,6 +21,7 @@ import {
 	createDownloadUrl,
 	getMimeType,
 	isPreviewableBinary,
+	MAX_INLINE_FILE_BYTES,
 	readFileForInlinePreview,
 } from './file-utils';
 
@@ -204,9 +205,10 @@ export function FileExplorerSidebar({
 }
 
 function renderTooLargeMessage(filename: string, downloadUrl?: string) {
+	const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
 	return (
 		<>
-			<p>File too large to open (&gt;1MB).</p>
+			<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
 			<p>
 				{downloadUrl ? (
 					<a href={downloadUrl} download={filename}>
