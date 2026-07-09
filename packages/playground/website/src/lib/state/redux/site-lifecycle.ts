@@ -75,8 +75,8 @@ export function isExplicitlySavedSite(site: SiteInfo) {
 }
 
 /**
- * Indicates whether a site only exists in Redux for the current browser
- * session and will be lost when the session ends.
+ * Indicates whether a site is not yet a stored Playground. The classification
+ * follows metadata.storage, which can remain 'none' while storage work runs.
  */
 export function isTemporarySite(site: SiteInfo) {
 	return !isStoredSite(site);

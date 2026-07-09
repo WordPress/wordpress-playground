@@ -892,8 +892,9 @@ export const selectSortedSites = createSelector(
 );
 
 /**
- * Returns durable Playgrounds in recency order. Temporary Playgrounds remain
- * outside this list because they are only available for the current session.
+ * Returns storage-backed Playgrounds, including autosaves, in recency order.
+ * Temporary Playgrounds remain outside this list because they are only
+ * available for the current session.
  */
 export const selectSortedStoredSites = createSelector(
 	[selectSortedSites],
