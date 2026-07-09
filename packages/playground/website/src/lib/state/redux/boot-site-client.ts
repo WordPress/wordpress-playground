@@ -83,9 +83,10 @@ export function bootSiteClient(
 					return;
 				}
 				if (false === removalResult) {
-					// The helper already showed the browser-storage cleanup
-					// error. Stop here so we do not mount a directory that may
-					// still contain the previous autosave's WordPress files.
+					// `finishPendingOpfsSiteRemoval()` returned false after
+					// dispatching `browser-storage-cleanup-failed` for the
+					// cleanup error. Stop here so we do not mount OPFS while
+					// it may still contain the previous autosave's WordPress files.
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
