@@ -21,7 +21,7 @@ const V2_PHP_CONSTRAINT_CANDIDATES = AllPHPVersions.filter(
 	(phpVersion) => phpVersion !== 'next'
 ) as AllPHPVersion[];
 
-type V2WordPressVersionConstraintObject = {
+type UnvalidatedV2WordPressVersionConstraint = {
 	min: unknown;
 	max?: unknown;
 	preferred?: unknown;
@@ -231,6 +231,12 @@ function resolveV2WordPressVersion(
 	return 'latest';
 }
 
+/**
+ * Resolves a Blueprint v2 WordPress version string to a runtime source.
+ *
+ * Runtime configuration can carry named WordPress builds and HTTP(S) ZIP URLs,
+ * but it cannot carry file references from the Blueprint execution context.
+ */
 function resolveV2WordPressVersionString(wordpressVersion: string): string {
 	if (isHttpUrl(wordpressVersion)) {
 		return wordpressVersion;
@@ -257,15 +263,23 @@ function resolveV2WordPressVersionString(wordpressVersion: string): string {
 
 function isV2WordPressVersionConstraint(
 	wordpressVersion: unknown
-): wordpressVersion is V2WordPressVersionConstraintObject {
+): wordpressVersion is UnvalidatedV2WordPressVersionConstraint {
 	if (!wordpressVersion || typeof wordpressVersion !== 'object') {
 		return false;
 	}
 	return 'min' in wordpressVersion;
 }
 
+/**
+ * Selects a requestable WordPress version from a Blueprint v2 constraint.
+ *
+ * An explicit concrete preferred version wins when it satisfies the bounds.
+ * Otherwise, an unbounded constraint maps to `latest`, while a bounded
+ * constraint maps to its maximum because the runtime cannot request a latest
+ * release capped at a maximum version.
+ */
 function resolveV2WordPressConstraintVersion(
-	wordpressVersion: V2WordPressVersionConstraintObject
+	wordpressVersion: UnvalidatedV2WordPressVersionConstraint
 ): string | undefined {
 	assertV2WordPressVersionConstraint(wordpressVersion);
 	assertV2ComparableWordPressConstraintVersion(
@@ -310,7 +324,7 @@ function resolveV2WordPressConstraintVersion(
 }
 
 function assertV2WordPressVersionConstraint(
-	wordpressVersion: V2WordPressVersionConstraintObject
+	wordpressVersion: UnvalidatedV2WordPressVersionConstraint
 ): asserts wordpressVersion is V2WordPressVersionConstraint {
 	assertV2StringWordPressConstraintVersion(
 		'wordpressVersion.min',
@@ -401,6 +415,13 @@ function isComparableWordPressVersion(wordpressVersion: string): boolean {
 	return parseComparableWordPressVersion(wordpressVersion) !== null;
 }
 
+/**
+ * Parses a comparable WordPress release into components ordered by precedence.
+ *
+ * Missing patch numbers become zero, and suffix ranks preserve the WordPress
+ * release order: beta before RC before the stable release. Runtime labels and
+ * custom URLs are not comparable and return `null`.
+ */
 function parseComparableWordPressVersion(
 	wordpressVersion: string
 ): [number, number, number, number, number] | null {
