@@ -1395,41 +1395,6 @@ phpLoaderOptions.forEach((options) => {
 				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 
-			it('Handle process spawn timeout gracefully', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(async () => {
-					spawnHandlerCalled = true;
-					// Don't call processApi.notifySpawn() or processApi.exit()
-					// to simulate a hanging process that never starts
-					await new Promise(() => {}); // Never resolves
-				});
-
-				php.setSpawnHandler(handler);
-
-				const startTime = Date.now();
-				await php.run({
-					code: `<?php
-						$res = proc_open(
-							"hanging_command",
-							array(
-								array("pipe","r"),
-								array("pipe","w"),
-								array("pipe","w"),
-							),
-							$pipes
-						);
-						// This will block – it's a blocking pipe and will never
-						// output any data.
-						fread($pipes[1], 1024);
-					`,
-				});
-				const elapsed = Date.now() - startTime;
-				// Should timeout around 5 seconds (allowing some margin)
-				expect(elapsed).toBeGreaterThan(4500);
-				expect(elapsed).toBeLessThan(6000);
-				expect(spawnHandlerCalled).toBe(true);
-			}, 10000);
-
 			it(
 				'waits for data even when it arrives after the 5s internal polling timeout',
 				{ timeout: 15_000 },
@@ -1438,7 +1403,7 @@ phpLoaderOptions.forEach((options) => {
 						async (command: string[], processApi: any) => {
 							processApi.notifySpawn();
 							// Deliver data after 10 seconds – well beyond the
-							// internal 5-second polling timeout in js_fd_read.
+							// 5-second polling timeout js_fd_read used to have.
 							await new Promise((resolve) =>
 								setTimeout(resolve, 10_000)
 							);
@@ -1462,8 +1427,8 @@ phpLoaderOptions.forEach((options) => {
 						1 => array("pipe","w")
 					);
 					$proc = proc_open("delayed_command", $descriptorspec, $pipes);
-					// This is a blocking read. It should wait indefinitely
-					// for data, but js_fd_read gives up after 5 seconds.
+					// This is a blocking read. It must keep waiting for data
+					// even when it takes longer than 5 seconds to arrive.
 					$data = fread($pipes[1], 1024);
 					echo $data;
 					proc_close($proc);
