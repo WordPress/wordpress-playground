@@ -71,6 +71,11 @@ export type {
 	CompiledBlueprintV2,
 	CompileBlueprintV2Options,
 } from './lib/v2/compile';
+export { blueprintV2PlaygroundSupport } from './lib/v2/playground-support';
+export type {
+	BlueprintV2PlaygroundSupportEntry,
+	BlueprintV2PlaygroundSupportStatus,
+} from './lib/v2/playground-support';
 
 export {
 	resolveRemoteBlueprint,
