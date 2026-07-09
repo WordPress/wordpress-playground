@@ -565,6 +565,94 @@ describe('compileBlueprintForExecution', () => {
 		).toEqual([]);
 	});
 
+	it('lowers Blueprint v2 install options to v1 install step options', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: './plugins/sample-plugin.zip',
+					active: false,
+					ifAlreadyInstalled: 'skip',
+					onError: 'skip-plugin',
+					targetDirectoryName: 'sample-plugin-target',
+					humanReadableName: 'Sample Plugin',
+					activationOptions: {
+						source: 'blueprint-v2',
+					},
+				},
+			],
+			themes: [
+				{
+					source: './themes/sample-theme.zip',
+					ifAlreadyInstalled: 'error',
+					onError: 'skip-theme',
+					targetDirectoryName: 'sample-theme-target',
+					humanReadableName: 'Sample Theme',
+				},
+			],
+			activeTheme: {
+				source: './themes/active-theme.zip',
+				ifAlreadyInstalled: 'overwrite',
+				targetDirectoryName: 'active-theme-target',
+				humanReadableName: 'Active Theme',
+			},
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'bundled',
+					path: 'themes/sample-theme.zip',
+				},
+				ifAlreadyInstalled: 'error',
+				options: {
+					activate: false,
+					importStarterContent: false,
+					onError: 'skip-theme',
+					targetFolderName: 'sample-theme-target',
+					humanReadableName: 'Sample Theme',
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'bundled',
+					path: 'themes/active-theme.zip',
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: true,
+					importStarterContent: false,
+					targetFolderName: 'active-theme-target',
+					humanReadableName: 'Active Theme',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'bundled',
+					path: 'plugins/sample-plugin.zip',
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+					activationOptions: {
+						source: 'blueprint-v2',
+					},
+					onError: 'skip-plugin',
+					targetFolderName: 'sample-plugin-target',
+					humanReadableName: 'Sample Plugin',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
 	it('adds useful progress metadata to Blueprint v2 generated steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
