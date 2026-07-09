@@ -22,6 +22,41 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('Blueprint v2 declarations should run through the website flow', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/v2-website-smoke.php',
+			},
+		},
+		siteOptions: {
+			blogname: 'V2 Website Smoke',
+		},
+		additionalStepsAfterExecution: [
+			{
+				step: 'writeFiles',
+				files: {
+					'site:v2-website-smoke.php': {
+						filename: 'v2-website-smoke.php',
+						content:
+							'<?php require __DIR__ . "/wp-load.php"; echo get_option("blogname");',
+					},
+				},
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(
+		`./?experimental-blueprints-v2-runner=yes#${encodedBlueprint}`
+	);
+	await expect(wordpress.locator('body')).toContainText('V2 Website Smoke');
+});
+
 test('spawning less should work', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/less.php',
@@ -550,7 +585,9 @@ test('CURLFile uploads via curl_exec() should work', async ({
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(wordpress.locator('body')).toContainText('HTTP_CODE:200');
 	await expect(wordpress.locator('body')).toContainText('POST_RECEIVED:YES');
-	await expect(wordpress.locator('body')).toContainText('MULTIPART_UPLOAD:YES');
+	await expect(wordpress.locator('body')).toContainText(
+		'MULTIPART_UPLOAD:YES'
+	);
 });
 
 /**

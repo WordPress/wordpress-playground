@@ -1049,6 +1049,37 @@ describe.each(blueprintVersions)(
 	60_000 * 5
 );
 
+test('should execute v2 blueprints through the CLI server', async () => {
+	await using cliServer = await runCLI({
+		command: 'server',
+		workers: 1,
+		blueprint: {
+			version: 2,
+			siteOptions: {
+				blogname: 'V2 CLI Smoke',
+			},
+			additionalStepsAfterExecution: [
+				{
+					step: 'writeFiles',
+					files: {
+						'site:v2-cli-smoke.php': {
+							filename: 'v2-cli-smoke.php',
+							content:
+								'<?php require __DIR__ . "/wp-load.php"; echo get_option("blogname");',
+						},
+					},
+				},
+			],
+		},
+	});
+	const response = await fetch(
+		new URL('/v2-cli-smoke.php', cliServer.serverUrl)
+	);
+
+	expect(response.status).toBe(200);
+	expect(await response.text()).toBe('V2 CLI Smoke');
+}, 120000);
+
 describe('native Blueprint v2 modes', () => {
 	fullNativeBlueprintV2ModeTest(
 		'should support --mode=create-new-site',

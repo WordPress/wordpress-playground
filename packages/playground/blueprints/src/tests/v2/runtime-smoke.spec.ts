@@ -124,6 +124,38 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		});
 	});
 
+	it('applies site configuration declarations', async () => {
+		await applyBlueprint({
+			version: 2,
+			constants: {
+				WP_DEBUG: true,
+				WP_ENVIRONMENT_TYPE: 'local',
+			},
+			siteOptions: {
+				blogname: 'V2 Runtime Site',
+				timezone_string: 'Europe/Warsaw',
+			},
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'wpDebug' => defined('WP_DEBUG') ? WP_DEBUG : null,
+					'environment' => defined('WP_ENVIRONMENT_TYPE') ? WP_ENVIRONMENT_TYPE : null,
+					'blogname' => get_option('blogname'),
+					'timezone' => get_option('timezone_string'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			wpDebug: true,
+			environment: 'local',
+			blogname: 'V2 Runtime Site',
+			timezone: 'Europe/Warsaw',
+		});
+	});
+
 	it(
 		'applies post import options at runtime',
 		async () => {
@@ -290,6 +322,115 @@ describe('Blueprint v2 runtime smoke tests', () => {
 			exists: true,
 			mime_type: 'image/png',
 			alt: 'Imported by a v2 Blueprint runtime test',
+		});
+	});
+
+	it('installs v2 plugins and themes with runtime-visible options', async () => {
+		await applyBlueprint({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'inactive-runtime-plugin',
+						files: {
+							'inactive-runtime-plugin.php': `<?php
+/**
+ * Plugin Name: V2 Inactive Runtime Plugin
+ */
+add_action('init', function () {
+	update_option('v2_inactive_runtime_plugin_loaded', 'yes');
+});
+`,
+						},
+					},
+					active: false,
+				},
+				{
+					source: {
+						directoryName: 'active-runtime-plugin',
+						files: {
+							'active-runtime-plugin.php': `<?php
+/**
+ * Plugin Name: V2 Active Runtime Plugin
+ */
+register_activation_hook(__FILE__, function () {
+	update_option(
+		'v2_active_runtime_plugin_activation',
+		get_option('blueprint_activation_' . plugin_basename(__FILE__))
+	);
+});
+add_action('init', function () {
+	update_option('v2_active_runtime_plugin_loaded', 'yes');
+});
+`,
+						},
+					},
+					active: true,
+					targetDirectoryName: 'active-runtime-plugin-target',
+					activationOptions: {
+						source: 'blueprint-v2-runtime-test',
+						enabled: true,
+					},
+				},
+			],
+			themes: [
+				{
+					source: {
+						directoryName: 'inactive-runtime-theme',
+						files: {
+							'style.css':
+								'/*\nTheme Name: V2 Inactive Runtime Theme\n*/',
+							'index.php': '<?php echo "inactive";',
+						},
+					},
+				},
+			],
+			activeTheme: {
+				source: {
+					directoryName: 'active-runtime-theme',
+					files: {
+						'style.css':
+							'/*\nTheme Name: V2 Active Runtime Theme\n*/',
+						'index.php': '<?php echo "active";',
+					},
+				},
+				targetDirectoryName: 'active-runtime-theme-target',
+			},
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+				$theme = wp_get_theme();
+				echo json_encode([
+					'activePluginInstalled' => file_exists(WP_PLUGIN_DIR . '/active-runtime-plugin-target/active-runtime-plugin.php'),
+					'activePluginActive' => is_plugin_active('active-runtime-plugin-target/active-runtime-plugin.php'),
+					'activePluginLoaded' => get_option('v2_active_runtime_plugin_loaded'),
+					'activationOptions' => get_option('v2_active_runtime_plugin_activation'),
+					'inactivePluginInstalled' => file_exists(WP_PLUGIN_DIR . '/inactive-runtime-plugin/inactive-runtime-plugin.php'),
+					'inactivePluginActive' => is_plugin_active('inactive-runtime-plugin/inactive-runtime-plugin.php'),
+					'inactivePluginLoaded' => get_option('v2_inactive_runtime_plugin_loaded', false),
+					'activeThemeName' => $theme->get('Name'),
+					'activeThemeStylesheet' => get_stylesheet(),
+					'inactiveThemeInstalled' => wp_get_theme('inactive-runtime-theme')->exists(),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			activePluginInstalled: true,
+			activePluginActive: true,
+			activePluginLoaded: 'yes',
+			activationOptions: {
+				source: 'blueprint-v2-runtime-test',
+				enabled: true,
+			},
+			inactivePluginInstalled: true,
+			inactivePluginActive: false,
+			inactivePluginLoaded: false,
+			activeThemeName: 'V2 Active Runtime Theme',
+			activeThemeStylesheet: 'active-runtime-theme-target',
+			inactiveThemeInstalled: true,
 		});
 	});
 
