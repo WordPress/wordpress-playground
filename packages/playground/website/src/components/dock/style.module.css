@@ -176,6 +176,29 @@
 	line-height: 0;
 }
 
+.dock-tabs {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.dock-tabs-panel {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.dock-tabs-panel :global(.components-tab-panel__tabs) {
+	flex: 0 0 auto;
+}
+
+.dock-tabs-panel :global(.components-tab-panel__tab-content) {
+	flex: 1;
+	min-height: 0;
+}
+
 .pane {
 	--space-3: 12px;
 	--space-4: 16px;
