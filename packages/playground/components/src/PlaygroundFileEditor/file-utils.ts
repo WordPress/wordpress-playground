@@ -51,8 +51,10 @@ type BrowserReadableFile = {
 };
 
 /**
- * Reads a file for inline editing without buffering streams that already report
- * they are larger than the editor limit.
+ * Classifies a file as inline-editable or too large for the editor.
+ *
+ * Uses known size metadata before reading when it is available. Stream-backed
+ * files without a known size are read only until they cross the inline limit.
  */
 export async function readFileForInlinePreview(
 	file: BrowserReadableFile,
@@ -80,6 +82,9 @@ export async function readFileForInlinePreview(
 	return { type: 'inline', data };
 }
 
+/**
+ * Returns the file size reported by browser and storage-backed file objects.
+ */
 function getKnownFileSize(file: BrowserReadableFile): number | undefined {
 	if (typeof file.filesize === 'number') {
 		return file.filesize;
@@ -90,6 +95,12 @@ function getKnownFileSize(file: BrowserReadableFile): number | undefined {
 	return undefined;
 }
 
+/**
+ * Reads a file stream only while it remains small enough for inline editing.
+ *
+ * The stream is canceled as soon as the accumulated bytes exceed the limit so
+ * large files do not have to finish loading before the editor rejects them.
+ */
 async function readStreamForInlinePreview(
 	file: BrowserReadableFile,
 	maxInlineBytes: number
@@ -127,6 +138,9 @@ async function readStreamForInlinePreview(
 	}
 }
 
+/**
+ * Combines stream chunks that were already accepted for inline preview.
+ */
 function concatChunks(chunks: Uint8Array[], totalBytes: number) {
 	const data = new Uint8Array(totalBytes);
 	let offset = 0;
@@ -137,6 +151,12 @@ function concatChunks(chunks: Uint8Array[], totalBytes: number) {
 	return data;
 }
 
+/**
+ * Creates a download URL only when the original file is a native Blob/File.
+ *
+ * This avoids copying large stream-backed files into memory just to preserve the
+ * large-file download link.
+ */
 function createObjectUrlForNativeBlob(
 	file: BrowserReadableFile,
 	expectedSize: number | undefined

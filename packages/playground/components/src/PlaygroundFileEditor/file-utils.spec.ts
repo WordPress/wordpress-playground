@@ -77,6 +77,9 @@ describe('readFileForInlinePreview', () => {
 	});
 });
 
+/**
+ * Converts bytes back to text for inline preview assertions.
+ */
 function decode(data: Uint8Array) {
 	return new TextDecoder().decode(data);
 }

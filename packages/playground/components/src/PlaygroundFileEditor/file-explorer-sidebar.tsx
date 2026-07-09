@@ -43,6 +43,9 @@ export type FileExplorerSidebarProps = {
 	documentRoot: string;
 };
 
+/**
+ * Renders the file explorer and opens selected files in the editor preview area.
+ */
 export function FileExplorerSidebar({
 	filesystem,
 	currentPath,
@@ -69,6 +72,9 @@ export function FileExplorerSidebar({
 		null
 	);
 
+	/**
+	 * Opens a selected file as editable text, binary preview, or too-large notice.
+	 */
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
 			const file = await filesystem.read(path);
@@ -204,6 +210,9 @@ export function FileExplorerSidebar({
 	);
 }
 
+/**
+ * Renders the editor message shown when a file exceeds the inline read limit.
+ */
 function renderTooLargeMessage(filename: string, downloadUrl?: string) {
 	const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
 	return (
