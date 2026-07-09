@@ -8,7 +8,9 @@ import { siteManagementMiddleware } from './site-management-api-middleware';
 import { mcpBridgeMiddleware } from './init-mcp-bridge';
 import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
+	isStoredSite,
 	selectSiteBySlug,
+	selectTemporarySite,
 	selectTemporarySites,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
@@ -87,6 +89,16 @@ export const selectActiveSite = (
 		? state.sites.entities[state.ui.activeSite.slug]
 		: undefined;
 
+/**
+ * Returns the active site only when it has durable storage. Autosaves count as
+ * stored; callers that need an explicit save should use isExplicitlySavedSite.
+ */
+export const selectActiveStoredSite = createSelector(
+	[selectActiveSite],
+	(activeSite) =>
+		activeSite && isStoredSite(activeSite) ? activeSite : undefined
+);
+
 export const selectActiveSiteError = (
 	state: PlaygroundReduxState
 ): SiteError | undefined =>
@@ -98,6 +110,16 @@ export const selectActiveSiteErrorDetails = (
 	state.ui.activeSite?.slug ? state.ui.activeSite.errorDetails : undefined;
 
 export const useActiveSite = () => useAppSelector(selectActiveSite);
+
+/**
+ * Returns the active site only when it has a durable storage backend.
+ */
+export const useActiveStoredSite = () => useAppSelector(selectActiveStoredSite);
+
+/**
+ * Returns the temporary site for the current browser session, when one exists.
+ */
+export const useTemporarySite = () => useAppSelector(selectTemporarySite);
 
 export const setActiveSite = (
 	slug: string | undefined,

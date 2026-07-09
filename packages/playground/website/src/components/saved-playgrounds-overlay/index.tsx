@@ -21,12 +21,14 @@ import {
 	useActiveSite,
 	useAppSelector,
 	useAppDispatch,
+	useTemporarySite,
 } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
-	selectSortedSites,
-	selectTemporarySite,
+	isStoredSite,
+	isTemporarySite,
+	selectSortedStoredSites,
 } from '../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
@@ -108,10 +110,8 @@ export function SavedPlaygroundsOverlay({
 	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
-	const storedSites = useAppSelector(selectSortedSites).filter(
-		(site) => site.metadata.storage !== 'none'
-	);
-	const temporarySite = useAppSelector(selectTemporarySite);
+	const storedSites = useAppSelector(selectSortedStoredSites);
+	const temporarySite = useTemporarySite();
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
@@ -382,7 +382,7 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
-		if (site.metadata.storage === 'none') {
+		if (isTemporarySite(site)) {
 			return 'Not saved to browser storage';
 		}
 		const createdDate = formatSiteCreatedDate(site);
@@ -512,7 +512,7 @@ export function SavedPlaygroundsOverlay({
 	function renderSiteRow(site: SiteInfo) {
 		const isSelected = site.slug === activeSite?.slug;
 		const isAutosave = isAutosavedSite(site);
-		const isStoredSite = site.metadata.storage !== 'none';
+		const isStored = isStoredSite(site);
 
 		return (
 			<div
@@ -545,7 +545,7 @@ export function SavedPlaygroundsOverlay({
 						</span>
 					</div>
 				</button>
-				{isStoredSite && (
+				{isStored && (
 					<div className={css.siteRowActions}>
 						{isAutosave && (
 							<button
