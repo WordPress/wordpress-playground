@@ -18,6 +18,37 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	return Buffer.from(zipBytes!);
 }
 
+async function createPluginThemeExportZip(): Promise<Buffer> {
+	const files = [
+		new File(
+			[
+				`<?php
+/**
+ * Plugin Name: Close Race Plugin
+ */
+`,
+			],
+			'wp-content/plugins/close-race-plugin/close-race-plugin.php'
+		),
+		new File(
+			[
+				`/*
+Theme Name: Close Race Theme
+*/
+`,
+			],
+			'wp-content/themes/close-race-theme/style.css'
+		),
+		new File(
+			[`<?php echo 'Close Race Theme';`],
+			'wp-content/themes/close-race-theme/index.php'
+		),
+	];
+	const zipStream = encodeZip(files);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
+
 // OPFS tests must run serially because OPFS storage is shared at the browser
 // level, so tests would interfere with each other's saved sites if run in parallel.
 test.describe.configure({ mode: 'serial' });
@@ -752,6 +783,66 @@ test('should display OPFS storage option as selected by default', async ({
 
 	// Close the modal
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should flash import progress and finish after a close attempt during ZIP import', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openSavedPlaygroundsOverlay();
+
+	const zipBuffer = await createPluginThemeExportZip();
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			await dialog.accept();
+		});
+	await fileInput.setInputFiles({
+		name: 'playground-export-with-plugin-and-theme.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+	const zipStatus = website.page.getByTestId('zip-import-status');
+	await expect(zipStatus).toBeVisible();
+	const closeButton = website.page.getByRole('button', { name: 'Close' });
+	await expect(closeButton).toBeEnabled();
+	await closeButton.click();
+	await expect(zipStatus).toBeVisible();
+	await expect(zipStatus).toHaveClass(/zipImportStatusAttention/);
+	await importComplete;
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(async () => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					if (!playground) {
+						return { plugin: false, theme: false };
+					}
+					const documentRoot = await playground.documentRoot;
+					return {
+						plugin: await playground.fileExists(
+							`${documentRoot}/wp-content/plugins/close-race-plugin/close-race-plugin.php`
+						),
+						theme: await playground.fileExists(
+							`${documentRoot}/wp-content/themes/close-race-theme/style.css`
+						),
+					};
+				}),
+			{ timeout: 90000 }
+		)
+		.toEqual({ plugin: true, theme: true });
 });
 
 test('should import ZIP into a new saved site when a saved site exists', async ({
