@@ -83,7 +83,11 @@ export function bootSiteClient(
 					return;
 				}
 				if (false === removalResult) {
-					// TODO: it seems like we should show some error here?
+					// The helper already showed the specific site error:
+					// browser storage unavailable, permission denied, or an
+					// OPFS delete/update failure. Stop here so we do not mount
+					// a directory that may still contain the previous autosave's
+					// WordPress files.
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
