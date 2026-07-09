@@ -76,15 +76,14 @@ function browserStorageCleanupFailedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Could not reopen this saved Playground',
+		title: 'Playground couldn’t finish cleaning up this site',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
 					Playground found that an earlier reset of this saved site
 					was interrupted. It tried to finish cleaning up the old site
-					files before reopening it, but the browser could not remove
-					those files.
+					files now, but the browser could not remove them.
 				</p>
 				<ul className={css.errorList}>
 					<li>
@@ -118,15 +117,14 @@ function initialOpfsSyncInterruptedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'This Playground was not saved completely',
+		title: 'This saved Playground is incomplete',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
 					Playground started saving this site, but the save stopped
-					before all files were copied. Playground cannot safely
-					reopen this saved copy because some WordPress files may be
-					missing.
+					before all files were copied. This saved copy can’t be
+					reopened because some WordPress files may be missing.
 				</p>
 				<ul className={css.errorList}>
 					<li>

@@ -33,9 +33,9 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe('This Playground was not saved completely');
+		expect(view.title).toBe('This saved Playground is incomplete');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'before all files were copied'
+			'This saved copy can’t be reopened'
 		);
 		expect(renderToStaticMarkup(view.body)).toContain(
 			'Start a new Playground'
@@ -52,7 +52,9 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe('Could not reopen this saved Playground');
+		expect(view.title).toBe(
+			'Playground couldn’t finish cleaning up this site'
+		);
 		expect(renderToStaticMarkup(view.body)).toContain(
 			'an earlier reset of this saved site was interrupted'
 		);
