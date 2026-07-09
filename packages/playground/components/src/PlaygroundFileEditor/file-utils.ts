@@ -138,6 +138,9 @@ function createObjectUrlForNativeBlob(
 	file: BrowserReadableFile,
 	expectedSize: number
 ): string | undefined {
+	// Native Blob/File objects can be downloaded without copying their bytes into
+	// JavaScript. Stream-backed files need a streaming download path instead; do
+	// not call arrayBuffer() here just to preserve the old download link.
 	if (file instanceof Blob && file.size === expectedSize) {
 		const url = URL.createObjectURL(file);
 		setTimeout(() => URL.revokeObjectURL(url), 60_000);
