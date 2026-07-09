@@ -8,7 +8,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar, randomFilename } from '@php-wasm/util';
 import { setURLScope } from '@php-wasm/scopes';
 
 describe('Blueprint step importWordPressFiles', () => {
@@ -185,7 +185,7 @@ describe('Blueprint step importWordPressFiles', () => {
 	});
 
 	it('should import WordPress files from a single wrapping directory', async () => {
-		const zipPath = '/tmp/nested-wordpress-files.zip';
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
 		const pluginPath =
 			'playground-export/wp-content/plugins/nested-plugin/nested-plugin.php';
 		const themePath =
@@ -194,7 +194,7 @@ describe('Blueprint step importWordPressFiles', () => {
 		await targetPHP.run({
 			code: `<?php
 			$zip = new ZipArchive();
-			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE);
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 			$zip->addFromString(${phpVar(pluginPath)}, ${phpVar('<?php /* Plugin Name: Nested Plugin */')});
 			$zip->addFromString(${phpVar(themePath)}, ${phpVar('/* Theme Name: Nested Theme */')});
 			$zip->addFromString('__MACOSX/._ignored', '');
@@ -203,6 +203,7 @@ describe('Blueprint step importWordPressFiles', () => {
 		});
 
 		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		await targetPHP.unlink(zipPath);
 		const zipFile = new File([zipBuffer], 'nested-wordpress-files.zip');
 
 		await importWordPressFiles(targetPHP, {
@@ -228,20 +229,21 @@ describe('Blueprint step importWordPressFiles', () => {
 	});
 
 	it('should unwrap WordPress file archives without wp-content', async () => {
-		const zipPath = '/tmp/nested-wordpress-config.zip';
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
 		const configSamplePath = 'playground-export/wp-config-sample.php';
 		const configSampleContents = '<?php /* Nested config sample */';
 
 		await targetPHP.run({
 			code: `<?php
 			$zip = new ZipArchive();
-			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE);
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 			$zip->addFromString(${phpVar(configSamplePath)}, ${phpVar(configSampleContents)});
 			$zip->close();
 			`,
 		});
 
 		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		await targetPHP.unlink(zipPath);
 		const zipFile = new File([zipBuffer], 'nested-wordpress-config.zip');
 
 		await importWordPressFiles(targetPHP, {

@@ -52,13 +52,13 @@ export const importWordPressFiles: StepHandler<
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	let importPath = joinPaths('/tmp', 'import');
-	await playground.mkdir(importPath);
+	const unzipRoot = joinPaths('/tmp', 'import');
+	await playground.mkdir(unzipRoot);
 	await unzip(playground, {
 		zipFile: wordPressFilesZip,
-		extractToPath: importPath,
+		extractToPath: unzipRoot,
 	});
-	importPath = joinPaths(importPath, pathInZip);
+	let importPath = joinPaths(unzipRoot, pathInZip);
 	importPath =
 		(await findWordPressFilesRoot(playground, importPath)) || importPath;
 
@@ -128,7 +128,9 @@ export const importWordPressFiles: StepHandler<
 	}
 
 	// Remove the directory where we unzipped the imported zip file.
-	await playground.rmdir(importPath);
+	await playground.rmdir(unzipRoot, {
+		recursive: true,
+	});
 
 	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);
@@ -294,6 +296,8 @@ async function inferSiteUrlFromDatabase(
 	return siteUrl || null;
 }
 
+const MAX_WORDPRESS_ROOT_SEARCH_DEPTH = 32;
+
 const WORDPRESS_ROOT_MARKERS = [
 	'wp-content',
 	'wp-admin',
@@ -317,23 +321,33 @@ async function findWordPressFilesRoot(
 	playground: UniversalPHP,
 	importPath: string
 ): Promise<string | null> {
-	if (await hasWordPressRootMarker(playground, importPath)) {
-		return importPath;
+	let currentPath = importPath;
+
+	for (let depth = 0; depth <= MAX_WORDPRESS_ROOT_SEARCH_DEPTH; depth++) {
+		if (await hasWordPressRootMarker(playground, currentPath)) {
+			return currentPath;
+		}
+
+		if (depth === MAX_WORDPRESS_ROOT_SEARCH_DEPTH) {
+			return null;
+		}
+
+		const fileNames = (await playground.listFiles(currentPath)).filter(
+			(fileName) => fileName !== '__MACOSX' && fileName !== '.DS_Store'
+		);
+		if (fileNames.length !== 1) {
+			return null;
+		}
+
+		const nestedPath = joinPaths(currentPath, fileNames[0]);
+		if (!(await playground.isDir(nestedPath))) {
+			return null;
+		}
+
+		currentPath = nestedPath;
 	}
 
-	const fileNames = (await playground.listFiles(importPath)).filter(
-		(fileName) => fileName !== '__MACOSX' && fileName !== '.DS_Store'
-	);
-	if (fileNames.length !== 1) {
-		return null;
-	}
-
-	const nestedPath = joinPaths(importPath, fileNames[0]);
-	if (!(await playground.isDir(nestedPath))) {
-		return null;
-	}
-
-	return await findWordPressFilesRoot(playground, nestedPath);
+	return null;
 }
 
 async function hasWordPressRootMarker(
