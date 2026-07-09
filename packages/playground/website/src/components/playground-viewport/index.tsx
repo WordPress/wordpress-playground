@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
+import { LoadingTips } from '../loading-tips';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
@@ -137,10 +138,11 @@ export const KeepAliveTemporarySitesViewport = () => {
 	if (!sitesFinishedLoading) {
 		return (
 			<div className={css.loadingViewport}>
-				<h3 className={css.loadingCaption}>&nbsp;</h3>
+				<h3 className={css.loadingCaption}>Preparing WordPress...</h3>
 				<div className={css.progressWrapper}>
 					<div className={css.progressBar} />
 				</div>
+				<LoadingTips />
 			</div>
 		);
 	}
@@ -167,10 +169,13 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{!hasVisibleSite && (
 				<div className={css.loadingViewport}>
-					<h3 className={css.loadingCaption}>&nbsp;</h3>
+					<h3 className={css.loadingCaption}>
+						Preparing WordPress...
+					</h3>
 					<div className={css.progressWrapper}>
 						<div className={css.progressBar} />
 					</div>
+					<LoadingTips />
 				</div>
 			)}
 			{slugsSeenSoFar.map((slug) => {
