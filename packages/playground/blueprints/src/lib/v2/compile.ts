@@ -701,10 +701,6 @@ function lowerBlueprintV2WxrContent(
 	content: BlueprintV2WxrContent,
 	featurePath: string
 ): StepDefinition[] | undefined {
-	if (content.urlsMap) {
-		return undefined;
-	}
-
 	const authorsMode =
 		content.authorsMode ??
 		(content.importUsers ? 'create' : 'default-author');
@@ -724,6 +720,9 @@ function lowerBlueprintV2WxrContent(
 			authorsMode,
 			importUsers,
 		};
+		if (content.urlsMap !== undefined) {
+			step.urlMapping = content.urlsMap;
+		}
 		if (content.authorsMap !== undefined) {
 			step.authorsMap = content.authorsMap;
 		}

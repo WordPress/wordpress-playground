@@ -768,7 +768,10 @@ describe('compileBlueprintForExecution', () => {
 						},
 					],
 					staticAssets: 'hotlink',
-					urlsMode: 'preserve',
+					urlsMode: 'rewrite',
+					urlsMap: {
+						'https://old.example': 'https://new.example',
+					},
 					authorsMode: 'default-author',
 					defaultAuthorUsername: 'editor',
 					importComments: true,
@@ -788,7 +791,10 @@ describe('compileBlueprintForExecution', () => {
 					path: 'content.wxr',
 				},
 				fetchAttachments: false,
-				rewriteUrls: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
 				importComments: true,
 				authorsMode: 'default-author',
 				importUsers: false,
@@ -802,7 +808,10 @@ describe('compileBlueprintForExecution', () => {
 					contents: '<rss />',
 				},
 				fetchAttachments: false,
-				rewriteUrls: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
 				importComments: true,
 				authorsMode: 'default-author',
 				importUsers: false,
@@ -831,7 +840,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'importWxr',
 				file: {
@@ -868,7 +877,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'importWxr',
 				file: {
@@ -1479,16 +1488,11 @@ describe('compileBlueprintForExecution', () => {
 	});
 
 	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
-		const compiled = await compileBlueprintForExecution({
+		const declaration = {
 			version: 2,
 			content: [
 				{
-					type: 'wxr',
-					source: './content.wxr',
-					authorsMode: 'default-author',
-					urlsMap: {
-						'https://example.com': 'https://mapped.example',
-					},
+					type: 'unsupported-content',
 				},
 			],
 			additionalStepsAfterExecution: [
@@ -1497,7 +1501,8 @@ describe('compileBlueprintForExecution', () => {
 					path: 'site:wp-content/uploads/from-v2',
 				},
 			],
-		});
+		} as unknown as BlueprintV2Declaration;
+		const compiled = await compileBlueprintForExecution(declaration);
 		const playground = {
 			mkdir: vi.fn(),
 		};

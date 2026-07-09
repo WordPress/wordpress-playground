@@ -33,6 +33,10 @@ export interface ImportWxrStep<ResourceType> {
 	 */
 	rewriteUrls?: boolean;
 	/**
+	 * Explicit URL replacements to apply when URL rewriting is enabled.
+	 */
+	urlMapping?: Record<string, string>;
+	/**
 	 * Whether to import comments from the WXR file.
 	 *
 	 * @default true
@@ -88,6 +92,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		file,
 		fetchAttachments = true,
 		rewriteUrls = true,
+		urlMapping = {},
 		importComments = true,
 		defaultAuthorUsername = 'admin',
 		authorsMode = 'default-author',
@@ -100,6 +105,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	await importWithDefaultImporter(playground, file, progress, {
 		fetchAttachments,
 		rewriteUrls,
+		urlMapping,
 		importComments,
 		fallbackAuthorUsername,
 		authorsMode,
@@ -115,6 +121,7 @@ async function importWithDefaultImporter(
 	options: {
 		fetchAttachments: boolean;
 		rewriteUrls: boolean;
+		urlMapping: Record<string, string>;
 		importComments: boolean;
 		fallbackAuthorUsername: string;
 		authorsMode: 'create' | 'default-author' | 'map';
@@ -183,6 +190,23 @@ async function importWithDefaultImporter(
 		getenv('IMPORT_USERS') === 'true',
 		(int) $fallback_author->ID
 	);
+
+	$url_mapping_payload = getenv('URL_MAPPING') ?: '{}';
+	$url_mapping         = json_decode($url_mapping_payload, true);
+	if (!is_array($url_mapping)) {
+		throw new Exception(
+			sprintf(
+				'Invalid WXR URL mapping payload (%d bytes): %s.',
+				strlen($url_mapping_payload),
+				json_last_error_msg()
+			)
+		);
+	}
+	if (!empty($url_mapping) && getenv('REWRITE_URLS') === 'true') {
+		add_filter('wp_import_post_data_raw', function($post) use ($url_mapping) {
+			return blueprint_apply_wxr_url_mapping($post, $url_mapping);
+		});
+	}
 
 	if (getenv('IMPORT_COMMENTS') === 'false') {
 		add_filter('wp_import_post_comments', '__return_empty_array');
@@ -283,11 +307,27 @@ async function importWithDefaultImporter(
 		}
 		return (int) $local_user->ID;
 	}
+
+	/**
+	 * Applies explicit Blueprint URL replacements to parsed WXR data.
+	 */
+	function blueprint_apply_wxr_url_mapping($value, array $url_mapping) {
+		if (is_string($value)) {
+			return strtr($value, $url_mapping);
+		}
+		if (is_array($value)) {
+			foreach ($value as $key => $item) {
+				$value[$key] = blueprint_apply_wxr_url_mapping($item, $url_mapping);
+			}
+		}
+		return $value;
+	}
 	`,
 		env: {
 			IMPORT_FILE: '/tmp/import.wxr',
 			FETCH_ATTACHMENTS: options.fetchAttachments ? 'true' : 'false',
 			REWRITE_URLS: options.rewriteUrls ? 'true' : 'false',
+			URL_MAPPING: JSON.stringify(options.urlMapping),
 			IMPORT_COMMENTS: options.importComments ? 'true' : 'false',
 			FALLBACK_AUTHOR_USERNAME: options.fallbackAuthorUsername,
 			AUTHORS_MODE: options.authorsMode,

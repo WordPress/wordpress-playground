@@ -202,6 +202,67 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		});
 	});
 
+	it(
+		'applies WXR URL maps',
+		async () => {
+			const wxr = await readFile(
+				new URL(
+					'../fixtures/import-wxr-base-url-rewriting.xml',
+					import.meta.url
+				)
+			);
+			const bundle = new InMemoryFilesystem({
+				'blueprint.json': JSON.stringify({
+					version: 2,
+					content: [
+						{
+							type: 'wxr',
+							source: './content/import.wxr',
+							urlsMap: {
+								'https://🚀-science.com/science':
+									'https://mapped.example/science',
+							},
+							authorsMode: 'default-author',
+						},
+					],
+				}),
+				content: {
+					'import.wxr': wxr,
+				},
+			});
+
+			await applyBlueprint(bundle);
+
+			const result = await runWordPressJson({
+				code: `
+				$post = null;
+				foreach (get_posts([
+					'post_type' => 'post',
+					'post_status' => 'any',
+					'numberposts' => -1,
+				]) as $candidate) {
+					if ($candidate->post_title === '"The Road Not Taken" by Robert Frost') {
+						$post = $candidate;
+						break;
+					}
+				}
+				echo json_encode([
+					'exists' => (bool) $post,
+					'content' => $post ? $post->post_content : null,
+				]);
+			`,
+			});
+
+			expect(result.exists).toBe(true);
+			expect(result.content).toContain('https://mapped.example/science');
+			expect(result.content).not.toContain(
+				'https://🚀-science.com/science'
+			);
+			expect(result.content).toContain(handler.absoluteUrl);
+		},
+		{ timeout: 30_000 }
+	);
+
 	/**
 	 * Compiles and executes one v2 Blueprint against the booted WordPress site.
 	 */
