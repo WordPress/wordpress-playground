@@ -235,7 +235,7 @@ describe('bootSiteClient', () => {
 
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
-		).toHaveBeenCalledTimes(4);
+		).toHaveBeenCalledTimes(3);
 		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({

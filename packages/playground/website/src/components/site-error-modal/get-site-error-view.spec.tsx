@@ -54,16 +54,16 @@ describe('getSiteErrorView', () => {
 
 		expect(view.title).toBe('Close other Playground tabs, then reload');
 		expect(renderToStaticMarkup(view.body)).toContain(
+			'An earlier reset was interrupted, and old site files are'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'Playground tried to remove those old files again before'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'may show the old site instead of the reset site'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
 			'click <strong>Reload</strong>'
-		);
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'old site files are still in this saved Playground'
-		);
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'already tried to clean them up again'
-		);
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'could show the old site with the new settings'
 		);
 		expect(renderToStaticMarkup(view.actions[0])).toContain('Reload');
 	});

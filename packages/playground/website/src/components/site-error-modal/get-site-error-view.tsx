@@ -81,23 +81,24 @@ function browserStorageCleanupFailedView({
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Close any other Playground tabs that may be using this saved
-					site, then click <strong>Reload</strong>.
+					An earlier reset was interrupted, and old site files are
+					still in this saved Playground.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						If no other Playground tabs are open, make sure your
-						browser has free storage, then reload.
+						Playground tried to remove those old files again before
+						opening the site, but the browser still would not remove
+						them.
 					</li>
 					<li>
-						What happened: an earlier reset was interrupted, and old
-						site files are still in this saved Playground.
+						Playground stopped because those old files may show the
+						old site instead of the reset site.
 					</li>
 					<li>
-						Playground already tried to clean them up again, but the
-						browser still would not remove them. Playground stopped
-						because opening those files could show the old site with
-						the new settings.
+						Close any other Playground tabs that may be using this
+						saved site, then click <strong>Reload</strong>. If no
+						other Playground tabs are open, make sure your browser
+						has free storage, then reload.
 					</li>
 				</ul>
 			</>

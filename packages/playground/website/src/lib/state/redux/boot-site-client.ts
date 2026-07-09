@@ -43,7 +43,7 @@ import {
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 
-const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [1000, 2000, 4000];
+const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
 /**
  * Loads Playground in an iframe.
@@ -463,7 +463,7 @@ async function finishPendingOpfsSiteRemoval({
 
 	// Another Playground tab can keep OPFS entries locked long enough for
 	// the first cleanup attempt to fail. Retry before showing the modal; only
-	// ask the user to close tabs and reload after the browser refuses several times.
+	// ask the user to close tabs and reload after two more browser refusals.
 	let cleanupError: unknown;
 	for (
 		let attempt = 0;
