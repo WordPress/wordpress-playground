@@ -38,6 +38,22 @@ describe('getSiteErrorView', () => {
 		);
 	});
 
+	it('uses browser-storage wording when pending cleanup cannot finish', () => {
+		const view = getSiteErrorView({
+			error: 'browser-storage-cleanup-failed',
+			site: createSite(),
+			helpers,
+		});
+
+		expect(view.title).toBe('Browser storage cleanup failed');
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'delete old WordPress files'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'files from the previous autosave'
+		);
+	});
+
 	it('says when the entire Blueprint could not be downloaded', () => {
 		const url = 'https://example.com/blueprint.json';
 		const view = getSiteErrorView({

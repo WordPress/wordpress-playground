@@ -58,6 +58,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'browser-storage-cleanup-failed':
+			return browserStorageCleanupFailedView();
 		case 'initial-opfs-sync-interrupted':
 			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
@@ -68,6 +70,36 @@ export function getSiteErrorView(
 		default:
 			return genericSiteBootFailedView(context);
 	}
+}
+
+function browserStorageCleanupFailedView(): SiteErrorViewConfig {
+	return {
+		title: 'Browser storage cleanup failed',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground needs to delete old WordPress files before it
+					opens this saved site, but the browser did not finish that
+					cleanup.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						The saved site metadata says a reset was interrupted.
+					</li>
+					<li>
+						Playground stopped before booting so it would not open
+						files from the previous autosave under the new setup.
+					</li>
+					<li>
+						Reloading can try the cleanup again if the browser
+						storage problem was temporary.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [],
+	};
 }
 
 function initialOpfsSyncInterruptedView({

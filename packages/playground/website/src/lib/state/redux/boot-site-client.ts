@@ -83,11 +83,9 @@ export function bootSiteClient(
 					return;
 				}
 				if (false === removalResult) {
-					// The helper already showed the specific site error:
-					// browser storage unavailable, permission denied, or an
-					// OPFS delete/update failure. Stop here so we do not mount
-					// a directory that may still contain the previous autosave's
-					// WordPress files.
+					// The helper already showed the browser-storage cleanup
+					// error. Stop here so we do not mount a directory that may
+					// still contain the previous autosave's WordPress files.
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
@@ -451,7 +449,7 @@ async function finishPendingOpfsSiteRemoval({
 	if (!opfsSiteStorage) {
 		dispatch(
 			setActiveSiteError({
-				error: 'directory-handle-unknown-error',
+				error: 'browser-storage-cleanup-failed',
 				details: new Error(
 					'Cannot finish resetting the saved Playground because browser storage is not available.'
 				),
@@ -472,11 +470,7 @@ async function finishPendingOpfsSiteRemoval({
 		logger.error(error);
 		dispatch(
 			setActiveSiteError({
-				error:
-					(error instanceof DOMException || error instanceof Error) &&
-					error.name === 'NotAllowedError'
-						? 'directory-handle-permission-denied'
-						: 'directory-handle-unknown-error',
+				error: 'browser-storage-cleanup-failed',
 				details: error,
 			})
 		);
@@ -499,11 +493,7 @@ async function finishPendingOpfsSiteRemoval({
 		logger.error('Error clearing pending Playground reset marker', error);
 		dispatch(
 			setActiveSiteError({
-				error:
-					(error instanceof DOMException || error instanceof Error) &&
-					error.name === 'NotAllowedError'
-						? 'directory-handle-permission-denied'
-						: 'directory-handle-unknown-error',
+				error: 'browser-storage-cleanup-failed',
 				details: error,
 			})
 		);

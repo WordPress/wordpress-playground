@@ -152,7 +152,33 @@ describe('bootSiteClient', () => {
 			expect.objectContaining({
 				type: 'ui/setActiveSiteError',
 				payload: expect.objectContaining({
-					error: 'directory-handle-unknown-error',
+					error: 'browser-storage-cleanup-failed',
+				}),
+			})
+		);
+	});
+
+	it('does not boot when old autosaved WordPress files cannot be removed', async () => {
+		const removalError = new Error('OPFS delete failed');
+		vi.mocked(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).mockRejectedValueOnce(removalError);
+		const site = createSite('autosaved', {
+			metadata: { opfsSiteRemovalPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('autosaved', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: expect.objectContaining({
+					error: 'browser-storage-cleanup-failed',
 				}),
 			})
 		);
