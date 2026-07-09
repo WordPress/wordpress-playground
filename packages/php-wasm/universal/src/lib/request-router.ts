@@ -1,5 +1,5 @@
 import { dirname, joinPaths } from '@php-wasm/util';
-import { removePathPrefix } from './urls';
+import { DEFAULT_BASE_URL, removePathPrefix } from './urls';
 import type { PHPResponse } from './php-response';
 import type { PHPRequest } from './universal-php';
 import type {
@@ -22,7 +22,21 @@ export interface RouterFilesystem {
 
 export type ResolvedRoute =
 	| { type: 'static-file'; fsPath: string }
-	| { type: 'php'; fsPath: string }
+	| {
+			type: 'php';
+			fsPath: string;
+			/**
+			 * The request URL as it arrived, minus the hash.
+			 */
+			originalRequestUrl: URL;
+			/**
+			 * The request URL after the rewrite rules and the directory
+			 * index resolution have been applied. PHP superglobals such as
+			 * PHP_SELF and QUERY_STRING are derived from this URL, so it
+			 * must be the URL the router actually resolved `fsPath` from.
+			 */
+			rewrittenRequestUrl: URL;
+	  }
 	| {
 			type: 'redirect';
 			statusCode: number;
@@ -75,8 +89,9 @@ export class RequestRouter {
 	resolve(request: PHPRequest): ResolvedRoute {
 		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
+			// Remove the hash part of the URL as it's not meant for the server.
 			request.url.split('#')[0],
-			isAbsolute ? undefined : 'http://example.com'
+			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
 		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
@@ -160,7 +175,12 @@ export class RequestRouter {
 
 		if (this.#fs.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
-				return { type: 'php', fsPath };
+				return {
+					type: 'php',
+					fsPath,
+					originalRequestUrl,
+					rewrittenRequestUrl,
+				};
 			} else {
 				return { type: 'static-file', fsPath };
 			}
@@ -202,8 +222,18 @@ export class RequestRouter {
 	}
 }
 
+/**
+ * Checks if the given URL looks like an absolute URL.
+ *
+ * @param url - The URL to check.
+ * @returns `true` if the URL looks like an absolute URL, `false` otherwise.
+ */
 function looksLikeAbsoluteUrl(url: string): boolean {
 	try {
+		// NOTE: We could just use URL.canParse() but are avoiding it here
+		// because we've seen users with older Safari versions that don't support it.
+		// Maybe Playground will break in other ways for them,
+		// but since this is an easy, low-risk change, let's give it a try.
 		new URL(url);
 		return true;
 	} catch {

@@ -40,6 +40,7 @@ import fs, {
 	createReadStream,
 } from 'fs';
 import type { Server } from 'http';
+import { Readable } from 'stream';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import {
@@ -1494,11 +1495,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			];
 
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			const useBlueprintsV2Handler =
-				await shouldUseBlueprintsV2Handler(
-					args,
-					hasExplicitBlueprintsV2Mode
-				);
+			const useBlueprintsV2Handler = await shouldUseBlueprintsV2Handler(
+				args,
+				hasExplicitBlueprintsV2Mode
+			);
 			if (useBlueprintsV2Handler) {
 				validateAndNormalizeBlueprintsV2Args(
 					args,
@@ -1822,36 +1822,25 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					new PHPResponse(302, headers, new Uint8Array())
 				);
 			}
-			// Main-thread routing: resolve the request against the
-			// host filesystem to serve static files without a worker
-			// round-trip.
+			// Main-thread routing: serve static files straight from the
+			// host filesystem so they don't occupy a PHP worker.
+			//
+			// Only a `static-file` route is handled here, and only when the
+			// file is really present on the host. Every other outcome —
+			// PHP scripts, redirects, 404s, file-not-found fallbacks — is
+			// left to the worker, which owns the authoritative filesystem
+			// and request handler configuration. Answering those here would
+			// mean duplicating the worker's routing policy against a
+			// filesystem view that only covers the mounted directories.
 			if (mainThreadRouter && mapVfsToHost) {
 				const route = mainThreadRouter.resolve(request);
-				switch (route.type) {
-					case 'static-file': {
-						const hostPath = mapVfsToHost(route.fsPath);
-						if (hostPath) {
-							return serveStaticFileFromHost(hostPath);
-						}
-						break;
+				if (route.type === 'static-file') {
+					const hostPath = mapVfsToHost(route.fsPath);
+					const response =
+						hostPath && serveStaticFileFromHost(hostPath);
+					if (response) {
+						return response;
 					}
-					case 'redirect':
-						return StreamedPHPResponse.fromPHPResponse(
-							new PHPResponse(
-								route.statusCode,
-								route.headers,
-								new Uint8Array(0)
-							)
-						);
-					case 'response':
-						return StreamedPHPResponse.fromPHPResponse(
-							route.response
-						);
-					case '404':
-						return StreamedPHPResponse.forHttpCode(404);
-					case 'php':
-						// Fall through to the worker pool below.
-						break;
 				}
 			}
 
@@ -1990,11 +1979,17 @@ function createMainThreadRouter(
 	router: RequestRouter;
 	mapVfsToHost: (vfsPath: string) => string | undefined;
 } {
-	// Sort mounts longest-prefix-first so the most specific
-	// mount wins when multiple mounts overlap.
-	const sortedMounts = [...mounts].sort(
-		(a, b) => b.vfsPath.length - a.vfsPath.length
-	);
+	// Sort mounts longest-prefix-first so the most specific mount wins when
+	// multiple mounts overlap. Two mounts of the same VFS path are broken by
+	// mount order, so the last one applied wins — as it does in the VFS.
+	const sortedMounts = mounts
+		.map((mount, order) => ({ mount, order }))
+		.sort(
+			(a, b) =>
+				b.mount.vfsPath.length - a.mount.vfsPath.length ||
+				b.order - a.order
+		)
+		.map(({ mount }) => mount);
 
 	function mapVfsToHost(vfsPath: string): string | undefined {
 		for (const mount of sortedMounts) {
@@ -2045,14 +2040,26 @@ function createMainThreadRouter(
  * Serves a static file from the host filesystem as a
  * StreamedPHPResponse, using Node.js streams to avoid
  * buffering the entire file in memory.
+ *
+ * Returns `undefined` when the file cannot be stat'ed, which happens when
+ * it is removed between the router's `isFile()` check and this call. The
+ * caller then falls back to the PHP worker.
  */
-function serveStaticFileFromHost(hostPath: string): StreamedPHPResponse {
-	const stat = statSync(hostPath);
+function serveStaticFileFromHost(
+	hostPath: string
+): StreamedPHPResponse | undefined {
+	let size: number;
+	try {
+		size = statSync(hostPath).size;
+	} catch {
+		return undefined;
+	}
+
 	const headersJson = JSON.stringify({
 		status: 200,
 		headers: [
 			`content-type: ${inferMimeType(hostPath)}`,
-			`content-length: ${stat.size}`,
+			`content-length: ${size}`,
 			'accept-ranges: bytes',
 			'cache-control: public, max-age=0',
 		],
@@ -2065,23 +2072,11 @@ function serveStaticFileFromHost(hostPath: string): StreamedPHPResponse {
 		},
 	});
 
-	const fileStream = createReadStream(hostPath);
-	const stdout = new ReadableStream<Uint8Array>({
-		start(controller) {
-			fileStream.on('data', (chunk: Buffer) => {
-				controller.enqueue(new Uint8Array(chunk));
-			});
-			fileStream.on('end', () => {
-				controller.close();
-			});
-			fileStream.on('error', (err) => {
-				controller.error(err);
-			});
-		},
-		cancel() {
-			fileStream.destroy();
-		},
-	});
+	// Readable.toWeb() propagates backpressure to the file stream, so a
+	// large file is not read into memory faster than it is sent out.
+	const stdout = Readable.toWeb(
+		createReadStream(hostPath)
+	) as ReadableStream<Uint8Array>;
 
 	const stderr = new ReadableStream<Uint8Array>({
 		start(controller) {

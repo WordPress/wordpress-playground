@@ -1,10 +1,4 @@
-import { joinPaths } from '@php-wasm/util';
-import {
-	ensurePathPrefix,
-	toRelativeUrl,
-	removePathPrefix,
-	DEFAULT_BASE_URL,
-} from './urls';
+import { ensurePathPrefix, toRelativeUrl, DEFAULT_BASE_URL } from './urls';
 import type { PHP } from './php';
 import { normalizeHeaders } from './php';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
@@ -211,8 +205,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
-	#router: RequestRouter | undefined;
-	#routerFs: RouterFilesystem | undefined;
 	#pathAliases: PathAlias[];
 	rewriteRules: RewriteRule[];
 	/**
@@ -453,29 +445,20 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 */
 	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
 		const primaryPhp = await this.getPrimaryPhp();
-		const router = this.#getRouter(primaryPhp);
-		const route = router.resolve(request);
+		const route = this.#createRouter(primaryPhp).resolve(request);
 
 		switch (route.type) {
 			case 'static-file':
 				return StreamedPHPResponse.fromPHPResponse(
 					this.#serveStaticFile(primaryPhp, route.fsPath)
 				);
-			case 'php': {
-				const isAbsolute = looksLikeAbsoluteUrl(request.url);
-				const originalRequestUrl = new URL(
-					request.url.split('#')[0],
-					isAbsolute ? undefined : DEFAULT_BASE_URL
-				);
-				const rewrittenRequestUrl =
-					this.#applyRewriteRules(originalRequestUrl);
+			case 'php':
 				return await this.#spawnPHPAndDispatchRequest(
 					request,
-					originalRequestUrl,
-					rewrittenRequestUrl,
+					route.originalRequestUrl,
+					route.rewrittenRequestUrl,
 					route.fsPath
 				);
-			}
 			case 'redirect':
 				return StreamedPHPResponse.fromPHPResponse(
 					new PHPResponse(
@@ -492,51 +475,26 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	/**
-	 * Gets or creates the RequestRouter instance, lazily
-	 * initializing the filesystem wrapper on first use.
-	 */
-	#getRouter(php: PHP): RequestRouter {
-		if (!this.#router) {
-			this.#routerFs = {
-				isFile: (path: string) => php.isFile(path),
-				isDir: (path: string) => php.isDir(path),
-			};
-			this.#router = new RequestRouter({
-				documentRoot: this.#DOCROOT,
-				pathname: this.#PATHNAME,
-				rewriteRules: this.rewriteRules,
-				pathAliases: this.#pathAliases,
-				getFileNotFoundAction: this.getFileNotFoundAction,
-				fs: this.#routerFs,
-			});
-		}
-		return this.#router;
-	}
-
-	/**
-	 * Apply the rewrite rules to the original request URL.
+	 * Builds a RequestRouter for a single request.
 	 *
-	 * @param originalRequestUrl - The original request URL.
-	 * @returns The rewritten request URL.
+	 * A fresh router per request keeps the routing decisions in sync with
+	 * `rewriteRules` and `getFileNotFoundAction`, which are public and may
+	 * be reassigned between requests, and with the PHP instance backing the
+	 * filesystem lookups.
 	 */
-	#applyRewriteRules(originalRequestUrl: URL): URL {
-		const siteRelativePath = removePathPrefix(
-			decodeURIComponent(originalRequestUrl.pathname),
-			this.#PATHNAME
-		);
-		const rewrittenRequestPath = applyRewriteRules(
-			siteRelativePath,
-			this.rewriteRules
-		);
-		const rewrittenRequestUrl = new URL(
-			joinPaths(this.#PATHNAME, rewrittenRequestPath),
-			originalRequestUrl.toString()
-		);
-		// Merge the query string parameters from the original request URL.
-		for (const [key, value] of originalRequestUrl.searchParams.entries()) {
-			rewrittenRequestUrl.searchParams.append(key, value);
-		}
-		return rewrittenRequestUrl;
+	#createRouter(php: PHP): RequestRouter {
+		const fs: RouterFilesystem = {
+			isFile: (path: string) => php.isFile(path),
+			isDir: (path: string) => php.isDir(path),
+		};
+		return new RequestRouter({
+			documentRoot: this.#DOCROOT,
+			pathname: this.#PATHNAME,
+			rewriteRules: this.rewriteRules,
+			pathAliases: this.#pathAliases,
+			getFileNotFoundAction: (uri) => this.getFileNotFoundAction(uri),
+			fs,
+		});
 	}
 
 	/**
@@ -930,23 +888,4 @@ export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 		}
 	}
 	return path;
-}
-
-/**
- * Checks if the given URL looks like an absolute URL.
- *
- * @param url - The URL to check.
- * @returns `true` if the URL looks like an absolute URL, `false` otherwise.
- */
-function looksLikeAbsoluteUrl(url: string): boolean {
-	try {
-		// NOTE: We could just use URL.canParse() but are avoiding it here
-		// because we've seen users with older Safari versions that don't support it.
-		// Maybe Playground will break in other ways for them,
-		// but since this is an easy, low-risk change, let's give it a try.
-		new URL(url);
-		return true;
-	} catch {
-		return false;
-	}
 }

@@ -70,7 +70,7 @@ describe('RequestRouter', () => {
 			});
 
 			const route = router.resolve({ url: '/index.php' });
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/index.php',
 			});
@@ -91,7 +91,7 @@ describe('RequestRouter', () => {
 			const route = router.resolve({
 				url: '/file.php/extra/path',
 			});
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/file.php',
 			});
@@ -135,7 +135,7 @@ describe('RequestRouter', () => {
 			});
 
 			const route = router.resolve({ url: '/subdir/' });
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/subdir/index.php',
 			});
@@ -194,7 +194,7 @@ describe('RequestRouter', () => {
 			const route = router.resolve({
 				url: '/pretty-permalink',
 			});
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/index.php',
 			});
@@ -248,7 +248,7 @@ describe('RequestRouter', () => {
 			});
 
 			const route = router.resolve({ url: '/api/users' });
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/index.php',
 			});
@@ -277,7 +277,7 @@ describe('RequestRouter', () => {
 			const route = router.resolve({
 				url: '/mysite/wp-admin/index.php',
 			});
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/wp-admin/index.php',
 			});
@@ -307,7 +307,7 @@ describe('RequestRouter', () => {
 			const route = router.resolve({
 				url: '/phpmyadmin/index.php',
 			});
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/tools/phpmyadmin/index.php',
 			});
@@ -333,7 +333,7 @@ describe('RequestRouter', () => {
 			});
 
 			const route = router.resolve({ url: '/index.php' });
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/index.php',
 			});
@@ -363,7 +363,7 @@ describe('RequestRouter', () => {
 				url: '/phpmyadmin-extra/index.php',
 			});
 			// Should resolve in document root, not alias
-			expect(route).toEqual({
+			expect(route).toMatchObject({
 				type: 'php',
 				fsPath: '/www/phpmyadmin-extra/index.php',
 			});
@@ -391,6 +391,143 @@ describe('RequestRouter', () => {
 				type: 'static-file',
 				fsPath: '/www/style.css',
 			});
+		});
+	});
+
+	/**
+	 * PHPRequestHandler derives $_SERVER['PHP_SELF'] and the relative URI it
+	 * hands to PHP from `rewrittenRequestUrl`, so the router must report the
+	 * URL it actually resolved `fsPath` from — including the directory index
+	 * file it appended and the query string the rewrite rules produced.
+	 */
+	describe('rewritten request URL of PHP routes', () => {
+		function resolvePhpRoute(
+			router: RequestRouter,
+			url: string
+		): Extract<ResolvedRoute, { type: 'php' }> {
+			const route = router.resolve({ url });
+			if (route.type !== 'php') {
+				throw new Error(`Expected a PHP route, got '${route.type}'`);
+			}
+			return route;
+		}
+
+		it('appends the resolved index file for a directory request', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					['/www/subdir', 'dir'],
+					['/www/subdir/', 'dir'],
+					['/www/subdir/index.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({ documentRoot: '/www', fs });
+
+			const route = resolvePhpRoute(router, '/subdir/');
+			expect(route.rewrittenRequestUrl.pathname).toBe(
+				'/subdir/index.php'
+			);
+			expect(route.originalRequestUrl.pathname).toBe('/subdir/');
+		});
+
+		it('appends the resolved index file for the document root', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					// `/` resolves to the document root with a trailing slash.
+					['/www/', 'dir'],
+					['/www/index.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({ documentRoot: '/www', fs });
+
+			expect(
+				resolvePhpRoute(router, '/').rewrittenRequestUrl.pathname
+			).toBe('/index.php');
+		});
+
+		it('preserves the query string of a directory request', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					['/www/subdir', 'dir'],
+					['/www/subdir/', 'dir'],
+					['/www/subdir/index.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({ documentRoot: '/www', fs });
+
+			const route = resolvePhpRoute(router, '/subdir/?foo=bar');
+			expect(route.rewrittenRequestUrl.pathname).toBe(
+				'/subdir/index.php'
+			);
+			expect(route.rewrittenRequestUrl.search).toBe('?foo=bar');
+		});
+
+		it('reports the rewritten path and merged query string', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					['/www/index.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({
+				documentRoot: '/www',
+				rewriteRules: [
+					{
+						match: /^\/api\/(.*)$/,
+						replacement: '/index.php?route=$1',
+					},
+				],
+				fs,
+			});
+
+			const route = resolvePhpRoute(router, '/api/users?page=2');
+			expect(route.rewrittenRequestUrl.pathname).toBe('/index.php');
+			expect(route.rewrittenRequestUrl.searchParams.get('route')).toBe(
+				'users'
+			);
+			expect(route.rewrittenRequestUrl.searchParams.get('page')).toBe(
+				'2'
+			);
+			expect(route.originalRequestUrl.pathname).toBe('/api/users');
+		});
+
+		it('keeps the pathname prefix in the rewritten URL', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					['/www/wp-admin', 'dir'],
+					['/www/wp-admin/', 'dir'],
+					['/www/wp-admin/index.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({
+				documentRoot: '/www',
+				pathname: '/scope:mysite',
+				fs,
+			});
+
+			const route = resolvePhpRoute(router, '/scope:mysite/wp-admin/');
+			expect(route.rewrittenRequestUrl.pathname).toBe(
+				'/scope:mysite/wp-admin/index.php'
+			);
+		});
+
+		it('leaves the trailing path info of a partial path match', () => {
+			const fs = createMockFs(
+				new Map([
+					['/www', 'dir'],
+					['/www/file.php', 'file'],
+				])
+			);
+			const router = new RequestRouter({ documentRoot: '/www', fs });
+
+			const route = resolvePhpRoute(router, '/file.php/extra/path');
+			expect(route.fsPath).toBe('/www/file.php');
+			expect(route.rewrittenRequestUrl.pathname).toBe(
+				'/file.php/extra/path'
+			);
 		});
 	});
 });
