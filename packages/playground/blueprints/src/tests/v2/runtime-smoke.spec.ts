@@ -255,6 +255,9 @@ describe('Blueprint v2 runtime smoke tests', () => {
 
 			expect(result.exists).toBe(true);
 			expect(result.content).toContain('https://mapped.example/science');
+			expect(result.content).not.toContain(
+				'https://🚀-science.com/science'
+			);
 			expect(result.content).toContain(handler.absoluteUrl);
 		},
 		{ timeout: 30_000 }

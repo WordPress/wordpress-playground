@@ -602,7 +602,7 @@ const schema11 = {
 							type: 'object',
 							additionalProperties: { type: 'string' },
 							description:
-								'Explicit URL replacements to apply to imported WXR data.',
+								'Explicit URL replacements to apply when URL rewriting is enabled.',
 						},
 						importComments: {
 							type: 'boolean',
@@ -4701,7 +4701,7 @@ const schema33 = {
 					type: 'object',
 					additionalProperties: { type: 'string' },
 					description:
-						'Explicit URL replacements to apply to imported WXR data.',
+						'Explicit URL replacements to apply when URL rewriting is enabled.',
 				},
 				importComments: {
 					type: 'boolean',

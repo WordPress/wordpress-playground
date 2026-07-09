@@ -736,7 +736,7 @@
 							"additionalProperties": {
 								"type": "string"
 							},
-							"description": "Explicit URL replacements to apply to imported WXR data."
+							"description": "Explicit URL replacements to apply when URL rewriting is enabled."
 						},
 						"importComments": {
 							"type": "boolean",

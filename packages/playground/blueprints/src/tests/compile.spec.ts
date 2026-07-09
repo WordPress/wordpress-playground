@@ -1377,16 +1377,11 @@ describe('compileBlueprintForExecution', () => {
 	});
 
 	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
-		const compiled = await compileBlueprintForExecution({
+		const declaration = {
 			version: 2,
 			content: [
 				{
-					type: 'wxr',
-					source: './content.wxr',
-					authorsMode: 'default-author',
-					urlsMap: {
-						'https://example.com': 'https://mapped.example',
-					},
+					type: 'unsupported-content',
 				},
 			],
 			additionalStepsAfterExecution: [
@@ -1395,7 +1390,8 @@ describe('compileBlueprintForExecution', () => {
 					path: 'site:wp-content/uploads/from-v2',
 				},
 			],
-		});
+		} as unknown as BlueprintV2Declaration;
+		const compiled = await compileBlueprintForExecution(declaration);
 		const playground = {
 			mkdir: vi.fn(),
 		};
