@@ -452,13 +452,157 @@ export function lowerBlueprintV2ExecutionPlan(
 			context
 		);
 		if (loweredSteps) {
-			steps.push(...loweredSteps);
+			steps.push(...addProgressMetadata(loweredSteps, planItem));
 		} else {
 			unsupportedPlan.push(planItem);
 		}
 	}
 
 	return { steps, unsupportedPlan };
+}
+
+/**
+ * Assigns progress metadata to the v1 steps produced by one v2 plan item.
+ *
+ * Some v2 declarations expand into multiple v1 steps. Splitting one unit of
+ * progress across those steps keeps the tracker aligned with user-facing v2
+ * declarations instead of leaking the internal lowering shape.
+ */
+function addProgressMetadata(
+	steps: StepDefinition[],
+	planItem: BlueprintV2ExecutionPlanItem
+): StepDefinition[] {
+	if (steps.length === 0) {
+		return steps;
+	}
+	const caption = getProgressCaption(planItem);
+	const weight = 1 / steps.length;
+	return steps.map((step) => ({
+		...step,
+		progress: {
+			...step.progress,
+			caption: step.progress?.caption ?? caption,
+			weight: step.progress?.weight ?? weight,
+		},
+	}));
+}
+
+/**
+ * Returns the progress caption for a single v2 execution-plan item.
+ *
+ * Keep this switch exhaustive. A new execution-plan item should fail type
+ * checks here until the runner decides what progress text to report for it.
+ */
+function getProgressCaption(planItem: BlueprintV2ExecutionPlanItem): string {
+	switch (planItem.type) {
+		case 'defineWpConfigConsts':
+			return 'Defining constants';
+		case 'setSiteOptions':
+			return 'Setting site options';
+		case 'installMuPlugin':
+			return 'Installing must-use plugin';
+		case 'installTheme':
+			return planItem.active
+				? 'Installing active theme'
+				: 'Installing theme';
+		case 'installPlugin':
+			return 'Installing plugin';
+		case 'installFonts':
+			return 'Installing fonts';
+		case 'importMedia':
+			return 'Importing media';
+		case 'setSiteLanguage':
+			return 'Setting site language';
+		case 'defineRoles':
+			return 'Creating roles';
+		case 'defineUsers':
+			return 'Creating users';
+		case 'definePostTypes':
+			return 'Registering post types';
+		case 'importContent':
+			return getContentProgressCaption(planItem.content);
+		case 'runStep':
+			return getAdditionalStepProgressCaption(planItem.step);
+	}
+	return assertNever(planItem);
+}
+
+/**
+ * Makes discriminated-union switches fail at compile time when they miss a
+ * case. The thrown error is only a runtime fallback for malformed input.
+ */
+function assertNever(value: never): never {
+	throw new Error(`Unexpected Blueprint v2 progress item: ${value}`);
+}
+
+/**
+ * Returns the progress caption for v2 content imports.
+ *
+ * Keep this switch exhaustive. Adding a new content type should require an
+ * explicit caption decision instead of silently falling back to generic text.
+ */
+function getContentProgressCaption(content: BlueprintV2Content): string {
+	switch (content.type) {
+		case 'mysql-dump':
+			return 'Importing SQL content';
+		case 'posts':
+			return 'Importing posts';
+		case 'wxr':
+			return 'Importing WXR content';
+	}
+	return assertNever(content);
+}
+
+/**
+ * Returns the progress caption for `additionalStepsAfterExecution` entries.
+ *
+ * Keep this switch exhaustive. These are direct v1-style steps embedded in v2,
+ * so new supported step types need a visible progress label here as well.
+ */
+function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
+	switch (step.step) {
+		case 'activatePlugin':
+			return 'Activating plugin';
+		case 'activateTheme':
+			return 'Activating theme';
+		case 'cp':
+			return 'Copying files';
+		case 'defineConstants':
+			return 'Defining constants';
+		case 'importContent':
+			return 'Importing content';
+		case 'importMedia':
+			return 'Importing media';
+		case 'importThemeStarterContent':
+			return 'Importing theme starter content';
+		case 'installPlugin':
+			return 'Installing plugin';
+		case 'installTheme':
+			return 'Installing theme';
+		case 'mkdir':
+			return 'Creating directory';
+		case 'mv':
+			return 'Moving files';
+		case 'rm':
+			return 'Removing file';
+		case 'rmdir':
+			return 'Removing directory';
+		case 'runPHP':
+			return 'Running PHP';
+		case 'runSQL':
+			return 'Executing SQL queries';
+		case 'setSiteLanguage':
+			return 'Setting site language';
+		case 'setSiteOptions':
+			return 'Setting site options';
+		case 'unzip':
+			return 'Extracting ZIP file';
+		case 'wp-cli':
+			return 'Running WP-CLI';
+		case 'writeFiles':
+			return 'Writing files';
+	}
+	return assertNever(step);
 }
 
 /**

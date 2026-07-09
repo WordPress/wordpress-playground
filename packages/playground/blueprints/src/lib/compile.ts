@@ -52,7 +52,8 @@ export async function compileBlueprintForExecution(
 	if (isBlueprintV2Declaration(declaration)) {
 		return compileBlueprintV2ForExecution(
 			isRawJsonInput ? declaration : input,
-			declaration
+			declaration,
+			options
 		);
 	}
 	if (isRawJsonInput) {
@@ -65,13 +66,17 @@ export async function compileBlueprintForExecution(
 
 async function compileBlueprintV2ForExecution(
 	input: Blueprint | BlueprintBundle,
-	declaration: BlueprintV2Declaration
+	declaration: BlueprintV2Declaration,
+	options: CompileBlueprintForExecutionOptions
 ): Promise<CompiledBlueprintForExecution> {
 	const compiled = await compileBlueprintV2(
 		declaration,
 		isBlueprintBundle(input)
-			? { streamBundledFile: (...args: [any]) => input.read(...args) }
-			: {}
+			? {
+					progress: options.progress,
+					streamBundledFile: (...args: [any]) => input.read(...args),
+				}
+			: { progress: options.progress }
 	);
 	return {
 		version: 2,
