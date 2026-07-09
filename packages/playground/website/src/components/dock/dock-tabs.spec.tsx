@@ -44,16 +44,18 @@ describe('DockTabs', () => {
 			);
 		});
 
-		expect(container.querySelector('nav')?.getAttribute('aria-label')).toBe(
-			'Playground tools'
-		);
+		expect(
+			container
+				.querySelector('[role="region"]')
+				?.getAttribute('aria-label')
+		).toBe('Playground tools');
 		expect(container.querySelector('[role="tablist"]')).not.toBeNull();
 		expect(
 			container.querySelector('[role="tab"][aria-selected="true"]')
 				?.textContent
 		).toBe('Files');
-		expect(container.textContent).toContain('Files content');
-		expect(container.textContent).not.toContain('Logs content');
+		expect(getSelectedTabPanel().textContent).toContain('Files content');
+		expect(getSelectedTabPanel().textContent).not.toContain('Logs content');
 
 		const logsTab = Array.from(
 			container.querySelectorAll<HTMLButtonElement>('[role="tab"]')
@@ -70,6 +72,20 @@ describe('DockTabs', () => {
 			container.querySelector('[role="tab"][aria-selected="true"]')
 				?.textContent
 		).toBe('Logs');
-		expect(container.textContent).toContain('Logs content');
+		expect(getSelectedTabPanel().textContent).toContain('Logs content');
 	});
+
+	function getSelectedTabPanel(): HTMLElement {
+		const selectedTab = container.querySelector(
+			'[role="tab"][aria-selected="true"]'
+		);
+		const panelId = selectedTab?.getAttribute('aria-controls');
+		const panel = panelId ? document.getElementById(panelId) : null;
+
+		if (!panel || !container.contains(panel)) {
+			throw new Error('The selected tab panel did not render.');
+		}
+
+		return panel;
+	}
 });

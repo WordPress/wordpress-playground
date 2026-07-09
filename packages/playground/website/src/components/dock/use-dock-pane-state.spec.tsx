@@ -37,6 +37,7 @@ describe('useDockPaneState', () => {
 
 		expect(getState().isOpen).toBe(false);
 		expect(getState().width).toBe(480);
+		const { open, close, setWidth } = getState();
 
 		act(() => getState().open());
 		act(() => getState().setWidth(640));
@@ -44,6 +45,9 @@ describe('useDockPaneState', () => {
 		act(() => getState().open());
 
 		expect(getState()).toMatchObject({ isOpen: true, width: 640 });
+		expect(getState().open).toBe(open);
+		expect(getState().close).toBe(close);
+		expect(getState().setWidth).toBe(setWidth);
 	});
 
 	function DockPaneStateProbe() {

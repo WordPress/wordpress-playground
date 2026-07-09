@@ -19,8 +19,8 @@ export type DockTabsProps = {
 };
 
 /**
- * Renders a dock-sized tab view while delegating ARIA and keyboard behavior to
- * WordPress's public TabPanel component.
+ * Renders a named dock tab region while delegating tab ARIA and keyboard
+ * behavior to WordPress's public TabPanel component.
  */
 export function DockTabs({
 	ariaLabel,
@@ -31,8 +31,9 @@ export function DockTabs({
 	onSelect,
 }: DockTabsProps) {
 	return (
-		<nav
+		<div
 			className={classNames(css.dockTabs, className)}
+			role="region"
 			aria-label={ariaLabel}
 		>
 			<TabPanel
@@ -43,6 +44,6 @@ export function DockTabs({
 			>
 				{children}
 			</TabPanel>
-		</nav>
+		</div>
 	);
 }

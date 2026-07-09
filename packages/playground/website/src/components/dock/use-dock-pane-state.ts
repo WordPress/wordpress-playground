@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export type DockPaneState = {
 	isOpen: boolean;
@@ -18,12 +18,18 @@ export type DockPaneState = {
 export function useDockPaneState(initialWidth: number): DockPaneState {
 	const [isOpen, setIsOpen] = useState(false);
 	const [width, setPaneWidth] = useState(initialWidth);
+	const open = useCallback(() => setIsOpen(true), []);
+	const close = useCallback(() => setIsOpen(false), []);
+	const setWidth = useCallback(
+		(nextWidth: number) => setPaneWidth(nextWidth),
+		[]
+	);
 
 	return {
 		isOpen,
 		width,
-		open: () => setIsOpen(true),
-		close: () => setIsOpen(false),
-		setWidth: (nextWidth) => setPaneWidth(nextWidth),
+		open,
+		close,
+		setWidth,
 	};
 }
