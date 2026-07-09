@@ -407,6 +407,8 @@ describe('compileBlueprintForExecution', () => {
 			'installTheme',
 			'installTheme',
 			'installPlugin',
+			'writeFile',
+			'runPHPWithOptions',
 			'setSiteLanguage',
 			'mkdir',
 			'defineWpConfigConsts',
@@ -461,6 +463,27 @@ describe('compileBlueprintForExecution', () => {
 					activate: false,
 					activationOptions: {
 						mode: 'test',
+					},
+				},
+			},
+			{
+				step: 'writeFile',
+				path: '/tmp/blueprint-media-0',
+				data: {
+					resource: 'bundled',
+					path: 'media/image.jpg',
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					env: {
+						BLUEPRINT_MEDIA: JSON.stringify([
+							{
+								path: '/tmp/blueprint-media-0',
+								filename: 'image.jpg',
+							},
+						]),
 					},
 				},
 			},
@@ -525,7 +548,7 @@ describe('compileBlueprintForExecution', () => {
 		]);
 		expect(
 			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importMedia']);
+		).toEqual([]);
 	});
 
 	it('lowers Blueprint v2 mysql-dump content to runSql steps', async () => {
@@ -616,7 +639,7 @@ describe('compileBlueprintForExecution', () => {
 		} as unknown as BlueprintV2Declaration;
 
 		await expect(compileBlueprintForExecution(declaration)).rejects.toThrow(
-			'content.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
+			'/content/0.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
 		);
 	});
 
@@ -898,6 +921,301 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
+	it('lowers Blueprint v2 runPHP file references through a temp file', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'runPHP',
+					code: './scripts/bootstrap.php',
+					env: {
+						MODE: 'test',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'writeFile',
+				path: '/tmp/blueprint-run-php-0.php',
+				data: {
+					resource: 'bundled',
+					path: 'scripts/bootstrap.php',
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					code: '<?php require "/tmp/blueprint-run-php-0.php";',
+					env: {
+						MODE: 'test',
+					},
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 posts content to PHP import steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'posts',
+					source: [
+						{
+							post_title: 'Inline post',
+							post_content: '<p>Hello</p>',
+							post_status: 'publish',
+						},
+						'./posts/about.html' as any,
+					],
+					urlsMode: 'preserve',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps[0]).toEqual({
+			step: 'writeFile',
+			path: '/tmp/blueprint-post-content-0',
+			data: {
+				resource: 'bundled',
+				path: 'posts/about.html',
+			},
+		});
+		expect(compiled.compiled.steps[1]).toMatchObject({
+			step: 'runPHPWithOptions',
+			options: {
+				env: {
+					BLUEPRINT_URLS_MODE: 'preserve',
+					BLUEPRINT_URLS_MAP: '{}',
+				},
+			},
+		});
+		const env = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(env.BLUEPRINT_POSTS)).toEqual([
+			{
+				post_title: 'Inline post',
+				post_content: '<p>Hello</p>',
+				post_status: 'publish',
+			},
+		]);
+		expect(JSON.parse(env.BLUEPRINT_POST_FILES)).toEqual([
+			{
+				path: '/tmp/blueprint-post-content-0',
+				post_title: 'Untitled Post',
+				post_type: 'post',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 mu-plugins to file writes', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			muPlugins: [
+				{
+					filename: 'demo-mu.php',
+					content: '<?php add_filter("the_title", "trim");',
+				},
+				{
+					directoryName: 'mu-package',
+					files: {
+						'load.php': '<?php',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps).toEqual([
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/demo-mu.php',
+				data: {
+					resource: 'literal',
+					name: 'demo-mu.php',
+					contents: '<?php add_filter("the_title", "trim");',
+				},
+			},
+			{
+				step: 'writeFiles',
+				writeToPath: '/wordpress/wp-content/mu-plugins/mu-package',
+				filesTree: {
+					resource: 'literal:directory',
+					name: 'mu-package',
+					files: {
+						'load.php': '<?php',
+					},
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 importMedia steps to media import PHP', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'importMedia',
+					media: [
+						{
+							source: './media/logo.png',
+							title: 'Logo',
+							alt: 'Site logo',
+						},
+					],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps[0]).toEqual({
+			step: 'writeFile',
+			path: '/tmp/blueprint-media-0',
+			data: {
+				resource: 'bundled',
+				path: 'media/logo.png',
+			},
+		});
+		const env = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(env.BLUEPRINT_MEDIA)).toEqual([
+			{
+				path: '/tmp/blueprint-media-0',
+				filename: 'logo.png',
+				title: 'Logo',
+				alt: 'Site logo',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 roles, users, post types, and fonts', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			fonts: {
+				'brand-sans': {
+					filename: 'brand-sans.woff2',
+					content: 'fontdata',
+				},
+			},
+			roles: [
+				{
+					name: 'movie_curator',
+					capabilities: {
+						read: 'true',
+						edit_posts: 'true',
+					},
+				},
+			],
+			users: [
+				{
+					username: 'curator',
+					email: 'curator@example.com',
+					role: 'movie_curator',
+					meta: {
+						department: 'film',
+					},
+				},
+			],
+			postTypes: {
+				movie: {
+					label: 'Movies',
+					public: true,
+					show_in_rest: true,
+				},
+			},
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'writeFile',
+			'runPHPWithOptions',
+			'runPHPWithOptions',
+			'runPHPWithOptions',
+			'writeFile',
+		]);
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			path: '/tmp/blueprint-font-0',
+			data: {
+				resource: 'literal',
+				name: 'brand-sans.woff2',
+				contents: 'fontdata',
+			},
+		});
+		const fontEnv = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(fontEnv.BLUEPRINT_FONT_COLLECTIONS)[0]).toMatchObject(
+			{
+				slug: 'brand-sans',
+				name: 'Brand Sans',
+			}
+		);
+		expect(JSON.parse(fontEnv.BLUEPRINT_FONT_FILES)).toEqual({
+			'blueprint-font-file:font-0': {
+				path: '/tmp/blueprint-font-0',
+				filename: 'brand-sans.woff2',
+			},
+		});
+		expect(
+			JSON.parse(
+				(compiled.compiled.steps[2] as any).options.env.BLUEPRINT_ROLES
+			)
+		).toEqual([
+			{
+				name: 'movie_curator',
+				capabilities: {
+					read: 'true',
+					edit_posts: 'true',
+				},
+			},
+		]);
+		expect(
+			JSON.parse(
+				(compiled.compiled.steps[3] as any).options.env.BLUEPRINT_USERS
+			)
+		).toEqual([
+			{
+				username: 'curator',
+				email: 'curator@example.com',
+				role: 'movie_curator',
+				meta: {
+					department: 'film',
+				},
+			},
+		]);
+		expect(compiled.compiled.steps[4]).toMatchObject({
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/blueprint-post-type-0.php',
+			data: {
+				resource: 'literal',
+				name: 'blueprint-post-type-0.php',
+			},
+		});
+		expect((compiled.compiled.steps[4] as any).data.contents).toContain(
+			'register_post_type("movie"'
+		);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
 	it('rejects empty Blueprint v2 target-site paths', async () => {
 		await expect(
 			compileBlueprintForExecution({
@@ -1021,7 +1339,14 @@ describe('compileBlueprintForExecution', () => {
 	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
-			media: ['./media/image.jpg'],
+			content: [
+				{
+					type: 'wxr',
+					source: './content.wxr',
+					authorsMode: 'default-author',
+					importUsers: false,
+				},
+			],
 			additionalStepsAfterExecution: [
 				{
 					step: 'mkdir',
@@ -1043,7 +1368,7 @@ describe('compileBlueprintForExecution', () => {
 		expect(thrownError).toBeInstanceOf(UnsupportedBlueprintV2FeatureError);
 		expect(thrownError).toMatchObject({
 			featurePath: 'executionPlan',
-			message: expect.stringContaining('/media/0 (importMedia)'),
+			message: expect.stringContaining('/content/0 (importContent)'),
 		});
 		expect(playground.mkdir).not.toHaveBeenCalled();
 	});
