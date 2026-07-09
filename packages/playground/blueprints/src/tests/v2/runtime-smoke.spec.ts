@@ -124,6 +124,124 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		});
 	});
 
+	it(
+		'applies post import options at runtime',
+		async () => {
+			const bundle = new InMemoryFilesystem({
+				'blueprint.json': JSON.stringify({
+					version: 2,
+					content: [
+						{
+							type: 'posts',
+							source: [
+								'./posts/file-backed.html',
+								{
+									post_title: 'V2 Parent Page',
+									post_name: 'v2-parent-page',
+									post_type: 'page',
+									post_status: 'publish',
+								},
+								{
+									post_title: 'V2 Child Page',
+									post_name: 'v2-child-page',
+									post_type: 'page',
+									post_status: 'publish',
+									post_parent_name: 'V2 Parent Page',
+									page_template: 'templates/full-width.php',
+									post_content:
+										'<a href="https://source.example/child">Child</a>',
+									meta_input: {
+										source_url:
+											'https://source.example/child-meta',
+									},
+								},
+								{
+									post_title: 'V2 Categorized Post',
+									post_name: 'v2-categorized-post',
+									post_status: 'publish',
+									post_category: ['Blueprint Category'],
+									post_tags: ['Blueprint Tag'],
+								},
+								{
+									post_title: 'V2 Tax Input Post',
+									post_name: 'v2-tax-input-post',
+									post_status: 'publish',
+									tax_input: {
+										category: ['Tax Input Category'],
+										post_tag: ['Tax Input Tag'],
+									},
+								},
+							],
+							urlsMap: {
+								'https://source.example':
+									'https://mapped.example',
+							},
+						},
+					],
+				}),
+				posts: {
+					'file-backed.html':
+						'<p>File-backed https://source.example/post</p>',
+				},
+			});
+
+			await applyBlueprint(bundle);
+
+			const result = await runWordPressJson({
+				code: `
+				$file_backed_posts = get_posts(['name' => 'untitled-post', 'post_type' => 'post', 'post_status' => 'any', 'numberposts' => 1]);
+				$parent_pages = get_posts(['name' => 'v2-parent-page', 'post_type' => 'page', 'post_status' => 'any', 'numberposts' => 1]);
+				$child_pages = get_posts(['name' => 'v2-child-page', 'post_type' => 'page', 'post_status' => 'any', 'numberposts' => 1]);
+				$categorized_posts = get_posts(['name' => 'v2-categorized-post', 'post_type' => 'post', 'post_status' => 'any', 'numberposts' => 1]);
+				$tax_input_posts = get_posts(['name' => 'v2-tax-input-post', 'post_type' => 'post', 'post_status' => 'any', 'numberposts' => 1]);
+				$file_backed_post = $file_backed_posts ? $file_backed_posts[0] : null;
+				$parent_page = $parent_pages ? $parent_pages[0] : null;
+				$child_page = $child_pages ? $child_pages[0] : null;
+				$categorized_post = $categorized_posts ? $categorized_posts[0] : null;
+				$tax_input_post = $tax_input_posts ? $tax_input_posts[0] : null;
+
+				echo json_encode([
+					'fileBackedContent' => $file_backed_post ? $file_backed_post->post_content : null,
+					'childParentId' => $child_page ? (int) $child_page->post_parent : null,
+					'parentId' => $parent_page ? (int) $parent_page->ID : null,
+					'childTemplate' => $child_page ? get_post_meta($child_page->ID, '_wp_page_template', true) : null,
+					'childContent' => $child_page ? $child_page->post_content : null,
+					'childMeta' => $child_page ? get_post_meta($child_page->ID, 'source_url', true) : null,
+					'categorizedCategories' => $categorized_post ? wp_get_post_terms($categorized_post->ID, 'category', ['fields' => 'names']) : [],
+					'categorizedTags' => $categorized_post ? wp_get_post_terms($categorized_post->ID, 'post_tag', ['fields' => 'names']) : [],
+					'taxInputCategories' => $tax_input_post ? wp_get_post_terms($tax_input_post->ID, 'category', ['fields' => 'names']) : [],
+					'taxInputTags' => $tax_input_post ? wp_get_post_terms($tax_input_post->ID, 'post_tag', ['fields' => 'names']) : [],
+				]);
+			`,
+			});
+
+			expect(result.parentId).toBeGreaterThan(0);
+			expect(result.childParentId).toBe(result.parentId);
+			expect({
+				fileBackedContent: result.fileBackedContent,
+				childTemplate: result.childTemplate,
+				childContent: result.childContent,
+				childMeta: result.childMeta,
+				categorizedCategories: result.categorizedCategories,
+				categorizedTags: result.categorizedTags,
+				taxInputCategories: result.taxInputCategories,
+				taxInputTags: result.taxInputTags,
+			}).toEqual({
+				fileBackedContent:
+					'<p>File-backed https://mapped.example/post</p>',
+				childTemplate: 'templates/full-width.php',
+				childContent:
+					'<a href="https://mapped.example/child">Child</a>',
+				childMeta: 'https://mapped.example/child-meta',
+				categorizedCategories: ['Blueprint Category'],
+				categorizedTags: ['Blueprint Tag'],
+				taxInputCategories: ['Tax Input Category'],
+				taxInputTags: ['Tax Input Tag'],
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
 	it('imports bundled media files', async () => {
 		const image = await readFile(
 			new URL('../fixtures/demo.png', import.meta.url)
@@ -199,6 +317,52 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		expect(result).toEqual({
 			exists: true,
 			label: 'Movies',
+		});
+	});
+
+	it('registers post types from support files', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				postTypes: {
+					book: './post-types/book.json',
+				},
+			}),
+			'post-types': {
+				'book.json': JSON.stringify({
+					label: 'Books',
+					public: true,
+					show_in_rest: true,
+					supports: ['title', 'editor', 'custom-fields'],
+				}),
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				$post_type = get_post_type_object('book');
+				echo json_encode([
+					'exists' => post_type_exists('book'),
+					'label' => $post_type ? $post_type->label : null,
+					'public' => $post_type ? $post_type->public : null,
+					'showInRest' => $post_type ? $post_type->show_in_rest : null,
+					'supportsTitle' => post_type_supports('book', 'title'),
+					'supportsEditor' => post_type_supports('book', 'editor'),
+					'supportsCustomFields' => post_type_supports('book', 'custom-fields'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			exists: true,
+			label: 'Books',
+			public: true,
+			showInRest: true,
+			supportsTitle: true,
+			supportsEditor: true,
+			supportsCustomFields: true,
 		});
 	});
 
