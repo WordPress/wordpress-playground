@@ -78,17 +78,23 @@ export function FileExplorerSidebar({
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
 			const file = await filesystem.read(path);
-			const filename = path.split('/').pop() || 'download';
 			const previewRead = await readFileForInlinePreview(file);
 
 			if (previewRead.type === 'too-large') {
+				const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
 				await onShowMessage(
 					path,
-					renderTooLargeMessage(filename, previewRead.downloadUrl)
+					<>
+						<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
+						<p>
+							Open or download it outside the in-browser editor.
+						</p>
+					</>
 				);
 				return;
 			}
 			const data = previewRead.data;
+			const filename = path.split('/').pop() || 'download';
 
 			if (seemsLikeBinary(data)) {
 				const mimeType = getMimeType(filename);
@@ -207,26 +213,5 @@ export function FileExplorerSidebar({
 				/>
 			</div>
 		</div>
-	);
-}
-
-/**
- * Renders the editor message shown when a file exceeds the inline read limit.
- */
-function renderTooLargeMessage(filename: string, downloadUrl?: string) {
-	const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
-	return (
-		<>
-			<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
-			<p>
-				{downloadUrl ? (
-					<a href={downloadUrl} download={filename}>
-						Download {filename}
-					</a>
-				) : (
-					'Open or download it outside the in-browser editor.'
-				)}
-			</p>
-		</>
 	);
 }

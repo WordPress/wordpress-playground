@@ -41,7 +41,7 @@ export const createDownloadUrl = (
 
 export type InlineFilePreviewReadResult =
 	| { type: 'inline'; data: Uint8Array }
-	| { type: 'too-large'; downloadUrl?: string };
+	| { type: 'too-large' };
 
 type BrowserReadableFile = {
 	arrayBuffer(): Promise<ArrayBuffer>;
@@ -62,10 +62,7 @@ export async function readFileForInlinePreview(
 ): Promise<InlineFilePreviewReadResult> {
 	const knownSize = getKnownFileSize(file);
 	if (knownSize !== undefined && knownSize > maxInlineBytes) {
-		return {
-			type: 'too-large',
-			downloadUrl: createObjectUrlForNativeBlob(file, knownSize),
-		};
+		return { type: 'too-large' };
 	}
 
 	if (typeof file.stream === 'function') {
@@ -74,10 +71,7 @@ export async function readFileForInlinePreview(
 
 	const data = new Uint8Array(await file.arrayBuffer());
 	if (data.byteLength > maxInlineBytes) {
-		return {
-			type: 'too-large',
-			downloadUrl: createObjectUrlForNativeBlob(file, data.byteLength),
-		};
+		return { type: 'too-large' };
 	}
 	return { type: 'inline', data };
 }
@@ -123,13 +117,7 @@ async function readStreamForInlinePreview(
 			totalBytes += value.byteLength;
 			if (totalBytes > maxInlineBytes) {
 				await reader.cancel().catch(() => undefined);
-				return {
-					type: 'too-large',
-					downloadUrl: createObjectUrlForNativeBlob(
-						file,
-						getKnownFileSize(file)
-					),
-				};
+				return { type: 'too-large' };
 			}
 			chunks.push(value);
 		}
@@ -149,31 +137,6 @@ function concatChunks(chunks: Uint8Array[], totalBytes: number) {
 		offset += chunk.byteLength;
 	}
 	return data;
-}
-
-/**
- * Creates a download URL only when the original file is a native Blob/File.
- *
- * This avoids copying large stream-backed files into memory just to preserve the
- * large-file download link.
- */
-function createObjectUrlForNativeBlob(
-	file: BrowserReadableFile,
-	expectedSize: number | undefined
-): string | undefined {
-	// Native Blob/File objects can be downloaded without copying their bytes into
-	// JavaScript. Stream-backed files need a streaming download path instead; do
-	// not call arrayBuffer() here just to preserve the old download link.
-	if (
-		typeof Blob !== 'undefined' &&
-		file instanceof Blob &&
-		file.size === expectedSize
-	) {
-		const url = URL.createObjectURL(file);
-		setTimeout(() => URL.revokeObjectURL(url), 60_000);
-		return url;
-	}
-	return undefined;
 }
 
 /**
