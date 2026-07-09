@@ -64,17 +64,39 @@ export function wasSiteRecentlyInteractedWith(
  * Indicates whether a site is an automatic browser-storage recovery copy.
  */
 export function isAutosavedSite(site: SiteInfo) {
-	return (
-		site.metadata.storage === 'opfs' &&
-		site.metadata.persistence === 'autosave'
-	);
+	return isOpfsBackedSite(site) && site.metadata.persistence === 'autosave';
 }
 
 /**
  * Indicates whether a site should be treated as explicitly saved.
  */
 export function isExplicitlySavedSite(site: SiteInfo) {
-	return site.metadata.storage !== 'none' && !isAutosavedSite(site);
+	return isStoredSite(site) && !isAutosavedSite(site);
+}
+
+/**
+ * Indicates whether a site only exists in Redux for the current browser
+ * session and will be lost when the session ends.
+ */
+export function isTemporarySite(site: SiteInfo) {
+	return !isStoredSite(site);
+}
+
+/**
+ * Indicates whether a site has durable storage. Autosaved sites are stored but
+ * not explicitly saved, so callers that need user-pinned sites use
+ * isExplicitlySavedSite instead.
+ */
+export function isStoredSite(site: SiteInfo) {
+	return site.metadata.storage !== 'none';
+}
+
+/**
+ * Indicates whether a site's durable backend is browser OPFS, rather than a
+ * local directory or temporary memory-only storage.
+ */
+export function isOpfsBackedSite(site: SiteInfo) {
+	return site.metadata.storage === 'opfs';
 }
 
 /**
@@ -84,7 +106,7 @@ export function isExplicitlySavedSite(site: SiteInfo) {
  * report a value here.
  */
 export function getSitePublicPersistence(site: SiteInfo) {
-	if (site.metadata.storage === 'none') {
+	if (isTemporarySite(site)) {
 		return undefined;
 	}
 	return isAutosavedSite(site) ? 'autosave' : 'explicit';

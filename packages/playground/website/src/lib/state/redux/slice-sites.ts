@@ -35,6 +35,8 @@ import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
 	isAutosavedSite,
+	isStoredSite,
+	isTemporarySite,
 	type AutosavedSitesPruneOptions,
 	type SitePersistence,
 } from './site-lifecycle';
@@ -52,6 +54,9 @@ export {
 	getSitePublicPersistence,
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	isOpfsBackedSite,
+	isStoredSite,
+	isTemporarySite,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 export type {
@@ -886,17 +891,26 @@ export const selectSortedSites = createSelector(
 	(sites: SiteInfo[]) => getSitesSortedByRecency(sites)
 );
 
+/**
+ * Returns durable Playgrounds in recency order. Temporary Playgrounds remain
+ * outside this list because they are only available for the current session.
+ */
+export const selectSortedStoredSites = createSelector(
+	[selectSortedSites],
+	(sites: SiteInfo[]) => sites.filter(isStoredSite)
+);
+
 export const selectTemporarySite = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => {
-		return sites.find((site) => site.metadata.storage === 'none');
+		return sites.find(isTemporarySite);
 	}
 );
 
 export const selectTemporarySites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => {
-		return sites.filter((site) => site.metadata.storage === 'none');
+		return sites.filter(isTemporarySite);
 	}
 );
 
@@ -910,8 +924,7 @@ export const selectSitesLoaded = createSelector(
 	],
 	(opfsSitesLoadingState, firstTemporarySiteCreated, activeSite) =>
 		['loaded', 'error'].includes(opfsSitesLoadingState) &&
-		((activeSite && activeSite.metadata.storage !== 'none') ||
-			firstTemporarySiteCreated)
+		((activeSite && isStoredSite(activeSite)) || firstTemporarySiteCreated)
 );
 
 export default sitesSlice.reducer;
