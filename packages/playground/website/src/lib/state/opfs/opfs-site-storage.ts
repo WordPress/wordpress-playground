@@ -10,6 +10,7 @@ import type { SiteInfo, SiteMetadata } from '../redux/slice-sites';
 import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
+import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -145,6 +146,66 @@ class OpfsSiteStorage {
 		return await this.readSite(siteDirName);
 	}
 
+	/**
+	 * Returns a ZIP for a saved OPFS Playground that is actually exportable.
+	 *
+	 * WordPress-looking files prove nothing. `wp-config.php`, plugins, uploads,
+	 * or a SQLite database can be leftovers from an interrupted save. The only
+	 * authority here is `wp-runtime.json`, and even that is not enough if it says
+	 * the first OPFS sync is still pending or an in-place reset is unfinished.
+	 * Do not add file-based heuristics here.
+	 *
+	 * Return `undefined` for those cases. A missing ZIP is correct; a ZIP of
+	 * half-written or mismatched files is just corrupt output with a nicer file
+	 * extension.
+	 */
+	async exportSavedSiteAsZip(slug: string): Promise<Blob | undefined> {
+		const siteDirectory = await this.getSavedSiteDirectory(slug);
+		if (!siteDirectory) {
+			return undefined;
+		}
+		return await zipDirectory(siteDirectory);
+	}
+
+	/**
+	 * Opens the saved-site directory only if its metadata says the files are complete.
+	 *
+	 * This intentionally re-reads `wp-runtime.json` after `findExistingSiteDirName()`.
+	 * The earlier lookup finds a candidate. This method verifies the candidate still
+	 * exists, still has metadata, and is not marked as half-saved or mid-reset.
+	 */
+	private async getSavedSiteDirectory(
+		slug: string
+	): Promise<FileSystemDirectoryHandle | undefined> {
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			return undefined;
+		}
+		try {
+			const siteDirectory =
+				await this.root.getDirectoryHandle(siteDirName);
+			const site = await this.readStoredSiteMetadata(siteDirectory);
+			// If bootSiteClient() refuses to mount these files, export must
+			// refuse them too. Otherwise we hand callers a ZIP of files we
+			// already know are incomplete or being replaced.
+			if (
+				site.metadata.initialOpfsSyncPending === true ||
+				site.metadata.opfsSiteRemovalPending === true
+			) {
+				return undefined;
+			}
+			return siteDirectory;
+		} catch (error) {
+			// The first lookup only proved the metadata existed at that
+			// instant. Another tab can delete the directory or wp-runtime.json
+			// before export starts. That is not an exportable Playground.
+			if (isMissingOpfsEntry(error)) {
+				return undefined;
+			}
+			throw error;
+		}
+	}
+
 	private async readSite(siteDirName: string) {
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		if (!siteDirectory) {
@@ -156,15 +217,7 @@ class OpfsSiteStorage {
 	private async readSiteFromDirHandle(
 		siteDirectory: FileSystemDirectoryHandle
 	) {
-		const siteInfoFileHandle = await siteDirectory.getFileHandle(
-			SITE_METADATA_FILENAME
-		);
-		const file = await siteInfoFileHandle.getFile();
-		// TODO: Read metadata file and parse and validate via JSON schema
-		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
-		//         to the site files import flow.
-		const siteInfo = storedFormatToMetadata(await file.text());
+		const siteInfo = await this.readStoredSiteMetadata(siteDirectory);
 		const sitePath = joinPaths(OPFS_SITES_ROOT_PATH, siteDirectory.name);
 		const isLegacyDirectoryName =
 			siteDirectory.name !== getDirectoryNameForSlug(siteInfo.slug);
@@ -189,6 +242,26 @@ class OpfsSiteStorage {
 		}
 
 		return siteInfo;
+	}
+
+	/**
+	 * Reads the saved Playground metadata file from an OPFS site directory.
+	 *
+	 * Keep site loading and ZIP export on this same parser. If the metadata format
+	 * changes, both paths need to agree on what the saved site state means.
+	 */
+	private async readStoredSiteMetadata(
+		siteDirectory: FileSystemDirectoryHandle
+	) {
+		const siteInfoFileHandle = await siteDirectory.getFileHandle(
+			SITE_METADATA_FILENAME
+		);
+		const file = await siteInfoFileHandle.getFile();
+		// TODO: Read metadata file and parse and validate via JSON schema
+		// TODO: Backfill site info file if missing, detecting actual WP version if possible
+		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
+		//         to the site files import flow.
+		return storedFormatToMetadata(await file.text());
 	}
 
 	async delete(slug: string): Promise<void> {
@@ -384,6 +457,55 @@ async function opfsFileExists(handle: FileSystemDirectoryHandle, name: string) {
 function isMissingOpfsEntry(error: unknown) {
 	const name = (error as DOMException | undefined)?.name;
 	return name === 'NotFoundError' || name === 'TypeMismatchError';
+}
+
+/**
+ * Writes an OPFS directory into a ZIP Blob.
+ *
+ * Return the Blob. Do not turn it into a `Uint8Array`: download and upload
+ * callers can use the Blob directly, and converting it copies the whole archive
+ * for no useful reason.
+ */
+async function zipDirectory(directory: FileSystemDirectoryHandle) {
+	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+	try {
+		await addDirectoryEntries(zipWriter, directory, '');
+		return await zipWriter.close();
+	} catch (error) {
+		await zipWriter.close().catch(() => undefined);
+		throw error;
+	}
+}
+
+/**
+ * Adds every file and empty directory below `directory` to `zipWriter`.
+ *
+ * Directory entries are explicit because empty directories otherwise disappear
+ * from ZIP archives. Files go through `BlobReader` so zip.js reads from the
+ * browser `File` object instead of us first copying each file into memory.
+ */
+async function addDirectoryEntries(
+	zipWriter: ZipWriter<Blob>,
+	directory: FileSystemDirectoryHandle,
+	relativeDirPath: string
+) {
+	for await (const [name, entry] of directory.entries()) {
+		const relativePath = relativeDirPath
+			? joinPaths(relativeDirPath, name)
+			: name;
+
+		if (entry.kind === 'directory') {
+			await zipWriter.add(`${relativePath}/`, undefined, {
+				directory: true,
+			});
+			await addDirectoryEntries(zipWriter, entry, relativePath);
+		} else {
+			await zipWriter.add(
+				relativePath,
+				new BlobReader(await entry.getFile())
+			);
+		}
+	}
 }
 
 export async function deleteDirectory(path: string) {

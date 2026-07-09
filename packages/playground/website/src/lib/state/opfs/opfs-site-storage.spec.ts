@@ -1,3 +1,4 @@
+import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 import type { SiteMetadata } from '../redux/slice-sites';
 import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-storage';
 
@@ -148,6 +149,126 @@ describe('opfsSiteStorage', () => {
 		).resolves.toBeDefined();
 	});
 
+	it('exports complete saved OPFS site files as a ZIP', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-files',
+			'files'
+		);
+		const wpContent = await siteDirectory.getDirectoryHandle('wp-content', {
+			create: true,
+		});
+		wpContent.setFile('hello.txt', 'Hello from OPFS');
+		await wpContent.getDirectoryHandle('empty-cache', { create: true });
+
+		const zipFile = await storage.exportSavedSiteAsZip('files');
+
+		expect(zipFile?.type).toBe('application/zip');
+		const archive = await readZipEntries(zipFile!);
+
+		expect(archive.files.get('wp-content/hello.txt')).toBe(
+			'Hello from OPFS'
+		);
+		expect(archive.files.has('wp-runtime.json')).toBe(true);
+		expect(archive.directories.has('wp-content/empty-cache/')).toBe(true);
+	});
+
+	it('does not export directories without saved Playground metadata', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await sitesRoot.getDirectoryHandle(
+			'site-incomplete',
+			{ create: true }
+		);
+		siteDirectory.setFile('wp-config.php', 'not enough to count as saved');
+
+		await expect(
+			storage.exportSavedSiteAsZip('incomplete')
+		).resolves.toBeUndefined();
+	});
+
+	it('does not export saved sites whose initial OPFS sync never finished', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(
+			sitesRoot,
+			'site-pending-sync',
+			'pending-sync',
+			{
+				initialOpfsSyncPending: true,
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('pending-sync')
+		).resolves.toBeUndefined();
+	});
+
+	it('does not export saved sites while old OPFS files are being reset', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(
+			sitesRoot,
+			'site-pending-reset',
+			'pending-reset',
+			{
+				opfsSiteRemovalPending: true,
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('pending-reset')
+		).resolves.toBeUndefined();
+	});
+
+	it('returns undefined when a saved site is deleted after metadata lookup', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(sitesRoot, 'site-deleted', 'deleted');
+		const getDirectoryHandle = sitesRoot.getDirectoryHandle.bind(sitesRoot);
+		let siteDirectoryWasFoundByMetadataLookup = false;
+		vi.spyOn(sitesRoot, 'getDirectoryHandle').mockImplementation(
+			async (name, options) => {
+				if (name !== 'site-deleted' || options?.create) {
+					return await getDirectoryHandle(name, options);
+				}
+				if (siteDirectoryWasFoundByMetadataLookup) {
+					throw createDomException('NotFoundError');
+				}
+				siteDirectoryWasFoundByMetadataLookup = true;
+				return await getDirectoryHandle(name, options);
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('deleted')
+		).resolves.toBeUndefined();
+	});
+
+	it('returns undefined when saved Playground metadata disappears before export starts', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-missing-metadata',
+			'missing-metadata'
+		);
+		const getFileHandle = siteDirectory.getFileHandle.bind(siteDirectory);
+		let metadataWasFoundByDirectoryLookup = false;
+		vi.spyOn(siteDirectory, 'getFileHandle').mockImplementation(
+			async (name) => {
+				if (name !== 'wp-runtime.json') {
+					return await getFileHandle(name);
+				}
+				if (metadataWasFoundByDirectoryLookup) {
+					throw createDomException('NotFoundError');
+				}
+				metadataWasFoundByDirectoryLookup = true;
+				return await getFileHandle(name);
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('missing-metadata')
+		).resolves.toBeUndefined();
+	});
+
 	it('loads persisted Blueprint bundles for stored bundle metadata', async () => {
 		const bundle = { read: vi.fn(), listFiles: vi.fn(), isDir: vi.fn() };
 		loadPersistedBlueprintBundle.mockResolvedValue(bundle);
@@ -164,6 +285,28 @@ describe('opfsSiteStorage', () => {
 		expect(site?.metadata.originalBlueprint).toBe(bundle);
 	});
 });
+
+async function readZipEntries(zipFile: Blob) {
+	const reader = new ZipReader(new BlobReader(zipFile));
+	try {
+		const entries = await reader.getEntries();
+		const files = new Map<string, string>();
+		const directories = new Set<string>();
+		for (const entry of entries) {
+			if (entry.directory) {
+				directories.add(entry.filename);
+			} else {
+				files.set(
+					entry.filename,
+					await entry.getData!(new TextWriter())
+				);
+			}
+		}
+		return { files, directories };
+	} finally {
+		await reader.close();
+	}
+}
 
 async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
 	return opfsRoot.getDirectoryHandle('sites');
@@ -185,6 +328,7 @@ async function writeSiteMetadata(
 			...createSiteMetadata(metadata),
 		})
 	);
+	return siteDirectory;
 }
 
 async function writeOpfsPath(
@@ -275,6 +419,10 @@ class MemoryDirectoryHandle {
 		yield* this.children.values();
 	}
 
+	async *entries() {
+		yield* this.children.entries();
+	}
+
 	async removeEntry(name: string) {
 		if (!this.children.delete(name)) {
 			throw createDomException('NotFoundError');
@@ -297,9 +445,7 @@ class MemoryFileHandle {
 	}
 
 	async getFile() {
-		return {
-			text: async () => this.content,
-		};
+		return new Blob([this.content]);
 	}
 }
 
