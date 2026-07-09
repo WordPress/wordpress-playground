@@ -13,10 +13,7 @@ export {
 	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
-export {
-	DEFAULT_SENDMAIL_CAPTURE_MAX_SIZE,
-	createSendmailCaptureSpawnHandler,
-} from './create-sendmail-capture-handler';
+export { createSendmailCaptureSpawnHandler } from './create-sendmail-capture-handler';
 export type { RawSendmailMessage } from './create-sendmail-capture-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';

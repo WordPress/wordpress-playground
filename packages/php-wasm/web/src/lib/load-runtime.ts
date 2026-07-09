@@ -7,8 +7,6 @@ import {
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	loadPHPRuntime,
-	withMailCapture,
-	type WithMailCaptureOptions,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
@@ -34,10 +32,6 @@ export interface LoaderOptions {
 	 * @deprecated Use `extensions: ['intl']` instead.
 	 */
 	withIntl?: boolean;
-	/**
-	 * Capture raw bytes written to sendmail stdin.
-	 */
-	withMailCapture?: WithMailCaptureOptions;
 }
 
 /**
@@ -99,13 +93,6 @@ export async function loadWebRuntime(
 		emscriptenOptions = tcpOverFetchWebsocket(
 			emscriptenOptions,
 			loaderOptions.tcpOverFetch
-		);
-	}
-
-	if (loaderOptions.withMailCapture) {
-		emscriptenOptions = withMailCapture(
-			loaderOptions.withMailCapture,
-			await emscriptenOptions
 		);
 	}
 

@@ -24,7 +24,13 @@ import {
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
-import { basename, dirname, joinPaths } from '@php-wasm/util';
+import {
+	basename,
+	createSendmailCaptureSpawnHandler,
+	dirname,
+	joinPaths,
+} from '@php-wasm/util';
+import type { RawSendmailMessage } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './wp-config';
 import { assertDatabasePrerequisites } from './database-prerequisites';
@@ -83,6 +89,13 @@ export interface BootRequestHandlerOptions {
 			reap: () => void;
 		}>
 	) => SpawnHandler;
+	/**
+	 * Capture outbound mail before non-sendmail commands are delegated to the
+	 * configured spawn handler.
+	 */
+	mail?: {
+		onSendmail: (message: RawSendmailMessage) => void | Promise<void>;
+	};
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -457,14 +470,21 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
 		if (createSpawnHandler) {
-			await php.setSpawnHandler(
-				createSpawnHandler(
-					requestHandler
-						? () =>
-								requestHandler.instanceManager.acquirePHPInstance()
-						: undefined
-				)
+			const spawnHandler = createSpawnHandler(
+				requestHandler
+					? () => requestHandler.instanceManager.acquirePHPInstance()
+					: undefined
 			);
+			if (options.mail) {
+				await php.setSpawnHandler(
+					createSendmailCaptureSpawnHandler(
+						options.mail.onSendmail,
+						spawnHandler
+					)
+				);
+			} else {
+				await php.setSpawnHandler(spawnHandler);
+			}
 		}
 
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.

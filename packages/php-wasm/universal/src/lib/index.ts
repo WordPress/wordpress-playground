@@ -69,8 +69,8 @@ export {
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
-export { withMailCapture } from './with-mail-capture';
-export type { WithMailCaptureOptions } from './with-mail-capture';
+export { enableMailCapture } from './enable-mail-capture';
+export type { MailCaptureOptions } from './enable-mail-capture';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,
