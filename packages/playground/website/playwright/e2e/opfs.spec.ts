@@ -17,6 +17,37 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	return Buffer.from(zipBytes!);
 }
 
+async function createWrappedWordPressZip(): Promise<Buffer> {
+	const files = [
+		new File(
+			[
+				`<?php
+/**
+ * Plugin Name: Wrapped ZIP Import Plugin
+ */
+`,
+			],
+			'wordpress-playground/wp-content/plugins/wrapped-zip-import/wrapped-zip-import.php'
+		),
+		new File(
+			[
+				`/*
+Theme Name: Wrapped ZIP Import Theme
+*/
+`,
+			],
+			'wordpress-playground/wp-content/themes/wrapped-zip-import/style.css'
+		),
+		new File(
+			[`<?php echo 'Wrapped ZIP Import Theme';`],
+			'wordpress-playground/wp-content/themes/wrapped-zip-import/index.php'
+		),
+	];
+	const zipStream = encodeZip(files);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
+
 // OPFS tests must run serially because OPFS storage is shared at the browser
 // level, so tests would interfere with each other's saved sites if run in parallel.
 test.describe.configure({ mode: 'serial' });
@@ -588,6 +619,70 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		savedSiteName,
 		{ timeout: 30000 }
 	);
+});
+
+test('should import a ZIP whose WordPress files are wrapped in one top-level directory', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openSavedPlaygroundsOverlay();
+
+	const zipBuffer = await createWrappedWordPressZip();
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			await dialog.accept();
+		});
+	await fileInput.setInputFiles({
+		name: 'wrapped-wordpress-playground.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+	await importComplete;
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(async () => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					if (!playground) {
+						return {
+							plugin: false,
+							theme: false,
+							misplacedPlugin: false,
+						};
+					}
+					const documentRoot = await playground.documentRoot;
+					return {
+						plugin: await playground.fileExists(
+							`${documentRoot}/wp-content/plugins/wrapped-zip-import/wrapped-zip-import.php`
+						),
+						theme: await playground.fileExists(
+							`${documentRoot}/wp-content/themes/wrapped-zip-import/style.css`
+						),
+						misplacedPlugin: await playground.fileExists(
+							`${documentRoot}/wordpress-playground/wp-content/plugins/wrapped-zip-import/wrapped-zip-import.php`
+						),
+					};
+				}),
+			{ timeout: 90000 }
+		)
+		.toEqual({
+			plugin: true,
+			theme: true,
+			misplacedPlugin: false,
+		});
 });
 
 test('should create a saved site when importing ZIP while on a saved site with no existing temporary site', async ({

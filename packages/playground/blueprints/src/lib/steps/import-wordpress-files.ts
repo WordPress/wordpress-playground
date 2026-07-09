@@ -52,13 +52,15 @@ export const importWordPressFiles: StepHandler<
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	let importPath = joinPaths('/tmp', 'import');
-	await playground.mkdir(importPath);
+	const unzipPath = joinPaths('/tmp', 'import');
+	let importPath = unzipPath;
+	await playground.mkdir(unzipPath);
 	await unzip(playground, {
 		zipFile: wordPressFilesZip,
-		extractToPath: importPath,
+		extractToPath: unzipPath,
 	});
 	importPath = joinPaths(importPath, pathInZip);
+	importPath = await resolveImportRoot(playground, importPath);
 
 	// Read the export manifest if it exists. The manifest contains the
 	// site URL (including scope) at export time, which we'll use later
@@ -126,7 +128,7 @@ export const importWordPressFiles: StepHandler<
 	}
 
 	// Remove the directory where we unzipped the imported zip file.
-	await playground.rmdir(importPath);
+	await playground.rmdir(unzipPath);
 
 	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);
@@ -290,6 +292,29 @@ async function inferSiteUrlFromDatabase(
 	});
 	const siteUrl = result.text.trim();
 	return siteUrl || null;
+}
+
+async function resolveImportRoot(playground: UniversalPHP, importPath: string) {
+	if (await playground.fileExists(joinPaths(importPath, 'wp-content'))) {
+		return importPath;
+	}
+
+	const importedFilenames = await playground.listFiles(importPath);
+	if (importedFilenames.length !== 1) {
+		return importPath;
+	}
+
+	const wrappedImportPath = joinPaths(importPath, importedFilenames[0]);
+	if (
+		(await playground.isDir(wrappedImportPath)) &&
+		(await playground.fileExists(
+			joinPaths(wrappedImportPath, 'wp-content')
+		))
+	) {
+		return wrappedImportPath;
+	}
+
+	return importPath;
 }
 
 async function removePath(playground: UniversalPHP, path: string) {
