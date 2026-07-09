@@ -33,12 +33,12 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe('This saved Playground is incomplete');
+		expect(view.title).toBe('Start a new Playground to continue');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'This saved copy can’t be reopened'
+			'This saved Playground is incomplete and can’t be reopened'
 		);
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'Start a new Playground'
+			'the previous save stopped before all WordPress files were copied'
 		);
 		expect(renderToStaticMarkup(view.actions[0])).toContain(
 			'Start a new Playground'
@@ -52,14 +52,15 @@ describe('getSiteErrorView', () => {
 			helpers,
 		});
 
-		expect(view.title).toBe(
-			'Playground couldn’t finish cleaning up this site'
-		);
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'an earlier reset of this saved site was interrupted'
-		);
+		expect(view.title).toBe('Try again to open this Playground');
 		expect(renderToStaticMarkup(view.body)).toContain(
 			'Click <strong>Try again</strong>'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'old site files are still in this saved Playground'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'could show the old site with the new settings'
 		);
 		expect(renderToStaticMarkup(view.actions[0])).toContain('Try again');
 	});

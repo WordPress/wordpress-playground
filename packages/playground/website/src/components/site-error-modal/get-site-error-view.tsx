@@ -76,27 +76,26 @@ function browserStorageCleanupFailedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Playground couldn’t finish cleaning up this site',
+		title: 'Try again to open this Playground',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground found that an earlier reset of this saved site
-					was interrupted. It tried to finish cleaning up the old site
-					files now, but the browser could not remove them.
+					Click <strong>Try again</strong>. Playground needs another
+					attempt to finish opening this saved site.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						Playground stopped here so it would not accidentally
-						open the old site with the new settings.
-					</li>
-					<li>
-						Click <strong>Try again</strong> to reload Playground
-						and retry the cleanup.
-					</li>
-					<li>
 						If this keeps happening, close other Playground tabs and
 						make sure your browser has free storage, then try again.
+					</li>
+					<li>
+						What happened: an earlier reset was interrupted, and old
+						site files are still in this saved Playground.
+					</li>
+					<li>
+						Playground stopped because opening those files could
+						show the old site with the new settings.
 					</li>
 				</ul>
 			</>
@@ -117,27 +116,23 @@ function initialOpfsSyncInterruptedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'This saved Playground is incomplete',
+		title: 'Start a new Playground to continue',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground started saving this site, but the save stopped
-					before all files were copied. This saved copy can’t be
-					reopened because some WordPress files may be missing.
+					This saved Playground is incomplete and can’t be reopened.
+					Start a new Playground to keep working.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						This can happen if the tab was closed or reloaded before
-						the save finished.
+						What happened: the previous save stopped before all
+						WordPress files were copied.
 					</li>
 					<li>
-						It can also happen if the browser suspended the page or
-						ran out of space for saved sites.
-					</li>
-					<li>
-						Click <strong>Start a new Playground</strong> to
-						continue with a fresh site.
+						This can happen if the tab was closed or reloaded, the
+						browser suspended the page, or the browser ran out of
+						space for saved sites.
 					</li>
 				</ul>
 			</>
