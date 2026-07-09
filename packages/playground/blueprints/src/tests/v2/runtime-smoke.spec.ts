@@ -202,6 +202,220 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		});
 	});
 
+	it('loads inline mu-plugins', async () => {
+		await applyBlueprint({
+			version: 2,
+			muPlugins: [
+				{
+					filename: 'v2-runtime-mu-plugin.php',
+					content: `<?php
+						add_action('init', function () {
+							update_option('v2_runtime_mu_plugin_loaded', 'yes');
+						});
+					`,
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'loaded' => get_option('v2_runtime_mu_plugin_loaded'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			loaded: 'yes',
+		});
+	});
+
+	it('installs inline font files', async () => {
+		await applyBlueprint({
+			version: 2,
+			fonts: {
+				'v2-runtime-font': {
+					filename: 'v2-runtime-font.woff2',
+					content: 'fontdata',
+				},
+			},
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$family = get_page_by_path('v2-runtime-font', OBJECT, 'wp_font_family');
+				$faces = $family ? get_posts([
+					'post_type' => 'wp_font_face',
+					'post_parent' => $family->ID,
+					'post_status' => 'publish',
+					'numberposts' => -1,
+				]) : [];
+				$face = $faces ? $faces[0] : null;
+				echo json_encode([
+					'family_exists' => (bool) $family,
+					'family_title' => $family ? $family->post_title : null,
+					'face_exists' => (bool) $face,
+					'face_file' => $face ? get_post_meta($face->ID, '_wp_font_face_file', true) : null,
+				]);
+			`,
+		});
+
+		expect(result).toMatchObject({
+			family_exists: true,
+			family_title: 'V2 Runtime Font',
+			face_exists: true,
+		});
+		expect(result.face_file).toMatch(/v2-runtime-font.*\.woff2$/);
+	});
+
+	it('imports bundled SQL dumps', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				content: [
+					{
+						type: 'mysql-dump',
+						source: './sql/site-options.sql',
+					},
+				],
+			}),
+			sql: {
+				'site-options.sql': `
+					CREATE TABLE blueprint_v2_runtime_sql (value TEXT);
+					INSERT INTO blueprint_v2_runtime_sql (value)
+					VALUES ('imported from bundled SQL');
+				`,
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				global $wpdb;
+				echo json_encode([
+					'value' => $wpdb->get_var('SELECT value FROM blueprint_v2_runtime_sql'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			value: 'imported from bundled SQL',
+		});
+	});
+
+	it('imports bundled WXR files', async () => {
+		const wxr = await readFile(
+			new URL('../fixtures/import-wxr-slash-issue.xml', import.meta.url)
+		);
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				plugins: ['wordpress-importer'],
+				content: [
+					{
+						type: 'wxr',
+						source: './content/import.wxr',
+						authorsMode: 'default-author',
+						importComments: false,
+					},
+				],
+			}),
+			content: {
+				'import.wxr': wxr,
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				$post = get_page_by_path('issue', OBJECT, 'post');
+				echo json_encode([
+					'exists' => (bool) $post,
+					'title' => $post ? $post->post_title : null,
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			exists: true,
+			title: '"Issue\\Issue"',
+		});
+	}, 30_000);
+
+	it('writes files from additional Blueprint v2 steps', async () => {
+		await applyBlueprint({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'writeFiles',
+					files: {
+						'site:wp-content/v2-runtime-readme.txt': {
+							filename: 'v2-runtime-readme.txt',
+							content: 'Written by Blueprint v2.',
+						},
+						'site:wp-content/v2-runtime-tree': {
+							directoryName: 'v2-runtime-tree',
+							files: {
+								'nested.txt': 'Nested Blueprint v2 file.',
+							},
+						},
+					},
+				},
+			],
+		});
+
+		expect(
+			php.readFileAsText('/wordpress/wp-content/v2-runtime-readme.txt')
+		).toBe('Written by Blueprint v2.');
+		expect(
+			php.readFileAsText(
+				'/wordpress/wp-content/v2-runtime-tree/nested.txt'
+			)
+		).toBe('Nested Blueprint v2 file.');
+	});
+
+	it('runs bundled PHP files from additional Blueprint v2 steps', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'runPHP',
+						code: './scripts/set-option.php',
+						env: {
+							V2_RUNTIME_VALUE: 'set by bundled PHP',
+						},
+					},
+				],
+			}),
+			scripts: {
+				'set-option.php': `<?php
+					require '/wordpress/wp-load.php';
+					update_option(
+						'v2_runtime_file_backed_runphp',
+						getenv('V2_RUNTIME_VALUE')
+					);
+				`,
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'value' => get_option('v2_runtime_file_backed_runphp'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			value: 'set by bundled PHP',
+		});
+	});
+
 	/**
 	 * Compiles and executes one v2 Blueprint against the booted WordPress site.
 	 */
