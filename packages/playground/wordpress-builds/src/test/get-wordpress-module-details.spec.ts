@@ -36,12 +36,15 @@ describe('getWordPressModuleDetails()', () => {
 		);
 		const compressedBytes = new Uint8Array(readFileSync(bundlePath));
 		const entries = readUstarTar(await decompressZstd(compressedBytes));
+		const files = entries.filter(
+			(entry: { type?: string }) => entry.type !== 'dir'
+		);
 
 		expect(module.size).toBe(statSync(bundlePath).size);
 		expect(module.sha256).toBe(
 			createHash('sha256').update(compressedBytes).digest('hex')
 		);
-		expect(module.fileCount).toBe(entries.length);
+		expect(module.fileCount).toBe(files.length);
 	});
 
 	it('keeps remote trunk modules classified as ZIPs without local metadata', () => {
@@ -72,6 +75,8 @@ describe('getWordPressModuleDetails()', () => {
 async function decompressZstd(compressedBytes: Uint8Array) {
 	const decoder = new ZSTDDecoder();
 	await decoder.init();
-	const chunks = [...decoder.decodeStreaming([compressedBytes])] as Uint8Array[];
+	const chunks = [
+		...decoder.decodeStreaming([compressedBytes]),
+	] as Uint8Array[];
 	return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
 }
