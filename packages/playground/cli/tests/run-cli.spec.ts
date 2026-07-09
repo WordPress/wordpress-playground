@@ -286,47 +286,39 @@ describe.each(blueprintVersions)(
 			}
 		});
 
-		test('should reject URL WordPress sources with the experimental v2 flag', async () => {
+		test('should accept URL WordPress sources with the experimental v2 flag', async () => {
 			const fetchMock = vi.fn(async () => {
 				throw new Error('Unexpected WordPress ZIP fetch');
 			});
 			vi.stubGlobal('fetch', fetchMock);
-			const stdoutChunks: string[] = [];
-			const stdoutSpy = vi
-				.spyOn(process.stdout, 'write')
-				.mockImplementation((chunk: any) => {
-					stdoutChunks.push(
-						typeof chunk === 'string'
-							? chunk
-							: new TextDecoder().decode(chunk)
-					);
-					return true;
-				});
-			const exitSpy = vi
-				.spyOn(process, 'exit')
-				.mockImplementation((code?: number | string | null) => {
-					throw new Error(`process.exit(${code})`);
-				});
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+				code?: number | string | null
+			) => {
+				throw new Error(
+					`process.exit unexpectedly called with "${code}"`
+				);
+			}) as any);
 
 			try {
-				await expect(
-					parseOptionsAndRunCLI([
-						'server',
-						'--experimental-blueprints-v2-runner',
-						'--wordpress-install-mode=install-from-existing-files-if-needed',
-						'--wp=https://example.com/wordpress.zip',
-						'--skip-sqlite-setup',
-						'--verbosity=quiet',
-						'--port=0',
-					])
-				).rejects.toThrow('process.exit(1)');
-				expect(stdoutChunks.join('')).toContain(
-					'Unsupported Blueprint v2 WordPress version "https://example.com/wordpress.zip".'
-				);
-				expect(exitSpy).toHaveBeenCalledWith(1);
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--experimental-blueprints-v2-runner',
+					'--mode=mount-only',
+					'--wp=https://example.com/wordpress.zip',
+					'--verbosity=quiet',
+					'--port=0',
+					'--workers=1',
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				expect(
+					await cliServer.playground.fileExists(
+						'/wordpress/wp-load.php'
+					)
+				).toBe(false);
+				expect(exitSpy).not.toHaveBeenCalled();
 				expect(fetchMock).not.toHaveBeenCalled();
 			} finally {
-				stdoutSpy.mockRestore();
 				exitSpy.mockRestore();
 				vi.unstubAllGlobals();
 			}
