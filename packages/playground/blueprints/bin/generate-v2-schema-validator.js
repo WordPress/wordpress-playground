@@ -34,6 +34,8 @@ const standaloneFormats = _`{
 /**
  * Generates the dedicated runtime validator for Blueprint v2 declarations.
  *
+ * Returns the portable schema used in the published multi-version schema.
+ *
  * @param retry The schema generator's existing CI retry wrapper.
  * @param prettierConfig The repository's Prettier configuration.
  */
@@ -50,8 +52,9 @@ export async function generateBlueprintV2SchemaValidator(
 	schema.$schema = 'http://json-schema.org/schema';
 	patchSchema(schema);
 
+	const runtimeSchema = createRuntimeValidationSchema(schema);
 	const ajv = createBlueprintV2Ajv();
-	const validate = ajv.compile(schema);
+	const validate = ajv.compile(runtimeSchema);
 	const rawValidationCode = ajvStandaloneCode(ajv, validate);
 	const formattedValidationCode = await prettier.format(rawValidationCode, {
 		...prettierConfig,
@@ -63,12 +66,9 @@ export async function generateBlueprintV2SchemaValidator(
 }
 
 /**
- * Creates an AJV instance that can compile the patched Blueprint v2 schema.
- *
- * The public schema also contains the v2 definitions, so its validator must
- * use the same custom URL format and standalone implementation.
+ * Creates an AJV instance for the runtime-only schema with exact URL parsing.
  */
-export function createBlueprintV2Ajv() {
+function createBlueprintV2Ajv() {
 	const ajv = new Ajv({
 		// Besides reporting independent failures, this produces smaller standalone
 		// code for this schema: about 100 KB versus 170 KB gzip before bundling.
@@ -89,9 +89,11 @@ export function createBlueprintV2Ajv() {
 function patchSchema(schema) {
 	const definitions = schema.definitions;
 	const urlReference = definitions['DataSources.URLReference'];
+	// Published schemas cannot carry the runtime's private WHATWG format.
+	// Keep this constraint simple enough for any JSON Schema implementation.
 	Object.assign(urlReference, {
 		type: 'string',
-		format: whatwgHttpUrlFormat,
+		pattern: '^[Hh][Tt][Tt][Pp][Ss]?://[^/?#]+',
 	});
 	delete urlReference.$ref;
 	delete urlReference.anyOf;
@@ -216,6 +218,15 @@ function patchSchema(schema) {
 		),
 	});
 	delete content.anyOf;
+}
+
+/** Adds exact URL validation to a copy used only by the runtime validator. */
+function createRuntimeValidationSchema(schema) {
+	const runtimeSchema = structuredClone(schema);
+	const urlReference = runtimeSchema.definitions['DataSources.URLReference'];
+	delete urlReference.pattern;
+	urlReference.format = whatwgHttpUrlFormat;
+	return runtimeSchema;
 }
 
 /** Validates HTTP(S) references with the same URL parser used by Playground. */

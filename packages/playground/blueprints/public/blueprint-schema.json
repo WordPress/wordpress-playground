@@ -4494,7 +4494,7 @@
 		"DataSources.URLReference": {
 			"type": "string",
 			"description": "A reference to a HTTP or HTTPS URL.\n\nThe URLs are parsed using the WHATWG URL standard, which means they can optionally contain usernames and passwords if needed.",
-			"format": "whatwg-http-url"
+			"pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^/?#]+"
 		},
 		"DataSources.ExecutionContextPath": {
 			"type": "string",

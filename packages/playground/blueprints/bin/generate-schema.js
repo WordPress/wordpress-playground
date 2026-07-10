@@ -3,10 +3,7 @@ import fs from 'fs';
 import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
-import {
-	createBlueprintV2Ajv,
-	generateBlueprintV2SchemaValidator,
-} from './generate-v2-schema-validator.js';
+import { generateBlueprintV2SchemaValidator } from './generate-v2-schema-validator.js';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
@@ -18,10 +15,8 @@ const config = {
 
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
-const validator_output_path =
-	'packages/playground/blueprints/public/blueprint-schema-validator.js';
 const v1ValidatorOutputPath =
-	'packages/playground/blueprints/public/blueprint-v1-schema-validator.js';
+	'packages/playground/blueprints/public/blueprint-schema-validator.js';
 
 const maxRetries = 2;
 async function exponentialBackoff(callback, retries = 0, delay = 1000) {
@@ -92,13 +87,6 @@ const formattedSchemaString = await prettier.format(rawSchemaString, {
 	parser: 'json',
 });
 fs.writeFileSync(output_path, formattedSchemaString);
-
-await writeValidator(
-	createBlueprintV2Ajv(),
-	publicSchema,
-	validator_output_path,
-	prettierConfig
-);
 
 /** Combines the independently generated schemas without shadowing definitions. */
 function createPublicSchema(v1Schema, v2Schema) {

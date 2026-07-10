@@ -204,22 +204,23 @@ export async function jsonSchemaCompletion(
 
 	if (valuePropertyName) {
 		if (valuePropertyName === discriminatorProp) {
-			let schemaWithDiscriminator = currentSchema;
-			if (currentSchema.anyOf || currentSchema.oneOf) {
+			let discriminatorValues = getDiscriminatorValues(
+				currentSchema,
+				discriminatorProp
+			);
+			if (
+				discriminatorValues.length === 0 &&
+				(currentSchema.anyOf || currentSchema.oneOf)
+			) {
 				const firstOption =
 					currentSchema.anyOf?.[0] || currentSchema.oneOf?.[0];
 				if (firstOption) {
-					schemaWithDiscriminator = resolveSchemaRefs(
-						firstOption,
-						schema
+					discriminatorValues = getDiscriminatorValues(
+						resolveSchemaRefs(firstOption, schema),
+						discriminatorProp
 					);
 				}
 			}
-
-			const discriminatorValues = getDiscriminatorValues(
-				schemaWithDiscriminator,
-				discriminatorProp
-			);
 
 			if (discriminatorValues.length === 0) {
 				return null;
@@ -351,11 +352,14 @@ export async function jsonSchemaCompletion(
 	);
 
 	if (currentDiscriminatorValue && discriminatorProp) {
-		schemaCandidate = filterSchemaByDiscriminator(
-			schemaCandidate,
-			schema,
-			discriminatorProp,
-			currentDiscriminatorValue
+		schemaCandidate = mergeCompositeSchemas(
+			filterSchemaByDiscriminator(
+				schemaCandidate,
+				schema,
+				discriminatorProp,
+				currentDiscriminatorValue
+			),
+			schema
 		);
 		schemaAlreadyMerged = true;
 	} else if (discriminatorProp) {
@@ -440,7 +444,9 @@ export async function jsonSchemaCompletion(
 		const hasEnumValues =
 			Array.isArray(effectiveProp.enum) && effectiveProp.enum.length > 0;
 
-		if (effectiveProp.const !== undefined) {
+		if (isDiscriminator && hasStringShape) {
+			valueToInsert = '""';
+		} else if (effectiveProp.const !== undefined) {
 			valueToInsert = JSON.stringify(effectiveProp.const);
 		} else if (hasArrayShape) {
 			valueToInsert = '[]';
@@ -588,8 +594,8 @@ export async function jsonSchemaCompletion(
  * Selects the Blueprint schema version before navigating nested properties.
  *
  * A versionless document remains a v1 Blueprint, but exposing the v2 `version`
- * property lets authors opt in through completion. Once a version is present,
- * only that version's fields are offered.
+ * property lets authors opt in through completion. Only the numeric v2 marker
+ * selects the v2 fields; malformed version values remain on the v1 branch.
  */
 function selectBlueprintDeclarationSchema(
 	schema: JSONSchema,
@@ -608,24 +614,11 @@ function selectBlueprintDeclarationSchema(
 		(option) => !schemaHasProperty(option, 'version', rootSchema)
 	);
 
-	if (version !== undefined) {
-		const matchingOption = options.find((option) => {
-			const values = new Set<string>();
-			collectPropertyValuesFromSchema(
-				option,
-				'version',
-				rootSchema,
-				values
-			);
-			return values.has(String(version));
-		});
-		const selectedOption = matchingOption || versionedOption;
-		return selectedOption
-			? mergeCompositeSchemas(
-					resolveSchemaRefs(selectedOption, rootSchema),
-					rootSchema
-				)
-			: schema;
+	if (version === 2 && versionedOption) {
+		return mergeCompositeSchemas(
+			resolveSchemaRefs(versionedOption, rootSchema),
+			rootSchema
+		);
 	}
 
 	if (!versionlessOption) {

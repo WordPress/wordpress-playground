@@ -1,7 +1,11 @@
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { type Extension, StateEffect, StateField } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { findNodeAtLocation, parseTree } from 'jsonc-parser';
+import {
+	findNodeAtLocation,
+	parseTree,
+	type Node as JsonNode,
+} from 'jsonc-parser';
 import {
 	validateBlueprintDeclaration,
 	type BlueprintValidationResult,
@@ -149,7 +153,8 @@ export function createBlueprintLinter(
 					(error) => {
 						// Parse the instance path (e.g., "/steps/0" -> ["steps", 0])
 						const pathSegments = parseInstancePath(
-							error.instancePath
+							error.instancePath,
+							tree
 						);
 
 						let from: number;
@@ -246,21 +251,34 @@ function dispatchValidationState(
 }
 
 /**
- * Parse an AJV instance path into path segments.
+ * Parse an AJV instance path into path segments for jsonc-parser.
+ *
+ * JSON Pointers do not distinguish an array index from a numeric object key,
+ * so numeric segments are converted only while traversing an array node.
  * "/steps/0/step" -> ["steps", 0, "step"]
  */
-function parseInstancePath(instancePath: string): (string | number)[] {
-	if (!instancePath || instancePath === '') {
+function parseInstancePath(
+	instancePath: string,
+	tree: JsonNode
+): (string | number)[] {
+	if (!instancePath) {
 		return [];
 	}
 
-	return instancePath
-		.split('/')
-		.filter((segment) => segment !== '')
-		.map((segment) => {
-			const asNumber = parseInt(segment, 10);
-			return isNaN(asNumber) ? segment : asNumber;
-		});
+	const path: (string | number)[] = [];
+	let currentNode: JsonNode | undefined = tree;
+	for (const encodedSegment of instancePath.slice(1).split('/')) {
+		const segment = encodedSegment
+			.replaceAll('~1', '/')
+			.replaceAll('~0', '~');
+		const pathSegment: string | number =
+			currentNode?.type === 'array' ? Number(segment) : segment;
+		path.push(pathSegment);
+		currentNode = currentNode
+			? findNodeAtLocation(currentNode, [pathSegment])
+			: undefined;
+	}
+	return path;
 }
 
 /**

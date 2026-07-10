@@ -124,6 +124,88 @@ describe('Blueprint JSON schema completion', () => {
 		);
 	});
 
+	it.each([
+		{
+			name: 'v1 step',
+			source: `{
+	"$schema": "SCHEMA_URL",
+	"steps": [{ "CURSOR }]
+}`,
+			property: 'step',
+			values: ['installPlugin', 'runPHP'],
+		},
+		{
+			name: 'v2 content type',
+			source: `{
+	"$schema": "SCHEMA_URL",
+	"version": 2,
+	"content": [{ "CURSOR }]
+}`,
+			property: 'type',
+			values: ['mysql-dump', 'posts', 'wxr'],
+		},
+	])(
+		'inserts an empty $name discriminator and offers its values',
+		async ({ source, property, values }) => {
+			const { completion, doc } = await complete(
+				source,
+				publicBlueprintSchema as unknown as JSONSchema
+			);
+			const propertyCompletion = completion?.options.find(
+				({ label }) => label === property
+			);
+			expect(typeof propertyCompletion?.apply).toBe('function');
+
+			const view = new EditorView({ doc, parent: document.body });
+			if (typeof propertyCompletion?.apply === 'function' && completion) {
+				propertyCompletion.apply(
+					view,
+					propertyCompletion,
+					completion.from,
+					completion.to ?? completion.from
+				);
+			}
+			expect(view.state.doc.toString()).toContain(`"${property}": ""`);
+
+			const valueCompletion = await jsonSchemaCompletion(
+				new CompletionContext(
+					view.state,
+					view.state.selection.main.head,
+					true
+				)
+			);
+			expect(valueCompletion?.options.map(({ label }) => label)).toEqual(
+				expect.arrayContaining(values)
+			);
+			view.destroy();
+		}
+	);
+
+	it.each([
+		['version 3', 3],
+		['a null version', null],
+		['a string version', '2'],
+	])('does not use v2 completion for %s', async (_name, version) => {
+		const { completion } = await complete(
+			`{
+	"$schema": "SCHEMA_URL",
+	"version": ${JSON.stringify(version)},
+	"CURSOR
+}`,
+			publicBlueprintSchema as unknown as JSONSchema
+		);
+		const labels = completion?.options.map(({ label }) => label);
+
+		expect(labels).toContain('steps');
+		for (const label of [
+			'blueprintMeta',
+			'applicationOptions',
+			'additionalStepsAfterExecution',
+		]) {
+			expect(labels).not.toContain(label);
+		}
+	});
+
 	it('completes v2 plugin fields from the published schema', async () => {
 		const { completion } = await complete(
 			`{
@@ -139,6 +221,26 @@ describe('Blueprint JSON schema completion', () => {
 		);
 		expect(completion?.options.map(({ label }) => label)).not.toContain(
 			'step'
+		);
+	});
+
+	it('completes the selected v2 WXR content fields', async () => {
+		const { completion } = await complete(
+			`{
+	"$schema": "SCHEMA_URL",
+	"version": 2,
+	"content": [{ "type": "wxr", "CURSOR }]
+}`,
+			publicBlueprintSchema as unknown as JSONSchema
+		);
+
+		expect(completion?.options.map(({ label }) => label)).toEqual(
+			expect.arrayContaining([
+				'source',
+				'authorsMode',
+				'urlsMode',
+				'staticAssets',
+			])
 		);
 	});
 });
