@@ -278,8 +278,15 @@ function parseInstancePath(
 			.replaceAll('~0', '~');
 		// A segment such as `10` may be either an object key or an array index.
 		// jsonc-parser expects a number only when its parent is actually an array.
-		const pathSegment: string | number =
-			currentNode?.type === 'array' ? Number(segment) : segment;
+		const arrayIndex = Number(segment);
+		const isArrayIndex: boolean =
+			currentNode?.type === 'array' &&
+			Number.isSafeInteger(arrayIndex) &&
+			arrayIndex >= 0 &&
+			String(arrayIndex) === segment;
+		const pathSegment: string | number = isArrayIndex
+			? arrayIndex
+			: segment;
 		path.push(pathSegment);
 		currentNode = currentNode
 			? findNodeAtLocation(currentNode, [pathSegment])
