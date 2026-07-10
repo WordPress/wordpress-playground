@@ -45,6 +45,7 @@ export class BlueprintsV2Handler {
 	private siteUrl: string;
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
+	private wordpressInstallModePromise?: Promise<WordPressInstallMode>;
 
 	constructor(
 		args: RunCLIArgs,
@@ -257,11 +258,13 @@ export class BlueprintsV2Handler {
 	/**
 	 * Resolves the worker install mode, including migrated v1 PHP-only sites.
 	 */
-	private async getWordPressInstallMode(): Promise<WordPressInstallMode> {
-		return resolveV2WordPressInstallMode(
-			this.args,
-			await v1BlueprintRequestsPhpOnlyMode(this.args.blueprint)
+	private getWordPressInstallMode(): Promise<WordPressInstallMode> {
+		this.wordpressInstallModePromise ??= v1BlueprintRequestsPhpOnlyMode(
+			this.args.blueprint
+		).then((v1PhpOnlyMode) =>
+			resolveV2WordPressInstallMode(this.args, v1PhpOnlyMode)
 		);
+		return this.wordpressInstallModePromise;
 	}
 
 	/**
@@ -357,6 +360,9 @@ function resolveV2WordPressInstallMode(
 
 /**
  * Indicates whether boot will reuse WordPress files supplied by the caller.
+ *
+ * The `if-needed` variant may initialize the database, but it never downloads
+ * WordPress core as a fallback when the mounted files are absent.
  */
 function isV2ExistingSiteInstallMode(
 	wordpressInstallMode: WordPressInstallMode

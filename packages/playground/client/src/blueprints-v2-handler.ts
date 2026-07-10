@@ -64,7 +64,9 @@ export class BlueprintsV2Handler {
 			shouldInstallWordPress,
 			wordpressInstallMode,
 		});
-		const appliesToExistingWordPress =
+		// The `if-needed` mode may initialize the database, but WordPress core
+		// still comes from the mounted files rather than a fallback download.
+		const usesExistingWordPressFiles =
 			resolvedWordPressInstallMode === 'install-from-existing-files' ||
 			resolvedWordPressInstallMode ===
 				'install-from-existing-files-if-needed';
@@ -74,7 +76,7 @@ export class BlueprintsV2Handler {
 			onBlueprintValidated,
 			corsProxy,
 			gitAdditionalHeadersCallback,
-			siteMode: appliesToExistingWordPress
+			siteMode: usesExistingWordPressFiles
 				? 'apply-to-existing-site'
 				: 'create-new-site',
 		});
@@ -94,7 +96,7 @@ export class BlueprintsV2Handler {
 			wordpressInstallMode: resolvedWordPressInstallMode,
 			blueprint:
 				compiled.version === 2 &&
-				appliesToExistingWordPress &&
+				usesExistingWordPressFiles &&
 				typeof compiled.declaration.wordpressVersion === 'object' &&
 				compiled.declaration.wordpressVersion !== null &&
 				'min' in compiled.declaration.wordpressVersion
