@@ -69,6 +69,7 @@ export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 export {
 	compileBlueprintV2,
+	createBlueprintV2ExecutionPlan,
 	resolveBlueprintV2WordPressSource,
 } from './lib/v2/compile';
 export type {
