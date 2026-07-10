@@ -210,10 +210,11 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		const fetchSpy = vi
 			.spyOn(globalThis, 'fetch')
 			.mockImplementation(async (input) => {
-				const url = String(input);
+				const url =
+					input instanceof Request ? input.url : String(input);
 				if (url.includes('/translations/core/1.0/')) {
-					return {
-						json: async () => ({
+					return new Response(
+						JSON.stringify({
 							translations: [
 								{
 									language: 'es_ES',
@@ -221,12 +222,16 @@ describe('Blueprint v2 runtime smoke tests', () => {
 								},
 							],
 						}),
-					} as Response;
+						{
+							status: 200,
+							headers: { 'Content-Type': 'application/json' },
+						}
+					);
 				}
-				return {
-					ok: true,
-					arrayBuffer: async () => emptyZip.buffer,
-				} as Response;
+				return new Response(emptyZip, {
+					status: 200,
+					headers: { 'Content-Type': 'application/zip' },
+				});
 			});
 
 		try {
