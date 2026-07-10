@@ -344,6 +344,18 @@ describe('Blueprint v2 schema validation', () => {
 		);
 	});
 
+	it('formats the empty JSON Pointer as the document root', () => {
+		const result = validateBlueprintV2(null);
+		expect(result.valid).toBe(false);
+		if (result.valid) {
+			throw new Error('Expected schema validation to fail.');
+		}
+		expect(result.errors[0].path).toBe('');
+		expect(() => assertValidBlueprintV2Declaration(null)).toThrow(
+			'At the document root'
+		);
+	});
+
 	it('uses the generic invalid Blueprint error class', () => {
 		try {
 			assertValidBlueprintV2Declaration({

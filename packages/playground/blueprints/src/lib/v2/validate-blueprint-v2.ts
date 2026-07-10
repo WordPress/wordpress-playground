@@ -45,7 +45,9 @@ function formatValidationErrors(errors: BlueprintV2ValidationError[]): string {
 	const details = errors
 		.map(
 			(error, index) =>
-				`${index + 1}. At path "${error.path || '/'}": ${error.message}`
+				`${index + 1}. At ${
+					error.path ? `path "${error.path}"` : 'the document root'
+				}: ${error.message}`
 		)
 		.join('\n');
 	return `Invalid Blueprint v2 declaration:\n${details}`;
@@ -62,26 +64,40 @@ function getActionableValidationErrors(
 		errorsByPath.set(error.instancePath, errorsAtPath);
 	}
 
+	const pathsWithDescendants = new Set<string>();
+	// Walk JSON Pointer segment boundaries instead of comparing every path pair.
+	for (const path of errorsByPath.keys()) {
+		let separatorIndex = path.lastIndexOf('/');
+		while (separatorIndex >= 0) {
+			const ancestorPath = path.slice(0, separatorIndex);
+			if (errorsByPath.has(ancestorPath)) {
+				pathsWithDescendants.add(ancestorPath);
+			}
+			if (separatorIndex === 0) {
+				break;
+			}
+			separatorIndex = path.lastIndexOf('/', separatorIndex - 1);
+		}
+	}
+
 	const selectedErrors: ErrorObject[] = [];
 	for (const [path, errorsAtPath] of errorsByPath) {
-		const hasDeeperFailure = Array.from(errorsByPath.keys()).some(
-			(otherPath) => isDescendantJsonPointer(path, otherPath)
-		);
-		if (hasDeeperFailure && errorsAtPath.some(isUnionError)) {
+		if (pathsWithDescendants.has(path) && errorsAtPath.some(isUnionError)) {
 			continue;
 		}
 		selectedErrors.push(...selectErrorsAtPath(errorsAtPath));
 	}
 
 	const normalizedErrors = selectedErrors.map(normalizeValidationError);
-	return normalizedErrors.filter(
-		(error, index) =>
-			normalizedErrors.findIndex(
-				(candidate) =>
-					candidate.path === error.path &&
-					candidate.message === error.message
-			) === index
-	);
+	const seenErrors = new Set<string>();
+	return normalizedErrors.filter((error) => {
+		const key = JSON.stringify([error.path, error.message]);
+		if (seenErrors.has(key)) {
+			return false;
+		}
+		seenErrors.add(key);
+		return true;
+	});
 }
 
 /** Selects the most specific useful failures reported for one input value. */
@@ -155,13 +171,6 @@ function normalizeValidationError(
 			? 'must match one of the allowed forms'
 			: (error.message ?? 'does not match the Blueprint v2 schema'),
 	};
-}
-
-/** Indicates whether one JSON Pointer addresses a child of another. */
-function isDescendantJsonPointer(parent: string, candidate: string): boolean {
-	return parent === ''
-		? candidate !== ''
-		: candidate.startsWith(`${parent}/`);
 }
 
 /** Appends one RFC 6901-escaped segment to a JSON Pointer. */
