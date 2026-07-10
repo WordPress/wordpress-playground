@@ -37,7 +37,6 @@ describe('PHP mounts', () => {
 				lookupPath: vi.fn(() => ({})),
 				readdir: vi.fn(() => ['.', '..']),
 			},
-			spawnProcess: undefined,
 		};
 		const unmountError = new Error('unmount failed');
 		const unmountCallback = vi.fn(async () => {

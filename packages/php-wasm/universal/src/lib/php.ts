@@ -5,6 +5,7 @@ import {
 	createSpawnHandler,
 	dirname,
 	joinPaths,
+	splitShellCommand,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
@@ -99,6 +100,8 @@ export class PHP implements Disposable {
 	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#spawnHandler?: SpawnHandler;
+	#commandSpawnHandlers: Record<string, SpawnHandler> = {};
 	#rotationOptions: {
 		enabled: boolean;
 		recreateRuntime: () => Promise<number> | number;
@@ -245,9 +248,58 @@ export class PHP implements Disposable {
 			//		  parent context.
 			// Perhaps this library would be useful:
 			// https://github.com/WebReflection/coincident/
-			handler = createSpawnHandler(eval(handler));
+			handler = createSpawnHandler(eval(handler)) as SpawnHandler;
 		}
-		this[__private__dont__use].spawnProcess = handler;
+		this.#spawnHandler = handler;
+	}
+
+	/**
+	 * Overrides spawning of a specific binary, e.g. `sendmail`. The override
+	 * applies to any argv[0] whose basename matches `command` and takes
+	 * precedence over the handler installed via setSpawnHandler().
+	 */
+	setCommandSpawnHandler(command: string, handler: SpawnHandler) {
+		this.#commandSpawnHandlers[command] = handler;
+	}
+
+	/**
+	 * Routes every process spawn requested by the PHP runtime.
+	 *
+	 * Commands registered via setCommandSpawnHandler() are dispatched to
+	 * their dedicated handlers; setSpawnHandler() cannot displace them.
+	 * Every other command is delegated to the handler installed via
+	 * setSpawnHandler().
+	 */
+	#dispatchSpawn(
+		command: string | string[],
+		args: string[] = [],
+		options: any = {}
+	) {
+		const commandArray = args.length
+			? [command as string, ...args]
+			: Array.isArray(command)
+				? command
+				: splitShellCommand(command);
+		const commandSpawnHandler =
+			commandArray[0] &&
+			this.#commandSpawnHandlers[basename(commandArray[0])];
+		if (commandSpawnHandler) {
+			return (commandSpawnHandler as any)(commandArray, [], options);
+		}
+		if (this.#spawnHandler) {
+			return (this.#spawnHandler as any)(command, args, options);
+		}
+		// Throw the same error the Emscripten runtime used to throw when
+		// no Module["spawnProcess"] was provided. The PHP-side popen() and
+		// proc_open() bindings recognize the SPAWN_UNSUPPORTED code and
+		// translate it to ENOSYS.
+		const error = new Error(
+			'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
+				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+				'and similar functions via php.ini.'
+		);
+		(error as any).code = 'SPAWN_UNSUPPORTED';
+		throw error;
 	}
 
 	/** @deprecated Use PHPRequestHandler instead. */
@@ -279,6 +331,14 @@ export class PHP implements Disposable {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+		// The runtime never sees user-provided spawn handlers directly –
+		// every spawn flows through the dispatcher so that per-command
+		// handlers cannot be displaced by a setSpawnHandler() call.
+		runtime.spawnProcess = (
+			command: string | string[],
+			args?: string[],
+			options?: any
+		) => this.#dispatchSpawn(command, args, options);
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
 			null,
@@ -1415,7 +1475,6 @@ export class PHP implements Disposable {
 
 		const oldFS = this[__private__dont__use].FS;
 		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
-		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Temporarily set CWD to / and restore it at the end of this method.
 		//
@@ -1463,12 +1522,9 @@ export class PHP implements Disposable {
 			// Ignore the exit-related exception
 		}
 
-		// Initialize the new runtime
+		// Initialize the new runtime. The new runtime gets a fresh spawn
+		// dispatcher; the spawn handlers survive on this instance.
 		this.initializeRuntime(runtime);
-
-		if (oldSpawnProcess) {
-			this[__private__dont__use].spawnProcess = oldSpawnProcess;
-		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
@@ -1632,14 +1688,10 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
-		const process = this[__private__dont__use].spawnProcess(
-			argv[0],
-			argv.slice(1),
-			{
-				env: options.env,
-				cwd: options.cwd ?? this.cwd(),
-			}
-		) as ChildProcess;
+		const process = this.#dispatchSpawn(argv[0], argv.slice(1), {
+			env: options.env,
+			cwd: options.cwd ?? this.cwd(),
+		}) as ChildProcess;
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
