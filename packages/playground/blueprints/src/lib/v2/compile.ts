@@ -15,7 +15,11 @@ import type {
 	InstallThemeStep,
 	StepDefinition,
 } from '../steps';
-import type { DirectoryReference, FileReference } from '../v1/resources';
+import {
+	Resource,
+	type DirectoryReference,
+	type FileReference,
+} from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 import { resolveBlueprintV2RuntimeConfiguration } from './resolve-runtime-configuration';
 
@@ -204,6 +208,15 @@ export type CompileBlueprintV2Options = Pick<
 		onBlueprintValidated?: (blueprint: BlueprintV2Declaration) => void;
 	};
 
+export type ResolveBlueprintV2WordPressSourceOptions = Pick<
+	CompileBlueprintV1Options,
+	| 'corsProxy'
+	| 'gitAdditionalHeadersCallback'
+	| 'progress'
+	| 'semaphore'
+	| 'streamBundledFile'
+>;
+
 /**
  * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
  * understand today.
@@ -249,6 +262,41 @@ export async function compileBlueprintV2(
 			await v1Runner.run(playground);
 		},
 	};
+}
+
+/**
+ * Loads a custom WordPress source into the file expected by the boot API.
+ *
+ * Built-in versions and HTTP(S) ZIP URLs already use each consumer's normal
+ * WordPress download path. Execution-context, inline, and Git references need
+ * the Blueprint resource loader to turn them into a concrete archive first.
+ */
+export async function resolveBlueprintV2WordPressSource(
+	declaration: BlueprintV2Declaration,
+	options: ResolveBlueprintV2WordPressSourceOptions = {}
+): Promise<File | undefined> {
+	const { assertValidBlueprintV2Declaration } =
+		await import('./validate-blueprint-v2');
+	assertValidBlueprintV2Declaration(declaration);
+	const source = getCustomWordPressDataReference(
+		declaration.wordpressVersion
+	);
+	if (!source) {
+		return undefined;
+	}
+
+	const resourceReference = convertV2DataReferenceToV1(source, 'wordpress');
+	const resource = Resource.create(
+		isDirectoryReference(resourceReference)
+			? {
+					resource: 'zip',
+					inner: resourceReference,
+					name: 'wordpress.zip',
+				}
+			: resourceReference,
+		options
+	);
+	return (await resource.resolve()) as File;
 }
 
 /**
@@ -2258,6 +2306,29 @@ function normalizeAssetDefinition(
 }
 
 /**
+ * Returns WordPress data references that cannot use the existing version/URL
+ * download path and therefore need the Blueprint resource loader.
+ */
+function getCustomWordPressDataReference(
+	wordpressVersion: BlueprintV2Declaration['wordpressVersion']
+): BlueprintV2DataReference | undefined {
+	if (
+		typeof wordpressVersion === 'string' &&
+		isExecutionContextPath(wordpressVersion)
+	) {
+		return wordpressVersion;
+	}
+	if (
+		isInlineFile(wordpressVersion) ||
+		isInlineDirectory(wordpressVersion) ||
+		isGitPath(wordpressVersion)
+	) {
+		return wordpressVersion;
+	}
+	return undefined;
+}
+
+/**
  * Maps a Blueprint v2 data reference to the equivalent v1 resource.
  *
  * V2 groups URLs, WordPress.org slugs, execution-context paths, inline data,
@@ -2266,7 +2337,7 @@ function normalizeAssetDefinition(
  */
 function convertV2DataReferenceToV1(
 	reference: BlueprintV2DataReference,
-	context: 'plugin' | 'theme'
+	context: 'plugin' | 'theme' | 'wordpress'
 ): FileReference | DirectoryReference {
 	if (typeof reference === 'string') {
 		if (seemsLikeGitRepoUrl(reference)) {
@@ -2287,6 +2358,12 @@ function convertV2DataReferenceToV1(
 				resource: 'bundled',
 				path: normalizeExecutionContextPath(reference),
 			};
+		}
+		if (context === 'wordpress') {
+			throw new UnsupportedBlueprintV2FeatureError(
+				'wordpressVersion',
+				'Unsupported Blueprint v2 WordPress data reference.'
+			);
 		}
 		return wordpressOrgResource(
 			reference,

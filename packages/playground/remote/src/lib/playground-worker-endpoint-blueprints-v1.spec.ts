@@ -257,6 +257,55 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		10000
 	);
 
+	it('uses a caller-provided WordPress archive without downloading core', async () => {
+		const bootWordPress = vi.fn();
+		let endpoint:
+			| {
+					boot(options: Record<string, unknown>): Promise<void>;
+			  }
+			| undefined;
+		vi.doMock('@wp-playground/wordpress', () => ({
+			bootWordPress,
+		}));
+		vi.doMock('@php-wasm/web', () => ({
+			certificateToPEM: vi.fn(),
+			createDirectoryHandleMountHandler: vi.fn(),
+			exposeAPI: vi.fn((api) => {
+				endpoint = api;
+				return [vi.fn(), vi.fn()];
+			}),
+			loadWebRuntime: vi.fn(),
+		}));
+		await import('./playground-worker-endpoint-blueprints-v1');
+		if (!endpoint) {
+			throw new Error('Expected exposeAPI to receive an endpoint');
+		}
+		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+			'http://playground.test'
+		);
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({});
+		vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
+			undefined
+		);
+		const wordPressZip = new File(['custom WordPress'], 'wordpress.zip');
+
+		await endpoint.boot({
+			scope: 'test',
+			phpVersion: '8.3',
+			wpVersion: 'custom',
+			wordPressZip,
+			wordpressInstallMode: 'download-and-install',
+			withNetworking: false,
+		});
+
+		expect(bootWordPress).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ wordPressZip })
+		);
+		// SQLite still downloads in parallel; WordPress core does not.
+		expect(fetch).toHaveBeenCalledTimes(1);
+	}, 10000);
+
 	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
 		vi.doMock('@php-wasm/web', () => ({
 			certificateToPEM: vi.fn(),
