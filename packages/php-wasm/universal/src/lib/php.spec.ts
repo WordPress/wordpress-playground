@@ -1,5 +1,7 @@
+import { createSpawnHandler } from '@php-wasm/util';
 import { describe, expect, it, vi } from 'vitest';
 import { __private__dont__use, PHP } from './php';
+import { PHPResponse } from './php-response';
 
 describe('PHP mounts', () => {
 	it('forgets mount tracking even when the unmount callback fails', async () => {
@@ -53,5 +55,28 @@ describe('PHP mounts', () => {
 			'Runtime with id 0 not found'
 		);
 		expect(unmountCallback).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('PHP spawn handlers', () => {
+	it('uses a command-specific override to process a matching command', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				cwd: vi.fn(() => '/'),
+			},
+		};
+
+		await php.setSpawnHandler(() => {
+			throw new Error('default handler');
+		});
+		php.setCommandSpawnHandler('echo', () => {
+			throw new Error('echo handler');
+		});
+
+		await expect(php.cli(['echo', 'hello'])).rejects.toThrow(
+			'echo handler'
+		);
+		await expect(php.cli(['pwd'])).rejects.toThrow('default handler');
 	});
 });
