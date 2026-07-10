@@ -38,6 +38,7 @@ import type {
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
+	MountStillActiveError,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -462,25 +463,24 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (opfsMount === undefined || unmount === undefined) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		let flushError: unknown;
-		try {
-			await opfsMount.flush();
-		} catch (error) {
-			flushError = error;
-		}
+		// Do not stop journaling when the final flush fails. Keeping the mount
+		// registered lets callers retry without discarding writes that arrived
+		// after an earlier explicit flush.
+		await opfsMount.flush();
+		let mountIsStillActive = false;
 		try {
 			await unmount();
 		} catch (error) {
-			if (flushError === undefined) {
-				throw error;
+			if (error instanceof MountStillActiveError) {
+				mountIsStillActive = true;
+				throw error.originalError;
 			}
-			logger.error(error);
+			throw error;
 		} finally {
-			delete this.unmounts[mountpoint];
-			delete this.opfsMounts[mountpoint];
-		}
-		if (flushError !== undefined) {
-			throw flushError;
+			if (!mountIsStillActive) {
+				delete this.unmounts[mountpoint];
+				delete this.opfsMounts[mountpoint];
+			}
 		}
 	}
 

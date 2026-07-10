@@ -48,6 +48,25 @@ export class PHPExecutionFailureError extends Error {
 }
 
 export type UnmountFunction = (() => Promise<any>) | (() => any);
+
+/**
+ * Reports an unmount failure that deliberately left the mount active.
+ *
+ * The PHP mount registry keeps these entries so callers can retry after the
+ * underlying persistence failure instead of forgetting a live filesystem.
+ */
+export class MountStillActiveError extends Error {
+	readonly originalError: unknown;
+
+	constructor(originalError: unknown) {
+		super('The filesystem could not be flushed and remains mounted.', {
+			cause: originalError,
+		});
+		this.name = 'MountStillActiveError';
+		this.originalError = originalError;
+	}
+}
+
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
@@ -1551,13 +1570,18 @@ export class PHP implements Disposable {
 			unmount: async () => {
 				try {
 					await unmountCallback();
-				} finally {
+				} catch (error) {
+					if (error instanceof MountStillActiveError) {
+						throw error;
+					}
 					// JS mount tracking is authoritative. Even if the
-					// underlying filesystem unmount fails, forget this entry
-					// so later runtime swaps and remounts cannot reuse a stale
-					// mount handler.
+					// underlying filesystem reports an unmount failure, forget
+					// entries that did not explicitly guarantee they remain live.
+					// Later runtime swaps must not reuse a stale mount handler.
 					delete this.#mounts[virtualFSPath];
+					throw error;
 				}
+				delete this.#mounts[virtualFSPath];
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;

@@ -1,5 +1,9 @@
 import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
-import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
+import {
+	FSHelpers,
+	MountStillActiveError,
+	__private__dont__use,
+} from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
@@ -41,6 +45,10 @@ export interface DirectoryHandleMount {
 	flush(): Promise<void>;
 	unmount(): Promise<void>;
 }
+
+type ManagedDirectoryHandleMount = DirectoryHandleMount & {
+	discard(): Promise<void>;
+};
 export type SyncProgress = {
 	/** The number of files that have been synced. */
 	files: number;
@@ -78,11 +86,19 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = createJournalFSEventsToOpfs(
+				php,
+				handle,
+				vfsMountPoint
+			);
 			options.onMount?.(mount);
 			return mount.unmount;
 		} else {
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = createJournalFSEventsToOpfs(
+				php,
+				handle,
+				vfsMountPoint
+			);
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
@@ -110,7 +126,7 @@ export function createDirectoryHandleMountHandler(
 					});
 				});
 			} catch (error) {
-				await mount.unmount();
+				await mount.discard();
 				throw error;
 			}
 			return mount.unmount;
@@ -343,12 +359,23 @@ async function overwriteOpfsFile(
 	}
 }
 
+/** Creates the public OPFS journal mount used by direct callers. */
 export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
 	options: JournalFSEventsToOpfsOptions = {}
 ): DirectoryHandleMount {
+	return createJournalFSEventsToOpfs(php, opfsRoot, memfsRoot, options);
+}
+
+/** Creates a journal mount with setup-only rollback control. */
+function createJournalFSEventsToOpfs(
+	php: PHP,
+	opfsRoot: FileSystemDirectoryHandle,
+	memfsRoot: string,
+	options: JournalFSEventsToOpfsOptions = {}
+): ManagedDirectoryHandleMount {
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
@@ -367,11 +394,32 @@ export function journalFSEventsToOpfs(
 
 	async function unmount() {
 		try {
-			await flush();
-		} finally {
-			unbindJournal();
-			php.removeEventListener('request.end', flushInBackground);
-			php.removeEventListener('filesystem.write', flushInBackground);
+			while (true) {
+				await flush();
+				if (journal.length === 0) {
+					// There is no await between the final journal check and listener
+					// removal, so no captured operation can fall through the gap.
+					await discard();
+					return;
+				}
+			}
+		} catch (error) {
+			throw new MountStillActiveError(error);
+		}
+	}
+
+	/** Stops the journal and waits for work that was already flushing. */
+	async function discard() {
+		const inFlightFlush = flushPromise;
+		unbindJournal();
+		php.removeEventListener('request.end', flushInBackground);
+		php.removeEventListener('filesystem.write', flushInBackground);
+		try {
+			await inFlightFlush;
+		} catch (error) {
+			// Setup rollback must finish outstanding writes, but its original copy
+			// error remains the useful failure for the caller.
+			logger.error('OPFS flush failed while discarding a mount', error);
 		}
 	}
 
@@ -419,12 +467,23 @@ export function journalFSEventsToOpfs(
 		journal.splice(0, journalEntries.length);
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
+		let nextEntryIndex = 0;
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
-			for (const entry of compressedJournal) {
-				await rewriter.processEntry(entry);
+			for (
+				;
+				nextEntryIndex < compressedJournal.length;
+				nextEntryIndex++
+			) {
+				await rewriter.processEntry(compressedJournal[nextEntryIndex]);
 			}
+		} catch (error) {
+			// Keep only the failed normalized operation and its unattempted suffix.
+			// Completed entries may not be safe to replay, while dropping the failed
+			// suffix would let a later empty flush report success and lose writes.
+			journal.unshift(...compressedJournal.slice(nextEntryIndex));
+			throw error;
 		} finally {
 			release();
 		}
@@ -435,6 +494,7 @@ export function journalFSEventsToOpfs(
 	return {
 		flush,
 		unmount,
+		discard,
 	};
 }
 
@@ -519,10 +579,18 @@ class OpfsRewriter {
 						opfsDir,
 						entry.toPath
 					);
-					// Then delete the old directory
-					await opfsParent.removeEntry(name, {
-						recursive: true,
-					});
+					// Then delete the old directory. A retry may observe that a
+					// previous attempt removed it before reporting an error.
+					try {
+						await opfsParent.removeEntry(name, {
+							recursive: true,
+						});
+					} catch (error) {
+						if ((error as DOMException).name !== 'NotFoundError') {
+							throw error;
+						}
+						// A previous attempt already completed the removal.
+					}
 				} else {
 					/**
 					 * Delete the old file and creating a new one.
