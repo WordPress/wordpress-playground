@@ -11,6 +11,7 @@ import {
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
+import { createSiteBootAbortController } from '../../lib/state/site-runtime-lock';
 import {
 	selectSiteBySlug,
 	selectSitesLoaded,
@@ -176,7 +177,9 @@ export const KeepAliveTemporarySitesViewport = () => {
 			{slugsSeenSoFar.map((slug) => {
 				const site = sitesBySlug.get(slug);
 				const viewportKey = site
-					? `${slug}-${site.metadata.whenCreated}`
+					? `${slug}-${site.metadata.whenCreated}-${getRuntimeBootFingerprint(
+							site.metadata.runtimeConfiguration
+						)}`
 					: slug;
 				return (
 					<div
@@ -218,7 +221,7 @@ export const JustViewport = function JustViewport({
 		// sync work from the previous iframe may still finish later. The signal
 		// lets `bootSiteClient()` ignore those stale callbacks; cleanup removes
 		// this iframe's client info once.
-		const abortController = new AbortController();
+		const abortController = createSiteBootAbortController(siteSlug);
 		dispatch(
 			bootSiteClient(siteSlug, iframe, {
 				signal: abortController.signal,

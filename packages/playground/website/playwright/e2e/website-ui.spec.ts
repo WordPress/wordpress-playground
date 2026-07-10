@@ -68,7 +68,11 @@ async function getActivePlaygroundSite(page: Page) {
 
 async function replaceBlueprintEditorContents(
 	page: Page,
-	blueprint: Blueprint
+	blueprint: Blueprint,
+	options: {
+		beforeFill?: () => Promise<void>;
+		waitForValidation?: boolean;
+	} = {}
 ) {
 	// Wait for CodeMirror editor to load.
 	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
@@ -88,14 +92,41 @@ async function replaceBlueprintEditorContents(
 	// auto-bracket insertion.
 	const blueprintJson = JSON.stringify(blueprint, null, 2);
 	const cmContent = editor.locator('.cm-content');
+	await options.beforeFill?.();
 	await cmContent.fill(blueprintJson);
 
+	if (options.waitForValidation === false) {
+		return;
+	}
 	// Wait for validation to complete (linter has 300ms debounce), then verify
 	// the Blueprint was inserted by checking the editor content.
 	await page.waitForTimeout(500);
 	await expect(cmContent).toContainText('writeFile', {
 		timeout: 5000,
 	});
+}
+
+/** Drops one host file on the Blueprint explorer background. */
+async function dropBlueprintFile(page: Page, name: string, content: string) {
+	const explorer = page
+		.locator('[class*="blueprint-editor"] [class*="fileExplorerContainer"]')
+		.first();
+	await explorer.evaluate(
+		(container, file) => {
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(
+				new File([file.content], file.name, { type: 'text/plain' })
+			);
+			container.dispatchEvent(
+				new DragEvent('drop', {
+					bubbles: true,
+					cancelable: true,
+					dataTransfer,
+				})
+			);
+		},
+		{ name, content }
+	);
 }
 
 function escapeRegExp(text: string) {
@@ -341,6 +372,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	website,
 	wordpress,
 }) => {
+	await website.page.clock.install();
 	await website.goto('./?storage=temp');
 
 	// Open site manager
@@ -360,7 +392,12 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 			},
 		],
 	};
-	await replaceBlueprintEditorContents(website.page, blueprint);
+	await replaceBlueprintEditorContents(website.page, blueprint, {
+		beforeFill: async () => {
+			await website.page.clock.pauseAt(Date.now() + 1_000);
+		},
+		waitForValidation: false,
+	});
 
 	// Click the "Run Blueprint" button
 	await website.page
@@ -368,6 +405,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 			name: 'Run Blueprint',
 		})
 		.click();
+	await website.page.clock.resume();
 
 	await website.page.waitForTimeout(1500);
 	// Wait for the playground to recreate
@@ -377,6 +415,94 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	await expect(wordpress.locator('body')).toContainText('Blueprint test', {
 		timeout: 10000,
 	});
+});
+
+test('should preserve Blueprint edits across rapid file switches', async ({
+	website,
+}) => {
+	await website.page.clock.install();
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+	const editorContent = website.page.locator(
+		'[class*="blueprint-editor"] .cm-content'
+	);
+	await expect(editorContent).toBeVisible();
+	await dropBlueprintFile(website.page, 'notes.txt', 'Initial notes');
+	const notesFile = website.page.locator('button[data-path="/notes.txt"]');
+	await expect(notesFile).toBeVisible();
+
+	await website.page.clock.pauseAt(Date.now() + 1_000);
+	const blueprint = JSON.stringify(
+		{
+			landingPage: '/rapid-switch.php',
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/rapid-switch.php',
+					data: 'Rapid switch test',
+				},
+			],
+		},
+		null,
+		2
+	);
+	await editorContent.fill(blueprint);
+	await notesFile.click();
+	await expect(editorContent).toContainText('Initial notes');
+	await editorContent.fill('Edited notes');
+	await website.page.locator('button[data-path="/blueprint.json"]').click();
+	await expect(editorContent).toContainText('Rapid switch test');
+	await website.page.clock.resume();
+
+	await notesFile.click();
+	await expect(editorContent).toContainText('Edited notes');
+});
+
+test('should not recreate a dirty Blueprint file after renaming it', async ({
+	website,
+}) => {
+	await website.page.clock.install();
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+	const editorContent = website.page.locator(
+		'[class*="blueprint-editor"] .cm-content'
+	);
+	await dropBlueprintFile(website.page, 'notes.txt', 'Initial notes');
+	const notesFile = website.page.locator('button[data-path="/notes.txt"]');
+	await expect(notesFile).toBeVisible();
+	await notesFile.click();
+	await expect(editorContent).toContainText('Initial notes');
+
+	await website.page.clock.pauseAt(Date.now() + 1_000);
+	await editorContent.fill('Edited before rename');
+	await notesFile.click({ button: 'right' });
+	// Let the context-menu popover lay itself out without reaching the save
+	// debounce. The clock remains paused after this small advance.
+	await website.page.clock.runFor(50);
+	await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+	const renameInput = website.page.locator('[data-path="/notes.txt"] input');
+	await renameInput.fill('renamed.txt');
+	await renameInput.press('Enter');
+	const renamedFile = website.page.locator(
+		'button[data-path="/renamed.txt"]'
+	);
+	await website.page.clock.resume();
+	await expect(renamedFile).toBeVisible();
+	await expect(editorContent).toContainText('Edited before rename');
+
+	await website.ensureSiteManagerIsClosed();
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await expect(
+		website.page.locator('button[data-path="/notes.txt"]')
+	).toHaveCount(0);
+	await expect(renamedFile).toBeVisible();
+	await renamedFile.click();
+	await expect(editorContent).toContainText('Edited before rename');
 });
 
 test('should copy blueprint link to clipboard when share button is clicked', async ({

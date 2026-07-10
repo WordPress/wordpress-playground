@@ -7,11 +7,14 @@ describe('opfsSiteStorage', () => {
 	let storage: NonNullable<typeof exportedOpfsSiteStorage>;
 	let loadPersistedBlueprintBundle: ReturnType<typeof vi.fn>;
 	let loadPersistedBlueprintBundleFromPath: ReturnType<typeof vi.fn>;
+	let blueprintBundleLoadErrorSymbol: symbol;
+	let nextOpfsWriteError: Error | undefined;
 
 	beforeEach(async () => {
 		vi.resetModules();
 		loadPersistedBlueprintBundle = vi.fn();
 		loadPersistedBlueprintBundleFromPath = vi.fn();
+		nextOpfsWriteError = undefined;
 		opfsRoot = new MemoryDirectoryHandle('');
 		vi.stubGlobal('navigator', {
 			storage: {
@@ -28,6 +31,11 @@ describe('opfsSiteStorage', () => {
 					const port = options?.transfer?.[0];
 					setTimeout(async () => {
 						try {
+							if (nextOpfsWriteError) {
+								const error = nextOpfsWriteError;
+								nextOpfsWriteError = undefined;
+								throw error;
+							}
 							await writeOpfsPath(
 								opfsRoot,
 								message.path,
@@ -57,6 +65,7 @@ describe('opfsSiteStorage', () => {
 
 		const module = await import('./opfs-site-storage');
 		storage = module.opfsSiteStorage!;
+		blueprintBundleLoadErrorSymbol = module.blueprintBundleLoadErrorSymbol;
 	});
 
 	afterEach(() => {
@@ -106,6 +115,51 @@ describe('opfsSiteStorage', () => {
 		await expect(storage.read('stored-site')).resolves.toMatchObject({
 			slug: 'stored-site',
 			originalUrlParams,
+		});
+	});
+
+	it('removes a partial site directory when metadata creation fails', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const partialDirectory = await sitesRoot.getDirectoryHandle(
+			'site-retry',
+			{ create: true }
+		);
+		await partialDirectory.getDirectoryHandle('blueprint-bundle-inactive', {
+			create: true,
+		});
+		nextOpfsWriteError = new Error('metadata write failed');
+
+		await expect(
+			storage.create('retry', createSiteMetadata())
+		).rejects.toThrow('metadata write failed');
+		await expect(
+			sitesRoot.getDirectoryHandle('site-retry')
+		).rejects.toMatchObject({ name: 'NotFoundError' });
+
+		await storage.create('retry', createSiteMetadata());
+		await expect(storage.read('retry')).resolves.toMatchObject({
+			slug: 'retry',
+			metadata: { id: 'test-site-id' },
+		});
+	});
+
+	it('clears stale files from an unowned directory before creation', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const partialDirectory = await sitesRoot.getDirectoryHandle(
+			'site-fresh',
+			{ create: true }
+		);
+		partialDirectory.setFile('stale-plugin.php', 'old owner');
+
+		await storage.create('fresh', createSiteMetadata());
+
+		const createdDirectory =
+			await sitesRoot.getDirectoryHandle('site-fresh');
+		await expect(
+			createdDirectory.getFileHandle('stale-plugin.php')
+		).rejects.toMatchObject({ name: 'NotFoundError' });
+		await expect(storage.read('fresh')).resolves.toMatchObject({
+			slug: 'fresh',
 		});
 	});
 
@@ -281,8 +335,30 @@ describe('opfsSiteStorage', () => {
 
 		const site = await storage.read('bundle');
 
-		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith('bundle');
+		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith(
+			'bundle',
+			undefined
+		);
 		expect(site?.metadata.originalBlueprint).toBe(bundle);
+	});
+
+	it('marks a selected bundle load failure instead of returning an empty Blueprint', async () => {
+		const loadError = new Error('transient OPFS read failure');
+		loadPersistedBlueprintBundle.mockRejectedValue(loadError);
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(sitesRoot, 'site-bundle', 'bundle', {
+			originalBlueprintSource: {
+				type: 'opfs-site',
+				directory: 'blueprint-bundle-version',
+			},
+		});
+
+		const site = await storage.read('bundle');
+
+		expect(site?.metadata.originalBlueprint).toBeUndefined();
+		expect((site?.metadata as any)[blueprintBundleLoadErrorSymbol]).toBe(
+			loadError
+		);
 	});
 });
 

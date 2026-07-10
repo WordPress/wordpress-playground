@@ -10,6 +10,12 @@ import {
 import { bootSiteClient } from './boot-site-client';
 import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
+import {
+	createSiteBootAbortController,
+	getCurrentSiteBootSignal,
+} from '../site-runtime-lock';
+
+const storedSites = vi.hoisted(() => new Map<string, SiteInfo>());
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -50,9 +56,11 @@ vi.mock('./store', () => ({
 }));
 
 vi.mock('../opfs/opfs-site-storage', () => ({
+	blueprintBundleLoadErrorSymbol: Symbol('blueprintBundleLoadError'),
 	getDirectoryPathForSlug: (slug: string) => `/sites/${slug}`,
 	legacyOpfsPathSymbol: Symbol('legacyOpfsPath'),
 	opfsSiteStorage: {
+		read: vi.fn(async (slug: string) => storedSites.get(slug)),
 		removeWordPressFilesKeepMetadata: vi.fn(),
 		update: vi.fn(),
 	},
@@ -66,6 +74,7 @@ vi.mock('@php-wasm/logger', () => ({
 
 describe('bootSiteClient', () => {
 	beforeEach(() => {
+		storedSites.clear();
 		vi.mocked(loadDirectoryHandle).mockReset();
 		vi.mocked(loadDirectoryHandle).mockResolvedValue({} as any);
 		vi.mocked(startPlaygroundWeb).mockReset();
@@ -83,7 +92,22 @@ describe('bootSiteClient', () => {
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).mockResolvedValue(undefined);
 		vi.mocked(opfsSiteStorage!.update).mockReset();
-		vi.mocked(opfsSiteStorage!.update).mockResolvedValue(undefined);
+		vi.mocked(opfsSiteStorage!.update).mockImplementation(
+			async (slug, metadata, originalUrlParams) => {
+				const existing = storedSites.get(slug);
+				if (existing) {
+					storedSites.set(slug, {
+						...existing,
+						metadata,
+						originalUrlParams,
+					});
+				}
+			}
+		);
+		vi.mocked(opfsSiteStorage!.read).mockReset();
+		vi.mocked(opfsSiteStorage!.read).mockImplementation(async (slug) =>
+			storedSites.get(slug)
+		);
 	});
 
 	it('does not report a missing site after boot is aborted', async () => {
@@ -116,7 +140,7 @@ describe('bootSiteClient', () => {
 
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
-		).toHaveBeenCalledWith('autosaved');
+		).toHaveBeenCalledWith('autosaved', undefined);
 		expect(
 			vi.mocked(opfsSiteStorage!.removeWordPressFilesKeepMetadata).mock
 				.invocationCallOrder[0]
@@ -195,7 +219,7 @@ describe('bootSiteClient', () => {
 
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
-		).toHaveBeenCalledWith('autosaved');
+		).toHaveBeenCalledWith('autosaved', undefined);
 		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -365,9 +389,9 @@ describe('bootSiteClient', () => {
 				signal: abortController.signal,
 			}
 		)(dispatch, () => state);
-		await Promise.resolve();
-		await Promise.resolve();
-		expect(startPlaygroundWeb).toHaveBeenCalled();
+		await vi.waitFor(() => {
+			expect(startPlaygroundWeb).toHaveBeenCalled();
+		});
 
 		abortController.abort();
 		resolveStart();
@@ -379,6 +403,160 @@ describe('bootSiteClient', () => {
 				return action.type === 'clients/addClientInfo';
 			})
 		).toBe(false);
+	});
+
+	it('does not abort a replacement boot when a stale metadata read settles', async () => {
+		const site = createSite('replaced-boot');
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		let resolveRead = (_site: SiteInfo | undefined) => {};
+		vi.mocked(opfsSiteStorage!.read).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveRead = resolve;
+				})
+		);
+		const staleBoot = createSiteBootAbortController(site.slug);
+		const boot = bootSiteClient(
+			site.slug,
+			document.createElement('iframe'),
+			{ signal: staleBoot.signal }
+		)(dispatch, () => state);
+		await vi.waitFor(() => {
+			expect(opfsSiteStorage!.read).toHaveBeenCalledWith(site.slug);
+		});
+
+		const replacementBoot = createSiteBootAbortController(site.slug);
+		resolveRead(site);
+		await boot;
+
+		expect(staleBoot.signal.aborted).toBe(true);
+		expect(replacementBoot.signal.aborted).toBe(false);
+		expect(getCurrentSiteBootSignal(site.slug)).toBe(
+			replacementBoot.signal
+		);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		replacementBoot.abort();
+	});
+
+	it.each([
+		[
+			'startup rejects',
+			async () => Promise.reject(new Error('boot failed')),
+		],
+		['startup returns no client', async () => undefined],
+	])('releases the runtime lease when %s', async (_label, start) => {
+		const originalLocks = Object.getOwnPropertyDescriptor(
+			navigator,
+			'locks'
+		);
+		let activeLocks = 0;
+		Object.defineProperty(navigator, 'locks', {
+			configurable: true,
+			value: {
+				request: vi.fn(
+					async (
+						_name: string,
+						optionsOrCallback: unknown | (() => Promise<unknown>),
+						callback?: () => Promise<unknown>
+					) => {
+						const lockCallback =
+							typeof optionsOrCallback === 'function'
+								? optionsOrCallback
+								: callback!;
+						activeLocks++;
+						try {
+							return await lockCallback();
+						} finally {
+							activeLocks--;
+						}
+					}
+				),
+			},
+		});
+		try {
+			vi.mocked(startPlaygroundWeb).mockImplementationOnce(start as any);
+			const site = createSite('failed-runtime');
+			const state = createState(site);
+			const controller = createSiteBootAbortController(site.slug);
+
+			await bootSiteClient(site.slug, document.createElement('iframe'), {
+				signal: controller.signal,
+			})(createDispatch(state), () => state);
+			await Promise.resolve();
+
+			expect(activeLocks).toBe(0);
+			expect(controller.signal.aborted).toBe(true);
+		} finally {
+			if (originalLocks) {
+				Object.defineProperty(navigator, 'locks', originalLocks);
+			} else {
+				Reflect.deleteProperty(navigator, 'locks');
+			}
+		}
+	});
+
+	it('detaches a connected client before releasing a failed boot lease', async () => {
+		const originalLocks = Object.getOwnPropertyDescriptor(
+			navigator,
+			'locks'
+		);
+		let activeLocks = 0;
+		Object.defineProperty(navigator, 'locks', {
+			configurable: true,
+			value: {
+				request: vi.fn(
+					async (
+						_name: string,
+						optionsOrCallback: unknown | (() => Promise<unknown>),
+						callback?: () => Promise<unknown>
+					) => {
+						const lockCallback =
+							typeof optionsOrCallback === 'function'
+								? optionsOrCallback
+								: callback!;
+						activeLocks++;
+						try {
+							return await lockCallback();
+						} finally {
+							activeLocks--;
+						}
+					}
+				),
+			},
+		});
+		const connectedClient = createPlaygroundClient({
+			unmountOpfs: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(connectedClient);
+				throw new Error('Blueprint failed after connection');
+			}
+		);
+		try {
+			const site = createSite('connected-failure');
+			const state = createState(site);
+			const controller = createSiteBootAbortController(site.slug);
+			const iframe = document.createElement('iframe');
+			document.body.append(iframe);
+
+			await bootSiteClient(site.slug, iframe, {
+				signal: controller.signal,
+			})(createDispatch(state), () => state);
+			expect(connectedClient.unmountOpfs).toHaveBeenCalledWith(
+				'/wordpress'
+			);
+			expect(iframe.isConnected).toBe(false);
+			expect(activeLocks).toBe(0);
+			expect(controller.signal.aborted).toBe(true);
+		} finally {
+			if (originalLocks) {
+				Object.defineProperty(navigator, 'locks', originalLocks);
+			} else {
+				Reflect.deleteProperty(navigator, 'locks');
+			}
+		}
 	});
 
 	it('does not mutate Redux from an aborted initial OPFS sync', async () => {
@@ -460,7 +638,7 @@ function createSite(
 		metadata?: Partial<SiteInfo['metadata']>;
 	} = {}
 ): SiteInfo {
-	return {
+	const site: SiteInfo = {
 		slug,
 		loadedFromStorage: options.loadedFromStorage,
 		metadata: {
@@ -481,10 +659,13 @@ function createSite(
 			...options.metadata,
 		},
 	};
+	storedSites.set(slug, site);
+	return site;
 }
 
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
+		flushOpfs: vi.fn(async () => undefined),
 		mountOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,

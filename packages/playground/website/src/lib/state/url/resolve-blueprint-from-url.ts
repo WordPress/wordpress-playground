@@ -29,6 +29,8 @@ export type BlueprintSource =
 	  }
 	| {
 			type: 'opfs-site';
+			/** Versioned bundle directory selected by the site's metadata. */
+			directory?: string;
 	  };
 
 export type ResolvedBlueprint = {

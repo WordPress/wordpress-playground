@@ -9,6 +9,7 @@ import {
 	TabPanel,
 } from '@wordpress/components';
 import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
+import { logger } from '@php-wasm/logger';
 import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
@@ -35,6 +36,7 @@ import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
 import { SiteDatabasePanel } from '../site-database-panel';
+import { getBlueprintFilesystemIdentity } from '../../blueprint-editor/blueprint-filesystem-identity';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { TemporarySiteNotice } from '../temporary-site-notice';
 import css from './style.module.css';
@@ -127,9 +129,25 @@ export function SiteInfoPanel({
 			return;
 		}
 
-		void playground.documentRoot.then((root) => {
-			setDocumentRoot(root);
-		});
+		let cancelled = false;
+		setDocumentRoot(null);
+		void playground.documentRoot
+			.then((root) => {
+				if (!cancelled) {
+					setDocumentRoot(root);
+				}
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					logger.error(
+						'Failed to resolve Playground document root',
+						error
+					);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	function navigateTo(path: string) {
@@ -494,7 +512,9 @@ export function SiteInfoPanel({
 										}
 									>
 										<SiteBlueprintBundleEditor
-											key={site.slug}
+											key={getBlueprintFilesystemIdentity(
+												site
+											)}
 											site={site}
 											className={classNames(
 												css.blueprintEditor

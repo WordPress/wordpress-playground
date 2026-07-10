@@ -39,6 +39,11 @@ const SITE_METADATA_FILENAME = 'wp-runtime.json';
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
 export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
+// Keep transient bundle failures out of wp-runtime.json while preventing the
+// editor from treating a missing backend as a new empty Blueprint.
+export const blueprintBundleLoadErrorSymbol = Symbol(
+	'blueprintBundleLoadError'
+);
 
 /**
  * StoredSiteMetadata is the data structure that is written to disk.
@@ -57,6 +62,11 @@ export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
 	originalUrlParams?: OriginalUrlParams;
 }
+
+type SiteCreationOptions = {
+	/** Keeps files staged after the caller explicitly cleared the unowned path. */
+	reusePreparedDirectory?: boolean;
+};
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
@@ -82,20 +92,57 @@ class OpfsSiteStorage {
 	async create(
 		slug: string,
 		metadata: SiteMetadata,
-		originalUrlParams?: OriginalUrlParams
+		originalUrlParams?: OriginalUrlParams,
+		options: SiteCreationOptions = {}
 	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
-		await this.root.getDirectoryHandle(newSiteDirName, {
-			create: true,
-		});
-		await opfsWriteFile(
-			getSiteMetadataPath(newSiteDirName),
-			await metadataToStoredFormat(slug, metadata, originalUrlParams)
-		);
+		if (!options.reusePreparedDirectory) {
+			await this.removeUnownedSiteDirectory(slug);
+		}
+		try {
+			await this.root.getDirectoryHandle(newSiteDirName, {
+				create: true,
+			});
+			await opfsWriteFile(
+				getSiteMetadataPath(newSiteDirName),
+				await metadataToStoredFormat(slug, metadata, originalUrlParams)
+			);
+		} catch (error) {
+			try {
+				await removeFailedSiteCreation(
+					this.root,
+					newSiteDirName,
+					metadata.id
+				);
+			} catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					`Could not create or clean up site '${slug}'.`
+				);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Clears an encoded site path that has no reloadable metadata owner.
+	 *
+	 * Callers that stage a Blueprint before `create()` use this while holding the
+	 * site creation lock, then pass `reusePreparedDirectory`. Old WordPress files
+	 * must not survive into the new owner's first MEMFS-to-OPFS synchronization.
+	 */
+	async removeUnownedSiteDirectory(slug: string): Promise<void> {
+		if (await this.findExistingSiteDirName(slug)) {
+			throw new Error(`Site with slug '${slug}' already exists.`);
+		}
+		const siteDirName = getDirectoryNameForSlug(slug);
+		if (await getDirectoryHandleIfExists(this.root, siteDirName)) {
+			await this.root.removeEntry(siteDirName, { recursive: true });
+		}
 	}
 
 	/**
@@ -229,15 +276,25 @@ class OpfsSiteStorage {
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
+				const bundleDirectory =
+					siteInfo.metadata.originalBlueprintSource.directory;
 				siteInfo.metadata.originalBlueprint = isLegacyDirectoryName
-					? await loadPersistedBlueprintBundleFromPath(sitePath)
-					: await loadPersistedBlueprintBundle(siteInfo.slug);
+					? await loadPersistedBlueprintBundleFromPath(
+							sitePath,
+							bundleDirectory
+						)
+					: await loadPersistedBlueprintBundle(
+							siteInfo.slug,
+							bundleDirectory
+						);
 			} catch (error) {
 				logger.error(
 					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
 					error
 				);
-				// Continue with the JSON declaration
+				siteInfo.metadata.originalBlueprint = undefined;
+				(siteInfo.metadata as any)[blueprintBundleLoadErrorSymbol] =
+					error;
 			}
 		}
 
@@ -282,7 +339,10 @@ class OpfsSiteStorage {
 	 * because those entries are the old WordPress runtime tree that the next
 	 * boot must recreate from the new setup.
 	 */
-	async removeWordPressFilesKeepMetadata(slug: string): Promise<void> {
+	async removeWordPressFilesKeepMetadata(
+		slug: string,
+		blueprintBundleDirectory = BUNDLE_DIR_NAME
+	): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
@@ -293,7 +353,10 @@ class OpfsSiteStorage {
 			// The next boot still needs the site metadata and the edited
 			// Blueprint bundle. Everything else belongs to the old WordPress
 			// tree and must be removed before the new setup runs.
-			if (name === SITE_METADATA_FILENAME || name === BUNDLE_DIR_NAME) {
+			if (
+				name === SITE_METADATA_FILENAME ||
+				name === blueprintBundleDirectory
+			) {
 				continue;
 			}
 			namesToDelete.push(name);
@@ -328,6 +391,39 @@ class OpfsSiteStorage {
 
 		return undefined;
 	}
+}
+
+/**
+ * Removes a failed create transaction unless another metadata owner won it.
+ *
+ * Bundle staging may create the encoded site directory before `create()`. A
+ * failed metadata write must remove that directory so a retry is not blocked by
+ * a corrupt `wp-runtime.json`, but it must not delete a valid record written by
+ * a concurrent owner with a different site id.
+ */
+async function removeFailedSiteCreation(
+	root: FileSystemDirectoryHandle,
+	siteDirName: string,
+	expectedSiteId: string
+): Promise<void> {
+	const siteDirectory = await getDirectoryHandleIfExists(root, siteDirName);
+	if (!siteDirectory) {
+		return;
+	}
+	try {
+		const metadataHandle = await siteDirectory.getFileHandle(
+			SITE_METADATA_FILENAME
+		);
+		const storedMetadata = JSON.parse(
+			await (await metadataHandle.getFile()).text()
+		) as Partial<StoredSiteMetadata>;
+		if (storedMetadata.id && storedMetadata.id !== expectedSiteId) {
+			return;
+		}
+	} catch {
+		// Missing or malformed metadata has no durable owner to preserve.
+	}
+	await root.removeEntry(siteDirName, { recursive: true });
 }
 
 export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot

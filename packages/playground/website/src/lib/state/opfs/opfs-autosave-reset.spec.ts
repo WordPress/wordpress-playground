@@ -48,7 +48,7 @@ describe('resetAutosavedSiteFilesWithPendingMarker', () => {
 		);
 		expect(
 			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata
-		).toHaveBeenCalledWith('autosaved');
+		).toHaveBeenCalledWith('autosaved', undefined);
 		expect(mocks.opfsSiteStorage.update).toHaveBeenNthCalledWith(
 			2,
 			'autosaved',
@@ -92,7 +92,7 @@ describe('resetAutosavedSiteFilesWithPendingMarker', () => {
 		);
 		expect(
 			mocks.opfsSiteStorage.removeWordPressFilesKeepMetadata
-		).toHaveBeenCalledWith('autosaved');
+		).toHaveBeenCalledWith('autosaved', undefined);
 	});
 });
 

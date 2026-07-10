@@ -25,6 +25,8 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
+	finishPendingAutosavedSiteReset,
+	refreshSiteFromStorage,
 	isAutosavedSite,
 	selectSiteBySlug,
 	updateSiteMetadata,
@@ -42,6 +44,13 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { getRuntimeBootFingerprint } from '../playground-identity';
+import {
+	abortSiteBoot,
+	acquireSiteRuntimeLock,
+	getCurrentSiteBootSignal,
+	releaseSiteRuntimeLock,
+} from '../site-runtime-lock';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -103,6 +112,60 @@ export function bootSiteClient(
 						error: 'initial-opfs-sync-interrupted',
 					})
 				);
+				return;
+			}
+		}
+		if (site.metadata.storage === 'opfs') {
+			const siteBeforeRuntimeLock = site;
+			await acquireSiteRuntimeLock(siteSlug, signal);
+			if (signal.aborted) {
+				return;
+			}
+			try {
+				site = await dispatch(refreshSiteFromStorage(siteSlug));
+			} catch (error) {
+				if (!signal.aborted) {
+					logger.error(
+						'Error refreshing saved Playground metadata before boot',
+						error
+					);
+					dispatch(
+						setActiveSiteError({
+							error: 'site-boot-failed',
+							details: error,
+						})
+					);
+				}
+				await releaseSiteRuntimeLock(signal);
+				if (getCurrentSiteBootSignal(siteSlug) === signal) {
+					abortSiteBoot(siteSlug);
+				}
+				return;
+			}
+			if (signal.aborted) {
+				await releaseSiteRuntimeLock(signal);
+				return;
+			}
+			if (
+				site.metadata.id !== siteBeforeRuntimeLock.metadata.id ||
+				site.metadata.whenCreated !==
+					siteBeforeRuntimeLock.metadata.whenCreated ||
+				site.metadata.sourceSetupUrlFingerprint !==
+					siteBeforeRuntimeLock.metadata.sourceSetupUrlFingerprint ||
+				getRuntimeBootFingerprint(
+					site.metadata.runtimeConfiguration
+				) !==
+					getRuntimeBootFingerprint(
+						siteBeforeRuntimeLock.metadata.runtimeConfiguration
+					)
+			) {
+				// An exclusive reset completed while this boot waited for the
+				// shared runtime lock. Redux now owns the new setup, so stop the
+				// stale boot and let the viewport effect start it again.
+				await releaseSiteRuntimeLock(signal);
+				if (getCurrentSiteBootSignal(siteSlug) === signal) {
+					abortSiteBoot(siteSlug);
+				}
 				return;
 			}
 		}
@@ -259,6 +322,13 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			if (signal.aborted) {
+				await stopFailedBootRuntime({
+					siteSlug,
+					signal,
+					iframe,
+					playground,
+					mountDescriptor,
+				});
 				return;
 			}
 			logger.error(e);
@@ -339,10 +409,24 @@ export function bootSiteClient(
 				);
 			}
 			// Don't continue to client setup after an error
+			await stopFailedBootRuntime({
+				siteSlug,
+				signal,
+				iframe,
+				playground,
+				mountDescriptor,
+			});
 			return;
 		}
 
 		if (signal.aborted || !playground) {
+			await stopFailedBootRuntime({
+				siteSlug,
+				signal,
+				iframe,
+				playground,
+				mountDescriptor,
+			});
 			return;
 		}
 		const connectedPlayground = playground as PlaygroundClient;
@@ -426,6 +510,51 @@ export function bootSiteClient(
 	};
 }
 
+/** Detaches a failed boot before releasing its lease and controller. */
+async function stopFailedBootRuntime({
+	siteSlug,
+	signal,
+	iframe,
+	playground,
+	mountDescriptor,
+}: {
+	siteSlug: string;
+	signal: AbortSignal;
+	iframe: HTMLIFrameElement;
+	playground?: PlaygroundClient;
+	mountDescriptor?: Omit<MountDescriptor, 'initialSyncDirection'>;
+}) {
+	if (playground && mountDescriptor) {
+		try {
+			await playground.flushOpfs(mountDescriptor.mountpoint);
+			await playground.unmountOpfs(mountDescriptor.mountpoint);
+		} catch (error) {
+			// This can be the explicit flush or the detach. Do not infer mount
+			// state from the error; the owner check below decides whether this
+			// cleanup may destroy the captured browsing context before release.
+			logger.error(
+				'Error detaching storage after Playground boot failed',
+				error
+			);
+		}
+	}
+	const failedBootStillOwnsIframe =
+		getCurrentSiteBootSignal(siteSlug) === signal;
+	if (failedBootStillOwnsIframe) {
+		// Removing the wrapper destroys any remote browsing context that may
+		// have started without yielding a client. Do this before releasing the
+		// runtime lease, so destructive work cannot overlap that old document.
+		iframe.remove();
+	}
+	await releaseSiteRuntimeLock(signal);
+	if (
+		failedBootStillOwnsIframe &&
+		getCurrentSiteBootSignal(siteSlug) === signal
+	) {
+		abortSiteBoot(siteSlug);
+	}
+}
+
 /**
  * Finishes deleting old WordPress files after a tab closed during reset.
  *
@@ -466,19 +595,10 @@ async function finishPendingOpfsSiteRemoval({
 		attempt++
 	) {
 		try {
-			await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
+			await dispatch(finishPendingAutosavedSiteReset(siteSlug));
 			if (signal.aborted) {
 				return false;
 			}
-
-			await dispatch(
-				updateSiteMetadata({
-					slug: siteSlug,
-					changes: {
-						opfsSiteRemovalPending: undefined,
-					},
-				})
-			);
 			return true;
 		} catch (error) {
 			if (signal.aborted) {

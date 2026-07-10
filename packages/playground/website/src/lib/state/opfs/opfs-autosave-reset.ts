@@ -69,7 +69,14 @@ export async function resetAutosavedSiteFilesWithPendingMarker(
 		pendingChanges.metadata,
 		pendingChanges.originalUrlParams
 	);
-	await opfsSiteStorage.removeWordPressFilesKeepMetadata(siteSlug);
+	const blueprintBundleDirectory =
+		pendingChanges.metadata.originalBlueprintSource?.type === 'opfs-site'
+			? pendingChanges.metadata.originalBlueprintSource.directory
+			: undefined;
+	await opfsSiteStorage.removeWordPressFilesKeepMetadata(
+		siteSlug,
+		blueprintBundleDirectory
+	);
 	await opfsSiteStorage.update(
 		siteSlug,
 		completedChanges.metadata,

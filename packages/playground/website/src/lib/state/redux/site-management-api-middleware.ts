@@ -11,12 +11,17 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo, removeClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	removeClientInfo,
+	selectClientInfoBySiteSlug,
+} from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
 	updateSiteMetadata,
+	updateSiteRuntimeConfiguration,
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
@@ -26,7 +31,6 @@ import {
 	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
-	type SiteInfo,
 	type SitePersistence,
 	type SiteStorageType,
 } from './slice-sites';
@@ -41,6 +45,10 @@ import {
 	getSetupUrlFromUrl,
 } from '../playground-identity';
 import { redirectTo } from '../url/router';
+import {
+	getCurrentSiteBootSignal,
+	suspendCurrentSiteRuntime,
+} from '../site-runtime-lock';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -336,10 +344,9 @@ export function createSitesAPI(
 					'Cannot keep a temporary site. Autosave it first.'
 				);
 			}
-			await updateSiteNameIfProvided(dispatch, site, name);
-			// "Keeping" an autosave only changes lifecycle metadata. The
-			// filesystem stays in the same storage backend.
-			await dispatch(preserveSite(site.slug));
+			// Rename and lifecycle are one collection-wide transaction. Otherwise
+			// another tab can prune the autosave between those changes.
+			await dispatch(preserveSite(site.slug, name));
 		},
 
 		/**
@@ -365,10 +372,7 @@ export function createSitesAPI(
 			}
 			if (site.metadata.storage !== 'none') {
 				if (site.metadata.storage === 'local-fs') {
-					await updateSiteNameIfProvided(dispatch, site, name);
-					if (isAutosavedSite(site)) {
-						await dispatch(preserveSite(site.slug));
-					}
+					await api.keep(site.slug, name);
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
 				if (!isAutosavedSite(site)) {
@@ -418,11 +422,31 @@ export function createSitesAPI(
 				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
-			await selectClientBySiteSlug(getState(), site.slug)?.unmountOpfs(
-				'/wordpress'
+			await dispatch(
+				resetAutosavedSiteSpec(site.slug, setupUrl, async () => {
+					const currentClientInfo = selectClientInfoBySiteSlug(
+						getState(),
+						site.slug
+					);
+					if (
+						!currentClientInfo?.client ||
+						!currentClientInfo.opfsMountDescriptor
+					) {
+						if (!getCurrentSiteBootSignal(site.slug)) {
+							return undefined;
+						}
+						throw new Error(
+							'Wait for the Playground to finish loading before resetting it.'
+						);
+					}
+					return suspendCurrentSiteRuntime({
+						siteSlug: site.slug,
+						playground: currentClientInfo.client,
+						mountDescriptor: currentClientInfo.opfsMountDescriptor,
+						onDiscard: () => dispatch(removeClientInfo(site.slug)),
+					});
+				})
 			);
-			dispatch(removeClientInfo(site.slug));
-			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
 			redirectTo(setupUrl.toString());
 		},
 
@@ -443,13 +467,10 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSiteRuntimeConfiguration({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: version,
-						},
+						phpVersion: version,
 					},
 				})
 			);
@@ -473,13 +494,10 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSiteRuntimeConfiguration({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							networking: enabled,
-						},
+						networking: enabled,
 					},
 				})
 			);
@@ -635,26 +653,6 @@ export function createSitesAPI(
 		},
 	};
 	return api;
-}
-
-/**
- * Applies a new display name before a metadata-only save transition.
- */
-async function updateSiteNameIfProvided(
-	dispatch: PlaygroundDispatch,
-	site: SiteInfo,
-	name?: string
-) {
-	const trimmedName = name?.trim();
-	if (!trimmedName || trimmedName === site.metadata.name) {
-		return;
-	}
-	await dispatch(
-		updateSiteMetadata({
-			slug: site.slug,
-			changes: { name: trimmedName },
-		})
-	);
 }
 
 /**
