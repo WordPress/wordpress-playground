@@ -649,9 +649,15 @@ describe.each(blueprintVersions)(
 		// proc_open() — the code path the regression tests below guard — and
 		// echoes `prefix` followed by the child's trimmed stdout. A failed
 		// spawn and any stderr output are surfaced in the echoed text so a
-		// broken spawn produces actionable test diagnostics.
-		const phpSpawningChildScript = (prefix: string, scriptPath: string) =>
+		// broken spawn produces actionable test diagnostics. `preamble` runs
+		// before the spawn, for tests that need to set the scene first.
+		const phpSpawningChildScript = (
+			prefix: string,
+			scriptPath: string,
+			preamble = ''
+		) =>
 			`<?php
+			${preamble}
 			$proc = proc_open(
 				escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(${phpString(scriptPath)}),
 				[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
@@ -722,76 +728,608 @@ describe.each(blueprintVersions)(
 			}
 		}, 120000);
 
+		// A grandchild is booted by a child worker, which itself never installed
+		// WordPress. It learns whether to apply the post-install mounts only by
+		// inheriting that state down the spawn chain, so a mount visible to the
+		// parent must remain visible two levels down.
+		test('grandchild processes spawned via nested proc_open() see post-install --mount files', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-mount-gc-')
+			);
+			try {
+				writeFileSync(
+					path.join(hostDir, 'grandchild.php'),
+					`<?php echo 'GRANDCHILD_SAW_MOUNT';`
+				);
+
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: hostDir,
+							vfsPath: '/wordpress/wp-content/probe',
+						},
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/gc-mount-child.php',
+					phpSpawningChildScript(
+						'CHILD',
+						'/wordpress/wp-content/probe/grandchild.php'
+					)
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/gc-mount-parent.php',
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/gc-mount-child.php'
+					)
+				);
+
+				const response = await fetch(
+					new URL('/gc-mount-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toContain('GRANDCHILD_SAW_MOUNT');
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// Mounting a single file rather than a directory takes a different code
+		// path in mountResources(), and it is the shape real tooling uses for
+		// state files (see the `.import-state.json` mounts elsewhere in this
+		// suite). A child must see the file, not just the directory case.
+		test('child processes spawned via proc_open() see single-file post-install --mount', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-mount-file-')
+			);
+			try {
+				writeFileSync(
+					path.join(hostDir, 'state.json'),
+					JSON.stringify({ marker: 'CHILD_SAW_MOUNTED_FILE' })
+				);
+
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: path.join(hostDir, 'state.json'),
+							vfsPath: '/wordpress/wp-content/state.json',
+						},
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/file-mount-child.php',
+					`<?php
+					$raw = @file_get_contents('/wordpress/wp-content/state.json');
+					if ($raw === false) {
+						echo 'CHILD_COULD_NOT_READ_MOUNTED_FILE';
+					} else {
+						echo json_decode($raw, true)['marker'];
+					}`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/file-mount-parent.php',
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/file-mount-child.php'
+					)
+				);
+
+				const response = await fetch(
+					new URL('/file-mount-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toContain(
+					'CHILD_SAW_MOUNTED_FILE'
+				);
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// The parent and child mount the same host directory through separate
+		// NODEFS mounts in separate workers. A write made by the parent must be
+		// visible to the child it then spawns — otherwise tooling that stages a
+		// file and shells out to consume it (wp-cli, PHPUnit bootstraps) breaks.
+		test('a child process sees writes its parent made through a mount', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-mount-rw-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: hostDir,
+							vfsPath: '/wordpress/wp-content/shared',
+						},
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/rw-child.php',
+					`<?php
+					$raw = @file_get_contents('/wordpress/wp-content/shared/from-parent.txt');
+					echo $raw === false ? 'CHILD_MISSED_PARENT_WRITE' : trim($raw);`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/rw-parent.php',
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/rw-child.php',
+						`file_put_contents(
+							'/wordpress/wp-content/shared/from-parent.txt',
+							'CHILD_SAW_PARENT_WRITE'
+						);`
+					)
+				);
+
+				const response = await fetch(
+					new URL('/rw-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toContain(
+					'CHILD_SAW_PARENT_WRITE'
+				);
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// followSymlinks is part of the platform config a spawning worker
+		// forwards to its children. If it were dropped on the way down, a child
+		// would refuse to load a script reached through a symlinked mount while
+		// the parent loaded it happily.
+		test('child processes spawned via proc_open() honour --follow-symlinks in mounts', async ({
+			skip,
+		}) => {
+			if (os.platform() === 'win32') {
+				// Same reason as the primary-instance symlink test above.
+				// https://github.com/WordPress/wordpress-playground/issues/2936
+				skip();
+			}
+
+			const targetDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-symlink-')
+			);
+			const symlinkPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'symlinking',
+				'spawned-child-script'
+			);
+			mkdirSync(path.dirname(symlinkPath), { recursive: true });
+
+			try {
+				writeFileSync(
+					path.join(targetDir, 'child.php'),
+					`<?php echo 'CHILD_FOLLOWED_SYMLINK';`
+				);
+				if (existsSync(symlinkPath)) {
+					unlinkSync(symlinkPath);
+				}
+				symlinkSync(targetDir, symlinkPath, null);
+
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					...(version === 2
+						? { allow: 'follow-symlinks' }
+						: { followSymlinks: true }),
+					command: 'server',
+					mount: [
+						{
+							hostPath: symlinkPath,
+							vfsPath: '/wordpress/wp-content/linked',
+						},
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/symlink-parent.php',
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/wp-content/linked/child.php'
+					)
+				);
+
+				const response = await fetch(
+					new URL('/symlink-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toContain(
+					'CHILD_FOLLOWED_SYMLINK'
+				);
+			} finally {
+				if (existsSync(symlinkPath)) {
+					unlinkSync(symlinkPath);
+				}
+				rmSync(targetDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// A whole-file flock() cannot tell us whether the child reached the
+		// shared lock manager: the native layer implements it with flock(2),
+		// whose locks are per open-file-description and therefore already
+		// conflict between two worker threads of the same OS process. Only
+		// byte-range locks discriminate — the native layer implements those
+		// with fcntl(), whose POSIX record locks are per-PROCESS and so never
+		// conflict between workers. Cross-worker arbitration of a byte range
+		// exists only in the shared (wasm) lock manager.
+		//
+		// SQLite takes exactly such a byte-range lock for its RESERVED lock,
+		// so `BEGIN IMMEDIATE` on a database in a NodeFS mount is a faithful
+		// way to reach lockFileByteRange() from PHP.
+		//
+		// The database lives in a `mount-before-install` mount, which spawned
+		// children already receive, so these tests stay independent of the
+		// post-install --mount fix above.
+
+		// Take a SQLite RESERVED (byte-range) lock, reporting whether it was
+		// granted and how long the attempt took.
+		const phpTakeByteRangeLock = (label: string, dbPath: string) =>
+			`$t = microtime(true);
+			try {
+				$pdo = new PDO('sqlite:${dbPath}', null, null, [
+					PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+					PDO::ATTR_TIMEOUT => 0,
+				]);
+				$pdo->exec('BEGIN IMMEDIATE');
+				$pdo->exec('INSERT INTO t (v) VALUES (2)');
+				$r = '${label}_ACQUIRED';
+			} catch (Throwable $e) {
+				$r = '${label}_DENIED';
+			}
+			$ms = (int) round((microtime(true) - $t) * 1000);
+			echo $r . " {${label}_MS:{$ms}} ";`;
+
+		// Assert the spawned process was denied the lock *and* was denied it
+		// promptly. A child that cannot reach the lock manager at all times out
+		// after the 5s comlink-sync deadline, which also surfaces as a denial —
+		// so the elapsed time is what separates "arbitrated" from "timed out".
+		const expectDeniedPromptly = (text: string, label: string) => {
+			expect(text).toContain(`${label}_DENIED`);
+			const elapsed = Number(
+				text.match(new RegExp(`\\{${label}_MS:(\\d+)\\}`))?.[1]
+			);
+			expect(elapsed).toBeLessThan(2000);
+		};
+
+		// Set up a SQLite database in `hostDir` and take a RESERVED lock on it
+		// that is held across the spawn of `scriptPath`.
+		const phpHoldLockAndSpawn = (dbPath: string, scriptPath: string) =>
+			`<?php
+			$pdo = new PDO('sqlite:${dbPath}', null, null, [
+				PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+			]);
+			$pdo->exec('CREATE TABLE IF NOT EXISTS t (v INT)');
+			$pdo->exec('BEGIN IMMEDIATE');
+			$pdo->exec('INSERT INTO t (v) VALUES (1)');
+
+			$proc = proc_open(
+				escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('${scriptPath}'),
+				[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+				$pipes
+			);
+			$out = trim((string) stream_get_contents($pipes[1]));
+			$err = trim((string) stream_get_contents($pipes[2]));
+			fclose($pipes[1]);
+			fclose($pipes[2]);
+			proc_close($proc);
+
+			try {
+				$pdo->exec('COMMIT');
+				$commit = 'PARENT_COMMIT_OK';
+			} catch (Throwable $e) {
+				$commit = 'PARENT_COMMIT_FAILED';
+			}
+			echo $out . ' ' . $commit;
+			if ($err !== '') {
+				echo ' [stderr: ' . $err . ']';
+			}`;
+
 		// Regression test: a child PHP process spawned via proc_open()/system()
-		// used to be handed the spawning worker's own file-lock-manager proxy,
-		// so its synchronous flock() calls were routed back through that worker
-		// (blocked inside system()) and timed out with "Timeout waiting for
-		// response". The child must reach the shared lock manager directly.
-		test('child processes spawned via proc_open() can acquire a file lock', async () => {
-			await using cliServer = await runCLI({
-				...suiteCliArgs,
-				command: 'server',
-			});
+		// was handed the spawning worker's own file-lock-manager *proxy* where a
+		// MessagePort was expected. Comlink serialized it into a port backed by
+		// an async expose() in the spawning worker, which never answers the
+		// synchronous protocol consumeAPISync() speaks. The child therefore
+		// either raced past it and booted with a native-only lock manager (no
+		// shared broker at all), or bound the broken proxy and timed out after
+		// 5s on every call. In the first case the child could steal a byte-range
+		// lock the parent held, corrupting the parent's SQLite transaction.
+		test('child processes spawned via proc_open() participate in the shared file lock manager', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-lock-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'mount-before-install': [
+						{ hostPath: hostDir, vfsPath: '/tmp/locks' },
+					],
+				});
 
-			await cliServer.playground.writeFile(
-				'/wordpress/lock-child.php',
-				`<?php
-				$fp = fopen('/wordpress/lock-target.txt', 'w');
-				$ok = flock($fp, LOCK_EX);
-				if ($ok) { fwrite($fp, 'x'); flock($fp, LOCK_UN); }
-				fclose($fp);
-				echo $ok ? 'CHILD_LOCK_OK' : 'CHILD_LOCK_FAIL';`
-			);
-			await cliServer.playground.writeFile(
-				'/wordpress/lock-parent.php',
-				phpSpawningChildScript('PARENT', '/wordpress/lock-child.php')
-			);
+				await cliServer.playground.writeFile(
+					'/wordpress/lock-child.php',
+					`<?php ${phpTakeByteRangeLock('CHILD', '/tmp/locks/lock.db')}`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/lock-parent.php',
+					phpHoldLockAndSpawn(
+						'/tmp/locks/lock.db',
+						'/wordpress/lock-child.php'
+					)
+				);
 
-			const response = await fetch(
-				new URL('/lock-parent.php', cliServer.serverUrl)
-			);
-			expect(response.status).toBe(200);
-			const text = await response.text();
-			// If the child's flock() could not reach the shared lock manager it
-			// would time out instead of completing, so it would never print
-			// CHILD_LOCK_OK.
-			expect(text).toContain('CHILD_LOCK_OK');
+				const response = await fetch(
+					new URL('/lock-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+
+				// The parent holds the RESERVED lock, so the child must be denied.
+				expectDeniedPromptly(text, 'CHILD');
+				// And the parent's transaction must survive the child's attempt.
+				expect(text).toContain('PARENT_COMMIT_OK');
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
 		}, 120000);
 
 		// Regression test: a spawned child must itself be able to spawn a
-		// grandchild (PHP that shells out to PHP that shells out to PHP). The
-		// grandchild also needs to reach the shared lock manager directly.
-		test('grandchild processes spawned via nested proc_open() reach the lock manager', async () => {
+		// grandchild (PHP that shells out to PHP that shells out to PHP), and
+		// the grandchild must reach the same shared lock manager.
+		test('grandchild processes spawned via nested proc_open() participate in the shared file lock manager', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-lock-gc-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'mount-before-install': [
+						{ hostPath: hostDir, vfsPath: '/tmp/locks' },
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/gc.php',
+					`<?php ${phpTakeByteRangeLock('GRANDCHILD', '/tmp/locks/lock.db')}`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/child.php',
+					phpSpawningChildScript('CHILD', '/wordpress/gc.php')
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/parent.php',
+					phpHoldLockAndSpawn(
+						'/tmp/locks/lock.db',
+						'/wordpress/child.php'
+					)
+				);
+
+				const response = await fetch(
+					new URL('/parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+
+				expectDeniedPromptly(text, 'GRANDCHILD');
+				expect(text).toContain('PARENT_COMMIT_OK');
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// A writer holding SQLite's RESERVED lock must not shut readers out —
+		// SQLite lets readers continue until the writer escalates at COMMIT. If
+		// the shared lock manager degenerated into a coarse "one process at a
+		// time" mutex, the tests above would still pass while real WordPress
+		// workloads ground to a halt. This pins the shared/exclusive
+		// distinction across the spawn boundary.
+		test('a child process can still read while its parent holds a write lock', async () => {
+			const hostDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-spawn-lock-shared-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'mount-before-install': [
+						{ hostPath: hostDir, vfsPath: '/tmp/locks' },
+					],
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/read-child.php',
+					`<?php
+					try {
+						$pdo = new PDO('sqlite:/tmp/locks/lock.db', null, null, [
+							PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+							PDO::ATTR_TIMEOUT => 0,
+						]);
+						$rows = $pdo->query('SELECT COUNT(*) FROM t')->fetchColumn();
+						// The parent's INSERT is uncommitted, so a correctly
+						// isolated reader sees zero rows rather than one.
+						echo 'CHILD_READ_OK rows=' . $rows;
+					} catch (Throwable $e) {
+						echo 'CHILD_READ_DENIED';
+					}`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/read-parent.php',
+					phpHoldLockAndSpawn(
+						'/tmp/locks/lock.db',
+						'/wordpress/read-child.php'
+					)
+				);
+
+				const response = await fetch(
+					new URL('/read-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+
+				expect(text).toContain('CHILD_READ_OK rows=0');
+				expect(text).toContain('PARENT_COMMIT_OK');
+			} finally {
+				rmSync(hostDir, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// Every spawned child costs a worker thread and three MessagePorts, all
+		// held by the main thread until the spawning worker reaps the child. A
+		// `playground server` that shells out on every request would exhaust the
+		// process if reaping regressed, and nothing else in this suite would
+		// notice: the requests would keep succeeding right up until they didn't.
+		test('spawning many child processes leaks neither workers nor process ids', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+
+			const spawnCount = 20;
+
+			// Each child reports its process id. The main thread mints one per
+			// child so that two *live* PHP instances can never share OS-level
+			// file locks, and returns it to the pool when the worker exits.
+			await cliServer.playground.writeFile(
+				'/wordpress/pid-child.php',
+				`<?php echo getmypid();`
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/pid-parent.php',
+				`<?php
+				$pids = [];
+				for ($i = 0; $i < ${spawnCount}; $i++) {
+					$proc = proc_open(
+						escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg('/wordpress/pid-child.php'),
+						[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+						$pipes
+					);
+					$pids[] = trim((string) stream_get_contents($pipes[1]));
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					proc_close($proc);
+				}
+				echo 'PARENT_PID:' . getmypid() . ' CHILD_PIDS:' . implode(',', $pids);`
+			);
+
+			const response = await fetch(
+				new URL('/pid-parent.php', cliServer.serverUrl)
+			);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+
+			const parentPid = text.match(/PARENT_PID:(\d+)/)?.[1];
+			const childPids =
+				text.match(/CHILD_PIDS:([\d,]+)/)?.[1].split(',') ?? [];
+
+			expect(childPids).toHaveLength(spawnCount);
+
+			// A child must never run under the process id of a worker that is
+			// still alive, or the two would share OS-level file locks.
+			expect(childPids).not.toContain(parentPid);
+
+			// Process ids are released back to the pool when a child worker
+			// exits, so sequential spawns reuse a handful of them. Seeing all
+			// `spawnCount` ids distinct would mean no child ever exited — i.e.
+			// the spawning worker stopped reaping them.
+			expect(new Set(childPids).size).toBeLessThan(spawnCount);
+
+			// Reaping is fire-and-forget from the spawning worker, so the main
+			// thread may still be tearing the last children down.
+			await vi.waitFor(
+				() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(0);
+				},
+				{ timeout: 10000 }
+			);
+		}, 180000);
+
+		// When a child worker fails to load, the main thread's spawn helper
+		// emits 'error' (rejecting the spawn) and then 'exit'. Its exit handler
+		// must not reach for the SpawnedWorker that was never constructed —
+		// doing so throws a ReferenceError out of an EventEmitter callback,
+		// which is an uncaught exception that takes down the whole CLI rather
+		// than failing the one proc_open() that asked for the child.
+		test('a child worker that fails to load surfaces an error instead of crashing the CLI', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
 			});
 
 			await cliServer.playground.writeFile(
-				'/wordpress/gc.php',
-				`<?php
-				$fp = fopen('/wordpress/gc-lock.txt', 'w');
-				$ok = flock($fp, LOCK_EX);
-				if ($ok) { flock($fp, LOCK_UN); }
-				fclose($fp);
-				echo $ok ? 'GRANDCHILD_LOCK_OK' : 'GRANDCHILD_LOCK_FAIL';`
+				'/wordpress/spawn.php',
+				phpSpawningChildScript('PARENT', '/wordpress/spawn-child.php')
 			);
 			await cliServer.playground.writeFile(
-				'/wordpress/child.php',
-				phpSpawningChildScript('CHILD', '/wordpress/gc.php')
-			);
-			await cliServer.playground.writeFile(
-				'/wordpress/parent.php',
-				phpSpawningChildScript('PARENT', '/wordpress/child.php')
+				'/wordpress/spawn-child.php',
+				`<?php echo 'CHILD_RAN';`
 			);
 
-			const response = await fetch(
-				new URL('/parent.php', cliServer.serverUrl)
+			// A failed spawn must reject the caller's promise, never throw out
+			// of the worker's 'exit' listener. An exception raised there is an
+			// uncaught exception: fatal in the real CLI, and merely reported by
+			// the test runner here, so assert on it rather than trusting a pass.
+			const uncaughtExceptions: Error[] = [];
+			const recordUncaught = (error: Error) =>
+				uncaughtExceptions.push(error);
+			process.on('uncaughtException', recordUncaught);
+
+			// The primary request workers have already booted from the real
+			// worker URL. Point only the *child* spawns at a module that does
+			// not exist, so the next proc_open() hits the failed-load path.
+			// spawnWorkerThread() reads this global each time it spawns, so the
+			// override affects only spawns made while it is in place.
+			const workerUrlKey =
+				version === 2 ? '__WORKER_V2_URL__' : '__WORKER_V1_URL__';
+			const realWorkerUrl = (globalThis as any)[workerUrlKey];
+			(globalThis as any)[workerUrlKey] =
+				'./worker-thread-that-does-not-exist.ts';
+
+			let textWhileBroken: string;
+			try {
+				const brokenResponse = await fetch(
+					new URL('/spawn.php', cliServer.serverUrl)
+				);
+				textWhileBroken = await brokenResponse.text();
+			} finally {
+				(globalThis as any)[workerUrlKey] = realWorkerUrl;
+				process.off('uncaughtException', recordUncaught);
+			}
+
+			expect(uncaughtExceptions).toEqual([]);
+
+			// The child never ran, and the failure stayed inside the request.
+			expect(textWhileBroken).not.toContain('CHILD_RAN');
+
+			// The CLI is still alive and still able to spawn children.
+			const recoveredResponse = await fetch(
+				new URL('/spawn.php', cliServer.serverUrl)
 			);
-			expect(response.status).toBe(200);
-			const text = await response.text();
-			expect(text).toContain('GRANDCHILD_LOCK_OK');
-		}, 120000);
+			expect(recoveredResponse.status).toBe(200);
+			expect(await recoveredResponse.text()).toContain('CHILD_RAN');
+
+			// The failed spawn left nothing behind.
+			await vi.waitFor(
+				() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(0);
+				},
+				{ timeout: 10000 }
+			);
+		}, 180000);
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 

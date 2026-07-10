@@ -922,6 +922,12 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
+		/**
+		 * Child workers currently held open for PHP processes spawned via
+		 * proc_open()/system(). Reaping is asynchronous, so poll this rather
+		 * than reading it once.
+		 */
+		liveChildWorkerCount: () => number;
 	};
 }
 
@@ -1738,6 +1744,8 @@ export async function runCLI(
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
+						liveChildWorkerCount:
+							childWorkerService.liveChildWorkerCount,
 					},
 				};
 			} catch (error) {
@@ -2069,7 +2077,7 @@ export type SpawnedWorker = {
  */
 function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit?: (code: number) => void } = {}
+	{ onExit }: { onExit?: (code: number, processId: number) => void } = {}
 ) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
@@ -2128,7 +2136,10 @@ function spawnWorkerThread(
 			if (!spawned) {
 				reject(new Error(`Worker exited before spawning: ${code}`));
 			}
-			onExit?.(code);
+			// The processId is passed explicitly because 'exit' can fire before
+			// this function's promise resolves, so callers cannot rely on
+			// having received the SpawnedWorker yet.
+			onExit?.(code, processId);
 		});
 	});
 }
@@ -2222,7 +2233,7 @@ function createChildWorkerService(
 			// Backstop: if the spawning worker never reaps this child (e.g. it
 			// crashed), drop our tracking and close its main-thread ports when
 			// the worker exits so a long-running server can't leak them.
-			onExit: () => forgetChild(spawnedWorker.processId),
+			onExit: (_code, processId) => forgetChild(processId),
 		});
 
 		// Expose the shared lock manager (main thread) and the service itself on
@@ -2261,6 +2272,18 @@ function createChildWorkerService(
 	const service = { createChildWorker, disposeChildWorker };
 
 	return {
+		/**
+		 * How many child workers the service is still holding open.
+		 *
+		 * A server that shells out repeatedly must return to zero between
+		 * requests. If it doesn't, either the spawning worker stopped reaping
+		 * its children or the onExit backstop stopped firing, and a long-running
+		 * `playground server` would accumulate worker threads and MessagePorts
+		 * until the process dies.
+		 */
+		liveChildWorkerCount() {
+			return children.size;
+		},
 		/**
 		 * Expose the service on a fresh channel and return the worker's end.
 		 */
