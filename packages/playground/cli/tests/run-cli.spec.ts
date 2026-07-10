@@ -323,9 +323,9 @@ describe.each(blueprintVersions)(
 		});
 
 		test('should reject --mode without the experimental v2 flag', async () => {
-			const consoleErrorSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI([
@@ -335,21 +335,18 @@ describe.each(blueprintVersions)(
 						'--verbosity=quiet',
 						'--port=0',
 					])
-				).rejects.toThrow();
-				expect(consoleErrorSpy).toHaveBeenCalledWith(
-					expect.stringContaining(
-						'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
-					)
+				).rejects.toThrow(
+					'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
 				);
 			} finally {
-				consoleErrorSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 
 		test('should reject --mode with SQLite setup disabled in experimental v2 mode', async () => {
-			const consoleErrorSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI([
@@ -360,21 +357,18 @@ describe.each(blueprintVersions)(
 						'--verbosity=quiet',
 						'--port=0',
 					])
-				).rejects.toThrow();
-				expect(consoleErrorSpy).toHaveBeenCalledWith(
-					expect.stringContaining(
-						'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
-					)
+				).rejects.toThrow(
+					'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
 				);
 			} finally {
-				consoleErrorSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 
 		test('should reject --mode with auto-mount in experimental v2 mode', async () => {
-			const consoleErrorSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI([
@@ -385,14 +379,11 @@ describe.each(blueprintVersions)(
 						'--verbosity=quiet',
 						'--port=0',
 					])
-				).rejects.toThrow();
-				expect(consoleErrorSpy).toHaveBeenCalledWith(
-					expect.stringContaining(
-						'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
-					)
+				).rejects.toThrow(
+					'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
 				);
 			} finally {
-				consoleErrorSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 
@@ -1684,29 +1675,23 @@ describe('other run-cli behaviors', () => {
 
 	describe('phpMyAdmin CLI argument validation', () => {
 		test('should reject invalid WordPress version slugs before startup', async () => {
-			const stderrChunks: string[] = [];
-			const consoleSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation((...args: any[]) => {
-					stderrChunks.push(args.map(String).join(' '));
-				});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI(['server', '--wp=brazil'])
-				).rejects.toThrow();
-				expect(stderrChunks.join('\n')).toContain(
-					'Unrecognized WordPress version'
-				);
+				).rejects.toThrow('Unrecognized WordPress version');
 			} finally {
-				consoleSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 
 		test('should reject --phpmyadmin with --skip-sqlite-setup', async () => {
-			// Suppress console.error during this test since yargs outputs to stderr
-			const consoleSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			// The clean error message is written to stderr; suppress it.
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 
 			try {
 				await expect(
@@ -1715,9 +1700,11 @@ describe('other run-cli behaviors', () => {
 						'--phpmyadmin',
 						'--skip-sqlite-setup',
 					])
-				).rejects.toThrow();
+				).rejects.toThrow(
+					'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+				);
 			} finally {
-				consoleSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 	});
@@ -2310,9 +2297,9 @@ describe('other run-cli behaviors', () => {
 		});
 
 		test('parseOptionsAndRunCLI throws for unexpected errors', async () => {
-			const consoleSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI([
@@ -2320,9 +2307,11 @@ describe('other run-cli behaviors', () => {
 						'--phpmyadmin',
 						'--skip-sqlite-setup',
 					])
-				).rejects.toThrow();
+				).rejects.toThrow(
+					'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+				);
 			} finally {
-				consoleSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 	});
@@ -2547,9 +2536,9 @@ describe('other run-cli behaviors', () => {
 				`missing-blueprint-${Date.now()}-${Math.random()}.json`
 			);
 
-			const consoleSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 			try {
 				await expect(
 					parseOptionsAndRunCLI([
@@ -2560,9 +2549,9 @@ describe('other run-cli behaviors', () => {
 						'--skip-sqlite-setup',
 						'--verbosity=quiet',
 					])
-				).rejects.toThrow();
+				).rejects.toThrow('Blueprint file does not exist');
 			} finally {
-				consoleSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 
 			// If the bound server were left listening, binding to the
