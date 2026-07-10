@@ -1,7 +1,5 @@
-import { createSpawnHandler } from '@php-wasm/util';
 import { describe, expect, it, vi } from 'vitest';
 import { __private__dont__use, PHP } from './php';
-import { PHPResponse } from './php-response';
 
 describe('PHP mounts', () => {
 	it('forgets mount tracking even when the unmount callback fails', async () => {
@@ -59,24 +57,28 @@ describe('PHP mounts', () => {
 });
 
 describe('PHP spawn handlers', () => {
-	it('uses a command-specific override to process a matching command', async () => {
+	it('routes commands to command-specific or generic handlers', async () => {
 		const php = new PHP();
 		(php as any)[__private__dont__use] = {
 			FS: {
 				cwd: vi.fn(() => '/'),
 			},
 		};
+		await expect(php.cli(['pwd'])).rejects.toMatchObject({
+			code: 'SPAWN_UNSUPPORTED',
+		});
 
 		await php.setSpawnHandler(() => {
-			throw new Error('default handler');
+			throw new Error('generic handler');
 		});
-		php.setCommandSpawnHandler('echo', () => {
-			throw new Error('echo handler');
+		php.setCommandSpawnHandler('sendmail', () => {
+			throw new Error('sendmail handler');
 		});
 
-		await expect(php.cli(['echo', 'hello'])).rejects.toThrow(
-			'echo handler'
+		await expect(php.cli(['/usr/sbin/sendmail', '-t'])).rejects.toThrow(
+			'sendmail handler'
 		);
-		await expect(php.cli(['pwd'])).rejects.toThrow('default handler');
+
+		await expect(php.cli(['pwd', '-P'])).rejects.toThrow('generic handler');
 	});
 });

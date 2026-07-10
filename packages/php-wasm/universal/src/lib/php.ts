@@ -101,7 +101,7 @@ export class PHP implements Disposable {
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	#spawnHandler?: SpawnHandler;
-	#commandSpawnHandlers: Record<string, SpawnHandler> = {};
+	#commandSpawnHandlers = new Map<string, SpawnHandler>();
 	#rotationOptions: {
 		enabled: boolean;
 		recreateRuntime: () => Promise<number> | number;
@@ -259,7 +259,7 @@ export class PHP implements Disposable {
 	 * precedence over the handler installed via setSpawnHandler().
 	 */
 	setCommandSpawnHandler(command: string, handler: SpawnHandler) {
-		this.#commandSpawnHandlers[command] = handler;
+		this.#commandSpawnHandlers.set(command, handler);
 	}
 
 	/**
@@ -275,16 +275,20 @@ export class PHP implements Disposable {
 		args: string[] = [],
 		options: any = {}
 	) {
-		const commandArray = args.length
-			? [command as string, ...args]
-			: Array.isArray(command)
-				? command
-				: splitShellCommand(command);
+		const commandArray = Array.isArray(command)
+			? command
+			: args.length
+				? [command as string, ...args]
+				: splitShellCommand(command as string);
 		const commandSpawnHandler =
 			commandArray[0] &&
-			this.#commandSpawnHandlers[basename(commandArray[0])];
+			this.#commandSpawnHandlers.get(basename(commandArray[0]));
 		if (commandSpawnHandler) {
-			return (commandSpawnHandler as any)(commandArray, [], options);
+			return (commandSpawnHandler as any)(
+				commandArray[0],
+				commandArray.slice(1),
+				options
+			);
 		}
 		if (this.#spawnHandler) {
 			return (this.#spawnHandler as any)(command, args, options);
@@ -294,9 +298,8 @@ export class PHP implements Disposable {
 		// proc_open() bindings recognize the SPAWN_UNSUPPORTED code and
 		// translate it to ENOSYS.
 		const error = new Error(
-			'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
-				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-				'and similar functions via php.ini.'
+			`popen(), proc_open() are unsupported on this PHP instance. Call php.setSpawnHandler()
+			and provide a callback to handle spawning processes, or disable popen(), proc_open() via php.ini.`
 		);
 		(error as any).code = 'SPAWN_UNSUPPORTED';
 		throw error;
