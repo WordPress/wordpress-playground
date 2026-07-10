@@ -81,8 +81,7 @@ import {
 } from './temp-dir';
 import {
 	type WordPressInstallMode,
-	wordPressRewriteRules,
-	getFileNotFoundActionForWordPress,
+	getWordPressRoutingConfig,
 } from '@wp-playground/wordpress';
 import {
 	type Mount,
@@ -2025,11 +2024,10 @@ function createMainThreadRouter(
 		},
 	};
 
+	// Built from the same config as the worker's PHPRequestHandler, so both
+	// resolve a request URL to the same file.
 	const router = new RequestRouter({
-		documentRoot: '/wordpress',
-		rewriteRules: wordPressRewriteRules,
-		pathAliases,
-		getFileNotFoundAction: getFileNotFoundActionForWordPress,
+		...getWordPressRoutingConfig({ pathAliases }),
 		fs: hostFs,
 	});
 

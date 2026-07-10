@@ -722,7 +722,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 			REMOTE_ADDR: '127.0.0.1',
 			DOCUMENT_ROOT: this.#DOCROOT,
 			HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
-			SERVER_PROTOCOL: 'HTTP/1.1',
 		};
 
 		/**
