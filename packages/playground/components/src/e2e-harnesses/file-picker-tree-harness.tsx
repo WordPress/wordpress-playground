@@ -1,21 +1,52 @@
 import React, { useEffect, useMemo } from 'react';
-import { FilePickerTree } from '../FilePickerTree';
+import { FilePickerTree, type FilePickerTreeHandle } from '../FilePickerTree';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { normalizePath } from '@php-wasm/util';
 
-const DEFAULT_SELECTED_PATH = '/wordpress/workspace';
+export const DEFAULT_SELECTED_PATH = '/wordpress/workspace';
 
 type DirNode = { type: 'dir'; children: Record<string, FsEntry> };
 type FileNodeEntry = { type: 'file'; content: string };
 type FsEntry = DirNode | FileNodeEntry;
+type DeferredFilesystemOperation =
+	| 'fileExists'
+	| 'writeFile'
+	| 'mkdir'
+	| 'rmdir'
+	| 'mv'
+	| 'unlink';
 
 declare global {
 	interface Window {
 		__filePickerHarness?: {
 			filesystem: AsyncWritableFilesystem;
+			requestIdentity: string;
 			reload: () => void;
+			switchFilesystem: () => void;
+			setRequestIdentity: (identity: string) => void;
+			setRoot: (root: string) => void;
+			createFile: (path?: string) => Promise<void>;
+			importExternalItems: (
+				dataTransfer: DataTransfer,
+				preferredPath?: string
+			) => Promise<void>;
+			deferNextFilesystemOperation: (
+				operation: DeferredFilesystemOperation,
+				path: string
+			) => void;
+			getDeferredFilesystemOperationState: () =>
+				| 'idle'
+				| 'waiting'
+				| 'completed';
+			releaseDeferredFilesystemOperation: () => void;
 			lastSelectedPath: string | null;
 			lastDoubleClickedPath: string | null;
+			lastPreparedPathChange: string | null;
+			lastPathMove: { from: string; to: string } | null;
+			lastPathChangeCompletion: {
+				path: string;
+				outcome: 'moved' | 'deleted' | 'failed';
+			} | null;
 		};
 	}
 }
@@ -29,6 +60,10 @@ const baseFilesystem: DirNode = {
 				workspace: {
 					type: 'dir',
 					children: {
+						'back\\slash.php': {
+							type: 'file',
+							content: "<?php echo 'Backslash';",
+						},
 						'index.php': {
 							type: 'file',
 							content: "<?php echo 'Hello';",
@@ -47,6 +82,15 @@ const baseFilesystem: DirNode = {
 								'nested.php': {
 									type: 'file',
 									content: "<?php echo 'Nested';",
+								},
+							},
+						},
+						'selector "] edge': {
+							type: 'dir',
+							children: {
+								'child.php': {
+									type: 'file',
+									content: "<?php echo 'Selector edge';",
 								},
 							},
 						},
@@ -98,6 +142,26 @@ const baseFilesystem: DirNode = {
 	},
 };
 
+const alternateFilesystem: DirNode = {
+	type: 'dir',
+	children: {
+		wordpress: {
+			type: 'dir',
+			children: {
+				workspace: {
+					type: 'dir',
+					children: {
+						'alternate.php': {
+							type: 'file',
+							content: "<?php echo 'Alternate';",
+						},
+					},
+				},
+			},
+		},
+	},
+};
+
 const cloneStructure = <T,>(value: T): T => structuredClone(value);
 
 class InMemoryFilesystem
@@ -105,10 +169,61 @@ class InMemoryFilesystem
 	implements AsyncWritableFilesystem
 {
 	private root: DirNode;
+	private deferredOperation?: {
+		operation: DeferredFilesystemOperation;
+		path: string;
+		state: 'idle' | 'waiting' | 'completed';
+		wait: Promise<void>;
+		release: () => void;
+	};
 
 	constructor(snapshot: DirNode) {
 		super();
 		this.root = snapshot;
+	}
+
+	/** Defers one matching filesystem operation until the harness releases it. */
+	deferNextOperation(operation: DeferredFilesystemOperation, path: string) {
+		let release = () => {};
+		const wait = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		this.deferredOperation = {
+			operation,
+			path: normalizePath(path),
+			state: 'idle',
+			wait,
+			release,
+		};
+	}
+
+	/** Reports whether the deferred filesystem operation has reached its gate. */
+	getDeferredOperationState() {
+		return this.deferredOperation?.state ?? 'idle';
+	}
+
+	/** Releases the filesystem operation installed by deferNextOperation. */
+	releaseDeferredOperation() {
+		this.deferredOperation?.release();
+	}
+
+	/** Waits at the installed gate when this operation and path match it. */
+	private async waitForDeferredOperation(
+		operation: DeferredFilesystemOperation,
+		path: string
+	) {
+		const deferred = this.deferredOperation;
+		if (
+			!deferred ||
+			deferred.state !== 'idle' ||
+			deferred.operation !== operation ||
+			deferred.path !== normalizePath(path)
+		) {
+			return;
+		}
+		deferred.state = 'waiting';
+		await deferred.wait;
+		deferred.state = 'completed';
 	}
 
 	private resolve(path: string): FsEntry | undefined {
@@ -171,6 +286,7 @@ class InMemoryFilesystem
 	}
 
 	async fileExists(path: string): Promise<boolean> {
+		await this.waitForDeferredOperation('fileExists', path);
 		const node = this.resolve(path);
 		return !!node && node.type === 'file';
 	}
@@ -192,6 +308,7 @@ class InMemoryFilesystem
 	}
 
 	async writeFile(path: string, data: Uint8Array | string): Promise<void> {
+		await this.waitForDeferredOperation('writeFile', path);
 		const parentInfo = this.resolveParent(path);
 		if (!parentInfo) {
 			throw new Error(`Parent missing for ${path}`);
@@ -205,6 +322,7 @@ class InMemoryFilesystem
 	}
 
 	async mkdir(path: string): Promise<void> {
+		await this.waitForDeferredOperation('mkdir', path);
 		const parentInfo = this.resolveParent(path);
 		if (!parentInfo) {
 			throw new Error(`Parent missing for ${path}`);
@@ -221,6 +339,7 @@ class InMemoryFilesystem
 		path: string,
 		options?: { recursive?: boolean }
 	): Promise<void> {
+		await this.waitForDeferredOperation('rmdir', path);
 		const parentInfo = this.resolveParent(path);
 		if (!parentInfo) {
 			return;
@@ -236,6 +355,7 @@ class InMemoryFilesystem
 	}
 
 	async mv(source: string, destination: string): Promise<void> {
+		await this.waitForDeferredOperation('mv', source);
 		const normalizedSource = normalizePath(source);
 		const normalizedDestination = normalizePath(destination);
 		if (normalizedSource === normalizedDestination) {
@@ -252,6 +372,7 @@ class InMemoryFilesystem
 	}
 
 	async unlink(path: string): Promise<void> {
+		await this.waitForDeferredOperation('unlink', path);
 		const parentInfo = this.resolveParent(path);
 		if (!parentInfo) {
 			return;
@@ -263,29 +384,104 @@ class InMemoryFilesystem
 	}
 }
 
-export const createFilesystem = () =>
-	new InMemoryFilesystem(cloneStructure(baseFilesystem));
+/** Creates an isolated in-memory filesystem from a fixture snapshot. */
+export const createFilesystem = (snapshot: DirNode = baseFilesystem) =>
+	new InMemoryFilesystem(cloneStructure(snapshot));
 
+/**
+ * Renders the file picker against a controllable in-memory filesystem.
+ */
 export function FilePickerTreeHarness() {
-	const filesystem = useMemo(() => createFilesystem(), []);
+	const query = new URLSearchParams(window.location.search);
+	const readOnly = query.has('readOnly');
+	const withContextMenu = !query.has('withoutContextMenu');
+	const useNestedInitialPath = query.has('nestedInitialPath');
+	const treeRef = React.useRef<FilePickerTreeHandle | null>(null);
+	const [root, setRoot] = React.useState(
+		useNestedInitialPath ? '/wordpress' : '/'
+	);
+	const [filesystemVariant, setFilesystemVariant] = React.useState<
+		'base' | 'alternate'
+	>('base');
+	const filesystem = useMemo(
+		() =>
+			createFilesystem(
+				filesystemVariant === 'base'
+					? baseFilesystem
+					: alternateFilesystem
+			),
+		[filesystemVariant]
+	);
+	const [requestIdentity, setRequestIdentity] = React.useState('owner-a');
 	const [lastSelectedPath, setLastSelectedPath] = React.useState<
 		string | null
 	>(null);
 	const [lastDoubleClickedPath, setLastDoubleClickedPath] = React.useState<
 		string | null
 	>(null);
+	const [lastPreparedPathChange, setLastPreparedPathChange] = React.useState<
+		string | null
+	>(null);
+	const [lastPathMove, setLastPathMove] = React.useState<{
+		from: string;
+		to: string;
+	} | null>(null);
+	const [lastPathChangeCompletion, setLastPathChangeCompletion] =
+		React.useState<{
+			path: string;
+			outcome: 'moved' | 'deleted' | 'failed';
+		} | null>(null);
 
 	useEffect(() => {
 		window.__filePickerHarness = {
 			filesystem,
+			requestIdentity,
 			reload: () => window.location.reload(),
+			switchFilesystem: () => {
+				setFilesystemVariant((variant) =>
+					variant === 'base' ? 'alternate' : 'base'
+				);
+			},
+			setRequestIdentity,
+			setRoot,
+			createFile: async (path?: string) => {
+				await treeRef.current?.createFile(path);
+			},
+			importExternalItems: async (
+				dataTransfer: DataTransfer,
+				preferredPath?: string
+			) => {
+				await treeRef.current?.importExternalItems(
+					dataTransfer,
+					preferredPath
+				);
+			},
+			deferNextFilesystemOperation: (operation, path) => {
+				filesystem.deferNextOperation(operation, path);
+			},
+			getDeferredFilesystemOperationState: () =>
+				filesystem.getDeferredOperationState(),
+			releaseDeferredFilesystemOperation: () => {
+				filesystem.releaseDeferredOperation();
+			},
 			lastSelectedPath,
 			lastDoubleClickedPath,
+			lastPreparedPathChange,
+			lastPathMove,
+			lastPathChangeCompletion,
 		};
 		return () => {
 			delete window.__filePickerHarness;
 		};
-	}, [filesystem, lastSelectedPath, lastDoubleClickedPath]);
+	}, [
+		filesystem,
+		requestIdentity,
+		lastDoubleClickedPath,
+		lastPreparedPathChange,
+		lastPathChangeCompletion,
+		lastPathMove,
+		lastSelectedPath,
+	]);
 
 	return (
 		<div
@@ -297,14 +493,31 @@ export function FilePickerTreeHarness() {
 		>
 			<div style={{ maxWidth: 320 }} data-testid="file-picker-tree">
 				<FilePickerTree
+					ref={treeRef}
 					filesystem={filesystem}
-					root="/"
-					initialSelectedPath={DEFAULT_SELECTED_PATH}
+					requestIdentity={requestIdentity}
+					readOnly={readOnly}
+					withContextMenu={withContextMenu}
+					root={root}
+					initialSelectedPath={
+						useNestedInitialPath
+							? '/wordpress/workspace/index.php'
+							: DEFAULT_SELECTED_PATH
+					}
 					onSelect={(path) => {
 						setLastSelectedPath(path);
 					}}
 					onDoubleClickFile={(path) => {
 						setLastDoubleClickedPath(path);
+					}}
+					onBeforePathChange={(path) => {
+						setLastPreparedPathChange(path);
+					}}
+					onPathMoved={(from, to) => {
+						setLastPathMove({ from, to });
+					}}
+					onPathChangeComplete={(path, outcome) => {
+						setLastPathChangeCompletion({ path, outcome });
 					}}
 				/>
 			</div>

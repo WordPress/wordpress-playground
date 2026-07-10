@@ -1,4 +1,5 @@
 import { basename, dirname, joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
 	Button,
@@ -16,11 +17,19 @@ import React, {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from 'react';
 import { file, folder } from '../icons';
+import {
+	isValidPosixPathSegment,
+	pathContainsPath,
+	remapPathAfterMove,
+	resolvePathAtOrUnder,
+} from '../file-tree-paths';
+import { serializeFilesystemOperation } from '../filesystem-operation-queue';
 import css from './style.module.css';
 
 type ExpandedNodePaths = Record<string, boolean>;
@@ -37,6 +46,10 @@ type DropEvaluation = {
 	state: DropIndicatorState;
 	destination: string | null;
 };
+
+type PathAvailability = 'available' | 'exists' | 'unknown';
+
+export type FilePickerPathChangeOutcome = 'moved' | 'deleted' | 'failed';
 
 interface FileSystemEntryBaseLike {
 	readonly isFile: boolean;
@@ -74,11 +87,43 @@ export type FileNode = {
 
 export type FilePickerTreeProps = {
 	withContextMenu?: boolean;
+	/** Prevent mutations through context menus, drag-and-drop, and ref actions. */
+	readOnly?: boolean;
+	/**
+	 * Filesystem object identity owns async tree work. Replace the object when
+	 * its backing storage changes, even if the replacement has the same paths.
+	 */
 	filesystem: AsyncWritableFilesystem;
+	/**
+	 * Invalidates queued work when the logical owner changes. A filesystem call
+	 * that already started still reports through the old owner's callbacks.
+	 */
+	requestIdentity?: string;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
 	onDoubleClickFile?: (path: string) => void;
+	/**
+	 * Runs before an existing path is moved, renamed, or deleted. Returning
+	 * false, or throwing, cancels the mutation.
+	 */
+	onBeforePathChange?: (
+		path: string
+	) => Promise<boolean | void> | boolean | void;
+	/** Reports a successful move to the host closure that approved it. */
+	onPathMoved?: (from: string, to: string) => Promise<void> | void;
+	/** Reports a successful deletion to the host closure that approved it. */
+	onPathDeleted?: (path: string) => Promise<void> | void;
+	/**
+	 * Releases host coordination after an approved path change settles or aborts.
+	 * It may outlive this tree owner, so hosts must identity-guard live UI state.
+	 */
+	onPathChangeComplete?: (
+		path: string,
+		outcome: FilePickerPathChangeOutcome
+	) => Promise<void> | void;
+	/** Reports a failed host-file import initiated on a visible tree row. */
+	onImportError?: (error: unknown) => Promise<void> | void;
 };
 
 export type FilePickerTreeHandle = {
@@ -89,102 +134,83 @@ export type FilePickerTreeHandle = {
 	selectPath: (path: string) => void;
 	getSelectedPath: () => string | null;
 	expandToPath: (path: string) => Promise<void>;
+	/**
+	 * Reloads one directory, rejecting current-source read failures and returning
+	 * undefined when the path or filesystem source became stale.
+	 */
 	refresh: (path: string) => Promise<FileNode[] | undefined>;
 	remapPath: (from: string, to: string) => void;
+	/**
+	 * Recursively imports host files and directories below the preferred path.
+	 * A file path selects its parent directory; an invalid path falls back to root.
+	 */
+	importExternalItems: (
+		dataTransfer: DataTransfer,
+		preferredPath?: string
+	) => Promise<void>;
 	// Filesystem helpers
 	createFile: (absSelectedPath?: string) => Promise<void>;
 	createFolder: (absSelectedPath?: string) => Promise<void>;
 };
 
-function buildPathChain(path: string): string[] {
-	if (!path) return [];
-	const normalized =
-		path
-			.replaceAll(/\\+/g, '/')
-			.replace(/\/{2,}/g, '/')
-			.replace(/\/$/, '') || path;
-	const hasLeadingSlash = normalized.startsWith('/');
-	const parts = normalized.split('/').filter(Boolean);
-	const chain: string[] = [];
-	let current = hasLeadingSlash ? '/' : '';
-	if (hasLeadingSlash) chain.push('/');
-	for (const part of parts) {
-		if (!current || current === '/') {
-			current = current === '/' ? `/${part}` : part;
-		} else {
-			current = `${current}/${part}`;
-		}
-		chain.push(current);
-	}
-	return chain;
-}
-
-function isDescendantPath(ancestor: string, candidate: string) {
-	if (!ancestor || !candidate) return false;
-	if (ancestor === candidate) return false;
-	const normalizedAncestor =
-		ancestor === '/' ? '/' : ancestor.replace(/\/{2,}/g, '/');
-	const normalizedCandidate = candidate.replace(/\/{2,}/g, '/');
-	if (normalizedAncestor === '/') {
-		return (
-			normalizedCandidate.startsWith('/') && normalizedCandidate !== '/'
-		);
-	}
-	return normalizedCandidate.startsWith(`${normalizedAncestor}/`);
-}
-
-function remapSinglePath(value: string | null, from: string, to: string) {
-	if (!value) return value;
-	if (value === from) return to;
-	if (value.startsWith(from === '/' ? '/' : `${from}/`)) {
-		return to + value.slice(from.length);
-	}
-	return value;
-}
-
+/**
+ * Renders a filesystem tree with keyboard navigation and optional mutations.
+ */
 export const FilePickerTree = forwardRef<
 	FilePickerTreeHandle,
 	FilePickerTreeProps
 >(function FilePickerTree(
 	{
 		withContextMenu = true,
+		readOnly = false,
 		filesystem,
+		requestIdentity,
 		root = '/wordpress',
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
+		onBeforePathChange,
+		onPathMoved,
+		onPathDeleted,
+		onPathChangeComplete,
+		onImportError,
 	},
 	ref
 ) {
-	const normalizedRoot = useMemo(() => {
-		let p = (root || '/').replace(/\\+/g, '/');
-		if (!p.startsWith('/')) p = `/${p}`;
-		p = p.replace(/\/{2,}/g, '/');
-		if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-		return p || '/';
-	}, [root]);
+	const normalizedRoot = useMemo(() => joinPaths('/', root || '/'), [root]);
 
-	const isValidNameSegment = (name: string) => {
-		if (!name) return false;
-		if (name === '.' || name === '..') return false;
-		return !/[\\/]/.test(name);
-	};
-
-	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() => {
+	const initialTreePath = useMemo(() => {
 		if (!initialSelectedPath) {
+			return null;
+		}
+		return (
+			resolvePathAtOrUnder(initialSelectedPath, normalizedRoot) ??
+			normalizedRoot
+		);
+	}, [initialSelectedPath, normalizedRoot]);
+
+	/**
+	 * Builds the expanded-node map needed to reveal a selected path.
+	 */
+	const buildExpandedPathsForPath = (path: string | null) => {
+		if (!path) {
 			return {};
 		}
 		const initialExpanded: ExpandedNodePaths = {};
-		for (const path of buildPathChain(initialSelectedPath)) {
-			initialExpanded[path] = true;
+		for (const segmentPath of buildPathChain(path, normalizedRoot)) {
+			initialExpanded[segmentPath] = true;
 		}
 		return initialExpanded;
-	});
+	};
+
+	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() =>
+		buildExpandedPathsForPath(initialTreePath)
+	);
 	const [selectedPath, setSelectedPath] = useState<string | null>(
-		() => initialSelectedPath ?? null
+		() => initialTreePath
 	);
 	const [focusedPath, setFocusedPath] = useState<string | null>(
-		() => initialSelectedPath ?? null
+		() => initialTreePath
 	);
 	const [lazyChildren, setLazyChildren] = useState<
 		Record<string, FileNode[]>
@@ -198,6 +224,7 @@ export const FilePickerTree = forwardRef<
 	);
 	const dragExpandTimeoutsRef = useRef<Record<string, number>>({});
 	const rootAutoExpandedRef = useRef(false);
+	const treeSourceVersionRef = useRef(0);
 
 	const containerRef = useRef<HTMLDivElement>(null);
 	const searchBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -226,9 +253,7 @@ export const FilePickerTree = forwardRef<
 	}, [lazyChildren]);
 
 	const focusDomNode = (path: string) => {
-		const focusTarget = containerRef.current?.querySelector(
-			`[data-path="${path}"]`
-		) as HTMLElement | null;
+		const focusTarget = findNodeButton(path);
 		if (focusTarget && typeof focusTarget.focus === 'function') {
 			focusTarget.focus();
 			focusTarget.scrollIntoView({
@@ -238,9 +263,28 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
+	/**
+	 * Finds a node by its exact data-path value without interpolating a CSS
+	 * selector that could reinterpret filename bytes.
+	 */
+	const findNodeButton = (path: string): HTMLElement | null => {
+		const container = containerRef.current;
+		if (!container) {
+			return null;
+		}
+		const nodes = Array.from(
+			container.querySelectorAll<HTMLElement>('[data-path]')
+		);
+		return nodes.find((node) => node.dataset['path'] === path) ?? null;
+	};
+
+	/**
+	 * Resolves a node name below its parent while preserving POSIX filename bytes.
+	 */
 	const generatePath = (node: FileNode, parentPath = ''): string => {
-		const raw = parentPath ? `${parentPath}/${node.name}` : node.name;
-		return raw.replaceAll(/\\+/g, '/').replace(/\/{2,}/g, '/');
+		return parentPath
+			? joinPaths(parentPath, node.name)
+			: joinPaths('/', node.name);
 	};
 
 	const getResolvedChildren = (
@@ -288,9 +332,16 @@ export const FilePickerTree = forwardRef<
 		return await listDir(filesystem as AsyncWritableFilesystem, path);
 	};
 
-	const loadChildrenForPath = (path: string, node: FileNode) => {
+	const loadChildrenForPath = (
+		path: string,
+		node: FileNode,
+		sourceVersion = treeSourceVersionRef.current
+	) => {
 		if (node.type !== 'folder') {
 			return node.children;
+		}
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return [];
 		}
 		const existingChildren = node.children ?? lazyChildrenRef.current[path];
 		if (existingChildren || loadingPathsRef.current[path]) {
@@ -300,6 +351,10 @@ export const FilePickerTree = forwardRef<
 		return new Promise<FileNode[]>((resolve) => {
 			loadChildren(path)
 				.then((children) => {
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						resolve([]);
+						return;
+					}
 					setLazyChildren((prev) => ({
 						...prev,
 						[path]: children ?? [],
@@ -310,6 +365,9 @@ export const FilePickerTree = forwardRef<
 					resolve([]);
 				})
 				.finally(() => {
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return;
+					}
 					setLoadingPaths((prev) => {
 						const next = { ...prev };
 						delete next[path];
@@ -341,29 +399,49 @@ export const FilePickerTree = forwardRef<
 		}, 600);
 	};
 
-	const refreshChildren = (path: string) => {
+	/** Reloads one directory without making an unrelated mutation fail. */
+	async function refreshChildren(
+		path: string
+	): Promise<FileNode[] | undefined> {
+		try {
+			return await refreshChildrenOrThrow(path);
+		} catch (error) {
+			logger.error('Failed to refresh file tree directory', error);
+			return undefined;
+		}
+	}
+
+	/** Reloads one directory and exposes genuine failures to import callers. */
+	async function refreshChildrenOrThrow(
+		path: string
+	): Promise<FileNode[] | undefined> {
+		const sourceVersion = treeSourceVersionRef.current;
 		setLoadingPaths((prev) => ({ ...prev, [path]: true }));
-		return new Promise<FileNode[]>((resolve) => {
-			loadChildren(path)
-				.then((children) => {
-					setLazyChildren((prev) => ({
-						...prev,
-						[path]: children ?? [],
-					}));
-					resolve(children ?? []);
-				})
-				.catch(() => {
-					resolve([]);
-				})
-				.finally(() => {
-					setLoadingPaths((prev) => {
-						const next = { ...prev };
-						delete next[path];
-						return next;
-					});
+		try {
+			const children = await loadChildren(path);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return undefined;
+			}
+			setLazyChildren((prev) => ({
+				...prev,
+				[path]: children,
+			}));
+			return children;
+		} catch (error) {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return undefined;
+			}
+			throw error;
+		} finally {
+			if (treeSourceVersionRef.current === sourceVersion) {
+				setLoadingPaths((prev) => {
+					const next = { ...prev };
+					delete next[path];
+					return next;
 				});
-		});
-	};
+			}
+		}
+	}
 
 	const toggleNode = (path: string, node: FileNode, isOpen: boolean) => {
 		setExpanded((prev) => ({
@@ -385,23 +463,34 @@ export const FilePickerTree = forwardRef<
 	};
 
 	const expandToPath = async (targetPath: string) => {
-		if (!targetPath) return;
-		const chain = buildPathChain(targetPath);
+		const sourceVersion = treeSourceVersionRef.current;
+		const normalizedTarget = resolvePathAtOrUnder(
+			targetPath,
+			normalizedRoot
+		);
+		if (!normalizedTarget) return;
+		const chain = buildPathChain(normalizedTarget, normalizedRoot);
 		if (chain.length === 0) return;
 		setExpanded((prev) => {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return prev;
+			}
 			const next = { ...prev } as ExpandedNodePaths;
 			for (const segment of chain) {
 				next[segment] = true;
 			}
 			return next;
 		});
-		// always available in filesystem mode
-
+		// The configured root is always available in filesystem mode, even
+		// before its children finish loading.
 		let currentChildren: FileNode[] | undefined = [
 			{ name: normalizedRoot, type: 'folder' },
 		];
 		let parentPath = '';
 		for (const segmentPath of chain) {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
 			const nextNode = currentChildren?.find((child) => {
 				const childPath = generatePath(child, parentPath);
 				return childPath === segmentPath;
@@ -411,24 +500,24 @@ export const FilePickerTree = forwardRef<
 				currentChildren = [];
 				continue;
 			}
-			const loaded = await loadChildrenForPath(segmentPath, nextNode);
+			const loaded = await loadChildrenForPath(
+				segmentPath,
+				nextNode,
+				sourceVersion
+			);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
 			currentChildren = loaded ?? lazyChildrenRef.current[segmentPath];
 			parentPath = segmentPath;
 		}
 	};
 
+	/** Remaps selection and loaded-node state after a subtree moves. */
 	const remapPathState = (from: string, to: string) => {
 		if (!from || !to || from === to) {
 			return;
 		}
-		const fromPrefix = from === '/' ? '/' : `${from}/`;
-		const remapKey = (key: string): string | null => {
-			if (key === from) return to;
-			if (key.startsWith(fromPrefix)) {
-				return to + key.slice(from.length);
-			}
-			return null;
-		};
 
 		setExpanded((prev) => {
 			let changed = false;
@@ -468,12 +557,71 @@ export const FilePickerTree = forwardRef<
 			const mapped = remapKey(prev);
 			return mapped ?? prev;
 		});
+
+		/** Returns a remapped key, or null when the key is outside the move. */
+		function remapKey(key: string): string | null {
+			const mapped = remapPathAfterMove(key, from, to);
+			return mapped === key ? null : mapped;
+		}
 	};
 
 	const resetDragState = () => {
 		setDraggedPath(null);
 		setDropIndicator(null);
 		clearAllDragExpandTimeouts();
+	};
+
+	/** Runs the pre-mutation hook and treats hook failures as a veto. */
+	const notifyBeforePathChange = async (path: string) => {
+		try {
+			return (await onBeforePathChange?.(path)) !== false;
+		} catch (error) {
+			logger.error('Failed to prepare file tree entry change', error);
+			return false;
+		}
+	};
+
+	/** Reports a completed move without turning observer failures into move failures. */
+	const notifyPathMoved = async (from: string, to: string) => {
+		try {
+			await onPathMoved?.(from, to);
+		} catch (error) {
+			logger.error('Failed to notify file tree entry move', error);
+		}
+	};
+
+	/** Reports a completed deletion without turning observer failures into delete failures. */
+	const notifyPathDeleted = async (path: string) => {
+		try {
+			await onPathDeleted?.(path);
+		} catch (error) {
+			logger.error('Failed to notify file tree entry deletion', error);
+		}
+	};
+
+	/** Releases host coordination after an approved mutation settles. */
+	const notifyPathChangeComplete = async (
+		path: string,
+		outcome: FilePickerPathChangeOutcome
+	) => {
+		try {
+			await onPathChangeComplete?.(path, outcome);
+		} catch (error) {
+			logger.error('Failed to finish file tree entry change', error);
+		}
+	};
+
+	/** Reports a row-drop error without letting a host callback reject the event. */
+	const notifyImportError = async (error: unknown) => {
+		logger.error('Failed to import dropped files or directories', error);
+		try {
+			await onImportError?.(error);
+		} catch (notificationError) {
+			logger.error(
+				'Failed to report dropped file import error',
+				notificationError
+			);
+		}
 	};
 
 	const selectPath = (path: string, notify = true) => {
@@ -483,7 +631,8 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
-	// Filesystem-specific state and actions (declare before exposing handle)
+	// Filesystem-specific state and actions must exist before the imperative
+	// handle exposes them.
 	const treeFiles: FileNode[] = useMemo(() => {
 		return [{ name: normalizedRoot, type: 'folder' }];
 	}, [normalizedRoot]);
@@ -503,6 +652,59 @@ export const FilePickerTree = forwardRef<
 	} | null>(null);
 
 	const effectiveRenamingPath = renamingAbsolutePath;
+	const hasInitializedRef = useRef(false);
+	const pendingInitialExpandRef = useRef<string | null>(initialTreePath);
+	const previousInitialPathRef = useRef(initialTreePath);
+	const previousTreeSourceRef = useRef({
+		filesystem,
+		normalizedRoot,
+		requestIdentity,
+	});
+
+	useLayoutEffect(() => {
+		const previousTreeSource = previousTreeSourceRef.current;
+		if (
+			previousTreeSource.filesystem === filesystem &&
+			previousTreeSource.normalizedRoot === normalizedRoot &&
+			previousTreeSource.requestIdentity === requestIdentity
+		) {
+			return;
+		}
+		previousTreeSourceRef.current = {
+			filesystem,
+			normalizedRoot,
+			requestIdentity,
+		};
+		// Invalidate old operations before the replacement tree can be painted or
+		// interacted with. A matching path in another filesystem is not the same
+		// tree node.
+		treeSourceVersionRef.current += 1;
+		const resetPath = initialTreePath;
+		setExpanded(buildExpandedPathsForPath(resetPath));
+		setSelectedPath(resetPath);
+		setFocusedPath(resetPath);
+		lazyChildrenRef.current = {};
+		loadingPathsRef.current = {};
+		setLazyChildren({});
+		setLoadingPaths({});
+		setDraggedPath(null);
+		setDropIndicator(null);
+		setContextMenu(null);
+		setRenamingAbsolutePath(null);
+		pendingCreateRef.current = null;
+		rootAutoExpandedRef.current = false;
+		hasInitializedRef.current = false;
+		pendingInitialExpandRef.current = resetPath;
+		previousInitialPathRef.current = resetPath;
+		clearAllDragExpandTimeouts();
+		onSelect(resetPath);
+	}, [
+		filesystem,
+		initialTreePath,
+		normalizedRoot,
+		onSelect,
+		requestIdentity,
+	]);
 
 	useImperativeHandle(
 		ref,
@@ -515,45 +717,94 @@ export const FilePickerTree = forwardRef<
 					notify?: boolean;
 				} = {}
 			) => {
-				if (!path) return;
+				const targetPath = resolvePathAtOrUnder(path, normalizedRoot);
+				if (!targetPath) return;
 				const {
 					select = true,
 					domFocus = true,
 					notify = false,
 				} = options;
 				if (select) {
-					selectPath(path, notify);
+					selectPath(targetPath, notify);
 				}
-				setFocusedPath(path);
+				setFocusedPath(targetPath);
 				if (domFocus) {
-					focusDomNode(path);
+					focusDomNode(targetPath);
 				}
 			},
 			selectPath: (path: string) => {
-				if (!path) return;
-				selectPath(path);
-				setFocusedPath(path);
-				focusDomNode(path);
+				const targetPath = resolvePathAtOrUnder(path, normalizedRoot);
+				if (!targetPath) return;
+				selectPath(targetPath);
+				setFocusedPath(targetPath);
+				focusDomNode(targetPath);
 			},
 			getSelectedPath: () => selectedPath,
 			expandToPath: async (path: string) => await expandToPath(path),
-			refresh: async (path: string) => await refreshChildren(path),
-			remapPath: remapPathState,
+			refresh: async (path: string) => {
+				const targetPath = resolvePathAtOrUnder(path, normalizedRoot);
+				return targetPath
+					? await refreshChildrenOrThrow(targetPath)
+					: undefined;
+			},
+			remapPath: (from: string, to: string) => {
+				const sourcePath = resolvePathAtOrUnder(from, normalizedRoot);
+				const destinationPath = resolvePathAtOrUnder(
+					to,
+					normalizedRoot
+				);
+				if (sourcePath && destinationPath) {
+					remapPathState(sourcePath, destinationPath);
+				}
+			},
+			importExternalItems: async (
+				dataTransfer: DataTransfer,
+				preferredPath?: string
+			) => {
+				if (readOnly) {
+					return;
+				}
+				await importDataTransferItems(dataTransfer, preferredPath);
+			},
 			createFile: async (absSelectedPath?: string) => {
-				await createNode(absSelectedPath, 'file', 'untitled.php');
+				const hasExplicitTarget = absSelectedPath !== undefined;
+				const targetPath = hasExplicitTarget
+					? resolvePathAtOrUnder(absSelectedPath, normalizedRoot)
+					: undefined;
+				if (hasExplicitTarget && !targetPath) {
+					return;
+				}
+				await createNode(
+					targetPath ?? undefined,
+					'file',
+					'untitled.php'
+				);
 			},
 			createFolder: async (absSelectedPath?: string) => {
-				await createNode(absSelectedPath, 'folder', 'New Folder');
+				const hasExplicitTarget = absSelectedPath !== undefined;
+				const targetPath = hasExplicitTarget
+					? resolvePathAtOrUnder(absSelectedPath, normalizedRoot)
+					: undefined;
+				if (hasExplicitTarget && !targetPath) {
+					return;
+				}
+				await createNode(
+					targetPath ?? undefined,
+					'folder',
+					'New Folder'
+				);
 			},
 		}),
-		[selectedPath, refreshChildren, remapPathState, expandToPath]
+		[
+			selectedPath,
+			refreshChildrenOrThrow,
+			remapPathState,
+			expandToPath,
+			readOnly,
+			filesystem,
+			normalizedRoot,
+		]
 	);
-
-	const hasInitializedRef = useRef(false);
-	const pendingInitialExpandRef = useRef<string | null>(
-		initialSelectedPath ?? null
-	);
-	const previousInitialPathRef = useRef(initialSelectedPath);
 
 	useEffect(() => {
 		rootAutoExpandedRef.current = false;
@@ -561,21 +812,21 @@ export const FilePickerTree = forwardRef<
 
 	useEffect(() => {
 		if (
-			initialSelectedPath &&
-			initialSelectedPath !== previousInitialPathRef.current
+			initialTreePath &&
+			initialTreePath !== previousInitialPathRef.current
 		) {
-			pendingInitialExpandRef.current = initialSelectedPath;
-		} else if (!initialSelectedPath) {
+			pendingInitialExpandRef.current = initialTreePath;
+		} else if (!initialTreePath) {
 			pendingInitialExpandRef.current = null;
 		}
-		previousInitialPathRef.current = initialSelectedPath;
-	}, [initialSelectedPath]);
+		previousInitialPathRef.current = initialTreePath;
+	}, [initialTreePath]);
 	useEffect(() => {
-		if (!initialSelectedPath || hasInitializedRef.current) {
+		if (!initialTreePath || hasInitializedRef.current) {
 			return;
 		}
 		hasInitializedRef.current = true;
-		const chain = buildPathChain(initialSelectedPath);
+		const chain = buildPathChain(initialTreePath, normalizedRoot);
 		setExpanded((prev) => {
 			const next = { ...prev } as ExpandedNodePaths;
 			for (const path of chain) {
@@ -583,11 +834,11 @@ export const FilePickerTree = forwardRef<
 			}
 			return next;
 		});
-		const target = chain[chain.length - 1] || initialSelectedPath;
+		const target = chain[chain.length - 1] || initialTreePath;
 		setFocusedPath(target);
 		setSelectedPath(target);
-		void expandToPath(initialSelectedPath);
-	}, [initialSelectedPath, expandToPath]);
+		void expandToPath(initialTreePath);
+	}, [initialTreePath, expandToPath, normalizedRoot]);
 
 	useEffect(() => {
 		const target = pendingInitialExpandRef.current;
@@ -636,8 +887,11 @@ export const FilePickerTree = forwardRef<
 		}
 	}, [treeFiles, loadChildrenForPath, normalizedRoot]);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		return () => {
+			// Queued imports may outlive the DOM, but they must not continue a
+			// recursive batch or refresh state owned by a replacement tree.
+			treeSourceVersionRef.current += 1;
 			if (searchBufferTimeoutRef.current) {
 				clearTimeout(searchBufferTimeoutRef.current);
 			}
@@ -667,8 +921,6 @@ export const FilePickerTree = forwardRef<
 
 	const [searchBuffer, setSearchBuffer] = useState('');
 
-	// remove duplicate handle; unified handle is defined above
-
 	const getDropDestinationDir = (node: FileNode, path: string) => {
 		if (node.type === 'folder') {
 			return path;
@@ -690,10 +942,7 @@ export const FilePickerTree = forwardRef<
 			return { allowed: false, state: 'invalid', destination: null };
 		}
 		if (sourcePath) {
-			if (destinationDir === sourcePath) {
-				return { allowed: false, state: 'invalid', destination: null };
-			}
-			if (isDescendantPath(sourcePath, destinationDir)) {
+			if (pathContainsPath(sourcePath, destinationDir)) {
 				return { allowed: false, state: 'invalid', destination: null };
 			}
 		}
@@ -795,6 +1044,7 @@ export const FilePickerTree = forwardRef<
 		node: FileNode,
 		path: string
 	) => {
+		const sourceVersion = treeSourceVersionRef.current;
 		const sourcePath = draggedPath;
 		const evaluation = evaluateDropTarget(node, path, sourcePath);
 		if (!evaluation.allowed || !evaluation.destination) {
@@ -809,10 +1059,19 @@ export const FilePickerTree = forwardRef<
 			if (sourcePath) {
 				await moveNode(sourcePath, evaluation.destination);
 			} else {
-				await importExternalItems(event, evaluation.destination);
+				await importDataTransferItems(
+					event.dataTransfer,
+					evaluation.destination
+				);
+			}
+		} catch (error) {
+			if (treeSourceVersionRef.current === sourceVersion) {
+				await notifyImportError(error);
 			}
 		} finally {
-			resetDragState();
+			if (treeSourceVersionRef.current === sourceVersion) {
+				resetDragState();
+			}
 		}
 	};
 
@@ -821,7 +1080,7 @@ export const FilePickerTree = forwardRef<
 		node: FileNode,
 		path: string
 	) => {
-		if (!withContextMenu) {
+		if (!withContextMenu || (readOnly && node.type !== 'file')) {
 			return;
 		}
 		event.preventDefault();
@@ -855,58 +1114,82 @@ export const FilePickerTree = forwardRef<
 		return name;
 	};
 
+	/**
+	 * Creates a uniquely named entry unless this tree is read-only.
+	 */
 	const createNode = async (
 		absSelectedPath: string | undefined,
 		type: 'file' | 'folder',
 		initialName: string
 	) => {
-		if (!filesystem) return;
-		let base = absSelectedPath || selectedPath || normalizedRoot;
-		// Ensure base is directory
-		try {
-			if (!(await filesystem.isDir(base))) {
-				base = dirname(base);
+		if (readOnly || !filesystem) return;
+		const sourceVersion = treeSourceVersionRef.current;
+		const requestedBase = absSelectedPath ?? selectedPath ?? normalizedRoot;
+		const created = await serializeFilesystemOperation(
+			filesystem,
+			async () => {
+				let base = resolvePathAtOrUnder(requestedBase, normalizedRoot);
+				if (!base) {
+					return;
+				}
+				// Ensure base is directory
+				try {
+					if (!(await filesystem.isDir(base))) {
+						base = dirname(base);
+					}
+				} catch {
+					base = dirname(base);
+				}
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				const normalizedBase = resolvePathAtOrUnder(
+					base,
+					normalizedRoot
+				);
+				if (!normalizedBase) {
+					return;
+				}
+				const name = await findAvailableName(
+					normalizedBase,
+					initialName
+				);
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				const tempPath = joinPaths(normalizedBase, name);
+				if (type === 'folder') {
+					await filesystem.mkdir(tempPath);
+				} else {
+					await filesystem.writeFile(tempPath, '');
+				}
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				return { normalizedBase, tempPath };
 			}
-		} catch {
-			base = dirname(base);
+		);
+		if (!created) {
+			return;
 		}
-		const normalizedBase = base;
-		const name = await findAvailableName(normalizedBase, initialName);
-		const tempPath = joinPaths(normalizedBase, name);
-		if (type === 'folder') {
-			await filesystem.mkdir(tempPath);
-		} else {
-			await filesystem.writeFile(tempPath, '');
-		}
+		const { normalizedBase, tempPath } = created;
 		pendingCreateRef.current = { type, tempPath };
 		setRenamingAbsolutePath(tempPath);
 		await refreshChildren(normalizedBase);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
 		// Focus new node
 		setTimeout(() => {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
 			setFocusedPath(tempPath);
 			focusDomNode(tempPath);
 		}, 0);
 	};
 
-	const pathExists = async (path: string) => {
-		if (!filesystem) return false;
-		try {
-			if (await filesystem.fileExists(path)) {
-				return true;
-			}
-		} catch {
-			// ignore
-		}
-		try {
-			if (await filesystem.isDir(path)) {
-				return true;
-			}
-		} catch {
-			// ignore
-		}
-		return false;
-	};
-
+	/** Creates an import directory while preserving a real mkdir failure. */
 	const ensureDirectory = async (path: string) => {
 		if (!filesystem) return;
 		try {
@@ -919,52 +1202,104 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
+	/** Moves an entry and remaps tree state for the moved subtree. */
 	const moveNode = async (sourcePath: string, destinationDir: string) => {
 		if (!filesystem) return;
-		const fileName = basename(sourcePath);
-		const destinationPath = joinPaths(destinationDir, fileName);
-		if (destinationPath === sourcePath) {
+		const sourceVersion = treeSourceVersionRef.current;
+		const normalizedSource = resolvePathAtOrUnder(
+			sourcePath,
+			normalizedRoot
+		);
+		const normalizedDestinationDir = resolvePathAtOrUnder(
+			destinationDir,
+			normalizedRoot
+		);
+		if (!normalizedSource || !normalizedDestinationDir) {
 			return;
 		}
-		if (await pathExists(destinationPath)) {
+		const fileName = basename(normalizedSource);
+		const destinationPath = joinPaths(normalizedDestinationDir, fileName);
+		if (destinationPath === normalizedSource) {
 			return;
 		}
-		const sourceParent = dirname(sourcePath);
+		if ((await getPathAvailability(destinationPath)) !== 'available') {
+			return;
+		}
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
+		if (!(await notifyBeforePathChange(normalizedSource))) {
+			return;
+		}
+		const sourceParent = dirname(normalizedSource);
+		let pathChangeCompleted = false;
 		try {
-			await filesystem.mv(sourcePath, destinationPath);
-			remapPathState(sourcePath, destinationPath);
-			const mappedSelected = remapSinglePath(
+			const moved = await serializeFilesystemOperation(
+				filesystem,
+				async () => {
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return false;
+					}
+					// mv() overwrites, so claim its destination with the mutation lock.
+					if (
+						(await getPathAvailability(destinationPath)) !==
+						'available'
+					) {
+						return false;
+					}
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return false;
+					}
+					await filesystem.mv(normalizedSource, destinationPath);
+					return true;
+				}
+			);
+			if (!moved) {
+				return;
+			}
+			await notifyPathMoved(normalizedSource, destinationPath);
+			await notifyPathChangeComplete(normalizedSource, 'moved');
+			pathChangeCompleted = true;
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
+			remapPathState(normalizedSource, destinationPath);
+			const mappedSelected = remapPathAfterMove(
 				selectedPath,
-				sourcePath,
+				normalizedSource,
 				destinationPath
 			);
-			if (
-				selectedPath &&
-				(selectedPath === sourcePath ||
-					selectedPath.startsWith(`${sourcePath}/`))
-			) {
+			if (pathContainsPath(normalizedSource, selectedPath)) {
 				onSelect(mappedSelected);
 			}
 			setFocusedPath((prev) =>
-				remapSinglePath(prev, sourcePath, destinationPath)
+				remapPathAfterMove(prev, normalizedSource, destinationPath)
 			);
 			setExpanded((prev) => ({
 				...prev,
-				[destinationDir]: true,
+				[normalizedDestinationDir]: true,
 			}));
 			await Promise.all([
 				refreshChildren(sourceParent),
-				refreshChildren(destinationDir),
+				refreshChildren(normalizedDestinationDir),
 			]);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
 			setSelectedPath((prev) =>
-				remapSinglePath(prev, sourcePath, destinationPath)
+				remapPathAfterMove(prev, normalizedSource, destinationPath)
 			);
 			focusDomNode(destinationPath);
-		} catch {
-			// ignore move errors
+		} catch (error) {
+			logger.error('Failed to move file tree entry', error);
+		} finally {
+			if (!pathChangeCompleted) {
+				await notifyPathChangeComplete(normalizedSource, 'failed');
+			}
 		}
 	};
 
+	/** Reads Chromium's recursive-drop entry without assuming the API exists. */
 	const getEntryFromItem = (item: DataTransferItem) => {
 		const maybeItem = item as DataTransferItem & {
 			webkitGetAsEntry?: () => FileSystemEntryLike | null;
@@ -975,39 +1310,96 @@ export const FilePickerTree = forwardRef<
 		return null;
 	};
 
+	/** Converts the callback-based host file entry API into a promise. */
 	const fileFromEntry = (entry: FileSystemFileEntryLike) => {
 		return new Promise<File>((resolve, reject) => {
 			entry.file(resolve, reject);
 		});
 	};
 
-	const importFileBlob = async (file: File, destinationDir: string) => {
-		if (!filesystem) return;
+	/** Writes one host file under an unused name while its source is current. */
+	const importFileBlob = async (
+		file: File,
+		destinationDir: string,
+		sourceVersion: number
+	): Promise<boolean> => {
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
 		const safeName = file.name || 'untitled';
-		const targetName = await findAvailableName(destinationDir, safeName);
-		const targetPath = joinPaths(destinationDir, targetName);
+		if (!isValidPosixPathSegment(safeName)) {
+			throw new Error(`Invalid imported file name: ${safeName}`);
+		}
 		const buffer = new Uint8Array(await file.arrayBuffer());
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		const targetName = await findAvailableName(destinationDir, safeName);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		const targetPath = resolvePathAtOrUnder(
+			joinPaths(destinationDir, targetName),
+			normalizedRoot
+		);
+		if (!targetPath || targetPath === normalizedRoot) {
+			throw new Error(
+				`Imported file name escapes the tree root: ${safeName}`
+			);
+		}
 		await filesystem.writeFile(targetPath, buffer);
+		return treeSourceVersionRef.current === sourceVersion;
 	};
 
+	/** Resolves and imports one callback-based host file entry. */
 	const importFileEntry = async (
 		entry: FileSystemFileEntryLike,
-		destinationDir: string
-	) => {
+		destinationDir: string,
+		sourceVersion: number
+	): Promise<boolean> => {
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		if (entry.name && !isValidPosixPathSegment(entry.name)) {
+			throw new Error(`Invalid imported file entry name: ${entry.name}`);
+		}
 		const file = await fileFromEntry(entry);
-		await importFileBlob(file, destinationDir);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		return await importFileBlob(file, destinationDir, sourceVersion);
 	};
 
+	/** Recursively imports a host directory and reports its first child error. */
 	const importDirectoryEntry = async (
 		entry: FileSystemDirectoryEntryLike,
-		destinationDir: string
-	) => {
-		const folderName = await findAvailableName(
-			destinationDir,
-			entry.name || 'New Folder'
+		destinationDir: string,
+		sourceVersion: number
+	): Promise<boolean> => {
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		const safeName = entry.name || 'New Folder';
+		if (!isValidPosixPathSegment(safeName)) {
+			throw new Error(`Invalid imported directory name: ${safeName}`);
+		}
+		const folderName = await findAvailableName(destinationDir, safeName);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		const folderPath = resolvePathAtOrUnder(
+			joinPaths(destinationDir, folderName),
+			normalizedRoot
 		);
-		const folderPath = joinPaths(destinationDir, folderName);
+		if (!folderPath || folderPath === normalizedRoot) {
+			throw new Error(
+				`Imported directory name escapes the tree root: ${safeName}`
+			);
+		}
 		await ensureDirectory(folderPath);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
 		const reader = entry.createReader();
 		const readEntries = () =>
 			new Promise<FileSystemEntryLike[]>((resolve, reject) => {
@@ -1016,95 +1408,246 @@ export const FilePickerTree = forwardRef<
 					reject
 				);
 			});
+		let firstFailure: unknown;
 		while (true) {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return false;
+			}
 			const batch = await readEntries();
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return false;
+			}
 			if (!batch.length) {
 				break;
 			}
 			for (const child of batch) {
-				if (child.isFile) {
-					await importFileEntry(
-						child as FileSystemFileEntryLike,
-						folderPath
-					);
-				} else if (child.isDirectory) {
-					await importDirectoryEntry(
-						child as FileSystemDirectoryEntryLike,
-						folderPath
-					);
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return false;
+				}
+				try {
+					let completed = true;
+					if (child.isFile) {
+						completed = await importFileEntry(
+							child as FileSystemFileEntryLike,
+							folderPath,
+							sourceVersion
+						);
+					} else if (child.isDirectory) {
+						completed = await importDirectoryEntry(
+							child as FileSystemDirectoryEntryLike,
+							folderPath,
+							sourceVersion
+						);
+					}
+					if (!completed) {
+						return false;
+					}
+				} catch (error) {
+					firstFailure ??= error;
 				}
 			}
 		}
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return false;
+		}
+		if (firstFailure) {
+			throw firstFailure;
+		}
+		return true;
 	};
 
-	const importExternalItems = async (
-		event: React.DragEvent,
-		destinationDir: string
+	/**
+	 * Captures a host drop synchronously, then imports its files and directories.
+	 * DataTransfer contents are protected once the drop handler yields control.
+	 */
+	const importDataTransferItems = async (
+		dataTransfer: DataTransfer,
+		preferredPath?: string
 	) => {
 		if (!filesystem) return;
-		const items = event.dataTransfer?.items
-			? Array.from(event.dataTransfer.items)
-			: [];
+		const sourceVersion = treeSourceVersionRef.current;
+		const items = Array.from(dataTransfer.items ?? []);
 		const entries = items
 			.filter((item) => item.kind === 'file')
 			.map((item) => getEntryFromItem(item))
 			.filter((entry): entry is FileSystemEntryLike => Boolean(entry));
-		if (entries.length > 0) {
-			for (const entry of entries) {
-				if (entry.isFile) {
-					await importFileEntry(
-						entry as FileSystemFileEntryLike,
-						destinationDir
-					);
-				} else if (entry.isDirectory) {
-					await importDirectoryEntry(
-						entry as FileSystemDirectoryEntryLike,
-						destinationDir
-					);
+		const files = entries.length
+			? []
+			: Array.from(dataTransfer.files ?? []);
+		await serializeFilesystemOperation(filesystem, async () => {
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
+			const destinationDir =
+				await resolveExternalDropDirectory(preferredPath);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
+			let firstFailure: unknown;
+			let refreshFailure: unknown;
+			try {
+				if (entries.length > 0) {
+					for (const entry of entries) {
+						try {
+							let completed = true;
+							if (entry.isFile) {
+								completed = await importFileEntry(
+									entry as FileSystemFileEntryLike,
+									destinationDir,
+									sourceVersion
+								);
+							} else if (entry.isDirectory) {
+								completed = await importDirectoryEntry(
+									entry as FileSystemDirectoryEntryLike,
+									destinationDir,
+									sourceVersion
+								);
+							}
+							if (!completed) {
+								return;
+							}
+						} catch (error) {
+							firstFailure ??= error;
+						}
+					}
+				} else {
+					for (const file of files) {
+						try {
+							const completed = await importFileBlob(
+								file,
+								destinationDir,
+								sourceVersion
+							);
+							if (!completed) {
+								return;
+							}
+						} catch (error) {
+							firstFailure ??= error;
+						}
+					}
+				}
+			} finally {
+				if (treeSourceVersionRef.current === sourceVersion) {
+					try {
+						await refreshChildrenOrThrow(destinationDir);
+						if (treeSourceVersionRef.current === sourceVersion) {
+							setExpanded((prev) => ({
+								...prev,
+								[destinationDir]: true,
+							}));
+						}
+					} catch (error) {
+						refreshFailure = error;
+					}
 				}
 			}
-		} else {
-			const files = event.dataTransfer?.files
-				? Array.from(event.dataTransfer.files)
-				: [];
-			for (const file of files) {
-				await importFileBlob(file, destinationDir);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
 			}
-		}
-		await refreshChildren(destinationDir);
-		setExpanded((prev) => ({
-			...prev,
-			[destinationDir]: true,
-		}));
+			if (firstFailure) {
+				throw firstFailure;
+			}
+			if (refreshFailure) {
+				throw new Error(
+					'Files were imported, but the file list could not be refreshed.',
+					{ cause: refreshFailure }
+				);
+			}
+		});
 	};
 
+	/** Resolves an external drop target without allowing it to escape the root. */
+	const resolveExternalDropDirectory = async (preferredPath?: string) => {
+		const requestedPath = preferredPath ?? selectedPath;
+		const candidatePath = requestedPath
+			? resolvePathAtOrUnder(requestedPath, normalizedRoot)
+			: null;
+		if (!candidatePath) {
+			return normalizedRoot;
+		}
+		if (await filesystem.isDir(candidatePath)) {
+			return candidatePath;
+		}
+		const parentPath = resolvePathAtOrUnder(
+			dirname(candidatePath),
+			normalizedRoot
+		);
+		if (!parentPath) {
+			return normalizedRoot;
+		}
+		return (await filesystem.isDir(parentPath))
+			? parentPath
+			: normalizedRoot;
+	};
+
+	/** Deletes an entry and clears selection when it pointed into that subtree. */
 	const handleDeletePath = async (
 		absSelectedPath: string,
 		type: 'file' | 'folder'
 	) => {
 		if (!filesystem) return;
-		const normalized = absSelectedPath;
+		const sourceVersion = treeSourceVersionRef.current;
+		const normalized = resolvePathAtOrUnder(
+			absSelectedPath,
+			normalizedRoot
+		);
+		if (!normalized || normalized === normalizedRoot) return;
+		const parentDir = dirname(normalized);
 		setContextMenu(null);
+		if (!(await notifyBeforePathChange(normalized))) {
+			return;
+		}
+		let deleted = false;
+		let pathChangeCompleted = false;
 		try {
-			if (type === 'folder') {
-				await filesystem.rmdir(normalized, { recursive: true } as any);
-			} else {
-				await filesystem.unlink(normalized);
+			deleted = await serializeFilesystemOperation(
+				filesystem,
+				async () => {
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return false;
+					}
+					if (type === 'folder') {
+						await filesystem.rmdir(normalized, {
+							recursive: true,
+						} as any);
+					} else {
+						await filesystem.unlink(normalized);
+					}
+					return true;
+				}
+			);
+			if (!deleted) {
+				return;
 			}
-		} catch {
-			// ignore
+			await notifyPathDeleted(normalized);
+			await notifyPathChangeComplete(normalized, 'deleted');
+			pathChangeCompleted = true;
+		} catch (error) {
+			logger.error('Failed to delete file tree entry', error);
 		} finally {
-			setRenamingAbsolutePath(null);
-			const parentDir = dirname(normalized);
-			await refreshChildren(parentDir);
-			// If current selection was removed, notify parent
-			if (
-				selectedPath &&
-				(selectedPath === normalized ||
-					selectedPath.startsWith(`${normalized}/`))
-			) {
-				onSelect(null);
+			if (!pathChangeCompleted) {
+				await notifyPathChangeComplete(normalized, 'failed');
 			}
+		}
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
+		setRenamingAbsolutePath(null);
+		await refreshChildren(parentDir);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
+		// A failed delete must not make a live node disappear from selection.
+		if (deleted && pathContainsPath(normalized, selectedPath)) {
+			setSelectedPath(null);
+			setFocusedPath(parentDir);
+			onSelect(null);
+			setTimeout(() => {
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				focusDomNode(parentDir);
+			}, 0);
 		}
 	};
 
@@ -1125,7 +1668,7 @@ export const FilePickerTree = forwardRef<
 			document.body.removeChild(anchor);
 			setTimeout(() => URL.revokeObjectURL(url), 60_000);
 		} catch (error) {
-			console.error('Failed to download file', error);
+			logger.error('Failed to download file', error);
 		}
 	};
 
@@ -1185,30 +1728,50 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
-	// No explicit error UI; upstream can handle errors in filesystem
-
+	// Filesystem errors are reported upstream; this tree has no separate error UI.
 	// Filesystem-mode rename handlers
-	const handleRename = async (path: string, newName: string) => {
+	const handleRename = async (absPath: string, newName: string) => {
+		const sourceVersion = treeSourceVersionRef.current;
+		const path = resolvePathAtOrUnder(absPath, normalizedRoot);
+		if (!path || path === normalizedRoot) {
+			return;
+		}
 		const pending = pendingCreateRef.current;
 		const isPending = pending?.tempPath === path;
 		const parent = dirname(path);
 		const sanitized = (newName || '').trim();
-		if (!isValidNameSegment(sanitized)) {
+		if (!isValidPosixPathSegment(sanitized)) {
 			if (isPending) {
 				try {
-					if (pending.type === 'folder') {
-						await filesystem.rmdir(path, {
-							recursive: true,
-						} as any);
-					} else {
-						await filesystem.unlink(path);
-					}
+					await serializeFilesystemOperation(filesystem, async () => {
+						if (treeSourceVersionRef.current !== sourceVersion) {
+							return;
+						}
+						if (pending.type === 'folder') {
+							await filesystem.rmdir(path, {
+								recursive: true,
+							} as any);
+						} else {
+							await filesystem.unlink(path);
+						}
+					});
 				} catch {
 					/* noop */
 				}
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
 				pendingCreateRef.current = null;
+				setRenamingAbsolutePath(null);
+				await refreshChildren(parent);
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				setFocusedPath(parent);
+				focusDomNode(parent);
+				return;
 			}
-			setRenamingAbsolutePath(isPending ? null : path);
+			setRenamingAbsolutePath(path);
 			return;
 		}
 		let candidate = joinPaths(parent, sanitized);
@@ -1218,6 +1781,10 @@ export const FilePickerTree = forwardRef<
 			const wasFileCreate = isPending && pending?.type === 'file';
 			if (isPending) pendingCreateRef.current = null;
 			setTimeout(() => {
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				setSelectedPath(candidateNormalized);
 				setFocusedPath(candidateNormalized);
 				focusDomNode(candidateNormalized);
 				// We've just saved a new file, immediately open it in the code editor.
@@ -1227,9 +1794,19 @@ export const FilePickerTree = forwardRef<
 			}, 0);
 			return;
 		}
-		const exists = await filesystem.fileExists(candidateNormalized);
-		const existsDir = await filesystem.isDir(candidateNormalized);
-		if ((exists || existsDir) && candidateNormalized !== path) {
+		const candidateAvailability =
+			await getPathAvailability(candidateNormalized);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
+		if (candidateAvailability === 'unknown') {
+			setRenamingAbsolutePath(path);
+			return;
+		}
+		if (
+			candidateAvailability === 'exists' &&
+			candidateNormalized !== path
+		) {
 			if (isPending) {
 				try {
 					const unique = await findAvailableName(
@@ -1238,76 +1815,205 @@ export const FilePickerTree = forwardRef<
 					);
 					candidate = joinPaths(parent, unique);
 					candidateNormalized = candidate;
-				} catch {
-					/* noop */
+				} catch (error) {
+					logger.error(
+						'Failed to find an available file tree name',
+						error
+					);
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return;
+					}
+					setRenamingAbsolutePath(path);
+					return;
 				}
 			} else {
 				setRenamingAbsolutePath(path);
 				return;
 			}
 		}
-		let candidateIsDir = pending?.type === 'folder';
-		try {
-			await filesystem.mv(path, candidate);
-			if (!pending) {
-				const isDir = await filesystem.isDir(candidate);
-				candidateIsDir = isDir;
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
+		const mayRename = await notifyBeforePathChange(path);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			if (mayRename) {
+				await notifyPathChangeComplete(path, 'failed');
 			}
+			return;
+		}
+		if (!mayRename) {
+			setRenamingAbsolutePath(path);
+			return;
+		}
+		let candidateIsDir = pending?.type === 'folder';
+		let pathChangeCompleted = false;
+		let keepRenameEditor = false;
+		try {
+			const moved = await serializeFilesystemOperation(
+				filesystem,
+				async () => {
+					if (treeSourceVersionRef.current !== sourceVersion) {
+						return false;
+					}
+					// mv() overwrites, so claim its destination with the mutation lock.
+					const destinationIsAvailable =
+						candidateNormalized === path ||
+						(await getPathAvailability(candidateNormalized)) ===
+							'available';
+					if (
+						!destinationIsAvailable ||
+						treeSourceVersionRef.current !== sourceVersion
+					) {
+						return false;
+					}
+					if (!pending) {
+						candidateIsDir = await filesystem.isDir(path);
+						if (treeSourceVersionRef.current !== sourceVersion) {
+							return false;
+						}
+					}
+					await filesystem.mv(path, candidate);
+					return true;
+				}
+			);
+			if (!moved) {
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				keepRenameEditor = true;
+				setRenamingAbsolutePath(path);
+				return;
+			}
+			await notifyPathMoved(path, candidateNormalized);
+			await notifyPathChangeComplete(path, 'moved');
+			pathChangeCompleted = true;
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
+			const mappedSelectedPath = selectedPath
+				? remapPathAfterMove(selectedPath, path, candidateNormalized)
+				: selectedPath;
+			const selectionWasInsideRenamedPath =
+				selectedPath !== null && mappedSelectedPath !== selectedPath;
 			if (candidateIsDir) {
 				remapPathState(path, candidateNormalized);
 			}
-			if (selectedPath === path) {
-				onSelect(candidateNormalized);
+			if (selectionWasInsideRenamedPath) {
+				onSelect(mappedSelectedPath);
 			}
 			await refreshChildren(parent);
+			if (treeSourceVersionRef.current !== sourceVersion) {
+				return;
+			}
+			setSelectedPath(
+				selectionWasInsideRenamedPath && mappedSelectedPath
+					? mappedSelectedPath
+					: candidateNormalized
+			);
 			setFocusedPath(candidateNormalized);
 			focusDomNode(candidateNormalized);
 			// If this was a newly created file, open it in the editor
 			if (isPending && !candidateIsDir && onDoubleClickFile) {
 				onDoubleClickFile(candidateNormalized);
 			}
-		} catch {
-			if (isPending) {
+		} catch (error) {
+			logger.error('Failed to rename file tree entry', error);
+			if (isPending && treeSourceVersionRef.current === sourceVersion) {
 				try {
-					if (pending?.type === 'folder') {
-						await filesystem.rmdir(path, {
-							recursive: true,
-						} as any);
-					} else {
-						await filesystem.unlink(path);
-					}
+					await serializeFilesystemOperation(filesystem, async () => {
+						if (treeSourceVersionRef.current !== sourceVersion) {
+							return;
+						}
+						if (pending?.type === 'folder') {
+							await filesystem.rmdir(path, {
+								recursive: true,
+							} as any);
+						} else {
+							await filesystem.unlink(path);
+						}
+					});
 				} catch {
 					/* noop */
 				}
 			}
 		} finally {
-			pendingCreateRef.current = null;
-			setRenamingAbsolutePath(null);
+			if (!pathChangeCompleted) {
+				await notifyPathChangeComplete(path, 'failed');
+			}
+			if (
+				treeSourceVersionRef.current === sourceVersion &&
+				!keepRenameEditor
+			) {
+				pendingCreateRef.current = null;
+				setRenamingAbsolutePath(null);
+			}
 		}
 	};
 
-	const handleRenameCancelInternal = async (path: string) => {
+	/** Classifies a path without treating failed metadata reads as absence. */
+	const getPathAvailability = async (
+		path: string
+	): Promise<PathAvailability> => {
+		try {
+			if (await filesystem.fileExists(path)) {
+				return 'exists';
+			}
+			if (await filesystem.isDir(path)) {
+				return 'exists';
+			}
+			return 'available';
+		} catch (error) {
+			logger.error('Failed to inspect file tree destination', error);
+			return 'unknown';
+		}
+	};
+
+	const handleRenameCancelInternal = async (absPath: string) => {
+		const sourceVersion = treeSourceVersionRef.current;
+		const path = resolvePathAtOrUnder(absPath, normalizedRoot);
 		const pending = pendingCreateRef.current;
-		if (!filesystem || pending?.tempPath !== path) {
+		if (!path || pending?.tempPath !== path) {
 			setRenamingAbsolutePath((prev) => (prev === path ? null : prev));
 			return;
 		}
 		try {
-			if (pending.type === 'folder') {
-				await filesystem.rmdir(path, { recursive: true } as any);
-			} else {
-				await filesystem.unlink(path);
-			}
+			await serializeFilesystemOperation(filesystem, async () => {
+				if (treeSourceVersionRef.current !== sourceVersion) {
+					return;
+				}
+				if (pending.type === 'folder') {
+					await filesystem.rmdir(path, { recursive: true } as any);
+				} else {
+					await filesystem.unlink(path);
+				}
+			});
 		} catch {
 			/* noop */
+		}
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
 		}
 		pendingCreateRef.current = null;
 		setRenamingAbsolutePath(null);
 		const parentDir = dirname(path);
 		await refreshChildren(parentDir);
+		if (treeSourceVersionRef.current !== sourceVersion) {
+			return;
+		}
 		setFocusedPath(parentDir);
 		focusDomNode(parentDir);
 	};
+
+	useEffect(() => {
+		if (!readOnly || !renamingAbsolutePath) {
+			return;
+		}
+		if (pendingCreateRef.current?.tempPath === renamingAbsolutePath) {
+			void handleRenameCancelInternal(renamingAbsolutePath);
+			return;
+		}
+		setRenamingAbsolutePath(null);
+	}, [readOnly, renamingAbsolutePath]);
 
 	return (
 		<div onKeyDown={handleKeyDown} ref={containerRef}>
@@ -1327,23 +2033,31 @@ export const FilePickerTree = forwardRef<
 						selectPath={selectPath}
 						generatePath={generatePath}
 						getChildren={getResolvedChildren}
-						onContextMenu={handleInternalContextMenu}
+						onContextMenu={
+							withContextMenu
+								? handleInternalContextMenu
+								: undefined
+						}
 						renamingPath={effectiveRenamingPath}
-						onRename={handleRename}
-						onRenameCancel={handleRenameCancelInternal}
+						onRename={readOnly ? undefined : handleRename}
+						onRenameCancel={
+							readOnly ? undefined : handleRenameCancelInternal
+						}
 						dropIndicator={dropIndicator}
-						onDragStart={handleNodeDragStart}
-						onDragEnd={handleNodeDragEnd}
-						onDragEnter={handleNodeDragEnter}
-						onDragOver={handleNodeDragOver}
-						onDragLeave={handleNodeDragLeave}
-						onDrop={handleNodeDrop}
+						canDrag={!readOnly}
+						onDragStart={readOnly ? undefined : handleNodeDragStart}
+						onDragEnd={readOnly ? undefined : handleNodeDragEnd}
+						onDragEnter={readOnly ? undefined : handleNodeDragEnter}
+						onDragOver={readOnly ? undefined : handleNodeDragOver}
+						onDragLeave={readOnly ? undefined : handleNodeDragLeave}
+						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
+						findNodeButton={findNodeButton}
 						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 			</TreeGrid>
-			{contextMenu && (
+			{withContextMenu && contextMenu && (
 				<Popover
 					placement="bottom-start"
 					onClose={() => setContextMenu(null)}
@@ -1366,7 +2080,7 @@ export const FilePickerTree = forwardRef<
 					focusOnMount="firstElement"
 				>
 					<NavigableMenu role="menu">
-						{contextMenu.type === 'folder' && (
+						{!readOnly && contextMenu.type === 'folder' && (
 							<MenuItem
 								role="menuitem"
 								onClick={async () => {
@@ -1381,7 +2095,7 @@ export const FilePickerTree = forwardRef<
 								Create file
 							</MenuItem>
 						)}
-						{contextMenu.type === 'folder' && (
+						{!readOnly && contextMenu.type === 'folder' && (
 							<MenuItem
 								role="menuitem"
 								onClick={async () => {
@@ -1396,39 +2110,49 @@ export const FilePickerTree = forwardRef<
 								Create directory
 							</MenuItem>
 						)}
-						<MenuItem
-							role="menuitem"
-							onClick={() => {
-								setContextMenu(null);
-								setRenamingAbsolutePath(contextMenu.absPath);
-							}}
-						>
-							Rename
-						</MenuItem>
-						{contextMenu.type === 'file' && (
-							<MenuItem
-								role="menuitem"
-								onClick={async () => {
-									setContextMenu(null);
-									await handleDownloadPath(
-										contextMenu.absPath
-									);
-								}}
-							>
-								Download
-							</MenuItem>
+						{contextMenu.absPath !== normalizedRoot && (
+							<>
+								{!readOnly && (
+									<MenuItem
+										role="menuitem"
+										onClick={() => {
+											setContextMenu(null);
+											setRenamingAbsolutePath(
+												contextMenu.absPath
+											);
+										}}
+									>
+										Rename
+									</MenuItem>
+								)}
+								{contextMenu.type === 'file' && (
+									<MenuItem
+										role="menuitem"
+										onClick={async () => {
+											setContextMenu(null);
+											await handleDownloadPath(
+												contextMenu.absPath
+											);
+										}}
+									>
+										Download
+									</MenuItem>
+								)}
+								{!readOnly && (
+									<MenuItem
+										role="menuitem"
+										onClick={() =>
+											handleDeletePath(
+												contextMenu.absPath,
+												contextMenu.type
+											)
+										}
+									>
+										Delete
+									</MenuItem>
+								)}
+							</>
 						)}
-						<MenuItem
-							role="menuitem"
-							onClick={() =>
-								handleDeletePath(
-									contextMenu.absPath,
-									contextMenu.type
-								)
-							}
-						>
-							Delete
-						</MenuItem>
 					</NavigableMenu>
 				</Popover>
 			)}
@@ -1436,6 +2160,35 @@ export const FilePickerTree = forwardRef<
 	);
 });
 
+/**
+ * Returns the root-to-target expansion chain, or none when target escapes root.
+ */
+function buildPathChain(path: string, root: string): string[] {
+	const normalizedRoot = joinPaths('/', root || '/');
+	const normalized = resolvePathAtOrUnder(path, normalizedRoot);
+	if (!normalized) {
+		return [];
+	}
+
+	const chain: string[] = [];
+	let current = normalized;
+	while (current) {
+		chain.unshift(current);
+		if (current === normalizedRoot) {
+			break;
+		}
+		const parent = dirname(current);
+		if (!parent || parent === current) {
+			break;
+		}
+		current = parent;
+	}
+	return chain;
+}
+
+/**
+ * Renders one tree row and recursively renders its expanded descendants.
+ */
 const NodeRow: React.FC<{
 	node: FileNode;
 	level: number;
@@ -1463,6 +2216,7 @@ const NodeRow: React.FC<{
 	onRenameCancel?: (path: string) => void;
 	parentPath?: string;
 	dropIndicator: DropIndicator | null;
+	canDrag: boolean;
 	onDragStart?: (
 		event: React.DragEvent,
 		node: FileNode,
@@ -1482,6 +2236,7 @@ const NodeRow: React.FC<{
 	) => void;
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
+	findNodeButton: (path: string) => HTMLElement | null;
 	onDoubleClickFile?: (path: string) => void;
 }> = ({
 	node,
@@ -1502,6 +2257,7 @@ const NodeRow: React.FC<{
 	onRenameCancel,
 	parentPath = '',
 	dropIndicator,
+	canDrag,
 	onDragStart,
 	onDragEnd,
 	onDragEnter,
@@ -1509,19 +2265,19 @@ const NodeRow: React.FC<{
 	onDragLeave,
 	onDrop,
 	rootPath,
+	findNodeButton,
 	onDoubleClickFile,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
 	const isRenaming = renamingPath === path;
 	const renameInputRef = useRef<HTMLInputElement>(null);
-	const [renameValue, setRenameValue] = useState(node.name);
 	const renameHandledRef = useRef(false);
 	const isDropTarget = dropIndicator?.path === path;
 	const isDropTargetValid = isDropTarget && dropIndicator?.state === 'valid';
 	const isDropTargetInvalid =
 		isDropTarget && dropIndicator?.state === 'invalid';
-	const isDraggable = !isRenaming && path !== rootPath;
+	const isDraggable = canDrag && !isRenaming && path !== rootPath;
 	const clickTimeoutRef = useRef<number | null>(null);
 
 	const dragHandlers = {
@@ -1537,7 +2293,6 @@ const NodeRow: React.FC<{
 
 	useEffect(() => {
 		if (isRenaming) {
-			setRenameValue(node.name);
 			renameHandledRef.current = false;
 			if (typeof window !== 'undefined' && requestAnimationFrame) {
 				requestAnimationFrame(() => {
@@ -1562,11 +2317,7 @@ const NodeRow: React.FC<{
 			if (isExpanded) {
 				toggleOpen();
 			} else {
-				(
-					document.querySelector(
-						`[data-path="${parentPath}"]`
-					) as HTMLButtonElement
-				)?.focus();
+				findNodeButton(parentPath)?.focus();
 			}
 			event.preventDefault();
 			event.stopPropagation();
@@ -1577,11 +2328,7 @@ const NodeRow: React.FC<{
 						resolvedChildren[0],
 						path
 					);
-					(
-						document.querySelector(
-							`[data-path="${firstChildPath}"]`
-						) as HTMLButtonElement
-					)?.focus();
+					findNodeButton(firstChildPath)?.focus();
 				}
 			} else {
 				toggleOpen();
@@ -1622,7 +2369,15 @@ const NodeRow: React.FC<{
 	const handleRenameSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
 		renameHandledRef.current = true;
-		onRename?.(path, renameValue.trim());
+		const form = event.currentTarget as HTMLFormElement;
+		const submittedName = new FormData(form).get('filename');
+		onRename?.(
+			path,
+			(typeof submittedName === 'string'
+				? submittedName
+				: node.name
+			).trim()
+		);
 	};
 
 	const handleRenameKeyDown = (
@@ -1739,12 +2494,10 @@ const NodeRow: React.FC<{
 										hideName
 									/>
 									<input
+										name="filename"
 										ref={renameInputRef}
 										className={css['renameInput']}
-										value={renameValue}
-										onChange={(event) =>
-											setRenameValue(event.target.value)
-										}
+										defaultValue={node.name}
 										onBlur={handleRenameBlur}
 										onFocus={() => focusPath(path)}
 										onKeyDown={handleRenameKeyDown}
@@ -1821,6 +2574,7 @@ const NodeRow: React.FC<{
 						onRenameCancel={onRenameCancel}
 						parentPath={path}
 						dropIndicator={dropIndicator}
+						canDrag={canDrag}
 						onDragStart={onDragStart}
 						onDragEnd={onDragEnd}
 						onDragEnter={onDragEnter}
@@ -1828,6 +2582,7 @@ const NodeRow: React.FC<{
 						onDragLeave={onDragLeave}
 						onDrop={onDrop}
 						rootPath={rootPath}
+						findNodeButton={findNodeButton}
 						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}

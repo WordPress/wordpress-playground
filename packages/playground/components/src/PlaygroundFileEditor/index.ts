@@ -1,10 +1,12 @@
 export {
 	CodeEditor,
+	type CodeEditorCursorRestoreRequest,
 	type CodeEditorHandle,
 	type CodeEditorProps,
 } from './code-editor';
 export {
 	FileExplorerSidebar,
+	type FileOpenRequestGuard,
 	type FileExplorerSidebarProps,
 } from './file-explorer-sidebar';
 export {

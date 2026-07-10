@@ -6,17 +6,22 @@
  * to communicate with the background script to execute code in the page context.
  */
 
+import type { PlaygroundDetection } from './main-world-playground';
+
+interface PlaygroundObservation extends PlaygroundDetection {
+	scanEpoch?: number;
+}
+
 /**
  * Check for window.playground by asking the background script to execute
  * code in the page context using chrome.scripting.executeScript.
  */
-function checkForPlayground(): Promise<{
-	hasPlayground: boolean;
-	documentRoot?: string;
-}> {
+function checkForPlayground(
+	scanEpoch?: number
+): Promise<PlaygroundObservation> {
 	return new Promise((resolve) => {
 		chrome.runtime.sendMessage(
-			{ type: 'DETECT_PLAYGROUND' },
+			{ type: 'DETECT_PLAYGROUND', scanEpoch },
 			(response) => {
 				if (chrome.runtime.lastError) {
 					resolve({ hasPlayground: false });
@@ -38,6 +43,8 @@ async function reportPlaygroundStatus() {
 		type: 'PLAYGROUND_STATUS',
 		hasPlayground: result.hasPlayground,
 		documentRoot: result.documentRoot,
+		playgroundGeneration: result.playgroundGeneration,
+		scanEpoch: result.scanEpoch,
 		url: window.location.href,
 	});
 }
@@ -48,10 +55,12 @@ reportPlaygroundStatus();
 // Listen for requests from the DevTools panel to check again
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.type === 'CHECK_PLAYGROUND') {
-		checkForPlayground().then((result) => {
+		checkForPlayground(message.scanEpoch).then((result) => {
 			sendResponse({
 				hasPlayground: result.hasPlayground,
 				documentRoot: result.documentRoot,
+				playgroundGeneration: result.playgroundGeneration,
+				scanEpoch: result.scanEpoch,
 				url: window.location.href,
 			});
 		});
@@ -60,8 +69,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 	if (message.type === 'EXECUTE_PLAYGROUND_METHOD') {
 		// Execute a method on window.playground and return the result
-		executePlaygroundMethod(message.method, message.args).then(
-			sendResponse
+		executePlaygroundMethod(
+			message.method,
+			message.args,
+			message.documentId,
+			message.playgroundGeneration
+		).then(
+			(result) => sendResponse({ result }),
+			(error) =>
+				sendResponse({
+					error:
+						error instanceof Error ? error.message : String(error),
+				})
 		);
 		return true;
 	}
@@ -69,15 +88,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /**
  * Execute a method on window.playground by asking the background script
- * to use chrome.scripting.executeScript.
+ * to use chrome.scripting.executeScript. The document and generation pin the
+ * call to the Playground object that the DevTools panel originally detected.
  */
 function executePlaygroundMethod(
 	method: string,
-	args: unknown[]
+	args: unknown[],
+	documentId: string,
+	playgroundGeneration: string
 ): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		chrome.runtime.sendMessage(
-			{ type: 'EXEC_PLAYGROUND_METHOD', method, args },
+			{
+				type: 'EXEC_PLAYGROUND_METHOD',
+				method,
+				args,
+				documentId,
+				playgroundGeneration,
+			},
 			(response) => {
 				if (chrome.runtime.lastError) {
 					reject(new Error(chrome.runtime.lastError.message));

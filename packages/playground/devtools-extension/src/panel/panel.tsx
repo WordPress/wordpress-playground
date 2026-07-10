@@ -1,131 +1,52 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PlaygroundFileEditor } from '@wp-playground/components';
-import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import {
+	createMethodDispatcher,
+	createPlaygroundFilesystem,
+	type MethodDispatcher,
+} from './playground-filesystem';
 import styles from './panel.module.css';
 
 interface PlaygroundFrame {
 	frameId: number;
+	documentId: string;
 	tabId: number;
 	url: string;
 	hasPlayground: boolean;
 	documentRoot?: string;
-}
-
-/**
- * Creates an AsyncWritableFilesystem that proxies calls through the
- * Chrome extension messaging system to the content script.
- */
-function createPlaygroundFilesystem(
-	port: chrome.runtime.Port,
-	frameId: number
-): AsyncWritableFilesystem {
-	let requestId = 0;
-	const pendingRequests = new Map<
-		number,
-		{ resolve: (value: unknown) => void; reject: (error: Error) => void }
-	>();
-
-	// Handle responses from the background script
-	port.onMessage.addListener((message) => {
-		if (message.type === 'METHOD_RESULT') {
-			const pending = pendingRequests.get(message.requestId);
-			if (pending) {
-				pendingRequests.delete(message.requestId);
-				if (message.error) {
-					pending.reject(new Error(message.error));
-				} else {
-					// Handle Uint8Array reconstruction
-					let result = message.result;
-					if (result && result.__type === 'Uint8Array') {
-						result = new Uint8Array(result.data);
-					}
-					pending.resolve(result);
-				}
-			}
-		}
-	});
-
-	function callMethod<T>(method: string, args: unknown[]): Promise<T> {
-		return new Promise((resolve, reject) => {
-			const id = requestId++;
-			pendingRequests.set(id, {
-				resolve: resolve as (value: unknown) => void,
-				reject,
-			});
-			port.postMessage({
-				type: 'EXECUTE_METHOD',
-				frameId,
-				method,
-				args,
-				requestId: id,
-			});
-		});
-	}
-
-	// Create the filesystem proxy object that implements AsyncWritableFilesystem
-	const filesystem: AsyncWritableFilesystem = {
-		// EventTarget methods (no-op for now, could be implemented if needed)
-		addEventListener: () => {},
-		removeEventListener: () => {},
-		dispatchEvent: () => true,
-
-		// Filesystem methods
-		isDir: (path: string) => callMethod<boolean>('isDir', [path]),
-
-		fileExists: (path: string) => callMethod<boolean>('fileExists', [path]),
-
-		listFiles: (path: string) => callMethod<string[]>('listFiles', [path]),
-
-		read: async (path: string) => {
-			const result = await callMethod<Uint8Array>('readFileAsBuffer', [
-				path,
-			]);
-			return {
-				arrayBuffer: async () => result.buffer,
-			};
-		},
-
-		readFileAsText: (path: string) =>
-			callMethod<string>('readFileAsText', [path]),
-
-		writeFile: (path: string, data: string | Uint8Array) => {
-			// Convert Uint8Array to array for JSON serialization
-			const serializedData =
-				data instanceof Uint8Array ? Array.from(data) : data;
-			return callMethod<void>('writeFile', [path, serializedData]);
-		},
-
-		mkdir: (path: string, options?: { recursive?: boolean }) =>
-			callMethod<void>('mkdir', [path, options]),
-
-		rmdir: (path: string, options?: { recursive?: boolean }) =>
-			callMethod<void>('rmdir', [path, options]),
-
-		mv: (source: string, destination: string) =>
-			callMethod<void>('mv', [source, destination]),
-
-		unlink: (path: string) => callMethod<void>('unlink', [path]),
-	};
-
-	return filesystem;
+	playgroundGeneration: string;
 }
 
 function PlaygroundPanel() {
 	const [frames, setFrames] = useState<PlaygroundFrame[]>([]);
-	const [selectedFrame, setSelectedFrame] = useState<PlaygroundFrame | null>(
-		null
-	);
-	const [filesystem, setFilesystem] =
-		useState<AsyncWritableFilesystem | null>(null);
+	const [selectedFrameId, setSelectedFrameId] = useState<number | null>(null);
 	const [isConnected, setIsConnected] = useState(false);
-	const portRef = useRef<chrome.runtime.Port | null>(null);
+	const dispatcherRef = useRef<MethodDispatcher | null>(null);
+	const framesRef = useRef<PlaygroundFrame[]>([]);
 	const refreshIntervalRef = useRef<number | null>(null);
+	const selectedFrame =
+		frames.find((frame) => frame.frameId === selectedFrameId) ?? null;
+	const filesystem = useMemo(() => {
+		if (!selectedFrame || !dispatcherRef.current) {
+			return null;
+		}
+		return createPlaygroundFilesystem(dispatcherRef.current, {
+			frameId: selectedFrame.frameId,
+			documentId: selectedFrame.documentId,
+			playgroundGeneration: selectedFrame.playgroundGeneration,
+		});
+	}, [
+		selectedFrame?.frameId,
+		selectedFrame?.documentId,
+		selectedFrame?.playgroundGeneration,
+	]);
 
 	// Connect to the background script and set up frame detection
 	useEffect(() => {
 		const port = chrome.runtime.connect({ name: 'playground-devtools' });
-		portRef.current = port;
+		const dispatcher = createMethodDispatcher(port);
+		dispatcherRef.current = dispatcher;
 
 		// Initialize with the current tab ID
 		const tabId = chrome.devtools.inspectedWindow.tabId;
@@ -135,12 +56,41 @@ function PlaygroundPanel() {
 		// Handle messages from the background script
 		port.onMessage.addListener((message) => {
 			if (message.type === 'FRAMES_UPDATED') {
-				setFrames(message.frames);
-
-				// Auto-select if there's only one playground frame
-				if (message.frames.length === 1 && !selectedFrame) {
-					setSelectedFrame(message.frames[0]);
+				const nextFrames = message.frames as PlaygroundFrame[];
+				for (const currentFrame of framesRef.current) {
+					const nextFrame = nextFrames.find(
+						(frame) => frame.frameId === currentFrame.frameId
+					);
+					if (
+						!nextFrame ||
+						nextFrame.documentId !== currentFrame.documentId ||
+						nextFrame.playgroundGeneration !==
+							currentFrame.playgroundGeneration
+					) {
+						dispatcher.invalidateTarget({
+							frameId: currentFrame.frameId,
+							documentId: currentFrame.documentId,
+							playgroundGeneration:
+								currentFrame.playgroundGeneration,
+						});
+					}
 				}
+				framesRef.current = nextFrames;
+				setFrames(nextFrames);
+				// Preserve selection across refreshes and auto-select the only frame.
+				setSelectedFrameId((currentFrameId) => {
+					if (
+						currentFrameId !== null &&
+						nextFrames.some(
+							(frame) => frame.frameId === currentFrameId
+						)
+					) {
+						return currentFrameId;
+					}
+					return nextFrames.length === 1
+						? nextFrames[0].frameId
+						: null;
+				});
 			}
 		});
 
@@ -153,6 +103,7 @@ function PlaygroundPanel() {
 		}, 1000);
 
 		port.onDisconnect.addListener(() => {
+			dispatcher.dispose();
 			setIsConnected(false);
 			if (refreshIntervalRef.current) {
 				clearInterval(refreshIntervalRef.current);
@@ -163,29 +114,16 @@ function PlaygroundPanel() {
 			if (refreshIntervalRef.current) {
 				clearInterval(refreshIntervalRef.current);
 			}
+			dispatcher.dispose();
 			port.disconnect();
 		};
 	}, []);
-
-	// Create filesystem when a frame is selected
-	useEffect(() => {
-		if (!selectedFrame || !portRef.current) {
-			setFilesystem(null);
-			return;
-		}
-
-		const fs = createPlaygroundFilesystem(
-			portRef.current,
-			selectedFrame.frameId
-		);
-		setFilesystem(fs);
-	}, [selectedFrame]);
 
 	// Handle frame selection change
 	const handleFrameSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const frameId = parseInt(e.target.value, 10);
 		const frame = frames.find((f) => f.frameId === frameId);
-		setSelectedFrame(frame ?? null);
+		setSelectedFrameId(frame?.frameId ?? null);
 	};
 
 	// If not connected, show error

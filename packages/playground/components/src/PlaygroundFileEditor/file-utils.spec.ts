@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileForInlinePreview } from './file-utils';
+import { getMimeType, readFileForInlinePreview } from './file-utils';
+
+describe('getMimeType', () => {
+	it('matches uppercase filename extensions', () => {
+		expect(getMimeType('IMAGE.PNG')).toBe('image/png');
+	});
+});
 
 describe('readFileForInlinePreview', () => {
 	it('returns small files for inline preview', async () => {

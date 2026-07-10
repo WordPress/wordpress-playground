@@ -87,3 +87,7 @@
 	overflow: auto;
 	padding: 6px 0;
 }
+
+.uploadError {
+	padding: 8px;
+}

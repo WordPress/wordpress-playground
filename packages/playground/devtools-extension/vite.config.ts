@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
@@ -88,6 +89,7 @@ function postBuildPlugin() {
 
 export default defineConfig({
 	root: __dirname,
+	cacheDir: '../../../node_modules/.vite/playground-devtools-extension',
 	plugins: [
 		react(),
 		viteTsConfigPaths({
@@ -118,5 +120,11 @@ export default defineConfig({
 		modules: {
 			localsConvention: 'camelCaseOnly',
 		},
+	},
+	test: {
+		globals: true,
+		environment: 'node',
+		include: ['src/**/*.{test,spec}.{ts,tsx}'],
+		reporters: ['default'],
 	},
 });

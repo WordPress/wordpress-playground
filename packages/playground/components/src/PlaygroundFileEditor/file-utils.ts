@@ -128,10 +128,13 @@ async function readStreamForInlinePreview(
 }
 
 /**
- * Gets the MIME type for a filename based on its extension.
+ * Gets the MIME type for a filename using a case-insensitive extension lookup.
  */
 export const getMimeType = (filename: string): string => {
-	const extension = filename.split('.').pop() as keyof typeof mimeTypes;
+	const extension = filename
+		.split('.')
+		.pop()
+		?.toLowerCase() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
 };
 

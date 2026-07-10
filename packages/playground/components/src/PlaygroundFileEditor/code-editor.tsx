@@ -71,7 +71,7 @@ const loadLanguageExtension = async (
 	}
 
 	// Check cache first
-	const cacheKey = filePath;
+	const cacheKey = extension;
 	if (languageExtensionCache.has(cacheKey)) {
 		return languageExtensionCache.get(cacheKey)!;
 	}
@@ -180,10 +180,23 @@ export type CodeEditorHandle = {
 	setCursorPosition: (pos: number) => void;
 };
 
+/**
+ * Describes one document activation. A new revision starts a fresh undo
+ * history and applies its cursor position atomically with the document update.
+ */
+export type CodeEditorCursorRestoreRequest = {
+	revision: number;
+	position: number;
+};
+
 export type CodeEditorProps = {
 	code: string;
 	onChange: (next: string) => void;
 	currentPath: string | null;
+	/** Activates a document revision with a fresh history and restored cursor. */
+	cursorRestore?: CodeEditorCursorRestoreRequest;
+	/** Reports when CodeMirror has applied a requested document and cursor revision. */
+	onCursorRestoreApplied?: (revision: number) => void;
 	className?: string;
 	onSaveShortcut?: () => void;
 	readOnly?: boolean;
@@ -196,6 +209,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			code,
 			onChange,
 			currentPath,
+			cursorRestore,
+			onCursorRestoreApplied,
 			className,
 			onSaveShortcut,
 			readOnly = false,
@@ -210,9 +225,12 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		const languageCompartmentRef = useRef(new Compartment());
 		const editableCompartmentRef = useRef(new Compartment());
 		const extraCompartmentRef = useRef(new Compartment());
+		const historyCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
 		const onChangeRef = useRef(onChange);
+		const onSaveShortcutRef = useRef(onSaveShortcut);
 		const shouldRestoreFocusRef = useRef(false);
+		const appliedCursorRestoreRevisionRef = useRef<number | null>(null);
 
 		useImperativeHandle(ref, () => ({
 			focus: () => {
@@ -257,6 +275,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		}, [onChange]);
 
 		useEffect(() => {
+			onSaveShortcutRef.current = onSaveShortcut;
+		}, [onSaveShortcut]);
+
+		useEffect(() => {
 			if (viewRef.current) {
 				return;
 			}
@@ -267,6 +289,14 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
 			const state = EditorState.create({
 				doc: code,
+				selection: cursorRestore
+					? EditorSelection.cursor(
+							Math.max(
+								0,
+								Math.min(cursorRestore.position, code.length)
+							)
+						)
+					: undefined,
 				extensions: [
 					extraCompartmentRef.current.of(additionalExtensions ?? []),
 					lineNumbers(),
@@ -285,7 +315,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					indentOnInput(),
 					bracketMatching(),
 					closeBrackets(),
-					history(),
+					historyCompartmentRef.current.of(history()),
 					highlightSelectionMatches(),
 					autocompletion(),
 					EditorView.updateListener.of((update) => {
@@ -304,7 +334,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 							key: 'Mod-s',
 							preventDefault: true,
 							run: () => {
-								onSaveShortcut?.();
+								onSaveShortcutRef.current?.();
 								return true;
 							},
 						},
@@ -318,9 +348,16 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					]),
 				],
 			});
+			if (cursorRestore) {
+				appliedCursorRestoreRevisionRef.current =
+					cursorRestore.revision;
+			}
 
 			const view = new EditorView({ state, parent: container });
 			viewRef.current = view;
+			if (cursorRestore) {
+				onCursorRestoreApplied?.(cursorRestore.revision);
+			}
 
 			return () => {
 				view.destroy();
@@ -342,19 +379,57 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			});
 		}, [additionalExtensions]);
 
-		useEffect(() => {
+		useLayoutEffect(() => {
 			const view = viewRef.current;
 			if (!view) {
 				return;
 			}
 			const currentDoc = view.state.doc.toString();
-			if (code === currentDoc) {
+			const shouldRestoreCursor =
+				cursorRestore !== undefined &&
+				appliedCursorRestoreRevisionRef.current !==
+					cursorRestore.revision;
+			if (code === currentDoc && !shouldRestoreCursor) {
 				return;
 			}
+			latestCodeRef.current = code;
+			if (shouldRestoreCursor) {
+				appliedCursorRestoreRevisionRef.current =
+					cursorRestore.revision;
+				// Remove the state field before replacing the document. Re-adding it
+				// after the replacement creates an empty history for this file, so
+				// undo can never replay changes made in the previously open file.
+				view.dispatch({
+					effects: historyCompartmentRef.current.reconfigure([]),
+				});
+			}
 			view.dispatch({
-				changes: { from: 0, to: view.state.doc.length, insert: code },
+				changes:
+					code === currentDoc
+						? undefined
+						: {
+								from: 0,
+								to: view.state.doc.length,
+								insert: code,
+							},
+				selection: shouldRestoreCursor
+					? EditorSelection.cursor(
+							Math.max(
+								0,
+								Math.min(cursorRestore.position, code.length)
+							)
+						)
+					: undefined,
+				scrollIntoView: shouldRestoreCursor,
 			});
-		}, [code]);
+			if (shouldRestoreCursor) {
+				view.dispatch({
+					effects:
+						historyCompartmentRef.current.reconfigure(history()),
+				});
+				onCursorRestoreApplied?.(cursorRestore.revision);
+			}
+		}, [code, cursorRestore, onCursorRestoreApplied]);
 
 		useEffect(() => {
 			const view = viewRef.current;
@@ -412,9 +487,12 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			if (!view) {
 				return;
 			}
-			if (shouldRestoreFocusRef.current && !view.hasFocus) {
+			if (!shouldRestoreFocusRef.current) {
+				return;
+			}
+			shouldRestoreFocusRef.current = false;
+			if (!view.hasFocus) {
 				view.focus();
-				shouldRestoreFocusRef.current = false;
 			}
 		}, [currentPath, readOnly]);
 

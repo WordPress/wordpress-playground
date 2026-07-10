@@ -22,6 +22,20 @@
 			},
 			"dependsOn": ["^build"]
 		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:vite": {
+			"executor": "@nx/vitest:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/devtools-extension"
+			],
+			"options": {
+				"passWithNoTests": false,
+				"reportsDirectory": "../../../coverage/packages/playground/devtools-extension"
+			}
+		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
@@ -38,8 +52,10 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"tsc -p packages/playground/devtools-extension/tsconfig.spec.json --noEmit",
 					"tsc -p packages/playground/devtools-extension/tsconfig.lib.json --noEmit"
-				]
+				],
+				"parallel": true
 			}
 		}
 	},

@@ -1,5 +1,6 @@
 {
 	"manifest_version": 3,
+	"minimum_chrome_version": "106",
 	"name": "WordPress Playground DevTools",
 	"version": "0.0.0",
 	"description": "DevTools panel for inspecting and editing WordPress Playground instances",
