@@ -43,9 +43,46 @@ export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
 ): Promise<APIType> {
+	assertIsMessagePort(remote, 'consumeAPISync');
 	setupTransferHandlers();
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
 	return Comlink.wrapSync<APIType>(remote, transport);
+}
+
+/**
+ * Reject anything that isn't a real MessagePort before we wrap it.
+ *
+ * A synchronous Comlink proxy answers *every* property access with a proxied
+ * function, so it duck-types as an endpoint: `postMessage` and
+ * `addEventListener` both look present. Passing one here therefore used to
+ * succeed, and only failed on the first method call — as a 5 second
+ * "Timeout waiting for response", on another thread, under load. That is how
+ * a spawned PHP process silently lost its file lock manager.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3783
+ */
+function assertIsMessagePort(
+	remote: IsomorphicMessagePort,
+	callerName: string
+): void {
+	// A Comlink proxy is callable; a MessagePort never is.
+	if (typeof remote === 'function') {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received a Comlink ` +
+				`proxy. Expose the API on a fresh MessageChannel and pass one ` +
+				`of its ports instead of passing the proxy itself.`
+		);
+	}
+	if (
+		remote === null ||
+		typeof remote !== 'object' ||
+		typeof remote.postMessage !== 'function'
+	) {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received ` +
+				`${remote === null ? 'null' : typeof remote}.`
+		);
+	}
 }
 
 export function consumeAPI<APIType>(
