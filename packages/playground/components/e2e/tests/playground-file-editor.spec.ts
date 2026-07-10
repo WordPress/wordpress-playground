@@ -28,6 +28,68 @@ async function readHarnessFile(page: Page, path: string) {
 	}, path);
 }
 
+/** Drops one nested host directory on the file explorer background. */
+async function dropHarnessDirectory(page: Page, content: string) {
+	await page
+		.locator('[class*="fileExplorerContainer"]')
+		.first()
+		.evaluate((container, fileContent) => {
+			const file = new File([fileContent], 'note.txt', {
+				type: 'text/plain',
+			});
+			const fileEntry = {
+				isFile: true,
+				isDirectory: false,
+				name: file.name,
+				file: (resolve: (value: File) => void) => resolve(file),
+			};
+			let nestedRead = false;
+			const nestedDirectory = {
+				isFile: false,
+				isDirectory: true,
+				name: 'nested',
+				createReader: () => ({
+					readEntries: (resolve: (entries: unknown[]) => void) => {
+						resolve(nestedRead ? [] : [fileEntry]);
+						nestedRead = true;
+					},
+				}),
+			};
+			let rootRead = false;
+			const droppedDirectory = {
+				isFile: false,
+				isDirectory: true,
+				name: 'dropped-folder',
+				createReader: () => ({
+					readEntries: (resolve: (entries: unknown[]) => void) => {
+						resolve(rootRead ? [] : [nestedDirectory]);
+						rootRead = true;
+					},
+				}),
+			};
+			let dropDataIsReadable = true;
+			const dropEvent = new Event('drop', {
+				bubbles: true,
+				cancelable: true,
+			});
+			Object.defineProperty(dropEvent, 'dataTransfer', {
+				value: {
+					types: ['Files'],
+					items: [
+						{
+							kind: 'file',
+							webkitGetAsEntry: () =>
+								dropDataIsReadable ? droppedDirectory : null,
+						},
+					],
+					files: [],
+				},
+			});
+			container.dispatchEvent(dropEvent);
+			dropDataIsReadable = false;
+		}, content);
+}
+
 test.beforeEach(async ({ page }) => {
 	await gotoHarness(page);
 });
@@ -37,6 +99,31 @@ test('opens the initial file', async ({ page }) => {
 	await expect(page.locator('.cm-content')).toContainText(
 		"<?php echo 'Hello';"
 	);
+});
+
+test('imports a local directory dropped on the explorer background', async ({
+	page,
+}) => {
+	const content = 'Dropped from a nested local directory';
+	const importedPath = '/wordpress/workspace/dropped-folder/nested/note.txt';
+
+	await expect(
+		page.getByRole('button', { name: 'Upload files' })
+	).toBeVisible();
+	await dropHarnessDirectory(page, content);
+
+	await expect
+		.poll(async () => {
+			try {
+				return await readHarnessFile(page, importedPath);
+			} catch {
+				return null;
+			}
+		})
+		.toBe(content);
+	await expect(
+		page.locator('button[data-path="/wordpress/workspace/dropped-folder"]')
+	).toBeVisible();
 });
 
 test('autosaves editor changes into the harness filesystem', async ({
