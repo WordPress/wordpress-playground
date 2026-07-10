@@ -240,7 +240,10 @@ export function FileExplorerSidebar({
 				{!readOnly ? (
 					<div className={styles['fileExplorerActions']}>
 						<button
-							className={styles['fileExplorerButton']}
+							className={classNames(
+								styles['fileExplorerButton'],
+								styles['fileExplorerIconButton']
+							)}
 							type="button"
 							onClick={() => {
 								if (!treeRef.current) {
@@ -248,13 +251,16 @@ export function FileExplorerSidebar({
 								}
 								void treeRef.current.createFile();
 							}}
+							aria-label="Create new file"
 							title="Create new file"
 						>
-							<Icon icon={fileIcon} size={16} />
-							New File
+							<Icon icon={fileIcon} size={20} />
 						</button>
 						<button
-							className={styles['fileExplorerButton']}
+							className={classNames(
+								styles['fileExplorerButton'],
+								styles['fileExplorerIconButton']
+							)}
 							type="button"
 							onClick={() => {
 								if (!treeRef.current) {
@@ -262,23 +268,22 @@ export function FileExplorerSidebar({
 								}
 								void treeRef.current.createFolder();
 							}}
+							aria-label="Create new folder"
 							title="Create new folder"
 						>
-							<Icon icon={folderIcon} size={16} />
-							New Folder
+							<Icon icon={folderIcon} size={20} />
 						</button>
 						<button
 							className={classNames(
 								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton'],
-								styles['fileExplorerUploadButton']
+								styles['fileExplorerIconButton']
 							)}
 							type="button"
 							onClick={() => uploadInputRef.current?.click()}
 							aria-label="Upload files"
 							title="Upload files"
 						>
-							<Icon icon={upload} size={16} />
+							<Icon icon={upload} size={20} />
 						</button>
 						<input
 							ref={uploadInputRef}

@@ -354,6 +354,12 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	// Navigate to Blueprint tab
 	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
 	await expect(
+		website.page.getByRole('button', { name: 'Create new file' })
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: 'Create new folder' })
+	).toBeVisible();
+	await expect(
 		website.page.getByRole('button', { name: 'Upload files' })
 	).toBeVisible();
 
