@@ -4,10 +4,8 @@ import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import type { BlueprintV2Declaration } from '../lib/v2/blueprint-v2-declaration';
-import {
-	lowerBlueprintV2ExecutionPlan,
-	UnsupportedBlueprintV2FeatureError,
-} from '../lib/v2/compile';
+import type { InvalidBlueprintError } from '../lib/invalid-blueprint-error';
+import { lowerBlueprintV2ExecutionPlan } from '../lib/v2/compile';
 
 function withoutProgress(step: any) {
 	const rest = { ...step };
@@ -104,6 +102,32 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('reports a validated Blueprint v2 declaration exactly once', async () => {
+		const declaration = { version: 2 } as const;
+		const onBlueprintValidated = vi.fn();
+
+		const compiled = await compileBlueprintForExecution(declaration, {
+			onBlueprintValidated,
+		});
+		await compiled.run({} as any);
+
+		expect(onBlueprintValidated).toHaveBeenCalledOnce();
+		expect(onBlueprintValidated).toHaveBeenCalledWith(declaration);
+	});
+
+	it('reports schema success before runtime configuration fails', async () => {
+		const declaration = { version: 2, phpVersion: '5.6' } as const;
+		const onBlueprintValidated = vi.fn();
+
+		await expect(
+			compileBlueprintForExecution(declaration, {
+				onBlueprintValidated,
+			})
+		).rejects.toThrow('Unsupported Blueprint v2 PHP version "5.6"');
+		expect(onBlueprintValidated).toHaveBeenCalledOnce();
+		expect(onBlueprintValidated).toHaveBeenCalledWith(declaration);
+	});
+
 	it('compiles existing-site v2 constraints without selecting a download', async () => {
 		const compiled = await compileBlueprintForExecution(
 			{
@@ -174,6 +198,41 @@ describe('compileBlueprintForExecution', () => {
 		await expect(
 			compileBlueprintForExecution('{ "version": 2')
 		).rejects.toThrow('Raw JSON input must be valid JSON.');
+	});
+
+	it('rejects malformed Blueprint v2 declarations from raw JSON', async () => {
+		const onBlueprintValidated = vi.fn();
+
+		await expect(
+			compileBlueprintForExecution(
+				JSON.stringify({ version: 2, plugins: 'akismet' }),
+				{ onBlueprintValidated }
+			)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/plugins' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
+		expect(onBlueprintValidated).not.toHaveBeenCalled();
+	});
+
+	it('rejects malformed Blueprint v2 declarations from bundles', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({ version: 2, pluginz: [] }),
+		});
+
+		await expect(
+			compileBlueprintForExecution(bundle)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: [
+				{
+					path: '/pluginz',
+					message: 'must NOT have additional properties',
+				},
+			],
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 
 	it.each(['null', '[]'])(
@@ -845,7 +904,7 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('reports the source index for unsupported Blueprint v2 mysql-dump sources', async () => {
+	it('reports the source index for invalid Blueprint v2 mysql-dump sources', async () => {
 		const declaration = {
 			version: 2,
 			content: [
@@ -856,9 +915,14 @@ describe('compileBlueprintForExecution', () => {
 			],
 		} as unknown as BlueprintV2Declaration;
 
-		await expect(compileBlueprintForExecution(declaration)).rejects.toThrow(
-			'/content/0.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
-		);
+		await expect(
+			compileBlueprintForExecution(declaration)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/content/0/source/1' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 
 	it('lowers Blueprint v2 WXR content to importWxr steps', async () => {
@@ -1231,7 +1295,7 @@ describe('compileBlueprintForExecution', () => {
 							post_content: '<p>Hello</p>',
 							post_status: 'publish',
 						},
-						'./posts/about.html' as any,
+						'./posts/about.html',
 					],
 					urlsMode: 'preserve',
 				},
@@ -1594,7 +1658,7 @@ describe('compileBlueprintForExecution', () => {
 		);
 	});
 
-	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
+	it('rejects unknown Blueprint v2 content before producing a plan', async () => {
 		const declaration = {
 			version: 2,
 			content: [
@@ -1602,30 +1666,15 @@ describe('compileBlueprintForExecution', () => {
 					type: 'unsupported-content',
 				},
 			],
-			additionalStepsAfterExecution: [
-				{
-					step: 'mkdir',
-					path: 'site:wp-content/uploads/from-v2',
-				},
-			],
 		} as unknown as BlueprintV2Declaration;
-		const compiled = await compileBlueprintForExecution(declaration);
-		const playground = {
-			mkdir: vi.fn(),
-		};
 
-		let thrownError: unknown;
-		try {
-			await compiled.run(playground as any);
-		} catch (error) {
-			thrownError = error;
-		}
-
-		expect(thrownError).toBeInstanceOf(UnsupportedBlueprintV2FeatureError);
-		expect(thrownError).toMatchObject({
-			featurePath: 'executionPlan',
-			message: expect.stringContaining('/content/0 (importContent)'),
-		});
-		expect(playground.mkdir).not.toHaveBeenCalled();
+		await expect(
+			compileBlueprintForExecution(declaration)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/content/0/type' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 });

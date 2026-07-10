@@ -73,16 +73,14 @@ async function compileBlueprintV2ForExecution(
 	declaration: BlueprintV2Declaration,
 	options: CompileBlueprintForExecutionOptions
 ): Promise<CompiledBlueprintForExecution> {
-	const compiled = await compileBlueprintV2(
-		declaration,
-		isBlueprintBundle(input)
-			? {
-					progress: options.progress,
-					streamBundledFile: (...args: [any]) => input.read(...args),
-					siteMode: options.siteMode,
-				}
-			: { progress: options.progress, siteMode: options.siteMode }
-	);
+	const compiled = await compileBlueprintV2(declaration, {
+		progress: options.progress,
+		streamBundledFile: isBlueprintBundle(input)
+			? (...args: [any]) => input.read(...args)
+			: undefined,
+		siteMode: options.siteMode,
+		onBlueprintValidated: options.onBlueprintValidated,
+	});
 	return {
 		version: 2,
 		declaration,

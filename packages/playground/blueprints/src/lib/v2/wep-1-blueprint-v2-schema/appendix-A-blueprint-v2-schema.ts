@@ -469,9 +469,8 @@ export namespace V2Schema {
 				type: 'posts';
 				source:
 					| DataSources.FileDataReference
-					| DataSources.FileDataReference[]
 					| WordPressPost
-					| WordPressPost[];
+					| (DataSources.FileDataReference | WordPressPost)[];
 		  } & URLMappingConfig)
 		/**
 		 * WXR files to import.

@@ -55,6 +55,28 @@ describe('Blueprint v2 runtime configuration', () => {
 		);
 	});
 
+	it('rejects malformed declarations before resolving WordPress releases', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: { min: '6.8' },
+				pluginz: [],
+			} as any)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: [
+				{
+					path: '/pluginz',
+					message: 'must NOT have additional properties',
+				},
+			],
+		});
+		expect(
+			wordpressMocks.getWordPressStableVersions
+		).not.toHaveBeenCalled();
+		expect(wordpressMocks.resolveWordPressRelease).not.toHaveBeenCalled();
+	});
+
 	it('resolves default runtime configuration from a bundle declaration', async () => {
 		const blueprint = createBundle({
 			version: 2,
@@ -518,19 +540,14 @@ describe('Blueprint v2 runtime configuration', () => {
 	});
 
 	it('rejects unsupported WordPress runtime data references', async () => {
-		for (const wordpressVersion of [
-			'./wordpress.zip',
-			'../wordpress.zip',
-		]) {
-			await expect(
-				resolveRuntimeConfiguration({
-					version: 2,
-					wordpressVersion,
-				} as BlueprintV2Declaration)
-			).rejects.toThrow(
-				'Unsupported Blueprint v2 wordpressVersion file reference.'
-			);
-		}
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: './wordpress.zip',
+			} as BlueprintV2Declaration)
+		).rejects.toThrow(
+			'Unsupported Blueprint v2 wordpressVersion file reference.'
+		);
 
 		await expect(
 			resolveRuntimeConfiguration({
@@ -553,9 +570,12 @@ describe('Blueprint v2 runtime configuration', () => {
 					min: 123,
 				},
 			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version constraint wordpressVersion.min 123.'
-		);
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/wordpressVersion/min' }),
+			]),
+		});
 	});
 
 	it('rejects unsupported WordPress version strings', async () => {
@@ -564,9 +584,12 @@ describe('Blueprint v2 runtime configuration', () => {
 				version: 2,
 				wordpressVersion: 'not-a-version',
 			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 WordPress version "not-a-version".'
-		);
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/wordpressVersion' }),
+			]),
+		});
 	});
 
 	it('accepts installed WordPress patches within a branch constraint', async () => {

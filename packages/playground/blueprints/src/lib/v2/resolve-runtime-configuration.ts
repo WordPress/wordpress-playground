@@ -39,14 +39,20 @@ type ComparableWordPressVersion = {
  *
  * This module owns the v2 support boundary: unsupported declarations and
  * runtime sources are rejected here instead of falling back to v1 behavior.
+ * The validation callback runs before any runtime source is resolved.
  */
 export async function resolveBlueprintV2RuntimeConfiguration(
 	declaration: BlueprintDeclaration,
-	siteMode: BlueprintV2SiteMode = 'create-new-site'
+	siteMode: BlueprintV2SiteMode = 'create-new-site',
+	onBlueprintValidated?: (declaration: BlueprintV2Declaration) => void
 ): Promise<RuntimeConfiguration> {
 	if (!isBlueprintV2Declaration(declaration)) {
 		throw new Error('Expected a Blueprint v2 declaration.');
 	}
+	const { assertValidBlueprintV2Declaration } =
+		await import('./validate-blueprint-v2');
+	assertValidBlueprintV2Declaration(declaration);
+	onBlueprintValidated?.(declaration);
 	const playgroundOptions =
 		declaration.applicationOptions?.['wordpress-playground'];
 	const wpVersion = await resolveV2WordPressVersion(
