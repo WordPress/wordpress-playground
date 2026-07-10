@@ -10,6 +10,7 @@ import {
 import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 import { compileBlueprintV2, type CompiledBlueprintV2 } from './v2/compile';
+import type { ResolveRuntimeConfigurationOptions } from './resolve-runtime-configuration';
 
 export type BlueprintExecutionPath = 'v1' | 'v2';
 
@@ -27,10 +28,13 @@ export type CompiledBlueprintForExecution =
 			run: (playground: UniversalPHP) => Promise<void>;
 	  };
 
-export interface CompileBlueprintForExecutionOptions extends Omit<
-	CompileBlueprintV1Options,
-	'onBlueprintValidated' | 'streamBundledFile'
-> {
+export interface CompileBlueprintForExecutionOptions
+	extends
+		Omit<
+			CompileBlueprintV1Options,
+			'onBlueprintValidated' | 'streamBundledFile'
+		>,
+		ResolveRuntimeConfigurationOptions {
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
@@ -75,8 +79,9 @@ async function compileBlueprintV2ForExecution(
 			? {
 					progress: options.progress,
 					streamBundledFile: (...args: [any]) => input.read(...args),
+					siteMode: options.siteMode,
 				}
-			: { progress: options.progress }
+			: { progress: options.progress, siteMode: options.siteMode }
 	);
 	return {
 		version: 2,

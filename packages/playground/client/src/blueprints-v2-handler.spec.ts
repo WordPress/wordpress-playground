@@ -147,6 +147,62 @@ describe('BlueprintsV2Handler', () => {
 
 		expect(progressTracker.pipe).not.toHaveBeenCalled();
 	});
+
+	it('passes mounted-site constraints to the worker preflight', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			wordpressVersion: {
+				min: '6.8',
+			},
+			siteOptions: {
+				blogname: 'Existing site',
+			},
+		} as const;
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				blueprint: {
+					version: 2,
+					wordpressVersion: blueprint.wordpressVersion,
+				},
+			})
+		);
+		expect(mocks.compileBlueprintForExecution).toHaveBeenCalledWith(
+			blueprint,
+			expect.objectContaining({
+				siteMode: 'apply-to-existing-site',
+			})
+		);
+	});
+
+	it('does not validate WordPress downloaded for a new site', async () => {
+		const iframe = createIframe();
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: { version: 2 },
+			wordpressInstallMode: 'download-and-install',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({ blueprint: undefined })
+		);
+		expect(mocks.compileBlueprintForExecution).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ siteMode: 'create-new-site' })
+		);
+	});
 });
 
 function createIframe() {

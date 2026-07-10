@@ -1,11 +1,41 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { beforeEach, vi } from 'vitest';
 import { resolveRuntimeConfiguration } from '../../lib/resolve-runtime-configuration';
 import type { BlueprintBundle } from '../../lib/types';
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
+import { assertBlueprintV2WordPressVersionCompatibility } from '../../lib/v2/resolve-runtime-configuration';
+
+const wordpressMocks = vi.hoisted(() => ({
+	getWordPressStableVersions: vi.fn(),
+	resolveWordPressRelease: vi.fn(),
+}));
+
+vi.mock('@wp-playground/wordpress', () => ({
+	getWordPressStableVersions: wordpressMocks.getWordPressStableVersions,
+	resolveWordPressRelease: wordpressMocks.resolveWordPressRelease,
+	versionStringToLoadedWordPressVersion: (version: string) =>
+		version.includes('-alpha-') ? 'trunk' : version,
+}));
 
 describe('Blueprint v2 runtime configuration', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		wordpressMocks.getWordPressStableVersions.mockResolvedValue([
+			'6.7.5',
+			'6.8',
+			'6.8.1',
+			'6.8.5',
+			'6.9',
+		]);
+		wordpressMocks.resolveWordPressRelease.mockResolvedValue({
+			version: '7.0-beta1',
+			releaseUrl: 'https://wordpress.org/wordpress-7.0-beta1.zip',
+			source: 'api',
+		});
+	});
+
 	const expectedDefaults = {
 		phpVersion: RecommendedPHPVersion,
 		wpVersion: 'latest',
@@ -139,6 +169,22 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
+	it('rejects recommended PHP versions outside constraint bounds', async () => {
+		for (const phpVersion of [
+			{ min: '8.2', recommended: '8.1' },
+			{ recommended: '8.5', max: '8.4' },
+		] as const) {
+			await expect(
+				resolveRuntimeConfiguration({
+					version: 2,
+					phpVersion,
+				})
+			).rejects.toThrow(
+				`Blueprint v2 recommended PHP version "${phpVersion.recommended}" does not satisfy constraints`
+			);
+		}
+	});
+
 	it('uses the default PHP version for constraints without a recommended version', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
@@ -230,12 +276,27 @@ describe('Blueprint v2 runtime configuration', () => {
 			resolveRuntimeConfiguration({
 				version: 2,
 				wordpressVersion: {
-					min: '6.8',
+					min: '6.8.4',
+					max: '6.8',
 					preferred: '6.8',
 				},
 			})
 		).resolves.toMatchObject({
-			wpVersion: '6.8',
+			wpVersion: '6.8.5',
+		});
+	});
+
+	it('resolves an available exact preferred WordPress release', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8',
+					preferred: '6.8.1',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.8.1',
 		});
 	});
 
@@ -249,11 +310,11 @@ describe('Blueprint v2 runtime configuration', () => {
 				},
 			})
 		).resolves.toMatchObject({
-			wpVersion: '6.8',
+			wpVersion: '6.8.5',
 		});
 	});
 
-	it('uses the default WordPress version for constraints without a preferred version', async () => {
+	it('selects the newest available WordPress version for an open constraint', async () => {
 		await expect(
 			resolveRuntimeConfiguration({
 				version: 2,
@@ -262,23 +323,156 @@ describe('Blueprint v2 runtime configuration', () => {
 				},
 			})
 		).resolves.toMatchObject({
-			wpVersion: 'latest',
+			wpVersion: '6.9.0',
 		});
 	});
 
-	it('rejects preferred WordPress versions outside constraints', async () => {
+	it('preserves an initial release as an exact runtime request', async () => {
+		wordpressMocks.getWordPressStableVersions.mockResolvedValue(['6.8']);
+
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8.0',
+					max: '6.8.0',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.8.0',
+		});
+	});
+
+	it('selects an available release below a nonexistent maximum', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8',
+					max: '6.8.4',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.8.1',
+		});
+	});
+
+	it('does not require a downloadable release when applying to an existing site', async () => {
+		wordpressMocks.getWordPressStableVersions.mockRejectedValue(
+			new Error('Release catalog unavailable')
+		);
+		const blueprint = {
+			version: 2,
+			wordpressVersion: {
+				min: '6.8.2',
+				max: '6.8.4',
+			},
+		} as const;
+
+		await expect(
+			resolveRuntimeConfiguration(blueprint, {
+				siteMode: 'apply-to-existing-site',
+			})
+		).resolves.toMatchObject({ wpVersion: 'latest' });
+		await expect(
+			assertBlueprintV2WordPressVersionCompatibility(blueprint, '6.8.3')
+		).resolves.toBeUndefined();
+
+		const prereleaseBlueprint = {
+			version: 2,
+			wordpressVersion: {
+				min: '6.8-beta1',
+				max: '6.8-rc1',
+			},
+		} as const;
+		await expect(
+			resolveRuntimeConfiguration(prereleaseBlueprint, {
+				siteMode: 'apply-to-existing-site',
+			})
+		).resolves.toMatchObject({ wpVersion: 'latest' });
+		await expect(
+			assertBlueprintV2WordPressVersionCompatibility(
+				prereleaseBlueprint,
+				'6.8-beta2'
+			)
+		).resolves.toBeUndefined();
+		expect(
+			wordpressMocks.getWordPressStableVersions
+		).not.toHaveBeenCalled();
+	});
+
+	it('selects the newest release regardless of catalog order', async () => {
+		wordpressMocks.getWordPressStableVersions.mockResolvedValue([
+			'6.8.1',
+			'6.8.5',
+			'6.8',
+		]);
+
 		await expect(
 			resolveRuntimeConfiguration({
 				version: 2,
 				wordpressVersion: {
 					min: '6.8',
 					max: '6.8',
-					preferred: '6.9',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.8.5',
+		});
+	});
+
+	it('selects the current prerelease when it satisfies constraints', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '7.0-beta1',
+					max: '7.0-rc1',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '7.0-beta1',
+		});
+	});
+
+	it('rejects preferred WordPress versions absent from the catalog', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8',
+					preferred: '6.8.4',
 				},
 			})
 		).rejects.toThrow(
-			'Blueprint v2 preferred WordPress version "6.9" does not satisfy constraints'
+			'Blueprint v2 preferred WordPress version "6.8.4" is not available.'
 		);
+	});
+
+	it('rejects preferred WordPress versions outside constraints', async () => {
+		for (const siteMode of [
+			'create-new-site',
+			'apply-to-existing-site',
+		] as const) {
+			await expect(
+				resolveRuntimeConfiguration(
+					{
+						version: 2,
+						wordpressVersion: {
+							min: '6.8',
+							max: '6.8',
+							preferred: '6.9',
+						},
+					},
+					{ siteMode }
+				)
+			).rejects.toThrow(
+				'Blueprint v2 preferred WordPress version "6.9" does not satisfy constraints'
+			);
+		}
+		expect(
+			wordpressMocks.getWordPressStableVersions
+		).not.toHaveBeenCalled();
 	});
 
 	it('rejects unsatisfied WordPress version constraints', async () => {
@@ -292,6 +486,18 @@ describe('Blueprint v2 runtime configuration', () => {
 			})
 		).rejects.toThrow(
 			'Unsatisfiable Blueprint v2 WordPress version constraints {"min":"6.9","max":"6.8"}.'
+		);
+
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8.2',
+					max: '6.8.4',
+				},
+			})
+		).rejects.toThrow(
+			'No available WordPress release satisfies the declared bounds.'
 		);
 	});
 
@@ -361,6 +567,68 @@ describe('Blueprint v2 runtime configuration', () => {
 		).rejects.toThrow(
 			'Unsupported Blueprint v2 WordPress version "not-a-version".'
 		);
+	});
+
+	it('accepts installed WordPress patches within a branch constraint', async () => {
+		await expect(
+			assertBlueprintV2WordPressVersionCompatibility(
+				{
+					version: 2,
+					wordpressVersion: {
+						min: '6.8',
+						max: '6.8',
+						preferred: '6.8.1',
+					},
+				},
+				'6.8.5'
+			)
+		).resolves.toBeUndefined();
+	});
+
+	it('rejects installed WordPress patches above an exact maximum', async () => {
+		await expect(
+			assertBlueprintV2WordPressVersionCompatibility(
+				{
+					version: 2,
+					wordpressVersion: {
+						min: '6.8',
+						max: '6.8.1',
+					},
+				},
+				'6.8.5'
+			)
+		).rejects.toThrow(
+			'Installed WordPress version "6.8.5" does not satisfy Blueprint v2 wordpressVersion'
+		);
+	});
+
+	it('rejects installed WordPress versions below the minimum', async () => {
+		await expect(
+			assertBlueprintV2WordPressVersionCompatibility(
+				{
+					version: 2,
+					wordpressVersion: { min: '6.8' },
+				},
+				'6.7.5'
+			)
+		).rejects.toThrow(
+			'Installed WordPress version "6.7.5" does not satisfy Blueprint v2 wordpressVersion'
+		);
+	});
+
+	it('treats shorthand WordPress versions as new-site selection hints', async () => {
+		for (const wordpressVersion of [
+			undefined,
+			'latest',
+			'6.8.1',
+		] as const) {
+			await expect(
+				assertBlueprintV2WordPressVersionCompatibility(
+					{ version: 2, wordpressVersion },
+					'6.7.5'
+				)
+			).resolves.toBeUndefined();
+		}
 	});
 });
 

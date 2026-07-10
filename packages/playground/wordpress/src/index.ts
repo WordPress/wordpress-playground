@@ -27,6 +27,7 @@ export type {
 } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
+export { getWordPressStableVersions } from './wordpress-releases';
 
 export * from './version-detect';
 export * from './rewrite-rules';
