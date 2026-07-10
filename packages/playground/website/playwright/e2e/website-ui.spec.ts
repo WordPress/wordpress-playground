@@ -353,6 +353,9 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 
 	// Navigate to Blueprint tab
 	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await expect(
+		website.page.getByRole('button', { name: 'Upload files' })
+	).toBeVisible();
 
 	// Create a simple blueprint that writes "Blueprint test" to index.php
 	const blueprint: Blueprint = {

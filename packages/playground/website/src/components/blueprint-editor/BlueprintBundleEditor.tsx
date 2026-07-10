@@ -25,8 +25,11 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import { CodeEditor, type CodeEditorHandle } from '@wp-playground/components';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
+import {
+	CodeEditor,
+	FileExplorerSidebar,
+	type CodeEditorHandle,
+} from '@wp-playground/components';
 import {
 	formatEditor,
 	getStringNodeAtPosition,
@@ -284,7 +287,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
-	const [treeFocusPath, setTreeFocusPath] = useState<string | null>(null);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -369,7 +371,6 @@ export const BlueprintBundleEditor = forwardRef<
 				setSaveError(null);
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
-				setTreeFocusPath(BLUEPRINT_JSON_PATH);
 			} catch (error) {
 				logger.error('Could not open blueprint.json', error);
 			}
@@ -489,7 +490,6 @@ export const BlueprintBundleEditor = forwardRef<
 			setMessageContent(null);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(path);
 
 			if (shouldFocus) {
 				setTimeout(() => editorRef.current?.focus(), 20);
@@ -504,7 +504,6 @@ export const BlueprintBundleEditor = forwardRef<
 		setMessageContent(null);
 		setDisplayPath(null);
 		setSaveError(null);
-		setTreeFocusPath(null);
 	}, []);
 
 	// Open the string editor modal for the string at the current cursor position
@@ -585,7 +584,6 @@ export const BlueprintBundleEditor = forwardRef<
 
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(null);
 		},
 		[]
 	);
@@ -719,7 +717,6 @@ export const BlueprintBundleEditor = forwardRef<
 							currentPath={currentPath}
 							selectedDirPath={selectedDirPath}
 							setSelectedDirPath={setSelectedDirPath}
-							focusPath={treeFocusPath}
 							onFileOpened={handleFileOpened}
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
