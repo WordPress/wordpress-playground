@@ -1,5 +1,9 @@
 import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
-import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
+import {
+	FSHelpers,
+	MountStillActiveError,
+	__private__dont__use,
+} from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
@@ -38,7 +42,19 @@ export interface MountOptions {
 	onMount?: (mount: DirectoryHandleMount) => void;
 }
 export interface DirectoryHandleMount {
+	/**
+	 * Replays captured MEMFS changes into OPFS until the journal settles.
+	 *
+	 * Event capture remains active. If applying a normalized operation fails,
+	 * that operation and its unattempted suffix remain queued for retry.
+	 */
 	flush(): Promise<void>;
+	/**
+	 * Flushes all captured changes and detaches after a successful drain.
+	 *
+	 * If draining fails, rejects with `MountStillActiveError` without
+	 * detaching, so callers can retry the same mount.
+	 */
 	unmount(): Promise<void>;
 }
 export type SyncProgress = {
@@ -59,6 +75,15 @@ interface JournalFSEventsToOpfsOptions {
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 
+/**
+ * Creates a PHP mount handler backed by an OPFS directory.
+ *
+ * During MEMFS-to-OPFS setup, journaling starts before the initial copy so
+ * writes made during setup are captured. If copying or reporting its progress
+ * fails, it discards the incomplete mount without replacing the original
+ * setup error. Successful mounts use the retryable final-flush contract of
+ * `DirectoryHandleMount`.
+ */
 export function createDirectoryHandleMountHandler(
 	handle: FileSystemDirectoryHandle,
 	options: MountOptions = { initialSync: {} }
@@ -110,7 +135,8 @@ export function createDirectoryHandleMountHandler(
 					});
 				});
 			} catch (error) {
-				await mount.unmount();
+				// Setup never completed, so there is no valid mount to keep retryable.
+				await mount.discard();
 				throw error;
 			}
 			return mount.unmount;
@@ -343,12 +369,21 @@ async function overwriteOpfsFile(
 	}
 }
 
+/**
+ * Mirrors MEMFS changes below a mount point to an OPFS directory.
+ *
+ * The returned `flush()` persists changes without detaching. `unmount()` drains
+ * the journal and detaches only after a successful drain. `discard()` stops
+ * capture without starting a final flush, then waits for any flush already in
+ * flight. `unmount()` uses it after a successful drain; failed initial setup
+ * uses it to abandon an incomplete mount.
+ */
 export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
 	options: JournalFSEventsToOpfsOptions = {}
-): DirectoryHandleMount {
+) {
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
@@ -356,6 +391,11 @@ export function journalFSEventsToOpfs(
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 	let flushPromise: Promise<void> | undefined;
 
+	/**
+	 * Drains the journal without detaching its listeners.
+	 *
+	 * Concurrent callers share the same in-flight promise.
+	 */
 	function flush() {
 		if (flushPromise === undefined) {
 			flushPromise = flushJournal().finally(() => {
@@ -365,13 +405,47 @@ export function journalFSEventsToOpfs(
 		return flushPromise;
 	}
 
+	/**
+	 * Drains the journal and detaches its listeners as one commit boundary.
+	 *
+	 * A failed drain leaves the journal attached and throws
+	 * `MountStillActiveError`, allowing the same mount to be retried.
+	 */
 	async function unmount() {
 		try {
-			await flush();
-		} finally {
-			unbindJournal();
-			php.removeEventListener('request.end', flushInBackground);
-			php.removeEventListener('filesystem.write', flushInBackground);
+			while (true) {
+				await flush();
+				if (journal.length === 0) {
+					// discard() removes the listeners synchronously before its first
+					// await, so nothing can be captured after this empty check.
+					await discard();
+					return;
+				}
+			}
+		} catch (error) {
+			throw new MountStillActiveError(error);
+		}
+	}
+
+	/**
+	 * Stops capturing changes without starting another flush.
+	 *
+	 * An in-flight flush may continue processing queued entries. Use this only
+	 * after `unmount()` has observed an empty journal or while rolling back failed
+	 * setup. It waits for that flush, but logs its failure so the setup error
+	 * remains the one returned to the caller.
+	 */
+	async function discard() {
+		const inFlightFlush = flushPromise;
+		unbindJournal();
+		php.removeEventListener('request.end', flushInBackground);
+		php.removeEventListener('filesystem.write', flushInBackground);
+		try {
+			await inFlightFlush;
+		} catch (error) {
+			// Setup rollback must finish outstanding writes, but its original copy
+			// error remains the useful failure for the caller.
+			logger.error('OPFS flush failed while discarding a mount', error);
 		}
 	}
 
@@ -399,6 +473,13 @@ export function journalFSEventsToOpfs(
 		}
 	}
 
+	/**
+	 * Replays one normalized journal batch while holding PHP's execution semaphore.
+	 *
+	 * If replay fails, restores the failed operation and its unattempted suffix
+	 * ahead of events captured during replay. Completed operations are not
+	 * retried because moves and deletes are not generally safe to apply twice.
+	 */
 	async function flushJournalOnce() {
 		if (journal.length === 0) {
 			return;
@@ -406,25 +487,25 @@ export function journalFSEventsToOpfs(
 
 		const release = await php.semaphore.acquire();
 
-		// Concurrency safety note
-		// As I understand it, journal is specific to a PHP instance,
-		// so it's not possible to have concurrency push of entries to journal
-		// But this can change in future so it doesn't hurt to read from journal
-		// in a concurrent safe way, which is what we are doing here.
-
-		// We first copy it to a new array
+		// Remove exactly this snapshot. Filesystem hooks may append entries while
+		// this batch awaits OPFS, and those newer entries must remain in the journal.
 		const journalEntries = [...journal];
-		// and then only delete however many entries we were able to grab
-		// since with concurrent writes there could have been more insertions
 		journal.splice(0, journalEntries.length);
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
+		let processedEntryCount = 0;
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
 			for (const entry of compressedJournal) {
 				await rewriter.processEntry(entry);
+				processedEntryCount++;
 			}
+		} catch (error) {
+			// Put the failed operation and unattempted remainder back ahead of
+			// events captured while this batch was replaying.
+			journal.unshift(...compressedJournal.slice(processedEntryCount));
+			throw error;
 		} finally {
 			release();
 		}
@@ -435,6 +516,7 @@ export function journalFSEventsToOpfs(
 	return {
 		flush,
 		unmount,
+		discard,
 	};
 }
 
@@ -455,6 +537,12 @@ class OpfsRewriter {
 		return normalizeMemfsPath(path.substring(this.memfsRoot.length));
 	}
 
+	/**
+	 * Applies one normalized MEMFS journal operation to OPFS.
+	 *
+	 * Destructive steps tolerate an already-missing source because a previous
+	 * attempt may mutate OPFS before reporting failure and then be retried.
+	 */
 	public async processEntry(entry: JournalEntry) {
 		if (
 			!entry.path.startsWith(this.memfsRoot) ||
@@ -519,10 +607,18 @@ class OpfsRewriter {
 						opfsDir,
 						entry.toPath
 					);
-					// Then delete the old directory
-					await opfsParent.removeEntry(name, {
-						recursive: true,
-					});
+					// Then delete the old directory. A retry may observe that a
+					// previous attempt removed it before reporting an error.
+					try {
+						await opfsParent.removeEntry(name, {
+							recursive: true,
+						});
+					} catch (error) {
+						if ((error as DOMException).name !== 'NotFoundError') {
+							throw error;
+						}
+						// A previous attempt already completed the removal.
+					}
 				} else {
 					/**
 					 * Delete the old file and creating a new one.

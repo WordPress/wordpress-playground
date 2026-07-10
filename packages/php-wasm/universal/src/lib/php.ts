@@ -48,6 +48,23 @@ export class PHPExecutionFailureError extends Error {
 }
 
 export type UnmountFunction = (() => Promise<any>) | (() => any);
+
+/**
+ * Signals that an unmount failed before the mount was detached.
+ *
+ * Only this error guarantees that the mount remains active and its teardown can
+ * be retried, so registries may retain it. `cause` is the underlying failure that
+ * prevented the unmount. Ordinary unmount errors make no such guarantee.
+ */
+export class MountStillActiveError extends Error {
+	constructor(cause: unknown) {
+		super('The filesystem could not be flushed and remains mounted.', {
+			cause,
+		});
+		this.name = 'MountStillActiveError';
+	}
+}
+
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
@@ -1533,6 +1550,10 @@ export class PHP implements Disposable {
 	/**
 	 * Mounts a filesystem to a given path in the PHP filesystem.
 	 *
+	 * The returned unmount function removes the mount from runtime-rotation
+	 * tracking on success or ordinary failure. `MountStillActiveError` leaves it
+	 * tracked because the handler guarantees the mount remains live and retryable.
+	 *
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 * @param  mountHandler - The mount handler to use.
 	 * @return Unmount function to unmount the filesystem.
@@ -1551,13 +1572,17 @@ export class PHP implements Disposable {
 			unmount: async () => {
 				try {
 					await unmountCallback();
-				} finally {
-					// JS mount tracking is authoritative. Even if the
-					// underlying filesystem unmount fails, forget this entry
-					// so later runtime swaps and remounts cannot reuse a stale
-					// mount handler.
+				} catch (error) {
+					if (error instanceof MountStillActiveError) {
+						throw error;
+					}
+					// Unless the callback guarantees that the mount remains live,
+					// retaining it could retry stale teardown state during a later
+					// runtime swap.
 					delete this.#mounts[virtualFSPath];
+					throw error;
 				}
+				delete this.#mounts[virtualFSPath];
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
