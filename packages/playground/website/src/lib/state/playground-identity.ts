@@ -5,7 +5,7 @@ import type { QueryAPIParams } from './url/router';
 // Query API params that do not affect Playground setup must be named here.
 // This makes typechecking fail when a new query param is added without
 // classifying it as either setup-affecting or setup-irrelevant.
-type NonSetupQueryParam = 'page-title';
+type NonSetupQueryParam = 'filebrowser' | 'page-title';
 type SetupQueryParam = Exclude<keyof QueryAPIParams, NonSetupQueryParam>;
 
 const SETUP_QUERY_PARAM_KEYS = Object.keys({
@@ -72,10 +72,7 @@ export function getSetupUrlFromUrl(url: URL) {
  * Playground must start from the saved setup params instead of the current
  * browser URL so Blueprint, plugin, theme, and other setup params are retained.
  */
-export function getSetupUrlFromSite(
-	site: SiteInfo,
-	baseUrl: string | URL
-) {
+export function getSetupUrlFromSite(site: SiteInfo, baseUrl: string | URL) {
 	if (!site.originalUrlParams) {
 		return getSetupUrlFromUrl(new URL(baseUrl));
 	}

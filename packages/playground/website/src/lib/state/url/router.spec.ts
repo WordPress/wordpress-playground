@@ -291,6 +291,9 @@ describe('PlaygroundRoute.site', () => {
 			'wp-content/plugins/foo/index.php'
 		);
 		expect(nextUrl.hash).toBe('');
+	});
+});
+
 describe('PlaygroundRoute site creation routes', () => {
 	it('marks new temporary site URLs with storage=temp', () => {
 		const url = PlaygroundRoute.newTemporarySite(

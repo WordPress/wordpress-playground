@@ -1,6 +1,5 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
-import { joinPaths } from '@php-wasm/util';
-import { test, expect, type Page } from '../playground-fixtures';
+import { test, expect } from '../playground-fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
@@ -16,13 +15,12 @@ const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
 ).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
-const fileBrowserTestDir = 'wp-content/plugins/filebrowser-query-test';
-const fileBrowserTestPath = joinPaths(fileBrowserTestDir, 'index.php');
-const fileBrowserTestAbsoluteDir = joinPaths('/wordpress', fileBrowserTestDir);
-const fileBrowserTestAbsolutePath = joinPaths(
-	'/wordpress',
-	fileBrowserTestPath
-);
+const fileBrowserTestPath =
+	'wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestAbsoluteDir =
+	'/wordpress/wp-content/plugins/filebrowser-query-test';
+const fileBrowserTestAbsolutePath =
+	'/wordpress/wp-content/plugins/filebrowser-query-test/index.php';
 const fileBrowserTestContent = `<?php
 echo 'filebrowser query api';
 echo 'before requested line';
@@ -204,9 +202,9 @@ test('should load WordPress latest by default', async ({
 		parseFloat(LatestSupportedWordPressVersion)
 			.toString()
 			.replace('.', '-');
-	await expect(wordpress.locator(`body.${expectedBranchClass}`)).toContainText(
-		'Dashboard'
-	);
+	await expect(
+		wordpress.locator(`body.${expectedBranchClass}`)
+	).toContainText('Dashboard');
 });
 
 test('should load WordPress 6.3 when requested', async ({
