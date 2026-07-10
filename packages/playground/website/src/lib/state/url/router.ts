@@ -27,6 +27,7 @@ export interface QueryAPIParams {
 	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
+	filebrowser?: string;
 }
 
 /**
@@ -101,7 +102,7 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const baseParams = new URL(baseUrl).searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
@@ -112,6 +113,7 @@ export class PlaygroundRoute {
 				'multisite',
 				'url',
 				'page-title',
+				'filebrowser',
 				'mcp',
 				'mcp-port',
 				'can-save',

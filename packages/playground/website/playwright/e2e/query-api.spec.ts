@@ -15,6 +15,43 @@ const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
 ).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
+const fileBrowserTestPath =
+	'wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestAbsoluteDir =
+	'/wordpress/wp-content/plugins/filebrowser-query-test';
+const fileBrowserTestAbsolutePath =
+	'/wordpress/wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestContent = `<?php
+echo 'filebrowser query api';
+echo 'before requested line';
+echo 'filebrowser active line';
+echo 'after requested line';
+`;
+
+function getFileBrowserBlueprintHash(data = fileBrowserTestContent) {
+	return encodeURIComponent(
+		JSON.stringify({
+			steps: [
+				{
+					step: 'mkdir',
+					path: fileBrowserTestAbsoluteDir,
+				},
+				{
+					step: 'writeFile',
+					path: fileBrowserTestAbsolutePath,
+					data,
+				},
+			],
+		})
+	);
+}
+
+function getFileBrowserQueryUrl(value: string, blueprintHash?: string) {
+	const query = new URLSearchParams();
+	query.set('filebrowser', value);
+	return `./?${query.toString()}${blueprintHash ? `#${blueprintHash}` : ''}`;
+}
+
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
 	await website.goto('./?storage=temp&url=/phpinfo.php');
@@ -165,9 +202,9 @@ test('should load WordPress latest by default', async ({
 		parseFloat(LatestSupportedWordPressVersion)
 			.toString()
 			.replace('.', '-');
-	await expect(wordpress.locator(`body.${expectedBranchClass}`)).toContainText(
-		'Dashboard'
-	);
+	await expect(
+		wordpress.locator(`body.${expectedBranchClass}`)
+	).toContainText('Dashboard');
 });
 
 test('should load WordPress 6.3 when requested', async ({
@@ -201,6 +238,105 @@ test('should enable networking when requested', async ({
 	);
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
+
+test('should open the File Browser tab when requested', async ({ website }) => {
+	await website.goto('./?filebrowser');
+
+	await expect(
+		website.page.locator('section[class*="site-info-panel"]')
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('tab', { name: /File browser/i })
+	).toHaveAttribute('aria-selected', 'true');
+});
+
+test('should open a file from the filebrowser query parameter', async ({
+	website,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			fileBrowserTestPath,
+			getFileBrowserBlueprintHash()
+		)
+	);
+
+	await expect(
+		website.page.locator('[class*="file-browser"] .cm-editor')
+	).toBeVisible();
+	await expect(
+		website.page.locator('[class*="file-browser"] .cm-content')
+	).toContainText('filebrowser query api');
+	await expect(
+		website.page
+			.locator('[class*="editorPath"]')
+			.filter({ hasText: fileBrowserTestAbsolutePath })
+	).toBeVisible();
+	await expect(
+		website.page
+			.locator(`button[data-path="${fileBrowserTestAbsolutePath}"]`)
+			.first()
+	).toHaveClass(/_selected_/);
+});
+
+test('should activate the requested filebrowser line', async ({ website }) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			`${fileBrowserTestPath}:4`,
+			getFileBrowserBlueprintHash()
+		)
+	);
+
+	await expect
+		.poll(async () => getCodeMirrorSelectionLineText(website.page))
+		.toContain('filebrowser active line');
+});
+
+test('should show a notice for a missing filebrowser target', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			'wp-content/plugins/filebrowser-query-test/missing.php'
+		)
+	);
+
+	await expect(
+		website.page.getByRole('tab', { name: /File browser/i })
+	).toHaveAttribute('aria-selected', 'true');
+	await expect(
+		website.page
+			.locator('.components-notice__content')
+			.filter({ hasText: /Could not open .*missing\.php/ })
+	).toBeVisible();
+	await expect(wordpress.locator('body')).not.toBeEmpty();
+});
+
+async function getCodeMirrorSelectionLineText(page: Page) {
+	return page
+		.locator('[class*="file-browser"] .cm-content')
+		.evaluate((content) => {
+			const selection = content.ownerDocument.getSelection();
+			if (
+				!selection?.anchorNode ||
+				!content.contains(selection.anchorNode)
+			) {
+				return '';
+			}
+
+			let current: Node | null = selection.anchorNode;
+			while (current && current !== content) {
+				if (
+					current instanceof HTMLElement &&
+					current.classList.contains('cm-line')
+				) {
+					return current.textContent ?? '';
+				}
+				current = current.parentNode;
+			}
+			return '';
+		});
+}
 
 test('should install the specified plugin', async ({ website, wordpress }) => {
 	await website.goto(

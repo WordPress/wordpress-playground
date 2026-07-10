@@ -24,6 +24,8 @@ export type PlaygroundFileEditorProps = {
 	isVisible?: boolean;
 	documentRoot: string;
 	initialPath?: string | null;
+	initialLine?: number | null;
+	initialNotice?: string | JSX.Element | null;
 	placeholderText?: string;
 	onSaveFile?: (path: string, content: string) => Promise<void>;
 	/**
@@ -45,6 +47,8 @@ export function PlaygroundFileEditor({
 	isVisible = true,
 	documentRoot,
 	initialPath = null,
+	initialLine = null,
+	initialNotice = null,
 	placeholderText = 'Select a file to view or edit its contents.',
 	onSaveFile,
 	onBeforeFilesystemChange,
@@ -62,6 +66,11 @@ export function PlaygroundFileEditor({
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
+	const [editorNotice, setEditorNotice] = useState<
+		string | JSX.Element | null
+	>(null);
+	const [pendingInitialCursorPosition, setPendingInitialCursorPosition] =
+		useState<number | null>(null);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const saveTimeoutRef = useRef<number | null>(null);
@@ -84,6 +93,22 @@ export function PlaygroundFileEditor({
 	useEffect(() => {
 		filesystemRef.current = filesystem;
 	}, [filesystem]);
+
+	const showInitialPathNotice = useCallback(
+		(notice: string | JSX.Element) => {
+			skipNextSaveRef.current = true;
+			setCurrentPath(null);
+			setCode('');
+			setMessageContent(null);
+			setReadOnly(true);
+			setSaveState(SaveState.IDLE);
+			setSaveError(null);
+			setEditorNotice(notice);
+			setPendingInitialCursorPosition(null);
+			setShowExplorerOnMobile(false);
+		},
+		[]
+	);
 
 	// Call onBeforeFilesystemChange when filesystem changes
 	useEffect(() => {
@@ -108,43 +133,81 @@ export function PlaygroundFileEditor({
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 			setMessageContent(null);
+			setEditorNotice(null);
+			setPendingInitialCursorPosition(null);
 			hasAutoOpenedRef.current = false;
 		}
 	}, [filesystem]);
 
 	// Auto-open initialPath when filesystem becomes available
 	useEffect(() => {
-		if (!filesystem || !initialPath || hasAutoOpenedRef.current) {
+		if (!filesystem || hasAutoOpenedRef.current) {
+			return;
+		}
+
+		if (!initialPath) {
+			if (initialNotice) {
+				setEditorNotice(initialNotice);
+			}
+			hasAutoOpenedRef.current = true;
 			return;
 		}
 
 		const tryAutoOpen = async () => {
 			try {
 				const exists = await filesystem.fileExists(initialPath);
-				if (exists) {
-					const content =
-						await filesystem.readFileAsText(initialPath);
-					skipNextSaveRef.current = true;
-					setCurrentPath(initialPath);
-					setCode(content);
-					setReadOnly(false);
-					setSaveState(SaveState.IDLE);
-					setSaveError(null);
-					// Focus the editor after opening
-					setTimeout(() => {
-						editorRef.current?.focus();
-					}, 100);
+				if (!exists) {
+					showInitialPathNotice(
+						`Could not open ${initialPath}. The file does not exist.`
+					);
+					return;
 				}
+
+				const content = await filesystem.readFileAsText(initialPath);
+				const lineOffset = initialLine
+					? getLineStartOffset(content, initialLine)
+					: null;
+				skipNextSaveRef.current = true;
+				setCurrentPath(initialPath);
+				setCode(content);
+				setMessageContent(null);
+				setReadOnly(false);
+				setSaveState(SaveState.IDLE);
+				setSaveError(null);
+				if (initialLine && lineOffset === null) {
+					const lineCount = getLineCount(content);
+					setEditorNotice(
+						`Line ${initialLine} is outside this file. The file has ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}.`
+					);
+				} else {
+					setEditorNotice(null);
+				}
+				setPendingInitialCursorPosition(lineOffset);
+
+				// Focus the editor after opening
+				setTimeout(() => {
+					if (lineOffset === null) {
+						editorRef.current?.focus();
+					}
+				}, 100);
 			} catch (error) {
-				// Silently fail - file may not exist or may not be readable
 				logger.debug('Could not auto-open initial path:', error);
+				showInitialPathNotice(
+					`Could not open ${initialPath}. The file could not be read.`
+				);
 			} finally {
 				hasAutoOpenedRef.current = true;
 			}
 		};
 
 		void tryAutoOpen();
-	}, [filesystem, initialPath]);
+	}, [
+		filesystem,
+		initialPath,
+		initialLine,
+		initialNotice,
+		showInitialPathNotice,
+	]);
 
 	// Reset when documentRoot changes
 	useEffect(() => {
@@ -156,6 +219,8 @@ export function PlaygroundFileEditor({
 		setSaveError(null);
 		skipNextSaveRef.current = true;
 		setMessageContent(null);
+		setEditorNotice(null);
+		setPendingInitialCursorPosition(null);
 		hasAutoOpenedRef.current = false;
 	}, [documentRoot]);
 
@@ -255,6 +320,8 @@ export function PlaygroundFileEditor({
 			setReadOnly(false);
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
+			setEditorNotice(null);
+			setPendingInitialCursorPosition(null);
 			setShowExplorerOnMobile(false);
 
 			// Restore cursor position for this file if we have one saved
@@ -272,6 +339,10 @@ export function PlaygroundFileEditor({
 		},
 		[]
 	);
+
+	const handleInitialCursorPositionApplied = useCallback(() => {
+		setPendingInitialCursorPosition(null);
+	}, []);
 
 	// Periodically save cursor position while editing
 	useEffect(() => {
@@ -337,6 +408,8 @@ export function PlaygroundFileEditor({
 		setReadOnly(true);
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
+		setEditorNotice(null);
+		setPendingInitialCursorPosition(null);
 	}, []);
 
 	const handleShowMessage = useCallback(
@@ -357,6 +430,8 @@ export function PlaygroundFileEditor({
 			setReadOnly(true);
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
+			setEditorNotice(null);
+			setPendingInitialCursorPosition(null);
 			setShowExplorerOnMobile(false);
 		},
 		[]
@@ -467,6 +542,13 @@ export function PlaygroundFileEditor({
 							</Notice>
 						</div>
 					) : null}
+					{editorNotice ? (
+						<div style={{ padding: '8px 16px' }}>
+							<Notice status="warning" isDismissible={false}>
+								{editorNotice}
+							</Notice>
+						</div>
+					) : null}
 					{currentPath || code || messageContent ? (
 						messageContent ? (
 							<div className={styles['messageArea']}>
@@ -481,6 +563,10 @@ export function PlaygroundFileEditor({
 								className={styles['editor']}
 								onSaveShortcut={handleManualSave}
 								readOnly={readOnly}
+								cursorPosition={pendingInitialCursorPosition}
+								onCursorPositionApplied={
+									handleInitialCursorPositionApplied
+								}
 							/>
 						)
 					) : (
@@ -522,4 +608,36 @@ function getSaveStatusClassName(
 		default:
 			return undefined;
 	}
+}
+
+function getLineStartOffset(content: string, lineNumber: number) {
+	if (lineNumber < 1) {
+		return null;
+	}
+	if (lineNumber === 1) {
+		return 0;
+	}
+
+	let currentLine = 1;
+	for (let index = 0; index < content.length; index++) {
+		if (content[index] !== '\n') {
+			continue;
+		}
+		currentLine++;
+		if (currentLine === lineNumber) {
+			return index + 1;
+		}
+	}
+
+	return null;
+}
+
+function getLineCount(content: string) {
+	let lineCount = 1;
+	for (let index = 0; index < content.length; index++) {
+		if (content[index] === '\n') {
+			lineCount++;
+		}
+	}
+	return lineCount;
 }

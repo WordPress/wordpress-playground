@@ -1,10 +1,15 @@
+import { decodeBlueprintHash } from './decode-blueprint-hash';
+import type { SiteInfo } from '../redux/slice-sites';
+import {
+	parseFileBrowserQuery,
+	resolveFileBrowserPath,
+	shouldUseFileBrowserQuery,
+} from './filebrowser-query';
 import {
 	parseBlueprint,
 	PlaygroundRoute,
 	isSiteSavingDisabled,
 } from './router';
-import { decodeBlueprintHash } from './decode-blueprint-hash';
-import type { SiteInfo } from '../redux/slice-sites';
 
 const toBase64 = (s: string) =>
 	typeof btoa === 'function'
@@ -105,6 +110,187 @@ describe('parseBlueprint', () => {
 	it('hints at double-encoding when the input still contains %XX escapes', () => {
 		const halfDecoded = '{"landingPage"%3A"/"}';
 		expect(() => parseBlueprint(halfDecoded)).toThrow(/double-encoded/);
+	});
+});
+
+describe('parseFileBrowserQuery', () => {
+	it('parses a valueless filebrowser parameter', () => {
+		expect(
+			parseFileBrowserQuery(new URLSearchParams('filebrowser'))
+		).toEqual({
+			isRequested: true,
+			path: null,
+			line: null,
+			error: null,
+		});
+	});
+
+	it('parses a document-root-relative file path', () => {
+		expect(
+			parseFileBrowserQuery(
+				new URLSearchParams(
+					'filebrowser=wp-content/plugins/foo/index.php'
+				)
+			)
+		).toEqual({
+			isRequested: true,
+			path: 'wp-content/plugins/foo/index.php',
+			line: null,
+			error: null,
+		});
+	});
+
+	it('parses a document-root-relative file path with a line number', () => {
+		expect(
+			parseFileBrowserQuery(
+				new URLSearchParams(
+					'filebrowser=wp-content/plugins/foo/index.php:20'
+				)
+			)
+		).toEqual({
+			isRequested: true,
+			path: 'wp-content/plugins/foo/index.php',
+			line: 20,
+			error: null,
+		});
+	});
+
+	it('parses encoded paths and line numbers', () => {
+		expect(
+			parseFileBrowserQuery(
+				new URLSearchParams(
+					'filebrowser=wp-content%2Fplugins%2Ffoo%20bar%2Findex.php%3A20'
+				)
+			)
+		).toEqual({
+			isRequested: true,
+			path: 'wp-content/plugins/foo bar/index.php',
+			line: 20,
+			error: null,
+		});
+	});
+
+	it('normalizes safe relative path inputs', () => {
+		expect(
+			parseFileBrowserQuery(
+				new URLSearchParams(
+					'filebrowser=./wp-content/plugins/foo/../foo/index.php'
+				)
+			)
+		).toEqual({
+			isRequested: true,
+			path: 'wp-content/plugins/foo/index.php',
+			line: null,
+			error: null,
+		});
+	});
+
+	it('rejects traversal outside the document root', () => {
+		const parsed = parseFileBrowserQuery(
+			new URLSearchParams('filebrowser=wp-content/../../wp-config.php')
+		);
+
+		expect(parsed.isRequested).toBe(true);
+		expect(parsed.path).toBe(null);
+		expect(parsed.line).toBe(null);
+		expect(parsed.error).toContain(
+			'relative to the WordPress document root'
+		);
+	});
+
+	it('rejects absolute paths', () => {
+		const parsed = parseFileBrowserQuery(
+			new URLSearchParams('filebrowser=/wordpress/wp-config.php')
+		);
+
+		expect(parsed.isRequested).toBe(true);
+		expect(parsed.path).toBe(null);
+		expect(parsed.error).toContain(
+			'relative to the WordPress document root'
+		);
+	});
+
+	it('rejects missing paths with line suffixes', () => {
+		const parsed = parseFileBrowserQuery(
+			new URLSearchParams('filebrowser=:20')
+		);
+
+		expect(parsed.isRequested).toBe(true);
+		expect(parsed.path).toBe(null);
+		expect(parsed.line).toBe(null);
+		expect(parsed.error).toContain(
+			'relative to the WordPress document root'
+		);
+	});
+});
+
+describe('resolveFileBrowserPath', () => {
+	it('resolves parsed paths under the document root', () => {
+		expect(
+			resolveFileBrowserPath(
+				'/wordpress',
+				'wp-content/plugins/foo/index.php'
+			)
+		).toBe('/wordpress/wp-content/plugins/foo/index.php');
+	});
+});
+
+describe('shouldUseFileBrowserQuery', () => {
+	it('is true for normal UI requests', () => {
+		expect(
+			shouldUseFileBrowserQuery(new URLSearchParams('filebrowser'), false)
+		).toBe(true);
+	});
+
+	it('does not apply in seamless mode', () => {
+		expect(
+			shouldUseFileBrowserQuery(
+				new URLSearchParams('filebrowser&mode=seamless'),
+				false
+			)
+		).toBe(false);
+	});
+
+	it('does not apply in embedded iframe UI', () => {
+		expect(
+			shouldUseFileBrowserQuery(new URLSearchParams('filebrowser'), true)
+		).toBe(false);
+	});
+});
+
+describe('PlaygroundRoute.site', () => {
+	it('preserves filebrowser when routing to a saved site', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/?filebrowser=wp-content/plugins/foo/index.php'
+		);
+
+		expect(new URL(url).searchParams.get('filebrowser')).toBe(
+			'wp-content/plugins/foo/index.php'
+		);
+	});
+
+	it('preserves filebrowser without absorbing the URL hash', () => {
+		const url = PlaygroundRoute.site(
+			{
+				slug: 'saved-site',
+				metadata: {
+					storage: 'opfs',
+				},
+			} as unknown as SiteInfo,
+			'https://playground.test/?filebrowser=wp-content/plugins/foo/index.php#%7B%22steps%22%3A%5B%5D%7D'
+		);
+
+		const nextUrl = new URL(url);
+		expect(nextUrl.searchParams.get('filebrowser')).toBe(
+			'wp-content/plugins/foo/index.php'
+		);
+		expect(nextUrl.hash).toBe('');
 	});
 });
 

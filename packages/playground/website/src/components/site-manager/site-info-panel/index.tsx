@@ -29,6 +29,10 @@ import {
 	setSiteSlugToSave,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import {
+	parseFileBrowserQuery,
+	shouldUseFileBrowserQuery,
+} from '../../../lib/state/url/filebrowser-query';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
@@ -88,8 +92,17 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
+	const query = new URL(document.location.href).searchParams;
+	const useFileBrowserQuery = shouldUseFileBrowserQuery(
+		query,
+		window.self !== window.top
+	);
+	const fileBrowserQuery = parseFileBrowserQuery(query);
 	// Load the last active tab for this site
 	const [initialTabName] = useState(() => {
+		if (useFileBrowserQuery) {
+			return 'files';
+		}
 		const lastTab = getSiteLastTab(site.slug);
 		return lastTab || 'settings';
 	});
@@ -464,6 +477,11 @@ export function SiteInfoPanel({
 												site={site}
 												isVisible={tab.name === 'files'}
 												documentRoot={documentRoot}
+												fileBrowserQuery={
+													useFileBrowserQuery
+														? fileBrowserQuery
+														: null
+												}
 											/>
 										)}
 									</Suspense>

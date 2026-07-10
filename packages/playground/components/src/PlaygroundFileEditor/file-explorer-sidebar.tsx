@@ -1,4 +1,5 @@
 import React, {
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -14,7 +15,7 @@ import {
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { dirname, normalizePath } from '@php-wasm/util';
+import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	seemsLikeBinary,
@@ -71,6 +72,44 @@ export function FileExplorerSidebar({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
+
+	useEffect(() => {
+		if (!currentPath || !treeRef.current) {
+			return;
+		}
+
+		let cancelled = false;
+		const syncCurrentPathSelection = async () => {
+			const tree = treeRef.current;
+			if (!tree) {
+				return;
+			}
+			for (const path of getParentPathChain(currentPath, documentRoot)) {
+				if (cancelled) {
+					return;
+				}
+				await tree.refresh(path);
+			}
+			if (cancelled) {
+				return;
+			}
+			await tree.expandToPath(currentPath);
+			if (cancelled) {
+				return;
+			}
+			tree.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+			setLastSelectedPath(currentPath);
+		};
+
+		void syncCurrentPathSelection();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath, documentRoot]);
 
 	/**
 	 * Opens a selected file as editable text, binary preview, or too-large notice.
@@ -214,4 +253,25 @@ export function FileExplorerSidebar({
 			</div>
 		</div>
 	);
+}
+
+function getParentPathChain(path: string, root: string) {
+	const normalizedPath = normalizePath(path);
+	const normalizedRoot = normalizePath(root);
+	const parts = normalizedPath.split('/').filter(Boolean);
+	const isAbsolutePath = normalizedPath.startsWith('/');
+
+	return parts
+		.slice(0, -1)
+		.map((_, index) => {
+			const parentParts = parts.slice(0, index + 1);
+			return isAbsolutePath
+				? joinPaths('/', ...parentParts)
+				: joinPaths(...parentParts);
+		})
+		.filter(
+			(parentPath) =>
+				parentPath === normalizedRoot ||
+				parentPath.startsWith(`${normalizedRoot}/`)
+		);
 }
