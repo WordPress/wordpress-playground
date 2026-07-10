@@ -2,16 +2,26 @@ import { BlueprintReflection } from './reflection';
 import type { Blueprint, RuntimeConfiguration } from './types';
 import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
-import { resolveBlueprintV2RuntimeConfiguration } from './v2/resolve-runtime-configuration';
+import {
+	resolveBlueprintV2RuntimeConfiguration,
+	type BlueprintV2SiteMode,
+} from './v2/resolve-runtime-configuration';
+
+export type ResolveRuntimeConfigurationOptions = {
+	/** Determines whether WordPress is selected for download or checked in place. */
+	siteMode?: BlueprintV2SiteMode;
+};
 
 /**
  * Resolves the runtime settings required before executing a Blueprint.
  *
  * Blueprint v1 settings come from its compiled form. Blueprint v2 settings are
- * delegated to the v2 runtime configuration resolver.
+ * delegated to the v2 runtime configuration resolver. Existing-site mode
+ * validates WordPress constraints without selecting a release to download.
  */
 export async function resolveRuntimeConfiguration(
-	blueprint: Blueprint
+	blueprint: Blueprint,
+	options: ResolveRuntimeConfigurationOptions = {}
 ): Promise<RuntimeConfiguration> {
 	const reflection = await BlueprintReflection.create(blueprint);
 	if (reflection.getVersion() === 1) {
@@ -38,5 +48,8 @@ export async function resolveRuntimeConfiguration(
 		};
 	}
 
-	return resolveBlueprintV2RuntimeConfiguration(reflection.getDeclaration());
+	return resolveBlueprintV2RuntimeConfiguration(
+		reflection.getDeclaration(),
+		options.siteMode
+	);
 }

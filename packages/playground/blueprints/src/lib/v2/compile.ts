@@ -1,7 +1,10 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import { basename, joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
-import { resolveRuntimeConfiguration } from '../resolve-runtime-configuration';
+import {
+	resolveRuntimeConfiguration,
+	type ResolveRuntimeConfigurationOptions,
+} from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 import {
 	compileBlueprintV1,
@@ -198,7 +201,8 @@ export type CompiledBlueprintV2 = {
 export type CompileBlueprintV2Options = Pick<
 	CompileBlueprintV1Options,
 	'progress' | 'streamBundledFile'
->;
+> &
+	ResolveRuntimeConfigurationOptions;
 
 /**
  * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
@@ -213,7 +217,9 @@ export async function compileBlueprintV2(
 	declaration: BlueprintV2Declaration,
 	options: CompileBlueprintV2Options = {}
 ): Promise<CompiledBlueprintV2> {
-	const runtime = await resolveRuntimeConfiguration(declaration);
+	const runtime = await resolveRuntimeConfiguration(declaration, {
+		siteMode: options.siteMode,
+	});
 	const plan = createBlueprintV2ExecutionPlan(declaration);
 	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
 	const v1Blueprint = createV1BlueprintForLoweredV2Steps(

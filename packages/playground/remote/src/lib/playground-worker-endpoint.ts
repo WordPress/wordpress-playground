@@ -83,7 +83,7 @@ export type WorkerBootOptions = {
 	corsProxyUrl?: string;
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;
-	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
+	/** Blueprint v2 declaration used for worker-side execution or preflight checks. */
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.

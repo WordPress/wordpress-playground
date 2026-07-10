@@ -10,6 +10,7 @@ import type {
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import {
+	assertBlueprintV2WordPressVersionCompatibility,
 	BlueprintReflection,
 	compileBlueprintV2,
 	isBlueprintBundle,
@@ -66,16 +67,15 @@ export class BlueprintsV2Handler {
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		let wordPressZip: any = undefined;
-		const v1PhpOnlyMode = await v1BlueprintRequestsPhpOnlyMode(
-			this.args.blueprint
-		);
-		const wordpressInstallMode = resolveV2WordPressInstallMode(
-			this.args,
-			v1PhpOnlyMode
-		);
+		const wordpressInstallMode = await this.getWordPressInstallMode();
 		const effectiveBlueprint = await this.getEffectiveBlueprint();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			effectiveBlueprint.declaration
+			effectiveBlueprint.declaration,
+			{
+				siteMode: isV2ExistingSiteInstallMode(wordpressInstallMode)
+					? 'apply-to-existing-site'
+					: 'create-new-site',
+			}
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		if (wordpressInstallMode === 'download-and-install') {
@@ -109,6 +109,24 @@ export class BlueprintsV2Handler {
 			logger.debug(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
+		}
+
+		if (isV2ExistingSiteInstallMode(wordpressInstallMode)) {
+			const installedVersion = await playground.run({
+				code: `<?php
+					if (file_exists('/wordpress/wp-includes/version.php')) {
+						require '/wordpress/wp-includes/version.php';
+						echo $wp_version;
+					}
+				`,
+			});
+			const installedVersionString = installedVersion.text.trim();
+			if (installedVersionString) {
+				await assertBlueprintV2WordPressVersionCompatibility(
+					effectiveBlueprint.declaration,
+					installedVersionString
+				);
+			}
 		}
 
 		let sqliteIntegrationPluginZip;
@@ -167,8 +185,14 @@ export class BlueprintsV2Handler {
 		);
 
 		await playground.isConnected();
+		const wordpressInstallMode = await this.getWordPressInstallMode();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			(await this.getEffectiveBlueprint()).declaration
+			(await this.getEffectiveBlueprint()).declaration,
+			{
+				siteMode: isV2ExistingSiteInstallMode(wordpressInstallMode)
+					? 'apply-to-existing-site'
+					: 'create-new-site',
+			}
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
@@ -201,6 +225,7 @@ export class BlueprintsV2Handler {
 		const blueprint = await this.getEffectiveBlueprint(
 			additionalBlueprintSteps
 		);
+		const wordpressInstallMode = await this.getWordPressInstallMode();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -219,11 +244,24 @@ export class BlueprintsV2Handler {
 		const compiled = await compileBlueprintV2(blueprint.declaration, {
 			progress: tracker,
 			streamBundledFile: blueprint.streamBundledFile,
+			siteMode: isV2ExistingSiteInstallMode(wordpressInstallMode)
+				? 'apply-to-existing-site'
+				: 'create-new-site',
 		});
 		return {
 			...compiled,
 			declaration: blueprint.declaration,
 		};
+	}
+
+	/**
+	 * Resolves the worker install mode, including migrated v1 PHP-only sites.
+	 */
+	private async getWordPressInstallMode(): Promise<WordPressInstallMode> {
+		return resolveV2WordPressInstallMode(
+			this.args,
+			await v1BlueprintRequestsPhpOnlyMode(this.args.blueprint)
+		);
 	}
 
 	/**
@@ -315,6 +353,18 @@ function resolveV2WordPressInstallMode(
 			return 'download-and-install';
 	}
 	return args.wordpressInstallMode || 'download-and-install';
+}
+
+/**
+ * Indicates whether boot will reuse WordPress files supplied by the caller.
+ */
+function isV2ExistingSiteInstallMode(
+	wordpressInstallMode: WordPressInstallMode
+): boolean {
+	return (
+		wordpressInstallMode === 'install-from-existing-files' ||
+		wordpressInstallMode === 'install-from-existing-files-if-needed'
+	);
 }
 
 function assertCliSupportedPHPVersion(phpVersion: string) {

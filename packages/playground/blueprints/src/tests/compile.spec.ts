@@ -104,6 +104,25 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('compiles existing-site v2 constraints without selecting a download', async () => {
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				wordpressVersion: {
+					min: '6.8.2',
+					max: '6.8.4',
+				},
+			},
+			{ siteMode: 'apply-to-existing-site' }
+		);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.runtime.wpVersion).toBe('latest');
+	});
+
 	it('compiles Blueprint v2 declarations from raw JSON', async () => {
 		const compiled = await compileBlueprintForExecution(
 			JSON.stringify({

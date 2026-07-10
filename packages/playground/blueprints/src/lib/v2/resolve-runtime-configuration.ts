@@ -4,6 +4,10 @@ import {
 	type AllPHPVersion,
 } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getWordPressStableVersions,
+	resolveWordPressRelease,
+} from '@wp-playground/wordpress';
 import type { BlueprintDeclaration, RuntimeConfiguration } from '../types';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 
@@ -24,6 +28,11 @@ type V2WordPressVersionConstraint = {
 	max?: string;
 	preferred?: string;
 };
+type ComparableWordPressVersion = {
+	parts: [number, number, number, number, number];
+	patchSpecified: boolean;
+	suffix?: 'beta' | 'rc';
+};
 
 /**
  * Resolves the runtime settings required by a Blueprint v2 declaration.
@@ -31,23 +40,62 @@ type V2WordPressVersionConstraint = {
  * This module owns the v2 support boundary: unsupported declarations and
  * runtime sources are rejected here instead of falling back to v1 behavior.
  */
-export function resolveBlueprintV2RuntimeConfiguration(
-	declaration: BlueprintDeclaration
-): RuntimeConfiguration {
+export async function resolveBlueprintV2RuntimeConfiguration(
+	declaration: BlueprintDeclaration,
+	siteMode: BlueprintV2SiteMode = 'create-new-site'
+): Promise<RuntimeConfiguration> {
 	if (!isBlueprintV2Declaration(declaration)) {
 		throw new Error('Expected a Blueprint v2 declaration.');
 	}
 	const playgroundOptions =
 		declaration.applicationOptions?.['wordpress-playground'];
+	const wpVersion = await resolveV2WordPressVersion(
+		declaration,
+		siteMode === 'create-new-site'
+	);
 
 	return {
 		phpVersion: resolveV2PHPVersion(declaration),
-		wpVersion: resolveV2WordPressVersion(declaration),
+		wpVersion,
 		intl: false,
 		networking: playgroundOptions?.networkAccess ?? false,
 		constants: declaration.constants ?? {},
 		extraLibraries: [],
 	};
+}
+
+/** Describes whether Playground creates a site or applies to mounted files. */
+export type BlueprintV2SiteMode = 'create-new-site' | 'apply-to-existing-site';
+
+/**
+ * Verifies that an existing site satisfies its Blueprint v2 WordPress version.
+ *
+ * Only constraint objects restrict an existing site. Shorthand versions,
+ * including `latest` and concrete releases, are new-site selection hints.
+ * `preferred` is also a selection hint and does not narrow compatibility.
+ */
+export async function assertBlueprintV2WordPressVersionCompatibility(
+	declaration: BlueprintV2Declaration,
+	installedVersion: string
+): Promise<void> {
+	const wordpressVersion = declaration.wordpressVersion;
+	if (!isV2WordPressVersionConstraint(wordpressVersion)) {
+		return;
+	}
+
+	assertV2WordPressVersionConstraintSemantics(wordpressVersion);
+	if (
+		isV2WordPressVersionWithinConstraints(
+			installedVersion,
+			wordpressVersion
+		)
+	) {
+		return;
+	}
+	throwV2WordPressVersionCompatibilityError(
+		installedVersion,
+		wordpressVersion
+	);
 }
 
 /**
@@ -75,7 +123,23 @@ function resolveV2PHPVersion(
 
 	const recommendedVersion = getV2PHPConstraintRecommendedVersion(phpVersion);
 	if (recommendedVersion) {
-		return resolveV2PHPVersionString(recommendedVersion);
+		const resolvedRecommendedVersion =
+			resolveV2PHPVersionString(recommendedVersion);
+		if (
+			phpVersion &&
+			typeof phpVersion === 'object' &&
+			isV2PHPVersionWithinConstraints(
+				resolvedRecommendedVersion,
+				phpVersion
+			)
+		) {
+			return resolvedRecommendedVersion;
+		}
+		throw new Error(
+			`Blueprint v2 recommended PHP version ` +
+				`"${recommendedVersion}" does not satisfy constraints ` +
+				`${JSON.stringify(phpVersion)}.`
+		);
 	}
 
 	const constrainedVersion = resolveV2PHPConstraintVersion(phpVersion);
@@ -216,17 +280,24 @@ function parsePHPVersion(phpVersion: string): [number, number, number] {
  * Missing versions default to `latest`. Unsupported data references are
  * rejected instead of silently booting a different WordPress version.
  */
-function resolveV2WordPressVersion(
-	declaration: BlueprintV2Declaration
-): string {
+async function resolveV2WordPressVersion(
+	declaration: BlueprintV2Declaration,
+	selectAvailableRelease: boolean
+): Promise<string> {
 	const wordpressVersion = declaration.wordpressVersion;
 	if (typeof wordpressVersion === 'string') {
 		return resolveV2WordPressVersionString(wordpressVersion);
 	}
 
 	if (isV2WordPressVersionConstraint(wordpressVersion)) {
+		if (!selectAvailableRelease) {
+			assertV2WordPressVersionConstraintSemantics(wordpressVersion);
+			// Existing sites are checked against the bounds before WordPress boot.
+			// No concrete download is needed in apply-to-existing-site mode.
+			return 'latest';
+		}
 		const constrainedVersion =
-			resolveV2WordPressConstraintVersion(wordpressVersion);
+			await resolveV2WordPressConstraintVersion(wordpressVersion);
 		if (constrainedVersion) {
 			return constrainedVersion;
 		}
@@ -234,7 +305,7 @@ function resolveV2WordPressVersion(
 		throw new Error(
 			`Unsatisfiable Blueprint v2 WordPress version constraints ` +
 				`${JSON.stringify(wordpressVersion)}. ` +
-				'Use a max version greater than or equal to min.'
+				'No available WordPress release satisfies the declared bounds.'
 		);
 	}
 
@@ -294,16 +365,56 @@ function isV2WordPressVersionConstraint(
 }
 
 /**
- * Selects a requestable WordPress version from a Blueprint v2 constraint.
+ * Selects an available WordPress release from a Blueprint v2 constraint.
  *
- * An explicit concrete preferred version wins when it satisfies the bounds.
- * Otherwise, an unbounded constraint maps to `latest`, while a bounded
- * constraint maps to its maximum because the runtime cannot request a latest
- * release capped at a maximum version.
+ * Stable releases come from the official WordPress release catalog. A concrete
+ * preferred branch or release wins when available and compatible; otherwise the
+ * newest release satisfying the bounds is selected.
  */
-function resolveV2WordPressConstraintVersion(
+async function resolveV2WordPressConstraintVersion(
 	wordpressVersion: UnvalidatedV2WordPressVersionConstraint
-): string | undefined {
+): Promise<string | undefined> {
+	assertV2WordPressVersionConstraintSemantics(wordpressVersion);
+	const preferredVersion = wordpressVersion.preferred;
+	const availableVersions =
+		await getAvailableV2WordPressVersions(wordpressVersion);
+	if (preferredVersion && preferredVersion !== 'latest') {
+		const preferredVersions = availableVersions.filter((candidate) =>
+			doesV2WordPressVersionMatchExpression(candidate, preferredVersion)
+		);
+		if (preferredVersions.length === 0) {
+			throw new Error(
+				`Blueprint v2 preferred WordPress version ` +
+					`"${preferredVersion}" is not available.`
+			);
+		}
+		const compatiblePreferredVersion = preferredVersions.find((candidate) =>
+			isV2WordPressVersionWithinConstraints(candidate, wordpressVersion)
+		);
+		if (compatiblePreferredVersion) {
+			return compatiblePreferredVersion;
+		}
+		throw new Error(
+			`Blueprint v2 preferred WordPress version ` +
+				`"${preferredVersion}" does not satisfy constraints ` +
+				`${JSON.stringify(wordpressVersion)}.`
+		);
+	}
+
+	return availableVersions.find((candidate) =>
+		isV2WordPressVersionWithinConstraints(candidate, wordpressVersion)
+	);
+}
+
+/**
+ * Validates the shape and internal consistency of WordPress version bounds.
+ *
+ * This check does not consult the release catalog, so existing sites can be
+ * checked without requiring a downloadable release for the installed version.
+ */
+function assertV2WordPressVersionConstraintSemantics(
+	wordpressVersion: UnvalidatedV2WordPressVersionConstraint
+): asserts wordpressVersion is V2WordPressVersionConstraint {
 	assertV2WordPressVersionConstraint(wordpressVersion);
 	assertV2ComparableWordPressConstraintVersion(
 		'wordpressVersion.min',
@@ -318,32 +429,175 @@ function resolveV2WordPressConstraintVersion(
 
 	const preferredVersion = wordpressVersion.preferred;
 	if (preferredVersion && preferredVersion !== 'latest') {
-		const resolvedPreferredVersion =
-			resolveV2WordPressVersionString(preferredVersion);
+		assertV2ComparableWordPressConstraintVersion(
+			'wordpressVersion.preferred',
+			preferredVersion
+		);
 		if (
-			isV2WordPressVersionWithinConstraints(
-				resolvedPreferredVersion,
+			!doesV2WordPressVersionExpressionSatisfyConstraints(
+				preferredVersion,
 				wordpressVersion
 			)
 		) {
-			return resolvedPreferredVersion;
+			throw new Error(
+				`Blueprint v2 preferred WordPress version ` +
+					`"${preferredVersion}" does not satisfy constraints ` +
+					`${JSON.stringify(wordpressVersion)}.`
+			);
 		}
-
+	}
+	if (
+		!isV2WordPressVersionWithinConstraints(
+			wordpressVersion.min,
+			wordpressVersion
+		)
+	) {
 		throw new Error(
-			`Blueprint v2 preferred WordPress version ` +
-				`"${preferredVersion}" does not satisfy constraints ` +
-				`${JSON.stringify(wordpressVersion)}.`
+			`Unsatisfiable Blueprint v2 WordPress version constraints ` +
+				`${JSON.stringify(wordpressVersion)}. ` +
+				'The minimum version exceeds the maximum version.'
 		);
 	}
+}
 
-	if (!wordpressVersion.max) {
-		return 'latest';
+/**
+ * Returns comparable WordPress releases ordered from newest to oldest.
+ *
+ * The stable catalog is exhaustive. The current beta-channel offer is added
+ * only for constraints that mention a prerelease because historical
+ * prereleases are not part of the stable release catalog.
+ */
+async function getAvailableV2WordPressVersions(
+	constraints?: V2WordPressVersionConstraint
+): Promise<string[]> {
+	const versions = (await getWordPressStableVersions()).map(
+		normalizeV2AvailableWordPressVersion
+	);
+	if (
+		constraints &&
+		[constraints.min, constraints.max, constraints.preferred].some(
+			(version) =>
+				version &&
+				parseComparableWordPressVersion(version)?.suffix !== undefined
+		)
+	) {
+		const betaRelease = await resolveWordPressRelease('beta');
+		versions.push(betaRelease.version);
 	}
 
-	const maxVersion = resolveV2WordPressVersionString(wordpressVersion.max);
-	return isV2WordPressVersionWithinConstraints(maxVersion, wordpressVersion)
-		? maxVersion
-		: undefined;
+	return Array.from(new Set(versions))
+		.filter(isComparableWordPressVersion)
+		.sort((left, right) => compareWordPressVersions(right, left));
+}
+
+/**
+ * Preserves an initial stable release as an exact runtime request.
+ *
+ * WordPress catalogs call the first release in a branch `6.8`, while runtime
+ * consumers interpret `6.8` as the newest patch in that branch. The explicit
+ * `6.8.0` form keeps constraint selection from booting a newer patch instead.
+ */
+function normalizeV2AvailableWordPressVersion(
+	wordpressVersion: string
+): string {
+	return /^\d+\.\d+$/.test(wordpressVersion)
+		? `${wordpressVersion}.0`
+		: wordpressVersion;
+}
+
+/**
+ * Indicates whether a release matches an exact or branch-style expression.
+ *
+ * A stable expression without a patch, such as `6.8`, selects the newest stable
+ * release in that branch. Patch and prerelease expressions compare exactly.
+ */
+function doesV2WordPressVersionMatchExpression(
+	wordpressVersion: string,
+	expression: string
+): boolean {
+	const parsedVersion = parseComparableWordPressVersion(wordpressVersion);
+	const parsedExpression = parseComparableWordPressVersion(expression);
+	if (!parsedVersion || !parsedExpression) {
+		return false;
+	}
+	if (!parsedExpression.patchSpecified && !parsedExpression.suffix) {
+		return (
+			!parsedVersion.suffix &&
+			parsedVersion.parts[0] === parsedExpression.parts[0] &&
+			parsedVersion.parts[1] === parsedExpression.parts[1]
+		);
+	}
+	return compareWordPressVersions(wordpressVersion, expression) === 0;
+}
+
+/**
+ * Indicates whether a preferred exact release or branch intersects the bounds.
+ *
+ * A patchless stable expression such as `6.8` represents the entire stable
+ * branch, so it is valid when at least one theoretical `6.8.x` release could
+ * satisfy the constraint. Release availability is checked separately.
+ */
+function doesV2WordPressVersionExpressionSatisfyConstraints(
+	expression: string,
+	constraints: V2WordPressVersionConstraint
+): boolean {
+	const parsedExpression = parseComparableWordPressVersion(expression);
+	if (!parsedExpression) {
+		return false;
+	}
+	if (parsedExpression.patchSpecified || parsedExpression.suffix) {
+		return isV2WordPressVersionWithinConstraints(expression, constraints);
+	}
+
+	const parsedMin = parseComparableWordPressVersion(constraints.min)!;
+	const branch = parsedExpression.parts.slice(0, 2);
+	const minBranch = parsedMin.parts.slice(0, 2);
+	if (compareV2WordPressVersionBranches(branch, minBranch) < 0) {
+		return false;
+	}
+	if (!constraints.max) {
+		return true;
+	}
+
+	const parsedMax = parseComparableWordPressVersion(constraints.max)!;
+	const maxBranch = parsedMax.parts.slice(0, 2);
+	const maxBranchComparison = compareV2WordPressVersionBranches(
+		branch,
+		maxBranch
+	);
+	return (
+		maxBranchComparison < 0 ||
+		(maxBranchComparison === 0 && !parsedMax.suffix)
+	);
+}
+
+/**
+ * Compares WordPress major/minor branch identifiers.
+ */
+function compareV2WordPressVersionBranches(
+	left: number[],
+	right: number[]
+): number {
+	for (let i = 0; i < 2; i++) {
+		const difference = left[i] - right[i];
+		if (difference !== 0) {
+			return difference;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Throws the common existing-site compatibility diagnostic.
+ */
+function throwV2WordPressVersionCompatibilityError(
+	installedVersion: string,
+	requirement: V2WordPressVersionConstraint
+): never {
+	throw new Error(
+		`Installed WordPress version "${installedVersion}" does not satisfy ` +
+			`Blueprint v2 wordpressVersion ${JSON.stringify(requirement)}.`
+	);
 }
 
 /**
@@ -419,10 +673,9 @@ function isV2WordPressVersionWithinConstraints(
 	wordpressVersion: string,
 	constraints: V2WordPressVersionConstraint
 ): boolean {
-	if (
-		!isComparableWordPressVersion(wordpressVersion) ||
-		!isComparableWordPressVersion(constraints.min)
-	) {
+	const parsedVersion = parseComparableWordPressVersion(wordpressVersion);
+	const parsedMin = parseComparableWordPressVersion(constraints.min);
+	if (!parsedVersion || !parsedMin) {
 		return false;
 	}
 	if (compareWordPressVersions(wordpressVersion, constraints.min) < 0) {
@@ -431,10 +684,19 @@ function isV2WordPressVersionWithinConstraints(
 	if (!constraints.max) {
 		return true;
 	}
-	return (
-		isComparableWordPressVersion(constraints.max) &&
-		compareWordPressVersions(wordpressVersion, constraints.max) <= 0
-	);
+	const parsedMax = parseComparableWordPressVersion(constraints.max);
+	if (!parsedMax) {
+		return false;
+	}
+	if (
+		!parsedMax.patchSpecified &&
+		!parsedMax.suffix &&
+		parsedVersion.parts[0] === parsedMax.parts[0] &&
+		parsedVersion.parts[1] === parsedMax.parts[1]
+	) {
+		return true;
+	}
+	return compareWordPressVersions(wordpressVersion, constraints.max) <= 0;
 }
 
 /**
@@ -444,15 +706,15 @@ function isV2WordPressVersionWithinConstraints(
  * newer, and zero when both releases have equal precedence.
  */
 function compareWordPressVersions(left: string, right: string): number {
-	const leftParts = parseComparableWordPressVersion(left);
-	const rightParts = parseComparableWordPressVersion(right);
-	if (!leftParts || !rightParts) {
+	const leftVersion = parseComparableWordPressVersion(left);
+	const rightVersion = parseComparableWordPressVersion(right);
+	if (!leftVersion || !rightVersion) {
 		throw new Error(
 			`Cannot compare WordPress versions "${left}" and "${right}".`
 		);
 	}
-	for (let i = 0; i < leftParts.length; i++) {
-		const difference = leftParts[i] - rightParts[i];
+	for (let i = 0; i < leftVersion.parts.length; i++) {
+		const difference = leftVersion.parts[i] - rightVersion.parts[i];
 		if (difference !== 0) {
 			return difference;
 		}
@@ -472,26 +734,36 @@ function isComparableWordPressVersion(wordpressVersion: string): boolean {
  *
  * Missing patch numbers become zero, and suffix ranks preserve the WordPress
  * release order: beta before RC before the stable release. Runtime labels and
- * custom URLs are not comparable and return `null`.
+ * custom URLs are not comparable and return `null`. `patchSpecified` remains
+ * separate so a max bound such as `6.8` can include every `6.8.x` patch.
  */
 function parseComparableWordPressVersion(
 	wordpressVersion: string
-): [number, number, number, number, number] | null {
+): ComparableWordPressVersion | null {
 	const match = wordpressVersion.match(
 		/^(\d+)\.(\d+)(?:\.(\d+))?(?:-(beta|rc)(\d+))?$/i
 	);
 	if (!match) {
 		return null;
 	}
-	const [, major, minor, patch = '0', suffix, suffixVersion = '0'] = match;
-	const suffixRank = suffix ? (suffix.toLowerCase() === 'beta' ? 0 : 1) : 2;
-	return [
-		Number(major),
-		Number(minor),
-		Number(patch),
-		suffixRank,
-		Number(suffixVersion),
-	];
+	const [, major, minor, patch, suffix, suffixVersion = '0'] = match;
+	const normalizedSuffix = suffix?.toLowerCase() as 'beta' | 'rc' | undefined;
+	const suffixRank = normalizedSuffix
+		? normalizedSuffix === 'beta'
+			? 0
+			: 1
+		: 2;
+	return {
+		parts: [
+			Number(major),
+			Number(minor),
+			Number(patch ?? '0'),
+			suffixRank,
+			Number(suffixVersion),
+		],
+		patchSpecified: patch !== undefined,
+		suffix: normalizedSuffix,
+	};
 }
 
 /**

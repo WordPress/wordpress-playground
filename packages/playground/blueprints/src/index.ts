@@ -79,6 +79,9 @@ export {
 export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
+export type { ResolveRuntimeConfigurationOptions } from './lib/resolve-runtime-configuration';
+export { assertBlueprintV2WordPressVersionCompatibility } from './lib/v2/resolve-runtime-configuration';
+export type { BlueprintV2SiteMode } from './lib/v2/resolve-runtime-configuration';
 export { compileBlueprintForExecution } from './lib/compile';
 export type {
 	BlueprintExecutionPath,
