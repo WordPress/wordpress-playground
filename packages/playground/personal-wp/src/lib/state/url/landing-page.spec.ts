@@ -33,6 +33,15 @@ describe('getBrowserPathAsLandingPage', () => {
 		).toBeUndefined();
 	});
 
+	it('strips the retired Blueprint v2 opt-in from legacy URLs', () => {
+		expect(
+			getBrowserPathAsLandingPage({
+				pathname: getAppBaseUrl().pathname,
+				search: '?experimental-blueprints-v2-runner=yes',
+			})
+		).toBeUndefined();
+	});
+
 	it('preserves all search params on reflected WordPress paths', () => {
 		expect(
 			getBrowserPathAsLandingPage({

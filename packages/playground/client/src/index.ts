@@ -62,11 +62,6 @@ export interface StartPlaygroundOptions {
 	 * PHP extensions to install before the runtime starts.
 	 */
 	extensions?: PHPWebExtension[];
-	/**
-	 * Run the supplied Blueprint through the native TypeScript v2 compiler.
-	 * Version 2 Blueprints use this path automatically.
-	 */
-	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
@@ -166,7 +161,9 @@ export async function startPlaygroundWeb(
 	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
-	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(options);
+	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
+		options.blueprint
+	);
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
@@ -196,11 +193,9 @@ export async function startPlaygroundWeb(
 	return playground;
 }
 
-async function shouldUseBlueprintV2Handler(options: StartPlaygroundWebOptions) {
-	if (options.experimentalBlueprintsV2Runner) {
-		return true;
-	}
-	const blueprint = options.blueprint;
+async function shouldUseBlueprintV2Handler(
+	blueprint: StartPlaygroundWebOptions['blueprint']
+) {
 	if (!blueprint) {
 		return false;
 	}

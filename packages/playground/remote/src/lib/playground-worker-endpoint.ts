@@ -81,7 +81,7 @@ export type WorkerBootOptions = {
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** When true, skip default WP install and run Blueprints v2 in the worker */
+	/** @deprecated Blueprint handlers are selected before boot. This option has no effect. */
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration used for worker-side execution or preflight checks. */
 	blueprint?: BlueprintDeclaration;

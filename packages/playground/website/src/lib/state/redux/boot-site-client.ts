@@ -235,11 +235,6 @@ export function bootSiteClient(
 				scope: site.slug,
 				blueprint,
 				extensions: phpExtensions,
-				experimentalBlueprintsV2Runner:
-					!shouldBootFromStoredFiles &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {

@@ -22,7 +22,7 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
-test('Blueprint v2 declarations should run through the website flow', async ({
+test('Blueprint v2 declarations should route by version through the website flow', async ({
 	website,
 	wordpress,
 }) => {
@@ -51,9 +51,7 @@ test('Blueprint v2 declarations should run through the website flow', async ({
 	};
 
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await website.goto(
-		`./?experimental-blueprints-v2-runner=yes#${encodedBlueprint}`
-	);
+	await website.goto(`./#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('V2 Website Smoke');
 });
 
