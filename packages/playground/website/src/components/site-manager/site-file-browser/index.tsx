@@ -23,6 +23,7 @@ export function SiteFileBrowser({
 			documentRoot={documentRoot}
 			isVisible={isVisible}
 			initialPath={`${documentRoot}/wp-config.php`}
+			persistKey={site.metadata.id}
 			placeholderText="Start this Playground to browse and edit its files."
 		/>
 	);

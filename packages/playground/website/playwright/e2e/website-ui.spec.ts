@@ -262,7 +262,7 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 });
 
-test('should edit a file in the code editor and see changes in the viewport', async ({
+test('should restore an edited file and show its changes in the viewport', async ({
 	website,
 	wordpress,
 }) => {
@@ -312,18 +312,13 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Type the new content with a delay between keystrokes
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
-	// Wait a moment for the change to be processed
-	await website.page.waitForTimeout(500);
-
-	// Save the file (Cmd+S or Ctrl+S)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
-	);
-
-	// Wait for save to complete (look for save indicator if there is one)
-	await website.page.waitForTimeout(1000);
-
-	// Close the site manager to see the viewport
+	// Close before the 1.5-second debounce fires. The final dirty snapshot must
+	// outlive this editor instance and the next mount must wait for it.
+	await website.ensureSiteManagerIsClosed();
+	await expect(editor).toHaveCount(0);
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByRole('tab', { name: 'File Browser' }).click();
+	await expect(editor).toContainText('Edited file');
 	await website.ensureSiteManagerIsClosed();
 
 	// Reload just the WordPress iframe to see the changes
