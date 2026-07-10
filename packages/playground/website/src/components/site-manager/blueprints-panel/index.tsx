@@ -61,10 +61,16 @@ export function BlueprintsPanel({
 		});
 	}
 
+	/**
+	 * Opens the selected Blueprint as a fresh Playground that may be autosaved.
+	 *
+	 * Intentionally uses `newSite()` instead of `newTemporarySite()` so
+	 * in-app Blueprint previews follow the default browser autosave policy.
+	 */
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
 		dispatch(setSiteManagerOpen(false));
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					name: 'Blueprint preview',
 					// Explicitly do not use joinPaths() here as it normalizes the input and

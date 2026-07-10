@@ -3,6 +3,7 @@ import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
 import { isAppBasePath } from './app-base-url';
+import { HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM } from '../../health-check-recovery';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -51,6 +52,8 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'import-wxr',
 	'import-content',
 	'page-title',
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
+	// Retain the retired v2 opt-in so it is stripped from legacy URLs.
 	'experimental-blueprints-v2-runner',
 ];
 

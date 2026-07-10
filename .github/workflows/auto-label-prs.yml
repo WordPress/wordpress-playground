@@ -30,14 +30,18 @@ on:
     pull_request_target:
         types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-    contents: read
-    pull-requests: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
 
 jobs:
     paths:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required for actions/labeler to read the configuration file.
+            pull-requests: write # Required to apply labels to pull requests.
         steps:
             # Pinned to a commit SHA, not a tag: this job runs with
             # pull-requests:write, so a moved tag would be a supply-chain
@@ -50,6 +54,9 @@ jobs:
     package-and-type:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            pull-requests: write # Required to apply labels to pull requests.
         steps:
             - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
               with:
@@ -99,10 +106,33 @@ jobs:
                       ];
 
                       const pr = context.payload.pull_request;
-                      const files = await github.paginate(
-                          github.rest.pulls.listFiles,
-                          { owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100 }
-                      );
+
+                      // Very large PRs (e.g. recompiled WASM binaries) make
+                      // GitHub's diff generation time out, so listFiles returns
+                      // 422 "Sorry, this diff is taking too long to generate."
+                      // That failure is persistent for such PRs — retrying just
+                      // loads their servers without helping. Package/type labels
+                      // are cosmetic, so skip them rather than fail the job.
+                      let files;
+                      try {
+                          files = await github.paginate(
+                              github.rest.pulls.listFiles,
+                              { owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100 }
+                          );
+                      } catch (err) {
+                          const status = err?.status;
+                          const message = err?.message ?? String(err);
+
+                          if (status !== 422 || !/diff is taking too long to generate/i.test(message)) {
+                              throw err;
+                          }
+
+                          core.warning(
+                              `Could not list PR files (status ${status}): ${message}. ` +
+                              `Skipping package/type labeling for this PR.`
+                          );
+                          return;
+                      }
 
                       // Tally lines + file count per package label.
                       const stats = new Map();

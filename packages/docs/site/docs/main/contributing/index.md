@@ -43,6 +43,6 @@ As such, please be aware of the implications that your contributions will fall u
 -   The GPL license encourages contributing any changes, bug fixes, or new features back to the original codebase.
 -   The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
 
-If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`meta-playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`#playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 
 Thank you again for your contributions! 🎉

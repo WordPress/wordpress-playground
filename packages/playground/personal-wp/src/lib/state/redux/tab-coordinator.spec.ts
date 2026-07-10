@@ -8,8 +8,10 @@ import {
 	requestRemoteBackup,
 	requestRemoteBlueprintInstall,
 	requestMainTabFocus,
+	requestRemoteMcpConnect,
 	broadcastSiteReset,
 	setBackupRequestCallback,
+	setMcpConnectRequestCallback,
 	setInstallBlueprintRequestCallback,
 } from './tab-coordinator';
 
@@ -345,6 +347,75 @@ describe('tab-coordinator', () => {
 		});
 	});
 
+	it('handles MCP connect requests in the main tab', async () => {
+		const connectCallback = vi.fn();
+		await initTabCoordinator('my-site');
+		setMcpConnectRequestCallback(connectCallback);
+
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+
+		otherChannel.postMessage({
+			type: 'mcp-connect-request',
+			siteSlug: 'my-site',
+			port: 59057,
+		});
+
+		expect(connectCallback).toHaveBeenCalledWith(59057);
+	});
+
+	it('broadcasts MCP connect requests from dependent tabs', async () => {
+		await initTabCoordinator('my-site');
+		const requests: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			requests.push(event.data);
+		};
+
+		requestRemoteMcpConnect('my-site', 59057);
+
+		expect(requests).toEqual([
+			{
+				type: 'mcp-connect-request',
+				siteSlug: 'my-site',
+				port: 59057,
+			},
+		]);
+	});
+
+	it('passes the trusted install request source to the main tab', async () => {
+		const installCallback = vi.fn().mockResolvedValue({
+			status: 'success',
+		});
+		await initTabCoordinator('my-site');
+		setInstallBlueprintRequestCallback(installCallback);
+
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+
+		otherChannel.postMessage({
+			type: 'install-blueprint-request',
+			requestId: 'request-1',
+			requestingTabId: 'dependent-tab',
+			siteSlug: 'my-site',
+			blueprintUrl: 'https://example.com/blueprint.json',
+			usageStatsRequestSource: 'my-apps',
+		});
+
+		await vi.waitFor(() =>
+			expect(installCallback).toHaveBeenCalledWith(
+				'https://example.com/blueprint.json',
+				{
+					usageStatsRequestSource: 'my-apps',
+				}
+			)
+		);
+	});
+
 	it('requestRemoteBlueprintInstall resolves when the main tab responds', async () => {
 		const tabInfo = await initTabCoordinator('my-site');
 		const otherChannel = new MockBroadcastChannel(
@@ -372,6 +443,45 @@ describe('tab-coordinator', () => {
 			)
 		).resolves.toEqual({
 			status: 'success',
+		});
+	});
+
+	it('includes the trusted install source in remote install requests', async () => {
+		const tabInfo = await initTabCoordinator('my-site');
+		const requests: unknown[] = [];
+		const otherChannel = new MockBroadcastChannel(
+			'playground-tab-coordinator'
+		);
+		otherChannel.onmessage = (event: MessageEvent) => {
+			if (event.data.type === 'install-blueprint-request') {
+				requests.push(event.data);
+				otherChannel.postMessage({
+					type: 'install-blueprint-result',
+					requestId: event.data.requestId,
+					targetTabId: tabInfo.tabId,
+					siteSlug: 'my-site',
+					result: {
+						status: 'success',
+					},
+				});
+			}
+		};
+
+		await expect(
+			requestRemoteBlueprintInstall(
+				'my-site',
+				'https://example.com/blueprint.json',
+				{
+					timeoutMs: 100,
+					usageStatsRequestSource: 'my-apps',
+				}
+			)
+		).resolves.toEqual({
+			status: 'success',
+		});
+		expect(requests[0]).toMatchObject({
+			type: 'install-blueprint-request',
+			usageStatsRequestSource: 'my-apps',
 		});
 	});
 

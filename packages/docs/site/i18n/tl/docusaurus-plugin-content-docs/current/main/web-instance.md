@@ -173,17 +173,19 @@ Ang panel na ito ay nagpapakita ng lahat ng paraan para ilunsad ang WordPress Pl
 Ang Launch Panel ay naglilista rin ng higit sa 40 blueprints mula sa Blueprint Gallery at iyong mga Saved Playground.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
 
 Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

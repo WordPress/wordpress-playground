@@ -11,34 +11,36 @@ description: Uma lista selecionada de links úteis para aplicativos, ferramentas
 # Links e Recursos
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
 <ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground instance</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
+<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Playground instance</li>
+<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Playground Docs</li>
+<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
+<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
+<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
+<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(see [URLReference](/blueprints/steps/resources#urlreference) for more info)</em></li>
 </ul>
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
 
 Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algumas das ferramentas relacionadas ao Playground:
 
 <ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Instância do Playground</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Documentação do Playground</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Construtor de Blueprints do Playground</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Visualizador de PR do Playground para WordPress</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Visualizador de PR do Playground para Gutenberg</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Serviço Proxy do Playground <em>(veja <a href="/blueprints/steps/resources#urlreference">URLReference</a> para mais informações)</em></li>
+<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Instância do Playground</li>
+<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Documentação do Playground</li>
+<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Construtor de Blueprints do Playground</li>
+<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visualizador de PR do Playground para WordPress</li>
+<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visualizador de PR do Playground para Gutenberg</li>
+<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Serviço Proxy do Playground <em>(veja [URLReference](/blueprints/steps/resources#urlreference) para mais informações)</em></li>
 </ul>
-:::
+
+</div>
 
 <!--
 ## Frequently sought links

@@ -4,14 +4,230 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v3.1.29] (2026-05-07) 
+## [v3.1.44] (2026-07-06) 
+
+### Blueprints
+
+- Add Blueprint execution compile facade. ([#3902](https://github.com/WordPress/wordpress-playground/pull/3902))
+- Add TypeScript Blueprint v2 runner skeleton. ([#3906](https://github.com/WordPress/wordpress-playground/pull/3906))
+- Allow WXR imports to choose default author. ([#3887](https://github.com/WordPress/wordpress-playground/pull/3887))
+- Allow WXR imports to preserve source URLs. ([#3877](https://github.com/WordPress/wordpress-playground/pull/3877))
+- Allow WXR imports to skip attachment fetching. ([#3878](https://github.com/WordPress/wordpress-playground/pull/3878))
+- Allow WXR imports to skip comments. ([#3880](https://github.com/WordPress/wordpress-playground/pull/3880))
+- Allow skipping plugin install failures. ([#3853](https://github.com/WordPress/wordpress-playground/pull/3853))
+- Allow skipping theme install failures. ([#3854](https://github.com/WordPress/wordpress-playground/pull/3854))
+- Compile Blueprint v2 declarations into an execution plan. ([#3908](https://github.com/WordPress/wordpress-playground/pull/3908))
+- Document valid Blueprint v2 schema examples. ([#3873](https://github.com/WordPress/wordpress-playground/pull/3873))
+- Fix package typecheck target. ([#3859](https://github.com/WordPress/wordpress-playground/pull/3859))
+- Flush rewrite rules after setting permalink structure. ([#3851](https://github.com/WordPress/wordpress-playground/pull/3851))
+- Lower Blueprint v2 plan items to step records. ([#3910](https://github.com/WordPress/wordpress-playground/pull/3910))
+- Reject unsatisfied Blueprint v2 PHP constraints. ([#3898](https://github.com/WordPress/wordpress-playground/pull/3898))
+- Reject unsupported Blueprint v2 execution input. ([#3904](https://github.com/WordPress/wordpress-playground/pull/3904))
+- Remove WXR site options from Blueprint v2 schema. ([#3884](https://github.com/WordPress/wordpress-playground/pull/3884))
+- Require WXR author maps in Blueprint v2 types. ([#3869](https://github.com/WordPress/wordpress-playground/pull/3869))
+- Resolve Blueprint v2 PHP version constraints. ([#3897](https://github.com/WordPress/wordpress-playground/pull/3897))
+- Resolve Blueprint v2 network runtime option. ([#3889](https://github.com/WordPress/wordpress-playground/pull/3889))
+- Resolve Blueprint v2 runtime constants. ([#3892](https://github.com/WordPress/wordpress-playground/pull/3892))
+- Resolve exact Blueprint v2 PHP versions. ([#3890](https://github.com/WordPress/wordpress-playground/pull/3890))
+- Resolve latest Blueprint v2 PHP label. ([#3896](https://github.com/WordPress/wordpress-playground/pull/3896))
+- Resolve preferred Blueprint v2 WordPress versions. ([#3894](https://github.com/WordPress/wordpress-playground/pull/3894))
+- Resolve recommended Blueprint v2 PHP versions. ([#3895](https://github.com/WordPress/wordpress-playground/pull/3895))
+- Resolve simple Blueprint v2 WordPress versions. ([#3891](https://github.com/WordPress/wordpress-playground/pull/3891))
+- Restrict Blueprint v2 file references. ([#3860](https://github.com/WordPress/wordpress-playground/pull/3860))
+- Run lowered Blueprint v2 steps. ([#3911](https://github.com/WordPress/wordpress-playground/pull/3911))
+- Share Git repository URL detection logic. ([#3858](https://github.com/WordPress/wordpress-playground/pull/3858))
+- Support bundled Blueprint v2 resources. ([#3912](https://github.com/WordPress/wordpress-playground/pull/3912))
+- Support bundled Blueprints in execution compile facade. ([#3900](https://github.com/WordPress/wordpress-playground/pull/3900))
+- Support plugin `activationOptions`. ([#3852](https://github.com/WordPress/wordpress-playground/pull/3852))
+- Test Blueprint v2 runtime defaults. ([#3888](https://github.com/WordPress/wordpress-playground/pull/3888))
+- Type Blueprint v2 WXR author maps. ([#3863](https://github.com/WordPress/wordpress-playground/pull/3863))
+- Type Blueprint v2 WXR source lists. ([#3868](https://github.com/WordPress/wordpress-playground/pull/3868))
+- Type Blueprint v2 plugin collision handling. ([#3865](https://github.com/WordPress/wordpress-playground/pull/3865))
+- Type Blueprint v2 runtime version labels. ([#3864](https://github.com/WordPress/wordpress-playground/pull/3864))
+- Type Blueprint v2 theme collision handling. ([#3867](https://github.com/WordPress/wordpress-playground/pull/3867))
+- Type Blueprint v2 theme install failures. ([#3866](https://github.com/WordPress/wordpress-playground/pull/3866))
+- Type Blueprint v2 version constraints. ([#3870](https://github.com/WordPress/wordpress-playground/pull/3870))
+- Type nested Blueprint v2 inline directories. ([#3861](https://github.com/WordPress/wordpress-playground/pull/3861))
+- [installTheme step] Honor ifAlreadyInstalled for directory themes. ([#3855](https://github.com/WordPress/wordpress-playground/pull/3855))
+
+### Experiments
+
+
+#### Website
+
+- [Storage] Replace isomorphic-git submodule with local adapter. ([#3841](https://github.com/WordPress/wordpress-playground/pull/3841))
+
+#### GitHub integration
+
+- [Storage] Lazy-load git API modules. ([#3840](https://github.com/WordPress/wordpress-playground/pull/3840))
+
+### PHP WebAssembly
+
+- [Blueprints] Add Blueprint v2 web declarations. ([#3850](https://github.com/WordPress/wordpress-playground/pull/3850))
+- [Blueprints] Keep directory theme writes inside the target folder. ([#3857](https://github.com/WordPress/wordpress-playground/pull/3857))
+- [CLI] Avoid port conflicts when starting PHP-WASM network proxies. ([#3722](https://github.com/WordPress/wordpress-playground/pull/3722))
+
+### Website
+
+- Disable admin view transitions in Chromium. ([#3886](https://github.com/WordPress/wordpress-playground/pull/3886))
+- Fixed file browser covering the navigation. ([#3829](https://github.com/WordPress/wordpress-playground/pull/3829))
+- Resolve isomorphic-git browser entry without dependency lists. ([#3885](https://github.com/WordPress/wordpress-playground/pull/3885))
+- Track blueprint resource type if the resource doesn't have a theme/plugin slug. ([#3862](https://github.com/WordPress/wordpress-playground/pull/3862))
+- [E2E] Stabilize legacy boot and recreation checks. ([#3901](https://github.com/WordPress/wordpress-playground/pull/3901))
+- [E2E] Use routed CURLFile upload fixture. ([#3893](https://github.com/WordPress/wordpress-playground/pull/3893))
+- [PHP] Default Playground SQLite journal mode to DELETE. ([#3909](https://github.com/WordPress/wordpress-playground/pull/3909))
+- [Tests] Fix legacy WP plugin activation selector. ([#3825](https://github.com/WordPress/wordpress-playground/pull/3825))
+
+#### Blueprints
+
+- Delay .zip Playground imports until OPFS sync is finished. ([#3847](https://github.com/WordPress/wordpress-playground/pull/3847))
+
+### Internal
+
+- [GitHub Actions] Fix empty changelog entries since v3.1.35. ([#3800](https://github.com/WordPress/wordpress-playground/pull/3800))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @ashfame @bgrgicak @chubes4 @dhruvang21 @mho22
+
+
+## [v3.1.43] (2026-06-29) 
+
+
+
+
+## [v3.1.42] (2026-06-26) 
+
+
+
+
+## [v3.1.41] (2026-06-22) 
+
+
+
+
+## [v3.1.40] (2026-06-19) 
+
+
+
+
+## [v3.1.39] (2026-06-15) 
+
+
+
+
+## [v3.1.38] (2026-06-08)
+
+## [v3.1.37] (2026-06-08)
+
+## [v3.1.36] (2026-06-01)
+
+## [v3.1.35] (2026-05-25)
+
+## [v3.1.34] (2026-05-18)
+
+### PHP WebAssembly
+
+- [PHP.wasm] Fix sqlite_markdown extension loading. ([#3650](https://github.com/WordPress/wordpress-playground/pull/3650))
+- [PHP.wasm] Support web JSPI side module ABI exports. ([#3647](https://github.com/WordPress/wordpress-playground/pull/3647))
+- [codex] Use wp-extensions markdown editor release. ([#3648](https://github.com/WordPress/wordpress-playground/pull/3648))
+- [website] Add php-extension query parameter. ([#3645](https://github.com/WordPress/wordpress-playground/pull/3645))
+
+### Various
+
+#### Personal Playground
+
+- Personal WP: Improve app install dialog. ([#3652](https://github.com/WordPress/wordpress-playground/pull/3652))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
+## [v3.1.33] (2026-05-14)
+
+### PHP WebAssembly
+
+- [PHP.wasm] Export filesystem symbols for PHP side modules. ([#3643](https://github.com/WordPress/wordpress-playground/pull/3643))
+
+### Website
+
+- [php-snippet] Simplify PHP snippet pointer handling. ([#3640](https://github.com/WordPress/wordpress-playground/pull/3640))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v3.1.32] (2026-05-14)
+
+### PHP WebAssembly
+
+- Expose SQLite auto-extension symbols to JS ABI. ([#3641](https://github.com/WordPress/wordpress-playground/pull/3641))
+
+### Various
+
+- Export SQLite auto-extension symbols in Node PHP 8.4 JSPI artifact. ([#3642](https://github.com/WordPress/wordpress-playground/pull/3642))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v3.1.31] (2026-05-14)
+
+### PHP WebAssembly
+
+- Export SQLite auto-extension symbols for PHP.wasm side modules. ([#3524](https://github.com/WordPress/wordpress-playground/pull/3524))
+- [CLI] Load custom PHP.wasm extensions. ([#3616](https://github.com/WordPress/wordpress-playground/pull/3616))
+- [CLI] Support staged PHP.wasm side modules. ([#3620](https://github.com/WordPress/wordpress-playground/pull/3620))
+
+### Website
+
+- Fix PHP snippet Run button pointer activation. ([#3639](https://github.com/WordPress/wordpress-playground/pull/3639))
+- Fix PHP snippet run controls. ([#3636](https://github.com/WordPress/wordpress-playground/pull/3636))
+- Polish PHP snippet run UI. ([#3638](https://github.com/WordPress/wordpress-playground/pull/3638))
+
+### Various
+
+- Simplify personal WP app installer. ([#3623](https://github.com/WordPress/wordpress-playground/pull/3623))
+- [DOCS] Running PHPUnit tests using the Playground CLI. ([#3487](https://github.com/WordPress/wordpress-playground/pull/3487))
+- [docs] Adding reference to awesome playground page. ([#3499](https://github.com/WordPress/wordpress-playground/pull/3499))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @bgrgicak @fellyph
+
+## [v3.1.30] (2026-05-11)
+
+### Bug Fixes
+
+- Fix PHP-WASM node rebuild Docker context. ([#3608](https://github.com/WordPress/wordpress-playground/pull/3608))
+
+### Various
+
+- Serve index fallback on my.wordpress.net. ([#3611](https://github.com/WordPress/wordpress-playground/pull/3611))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @chubes4
+
+## [v3.1.29] (2026-05-07)
 
 ### Blueprints
 
 - Personal WP: Remove fake browser chrome, improve dependent tab handling. ([#3601](https://github.com/WordPress/wordpress-playground/pull/3601))
 
 ### Tools
-
 
 #### PHP WebAssembly
 
@@ -27,8 +243,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @mho22
 
-
-## [v3.1.28] (2026-05-05) 
+## [v3.1.28] (2026-05-05)
 
 ### PHP WebAssembly
 
@@ -49,13 +264,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @ashfame @JanJakes
 
+## [v3.1.27] (2026-05-04)
 
-## [v3.1.27] (2026-05-04) 
-
-
-
-
-## [v3.1.26] (2026-05-03) 
+## [v3.1.26] (2026-05-03)
 
 ### Documentation
 
@@ -76,11 +287,9 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.1.25] (2026-05-03) 
+## [v3.1.25] (2026-05-03)
 
 ### Tools
-
 
 #### Website
 
@@ -106,16 +315,11 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v3.1.24] (2026-05-01)
 
-## [v3.1.24] (2026-05-01) 
-
-
-
-
-## [v3.1.23] (2026-05-01) 
+## [v3.1.23] (2026-05-01)
 
 ### Public API
-
 
 #### Blueprints
 
@@ -127,8 +331,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.1.22] (2026-05-01) 
+## [v3.1.22] (2026-05-01)
 
 ### Blueprints
 
@@ -226,8 +429,7 @@ The following contributors merged PRs in this release:
 
 @adamsilverstein @adamziel @apeatling @beryl-dlg @bgrgicak @fellyph @JanJakes @mho22 @pento @shail-mehta
 
-
-## [v3.1.21] (2026-04-20) 
+## [v3.1.21] (2026-04-20)
 
 ### PHP WebAssembly
 
@@ -244,11 +446,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @JanJakes
 
-
-## [v3.1.20] (2026-04-16) 
+## [v3.1.20] (2026-04-16)
 
 ### Tools
-
 
 #### GitHub integration
 
@@ -288,8 +488,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @ashfame @fellyph @mho22 @perashanid
 
-
-## [v3.1.19] (2026-04-13) 
+## [v3.1.19] (2026-04-13)
 
 ### Documentation
 
@@ -323,13 +522,9 @@ The following contributors merged PRs in this release:
 
 @ashfame @brandonpayton @dd32 @fellyph @JanJakes @mho22 @perashanid @Rima1889
 
+## [v3.1.18] (2026-04-07)
 
-## [v3.1.18] (2026-04-07) 
-
-
-
-
-## [v3.1.17] (2026-04-07) 
+## [v3.1.17] (2026-04-07)
 
 ### Enhancements
 
@@ -349,8 +544,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-
-## [v3.1.16] (2026-04-06) 
+## [v3.1.16] (2026-04-06)
 
 ### Website
 
@@ -374,8 +568,7 @@ The following contributors merged PRs in this release:
 
 @bgrgicak @JanJakes @mho22 @noruzzamans @shimotmk
 
-
-## [v3.1.15] (2026-03-31) 
+## [v3.1.15] (2026-03-31)
 
 ### PHP WebAssembly
 
@@ -387,12 +580,11 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.1.14] (2026-03-30) 
+## [v3.1.14] (2026-03-30)
 
 ### PHP WebAssembly
 
-- [Redis]  va_arg long to va_arg zend_long for WASM32 ABI compatibility. ([#3417](https://github.com/WordPress/wordpress-playground/pull/3417))
+- [Redis] va_arg long to va_arg zend_long for WASM32 ABI compatibility. ([#3417](https://github.com/WordPress/wordpress-playground/pull/3417))
 
 ### Internal
 
@@ -421,8 +613,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @beryl-dlg @bgrgicak @JanJakes @mho22 @perashanid @shimotmk @wojtekn
 
-
-## [v3.1.13] (2026-03-23) 
+## [v3.1.13] (2026-03-23)
 
 ### Enhancements
 
@@ -440,7 +631,7 @@ The following contributors merged PRs in this release:
 
 - CLI: Add site editor performance benchmark. ([#3408](https://github.com/WordPress/wordpress-playground/pull/3408))
 
-### 
+###
 
 - CLI]: Consider it a lint error for CLI to depend on large Playground web packages. ([#3410](https://github.com/WordPress/wordpress-playground/pull/3410))
 - Claude] Harden allow/deny lists and clarify dev server behavior. ([#3373](https://github.com/WordPress/wordpress-playground/pull/3373))
@@ -459,11 +650,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @ashfame @bgrgicak @brandonpayton @wojtekn
 
-
-## [v3.1.12] (2026-03-16) 
+## [v3.1.12] (2026-03-16)
 
 ### Enhancements
-
 
 #### Personal Playground
 
@@ -493,8 +682,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @ashfame @brandonpayton @fellyph @zaerl
 
-
-## [v3.1.11] (2026-03-12) 
+## [v3.1.11] (2026-03-12)
 
 ### Enhancements
 
@@ -502,7 +690,7 @@ The following contributors merged PRs in this release:
 
 ### Various
 
-- [PHP] Mount parent directory for file symlinks so __DIR__ works. ([#3377](https://github.com/WordPress/wordpress-playground/pull/3377))
+- [PHP] Mount parent directory for file symlinks so **DIR** works. ([#3377](https://github.com/WordPress/wordpress-playground/pull/3377))
 
 ### Contributors
 
@@ -510,8 +698,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.1.10] (2026-03-12) 
+## [v3.1.10] (2026-03-12)
 
 ### Various
 
@@ -523,8 +710,7 @@ The following contributors merged PRs in this release:
 
 @brandonpayton
 
-
-## [v3.1.9] (2026-03-11) 
+## [v3.1.9] (2026-03-11)
 
 ### Enhancements
 
@@ -546,8 +732,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton @mho22
 
-
-## [v3.1.8] (2026-03-10) 
+## [v3.1.8] (2026-03-10)
 
 ### Website
 
@@ -563,13 +748,9 @@ The following contributors merged PRs in this release:
 
 @bgrgicak @mho22
 
+## [v3.1.7] (2026-03-10)
 
-## [v3.1.7] (2026-03-10) 
-
-
-
-
-## [v3.1.6] (2026-03-10) 
+## [v3.1.6] (2026-03-10)
 
 ### PHP WebAssembly
 
@@ -591,8 +772,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @fellyph @pkevan
 
-
-## [v3.1.5] (2026-03-09) 
+## [v3.1.5] (2026-03-09)
 
 ### Documentation
 
@@ -625,8 +805,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @andreilupu @bcotrim @brandonpayton @dd32 @fellyph @JanJakes @mho22
 
-
-## [v3.1.3] (2026-03-02) 
+## [v3.1.3] (2026-03-02)
 
 ### Tools
 
@@ -669,8 +848,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @brandonpayton @dd32 @epeicher @fellyph @fredrikekelund @JanJakes @mho22 @n8finch @zaerl
 
-
-## [v3.1.2] (2026-02-23) 
+## [v3.1.2] (2026-02-23)
 
 ### Tools
 
@@ -695,8 +873,7 @@ The following contributors merged PRs in this release:
 
 @ashfame @bgrgicak @brandonpayton @epeicher @JanJakes
 
-
-## [v3.1.1] (2026-02-18) 
+## [v3.1.1] (2026-02-18)
 
 ### Bug Fixes
 
@@ -708,8 +885,7 @@ The following contributors merged PRs in this release:
 
 @brandonpayton
 
-
-## [v3.1.0] (2026-02-18) 
+## [v3.1.0] (2026-02-18)
 
 ### Bug Fixes
 
@@ -721,12 +897,11 @@ The following contributors merged PRs in this release:
 
 @brandonpayton
 
-
-## [v3.0.54] (2026-02-18) 
+## [v3.0.54] (2026-02-18)
 
 ### Blueprints
 
-- Define $_SERVER['HTTP_HOST'] in the enableMultisite step. ([#3214](https://github.com/WordPress/wordpress-playground/pull/3214))
+- Define $\_SERVER['HTTP_HOST'] in the enableMultisite step. ([#3214](https://github.com/WordPress/wordpress-playground/pull/3214))
 
 ### Tools
 
@@ -746,8 +921,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @bcotrim @bookchiq @JanJakes @noruzzamans @shimotmk
 
-
-## [v3.0.53] (2026-02-16) 
+## [v3.0.53] (2026-02-16)
 
 ### Various
 
@@ -760,13 +934,9 @@ The following contributors merged PRs in this release:
 
 @brandonpayton
 
+## [v3.0.52] (2026-02-12)
 
-## [v3.0.52] (2026-02-12) 
-
-
-
-
-## [v3.0.51] (2026-02-12) 
+## [v3.0.51] (2026-02-12)
 
 ### Bug Fixes
 
@@ -778,8 +948,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.50] (2026-02-12) 
+## [v3.0.50] (2026-02-12)
 
 ### PHP WebAssembly
 
@@ -791,8 +960,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.49] (2026-02-12) 
+## [v3.0.49] (2026-02-12)
 
 ### Various
 
@@ -804,8 +972,7 @@ The following contributors merged PRs in this release:
 
 @mho22
 
-
-## [v3.0.48] (2026-02-11) 
+## [v3.0.48] (2026-02-11)
 
 ### Enhancements
 
@@ -851,8 +1018,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @ashfame @bgrgicak @bph @brandonpayton @fellyph @JanJakes @mho22 @noruzzamans @Omcodes23 @shimotmk
 
-
-## [v3.0.47] (2026-02-02) 
+## [v3.0.47] (2026-02-02)
 
 ### Blueprints
 
@@ -917,8 +1083,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @beryl-dlg @epeicher @fellyph @JanJakes @mho22 @noruzzamans
 
-
-## [v3.0.46] (2026-01-26) 
+## [v3.0.46] (2026-01-26)
 
 ### PHP WebAssembly
 
@@ -940,11 +1105,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @noruzzamans
 
-
-## [v3.0.45] (2026-01-22) 
+## [v3.0.45] (2026-01-22)
 
 ### Tools
-
 
 #### PHP WebAssembly
 
@@ -982,8 +1145,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @beryl-dlg @noruzzamans @shimotmk
 
-
-## [v3.0.44] (2026-01-20) 
+## [v3.0.44] (2026-01-20)
 
 ### Enhancements
 
@@ -1007,8 +1169,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.43] (2026-01-19) 
+## [v3.0.43] (2026-01-19)
 
 ### Enhancements
 
@@ -1034,8 +1195,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-
-## [v3.0.42] (2026-01-15) 
+## [v3.0.42] (2026-01-15)
 
 ### Enhancements
 
@@ -1051,8 +1211,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-
-## [v3.0.41] (2026-01-14) 
+## [v3.0.41] (2026-01-14)
 
 ### Enhancements
 
@@ -1076,8 +1235,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph @mho22
 
-
-## [v3.0.40] (2026-01-12) 
+## [v3.0.40] (2026-01-12)
 
 ### Documentation
 
@@ -1096,12 +1254,11 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph @noruzzamans
 
-
-## [v3.0.39] (2026-01-07) 
+## [v3.0.39] (2026-01-07)
 
 ### PHP WebAssembly
 
-- [CLI] Fix __dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
+- [CLI] Fix \_\_dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
 
 ### Various
 
@@ -1113,13 +1270,9 @@ The following contributors merged PRs in this release:
 
 @brandonpayton @iamsohilvahora
 
+## [v3.0.38] (2026-01-06)
 
-## [v3.0.38] (2026-01-06) 
-
-
-
-
-## [v3.0.37] (2026-01-06) 
+## [v3.0.37] (2026-01-06)
 
 ### PHP WebAssembly
 
@@ -1140,13 +1293,9 @@ The following contributors merged PRs in this release:
 
 @mho22 @noruzzamans
 
+## [v3.0.36] (2026-01-05)
 
-## [v3.0.36] (2026-01-05) 
-
-
-
-
-## [v3.0.35] (2025-12-29) 
+## [v3.0.35] (2025-12-29)
 
 ### PHP WebAssembly
 
@@ -1167,8 +1316,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @noruzzamans @shimotmk
 
-
-## [v3.0.34] (2025-12-24) 
+## [v3.0.34] (2025-12-24)
 
 ### PHP WebAssembly
 
@@ -1190,8 +1338,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.33] (2025-12-22) 
+## [v3.0.33] (2025-12-22)
 
 ### Website
 
@@ -1203,8 +1350,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.32] (2025-12-18) 
+## [v3.0.32] (2025-12-18)
 
 ### PHP WebAssembly
 
@@ -1221,13 +1367,9 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v3.0.31] (2025-12-17)
 
-## [v3.0.31] (2025-12-17) 
-
-
-
-
-## [v3.0.30] (2025-12-17) 
+## [v3.0.30] (2025-12-17)
 
 ### Documentation
 
@@ -1247,8 +1389,7 @@ The following contributors merged PRs in this release:
 
 @mho22
 
-
-## [v3.0.29] (2025-12-17) 
+## [v3.0.29] (2025-12-17)
 
 ### Tools
 
@@ -1268,13 +1409,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk
 
+## [v3.0.28] (2025-12-17)
 
-## [v3.0.28] (2025-12-17) 
-
-
-
-
-## [v3.0.27] (2025-12-16) 
+## [v3.0.27] (2025-12-16)
 
 ### Internal
 
@@ -1286,13 +1423,9 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v3.0.26] (2025-12-16)
 
-## [v3.0.26] (2025-12-16) 
-
-
-
-
-## [v3.0.25] (2025-12-16) 
+## [v3.0.25] (2025-12-16)
 
 ### Website
 
@@ -1313,8 +1446,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.24] (2025-12-16) 
+## [v3.0.24] (2025-12-16)
 
 ### Website
 
@@ -1330,8 +1462,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.23] (2025-12-16) 
+## [v3.0.23] (2025-12-16)
 
 ### Enhancements
 
@@ -1394,7 +1525,6 @@ The following contributors merged PRs in this release:
 - [i18n] ja translations developer architecture. ([#3000](https://github.com/WordPress/wordpress-playground/pull/3000))
 
 ### Experiments
-
 
 #### GitHub integration
 
@@ -1466,7 +1596,7 @@ The following contributors merged PRs in this release:
 - [Docs] Fix API reference. ([#2905](https://github.com/WordPress/wordpress-playground/pull/2905))
 - [Docs] Fix documentation site build failures. ([#2913](https://github.com/WordPress/wordpress-playground/pull/2913))
 
-### 
+###
 
 - Xdebug ] Relocate `xdebug` into shared library directory. ([#3045](https://github.com/WordPress/wordpress-playground/pull/3045))
 
@@ -1492,11 +1622,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @andr3ribeiro @bgrgicak @brandonpayton @epeicher @fellyph @JanJakes @jeffpaul @mho22 @shimotmk @SirLouen @Utsav-Ladani @wojtekn
 
-
-## [v3.0.22] (2025-11-17) 
+## [v3.0.22] (2025-11-17)
 
 ### Enhancements
-
 
 #### Boot Flow
 
@@ -1527,7 +1655,7 @@ The following contributors merged PRs in this release:
 - [CLI] Fix null and "latest" WP version resolution and improve unzip error message. ([#2889](https://github.com/WordPress/wordpress-playground/pull/2889))
 - [CLI] Fix run-cli leak which was revealed by repeated runCLI() calls during test. ([#2888](https://github.com/WordPress/wordpress-playground/pull/2888))
 
-### 
+###
 
 - CLI] Allow API consumers to rely upon option validation and default values. ([#2883](https://github.com/WordPress/wordpress-playground/pull/2883))
 
@@ -1547,7 +1675,6 @@ The following contributors merged PRs in this release:
 The following contributors merged PRs in this release:
 
 @adamziel @brandonpayton @fellyph @mehrazmorshed @praful2111 @shimotmk @SirLouen @Successfulsebunya
-
 
 ## [v3.0.21] (2025-11-10)
 

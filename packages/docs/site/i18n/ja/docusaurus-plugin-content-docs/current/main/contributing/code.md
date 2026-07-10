@@ -25,11 +25,13 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 </div>
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
 
-:::
+</div>
 -->
 
 [オープンな問題の一覧](https://github.com/wordpress/wordpress-playground/issues)を参照して、取り組むべき問題を見つけてください。初めて貢献する方は、[`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) ラベルから始めることをお勧めします。
@@ -108,11 +110,13 @@ When your'e ready, commit the changes and submit a Pull Request.
 </div>
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
 ### ローカルマルチサイトの実行

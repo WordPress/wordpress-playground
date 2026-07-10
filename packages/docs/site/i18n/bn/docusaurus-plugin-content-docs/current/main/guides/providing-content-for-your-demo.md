@@ -45,7 +45,8 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L43)
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
 -->
 
@@ -255,18 +256,19 @@ You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Use%20wp-cli%20to%20add%20a%20post%20with%20image%22,%22description%22:%22Use%20wp-cli%20to%20create%20a%20post%20from%20text%20file%20with%20block%20markup%20and%20a%20featured%20image%22,%22author%22:%22bph%22,%22categories%22:[%22Content%22,%22wpcli%22]},%22landingPage%22:%22/?p=4%22,%22login%22:true,%22steps%22:[{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/postcontent.md%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/wpcli-post-with-image/postcontent.md%22}},{%22step%22:%22wp-cli%22,%22command%22:%22wp%20post%20create%20--post_title='Welcome%20to%20Playground'%20--post_status='published'%20/wordpress/wp-content/postcontent.md%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/Select-storage-method.png%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/wpcli-post-with-image/Select-storage-method.png%22}},{%22step%22:%22wp-cli%22,%22command%22:%22wp%20media%20import%20wordpress/wp-content/Select-storage-method.png%20--post_id=4%20--title='Select%20your%20storage%20method'%20--featured_image%22}]})
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 
 Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
 
-:::
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
 
 কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) থেকে ["ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) উদাহরণটি দেখুন।
 
-:::
+</div>
 
 <!--
 ## `runPHP`

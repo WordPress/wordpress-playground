@@ -167,8 +167,20 @@ export interface BootWordPressOptions {
 	dataSqlPath?: string;
 	/** How to handle WordPress installation. */
 	wordpressInstallMode?: WordPressInstallMode;
-	/** Zip with the WordPress installation to extract in /wordpress. */
+	/**
+	 * Core bundle with the WordPress installation to extract in /wordpress.
+	 * Either a solid `tar.zst` (stream-extracted) or a ZIP (wordpress.org
+	 * release, custom URL, GitHub artifact); the format is detected from the
+	 * bundle's magic bytes.
+	 */
 	wordPressZip?: File | Promise<File> | undefined;
+	/**
+	 * Expected regular-file count of the `tar.zst` core bundle, used for a
+	 * streaming-extraction parity check (fails loud on a truncated/corrupt
+	 * download). Ignored for ZIP bundles. Sourced from the bundle descriptor
+	 * (`getWordPressModuleDetails().fileCount`).
+	 */
+	wordPressBundleFileCount?: number;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	/**
@@ -226,14 +238,15 @@ export async function bootWordPress(
 	if (isLegacyPHPVersion(options.phpVersion)) {
 		return bootLegacyWordPress(requestHandler, options);
 	}
-
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
 	}
 
 	if (options.wordPressZip) {
-		await unzipWordPress(php, await options.wordPressZip);
+		await unzipWordPress(php, await options.wordPressZip, {
+			expectedFileCount: options.wordPressBundleFileCount,
+		});
 	}
 
 	if (options.constants) {
@@ -367,6 +380,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	defaultSqliteJournalMode(options);
 	const createSpawnHandler =
 		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
@@ -499,6 +513,21 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	});
 
 	return requestHandler;
+}
+
+function defaultSqliteJournalMode(options: BootRequestHandlerOptions) {
+	if ('SQLITE_JOURNAL_MODE' in (options.constants ?? {})) {
+		return;
+	}
+
+	/*
+	 * Blueprint constants are applied after SQLite may have opened the first
+	 * connection. Define Playground's default through auto-prepend first.
+	 */
+	options.constants = {
+		...options.constants,
+		SQLITE_JOURNAL_MODE: 'DELETE',
+	};
 }
 
 /**

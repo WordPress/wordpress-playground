@@ -787,6 +787,29 @@ describe('RawBytesFetch', () => {
 		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
 
+	it('parseHttpRequest should not build a body stream for HEAD requests', async () => {
+		// The Fetch spec forbids GET and HEAD from carrying a request body, so
+		// `new Request(url, { method: 'HEAD', body: stream })` throws
+		// `TypeError: Failed to construct 'Request': Request with GET/HEAD
+		// method cannot have body.` Curl with CURLOPT_NOBODY emits HEAD over
+		// tcpOverFetch as part of size-prechecks and redirect follow-ups, so
+		// we must mirror the GET case and leave outboundBodyStream undefined.
+		const requestBytes = `HEAD /probe HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const { request } = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.method).toEqual('HEAD');
+		expect(request.url).toEqual('http://example.com/probe');
+		expect(request.body).toBeNull();
+	});
+
 	it('parseHttpRequest should handle a path and query string', async () => {
 		const requestBytes = `GET /core/version-check/1.7/?channel=beta HTTP/1.1\r\nHost: playground.internal\r\n\r\n`;
 		const { request } = await RawBytesFetch.parseHttpRequest(
@@ -929,6 +952,45 @@ describe('RawBytesFetch', () => {
 		);
 		// Should use the Host header, not the default host parameter
 		expect(request.url).toEqual('https://custom.host.com/api');
+	});
+
+	it('parseHttpRequest should normalize raw HTTP/1.1 headers for fetch', async () => {
+		const body = 'hello=world';
+		const requestBytes =
+			`POST /upload HTTP/1.1\r\n` +
+			`Host: custom.host.com\r\n` +
+			`Connection: keep-alive\r\n` +
+			`Content-Length: ${body.length}\r\n` +
+			`Expect: 100-continue\r\n` +
+			`Authorization: Bearer token\r\n` +
+			`Content-Type: application/x-www-form-urlencoded\r\n` +
+			`\r\n` +
+			body;
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				new ReadableStream({
+					start(controller) {
+						controller.enqueue(
+							new TextEncoder().encode(requestBytes)
+						);
+						controller.close();
+					},
+				}),
+				'default.host.com',
+				'https'
+			);
+
+		expect(expectsContinue).toBe(true);
+		expect(request.url).toEqual('https://custom.host.com/upload');
+		expect(request.headers.get('authorization')).toEqual('Bearer token');
+		expect(request.headers.get('content-type')).toEqual(
+			'application/x-www-form-urlencoded'
+		);
+		expect(request.headers.has('connection')).toBe(false);
+		expect(request.headers.has('content-length')).toBe(false);
+		expect(request.headers.has('expect')).toBe(false);
+		expect(request.headers.has('host')).toBe(false);
+		expect(await new Response(request.body).text()).toEqual(body);
 	});
 
 	/**

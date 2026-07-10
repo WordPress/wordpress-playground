@@ -166,11 +166,11 @@ npm install
 npm run dev
 ```
 
-:::info
+<div class="callout callout-info">
 
 If you're unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 
-:::
+</div>
 
 Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `@wp-playground/cli`:
 

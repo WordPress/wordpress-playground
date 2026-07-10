@@ -13,6 +13,15 @@ creates the runtime.
 Use the `extensions` array for both bundled extensions and external `.so`
 artifacts.
 
+Use external PHP.wasm extensions when the code that must be fast or native-like
+is too hot for PHP userland, but you still want to ship it with a Playground
+demo, CLI workflow, or embedded app. The same manifest can be loaded by the
+JavaScript API, the Playground web Query API, and Playground CLI.
+
+External extensions are JSPI side modules. If the browser or Node.js build does
+not expose JSPI, PHP.wasm rejects the extension request instead of starting
+with a partially loaded runtime.
+
 ## Bundled extensions
 
 `@php-wasm/node` ships `intl`, `xdebug`, `redis`, and `memcached`:
@@ -183,10 +192,120 @@ await loadWebRuntime('8.4', {
 });
 ```
 
-To build your own extension artifacts, see
-[Building PHP extensions](/developers/apis/javascript-api/build-php-extensions)
-and
-[PHP extension dependencies](/developers/apis/javascript-api/php-extension-dependencies).
+## Try published PHP.wasm extensions
+
+Two projects publish ready-to-use manifests you can inspect before building
+your own:
+
+- [SQLite Database Integration native extension](https://wordpress.github.io/sqlite-database-integration/native-extension/)
+  publishes `wp_mysql_parser`, a native lexer/parser used by the SQLite
+  Database Integration plugin.
+- [PHP Toolkit Native APIs WASM releases](https://wordpress.github.io/php-toolkit/wp_native_apis-wasm-extension/)
+  publishes `wp_native_apis`, an experimental extension for WordPress native
+  APIs.
+
+To try a published extension in Playground web, pass its manifest URL with the
+`php-extension` Query API parameter. This loads the extension before PHP starts,
+without writing any JavaScript:
+
+```text
+https://playground.wordpress.net/?php=8.5&php-extension=https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json
+```
+
+Use `/latest/manifest.json` for a quick demo. Use one of the pinned manifest
+URLs from the extension release page for reproducible demos, tests, and
+documentation links.
+
+Repeat the parameter to load more than one extension:
+
+```text
+https://playground.wordpress.net/?php=8.5&php-extension=https://example.com/one/manifest.json&php-extension=https://example.com/two/manifest.json
+```
+
+The Query API accepts absolute, root-relative, and page-relative manifest URLs.
+After resolution, the manifest URL must use HTTP(S). For example, if your
+Playground page is served from `https://example.com/tools/`, these are valid:
+
+```text
+?php-extension=https://cdn.example.com/wp_mysql_parser/manifest.json
+?php-extension=/extensions/wp_mysql_parser/manifest.json
+?php-extension=./extensions/wp_mysql_parser/manifest.json
+```
+
+The same manifest-loading path is documented in the
+[Query API reference](/developers/apis/query-api).
+
+The same manifest works in Playground CLI:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--php=8.5 \
+	--php-extension=https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json \
+	--blueprint=https://wordpress.github.io/sqlite-database-integration/blueprint.json
+```
+
+When you embed Playground with `@wp-playground/client`, pass the same manifest
+through the `extensions` option:
+
+```html
+<iframe id="wp"></iframe>
+<script type="module">
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
+
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp'),
+		remoteUrl: 'https://playground.wordpress.net/remote.html',
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: 'https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json',
+				},
+			},
+		],
+	});
+
+	await client.isReady();
+</script>
+```
+
+Use the lower-level runtime API when you are building directly on
+`@php-wasm/node` or `@php-wasm/web`:
+
+```ts
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(
+	await loadNodeRuntime('8.5', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: 'https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+
+## Build your own extension
+
+`@php-wasm/compile-extension` turns a normal `phpize` extension directory into
+JSPI `.so` artifacts and a loadable manifest:
+
+```bash
+npx @php-wasm/compile-extension \
+	--source ./wp-mysql-parser \
+	--name wp_mysql_parser \
+	--php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+	--out ./dist/wp_mysql_parser
+```
+
+Host the whole output directory from one static location. The manifest lets the
+runtime select the artifact that matches the active PHP version and load it
+before PHP starts.
 
 ## Startup files
 

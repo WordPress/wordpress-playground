@@ -15,6 +15,10 @@ import {
 import { isLegacyPHPVersion } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import type { PHP } from '@php-wasm/universal';
+import {
+	assertBlueprintV2WordPressVersionCompatibility,
+	type BlueprintV2Declaration,
+} from '@wp-playground/blueprints';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -41,8 +45,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		extensions = [],
 		withNetworking = true,
 		shouldInstallWordPress,
-		shouldBootWordPress = true,
-		wordpressInstallMode = 'install-from-existing-files-if-needed',
+		wordpressInstallMode,
+		blueprint,
 		corsProxyUrl,
 		pathAliases,
 	}: WorkerBootOptions) {
@@ -59,14 +63,11 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const installWordPress =
-				shouldInstallWordPress ?? shouldBootWordPress;
-			if (installWordPress && !shouldBootWordPress) {
-				throw new Error(
-					'Conflicting options: WordPress installation was requested, ' +
-						'but WordPress boot was disabled. Pick one.'
-				);
-			}
+			const resolvedWordPressInstallMode: WordPressInstallMode =
+				wordpressInstallMode ??
+				(shouldInstallWordPress === false
+					? 'install-from-existing-files-if-needed'
+					: 'download-and-install');
 			const siteUrl = this.computeSiteUrl(scope);
 
 			const requestHandler = await this.createRequestHandler({
@@ -91,7 +92,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
-			if (installWordPress) {
+			// Only tar.zst descriptors opt into the streaming extractor's file-count
+			// parity check. Custom URLs and wordpress.org ZIPs skip it.
+			let expectedBundleFileCount: number | undefined;
+			if (resolvedWordPressInstallMode === 'download-and-install') {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -124,12 +128,14 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 						});
 				} else if (
 					!isMinifiedVersion &&
-					/^\d+\.\d+(\.\d+)?$/.test(this.requestedWordPressVersion!)
+					/^\d+\.\d+(?:\.\d+)?(?:-(?:beta|rc)\d+)?$/i.test(
+						this.requestedWordPressVersion!
+					)
 				) {
-					// Non-minified dotted version like "4.9" or "1.5":
-					// download directly from wordpress.org. Sentinel
-					// values like "latest" fall through to the minified-
-					// bundle branch below and resolve to
+					// Non-minified release like "4.9", "6.8.0", or
+					// "7.0-RC1": download directly from wordpress.org.
+					// Sentinel values like "latest" fall through to the
+					// minified-bundle branch below and resolve to
 					// LatestMinifiedWordPressVersion.
 					const normalizedVersion = normalizeWordPressVersion(
 						this.requestedWordPressVersion!
@@ -156,6 +162,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					this.downloadMonitor.expectAssets({
 						[downloadUrl]: wpDetails.size,
 					});
+					expectedBundleFileCount =
+						wpDetails.format === 'tar.zst'
+							? wpDetails.fileCount
+							: undefined;
 					wordPressRequest = this.downloadMonitor.monitorFetch(
 						fetch(downloadUrl)
 					);
@@ -164,7 +174,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 
 			// PHP-only mode: the caller asked us to skip WordPress boot entirely.
 			// Apply mounts and stop, so the caller gets a usable PHP runtime.
-			if (!shouldBootWordPress) {
+			if (resolvedWordPressInstallMode === 'do-not-attempt-installing') {
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				for (const mount of mounts) {
 					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
@@ -195,32 +205,27 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
-				constants: installWordPress
-					? {
-							// Disable WP_DEBUG for legacy PHP (< 7) because
-							// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
-							// and shows all notices when WP_DEBUG is true,
-							// breaking header output and install responses.
-							WP_DEBUG: !isLegacyPhp,
-							WP_DEBUG_LOG: true,
-							WP_DEBUG_DISPLAY: false,
-							AUTH_KEY: randomString(40),
-							SECURE_AUTH_KEY: randomString(40),
-							LOGGED_IN_KEY: randomString(40),
-							NONCE_KEY: randomString(40),
-							AUTH_SALT: randomString(40),
-							SECURE_AUTH_SALT: randomString(40),
-							LOGGED_IN_SALT: randomString(40),
-							NONCE_SALT: randomString(40),
-						}
-					: {},
-				// Passing this even when shouldInstallWordPress is false is counter-intuitive.
-				// Before this line was introduced, `wordpressInstallMode` was always undefined
-				// which defaulted to 'install-from-existing-files'. Using the `-if-needed` variant
-				// saves around 600ms during the boot on a macbook pro so it's worth it.
-				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
-				//        and the Playground website to pass `wordpressInstallMode` directly.
-				wordpressInstallMode,
+				constants:
+					resolvedWordPressInstallMode === 'download-and-install'
+						? {
+								// Disable WP_DEBUG for legacy PHP (< 7) because
+								// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
+								// and shows all notices when WP_DEBUG is true,
+								// breaking header output and install responses.
+								WP_DEBUG: !isLegacyPhp,
+								WP_DEBUG_LOG: true,
+								WP_DEBUG_DISPLAY: false,
+								AUTH_KEY: randomString(40),
+								SECURE_AUTH_KEY: randomString(40),
+								LOGGED_IN_KEY: randomString(40),
+								NONCE_KEY: randomString(40),
+								AUTH_SALT: randomString(40),
+								SECURE_AUTH_SALT: randomString(40),
+								LOGGED_IN_SALT: randomString(40),
+								NONCE_SALT: randomString(40),
+							}
+						: {},
+				wordpressInstallMode: resolvedWordPressInstallMode,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
@@ -231,7 +236,8 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// @see https://github.com/WordPress/wordpress-playground/issues/2769
 				wordPressZip: wordPressRequest
 					?.then((r) => r.arrayBuffer())
-					.then((b) => new File([b], 'wp.zip')),
+					.then((b) => new File([b], 'wp.bundle')),
+				wordPressBundleFileCount: expectedBundleFileCount,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),
@@ -239,6 +245,26 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {
 							await endpoint.mountOpfsIntoPhp(php, mount);
+						}
+						if (
+							(blueprint as { version?: unknown } | undefined)
+								?.version === 2 &&
+							(resolvedWordPressInstallMode ===
+								'install-from-existing-files' ||
+								resolvedWordPressInstallMode ===
+									'install-from-existing-files-if-needed') &&
+							php.fileExists('/wordpress/wp-includes/version.php')
+						) {
+							const installedVersion = await php.run({
+								code: `<?php
+									require '/wordpress/wp-includes/version.php';
+									echo $wp_version;
+								`,
+							});
+							await assertBlueprintV2WordPressVersionCompatibility(
+								blueprint as BlueprintV2Declaration,
+								installedVersion.text.trim()
+							);
 						}
 					},
 				},
@@ -256,6 +282,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		}
 	}
 }
+
+type WordPressInstallMode = NonNullable<
+	WorkerBootOptions['wordpressInstallMode']
+>;
 
 const workerGlobal = self as unknown as {
 	__playgroundWorkerEndpointBlueprintsV1?: boolean;
@@ -282,17 +312,23 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.
- * Versions >= 2.0 work as `<major>.<minor>` (wordpress.org redirects
- * to the latest patch). Versions < 2.0 need explicit patch versions
- * because wordpress.org doesn't host `wordpress-1.x.zip` files.
+ *
+ * Exact initial releases use `<major>.<minor>.0` internally but wordpress.org
+ * names their archives `<major>.<minor>`. RC archive names also use uppercase
+ * `RC`. Versions before 2.0 retain their historical archive aliases.
  */
 function normalizeWordPressVersion(version: string): string {
 	const legacyVersionMap: Record<string, string> = {
+		'0.7': '0.71-gold',
+		'0.71': '0.71-gold',
 		'1.0': '1.0.2',
 		'1.2': '1.2.2',
 		'1.5': '1.5.2',
 	};
-	return legacyVersionMap[version] ?? version;
+	const normalizedVersion = version
+		.replace(/^(\d+\.\d+)\.0$/, '$1')
+		.replace(/-rc(\d+)$/i, '-RC$1');
+	return legacyVersionMap[normalizedVersion] ?? normalizedVersion;
 }
 
 function maybeProxyUrl(url: string, corsProxyUrl?: string) {

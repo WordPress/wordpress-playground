@@ -116,14 +116,24 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
+	width: 58px;
+	height: 58px;
 }
 
 .creationIcon :global(svg) {
 	fill: #fff;
 	width: 28px;
 	height: 28px;
+}
+
+.newPlaygroundIcon {
+	width: 58px;
+	height: 58px;
+}
+
+.newPlaygroundIcon :global(svg) {
+	width: 56px;
+	height: 56px;
 }
 
 .creationTitle {
@@ -199,17 +209,6 @@
 .blueprintPlaceholder svg {
 	width: 40px;
 	height: 40px;
-}
-
-/* View all thumbnail modifier */
-.viewAllThumbnail {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.viewAllThumbnail svg {
-	fill: #fff;
 }
 
 /* Sites list - vertical rows */
@@ -289,12 +288,16 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	min-width: 0;
 }
 
 .siteRowName {
 	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 500;
 	color: #fff;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .siteRowDate {
@@ -304,6 +307,14 @@
 
 .siteRowMenu {
 	margin-right: 12px;
+}
+
+.siteRowActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	padding-right: 8px;
 }
 
 .siteRowMenu button {
@@ -321,6 +332,48 @@
 
 .dangerMenuItem:hover {
 	background: rgba(220, 38, 38, 0.1) !important;
+}
+
+.keepButton {
+	background: #3858e9;
+	border: 1px solid #6c84ff;
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1;
+	padding: 8px 12px;
+	white-space: nowrap;
+}
+
+.keepButton:hover {
+	background: #4f6df0;
+	border-color: #8fa1ff;
+}
+
+.keepButtonCompactText {
+	display: none;
+}
+
+.viewAllPlaygroundsButton {
+	align-items: center;
+	background: transparent;
+	border: 1px solid #3c4349;
+	border-radius: 4px;
+	color: #dcdcde;
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	font-size: 13px;
+	margin-top: 12px;
+	padding: 8px 12px;
+}
+
+.viewAllPlaygroundsButton:hover {
+	background: #2c3338;
+	color: #fff;
 }
 
 /* Loading state */
@@ -521,8 +574,377 @@
 		padding: 12px 16px;
 	}
 
+	.siteRowActions {
+		padding-right: 4px;
+	}
+
+	.keepButton {
+		padding: 7px 10px;
+	}
+
 	.siteRowLogo {
 		width: 36px;
 		height: 36px;
+	}
+}
+
+.playgroundsOverlay.playgroundsOverlay {
+	--playgrounds-overlay-top: 36px;
+	--playgrounds-close-button-top: 24px;
+	--playgrounds-close-button-offset: 20px;
+	--playgrounds-body-top-padding: calc(
+		var(--playgrounds-close-button-offset) + 52px
+	);
+	overscroll-behavior: none;
+}
+
+.playgroundsContent.playgroundsContent {
+	box-sizing: border-box;
+	max-width: none;
+	padding-top: var(--playgrounds-overlay-top);
+}
+
+.playgroundsBody.playgroundsBody {
+	padding: var(--playgrounds-body-top-padding) 24px 70px;
+}
+
+.playgroundsCloseButton {
+	align-items: center;
+	background: #1e2327;
+	border: none;
+	border-radius: 4px;
+	box-shadow: 0 0 0 12px #1e2327;
+	color: #949494;
+	cursor: pointer;
+	display: flex;
+	justify-content: center;
+	padding: 4px;
+	position: fixed;
+	right: 24px;
+	top: var(--playgrounds-close-button-top);
+	z-index: 101;
+}
+
+.playgroundsCloseButton:hover {
+	background: #2c3338;
+	color: #fff;
+}
+
+.playgroundsCloseButton svg {
+	fill: currentColor;
+}
+
+.playgroundsColumns {
+	align-items: start;
+	column-gap: clamp(48px, 9.5vw, 137px);
+	display: grid;
+	row-gap: 28px;
+	grid-template-columns: minmax(420px, 492px) minmax(420px, 710px);
+	margin: 0 auto;
+	max-width: 1339px;
+}
+
+.playgroundsColumns > * {
+	min-width: 0;
+}
+
+.playgroundsSection {
+	margin-bottom: 0;
+}
+
+.playgroundsSection h2 {
+	font-size: clamp(24px, 2.2vw, 28px) !important;
+	line-height: 1.2 !important;
+	margin-bottom: 18px !important;
+}
+
+.playgroundsColumns .playgroundsSection h2 {
+	text-align: center;
+}
+
+.playgroundsList .siteRowContent {
+	min-height: 88px;
+	padding: 20px 24px;
+}
+
+.playgroundsList .siteRowSelected .siteRowContent {
+	padding-left: 21px;
+}
+
+.playgroundsList .siteRowLogo {
+	height: 50px;
+	width: 50px;
+}
+
+.playgroundsList .siteRowLogo svg {
+	height: 31px;
+	width: 31px;
+}
+
+.playgroundsList .siteRowName {
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.playgroundsList .siteRowDate {
+	font-size: 16px;
+}
+
+.playgroundsList .siteRowMenu {
+	margin-right: 16px;
+}
+
+.playgroundsList {
+	max-height: 273px;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+}
+
+.playgroundsSection .creationRow {
+	display: grid;
+	gap: 14px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.playgroundsSection .creationButton {
+	min-height: 112px;
+	min-width: 0;
+	padding: 14px 10px;
+}
+
+.playgroundsSection .creationIcon {
+	height: 42px;
+	width: 42px;
+}
+
+.playgroundsSection .creationIcon :global(svg) {
+	height: 32px;
+	width: 32px;
+}
+
+.playgroundsSection .newPlaygroundIcon :global(svg) {
+	height: 36px;
+	width: 36px;
+}
+
+.playgroundsSection .creationTitle {
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintsRow {
+	display: grid;
+	gap: 24px 20px;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	padding: 0 8px 16px 0;
+}
+
+.blueprintsSection {
+	grid-column: 1 / -1;
+}
+
+.blueprintsSection .blueprintPreviewCard {
+	min-width: 0;
+}
+
+.blueprintsSection .blueprintPreviewTitle {
+	font-size: 18px;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintPreviewThumbnail {
+	border-radius: 8px;
+}
+
+@media (max-width: 1050px) {
+	.playgroundsColumns {
+		column-gap: 48px;
+		grid-template-columns: minmax(360px, 440px) minmax(380px, 1fr);
+	}
+
+	.playgroundsSection .creationTitle {
+		font-size: 16px;
+	}
+}
+
+@media (max-width: 875px) {
+	.playgroundsColumns {
+		gap: 40px;
+		grid-template-columns: 1fr;
+	}
+
+	.blueprintsSection {
+		order: 3;
+	}
+
+	.yourPlaygroundsSection {
+		order: 2;
+	}
+
+	.playgroundsList {
+		max-height: none;
+		overflow-y: visible;
+		scrollbar-gutter: auto;
+	}
+
+	.playgroundsSection .creationRow {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.blueprintsSection .blueprintsRow {
+		gap: 8px;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	}
+
+	.blueprintsSection .blueprintPreviewCard {
+		align-items: center;
+		background: none;
+		border: none;
+		flex-direction: column;
+		gap: 8px;
+		overflow: visible;
+		padding: 0;
+	}
+
+	.blueprintsSection .blueprintPreviewThumbnail {
+		aspect-ratio: 4 / 3;
+		border: 2px solid #3c4349;
+		border-radius: 8px;
+		height: auto;
+		width: 100% !important;
+	}
+
+	.blueprintsSection .blueprintPreviewTitle {
+		font-size: 16px;
+		text-align: center;
+		white-space: normal;
+	}
+}
+
+@media (max-width: 640px) {
+	.playgroundsOverlay.playgroundsOverlay {
+		--playgrounds-overlay-top: 24px;
+		--playgrounds-close-button-top: calc(
+			var(--playgrounds-overlay-top) +
+				var(--playgrounds-close-button-offset)
+		);
+		--playgrounds-close-button-offset: 16px;
+	}
+
+	.playgroundsBody.playgroundsBody {
+		padding: var(--playgrounds-body-top-padding) 20px 48px;
+	}
+
+	.playgroundsCloseButton {
+		right: 8px;
+	}
+
+	.playgroundsColumns {
+		gap: 32px;
+	}
+
+	.playgroundsList .siteRowContent {
+		min-height: 76px;
+		padding: 14px 16px;
+	}
+
+	.playgroundsList .siteRowSelected .siteRowContent {
+		padding-left: 13px;
+	}
+
+	.playgroundsList .siteRowLogo {
+		height: 40px;
+		width: 40px;
+	}
+
+	.playgroundsList .siteRowName {
+		font-size: 16px;
+	}
+
+	.playgroundsList .siteRowDate {
+		font-size: 13px;
+	}
+
+	.keepButtonFullText {
+		display: none;
+	}
+
+	.keepButtonCompactText {
+		display: inline;
+	}
+
+	.playgroundsSection .creationRow {
+		gap: 8px;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.playgroundsSection .creationButton {
+		min-height: 86px;
+		padding: 10px 6px;
+	}
+
+	.playgroundsSection .creationIcon {
+		height: 30px;
+		width: 30px;
+	}
+
+	.playgroundsSection .creationIcon :global(svg) {
+		height: 24px;
+		width: 24px;
+	}
+
+	.playgroundsSection .newPlaygroundIcon :global(svg) {
+		height: 28px;
+		width: 28px;
+	}
+
+	.playgroundsSection .creationTitle {
+		font-size: 14px;
+	}
+}
+
+@media (max-width: 500px) {
+	.playgroundsOverlay.playgroundsOverlay {
+		--playgrounds-close-button-offset: 16px;
+	}
+}
+
+.zipImportStatus {
+	align-items: center;
+	background: rgba(56, 88, 233, 0.12);
+	border: 1px solid rgba(108, 132, 255, 0.35);
+	border-radius: 6px;
+	color: #dcdcde;
+	display: flex;
+	font-size: 14px;
+	gap: 10px;
+	justify-content: center;
+	line-height: 1.4;
+	margin: 16px auto 0;
+	max-width: 360px;
+	padding: 10px 14px;
+}
+
+.zipImportStatusAttention {
+	animation: zipImportStatusFlash 0.9s ease-out;
+}
+
+@keyframes zipImportStatusFlash {
+	0%,
+	100% {
+		background: rgba(56, 88, 233, 0.12);
+		box-shadow: none;
+	}
+
+	35% {
+		background: rgba(56, 88, 233, 0.34);
+		box-shadow: 0 0 0 4px rgba(108, 132, 255, 0.22);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zipImportStatusAttention {
+		animation: none;
 	}
 }

@@ -36,10 +36,10 @@ Playground est un outil en ligne pour expérimenter et apprendre WordPress. Ce s
 - [**Blueprints**](/blueprints) - Les blueprints sont des fichiers JSON permettant de configurer votre instance WordPress Playground. Découvrez leurs possibilités à partir du hub de documentation des blueprints.
 - [**Développeurs**](/developers) - WordPress Playground a été créé comme un outil programmable. Découvrez tout ce que vous pouvez en faire avec votre code dans le hub de documentation des développeurs et développeuses.
 - [**API Reference**](/api) - Toutes les API exposées par WordPress Playground.
-    <!-- -   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs. -->
-    <!-- -   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub. -->
-    <!-- -   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub. -->
-    <!-- -   [**API Reference**](/api) – All the APIs exposed by WordPress Playground -->
+  <!-- -   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs. -->
+  <!-- -   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub. -->
+  <!-- -   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub. -->
+  <!-- -   [**API Reference**](/api) – All the APIs exposed by WordPress Playground -->
 
 ## Naviguer dans ce hub de documentation
 
@@ -50,26 +50,26 @@ Ce hub de documentation se concentre sur la prise en main de WordPress Playgroun
 <!-- This docs hub is focused on starting with WordPress Playground and is divided into the following major sections. -->
 
 - **[Guide rapide](./quick-start-guide.md)** : pour celles et ceux qui débutent avec WordPress Playground, c'est ici que vous pouvez rapidement être opérationnel avec WordPress Playground pour [créer un nouveau site WordPress](/quick-start-guide#start-a-new-wordpress-site), et [tester un bloc/thème/extension](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou [tester une version spécifique de WordPress/PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
-  <!-- -   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version). -->
+      <!-- -   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version). -->
 
 - **[Instance web Playground](/web-instance)** : apprenez-en davantage sur l’instance Playground que vous utilisez sur https://playground.wordpress.net/
-  <!-- -   **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/ -->
+      <!-- -   **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/ -->
 
 - **[À propos de Playground](/about)** : pour en savoir plus sur WordPress Playground, sa sécurité, ce que vous pouvez accomplir avec et ses limitations actuelles, consultez cette section.
-  <!-- -   **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section. -->
+      <!-- -   **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section. -->
 
 Découvrez comment vous pouvez exploiter WordPress Playground pour [construire](./about/build), [tester](./about/test) et [lancer](./about/launch) vos produits.
 
 <!-- Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products. -->
 
 - **[Guides](/guides)** : explorez nos guides complets pour maîtriser de nouvelles compétences, trouver des instructions pas par pas et découvrez des informations précieuses. Plongez-y pour apprendre et grandir !
-  <!-- -   **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow! -->
+      <!-- -   **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow! -->
 
 - **[Contributing](/contributing)** : WordPress Playground est un projet open-source qui accueille tous les contributeurs et contributrices, du code à la conception, de la documentation à la classification des bogues. Apprenez ici comment contribuer.
-  <!-- -   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute. -->
+      <!-- -   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute. -->
 
 - **[Liens and ressources](/resources)** : une belle compilation de liens et de ressources utiles liés à WordPress Playground.
-  <!-- -   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground. -->
+      <!-- -   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground. -->
 
 ## Premiers pas
 
@@ -93,9 +93,11 @@ Que vous soyez un développeur/une développeuse, un utilisateur/une utilisatric
 - [WordCamp Contributor Day](/contributing/contributor-day)
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Lisez l’article [**Introduction to Playground: running WordPress in the browser (en anglais)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) sur le [WordPress Developer Blog](https://developer.wordpress.org/news) pour une excellente introduction à WordPress Playground.
-:::
+
+</div>
 
 <!-- :::tip -->
 <!-- Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground -->
@@ -120,7 +122,10 @@ Si vous êtes un développeur/une développeuse ou un utilisateur/une utilisatri
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](/resources)
--   Choose the right API for your app <APIList />
+-   Choose the right API for your app:
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 -   Dive into the [architecture](/developers/architecture) and learn how it all works -->
 
 ## Impliquez-vous

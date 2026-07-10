@@ -18,6 +18,7 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
+import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -203,7 +204,7 @@ export const JustViewport = function JustViewport({
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
 
 	const dispatch = useAppDispatch();
-	const runtimeConfigString = JSON.stringify(
+	const runtimeBootFingerprint = getRuntimeBootFingerprint(
 		site.metadata.runtimeConfiguration
 	);
 	useEffect(() => {
@@ -212,6 +213,11 @@ export const JustViewport = function JustViewport({
 			return;
 		}
 
+		// This effect owns one iframe boot. Changing site slug or runtime
+		// settings creates a new iframe while `startPlaygroundWeb()` or OPFS
+		// sync work from the previous iframe may still finish later. The signal
+		// lets `bootSiteClient()` ignore those stale callbacks; cleanup removes
+		// this iframe's client info once.
 		const abortController = new AbortController();
 		dispatch(
 			bootSiteClient(siteSlug, iframe, {
@@ -224,7 +230,7 @@ export const JustViewport = function JustViewport({
 			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [siteSlug, iframeRef, runtimeConfigString]);
+	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);

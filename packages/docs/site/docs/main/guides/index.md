@@ -11,7 +11,11 @@ In this section we present a selection of guides that will help you to both work
 
 ## [PHP code snippets and embeds](/guides/php-code-snippets)
 
-Embed runnable PHP snippets in any web page with the `<php-snippet>` web component, or share full PHP examples via the standalone PHP Playground at [`playground.wordpress.net/php-playground.html`](https://playground.wordpress.net/php-playground.html). One script tag, lazy-loaded runtime, shared across every snippet on the page.
+Embed editable, runnable PHP and WordPress examples in any web page with the `<php-snippet>` web component. The guide covers custom Blueprints, expected output, pure-PHP snippets, runtime sharing, and the standalone PHP Playground.
+
+## [Run PHP frameworks in Playground](/guides/php-frameworks)
+
+Use Playground as a generic browser-based PHP runtime. This guide shows how to skip the WordPress download, load a bundled Symfony app with a Blueprint, and run it from a `<php-snippet>`.
 
 ## [WordPress Playground for Everyone](/guides/playground-for-everyone)
 
@@ -44,6 +48,10 @@ Automate WordPress Playground workflows with Claude Code. Learn how to install t
 ## [Programmatic Usage of Playground CLI](/guides/programmatic-playground-cli)
 
 Learn how to use the `runCLI` function to control WordPress Playground programmatically from JavaScript/TypeScript for automation, end-to-end testing, and CI/CD pipelines.
+
+## [Running PHPUnit with the Playground CLI](/guides/phpunit-testing)
+
+Run PHPUnit tests for WordPress plugins and themes using the Playground CLI — no database required, clean environment on every run.
 
 ## [E2E Testing with Playwright and WordPress Playground](/guides/e2e-testing-with-playwright)
 

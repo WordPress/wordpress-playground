@@ -18,6 +18,7 @@ export {
 	printDebugDetails,
 	prettyPrintFullStackTrace,
 	printResponseDebugDetails,
+	describeError,
 } from './error-reporting';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
@@ -47,7 +48,9 @@ export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
 	AllPHPVersions,
+	PHPNextVersion,
 	isLegacyPHPVersion,
+	isPHPNextVersion,
 	LatestSupportedPHPVersion,
 	LegacyPHPVersions,
 	SupportedPHPVersions,
@@ -105,6 +108,7 @@ export {
 export type {
 	InstallPHPExtensionFilesOptions,
 	PHPExtensionIniDirective,
+	PHPExtensionLoadDirective,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	PHPExtensionManifest,

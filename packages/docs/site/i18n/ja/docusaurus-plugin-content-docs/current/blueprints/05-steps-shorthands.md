@@ -183,10 +183,12 @@ The `shorthand` syntax and the `step` syntax correspond to each other. Every `st
 </div>
 
 <!--
-:::info **Which should you choose?**
+<div class="callout callout-info">
+
+**Which should you choose?**
 
 -   Use `shorthands` when **brevity** is your main concern.
 -   Use explicit `steps` when you need more control over the **execution order**.
 
-:::
+</div>
 -->

@@ -46,8 +46,12 @@ export type SyncProgress = {
 	files: number;
 	/** The number of all files that need to be synced. */
 	total: number;
+	/** The current stage of the initial sync. */
+	phase?: 'copying' | 'flushing';
 };
-export type SyncProgressCallback = (progress: SyncProgress) => void;
+export type SyncProgressCallback = (
+	progress: SyncProgress
+) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
@@ -74,17 +78,43 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
 		} else {
-			await copyMemfsToOpfs(
-				FS,
-				handle,
-				vfsMountPoint,
-				options.initialSync.onProgress
-			);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			let lastProgress: SyncProgress | undefined;
+			try {
+				await copyMemfsToOpfs(
+					FS,
+					handle,
+					vfsMountPoint,
+					async (progress) => {
+						lastProgress = {
+							...progress,
+							phase: 'copying',
+						};
+						await options.initialSync.onProgress?.(lastProgress);
+					}
+				);
+				await options.initialSync.onProgress?.({
+					files: lastProgress?.files ?? 0,
+					total: lastProgress?.total ?? 0,
+					phase: 'flushing',
+				});
+				void mount.flush().catch((error) => {
+					logger.error('OPFS flush failed after initial sync', {
+						error,
+						vfsMountPoint,
+					});
+				});
+			} catch (error) {
+				await mount.unmount();
+				throw error;
+			}
+			return mount.unmount;
 		}
-		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		options.onMount?.(mount);
-		return mount.unmount;
 	};
 }
 
@@ -195,6 +225,10 @@ export async function copyMemfsToOpfs(
 	// so we report progress. Throttle the progress callback to avoid flooding
 	// the main thread with excessive updates.
 	let numFilesCompleted = 0;
+	await onProgress?.({
+		files: numFilesCompleted,
+		total: filesToCreate.length,
+	});
 	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
 
 	// Limit max concurrent writes because Safari may otherwise encounter
@@ -207,23 +241,35 @@ export async function copyMemfsToOpfs(
 	// if needed.
 	const maxConcurrentWrites = 100;
 	const concurrentWrites = new Set();
+	// Records any file whose OPFS write rejected. A single failed write must
+	// fail the whole copy: otherwise a rejection that loses the `Promise.race`
+	// below — or that lands in the final sub-`maxConcurrentWrites` batch, which
+	// is never raced — would be swallowed by the `allSettled` in the finally,
+	// and the copy would resolve as "100% complete" while silently missing a
+	// file. That is how a saved Playground lands on disk without, say,
+	// wp-includes/sodium_compat/autoload.php and then fatals on the next boot.
+	const failedWrites: Array<{ memfsPath: string; error: unknown }> = [];
 
 	try {
 		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
-			const promise = overwriteOpfsFile(
-				opfsDir,
-				entryName,
-				FS,
-				memfsPath
-			).then(() => {
-				numFilesCompleted++;
-				concurrentWrites.delete(promise);
-
-				throttledProgressCallback?.({
-					files: numFilesCompleted,
-					total: filesToCreate.length,
+			const promise = overwriteOpfsFile(opfsDir, entryName, FS, memfsPath)
+				.then(
+					() => {
+						numFilesCompleted++;
+						throttledProgressCallback?.({
+							files: numFilesCompleted,
+							total: filesToCreate.length,
+						});
+					},
+					// Record the rejection rather than letting it escape here;
+					// it is re-raised as one error once every write has settled.
+					(error) => {
+						failedWrites.push({ memfsPath, error });
+					}
+				)
+				.finally(() => {
+					concurrentWrites.delete(promise);
 				});
-			});
 			concurrentWrites.add(promise);
 
 			if (concurrentWrites.size >= maxConcurrentWrites) {
@@ -240,6 +286,26 @@ export async function copyMemfsToOpfs(
 		// to a conflict with writes from the earlier attempt.
 		await Promise.allSettled(concurrentWrites);
 	}
+	throttledProgressCallback?.cancel();
+
+	// Fail loud: a partial copy must reject so callers treat the save as failed
+	// (leaving the temporary-placeholder / "initial sync pending" markers in
+	// place) instead of recording a complete, durable save that cannot boot.
+	if (failedWrites.length > 0) {
+		const failedNames = failedWrites
+			.map(({ memfsPath }) => memfsPath)
+			.join(', ');
+		throw new Error(
+			`Failed to copy ${failedWrites.length} of ${filesToCreate.length} ` +
+				`file(s) to OPFS (${failedNames}). The save is incomplete.`,
+			{ cause: failedWrites[0].error }
+		);
+	}
+
+	await onProgress?.({
+		files: filesToCreate.length,
+		total: filesToCreate.length,
+	});
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {
@@ -532,15 +598,21 @@ async function resolveParent(
 	return handle as any;
 }
 
+type CancelableThrottledFunction<T extends (...args: any[]) => any> = T & {
+	cancel(): void;
+};
+
 function throttle<T extends (...args: any[]) => any>(
 	fn: T,
 	debounceMs: number
-): T {
+): CancelableThrottledFunction<T> {
 	let lastCallTime = 0;
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	let pendingArgs: Parameters<T> | undefined;
 
-	return function throttledCallback(...args: Parameters<T>) {
+	const throttledCallback = function throttledCallback(
+		...args: Parameters<T>
+	) {
 		pendingArgs = args;
 
 		const timeSinceLastCall = Date.now() - lastCallTime;
@@ -549,8 +621,30 @@ function throttle<T extends (...args: any[]) => any>(
 			timeoutId = setTimeout(() => {
 				timeoutId = undefined;
 				lastCallTime = Date.now();
-				fn(...pendingArgs!);
+				const args = pendingArgs!;
+				pendingArgs = undefined;
+				try {
+					void Promise.resolve(fn(...args)).catch(
+						logThrottledProgressCallbackError
+					);
+				} catch (error) {
+					logThrottledProgressCallbackError(error);
+				}
 			}, delay);
 		}
-	} as T;
+	} as CancelableThrottledFunction<T>;
+
+	throttledCallback.cancel = () => {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = undefined;
+		pendingArgs = undefined;
+	};
+
+	return throttledCallback;
+}
+
+function logThrottledProgressCallbackError(error: unknown) {
+	logger.error('Throttled progress callback failed', { error });
 }

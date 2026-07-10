@@ -5,7 +5,7 @@ import { useState } from 'react';
 import classNames from 'classnames';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { useActiveSite } from '../../../lib/state/redux/store';
-import { isSaveDisabledByQueryParam } from '../../../lib/state/url/router';
+import { isSiteSavingDisabled } from '../../../lib/state/url/router';
 
 export function TemporarySiteNotice({
 	isDismissible = false,
@@ -17,7 +17,7 @@ export function TemporarySiteNotice({
 	const [isDismissed, setIsDismissed] = useState(false);
 	const site = useActiveSite()!;
 	const playground = usePlaygroundClient(site.slug);
-	if (isDismissed || isSaveDisabledByQueryParam()) {
+	if (isDismissed || isSiteSavingDisabled()) {
 		return null;
 	}
 	return (
