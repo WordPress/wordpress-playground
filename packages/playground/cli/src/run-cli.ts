@@ -328,23 +328,22 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					value === '' ? ['vscode', 'phpstorm'] : [value],
 			},
 			'experimental-blueprints-v2-runner': {
-				describe: 'Use the experimental Blueprint V2 runner.',
+				describe:
+					'Compatibility alias for selecting the Blueprint v2 handler.',
 				type: 'boolean',
 				default: false,
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				// Keep the old opt-in available without advertising it to new callers.
 				hidden: true,
 			},
 			mode: {
 				describe:
-					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+					'Choose whether Blueprint v2 creates a site, applies to an existing site, or only mounts files.',
 				type: 'string',
 				choices: [
 					'create-new-site',
 					'apply-to-existing-site',
 					'mount-only',
 				],
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
-				hidden: true,
 			},
 			phpmyadmin: {
 				describe:
@@ -636,49 +635,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				);
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
-					if (args['mode'] !== undefined) {
-						if (args['wordpress-install-mode'] !== undefined) {
-							throw new Error(
-								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
-							);
-						}
-						if (
-							argsToParse.some(
-								(arg) =>
-									arg === '--skip-sqlite-setup' ||
-									arg.startsWith('--skip-sqlite-setup=')
-							)
-						) {
-							throw new Error(
-								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
-							);
-						}
-						// `--mode` is an explicit v2 execution-mode choice,
-						// while `--auto-mount` infers the mode from the
-						// detected project type. Check the raw argv here
-						// because parsed `auto-mount` values include parser
-						// defaults and do not reliably tell us whether the
-						// user passed the option explicitly.
-						if (
-							argsToParse.some(
-								(arg) =>
-									arg === '--auto-mount' ||
-									arg.startsWith('--auto-mount=') ||
-									arg === '--no-auto-mount' ||
-									arg.startsWith('--no-auto-mount=')
-							)
-						) {
-							throw new Error(
-								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
-							);
-						}
-					} else {
-						// Support the legacy v1 runner option while the native
-						// v2 CLI path remains experimental. The old v2 runner
-						// only had two modes and used `apply-to-existing-site`
-						// for this case; the native v2 path has `mount-only`,
-						// which maps directly to the same "do not install
-						// WordPress" worker behavior.
+					if (args['mode'] === undefined) {
+						// Translate the v1-style install option for callers still
+						// using the legacy v2 handler flag. The old option family
+						// had two modes; `mount-only` maps directly to its "do not
+						// install WordPress" worker behavior.
 						if (
 							args['wordpress-install-mode'] ===
 							'do-not-attempt-installing'
@@ -689,8 +650,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						}
 					}
 
-					// Support the legacy v1 runner options while the native
-					// v2 CLI path remains experimental.
+					// Translate v1-style capability flags for the compatibility
+					// alias.
 					const allow = (args['allow'] as string[]) || [];
 
 					if (args['followSymlinks'] === true) {
@@ -702,10 +663,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 
 					args['allow'] = allow;
-				} else if (hasExplicitBlueprintsV2Mode) {
-					throw new Error(
-						'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
-					);
 				}
 
 				args['hasExplicitBlueprintsV2Mode'] =
@@ -1469,11 +1426,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			}
 
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			const useBlueprintsV2Handler =
-				await shouldUseBlueprintsV2Handler(
-					args,
-					hasExplicitBlueprintsV2Mode
-				);
+			const useBlueprintsV2Handler = await shouldUseBlueprintsV2Handler(
+				args,
+				hasExplicitBlueprintsV2Mode
+			);
 			if (useBlueprintsV2Handler) {
 				validateAndNormalizeBlueprintsV2Args(
 					args,
@@ -1832,10 +1788,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * Selects the native Blueprint v2 CLI path.
  *
  * The default CLI path remains the v1 handler. We switch to v2 only when the
- * caller opts in with `--experimental-blueprints-v2-runner`, passes a resolved
- * Blueprint v2 declaration, or calls `runCLI()` directly with a v2 `mode`.
- * The yargs parser still rejects public `--mode` usage without the experimental
- * flag while the option remains hidden.
+ * caller passes `--mode`, uses the legacy compatibility flag, or provides a
+ * resolved Blueprint v2 declaration.
  *
  * `hasExplicitBlueprintsV2Mode` must be captured before `start` or auto-mount
  * expansion because full WordPress auto-mounts still set
