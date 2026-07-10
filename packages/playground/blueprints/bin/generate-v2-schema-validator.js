@@ -50,6 +50,25 @@ export async function generateBlueprintV2SchemaValidator(
 	schema.$schema = 'http://json-schema.org/schema';
 	patchSchema(schema);
 
+	const ajv = createBlueprintV2Ajv();
+	const validate = ajv.compile(schema);
+	const rawValidationCode = ajvStandaloneCode(ajv, validate);
+	const formattedValidationCode = await prettier.format(rawValidationCode, {
+		...prettierConfig,
+		parser: 'babel',
+	});
+	fs.writeFileSync(v2ValidatorOutputPath, formattedValidationCode);
+
+	return schema;
+}
+
+/**
+ * Creates an AJV instance that can compile the patched Blueprint v2 schema.
+ *
+ * The public schema also contains the v2 definitions, so its validator must
+ * use the same custom URL format and standalone implementation.
+ */
+export function createBlueprintV2Ajv() {
 	const ajv = new Ajv({
 		// Besides reporting independent failures, this produces smaller standalone
 		// code for this schema: about 100 KB versus 170 KB gzip before bundling.
@@ -63,13 +82,7 @@ export async function generateBlueprintV2SchemaValidator(
 		},
 	});
 	ajv.addFormat(whatwgHttpUrlFormat, isWhatwgHttpUrl);
-	const validate = ajv.compile(schema);
-	const rawValidationCode = ajvStandaloneCode(ajv, validate);
-	const formattedValidationCode = await prettier.format(rawValidationCode, {
-		...prettierConfig,
-		parser: 'babel',
-	});
-	fs.writeFileSync(v2ValidatorOutputPath, formattedValidationCode);
+	return ajv;
 }
 
 /** Restores constraints the TypeScript schema generator cannot represent. */

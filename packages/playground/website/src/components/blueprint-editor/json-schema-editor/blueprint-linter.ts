@@ -3,7 +3,7 @@ import { type Extension, StateEffect, StateField } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { findNodeAtLocation, parseTree } from 'jsonc-parser';
 import {
-	validateBlueprint,
+	validateBlueprintDeclaration,
 	type BlueprintValidationResult,
 } from '@wp-playground/blueprints';
 
@@ -47,7 +47,7 @@ export function createBlueprintLinter(
 		validationStateField,
 		lintGutter(),
 		linter(
-			(view: EditorView): Diagnostic[] => {
+			async (view: EditorView): Promise<Diagnostic[]> => {
 				const docText = view.state.doc.toString();
 
 				// Skip validation for empty documents
@@ -122,7 +122,13 @@ export function createBlueprintLinter(
 					];
 				}
 
-				const validationResult = validateBlueprint(parsedJson);
+				const validationResult =
+					await validateBlueprintDeclaration(parsedJson);
+				// A v2 validator may load asynchronously. Ignore its result if the
+				// author changed the document while it was loading.
+				if (view.state.doc.toString() !== docText) {
+					return [];
+				}
 
 				if (validationResult.valid) {
 					dispatchValidationState(view, false, validationResult);

@@ -14,6 +14,7 @@ import {
 	getExistingKeysInCurrentObject,
 	getJsonPath,
 	getPropertyNameForValueCompletion,
+	getRootObjectPropertyValue,
 	getStringNodeAtPosition,
 	mergeCompositeSchemas,
 	resolveSchemaRefs,
@@ -59,6 +60,11 @@ export async function jsonSchemaCompletion(
 	// Navigate the path while applying discriminator filtering at each level
 	let currentSchema = schema;
 	currentSchema = resolveSchemaRefs(currentSchema, schema);
+	currentSchema = selectBlueprintDeclarationSchema(
+		currentSchema,
+		schema,
+		getRootObjectPropertyValue(doc, 'version')
+	);
 
 	for (const segment of path) {
 		if (segment.type === 'key' && currentSchema.properties) {
@@ -434,7 +440,9 @@ export async function jsonSchemaCompletion(
 		const hasEnumValues =
 			Array.isArray(effectiveProp.enum) && effectiveProp.enum.length > 0;
 
-		if (hasArrayShape) {
+		if (effectiveProp.const !== undefined) {
+			valueToInsert = JSON.stringify(effectiveProp.const);
+		} else if (hasArrayShape) {
 			valueToInsert = '[]';
 		} else if (hasObjectShape) {
 			valueToInsert = '{}';
@@ -444,8 +452,6 @@ export async function jsonSchemaCompletion(
 			valueToInsert = '0';
 		} else if (hasBooleanShape) {
 			valueToInsert = 'false';
-		} else if (effectiveProp.const !== undefined) {
-			valueToInsert = JSON.stringify(effectiveProp.const);
 		} else if (effectiveProp.enum && effectiveProp.enum.length > 0) {
 			valueToInsert = JSON.stringify(effectiveProp.enum[0]);
 		} else {
@@ -575,6 +581,80 @@ export async function jsonSchemaCompletion(
 		to,
 		options: filteredOptions,
 		filter: false,
+	};
+}
+
+/**
+ * Selects the Blueprint schema version before navigating nested properties.
+ *
+ * A versionless document remains a v1 Blueprint, but exposing the v2 `version`
+ * property lets authors opt in through completion. Once a version is present,
+ * only that version's fields are offered.
+ */
+function selectBlueprintDeclarationSchema(
+	schema: JSONSchema,
+	rootSchema: JSONSchema,
+	version: unknown
+): JSONSchema {
+	const options = schema.oneOf || schema.anyOf;
+	if (!options) {
+		return schema;
+	}
+
+	const versionedOption = options.find((option) =>
+		schemaHasProperty(option, 'version', rootSchema)
+	);
+	const versionlessOption = options.find(
+		(option) => !schemaHasProperty(option, 'version', rootSchema)
+	);
+
+	if (version !== undefined) {
+		const matchingOption = options.find((option) => {
+			const values = new Set<string>();
+			collectPropertyValuesFromSchema(
+				option,
+				'version',
+				rootSchema,
+				values
+			);
+			return values.has(String(version));
+		});
+		const selectedOption = matchingOption || versionedOption;
+		return selectedOption
+			? mergeCompositeSchemas(
+					resolveSchemaRefs(selectedOption, rootSchema),
+					rootSchema
+				)
+			: schema;
+	}
+
+	if (!versionlessOption) {
+		return schema;
+	}
+
+	const versionlessSchema = mergeCompositeSchemas(
+		resolveSchemaRefs(versionlessOption, rootSchema),
+		rootSchema
+	);
+	if (!versionedOption) {
+		return versionlessSchema;
+	}
+
+	const versionedSchema = mergeCompositeSchemas(
+		resolveSchemaRefs(versionedOption, rootSchema),
+		rootSchema
+	);
+	const versionProperty = versionedSchema.properties?.version;
+	if (!versionProperty) {
+		return versionlessSchema;
+	}
+
+	return {
+		...versionlessSchema,
+		properties: {
+			...versionlessSchema.properties,
+			version: versionProperty,
+		},
 	};
 }
 

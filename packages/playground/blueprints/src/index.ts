@@ -32,6 +32,7 @@ export type {
 	OnStepCompleted,
 	BlueprintValidationResult,
 } from './lib/v1/compile';
+export { validateBlueprintDeclaration } from './lib/validate-blueprint-declaration';
 export type {
 	CachedResource,
 	CorePluginReference,
