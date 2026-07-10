@@ -251,11 +251,11 @@ function dispatchValidationState(
 }
 
 /**
- * Parse an AJV instance path into path segments for jsonc-parser.
+ * Parses an AJV instance path into path segments for jsonc-parser.
  *
- * JSON Pointers do not distinguish an array index from a numeric object key,
- * so numeric segments are converted only while traversing an array node.
- * "/steps/0/step" -> ["steps", 0, "step"]
+ * AJV reports an error location as a JSON Pointer, where each `/` separates
+ * one complete object key or array index. For example, `/steps/10/step` has
+ * the three segments `steps`, `10`, and `step`; the digits are not split.
  */
 function parseInstancePath(
 	instancePath: string,
@@ -267,10 +267,17 @@ function parseInstancePath(
 
 	const path: (string | number)[] = [];
 	let currentNode: JsonNode | undefined = tree;
+	// Remove only the leading JSON Pointer separator. Splitting the remainder
+	// preserves empty object keys, such as the final segment in `/siteOptions/`.
 	for (const encodedSegment of instancePath.slice(1).split('/')) {
+		// JSON Pointer escapes `~` as `~0` and `/` as `~1` within a segment.
+		// Decode `~1` first: `~01` means the literal text `~1`; decoding `~0`
+		// first would turn it into `~1` and then incorrectly into `/`.
 		const segment = encodedSegment
 			.replaceAll('~1', '/')
 			.replaceAll('~0', '~');
+		// A segment such as `10` may be either an object key or an array index.
+		// jsonc-parser expects a number only when its parent is actually an array.
 		const pathSegment: string | number =
 			currentNode?.type === 'array' ? Number(segment) : segment;
 		path.push(pathSegment);

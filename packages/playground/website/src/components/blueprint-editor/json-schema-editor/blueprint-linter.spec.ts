@@ -64,8 +64,29 @@ describe('Blueprint editor linting', () => {
 		expect(doc.slice(diagnostics[0].from, diagnostics[0].to)).toBe('123');
 	});
 
+	it('treats a multi-digit JSON Pointer segment as one array index', async () => {
+		const doc = JSON.stringify({
+			version: 2,
+			plugins: [
+				...Array.from({ length: 10 }, () => 'akismet'),
+				{ source: 123 },
+			],
+		});
+		const { validationState, diagnostics, count } = await lint(doc);
+
+		expect(validationState.result).toMatchObject({
+			valid: false,
+			errors: [
+				expect.objectContaining({ instancePath: '/plugins/10/source' }),
+			],
+		});
+		expect(count).toBe(1);
+		expect(diagnostics).toHaveLength(1);
+		expect(doc.slice(diagnostics[0].from, diagnostics[0].to)).toBe('123');
+	});
+
 	it.each([
-		['a numeric object key', { version: 2, postTypes: { '123': null } }],
+		['a numeric object key', { version: 2, postTypes: { '10': null } }],
 		[
 			'an RFC 6901-escaped slash',
 			{ version: 2, siteOptions: { 'slash/key': null } },
@@ -74,6 +95,11 @@ describe('Blueprint editor linting', () => {
 			'an RFC 6901-escaped tilde',
 			{ version: 2, siteOptions: { 'tilde~key': null } },
 		],
+		[
+			'an escaped tilde before a literal 1',
+			{ version: 2, siteOptions: { 'tilde~1key': null } },
+		],
+		['an empty object key', { version: 2, siteOptions: { '': null } }],
 	])('highlights the value under %s', async (_description, blueprint) => {
 		const doc = JSON.stringify(blueprint);
 		const { diagnostics, count } = await lint(doc);

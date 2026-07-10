@@ -78,10 +78,7 @@ const v2Schema = await generateBlueprintV2SchemaValidator(
 	prettierConfig
 );
 const publicSchema = createPublicSchema(v1Schema, v2Schema);
-const rawSchemaString = JSON.stringify(publicSchema, null, 2)
-	// Naively remove TypeScript generics <T> from the schema:
-	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
-	.replaceAll(/<[a-zA-Z]+>/g, '');
+const rawSchemaString = JSON.stringify(publicSchema, null, 2);
 const formattedSchemaString = await prettier.format(rawSchemaString, {
 	...prettierConfig,
 	parser: 'json',
