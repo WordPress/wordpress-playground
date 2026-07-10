@@ -3,6 +3,7 @@ import fs from 'fs';
 import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
+import { generateBlueprintV2SchemaValidator } from './generate-v2-schema-validator.js';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
@@ -89,3 +90,5 @@ const formattedValidationCode = await prettier.format(rawValidationCode, {
 	parser: 'babel',
 });
 fs.writeFileSync(validator_output_path, formattedValidationCode);
+
+await generateBlueprintV2SchemaValidator(exponentialBackoff, prettierConfig);

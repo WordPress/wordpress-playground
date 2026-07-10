@@ -40,16 +40,9 @@ import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
+import { InvalidBlueprintError } from '../invalid-blueprint-error';
 
-export class InvalidBlueprintError extends Error {
-	public readonly validationErrors?: unknown;
-
-	constructor(message: string, validationErrors?: unknown) {
-		super(message);
-		this.name = 'InvalidBlueprintError';
-		this.validationErrors = validationErrors;
-	}
-}
+export { InvalidBlueprintError };
 
 /**
  * Error thrown when a single Blueprint step fails during execution.

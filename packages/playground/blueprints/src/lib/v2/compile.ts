@@ -1,10 +1,7 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import { basename, joinPaths } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
-import {
-	resolveRuntimeConfiguration,
-	type ResolveRuntimeConfigurationOptions,
-} from '../resolve-runtime-configuration';
+import type { ResolveRuntimeConfigurationOptions } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 import {
 	compileBlueprintV1,
@@ -20,6 +17,7 @@ import type {
 } from '../steps';
 import type { DirectoryReference, FileReference } from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
+import { resolveBlueprintV2RuntimeConfiguration } from './resolve-runtime-configuration';
 
 export class UnsupportedBlueprintV2FeatureError extends Error {
 	public readonly featurePath: string;
@@ -202,7 +200,9 @@ export type CompileBlueprintV2Options = Pick<
 	CompileBlueprintV1Options,
 	'progress' | 'streamBundledFile'
 > &
-	ResolveRuntimeConfigurationOptions;
+	ResolveRuntimeConfigurationOptions & {
+		onBlueprintValidated?: (blueprint: BlueprintV2Declaration) => void;
+	};
 
 /**
  * Compiles a Blueprint v2 declaration into the pieces the TypeScript runner can
@@ -217,9 +217,11 @@ export async function compileBlueprintV2(
 	declaration: BlueprintV2Declaration,
 	options: CompileBlueprintV2Options = {}
 ): Promise<CompiledBlueprintV2> {
-	const runtime = await resolveRuntimeConfiguration(declaration, {
-		siteMode: options.siteMode,
-	});
+	const runtime = await resolveBlueprintV2RuntimeConfiguration(
+		declaration,
+		options.siteMode,
+		options.onBlueprintValidated
+	);
 	const plan = createBlueprintV2ExecutionPlan(declaration);
 	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
 	const v1Blueprint = createV1BlueprintForLoweredV2Steps(
@@ -240,7 +242,10 @@ export async function compileBlueprintV2(
 					getUnsupportedPlanMessage(unsupportedPlan)
 				);
 			}
-			const v1Runner = await compileBlueprintV1(v1Blueprint, options);
+			const v1Runner = await compileBlueprintV1(v1Blueprint, {
+				progress: options.progress,
+				streamBundledFile: options.streamBundledFile,
+			});
 			await v1Runner.run(playground);
 		},
 	};
