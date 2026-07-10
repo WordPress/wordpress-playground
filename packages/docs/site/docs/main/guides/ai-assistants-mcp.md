@@ -6,7 +6,7 @@ description: Learn when to use the WordPress Playground MCP server, how it diffe
 
 # Use WordPress Playground with AI assistants through MCP
 
-The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, take screenshots, and explain what it finds.
+The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, and explain what it finds.
 
 Use this guide if you want to work with Playground through natural language instead of terminal commands. For the technical announcement, architecture, and setup commands, see [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
 
@@ -27,7 +27,7 @@ MCP, or Model Context Protocol, gives your AI assistant tools for the Playground
 - Run PHP inside the Playground site
 - Request pages and inspect the response
 
-This is especially useful when the task depends on what a user would see in the browser: logged-in admin screens, settings pages, redirects, visual checks, and screenshots.
+This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, and redirects.
 
 ## Good use cases for MCP
 
@@ -36,7 +36,7 @@ Use MCP when you want an assistant to work with a visible, browser-managed WordP
 - Guide you through a settings screen: "Show me how to configure this WooCommerce option."
 - Create a browser-based demo: "Build a simple recipe page and show me the result."
 - Work with a persistent site: "Use my saved Playground site" or "Use the My WordPress site connected to my subscription."
-- Reproduce a bug: "Follow these steps, capture what happens, and summarize the error."
+- Reproduce a bug: "Follow these steps and summarize the error."
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
 - Inspect a running site: "Find the admin screen that matches this plugin feature."
 
@@ -98,3 +98,7 @@ If the assistant says no browser tab is connected, open the MCP Playground URL i
 WordPress Playground has two complementary products: the Playground website and the Playground CLI. The website is the browser experience at [playground.wordpress.net](https://playground.wordpress.net/). The CLI is the local automation environment for terminal, scripting, and CI workflows.
 
 The choice depends on what you want the AI assistant to control.
+
+With MCP, the assistant can make authenticated WordPress REST API requests to the connected site without manually configuring authentication. It can also use the `playground_navigate` tool to change the page displayed in the browser and report the final URL after redirects.
+
+From the CLI, comparable HTTP requests usually require a tool such as `curl` and are unauthenticated unless you configure authentication yourself. The CLI also does not control the page displayed in a user's browser.

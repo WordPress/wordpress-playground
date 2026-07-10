@@ -11,10 +11,10 @@ description: Découvrez quand utiliser le serveur MCP de WordPress Playground, e
 # Utiliser WordPress Playground avec des assistants IA via le MCP
 
 <!--
-The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, take screenshots, and explain what it finds.
+The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, and explain what it finds.
 -->
 
-Le serveur MCP de WordPress Playground permet à un assistant IA de se connecter à un véritable site Playground exécuté dans votre navigateur. Une fois la connexion établie, vous pouvez demander à l'assistant de naviguer dans WordPress, d'inspecter des pages, de reproduire des problèmes, de prendre des captures d'écran et d'expliquer ce qu'il trouve.
+Le serveur MCP de WordPress Playground permet à un assistant IA de se connecter à un véritable site Playground exécuté dans votre navigateur. Une fois la connexion établie, vous pouvez demander à l'assistant de naviguer dans WordPress, d'inspecter des pages, de reproduire des problèmes et d'expliquer ce qu'il trouve.
 
 <!--
 Use this guide if you want to work with Playground through natural language instead of terminal commands. For the technical announcement, architecture, and setup commands, see [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
@@ -65,10 +65,10 @@ Le MCP, ou Model Context Protocol, fournit à votre assistant IA des outils pour
 - Demander des pages et inspecter la réponse
 
 <!--
-This is especially useful when the task depends on what a user would see in the browser: logged-in admin screens, settings pages, redirects, visual checks, and screenshots.
+This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, and redirects.
 -->
 
-C'est particulièrement utile lorsque la tâche dépend de ce qu'un utilisateur verrait dans le navigateur : écrans d'administration connectés, pages de réglages, redirections, vérifications visuelles et captures d'écran.
+C'est particulièrement utile lorsque la tâche dépend de l'état du navigateur : écrans d'administration avec une session ouverte, pages de réglages et redirections.
 
 <!--
 ## Good use cases for MCP
@@ -86,7 +86,7 @@ Utilisez le MCP lorsque vous voulez qu'un assistant travaille avec un site WordP
 - Guide you through a settings screen: "Show me how to configure this WooCommerce option."
 - Create a browser-based demo: "Build a simple recipe page and show me the result."
 - Work with a persistent site: "Use my saved Playground site" or "Use the My WordPress site connected to my subscription."
-- Reproduce a bug: "Follow these steps, capture what happens, and summarize the error."
+- Reproduce a bug: "Follow these steps and summarize the error."
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
 - Inspect a running site: "Find the admin screen that matches this plugin feature."
 -->
@@ -94,7 +94,7 @@ Utilisez le MCP lorsque vous voulez qu'un assistant travaille avec un site WordP
 - Vous guider à travers un écran de réglages : « Montre-moi comment configurer cette option WooCommerce. »
 - Créer une démonstration dans le navigateur : « Construis une simple page de recette et montre-moi le résultat. »
 - Travailler avec un site persistant : « Utilise mon site Playground sauvegardé » ou « Utilise le site My WordPress connecté à mon abonnement. »
-- Reproduire un bogue : « Suis ces étapes, capture ce qui se passe et résume l'erreur. »
+- Reproduire un bogue : « Suis ces étapes et résume l'erreur. »
 - Tester une redirection ou une URL : « Ouvre cette page et dis-moi où le navigateur aboutit. »
 - Inspecter un site en cours d'exécution : « Trouve l'écran d'administration qui correspond à cette fonctionnalité de l'extension. »
 
@@ -241,3 +241,15 @@ The choice depends on what you want the AI assistant to control.
 -->
 
 Le choix dépend de ce que vous voulez que l'assistant IA contrôle.
+
+<!--
+With MCP, the assistant can make authenticated WordPress REST API requests to the connected site without manually configuring authentication. It can also use the `playground_navigate` tool to change the page displayed in the browser and report the final URL after redirects.
+-->
+
+Avec MCP, l'assistant peut effectuer des requêtes authentifiées vers l'API REST de WordPress sur le site connecté, sans configurer manuellement l'authentification. Il peut également utiliser l'outil `playground_navigate` pour changer la page affichée dans le navigateur et indiquer l'URL finale après les redirections.
+
+<!--
+From the CLI, comparable HTTP requests usually require a tool such as `curl` and are unauthenticated unless you configure authentication yourself. The CLI also does not control the page displayed in a user's browser.
+-->
+
+Depuis la CLI, des requêtes HTTP équivalentes nécessitent généralement un outil tel que `curl` et ne sont pas authentifiées, sauf si vous configurez vous-même l'authentification. La CLI ne contrôle pas non plus la page affichée dans le navigateur de l'utilisateur.

@@ -11,10 +11,10 @@ description: Saiba quando usar o servidor MCP do WordPress Playground, como ele 
 # Use o WordPress Playground com assistentes de IA através do MCP
 
 <!--
-The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, take screenshots, and explain what it finds.
+The WordPress Playground MCP server lets an AI assistant connect to a real Playground site running in your browser. After the connection is open, you can ask the assistant to navigate WordPress, inspect pages, reproduce issues, and explain what it finds.
 -->
 
-O servidor MCP do WordPress Playground permite que um assistente de IA se conecte a um site real do Playground em execução no seu navegador. Depois que a conexão é estabelecida, você pode pedir ao assistente para navegar pelo WordPress, inspecionar páginas, reproduzir problemas, capturar telas e explicar o que encontra.
+O servidor MCP do WordPress Playground permite que um assistente de IA se conecte a um site real do Playground em execução no seu navegador. Depois que a conexão é estabelecida, você pode pedir ao assistente para navegar pelo WordPress, inspecionar páginas, reproduzir problemas e explicar o que encontra.
 
 <!--
 Use this guide if you want to work with Playground through natural language instead of terminal commands. For the technical announcement, architecture, and setup commands, see [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
@@ -59,16 +59,16 @@ O MCP, ou Model Context Protocol, fornece ao seu assistente de IA ferramentas pa
 - Alternar entre sites do Playground gerenciados pelo navegador
 - Navegar até URLs do painel administrativo e do front-end do WordPress
 - Seguir redirecionamentos e informar a URL final
-- Fazer requisições autenticadas à API REST do WordPress
+- Fazer solicitações autenticadas à API REST do WordPress
 - Ler e gravar arquivos dentro do sistema de arquivos do Playground
 - Executar PHP dentro do site do Playground
-- Requisitar páginas e inspecionar a resposta
+- Solicitar páginas e inspecionar a resposta
 
 <!--
-This is especially useful when the task depends on what a user would see in the browser: logged-in admin screens, settings pages, redirects, visual checks, and screenshots.
+This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, and redirects.
 -->
 
-Isso é especialmente útil quando a tarefa depende do que um usuário veria no navegador: telas administrativas autenticadas, páginas de configurações, redirecionamentos, verificações visuais e capturas de tela.
+Isso é especialmente útil quando a tarefa depende do estado do navegador: telas administrativas com sessão iniciada, páginas de configurações e redirecionamentos.
 
 <!--
 ## Good use cases for MCP
@@ -86,7 +86,7 @@ Use o MCP quando você quiser que um assistente trabalhe com um site WordPress v
 - Guide you through a settings screen: "Show me how to configure this WooCommerce option."
 - Create a browser-based demo: "Build a simple recipe page and show me the result."
 - Work with a persistent site: "Use my saved Playground site" or "Use the My WordPress site connected to my subscription."
-- Reproduce a bug: "Follow these steps, capture what happens, and summarize the error."
+- Reproduce a bug: "Follow these steps and summarize the error."
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
 - Inspect a running site: "Find the admin screen that matches this plugin feature."
 -->
@@ -94,7 +94,7 @@ Use o MCP quando você quiser que um assistente trabalhe com um site WordPress v
 - Orientar você por uma tela de configurações: "Mostre-me como configurar esta opção do WooCommerce."
 - Criar uma demonstração baseada no navegador: "Crie uma página de receita simples e mostre-me o resultado."
 - Trabalhar com um site persistente: "Use o meu site do Playground salvo" ou "Use o site My WordPress conectado à minha assinatura."
-- Reproduzir um bug: "Siga estes passos, capture o que acontece e resuma o erro."
+- Reproduzir um bug: "Siga estes passos e resuma o erro."
 - Testar um redirecionamento ou uma URL: "Abra esta página e diga-me onde o navegador termina."
 - Inspecionar um site em execução: "Encontre a tela administrativa correspondente a este recurso do plugin."
 
@@ -241,3 +241,15 @@ The choice depends on what you want the AI assistant to control.
 -->
 
 A escolha depende do que você quer que o assistente de IA controle.
+
+<!--
+With MCP, the assistant can make authenticated WordPress REST API requests to the connected site without manually configuring authentication. It can also use the `playground_navigate` tool to change the page displayed in the browser and report the final URL after redirects.
+-->
+
+Com o MCP, o assistente pode fazer solicitações autenticadas à API REST do WordPress no site conectado sem configurar a autenticação manualmente. Ele também pode usar a ferramenta `playground_navigate` para alterar a página exibida no navegador e informar a URL final após os redirecionamentos.
+
+<!--
+From the CLI, comparable HTTP requests usually require a tool such as `curl` and are unauthenticated unless you configure authentication yourself. The CLI also does not control the page displayed in a user's browser.
+-->
+
+Na CLI, solicitações HTTP equivalentes normalmente exigem uma ferramenta como `curl` e não são autenticadas, a menos que você configure a autenticação. A CLI também não controla a página exibida no navegador do usuário.
