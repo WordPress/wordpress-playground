@@ -437,7 +437,11 @@ export async function jsonSchemaCompletion(
 			!!effectiveProp.oneOf;
 		const hasArrayShape =
 			propTypes.includes('array') || !!effectiveProp.items;
-		const hasStringShape = propTypes.includes('string');
+		const hasStringShape =
+			propTypes.includes('string') ||
+			typeof effectiveProp.const === 'string' ||
+			effectiveProp.enum?.some((value) => typeof value === 'string') ===
+				true;
 		const hasNumberShape =
 			propTypes.includes('number') || propTypes.includes('integer');
 		const hasBooleanShape = propTypes.includes('boolean');

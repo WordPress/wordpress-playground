@@ -58,6 +58,30 @@ const schema: JSONSchema = {
 	},
 };
 
+const schemaWithImplicitDiscriminator: JSONSchema = {
+	type: 'object',
+	properties: {
+		entries: {
+			type: 'array',
+			items: {
+				type: 'object',
+				discriminator: { propertyName: 'kind' },
+				required: ['kind'],
+				oneOf: [
+					{
+						type: 'object',
+						properties: { kind: { const: 'first' } },
+					},
+					{
+						type: 'object',
+						properties: { kind: { const: 'second' } },
+					},
+				],
+			},
+		},
+	},
+};
+
 let schemaUrlIndex = 0;
 
 afterEach(() => {
@@ -133,6 +157,7 @@ describe('Blueprint JSON schema completion', () => {
 }`,
 			property: 'step',
 			values: ['installPlugin', 'runPHP'],
+			schema: publicBlueprintSchema as unknown as JSONSchema,
 		},
 		{
 			name: 'v2 content type',
@@ -143,14 +168,22 @@ describe('Blueprint JSON schema completion', () => {
 }`,
 			property: 'type',
 			values: ['mysql-dump', 'posts', 'wxr'],
+			schema: publicBlueprintSchema as unknown as JSONSchema,
+		},
+		{
+			name: 'implicitly typed string discriminator',
+			source: `{
+	"$schema": "SCHEMA_URL",
+	"entries": [{ "CURSOR }]
+}`,
+			property: 'kind',
+			values: ['first', 'second'],
+			schema: schemaWithImplicitDiscriminator,
 		},
 	])(
 		'inserts an empty $name discriminator and offers its values',
-		async ({ source, property, values }) => {
-			const { completion, doc } = await complete(
-				source,
-				publicBlueprintSchema as unknown as JSONSchema
-			);
+		async ({ source, property, values, schema: schemaToFetch }) => {
+			const { completion, doc } = await complete(source, schemaToFetch);
 			const propertyCompletion = completion?.options.find(
 				({ label }) => label === property
 			);
