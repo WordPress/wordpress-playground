@@ -1,6 +1,7 @@
 import type { ErrorObject } from 'ajv';
 import blueprintV2Validator from '../../../public/blueprint-v2-schema-validator';
 import { InvalidBlueprintError } from '../invalid-blueprint-error';
+import type { BlueprintValidationResult } from '../v1/compile';
 
 export type BlueprintV2ValidationError = {
 	path: string;
@@ -15,16 +16,30 @@ export type BlueprintV2ValidationResult =
 export function validateBlueprintV2(
 	blueprintMaybe: unknown
 ): BlueprintV2ValidationResult {
-	if (blueprintV2Validator(blueprintMaybe)) {
+	const validationResult = validateBlueprintV2Declaration(blueprintMaybe);
+	if (validationResult.valid) {
 		return { valid: true };
 	}
 
 	return {
 		valid: false,
-		errors: getActionableValidationErrors(
-			blueprintV2Validator.errors ?? []
-		),
+		errors: validationResult.errors.map(normalizeValidationError),
 	};
+}
+
+/** Returns actionable AJV errors with location data for editors and tooling. */
+export function validateBlueprintV2Declaration(
+	blueprintMaybe: unknown
+): BlueprintValidationResult {
+	const valid = blueprintV2Validator(blueprintMaybe);
+	return valid
+		? { valid: true }
+		: {
+				valid: false,
+				errors: getActionableAjvErrors(
+					blueprintV2Validator.errors ?? []
+				),
+			};
 }
 
 /** Rejects an invalid value before any Blueprint v2 runtime work begins. */
@@ -54,9 +69,7 @@ function formatValidationErrors(errors: BlueprintV2ValidationError[]): string {
 }
 
 /** Removes failures from union branches that do not match the input's shape. */
-function getActionableValidationErrors(
-	errors: ErrorObject[]
-): BlueprintV2ValidationError[] {
+function getActionableAjvErrors(errors: ErrorObject[]): ErrorObject[] {
 	const errorsByPath = new Map<string, ErrorObject[]>();
 	for (const error of errors) {
 		const errorsAtPath = errorsByPath.get(error.instancePath) ?? [];
@@ -88,14 +101,14 @@ function getActionableValidationErrors(
 		selectedErrors.push(...selectErrorsAtPath(errorsAtPath));
 	}
 
-	const normalizedErrors = selectedErrors.map(normalizeValidationError);
-	const seenErrors = new Set<string>();
-	return normalizedErrors.filter((error) => {
-		const key = JSON.stringify([error.path, error.message]);
-		if (seenErrors.has(key)) {
+	const normalizedKeys = new Set<string>();
+	return selectedErrors.filter((error) => {
+		const normalized = normalizeValidationError(error);
+		const key = JSON.stringify([normalized.path, normalized.message]);
+		if (normalizedKeys.has(key)) {
 			return false;
 		}
-		seenErrors.add(key);
+		normalizedKeys.add(key);
 		return true;
 	});
 }
