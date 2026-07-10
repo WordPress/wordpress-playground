@@ -286,32 +286,28 @@ describe.each(blueprintVersions)(
 			}
 		});
 
-		test('should keep the experimental v2 flag as a compatibility alias', async () => {
+		test('should reject the retired experimental v2 flag', async () => {
 			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
 				code?: number | string | null
 			) => {
-				throw new Error(
-					`process.exit unexpectedly called with "${code}"`
-				);
+				throw new Error(`process.exit(${code})`);
 			}) as any);
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
 
 			try {
-				await using cliResult = await parseOptionsAndRunCLI([
-					'server',
-					'--experimental-blueprints-v2-runner',
-					'--wordpress-install-mode=do-not-attempt-installing',
-					'--verbosity=quiet',
-					'--port=0',
-					'--workers=1',
-				]);
-				const cliServer = cliResult[internalsKeyForTesting].cliServer;
-
-				expect(
-					await cliServer.playground.fileExists(
-						'/wordpress/wp-load.php'
-					)
-				).toBe(false);
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--experimental-blueprints-v2-runner',
+					])
+				).rejects.toThrow('process.exit(1)');
+				expect(consoleErrorSpy).toHaveBeenCalledWith(
+					expect.stringContaining('experimental-blueprints-v2-runner')
+				);
 			} finally {
+				consoleErrorSpy.mockRestore();
 				exitSpy.mockRestore();
 			}
 		});
