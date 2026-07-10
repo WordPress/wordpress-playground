@@ -909,3 +909,42 @@
 		--playgrounds-close-button-offset: 16px;
 	}
 }
+
+.zipImportStatus {
+	align-items: center;
+	background: rgba(56, 88, 233, 0.12);
+	border: 1px solid rgba(108, 132, 255, 0.35);
+	border-radius: 6px;
+	color: #dcdcde;
+	display: flex;
+	font-size: 14px;
+	gap: 10px;
+	justify-content: center;
+	line-height: 1.4;
+	margin: 16px auto 0;
+	max-width: 360px;
+	padding: 10px 14px;
+}
+
+.zipImportStatusAttention {
+	animation: zipImportStatusFlash 0.9s ease-out;
+}
+
+@keyframes zipImportStatusFlash {
+	0%,
+	100% {
+		background: rgba(56, 88, 233, 0.12);
+		box-shadow: none;
+	}
+
+	35% {
+		background: rgba(56, 88, 233, 0.34);
+		box-shadow: 0 0 0 4px rgba(108, 132, 255, 0.22);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zipImportStatusAttention {
+		animation: none;
+	}
+}

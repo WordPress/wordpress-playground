@@ -94,7 +94,7 @@ The MCP bridge runs locally and is only accessible from your machine — connect
 
 ## Available tools
 
-**Site management**: `playground_get_website_url`, `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`
+**Site management**: `playground_get_website_url`, `playground_list_sites`, `playground_open_site_in_new_tab`, `playground_rename_site`, `playground_save_in_browser`
 
 **Code execution**: `playground_execute_php`, `playground_request`
 

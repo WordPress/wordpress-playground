@@ -7,6 +7,7 @@
 	},
 	"include": [
 		"src/**/*.ts",
+		"../wordpress/src/zstddec-stream.d.ts",
 		"tests/mounts.spec.ts",
 		"../blueprints/src/lib/v2/get-v2-runner.ts",
 		"../blueprints/src/lib/v2/run-blueprint-v2.ts",

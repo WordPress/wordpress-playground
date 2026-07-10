@@ -18,6 +18,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 
 	afterEach(() => {
 		vi.doUnmock('@php-wasm/web');
+		vi.doUnmock('@wp-playground/blueprints');
 		vi.doUnmock('@wp-playground/wordpress');
 		vi.unstubAllGlobals();
 	});
@@ -139,6 +140,122 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
 		expect(fetch).not.toHaveBeenCalled();
 	}, 10000);
+
+	it('rejects incompatible mounted WordPress before boot setup continues', async () => {
+		const php = {
+			fileExists: vi.fn(() => true),
+			run: vi.fn(async () => ({ text: ' 6.7.5\n' })),
+		} as unknown as PHP;
+		const bootContinued = vi.fn();
+		const assertCompatibility = vi.fn(async () => {
+			throw new Error('Incompatible WordPress version');
+		});
+		const bootWordPress = vi.fn(async (_requestHandler, options) => {
+			await options.hooks.beforeWordPressFiles(php);
+			bootContinued();
+		});
+		let endpoint:
+			| {
+					boot(options: Record<string, unknown>): Promise<void>;
+			  }
+			| undefined;
+		vi.doMock('@wp-playground/blueprints', () => ({
+			assertBlueprintV2WordPressVersionCompatibility: assertCompatibility,
+		}));
+		vi.doMock('@wp-playground/wordpress', () => ({
+			bootWordPress,
+		}));
+		vi.doMock('@php-wasm/web', () => ({
+			certificateToPEM: vi.fn(),
+			createDirectoryHandleMountHandler: vi.fn(),
+			exposeAPI: vi.fn((api) => {
+				endpoint = api;
+				return [vi.fn(), vi.fn()];
+			}),
+			loadWebRuntime: vi.fn(),
+		}));
+		await import('./playground-worker-endpoint-blueprints-v1');
+		if (!endpoint) {
+			throw new Error('Expected exposeAPI to receive an endpoint');
+		}
+		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+			'http://playground.test'
+		);
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({});
+
+		await expect(
+			endpoint.boot({
+				scope: 'test',
+				phpVersion: '8.3',
+				wordpressInstallMode: 'install-from-existing-files',
+				blueprint: {
+					version: 2,
+					wordpressVersion: { min: '6.8' },
+				},
+				withNetworking: false,
+			})
+		).rejects.toThrow('Incompatible WordPress version');
+
+		expect(assertCompatibility).toHaveBeenCalledWith(
+			expect.objectContaining({ version: 2 }),
+			'6.7.5'
+		);
+		expect(bootContinued).not.toHaveBeenCalled();
+	}, 10000);
+
+	it.each([
+		['6.8.0', 'https://wordpress.org/wordpress-6.8.zip'],
+		['7.0-rc1', 'https://wordpress.org/wordpress-7.0-RC1.zip'],
+	])(
+		'downloads concrete WordPress release %s without changing its identity',
+		async (wpVersion, releaseUrl) => {
+			const bootWordPress = vi.fn();
+			let endpoint:
+				| {
+						boot(options: Record<string, unknown>): Promise<void>;
+				  }
+				| undefined;
+			vi.doMock('@wp-playground/wordpress', () => ({
+				bootWordPress,
+			}));
+			vi.doMock('@php-wasm/web', () => ({
+				certificateToPEM: vi.fn(),
+				createDirectoryHandleMountHandler: vi.fn(),
+				exposeAPI: vi.fn((api) => {
+					endpoint = api;
+					return [vi.fn(), vi.fn()];
+				}),
+				loadWebRuntime: vi.fn(),
+			}));
+			await import('./playground-worker-endpoint-blueprints-v1');
+			if (!endpoint) {
+				throw new Error('Expected exposeAPI to receive an endpoint');
+			}
+			vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+				'http://playground.test'
+			);
+			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+				{}
+			);
+			vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
+				undefined
+			);
+
+			await endpoint.boot({
+				scope: 'test',
+				phpVersion: '8.3',
+				wpVersion,
+				wordpressInstallMode: 'download-and-install',
+				corsProxyUrl: 'https://proxy.test/?url=',
+				withNetworking: false,
+			});
+
+			expect(fetch).toHaveBeenCalledWith(
+				`https://proxy.test/?url=${releaseUrl}`
+			);
+		},
+		10000
+	);
 
 	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
 		vi.doMock('@php-wasm/web', () => ({

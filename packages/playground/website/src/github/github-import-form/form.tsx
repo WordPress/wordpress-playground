@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Notice, Button as WPButton } from '@wordpress/components';
 import type { PlaygroundClient } from '@wp-playground/client';
 
@@ -7,10 +7,17 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
 import type { GitHubURLInformation } from '../analyze-github-url';
-import { staticAnalyzeGitHubURL } from '../analyze-github-url';
+import {
+	resolveGitHubBranchPath,
+	staticAnalyzeGitHubURL,
+} from '../analyze-github-url';
 import type { GetFilesProgress, GithubClient } from '@wp-playground/storage';
-import { createClient, getFilesFromDirectory } from '@wp-playground/storage';
-import { oAuthState, setOAuthToken } from '../state';
+import { getFilesFromDirectory } from '@wp-playground/storage';
+import { setOAuthToken } from '../state';
+import {
+	getAuthenticatedGitHubClient as getClient,
+	resetAuthenticatedGitHubClient as resetClient,
+} from '../client';
 import type { ContentType } from '../import-from-github';
 import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
@@ -33,14 +40,6 @@ export interface GitHubImportFormProps {
 	onClose: () => void;
 }
 
-let octokitClient: any;
-function getClient() {
-	if (!octokitClient) {
-		octokitClient = createClient(oAuthState.value.token!);
-	}
-	return octokitClient;
-}
-
 export default function GitHubImportForm({
 	playground,
 	getPlaygroundBeforeImport,
@@ -56,6 +55,8 @@ export default function GitHubImportForm({
 	const [showExample, setShowExample] = useState<boolean>(false);
 
 	const [url, setUrl] = useState<string>('');
+	const latestUrlRef = useRef(url);
+	const analysisRunRef = useRef(0);
 	const [urlInformation, setUrlInformation] = useState<
 		GitHubURLInformation | undefined
 	>();
@@ -69,6 +70,7 @@ export default function GitHubImportForm({
 		e.preventDefault();
 		const newUrl = url.trim();
 		setUrl(newUrl);
+		latestUrlRef.current = newUrl;
 		setErrors({});
 		if (!newUrl) {
 			setErrors({
@@ -78,32 +80,54 @@ export default function GitHubImportForm({
 		}
 		if (!urlInformation) {
 			const info = staticAnalyzeGitHubURL(newUrl);
-			if (info.type === 'unknown') {
+			if (!['pr', 'branch', 'repo'].includes(info.type)) {
 				setErrors({
 					url: 'This URL is not supported',
 				});
+				return;
 			}
-			logger.log(info);
-			setUrlInformation(info);
 			const octokit = getClient();
+			// Only keep the most recent analysis run if the user triggers
+			// multiple analysis attempts.
+			const analysisRun = ++analysisRunRef.current;
 			setIsAnalyzing(true);
 			try {
-				if (!info.ref) {
-					info.ref = (await guessDefaultBranch(octokit, info))!;
+				const importSource = await resolveImportSource(octokit, info);
+				if (
+					analysisRunRef.current !== analysisRun ||
+					latestUrlRef.current.trim() !== newUrl
+				) {
+					return;
 				}
-				if (info.path) {
-					setPath(info.path);
+				const guessedContentType = await guessContentType(
+					octokit,
+					importSource
+				);
+				if (
+					analysisRunRef.current !== analysisRun ||
+					latestUrlRef.current.trim() !== newUrl
+				) {
+					return;
 				}
-				setBranch(info.ref);
-				setContentType(await guessContentType(octokit, info));
+				setUrlInformation(importSource);
+				setPath(importSource.path ?? '');
+				setBranch(importSource.ref ?? '');
+				setContentType(guessedContentType);
 				return;
 			} catch (e: any) {
+				if (
+					analysisRunRef.current !== analysisRun ||
+					latestUrlRef.current.trim() !== newUrl
+				) {
+					return;
+				}
 				logger.error(e);
 				// Handle the "Bad Credentials" error
 				if (e && e.status) {
 					switch (e.status) {
 						case 401:
 							setOAuthToken(undefined);
+							resetClient();
 							return;
 						case 404:
 							setErrors({
@@ -113,9 +137,11 @@ export default function GitHubImportForm({
 					}
 				}
 				setErrors({ url: e.message });
-				throw e;
+				return;
 			} finally {
-				setIsAnalyzing(false);
+				if (analysisRunRef.current === analysisRun) {
+					setIsAnalyzing(false);
+				}
 			}
 		}
 		if (!contentType) {
@@ -131,11 +157,13 @@ export default function GitHubImportForm({
 			const pluginOrThemeName = basename(path!) || urlInformation!.repo!;
 
 			const relativeRepoPath = path!.replace(/^\//g, '');
+			// Use the commit resolved during analysis so a branch moving
+			// mid-flow cannot change the files being imported.
 			const ghFiles = await getFilesFromDirectory(
 				octokit,
 				urlInformation!.owner!,
 				urlInformation!.repo!,
-				branch!,
+				urlInformation!.commitSha || branch!,
 				relativeRepoPath,
 				{
 					onProgress: (progress) =>
@@ -163,12 +191,17 @@ export default function GitHubImportForm({
 				files: ghFiles,
 			});
 		} catch (e) {
+			if ((e as any)?.status === 401) {
+				setOAuthToken(undefined);
+				resetClient();
+				return;
+			}
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
 			setErrors({
 				url: `There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`,
 			});
-			throw e;
+			return;
 		} finally {
 			setIsImporting(false);
 		}
@@ -192,8 +225,15 @@ export default function GitHubImportForm({
 							onChange={(
 								e: React.ChangeEvent<HTMLInputElement>
 							) => {
-								setUrl(e.target.value);
+								const nextUrl = e.target.value;
+								latestUrlRef.current = nextUrl;
+								analysisRunRef.current++;
+								setUrl(nextUrl);
+								setIsAnalyzing(false);
 								setUrlInformation(undefined);
+								setContentType(undefined);
+								setPath('');
+								setBranch('');
 							}}
 							placeholder="https://github.com/my-org/my-repo/..."
 							autoFocus
@@ -361,17 +401,31 @@ export default function GitHubImportForm({
 	);
 }
 
-async function guessDefaultBranch(
+/**
+ * Resolves the exact repository ref that should be imported.
+ */
+async function resolveImportSource(
 	octokit: GithubClient,
 	urlDetails: GitHubURLInformation
-): Promise<string | undefined> {
+): Promise<GitHubURLInformation> {
 	if (urlDetails.type === 'pr') {
 		const prDetails = await octokit.rest.pulls.get({
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 			pull_number: urlDetails.pr!,
 		});
-		return prDetails.data.head.ref;
+		if (!prDetails.data.head.repo) {
+			throw new Error(
+				'This pull request cannot be imported because its source repository is unavailable.'
+			);
+		}
+		return {
+			...urlDetails,
+			owner: prDetails.data.head.repo.owner.login,
+			repo: prDetails.data.head.repo.name,
+			ref: prDetails.data.head.ref,
+			commitSha: prDetails.data.head.sha,
+		};
 	}
 	if (urlDetails.type === 'repo') {
 		const {
@@ -380,20 +434,30 @@ async function guessDefaultBranch(
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 		});
-		return default_branch;
+		const { data: branch } = await octokit.rest.repos.getBranch({
+			owner: urlDetails.owner!,
+			repo: urlDetails.repo!,
+			branch: default_branch,
+		});
+		return {
+			...urlDetails,
+			ref: default_branch,
+			commitSha: branch.commit.sha,
+		};
 	}
+	return resolveGitHubBranchPath(octokit, urlDetails);
 }
 
 async function guessContentType(
 	octokit: GithubClient,
-	{ owner, repo, path, ref }: GitHubURLInformation
+	{ owner, repo, path, ref, commitSha }: GitHubURLInformation
 ): Promise<ContentType | undefined> {
 	// Guess the content type
 	const { data: files } = await octokit.rest.repos.getContent({
 		owner: owner!,
 		repo: repo!,
 		path: path!,
-		ref,
+		ref: commitSha || ref,
 	});
 	if (Array.isArray(files)) {
 		if (files.some(({ name }) => name === 'theme.json')) {

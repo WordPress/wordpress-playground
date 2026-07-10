@@ -40,14 +40,18 @@ import {
 import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import {
+	removeClientInfo,
+	selectClientInfoBySiteSlug,
+} from '../../lib/state/redux/slice-clients';
 import {
 	isAutosavedSite,
+	sitesSlice,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch } from '../../lib/state/redux/store';
-import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
+import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import { resetAutosavedSiteFilesWithPendingMarker } from '../../lib/state/opfs/opfs-autosave-reset';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -322,6 +326,9 @@ export const BlueprintBundleEditor = forwardRef<
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
 	const dispatch = useAppDispatch();
+	const playgroundClient = useAppSelector((state) =>
+		site ? selectClientInfoBySiteSlug(state, site.slug)?.client : undefined
+	);
 
 	// Save file to filesystem
 	const saveFile = useDebouncedCallback(
@@ -389,6 +396,7 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		try {
 			setIsRecreating(true);
+			setSaveError(null);
 			const isAutosaved = isAutosavedSite(site);
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??
@@ -400,48 +408,71 @@ export const BlueprintBundleEditor = forwardRef<
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				bundle as any
 			);
+			const changes = {
+				...(isAutosaved ? { loadedFromStorage: false } : {}),
+				metadata: {
+					...site.metadata,
+					originalBlueprintSource: isAutosaved
+						? { type: 'opfs-site' as const }
+						: { type: 'none' as const },
+					originalBlueprint: isAutosaved
+						? (filesystem as EventedFilesystem).backend
+						: bundle,
+					runtimeConfiguration,
+					initialOpfsSyncPending:
+						isAutosaved || site.metadata.initialOpfsSyncPending,
+					/**
+					 * Recreating an autosaved Playground discards the old
+					 * WordPress files and boots from the edited Blueprint.
+					 * Constants discovered from the previous runtime may no
+					 * longer exist in the recreated site, so they must be
+					 * rediscovered after the first OPFS sync.
+					 */
+					playgroundDefinedConstants: isAutosaved
+						? undefined
+						: site.metadata.playgroundDefinedConstants,
+					whenCreated: Date.now(),
+				},
+				originalUrlParams: undefined,
+			};
 			if (isAutosaved) {
-				await opfsSiteStorage!.resetSiteFiles(site.slug);
+				await playgroundClient?.unmountOpfs('/wordpress');
+				dispatch(removeClientInfo(site.slug));
+				// "Run Blueprint and reset site" changes the setup for this
+				// autosave. Delete the old WordPress files with
+				// `opfsSiteRemovalPending` so a tab close after the metadata
+				// write cannot leave the old site booting under the edited
+				// Blueprint.
+				const completedChanges =
+					await resetAutosavedSiteFilesWithPendingMarker(
+						site.slug,
+						changes
+					);
+				// The helper already wrote these changes to OPFS before and
+				// after deleting files. Update Redux without writing the same
+				// metadata a third time.
+				dispatch(
+					sitesSlice.actions.updateSite({
+						id: site.slug,
+						changes: completedChanges,
+					})
+				);
+			} else {
+				dispatch(removeClientInfo(site.slug));
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes,
+					})
+				);
 			}
-			dispatch(removeClientInfo(site.slug));
-			await dispatch(
-				updateSite({
-					slug: site.slug,
-					changes: {
-						metadata: {
-							...site.metadata,
-							originalBlueprintSource: isAutosaved
-								? { type: 'opfs-site' }
-								: { type: 'none' },
-							originalBlueprint: isAutosaved
-								? (filesystem as EventedFilesystem).backend
-								: bundle,
-							runtimeConfiguration,
-							initialOpfsSyncPending:
-								isAutosaved ||
-								site.metadata.initialOpfsSyncPending,
-							/**
-							 * Recreating an autosaved Playground discards the old WordPress
-							 * files and boots from the edited Blueprint. Constants discovered
-							 * from the previous runtime may no longer exist in the recreated
-							 * site, so they must be rediscovered after the first OPFS sync.
-							 */
-							playgroundDefinedConstants: isAutosaved
-								? undefined
-								: site.metadata.playgroundDefinedConstants,
-							whenCreated: Date.now(),
-						},
-						originalUrlParams: undefined,
-					},
-				})
-			);
 		} catch (error) {
 			logger.error('Failed to recreate from blueprint', error);
 			setSaveError('Could not recreate Playground. Try again.');
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, readOnly, site]);
+	}, [dispatch, filesystem, playgroundClient, readOnly, site]);
 
 	// autorun token hook
 	useEffect(() => {
