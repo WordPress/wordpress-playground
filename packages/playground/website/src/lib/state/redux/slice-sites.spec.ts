@@ -335,6 +335,99 @@ describe('stored site specs', () => {
 
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
 	});
+
+	it('creates a new stored site from an edited Blueprint bundle', async () => {
+		const { setStoredSiteSpecFromBlueprintBundle, sitesSlice } =
+			await import('./slice-sites');
+		const runtimeConfiguration = {
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		};
+		resolveRuntimeConfiguration.mockResolvedValue(runtimeConfiguration);
+		const sourceSite = createSiteInfo({
+			slug: 'source-site',
+			name: 'Original Playground',
+		});
+		const editedBundle = createBundleBlueprint();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(sourceSite)
+			),
+		};
+		const getState = () => state;
+		const dispatch = vi.fn();
+		dispatch.mockImplementation((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		const writes: string[] = [];
+		persistBlueprintBundle.mockImplementation(async () => {
+			writes.push('bundle');
+		});
+		createSite.mockImplementation(async () => {
+			writes.push('metadata');
+		});
+
+		const newSite = await setStoredSiteSpecFromBlueprintBundle(
+			'Edited Blueprint',
+			editedBundle as any,
+			'source-site',
+			{ persistence: 'autosave' }
+		)(dispatch as any, getState as any);
+
+		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.metadata).toMatchObject({
+			name: 'Edited Blueprint',
+			storage: 'opfs',
+			persistence: 'autosave',
+			initialOpfsSyncPending: true,
+			originalBlueprint: editedBundle,
+			originalBlueprintSource: { type: 'opfs-site' },
+			runtimeConfiguration,
+		});
+		expect(persistBlueprintBundle).toHaveBeenCalledWith(
+			'source-site-2',
+			editedBundle
+		);
+		expect(createSite).toHaveBeenCalledWith(
+			'source-site-2',
+			newSite.metadata,
+			undefined
+		);
+		expect(writes).toEqual(['bundle', 'metadata']);
+		expect(state.sites.entities).toMatchObject({
+			'source-site': sourceSite,
+			'source-site-2': newSite,
+		});
+	});
+
+	it('does not persist an edited Blueprint bundle when its runtime is invalid', async () => {
+		resolveRuntimeConfiguration.mockRejectedValue(
+			new Error('Invalid setup')
+		);
+		const { setStoredSiteSpecFromBlueprintBundle } =
+			await import('./slice-sites');
+
+		await expect(
+			setStoredSiteSpecFromBlueprintBundle(
+				'Edited Blueprint',
+				createBundleBlueprint() as any
+			)(createDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Invalid setup');
+
+		expect(persistBlueprintBundle).not.toHaveBeenCalled();
+		expect(createSite).not.toHaveBeenCalled();
+	});
 });
 
 function createEmptyGetState() {
@@ -381,15 +474,19 @@ function createGetState() {
 
 function createSiteInfo({
 	originalUrlParams,
+	slug = 'stored-site',
+	name = 'Stored site',
 }: {
 	originalUrlParams?: OriginalUrlParams;
+	slug?: string;
+	name?: string;
 } = {}): SiteInfo {
 	return {
-		slug: 'stored-site',
+		slug,
 		originalUrlParams,
 		metadata: {
-			id: 'stored-site',
-			name: 'Stored site',
+			id: slug,
+			name,
 			storage: 'opfs' as const,
 			originalBlueprint: {},
 			originalBlueprintSource: { type: 'none' as const },

@@ -26,6 +26,7 @@ import {
 	isTraversableFilesystemBackend,
 	persistBlueprintBundle,
 } from '../opfs/opfs-blueprint-bundle-storage';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -631,6 +632,79 @@ export function setStoredSiteSpec(
 				),
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource,
+				runtimeConfiguration,
+			},
+		};
+
+		await dispatch(addSite(newSiteInfo));
+		return newSiteInfo;
+	};
+}
+
+/**
+ * Creates a new OPFS-backed Playground from an editable Blueprint bundle.
+ *
+ * Unlike `setStoredSiteSpec`, this does not need a setup URL. The bundle may
+ * include edited files that cannot be represented by a Blueprint URL, so it
+ * is stored with the new Playground before its metadata is written.
+ */
+export function setStoredSiteSpecFromBlueprintBundle(
+	siteName: string,
+	blueprintBundle: TraversableFilesystemBackend,
+	preferredSlug?: string,
+	options: {
+		/**
+		 * Whether the stored site is an autosave or an explicit user save.
+		 */
+		persistence?: SitePersistence;
+	} = {}
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
+
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			blueprintBundle as any
+		))!;
+		const now = Date.now();
+		const sites = selectAllSites(getState());
+		let displayName = siteName;
+		let slugBaseName = siteName;
+		if (!preferredSlug) {
+			slugBaseName = getDefaultSiteNameFromBlueprint(
+				blueprintBundle as any,
+				siteName
+			);
+			displayName = getSiteNameWithCreationTimeIfDuplicate(
+				slugBaseName,
+				sites.map((site) => site.metadata.name),
+				new Date(now)
+			);
+		}
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(slugBaseName),
+			{ unavailableSlugs: sites.map((site) => site.slug) }
+		);
+
+		await persistBlueprintBundle(siteSlug, blueprintBundle);
+		const newSiteInfo: SiteInfo = {
+			slug: siteSlug,
+			metadata: {
+				name: displayName,
+				id: crypto.randomUUID(),
+				whenCreated: now,
+				whenLastUsed: now,
+				persistence: options.persistence ?? 'explicit',
+				storage: 'opfs' as const,
+				initialOpfsSyncPending: true,
+				originalBlueprint: blueprintBundle,
+				originalBlueprintSource: { type: 'opfs-site' },
 				runtimeConfiguration,
 			},
 		};
