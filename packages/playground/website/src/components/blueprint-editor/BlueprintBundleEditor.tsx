@@ -327,7 +327,10 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
-	// Serialize saves so Run can wait for writes already started by this editor.
+	/**
+	 * `flush()` starts the latest delayed save. This ordered promise also includes
+	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
+	 */
 	const saveBarrierRef = useRef<Promise<boolean>>(Promise.resolve(true));
 	const dispatch = useAppDispatch();
 	const playgroundClient = useAppSelector((state) =>
