@@ -34,6 +34,31 @@ jobs:
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
             - run: bash tools/check-node-engine-alignment.sh
+    test-php-wasip2-component:
+        name: 'Build and validate PHP WASI component'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: npx nx run php-wasm-compile:build-wasip2-component --skip-nx-cache --output-style=stream
+            - run: npx nx run php-wasm-compile:validate-wasip2-component --skip-nx-cache --output-style=stream
+            - name: Upload component after a reproducibility failure
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: php-wasi-component-reproducibility-failure
+                  path: packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm
+                  if-no-files-found: error
+                  retention-days: 3
+            - name: Verify the checked-in component is reproducible
+              run: git diff --exit-code -- packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm
+
     test-unit-asyncify:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
@@ -156,6 +181,96 @@ jobs:
                   node-version: 22
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-playground-cli-native:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - label: linux-x64
+                      os: ubuntu-latest
+                      target: x86_64-unknown-linux-gnu
+                      exe: ''
+                      precompile: --precompile-wasmtime
+                    - label: linux-arm64
+                      os: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-gnu
+                      exe: ''
+                      precompile: --precompile-wasmtime
+                    - label: windows-x64
+                      os: windows-latest
+                      target: x86_64-pc-windows-msvc
+                      exe: '.exe'
+                      precompile: --precompile-wasmtime
+                    - label: windows-arm64
+                      os: windows-11-arm
+                      target: aarch64-pc-windows-msvc
+                      exe: '.exe'
+                      precompile: --precompile-wasmtime
+                    - label: macos-x64
+                      os: macos-15-intel
+                      target: x86_64-apple-darwin
+                      exe: ''
+                      precompile: --precompile-wasmtime
+                    - label: macos-arm64
+                      os: macos-latest
+                      target: aarch64-apple-darwin
+                      exe: ''
+                      precompile: --precompile-wasmtime
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 90
+        permissions:
+            contents: read # Required to clone the repo.
+        name: 'test-playground-cli-native (${{ matrix.label }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - name: Install Rust components
+              run: |
+                  rustup toolchain install stable --profile minimal --component clippy --component rustfmt
+                  rustup default stable
+                  rustup target add ${{ matrix.target }}
+            - name: Read package version
+              shell: bash
+              run: |
+                  VERSION="$(node -p "require('./lerna.json').version")"
+                  echo "WP_PLAYGROUND_NATIVE_VERSION=$VERSION" >> "$GITHUB_ENV"
+            - name: Check formatting
+              run: cargo fmt --manifest-path packages/playground/cli-native/Cargo.toml -- --check
+            - name: Run clippy
+              run: cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml --all-targets -- -D warnings
+            - name: Run tests
+              run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml
+            - name: Smoke native server process
+              run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml --test native_server -- --ignored --nocapture
+            - name: Build packaged binary and smoke packaged runtime
+              shell: bash
+              env:
+                  WP_PLAYGROUND_NATIVE_TARGET_TRIPLE: ${{ matrix.target }}
+                  WP_PLAYGROUND_NATIVE_SOURCE_COMMIT: ${{ github.sha }}
+                  WP_PLAYGROUND_NATIVE_PACKAGE_PRECOMPILE: '1'
+              run: |
+                  smoke_args=(
+                    --smoke-wordpress-server
+                    --smoke-run-blueprint
+                    --smoke-build-snapshot
+                  )
+                  cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins --target ${{ matrix.target }}
+                  cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- \
+                    --binary "packages/playground/cli-native/target/${{ matrix.target }}/release/wp-playground-native${{ matrix.exe }}" \
+                    --name "wp-playground-native-$WP_PLAYGROUND_NATIVE_VERSION-${{ matrix.label }}" \
+                    ${{ matrix.precompile }} \
+                    "${smoke_args[@]}"
+            - name: Upload native package archive
+              uses: actions/upload-artifact@v4
+              with:
+                  name: wp-playground-native-${{ matrix.label }}
+                  path: |
+                      packages/playground/cli-native/target/package/*.zip
+                      packages/playground/cli-native/target/package/*.zip.sha256
+                      packages/playground/cli-native/target/package/*.zip.manifest.json
+                  if-no-files-found: error
     test-file-locking:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:

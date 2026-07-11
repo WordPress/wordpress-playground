@@ -1,0 +1,44 @@
+package wordpress:php-wasi@0.1.0;
+
+interface output {
+  enum channel {
+    stdout,
+    stderr,
+  }
+
+  write: func(destination: channel, bytes: list<u8>);
+}
+
+interface handler {
+  record entry {
+    key: string,
+    value: string,
+  }
+
+  record request {
+    script-path: string,
+    request-uri: string,
+    method: string,
+    host: string,
+    port: u32,
+    body: list<u8>,
+    content-type: option<string>,
+    cookies: option<string>,
+    server-entries: list<entry>,
+    env: list<entry>,
+  }
+
+  record response {
+    exit-status: s32,
+    http-status: u16,
+    headers: list<string>,
+  }
+
+  initialize: func(php-ini-path: string) -> result<_, string>;
+  handle-request: func(request: request) -> result<response, string>;
+}
+
+world php {
+  import output;
+  export handler;
+}

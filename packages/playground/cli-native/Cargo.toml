@@ -1,0 +1,58 @@
+[package]
+name = "wp-playground-native"
+version = "0.1.0"
+edition = "2021"
+description = "Experimental native WordPress Playground CLI host"
+license = "GPL-2.0-or-later"
+publish = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[[bin]]
+name = "wp-playground-native"
+path = "src/main.rs"
+
+[lib]
+name = "wp_playground_native"
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = [
+	"blocking",
+	"rustls-tls",
+] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+tar = { version = "0.4.44", default-features = false }
+wasmtime = { version = "46.0.0", default-features = false, features = [
+	"cache",
+	"component-model",
+	"cranelift",
+	"gc",
+	"gc-null",
+	"parallel-compilation",
+	"runtime",
+	"std",
+	"wat",
+] }
+wasmtime-wasi = { version = "46.0.0", default-features = false, features = [
+	"p2",
+] }
+zip = { version = "6.0.0", default-features = false, features = [
+	"deflate-flate2-zlib-rs",
+] }
+zstd = "0.13.3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.186"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+	"Win32_Foundation",
+	"Win32_Storage_FileSystem",
+	"Win32_System_IO",
+] }

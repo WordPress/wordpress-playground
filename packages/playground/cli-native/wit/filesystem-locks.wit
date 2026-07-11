@@ -1,0 +1,94 @@
+package wordpress-playground:filesystem-locks@0.1.0;
+
+/// Native advisory file locking for independent component workers.
+interface filesystem-locks {
+    use wasi:filesystem/types@0.2.12.{descriptor};
+
+    /// Whether a lock permits other readers or excludes every other holder.
+    enum lock-kind {
+        shared,
+        exclusive,
+    }
+
+    /// Whether acquisition waits for a conflicting lock to be released.
+    enum lock-mode {
+        blocking,
+        non-blocking,
+    }
+
+    /// An absolute, half-open byte range.
+    ///
+    /// A missing length means from `start` through end-of-file, including
+    /// bytes appended after acquisition. An explicit zero length is invalid.
+    record byte-range {
+        start: u64,
+        length: option<u64>,
+    }
+
+    /// A conflicting record lock observed at one point in time.
+    record lock-conflict {
+        /// The conflicting absolute byte range reported by the host.
+        range: byte-range,
+
+        kind: lock-kind,
+
+        /// The owner reported by legacy POSIX `F_GETLK`; unavailable for
+        /// open-file-description locks and on Windows.
+        owner-process-id: option<u32>,
+    }
+
+    variant lock-state {
+        unlocked,
+        locked(lock-conflict),
+    }
+
+    /// Stable error classes; the payload on `io-error` is a native error code.
+    variant lock-error {
+        would-block,
+        bad-descriptor,
+        interrupted,
+        invalid-range,
+        overflow,
+        deadlock,
+        unsupported,
+        permission-denied,
+        resource-exhausted,
+        io-error(option<u32>),
+    }
+
+    /// Acquire or convert a native whole-file advisory lock.
+    lock-whole: func(
+        file: borrow<descriptor>,
+        kind: lock-kind,
+        mode: lock-mode,
+    ) -> result<_, lock-error>;
+
+    /// Release the native whole-file advisory lock held through `file`.
+    unlock-whole: func(file: borrow<descriptor>) -> result<_, lock-error>;
+
+    /// Acquire or convert a native record lock over an absolute byte range.
+    lock-range: func(
+        file: borrow<descriptor>,
+        range: byte-range,
+        kind: lock-kind,
+        mode: lock-mode,
+    ) -> result<_, lock-error>;
+
+    /// Query the first record lock that conflicts with the requested lock kind.
+    query-range: func(
+        file: borrow<descriptor>,
+        range: byte-range,
+        kind: lock-kind,
+    ) -> result<lock-state, lock-error>;
+
+    /// Release this worker's record locks over an absolute byte range.
+    unlock-range: func(
+        file: borrow<descriptor>,
+        range: byte-range,
+    ) -> result<_, lock-error>;
+}
+
+/// A small world suitable for generating the custom host binding in isolation.
+world filesystem-lock-host {
+    import filesystem-locks;
+}
