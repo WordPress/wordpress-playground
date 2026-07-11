@@ -67,8 +67,8 @@ export function PlaygroundFileEditor({
 		filesystem
 	);
 	const pendingSaveRef = useRef<PendingSave | null>(null);
-	const saveQueuesRef = useRef(
-		new WeakMap<AsyncWritableFilesystem, Map<string, Promise<void>>>()
+	const lastWriteByFilesystemRef = useRef(
+		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
 	);
 	const isMountedRef = useRef<boolean>(true);
 	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
@@ -81,57 +81,45 @@ export function PlaygroundFileEditor({
 	}, [currentPath]);
 
 	/**
-	 * Serializes writes to each owned path so an older write cannot finish last,
-	 * without making an unrelated filesystem wait for it.
+	 * Keeps writes ordered within their owning filesystem without making an
+	 * unrelated filesystem wait.
 	 */
 	const saveFile = useCallback(async (pendingSave: PendingSave) => {
-		let filesystemQueue = saveQueuesRef.current.get(pendingSave.filesystem);
-		if (!filesystemQueue) {
-			filesystemQueue = new Map();
-			saveQueuesRef.current.set(pendingSave.filesystem, filesystemQueue);
-		}
-		const previousWrite = filesystemQueue.get(pendingSave.path);
+		const { filesystem, path, content } = pendingSave;
+		const writes = lastWriteByFilesystemRef.current;
+		const previousWrite = writes.get(filesystem);
+		// A failed write reports its own error, but must not poison later writes.
 		const writePromise = (previousWrite ?? Promise.resolve())
 			.catch(() => undefined)
-			.then(() =>
-				pendingSave.filesystem.writeFile(
-					pendingSave.path,
-					pendingSave.content
-				)
-			);
-		filesystemQueue.set(pendingSave.path, writePromise);
+			.then(() => filesystem.writeFile(path, content));
+		writes.set(filesystem, writePromise);
 
+		let writeFailed = false;
 		try {
 			await writePromise;
-			if (
-				isMountedRef.current &&
-				filesystemQueue.get(pendingSave.path) === writePromise &&
-				activeFilesystemRef.current === pendingSave.filesystem &&
-				currentPathRef.current === pendingSave.path &&
-				pendingSaveRef.current === null
-			) {
-				setSaveState(SaveState.SAVED);
-				setSaveError(null);
-			}
 		} catch (error) {
+			writeFailed = true;
 			logger.error('Failed to save file', error);
-			if (
-				isMountedRef.current &&
-				filesystemQueue.get(pendingSave.path) === writePromise &&
-				activeFilesystemRef.current === pendingSave.filesystem &&
-				currentPathRef.current === pendingSave.path &&
-				pendingSaveRef.current === null
-			) {
-				setSaveState(SaveState.ERROR);
-				setSaveError('Could not save changes. Try again.');
-			}
-		} finally {
-			if (filesystemQueue.get(pendingSave.path) === writePromise) {
-				filesystemQueue.delete(pendingSave.path);
-				if (filesystemQueue.size === 0) {
-					saveQueuesRef.current.delete(pendingSave.filesystem);
-				}
-			}
+		}
+
+		// The user may have switched filesystems, selected another file, or
+		// typed again while the write was running. Only the last write that still
+		// owns the visible buffer may update its save status.
+		const ownsVisibleBuffer =
+			isMountedRef.current &&
+			writes.get(filesystem) === writePromise &&
+			activeFilesystemRef.current === filesystem &&
+			currentPathRef.current === path &&
+			pendingSaveRef.current === null;
+
+		if (writes.get(filesystem) === writePromise) {
+			writes.delete(filesystem);
+		}
+		if (ownsVisibleBuffer) {
+			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
+			setSaveError(
+				writeFailed ? 'Could not save changes. Try again.' : null
+			);
 		}
 	}, []);
 
