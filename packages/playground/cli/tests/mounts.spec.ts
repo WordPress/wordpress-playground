@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { expandAutoMounts } from '../src/mounts';
-import type { RunCLIArgs } from '../src';
+import type { RunCLIArgs } from '../src/run-cli';
 
 describe('expandAutoMounts', () => {
 	const createBasicArgs = (autoMountPath: string): RunCLIArgs => ({

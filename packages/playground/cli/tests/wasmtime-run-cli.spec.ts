@@ -1,8 +1,22 @@
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+	access,
+	chmod,
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	symlink,
+	writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { internalsKeyForTesting, runCLI } from '../src';
+import {
+	internalsKeyForTesting,
+	runCLI,
+	type WasmtimeRunCLIArgs,
+} from '../src';
+import type { RunCLIArgs as LegacyRunCLIArgs } from '../src/run-cli';
 import { wasmtimeBinaryEnvironmentVariable } from '../src/wasmtime-binary';
 import { isErrorWithCode } from '../src/wasmtime-run-cli';
 
@@ -19,6 +33,15 @@ test('recognizes filesystem errors created in another VM context', () => {
 	expect(error).not.toBeInstanceOf(Error);
 	expect(isErrorWithCode(error, 'ENOENT')).toBe(true);
 	expect(isErrorWithCode(error, 'EACCES')).toBe(false);
+});
+
+test('publishes PHP 8.2 as the Wasmtime programmatic option', () => {
+	const args = {
+		command: 'server',
+		php: '8.2',
+		blueprint: './blueprint.json',
+	} satisfies WasmtimeRunCLIArgs;
+	expect(args.php).toBe('8.2');
 });
 
 wasmtimeDescribe('Wasmtime runCLI()', () => {
@@ -45,7 +68,7 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 		}
 	});
 
-	test('returns a Wasmtime-backed PHP, VFS, and server facade', async () => {
+	test('returns a Wasmtime-backed HTTP, VFS, and server facade', async () => {
 		const fixture = await createWasmtimeHostFixture();
 		process.env[wasmtimeBinaryEnvironmentVariable] = fixture.binary;
 
@@ -53,6 +76,7 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			await using server = await runCLI({
 				command: 'server',
 				port: 0,
+				'site-url': 'https://wordpress.example.test/subdirectory',
 				verbosity: 'quiet',
 				wordpressInstallMode: 'do-not-attempt-installing',
 				skipSqliteSetup: true,
@@ -60,6 +84,9 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			const playground = server.playground;
 
 			expect(server.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+			expect(await playground.absoluteUrl).toBe(
+				'https://wordpress.example.test/subdirectory'
+			);
 			expect(
 				server[internalsKeyForTesting].workerThreadCount
 			).toBeGreaterThan(0);
@@ -74,6 +101,10 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			expect(await playground.fileExists('/wordpress/hello.txt')).toBe(
 				true
 			);
+			await playground.unlink('/wordpress/hello.txt');
+			expect(await playground.fileExists('/wordpress/hello.txt')).toBe(
+				false
+			);
 			await playground.mkdir('/tools/example');
 			expect(await playground.isDir('/tools/example')).toBe(true);
 
@@ -84,6 +115,15 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			});
 			expect(response.httpStatusCode).toBe(200);
 			expect(response.text).toContain('request body');
+			const streamedResponse = await playground.requestStreamed({
+				method: 'POST',
+				url: '/echo',
+				body: 'streamed request body',
+			});
+			expect(await streamedResponse.httpStatusCode).toBe(200);
+			expect(await streamedResponse.stdoutText).toContain(
+				'streamed request body'
+			);
 
 			const runResponse = await playground.run({
 				code: '<?php echo "wasmtime run";',
@@ -100,24 +140,73 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 					})
 				).text
 			).toBe('file run');
+			await playground.writeFile(
+				'/wordpress/file#encoded.php',
+				'<?php echo "encoded file run";'
+			);
+			expect(
+				(
+					await playground.run({
+						scriptPath: '/wordpress/file#encoded.php',
+					})
+				).text
+			).toBe('encoded file run');
+
+			await playground.writeFile('/wordpress/link-target.txt', 'target');
+			await playground.symlink(
+				'/wordpress/link-target.txt',
+				'/wordpress/link.txt'
+			);
+			expect(await playground.readlink('/wordpress/link.txt')).toBe(
+				'/wordpress/link-target.txt'
+			);
+			expect(await playground.readFileAsText('/wordpress/link.txt')).toBe(
+				'target'
+			);
 			await expect(
 				playground.run({ scriptPath: '/wordpress/missing.php' })
 			).rejects.toThrow('does not exist');
 
-			const cliResponse = await (playground as any).cli([
-				'php',
-				'php',
-				'-v',
-			]);
-			expect(await cliResponse.stdoutText).toBe('wasmtime php');
-			const phpArgs = JSON.parse(
+			await expect(playground.cli(['php', '-v'])).rejects.toThrow(
+				'does not expose a CLI-session ABI'
+			);
+			const serverArgs = JSON.parse(
 				await readFile(fixture.argumentsPath, 'utf8')
 			) as string[];
-			expect(phpArgs.slice(phpArgs.indexOf('--'))).toEqual([
-				'--',
-				'php',
-				'-v',
-			]);
+			expect(serverArgs.some((arg) => arg.startsWith('--php='))).toBe(
+				false
+			);
+		} finally {
+			await fixture.cleanup();
+		}
+	});
+
+	test('supports a VFS root mount in the filesystem facade', async () => {
+		const fixture = await createWasmtimeHostFixture();
+		process.env[wasmtimeBinaryEnvironmentVariable] = fixture.binary;
+		const rootMount = join(fixture.root, 'vfs-root');
+		await mkdir(rootMount);
+		await writeFile(join(rootMount, 'root-file.txt'), 'root mount');
+
+		try {
+			await using server = await runCLI({
+				command: 'server',
+				port: 0,
+				'mount-before-install': [{ hostPath: rootMount, vfsPath: '/' }],
+				verbosity: 'quiet',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+			});
+
+			expect(
+				await server.playground.readFileAsText('/root-file.txt')
+			).toBe('root mount');
+			expect(await server.playground.listFiles('/')).toContain(
+				'root-file.txt'
+			);
+			expect(
+				await server.playground.listFiles('/', { prependPath: true })
+			).toContain('/root-file.txt');
 		} finally {
 			await fixture.cleanup();
 		}
@@ -152,6 +241,44 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 		}
 	});
 
+	test('awaits invocation cleanup when child close races disposal', async () => {
+		const fixture = await createWasmtimeHostFixture();
+		process.env[wasmtimeBinaryEnvironmentVariable] = fixture.binary;
+
+		try {
+			const server = await runCLI({
+				command: 'server',
+				port: 0,
+				verbosity: 'quiet',
+			});
+			await server.playground.mkdirTree('/tmp/cleanup-race');
+			await Promise.all(
+				Array.from({ length: 128 }, (_, index) =>
+					server.playground.writeFile(
+						`/tmp/cleanup-race/${index}.txt`,
+						'x'.repeat(1024)
+					)
+				)
+			);
+
+			const args = JSON.parse(
+				await readFile(fixture.argumentsPath, 'utf8')
+			) as string[];
+			const tmpMount = mountHostPath(args, '/tmp');
+			const invocationRoot = dirname(dirname(tmpMount));
+
+			await Promise.all([
+				server[Symbol.asyncDispose](),
+				server[Symbol.asyncDispose](),
+			]);
+			await expect(access(invocationRoot)).rejects.toMatchObject({
+				code: 'ENOENT',
+			});
+		} finally {
+			await fixture.cleanup();
+		}
+	});
+
 	test('serializes programmatic options and rejects Node-only options', async () => {
 		const fixture = await createWasmtimeHostFixture();
 		process.env[wasmtimeBinaryEnvironmentVariable] = fixture.binary;
@@ -161,6 +288,8 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 		try {
 			await using server = await runCLI({
 				command: 'server',
+				php: '8.2',
+				autoMount: true,
 				port: 0,
 				define: { STRING_VALUE: 'hello' },
 				'define-bool': { BOOL_VALUE: true },
@@ -175,6 +304,12 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			);
 
 			expect(args).toContain('--define');
+			expect(args).toContain('--php=8.2');
+			expect(args).toContain('--auto-mount');
+			expect(args).not.toContain('--no-intl');
+			expect(args).not.toContain('--redis');
+			expect(args).not.toContain('--memcached');
+			expect(args).not.toContain('--xdebug');
 			expect(args).toContain('STRING_VALUE');
 			expect(args).toContain('--define-bool');
 			expect(args).toContain('--define-number');
@@ -184,13 +319,113 @@ wasmtimeDescribe('Wasmtime runCLI()', () => {
 			);
 
 			await expect(
-				runCLI({
+				(
+					runCLI as unknown as (
+						args: LegacyRunCLIArgs
+					) => Promise<unknown>
+				)({
 					command: 'server',
 					pathAliases: [
 						{ urlPrefix: '/alias', fsPath: '/tools/alias' },
 					],
 				})
 			).rejects.toThrow('pathAliases');
+		} finally {
+			await fixture.cleanup();
+		}
+	});
+
+	test('rejects unsupported PHP versions, extensions, and the php command', async () => {
+		await expect(
+			(runCLI as unknown as (args: LegacyRunCLIArgs) => Promise<unknown>)(
+				{
+					command: 'server',
+					php: '8.1',
+				}
+			)
+		).rejects.toThrow('only supports PHP 8.2');
+
+		const unsupportedOptions: Array<[string, Partial<LegacyRunCLIArgs>]> = [
+			['phpExtension', { phpExtension: ['custom.so'] }],
+			['intl', { intl: true }],
+			['redis', { redis: true }],
+			['memcached', { memcached: true }],
+			['xdebug', { xdebug: true }],
+			[
+				'hasExplicitBlueprintsV2Mode',
+				{ hasExplicitBlueprintsV2Mode: true },
+			],
+			[
+				'defaultedDebugConstants',
+				{ defaultedDebugConstants: ['WP_DEBUG'] },
+			],
+		];
+		for (const [name, option] of unsupportedOptions) {
+			await expect(
+				(
+					runCLI as unknown as (
+						args: LegacyRunCLIArgs
+					) => Promise<unknown>
+				)({
+					command: 'server',
+					...option,
+				})
+			).rejects.toThrow(name);
+		}
+
+		await expect(
+			(runCLI as unknown as (args: LegacyRunCLIArgs) => Promise<unknown>)(
+				{
+					command: 'php',
+				}
+			)
+		).rejects.toThrow('does not expose a standalone php command');
+	});
+
+	test('rejects host filesystem access through escaping symlinks', async () => {
+		const fixture = await createWasmtimeHostFixture();
+		process.env[wasmtimeBinaryEnvironmentVariable] = fixture.binary;
+		const wordpress = join(fixture.root, 'wordpress');
+		const outside = join(fixture.root, 'outside');
+		await mkdir(wordpress);
+		await mkdir(outside);
+		await writeFile(join(outside, 'secret.txt'), 'outside');
+		await symlink(outside, join(wordpress, 'escape'));
+		await symlink(
+			join(outside, 'created.txt'),
+			join(wordpress, 'dangling')
+		);
+
+		try {
+			await using server = await runCLI({
+				command: 'server',
+				port: 0,
+				'mount-before-install': [
+					{ hostPath: wordpress, vfsPath: '/wordpress' },
+				],
+				verbosity: 'quiet',
+			});
+
+			await expect(
+				server.playground.readFileAsText('/wordpress/escape/secret.txt')
+			).rejects.toThrow('escapes its mount through a symlink');
+			await expect(
+				server.playground.writeFile(
+					'/wordpress/dangling',
+					'created outside'
+				)
+			).rejects.toThrow('unresolved symlink');
+			expect(await readFile(join(outside, 'secret.txt'), 'utf8')).toBe(
+				'outside'
+			);
+			await expect(
+				readFile(join(outside, 'created.txt'), 'utf8')
+			).rejects.toMatchObject({ code: 'ENOENT' });
+
+			await server.playground.unlink('/wordpress/escape');
+			expect(
+				await server.playground.fileExists('/wordpress/escape')
+			).toBe(false);
 		} finally {
 			await fixture.cleanup();
 		}
@@ -215,11 +450,6 @@ const output = process.env.PLAYGROUND_WASMTIME_TEST_ARGUMENTS;
 if (output) {
   fs.writeFileSync(output, JSON.stringify(args));
 }
-if (command === 'php') {
-  process.stdout.write('wasmtime php');
-  process.exit(0);
-}
-
 const mounts = [];
 for (let index = 1; index < args.length; index++) {
   if (args[index] === '--mount-dir-before-install' || args[index] === '--mount-dir') {
@@ -243,7 +473,8 @@ const server = http.createServer((request, response) => {
       return;
     }
     const wordpress = mounts.find((mount) => mount.vfsPath === '/wordpress');
-    const file = wordpress && path.join(wordpress.hostPath, url.pathname.replace(/^\\//, ''));
+    const requestPath = decodeURIComponent(url.pathname);
+    const file = wordpress && path.join(wordpress.hostPath, requestPath.replace(/^\\//, ''));
     if (file && fs.existsSync(file)) {
       const source = fs.readFileSync(file, 'utf8');
       const echo = source.match(/echo\\s+['"]([^'"]*)['"]/);
@@ -282,14 +513,35 @@ process.on('SIGINT', () => server.close(() => process.exit(0)));
 }
 
 function hasMount(args: string[], vfsPath: string): boolean {
+	return mountHostPath(args, vfsPath, false) !== undefined;
+}
+
+function mountHostPath(
+	args: string[],
+	vfsPath: string,
+	required?: true
+): string;
+function mountHostPath(
+	args: string[],
+	vfsPath: string,
+	required: false
+): string | undefined;
+function mountHostPath(
+	args: string[],
+	vfsPath: string,
+	required = true
+): string | undefined {
 	for (let index = 0; index < args.length; index++) {
 		if (
 			(args[index] === '--mount-dir-before-install' ||
 				args[index] === '--mount-dir') &&
 			args[index + 2] === vfsPath
 		) {
-			return true;
+			return args[index + 1];
 		}
 	}
-	return false;
+	if (required) {
+		throw new Error(`Missing Wasmtime test mount for ${vfsPath}`);
+	}
+	return undefined;
 }

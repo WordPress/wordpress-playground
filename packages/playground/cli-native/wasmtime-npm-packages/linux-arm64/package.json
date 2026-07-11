@@ -14,6 +14,9 @@
 	"cpu": [
 		"arm64"
 	],
+	"libc": [
+		"glibc"
+	],
 	"files": [
 		"bin",
 		"share",

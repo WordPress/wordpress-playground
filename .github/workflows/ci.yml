@@ -247,7 +247,10 @@ jobs:
             - name: Run tests
               run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml
             - name: Test Wasmtime npm package assembly
-              run: node --test packages/playground/cli-native/scripts/prepare-wasmtime-platform-package.test.mjs
+              run: >
+                  node --test
+                  packages/playground/cli-native/scripts/prepare-wasmtime-platform-package.test.mjs
+                  packages/playground/cli-native/scripts/wasmtime-npm-release.test.mjs
             - name: Smoke native server process
               run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml --test native_server -- --ignored --nocapture
             - name: Build packaged binary and smoke packaged runtime
@@ -280,6 +283,8 @@ jobs:
                     --version "$WP_PLAYGROUND_NATIVE_VERSION"
                   mkdir -p "$RUNNER_TEMP/wasmtime-npm-packages"
                   pack_json="$(npm pack --json --pack-destination "$RUNNER_TEMP/wasmtime-npm-packages" "$npm_package_root")"
+                  # JavaScript template literals are intentionally single-quoted for the shell.
+                  # shellcheck disable=SC2016
                   node -e '
                     const [entry] = JSON.parse(process.argv[1]);
                     const maximumBytes = 95 * 1024 * 1024;
@@ -308,11 +313,7 @@ jobs:
                     npm install --ignore-scripts "$cli_archive" "$wasmtime_archive"
                     unset WP_PLAYGROUND_WASMTIME_BINARY
                     ./node_modules/.bin/wp-playground-cli --help | grep -q 'wp-playground-native'
-                    ./node_modules/.bin/wp-playground-cli php \
-                      --php=8.5 \
-                      --skip-wordpress-install \
-                      --skip-sqlite-setup \
-                      -- -v | grep -q 'PHP 8.5'
+                    ./node_modules/.bin/wp-playground-cli server --help | grep -q 'Usage: wp-playground-native server \[options\]'
                   )
             - name: Upload native package archive
               uses: actions/upload-artifact@v4
@@ -453,7 +454,7 @@ jobs:
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests
-              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+              run: CORS_PROXY_URL='http://127.0.0.1:5263/cors-proxy.php?' npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
             - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
               run: |
                   SHARD_ARG=""

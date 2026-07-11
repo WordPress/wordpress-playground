@@ -68,6 +68,7 @@ test('prepares an npm package from a Wasmtime package directory', async () => {
 				license: 'GPL-2.0-or-later',
 				os: ['linux'],
 				cpu: ['x64'],
+				libc: ['glibc'],
 				files: ['bin', 'share', 'package-manifest.json'],
 				exports: { './package.json': './package.json' },
 				publishConfig: { access: 'public' },

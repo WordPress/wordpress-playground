@@ -16,8 +16,8 @@ The NPM package @wp-now/wp-now is deprecated and won't receive updates in the fu
 
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is deprecated.
 Use [Playground CLI](/developers/local-development/wp-playground-cli) instead.
-It uses the same WordPress Playground runtime and is maintained in the main
-WordPress Playground repository.
+The replacement is maintained in the main WordPress Playground repository and
+uses the native Wasmtime PHP 8.2 runtime described in its migration guide.
 
 ## Migrate to Playground CLI
 
@@ -27,7 +27,7 @@ The familiar wp-now workflow maps to the Playground CLI `start` command:
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
 | `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
-| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.2`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.2`           |
 | `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
 | `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
 | `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |

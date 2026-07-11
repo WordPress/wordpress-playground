@@ -2,7 +2,6 @@ name: Release self-hosted packages
 
 on:
     workflow_dispatch:
-        # Require a version bump (patch, minor, major) and an optional dist tag
         inputs:
             should_bump_version:
                 type: boolean
@@ -10,86 +9,190 @@ on:
                 required: true
                 default: true
             version_bump:
-                description: 'Version bump (patch, minor, or major)'
+                description: 'Version bump'
                 required: true
                 default: 'patch'
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
 
 # Disable permissions for all available scopes by default.
 # Any needed permissions should be configured at the job level.
 permissions: {}
 
+concurrency:
+    group: package-release
+
 jobs:
-    publish:
-        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
+    prepare-release:
+        # Only run this workflow on the playground repo, from trunk, and when
+        # triggered by a Playground maintainer.
         if: >
             github.repository == 'WordPress/wordpress-playground' &&
-            github.ref == 'refs/heads/trunk' && (
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl' ||
-                github.actor == 'ashfame' ||
-                github.actor == 'janjakes' ||
-                github.actor == 'mho22' ||
-                github.actor == 'ashfame'
+            github.ref == 'refs/heads/trunk' &&
+            (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'ashfame' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22'
             )
-
-        # Specify runner + deployment step
         runs-on: ubuntu-latest
-        # This workflow is currently disabled. This timeout is set to a high value in anticipation of the workflow
-        # being re-enabled and needing to run through the full deployment process.
         timeout-minutes: 60
         permissions:
-            contents: write # Required to clone the repo, push version bump commits, and create tags.
+            contents: write # Required to push version bump commits and tags.
         environment:
             name: self-hosted-packages
+        outputs:
+            tag: ${{ steps.release.outputs.tag }}
+            version: ${{ steps.release.outputs.version }}
+
         steps:
-            - name: Install dependencies
-              run: sudo apt-get install sshpass
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.pull_request.head.ref }}
+                  ref: ${{ github.ref }}
                   clean: true
                   persist-credentials: true
                   ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
-            - name: Config git user
+
+            - name: Configure git
+              shell: bash
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-            - uses: ./.github/actions/prepare-playground
-            # Version bump, release, tag a new version on GitHub
-            - name: Bump package versions
-              shell: bash
-              if: inputs.should_bump_version == true
-              run: npx lerna@9 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
-            - name: Set up deployment environment vars
-              run: |
-                  export LATEST_PACKAGE_VERSION=$(cat packages/php-wasm/universal/package.json | jq -r '.version')
-                  echo "LATEST_PACKAGE_VERSION=$LATEST_PACKAGE_VERSION" >> $GITHUB_ENV
-                  echo "LATEST_PACKAGE_VERSION_TAG=v$LATEST_PACKAGE_VERSION" >> $GITHUB_ENV
-                  export HOSTING_BASE_URL='https://${{ vars.HOSTING_DOMAIN }}/${{ vars.HOSTING_SUBDIR }}'
-                  echo "HOSTING_BASE_URL='$HOSTING_BASE_URL'" >> $GITHUB_ENV
-                  echo "PACKAGE_SOURCE_DIR=dist/packages-for-self-hosting/$(echo "\"$HOSTING_BASE_URL\"" | jq -r @uri)/v${LATEST_PACKAGE_VERSION}" >> $GITHUB_ENV
-                  echo "PACKAGE_TARGET_DIR=/srv/htdocs/${{ vars.HOSTING_SUBDIR }}/v${LATEST_PACKAGE_VERSION}" >> $GITHUB_ENV
 
-            - name: Check out latest version
+            - uses: ./.github/actions/prepare-playground
+
+            - name: Bump package versions
+              if: inputs.should_bump_version == true
+              shell: bash
+              run: >
+                  npx lerna@9 version ${{ inputs.version_bump || 'patch' }}
+                  --yes --no-private --loglevel=verbose
+                  --force-publish=@wp-playground/cli
+
+            - name: Resolve release tag
+              id: release
+              shell: bash
               run: |
-                  git fetch --depth 1 origin tag "$LATEST_PACKAGE_VERSION_TAG" --no-tags
-                  git checkout "$LATEST_PACKAGE_VERSION_TAG"
+                  set -euo pipefail
+                  version="$(node -p "require('./lerna.json').version")"
+                  tag="v$version"
+                  if ! git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+                    git fetch --depth 1 origin "refs/tags/$tag:refs/tags/$tag"
+                  fi
+                  git rev-parse --verify "$tag^{commit}" >/dev/null
+                  echo "version=$version" >> "$GITHUB_OUTPUT"
+                  echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+    build-wasmtime-platform-packages:
+        needs: prepare-release
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-wasmtime-platform-packages.yml
+        with:
+            version: ${{ needs.prepare-release.outputs.version }}
+            source-ref: ${{ needs.prepare-release.outputs.tag }}
+
+    publish:
+        needs:
+            - prepare-release
+            - build-wasmtime-platform-packages
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        permissions:
+            actions: read # Required to download native package artifacts.
+            contents: read # Required to clone the release tag.
+        environment:
+            name: self-hosted-packages
+
+        steps:
+            - name: Install deployment dependencies
+              run: sudo apt-get install sshpass
+
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.prepare-release.outputs.tag }}
+                  clean: true
+                  submodules: true
+
+            - uses: ./.github/actions/prepare-playground
+
+            - name: Set up deployment environment
+              shell: bash
+              env:
+                  RELEASE_VERSION: ${{ needs.prepare-release.outputs.version }}
+              run: |
+                  set -euo pipefail
+                  hosting_base_url="https://${{ vars.HOSTING_DOMAIN }}/${{ vars.HOSTING_SUBDIR }}"
+                  encoded_base_url="$(printf '%s' "$hosting_base_url" | jq -sRr @uri)"
+                  {
+                    echo "LATEST_PACKAGE_VERSION=$RELEASE_VERSION"
+                    echo "HOSTING_BASE_URL=$hosting_base_url"
+                    echo "PACKAGE_SOURCE_DIR=dist/packages-for-self-hosting/$encoded_base_url/v$RELEASE_VERSION"
+                    echo "PACKAGE_TARGET_DIR=/srv/htdocs/${{ vars.HOSTING_SUBDIR }}/v$RELEASE_VERSION"
+                  } >> "$GITHUB_ENV"
+
             - name: Build JS packages for self-hosting
               env:
                   ADDITIONAL_REMOTE_ORIGINS: 'https://wordpress-playground.atomicsites.blog'
+                  WP_PLAYGROUND_WASMTIME_NPM_VERSION: ${{ needs.prepare-release.outputs.version }}
               shell: bash
-              run: npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$HOSTING_BASE_URL"
+              run: >
+                  npx nx run-many --all --target=package-for-self-hosting
+                  -- --hostingBaseUrl="$HOSTING_BASE_URL"
+
+            - name: Download Wasmtime self-hosted packages
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: wasmtime-self-hosted-package-*
+                  path: ${{ runner.temp }}/wasmtime-self-hosted-packages
+                  merge-multiple: true
+
+            - name: Stage and verify Wasmtime self-hosted packages
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  mkdir -p "$PACKAGE_SOURCE_DIR"
+                  labels=(
+                    linux-x64
+                    linux-arm64
+                    macos-x64
+                    macos-arm64
+                    windows-x64
+                    windows-arm64
+                  )
+                  for label in "${labels[@]}"; do
+                    archive="@wp-playground-cli-wasmtime-$label-$LATEST_PACKAGE_VERSION.tar.gz"
+                    test -f "$RUNNER_TEMP/wasmtime-self-hosted-packages/$archive"
+                    cp "$RUNNER_TEMP/wasmtime-self-hosted-packages/$archive" "$PACKAGE_SOURCE_DIR/$archive"
+                  done
+
+                  cli_archive="$PACKAGE_SOURCE_DIR/@wp-playground-cli-$LATEST_PACKAGE_VERSION.tar.gz"
+                  tar -xOzf "$cli_archive" package/package.json | \
+                    node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs \
+                      verify-self-hosted-cli \
+                      --hosting-base-url "$HOSTING_BASE_URL" \
+                      --version "$LATEST_PACKAGE_VERSION"
+
             - name: Build source tarball
+              shell: bash
               run: |
                   mkdir -p "$PACKAGE_SOURCE_DIR"
-                  tools/scripts/package-source.sh "$LATEST_PACKAGE_VERSION_TAG" "$PACKAGE_SOURCE_DIR/playground-sources-${LATEST_PACKAGE_VERSION}.tar.gz"
+                  tools/scripts/package-source.sh \
+                    "${{ needs.prepare-release.outputs.tag }}" \
+                    "$PACKAGE_SOURCE_DIR/playground-sources-${LATEST_PACKAGE_VERSION}.tar.gz"
+
             - name: Deploy self-hosted packages
               env:
-                  SSH_PASSPHRASE: '${{ secrets.TARGET_SSH_PASSPHRASE }}'
+                  SSH_PASSPHRASE: ${{ secrets.TARGET_SSH_PASSPHRASE }}
+              shell: bash
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.TARGET_SSH_HOST_KEY }}" >> ~/.ssh/known_hosts

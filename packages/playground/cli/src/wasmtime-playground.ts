@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { lstatSync, realpathSync } from 'node:fs';
 import {
 	chmod,
 	cp,
@@ -15,72 +16,84 @@ import {
 	unlink,
 	writeFile,
 } from 'node:fs/promises';
-import { basename, isAbsolute, posix, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import {
 	PHPResponse,
 	StreamedPHPResponse,
 	type PHPRequest,
 	type PHPRunOptions,
-	type Pooled,
 } from '@php-wasm/universal';
-import type { PlaygroundCliWorker } from './run-cli';
 
 export type WasmtimeVfsMount = {
 	hostPath: string;
 	vfsPath: string;
 };
 
-export type WasmtimePHPCLIResult = {
-	exitCode: number;
-	stdout: Uint8Array;
-	stderr: string;
-};
-
-export type WasmtimePlaygroundOptions = {
+type WasmtimePlaygroundOptions = {
 	serverUrl: string;
+	siteUrl: string;
 	mounts: WasmtimeVfsMount[];
 	assertActive: () => void;
-	executePHPCLI: (
-		argv: string[],
-		environment?: Record<string, string>
-	) => Promise<WasmtimePHPCLIResult>;
 };
+
+export interface WasmtimePlaygroundFacade {
+	readonly absoluteUrl: Promise<string>;
+	readonly documentRoot: Promise<string>;
+	request(request: PHPRequest): Promise<PHPResponse>;
+	requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse>;
+	run(request: PHPRunOptions): Promise<PHPResponse>;
+	cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<never>;
+	mkdir(path: string): Promise<void>;
+	mkdirTree(path: string): Promise<void>;
+	readFileAsText(path: string): Promise<string>;
+	readFileAsBuffer(path: string): Promise<Uint8Array>;
+	writeFile(path: string, data: string | Uint8Array): Promise<void>;
+	unlink(path: string): Promise<void>;
+	mv(fromPath: string, toPath: string): Promise<void>;
+	cp(fromPath: string, toPath: string): Promise<void>;
+	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+	listFiles(
+		path: string,
+		options?: { prependPath?: boolean }
+	): Promise<string[]>;
+	isDir(path: string): Promise<boolean>;
+	isFile(path: string): Promise<boolean>;
+	fileExists(path: string): Promise<boolean>;
+	chmod(path: string, mode: number): Promise<void>;
+	symlink(target: string, path: string): Promise<void>;
+	isSymlink(path: string): Promise<boolean>;
+	readlink(path: string): Promise<string>;
+	realpath(path: string): Promise<string>;
+}
 
 /**
  * Creates the programmatic PHP/VFS facade backed by the Wasmtime host mounts.
  *
- * The public CLI API has always returned a pooled, asynchronous object. The
- * Wasmtime host already uses shared host directories for those paths, so this
- * facade performs VFS operations against the same files and sends requests to
- * the running Wasmtime server.
+ * The Wasmtime host uses shared host directories for mounted paths, so this
+ * asynchronous facade performs VFS operations against those same files and
+ * sends requests to the running server.
  */
 export function createWasmtimePlayground(
 	options: WasmtimePlaygroundOptions
-): Pooled<PlaygroundCliWorker> {
-	return new WasmtimePlayground(
-		options
-	) as unknown as Pooled<PlaygroundCliWorker>;
+): WasmtimePlaygroundFacade {
+	return new WasmtimePlayground(options);
 }
 
-class WasmtimePlayground {
+class WasmtimePlayground implements WasmtimePlaygroundFacade {
 	readonly absoluteUrl: Promise<string>;
 	readonly documentRoot = Promise.resolve('/wordpress');
 	private readonly options: WasmtimePlaygroundOptions;
-	#workingDirectory = '/wordpress';
 
 	constructor(options: WasmtimePlaygroundOptions) {
 		this.options = options;
-		this.absoluteUrl = Promise.resolve(options.serverUrl);
+		this.absoluteUrl = Promise.resolve(options.siteUrl);
 	}
 
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		this.assertActive();
-		const response = await fetch(this.requestUrl(request.url), {
-			method: request.method,
-			headers: request.headers,
-			body: requestBody(request.body),
-			redirect: 'manual',
-		});
+		const response = await this.fetchRequest(request);
 		return new PHPResponse(
 			response.status,
 			responseHeaders(response.headers),
@@ -89,7 +102,25 @@ class WasmtimePlayground {
 	}
 
 	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
-		return StreamedPHPResponse.fromPHPResponse(await this.request(request));
+		const response = await this.fetchRequest(request);
+		const headers = responseHeaders(response.headers);
+		const headerLines = Object.entries(headers).flatMap(([name, values]) =>
+			values.map((value) => `${name}: ${value}`)
+		);
+		const headersStream = byteStream(
+			new TextEncoder().encode(
+				JSON.stringify({
+					status: response.status,
+					headers: headerLines,
+				})
+			)
+		);
+		return new StreamedPHPResponse(
+			headersStream,
+			response.body ?? byteStream(),
+			byteStream(),
+			Promise.resolve(0)
+		);
 	}
 
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
@@ -139,24 +170,10 @@ class WasmtimePlayground {
 		}
 	}
 
-	async cli(
-		argv: string[],
-		options?: { env?: Record<string, string> }
-	): Promise<StreamedPHPResponse> {
+	async cli(): Promise<never> {
 		this.assertActive();
-		const phpArgs =
-			argv.length > 0 && basename(argv[0]).startsWith('php')
-				? argv.slice(1)
-				: argv;
-		const result = await this.options.executePHPCLI(phpArgs, options?.env);
-		return StreamedPHPResponse.fromPHPResponse(
-			new PHPResponse(
-				result.exitCode === 0 ? 200 : 500,
-				{},
-				result.stdout,
-				result.stderr,
-				result.exitCode
-			)
+		throw new Error(
+			'The Wasmtime PHP component does not expose a CLI-session ABI, so playground.cli() is unavailable. Use @php-wasm/cli for standalone PHP scripts; playground.run() uses HTTP SAPI and is not a PHP CLI substitute.'
 		);
 	}
 
@@ -187,7 +204,7 @@ class WasmtimePlayground {
 
 	async unlink(path: string): Promise<void> {
 		this.assertActive();
-		await unlink(this.hostPath(path));
+		await unlink(this.hostPath(path, { followFinalSymlink: false }));
 	}
 
 	async mv(fromPath: string, toPath: string): Promise<void> {
@@ -232,15 +249,22 @@ class WasmtimePlayground {
 		this.assertActive();
 		const normalizedPath = normalizeVfsPath(path);
 		if (normalizedPath === '/') {
-			return [
-				...new Set(
-					this.options.mounts.map(
-						(mount) => mount.vfsPath.split('/')[1]
-					)
-				),
-			]
-				.filter(Boolean)
-				.sort();
+			const names = new Set<string>();
+			if (this.options.mounts.some((mount) => mount.vfsPath === '/')) {
+				for (const name of await readdir(this.hostPath('/'))) {
+					names.add(name);
+				}
+			}
+			for (const mount of this.options.mounts) {
+				const topLevelName = mount.vfsPath.split('/')[1];
+				if (topLevelName) {
+					names.add(topLevelName);
+				}
+			}
+			const sortedNames = [...names].sort();
+			return options.prependPath
+				? sortedNames.map((name) => `/${name}`)
+				: sortedNames;
 		}
 		try {
 			const names = await readdir(this.hostPath(normalizedPath));
@@ -292,7 +316,7 @@ class WasmtimePlayground {
 			return true;
 		}
 		try {
-			await lstat(this.hostPath(path));
+			await lstat(this.hostPath(path, { followFinalSymlink: false }));
 			return true;
 		} catch (error) {
 			if (isErrorWithCode(error, 'ENOENT')) {
@@ -309,16 +333,33 @@ class WasmtimePlayground {
 
 	async symlink(target: string, path: string): Promise<void> {
 		this.assertActive();
-		const hostTarget = target.startsWith('/')
-			? this.hostPath(target)
-			: target;
-		await symlink(hostTarget, this.hostPath(path));
+		const linkPath = this.hostPath(path, { followFinalSymlink: false });
+		let hostTarget: string;
+		if (target.startsWith('/')) {
+			hostTarget = this.hostPath(target);
+		} else {
+			const targetVfsPath = posix.resolve(
+				posix.dirname(normalizeVfsPath(path)),
+				target
+			);
+			const mappedTarget = this.hostPath(targetVfsPath);
+			const relativeTarget = resolve(dirname(linkPath), target);
+			if (mappedTarget !== relativeTarget) {
+				throw new Error(
+					`Wasmtime playground symlink target escapes its mount: ${target}.`
+				);
+			}
+			hostTarget = target;
+		}
+		await symlink(hostTarget, linkPath);
 	}
 
 	async isSymlink(path: string): Promise<boolean> {
 		this.assertActive();
 		try {
-			return (await lstat(this.hostPath(path))).isSymbolicLink();
+			return (
+				await lstat(this.hostPath(path, { followFinalSymlink: false }))
+			).isSymbolicLink();
 		} catch (error) {
 			if (isErrorWithCode(error, 'ENOENT')) {
 				return false;
@@ -329,27 +370,15 @@ class WasmtimePlayground {
 
 	async readlink(path: string): Promise<string> {
 		this.assertActive();
-		return await readlink(this.hostPath(path));
+		const target = await readlink(
+			this.hostPath(path, { followFinalSymlink: false })
+		);
+		return isAbsolute(target) ? this.vfsPath(target) : target;
 	}
 
 	async realpath(path: string): Promise<string> {
 		this.assertActive();
 		return this.vfsPath(await realpath(this.hostPath(path)));
-	}
-
-	async chdir(path: string): Promise<void> {
-		this.assertActive();
-		if (!(await this.isDir(path))) {
-			throw new Error(
-				`Wasmtime playground directory does not exist: ${path}`
-			);
-		}
-		this.#workingDirectory = normalizeVfsPath(path);
-	}
-
-	async cwd(): Promise<string> {
-		this.assertActive();
-		return this.#workingDirectory;
 	}
 
 	async defineConstant(): Promise<never> {
@@ -383,6 +412,16 @@ class WasmtimePlayground {
 		return url;
 	}
 
+	private fetchRequest(request: PHPRequest): Promise<Response> {
+		this.assertActive();
+		return fetch(this.requestUrl(request.url), {
+			method: request.method,
+			headers: request.headers,
+			body: requestBody(request.body),
+			redirect: 'manual',
+		});
+	}
+
 	private requestPathForScript(scriptPath: string): string {
 		const normalizedPath = normalizeVfsPath(scriptPath);
 		const documentRoot = '/wordpress/';
@@ -391,17 +430,26 @@ class WasmtimePlayground {
 				`Wasmtime playground run() can only execute scripts below /wordpress, got ${normalizedPath}.`
 			);
 		}
-		return `/${normalizedPath.slice(documentRoot.length)}`;
+		return `/${normalizedPath
+			.slice(documentRoot.length)
+			.split('/')
+			.map(encodeURIComponent)
+			.join('/')}`;
 	}
 
-	private hostPath(path: string): string {
+	private hostPath(
+		path: string,
+		{ followFinalSymlink = true }: { followFinalSymlink?: boolean } = {}
+	): string {
 		const normalizedPath = normalizeVfsPath(path);
 		const mount = this.options.mounts.reduce<WasmtimeVfsMount | undefined>(
 			(best, candidate) => {
-				if (
-					normalizedPath !== candidate.vfsPath &&
-					!normalizedPath.startsWith(`${candidate.vfsPath}/`)
-				) {
+				const containsPath =
+					candidate.vfsPath === '/'
+						? normalizedPath.startsWith('/')
+						: normalizedPath === candidate.vfsPath ||
+							normalizedPath.startsWith(`${candidate.vfsPath}/`);
+				if (!containsPath) {
 					return best;
 				}
 				return !best || candidate.vfsPath.length >= best.vfsPath.length
@@ -431,7 +479,59 @@ class WasmtimePlayground {
 				`Wasmtime playground path escapes its mount: ${normalizedPath}.`
 			);
 		}
+		this.assertResolvedPathInsideMount(
+			hostPath,
+			mount,
+			normalizedPath,
+			followFinalSymlink
+		);
 		return hostPath;
+	}
+
+	private assertResolvedPathInsideMount(
+		hostPath: string,
+		mount: WasmtimeVfsMount,
+		normalizedPath: string,
+		followFinalSymlink: boolean
+	) {
+		const resolvedMount = realpathSync(mount.hostPath);
+		let candidate =
+			followFinalSymlink || hostPath === mount.hostPath
+				? hostPath
+				: dirname(hostPath);
+
+		while (true) {
+			try {
+				const resolvedCandidate = realpathSync(candidate);
+				if (!isPathInside(resolvedMount, resolvedCandidate)) {
+					throw new Error(
+						`Wasmtime playground path escapes its mount through a symlink: ${normalizedPath}.`
+					);
+				}
+				return;
+			} catch (error) {
+				if (!isErrorWithCode(error, 'ENOENT')) {
+					throw error;
+				}
+				try {
+					if (lstatSync(candidate).isSymbolicLink()) {
+						throw new Error(
+							`Wasmtime playground path escapes its mount through an unresolved symlink: ${normalizedPath}.`
+						);
+					}
+				} catch (lstatError) {
+					if (!isErrorWithCode(lstatError, 'ENOENT')) {
+						throw lstatError;
+					}
+				}
+
+				const parent = dirname(candidate);
+				if (parent === candidate) {
+					throw error;
+				}
+				candidate = parent;
+			}
+		}
 	}
 
 	private vfsPath(hostPath: string): string {
@@ -490,6 +590,17 @@ function requestBody(body: PHPRequest['body']): BodyInit | undefined {
 	return formData;
 }
 
+function byteStream(bytes?: Uint8Array): ReadableStream<Uint8Array> {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			if (bytes) {
+				controller.enqueue(bytes);
+			}
+			controller.close();
+		},
+	});
+}
+
 function responseHeaders(headers: Headers): Record<string, string[]> {
 	const result: Record<string, string[]> = {};
 	headers.forEach((value, name) => {
@@ -520,4 +631,8 @@ function isErrorWithCode(error: unknown, code: string): boolean {
 
 function pathEscapesMount(path: string): boolean {
 	return path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path);
+}
+
+function isPathInside(parent: string, path: string): boolean {
+	return !pathEscapesMount(relative(parent, path));
 }

@@ -4,13 +4,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { EventEmitter } from 'node:events';
 import { posix, join, resolve } from 'node:path';
-import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import { LogSeverity } from '@php-wasm/logger';
-import type { Pooled } from '@php-wasm/universal';
 import type { Mount } from '@php-wasm/cli-util';
-import type { PlaygroundCliWorker, RunCLIArgs } from './run-cli';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type { RunCLIArgs } from './run-cli';
 import {
 	runWasmtimeCLI,
 	spawnWasmtimeCLI,
@@ -18,7 +17,7 @@ import {
 } from './wasmtime-binary';
 import {
 	createWasmtimePlayground,
-	type WasmtimePHPCLIResult,
+	type WasmtimePlaygroundFacade,
 	type WasmtimeVfsMount,
 } from './wasmtime-playground';
 
@@ -35,13 +34,19 @@ export const LogVerbosity = {
 	Debug: { name: 'debug', severity: LogSeverity.Debug },
 } as const;
 
-export type WorkerType = 'v1' | 'v2';
+export type WorkerType = 'v1';
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
+export interface WasmtimeServer extends EventEmitter {
+	close(callback?: (error?: Error) => void): this;
+	closeAllConnections(): void;
+	address(): AddressInfo;
+}
+
 export interface RunCLIServer extends AsyncDisposable {
-	playground: Pooled<PlaygroundCliWorker>;
-	server: Server;
+	playground: WasmtimePlaygroundFacade;
+	server: WasmtimeServer;
 	serverUrl: string;
 
 	[Symbol.asyncDispose](): Promise<void>;
@@ -60,12 +65,64 @@ type WasmtimeReadyManifest = {
 };
 
 type PreparedWasmtimeInvocation = {
-	args: RunCLIArgs;
+	args: WasmtimeRunCLIArgs;
 	root: string;
 	mountsBeforeInstall: WasmtimeVfsMount[];
 	mounts: WasmtimeVfsMount[];
 	blueprintPath?: string;
 	cleanup: () => Promise<void>;
+};
+
+type UnsupportedWasmtimeRunCLIArg =
+	| 'command'
+	| 'php'
+	| 'blueprint'
+	| 'pathAliases'
+	| 'additional-blueprint-steps'
+	| 'phpmyadmin'
+	| 'phpExtension'
+	| 'intl'
+	| 'redis'
+	| 'memcached'
+	| 'xdebug'
+	| 'experimentalUnsafeIdeIntegration'
+	| 'experimentalDevtools'
+	| 'experimental-multi-worker'
+	| 'experimentalTrace'
+	| 'internalCookieStore'
+	| 'mode'
+	| 'hasExplicitBlueprintsV2Mode'
+	| 'db-engine'
+	| 'db-host'
+	| 'db-user'
+	| 'db-pass'
+	| 'db-name'
+	| 'db-path'
+	| 'truncate-new-site-directory'
+	| 'allow'
+	| 'defaultedDebugConstants';
+
+type UnsupportedWasmtimeBlueprintV1Field =
+	| 'landingPage'
+	| 'preferredVersions'
+	| 'features'
+	| 'constants'
+	| 'plugins';
+
+export type WasmtimeBlueprintV1Declaration = Omit<
+	BlueprintV1Declaration,
+	UnsupportedWasmtimeBlueprintV1Field
+> & {
+	[Field in UnsupportedWasmtimeBlueprintV1Field]?: never;
+};
+
+export type WasmtimeRunCLIArgs = Omit<
+	RunCLIArgs,
+	UnsupportedWasmtimeRunCLIArg
+> & {
+	command: Exclude<RunCLIArgs['command'], 'php'>;
+	php?: '8.2';
+	blueprint?: WasmtimeBlueprintV1Declaration | string;
 };
 
 /**
@@ -97,18 +154,22 @@ export async function parseOptionsAndRunCLI(
 }
 
 export async function runCLI(
-	args: RunCLIArgs & {
-		command: 'build-snapshot' | 'run-blueprint' | 'php';
+	args: WasmtimeRunCLIArgs & {
+		command: 'build-snapshot' | 'run-blueprint';
 	}
 ): Promise<void>;
 export async function runCLI(
-	args: RunCLIArgs & { command: 'start' }
+	args: WasmtimeRunCLIArgs & { command: 'start' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
-	args: RunCLIArgs & { command: 'server' }
+	args: WasmtimeRunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
+export async function runCLI(
+	args: WasmtimeRunCLIArgs
+): Promise<RunCLIServer | void>;
+export async function runCLI(
+	args: RunCLIArgs | WasmtimeRunCLIArgs
+): Promise<RunCLIServer | void> {
 	assertSupportedProgrammaticOptions(args);
 	const invocation = await prepareWasmtimeInvocation(args);
 	const commandArgs = wasmtimeArgsFor(invocation, args.command);
@@ -129,15 +190,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 }
 
 async function prepareWasmtimeInvocation(
-	args: RunCLIArgs
+	args: WasmtimeRunCLIArgs
 ): Promise<PreparedWasmtimeInvocation> {
 	const root = await mkdtemp(join(tmpdir(), 'wp-playground-wasmtime-api-'));
-	let cleaned = false;
-	const cleanup = async () => {
-		if (!cleaned) {
-			cleaned = true;
-			await rm(root, { recursive: true, force: true });
-		}
+	let cleanupPromise: Promise<void> | undefined;
+	const cleanup = () => {
+		cleanupPromise ??= rm(root, { recursive: true, force: true });
+		return cleanupPromise;
 	};
 
 	try {
@@ -228,11 +287,14 @@ async function startWasmtimeServer(
 	const serverHandle = new WasmtimeServerHandle(manifest.serverUrl, dispose);
 	child.once('close', () => {
 		serverHandle.emitClose();
-		void invocation.cleanup();
+		// Disposal awaits this same memoized Promise. This catch only prevents an
+		// unhandled rejection when the child exits without an explicit disposal.
+		void invocation.cleanup().catch(() => undefined);
 	});
 
 	const playground = createWasmtimePlayground({
 		serverUrl: manifest.serverUrl,
+		siteUrl: manifest.siteUrl,
 		mounts: manifest.mounts,
 		assertActive: () => {
 			if (
@@ -245,13 +307,11 @@ async function startWasmtimeServer(
 				);
 			}
 		},
-		executePHPCLI: (argv, phpEnvironment) =>
-			executeWasmtimePHPCLI(invocation, argv, phpEnvironment),
 	});
 
 	return {
 		playground,
-		server: serverHandle as unknown as Server,
+		server: serverHandle,
 		serverUrl: manifest.serverUrl,
 		[Symbol.asyncDispose]: dispose,
 		[internalsKeyForTesting]: {
@@ -260,33 +320,9 @@ async function startWasmtimeServer(
 	};
 }
 
-async function executeWasmtimePHPCLI(
-	invocation: PreparedWasmtimeInvocation,
-	argv: string[],
-	phpEnvironment?: Record<string, string>
-): Promise<WasmtimePHPCLIResult> {
-	const phpArgs = wasmtimeArgsFor(invocation, 'php', argv);
-	const child = spawnWasmtimeCLI(phpArgs, {
-		cwd: process.cwd(),
-		env: { ...process.env, ...phpEnvironment },
-		stdio: ['ignore', 'pipe', 'pipe'],
-	});
-	const [stdout, stderr, result] = await Promise.all([
-		readChildStream(child.stdout),
-		readChildStream(child.stderr),
-		waitForChildResult(child),
-	]);
-	return {
-		exitCode: result.code ?? 1,
-		stdout,
-		stderr: new TextDecoder().decode(stderr),
-	};
-}
-
 function wasmtimeArgsFor(
 	invocation: PreparedWasmtimeInvocation,
-	command: RunCLIArgs['command'],
-	phpArgs: string[] = []
+	command: WasmtimeRunCLIArgs['command']
 ): string[] {
 	const args = invocation.args;
 	const wasmtimeArgs: string[] = [command];
@@ -321,6 +357,8 @@ function wasmtimeArgsFor(
 
 	if (args.autoMount === false) {
 		wasmtimeArgs.push('--no-auto-mount');
+	} else if (args.autoMount === true) {
+		wasmtimeArgs.push('--auto-mount');
 	} else if (typeof args.autoMount === 'string') {
 		if (args.autoMount) {
 			wasmtimeArgs.push('--auto-mount', args.autoMount);
@@ -369,19 +407,6 @@ function wasmtimeArgsFor(
 	if (args.followSymlinks) {
 		wasmtimeArgs.push('--follow-symlinks');
 	}
-	if (args.intl === false) {
-		wasmtimeArgs.push('--no-intl');
-	}
-	if (args.redis) {
-		wasmtimeArgs.push('--redis');
-	}
-	if (args.memcached) {
-		wasmtimeArgs.push('--memcached');
-	}
-	if (args.xdebug === true) {
-		wasmtimeArgs.push('--xdebug');
-	}
-
 	appendDefinedConstants(wasmtimeArgs, 'define', args.define);
 	appendDefinedConstants(wasmtimeArgs, 'define-bool', args['define-bool']);
 	appendDefinedConstants(
@@ -390,14 +415,7 @@ function wasmtimeArgsFor(
 		args['define-number']
 	);
 
-	if (command === 'php') {
-		const positional = phpArgs.length
-			? phpArgs
-			: dropLeadingCommand(args._ ?? [], 'php');
-		if (positional.length) {
-			wasmtimeArgs.push('--', ...positional);
-		}
-	} else if (command === 'run-blueprint' && !args.blueprint) {
+	if (command === 'run-blueprint' && !args.blueprint) {
 		const positional = dropLeadingCommand(args._ ?? [], 'run-blueprint');
 		wasmtimeArgs.push(...positional);
 	}
@@ -457,46 +475,66 @@ function normalizeVfsMountPath(path: string): string {
 	return posix.normalize(path);
 }
 
-function assertSupportedProgrammaticOptions(args: RunCLIArgs) {
+function assertSupportedProgrammaticOptions(
+	args: RunCLIArgs | WasmtimeRunCLIArgs
+): asserts args is WasmtimeRunCLIArgs {
+	if (args.command === 'php') {
+		throw new Error(
+			'The Wasmtime CLI does not expose a standalone php command because its PHP component has no CLI-session ABI. Use @php-wasm/cli for standalone PHP scripts.'
+		);
+	}
+	if (args.php !== undefined && args.php !== '8.2') {
+		throw new Error(
+			`The Wasmtime CLI only supports PHP 8.2, but ${args.php} was requested. Omit php or set php: '8.2'.`
+		);
+	}
+	const legacyArgs = args as RunCLIArgs;
+	const unsupportedComponentOption = [
+		['phpExtension', legacyArgs.phpExtension?.length],
+		['intl', legacyArgs.intl],
+		['redis', legacyArgs.redis],
+		['memcached', legacyArgs.memcached],
+		['xdebug', legacyArgs.xdebug],
+	].find(([, value]) => Boolean(value))?.[0];
+	if (unsupportedComponentOption) {
+		throw new Error(
+			`The Wasmtime PHP 8.2 component does not support ${unsupportedComponentOption}. Omit that option; this package has no alternate runtime fallback.`
+		);
+	}
 	const unsupported: Array<[string, unknown]> = [
-		['pathAliases', args.pathAliases?.length],
+		['pathAliases', legacyArgs.pathAliases?.length],
 		[
 			'additional-blueprint-steps',
-			args['additional-blueprint-steps']?.length,
+			legacyArgs['additional-blueprint-steps']?.length,
 		],
-		['phpmyadmin', args.phpmyadmin],
-		['phpExtension', args.phpExtension?.length],
+		['phpmyadmin', legacyArgs.phpmyadmin],
 		[
 			'experimentalUnsafeIdeIntegration',
-			args.experimentalUnsafeIdeIntegration?.length,
+			legacyArgs.experimentalUnsafeIdeIntegration?.length,
 		],
-		['experimentalDevtools', args.experimentalDevtools],
+		['experimentalDevtools', legacyArgs.experimentalDevtools],
+		['experimental-multi-worker', legacyArgs['experimental-multi-worker']],
+		['experimentalTrace', legacyArgs.experimentalTrace],
+		['internalCookieStore', legacyArgs.internalCookieStore],
+		['mode', legacyArgs.mode],
+		['hasExplicitBlueprintsV2Mode', legacyArgs.hasExplicitBlueprintsV2Mode],
+		['defaultedDebugConstants', legacyArgs.defaultedDebugConstants?.length],
+		['db-engine', legacyArgs['db-engine']],
+		['db-host', legacyArgs['db-host']],
+		['db-user', legacyArgs['db-user']],
+		['db-pass', legacyArgs['db-pass']],
+		['db-name', legacyArgs['db-name']],
+		['db-path', legacyArgs['db-path']],
 		[
-			'experimental-blueprints-v2-runner',
-			args['experimental-blueprints-v2-runner'],
+			'truncate-new-site-directory',
+			legacyArgs['truncate-new-site-directory'],
 		],
-		['experimental-multi-worker', args['experimental-multi-worker']],
-		['experimentalTrace', args.experimentalTrace],
-		['internalCookieStore', args.internalCookieStore],
-		['mode', args.mode],
-		['db-engine', args['db-engine']],
-		['db-host', args['db-host']],
-		['db-user', args['db-user']],
-		['db-pass', args['db-pass']],
-		['db-name', args['db-name']],
-		['db-path', args['db-path']],
-		['truncate-new-site-directory', args['truncate-new-site-directory']],
-		['allow', args.allow],
+		['allow', legacyArgs.allow],
 	];
 	const option = unsupported.find(([, value]) => Boolean(value))?.[0];
 	if (option) {
 		throw new Error(
-			`The Wasmtime runCLI() adapter does not support ${option} yet. Use a Wasmtime-compatible CLI option instead.`
-		);
-	}
-	if (args.xdebug && args.xdebug !== true) {
-		throw new Error(
-			'The Wasmtime runCLI() adapter supports xdebug: true, but not Node Xdebug configuration objects.'
+			`The Wasmtime runCLI() adapter does not support ${option}. Omit that option; this package has no alternate runtime fallback.`
 		);
 	}
 }
@@ -641,51 +679,6 @@ async function waitForChildExit(
 	});
 }
 
-async function waitForChildResult(
-	child: ChildProcess
-): Promise<WasmtimeCLIExit> {
-	if (child.exitCode !== null || child.signalCode !== null) {
-		return { code: child.exitCode, signal: child.signalCode };
-	}
-	return await new Promise<WasmtimeCLIExit>((resolvePromise) => {
-		const onClose = (
-			code: number | null,
-			signal: NodeJS.Signals | null
-		) => {
-			child.off('error', onError);
-			resolvePromise({ code, signal });
-		};
-		const onError = () => {
-			child.off('close', onClose);
-			resolvePromise({ code: child.exitCode, signal: child.signalCode });
-		};
-		child.once('close', onClose);
-		child.once('error', onError);
-	});
-}
-
-async function readChildStream(
-	stream: NodeJS.ReadableStream | null
-): Promise<Uint8Array> {
-	if (!stream) {
-		return new Uint8Array();
-	}
-	const chunks: Uint8Array[] = [];
-	for await (const chunk of stream) {
-		chunks.push(
-			typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk
-		);
-	}
-	const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-	const result = new Uint8Array(length);
-	let offset = 0;
-	for (const chunk of chunks) {
-		result.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return result;
-}
-
 function ensureWasmtimeCommandSucceeded(
 	result: WasmtimeCLIExit,
 	command: string
@@ -717,7 +710,7 @@ function wait(milliseconds: number): Promise<void> {
 	);
 }
 
-class WasmtimeServerHandle extends EventEmitter {
+class WasmtimeServerHandle extends EventEmitter implements WasmtimeServer {
 	#closed = false;
 	private readonly serverUrl: string;
 	private readonly dispose: () => Promise<void>;
@@ -737,7 +730,7 @@ class WasmtimeServerHandle extends EventEmitter {
 	}
 
 	closeAllConnections() {
-		void this.dispose();
+		void this.dispose().catch(() => undefined);
 	}
 
 	address(): AddressInfo {
@@ -757,4 +750,4 @@ class WasmtimeServerHandle extends EventEmitter {
 	}
 }
 
-export type { PlaygroundCliWorker, RunCLIArgs } from './run-cli';
+export type { WasmtimePlaygroundFacade } from './wasmtime-playground';

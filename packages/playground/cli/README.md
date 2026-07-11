@@ -15,7 +15,14 @@ Docker, MySQL, or Apache are required.
 
 ## Requirements
 
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 20.18 or higher. Node 20 is end-of-life,
+so use a currently supported Node.js release for security updates. You can
+download one from the [Node.js website](https://nodejs.org/en/download).
+
+The published package delegates to the native Wasmtime runtime. It supports
+four commands—`start`, `server`, `run-blueprint`, and `build-snapshot`—and one
+PHP version, PHP 8.2. Linux packages target GNU libc; Alpine/musl Linux is not
+currently supported.
 
 ## Quickstart
 
@@ -47,10 +54,12 @@ npx @wp-playground/cli@latest start
 
 ### Choosing a WordPress Version
 
-By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
+By default, the CLI loads the latest stable version of WordPress. The native
+Wasmtime runtime currently supports PHP 8.2 only. Use `--wp=<version>` to select
+a WordPress release; `--php` may be omitted or set to `8.2`:
 
 ```bash
-npx @wp-playground/cli@latest start --wp=6.8 --php=8.4
+npx @wp-playground/cli@latest start --wp=6.8 --php=8.2
 ```
 
 ### `start` and `server`
@@ -62,7 +71,8 @@ Playground CLI includes two commands for running WordPress locally:
   enables login, and opens the browser.
 - **`server`**: Advanced mode for explicit mounts, automation, and CI. Unless
   you mount persistent storage yourself, `server` uses temporary directories
-  that are removed after they become stale.
+  under the operating system's temp directory. The native CLI does not yet
+  remove those directories automatically after exit.
 
 ### Mounting local Directories
 
@@ -106,7 +116,7 @@ command:
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
 | `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
-| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.2`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.2`           |
 | `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
 | `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
 | `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
@@ -137,13 +147,16 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 - **`server`**: Starts a local WordPress server with full manual control over configuration.
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
-- **`php`**: Runs a PHP script.
 
-The `start` command supports these common optional arguments. Run `npx @wp-playground/cli@latest start --help` for the full list:
+The standalone `php` command is not available. The PHP component does not yet
+expose a CLI-session ABI, and HTTP SAPI execution is not an equivalent
+substitute for PHP CLI argument parsing, stdin, or PHAR execution.
+
+The `start` command supports these common optional arguments. Run `npx @wp-playground/cli@latest start --help` for a command overview and common options:
 
 - `--path=<path>`: Path to the project directory. Defaults to the current working directory.
 - `--wp=<version>`: WordPress version to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
+- `--php=<version>`: PHP version to use. The only supported value is `8.2`, which is also the default.
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--login`: Automatically log the user in as an administrator. Defaults to true.
@@ -151,11 +164,11 @@ The `start` command supports these common optional arguments. Run `npx @wp-playg
 - `--reset`: Delete the stored site directory and start fresh.
 - `--no-auto-mount`: Disable automatic project detection.
 
-The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
+The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for a command overview and common options:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
+- `--php=<version>`: PHP version to use. The only supported value is `8.2`, which is also the default.
 - `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
 - `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `/host/path:/vfs/path`.
 - `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `/host/path:/vfs/path`.
@@ -164,71 +177,26 @@ The `server` command supports these common optional arguments. Run `npx @wp-play
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 - `--login`: Automatically log the user in as an administrator.
-- `--mode=<mode>`: Choose how Blueprint v2 prepares the site: `create-new-site`, `apply-to-existing-site`, or `mount-only`. Cannot be combined with `--auto-mount`, `--wordpress-install-mode`, or `--skip-sqlite-setup`.
 - `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (same, but skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 - `--verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug"). Defaults to "normal".
 - `--debug`: Print the PHP error log if an error occurs during boot.
 - `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. ⚠️ Warning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.
 - `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
-- `--experimental-multi-worker`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
-- `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
-- `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
-- `--php-extension=<manifest>`: Load a custom PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and `http(s):` URLs. Can be used multiple times.
 
-### Loading Custom PHP.wasm Extensions
+### Current native runtime constraints
 
-Custom extensions built with `@php-wasm/compile-extension` can be loaded with
-`--php-extension`:
+The published CLI uses the Wasmtime PHP 8.2 component. The following features
+are not available in this runtime:
 
-```bash
-npx @wp-playground/cli@latest server \
-	--php=8.4 \
-	--php-extension=./dist/wp_mysql_parser/manifest.json
-```
+- dynamic PHP extension manifests (`--php-extension`);
+- Intl, Redis, Memcached, Xdebug, and phpMyAdmin;
+- the Node-only internal cookie store;
+- Blueprint v2 mode selection; and
+- standalone PHP CLI sessions.
 
-The manifest selects the `.so` artifact matching the active PHP version and can
-stage sidecar files before PHP starts. External extensions are JSPI-only, so use
-Node.js 23 or newer.
-
-Add runtime settings such as `iniEntries` and `env` directly to the manifest:
-
-```json
-{
-	"name": "spx",
-	"version": "0.1.0",
-	"artifacts": [
-		{
-			"phpVersion": "8.4",
-			"sourcePath": "spx-php8.4-jspi.so"
-		}
-	],
-	"iniEntries": {
-		"spx.http_enabled": "1"
-	},
-	"env": {
-		"SPX_DATA_DIR": "/internal/shared/spx/data"
-	}
-}
-```
-
-Set `loadWithIniDirective` to `false` when the artifact is a loadable Wasm
-side module that should be staged before PHP starts but should not be registered
-with `extension=` or `zend_extension=` in php.ini:
-
-```json
-{
-	"name": "sqlite_markdown",
-	"version": "0.1.0",
-	"loadWithIniDirective": false,
-	"artifacts": [
-		{
-			"phpVersion": "8.4",
-			"sourcePath": "sqlite_markdown-php8.4-jspi.so"
-		}
-	]
-}
-```
+Requests for these options fail with an explicit error instead of silently
+falling back to a different runtime.
 
 ## Need some help with the CLI?
 
@@ -244,29 +212,32 @@ Blueprint is a JSON file where you can pre-define the initial state of your Word
 
 ```JSON
 {
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"landingPage": "/wp-admin/post-new.php",
-	"steps": [
-		{
-			"step": "installPlugin",
-			"pluginZipFile": {
-				"resource": "wordpress.org/plugins",
-				"slug": "gutenberg"
-			},
-			"options": {
-				"activate": true
-			}
-		},
-		{
-			"step": "login",
-			"username": "admin",
-			"password": "password"
-		}
-	]
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginZipFile": {
+        "resource": "wordpress.org/plugins",
+        "slug": "gutenberg"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    }
+  ]
 }
 ```
 
-The example of a Blueprint above installs a plugin, logs the user in, and opens the new post editor. To learn more about Blueprints, please check the [documentation](https://wordpress.github.io/wordpress-playground/blueprints).
+The Blueprint above installs a plugin and prepares an administrator login. The
+native runtime intentionally rejects behavioral top-level fields it cannot yet
+honor, including `landingPage`, `preferredVersions`, `features`, `constants`,
+and `plugins`. To learn more about Blueprints, see the
+[documentation](https://wordpress.github.io/wordpress-playground/blueprints).
 
 To use a Blueprint, create a file (e.g., my-blueprint.json) and run the following command:
 
@@ -274,29 +245,31 @@ To use a Blueprint, create a file (e.g., my-blueprint.json) and run the followin
 npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 ```
 
-Blueprint v2 declarations are routed to the native TypeScript v2 runner
-automatically.
+The native runtime executes Blueprint v1 startup steps. Blueprint v2
+declarations and v2 mode selection are not supported by the published CLI yet.
 
-CLI runtime flags such as `--php`, `--wp`, and `--login` fill missing v2
-runtime fields. When the Blueprint declares `phpVersion`, `wordpressVersion`,
-or WordPress Playground login settings, the Blueprint value takes precedence.
+## Programmatic Usage with TypeScript
 
-## Programmatic Usage with JavaScript
+The Playground CLI can be controlled programmatically from TypeScript using
+the `runCLI` function. This lets you integrate its supported native workflows
+into automation and end-to-end tests.
 
-The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.
-
-```JavaScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+```TypeScript
+import { runCLI, type RunCLIServer } from "@wp-playground/cli";
 
 let cliServer: RunCLIServer;
 
 cliServer = await runCLI({
     command: 'server',
-    php: '8.3',
+    php: '8.2',
     wp: 'latest',
     login: true
 });
 ```
+
+Programmatic `runCLI()` supports the same four commands and PHP 8.2 constraint
+as the command line. Its returned Playground facade can issue HTTP requests and
+operate on mounted files, but `playground.cli()` is unavailable.
 
 ## Comparisons
 
@@ -310,7 +283,7 @@ cliServer = await runCLI({
 
 - Does not require Docker.
 - Is faster to start up for quick tests and development.
-- The Playground doesn't come with a MySQL Server, but you can provide your own MySQL credentials.
+- Uses the SQLite integration; external MySQL configuration is not supported by the current native runtime.
 
 ## Contributing
 
@@ -328,23 +301,29 @@ cd wordpress-playground
 cd wordpress-playground
 git submodule update --init --recursive
 
-nvm use 23
+nvm use
 npm install
+
+cargo build \
+	--manifest-path packages/playground/cli-native/Cargo.toml \
+	--bin wp-playground-native
+export WP_PLAYGROUND_WASMTIME_BINARY="$PWD/packages/playground/cli-native/target/debug/wp-playground-native"
 ```
+
+The source TypeScript entry point delegates to that native binary. Keep
+`WP_PLAYGROUND_WASMTIME_BINARY` set in the shell where you run either source
+command below.
 
 To run it:
 
 ```bash
-node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts
+node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts server
 ```
 
 Or this instead of the above:
 
 ```bash
-# Make sure you have the `nx` command available:
-npm install -g nx
-
-nx dev playground-cli server
+npx nx run playground-cli:source-run -- server
 ```
 
 ### How can I contribute?

@@ -20,7 +20,7 @@
 		"test:wasmtime-platform-package": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node --test packages/playground/cli-native/scripts/prepare-wasmtime-platform-package.test.mjs"
+				"command": "node --test packages/playground/cli-native/scripts/prepare-wasmtime-platform-package.test.mjs packages/playground/cli-native/scripts/wasmtime-npm-release.test.mjs"
 			}
 		},
 		"lint": {

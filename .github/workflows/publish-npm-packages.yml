@@ -4,13 +4,28 @@ on:
     workflow_dispatch:
         inputs:
             version_bump:
-                description: 'Version bump (patch, minor, or major)'
+                description: 'Version bump'
                 required: true
                 default: 'patch'
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
             dist_tag:
                 description: 'Dist tag (latest, next, etc.). Must be non-"latest" when publishing from a non-trunk branch.'
                 required: false
                 default: 'latest'
+            bootstrap_wasmtime_packages:
+                description: 'One-time bootstrap: publish new Wasmtime package names with NPM_BOOTSTRAP_TOKEN before configuring trusted publishing.'
+                required: true
+                default: false
+                type: boolean
+            resume_current_version:
+                description: 'Resume a partial Lerna publish from the current version tag without rebuilding native packages.'
+                required: true
+                default: false
+                type: boolean
     schedule:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
@@ -20,10 +35,10 @@ on:
 permissions: {}
 
 concurrency:
-    group: npm-release
+    group: package-release
 
 jobs:
-    release:
+    release-plan:
         # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
         # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
@@ -38,26 +53,179 @@ jobs:
               github.actor == 'mho22' ||
               github.actor == 'ashfame'
             )
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+        outputs:
+            version: ${{ steps.release.outputs.version }}
+            version-bump: ${{ steps.release.outputs.version-bump }}
+            dist-tag: ${{ steps.release.outputs.dist-tag }}
+            resume: ${{ steps.release.outputs.resume }}
+            source-ref: ${{ steps.release.outputs.source-ref }}
 
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.sha }}
+
+            - name: Resolve release version and dist tag
+              id: release
+              shell: bash
+              env:
+                  DIST_TAG: ${{ inputs.dist_tag || 'latest' }}
+                  RESUME_CURRENT_VERSION: ${{ inputs.resume_current_version || 'false' }}
+                  BOOTSTRAP_WASMTIME_PACKAGES: ${{ inputs.bootstrap_wasmtime_packages || 'false' }}
+                  VERSION_BUMP: ${{ inputs.version_bump || 'patch' }}
+              run: |
+                  set -euo pipefail
+                  if [[ "$GITHUB_REF" != 'refs/heads/trunk' && "$DIST_TAG" == 'latest' ]]; then
+                    echo '::error::Publishing from a non-trunk branch requires a custom dist tag (not "latest").'
+                    exit 1
+                  fi
+                  current_version="$(node -p "require('./lerna.json').version")"
+                  if [[ "$RESUME_CURRENT_VERSION" == 'true' ]]; then
+                    if [[ "$GITHUB_REF" != 'refs/heads/trunk' ]]; then
+                      echo '::error::resume_current_version is only valid on trunk, where the partial Lerna release created the current version tag.'
+                      exit 1
+                    fi
+                    if [[ "$BOOTSTRAP_WASMTIME_PACKAGES" == 'true' ]]; then
+                      echo '::error::bootstrap_wasmtime_packages cannot be combined with resume_current_version.'
+                      exit 1
+                    fi
+                    version="$current_version"
+                    source_ref="v$version"
+                    git fetch --depth 1 origin "refs/tags/$source_ref:refs/tags/$source_ref"
+                    git rev-parse --verify "$source_ref^{commit}" >/dev/null
+                  else
+                    version="$(node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs next-version \
+                      --current "$current_version" \
+                      --bump "$VERSION_BUMP")"
+                    source_ref="$GITHUB_REF"
+                  fi
+                  node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs validate-dist-tag \
+                    --dist-tag "$DIST_TAG" >/dev/null
+                  {
+                    echo "version=$version"
+                    echo "version-bump=$VERSION_BUMP"
+                    echo "dist-tag=$DIST_TAG"
+                    echo "resume=$RESUME_CURRENT_VERSION"
+                    echo "source-ref=$source_ref"
+                  } >> "$GITHUB_OUTPUT"
+
+    build-wasmtime-platform-packages:
+        if: needs.release-plan.outputs.resume != 'true'
+        needs: release-plan
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-wasmtime-platform-packages.yml
+        with:
+            version: ${{ needs.release-plan.outputs.version }}
+            source-ref: ${{ github.sha }}
+
+    bootstrap-wasmtime-platform-packages:
+        if: >
+            needs.release-plan.outputs.resume != 'true' &&
+            inputs.bootstrap_wasmtime_packages == true
+        needs:
+            - release-plan
+            - build-wasmtime-platform-packages
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            actions: read # Required to download the platform package artifacts.
+            contents: read
+        environment:
+            name: npm
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.ref }}
+
+            - name: Verify bootstrap source has not advanced
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+            - name: Set up Node.js with token authentication
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22.14.0'
+                  registry-url: 'https://registry.npmjs.org'
+
+            - name: Upgrade npm
+              run: npm install -g npm@11.6.2
+
+            - name: Download Wasmtime npm packages
+              if: needs.release-plan.outputs.resume != 'true'
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: wasmtime-npm-package-*
+                  path: dist/wasmtime-npm-release
+                  merge-multiple: true
+
+            - name: Bootstrap Wasmtime npm package names
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+                    echo '::error::NPM_BOOTSTRAP_TOKEN is required when bootstrap_wasmtime_packages is enabled.'
+                    exit 1
+                  fi
+                  node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs publish \
+                    --directory dist/wasmtime-npm-release \
+                    --version '${{ needs.release-plan.outputs.version }}' \
+                    --dist-tag '${{ needs.release-plan.outputs.dist-tag }}'
+
+            - name: Record trusted-publisher follow-up
+              shell: bash
+              run: |
+                  cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+                  The six Wasmtime package names now exist on npm. Before the
+                  next release, configure each package's GitHub trusted publisher
+                  for `WordPress/wordpress-playground`, workflow
+                  `publish-npm-packages.yml`, environment `npm`, with
+                  `npm publish` allowed. Then remove or rotate the one-time
+                  `NPM_BOOTSTRAP_TOKEN` secret.
+                  EOF
+
+    release:
+        if: >
+            !cancelled() &&
+            needs.release-plan.result == 'success' &&
+            (
+              needs.build-wasmtime-platform-packages.result == 'success' ||
+              (
+                needs.release-plan.outputs.resume == 'true' &&
+                needs.build-wasmtime-platform-packages.result == 'skipped'
+              )
+            ) &&
+            (
+              needs.bootstrap-wasmtime-platform-packages.result == 'success' ||
+              needs.bootstrap-wasmtime-platform-packages.result == 'skipped'
+            )
+        needs:
+            - release-plan
+            - build-wasmtime-platform-packages
+            - bootstrap-wasmtime-platform-packages
         runs-on: ubuntu-latest
         # Timeout is set to an hour as Lerna sequentially publishes a large number of packages
         # and the workflow regularly takes more than 30 minutes to complete.
         timeout-minutes: 60
         permissions:
+            actions: read # Required to download the platform package artifacts.
             id-token: write # Required for OIDC-based npm trusted publishing.
             contents: write # Required to push the version bump commit and tags.
         environment:
             name: npm
 
         steps:
-            - name: Require custom dist tag for non-trunk branches
-              if: github.ref != 'refs/heads/trunk' && (inputs.dist_tag == 'latest' || inputs.dist_tag == '')
-              run: |
-                  echo "::error::Publishing from a non-trunk branch requires a custom dist tag (not 'latest')."
-                  echo "Please re-run this workflow and set the dist_tag input to something like 'next', 'canary', or 'beta'."
-                  exit 1
-
             - name: Free up runner disk space
+              shell: bash
               run: |
                   set -euo pipefail
                   df -h
@@ -70,13 +238,21 @@ jobs:
 
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.ref }}
+                  ref: ${{ needs.release-plan.outputs.source-ref }}
                   clean: true
                   persist-credentials: true
                   ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
 
+            - name: Verify release source has not advanced
+              if: needs.release-plan.outputs.resume != 'true'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
             - name: Configure git
+              shell: bash
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
@@ -84,26 +260,66 @@ jobs:
             - name: Set up Node.js with OIDC
               uses: actions/setup-node@v4
               with:
-                  node-version: '20'
+                  node-version: '22.14.0'
                   registry-url: 'https://registry.npmjs.org'
                   cache: 'npm'
 
             # npm 11.5.1+ is required for trusted publisher OIDC authentication
             - name: Upgrade npm for trusted publishing
-              run: npm install -g npm@latest lerna@9
+              run: npm install -g npm@11.6.2 lerna@9
 
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: '22.14.0'
 
             - name: Validate publish package overrides
               run: node tools/scripts/check-publish-package-overrides.mjs
 
+            - name: Download Wasmtime npm packages
+              if: needs.release-plan.outputs.resume != 'true'
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: wasmtime-npm-package-*
+                  path: dist/wasmtime-npm-release
+                  merge-multiple: true
+
+            - name: Publish Wasmtime npm packages
+              if: needs.release-plan.outputs.resume != 'true'
+              run: >
+                  node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs publish
+                  --directory dist/wasmtime-npm-release
+                  --version ${{ needs.release-plan.outputs.version }}
+                  --dist-tag ${{ needs.release-plan.outputs.dist-tag }}
+
             - name: Publish NPM packages
-              # Version bump, release, tag a new version on GitHub.
+              if: needs.release-plan.outputs.resume != 'true'
+              # Version bump, release, tag a new version on GitHub. The Wasmtime
+              # optional dependencies are pinned to the same explicit version.
+              # Force-publishing the CLI ensures native-only changes receive a
+              # wrapper version instead of leaving orphan platform packages.
               # On non-trunk branches, --no-push avoids pushing the version
               # bump commit back to the branch. The published packages still
               # get the version bump in their package.json on npm.
+              env:
+                  WP_PLAYGROUND_WASMTIME_NPM_VERSION: ${{ needs.release-plan.outputs.version }}
               run: >
-                  lerna publish ${{ inputs.version_bump || 'patch' }}
+                  lerna publish ${{ needs.release-plan.outputs.version }}
                   --yes --no-private --loglevel=verbose
-                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  --force-publish=@wp-playground/cli
+                  --dist-tag=${{ needs.release-plan.outputs.dist-tag }}
                   ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}
+
+            - name: Resume partially published NPM packages
+              if: needs.release-plan.outputs.resume == 'true'
+              env:
+                  WP_PLAYGROUND_WASMTIME_NPM_VERSION: ${{ needs.release-plan.outputs.version }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  node packages/playground/cli-native/scripts/wasmtime-npm-release.mjs \
+                    verify-published \
+                    --version '${{ needs.release-plan.outputs.version }}'
+                  lerna publish from-package \
+                    --yes --no-private --loglevel=verbose \
+                    --dist-tag='${{ needs.release-plan.outputs.dist-tag }}' \
+                    --git-head="$(git rev-parse HEAD)"

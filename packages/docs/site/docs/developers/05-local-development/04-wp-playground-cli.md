@@ -21,7 +21,14 @@ The Playground CLI includes two main commands for running WordPress locally:
 
 ## Requirements
 
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 20.18 or higher. Node 20 is end-of-life,
+so use a currently supported Node.js release for security updates. You can
+download one from the [Node.js website](https://nodejs.org/en/download).
+
+The published package delegates to the native Wasmtime runtime. It supports
+`start`, `server`, `run-blueprint`, and `build-snapshot`, with PHP 8.2 as its
+only PHP version. Linux packages target GNU libc; Alpine/musl Linux is not
+currently supported.
 
 ## Quickstart
 
@@ -57,7 +64,7 @@ command:
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
 | `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
-| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.2`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.2`           |
 | `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
 | `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
 | `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
@@ -104,16 +111,21 @@ This is useful when:
 
 <div class="callout callout-info">
 
-The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
+The `--reset` flag works only with `start`. `server` does not use the managed
+`~/.wordpress-playground/sites/<path-hash>/` store: delete the host directory
+you mounted, or remove its generated OS-temp directories after the process has
+stopped.
 
 </div>
 
-### Choosing a WordPress and PHP Version
+### Choosing a WordPress Version
 
-By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
+By default, the CLI loads the latest stable version of WordPress. Use
+`--wp=<version>` to select another WordPress release. PHP 8.2 is the only
+supported PHP version; `--php` may be omitted or set to `8.2`:
 
 ```bash
-npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
+npx @wp-playground/cli@latest server --wp=6.8 --php=8.2
 ```
 
 ### Loading Blueprints
@@ -126,11 +138,18 @@ Using the `--blueprint=<blueprint-address>` flag, developers can run a Playgroun
 
 ```bash
 {
-  "landingPage": "/wp-admin/options-general.php?page=akismet-key-config",
   "login": true,
-  "plugins": [
-    "hello-dolly",
-    "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "hello-dolly"
+      },
+      "options": {
+        "activate": true
+      }
+    }
   ]
 }
 ```
@@ -140,6 +159,10 @@ CLI command loading a blueprint:
 ```bash
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
+
+The native v1 interpreter rejects behavioral top-level fields it cannot yet
+honor, including `landingPage`, `preferredVersions`, `features`, `constants`,
+and `plugins`. Use supported startup steps and explicit CLI flags instead.
 
 ### Mounting folders manually
 
@@ -151,7 +174,9 @@ npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/MY-
 
 ### Mounting before WordPress installation
 
-Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you want to override the Playground boot process, as it can help connect Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
+Mount your WordPress project files before installation when the native runtime
+must inspect or use those files while preparing the site. The
+`--mount-before-install` flag supports this process.
 
 ```bash
 npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
@@ -165,60 +190,35 @@ On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve 
 
 ### Understanding Data Persistence and SQLite Location in `server` mode
 
-By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**:
+Without an explicit `/wordpress` or `/tmp` mount, the native CLI creates two
+independent directories below your operating system's temp directory:
 
 ```
-<OS-TEMP-DIR>/playground-<random-id>/
-├── wordpress/          # WordPress installation
-├── internal/          # Playground runtime config
-└── tmp/              # Temporary PHP files
+<OS-TEMP-DIR>/wp-playground-native-wordpress-<id>/  # WordPress and SQLite
+<OS-TEMP-DIR>/wp-playground-native-tmp-<id>/        # Temporary PHP files
 ```
 
-**Finding Your Temp Directory:**
-
-The actual location depends on your OS (these are examples or common possibilities):
+The OS-specific temp root is commonly:
 
 - **macOS/Linux**: May be under `/tmp/` or `/private/var/folders/` (varies by system)
 - **Windows**: `C:\Users\<username>\AppData\Local\Temp\`
-
-To see the exact temp directory path being used, run the CLI with the `--verbosity=debug` flag:
-
-```bash
-npx @wp-playground/cli@latest server --verbosity=debug
-```
-
-This will output something like:
-
-```
-Native temp dir for VFS root:
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC
-Mount before WP install: /home ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/home
-Mount before WP install: /tmp ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tmp
-Mount before WP install: /wordpress ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/wordpress
-```
-
-**Where is the SQLite Database Stored?**
 
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
     - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
-    - ✅ **Persisted locally** in your project folder
+    - **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
-    - ⚠️ **Lost when server stops** (temp directories are cleaned up)
+    - Database: `<OS-TEMP-DIR>/wp-playground-native-wordpress-<id>/wp-content/database/.ht.sqlite`
+    - Not part of your project checkout
 
 - **Custom mounts**: Database location follows your mount configuration
 
-**Automatic Cleanup:**
-Playground CLI automatically removes temp directories that are:
-
-- Older than 2 days
-- No longer associated with a running process
+The native CLI does not currently remove generated temp directories after
+exit. Once the process has stopped, remove directories matching the two
+prefixes above when you no longer need them. Your operating system may also
+clean its temp directory according to its own policy.
 
 **Recommendation:** To persist both your code and database when developing plugins or themes, mount the entire `wp-content` directory instead of just the plugin/theme folder.
 
@@ -237,9 +237,9 @@ When `start` manages the WordPress root directory, Playground CLI
 
 ```
 ~/.wordpress-playground/sites/<path-hash>/
-├── wordpress/          # WordPress installation
-├── internal/          # Playground runtime config
-└── tmp/              # Temporary PHP files
+├── wp-admin/           # WordPress installation
+├── wp-content/
+└── wp-includes/
 ```
 
 The `<path-hash>` is derived from the command's current working directory.
@@ -254,7 +254,7 @@ project directory.
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wp-content/database/.ht.sqlite`
     - **Persisted automatically** between sessions
 - **Full WordPress directory or explicit `/wordpress` mount**:
     - Database: Follows the mounted WordPress directory
@@ -279,11 +279,12 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
 
 The `start` command supports these common optional arguments. Run
-`npx @wp-playground/cli@latest start --help` for the full list:
+`npx @wp-playground/cli@latest start --help` for a command overview and common
+options:
 
 - `--path=<path>`: Path to the project directory. Defaults to the current working directory.
 - `--wp=<version>`: WordPress version to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
+- `--php=<version>`: PHP version to use. The only supported value is `8.2`, which is also the default.
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
 - `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 - `--login`: Automatically log the user in as an administrator. Defaults to true.
@@ -291,13 +292,14 @@ The `start` command supports these common optional arguments. Run
 - `--reset`: Delete the stored site and start fresh. Defaults to false.
 - `--no-auto-mount`: Disable automatic project detection.
 
-The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
+The `server` command supports these common optional arguments. Run
+`npx @wp-playground/cli@latest server --help` for a command overview and common
+options:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
-- `--version`: Show version number.
 - `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.3`.
+- `--php=<version>`: PHP version to use. The only supported value is `8.2`, which is also the default.
 - `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
 - `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
@@ -311,48 +313,15 @@ The `server` command supports these common optional arguments. Run `npx @wp-play
 - `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.
 - `--debug`: Print the PHP error log if an error occurs during boot.
 - `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories.
-- `--internal-cookie-store`: Enable internal cookie handling. When enabled, Playground will manage cookies internally using an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled externally (e.g., by a browser in Node.js environments). Defaults to false.
-- `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
-- `--xdebug`: Enable Xdebug. Defaults to false.
-- `--php-extension=<manifest>`: Load a PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and HTTP(S) URLs. Can be used multiple times.
-- `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
-- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
 - `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
-- `--experimental-multi-worker=<number>`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
 
-### Loading PHP.wasm extensions
+### Current native runtime constraints
 
-Playground CLI can load external PHP.wasm extensions before PHP starts. Pass a
-manifest produced by `@php-wasm/compile-extension`, or a published manifest such
-as the SQLite Database Integration native parser:
-
-```bash
-npx @wp-playground/cli@latest server \
-	--php=8.5 \
-	--php-extension=https://wordpress.github.io/sqlite-database-integration/wp_mysql_parser-wasm-extension/latest/manifest.json \
-	--blueprint=https://wordpress.github.io/sqlite-database-integration/blueprint.json
-```
-
-For local development, point the flag at a local manifest:
-
-```bash
-npx @wp-playground/cli@latest server \
-	--php=8.5 \
-	--php-extension=./dist/wp_mysql_parser/manifest.json
-```
-
-`--php-extension` is repeatable. The manifest selects the `.so` artifact
-matching the active PHP version and can also stage sidecar files, `.ini`
-settings, and environment variables before startup.
-
-External extensions are JSPI side modules. If your Node.js build does not expose
-JSPI, the CLI rejects the extension request during startup. Use a Node.js build
-with JSPI support when testing custom extensions locally.
-
-See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
-and
-[Building PHP extensions](/developers/apis/javascript-api/build-php-extensions)
-for manifest format, compiler helpers, and dependency notes.
+The Wasmtime PHP 8.2 component does not include dynamic PHP extension loading,
+Intl, Redis, Memcached, Xdebug, phpMyAdmin, the Node-only internal cookie store,
+or Blueprint v2 mode selection. It also does not expose a standalone `php`
+command. Unsupported requests fail explicitly; the package does not silently
+fall back to another runtime.
 
 <div class="callout callout-warning">
 
@@ -362,7 +331,8 @@ With the flag `--follow-symlinks`, the following symlinks will expose files outs
 
 ## Need some help with the CLI?
 
-With the Playground CLI, you can use the `--help` flag to get the full list of available commands and arguments.
+Use the top-level `--help` flag to list commands. Command-specific help provides
+an overview and common options; it is not an exhaustive generated flag list.
 
 ```bash
 npx @wp-playground/cli@latest --help

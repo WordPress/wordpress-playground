@@ -6,20 +6,27 @@ description: Learn how to use the runCLI function to control WordPress Playgroun
 
 # Programmatic Usage of Playground CLI
 
-The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your code, which is useful for automating end-to-end tests. The options you pass to `runCLI` map directly to the [CLI flags](/developers/local-development/wp-playground-cli#command-and-arguments).
+The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This is useful for automating end-to-end tests with the native `start`, `server`, `run-blueprint`, and `build-snapshot` workflows. The supported options map to the [native CLI flags](/developers/local-development/wp-playground-cli#command-and-arguments).
+
+The returned Wasmtime facade supports HTTP requests and mounted-file
+operations. It does not expose a PHP CLI session, so `playground.cli()` rejects
+with an explicit error. Use `@php-wasm/cli` when you need standalone PHP CLI
+execution.
 
 <iframe width="800" src="https://www.youtube.com/embed/rmNf3CfXbtA?si=cduqQYbBWc6zAPVj" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="Running WordPress Directly from the JavaScript Code with runCLI"></iframe>
 
 ## Running a WordPress instance with a specific version
 
-Using the `runCLI` function, you can specify options like the PHP and WordPress versions. In the example below, we request PHP 8.3, the latest version of WordPress, and to be automatically logged in. All supported arguments are defined in the `RunCLIArgs` type.
+The native runtime currently supports PHP 8.2 only. In the example below, we
+request the latest version of WordPress and automatic login. Supported
+arguments are defined by the `WasmtimeRunCLIArgs` type.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
 
 const cliServer = await runCLI({
   command: 'server',
-  php: '8.3',
+  php: '8.2',
   wp: 'latest',
   login: true,
 });
@@ -36,7 +43,7 @@ npx tsx my-script.ts
 You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file.
 
 ```TypeScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI, type RunCLIServer } from "@wp-playground/cli";
 
 const cliServer: RunCLIServer = await runCLI({
   command: 'server',
@@ -55,13 +62,13 @@ const cliServer: RunCLIServer = await runCLI({
 });
 ```
 
-For full type-safety when defining your blueprint object, you can import and use the `BlueprintDeclaration` type from the `@wp-playground/blueprints` package:
+For full type-safety when defining a Blueprint object accepted by the native
+runtime, import `WasmtimeBlueprintV1Declaration` from the CLI package:
 
 ```TypeScript
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { WasmtimeBlueprintV1Declaration } from '@wp-playground/cli';
 
-const myBlueprint: BlueprintDeclaration = {
-  landingPage: "/wp-admin/",
+const myBlueprint: WasmtimeBlueprintV1Declaration = {
   steps: [
     {
       "step": "installTheme",
@@ -101,11 +108,11 @@ const cliServer = await runCLI({
 You can combine mounting parts of the project with blueprints, for example:
 
 ```TypeScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI, type RunCLIServer } from "@wp-playground/cli";
 
 const cliServer: RunCLIServer = await runCLI({
     command: 'server',
-    php: '8.3',
+    php: '8.2',
     wp: 'latest',
     login: true,
     mount: [
@@ -133,10 +140,10 @@ The programmatic API is excellent for automated testing. Here's a complete examp
 
 ```TypeScript
 import { describe, test, expect, afterEach } from 'vitest';
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI, type RunCLIServer } from "@wp-playground/cli";
 
 describe('My Plugin Tests', () => {
-  const cliServer: RunCLIServer;
+  let cliServer: RunCLIServer | undefined;
 
   afterEach(async () => {
     if (cliServer) {
@@ -196,7 +203,7 @@ describe('My Plugin Tests', () => {
       '/wp-admin/options-general.php?page=my-plugin',
       cliServer.serverUrl
     );
-    const response = await fetch(settingsUrl);
+    const response = await fetch(settingsUrl, { redirect: 'manual' });
 
     // Note: A plain `fetch` call does not send the admin session cookie set by `login: true`,
     // so this request is typically redirected to the login page instead of returning 200.
@@ -205,13 +212,13 @@ describe('My Plugin Tests', () => {
 });
 ```
 
-### Testing with different WordPress/PHP versions
+### Testing with different WordPress versions
 
 ```TypeScript
-test('plugin works with WordPress 6.4 and PHP 8.3', async () => {
+test('plugin works with WordPress 6.4 and PHP 8.2', async () => {
   cliServer = await runCLI({
     command: 'server',
-    php: '8.3',
+    php: '8.2',
     wp: '6.4',
     mount: [
       {
@@ -247,7 +254,7 @@ import { runCLI } from "@wp-playground/cli";
 
 const cliServer = await runCLI({
     command: 'server',
-    php: '8.3',
+    php: '8.2',
     wordpressInstallMode: 'do-not-attempt-installing',
     skipSqliteSetup: true,
 });
@@ -261,7 +268,7 @@ await cliServer.playground.writeFile(
 const versionUrl = new URL('/version.php', cliServer.serverUrl);
 const response = await fetch(versionUrl);
 const version = await response.text();
-console.log('PHP Version:', version); // Outputs: 8.3.x
+console.log('PHP Version:', version); // Outputs: 8.2.x
 ```
 
 ### Error handling

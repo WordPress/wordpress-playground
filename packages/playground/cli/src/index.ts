@@ -9,4 +9,12 @@ export {
 	resolveWorkerCount,
 	runCLI,
 } from './wasmtime-run-cli';
-export type { RunCLIServer, WorkerType } from './wasmtime-run-cli';
+export type {
+	RunCLIServer,
+	WasmtimeBlueprintV1Declaration,
+	WasmtimePlaygroundFacade,
+	WasmtimeRunCLIArgs,
+	WasmtimeRunCLIArgs as RunCLIArgs,
+	WasmtimeServer,
+	WorkerType,
+} from './wasmtime-run-cli';

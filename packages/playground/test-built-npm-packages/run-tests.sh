@@ -162,7 +162,7 @@ FAILED=false
 if [ "$RUN_ES_MODULES" = true ]; then
   echo ""
   echo "=== Running ES Modules tests ==="
-  if ! "$SCRIPT_DIR/es-modules-and-vitest/run-with-local-packages.sh"; then
+  if ! bash "$SCRIPT_DIR/es-modules-and-vitest/run-with-local-packages.sh"; then
     FAILED=true
   fi
 fi
@@ -170,7 +170,7 @@ fi
 if [ "$RUN_COMMONJS" = true ]; then
   echo ""
   echo "=== Running CommonJS tests ==="
-  if ! "$SCRIPT_DIR/commonjs-and-jest/run-with-local-packages.sh"; then
+  if ! bash "$SCRIPT_DIR/commonjs-and-jest/run-with-local-packages.sh"; then
     FAILED=true
   fi
 fi

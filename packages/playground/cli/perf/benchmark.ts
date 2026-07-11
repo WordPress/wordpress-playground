@@ -2,9 +2,9 @@
 /**
  * Playground CLI — Site Editor Performance Benchmark
  *
- * Spawns the Playground CLI via Nx targets, launches headless
- * Chromium to measure site-editor performance, and outputs results
- * as JSON + a console table.
+ * Spawns either the source or built Playground CLI entry point, launches
+ * headless Chromium to measure site-editor performance, and outputs results as
+ * JSON plus a console table.
  *
  * Adapted from Automattic/studio's
  * tools/benchmark-site-editor/.
@@ -16,11 +16,11 @@
  *
  * Options:
  *   --rounds=N        Benchmark rounds (default: 3)
- *   --mode=<mode>     "unbuilt-jspi" (default) or "built"
+ *   --mode=<mode>     "source" (default) or "built"
  *   --with-plugins    Also run with the plugins blueprint
  *   --headed          Chromium in headed mode for debugging
  *   --wp=<version>    WordPress version (default: latest)
- *   --php=<version>   PHP version (default: Current Playground recommended PHP version)
+ *   --php=<version>   PHP version (only supported value: 8.2)
  */
 
 import { spawn } from 'child_process';
@@ -34,11 +34,12 @@ import {
 	METRIC_NAMES,
 	type MeasurementResult,
 } from './measure-site-editor';
-import { RecommendedPHPVersion } from '@wp-playground/common';
+
+const SUPPORTED_PHP_VERSION = '8.2';
 
 interface Options {
 	rounds: number;
-	mode: 'unbuilt-jspi' | 'built';
+	mode: 'source' | 'built';
 	withPlugins: boolean;
 	headed: boolean;
 	wp: string;
@@ -158,11 +159,11 @@ function getOptions(): Options {
 		options: {
 			help: { type: 'boolean', default: false },
 			rounds: { type: 'string', default: '3' },
-			mode: { type: 'string', default: 'unbuilt-jspi' },
+			mode: { type: 'string', default: 'source' },
 			'with-plugins': { type: 'boolean', default: false },
 			headed: { type: 'boolean', default: false },
 			wp: { type: 'string', default: 'latest' },
-			php: { type: 'string', default: RecommendedPHPVersion },
+			php: { type: 'string', default: SUPPORTED_PHP_VERSION },
 		},
 		strict: false,
 		allowPositionals: true,
@@ -175,26 +176,31 @@ Measure WordPress site editor performance in a Playground CLI environment.
 
 Options:
   --rounds=N         Successful rounds required (default: 3, retries up to 2x)
-  --mode=<mode>      "unbuilt-jspi" or "built" (default: unbuilt-jspi)
+  --mode=<mode>      "source" or "built" (default: source)
   --with-plugins     Also benchmark with a plugins blueprint
   --headed           Run Chromium in headed mode (for debugging)
   --wp=<version>     WordPress version (default: latest)
-  --php=<version>    PHP version (default: Current Playground recommended PHP version: ${RecommendedPHPVersion})
+  --php=<version>    PHP version (only supported value: ${SUPPORTED_PHP_VERSION})
   --help             Show this help message`);
 		process.exit(0);
 	}
 
 	const mode = values.mode as string;
-	if (mode !== 'unbuilt-jspi' && mode !== 'built') {
-		console.error(
-			`Invalid --mode: ${mode}. Must be "unbuilt-jspi" or "built".`
-		);
+	if (mode !== 'source' && mode !== 'built') {
+		console.error(`Invalid --mode: ${mode}. Must be "source" or "built".`);
 		process.exit(1);
 	}
 	const rounds = parseInt(values.rounds as string, 10);
 	if (!Number.isInteger(rounds) || rounds < 1) {
 		console.error(
 			`Invalid --rounds: ${values.rounds}. Must be an integer >= 1.`
+		);
+		process.exit(1);
+	}
+	const php = values.php as string;
+	if (php !== SUPPORTED_PHP_VERSION) {
+		console.error(
+			`Invalid --php: ${php}. The Wasmtime CLI only supports PHP ${SUPPORTED_PHP_VERSION}.`
 		);
 		process.exit(1);
 	}
@@ -205,7 +211,7 @@ Options:
 		withPlugins: values['with-plugins'] as boolean,
 		headed: values.headed as boolean,
 		wp: values.wp as string,
-		php: values.php as string,
+		php,
 	};
 }
 
@@ -331,7 +337,6 @@ function buildCommand(
 	return {
 		command: process.execPath,
 		args: [
-			'--experimental-wasm-jspi',
 			...nodeFlags,
 			'./packages/playground/cli/src/cli.ts',
 			...cliArgs,

@@ -4,13 +4,14 @@
  * when calling Playgroun CLI's runCLI() function multiple times.
  *
  * So here is a manual test runner that spawns a new node test process
- * for each PHP version and spec file.
+ * for each spec file.
  *
  * !! If we can manage to call runCLI() twice in a row in a process,
  * we might be able to return to using Vitest. 🙏
  */
-import { SupportedPHPVersions } from '@php-wasm/universal';
 import { spawn } from 'child_process';
+
+const WASMTIME_PHP_VERSIONS = ['8.2'] as const;
 
 function green(text: string) {
 	return `\x1b[32m${text}\x1b[0m`;
@@ -26,8 +27,8 @@ type Result = {
 };
 
 const results: Result[] = [];
-// CLI specs boot WordPress. Keep the per-file timeout above the
-// individual test timeout so slower PHP versions can finish.
+// CLI specs boot WordPress. Keep the per-file timeout above the individual
+// test timeout so the Wasmtime PHP 8.2 runtime can finish on slower runners.
 const timeoutMs = Number.parseInt(
 	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
 	10
@@ -45,7 +46,7 @@ const testFiles = [
 	'./tests/assets.spec.ts',
 ];
 
-for (const phpVersion of SupportedPHPVersions) {
+for (const phpVersion of WASMTIME_PHP_VERSIONS) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
 	for (const file of testFiles) {
