@@ -32,7 +32,6 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 	}, []);
 
 	return useMemo(() => {
-		/** Replaces the pending call and restarts its delay. */
 		function debounced(...args: Parameters<T>) {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
@@ -43,7 +42,6 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 			}, delay);
 		}
 
-		/** Runs the latest scheduled call immediately, if one exists. */
 		function flush(): ReturnType<T> | undefined {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
