@@ -16,6 +16,13 @@
 					"cp packages/playground/cli/README.md dist/packages/playground/cli"
 				]
 			},
+			"dependsOn": ["build:sync-native-host-packages"]
+		},
+		"build:sync-native-host-packages": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/cli/scripts/sync-native-host-package-versions.mjs"
+			},
 			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {

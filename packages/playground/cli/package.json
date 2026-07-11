@@ -34,5 +34,13 @@
 	"bin": {
 		"wp-playground-cli": "wp-playground.js"
 	},
-	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
+	"optionalDependencies": {
+		"@wp-playground/cli-native-linux-x64": "3.1.43",
+		"@wp-playground/cli-native-linux-arm64": "3.1.43",
+		"@wp-playground/cli-native-macos-x64": "3.1.43",
+		"@wp-playground/cli-native-macos-arm64": "3.1.43",
+		"@wp-playground/cli-native-windows-x64": "3.1.43",
+		"@wp-playground/cli-native-windows-arm64": "3.1.43"
+	}
 }

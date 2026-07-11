@@ -4,6 +4,7 @@ import {
 	type StdioOptions,
 } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -58,10 +59,19 @@ export function nativeBinaryTarget(
 	return `${packagePlatform}-${arch}`;
 }
 
+/** Names the optional npm package that provides this platform's native host. */
+export function nativeBinaryPackageName(
+	platform: NodeJS.Platform = process.platform,
+	arch: string = process.arch
+): string {
+	return `@wp-playground/cli-native-${nativeBinaryTarget(platform, arch)}`;
+}
+
 /**
  * Locates the Wasmtime host without substituting the legacy JavaScript runtime.
  *
- * Published packages will carry the host under `native/<platform>-<arch>/`.
+ * Published packages install the matching host as an optional platform package.
+ * A colocated `native/` directory remains supported for self-contained bundles.
  * Developers may set `WP_PLAYGROUND_NATIVE_BINARY` to a locally built host.
  */
 export function resolveNativeBinary(
@@ -78,7 +88,7 @@ export function resolveNativeBinary(
 	const platform = options.platform ?? process.platform;
 	const arch = options.arch ?? process.arch;
 	const binaryName = nativeBinaryFileName(platform);
-	const candidates = [
+	const bundledCandidates = [
 		join(
 			moduleDirectory,
 			'native',
@@ -86,6 +96,22 @@ export function resolveNativeBinary(
 			binaryName
 		),
 		join(moduleDirectory, 'native', binaryName),
+	];
+	const bundledBinary = bundledCandidates.find(existsSync);
+	if (bundledBinary) {
+		return bundledBinary;
+	}
+
+	const nativePackageBinary = resolveNativePackageBinary(
+		moduleDirectory,
+		platform,
+		arch
+	);
+	if (nativePackageBinary) {
+		return nativePackageBinary;
+	}
+
+	const sourceCandidates = [
 		join(
 			moduleDirectory,
 			'..',
@@ -105,8 +131,7 @@ export function resolveNativeBinary(
 			binaryName
 		),
 	];
-
-	const binary = candidates.find(existsSync);
+	const binary = sourceCandidates.find(existsSync);
 	if (binary) {
 		return binary;
 	}
@@ -115,10 +140,40 @@ export function resolveNativeBinary(
 		`Could not find the Wasmtime WordPress Playground host for ${nativeBinaryTarget(
 			platform,
 			arch
-		)}. Set ${nativeBinaryEnvironmentVariable} to wp-playground-native or install a package containing the native host. Checked:\n${candidates
+		)}. Set ${nativeBinaryEnvironmentVariable} to wp-playground-native or install ${nativeBinaryPackageName(
+			platform,
+			arch
+		)}. Checked:\n${[...bundledCandidates, ...sourceCandidates]
 			.map((candidate) => `  ${candidate}`)
 			.join('\n')}`
 	);
+}
+
+function resolveNativePackageBinary(
+	moduleDirectory: string,
+	platform: NodeJS.Platform,
+	arch: string
+): string | undefined {
+	const packageName = nativeBinaryPackageName(platform, arch);
+	let packageJson: string;
+	try {
+		packageJson = createRequire(join(moduleDirectory, 'package.json')).resolve(
+			`${packageName}/package.json`
+		);
+	} catch (error) {
+		if (isModuleNotFound(error)) {
+			return undefined;
+		}
+		throw error;
+	}
+
+	const binary = join(dirname(packageJson), 'bin', nativeBinaryFileName(platform));
+	if (!existsSync(binary)) {
+		throw new Error(
+			`${packageName} is installed but does not contain ${binary}. Reinstall the package or set ${nativeBinaryEnvironmentVariable}.`
+		);
+	}
+	return binary;
 }
 
 /** Starts the native host with a resolved executable and no shell interpolation. */
@@ -207,5 +262,13 @@ function looksLikePath(value: string): boolean {
 		value.includes(sep) ||
 		value.includes('/') ||
 		value.includes('\\')
+	);
+}
+
+function isModuleNotFound(error: unknown): boolean {
+	return (
+		error instanceof Error &&
+		'code' in error &&
+		(error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND'
 	);
 }

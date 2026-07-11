@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
 	nativeBinaryEnvironmentVariable,
+	nativeBinaryPackageName,
 	nativeBinaryTarget,
 	resolveNativeBinary,
 	runNativeCLI,
@@ -25,8 +26,25 @@ describe('native binary launcher', () => {
 		['win32', 'arm64', 'windows-arm64'],
 	] as const)(
 		'maps %s-%s to the native package label %s',
-		(platform, arch, expected) => {
+		async (platform, arch, expected) => {
 			expect(nativeBinaryTarget(platform, arch)).toBe(expected);
+			const template = JSON.parse(
+				await readFile(
+					join(
+						import.meta.dirname,
+						'..',
+						'..',
+						'cli-native',
+						'npm-packages',
+						expected,
+						'package.json'
+					),
+					'utf8'
+				)
+			);
+			expect(template.name).toBe(nativeBinaryPackageName(platform, arch));
+			expect(template.os).toEqual([platform]);
+			expect(template.cpu).toEqual([arch]);
 		}
 	);
 
@@ -52,6 +70,38 @@ describe('native binary launcher', () => {
 		const nativeDirectory = join(root, 'native', 'linux-x64');
 		const binary = join(nativeDirectory, 'wp-playground-native');
 		await mkdir(nativeDirectory, { recursive: true });
+		await writeFile(binary, '#!/bin/sh\nexit 0\n');
+		await chmod(binary, 0o755);
+
+		expect(
+			resolveNativeBinary({
+				environment: {},
+				moduleDirectory: root,
+				platform: 'linux',
+				arch: 'x64',
+			})
+		).toBe(binary);
+
+		await rm(root, { recursive: true, force: true });
+	});
+
+	test('finds the installed platform-native package', async () => {
+		const root = await mkdtemp(join(tmpdir(), 'playground-native-binary-'));
+		const packageDirectory = join(
+			root,
+			'node_modules',
+			'@wp-playground',
+			'cli-native-linux-x64'
+		);
+		const binary = join(packageDirectory, 'bin', 'wp-playground-native');
+		await mkdir(join(packageDirectory, 'bin'), { recursive: true });
+		await writeFile(
+			join(packageDirectory, 'package.json'),
+			JSON.stringify({
+				name: nativeBinaryPackageName('linux', 'x64'),
+				exports: { './package.json': './package.json' },
+			})
+		);
 		await writeFile(binary, '#!/bin/sh\nexit 0\n');
 		await chmod(binary, 0o755);
 
