@@ -165,11 +165,10 @@ export async function startPlaygroundWeb(
 		options.blueprint
 	);
 
-	remoteUrl = setQueryParams(remoteUrl, {
+	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
+	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
+	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
-		// The v2 handler compiles and runs steps in this package. The iframe
-		// only needs the normal remote API.
-		'blueprints-runner': 'v1',
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

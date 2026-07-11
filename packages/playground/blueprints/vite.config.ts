@@ -13,7 +13,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	root: __dirname,
-	assetsInclude: ['**/*.phar', '**/*.php'],
+	assetsInclude: ['**/*.php'],
 	cacheDir: '../../../node_modules/.vite/playground-blueprints',
 
 	plugins: [
