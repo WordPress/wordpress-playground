@@ -1,14 +1,14 @@
 ---
 slug: /contributing/github-ui
 title: Contribute with the GitHub web interface
-description: Learn how to edit Playground documentation directly in GitHub without setting up a local development environment.
+description: Learn how to edit Playground documentation directly on GitHub without setting up a local development environment.
 ---
 
 # Contribute with the GitHub web interface
 
-You can improve Playground documentation directly from GitHub. This is useful for typo fixes, small clarifications, and translation updates when you do not want to clone the repository or set up a local development environment.
+You can improve Playground documentation directly on GitHub. This is useful for typo fixes, small clarifications, and translation updates when you do not want to clone the repository or set up a local development environment.
 
-You need a free GitHub account and a page or file that you want to edit.
+Before you start, sign in to GitHub and identify the documentation page you want to change.
 
 ## When to use this workflow
 
@@ -28,7 +28,13 @@ Most English documentation pages live in the [`packages/docs/site/docs`](https:/
 
 Translated documentation lives in [`packages/docs/site/i18n`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/i18n). For more details about translation file paths, see [Contributions to translations](/contributing/translations).
 
-To find the file:
+For existing pages, the fastest way to find the source file is from the documentation site:
+
+1. Open the documentation page you want to update.
+2. Select the **Edit this page** link near the bottom of the page.
+3. GitHub opens the source file for that page.
+
+You can also browse the repository directly:
 
 1. Open the [WordPress Playground repository](https://github.com/WordPress/wordpress-playground).
 2. Browse to the relevant documentation directory.
@@ -53,6 +59,9 @@ GitHub's web editor is best for small, focused changes. If your update is large 
 2. Select **Add file** and then **Create new file**.
 3. Enter the file name. You can create folders by typing the folder name followed by `/`.
 4. Add the page content.
+5. Mention where the page should appear in the documentation sidebar when you open the pull request.
+   If you are comfortable editing another file, you can also add the page to
+   [`packages/docs/site/sidebars.js`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/docs/site/sidebars.js).
 
 ![Creating a new documentation file in GitHub](/img/contributing/adding-file-github-ui.webp)
 
@@ -66,11 +75,16 @@ description: A short description of the page.
 ---
 ```
 
-For new translated pages, mirror the English file path in the matching language directory. Keep the original English content in a comment above the translation so reviewers can compare the text.
+For new translated pages, mirror the English file path in the matching language directory. For example,
+a French translation of `packages/docs/site/docs/main/contributing/documentation.md` belongs in
+`packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`.
+Keep the original English content in a comment above the translation so reviewers can compare the text.
 
 ## Review your changes
 
-Before submitting, use the **Preview** tab in GitHub to check the formatting.
+Before submitting, use the **Preview** tab in GitHub to check basic Markdown formatting. This is not
+a full Docusaurus preview, so also review links and images carefully. Site-relative paths such as
+`/img/contributing/example.webp` may not behave the same way in GitHub's Markdown preview.
 
 ![Editing content in the GitHub web editor](/img/contributing/editor-github-ui.webp)
 
