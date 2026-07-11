@@ -217,6 +217,8 @@ jobs:
               run: cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml --all-targets -- -D warnings
             - name: Run tests
               run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml
+            - name: Test native npm package assembly
+              run: node --test packages/playground/cli-native/scripts/prepare-npm-platform-package.test.mjs
             - name: Smoke native server process
               run: cargo test --manifest-path packages/playground/cli-native/Cargo.toml --test native_server -- --ignored --nocapture
             - name: Build packaged binary and smoke packaged runtime
@@ -243,6 +245,17 @@ jobs:
                     --name "wp-playground-native-$WP_PLAYGROUND_NATIVE_VERSION-${{ matrix.label }}" \
                     ${{ matrix.precompile }} \
                     "${smoke_args[@]}"
+            - name: Verify platform-native npm package
+              shell: bash
+              run: |
+                  native_package_root="packages/playground/cli-native/target/package/wp-playground-native-$WP_PLAYGROUND_NATIVE_VERSION-${{ matrix.label }}"
+                  npm_package_root="dist/packages/playground/cli-native-${{ matrix.label }}"
+                  node packages/playground/cli-native/scripts/prepare-npm-platform-package.mjs \
+                    --label "${{ matrix.label }}" \
+                    --source "$native_package_root" \
+                    --destination "$npm_package_root" \
+                    --version "$WP_PLAYGROUND_NATIVE_VERSION"
+                  npm pack --dry-run "$npm_package_root"
             - name: Upload native package archive
               uses: actions/upload-artifact@v4
               with:
