@@ -49,7 +49,8 @@ describe('startPlaygroundWeb', () => {
 		await expect(
 			startPlaygroundWeb({
 				iframe,
-				remoteUrl: 'http://localhost/remote.html',
+				remoteUrl:
+					'http://localhost/remote.html?blueprints-runner=v2&existing=1',
 				progressTracker: createProgressTracker(),
 				blueprint: {
 					steps: [],
@@ -60,6 +61,7 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV1Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV2Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
+		expect(iframe.src).toContain('existing=1');
 	});
 
 	it('routes Blueprint v2 declarations through the v2 handler', async () => {

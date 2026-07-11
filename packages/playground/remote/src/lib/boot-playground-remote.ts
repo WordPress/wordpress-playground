@@ -28,7 +28,7 @@ import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
 // @ts-ignore
-import workerUrlString from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
+import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?worker&url';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -38,7 +38,7 @@ const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
-	const workerUrl = new URL(workerUrlString, origin);
+	const workerUrl = new URL(workerEntryPointUrl, origin);
 	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
 		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
 	}

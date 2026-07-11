@@ -34,7 +34,7 @@ class ArtifactExpiredError extends Error {
 	}
 }
 
-class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
+class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 	override async boot({
 		scope,
 		mounts = [],
@@ -294,10 +294,10 @@ type WordPressInstallMode = NonNullable<
 >;
 
 const workerGlobal = self as unknown as {
-	__playgroundWorkerEndpointBlueprintsV1?: boolean;
+	__playgroundWorkerEndpointBlueprints?: boolean;
 };
 const alreadyExposedComlinkEndpoint =
-	workerGlobal.__playgroundWorkerEndpointBlueprintsV1;
+	workerGlobal.__playgroundWorkerEndpointBlueprints;
 if (alreadyExposedComlinkEndpoint) {
 	/*
 	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
@@ -308,12 +308,12 @@ if (alreadyExposedComlinkEndpoint) {
 	 * startup code.
 	 */
 	throw new Error(
-		'The Blueprints v1 Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
+		'The Blueprints Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
 	);
 }
-workerGlobal.__playgroundWorkerEndpointBlueprintsV1 = true;
+workerGlobal.__playgroundWorkerEndpointBlueprints = true;
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
+	new PlaygroundWorkerEndpointBlueprints(downloadMonitor)
 );
 
 /**

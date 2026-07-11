@@ -165,7 +165,9 @@ export async function startPlaygroundWeb(
 		options.blueprint
 	);
 
-	remoteUrl = setQueryParams(remoteUrl, {
+	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
+	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
+	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
