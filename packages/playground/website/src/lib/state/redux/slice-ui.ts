@@ -17,6 +17,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
+	| 'invalid-asset-slug'
 	| 'resource-download-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';

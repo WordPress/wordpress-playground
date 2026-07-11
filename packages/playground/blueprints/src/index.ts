@@ -54,6 +54,7 @@ export type {
 } from './lib/v1/resources';
 export {
 	BlueprintFilesystemRequiredError,
+	InvalidAssetSlugError,
 	ResourceDownloadError,
 } from './lib/v1/resources';
 export * from './lib/steps';

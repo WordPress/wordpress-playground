@@ -38,6 +38,7 @@ import {
 import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
+	findInvalidSlugErrorInCauseChain,
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
@@ -293,6 +294,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
 						details: firewallError,
+					})
+				);
+			} else if (findInvalidSlugErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'invalid-asset-slug',
+						details: e,
 					})
 				);
 			} else if (findDownloadErrorInCauseChain(e)) {

@@ -37,7 +37,8 @@ export function getSiteErrorView(
 	if (
 		blueprintStepError &&
 		error !== 'network-firewall-interference' &&
-		error !== 'resource-download-failed'
+		error !== 'resource-download-failed' &&
+		error !== 'invalid-asset-slug'
 	) {
 		return blueprintStepExecutionView(context);
 	}
@@ -64,6 +65,8 @@ export function getSiteErrorView(
 			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
+		case 'invalid-asset-slug':
+			return invalidAssetSlugView(context);
 		case 'resource-download-failed':
 			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
@@ -551,6 +554,80 @@ function networkFirewallInterferenceView({
 			>
 				Retry
 			</Button>,
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
+	};
+}
+
+function invalidAssetSlugView({
+	errorDetails,
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	const details = errorDetails as Record<string, unknown> | undefined;
+	const message =
+		typeof details?.message === 'string' ? details.message : undefined;
+	const targetUrl = extractTargetUrl(errorDetails);
+
+	return {
+		title: 'Plugin or theme not found on WordPress.org',
+		isDeveloperError: true,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					{message ||
+						'A plugin or theme slug in the Blueprint could not be found on WordPress.org.'}
+				</p>
+				{targetUrl ? (
+					<p>
+						Attempted URL:{' '}
+						<a
+							className={css.errorLink}
+							href={targetUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{targetUrl}
+						</a>
+					</p>
+				) : null}
+				<ul className={css.errorList}>
+					<li>
+						Double-check the slug spelling in your Blueprint's{' '}
+						<code>installPlugin</code> or <code>installTheme</code>{' '}
+						step.
+					</li>
+					<li>
+						Confirm the asset is publicly available on{' '}
+						<a
+							href="https://wordpress.org/plugins/"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							wordpress.org/plugins
+						</a>{' '}
+						or{' '}
+						<a
+							href="https://wordpress.org/themes/"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							wordpress.org/themes
+						</a>
+						.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
 			<Button
 				variant="primary"
 				key="start-without-blueprint"
