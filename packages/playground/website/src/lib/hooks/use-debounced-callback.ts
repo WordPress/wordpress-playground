@@ -3,12 +3,6 @@ import type { DependencyList } from 'react';
 
 type DebouncedCallback<T extends (...args: any[]) => any> = {
 	(...args: Parameters<T>): void;
-	/**
-	 * Invokes the pending call immediately and returns its result, matching the
-	 * conventional debounce API exposed by Lodash.
-	 *
-	 * @see https://lodash.com/docs/#debounce
-	 */
 	flush: () => ReturnType<T> | undefined;
 };
 
@@ -48,6 +42,12 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 			}, delay);
 		}
 
+		/**
+		 * Invokes the pending call immediately and returns its result, matching the
+		 * conventional debounce API exposed by Lodash.
+		 *
+		 * @see https://lodash.com/docs/#debounce
+		 */
 		function flush(): ReturnType<T> | undefined {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
