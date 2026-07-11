@@ -120,6 +120,20 @@
 				"parallel": false
 			}
 		},
+		"unbuilt-native": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"publish": {
 			"executor": "nx:run-commands",
 			"options": {

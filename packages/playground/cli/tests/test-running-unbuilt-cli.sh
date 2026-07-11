@@ -2,53 +2,24 @@
 
 set -euo pipefail
 
-if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(0); }'; then
-	source ~/.nvm/nvm.sh
-	nvm install 24
-	npm ci
+node -e 'if (parseInt(process.versions.node) < 22) { console.error("Node.js version 22 or greater is required"); process.exit(1); }'
+
+if [[ -z "${WP_PLAYGROUND_NATIVE_BINARY:-}" ]]; then
+	echo 'WP_PLAYGROUND_NATIVE_BINARY must point to a built Wasmtime host.' >&2
+	exit 1
 fi
 
-function test_playground_cli() {
-	TARGET="$1"
-	shift
+echo 'Running the unbuilt public CLI through the Wasmtime host.'
+timeout -s TERM 90s npx nx run playground-cli:unbuilt-native -- php \
+	--php=8.5 \
+	--skip-wordpress-install \
+	--skip-sqlite-setup \
+	-- -v > playground-cli-test-output 2>&1
 
-	# Run Playground CLI with a timeout.
-	echo "Running Playground CLI with Nx target: $TARGET $@"
-	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --php=8.3 $@ 2>&1 > playground-cli-test-output &
-	PID=$!
-	CLI_STARTUP_STRING='WordPress is running on http://127.0.0.1:9400'
+if ! grep -q 'PHP 8.5' playground-cli-test-output; then
+	cat playground-cli-test-output
+	echo 'The unbuilt Wasmtime CLI did not run PHP 8.5.' >&2
+	exit 1
+fi
 
-	# Sleep until Playground CLI starts or the process times out.
-	while ps -p "$PID" > /dev/null && ! grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; do
-		sleep 1
-	done
-
-	# Kill Playground CLI if it is still running.
-	trap 'kill "$PID" 2>&1 > /dev/null || true' RETURN
-
-	if grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; then
-		echo "Playground CLI started successfully"
-		echo "Checking WordPress home page..."
-
-		HOME_PAGE_OUTPUT="$(curl -sL http://127.0.0.1:9400 || echo 'No output')"
-		if [[ $HOME_PAGE_OUTPUT != *"My WordPress Website"* ]]; then
-			echo "Home page output: $HOME_PAGE_OUTPUT"
-			echo "Error: Home page did not contain 'My WordPress Website'"
-			return 1
-		else
-			echo 'Looks good!'
-			return 0
-		fi
-	else
-		cat playground-cli-test-output
-		echo
-		echo Playground CLI failed to start
-		return 1
-	fi
-}
-
-echo
-test_playground_cli unbuilt-asyncify
-echo
-test_playground_cli unbuilt-jspi
-echo
+cat playground-cli-test-output

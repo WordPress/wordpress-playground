@@ -23,7 +23,128 @@ concurrency:
     group: npm-release
 
 jobs:
+    build-native-host-packages:
+        # The public CLI keeps its JavaScript package name. These platform
+        # packages carry the Wasmtime binary and its verified runtime assets.
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22' ||
+              github.actor == 'ashfame'
+            )
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - label: linux-x64
+                      os: ubuntu-latest
+                      target: x86_64-unknown-linux-gnu
+                      exe: ''
+                    - label: linux-arm64
+                      os: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-gnu
+                      exe: ''
+                    - label: windows-x64
+                      os: windows-latest
+                      target: x86_64-pc-windows-msvc
+                      exe: '.exe'
+                    - label: windows-arm64
+                      os: windows-11-arm
+                      target: aarch64-pc-windows-msvc
+                      exe: '.exe'
+                    - label: macos-x64
+                      os: macos-15-intel
+                      target: x86_64-apple-darwin
+                      exe: ''
+                    - label: macos-arm64
+                      os: macos-latest
+                      target: aarch64-apple-darwin
+                      exe: ''
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 90
+        permissions:
+            contents: read
+        name: 'build native npm host (${{ matrix.label }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+            - name: Install Rust components
+              run: |
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+                  rustup target add ${{ matrix.target }}
+            - name: Calculate release version
+              shell: bash
+              env:
+                  RELEASE_BUMP: ${{ inputs.version_bump || 'patch' }}
+              run: |
+                  VERSION="$(node -e '
+                    const version = require("./lerna.json").version;
+                    const bump = process.env.RELEASE_BUMP;
+                    const parts = version.split(".").map(Number);
+                    if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) {
+                      throw new Error(`Cannot increment non-semver release version: ${version}`);
+                    }
+                    if (bump === "major") parts[0] += 1, parts[1] = 0, parts[2] = 0;
+                    else if (bump === "minor") parts[1] += 1, parts[2] = 0;
+                    else if (bump === "patch") parts[2] += 1;
+                    else throw new Error(`Unsupported release bump: ${bump}`);
+                    console.log(parts.join("."));
+                  ')"
+                  echo "WP_PLAYGROUND_NATIVE_VERSION=$VERSION" >> "$GITHUB_ENV"
+            - name: Build native npm package
+              shell: bash
+              env:
+                  WP_PLAYGROUND_NATIVE_TARGET_TRIPLE: ${{ matrix.target }}
+                  WP_PLAYGROUND_NATIVE_SOURCE_COMMIT: ${{ github.sha }}
+              run: |
+                  set -euo pipefail
+                  package_name="wp-playground-native-npm-${{ matrix.label }}"
+                  native_package_root="$RUNNER_TEMP/native-host-package"
+                  npm_package_root="$RUNNER_TEMP/npm-host-package"
+                  cargo build --manifest-path packages/playground/cli-native/Cargo.toml --release --bins --target ${{ matrix.target }}
+                  cargo run --manifest-path packages/playground/cli-native/Cargo.toml --release --bin package-native-cli -- \
+                    --binary "packages/playground/cli-native/target/${{ matrix.target }}/release/wp-playground-native${{ matrix.exe }}" \
+                    --out-dir "$native_package_root" \
+                    --name "$package_name" \
+                    --skip-archive
+                  node packages/playground/cli-native/scripts/prepare-npm-platform-package.mjs \
+                    --label "${{ matrix.label }}" \
+                    --source "$native_package_root/$package_name" \
+                    --destination "$npm_package_root" \
+                    --version "$WP_PLAYGROUND_NATIVE_VERSION"
+                  mkdir -p "$RUNNER_TEMP/native-host-tarballs"
+                  pack_json="$(
+                    cd "$npm_package_root"
+                    npm pack --json --pack-destination "$RUNNER_TEMP/native-host-tarballs"
+                  )"
+                  node -e '
+                    const [entry] = JSON.parse(process.argv[1]);
+                    const maximumBytes = 95 * 1024 * 1024;
+                    if (entry.size > maximumBytes) {
+                      throw new Error(`Native npm package is ${entry.size} bytes; npm registry packages must remain below ${maximumBytes} bytes.`);
+                    }
+                    console.log(`native npm package: ${entry.filename} (${entry.size} bytes)`);
+                  ' "$pack_json"
+            - name: Upload native npm package
+              uses: actions/upload-artifact@v4
+              with:
+                  name: native-cli-npm-package-${{ matrix.label }}
+                  path: ${{ runner.temp }}/native-host-tarballs/*.tgz
+                  if-no-files-found: error
+
     release:
+        needs: build-native-host-packages
         # Only run on the playground repo, and only allow Playground maintainers to trigger this workflow.
         # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
@@ -46,6 +167,7 @@ jobs:
         permissions:
             id-token: write # Required for OIDC-based npm trusted publishing.
             contents: write # Required to push the version bump commit and tags.
+            actions: read # Required to download native package artifacts.
         environment:
             name: npm
 
@@ -96,6 +218,73 @@ jobs:
 
             - name: Validate publish package overrides
               run: node tools/scripts/check-publish-package-overrides.mjs
+
+            - name: Calculate native package version
+              shell: bash
+              env:
+                  RELEASE_BUMP: ${{ inputs.version_bump || 'patch' }}
+              run: |
+                  VERSION="$(node -e '
+                    const version = require("./lerna.json").version;
+                    const bump = process.env.RELEASE_BUMP;
+                    const parts = version.split(".").map(Number);
+                    if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) {
+                      throw new Error(`Cannot increment non-semver release version: ${version}`);
+                    }
+                    if (bump === "major") parts[0] += 1, parts[1] = 0, parts[2] = 0;
+                    else if (bump === "minor") parts[1] += 1, parts[2] = 0;
+                    else if (bump === "patch") parts[2] += 1;
+                    else throw new Error(`Unsupported release bump: ${bump}`);
+                    console.log(parts.join("."));
+                  ')"
+                  echo "WP_PLAYGROUND_NATIVE_NPM_VERSION=$VERSION" >> "$GITHUB_ENV"
+                  echo "NPM_DIST_TAG=${{ inputs.dist_tag || 'latest' }}" >> "$GITHUB_ENV"
+
+            - name: Download native npm packages
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: native-cli-npm-package-*
+                  path: ${{ runner.temp }}/native-cli-npm-packages
+                  merge-multiple: true
+
+            - name: Build CLI package with matching native host versions
+              run: |
+                  npx nx run playground-cli:build
+                  node -e '
+                    const fs = require("node:fs");
+                    const packageJson = JSON.parse(fs.readFileSync("dist/packages/playground/cli/package.json", "utf8"));
+                    const expected = process.env.WP_PLAYGROUND_NATIVE_NPM_VERSION;
+                    const dependencies = packageJson.optionalDependencies || {};
+                    const nativeDependencies = Object.entries(dependencies).filter(([name]) => name.startsWith("@wp-playground/cli-native-"));
+                    if (nativeDependencies.length !== 6 || nativeDependencies.some(([, version]) => version !== expected)) {
+                      throw new Error(`CLI native optional dependencies must all equal ${expected}: ${JSON.stringify(nativeDependencies)}`);
+                    }
+                  '
+
+            - name: Publish native host packages
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+                  archives=("$RUNNER_TEMP"/native-cli-npm-packages/*.tgz)
+                  if [ "${#archives[@]}" -ne 6 ]; then
+                    echo "::error::Expected six native npm package archives, found ${#archives[@]}."
+                    exit 1
+                  fi
+                  for archive in "${archives[@]}"; do
+                    metadata="$(tar -xOf "$archive" package/package.json)"
+                    name="$(node -e 'console.log(JSON.parse(process.argv[1]).name)' "$metadata")"
+                    version="$(node -e 'console.log(JSON.parse(process.argv[1]).version)' "$metadata")"
+                    if [ "$version" != "$WP_PLAYGROUND_NATIVE_NPM_VERSION" ]; then
+                      echo "::error::Native package $name has version $version; expected $WP_PLAYGROUND_NATIVE_NPM_VERSION."
+                      exit 1
+                    fi
+                    if npm view "$name@$version" version >/dev/null 2>&1; then
+                      echo "$name@$version is already published; keeping the existing package."
+                    else
+                      npm publish "$archive" --access public --provenance --tag "$NPM_DIST_TAG"
+                    fi
+                  done
 
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub.

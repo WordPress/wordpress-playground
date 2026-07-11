@@ -201,6 +201,10 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   submodules: true
+            - uses: ./.github/actions/prepare-playground
+              if: matrix.label == 'linux-x64'
+              with:
+                  node-version: 22
             - name: Install Rust components
               run: |
                   rustup toolchain install stable --profile minimal --component clippy --component rustfmt
@@ -255,7 +259,42 @@ jobs:
                     --source "$native_package_root" \
                     --destination "$npm_package_root" \
                     --version "$WP_PLAYGROUND_NATIVE_VERSION"
-                  npm pack --dry-run "$npm_package_root"
+                  mkdir -p "$RUNNER_TEMP/native-npm-packages"
+                  pack_json="$(npm pack --json --pack-destination "$RUNNER_TEMP/native-npm-packages" "$npm_package_root")"
+                  node -e '
+                    const [entry] = JSON.parse(process.argv[1]);
+                    const maximumBytes = 95 * 1024 * 1024;
+                    if (entry.size > maximumBytes) {
+                      throw new Error(`Native npm package is ${entry.size} bytes; npm registry packages must remain below ${maximumBytes} bytes.`);
+                    }
+                    console.log(`native npm package: ${entry.filename} (${entry.size} bytes)`);
+                  ' "$pack_json"
+            - name: Verify packed CLI resolves the installed native host
+              if: matrix.label == 'linux-x64'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  cli_package_dir="$RUNNER_TEMP/cli-npm-package"
+                  install_dir="$RUNNER_TEMP/cli-native-install"
+                  mkdir -p "$cli_package_dir" "$install_dir"
+                  npx nx run playground-cli:build
+                  npm pack --json --pack-destination "$cli_package_dir" dist/packages/playground/cli >/dev/null
+                  cli_archive="$(find "$cli_package_dir" -name '*.tgz' -print -quit)"
+                  native_archive="$(find "$RUNNER_TEMP/native-npm-packages" -name '*.tgz' -print -quit)"
+                  test -n "$cli_archive"
+                  test -n "$native_archive"
+                  (
+                    cd "$install_dir"
+                    npm init --yes >/dev/null
+                    npm install --ignore-scripts "$cli_archive" "$native_archive"
+                    unset WP_PLAYGROUND_NATIVE_BINARY
+                    ./node_modules/.bin/wp-playground-cli --help | grep -q 'wp-playground-native'
+                    ./node_modules/.bin/wp-playground-cli php \
+                      --php=8.5 \
+                      --skip-wordpress-install \
+                      --skip-sqlite-setup \
+                      -- -v | grep -q 'PHP 8.5'
+                  )
             - name: Upload native package archive
               uses: actions/upload-artifact@v4
               with:
@@ -560,7 +599,16 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
+            - name: Install Rust components
+              run: |
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+            - name: Build Wasmtime host
+              run: cargo build --manifest-path packages/playground/cli-native/Cargo.toml --bin wp-playground-native
+            - name: Run unbuilt native CLI smoke
+              env:
+                  WP_PLAYGROUND_NATIVE_BINARY: ${{ github.workspace }}/packages/playground/cli-native/target/debug/wp-playground-native
+              run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     test-php-wasm-cli-smoke:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'

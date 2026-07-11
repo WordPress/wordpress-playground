@@ -14,11 +14,13 @@ const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
 if (!packageJson.version) {
 	throw new Error(`${packageJsonPath} has no package version.`);
 }
+const nativeHostVersion =
+	process.env.WP_PLAYGROUND_NATIVE_NPM_VERSION ?? packageJson.version;
 
 packageJson.optionalDependencies = {
 	...packageJson.optionalDependencies,
 	...Object.fromEntries(
-		nativeHostPackageNames.map((name) => [name, packageJson.version])
+		nativeHostPackageNames.map((name) => [name, nativeHostVersion])
 	),
 };
 
