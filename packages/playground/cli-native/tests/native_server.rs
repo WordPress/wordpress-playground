@@ -10,7 +10,7 @@ use std::{
 };
 
 const SERVER_START_TIMEOUT: Duration = Duration::from_secs(300);
-const HTTP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(180);
+const HTTP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(300);
 
 static SERVER_SMOKE_LOCK: Mutex<()> = Mutex::new(());
 

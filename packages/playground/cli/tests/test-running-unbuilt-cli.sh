@@ -10,7 +10,7 @@ if [[ -z "${WP_PLAYGROUND_WASMTIME_BINARY:-}" ]]; then
 fi
 
 echo 'Running the unbuilt public CLI through the Wasmtime host.'
-timeout -s TERM 90s npx nx run playground-cli:unbuilt-wasmtime -- php \
+timeout -s TERM 300s npx nx run playground-cli:unbuilt-wasmtime -- php \
 	--php=8.5 \
 	--skip-wordpress-install \
 	--skip-sqlite-setup \

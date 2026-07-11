@@ -103,15 +103,6 @@ export function resolveWasmtimeBinary(
 		return bundledBinary;
 	}
 
-	const wasmtimePackageBinary = resolveWasmtimePackageBinary(
-		moduleDirectory,
-		platform,
-		arch
-	);
-	if (wasmtimePackageBinary) {
-		return wasmtimePackageBinary;
-	}
-
 	const sourceCandidates = [
 		join(
 			moduleDirectory,
@@ -135,6 +126,15 @@ export function resolveWasmtimeBinary(
 	const binary = sourceCandidates.find(existsSync);
 	if (binary) {
 		return binary;
+	}
+
+	const wasmtimePackageBinary = resolveWasmtimePackageBinary(
+		moduleDirectory,
+		platform,
+		arch
+	);
+	if (wasmtimePackageBinary) {
+		return wasmtimePackageBinary;
 	}
 
 	throw new Error(

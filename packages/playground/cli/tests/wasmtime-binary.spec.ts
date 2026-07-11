@@ -3,11 +3,12 @@ import {
 	mkdir,
 	mkdtemp,
 	readFile,
+	realpath,
 	rm,
 	writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
 	wasmtimeBinaryEnvironmentVariable,
 	wasmtimeBinaryPackageName,
@@ -120,7 +121,58 @@ describe('Wasmtime binary launcher', () => {
 				platform: 'linux',
 				arch: 'x64',
 			})
-		).toBe(binary);
+		).toBe(await realpath(binary));
+
+		await rm(root, { recursive: true, force: true });
+	});
+
+	test('prefers a source build over an installed package template', async () => {
+		const root = await mkdtemp(
+			join(tmpdir(), 'playground-wasmtime-binary-')
+		);
+		const moduleDirectory = join(
+			root,
+			'packages',
+			'playground',
+			'cli',
+			'src'
+		);
+		const sourceBinary = join(
+			root,
+			'packages',
+			'playground',
+			'cli-native',
+			'target',
+			'debug',
+			'wp-playground-native'
+		);
+		const packageDirectory = join(
+			root,
+			'node_modules',
+			'@wp-playground',
+			'cli-wasmtime-linux-x64'
+		);
+		await mkdir(moduleDirectory, { recursive: true });
+		await mkdir(dirname(sourceBinary), { recursive: true });
+		await mkdir(packageDirectory, { recursive: true });
+		await writeFile(sourceBinary, '#!/bin/sh\nexit 0\n');
+		await chmod(sourceBinary, 0o755);
+		await writeFile(
+			join(packageDirectory, 'package.json'),
+			JSON.stringify({
+				name: wasmtimeBinaryPackageName('linux', 'x64'),
+				exports: { './package.json': './package.json' },
+			})
+		);
+
+		expect(
+			resolveWasmtimeBinary({
+				environment: {},
+				moduleDirectory,
+				platform: 'linux',
+				arch: 'x64',
+			})
+		).toBe(sourceBinary);
 
 		await rm(root, { recursive: true, force: true });
 	});
