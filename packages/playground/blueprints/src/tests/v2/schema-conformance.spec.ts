@@ -426,7 +426,7 @@ function resolveSchemaRef(ref: string): JsonSchema {
 }
 
 /**
- * Determines whether a fixture value satisfies one schema union branch.
+ * Determines whether a fixture value satisfies one schema branch.
  * Compiled validators are cached because the same branches are tested by many fixtures.
  */
 function matchesSchema(schema: JsonSchema, data: any) {

@@ -168,7 +168,7 @@ describe('Blueprint v2 schema runtime conformance', () => {
 
 	/**
 	 * Builds the local file bundle used by execution-context references.
-	 * Every fixture shares the bundle so missing paths fail consistently.
+	 * Every fixture receives the same paths so missing references fail consistently.
 	 */
 	function createExecutionContext(
 		declaration: BlueprintV2Declaration
