@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import type { DependencyList } from 'react';
 
 type DebouncedCallback<T extends (...args: any[]) => any> = {
 	(...args: Parameters<T>): void;
@@ -9,7 +10,7 @@ type DebouncedCallback<T extends (...args: any[]) => any> = {
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
 	callback: T,
 	delay = 250,
-	dependencies: React.DependencyList = []
+	dependencies: DependencyList = []
 ): DebouncedCallback<T> {
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const callbackRef = useRef(callback);
