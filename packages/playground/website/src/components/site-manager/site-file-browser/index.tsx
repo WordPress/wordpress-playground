@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { PlaygroundFileEditor } from '@wp-playground/components';
-import { logger } from '@php-wasm/logger';
 
 export function SiteFileBrowser({
 	site,
@@ -17,35 +16,6 @@ export function SiteFileBrowser({
 }) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
-	const clientRef = useRef<PlaygroundClient | null>(client);
-
-	// Keep clientRef in sync
-	clientRef.current = client;
-
-	// Handle filesystem changes - flush pending saves to the old filesystem
-	const handleBeforeFilesystemChange = useCallback(
-		async (_oldFilesystem: AsyncWritableFilesystem) => {
-			// The old filesystem was a wrapper around a client
-			// We need to save any pending changes before switching
-			// This is handled by the fact that we're just writing to the filesystem
-			// which proxies to the client
-			logger.debug(
-				'Filesystem changing, any pending saves will be flushed'
-			);
-		},
-		[]
-	);
-
-	// Custom save handler that writes directly to the client
-	const handleSaveFile = useCallback(
-		async (path: string, content: string) => {
-			if (!clientRef.current) {
-				throw new Error('No client available');
-			}
-			await clientRef.current.writeFile(path, content);
-		},
-		[]
-	);
 
 	return (
 		<PlaygroundFileEditor
@@ -54,8 +24,6 @@ export function SiteFileBrowser({
 			isVisible={isVisible}
 			initialPath={`${documentRoot}/wp-config.php`}
 			placeholderText="Start this Playground to browse and edit its files."
-			onSaveFile={handleSaveFile}
-			onBeforeFilesystemChange={handleBeforeFilesystemChange}
 		/>
 	);
 }
