@@ -8,6 +8,21 @@
 				"commands": ["node packages/php-wasm/compile/build.js"],
 				"parallel": false
 			}
+		},
+		"build-wasip2-component": {
+			"executor": "nx:run-commands",
+			"outputs": [
+				"{workspaceRoot}/packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm"
+			],
+			"options": {
+				"command": "packages/php-wasm/compile/php-wasi/docker.sh build"
+			}
+		},
+		"validate-wasip2-component": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "packages/php-wasm/compile/php-wasi/docker.sh validate"
+			}
 		}
 	},
 	"tags": []

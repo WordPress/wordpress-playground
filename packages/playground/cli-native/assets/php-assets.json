@@ -1,0 +1,12 @@
+{
+	"schemaVersion": 2,
+	"runtime": "wasip2-component",
+	"php": {
+		"8.2": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm",
+				"sha256": "99ede38d726838c1a16e83f7be16159bfba02e00cad8929b64f3cd8bf121a9f2"
+			}
+		}
+	}
+}

@@ -1,0 +1,213 @@
+{
+	"schemaVersion": 1,
+	"scope": "Native v1 Node CLI compatibility contract",
+	"commands": [
+		{
+			"name": "start",
+			"status": "supported",
+			"notes": "Normalizes into the native server runtime with managed persistent storage, auto-mounting, login, reset, and browser-opening defaults."
+		},
+		{
+			"name": "server",
+			"status": "supported",
+			"notes": "Runs the native HTTP server, WordPress bootstrap, worker pool, mounts, Blueprint-on-start, and PHP SAPI routing."
+		},
+		{
+			"name": "run-blueprint",
+			"status": "supported",
+			"notes": "Runs the native one-shot WordPress bootstrap and Blueprint v1 startup-step interpreter without opening a server listener. Unsupported Blueprint steps fail explicitly."
+		},
+		{
+			"name": "build-snapshot",
+			"status": "supported",
+			"notes": "Boots the native WordPress runtime, applies startup Blueprint steps, and writes a ZIP snapshot of the visible /wordpress tree."
+		}
+	],
+	"options": [
+		{ "name": "--path", "commands": ["start"], "status": "supported" },
+		{
+			"name": "--wp",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--php",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--port",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--site-url",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--mount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-before-install",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-dir",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--mount-dir-before-install",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--auto-mount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--no-auto-mount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{ "name": "--reset", "commands": ["start"], "status": "supported" },
+		{
+			"name": "--login",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--no-login",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-browser",
+			"commands": ["start"],
+			"status": "supported"
+		},
+		{
+			"name": "--blueprint",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--blueprint-may-read-adjacent-files",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--wordpress-install-mode",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-wordpress-install",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--skip-sqlite-setup",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--workers",
+			"commands": ["server", "start"],
+			"status": "supported"
+		},
+		{
+			"name": "--verbosity",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--quiet",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--debug",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--follow-symlinks",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--define",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--define-bool",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--define-number",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "--phpmyadmin",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "phpMyAdmin installation"
+		},
+		{
+			"name": "--experimental-unsafe-ide-integration",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "unsafe IDE integration"
+		},
+		{
+			"name": "--experimental-devtools",
+			"commands": ["start", "server"],
+			"status": "unsupported",
+			"errorContains": "browser devtools bridge"
+		},
+		{
+			"name": "--experimental-blueprints-v2-runner",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "Blueprints v2 runner"
+		},
+		{
+			"name": "--experimental-multi-worker",
+			"commands": ["server"],
+			"status": "unsupported",
+			"errorContains": "deprecated Node worker option"
+		},
+		{
+			"name": "--experimental-trace",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "request tracing"
+		},
+		{
+			"name": "--internal-cookie-store",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "Node cookie-store mediation"
+		},
+		{
+			"name": "--mode",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported",
+			"errorContains": "Blueprints v2 mode selection"
+		},
+		{
+			"name": "--outfile",
+			"commands": ["build-snapshot"],
+			"status": "supported"
+		}
+	]
+}

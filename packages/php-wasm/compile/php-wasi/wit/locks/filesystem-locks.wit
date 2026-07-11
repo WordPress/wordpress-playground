@@ -1,0 +1,67 @@
+package wordpress-playground:filesystem-locks@0.1.0;
+
+interface filesystem-locks {
+  use wasi:filesystem/types@0.2.0.{descriptor};
+
+  enum lock-kind { shared, exclusive }
+  enum lock-mode { blocking, non-blocking }
+
+  record byte-range {
+    start: u64,
+    length: option<u64>,
+  }
+
+  record lock-conflict {
+    range: byte-range,
+    kind: lock-kind,
+    owner-process-id: option<u32>,
+  }
+
+  variant lock-state {
+    unlocked,
+    locked(lock-conflict),
+  }
+
+  variant lock-error {
+    would-block,
+    bad-descriptor,
+    interrupted,
+    invalid-range,
+    overflow,
+    deadlock,
+    unsupported,
+    permission-denied,
+    resource-exhausted,
+    io-error(option<u32>),
+  }
+
+  lock-whole: func(
+    file: borrow<descriptor>,
+    kind: lock-kind,
+    mode: lock-mode,
+  ) -> result<_, lock-error>;
+
+  unlock-whole: func(file: borrow<descriptor>) -> result<_, lock-error>;
+
+  lock-range: func(
+    file: borrow<descriptor>,
+    range: byte-range,
+    kind: lock-kind,
+    mode: lock-mode,
+  ) -> result<_, lock-error>;
+
+  unlock-range: func(
+    file: borrow<descriptor>,
+    range: byte-range,
+  ) -> result<_, lock-error>;
+
+  query-range: func(
+    file: borrow<descriptor>,
+    range: byte-range,
+    kind: lock-kind,
+  ) -> result<lock-state, lock-error>;
+}
+
+world bridge {
+  import filesystem-locks;
+}
