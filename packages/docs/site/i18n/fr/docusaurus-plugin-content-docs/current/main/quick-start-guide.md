@@ -45,13 +45,15 @@ L’ensemble du site se trouve dans votre navigateur et est effacé lorsque vous
 
 <!-- :::info WordPress Playground is private -->
 
-:::info WordPress Playground est privé
+<div class="callout callout-info">
+
+**WordPress Playground est privé**
 
 <!-- Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over! -->
 
 Tout ce que vous construisez reste dans votre navigateur et n’est **pas** envoyé n’importe où. Une fois que vous avez terminé, vous pouvez exporter votre site sous forme de fichier zip. Ou simplement rafraîchir la page et recommencer !
 
-:::
+</div>
 
 <!-- ## Try a block, a theme, or a plugin -->
 
@@ -157,13 +159,15 @@ Le moyen le plus rapide de modifier la version de WordPress ou de PHP est d’ut
 
 <!-- :::info Test your plugin or theme -->
 
-:::info Testez votre extension ou votre thème
+<div class="callout callout-info">
+
+**Testez votre extension ou votre thème**
 
 <!-- Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage! -->
 
 Les tests de compatibilité avec tant de versions de WordPress et de PHP ont toujours été pénibles. WordPress Playground rend ce processus sans effort - utilisez-le à votre avantage !
 
-:::
+</div>
 
 <!-- You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded: -->
 
@@ -181,13 +185,15 @@ Pour en savoir plus au sujet de la préparation de contenu pour les démos, cons
 
 <!-- :::info Major versions only -->
 
-:::info Versions majeures uniquement
+<div class="callout callout-info">
+
+**Versions majeures uniquement**
 
 <!-- You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. -->
 
 Vous pouvez spécifier des versions majeures comme `wp=6.2` ou `php=8.1` et attendre la version la plus récente dans cette ligne. Vous ne pouvez cependant pas demander des versions mineures plus anciennes, donc ni `wp=6.1.2` ni `php=7.4.9` ne fonctionneront.
 
-:::
+</div>
 
 <!-- ## Import a WXR file -->
 

@@ -4,12 +4,8 @@ import { GitHubIcon } from '../github';
 import css from './style.module.css';
 import { useState } from 'react';
 import classNames from 'classnames';
-import { useActiveSite } from '../../lib/state/redux/store';
 import { Modal } from '../../components/modal';
-
-const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
-const urlParams = new URLSearchParams(window.location.search);
-export const oauthCode = urlParams.get('code');
+import { connectToGitHub } from '../connect-to-github';
 
 export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 	const [isModalOpen, setIsModalOpen] = useState(!oAuthState.value.token);
@@ -48,7 +44,10 @@ export default function GitHubOAuthGuard({
 		return (
 			<div>
 				<Spinner />
-				Authorizing...
+				<p>
+					Authorization popup opened. Continue in the popup to connect
+					your GitHub account.
+				</p>
 			</div>
 		);
 	}
@@ -57,37 +56,20 @@ export default function GitHubOAuthGuard({
 		return <div>{children}</div>;
 	}
 
-	const urlParams = new URLSearchParams();
-	const cleanUrl = new URL(window.location.href);
-	cleanUrl.searchParams.delete('code');
-	urlParams.set('redirect_uri', cleanUrl.toString());
-	const oauthUrl = `${OAUTH_FLOW_URL}&${urlParams.toString()}`;
-	return (
-		<Authenticate
-			authenticateUrl={oauthUrl}
-			mayLoseProgress={mayLoseProgress}
-		/>
-	);
+	return <Authenticate mayLoseProgress={mayLoseProgress} />;
 }
 
 interface AuthenticateProps {
-	authenticateUrl: string;
 	mayLoseProgress?: boolean;
 }
 
-function Authenticate({
-	authenticateUrl,
-	mayLoseProgress = undefined,
-}: AuthenticateProps) {
-	const storage = useActiveSite()?.metadata?.storage;
-
-	if (mayLoseProgress === undefined) {
-		mayLoseProgress = storage === 'none';
-	}
+function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 	const [exported, setExported] = useState(false);
+	const [error, setError] = useState<string>();
 	const buttonClass = classNames(css.githubButton, {
 		[css.disabled]: mayLoseProgress && !exported,
 	});
+
 	return (
 		<div>
 			<p>
@@ -101,10 +83,8 @@ function Authenticate({
 			{mayLoseProgress ? (
 				<>
 					<p>
-						<b>You will lose your progress.</b> Your Playground is
-						temporary and the authentication flow will redirect you
-						to GitHub and erase all your changes. Be sure to export
-						your Playground to a zip file before proceeding.
+						The authentication flow opens in a popup. Your running
+						Playground will stay open.
 					</p>
 					<label style={{ cursor: 'pointer' }}>
 						<input
@@ -121,17 +101,20 @@ function Authenticate({
 				<a
 					aria-label="Connect your GitHub account"
 					className={buttonClass}
-					href={authenticateUrl}
-					onClick={(e) => {
+					href={new URL('oauth.php', window.location.href).toString()}
+					onClick={async (e) => {
+						e.preventDefault();
 						if (mayLoseProgress && !exported) {
-							e.preventDefault();
+							return;
 						}
+						await connectToGitHub({ setError });
 					}}
 				>
 					<Icon icon={GitHubIcon} />
 					Connect your GitHub account
 				</a>
 			</p>
+			{error ? <p role="alert">{error}</p> : null}
 			<p>
 				Your access token is not stored anywhere, which means you'll
 				have to re-authenticate after every page refresh.

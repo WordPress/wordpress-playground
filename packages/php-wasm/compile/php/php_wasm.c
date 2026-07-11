@@ -20,7 +20,9 @@
 
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
+#if PHP_MAJOR_VERSION >= 6 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3)
 #include "zend_closures.h"
+#endif
 #include "zend_hash.h"
 #include "rfc1867.h"
 #include "SAPI.h"
@@ -427,8 +429,9 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
 
-// Exit code of the last exited child process call.
-int wasm_pclose_ret = -1;
+extern void js_popen_set_pid_for_fd(int fd, int pid);
+extern int js_popen_get_pid_for_fd(int fd);
+extern void js_popen_clear_pid_for_fd(int fd);
 
 /**
  * Passes a message to the JavaScript module and writes the response
@@ -485,8 +488,8 @@ EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buff
 // We have a custom popen handler because the original one calls
 // fork() which emscripten does not support.
 //
-// This wasm_popen function is called by PHP_FUNCTION(popen) thanks
-// to a patch applied in the Dockerfile.
+// PHP_FUNCTION(popen) and other compiled C call sites reach this through
+// the linker-level __wrap_popen wrapper below.
 //
 // The `js_popen_to_file` is defined in phpwasm-emscripten-library.js.
 // It runs the `cmd` command and returns the path to a file that contains the
@@ -501,7 +504,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
 		FG(pclose_ret) = last_exit_code;
-		wasm_pclose_ret = last_exit_code;
 	}
 	else if (*mode == 'w')
 	{
@@ -515,7 +517,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			return 0;
 		}
 
-		fp = fdopen(stdin_pipe[1], "w");  // or "w", depending on direction
+		fp = fdopen(stdin_pipe[1], "w");
 		if (!fp) {
 			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
 			errno = EINVAL;
@@ -544,8 +546,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[1] = stdout;
 		descv[2] = stderr;
 
-		// the wasm way {{{
-		js_open_process(
+		int pid = js_open_process(
 			cmd,
 			NULL,
 			0,
@@ -556,7 +557,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			0,
 			0
 		);
-		// }}}
+		js_popen_set_pid_for_fd(fileno(fp), pid);
 
 		efree(stdin);
 		efree(stdout);
@@ -572,6 +573,44 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 	}
 
 	return fp;
+}
+
+/**
+ * Close a FILE* created by wasm_popen and wait for the spawned process
+ * to exit. Returns the process exit code, or -1 on error.
+ */
+extern int js_waitpid(int pid, int *exitcode);
+
+EMSCRIPTEN_KEEPALIVE int wasm_pclose(FILE *fp)
+{
+	int pid = js_popen_get_pid_for_fd(fileno(fp));
+	js_popen_clear_pid_for_fd(fileno(fp));
+	fclose(fp);
+	if (pid < 0) {
+		return -1;
+	}
+	int wstatus = 0;
+	js_waitpid(pid, &wstatus);
+	FG(pclose_ret) = wstatus;
+	return wstatus;
+}
+
+/**
+ * Linker-level wrappers so every compiled C call to popen()/pclose()
+ * is redirected here via -Wl,--wrap=popen/pclose.
+ */
+FILE *__wrap_popen(const char *cmd, const char *mode)
+{
+	return wasm_popen(cmd, mode);
+}
+
+extern int __real_pclose(FILE *fp);
+int __wrap_pclose(FILE *fp)
+{
+	if (js_popen_get_pid_for_fd(fileno(fp)) >= 0) {
+		return wasm_pclose(fp);
+	}
+	return __real_pclose(fp);
 }
 
 /**
@@ -609,15 +648,26 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl)
 	if (type == 1)
 	{
 		PHPWRITE(buf, bufl);
+#if PHP_MAJOR_VERSION >= 6 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 4)
 		if (php_output_get_level() < 1)
 		{
 			sapi_flush();
 		}
+#else
+		if (OG(ob_nesting_level) < 1)
+		{
+			sapi_flush();
+		}
+#endif
 	}
 	else if (type == 2)
 	{
 		bufl = strip_trailing_whitespace(buf, bufl);
+#if PHP_MAJOR_VERSION >= 7
 		add_next_index_stringl(array, buf, bufl);
+#else
+		add_next_index_stringl(array, buf, bufl, 1);
+#endif
 	}
 	return bufl;
 }
@@ -720,7 +770,11 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 
 			/* Return last line from the shell command */
 			bufl = strip_trailing_whitespace(buf, bufl);
+#if PHP_MAJOR_VERSION >= 7
 			RETVAL_STRINGL(buf, bufl);
+#else
+			RETVAL_STRINGL(buf, bufl, 1);
+#endif
 		}
 		else
 		{ /* should return NULL, but for BC we return "" */
@@ -739,7 +793,7 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 	pclose_return = php_stream_close(stream);
 	if (pclose_return == -1)
 	{
-		pclose_return = wasm_pclose_ret;
+		pclose_return = FG(pclose_ret);
 	}
 	efree(buf);
 
@@ -883,8 +937,13 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
 void wasm_sapi_module_shutdown();
 static int wasm_sapi_deactivate(TSRMLS_D);
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
+#else
+static int wasm_sapi_ub_write(const char *str, unsigned int str_length TSRMLS_DC);
+static int wasm_sapi_read_post_body(char *buffer, unsigned int count_bytes);
+#endif
 #if PHP_MAJOR_VERSION >= 8
 static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int);
 #else
@@ -983,9 +1042,14 @@ int stdout_replacement;
 int stderr_replacement;
 
 #if WITH_CLI_SAPI == 1
+/* php_cli_process_title was introduced in PHP 5.5. On PHP 5.2 there is
+ * no such header and the Dockerfile already skips php_cli_process_title.c
+ * from the CLI source list. */
+#if PHP_MAJOR_VERSION >= 6 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 5)
 #include "sapi/cli/php_cli_process_title.h"
 #if PHP_MAJOR_VERSION >= 8
 #include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
 #endif
 
 extern int wasm_shutdown(int sockfd, int how);
@@ -993,8 +1057,10 @@ extern int wasm_close(int sockfd);
 
 static const zend_function_entry additional_functions[] = {
 ZEND_FE(dl, arginfo_dl)
+#if PHP_MAJOR_VERSION >= 6 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 5)
 PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
 PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+#endif
 {NULL, NULL, NULL}
 };
 
@@ -1395,7 +1461,11 @@ static char *wasm_sapi_read_cookies(TSRMLS_D)
  *   buffer: the buffer to read the request body into
  *   count_bytes: the number of bytes to read
  */
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
+#else
+static int wasm_sapi_read_post_body(char *buffer, unsigned int count_bytes)
+#endif
 {
 	if (wasm_server_context == NULL || wasm_server_context->request_body == NULL)
 	{
@@ -1779,7 +1849,11 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
  *   str: the string to write.
  *   str_length: the length of the string.
  */
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC)
+#else
+static int wasm_sapi_ub_write(const char *str, unsigned int str_length TSRMLS_DC)
+#endif
 {
 	const char *ptr = str;
 	uint remaining = str_length;
@@ -1925,7 +1999,9 @@ int php_wasm_init()
 	}
 
 	php_sapi_started = 1;
+#if PHP_MAJOR_VERSION >= 6 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3)
 	php_wasm_sapi_module.additional_functions = additional_functions;
+#endif
 	if (php_wasm_sapi_module.startup(&php_wasm_sapi_module) == FAILURE)
 	{
 		return FAILURE;

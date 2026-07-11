@@ -14,13 +14,15 @@ O WordPress Playground vem com um cliente de API JavaScript que oferece controle
 The term API here refers to a set of functions you can
 call inside JavaScript. This is **not** a network-based REST API. -->
 
-:::info API aqui não significa "REST API"
+<div class="callout callout-info">
+
+**API aqui não significa "REST API"**
 
 O WordPress Playground é uma aplicação baseada em navegador.
 O termo API aqui se refere a um conjunto de funções que você pode
 chamar dentro do JavaScript. Isso **não** é uma API REST baseada em rede.
 
-:::
+</div>
 
 <!-- ## Quick start -->
 
@@ -52,14 +54,16 @@ Aqui está o exemplo mais curto de como usar a API JavaScript em uma página HTM
 </script>
 ```
 
-:::info /remote.html é uma URL especial
+<div class="callout callout-info">
+
+**/remote.html é uma URL especial**
 
 <!-- `/remote.html` is a special URL that loads the Playground
 API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html). -->
 
 `/remote.html` é uma URL especial que carrega o endpoint da API do Playground em vez do aplicativo de demonstração com a interface do navegador. Leia mais sobre a diferença entre `/` e `/remote.html` [nesta página](/developers/apis/javascript-api/-html-vs-remote-html).
 
-:::
+</div>
 
 <!-- ## Controlling the website -->
 

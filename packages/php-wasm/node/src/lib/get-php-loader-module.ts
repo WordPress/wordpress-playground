@@ -1,5 +1,8 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	isPHPNextVersion,
+} from '@php-wasm/universal';
+import type { AllPHPVersion, PHPLoaderModule } from '@php-wasm/universal';
 
 /**
  * Loads the PHP loader module for the given PHP version.
@@ -14,8 +17,14 @@ import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
-	version: SupportedPHPVersion | string = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
+	if (isPHPNextVersion(version)) {
+		throw new Error(
+			'PHP next is only available in the web runtime for now.'
+		);
+	}
+
 	try {
 		switch (version) {
 			case '8.5':
@@ -52,6 +61,11 @@ export async function getPHPLoaderModule(
 				// @ts-ignore
 				return (
 					await import('@php-wasm/node-7-4')
+				).getPHPLoaderModule();
+			case '5.2':
+				// @ts-ignore
+				return (
+					await import('@php-wasm/node-5-2')
 				).getPHPLoaderModule();
 		}
 

@@ -17,14 +17,18 @@ Help make WordPress Playground accessible to a global audience by translating it
 Aiuta a rendere WordPress Playground accessibile a un pubblico globale traducendo la sua documentazione. Questa guida fornisce tutto ciò che devi sapere per iniziare. Contribuire alle traduzioni segue lo stesso workflow di qualsiasi altra modifica alla documentazione. Puoi fare il fork del repository [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) e creare una pull request (PR) con le tue modifiche o modificare le pagine direttamente usando l'interfaccia GitHub.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Per una guida dettagliata sul workflow di contribuzione (fork, creazione di PR, ecc.), per favore vedi la nostra [guida ai contributi alla documentazione](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 
 <!--
 ## How Translations Work
@@ -39,14 +43,18 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 Il sito di documentazione Playground è costruito con Docusaurus, che gestisce le funzionalità di internazionalizzazione (i18n).
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Per saperne di più su come Docusaurus gestisce le traduzioni, vedi la [sezione Internazionalizzazione](https://docusaurus.io/docs/i18n/introduction) della documentazione ufficiale di Docusaurus.
-:::
+
+</div>
 
 <!--
 ### Configuration
@@ -302,9 +310,11 @@ Follow these steps to translate a page:
 - Describe the pages that you translated
 - Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
 ## Workflow di traduzione
@@ -327,9 +337,11 @@ Segui questi passaggi per tradurre una pagina:
 - Descrivi le pagine che hai tradotto
 - Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
 
-:::info
+<div class="callout callout-info">
+
 Raccomandiamo fortemente di inviare pull request con un piccolo numero di pagine tradotte. Questo approccio semplifica il processo di revisione e permette un'integrazione più graduale e gestibile del tuo lavoro.
-:::
+
+</div>
 
 <!--
 ### Translation Tracking Template
@@ -682,9 +694,11 @@ WordPress Playground è uno strumento online dove puoi testare e imparare di pi�
 
 ```
 
-:::info
+<div class="callout callout-info">
+
 This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
-:::
+
+</div>
 
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).
 
@@ -709,9 +723,11 @@ WordPress Playground è uno strumento online dove puoi testare e imparare di pi�
 
 ```
 
-:::info
+<div class="callout callout-info">
+
 Questa pratica aiuta anche il team di manutenzione a identificare traduzioni obsolete. Quando il contenuto inglese originale viene aggiornato, possiamo cercare nel codebase il vecchio testo (ora nei commenti) e segnalare la traduzione corrispondente per la revisione.
-:::
+
+</div>
 
 Per trovare un revisore fluente nella lingua della tua PR, puoi pubblicare una richiesta sul [blog Make WordPress Polyglots](https://make.wordpress.org/polyglots/). Assicurati di includere il tag locale (es., #it per l'italiano) per notificare gli Editor Generali di Traduzione (GTE) appropriati.
 

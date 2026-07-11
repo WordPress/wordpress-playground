@@ -173,17 +173,19 @@ The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery a
 起動パネルには、ブループリントギャラリーからの 40 以上のブループリントと、保存した Playground も一覧表示されます。
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 https://playground.wordpress.net のサイトはコミュニティをサポートするために存在しますが、トラフィックが大幅に増加した場合、引き続き機能するという保証はありません。
 
 一定の可用性が必要な場合は、[独自の WordPress Playground をホスト](/developers/architecture/host-your-own-playground)する必要があります。
-:::
+
+</div>

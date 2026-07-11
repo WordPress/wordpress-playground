@@ -32,6 +32,7 @@ export type {
 	OnStepCompleted,
 	BlueprintValidationResult,
 } from './lib/v1/compile';
+export { validateBlueprintDeclaration } from './lib/validate-blueprint-declaration';
 export type {
 	CachedResource,
 	CorePluginReference,
@@ -66,13 +67,32 @@ export type {
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
+export {
+	compileBlueprintV2,
+	resolveBlueprintV2WordPressSource,
+} from './lib/v2/compile';
+export type {
+	CompiledBlueprintV2,
+	CompileBlueprintV2Options,
+	ResolveBlueprintV2WordPressSourceOptions,
+} from './lib/v2/compile';
 
 export {
 	resolveRemoteBlueprint,
 	BlueprintFetchError,
 } from './lib/resolve-remote-blueprint';
+export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
+export type { ResolveRuntimeConfigurationOptions } from './lib/resolve-runtime-configuration';
+export { assertBlueprintV2WordPressVersionCompatibility } from './lib/v2/resolve-runtime-configuration';
+export type { BlueprintV2SiteMode } from './lib/v2/resolve-runtime-configuration';
+export { compileBlueprintForExecution } from './lib/compile';
+export type {
+	BlueprintExecutionPath,
+	CompiledBlueprintForExecution,
+	CompileBlueprintForExecutionOptions,
+} from './lib/compile';
 
 /**
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.

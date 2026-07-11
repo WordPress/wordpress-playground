@@ -173,17 +173,19 @@ Este panel muestra todas las formas de lanzar WordPress Playground: importar arc
 El Panel de Lanzamiento también lista más de 40 blueprints de la Galería de Blueprints y tus Playgrounds Guardados.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 El sitio en https://playground.wordpress.net está ahí para apoyar a la comunidad, pero no hay garantías de que continúe funcionando si el tráfico crece significativamente.
 
 Si necesitas cierta disponibilidad, deberías [alojar tu propio WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

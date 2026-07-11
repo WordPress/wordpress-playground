@@ -22,6 +22,8 @@
 #include "Zend/zend_alloc.h"
 #include "php_wasm_memory_storage.h"
 
+#if PHP_MAJOR_VERSION >= 7
+
 /**
  * Allocate a chunk of memory.
  *
@@ -111,6 +113,22 @@ PHP_MSHUTDOWN_FUNCTION(wasm_memory_storage)
 
 	return SUCCESS;
 }
+
+#else /* PHP < 7 */
+
+/* Custom memory storage is not available in PHP 5.x.
+ * Provide no-op MINIT/MSHUTDOWN. */
+PHP_MINIT_FUNCTION(wasm_memory_storage)
+{
+	return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(wasm_memory_storage)
+{
+	return SUCCESS;
+}
+
+#endif /* PHP_MAJOR_VERSION >= 7 */
 
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(wasm_memory_storage)

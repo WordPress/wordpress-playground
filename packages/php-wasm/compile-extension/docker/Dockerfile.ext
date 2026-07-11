@@ -1,0 +1,64 @@
+FROM playground-php-wasm:base
+
+ARG PHP_VERSION
+ARG JSPI="no"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	bison \
+	php-cli
+
+RUN git clone https://github.com/php/php-src.git /root/php-src \
+	--branch php-$PHP_VERSION \
+	--single-branch \
+	--depth 1
+
+RUN cd /root/php-src && ./buildconf --force
+
+COPY ./compile/php/php*.patch /root/
+RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
+
+RUN source /root/emsdk/emsdk_env.sh && \
+	cd /root/php-src && \
+	emconfigure ./configure \
+	--disable-fiber-asm \
+	--enable-embed \
+	--disable-cgi \
+	--disable-opcache-jit \
+	--disable-opcache \
+	--disable-phpdbg \
+	--without-pcre-jit \
+	--disable-cli \
+	--disable-libxml \
+	--without-libxml \
+	--disable-dom \
+	--disable-xml \
+	--disable-simplexml \
+	--disable-xmlreader \
+	--disable-xmlwriter \
+	--without-sqlite3 \
+	--without-pdo-sqlite \
+	--without-iconv
+
+RUN /root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+
+RUN source /root/emsdk/emsdk_env.sh && \
+	cd /root/php-src && \
+	emmake make install
+
+RUN mkdir -p /usr/local/include/php/ext/standard && \
+	if [ -f /root/php-src/ext/standard/php_smart_string.h ]; then \
+		cp /root/php-src/ext/standard/*.h /usr/local/include/php/ext/standard/; \
+	else \
+		echo '#include "Zend/zend_smart_string.h"' > /usr/local/include/php/ext/standard/php_smart_string.h; \
+	fi && \
+	if [ -d /root/php-src/ext/random ]; then \
+		cp /root/php-src/ext/random/*.h /usr/local/include/php/ext/standard/; \
+	fi
+
+COPY ./compile-extension/scripts/build-in-docker.sh /usr/local/bin/build-php-wasm-extension
+RUN chmod +x /usr/local/bin/build-php-wasm-extension
+
+ENTRYPOINT ["/usr/local/bin/build-php-wasm-extension"]

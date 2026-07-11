@@ -98,7 +98,9 @@
 			"options": {
 				"commands": [
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
-					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.16 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration"
+					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.16 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
+					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v3.0.0-rc.3 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
+					"node scripts/patch-sqlite-for-php52.mjs"
 				],
 				"parallel": false
 			}

@@ -1,10 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type { ResolvedRef } from './resolve-pr-input';
+import {
+	isWordPressPrBeforePreviewer,
+	resolvePrInput,
+} from './resolve-pr-input';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
@@ -37,82 +42,80 @@ export default function PreviewPRForm({
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	const cleanupRetryRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
 		const query = new URLSearchParams(window.location.search);
-		if (query.has('core-pr')) {
-			const prNumber = query.get('core-pr');
-			prNumber && setValue(prNumber);
+		let initialValue = '';
+		if (target === 'wordpress') {
+			initialValue = query.get('core-pr') || '';
+		} else {
+			initialValue =
+				query.get('gutenberg-pr') ||
+				query.get('gutenberg-branch') ||
+				'';
 		}
+		if (initialValue) {
+			setValue(initialValue);
+		}
+	}, [target]);
+
+	useEffect(() => {
+		return () => cleanupRetryRef.current();
 	}, []);
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 
-		if (!value) {
+		if (!value.trim()) {
 			return;
 		}
 
-		await previewPr(value);
+		const resolved = resolvePrInput(value, target);
+		if (!resolved.ok) {
+			setError(resolved.error);
+			return;
+		}
+
+		await previewPr(resolved.value);
 	}
 
-	function renderRetryIn(retryIn: number, isBranch: boolean) {
+	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
 		setError(
 			`Waiting for GitHub to finish building ${
-				isBranch ? 'branch' : 'PR'
-			} ${value}. This might take 15 minutes or more! Retrying in ${
+				resolved.isBranch ? 'branch' : 'PR'
+			} ${resolved.ref}. This might take 15 minutes or more! Retrying in ${
 				retryIn / 1000
 			}...`
 		);
 	}
 
-	function buildArtifactUrl(ref: string, isBranch: boolean): string {
+	function buildArtifactUrl(resolved: ResolvedRef): string {
+		const { target: repo, ref, isBranch } = resolved;
 		const refType = isBranch ? 'branch' : 'pr';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
 		// For Gutenberg PRs: artifact name is always gutenberg-plugin
 		// For Gutenberg branches: artifact name is always gutenberg-plugin
 		//   (we use prefix matching with trailing dash for branches)
 		let artifactSuffix = '';
-		if (target === 'wordpress') {
+		if (repo === 'wordpress') {
 			// WordPress only supports PRs, not branches
 			artifactSuffix = ref;
 		}
-		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${artifactSuffix}&${refType}=${ref}`;
+		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodeURIComponent(ref)}`;
 	}
 
-	async function previewPr(prValue: string) {
-		let cleanupRetry = () => {};
-		if (cleanupRetry) {
-			cleanupRetry();
-		}
+	async function previewPr(resolved: ResolvedRef) {
+		cleanupRetryRef.current();
+		cleanupRetryRef.current = () => {};
 
-		let prNumber: string = prValue;
-		let branchName: string | null = null;
+		const { target: repo, ref, isBranch } = resolved;
 		setSubmitting(true);
-
-		// Extract number from a GitHub URL
-		if (prNumber.toLowerCase().includes(targetParams[target].pull)) {
-			prNumber = prNumber.match(/\/pull\/(\d+)/)![1];
-		} else if (!/^\d+$/.test(prNumber)) {
-			// For WordPress core, only allow PR numbers/URLs, not branch names
-			if (target === 'wordpress') {
-				setError(
-					'Please enter a valid PR number or PR URL for WordPress Core.'
-				);
-				setSubmitting(false);
-				return;
-			}
-			// For Gutenberg, treat non-numeric input as a branch name
-			branchName = prNumber;
-		}
-
-		const ref = branchName || prNumber;
-		const isBranch = !!branchName;
 
 		// For branches, skip verification since we'll use the most recent artifact with prefix matching
 		// For PRs, verify that the specific PR build exists
 		if (!isBranch) {
-			const zipArtifactUrl = buildArtifactUrl(ref, isBranch);
+			const zipArtifactUrl = buildArtifactUrl(resolved);
 			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
 				let error = 'invalid_pr_number';
@@ -124,6 +127,7 @@ export default function PreviewPRForm({
 				} catch (e) {
 					logger.error(e);
 					setError('An unexpected error occurred. Please try again.');
+					setSubmitting(false);
 					return;
 				}
 
@@ -133,28 +137,28 @@ export default function PreviewPRForm({
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'
 				) {
-					if (parseInt(ref) < 5749) {
+					if (isWordPressPrBeforePreviewer(resolved)) {
 						setError(
 							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
 						);
 					} else {
 						// For PRs, retry since we expect a specific build to complete
 						let retryIn = 30000;
-						renderRetryIn(retryIn, false);
+						renderRetryIn(retryIn, resolved);
 						const timerInterval = setInterval(() => {
 							retryIn -= 1000;
 							if (retryIn <= 0) {
 								retryIn = 0;
 							}
-							renderRetryIn(retryIn, false);
+							renderRetryIn(retryIn, resolved);
 						}, 1000);
 						const scheduledRetry = setTimeout(() => {
-							previewPr(ref);
+							previewPr(resolved);
 						}, retryIn);
-						cleanupRetry = () => {
+						cleanupRetryRef.current = () => {
 							clearInterval(timerInterval);
 							clearTimeout(scheduledRetry);
-							cleanupRetry = () => {};
+							cleanupRetryRef.current = () => {};
 						};
 					}
 				} else if (error === 'artifact_invalid') {
@@ -188,14 +192,14 @@ export default function PreviewPRForm({
 		};
 
 		const refParam = isBranch
-			? `${target === 'wordpress' ? 'core' : 'gutenberg'}-branch`
-			: `${target === 'wordpress' ? 'core' : 'gutenberg'}-pr`;
+			? `${repo === 'wordpress' ? 'core' : 'gutenberg'}-branch`
+			: `${repo === 'wordpress' ? 'core' : 'gutenberg'}-pr`;
 		const urlWithPreview = new URL(
 			window.location.pathname,
 			window.location.href
 		);
 
-		if (target === 'wordpress') {
+		if (repo === 'wordpress') {
 			// [wordpress] Passthrough the mode query parameter if it exists
 			if (urlParams.has('mode')) {
 				urlWithPreview.searchParams.set(
@@ -204,7 +208,7 @@ export default function PreviewPRForm({
 				);
 			}
 			urlWithPreview.searchParams.set(refParam, ref);
-		} else if (target === 'gutenberg') {
+		} else if (repo === 'gutenberg') {
 			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
 			try {
 				const importSite = new URL(

@@ -13,6 +13,10 @@ on:
                     - minor
                     - major
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     publish:
         # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
@@ -31,8 +35,9 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         permissions:
-            contents: write
+            contents: write # Required to push the new tag and create the GitHub release.
 
         steps:
             - uses: actions/checkout@v4

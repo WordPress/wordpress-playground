@@ -137,11 +137,13 @@ For these to work, you need a server environment with Apache and PHP installed.
 
 As an alternative to Apache, here is an example of using NGINX to serve the Playground.
 
-:::info Refer to the source file
+<div class="callout callout-info">
+
+**Refer to the source file**
 
 The example may be outdated. Please check [the source file](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) for the latest version.
 
-:::
+</div>
 
 The combined Apache `.htaccess` file looks like this.
 

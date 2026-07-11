@@ -1,7 +1,7 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -27,6 +27,7 @@ import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootWordPressOptions = {
 	siteUrl: string;
+	phpVersion?: string;
 	wpVersion?: string;
 	wordpressInstallMode: WordPressInstallMode;
 	wordPressZip?: ArrayBuffer;
@@ -40,17 +41,14 @@ export type WorkerBootWordPressOptions = {
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AllPHPVersion;
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	followSymlinks: boolean;
-	withIntl?: boolean;
-	withRedis?: boolean;
-	withMemcached?: boolean;
-	withXdebug?: boolean;
+	extensions?: PHPExtension[];
 	pathAliases?: PathAlias[];
 }
 
@@ -102,6 +100,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		this.bootedWordPress = true;
 		const {
 			siteUrl,
+			phpVersion,
 			wordpressInstallMode,
 			wordPressZip,
 			sqliteIntegrationPluginZip,
@@ -112,6 +111,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		try {
 			await bootWordPress(this.__internal_getRequestHandler()!, {
 				siteUrl,
+				phpVersion,
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -131,6 +131,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				phpIniEntries: {
 					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					'curl.cainfo': '/internal/shared/ca-bundle.crt',
 					allow_url_fopen: '1',
 					disable_functions: '',
 				},
@@ -161,6 +162,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl: options.siteUrl,
+				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
@@ -243,10 +245,7 @@ function createPhpRuntimeFactory(
 					nativeInternalDirPath: options.nativeInternalDirPath,
 				},
 				followSymlinks: options.followSymlinks,
-				withIntl: options.withIntl,
-				withRedis: options.withRedis,
-				withMemcached: options.withMemcached,
-				withXdebug: options.withXdebug,
+				extensions: options.extensions,
 			}
 		);
 	};

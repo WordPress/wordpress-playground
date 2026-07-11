@@ -1,4 +1,10 @@
-# Asyncify
+---
+title: Asyncify and JSPI – Stack Switching in PHP WebAssembly
+description: How WordPress Playground uses Asyncify and JSPI to let synchronous PHP code interact with asynchronous JavaScript, including troubleshooting crashes and binary size optimizations.
+slug: /developers/architecture/wasm-asyncify
+---
+
+# Asyncify and JSPI: Stack Switching in PHP WebAssembly
 
 [Asyncify](https://emscripten.org/docs/porting/asyncify.html) lets synchronous C or C++ code interact with asynchronous JavaScript. Technically, it saves the entire C call stack before yielding control back to JavaScript, and then restores it when the asynchronous call is finished. This is called **stack switching**.
 
@@ -27,17 +33,27 @@ If you run into a crash like the one above, you can fix it by:
 1. Identifying a PHP code path that triggers the crash – the stack trace in the terminal should help with that.
 2. Adding a test case that triggers a crash to `packages/php-wasm/node/src/test/php-asyncify.spec.ts`
 3. Running: `npm run fix-asyncify`
-4. Committing the test case, the updated Dockerfile, and the rebuilt PHP.wasm
+4. Committing the test case, the updated `Dockerfile`, and the rebuilt `PHP.wasm`
 
-## The upcoming JSPI API will make Asyncify unnecessary
+## JSPI: The Modern Alternative to Asyncify
 
-Eventually, [V8 will likely handle stack switching for us](https://github.com/WordPress/wordpress-playground/issues/134) and remove this problem entirely. [Issue 134](https://github.com/WordPress/wordpress-playground/issues/134) tracks the status of that effort.
+The [JavaScript Promise Integration (JSPI)](https://v8.dev/blog/jspi) API handles stack switching natively in V8, eliminating the need for Asyncify's function wrapping. WordPress Playground now ships JSPI builds alongside Asyncify builds for all PHP versions (7.4–8.5).
 
-Here's [a relevant note](https://github.com/fgmccabe) from @fgmccabe:
+**Current status:**
 
-> The current implementation in V8 is essentially 'experimental status'. We have arm64 and x64 implementations.
-> The next steps are to implement on 32 bit arm/intel. That requires us to solve some issues that we did not have to solve so far.
-> As for node.js, my guess is that it is already in node, behind a flag.
-> To remove the flag requirement involves getting other implementations. The best estimate for that is towards the end of this year; but it obviously depends on resources and funding.
-> In addition, it would need further progress in the standardization effort; but, given that it is a 'small' spec, that should not be a long term burden.
-> Hope that this helps you understand the roadmap :)
+- The Playground CLI **auto-detects JSPI support** and enables it automatically — no manual flags needed
+- Node.js 23+ supports JSPI natively; Node.js 22 requires the `--experimental-wasm-jspi` flag (handled automatically by the CLI)
+- Node.js 24+ is expected to have JSPI unflagged
+- Browser support varies: JSPI is available in Chrome/Chromium-based browsers behind flags
+
+## Binary Size Optimization with MAIN_MODULE=2
+
+Both Asyncify and JSPI builds are compiled with Emscripten's `MAIN_MODULE=2` flag, which performs dead code elimination on exported symbols. Only symbols that dynamic extensions actually need are exported.
+
+**Impact:**
+
+- Total binary size reduced by **122 MB** (13.7%)
+- `.wasm` files reduced by **109 MB** (16%)
+- JavaScript glue code reduced by **14.5 MB** (63%)
+
+This optimization applies across all PHP versions (7.4–8.5) for both Node.js and Web targets. The exported symbol list is centrally managed in the Dockerfile, with conditional exports for specific extensions (e.g., `__c_longjmp` for Xdebug, `_wasm_recv` for Memcached).

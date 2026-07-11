@@ -10,15 +10,19 @@ Maaari kang tumulong sa pagsasalin ng dokumentasyon ng Playground sa anumang wik
 
 Gamitin ang parehong workflow tulad ng pag-aambag sa alinmang ibang pahina ng docs. Maaari kang mag-fork ng [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) at gumawa ng PRs sa iyong mga pagbabago, o mag-edit ng mga pahina nang direkta gamit ang GitHub UI.
 
-:::info
+<div class="callout callout-info">
+
 Tingnan ang [Paano Ako Makakatulong?](/contributing/documentation#how-can-i-contribute) para matuto nang higit pa kung paano mag-ambag sa Playground Docs
-:::
+
+</div>
 
 ## Mga Detalye sa Implementasyon ng Mga Pagsasalin
 
-:::info
+<div class="callout callout-info">
+
 Tingnan ang [Internationalization section](https://docusaurus.io/docs/i18n/introduction) ng Docusaurus Docs para malaman ang tungkol sa pamamahala ng mga pagsasalin sa isang Docusaurus site (ang engine sa likod ng Playground Docs).
-:::
+
+</div>
 
 Ang mga wikang available para sa site ng Docs ay tinutukoy sa `docusaurus.config.js`. Halimbawa:
 
@@ -63,9 +67,9 @@ Sa tamang i18n na configuration sa `docusaurus.config.js` at mga files sa ilalim
 
 Upang subukan nang lokal ang umiiral na wika, maaari mong gawin ang mga sumusunod:
 
--   I-modify (isalin) ang anumang file sa ilalim ng isa sa mga available na wika:  
-    `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`
--   Mula sa `/packages/docs/site` patakbuhin ang bersyon para sa wikang nais mong subukan. Halimbawa, para subukan ang `es`:
+- I-modify (isalin) ang anumang file sa ilalim ng isa sa mga available na wika:  
+  `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`
+- Mula sa `/packages/docs/site` patakbuhin ang bersyon para sa wikang nais mong subukan. Halimbawa, para subukan ang `es`:
 
 ```
 npm run dev -- --locale es
@@ -92,18 +96,18 @@ Mahigpit na inirerekomenda na ang isang wika ay i-activate lamang sa Dropdown ka
 
 Lahat ng wika ay available kapag tapos na ang i18n setup para sa wika at naroroon ang tamang istruktura ng mga file sa ilalim ng `i18n`.
 
--   https://wordpress.github.io/wordpress-playground/
--   https://wordpress.github.io/wordpress-playground/es/
--   https://wordpress.github.io/wordpress-playground/fr/
+- https://wordpress.github.io/wordpress-playground/
+- https://wordpress.github.io/wordpress-playground/es/
+- https://wordpress.github.io/wordpress-playground/fr/
 
 Dapat itago muna sa language switcher ang mga bersyon ng wika na may kulang pang pagsasalin. Upang maging mas tumpak, ang rekomendasyon ay ipakita lamang ang isang wika sa Language Switcher kapag nakumpleto na ang [Documentation](https://wordpress.github.io/wordpress-playground/) section para sa partikular na wika kabilang ang mga sumusunod na seksyon:
 
--   [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
--   [Playground web instance](https://wordpress.github.io/wordpress-playground/web-instance)
--   [About Playground](https://wordpress.github.io/wordpress-playground/about)
--   [Guides](https://wordpress.github.io/wordpress-playground/guides)
--   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+- [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
+- [Playground web instance](https://wordpress.github.io/wordpress-playground/web-instance)
+- [About Playground](https://wordpress.github.io/wordpress-playground/about)
+- [Guides](https://wordpress.github.io/wordpress-playground/guides)
+- [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
+- [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
 
 Kahit hindi nakikita sa language switcher ang isang wika, maaari pa ring magpatuloy ang trabaho sa pagdagdag ng naisaling pahina, dahil magiging available ang mga isinaling pahina kapag na-merge na ang mga PR na naglalaman ng mga naisaling file.
 

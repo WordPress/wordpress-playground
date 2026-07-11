@@ -64,8 +64,7 @@ Você pode testar isso agora mesmo. O Playground instalará automaticamente o te
 | `gutenberg-branch` |                       | Instala um branch específico de https://github.com/WordPress/gutenberg. Aceita o nome do branch. Por exemplo, `gutenberg-branch=trunk`.                                                                                                                                                                                                                                                                                                                      |
 | `page-title`       |                       | Personaliza o título da aba do navegador. Útil para identificar diferentes instâncias do Playground ao trabalhar com várias abas. O parâmetro é preservado ao navegar entre sites.                                                                                                                                                                                                                                                                           |
 | `can-save`         |                       | Por padrão o Playground pode ser salvo no computador ou no navegador do usuário. Para desativar a possibilidade de salvar, adicione `?can-save=no`, e as opções de salvar serão removidas da interface.                                                                                                                                                                                                                                                      |
-| `mcp`              | `no`                  | Inicia o bridge do servidor MCP (Model Context Protocol), permitindo que clientes MCP externos conectem e controlem a instância do Playground. Aceita `yes` ou `no`.                                                                                                                                                                                                                                                                                         |
-| `mcp-port`         | `7999`                | Define a porta WebSocket usada pelo bridge MCP para comunicar com o servidor MCP. Deve ser usado junto com `mcp=yes`. Por exemplo, `mcp=yes&mcp-port=8080`.                                                                                                                                                                                                                                                                                                  |
+| `mcp-port`         | `7999`                | Define a porta WebSocket usada pelo bridge MCP para comunicar com o servidor MCP. Por exemplo, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                              |
 | `overlay`          |                       | Abre uma sobreposição de interface ao carregar a página. Atualmente suporta `blueprints` para abrir a Galeria de Blueprints diretamente. Por exemplo, `?overlay=blueprints`. O parâmetro é removido da URL quando a sobreposição é fechada.                                                                                                                                                                                                                  |
 
 <!--
@@ -78,7 +77,9 @@ Por exemplo, o código a seguir incorpora um Playground com o plugin Gutenberg p
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
 ```
 
-:::info Política de CORS
+<div class="callout callout-info">
+
+**Política de CORS**
 
 <!--
 To import files from a URL, such as a site zip package, they must be served with `Access-Control-Allow-Origin` header set. For reference, see: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
@@ -86,7 +87,7 @@ To import files from a URL, such as a site zip package, they must be served with
 
 Para importar arquivos de uma URL, como um pacote zip de site, eles devem ser servidos com o cabeçalho `Access-Control-Allow-Origin` configurado. Para referência, veja: [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 
-:::
+</div>
 
 <!--
 ## GitHub Export Options
