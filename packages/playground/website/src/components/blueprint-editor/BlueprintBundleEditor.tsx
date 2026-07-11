@@ -327,34 +327,49 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	// Writes must finish in edit order, and Run needs one local barrier that
+	// includes every save started by this mounted editor.
+	const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+	// The queue remains usable after a rejected write, so retain the latest
+	// unsaved content for each failed path separately.
+	const failedSavesRef = useRef(new Map<string, string>());
 	const dispatch = useAppDispatch();
 	const playgroundClient = useAppSelector((state) =>
 		site ? selectClientInfoBySiteSlug(state, site.slug)?.client : undefined
 	);
 
 	// Save file to filesystem
-	const saveFile = useDebouncedCallback(
-		async (path: string, content: string) => {
+	const saveFile = useDebouncedCallback(enqueueSave, 200, [filesystem]);
+
+	/** Adds a write to this editor's ordered save queue. */
+	function enqueueSave(path: string, content: string): Promise<void> {
+		saveQueueRef.current = saveQueueRef.current.then(async () => {
 			try {
 				await filesystem.writeFile(path, content);
-				setSaveError(null);
+				failedSavesRef.current.delete(path);
+				if (failedSavesRef.current.size === 0) {
+					setSaveError(null);
+				}
 			} catch (error) {
+				failedSavesRef.current.set(path, content);
 				logger.error('Failed to save file', error);
 				setSaveError('Could not save changes. Try again.');
 			}
-		},
-		200,
-		[filesystem]
-	);
+		});
+		return saveQueueRef.current;
+	}
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
+			if (readOnly || isRecreating) {
+				return;
+			}
 			setCode(newCode);
 			if (currentPath) {
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, saveFile]
+		[currentPath, isRecreating, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -398,6 +413,19 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			setIsRecreating(true);
 			setSaveError(null);
+			const retryCandidates = [...failedSavesRef.current];
+			saveFile.flush();
+			await saveQueueRef.current;
+			for (const [path, content] of retryCandidates) {
+				if (failedSavesRef.current.get(path) === content) {
+					enqueueSave(path, content);
+				}
+			}
+			await saveQueueRef.current;
+			if (failedSavesRef.current.size > 0) {
+				setSaveError('Could not save changes. Try again.');
+				return;
+			}
 			const isAutosaved = isAutosavedSite(site);
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??
@@ -473,7 +501,7 @@ export const BlueprintBundleEditor = forwardRef<
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, playgroundClient, readOnly, site]);
+	}, [dispatch, filesystem, playgroundClient, readOnly, saveFile, site]);
 
 	// autorun token hook
 	useEffect(() => {
@@ -543,6 +571,9 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
+			if (readOnly || isRecreating) {
+				return;
+			}
 			const view = cmViewRef.current;
 			if (!view) return;
 
@@ -560,7 +591,12 @@ export const BlueprintBundleEditor = forwardRef<
 			// Format the document after the change
 			setTimeout(() => formatEditor(view), 0);
 		},
-		[stringEditorState.contentStart, stringEditorState.contentEnd]
+		[
+			isRecreating,
+			readOnly,
+			stringEditorState.contentEnd,
+			stringEditorState.contentStart,
+		]
 	);
 
 	const closeStringEditor = useCallback(() => {
@@ -721,7 +757,7 @@ export const BlueprintBundleEditor = forwardRef<
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly}
+							readOnly={readOnly || isRecreating}
 						/>
 					</aside>
 					<section className={styles.editorWrapper}>
@@ -846,7 +882,7 @@ export const BlueprintBundleEditor = forwardRef<
 										onChange={handleCodeChange}
 										currentPath={currentPath}
 										className={styles.editor}
-										readOnly={readOnly}
+										readOnly={readOnly || isRecreating}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
 												? blueprintSchemaExtensions
