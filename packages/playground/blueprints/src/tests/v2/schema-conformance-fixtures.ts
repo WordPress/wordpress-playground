@@ -7,18 +7,44 @@ export type V2SchemaConformanceCase = {
 
 type DataReference = NonNullable<BlueprintV2Declaration['muPlugins']>[number];
 
-// These declarations are intentionally dense. They expose every reachable v2
-// schema branch to the compiler test rather than model a practical site.
-const urlReference = 'https://example.com/asset.zip';
-const executionContextReference = './assets/asset.zip';
+// These declarations are intentionally dense. The runtime conformance test
+// supplies every URL, execution-context file, and Git checkout used below.
+const urlReference = 'https://example.com/assets/installable.zip';
+const executionContextReference = './assets/installable.zip';
 const inlineFileReference = {
-	filename: 'asset.php',
-	content: '<?php echo "Blueprint v2";',
+	filename: 'inline-plugin.php',
+	content: `<?php
+/**
+ * Plugin Name: Blueprint v2 Inline Plugin
+ */
+`,
+};
+const inlineThemeArchiveReference = {
+	filename: 'inline-theme.zip',
+	// Inline file contents are UTF-8 strings. This fixture archive only uses
+	// ASCII bytes so materializing that string preserves the ZIP byte stream.
+	content: decodeAsciiArchive(
+		'UEsDBBQAAAAAAAAAAAAUQB1rNgAAADYAAAAWAAAAaW5saW5lLXRoZW1lL3N0eWxlLmNzcy8qClRoZW1l' +
+			'IE5hbWU6IEJsdWVwcmludCB2MiBJbmxpbmUgRmlsZSBUaGVtZQoqLwovKjYqL1BLAwQUAAAAAAAAAAAA' +
+			'Jm19HjMAAAAzAAAAFgAvAGlubGluZS10aGVtZS9pbmRleC5waHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+			'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADw/cGhwIGVjaG8gIkJsdWVwcmludCB2MiBpbmxpbmUgZmls' +
+			'ZSB0aGVtZSI7Ci8qMTYqL1BLAQIUABQAAAAAAAAAAAAUQB1rNgAAADYAAAAWAAAAAAAAAAAAAAAAAAAA' +
+			'AABpbmxpbmUtdGhlbWUvc3R5bGUuY3NzUEsBAhQAFAAAAAAAAAAAACZtfR4zAAAAMwAAABYAeAAAAAAA' +
+			'AAAAAAAAagAAAGlubGluZS10aGVtZS9pbmRleC5waHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+			'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+			'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQSwUGAAAAAAIAAgAAAQAAAAEAAAAA'
+	),
 };
 const inlineDirectoryReference = {
-	directoryName: 'inline-asset',
+	directoryName: 'inline-installable',
 	files: {
-		'index.php': '<?php',
+		'style.css': '/*\nTheme Name: Blueprint v2 Inline Theme\n*/',
+		'index.php': '<?php echo "Blueprint v2 inline theme";',
+		'inline-plugin.php': `<?php
+/**
+ * Plugin Name: Blueprint v2 Inline Directory Plugin
+ */
+`,
 		includes: {
 			files: {
 				'helper.php': '<?php',
@@ -32,9 +58,9 @@ const inlineDirectoryReference = {
 	},
 };
 const gitReference = {
-	gitRepository: 'https://github.com/WordPress/wordpress-importer.git',
-	ref: 'trunk',
-	pathInRepository: 'src',
+	gitRepository: 'https://example.com/installable.git',
+	ref: 'conformance',
+	pathInRepository: 'installable',
 } satisfies DataReference;
 const dataReferences = [
 	urlReference,
@@ -43,14 +69,82 @@ const dataReferences = [
 	inlineDirectoryReference,
 	gitReference,
 ] as const satisfies readonly DataReference[];
-const fileReferences = [
-	'https://example.com/file.php',
-	'./assets/file.php',
-	{
-		filename: 'inline.php',
-		content: '<?php',
-	},
-] as const;
+
+export const v2SchemaConformanceFileContents = {
+	font: 'font data',
+	media: 'Blueprint v2 media',
+	post: '<p>Blueprint v2 execution-context post</p>',
+	sql: 'CREATE TABLE IF NOT EXISTS blueprint_v2_conformance (value TEXT);',
+	wxr: `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+	<channel>
+		<title>Blueprint v2 conformance</title>
+		<link>https://source.example</link>
+		<description></description>
+		<pubDate>Sat, 11 Jul 2026 12:00:00 +0000</pubDate>
+		<language>en-US</language>
+		<wp:wxr_version>1.2</wp:wxr_version>
+		<wp:base_site_url>https://source.example</wp:base_site_url>
+		<wp:base_blog_url>https://source.example</wp:base_blog_url>
+	</channel>
+</rss>`,
+	php: '<?php require "/wordpress/wp-load.php";',
+} as const;
+
+const fontFileReferences = createFileReferences(
+	'fonts',
+	'woff2',
+	v2SchemaConformanceFileContents.font
+);
+const mediaFileReferences = createFileReferences(
+	'media',
+	'txt',
+	v2SchemaConformanceFileContents.media
+);
+const postFileReferences = createFileReferences(
+	'posts',
+	'html',
+	v2SchemaConformanceFileContents.post
+);
+const sqlFileReferences = createFileReferences(
+	'sql',
+	'sql',
+	v2SchemaConformanceFileContents.sql
+);
+const wxrFileReferences = createFileReferences(
+	'wxr',
+	'xml',
+	v2SchemaConformanceFileContents.wxr
+);
+const phpFileReferences = createFileReferences(
+	'php',
+	'php',
+	v2SchemaConformanceFileContents.php
+);
+const zipFileReferences = createFileReferences(
+	'archives',
+	'zip',
+	`PK\u0005\u0006${'\u0000'.repeat(18)}`
+);
+
+function decodeAsciiArchive(encoded: string) {
+	return atob(encoded);
+}
+
+function createFileReferences(
+	name: string,
+	extension: string,
+	inlineContent: string
+) {
+	return [
+		`https://example.com/${name}/url.${extension}`,
+		`./${name}/execution-context.${extension}`,
+		{
+			filename: `inline.${extension}`,
+			content: inlineContent,
+		},
+	] as const;
+}
 
 const jsonValueVariants = {
 	stringValue: 'value',
@@ -148,10 +242,10 @@ const statusPosts = postStatuses.map((post_status, index) => ({
 }));
 
 const mediaDefinitions = [
-	fileReferences[0],
-	fileReferences[1],
-	fileReferences[2],
-	...fileReferences.map((source, index) => ({
+	mediaFileReferences[0],
+	mediaFileReferences[1],
+	mediaFileReferences[2],
+	...mediaFileReferences.map((source, index) => ({
 		source,
 		title: `Media ${index}`,
 		description: 'Media description',
@@ -161,21 +255,30 @@ const mediaDefinitions = [
 ] satisfies NonNullable<BlueprintV2Declaration['media']>;
 
 const contentDefinitions = [
-	...fileReferences.map((source) => ({
+	...sqlFileReferences.map((source) => ({
 		type: 'mysql-dump' as const,
 		source,
 	})),
 	{
 		type: 'mysql-dump' as const,
-		source: [...fileReferences],
+		source: [...sqlFileReferences],
 	},
-	...fileReferences.map((source, index) => ({
+	...postFileReferences.map((source, index) => ({
 		type: 'posts' as const,
 		source,
 		urlsMode:
 			index % 2 === 0 ? ('rewrite' as const) : ('preserve' as const),
 		urlsMap,
 	})),
+	{
+		type: 'posts' as const,
+		source: {
+			post_title: 'Parent post',
+			post_name: 'parent-post',
+			post_type: 'book',
+			post_status: 'publish' as const,
+		},
+	},
 	{
 		type: 'posts' as const,
 		source: completePost,
@@ -188,13 +291,13 @@ const contentDefinitions = [
 	})),
 	{
 		type: 'posts' as const,
-		source: [...fileReferences, completePost, ...statusPosts],
+		source: [...postFileReferences, completePost, ...statusPosts],
 		urlsMode: 'preserve' as const,
 		urlsMap,
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[1],
+		source: wxrFileReferences[1],
 		authorsMode: 'map' as const,
 		authorsMap: {
 			remote: 'admin',
@@ -204,7 +307,7 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[2],
+		source: wxrFileReferences[2],
 		authorsMode: 'map' as const,
 		authorsMap: {
 			remote: 'admin',
@@ -212,7 +315,7 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
-		source: [...fileReferences],
+		source: [...wxrFileReferences],
 		authorsMode: 'map' as const,
 		authorsMap: {
 			remote: 'admin',
@@ -220,7 +323,7 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[0],
+		source: wxrFileReferences[0],
 		authorsMode: 'map' as const,
 		authorsMap: {
 			remote: 'admin',
@@ -234,17 +337,17 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[0],
+		source: wxrFileReferences[0],
 		authorsMode: 'create' as const,
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[1],
+		source: wxrFileReferences[1],
 		authorsMode: 'default-author' as const,
 	},
 	{
 		type: 'wxr' as const,
-		source: [...fileReferences],
+		source: [...wxrFileReferences],
 		authorsMode: 'create' as const,
 		authorsMap: {
 			remote: 'editor',
@@ -258,7 +361,7 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
-		source: fileReferences[2],
+		source: wxrFileReferences[2],
 		authorsMode: 'default-author' as const,
 		staticAssets: 'fetch' as const,
 		defaultAuthorUsername: 'admin',
@@ -292,20 +395,24 @@ const pluginObjectDefinitions = [
 		source: dataReferences[2],
 		active: true,
 		activationOptions: jsonValueVariants,
+		targetDirectoryName: 'plugin-inline-file',
 		ifAlreadyInstalled: 'error' as const,
 		humanReadableName: 'Inline Plugin',
 	},
 	{
 		source: dataReferences[3],
 		active: true,
+		targetDirectoryName: 'plugin-inline-directory',
 	},
 	{
 		source: dataReferences[4],
 		active: true,
+		targetDirectoryName: 'plugin-git',
 	},
 	{
-		source: 'akismet@5.3',
+		source: 'conformance-plugin@1.0',
 		active: true,
+		targetDirectoryName: 'plugin-directory-source',
 	},
 ] satisfies NonNullable<BlueprintV2Declaration['plugins']>;
 
@@ -327,18 +434,23 @@ const themeObjectDefinitions = [
 		humanReadableName: 'Path Theme',
 	},
 	{
-		source: dataReferences[2],
+		source: inlineThemeArchiveReference,
+		targetDirectoryName: 'theme-inline-file',
 		ifAlreadyInstalled: 'error' as const,
-		humanReadableName: 'Inline Theme',
+		humanReadableName: 'Inline File Theme',
 	},
 	{
 		source: dataReferences[3],
+		targetDirectoryName: 'theme-inline-directory',
+		humanReadableName: 'Inline Directory Theme',
 	},
 	{
 		source: dataReferences[4],
+		targetDirectoryName: 'theme-git',
 	},
 	{
-		source: 'twentytwentyfour@1.3',
+		source: 'conformance-theme@1.0',
+		targetDirectoryName: 'theme-directory-source',
 	},
 ] satisfies NonNullable<BlueprintV2Declaration['themes']>;
 
@@ -358,7 +470,7 @@ const fontCollection = {
 						fontStyle: 'normal',
 						fontWeight: '400',
 						fontDisplay: 'auto' as const,
-						src: 'https://example.com/conformance.woff2',
+						src: fontFileReferences[0],
 						fontStretch: 'normal',
 						ascentOverride: '90%',
 						descentOverride: '20%',
@@ -373,26 +485,13 @@ const fontCollection = {
 						fontFamily: 'Conformance Sans',
 						fontWeight: 500,
 						fontDisplay: 'block' as const,
-						src: [
-							'https://example.com/conformance-bold.woff2',
-							'./fonts/conformance.woff2',
-							{
-								filename: 'conformance-inline.woff2',
-								content: 'font data',
-							},
-						],
+						src: [...fontFileReferences],
 					},
 					...(['fallback', 'swap', 'optional'] as const).map(
 						(fontDisplay, index) => ({
 							fontFamily: 'Conformance Sans',
 							fontDisplay,
-							src:
-								index === 0
-									? ('./fonts/fallback.woff2' as const)
-									: {
-											filename: `${fontDisplay}.woff2`,
-											content: 'font data',
-										},
+							src: fontFileReferences[index],
 						})
 					),
 				],
@@ -486,21 +585,6 @@ const postTypes = {
 
 const additionalSteps = [
 	{
-		step: 'activatePlugin' as const,
-		pluginPath: 'akismet/akismet.php',
-		humanReadableName: 'Akismet',
-	},
-	{
-		step: 'activateTheme' as const,
-		themeDirectoryName: 'twentytwentyfour',
-		humanReadableName: 'Twenty Twenty-Four',
-	},
-	{
-		step: 'cp' as const,
-		fromPath: 'site:source.txt',
-		toPath: 'site:copy.txt',
-	},
-	{
 		step: 'defineConstants' as const,
 		constants: {
 			WP_DEBUG: true,
@@ -513,6 +597,28 @@ const additionalSteps = [
 		},
 	},
 	{
+		step: 'installPlugin' as const,
+		source: inlineDirectoryReference,
+		active: false,
+		targetDirectoryName: 'step-activation-plugin',
+	},
+	{
+		step: 'activatePlugin' as const,
+		pluginPath: 'step-activation-plugin/inline-plugin.php',
+		humanReadableName: 'Blueprint v2 Activation Plugin',
+	},
+	{
+		step: 'installTheme' as const,
+		source: inlineDirectoryReference,
+		active: false,
+		targetDirectoryName: 'step-activation-theme',
+	},
+	{
+		step: 'activateTheme' as const,
+		themeDirectoryName: 'step-activation-theme',
+		humanReadableName: 'Blueprint v2 Activation Theme',
+	},
+	{
 		step: 'importContent' as const,
 		content: contentDefinitions,
 	},
@@ -522,20 +628,54 @@ const additionalSteps = [
 	},
 	{
 		step: 'importThemeStarterContent' as const,
-		themeSlug: 'twentytwentyfour',
+		themeSlug: 'active-inline-theme',
 	},
-	...pluginObjectDefinitions.map((definition) => ({
+	...pluginObjectDefinitions.map((definition, index) => ({
 		step: 'installPlugin' as const,
 		...definition,
+		targetDirectoryName: `step-plugin-${index}`,
 	})),
 	...themeObjectDefinitions.map((definition, index) => ({
 		step: 'installTheme' as const,
 		active: index % 2 === 0,
 		...definition,
+		targetDirectoryName: `step-theme-${index}`,
 	})),
 	{
 		step: 'mkdir' as const,
 		path: 'site:created',
+	},
+	{
+		step: 'mkdir' as const,
+		path: 'site:directory',
+	},
+	{
+		step: 'writeFiles' as const,
+		files: {
+			...Object.fromEntries(
+				dataReferences.map((reference, index) => [
+					`site:written-${index}`,
+					reference,
+				])
+			),
+			'site:source.txt': {
+				filename: 'source.txt',
+				content: 'source',
+			},
+			'site:old.txt': {
+				filename: 'old.txt',
+				content: 'old',
+			},
+			'site:file.txt': {
+				filename: 'file.txt',
+				content: 'remove me',
+			},
+		},
+	},
+	{
+		step: 'cp' as const,
+		fromPath: 'site:source.txt',
+		toPath: 'site:copy.txt',
 	},
 	{
 		step: 'mv' as const,
@@ -550,14 +690,14 @@ const additionalSteps = [
 		step: 'rmdir' as const,
 		path: 'site:directory',
 	},
-	...fileReferences.map((code, index) => ({
+	...phpFileReferences.map((code, index) => ({
 		step: 'runPHP' as const,
 		code,
 		env: {
 			CASE: String(index),
 		},
 	})),
-	...fileReferences.map((source) => ({
+	...sqlFileReferences.map((source) => ({
 		step: 'runSQL' as const,
 		source,
 	})),
@@ -569,24 +709,15 @@ const additionalSteps = [
 		step: 'setSiteOptions' as const,
 		options: jsonValueVariants,
 	},
-	...fileReferences.map((zipFile) => ({
+	...zipFileReferences.map((zipFile, index) => ({
 		step: 'unzip' as const,
 		zipFile,
-		extractToPath: 'site:unzipped',
+		extractToPath: `site:unzipped-${index}`,
 	})),
 	{
 		step: 'wp-cli' as const,
 		command: 'wp option get blogname',
 		wpCliPath: '/tmp/wp-cli.phar',
-	},
-	{
-		step: 'writeFiles' as const,
-		files: Object.fromEntries(
-			dataReferences.map((reference, index) => [
-				`site:written-${index}`,
-				reference,
-			])
-		),
 	},
 ] satisfies NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
@@ -640,26 +771,27 @@ const maximalDeclaration = {
 		humanReadableName: 'Active Inline Theme',
 	},
 	themes: [
-		'twentytwentyfour',
-		'twentytwentyfour@1.3',
-		...dataReferences,
+		'conformance-theme',
+		'conformance-theme@1.0',
+		dataReferences[0],
+		dataReferences[1],
+		inlineThemeArchiveReference,
+		dataReferences[3],
+		dataReferences[4],
 		...themeObjectDefinitions,
 	],
 	plugins: [
-		'akismet',
-		'akismet@5.3',
+		'conformance-plugin',
+		'conformance-plugin@1.0',
 		...dataReferences,
 		...pluginObjectDefinitions,
 	],
 	muPlugins: [...dataReferences],
 	postTypes,
 	fonts: {
-		url_font: 'https://example.com/url-font.woff2',
-		execution_context_font: './fonts/context-font.woff2',
-		inline_font: {
-			filename: 'inline-font.woff2',
-			content: 'font data',
-		},
+		url_font: fontFileReferences[0],
+		execution_context_font: fontFileReferences[1],
+		inline_font: fontFileReferences[2],
 		collection: fontCollection,
 	},
 	media: mediaDefinitions,
@@ -687,20 +819,39 @@ const maximalDeclaration = {
 	additionalStepsAfterExecution: additionalSteps,
 } satisfies BlueprintV2Declaration;
 
-const directActiveThemeCases = dataReferences.map((activeTheme, index) => ({
-	name: `direct active theme data reference ${index + 1}`,
-	declaration: {
-		version: 2 as const,
-		activeTheme,
-		wordpressVersion: dataReferences[index],
-	},
-}));
-
-const activeThemeObjectSources = [
-	'twentytwentyfour@1.3',
+const themeDataReferences = [
 	dataReferences[0],
 	dataReferences[1],
-	dataReferences[2],
+	inlineThemeArchiveReference,
+	dataReferences[3],
+	dataReferences[4],
+] as const;
+
+const directActiveThemeCases = themeDataReferences.map(
+	(activeTheme, index) => ({
+		name: `direct active theme data reference ${index + 1}`,
+		declaration: {
+			version: 2 as const,
+			activeTheme,
+		},
+	})
+);
+
+const wordpressDataReferenceCases = dataReferences.map(
+	(wordpressVersion, index) => ({
+		name: `WordPress data reference ${index + 1}`,
+		declaration: {
+			version: 2 as const,
+			wordpressVersion,
+		},
+	})
+);
+
+const activeThemeObjectSources = [
+	'conformance-theme@1.0',
+	dataReferences[0],
+	dataReferences[1],
+	inlineThemeArchiveReference,
 	dataReferences[4],
 ] as const;
 const activeThemeObjectCases = activeThemeObjectSources.map(
@@ -756,9 +907,10 @@ export const v2SchemaConformanceCases = [
 				recommended: '8.3',
 				max: '8.4',
 			},
-			activeTheme: 'twentytwentyfour',
+			activeTheme: 'conformance-theme',
 		},
 	},
 	...directActiveThemeCases,
 	...activeThemeObjectCases,
+	...wordpressDataReferenceCases,
 ] satisfies V2SchemaConformanceCase[];
