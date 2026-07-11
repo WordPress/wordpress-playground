@@ -23,7 +23,7 @@ const inlineThemeArchiveReference = {
 	filename: 'inline-theme.zip',
 	// Inline file contents are UTF-8 strings. This fixture archive only uses
 	// ASCII bytes so materializing that string preserves the ZIP byte stream.
-	content: decodeAsciiArchive(
+	content: atob(
 		'UEsDBBQAAAAAAAAAAAAUQB1rNgAAADYAAAAWAAAAaW5saW5lLXRoZW1lL3N0eWxlLmNzcy8qClRoZW1l' +
 			'IE5hbWU6IEJsdWVwcmludCB2MiBJbmxpbmUgRmlsZSBUaGVtZQoqLwovKjYqL1BLAwQUAAAAAAAAAAAA' +
 			'Jm19HjMAAAAzAAAAFgAvAGlubGluZS10aGVtZS9pbmRleC5waHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
@@ -127,10 +127,9 @@ const zipFileReferences = createFileReferences(
 	`PK\u0005\u0006${'\u0000'.repeat(18)}`
 );
 
-function decodeAsciiArchive(encoded: string) {
-	return atob(encoded);
-}
-
+/**
+ * Creates URL, execution-context, and inline-file references for one asset type.
+ */
 function createFileReferences(
 	name: string,
 	extension: string,

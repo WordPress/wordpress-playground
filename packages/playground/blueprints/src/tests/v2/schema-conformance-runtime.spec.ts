@@ -137,7 +137,7 @@ describe('Blueprint v2 schema runtime conformance', () => {
 	});
 
 	it.each(v2SchemaConformanceCases)(
-		'executes $name against WordPress',
+		'runs $name through its runtime boundaries',
 		async ({ declaration }) => {
 			const bundle = new InMemoryFilesystem(
 				createExecutionContext(declaration)
@@ -149,6 +149,8 @@ describe('Blueprint v2 schema runtime conformance', () => {
 			}
 			expect(compiled.compiled.unsupportedPlan).toEqual([]);
 
+			// WordPress sources are pre-boot inputs, not compiled plan steps. Resolve
+			// them here because compiled.run() starts only after WordPress boots.
 			const customWordPressArchive =
 				await resolveBlueprintV2WordPressSource(compiled.declaration, {
 					streamBundledFile: (path) => bundle.read(path),
@@ -164,6 +166,10 @@ describe('Blueprint v2 schema runtime conformance', () => {
 		{ timeout: 120_000 }
 	);
 
+	/**
+	 * Builds the local file bundle used by execution-context references.
+	 * Every fixture shares the bundle so missing paths fail consistently.
+	 */
 	function createExecutionContext(
 		declaration: BlueprintV2Declaration
 	): FileTree {
@@ -202,6 +208,10 @@ describe('Blueprint v2 schema runtime conformance', () => {
 		};
 	}
 
+	/**
+	 * Serves every remote conformance asset without leaving the test process.
+	 * Unknown requests fail so a new network dependency cannot enter unnoticed.
+	 */
 	async function fetchConformanceAsset(input: RequestInfo | URL) {
 		const url = new URL(
 			input instanceof Request ? input.url : String(input)
@@ -276,6 +286,9 @@ describe('Blueprint v2 schema runtime conformance', () => {
 	}
 });
 
+/**
+ * Packages the shared installable as both a valid plugin and a valid theme.
+ */
 async function createInstallableZip() {
 	return createZip(
 		Object.fromEntries(
@@ -287,9 +300,13 @@ async function createInstallableZip() {
 	);
 }
 
+/**
+ * Packages a minimal importer with the API required by the WXR step.
+ *
+ * Runtime smoke tests cover real WXR imports. This local stand-in keeps the
+ * schema-wide source and option matrix deterministic and fast.
+ */
 async function createImporterPluginZip() {
-	// Runtime smoke tests cover real WXR imports. This local stand-in keeps the
-	// schema-wide source and option matrix deterministic and fast.
 	return createZip({
 		'wordpress-importer/wordpress-importer.php': `<?php
 /**
@@ -299,20 +316,26 @@ class WP_Import {
 	public array $authors = array();
 	public bool $fetch_attachments = false;
 
+	/** Returns an empty parsed import for the conformance fixture. */
 	public function parse(string $file): array {
 		return array();
 	}
 
+	/** Initializes the author map without creating WordPress users. */
 	public function get_authors_from_import(array $import_data): void {
 		$this->authors = array();
 	}
 
+	/** Accepts the import after the runner has exercised its option handling. */
 	public function import(string $file, array $options = array()): void {}
 }
 `,
 	});
 }
 
+/**
+ * Encodes named UTF-8 fixture files into an in-memory ZIP archive.
+ */
 async function createZip(entries: Record<string, string>) {
 	const files = Object.entries(entries).map(
 		([name, contents]) => new File([contents], name)
@@ -324,6 +347,9 @@ async function createZip(entries: Record<string, string>) {
 	return bytes;
 }
 
+/**
+ * Returns archive bytes with the content type expected by resource loaders.
+ */
 function zipResponse(bytes: Uint8Array) {
 	return new Response(bytes, {
 		status: 200,

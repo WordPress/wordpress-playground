@@ -61,6 +61,40 @@ describe('Blueprint v2 schema conformance', () => {
 			`Missing Blueprint v2 conformance fixtures:\n${missing.join('\n')}`
 		).toEqual([]);
 	});
+
+	it('classifies null separately from JSON objects', () => {
+		const coverage = new Set<string>();
+		walkSchemaCoverage(
+			{ type: ['null', 'object'] },
+			{ kind: 'fixture', data: null },
+			'',
+			new Set(),
+			coverage
+		);
+
+		expect(coverage).toEqual(new Set(['/type/null']));
+	});
+
+	it('does not require fixtures for impossible tuple positions', () => {
+		const coverage = new Set<string>();
+		walkSchemaCoverage(
+			{ items: [false, { type: 'string' }] },
+			{ kind: 'expected' },
+			'',
+			new Set(),
+			coverage
+		);
+
+		expect(coverage).toEqual(new Set(['/items/1:present']));
+	});
+
+	it('reports the missing segment in a broken schema reference', () => {
+		expect(() =>
+			resolveSchemaRef('#/definitions/MissingDefinition')
+		).toThrow(
+			'Schema reference #/definitions/MissingDefinition has no segment "MissingDefinition".'
+		);
+	});
 });
 
 type JsonSchema = Record<string, any> & {
@@ -104,6 +138,12 @@ function collectExpectedCoverage() {
 	return coverage;
 }
 
+/**
+ * Records the schema paths exercised by the supplied v2 declarations.
+ *
+ * The keys use the same occurrence-sensitive paths as expected coverage, so a
+ * fixture only satisfies the exact schema use site that accepted its value.
+ */
 function collectFixtureCoverage(declarations: JsonObject[]) {
 	const coverage = new Set<string>();
 	for (const declaration of declarations) {
@@ -120,6 +160,12 @@ function collectFixtureCoverage(declarations: JsonObject[]) {
 
 type CoverageSubject = { kind: 'expected' } | { kind: 'fixture'; data: any };
 
+/**
+ * Walks one schema occurrence and records its reachable or exercised variants.
+ *
+ * Expected walks follow every finite branch. Fixture walks follow only branches
+ * accepted by AJV and pair child schemas with the corresponding fixture value.
+ */
 function walkSchemaCoverage(
 	schema: JsonSchema | boolean,
 	subject: CoverageSubject,
@@ -208,10 +254,9 @@ function walkSchemaCoverage(
 		coverage.add(`${propertyPath}:present`);
 		walkSchemaCoverage(
 			propertySchema,
-			childCoverageSubject(
-				subject,
-				subject.kind === 'fixture' ? subject.data[name] : undefined
-			),
+			subject.kind === 'expected'
+				? subject
+				: { kind: 'fixture', data: subject.data[name] },
 			propertyPath,
 			refStack,
 			coverage
@@ -221,8 +266,10 @@ function walkSchemaCoverage(
 	if (Array.isArray(schema.items)) {
 		for (const [index, itemSchema] of schema.items.entries()) {
 			if (
-				subject.kind === 'fixture' &&
-				(!Array.isArray(subject.data) || index >= subject.data.length)
+				itemSchema === false ||
+				(subject.kind === 'fixture' &&
+					(!Array.isArray(subject.data) ||
+						index >= subject.data.length))
 			) {
 				continue;
 			}
@@ -230,10 +277,9 @@ function walkSchemaCoverage(
 			coverage.add(`${itemPath}:present`);
 			walkSchemaCoverage(
 				itemSchema,
-				childCoverageSubject(
-					subject,
-					subject.kind === 'fixture' ? subject.data[index] : undefined
-				),
+				subject.kind === 'expected'
+					? subject
+					: { kind: 'fixture', data: subject.data[index] },
 				itemPath,
 				refStack,
 				coverage
@@ -318,6 +364,12 @@ function walkSchemaCoverage(
 	}
 }
 
+/**
+ * Expands a local reference once along each active schema path.
+ *
+ * Recursive JSON values and inline directories have no finite maximum depth.
+ * Cover one expansion at each use site, then stop only the active ref cycle.
+ */
 function walkSchemaRef(
 	ref: string,
 	subject: CoverageSubject,
@@ -325,8 +377,6 @@ function walkSchemaRef(
 	refStack: Set<string>,
 	coverage: Set<string>
 ) {
-	// Recursive JSON values and inline directories have no finite maximum depth.
-	// Cover one expansion at each use site, then stop only the active ref cycle.
 	if (refStack.has(ref)) {
 		return;
 	}
@@ -341,20 +391,31 @@ function walkSchemaRef(
 	);
 }
 
-function childCoverageSubject(
-	subject: CoverageSubject,
-	data: any
-): CoverageSubject {
-	return subject.kind === 'expected' ? subject : { kind: 'fixture', data };
-}
-
+/**
+ * Resolves a local JSON Pointer against the published schema document.
+ *
+ * External references are intentionally rejected because this suite only walks
+ * the self-contained schema shipped by the package.
+ */
 function resolveSchemaRef(ref: string): JsonSchema {
 	if (!ref.startsWith('#/')) {
 		throw new Error(`Unsupported external schema reference: ${ref}`);
 	}
 	let value: any = schemaDocument;
 	for (const segment of ref.slice(2).split('/')) {
-		value = value[unescapeJsonPointer(segment)];
+		const propertyName = unescapeJsonPointer(segment);
+		if (
+			value === null ||
+			typeof value !== 'object' ||
+			!Object.prototype.hasOwnProperty.call(value, propertyName)
+		) {
+			throw new Error(
+				`Schema reference ${ref} has no segment ${JSON.stringify(
+					propertyName
+				)}.`
+			);
+		}
+		value = value[propertyName];
 	}
 	if (!isSchemaObject(value)) {
 		throw new Error(
@@ -364,6 +425,10 @@ function resolveSchemaRef(ref: string): JsonSchema {
 	return value;
 }
 
+/**
+ * Determines whether a fixture value satisfies one schema union branch.
+ * Compiled validators are cached because the same branches are tested by many fixtures.
+ */
 function matchesSchema(schema: JsonSchema, data: any) {
 	let validator = branchValidators.get(schema);
 	if (!validator) {
@@ -376,32 +441,54 @@ function matchesSchema(schema: JsonSchema, data: any) {
 	return validator(data) as boolean;
 }
 
+/**
+ * Returns the JSON Schema type name for a fixture value.
+ * JavaScript's special cases for arrays and null are normalized explicitly.
+ */
 function getJsonType(value: any) {
+	if (value === null) {
+		return 'null';
+	}
 	if (Array.isArray(value)) {
 		return 'array';
 	}
-	if (value !== null && typeof value === 'object') {
+	if (typeof value === 'object') {
 		return 'object';
 	}
 	return typeof value;
 }
 
+/**
+ * Indicates whether a fixture value is a non-array JSON object.
+ */
 function isJsonObject(value: any): value is JsonObject {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Indicates whether a schema value has keywords rather than being boolean.
+ */
 function isSchemaObject(value: any): value is JsonSchema {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Encodes one property name for use as a JSON Pointer path segment.
+ */
 function escapeJsonPointer(value: string) {
 	return value.replaceAll('~', '~0').replaceAll('/', '~1');
 }
 
+/**
+ * Decodes one JSON Pointer path segment into its property name.
+ */
 function unescapeJsonPointer(value: string) {
 	return value.replaceAll('~1', '/').replaceAll('~0', '~');
 }
 
+/**
+ * Formats AJV diagnostics as the assertion message for an invalid fixture.
+ */
 function formatValidationErrors(errors: any) {
 	return errors
 		? JSON.stringify(errors, null, 2)
