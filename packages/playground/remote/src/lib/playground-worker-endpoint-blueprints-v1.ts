@@ -39,6 +39,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		scope,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
+		wordPressZip,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
@@ -95,7 +96,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			// Only tar.zst descriptors opt into the streaming extractor's file-count
 			// parity check. Custom URLs and wordpress.org ZIPs skip it.
 			let expectedBundleFileCount: number | undefined;
-			if (resolvedWordPressInstallMode === 'download-and-install') {
+			if (
+				resolvedWordPressInstallMode === 'download-and-install' &&
+				!wordPressZip
+			) {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -234,9 +238,11 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// client is low on disk space. Blobs tend to be stored as temporary files,
 				// array buffers tend to be stored in memory.
 				// @see https://github.com/WordPress/wordpress-playground/issues/2769
-				wordPressZip: wordPressRequest
-					?.then((r) => r.arrayBuffer())
-					.then((b) => new File([b], 'wp.bundle')),
+				wordPressZip:
+					wordPressZip ??
+					wordPressRequest
+						?.then((r) => r.arrayBuffer())
+						.then((b) => new File([b], 'wp.bundle')),
 				wordPressBundleFileCount: expectedBundleFileCount,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.arrayBuffer())

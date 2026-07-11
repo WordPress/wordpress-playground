@@ -4,6 +4,8 @@ import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import {
 	compileBlueprintForExecution,
+	isBlueprintBundle,
+	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import type { PlaygroundClient, StartPlaygroundWebOptions } from '.';
@@ -84,6 +86,21 @@ export class BlueprintsV2Handler {
 			compiled.version === 2
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
+		const wordPressZip =
+			compiled.version === 2 &&
+			resolvedWordPressInstallMode === 'download-and-install'
+				? await resolveBlueprintV2WordPressSource(
+						compiled.declaration,
+						{
+							progress: downloadProgress,
+							corsProxy,
+							gitAdditionalHeadersCallback,
+							streamBundledFile: isBlueprintBundle(blueprint)
+								? (path) => blueprint.read(path)
+								: undefined,
+						}
+					)
+				: undefined;
 		const extensions: PHPWebExtension[] = runtimeConfiguration.intl
 			? ['intl']
 			: [];
@@ -108,6 +125,7 @@ export class BlueprintsV2Handler {
 					: undefined,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
+			wordPressZip,
 			extensions,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,

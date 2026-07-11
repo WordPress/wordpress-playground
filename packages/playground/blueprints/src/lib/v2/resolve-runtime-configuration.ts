@@ -12,6 +12,7 @@ import type { BlueprintDeclaration, RuntimeConfiguration } from '../types';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 
 const V2_WORDPRESS_VERSION_LABELS = ['latest', 'beta', 'trunk', 'nightly'];
+const CUSTOM_WORDPRESS_VERSION = 'custom';
 const V2_WORDPRESS_VERSION_PATTERN =
 	/^\d+\.\d+(?:\.\d+)?(?:-(?:beta|rc)\d+)?$/i;
 const V2_PHP_CONSTRAINT_CANDIDATES = AllPHPVersions.filter(
@@ -283,8 +284,8 @@ function parsePHPVersion(phpVersion: string): [number, number, number] {
 /**
  * Resolves the WordPress runtime source from a Blueprint v2 declaration.
  *
- * Missing versions default to `latest`. Unsupported data references are
- * rejected instead of silently booting a different WordPress version.
+ * Missing versions default to `latest`. Custom data references use a synthetic
+ * runtime label because their concrete archive is resolved before boot.
  */
 async function resolveV2WordPressVersion(
 	declaration: BlueprintV2Declaration,
@@ -316,11 +317,9 @@ async function resolveV2WordPressVersion(
 	}
 
 	if (wordpressVersion && typeof wordpressVersion === 'object') {
-		throw new Error(
-			'Unsupported Blueprint v2 wordpressVersion data reference. ' +
-				'Use latest, beta, trunk, nightly, a version like 6.8, ' +
-				'or an http(s) WordPress ZIP URL.'
-		);
+		// Validation guarantees that non-constraint objects are data references.
+		// Their archive is resolved separately before WordPress boot.
+		return CUSTOM_WORDPRESS_VERSION;
 	}
 
 	return 'latest';
@@ -329,18 +328,15 @@ async function resolveV2WordPressVersion(
 /**
  * Resolves a Blueprint v2 WordPress version string to a runtime source.
  *
- * Runtime configuration can carry named WordPress builds and HTTP(S) ZIP URLs,
- * but it cannot carry file references from the Blueprint execution context.
+ * Runtime configuration carries named builds and HTTP(S) ZIP URLs directly.
+ * Execution-context references use a synthetic label and resolve separately.
  */
 function resolveV2WordPressVersionString(wordpressVersion: string): string {
 	if (isHttpUrl(wordpressVersion)) {
 		return wordpressVersion;
 	}
 	if (isExecutionContextPath(wordpressVersion)) {
-		throw new Error(
-			'Unsupported Blueprint v2 wordpressVersion file reference. ' +
-				'Use an http(s) WordPress ZIP URL instead.'
-		);
+		return CUSTOM_WORDPRESS_VERSION;
 	}
 	if (
 		V2_WORDPRESS_VERSION_LABELS.includes(wordpressVersion) ||
