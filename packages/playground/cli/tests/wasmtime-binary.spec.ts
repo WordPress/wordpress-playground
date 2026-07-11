@@ -115,12 +115,14 @@ describe('Wasmtime binary launcher', () => {
 		await chmod(binary, 0o755);
 
 		expect(
-			resolveWasmtimeBinary({
-				environment: {},
-				moduleDirectory: root,
-				platform: 'linux',
-				arch: 'x64',
-			})
+			await realpath(
+				resolveWasmtimeBinary({
+					environment: {},
+					moduleDirectory: root,
+					platform: 'linux',
+					arch: 'x64',
+				})
+			)
 		).toBe(await realpath(binary));
 
 		await rm(root, { recursive: true, force: true });

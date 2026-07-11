@@ -702,9 +702,10 @@ function ensureWasmtimeCommandSucceeded(
 	}
 }
 
-function isErrorWithCode(error: unknown, code: string): boolean {
+export function isErrorWithCode(error: unknown, code: string): boolean {
 	return (
-		error instanceof Error &&
+		typeof error === 'object' &&
+		error !== null &&
 		'code' in error &&
 		(error as NodeJS.ErrnoException).code === code
 	);

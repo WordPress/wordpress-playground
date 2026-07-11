@@ -1,13 +1,25 @@
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { internalsKeyForTesting, runCLI } from '../src';
 import { wasmtimeBinaryEnvironmentVariable } from '../src/wasmtime-binary';
+import { isErrorWithCode } from '../src/wasmtime-run-cli';
 
 const wasmtimeDescribe =
 	process.platform === 'win32' ? describe.skip : describe;
 const fixtureArgumentsEnvironmentVariable =
 	'PLAYGROUND_WASMTIME_TEST_ARGUMENTS';
+
+test('recognizes filesystem errors created in another VM context', () => {
+	const error = runInNewContext(
+		`Object.assign(new Error('missing'), { code: 'ENOENT' })`
+	);
+
+	expect(error).not.toBeInstanceOf(Error);
+	expect(isErrorWithCode(error, 'ENOENT')).toBe(true);
+	expect(isErrorWithCode(error, 'EACCES')).toBe(false);
+});
 
 wasmtimeDescribe('Wasmtime runCLI()', () => {
 	let previousBinary: string | undefined;
