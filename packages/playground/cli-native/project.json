@@ -17,6 +17,12 @@
 				"command": "cargo test --manifest-path packages/playground/cli-native/Cargo.toml"
 			}
 		},
+		"test:wasmtime-platform-package": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node --test packages/playground/cli-native/scripts/prepare-wasmtime-platform-package.test.mjs"
+			}
+		},
 		"lint": {
 			"executor": "nx:run-commands",
 			"options": {
