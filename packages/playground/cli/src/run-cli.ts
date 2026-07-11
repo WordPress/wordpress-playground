@@ -327,14 +327,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: (value?: string) =>
 					value === '' ? ['vscode', 'phpstorm'] : [value],
 			},
-			'experimental-blueprints-v2-runner': {
-				describe:
-					'Compatibility alias for selecting the Blueprint v2 handler.',
-				type: 'boolean',
-				default: false,
-				// Keep the old opt-in available without advertising it to new callers.
-				hidden: true,
-			},
 			mode: {
 				describe:
 					'Choose whether Blueprint v2 creates a site, applies to an existing site, or only mounts files.',
@@ -634,37 +626,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					(arg) => arg === '--mode' || arg.startsWith('--mode=')
 				);
 
-				if (args['experimental-blueprints-v2-runner'] === true) {
-					if (args['mode'] === undefined) {
-						// Translate the v1-style install option for callers still
-						// using the legacy v2 handler flag. The old option family
-						// had two modes; `mount-only` maps directly to its "do not
-						// install WordPress" worker behavior.
-						if (
-							args['wordpress-install-mode'] ===
-							'do-not-attempt-installing'
-						) {
-							args['mode'] = 'mount-only';
-						} else {
-							args['mode'] = 'create-new-site';
-						}
-					}
-
-					// Translate v1-style capability flags for the compatibility
-					// alias.
-					const allow = (args['allow'] as string[]) || [];
-
-					if (args['followSymlinks'] === true) {
-						allow.push('follow-symlinks');
-					}
-
-					if (args['blueprint-may-read-adjacent-files'] === true) {
-						allow.push('read-local-fs');
-					}
-
-					args['allow'] = allow;
-				}
-
 				args['hasExplicitBlueprintsV2Mode'] =
 					hasExplicitBlueprintsV2Mode;
 
@@ -862,7 +823,6 @@ export interface RunCLIArgs {
 	phpExtension?: string[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
-	'experimental-blueprints-v2-runner'?: boolean;
 	workers?: number | 'auto';
 	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
@@ -1788,8 +1748,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * Selects the native Blueprint v2 CLI path.
  *
  * The default CLI path remains the v1 handler. We switch to v2 only when the
- * caller passes `--mode`, uses the legacy compatibility flag, or provides a
- * resolved Blueprint v2 declaration.
+ * caller passes `--mode` or provides a resolved Blueprint v2 declaration.
  *
  * `hasExplicitBlueprintsV2Mode` must be captured before `start` or auto-mount
  * expansion because full WordPress auto-mounts still set
@@ -1803,9 +1762,6 @@ async function shouldUseBlueprintsV2Handler(
 	args: RunCLIArgs,
 	hasExplicitBlueprintsV2Mode: boolean
 ) {
-	if (args['experimental-blueprints-v2-runner']) {
-		return true;
-	}
 	if (hasExplicitBlueprintsV2Mode) {
 		return true;
 	}

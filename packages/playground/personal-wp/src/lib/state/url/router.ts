@@ -53,8 +53,6 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'import-content',
 	'page-title',
 	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
-	// Retain the retired v2 opt-in so it is stripped from legacy URLs.
-	'experimental-blueprints-v2-runner',
 ];
 
 /**
