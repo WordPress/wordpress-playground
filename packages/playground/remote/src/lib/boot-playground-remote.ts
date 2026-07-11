@@ -66,7 +66,9 @@ export async function bootPlaygroundRemote() {
 	const hasProgressBar = query.has('progressbar');
 	let bar: ProgressBar | undefined;
 	if (hasProgressBar) {
-		bar = new ProgressBar();
+		bar = new ProgressBar({
+			title: query.get('progressbarTitle') || undefined,
+		});
 		document.body.prepend(bar.element);
 	}
 	const sw = navigator.serviceWorker;

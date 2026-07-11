@@ -2,6 +2,11 @@
 import css from './style.module.css';
 
 export interface ProgressBarOptions {
+	/**
+	 * A stable heading for the Playground being started. Unlike the caption, it
+	 * is not overwritten as boot stages advance.
+	 */
+	title?: string;
 	caption?: string;
 	progress?: number;
 	isIndefinite?: boolean;
@@ -10,7 +15,10 @@ export interface ProgressBarOptions {
 
 class ProgressBar {
 	element: HTMLDivElement;
+	labelElement: HTMLParagraphElement;
+	titleElement: HTMLHeadingElement;
 	captionElement: HTMLHeadingElement;
+	title = '';
 	caption = 'Preparing WordPress';
 	progress = 0;
 	isIndefinite = false;
@@ -18,12 +26,19 @@ class ProgressBar {
 
 	constructor(options: ProgressBarOptions = {}) {
 		this.element = document.createElement('div');
+		this.labelElement = document.createElement('p');
+		this.titleElement = document.createElement('h2');
 		this.captionElement = document.createElement('h3');
+		this.element.appendChild(this.labelElement);
+		this.element.appendChild(this.titleElement);
 		this.element.appendChild(this.captionElement);
 		this.setOptions(options);
 	}
 
 	setOptions(options: ProgressBarOptions) {
+		if ('title' in options && options.title) {
+			this.title = options.title;
+		}
 		if ('caption' in options && options.caption) {
 			this.caption = options.caption!;
 		}
@@ -57,9 +72,25 @@ class ProgressBar {
 			this.element.classList.add(css['isHidden']);
 		}
 
+		// Frame the stable site name as the Playground being started. Hide both
+		// elements when an embedding client does not provide a name.
+		this.labelElement.className = '';
+		this.labelElement.classList.add(css['label']);
+		this.labelElement.textContent = 'Starting Your Playground:';
+		if (!this.title) {
+			this.labelElement.classList.add(css['titleHidden']);
+		}
+
+		this.titleElement.className = '';
+		this.titleElement.classList.add(css['title']);
+		this.titleElement.textContent = this.title;
+		if (!this.title) {
+			this.titleElement.classList.add(css['titleHidden']);
+		}
+
 		this.captionElement.className = '';
 		this.captionElement.classList.add(css['caption']);
-		this.captionElement.textContent = this.caption + '...';
+		this.captionElement.textContent = this.caption;
 
 		const progressBarWrapper = this.element.querySelector(
 			`.${css['wrapper']}`
