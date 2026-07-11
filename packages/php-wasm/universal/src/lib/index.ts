@@ -66,7 +66,12 @@ export {
 	LEGACY_PHP_INI_CONTENT,
 	LEGACY_PHP_INI_PATH,
 } from './legacy-php-ini';
-export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
+export {
+	MountStillActiveError,
+	PHP,
+	__private__dont__use,
+	PHPExecutionFailureError,
+} from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';

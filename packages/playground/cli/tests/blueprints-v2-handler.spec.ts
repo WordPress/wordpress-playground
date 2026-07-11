@@ -9,7 +9,10 @@ import type {
 } from '@wp-playground/blueprints';
 import { assertBlueprintV2WordPressVersionCompatibility } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/universal';
-import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
+import {
+	cachedDownload,
+	fetchSqliteIntegration,
+} from '../src/blueprints-v1/download';
 
 vi.mock('@php-wasm/universal', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -23,6 +26,9 @@ vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
 	return {
 		...actual,
+		cachedDownload: vi.fn(
+			async () => new File(['WordPress'], 'wordpress.zip')
+		),
 		fetchSqliteIntegration: vi.fn(
 			async () => new File(['sqlite'], 'sqlite.zip')
 		),
@@ -463,6 +469,39 @@ describe('BlueprintsV2Handler', () => {
 		expect(
 			assertBlueprintV2WordPressVersionCompatibility
 		).not.toHaveBeenCalled();
+	});
+
+	test('loads a bundled v2 WordPress archive instead of downloading core', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'create-new-site',
+				skipSqliteSetup: true,
+				blueprint: createBundle(
+					{
+						version: 2,
+						wordpressVersion: './wordpress.zip',
+					},
+					{ 'wordpress.zip': 'bundled WordPress' }
+				),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn(),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(cachedDownload).not.toHaveBeenCalled();
+		const bootOptions = playground.bootWordPress.mock.calls[0][0];
+		expect(new TextDecoder().decode(bootOptions.wordPressZip)).toBe(
+			'bundled WordPress'
+		);
 	});
 
 	test('preserves v2 mount-only mode from legacy install mode', async () => {

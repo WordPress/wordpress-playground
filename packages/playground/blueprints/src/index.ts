@@ -67,10 +67,14 @@ export type {
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
-export { compileBlueprintV2 } from './lib/v2/compile';
+export {
+	compileBlueprintV2,
+	resolveBlueprintV2WordPressSource,
+} from './lib/v2/compile';
 export type {
 	CompiledBlueprintV2,
 	CompileBlueprintV2Options,
+	ResolveBlueprintV2WordPressSourceOptions,
 } from './lib/v2/compile';
 
 export {

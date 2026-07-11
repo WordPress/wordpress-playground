@@ -539,28 +539,22 @@ describe('Blueprint v2 runtime configuration', () => {
 		}
 	});
 
-	it('rejects unsupported WordPress runtime data references', async () => {
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: './wordpress.zip',
-			} as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 wordpressVersion file reference.'
-		);
-
-		await expect(
-			resolveRuntimeConfiguration({
-				version: 2,
-				wordpressVersion: {
-					filename: 'wordpress.zip',
-					content: '',
-				},
-			} as unknown as BlueprintV2Declaration)
-		).rejects.toThrow(
-			'Unsupported Blueprint v2 wordpressVersion data reference.'
-		);
-	});
+	it.each([
+		'./wordpress.zip',
+		{ filename: 'wordpress.zip', content: '' },
+		{ directoryName: 'wordpress', files: {} },
+		{ gitRepository: 'https://example.com/wordpress.git' },
+	] as const)(
+		'uses WordPress data reference %j as a custom runtime source',
+		async (wordpressVersion) => {
+			await expect(
+				resolveRuntimeConfiguration({
+					version: 2,
+					wordpressVersion,
+				} as BlueprintV2Declaration)
+			).resolves.toMatchObject({ wpVersion: 'custom' });
+		}
+	);
 
 	it('rejects malformed WordPress version constraint values', async () => {
 		await expect(

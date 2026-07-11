@@ -14,6 +14,7 @@ import {
 	BlueprintReflection,
 	compileBlueprintV2,
 	isBlueprintBundle,
+	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -67,7 +68,7 @@ export class BlueprintsV2Handler {
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
-		let wordPressZip: any = undefined;
+		let wordPressZip: File | undefined;
 		const wordpressInstallMode = await this.getWordPressInstallMode();
 		const effectiveBlueprint = await this.getEffectiveBlueprint();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
@@ -80,36 +81,44 @@ export class BlueprintsV2Handler {
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		if (wordpressInstallMode === 'download-and-install') {
-			const monitor = new EmscriptenDownloadMonitor();
-			let progressReached100 = false;
-			monitor.addEventListener('progress', ((
-				e: CustomEvent<ProgressEvent & { finished: boolean }>
-			) => {
-				if (progressReached100) {
-					return;
+			wordPressZip = await resolveBlueprintV2WordPressSource(
+				effectiveBlueprint.declaration,
+				{
+					streamBundledFile: effectiveBlueprint.streamBundledFile,
 				}
-				const { loaded, total } = e.detail;
-				const percentProgress = Math.floor(
-					Math.min(100, (100 * loaded) / total)
-				);
-				progressReached100 = percentProgress === 100;
-				this.cliOutput.updateProgress(
-					'Downloading WordPress',
-					percentProgress
-				);
-			}) as any);
+			);
+			if (!wordPressZip) {
+				const monitor = new EmscriptenDownloadMonitor();
+				let progressReached100 = false;
+				monitor.addEventListener('progress', ((
+					e: CustomEvent<ProgressEvent & { finished: boolean }>
+				) => {
+					if (progressReached100) {
+						return;
+					}
+					const { loaded, total } = e.detail;
+					const percentProgress = Math.floor(
+						Math.min(100, (100 * loaded) / total)
+					);
+					progressReached100 = percentProgress === 100;
+					this.cliOutput.updateProgress(
+						'Downloading WordPress',
+						percentProgress
+					);
+				}) as any);
 
-			const wpDetails = await resolveWordPressRelease(
-				runtimeConfiguration.wpVersion
-			);
-			wordPressZip = await cachedDownload(
-				wpDetails.releaseUrl,
-				`${wpDetails.version}.zip`,
-				monitor
-			);
-			logger.debug(
-				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-			);
+				const wpDetails = await resolveWordPressRelease(
+					runtimeConfiguration.wpVersion
+				);
+				wordPressZip = await cachedDownload(
+					wpDetails.releaseUrl,
+					`${wpDetails.version}.zip`,
+					monitor
+				);
+				logger.debug(
+					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+				);
+			}
 		}
 
 		if (isV2ExistingSiteInstallMode(wordpressInstallMode)) {

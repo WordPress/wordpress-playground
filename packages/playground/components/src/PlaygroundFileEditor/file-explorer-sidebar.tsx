@@ -1,4 +1,5 @@
 import React, {
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -6,7 +7,8 @@ import React, {
 	type SetStateAction,
 } from 'react';
 import { Icon } from '@wordpress/components';
-import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
+import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
+import classNames from 'classnames';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
@@ -14,7 +16,7 @@ import {
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { dirname, normalizePath } from '@php-wasm/util';
+import { basename, dirname } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	seemsLikeBinary,
@@ -41,6 +43,7 @@ export type FileExplorerSidebarProps = {
 		message: string | JSX.Element
 	) => Promise<void> | void;
 	documentRoot: string;
+	readOnly?: boolean;
 };
 
 /**
@@ -55,22 +58,35 @@ export function FileExplorerSidebar({
 	onSelectionCleared,
 	onShowMessage,
 	documentRoot,
+	readOnly = false,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
+	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
 	const treeInitialPath = useMemo(() => {
-		return normalizePath(
-			currentPath
-				? dirname(normalizePath(currentPath))
-				: (selectedDirPath ?? documentRoot)
-		);
+		return currentPath
+			? dirname(currentPath)
+			: (selectedDirPath ?? documentRoot);
 		// Prevent tree from jumping unexpectedly when selectedDirPath changes.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [currentPath, documentRoot]);
 
-	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
-		null
-	);
+	const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+	// `currentPath` already owns the visible file. Mirror it into the tree
+	// instead of introducing another focus-path prop that could drift.
+	useEffect(() => {
+		if (!currentPath || !treeRef.current) {
+			return;
+		}
+		setSelectedDirPath(dirname(currentPath));
+		treeRef.current.focusPath(currentPath, {
+			select: true,
+			domFocus: false,
+			notify: false,
+		});
+		void treeRef.current.expandToPath(currentPath);
+	}, [currentPath, setSelectedDirPath]);
 
 	/**
 	 * Opens a selected file as editable text, binary preview, or too-large notice.
@@ -94,7 +110,7 @@ export function FileExplorerSidebar({
 				return;
 			}
 			const data = previewRead.data;
-			const filename = path.split('/').pop() || 'download';
+			const filename = basename(path) || 'download';
 
 			if (seemsLikeBinary(data)) {
 				const mimeType = getMimeType(filename);
@@ -144,54 +160,151 @@ export function FileExplorerSidebar({
 		}
 	};
 
+	/** Sends file-input uploads through the tree's existing import path. */
+	const handleUploadInputChange = (
+		event: React.ChangeEvent<HTMLInputElement>
+	) => {
+		const files = Array.from(event.target.files ?? []);
+		event.target.value = '';
+		if (files.length === 0) {
+			return;
+		}
+		void treeRef.current
+			?.importFiles(files, selectedDirPath ?? documentRoot)
+			.catch((error) => logger.error('Failed to import files', error));
+	};
+
+	/** Sends a host drop through the same recursive importer used by tree rows. */
+	const handleSidebarDrop = (event: React.DragEvent) => {
+		if (
+			event.dataTransfer.types.includes(
+				'application/x-wp-playground-path'
+			)
+		) {
+			return;
+		}
+		event.preventDefault();
+		if (readOnly) {
+			return;
+		}
+		void treeRef.current
+			?.importDataTransfer(
+				event.dataTransfer,
+				selectedDirPath ?? documentRoot
+			)
+			.catch((error) =>
+				logger.error('Failed to import dropped files', error)
+			);
+	};
+
 	return (
-		<div className={styles['fileExplorerContainer']}>
+		<div
+			className={classNames(styles['fileExplorerContainer'], {
+				[styles['dropActive']]: isDraggingSidebar,
+			})}
+			onDragEnter={(event) => {
+				if (
+					event.dataTransfer.types.includes(
+						'application/x-wp-playground-path'
+					)
+				) {
+					return;
+				}
+				event.preventDefault();
+				if (!readOnly) {
+					setIsDraggingSidebar(true);
+				}
+			}}
+			onDragOver={(event) => {
+				if (
+					event.dataTransfer.types.includes(
+						'application/x-wp-playground-path'
+					)
+				) {
+					return;
+				}
+				event.preventDefault();
+				event.dataTransfer.dropEffect = readOnly ? 'none' : 'copy';
+			}}
+			onDragLeave={(event) => {
+				const related = event.relatedTarget as Node | null;
+				if (!related || !event.currentTarget.contains(related)) {
+					setIsDraggingSidebar(false);
+				}
+			}}
+			onDropCapture={() => setIsDraggingSidebar(false)}
+			onDrop={handleSidebarDrop}
+		>
 			<div className={styles['fileExplorerHeader']}>
 				<span className={styles['fileExplorerTitle']}>Files</span>
-				<div className={styles['fileExplorerActions']}>
-					<button
-						className={styles['fileExplorerButton']}
-						type="button"
-						onClick={() => {
-							if (!treeRef.current) {
-								return;
-							}
-							void treeRef.current.createFile(
-								lastSelectedPath ?? undefined
-							);
-						}}
-						title="Create new file"
-					>
-						<Icon icon={fileIcon} size={16} />
-						New File
-					</button>
-					<button
-						className={styles['fileExplorerButton']}
-						type="button"
-						onClick={() => {
-							if (!treeRef.current) {
-								return;
-							}
-							void treeRef.current.createFolder(
-								lastSelectedPath ?? undefined
-							);
-						}}
-						title="Create new folder"
-					>
-						<Icon icon={folderIcon} size={16} />
-						New Folder
-					</button>
-				</div>
+				{!readOnly ? (
+					<div className={styles['fileExplorerActions']}>
+						<button
+							className={classNames(
+								styles['fileExplorerButton'],
+								styles['fileExplorerIconButton']
+							)}
+							type="button"
+							onClick={() => {
+								if (!treeRef.current) {
+									return;
+								}
+								void treeRef.current.createFile();
+							}}
+							aria-label="Create new file"
+							title="Create new file"
+						>
+							<Icon icon={fileIcon} size={20} />
+						</button>
+						<button
+							className={classNames(
+								styles['fileExplorerButton'],
+								styles['fileExplorerIconButton']
+							)}
+							type="button"
+							onClick={() => {
+								if (!treeRef.current) {
+									return;
+								}
+								void treeRef.current.createFolder();
+							}}
+							aria-label="Create new folder"
+							title="Create new folder"
+						>
+							<Icon icon={folderIcon} size={20} />
+						</button>
+						<button
+							className={classNames(
+								styles['fileExplorerButton'],
+								styles['fileExplorerIconButton']
+							)}
+							type="button"
+							onClick={() => uploadInputRef.current?.click()}
+							aria-label="Upload files"
+							title="Upload files"
+						>
+							<Icon icon={upload} size={20} />
+						</button>
+						<input
+							ref={uploadInputRef}
+							type="file"
+							multiple
+							style={{ display: 'none' }}
+							onChange={handleUploadInputChange}
+						/>
+					</div>
+				) : null}
 			</div>
 			<div className={styles['fileExplorerTree']}>
 				<FilePickerTree
 					ref={treeRef}
+					readOnly={readOnly}
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
 					onSelect={async (path) => {
-						setLastSelectedPath(path);
 						if (!path) {
+							setSelectedDirPath(documentRoot);
 							await onSelectionCleared();
 							return;
 						}
@@ -203,6 +316,7 @@ export function FileExplorerSidebar({
 						} catch {
 							// If we cannot determine whether it is a directory, treat as file.
 						}
+						setSelectedDirPath(dirname(path));
 						// For files, open them but don't move focus to the editor
 						await handleOpenFile(path, false);
 					}}
