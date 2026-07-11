@@ -38,6 +38,7 @@ import type {
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
+	MountStillActiveError,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -458,31 +459,38 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		await opfsMount.flush();
 	}
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	async unmountOpfs(mountpoint: string) {
-		const opfsMount = this.opfsMounts[mountpoint];
 		const unmount = this.unmounts[mountpoint];
-		if (opfsMount === undefined || unmount === undefined) {
+		if (
+			this.opfsMounts[mountpoint] === undefined ||
+			unmount === undefined
+		) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		let flushError: unknown;
-		try {
-			await opfsMount.flush();
-		} catch (error) {
-			flushError = error;
-		}
+		let mountIsStillActive = false;
 		try {
 			await unmount();
 		} catch (error) {
-			if (flushError === undefined) {
-				throw error;
+			if (error instanceof MountStillActiveError) {
+				// PHP retained its callback and journal. Keep endpoint tracking
+				// aligned, but do not expose this internal lifecycle signal.
+				mountIsStillActive = true;
+				throw error.cause;
 			}
-			logger.error(error);
+			throw error;
 		} finally {
-			delete this.unmounts[mountpoint];
-			delete this.opfsMounts[mountpoint];
-		}
-		if (flushError !== undefined) {
-			throw flushError;
+			if (!mountIsStillActive) {
+				delete this.unmounts[mountpoint];
+				delete this.opfsMounts[mountpoint];
+			}
 		}
 	}
 
