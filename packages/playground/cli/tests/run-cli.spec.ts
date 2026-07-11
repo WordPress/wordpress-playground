@@ -287,22 +287,24 @@ describe.each(blueprintVersions)(
 		});
 
 		test('should reject the retired experimental v2 flag', async () => {
-			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
-				code?: number | string | null
-			) => {
-				throw new Error(`process.exit(${code})`);
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((() => undefined) as any);
+			// The yargs exit is caught by parseOptionsAndRunCLI(), which exits
+			// again. Throw only once so the outer exit can return to the test.
+			exitSpy.mockImplementationOnce((() => {
+				throw new Error('Stop after the yargs failure');
 			}) as any);
 			const consoleErrorSpy = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => {});
 
 			try {
-				await expect(
-					parseOptionsAndRunCLI([
-						'server',
-						'--experimental-blueprints-v2-runner',
-					])
-				).rejects.toThrow('process.exit(1)');
+				await parseOptionsAndRunCLI([
+					'server',
+					'--experimental-blueprints-v2-runner',
+				]);
+				expect(exitSpy).toHaveBeenCalledWith(1);
 				expect(consoleErrorSpy).toHaveBeenCalledWith(
 					expect.stringContaining('experimental-blueprints-v2-runner')
 				);
