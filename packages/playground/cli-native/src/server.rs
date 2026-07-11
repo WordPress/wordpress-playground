@@ -50,6 +50,7 @@ const DEFAULT_RECYCLE_WASM_MEMORY_MIB: u64 = 90;
 const WORKER_RECYCLE_IDLE_DELAY: Duration = Duration::from_millis(50);
 const WORKER_RECYCLE_IDLE_DELAY_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_WORKER_RECYCLE_IDLE_MS";
 const READY_FILE_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_READY_FILE";
+const NATIVE_HOST_READY_PROTOCOL_VERSION: u8 = 2;
 const AUTO_LOGIN_COOKIE_NAME: &str = "playground_auto_login_already_happened";
 const CLEAR_AUTO_LOGIN_COOKIE: &str = "playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
 const DEFAULT_WP_CLI_PATH: &str = "/tmp/wp-cli.phar";
@@ -130,6 +131,18 @@ struct NativeHostReadyManifest<'a> {
     server_url: &'a str,
     site_url: &'a str,
     pid: u32,
+    mounts: Vec<NativeHostReadyMount<'a>>,
+}
+
+/// A host-backed VFS mount selected by the native startup sequence.
+///
+/// The Node adapter needs this final list because `start` can replace its
+/// default site directory after auto-mount and managed-storage resolution.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeHostReadyMount<'a> {
+    vfs_path: &'a str,
+    host_path: String,
 }
 
 impl HttpProtocolError {
@@ -1011,6 +1024,7 @@ fn write_native_host_ready_manifest(
     ready_file: &Path,
     server_url: &str,
     site_url: &str,
+    mounts: &[Mount],
 ) -> Result<()> {
     if ready_file.exists() {
         return Err(CliError::new(format!(
@@ -1033,10 +1047,17 @@ fn write_native_host_ready_manifest(
         })?;
     let temporary = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
     let manifest = NativeHostReadyManifest {
-        protocol_version: 1,
+        protocol_version: NATIVE_HOST_READY_PROTOCOL_VERSION,
         server_url,
         site_url,
         pid: std::process::id(),
+        mounts: mounts
+            .iter()
+            .map(|mount| NativeHostReadyMount {
+                vfs_path: &mount.vfs_path,
+                host_path: mount.host_path.to_string_lossy().into_owned(),
+            })
+            .collect(),
     };
     let payload = serde_json::to_vec(&manifest).map_err(|error| {
         CliError::new(format!(
@@ -1303,7 +1324,7 @@ fn run_listener(
     release_unused_process_memory();
 
     if let Some(ready_file) = native_host_ready_file.as_deref() {
-        write_native_host_ready_manifest(ready_file, &loopback_server_url, &server_url)?;
+        write_native_host_ready_manifest(ready_file, &loopback_server_url, &server_url, mounts)?;
     }
 
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
@@ -9551,8 +9572,9 @@ mod tests {
         ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest,
         AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_RECYCLE_WASM_MEMORY_MIB,
         DEFAULT_WP_CLI_PATH, MAX_NATIVE_ASYNCIFY_REQUESTS_PER_WORKER,
-        MAX_REQUESTS_PER_WORKER_ENV_VAR, READY_FILE_ENV_VAR, RECYCLE_WASM_MEMORY_MIB_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        MAX_REQUESTS_PER_WORKER_ENV_VAR, NATIVE_HOST_READY_PROTOCOL_VERSION, READY_FILE_ENV_VAR,
+        RECYCLE_WASM_MEMORY_MIB_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -10644,21 +10666,33 @@ mod tests {
     fn native_host_ready_manifest_publishes_the_live_loopback_address() {
         let root = temp_dir("ready-manifest");
         let ready_file = root.join("ready.json");
+        let wordpress = root.join("wordpress");
+        fs::create_dir_all(&wordpress).unwrap();
+        let mounts = vec![Mount::new(&wordpress, "/wordpress").unwrap()];
 
         write_native_host_ready_manifest(
             &ready_file,
             "http://127.0.0.1:49152",
             "https://playground.example.test",
+            &mounts,
         )
         .unwrap();
 
         let manifest: serde_json::Value =
             serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
-        assert_eq!(manifest["protocolVersion"], 1);
+        assert_eq!(
+            manifest["protocolVersion"],
+            NATIVE_HOST_READY_PROTOCOL_VERSION
+        );
         assert_eq!(manifest["serverUrl"], "http://127.0.0.1:49152");
         assert_eq!(manifest["siteUrl"], "https://playground.example.test");
         assert_eq!(manifest["pid"], std::process::id());
-        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        assert_eq!(manifest["mounts"][0]["vfsPath"], "/wordpress");
+        assert_eq!(
+            manifest["mounts"][0]["hostPath"].as_str(),
+            Some(wordpress.to_string_lossy().as_ref())
+        );
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
 
         let _ = fs::remove_dir_all(root);
     }
@@ -10673,6 +10707,7 @@ mod tests {
             &ready_file,
             "http://127.0.0.1:49152",
             "http://127.0.0.1:49152",
+            &[],
         )
         .expect_err("an existing readiness manifest must not be replaced");
 

@@ -168,6 +168,11 @@ const plugins = [
 
 const external = [
 	...getExternalModules(),
+	'node:child_process',
+	'node:events',
+	'node:os',
+	'node:path',
+	'node:url',
 	'@php-wasm/node',
 	'@php-wasm/web',
 	'@php-wasm/universal',
@@ -221,8 +226,6 @@ export default defineConfig({
 			entry: {
 				index: 'src/index.ts',
 				cli: 'src/cli.ts',
-				'worker-thread-v1': 'src/blueprints-v1/worker-thread-v1.ts',
-				'worker-thread-v2': 'src/blueprints-v2/worker-thread-v2.ts',
 			},
 			name: 'playground-cli',
 			formats: ['es', 'cjs'],
