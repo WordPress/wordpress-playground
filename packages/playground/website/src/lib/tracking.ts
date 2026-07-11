@@ -47,18 +47,16 @@ export const logTrackingEvent = (
 };
 
 /**
- * Log Blueprint events
- * @param blueprint The Blueprint
+ * Reports declared Blueprint operations without reporting their arguments.
+ *
+ * Each operation sends only its name; options such as code and passwords are
+ * not reported. Plugin and theme installs also send a WordPress.org slug when
+ * one exists. Every other source is reduced to its resource type so URLs,
+ * paths, inline data, and Git details never enter analytics.
+ *
+ * @param blueprint The Blueprint declaration or bundle to inspect.
  */
 export const logBlueprintEvents = async (blueprint: Blueprint) => {
-	/**
-	 * Log the names of declared Blueprint operations.
-	 * Only the names (e.g. "runPHP" or "login") are logged. Options like code,
-	 * passwords, and URLs are never sent anywhere.
-	 *
-	 * For installPlugin and installTheme, the plugin/theme slug is logged.
-	 * When there is no slug, the prefixed resource type is logged instead.
-	 */
 	const blueprintDeclaration = (
 		await BlueprintReflection.create(blueprint)
 	).getDeclaration();
@@ -69,6 +67,12 @@ export const logBlueprintEvents = async (blueprint: Blueprint) => {
 	logBlueprintV1Events(blueprintDeclaration);
 };
 
+/**
+ * Reports executable v1 steps and safe identifiers for asset installations.
+ *
+ * Non-step entries are ignored so analytics only reflects executable step
+ * definitions.
+ */
 function logBlueprintV1Events(blueprint: BlueprintV1Declaration) {
 	if (blueprint.steps) {
 		for (const step of blueprint.steps) {
@@ -95,6 +99,12 @@ function logBlueprintV1Events(blueprint: BlueprintV1Declaration) {
 	}
 }
 
+/**
+ * Reports v2 operations from the ordered plan used by the TypeScript runner.
+ *
+ * Reading the execution plan keeps analytics aligned with operations implied
+ * by top-level v2 fields as well as explicitly declared steps.
+ */
 function logBlueprintV2Events(blueprint: BlueprintV2Declaration) {
 	for (const item of createBlueprintV2ExecutionPlan(blueprint)) {
 		const step = item.type === 'runStep' ? item.step.step : item.type;
@@ -128,6 +138,12 @@ type BlueprintV2Asset =
 			{ step: 'installPlugin' | 'installTheme' }
 	  >;
 
+/**
+ * Reports an asset installation without exposing its data-reference contents.
+ *
+ * Only WordPress.org string sources are reported verbatim. URLs, bundled
+ * paths, inline content, and Git references are represented by resource type.
+ */
 function logBlueprintV2AssetEvent(
 	type: 'plugin' | 'theme',
 	asset: BlueprintV2Asset
@@ -144,6 +160,9 @@ function logBlueprintV2AssetEvent(
 	});
 }
 
+/**
+ * Returns the data reference from an asset's shorthand or `{ source }` form.
+ */
 function getBlueprintV2AssetSource(asset: BlueprintV2Asset): unknown {
 	if (asset && typeof asset === 'object' && 'source' in asset) {
 		return asset.source;
@@ -151,6 +170,12 @@ function getBlueprintV2AssetSource(asset: BlueprintV2Asset): unknown {
 	return asset;
 }
 
+/**
+ * Maps a v2 source shape to the v1 resource name used by existing analytics.
+ *
+ * Unknown shapes stay anonymous rather than falling back to serialized source
+ * data.
+ */
 function getBlueprintV2ResourceType(source: unknown, type: 'plugin' | 'theme') {
 	if (typeof source === 'string') {
 		if (isHttpUrl(source)) {
@@ -175,6 +200,7 @@ function getBlueprintV2ResourceType(source: unknown, type: 'plugin' | 'theme') {
 	return 'unknown';
 }
 
+/** Indicates whether a source is an absolute HTTP(S) URL. */
 function isHttpUrl(value: string) {
 	try {
 		const url = new URL(value);
@@ -184,6 +210,7 @@ function isHttpUrl(value: string) {
 	}
 }
 
+/** Narrows a reflected declaration using v2's required version discriminator. */
 function isBlueprintV2Declaration(
 	blueprint: BlueprintV1Declaration | BlueprintV2Declaration
 ): blueprint is BlueprintV2Declaration {
