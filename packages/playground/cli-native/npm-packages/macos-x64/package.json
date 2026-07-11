@@ -8,11 +8,22 @@
 	},
 	"homepage": "https://developer.wordpress.org/playground",
 	"license": "GPL-2.0-or-later",
-	"os": ["darwin"],
-	"cpu": ["x64"],
-	"files": ["bin", "share", "package-manifest.json"],
+	"os": [
+		"darwin"
+	],
+	"cpu": [
+		"x64"
+	],
+	"files": [
+		"bin",
+		"share",
+		"package-manifest.json"
+	],
 	"exports": {
 		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"engines": {
 		"node": ">=20.10.0",
