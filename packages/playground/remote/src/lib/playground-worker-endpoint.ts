@@ -117,9 +117,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
-	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
-		[];
-
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
@@ -502,16 +499,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
-	}
-
-	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
-	// way of listening for events.
-	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
-		this.blueprintMessageListeners.push(listener);
-		return async () => {
-			this.blueprintMessageListeners =
-				this.blueprintMessageListeners.filter((l) => l !== listener);
-		};
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars

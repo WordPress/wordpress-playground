@@ -68,7 +68,6 @@ export default defineConfig(({ mode }) => {
 			'**/*.wasm',
 			'**/*.so',
 			'**/*.dat',
-			'**/*.phar',
 			'*.zip',
 			'**/*.tar.zst',
 		],
