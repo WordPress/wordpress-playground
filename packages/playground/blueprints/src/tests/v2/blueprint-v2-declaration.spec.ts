@@ -343,6 +343,18 @@ const blueprintWithNonComparablePHPVersionRecommendation = {
 	},
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithUrlMappingForMysqlDump = {
+	version: 2,
+	content: [
+		{
+			type: 'mysql-dump',
+			source: './dump.sql',
+			// @ts-expect-error URL mapping does not apply to SQL dump imports.
+			urlsMode: 'rewrite',
+		},
+	],
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
@@ -354,3 +366,4 @@ void blueprintWithNonComparableWordPressVersionMinimum;
 void blueprintWithExtraWordPressVersionComponent;
 void blueprintWithUnsupportedWordPressVersionRecommendation;
 void blueprintWithNonComparablePHPVersionRecommendation;
+void blueprintWithUrlMappingForMysqlDump;

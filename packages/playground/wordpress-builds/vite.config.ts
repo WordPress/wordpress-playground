@@ -12,7 +12,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
 	root: __dirname,
-	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip', '**/*.tar.zst'],
 	cacheDir: '../../../node_modules/.vite/playground-wordpress-builds',
 	plugins: [
 		viteTsConfigPaths({

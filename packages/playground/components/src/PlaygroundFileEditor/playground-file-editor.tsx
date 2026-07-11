@@ -25,14 +25,12 @@ export type PlaygroundFileEditorProps = {
 	documentRoot: string;
 	initialPath?: string | null;
 	placeholderText?: string;
-	onSaveFile?: (path: string, content: string) => Promise<void>;
-	/**
-	 * Called before the filesystem changes, allowing the parent to flush
-	 * any pending saves to the old filesystem.
-	 */
-	onBeforeFilesystemChange?: (
-		oldFilesystem: AsyncWritableFilesystem
-	) => Promise<void>;
+};
+
+type PendingSave = {
+	filesystem: AsyncWritableFilesystem;
+	path: string;
+	content: string;
 };
 
 /**
@@ -46,8 +44,6 @@ export function PlaygroundFileEditor({
 	documentRoot,
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
-	onSaveFile,
-	onBeforeFilesystemChange,
 }: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
@@ -66,51 +62,113 @@ export function PlaygroundFileEditor({
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const saveTimeoutRef = useRef<number | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
-	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
-	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
-	const previousFilesystemRef = useRef<AsyncWritableFilesystem | null>(null);
+	const activeFilesystemRef = useRef<AsyncWritableFilesystem | null>(
+		filesystem
+	);
+	const pendingSaveRef = useRef<PendingSave | null>(null);
+	const lastWriteByFilesystemRef = useRef(
+		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
+	);
+	const isMountedRef = useRef<boolean>(true);
 	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
 	const hasAutoOpenedRef = useRef<boolean>(false);
 
-	useEffect(() => {
-		codeRef.current = code;
-	}, [code]);
+	activeFilesystemRef.current = filesystem;
 
 	useEffect(() => {
 		currentPathRef.current = currentPath;
 	}, [currentPath]);
 
-	useEffect(() => {
-		filesystemRef.current = filesystem;
-	}, [filesystem]);
+	/**
+	 * Keeps writes ordered within their owning filesystem without making an
+	 * unrelated filesystem wait.
+	 */
+	const saveFile = useCallback(async (pendingSave: PendingSave) => {
+		const { filesystem, path, content } = pendingSave;
+		const writes = lastWriteByFilesystemRef.current;
+		const previousWrite = writes.get(filesystem);
+		// A failed write reports its own error, but must not poison later writes.
+		const writePromise = (previousWrite ?? Promise.resolve())
+			.catch(() => undefined)
+			.then(() => filesystem.writeFile(path, content));
+		writes.set(filesystem, writePromise);
 
-	// Call onBeforeFilesystemChange when filesystem changes
+		let writeFailed = false;
+		try {
+			await writePromise;
+		} catch (error) {
+			writeFailed = true;
+			logger.error('Failed to save file', error);
+		}
+
+		// The user may have switched filesystems, selected another file, or
+		// typed again while the write was running. Only the last write that still
+		// owns the visible buffer may update its save status.
+		const ownsVisibleBuffer =
+			isMountedRef.current &&
+			writes.get(filesystem) === writePromise &&
+			activeFilesystemRef.current === filesystem &&
+			currentPathRef.current === path &&
+			pendingSaveRef.current === null;
+
+		if (writes.get(filesystem) === writePromise) {
+			writes.delete(filesystem);
+		}
+		if (ownsVisibleBuffer) {
+			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
+			setSaveError(
+				writeFailed ? 'Could not save changes. Try again.' : null
+			);
+		}
+	}, []);
+
+	/** Flushes the latest buffered edit to the filesystem that produced it. */
+	const flushPendingSave = useCallback(() => {
+		const pendingSave = pendingSaveRef.current;
+		if (!pendingSave) {
+			return;
+		}
+		if (saveTimeoutRef.current !== null) {
+			window.clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+		}
+		pendingSaveRef.current = null;
+		void saveFile(pendingSave);
+	}, [saveFile]);
+
 	useEffect(() => {
-		const oldFilesystem = previousFilesystemRef.current;
-		if (oldFilesystem && oldFilesystem !== filesystem) {
-			// Filesystem is changing - notify parent to flush saves
-			if (onBeforeFilesystemChange) {
-				void onBeforeFilesystemChange(oldFilesystem);
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
+
+	// The cleanup captures the old filesystem. The pending save captures it too,
+	// so switching to a filesystem with the same path cannot redirect the write.
+	useEffect(() => {
+		return () => {
+			if (pendingSaveRef.current?.filesystem === filesystem) {
+				flushPendingSave();
 			}
-		}
-		previousFilesystemRef.current = filesystem;
-	}, [filesystem, onBeforeFilesystemChange]);
+		};
+	}, [documentRoot, filesystem, flushPendingSave]);
 
-	// Reset state when filesystem changes
+	// Editor state belongs to one filesystem root. Never carry a path or buffer
+	// into another filesystem just because that filesystem has the same path.
 	useEffect(() => {
-		if (!filesystem) {
-			skipNextSaveRef.current = true;
-			setCode('');
-			setCurrentPath(null);
-			setReadOnly(true);
-			setSaveState(SaveState.IDLE);
-			setSaveError(null);
-			setShowExplorerOnMobile(false);
-			setMessageContent(null);
-			hasAutoOpenedRef.current = false;
-		}
-	}, [filesystem]);
+		skipNextSaveRef.current = true;
+		setSelectedDirPath(documentRoot);
+		setCode('');
+		setCurrentPath(null);
+		setReadOnly(true);
+		setSaveState(SaveState.IDLE);
+		setSaveError(null);
+		setShowExplorerOnMobile(false);
+		setMessageContent(null);
+		cursorPositionsRef.current.clear();
+		hasAutoOpenedRef.current = false;
+	}, [documentRoot, filesystem]);
 
 	// Auto-open initialPath when filesystem becomes available
 	useEffect(() => {
@@ -118,12 +176,16 @@ export function PlaygroundFileEditor({
 			return;
 		}
 
+		let cancelled = false;
 		const tryAutoOpen = async () => {
 			try {
 				const exists = await filesystem.fileExists(initialPath);
-				if (exists) {
+				if (exists && !cancelled) {
 					const content =
 						await filesystem.readFileAsText(initialPath);
+					if (cancelled) {
+						return;
+					}
 					skipNextSaveRef.current = true;
 					setCurrentPath(initialPath);
 					setCode(content);
@@ -139,44 +201,26 @@ export function PlaygroundFileEditor({
 				// Silently fail - file may not exist or may not be readable
 				logger.debug('Could not auto-open initial path:', error);
 			} finally {
-				hasAutoOpenedRef.current = true;
+				if (!cancelled) {
+					hasAutoOpenedRef.current = true;
+				}
 			}
 		};
 
 		void tryAutoOpen();
-	}, [filesystem, initialPath]);
-
-	// Reset when documentRoot changes
-	useEffect(() => {
-		setSelectedDirPath(documentRoot);
-		setCurrentPath(null);
-		setCode('');
-		setReadOnly(true);
-		setSaveState(SaveState.IDLE);
-		setSaveError(null);
-		skipNextSaveRef.current = true;
-		setMessageContent(null);
-		hasAutoOpenedRef.current = false;
-	}, [documentRoot]);
-
-	// Flush pending save on unmount
-	useEffect(() => {
 		return () => {
-			if (saveTimeoutRef.current !== null) {
-				window.clearTimeout(saveTimeoutRef.current);
-				saveTimeoutRef.current = null;
-			}
+			cancelled = true;
 		};
-	}, []);
+	}, [filesystem, initialPath]);
 
 	// Auto-save effect
 	useEffect(() => {
-		const activeFilesystem = filesystemRef.current;
-		if (!activeFilesystem || !currentPath) {
+		if (!filesystem || !currentPath) {
 			if (saveTimeoutRef.current !== null) {
 				window.clearTimeout(saveTimeoutRef.current);
 				saveTimeoutRef.current = null;
 			}
+			pendingSaveRef.current = null;
 			if (!currentPath) {
 				setSaveState(SaveState.IDLE);
 			}
@@ -184,6 +228,7 @@ export function PlaygroundFileEditor({
 		}
 		if (skipNextSaveRef.current) {
 			skipNextSaveRef.current = false;
+			pendingSaveRef.current = null;
 			return;
 		}
 		if (saveTimeoutRef.current !== null) {
@@ -191,24 +236,20 @@ export function PlaygroundFileEditor({
 			saveTimeoutRef.current = null;
 		}
 		setSaveState(SaveState.PENDING);
-		const timeout = window.setTimeout(async () => {
-			saveTimeoutRef.current = null;
-			setSaveState(SaveState.SAVING);
-			try {
-				const pathToSave = currentPathRef.current as string;
-				const contentToSave = codeRef.current;
-				if (onSaveFile) {
-					await onSaveFile(pathToSave, contentToSave);
-				} else {
-					await activeFilesystem.writeFile(pathToSave, contentToSave);
-				}
-				setSaveState(SaveState.SAVED);
-				setSaveError(null);
-			} catch (error) {
-				logger.error('Failed to save file', error);
-				setSaveState(SaveState.ERROR);
-				setSaveError('Could not save changes. Try again.');
+		const pendingSave = {
+			filesystem,
+			path: currentPath,
+			content: code,
+		};
+		pendingSaveRef.current = pendingSave;
+		const timeout = window.setTimeout(() => {
+			if (pendingSaveRef.current !== pendingSave) {
+				return;
 			}
+			saveTimeoutRef.current = null;
+			pendingSaveRef.current = null;
+			setSaveState(SaveState.SAVING);
+			void saveFile(pendingSave);
 		}, SAVE_DEBOUNCE_MS);
 		saveTimeoutRef.current = timeout;
 
@@ -218,7 +259,7 @@ export function PlaygroundFileEditor({
 				saveTimeoutRef.current = null;
 			}
 		};
-	}, [code, currentPath, onSaveFile]);
+	}, [code, currentPath, filesystem, saveFile]);
 
 	// Clear "Saved" state after 2 seconds
 	useEffect(() => {
@@ -362,37 +403,13 @@ export function PlaygroundFileEditor({
 		[]
 	);
 
-	const handleManualSave = useCallback(async () => {
-		if (saveTimeoutRef.current === null) {
+	const handleManualSave = useCallback(() => {
+		if (!pendingSaveRef.current) {
 			return;
 		}
-		if (!filesystemRef.current || !currentPathRef.current) {
-			window.clearTimeout(saveTimeoutRef.current);
-			saveTimeoutRef.current = null;
-			return;
-		}
-		window.clearTimeout(saveTimeoutRef.current);
-		saveTimeoutRef.current = null;
 		setSaveState(SaveState.SAVING);
-		try {
-			const pathToSave = currentPathRef.current;
-			const contentToSave = codeRef.current;
-			if (onSaveFile) {
-				await onSaveFile(pathToSave, contentToSave);
-			} else {
-				await filesystemRef.current.writeFile(
-					pathToSave,
-					contentToSave
-				);
-			}
-			setSaveState(SaveState.SAVED);
-			setSaveError(null);
-		} catch (error) {
-			logger.error('Failed to save file', error);
-			setSaveState(SaveState.ERROR);
-			setSaveError('Could not save changes. Try again.');
-		}
-	}, [onSaveFile]);
+		flushPendingSave();
+	}, [flushPendingSave]);
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);

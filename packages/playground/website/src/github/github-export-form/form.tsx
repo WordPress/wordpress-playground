@@ -9,7 +9,10 @@ import {
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import { staticAnalyzeGitHubURL } from '../analyze-github-url';
+import {
+	resolveGitHubBranchPath,
+	staticAnalyzeGitHubURL,
+} from '../analyze-github-url';
 import type {
 	Changeset,
 	FileEntry,
@@ -17,7 +20,6 @@ import type {
 } from '@wp-playground/storage';
 import {
 	changeset,
-	createClient,
 	createCommit,
 	createOrUpdateBranch,
 	createTree,
@@ -27,7 +29,11 @@ import {
 	iterateFiles,
 	mayPush,
 } from '@wp-playground/storage';
-import { oAuthState, setOAuthToken } from '../state';
+import { setOAuthToken } from '../state';
+import {
+	getAuthenticatedGitHubClient as getClient,
+	resetAuthenticatedGitHubClient as resetClient,
+} from '../client';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import type { ContentType } from '../import-from-github';
@@ -43,14 +49,6 @@ export interface GitHubExportFormProps {
 	onClose: () => void;
 }
 
-let octokitClient: GithubClient;
-function getClient() {
-	if (!octokitClient) {
-		octokitClient = createClient(oAuthState.value.token!);
-	}
-	return octokitClient;
-}
-
 export type PullRequestAction = 'update' | 'create';
 
 export function asPullRequestAction(value: any): PullRequestAction | undefined {
@@ -58,6 +56,16 @@ export function asPullRequestAction(value: any): PullRequestAction | undefined {
 		return value;
 	}
 	return 'create';
+}
+
+const NO_CHANGES_TO_EXPORT_MESSAGE =
+	'There are no changes to export. Make an edit in the Playground before exporting to GitHub.';
+
+class NoChangesToExportError extends Error {
+	constructor() {
+		super(NO_CHANGES_TO_EXPORT_MESSAGE);
+		this.name = 'NoChangesToExportError';
+	}
 }
 
 export interface ExportFormValues {
@@ -99,13 +107,11 @@ export default function GitHubExportForm({
 		repo: string;
 	}>(() => {
 		if (formValues.repoUrl) {
-			try {
-				const { owner, repo } = staticAnalyzeGitHubURL(
-					formValues.repoUrl
-				);
+			const { owner, repo, type } = staticAnalyzeGitHubURL(
+				formValues.repoUrl
+			);
+			if (type !== 'unknown' && owner && repo) {
 				return { owner: owner!, repo: repo! };
-			} catch {
-				// Ignore
 			}
 		}
 
@@ -210,12 +216,31 @@ export default function GitHubExportForm({
 			return;
 		}
 		if (URLNeedsAnalyzing) {
-			const { type, owner, repo, path, pr } = staticAnalyzeGitHubURL(
-				formValues.repoUrl
-			);
-			if (type === 'unknown') {
+			const analyzed = staticAnalyzeGitHubURL(formValues.repoUrl);
+			let { type, owner, repo, path, pr } = analyzed;
+			if (!['pr', 'branch', 'repo'].includes(type)) {
 				setError('repoUrl', 'This URL is not supported');
 				return;
+			}
+			if (type === 'branch') {
+				try {
+					const resolved = await resolveGitHubBranchPath(
+						getClient(),
+						analyzed
+					);
+					({ type, owner, repo, path, pr } = resolved);
+				} catch (error: any) {
+					if (error?.status === 401) {
+						setOAuthToken(undefined);
+						resetClient();
+						return;
+					}
+					setError(
+						'repoUrl',
+						'Could not analyze this GitHub branch URL. Please paste the repository URL and enter the path manually.'
+					);
+					return;
+				}
 			}
 			setRepoDetails({
 				owner: owner || '',
@@ -270,17 +295,39 @@ export default function GitHubExportForm({
 			});
 			const defaultBranch = ghRepo.default_branch;
 
+			let comparisonOwner = repoDetails.owner;
+			let comparisonRepo = repoDetails.repo;
+			let comparisonRef = defaultBranch;
+			if (formValues.prAction === 'update') {
+				const { data: pullRequest } = await octokit.rest.pulls.get({
+					owner: repoDetails.owner,
+					repo: repoDetails.repo,
+					pull_number: parseInt(formValues.prNumber),
+				});
+				if (!pullRequest.head.repo) {
+					throw new Error(
+						'Cannot update this pull request because its source repository is unavailable.'
+					);
+				}
+				// Updating a PR must diff against its head, not the target branch.
+				// Otherwise files added only in the PR are invisible to deletions.
+				comparisonOwner = pullRequest.head.repo.owner.login;
+				comparisonRepo = pullRequest.head.repo.name;
+				comparisonRef = pullRequest.head.sha;
+			}
+
 			let ghRawFiles: any[] = [];
 			try {
 				ghRawFiles =
-					filesBeforeChanges ||
-					(await getFilesFromDirectory(
-						octokit,
-						repoDetails.owner,
-						repoDetails.repo,
-						defaultBranch,
-						toPathInRepo
-					));
+					filesBeforeChanges && formValues.prAction === 'create'
+						? filesBeforeChanges
+						: await getFilesFromDirectory(
+								octokit,
+								comparisonOwner,
+								comparisonRepo,
+								comparisonRef,
+								toPathInRepo
+							);
 			} catch {
 				// ignore
 			}
@@ -320,7 +367,8 @@ export default function GitHubExportForm({
 
 			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
 			const newBranchName = `playground-changes-${isoDateSlug}`;
-			let commitMessage = formValues.commitMessage;
+			const commitMessage = formValues.commitMessage;
+			let zipPathForPreview: string | undefined;
 
 			if (allowZipExport && formValues.includeZip) {
 				const zipFilename = `playground.zip`;
@@ -331,42 +379,12 @@ export default function GitHubExportForm({
 				}
 				const zipContents = await zipWpContent(playground);
 				await playground.writeFile(zipPath, zipContents);
-
-				const branchPreviewUrl = (branchName: string) => {
-					const zipPath = [toPathInRepo, zipFilename]
-						.filter(Boolean)
-						.join('/');
-					const zipballURL = `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${zipPath}`;
-					const url = new URL(document.location.origin);
-					url.pathname = document.location.pathname;
-					url.searchParams.set('import-site', zipballURL);
-					return url.toString();
-				};
-
-				let targetBranchName = '';
-				if (parseInt(formValues.prNumber, 10)) {
-					const { data } = await octokit.rest.pulls.get({
-						owner: repoDetails.owner,
-						repo: repoDetails.repo,
-						pull_number: parseInt(formValues.prNumber),
-					});
-					targetBranchName = data.head.ref;
-				} else {
-					targetBranchName = newBranchName;
-				}
-
-				commitMessage +=
-					'\n\n' +
-					[
-						'Also exported as a zip file.',
-						'',
-						`* [Preview loaded from this PR – available **before** this PR is merged](${branchPreviewUrl(
-							targetBranchName
-						)})`,
-						`* [Preview loaded from the main branch – available **after** this PR is merged](${branchPreviewUrl(
-							defaultBranch
-						)})`,
-					].join('\n');
+				zipPathForPreview = [
+					toPathInRepo === '.' ? '' : toPathInRepo,
+					zipFilename,
+				]
+					.filter(Boolean)
+					.join('/');
 			}
 
 			const allPlaygroundFiles: FileEntry[] = [];
@@ -398,6 +416,7 @@ export default function GitHubExportForm({
 				repo: repoDetails.repo,
 				commitMessage,
 				changeset: changes,
+				zipPathForPreview,
 
 				shouldCreateNewPR: formValues.prAction === 'create',
 				create: {
@@ -417,7 +436,13 @@ export default function GitHubExportForm({
 			// Handle the "Bad Credentials" error
 			if (e && e.status === 401) {
 				setOAuthToken(undefined);
-				throw e;
+				resetClient();
+				return;
+			}
+
+			if (e instanceof NoChangesToExportError) {
+				setError('repoUrl', e.message);
+				return;
 			}
 
 			let eMessage = (e as any)?.message;
@@ -823,6 +848,7 @@ type PushToGitHubOptions = {
 	repo: string;
 	commitMessage: string;
 	changeset: Changeset;
+	zipPathForPreview?: string;
 	shouldCreateNewPR: boolean;
 	create: CreatePROptions;
 	update: UpdatePROptions;
@@ -834,7 +860,14 @@ interface PushResult {
 	forked: boolean;
 }
 
-async function pushToGithub(
+/**
+ * Pushes a Playground export to GitHub and returns the pull request URL.
+ *
+ * New pull requests branch from the target repository and may fall back to the
+ * user's fork. Existing pull requests are updated through their head
+ * repository, which may be a fork of the target repository.
+ */
+export async function pushToGithub(
 	octokit: GithubClient,
 	options: PushToGitHubOptions
 ): Promise<PushResult> {
@@ -844,36 +877,32 @@ async function pushToGithub(
 		shouldCreateNewPR,
 		commitMessage,
 		changeset,
+		zipPathForPreview,
 		shouldFork,
 		create: { againstBranch, branchName: branchToCreate, title: prTitle },
 		update: { prNumber },
 	} = options;
 
-	let pushToOwner = owner;
-	if (shouldFork || !(await mayPush(octokit, owner, repo))) {
-		pushToOwner = await fork(octokit, owner, repo);
-	}
 	try {
 		let parentSha: string;
 		let pushToBranch: string;
+		let pushToOwner = owner;
+		let pushToRepo = repo;
 		let PR: Awaited<
 			ReturnType<GithubClient['rest']['pulls']['create']>
 		>['data'];
 		if (shouldCreateNewPR) {
+			if (shouldFork || !(await mayPush(octokit, owner, repo))) {
+				pushToOwner = await fork(octokit, owner, repo);
+			}
 			const { data: branch } = await octokit.rest.repos.getBranch({
-				owner: pushToOwner,
+				owner,
 				repo,
 				branch: againstBranch,
 			});
 
 			parentSha = branch.commit.sha;
 			pushToBranch = branchToCreate!;
-			await octokit.rest.git.createRef({
-				owner: pushToOwner,
-				repo,
-				sha: parentSha,
-				ref: `refs/heads/${pushToBranch}`,
-			});
 		} else {
 			const { data } = await octokit.rest.pulls.get({
 				owner,
@@ -881,44 +910,76 @@ async function pushToGithub(
 				pull_number: prNumber!,
 			});
 			PR = data;
+			if (!PR.head.repo) {
+				throw new Error(
+					'Cannot update this pull request because its source repository is unavailable.'
+				);
+			}
+			pushToOwner = PR.head.repo.owner.login;
+			pushToRepo = PR.head.repo.name;
 			parentSha = PR.head.sha;
 			pushToBranch = PR.head.ref;
+			if (!(await mayPush(octokit, pushToOwner, pushToRepo))) {
+				throw new Error(
+					"Cannot update this pull request because you don't have permission to push to its source branch. Create a new pull request instead."
+				);
+			}
 		}
 
+		const finalCommitMessage = zipPathForPreview
+			? appendZipPreviewLinks(commitMessage, {
+					sourceOwner: pushToOwner,
+					sourceRepo: pushToRepo,
+					sourceBranch: pushToBranch,
+					targetOwner: owner,
+					targetRepo: repo,
+					targetBranch: shouldCreateNewPR
+						? againstBranch
+						: PR!.base.ref,
+					zipPath: zipPathForPreview,
+				})
+			: commitMessage;
 		const newTreeSha = await createTree(
 			octokit,
 			pushToOwner,
-			repo,
+			pushToRepo,
 			parentSha,
 			changeset
 		);
 		if (!newTreeSha) {
-			throw new Error(
-				'No changes were detected so there is nothing to commit.'
-			);
+			throw new NoChangesToExportError();
 		}
 		const commitSha = await createCommit(
 			octokit,
 			pushToOwner,
-			repo,
-			commitMessage,
+			pushToRepo,
+			finalCommitMessage,
 			parentSha,
-			newTreeSha || parentSha
+			newTreeSha
 		);
-		await createOrUpdateBranch(
-			octokit,
-			pushToOwner,
-			repo,
-			pushToBranch,
-			commitSha
-		);
+		if (shouldCreateNewPR) {
+			await octokit.rest.git.createRef({
+				owner: pushToOwner,
+				repo: pushToRepo,
+				sha: commitSha,
+				ref: `refs/heads/${pushToBranch}`,
+			});
+		} else {
+			await createOrUpdateBranch(
+				octokit,
+				pushToOwner,
+				pushToRepo,
+				pushToBranch,
+				commitSha
+			);
+		}
 
 		if (shouldCreateNewPR) {
 			const { data } = await octokit.rest.pulls.create({
 				owner,
 				repo,
 				title: prTitle || commitMessage,
-				body: commitMessage,
+				body: finalCommitMessage,
 				head: `${pushToOwner}:${pushToBranch}`,
 				base: againstBranch,
 			});
@@ -927,10 +988,11 @@ async function pushToGithub(
 
 		return {
 			url: PR!.html_url,
-			forked: pushToOwner !== owner,
+			forked: shouldCreateNewPR && pushToOwner !== owner,
 		};
 	} catch (e: any) {
 		if (
+			shouldCreateNewPR &&
 			e.status === 403 &&
 			e.message?.includes(
 				'organization has enabled OAuth App access restrictions'
@@ -944,4 +1006,83 @@ async function pushToGithub(
 		}
 		throw e;
 	}
+}
+
+/**
+ * Adds before-merge and after-merge zip preview links to the commit message.
+ *
+ * The before-merge link must read from the branch that receives the export
+ * commit. The after-merge link must read from the target branch, because that
+ * is where the zip file becomes available after the pull request is merged.
+ */
+function appendZipPreviewLinks(
+	commitMessage: string,
+	{
+		sourceOwner,
+		sourceRepo,
+		sourceBranch,
+		targetOwner,
+		targetRepo,
+		targetBranch,
+		zipPath,
+	}: {
+		sourceOwner: string;
+		sourceRepo: string;
+		sourceBranch: string;
+		targetOwner: string;
+		targetRepo: string;
+		targetBranch: string;
+		zipPath: string;
+	}
+) {
+	// The pre-merge preview reads from the commit we just pushed, while the
+	// post-merge preview reads from the branch the pull request targets.
+	const branchPreviewUrl = (owner: string, repo: string, branch: string) => {
+		const rawZipUrl = buildGitHubRawUrl(owner, repo, branch, zipPath);
+		const url = new URL(document.location.origin);
+		url.pathname = document.location.pathname;
+		url.searchParams.set('import-site', rawZipUrl);
+		return url.toString();
+	};
+
+	return (
+		commitMessage +
+		'\n\n' +
+		[
+			'Also exported as a zip file.',
+			'',
+			`* [Preview loaded from this PR – available **before** this PR is merged](${branchPreviewUrl(
+				sourceOwner,
+				sourceRepo,
+				sourceBranch
+			)})`,
+			`* [Preview loaded from the target branch – available **after** this PR is merged](${branchPreviewUrl(
+				targetOwner,
+				targetRepo,
+				targetBranch
+			)})`,
+		].join('\n')
+	);
+}
+
+function buildGitHubRawUrl(
+	owner: string,
+	repo: string,
+	branchName: string,
+	filePath: string
+) {
+	// Use refs/heads so branch names with slashes do not compete with file paths.
+	return `https://raw.githubusercontent.com/${encodeURIComponent(
+		owner
+	)}/${encodeURIComponent(repo)}/refs/heads/${encodePathSegments(
+		branchName
+	)}/${encodePathSegments(filePath)}`;
+}
+
+function encodePathSegments(path: string) {
+	return path
+		.split('/')
+		.filter(Boolean)
+		.map((segment) => encodeURIComponent(segment))
+		.join('/');
 }

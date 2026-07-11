@@ -459,19 +459,18 @@ export namespace V2Schema {
 	};
 
 	type ContentDefinition =
-		| ({
+		| {
 				type: 'mysql-dump';
 				source:
 					| DataSources.FileDataReference
 					| DataSources.FileDataReference[];
-		  } & URLMappingConfig)
+		  }
 		| ({
 				type: 'posts';
 				source:
 					| DataSources.FileDataReference
-					| DataSources.FileDataReference[]
 					| WordPressPost
-					| WordPressPost[];
+					| (DataSources.FileDataReference | WordPressPost)[];
 		  } & URLMappingConfig)
 		/**
 		 * WXR files to import.

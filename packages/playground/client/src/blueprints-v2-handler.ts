@@ -4,6 +4,8 @@ import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import {
 	compileBlueprintForExecution,
+	isBlueprintBundle,
+	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import type { PlaygroundClient, StartPlaygroundWebOptions } from '.';
@@ -60,22 +62,45 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
+		const resolvedWordPressInstallMode = resolveWordPressInstallMode({
+			shouldInstallWordPress,
+			wordpressInstallMode,
+		});
+		// The `if-needed` mode may initialize the database, but WordPress core
+		// still comes from the mounted files rather than a fallback download.
+		const usesExistingWordPressFiles =
+			resolvedWordPressInstallMode === 'install-from-existing-files' ||
+			resolvedWordPressInstallMode ===
+				'install-from-existing-files-if-needed';
 		const compiled = await compileBlueprintForExecution(blueprint, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			onBlueprintValidated,
 			corsProxy,
 			gitAdditionalHeadersCallback,
+			siteMode: usesExistingWordPressFiles
+				? 'apply-to-existing-site'
+				: 'create-new-site',
 		});
 		const runtimeConfiguration =
 			compiled.version === 2
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
-		const resolvedWordPressInstallMode = resolveWordPressInstallMode({
-			shouldInstallWordPress,
-			wordpressInstallMode,
-		});
-
+		const wordPressZip =
+			compiled.version === 2 &&
+			resolvedWordPressInstallMode === 'download-and-install'
+				? await resolveBlueprintV2WordPressSource(
+						compiled.declaration,
+						{
+							progress: downloadProgress,
+							corsProxy,
+							gitAdditionalHeadersCallback,
+							streamBundledFile: isBlueprintBundle(blueprint)
+								? (path) => blueprint.read(path)
+								: undefined,
+						}
+					)
+				: undefined;
 		const extensions: PHPWebExtension[] = runtimeConfiguration.intl
 			? ['intl']
 			: [];
@@ -86,8 +111,21 @@ export class BlueprintsV2Handler {
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			wordpressInstallMode: resolvedWordPressInstallMode,
+			blueprint:
+				compiled.version === 2 &&
+				usesExistingWordPressFiles &&
+				typeof compiled.declaration.wordpressVersion === 'object' &&
+				compiled.declaration.wordpressVersion !== null &&
+				'min' in compiled.declaration.wordpressVersion
+					? {
+							version: 2,
+							wordpressVersion:
+								compiled.declaration.wordpressVersion,
+						}
+					: undefined,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
+			wordPressZip,
 			extensions,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,

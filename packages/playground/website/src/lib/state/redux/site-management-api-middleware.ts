@@ -396,9 +396,9 @@ export function createSitesAPI(
 		/**
 		 * Recreates the active autosaved Playground with new setup settings.
 		 *
-		 * Autosaved Playgrounds behave like recoverable unsaved work: changing
-		 * setup settings replaces the current WordPress files under the same
-		 * autosaved slug instead of creating another autosave.
+		 * Today this keeps the same sidebar entry and replaces the WordPress
+		 * files under that site's OPFS directory. The future Dock flow should
+		 * create a separate Playground for setup changes instead.
 		 *
 		 * @param settings Optional site settings.
 		 * @throws When no site is selected, the active site is not autosaved, or
@@ -411,17 +411,16 @@ export function createSitesAPI(
 			}
 			if (!isAutosavedSite(site)) {
 				throw new Error(
-					'Only autosaved Playgrounds can be recreated in place.'
+					'Only autosaved Playgrounds can replace their stored files.'
 				);
 			}
 			const setupUrl = getSetupUrlForNewSite(settings, {
 				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
-			await selectClientBySiteSlug(
-				getState(),
-				site.slug
-			)?.unmountOpfs('/wordpress');
+			await selectClientBySiteSlug(getState(), site.slug)?.unmountOpfs(
+				'/wordpress'
+			);
 			dispatch(removeClientInfo(site.slug));
 			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
 			redirectTo(setupUrl.toString());

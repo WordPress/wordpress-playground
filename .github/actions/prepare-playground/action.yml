@@ -36,6 +36,18 @@ runs:
           shell: bash
           if: steps.cache-nodemodules.outputs.cache-hit != 'true'
           run: npm ci
+        - name: Disable unrelated Microsoft apt feeds
+          shell: bash
+          run: |
+              # Playwright's --with-deps runs apt-get update. The GitHub Ubuntu
+              # runner includes Microsoft feeds for preinstalled tools that are
+              # unrelated to browser dependencies. When those feeds serve a bad
+              # InRelease file, apt exits 100 before reaching Ubuntu packages.
+              sudo rm -f \
+                  /etc/apt/sources.list.d/azure-cli.list \
+                  /etc/apt/sources.list.d/azure-cli.sources \
+                  /etc/apt/sources.list.d/microsoft-prod.list \
+                  /etc/apt/sources.list.d/microsoft-prod.sources || true
         - name: Set NX_BASE
           shell: bash
           run: echo "NX_BASE=$(git rev-parse origin/trunk)" >> $GITHUB_ENV

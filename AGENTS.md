@@ -167,7 +167,21 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
 - **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
 - **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
-- **Path manipulation**: Never use ad-hoc string operations for file paths. Use the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`, `basename`, `normalizePath`, etc.) instead of Node.js `path` (which can produce Windows-style paths). If the package you're modifying has its own `paths.ts`, prefer that; otherwise import from `@php-wasm/util`. New path helpers should be co-located with the existing `paths.ts` in the relevant package, with tests.
+- **Path manipulation**: Never use ad-hoc string operations for file paths. Use
+  the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
+  `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
+  instead of Node.js `path` (which can produce Windows-style paths). If the
+  package you're modifying has its own `paths.ts`, prefer that; otherwise
+  import from `@php-wasm/util`. Do not invent regex/string-splitting path
+  normalization, prefix stripping, traversal checks, or separator rewriting
+  when an existing path utility applies. Preserve valid path bytes such as
+  backslashes unless an existing native-path conversion helper explicitly calls
+  for changing them. New path helpers should be co-located with the existing
+  `paths.ts` in the relevant package, with tests.
+- **Review feedback pattern**: When feedback points out invented regexes,
+  duplicate helpers, speculative wrappers, or byte-changing normalization,
+  treat that as a signal to simplify the model and use existing utilities
+  instead of defending the new abstraction.
 
 ### Testing
 
