@@ -87,6 +87,24 @@ jobs:
                   if [ $? -eq 0 ]; then
                       git push
                   fi;
+            - name: Upload WordPress builds to GitHub Releases
+              if: steps.changes.outputs.COMMIT_CHANGES == '1'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  for ZIP in packages/playground/wordpress-builds/src/wordpress/wp-*.zip; do
+                      [ -f "${ZIP}" ] || continue
+                      FILENAME=$(basename "${ZIP}")
+                      SLUG="${FILENAME#wp-}"
+                      SLUG="${SLUG%.zip}"
+                      TAG="wordpress-build-${SLUG}"
+                      if ! gh release view "${TAG}" > /dev/null 2>&1; then
+                          gh release create "${TAG}" \
+                              --title "WordPress ${SLUG} Build" \
+                              --notes "Latest WordPress ${SLUG} static build for Playground."
+                      fi
+                      gh release upload "${TAG}" "${ZIP}" --clobber
+                  done
             - name: Deploy website
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1

@@ -22,6 +22,8 @@
 		"test": "node --expose-gc node_modules/nx/bin/nx run-many --all --target=test",
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
 		"typecheck": "nx run-many --all --target=typecheck",
+		"postinstall": "node packages/php-wasm/scripts/download-binaries.js",
+		"setup:binaries": "node packages/php-wasm/scripts/download-binaries.js",
 		"prepare": "husky install",
 		"playground-cli:perf": "node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts packages/playground/cli/perf/benchmark.ts",
 		"reset": "nx reset",
