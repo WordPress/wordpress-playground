@@ -18,6 +18,7 @@ export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
 		php: PHP | Remote<PHPWorker>;
 		reap: () => void;
+		exited?: Promise<never>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -95,54 +96,72 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await getPHPInstance();
-
+		let reap: (() => void) | undefined;
 		try {
+			const instance = await getPHPInstance();
+			const { php, exited } = instance;
+			reap = instance.reap;
 			if (options.cwd) {
-				await php.chdir(options.cwd as string);
+				await raceWithProcessExit(
+					php.chdir(options.cwd as string),
+					exited
+				);
 			}
 
-			const cwd = await php.cwd();
+			const cwd = await raceWithProcessExit(php.cwd(), exited);
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
-					const result = await php.cli(args, {
-						env: {
-							...options.env,
-							SCRIPT_PATH: args[1],
-							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-							// the output as ASCII tables.
-							// @see https://github.com/wp-cli/wp-cli/issues/1102
-							SHELL_PIPE: '0',
-						},
-					});
+					const result = await raceWithProcessExit(
+						php.cli(args, {
+							env: {
+								...options.env,
+								SCRIPT_PATH: args[1],
+								// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+								// the output as ASCII tables.
+								// @see https://github.com/wp-cli/wp-cli/issues/1102
+								SHELL_PIPE: '0',
+							},
+						}),
+						exited
+					);
 
-					result.stdout.pipeTo(
+					const stdout = result.stdout.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stdout(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					result.stderr.pipeTo(
+					const stderr = result.stderr.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stderr(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					processApi.exit(await result.exitCode);
+					const [exitCode] = await raceWithProcessExit(
+						Promise.all([result.exitCode, stdout, stderr]),
+						exited
+					);
+					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
-					const files = await php.listFiles(args[1] ?? cwd);
+					const files = await raceWithProcessExit(
+						php.listFiles(args[1] ?? cwd),
+						exited
+					);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
 					}
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await raceWithProcessExit(
+						new Promise((resolve) => setTimeout(resolve, 10)),
+						exited
+					);
 					processApi.exit(0);
 					break;
 				}
@@ -151,23 +170,35 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await raceWithProcessExit(
+						new Promise((resolve) => setTimeout(resolve, 10)),
+						exited
+					);
 					processApi.exit(0);
 					break;
 				}
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
-			reap();
+			reap?.();
 		}
 	});
+}
+
+function raceWithProcessExit<T>(
+	operation: T | Promise<T>,
+	exited: Promise<never> | undefined
+): Promise<T> {
+	const operationPromise = Promise.resolve(operation);
+	return exited ? Promise.race([operationPromise, exited]) : operationPromise;
 }

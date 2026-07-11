@@ -1159,34 +1159,43 @@ export async function runCLI(
 				| ReturnType<typeof createChildWorkerService>
 				| undefined;
 
-			// Remember whether we are already disposing so we can avoid:
-			// - multiple, conflicting dispose attempts
-			// - logging that a worker exited while the CLI itself is exiting
-			let disposing = false;
-			const disposeCLI = async function disposeCLI() {
-				if (disposing) {
-					return;
+			// Every caller observes the same teardown. In particular, a second
+			// dispose call must not return while the first is still terminating
+			// workers that can access the native temp directory.
+			let disposePromise: Promise<void> | undefined;
+			const disposeCLI = function disposeCLI(): Promise<void> {
+				if (!disposePromise) {
+					disposePromise = (async () => {
+						// Children can be keeping their spawning workers inside a
+						// synchronous system() call. Terminate them first so every
+						// top-level worker can finish disposing.
+						await childWorkerService?.dispose();
+						await Promise.all(
+							spawnedWorkers.map(async (spawnedWorker) => {
+								try {
+									await workerToPlaygroundMap
+										.get(spawnedWorker)
+										?.dispose();
+								} catch {
+									/** */
+								}
+								try {
+									await spawnedWorker.worker.terminate();
+								} catch {
+									/** */
+								}
+							})
+						);
+						if (server) {
+							await new Promise((resolve) => {
+								server.close(resolve);
+								server.closeAllConnections();
+							});
+						}
+						await nativeDir.cleanup();
+					})();
 				}
-
-				disposing = true;
-				await Promise.all(
-					spawnedWorkers.map(async (spawnedWorker) => {
-						await workerToPlaygroundMap
-							.get(spawnedWorker)
-							?.dispose();
-						await spawnedWorker.worker.terminate();
-					})
-				);
-				// All workers are gone, so terminate any child workers still
-				// tracked by the service and close the ports it handed out.
-				childWorkerService?.dispose();
-				if (server) {
-					await new Promise((resolve) => {
-						server.close(resolve);
-						server.closeAllConnections();
-					});
-				}
-				await nativeDir.cleanup();
+				return disposePromise;
 			};
 
 			// Everything below (symlink setup, Xdebug config, blueprint
@@ -1519,9 +1528,23 @@ export async function runCLI(
 
 				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
+				let postInstallMountQueue = Promise.resolve();
+				const enqueuePostInstallMount = (
+					mount: () => Promise<void>
+				) => {
+					const result = postInstallMountQueue.then(mount);
+					// Keep later mounts running even if this caller observes a
+					// failure.
+					postInstallMountQueue = result.then(
+						() => undefined,
+						() => undefined
+					);
+					return result;
+				};
 				childWorkerService = createChildWorkerService(
 					workerType,
-					fileLockManager
+					fileLockManager,
+					enqueuePostInstallMount
 				);
 				for (
 					let workerIndex = 0;
@@ -1532,7 +1555,7 @@ export async function runCLI(
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
-							if (disposing) {
+							if (disposePromise) {
 								return;
 							}
 
@@ -1618,9 +1641,17 @@ export async function runCLI(
 								// creates placeholder files on the shared
 								// host filesystem via NODEFS before mounting.
 								// Concurrent creation races cause ENOTDIR.
+								// Children have a direct callback to the main thread,
+								// so this also reaches a child whose spawning worker
+								// is busy.
+								await childWorkerService!.applyPostInstallMounts(
+									args['mount'] || []
+								);
 								for (const playground of workerToPlaygroundMap.values()) {
-									await playground!.mountAfterWordPressInstall(
-										args['mount'] || []
+									await enqueuePostInstallMount(() =>
+										playground!.mountAfterWordPressInstall(
+											args['mount'] || []
+										)
 									);
 								}
 							},

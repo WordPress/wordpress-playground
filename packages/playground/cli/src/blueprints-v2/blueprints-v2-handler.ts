@@ -208,7 +208,6 @@ export class BlueprintsV2Handler {
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.useChildWorkerService(childWorkerServicePort);
 		await playground.bootRequestHandler(
 			{
 				phpVersion: runtimeConfiguration.phpVersion,
@@ -230,7 +229,8 @@ export class BlueprintsV2Handler {
 				nativeInternalDirPath,
 				pathAliases: this.args.pathAliases,
 			},
-			{ processId: worker.processId }
+			{ processId: worker.processId },
+			childWorkerServicePort
 		);
 		await playground.isReady();
 		return playground;

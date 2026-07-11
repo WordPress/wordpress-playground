@@ -1,6 +1,11 @@
-import { MessageChannel } from 'node:worker_threads';
+import { MessageChannel, type MessagePort } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import { consumeAPISync, exposeSyncAPI } from '../lib/api';
+import {
+	consumeAPI,
+	consumeAPISync,
+	exposeAPI,
+	exposeSyncAPI,
+} from '../lib/api';
 
 /**
  * These tests pin down the trap behind
@@ -10,7 +15,7 @@ import { consumeAPISync, exposeSyncAPI } from '../lib/api';
  * *proxy* where a MessagePort was expected. Comlink serialized the proxy onto a
  * port backed by an asynchronous `expose()`, and `consumeAPISync()` accepted it
  * without complaint — because a Comlink proxy answers every property access
- * with a proxied function, so it duck-types as an endpoint.
+ * with a proxied function, it duck-types as an endpoint.
  *
  * The child therefore appeared to boot correctly and only failed on the first
  * synchronous call, five seconds later, on another thread. `consumeAPISync()`
@@ -50,5 +55,39 @@ describe('consumeAPISync() endpoint validation', () => {
 		await expect(consumeAPISync(value as any)).rejects.toThrow(
 			/expects a MessagePort/
 		);
+	});
+
+	it('does not identify an arbitrary function as a Comlink proxy', async () => {
+		await expect(consumeAPISync((() => undefined) as any)).rejects.toThrow(
+			'consumeAPISync() expects a MessagePort but received function.'
+		);
+	});
+});
+
+describe('MessagePort transfer handling', () => {
+	it('naturally transfers a MessagePort returned from an exposed API', async () => {
+		const apiChannel = new MessageChannel();
+		const returnedChannel = new MessageChannel();
+		const [setReady] = exposeAPI(
+			{ takePort: () => returnedChannel.port1 },
+			undefined,
+			apiChannel.port1
+		);
+		setReady();
+		const api = consumeAPI<{ takePort: () => MessagePort }>(
+			apiChannel.port2
+		);
+
+		const port = await api.takePort();
+		const message = new Promise((resolve) =>
+			returnedChannel.port2.once('message', resolve)
+		);
+		port.postMessage('transferred');
+		await expect(message).resolves.toBe('transferred');
+
+		apiChannel.port1.close();
+		apiChannel.port2.close();
+		port.close();
+		returnedChannel.port2.close();
 	});
 });

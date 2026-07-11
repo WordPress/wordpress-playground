@@ -95,14 +95,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
-	/**
-	 * Receive the main thread's child-worker service so this worker can spawn
-	 * child workers for the PHP processes it starts via proc_open()/system().
-	 */
-	async useChildWorkerService(port: MessagePort) {
-		this.childWorkerService = consumeAPI<ChildWorkerService>(port);
-	}
-
 	async bootWordPress(
 		options: WorkerBootWordPressOptions,
 		workerPostInstallMountsPort: MessagePort
@@ -168,21 +160,20 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 	async bootRequestHandler(
 		platformConfig: WorkerPlatformConfig,
-		workerConfig: WorkerConfig
+		workerConfig: WorkerConfig,
+		childWorkerServicePort: MessagePort
 	) {
 		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
+		this.childWorkerService = consumeAPI<ChildWorkerService>(
+			childWorkerServicePort
+		);
 
 		// Remember the platform config so we can forward it verbatim to any
 		// child worker this one spawns via proc_open()/system().
 		this.platformConfig = platformConfig;
-		// A spawned child never installs WordPress itself, so it relies on the
-		// bootedWordPress state passed at boot to decide whether to apply the
-		// post-install (--mount) mounts.
-		this.bootedWordPress =
-			workerConfig.bootedWordPress ?? this.bootedWordPress;
 
 		const options: WorkerBootRequestHandlerOptions = {
 			...platformConfig,
@@ -201,11 +192,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
 
-					// NOTE: We currently create all request workers up front
-					// and apply post-install mounts to all the workers immediately
-					// following WordPress install. But if we start creating
-					// request-handling workers on-demand, we will to apply post-install
-					// mounts here.
+					// Post-install mounting marks this worker as booted so any
+					// replacement PHP runtimes receive the same mounts.
 					if (this.bootedWordPress) {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
@@ -218,10 +206,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						if (!this.childWorkerService) {
 							throw new Error(
 								'Cannot spawn a child PHP process: this ' +
-									'worker has no child-worker service. ' +
-									'Call useChildWorkerService() on the ' +
-									'worker to enable spawning via ' +
-									'proc_open()/system().'
+									'worker has no child-worker service.'
 							);
 						}
 
@@ -230,40 +215,67 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						// FileLockManager port and a service port on it, and
 						// mints a fresh processId. We just plug the ports in
 						// and boot it.
-						const { phpPort, lockPort, servicePort, processId } =
+						const { childId, processId } =
 							await this.childWorkerService.createChildWorker();
+						const childExited =
+							this.childWorkerService.waitForChildExit(childId);
+						let child:
+							| RemoteAPI<PlaygroundCliBlueprintV1Worker>
+							| undefined;
 						try {
-							const child =
+							const phpPort = await raceWithChildExit(
+								this.childWorkerService.takeChildWorkerPort(
+									childId,
+									'php'
+								),
+								childExited
+							);
+							const lockPort = await raceWithChildExit(
+								this.childWorkerService.takeChildWorkerPort(
+									childId,
+									'fileLockManager'
+								),
+								childExited
+							);
+							const servicePort = await raceWithChildExit(
+								this.childWorkerService.takeChildWorkerPort(
+									childId,
+									'childWorkerService'
+								),
+								childExited
+							);
+							const childApi =
 								consumeAPI<PlaygroundCliBlueprintV1Worker>(
 									phpPort
 								);
+							child = childApi;
 							// The child talks to the shared lock manager on the
 							// MAIN thread directly (lockPort's far end is
 							// exposed there), never relaying its synchronous
 							// flock() calls through this worker — which is
 							// blocked inside system() while the child runs and
 							// would otherwise deadlock it.
-							await child.useFileLockManager(lockPort);
-							// Let the child spawn its own children (nested
-							// proc_open()/system()) that also reach the main
-							// thread directly.
-							await child.useChildWorkerService(servicePort);
-							await child.bootRequestHandler(
-								this.platformConfig!,
-								{
-									processId,
-									// A spawned child never installs WordPress
-									// itself, so it applies the post-install mounts
-									// based on whether THIS worker has booted
-									// WordPress.
-									bootedWordPress: this.bootedWordPress,
-								}
+							await raceWithChildExit(
+								childApi.useFileLockManager(lockPort),
+								childExited
+							);
+							await raceWithChildExit(
+								childApi.bootRequestHandler(
+									this.platformConfig!,
+									{
+										processId,
+										childId,
+									},
+									servicePort
+								),
+								childExited
 							);
 							return {
-								php: child,
+								php: childApi,
+								exited: childExited,
 								reap: () => {
 									try {
-										child.dispose();
+										childApi[releaseApiProxy]();
 									} catch {
 										/** */
 									}
@@ -272,7 +284,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 									// swallow the async rejection so reap() can't
 									// throw.
 									this.childWorkerService!.disposeChildWorker(
-										processId
+										childId
 									).catch(() => {
 										/** */
 									});
@@ -281,11 +293,18 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						} catch (e) {
 							// Roll back so a failed spawn can't leak the child
 							// worker or its main-thread ports.
-							this.childWorkerService
-								.disposeChildWorker(processId)
-								.catch(() => {
-									/** */
-								});
+							try {
+								child?.[releaseApiProxy]();
+							} catch {
+								/** */
+							}
+							try {
+								await this.childWorkerService.disposeChildWorker(
+									childId
+								);
+							} catch {
+								/** */
+							}
 							throw e;
 						}
 					}),
@@ -294,6 +313,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+			if (workerConfig.childId !== undefined) {
+				await this.childWorkerService.registerChildWorker(
+					workerConfig.childId,
+					(mounts) => this.mountAfterWordPressInstall(mounts)
+				);
+			}
 
 			setApiReady();
 		} catch (e) {
@@ -303,9 +328,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
-		// Make sure workers not involved in the WordPress install
-		// process know whether WordPress booted so they can
-		// apply post-install mounts when spawning new PHP workers.
+		// Make sure replacement PHP runtimes also receive post-install mounts.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
@@ -314,6 +337,13 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
+}
+
+function raceWithChildExit<T>(
+	operation: Promise<T>,
+	childExited: Promise<never>
+): Promise<T> {
+	return Promise.race([operation, childExited]);
 }
 
 /**

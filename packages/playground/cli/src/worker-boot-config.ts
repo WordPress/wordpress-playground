@@ -36,23 +36,15 @@ export interface WorkerPlatformConfig {
  * Unlike {@link WorkerPlatformConfig}, these fields must NOT be forwarded
  * verbatim to a child worker: the main thread mints a fresh `processId` for
  * every worker (reusing one would let two PHP instances share OS-level file
- * locks), and `bootedWordPress` reflects per-worker state.
+ * locks), and a fresh monotonic `childId` for every spawned child.
  */
 export interface WorkerConfig {
 	processId: number;
 	/**
-	 * Whether WordPress is already installed from this worker's point of view.
-	 *
-	 * A worker that installs WordPress — or a child spawned by such a worker —
-	 * applies the post-install (`--mount`) mounts as soon as its PHP instance is
-	 * created. A child spawned before WordPress is installed receives `false`
-	 * and skips them.
-	 *
-	 * This is declared as state ("has WordPress booted?") rather than an
-	 * imperative "apply the mounts now" flag so the mount decision stays owned
-	 * by the worker and decoupled from why it was asked to boot.
+	 * Stable service handle for a spawned child. Unlike `processId`, this value
+	 * is never recycled, so a delayed reap cannot target a newer worker.
 	 */
-	bootedWordPress?: boolean;
+	childId?: number;
 }
 
 /**
@@ -62,30 +54,16 @@ export interface WorkerConfig {
 export type WorkerBootRequestHandlerOptions = WorkerPlatformConfig &
 	WorkerConfig;
 
-/**
- * A fully-wired child worker the main thread hands back to a parent worker that
- * shelled out via `proc_open()`/`system()`.
- *
- * The main thread has already spawned the worker, exposed a direct
- * FileLockManager port and its own child-worker-service port on it, and minted
- * a fresh `processId`. The parent only has to plug the ports into the child and
- * boot its request handler.
- */
+export type ChildWorkerPortName =
+	| 'php'
+	| 'fileLockManager'
+	| 'childWorkerService';
+
+/** Cloneable metadata for a child worker whose ports are taken separately. */
 export interface CreatedChildWorker {
-	/** Direct comlink line to the child worker's PHP API. */
-	phpPort: MessagePort;
-	/**
-	 * FileLockManager port whose far end is exposed by the MAIN thread, so the
-	 * child's synchronous `flock()` calls reach the broker directly instead of
-	 * relaying through the (blocked) spawning worker.
-	 */
-	lockPort: MessagePort;
-	/**
-	 * The child's own child-worker-service port, so PHP running in the child can
-	 * itself spawn grandchildren that also reach the main thread directly.
-	 */
-	servicePort: MessagePort;
-	/** Fresh process id minted by the main thread. */
+	/** Monotonic handle used for service operations over the child's lifetime. */
+	childId: number;
+	/** PHP process id used by the child's runtime. */
 	processId: number;
 }
 
@@ -96,8 +74,23 @@ export interface CreatedChildWorker {
  * FileLockManager and everything else needed to configure a worker.
  */
 export interface ChildWorkerService {
-	/** Spawn and pre-wire a child worker; see {@link CreatedChildWorker}. */
+	/** Spawn and pre-wire a child worker, returning its cloneable metadata. */
 	createChildWorker: () => Promise<CreatedChildWorker>;
+	/**
+	 * Take one of the worker's ports. Returning each port as a top-level Comlink
+	 * result lets the MessagePort transfer handler transfer it automatically.
+	 */
+	takeChildWorkerPort: (
+		childId: number,
+		portName: ChildWorkerPortName
+	) => Promise<MessagePort>;
+	/** Register the operation used to mount a child after WordPress installs. */
+	registerChildWorker: (
+		childId: number,
+		mountAfterWordPressInstall: (mounts: Array<Mount>) => Promise<void>
+	) => Promise<void>;
+	/** Reject when the child exits, so pending remote calls can be interrupted. */
+	waitForChildExit: (childId: number) => Promise<never>;
 	/** Terminate a child worker and close the main-thread ports it was given. */
-	disposeChildWorker: (processId: number) => Promise<void>;
+	disposeChildWorker: (childId: number) => Promise<void>;
 }

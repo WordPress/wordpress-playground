@@ -677,6 +677,125 @@ describe.each(blueprintVersions)(
 				echo ' [stderr: ' . trim($stderr) . ']';
 			}`;
 
+		test('a child launched during WordPress install receives post-install mounts', async () => {
+			const testDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-install-mu-plugin-')
+			);
+
+			try {
+				const muPluginsDir = path.join(testDir, 'mu-plugins');
+				const postInstallDir = path.join(testDir, 'post-install-mount');
+				mkdirSync(muPluginsDir, { recursive: true });
+				mkdirSync(postInstallDir, { recursive: true });
+				const childDir = path.join(muPluginsDir, 'install-child');
+				mkdirSync(childDir, { recursive: true });
+				writeFileSync(
+					path.join(childDir, 'child.php'),
+					`<?php
+					$marker = '/wordpress/wp-content/install-probe/marker.txt';
+					file_put_contents(
+						__DIR__ . '/ready',
+						is_file($marker) ? 'MOUNTED_TOO_EARLY' : 'NOT_MOUNTED_YET'
+					);
+					$deadline = microtime(true) + 60;
+					while (!is_file($marker) && microtime(true) < $deadline) {
+						usleep(10_000);
+					}
+					if (is_file($marker)) {
+						file_put_contents(
+							'/wordpress/wp-content/install-probe/seen.txt',
+							trim((string) file_get_contents($marker))
+						);
+					} else {
+						echo 'CHILD_TIMED_OUT_WAITING_FOR_MOUNT';
+					}`
+				);
+				writeFileSync(
+					path.join(muPluginsDir, 'spawn-during-install.php'),
+					`<?php
+					if (!defined('WP_INSTALLING') || !WP_INSTALLING) {
+						return;
+					}
+					add_action('wp_install', static function () {
+						$started = __DIR__ . '/install-child/started';
+						$ready = __DIR__ . '/install-child/ready';
+						if (file_exists($started)) {
+							return;
+						}
+						file_put_contents($started, '1');
+						$proc = proc_open(
+							escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(
+								__DIR__ . '/install-child/child.php'
+							),
+							[0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+							$pipes
+						);
+						if (!is_resource($proc)) {
+							throw new RuntimeException('Failed to launch install child.');
+						}
+						foreach ($pipes as $pipe) {
+							fclose($pipe);
+						}
+						// Deliberately do not call proc_close(): the install request
+						// must continue while the child remains alive.
+						unset($proc);
+						$deadline = microtime(true) + 10;
+						while (!is_file($ready) && microtime(true) < $deadline) {
+							usleep(10_000);
+						}
+						if (!is_file($ready)) {
+							throw new RuntimeException(
+								'Install child did not start before installation completed.'
+							);
+						}
+					});`
+				);
+				writeFileSync(
+					path.join(postInstallDir, 'marker.txt'),
+					'CHILD_SAW_POST_INSTALL_MOUNT'
+				);
+
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					workers: 1,
+					'mount-before-install': [
+						{
+							hostPath: muPluginsDir,
+							vfsPath: '/wordpress/wp-content/mu-plugins',
+						},
+					],
+					mount: [
+						{
+							hostPath: postInstallDir,
+							vfsPath: '/wordpress/wp-content/install-probe',
+						},
+					],
+				});
+
+				expect(cliServer.serverUrl).toBeTruthy();
+				expect(
+					await readFile(path.join(childDir, 'ready'), 'utf8')
+				).toBe('NOT_MOUNTED_YET');
+				await vi.waitFor(
+					() => {
+						expect(
+							existsSync(path.join(postInstallDir, 'seen.txt'))
+						).toBe(true);
+					},
+					{ timeout: 10000 }
+				);
+				expect(
+					await readFile(
+						path.join(postInstallDir, 'seen.txt'),
+						'utf8'
+					)
+				).toBe('CHILD_SAW_POST_INSTALL_MOUNT');
+			} finally {
+				rmSync(testDir, { recursive: true, force: true });
+			}
+		}, 180000);
+
 		// Regression test: files provided via post-install --mount used to be
 		// invisible to child PHP processes spawned with proc_open()/system(),
 		// because the spawned worker never installs WordPress itself and so
@@ -1256,6 +1375,139 @@ describe.each(blueprintVersions)(
 			);
 		}, 180000);
 
+		test('disposing waits for live child workers to terminate', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+
+			try {
+				await cliServer.playground.writeFile(
+					'/wordpress/slow-child.php',
+					`<?php usleep(30_000_000); echo 'CHILD_FINISHED';`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/slow-parent.php',
+					phpSpawningChildScript(
+						'PARENT',
+						'/wordpress/slow-child.php'
+					)
+				);
+
+				// Keep the request in flight while disposeCLI() tears down the child
+				// and the top-level worker blocked waiting for it.
+				const request = fetch(
+					new URL('/slow-parent.php', cliServer.serverUrl)
+				).catch(() => undefined);
+				await vi.waitFor(() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(1);
+				});
+
+				const firstDispose = cliServer[Symbol.asyncDispose]();
+				const secondDispose = cliServer[Symbol.asyncDispose]();
+				expect(secondDispose).toBe(firstDispose);
+				await Promise.all([firstDispose, secondDispose]);
+				expect(
+					cliServer[internalsKeyForTesting].liveChildWorkerCount()
+				).toBe(0);
+				await request;
+			} finally {
+				await cliServer[Symbol.asyncDispose]();
+			}
+		}, 180000);
+
+		test('disposing terminates a child that never initializes', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+			await cliServer.playground.writeFile(
+				'/wordpress/spawn.php',
+				phpSpawningChildScript('PARENT', '/wordpress/spawn-child.php')
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/spawn-child.php',
+				`<?php echo 'CHILD_RAN';`
+			);
+
+			const workerUrlKey =
+				version === 2 ? '__WORKER_V2_URL__' : '__WORKER_V1_URL__';
+			const realWorkerUrl = (globalThis as any)[workerUrlKey];
+			// This valid worker stays alive but never sends the initialization
+			// handshake expected by spawnWorkerThread().
+			(globalThis as any)[workerUrlKey] =
+				'data:text/javascript;base64,c2V0SW50ZXJ2YWwoKCkgPT4ge30sIDEwMDApOw==';
+
+			try {
+				const request = fetch(
+					new URL('/spawn.php', cliServer.serverUrl)
+				).catch(() => undefined);
+				await vi.waitFor(() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(1);
+				});
+
+				await cliServer[Symbol.asyncDispose]();
+				expect(
+					cliServer[internalsKeyForTesting].liveChildWorkerCount()
+				).toBe(0);
+				await request;
+			} finally {
+				(globalThis as any)[workerUrlKey] = realWorkerUrl;
+			}
+		}, 180000);
+
+		test('an initialized child exit interrupts pending remote calls', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+			});
+			await cliServer.playground.writeFile(
+				'/wordpress/spawn.php',
+				phpSpawningChildScript('PARENT', '/wordpress/spawn-child.php')
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/spawn-child.php',
+				`<?php echo 'CHILD_RAN';`
+			);
+
+			const workerUrlKey =
+				version === 2 ? '__WORKER_V2_URL__' : '__WORKER_V1_URL__';
+			const realWorkerUrl = (globalThis as any)[workerUrlKey];
+			const childSource = `
+				import { parentPort, MessageChannel } from 'node:worker_threads';
+				const { port1, port2 } = new MessageChannel();
+				port1.start();
+				parentPort.postMessage(
+					{ command: 'worker-script-initialized', phpPort: port2 },
+					[port2]
+				);
+				setTimeout(() => process.exit(23), 500);
+			`;
+			(globalThis as any)[workerUrlKey] =
+				`data:text/javascript;base64,${Buffer.from(childSource).toString('base64')}`;
+
+			try {
+				const response = await fetch(
+					new URL('/spawn.php', cliServer.serverUrl),
+					{ signal: AbortSignal.timeout(5000) }
+				);
+				const text = await response.text();
+				expect(text).toContain('[spawn error]');
+				expect(text).not.toContain('CHILD_RAN');
+				await vi.waitFor(() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(0);
+				});
+			} finally {
+				(globalThis as any)[workerUrlKey] = realWorkerUrl;
+			}
+		}, 180000);
+
 		// When a child worker fails to load, the main thread's spawn helper
 		// emits 'error' (rejecting the spawn) and then 'exit'. Its exit handler
 		// must not reach for the SpawnedWorker that was never constructed —
@@ -1784,6 +2036,49 @@ describe('native Blueprint v2 modes', () => {
 				expect(text).toContain('<title>My WordPress Website</title>');
 				const wpContentDirPath = path.join(tmpDir, 'wp-content');
 				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
+			} finally {
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+
+	fullNativeBlueprintV2ModeTest(
+		'should run a child process through the v2 worker service',
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-v2-child-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					command: 'server',
+					workers: 1,
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				await cliServer.playground.writeFile(
+					'/wordpress/v2-child.php',
+					`<?php echo 'V2_CHILD_RAN';`
+				);
+				await cliServer.playground.writeFile(
+					'/wordpress/v2-parent.php',
+					`<?php system(PHP_BINARY . ' /wordpress/v2-child.php');`
+				);
+
+				const response = await fetch(
+					new URL('/v2-parent.php', cliServer.serverUrl)
+				);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toContain('V2_CHILD_RAN');
+				await vi.waitFor(() => {
+					expect(
+						cliServer[internalsKeyForTesting].liveChildWorkerCount()
+					).toBe(0);
+				});
 			} finally {
 				rmSync(tmpDir, { recursive: true, force: true });
 			}

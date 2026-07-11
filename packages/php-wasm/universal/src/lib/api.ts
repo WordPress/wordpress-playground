@@ -40,13 +40,20 @@ export type WithAPIState = {
 };
 export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
+// A proxy answers every property access, so no duck-typed property check can
+// distinguish it from an endpoint reliably. Track the proxies we create by
+// identity instead.
+const consumedAPIProxies = new WeakSet<object>();
+
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
 ): Promise<APIType> {
 	assertIsMessagePort(remote, 'consumeAPISync');
 	setupTransferHandlers();
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	return Comlink.wrapSync<APIType>(remote, transport);
+	const api = Comlink.wrapSync<APIType>(remote, transport);
+	consumedAPIProxies.add(api as object);
+	return api;
 }
 
 /**
@@ -65,8 +72,12 @@ function assertIsMessagePort(
 	remote: IsomorphicMessagePort,
 	callerName: string
 ): void {
-	// A Comlink proxy is callable; a MessagePort never is.
-	if (typeof remote === 'function') {
+	const value = remote as unknown;
+	if (
+		((typeof value === 'object' && value !== null) ||
+			typeof value === 'function') &&
+		consumedAPIProxies.has(value as object)
+	) {
 		throw new TypeError(
 			`${callerName}() expects a MessagePort but received a Comlink ` +
 				`proxy. Expose the API on a fresh MessageChannel and pass one ` +
@@ -139,7 +150,7 @@ export function consumeAPI<APIType>(
 	 */
 	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
 	const methods = proxyClone(api);
-	return new Proxy(methods, {
+	const remoteAPI = new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
 				return async () => {
@@ -161,6 +172,8 @@ export function consumeAPI<APIType>(
 			return (api as any)[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
+	consumedAPIProxies.add(remoteAPI);
+	return remoteAPI;
 }
 
 /**
