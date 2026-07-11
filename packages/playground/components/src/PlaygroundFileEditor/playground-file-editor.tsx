@@ -66,6 +66,7 @@ export function PlaygroundFileEditor({
 	const activeFilesystemRef = useRef<AsyncWritableFilesystem | null>(
 		filesystem
 	);
+	const isVisibleRef = useRef(isVisible);
 	const pendingSaveRef = useRef<PendingSave | null>(null);
 	const lastWriteByFilesystemRef = useRef(
 		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
@@ -75,6 +76,7 @@ export function PlaygroundFileEditor({
 	const hasAutoOpenedRef = useRef<boolean>(false);
 
 	activeFilesystemRef.current = filesystem;
+	isVisibleRef.current = isVisible;
 
 	useEffect(() => {
 		currentPathRef.current = currentPath;
@@ -192,9 +194,12 @@ export function PlaygroundFileEditor({
 					setReadOnly(false);
 					setSaveState(SaveState.IDLE);
 					setSaveError(null);
-					// Focus the editor after opening
+					// A hidden but mounted editor must not steal focus from the
+					// surface that replaced it.
 					setTimeout(() => {
-						editorRef.current?.focus();
+						if (isVisibleRef.current) {
+							editorRef.current?.focus();
+						}
 					}, 100);
 				}
 			} catch (error) {
@@ -304,7 +309,7 @@ export function PlaygroundFileEditor({
 				if (savedPos !== undefined) {
 					editorRef.current?.setCursorPosition(savedPos);
 				}
-				if (shouldFocus) {
+				if (shouldFocus && isVisibleRef.current) {
 					editorRef.current?.focus();
 				} else {
 					editorRef.current?.blur();

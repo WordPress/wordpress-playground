@@ -14,6 +14,10 @@ declare global {
 			switchFilesystem: (filesystem: FilesystemName) => void;
 			mountEditor: () => void;
 			unmountEditor: () => void;
+			setEditorVisible: (isVisible: boolean) => void;
+			delayNextRead: () => void;
+			releaseDelayedRead: () => void;
+			isReadDelayed: () => boolean;
 			delayNextWrite: () => void;
 			releaseDelayedWrite: () => void;
 			isWriteDelayed: () => boolean;
@@ -126,6 +130,60 @@ test('opens the initial file', async ({ page }) => {
 	await expect(page.locator('.cm-content')).toContainText(
 		"<?php echo 'Hello';"
 	);
+});
+
+test('keeps focus outside a hidden editor when its initial file finishes opening', async ({
+	page,
+}) => {
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.delayNextRead();
+		window.__fileEditorHarness?.switchFilesystem('b');
+	});
+	await page.waitForFunction(
+		() => window.__fileEditorHarness?.isReadDelayed() === true
+	);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.setEditorVisible(false);
+	});
+	const focusSentinel = page.getByTestId('file-editor-focus-sentinel');
+	await focusSentinel.focus();
+	await expect(focusSentinel).toBeFocused();
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.releaseDelayedRead();
+	});
+	await expect(page.locator('.cm-content')).toContainText(
+		"<?php echo 'Filesystem B';"
+	);
+	await page.waitForTimeout(150);
+	await expect(focusSentinel).toBeFocused({ timeout: 1000 });
+});
+
+test('keeps focus outside a hidden editor when a double-clicked file finishes opening', async ({
+	page,
+}) => {
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.delayNextRead();
+	});
+	await page.locator('button[data-path="/wordpress/readme.html"]').dblclick();
+	await page.waitForFunction(
+		() => window.__fileEditorHarness?.isReadDelayed() === true
+	);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.setEditorVisible(false);
+	});
+	const focusSentinel = page.getByTestId('file-editor-focus-sentinel');
+	await focusSentinel.focus();
+	await expect(focusSentinel).toBeFocused();
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.releaseDelayedRead();
+	});
+	await expect(page.getByText('/wordpress/readme.html')).toBeVisible();
+	await page.waitForTimeout(100);
+	await expect(focusSentinel).toBeFocused({ timeout: 1000 });
 });
 
 test('imports a local directory dropped on the explorer background', async ({

@@ -347,6 +347,14 @@ export const BlueprintBundleEditor = forwardRef<
 		[filesystem]
 	);
 
+	// A parent surface may unmount immediately after a keystroke. Start the pending
+	// write before this editor releases the filesystem that owns the edit.
+	useEffect(() => {
+		return () => {
+			void saveFile.flush();
+		};
+	}, [saveFile]);
+
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
 			setCode(newCode);
@@ -398,6 +406,7 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			setIsRecreating(true);
 			setSaveError(null);
+			await saveFile.flush();
 			const isAutosaved = isAutosavedSite(site);
 			const bundle =
 				(filesystem as EventedFilesystem | null) ??

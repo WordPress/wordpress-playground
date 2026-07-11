@@ -3,7 +3,7 @@ import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import {
 	type AsyncWritableFilesystem,
-	EventedFilesystem,
+	type EventedFilesystem,
 	InMemoryFilesystemBackend,
 	type WritableFilesystemBackend,
 } from '@wp-playground/storage';
@@ -31,6 +31,10 @@ import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
+import {
+	BlueprintEditorFilesystem,
+	getBlueprintEditorFilesystem,
+} from './blueprint-editor-filesystem';
 
 /**
  * Check if an object implements the writable filesystem backend interface.
@@ -95,16 +99,16 @@ async function populateFilesystemFromBlueprint(
  */
 async function createFilesystemFromOriginalBlueprint(
 	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
-): Promise<EventedFilesystem> {
+): Promise<BlueprintEditorFilesystem> {
 	// If originalBlueprint is already a filesystem backend (e.g.,
 	// PersistedBlueprintBundle), use it directly instead of populating from
 	// Blueprint JSON.
 	if (isFilesystemBackend(originalBlueprint)) {
-		return new EventedFilesystem(originalBlueprint);
+		return getBlueprintEditorFilesystem(originalBlueprint);
 	}
 
 	// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
-	const fs = new EventedFilesystem(new InMemoryFilesystemBackend());
+	const fs = new BlueprintEditorFilesystem(new InMemoryFilesystemBackend());
 	if (originalBlueprint) {
 		await populateFilesystemFromBlueprint(
 			fs,
@@ -165,9 +169,8 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorProps
 >(function SiteBlueprintBundleEditor({ className, site }, ref) {
 	const dispatch = useAppDispatch();
-	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
-		null
-	);
+	const [filesystem, setFilesystem] =
+		useState<BlueprintEditorFilesystem | null>(null);
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
@@ -180,7 +183,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	useEffect(() => {
 		let cancelled = false;
-		const setFilesystemIfMounted = (fs: EventedFilesystem) => {
+		const setFilesystemIfMounted = (fs: BlueprintEditorFilesystem) => {
 			if (!cancelled) {
 				setFilesystem(fs);
 			}
@@ -200,7 +203,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 				// WordPress files. Declaration-only metadata is converted once into a
 				// per-site OPFS bundle so later edits cannot leak into another site.
 				await persistBlueprintBundle(site.slug, fs.backend);
-				const opfsFilesystem = new EventedFilesystem(
+				const opfsFilesystem = getBlueprintEditorFilesystem(
 					await loadPersistedBlueprintBundle(site.slug)
 				);
 				await dispatch(
