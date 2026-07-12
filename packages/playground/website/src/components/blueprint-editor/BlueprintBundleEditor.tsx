@@ -380,6 +380,9 @@ export const BlueprintBundleEditor = forwardRef<
 	 */
 	const saveBarrierRef = useRef<Promise<boolean>>(Promise.resolve(true));
 	const runInProgressRef = useRef(false);
+	// React state may lag editor events, so saves read these synchronously updated refs.
+	const currentPathRef = useRef<string | null>(currentPath);
+	const codeRef = useRef(code);
 	const dispatch = useAppDispatch();
 
 	// Save file to filesystem
@@ -405,12 +408,18 @@ export const BlueprintBundleEditor = forwardRef<
 			if (readOnly || isBlueprintRunPending) {
 				return;
 			}
+			codeRef.current = newCode;
 			setCode(newCode);
-			if (currentPath) {
-				saveFile(currentPath, newCode);
+			const path = currentPathRef.current;
+			if (path) {
+				if (path === BLUEPRINT_JSON_PATH) {
+					// Do not run against the previous result while the linter catches up.
+					setValidationResult(null);
+				}
+				saveFile(path, newCode);
 			}
 		},
-		[currentPath, isBlueprintRunPending, readOnly, saveFile]
+		[isBlueprintRunPending, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -421,6 +430,8 @@ export const BlueprintBundleEditor = forwardRef<
 				const blueprintJsonContent =
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				if (cancelled) return;
+				currentPathRef.current = BLUEPRINT_JSON_PATH;
+				codeRef.current = blueprintJsonContent;
 				setCurrentPath(BLUEPRINT_JSON_PATH);
 				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
@@ -443,6 +454,17 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
+	const persistCurrentFile = useCallback(async () => {
+		// Replace the pending debounce with the latest visible contents, queued
+		// behind any write that has already started.
+		saveFile.cancel();
+		const path = currentPathRef.current;
+		if (path) {
+			enqueueSave(path, codeRef.current);
+		}
+		return saveBarrierRef.current;
+	}, [saveFile]);
+
 	const handleRunBlueprint = useCallback(async () => {
 		if (
 			!site ||
@@ -460,8 +482,7 @@ export const BlueprintBundleEditor = forwardRef<
 		const runInNewPlayground = isStoredSite(site);
 		try {
 			setIsRunningBlueprint(true);
-			saveFile.flush();
-			if (!(await saveBarrierRef.current)) {
+			if (!(await persistCurrentFile())) {
 				return;
 			}
 			setSaveError(null);
@@ -541,11 +562,11 @@ export const BlueprintBundleEditor = forwardRef<
 		dispatch,
 		filesystem,
 		hasValidationErrors,
-		siteIsUnfinishedBlueprintRun,
 		opfsSyncStatus,
+		persistCurrentFile,
 		readOnly,
-		saveFile,
 		site,
+		siteIsUnfinishedBlueprintRun,
 	]);
 
 	// A queued Run belongs to the current editor. Resume when no live sync remains;
@@ -577,8 +598,15 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleFileOpened = useCallback(
 		(path: string, content: string, shouldFocus = true) => {
+			// Enqueue the old file before routing subsequent edits to the new one.
+			void saveFile.flush();
+			currentPathRef.current = path;
+			codeRef.current = content;
 			setCurrentPath(path);
 			setCode(content);
+			if (path === BLUEPRINT_JSON_PATH) {
+				setValidationResult(null);
+			}
 			setDisplayPath(path);
 			setMessageContent(null);
 			setSaveError(null);
@@ -588,16 +616,20 @@ export const BlueprintBundleEditor = forwardRef<
 				setTimeout(() => editorRef.current?.focus(), 20);
 			}
 		},
-		[]
+		[saveFile]
 	);
 
 	const handleClearSelection = useCallback(() => {
+		// Deleting a selected file must not let a pending debounce recreate it.
+		saveFile.cancel();
+		currentPathRef.current = null;
+		codeRef.current = '';
 		setCurrentPath(null);
 		setCode('');
 		setMessageContent(null);
 		setDisplayPath(null);
 		setSaveError(null);
-	}, []);
+	}, [saveFile]);
 
 	// Open the string editor modal for the string at the current cursor position
 	const openStringEditor = useCallback(() => {
@@ -672,13 +704,17 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleShowMessage = useCallback(
 		(path: string | null, message: string | JSX.Element) => {
+			void saveFile.flush();
+			currentPathRef.current = null;
 			setCurrentPath(null);
 			setDisplayPath((prev) => path ?? prev);
 
 			if (typeof message === 'string') {
+				codeRef.current = message;
 				setCode(message);
 				setMessageContent(null);
 			} else {
+				codeRef.current = '';
 				setCode('');
 				setMessageContent(message);
 			}
@@ -686,7 +722,7 @@ export const BlueprintBundleEditor = forwardRef<
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 		},
-		[]
+		[saveFile]
 	);
 
 	const handleValidationChange = useCallback(
@@ -724,6 +760,9 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleDownloadBundle = useCallback(async () => {
 		try {
+			if (!(await persistCurrentFile())) {
+				return;
+			}
 			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
 			const addEntries = async (dirPath: string, prefix: string) => {
 				const entries = await filesystem.listFiles(dirPath);
@@ -760,7 +799,7 @@ export const BlueprintBundleEditor = forwardRef<
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem]);
+	}, [filesystem, persistCurrentFile]);
 
 	const handleShareBlueprint = async () => {
 		if (false === newUrl) {
@@ -784,16 +823,27 @@ export const BlueprintBundleEditor = forwardRef<
 		ref,
 		() => ({
 			downloadBundle: handleDownloadBundle,
-			getBundle: async () => filesystem,
+			getBundle: async () =>
+				(await persistCurrentFile()) ? filesystem : null,
 			runBlueprint: handleRunBlueprint,
 		}),
-		[handleDownloadBundle, filesystem, handleRunBlueprint]
+		[
+			handleDownloadBundle,
+			filesystem,
+			handleRunBlueprint,
+			persistCurrentFile,
+		]
 	);
 
 	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const isStored = site ? isStoredSite(site) : false;
+	const isValidationPending =
+		currentPath === BLUEPRINT_JSON_PATH && validationResult === null;
 	const disableRunButton =
-		isBlueprintRunPending || !site || hasValidationErrors;
+		isBlueprintRunPending ||
+		!site ||
+		isValidationPending ||
+		hasValidationErrors;
 	const mobileExplorerToggle = (
 		<Button
 			className={styles.mobileToggle}
@@ -1029,11 +1079,14 @@ export const BlueprintBundleEditor = forwardRef<
 										onClick={handleRunBlueprint}
 										isBusy={isBlueprintRunPending}
 										disabled={disableRunButton}
+										aria-busy={isValidationPending}
 										data-testid="run-blueprint"
 										title={
-											hasValidationErrors
-												? 'Fix validation errors before running'
-												: undefined
+											isValidationPending
+												? 'Validating Blueprint'
+												: hasValidationErrors
+													? 'Fix validation errors before running'
+													: undefined
 										}
 									>
 										<PlayIcon

@@ -92,15 +92,20 @@ async function replaceBlueprintEditorContents(
 	// Wait for CodeMirror editor to load.
 	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const runButton = page.getByRole('button', {
+		name: /^(?:Run Blueprint|Run in a new Playground|Discard current Playground & run Blueprint)$/,
+	});
+	await expect(runButton).toHaveAttribute('aria-busy', 'false', {
+		timeout: 5000,
+	});
 
 	// Focus the editor and select all existing content before replacing it.
 	await editor.click();
-	await page.waitForTimeout(100);
+	await expect(editor.locator('.cm-content')).toBeFocused();
 	await page.keyboard.press(
 		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 	);
 	await page.keyboard.press('Backspace');
-	await page.waitForTimeout(100);
 
 	// Use Playwright's fill method on the contenteditable .cm-content element.
 	// This is more reliable than character-by-character typing which triggers
@@ -109,12 +114,18 @@ async function replaceBlueprintEditorContents(
 	const cmContent = editor.locator('.cm-content');
 	await cmContent.fill(blueprintJson);
 
-	// Wait for validation to complete (linter has 300ms debounce), then verify
-	// the Blueprint was inserted by checking the editor content.
-	await page.waitForTimeout(500);
+	// Observe validation for this document enter and leave its semantic busy state.
+	await expect(runButton).toHaveAttribute('aria-busy', 'true', {
+		timeout: 5000,
+	});
+	await expect(runButton).toBeDisabled();
 	await expect(cmContent).toContainText('writeFile', {
 		timeout: 5000,
 	});
+	await expect(runButton).toHaveAttribute('aria-busy', 'false', {
+		timeout: 5000,
+	});
+	await expect(runButton).toBeEnabled();
 }
 
 /**
@@ -742,29 +753,44 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 		.dblclick();
 
 	// Wait for CodeMirror editor to load
-	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
+	const fileBrowser = website.page.locator('[class*="file-browser"]');
+	const editor = fileBrowser.locator('.cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const cmContent = editor.locator('.cm-content');
 	const saveButton = filesPane.getByRole('button', {
 		name: /^(Save|Saved|Saving…)$/,
 	});
 
-	// Click on the editor to focus it
-	await website.page.waitForTimeout(50);
-
-	await editor.click();
-
-	await website.page.waitForTimeout(250);
-
-	// Select all content in the editor (Cmd+A or Ctrl+A)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(200);
-
-	// Type the new content with a delay between keystrokes
-	await website.page.keyboard.type('Edited file', { delay: 50 });
+	// File opening schedules cursor restoration; take focus after it settles.
+	await website.page.waitForTimeout(150);
+	await cmContent.click();
+	await expect(cmContent).toBeFocused();
+	const selectionCoversEditor = () =>
+		cmContent.evaluate((element) => {
+			const normalize = (text: string) => text.replace(/\s/g, '');
+			const selectedText = normalize(
+				window.getSelection()?.toString() ?? ''
+			);
+			const editorText = normalize((element as HTMLElement).innerText);
+			return editorText.length > 0 && selectedText === editorText;
+		});
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await cmContent.press('ControlOrMeta+a');
+		await cmContent.evaluate(
+			() =>
+				new Promise<void>((resolve) =>
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => resolve())
+					)
+				)
+		);
+		if (await selectionCoversEditor()) {
+			break;
+		}
+	}
+	expect(await selectionCoversEditor()).toBe(true);
+	await cmContent.pressSequentially('Edited file', { delay: 100 });
+	await expect(cmContent).toHaveText('Edited file');
 
 	await expect(saveButton).toBeEnabled();
 
@@ -833,8 +859,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		})
 		.click();
 
-	await website.page.waitForTimeout(1500);
-	// Wait for the playground to recreate
+	// Wait for rendered WordPress content instead of assuming recreation timing.
 	await website.waitForNestedIframes();
 
 	// Verify the page shows "Blueprint test"

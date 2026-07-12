@@ -4,6 +4,7 @@ import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import type { EventedFilesystem } from '@wp-playground/storage';
+import type { BlueprintValidationResult } from '@wp-playground/blueprints';
 import type * as SliceSitesModule from '../../lib/state/redux/slice-sites';
 import type * as SliceUiModule from '../../lib/state/redux/slice-ui';
 import {
@@ -27,6 +28,9 @@ const mocks = vi.hoisted(() => ({
 	pruneAutosavedSites: vi.fn(),
 	removeSite: vi.fn(),
 	resolveRuntimeConfiguration: vi.fn(),
+	validationChange: undefined as
+		| ((result: BlueprintValidationResult | null) => void)
+		| undefined,
 	setActiveSite: vi.fn(),
 	setDockPaneOpen: vi.fn(),
 	updateSite: vi.fn(),
@@ -58,6 +62,15 @@ vi.mock('@wp-playground/components', async () => {
 
 vi.mock('../../lib/hooks/use-blueprint-url-hash', () => ({
 	useBlueprintUrlHash: () => ({ isShareable: true, urlHash: '' }),
+}));
+
+vi.mock('./json-schema-editor/blueprint-linter', () => ({
+	createBlueprintLinter: (
+		onValidationChange: (result: BlueprintValidationResult | null) => void
+	) => {
+		mocks.validationChange = onValidationChange;
+		return [];
+	},
 }));
 
 vi.mock('../../lib/state/redux/store', () => ({
@@ -141,6 +154,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			).setDockPaneOpen
 		);
 		mocks.updateSite.mockReset();
+		mocks.validationChange = undefined;
 	});
 
 	afterEach(() => {
@@ -537,6 +551,10 @@ describe('BlueprintBundleEditor Run barrier', () => {
 					dockPresentation={dockPresentation}
 				/>
 			);
+			await Promise.resolve();
+		});
+		await act(async () => {
+			mocks.validationChange!({ valid: true, errors: [] });
 			await Promise.resolve();
 		});
 		expect(editorRef.current).not.toBeNull();
