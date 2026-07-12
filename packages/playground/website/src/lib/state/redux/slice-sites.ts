@@ -23,9 +23,11 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import {
+	deleteBlueprintBundle,
 	isTraversableFilesystemBackend,
 	persistBlueprintBundle,
 } from '../opfs/opfs-blueprint-bundle-storage';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -555,18 +557,13 @@ export function setTemporarySiteSpec(
 }
 
 /**
- * Creates the metadata record for a new OPFS-backed Playground.
- *
- * This intentionally overlaps with `setTemporarySiteSpec`: both capture the
- * setup URL, resolve the Blueprint, and derive the runtime configuration.
- * Stored sites diverge after that by writing OPFS metadata immediately, keeping
- * more than one site record, and marking the first file sync as pending. Boot
- * then uses the same setup URL to install WordPress in MEMFS before copying the
- * initialized files into OPFS.
+ * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
+ * bundle. Bundles are stored with the new Playground before their metadata is
+ * written because they may include edits that cannot be represented by a URL.
  */
-export function setStoredSiteSpec(
+export function createStoredSite(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL,
+	source: URL | TraversableFilesystemBackend,
 	preferredSlug?: string,
 	options: {
 		/**
@@ -579,22 +576,39 @@ export function setStoredSiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const originalUrlParams = getOriginalUrlParams(
-			playgroundUrlWithQueryApiArgs
-		);
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
 
-		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
-			playgroundUrlWithQueryApiArgs
-		);
+		/**
+		 * A setup URL needs resolving and carries its original URL params and
+		 * autosave fingerprint. An editable bundle is already the source of
+		 * truth and will be persisted below, so it has neither.
+		 */
+		let blueprint: ResolvedBlueprint['blueprint'];
+		let originalBlueprintSource: BlueprintSource;
+		let originalUrlParams: OriginalUrlParams | undefined;
+		let sourceSetupUrlFingerprint: string | undefined;
+		if (source instanceof URL) {
+			const resolvedBlueprint = await resolveSiteBlueprintFromUrl(source);
+			blueprint = resolvedBlueprint.blueprint;
+			originalBlueprintSource = resolvedBlueprint.source!;
+			originalUrlParams = getOriginalUrlParams(source);
+			sourceSetupUrlFingerprint = getAutosaveFingerprintFromURL(source);
+		} else {
+			blueprint = source;
+			originalBlueprintSource = { type: 'opfs-site' };
+		}
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
 		const sites = selectAllSites(getState());
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
-			slugBaseName = getDefaultSiteNameFromBlueprint(
-				resolvedBlueprint.blueprint,
-				siteName
-			);
+			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
 				slugBaseName,
 				sites.map((site) => site.metadata.name),
@@ -605,12 +619,11 @@ export function setStoredSiteSpec(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
-		const runtimeConfiguration = (await resolveRuntimeConfiguration(
-			resolvedBlueprint.blueprint
-		))!;
-		let originalBlueprintSource = resolvedBlueprint.source!;
-		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
-			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
+		const blueprintBundle = isTraversableFilesystemBackend(blueprint)
+			? blueprint
+			: undefined;
+		if (blueprintBundle) {
+			await persistBlueprintBundle(siteSlug, blueprintBundle);
 			originalBlueprintSource = {
 				type: 'opfs-site',
 			};
@@ -626,19 +639,34 @@ export function setStoredSiteSpec(
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
-				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-					playgroundUrlWithQueryApiArgs
-				),
-				originalBlueprint: resolvedBlueprint.blueprint,
+				...(sourceSetupUrlFingerprint
+					? {
+							sourceSetupUrlFingerprint:
+								sourceSetupUrlFingerprint,
+						}
+					: {}),
+				originalBlueprint: blueprint,
 				originalBlueprintSource,
 				runtimeConfiguration,
 			},
 		};
 
-		await dispatch(addSite(newSiteInfo));
+		try {
+			await dispatch(addSite(newSiteInfo));
+		} catch (error) {
+			if (blueprintBundle) {
+				await deleteBlueprintBundle(siteSlug);
+			}
+			throw error;
+		}
 		return newSiteInfo;
 	};
 }
+
+/**
+ * Compatibility alias for callers that create a stored Playground from a URL.
+ */
+export const setStoredSiteSpec = createStoredSite;
 
 /**
  * Replaces an autosaved Playground's WordPress files with files from a new setup.

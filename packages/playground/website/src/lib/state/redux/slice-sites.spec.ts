@@ -1,10 +1,12 @@
 import type { OriginalUrlParams } from '../original-url-params';
 import type { SiteInfo } from './slice-sites';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
-describe('stored site specs', () => {
+describe('stored site creation', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
+	let deleteBlueprintBundle: ReturnType<typeof vi.fn>;
 	let removeWordPressFilesKeepMetadata: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
 
@@ -13,6 +15,7 @@ describe('stored site specs', () => {
 		createSite = vi.fn();
 		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
+		deleteBlueprintBundle = vi.fn();
 		removeWordPressFilesKeepMetadata = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
 
@@ -35,6 +38,7 @@ describe('stored site specs', () => {
 			resolveRuntimeConfiguration,
 		}));
 		vi.doMock('../opfs/opfs-blueprint-bundle-storage', () => ({
+			deleteBlueprintBundle,
 			isTraversableFilesystemBackend: (value: unknown) =>
 				typeof value === 'object' &&
 				value !== null &&
@@ -315,11 +319,13 @@ describe('stored site specs', () => {
 		expect(removeWordPressFilesKeepMetadata).not.toHaveBeenCalled();
 	});
 
-	it('does not persist a bundle for a new stored site before validating setup', async () => {
+	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
 		);
-		const { setStoredSiteSpec } = await import('./slice-sites');
+		const { createStoredSite, setStoredSiteSpec } =
+			await import('./slice-sites');
+		expect(setStoredSiteSpec).toBe(createStoredSite);
 		const addSite = setStoredSiteSpec(
 			'Autosaved site',
 			new URL(
@@ -334,6 +340,121 @@ describe('stored site specs', () => {
 		).rejects.toThrow('Invalid setup');
 
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
+	});
+
+	it('creates a new stored site from an edited Blueprint bundle', async () => {
+		const { createStoredSite, sitesSlice } = await import('./slice-sites');
+		const runtimeConfiguration = {
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		};
+		resolveRuntimeConfiguration.mockResolvedValue(runtimeConfiguration);
+		const sourceSite = createSiteInfo({
+			slug: 'source-site',
+			name: 'Original Playground',
+		});
+		const editedBundle = createBundleBlueprint();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(sourceSite)
+			),
+		};
+		const getState = () => state;
+		const dispatch = vi.fn();
+		dispatch.mockImplementation((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		const writes: string[] = [];
+		persistBlueprintBundle.mockImplementation(async () => {
+			writes.push('bundle');
+		});
+		createSite.mockImplementation(async () => {
+			writes.push('metadata');
+		});
+
+		const newSite = await createStoredSite(
+			'Edited Blueprint',
+			editedBundle,
+			'source-site',
+			{ persistence: 'autosave' }
+		)(dispatch as any, getState as any);
+
+		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.metadata).toMatchObject({
+			name: 'Edited Blueprint',
+			storage: 'opfs',
+			persistence: 'autosave',
+			initialOpfsSyncPending: true,
+			originalBlueprint: editedBundle,
+			originalBlueprintSource: { type: 'opfs-site' },
+			runtimeConfiguration,
+		});
+		expect(persistBlueprintBundle).toHaveBeenCalledWith(
+			'source-site-2',
+			editedBundle
+		);
+		expect(createSite).toHaveBeenCalledWith(
+			'source-site-2',
+			newSite.metadata,
+			undefined
+		);
+		expect(deleteBlueprintBundle).not.toHaveBeenCalled();
+		expect(writes).toEqual(['bundle', 'metadata']);
+		expect(state.sites.entities).toMatchObject({
+			'source-site': sourceSite,
+			'source-site-2': newSite,
+		});
+	});
+
+	it('does not persist an edited Blueprint bundle when its runtime is invalid', async () => {
+		resolveRuntimeConfiguration.mockRejectedValue(
+			new Error('Invalid setup')
+		);
+		const { createStoredSite } = await import('./slice-sites');
+
+		await expect(
+			createStoredSite('Edited Blueprint', createBundleBlueprint())(
+				createDispatch() as any,
+				createEmptyGetState() as any
+			)
+		).rejects.toThrow('Invalid setup');
+
+		expect(persistBlueprintBundle).not.toHaveBeenCalled();
+		expect(createSite).not.toHaveBeenCalled();
+	});
+
+	it('removes an edited Blueprint bundle when site creation fails', async () => {
+		const { createStoredSite } = await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		createSite.mockRejectedValue(new Error('Could not write metadata'));
+
+		await expect(
+			createStoredSite(
+				'Edited Blueprint',
+				createBundleBlueprint(),
+				'edited-blueprint'
+			)(createThunkDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Could not write metadata');
+
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
 	});
 });
 
@@ -381,15 +502,19 @@ function createGetState() {
 
 function createSiteInfo({
 	originalUrlParams,
+	slug = 'stored-site',
+	name = 'Stored site',
 }: {
 	originalUrlParams?: OriginalUrlParams;
+	slug?: string;
+	name?: string;
 } = {}): SiteInfo {
 	return {
-		slug: 'stored-site',
+		slug,
 		originalUrlParams,
 		metadata: {
-			id: 'stored-site',
-			name: 'Stored site',
+			id: slug,
+			name,
 			storage: 'opfs' as const,
 			originalBlueprint: {},
 			originalBlueprintSource: { type: 'none' as const },
@@ -409,7 +534,18 @@ function createDispatch() {
 	return vi.fn(async (action) => action);
 }
 
-function createBundleBlueprint() {
+function createThunkDispatch() {
+	const dispatch = vi.fn();
+	dispatch.mockImplementation(async (action) => {
+		if (typeof action === 'function') {
+			return action(dispatch, createEmptyGetState());
+		}
+		return action;
+	});
+	return dispatch;
+}
+
+function createBundleBlueprint(): TraversableFilesystemBackend {
 	return {
 		read: vi.fn(),
 		listFiles: vi.fn(),
