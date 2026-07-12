@@ -666,7 +666,12 @@ test.describe('php-code-snippet embed', () => {
 
 		await expect(snippet).toBeVisible();
 		await ensurePlaygroundClientIsServed(page);
-		await ensureToolkitAutoloadIsServed(page);
+		const toolkitAutoloadUrl = new URL(
+			'php-toolkit-autoload.txt',
+			page.url()
+		).href;
+		await ensureToolkitAutoloadIsServed(page, toolkitAutoloadUrl);
+		await setToolkitAutoloadUrl(page, toolkitAutoloadUrl);
 		await snippet.evaluate((element) => {
 			element.setAttribute('playground-origin', window.location.origin);
 		});
@@ -801,8 +806,7 @@ async function ensurePlaygroundClientIsServed(page: Page) {
 	});
 }
 
-async function ensureToolkitAutoloadIsServed(page: Page) {
-	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
+async function ensureToolkitAutoloadIsServed(page: Page, autoloadUrl: string) {
 	const response = await page.request.get(autoloadUrl);
 	if (response.ok()) {
 		return;
@@ -814,6 +818,21 @@ async function ensureToolkitAutoloadIsServed(page: Page) {
 			contentType: 'text/plain',
 		});
 	});
+}
+
+async function setToolkitAutoloadUrl(page: Page, autoloadUrl: string) {
+	await page.evaluate((url) => {
+		const setupScript = document.getElementById('toolkit-setup');
+		if (!setupScript?.textContent) {
+			throw new Error('Could not find the toolkit setup Blueprint.');
+		}
+		const blueprint = JSON.parse(setupScript.textContent);
+		// The fixture Blueprint was authored for the deployed website root.
+		// Local Playwright serves it under /website-server/, so rewrite the URL
+		// to the fixture's actual origin/path before the snippet boots.
+		blueprint.steps[1].data.url = url;
+		setupScript.textContent = JSON.stringify(blueprint);
+	}, autoloadUrl);
 }
 
 async function waitForPhpSnippetDefinition(page: Page) {
