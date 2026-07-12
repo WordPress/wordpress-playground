@@ -1,6 +1,44 @@
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
 describe('Blueprint v2 declaration types', () => {
+	it('accepts WordPress and PHP application targets', () => {
+		const blueprints = [
+			{ version: 2, target: 'wordpress' },
+			{ version: 2, target: 'php' },
+		] satisfies BlueprintV2Declaration[];
+
+		expect(blueprints).toHaveLength(2);
+	});
+
+	it('accepts site-creation baselines', () => {
+		const blueprints = [
+			{
+				version: 2,
+				contentBaseline: 'default',
+				usersBaseline: 'default',
+			},
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			{
+				version: 2,
+				contentBaseline: ['posts', 'pages', 'comments'],
+			},
+		] satisfies BlueprintV2Declaration[];
+
+		expect(blueprints).toHaveLength(3);
+	});
+
 	it('accepts file data references for file-only fields', () => {
 		const blueprint = {
 			version: 2,
@@ -355,6 +393,24 @@ const blueprintWithUrlMappingForMysqlDump = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithEmptyContentBaselineList = {
+	version: 2,
+	// @ts-expect-error Use "empty" instead of an empty baseline list.
+	contentBaseline: [],
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithUnsupportedContentBaselineType = {
+	version: 2,
+	// @ts-expect-error Users are not a content type.
+	contentBaseline: ['users'],
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithUnsupportedTarget = {
+	version: 2,
+	// @ts-expect-error Only WordPress and PHP application targets are supported.
+	target: 'node',
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
@@ -367,3 +423,6 @@ void blueprintWithExtraWordPressVersionComponent;
 void blueprintWithUnsupportedWordPressVersionRecommendation;
 void blueprintWithNonComparablePHPVersionRecommendation;
 void blueprintWithUrlMappingForMysqlDump;
+void blueprintWithEmptyContentBaselineList;
+void blueprintWithUnsupportedContentBaselineType;
+void blueprintWithUnsupportedTarget;

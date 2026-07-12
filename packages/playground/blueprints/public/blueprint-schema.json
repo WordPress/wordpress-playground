@@ -1850,6 +1850,12 @@
 					"const": 2,
 					"description": "Not a generic 'number' type – this schema is specifically for Blueprints v2. Version 1 had no \"version\" field and versions 3, 4, 5, etc will be different from version 2."
 				},
+				"target": {
+					"type": "string",
+					"enum": ["wordpress", "php"],
+					"description": "The application environment this Blueprint prepares. WordPress is installed by default. A PHP target boots the PHP runtime without downloading WordPress or initializing its database.",
+					"default": "wordpress"
+				},
 				"$schema": {
 					"anyOf": [
 						{
@@ -1940,6 +1946,14 @@
 									"type": "boolean",
 									"description": "Whether to allow the site to access the network.",
 									"default": false
+								},
+								"loadPhpExtensions": {
+									"type": "array",
+									"items": {
+										"type": "string",
+										"const": "intl"
+									},
+									"description": "Optional PHP extensions to load in the Playground runtime before executing the Blueprint. Extensions omitted from this list are not disabled."
 								}
 							},
 							"additionalProperties": false,
@@ -1948,7 +1962,59 @@
 					},
 					"required": ["wordpress-playground"],
 					"additionalProperties": false,
-					"description": "Divergence from Blueprints v1:\n\nThere are no `landingPage` or `login` top-level properties. Instead, Blueprint v2 introduces a dedicated top-level `applicationOptions` property for declaring options or opinions for different application contexts.\n\nTo keep Blueprints portable and focused on site creation, this specification only allows two Playground-specific options. Other environments cannot declare additional options. Future versions of this specification may allow additional options – they will be discussed on a case-by-case basis."
+					"description": "Divergence from Blueprints v1:\n\nThere are no `landingPage` or `login` top-level properties. Instead, Blueprint v2 introduces a dedicated top-level `applicationOptions` property for declaring options or opinions for different application contexts.\n\nTo keep Blueprints portable and focused on site creation, this specification only allows a small set of Playground-specific options. Other environments cannot declare additional options. Future versions of this specification may allow additional options – they will be discussed on a case-by-case basis."
+				},
+				"contentBaseline": {
+					"anyOf": [
+						{
+							"type": "string",
+							"const": "default"
+						},
+						{
+							"type": "string",
+							"const": "empty"
+						},
+						{
+							"type": "array",
+							"items": {
+								"type": "string",
+								"enum": ["posts", "pages", "comments"]
+							},
+							"minItems": 1,
+							"uniqueItems": true,
+							"allOf": [
+								{
+									"if": {
+										"contains": {
+											"const": "comments"
+										}
+									},
+									"then": {
+										"allOf": [
+											{
+												"contains": {
+													"const": "posts"
+												}
+											},
+											{
+												"contains": {
+													"const": "pages"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					],
+					"description": "The content from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `default` leaves the installation unchanged, `empty` removes its posts, pages, and comments, and a list retains only the selected content types.\n\nThis policy runs only when the current invocation creates vanilla WordPress. It is skipped when applying the Blueprint to an existing site, so it cannot erase content from that site. It is not valid for a PHP target. Metadata and relationships follow their parent content. Empty content tables have their sequences reset so subsequent imports receive the identifiers they would on a site created without default content.\n\nComments can only be retained together with both posts and pages because the schema cannot know which type contains their parent records.",
+					"default": "default"
+				},
+				"usersBaseline": {
+					"type": "string",
+					"enum": ["default", "empty"],
+					"description": "The users from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `default` retains the administrator created by WordPress, while `empty` removes it before creating the users declared by this Blueprint.\n\nEmpty user tables have their sequences reset before those users are created.\n\nAn empty user baseline requires an empty content baseline so removing the installation administrator cannot silently delete or orphan authored content. It also requires at least one declared administrator, ensuring the resulting WordPress site remains manageable.\n\nLike `contentBaseline`, this policy is skipped when applying the Blueprint to an existing site and is not valid for a PHP target.",
+					"default": "default"
 				},
 				"siteLanguage": {
 					"type": "string",
@@ -2041,8 +2107,8 @@
 							"additionalProperties": false
 						}
 					],
-					"description": "WordPress version to install.\n\nWhen we're setting up the entire site, this will be used to resolve the installed WordPress version. The latest version matching the constraint will be chosen.\n\nWhen we're applying this Blueprint to an existing site, this will be used as an integrity check to verify that the currently installed version of WordPress installed on the target site matches the constraint.",
-					"default": "\"latest\"."
+					"description": "WordPress version to install or require.\n\nA string selects the version for a newly created site. A branch such as `6.8` selects the newest available release in that branch. Strings are selection hints and do not reject an existing site.\n\nAn object declares compatibility bounds. The runner chooses the newest available release within those bounds for a new site and verifies an existing site's installed version against them. `preferred` influences new-site selection without narrowing compatibility.\n\nA data reference supplies the WordPress files for a newly created site.",
+					"default": "latest"
 				},
 				"phpVersion": {
 					"anyOf": [
@@ -2221,13 +2287,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												}
 											]
@@ -2644,13 +2710,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																	"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																	"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																}
 															}
 														]
@@ -3056,13 +3122,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																		"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																		"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																	}
 																}
 															]
@@ -3202,13 +3268,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																					"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																					"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																				}
 																			}
 																		]
@@ -3733,13 +3799,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																							"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																							"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																						}
 																					}
 																				]
@@ -3881,13 +3947,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																										"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+																										"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 																									}
 																								}
 																							]
@@ -4185,13 +4251,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												}
 											]
@@ -4410,13 +4476,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 													}
 												}
 											]
@@ -4489,7 +4555,55 @@
 				}
 			},
 			"required": ["version"],
-			"additionalProperties": false
+			"additionalProperties": false,
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"usersBaseline": {
+								"const": "empty"
+							}
+						},
+						"required": ["usersBaseline"]
+					},
+					"then": {
+						"properties": {
+							"contentBaseline": {
+								"const": "empty"
+							},
+							"users": {
+								"type": "array",
+								"contains": {
+									"type": "object",
+									"properties": {
+										"role": {
+											"const": "administrator"
+										}
+									},
+									"required": ["role"]
+								}
+							}
+						},
+						"required": ["contentBaseline", "users"]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"target": {
+								"const": "php"
+							}
+						},
+						"required": ["target"]
+					},
+					"then": {
+						"properties": {
+							"contentBaseline": false,
+							"usersBaseline": false
+						}
+					}
+				}
+			]
 		},
 		"DataSources.URLReference": {
 			"type": "string",
@@ -4665,7 +4779,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813": {
+		"alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4679,13 +4793,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+						"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-142860-142954-1337903113-98268-142968-1337903113-98234-142968-1337903113-0-159813"
+						"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
 					}
 				}
 			]

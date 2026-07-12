@@ -724,6 +724,7 @@ const additionalSteps = [
 
 const maximalDeclaration = {
 	version: 2 as const,
+	target: 'wordpress' as const,
 	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
 	blueprintMeta: {
 		name: 'Schema conformance',
@@ -741,8 +742,11 @@ const maximalDeclaration = {
 			landingPage: '/wp-admin/',
 			login: true,
 			networkAccess: true,
+			loadPhpExtensions: ['intl'],
 		},
 	},
+	contentBaseline: 'empty' as const,
+	usersBaseline: 'empty' as const,
 	siteLanguage: 'en_US',
 	siteOptions: {
 		blogname: 'Schema conformance',
@@ -796,6 +800,15 @@ const maximalDeclaration = {
 	media: mediaDefinitions,
 	content: contentDefinitions,
 	users: [
+		{
+			username: 'admin',
+			email: 'admin@example.com',
+			role: 'administrator',
+			meta: {
+				first_name: 'Schema',
+				last_name: 'Administrator',
+			},
+		},
 		{
 			username: 'editor',
 			email: 'editor@example.com',
@@ -881,10 +894,19 @@ export const v2SchemaConformanceCases = [
 		declaration: maximalDeclaration,
 	},
 	{
+		name: 'PHP target',
+		declaration: {
+			version: 2,
+			target: 'php',
+		},
+	},
+	{
 		name: 'scalar alternatives',
 		declaration: {
 			version: 2,
 			$schema: './blueprint-schema.json',
+			contentBaseline: 'default',
+			usersBaseline: 'default',
 			applicationOptions: {
 				'wordpress-playground': {
 					login: {
@@ -907,6 +929,13 @@ export const v2SchemaConformanceCases = [
 				max: '8.4',
 			},
 			activeTheme: 'conformance-theme',
+		},
+	},
+	{
+		name: 'selected content baseline types',
+		declaration: {
+			version: 2,
+			contentBaseline: ['posts', 'pages', 'comments'],
 		},
 	},
 	...directActiveThemeCases,

@@ -62,15 +62,15 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
-		const resolvedWordPressInstallMode = resolveWordPressInstallMode({
+		const requestedWordPressInstallMode = resolveWordPressInstallMode({
 			shouldInstallWordPress,
 			wordpressInstallMode,
 		});
 		// The `if-needed` mode may initialize the database, but WordPress core
 		// still comes from the mounted files rather than a fallback download.
 		const usesExistingWordPressFiles =
-			resolvedWordPressInstallMode === 'install-from-existing-files' ||
-			resolvedWordPressInstallMode ===
+			requestedWordPressInstallMode === 'install-from-existing-files' ||
+			requestedWordPressInstallMode ===
 				'install-from-existing-files-if-needed';
 		const compiled = await compileBlueprintForExecution(blueprint, {
 			progress: executionProgress,
@@ -86,6 +86,10 @@ export class BlueprintsV2Handler {
 			compiled.version === 2
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
+		const resolvedWordPressInstallMode =
+			compiled.version === 2 && compiled.declaration.target === 'php'
+				? 'do-not-attempt-installing'
+				: requestedWordPressInstallMode;
 		const wordPressZip =
 			compiled.version === 2 &&
 			resolvedWordPressInstallMode === 'download-and-install'

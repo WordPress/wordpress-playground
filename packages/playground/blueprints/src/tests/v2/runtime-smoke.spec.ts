@@ -50,6 +50,98 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		await handler[Symbol.asyncDispose]();
 	});
 
+	it('removes all initial content before importing Blueprint content', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+			content: [
+				{
+					type: 'posts',
+					source: {
+						post_title: 'First Blueprint post',
+						post_name: 'first-blueprint-post',
+						post_status: 'publish',
+					},
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$post = get_page_by_path('first-blueprint-post', OBJECT, 'post');
+				echo json_encode([
+					'postId' => $post ? $post->ID : null,
+					'helloWorldExists' => (bool) get_page_by_path('hello-world', OBJECT, 'post'),
+					'samplePageExists' => (bool) get_page_by_path('sample-page', OBJECT, 'page'),
+					'commentCount' => (int) get_comments(['count' => true]),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			postId: 1,
+			helloWorldExists: false,
+			samplePageExists: false,
+			commentCount: 0,
+		});
+	});
+
+	it('preserves only the selected initial content types', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: ['posts'],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'helloWorldExists' => (bool) get_page_by_path('hello-world', OBJECT, 'post'),
+					'samplePageExists' => (bool) get_page_by_path('sample-page', OBJECT, 'page'),
+					'commentCount' => (int) get_comments(['count' => true]),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			helloWorldExists: true,
+			samplePageExists: false,
+			commentCount: 0,
+		});
+	});
+
+	it('replaces the installation user with a declared administrator', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+			usersBaseline: 'empty',
+			users: [
+				{
+					username: 'replacement-admin',
+					email: 'replacement-admin@example.com',
+					role: 'administrator',
+					meta: {},
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$replacement = get_user_by('login', 'replacement-admin');
+				echo json_encode([
+					'userIds' => array_map('intval', get_users(['fields' => 'ID'])),
+					'replacementId' => $replacement ? $replacement->ID : null,
+					'defaultAdminExists' => (bool) get_user_by('login', 'admin'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			userIds: [1],
+			replacementId: 1,
+			defaultAdminExists: false,
+		});
+	});
+
 	it('creates roles and users', async () => {
 		await applyBlueprint({
 			version: 2,

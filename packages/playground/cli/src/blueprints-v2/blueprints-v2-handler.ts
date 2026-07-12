@@ -37,6 +37,7 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
+import { resolveCliWordPressVersion } from '../resolve-cli-wordpress-version';
 
 /**
  * Boots Playground CLI workers using the native TypeScript Blueprint v2
@@ -108,7 +109,9 @@ export class BlueprintsV2Handler {
 				}) as any);
 
 				const wpDetails = await resolveWordPressRelease(
-					runtimeConfiguration.wpVersion
+					await resolveCliWordPressVersion(
+						runtimeConfiguration.wpVersion
+					)
 				);
 				wordPressZip = await cachedDownload(
 					wpDetails.releaseUrl,
@@ -268,10 +271,10 @@ export class BlueprintsV2Handler {
 	 * Resolves the worker install mode, including migrated v1 PHP-only sites.
 	 */
 	private getWordPressInstallMode(): Promise<WordPressInstallMode> {
-		this.wordpressInstallModePromise ??= v1BlueprintRequestsPhpOnlyMode(
+		this.wordpressInstallModePromise ??= blueprintRequestsPhpOnlyMode(
 			this.args.blueprint
-		).then((v1PhpOnlyMode) =>
-			resolveV2WordPressInstallMode(this.args, v1PhpOnlyMode)
+		).then((phpOnlyMode) =>
+			resolveV2WordPressInstallMode(this.args, phpOnlyMode)
 		);
 		return this.wordpressInstallModePromise;
 	}
@@ -311,47 +314,37 @@ export class BlueprintsV2Handler {
 }
 
 /**
- * Detects v1 PHP-only mode before upgrading declarations to v2.
+ * Detects PHP-only mode before upgrading v1 declarations to v2.
  *
- * `preferredVersions.wp: false` is not a public v2 field, but the CLI must
- * still preserve it when a v1 declaration is migrated through the v2 compiler.
+ * V1 uses `preferredVersions.wp: false`; v2 names the application target.
  */
-async function v1BlueprintRequestsPhpOnlyMode(
+async function blueprintRequestsPhpOnlyMode(
 	blueprint: RunCLIArgs['blueprint']
 ) {
 	if (!blueprint) {
 		return false;
 	}
 	const reflection = await BlueprintReflection.create(blueprint as any);
-	return (
-		reflection.getVersion() === 1 &&
-		(reflection.getDeclaration() as any).preferredVersions?.wp === false
-	);
+	const declaration = reflection.getDeclaration();
+	return reflection.getVersion() === 1
+		? (declaration as any).preferredVersions?.wp === false
+		: (declaration as BlueprintV2Declaration).target === 'php';
 }
 
 /**
  * Maps Blueprint v2 CLI modes onto the worker's WordPress install modes.
  *
- * V1 PHP-only mode wins over CLI defaults because downloading WordPress would
- * change the semantics of a migrated `preferredVersions.wp: false` Blueprint.
+ * A PHP-only Blueprint wins over CLI defaults because downloading WordPress
+ * would change the declared application target.
  */
 function resolveV2WordPressInstallMode(
 	args: RunCLIArgs,
-	v1PhpOnlyMode = false
+	phpOnlyMode = false
 ): WordPressInstallMode {
-	if (v1PhpOnlyMode) {
+	if (phpOnlyMode) {
 		if (args.mode && args.mode !== 'mount-only') {
 			throw new Error(
-				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
-			);
-		}
-		if (
-			!args.mode &&
-			args.wordpressInstallMode &&
-			args.wordpressInstallMode !== 'do-not-attempt-installing'
-		) {
-			throw new Error(
-				'Conflicting options: WordPress was requested, but the Blueprint sets `preferredVersions.wp: false`. Pick one.'
+				'Conflicting options: WordPress was requested, but the Blueprint targets PHP without WordPress. Pick one.'
 			);
 		}
 		return 'do-not-attempt-installing';
@@ -408,7 +401,10 @@ function applyCliOptionsToBlueprint(
 	if (blueprint.phpVersion === undefined) {
 		blueprint.phpVersion = args.php || RecommendedPHPVersion;
 	}
-	if (blueprint.wordpressVersion === undefined) {
+	if (
+		blueprint.target !== 'php' &&
+		blueprint.wordpressVersion === undefined
+	) {
 		blueprint.wordpressVersion = args.wp || 'latest';
 	}
 	const playgroundOptions =

@@ -102,6 +102,31 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('runs PHP-target steps without requiring WordPress', async () => {
+		const playground = {
+			run: vi.fn().mockResolvedValue({ text: 'PHP target' }),
+		};
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			target: 'php',
+			additionalStepsAfterExecution: [
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'php-target.php',
+						content: '<?php echo "PHP target";',
+					},
+				},
+			],
+		});
+
+		await compiled.run(playground as any);
+
+		expect(playground.run).toHaveBeenCalledWith({
+			code: '<?php echo "PHP target";',
+		});
+	});
+
 	it('reports a validated Blueprint v2 declaration exactly once', async () => {
 		const declaration = { version: 2 } as const;
 		const onBlueprintValidated = vi.fn();
@@ -145,6 +170,109 @@ describe('compileBlueprintForExecution', () => {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
 		expect(compiled.compiled.runtime.wpVersion).toBe('latest');
+	});
+
+	it('prepends content baseline cleanup to new-site plans', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'empty',
+			siteOptions: { blogname: 'Empty content baseline' },
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan).toMatchObject([
+			{
+				type: 'applyContentBaseline',
+				contentBaseline: 'empty',
+				sourcePath: '/contentBaseline',
+			},
+			{
+				type: 'setSiteOptions',
+			},
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'runPHP',
+			'setSiteOptions',
+		]);
+	});
+
+	it('skips creation baselines for existing sites', async () => {
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			{ siteMode: 'apply-to-existing-site' }
+		);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan.map((item) => item.type)).toEqual([
+			'defineUsers',
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'runPHPWithOptions',
+		]);
+	});
+
+	it('treats default creation baselines as no-ops', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'default',
+			usersBaseline: 'default',
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan).toEqual([]);
+		expect(compiled.compiled.steps).toEqual([]);
+	});
+
+	it('removes initial users before creating declared users', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'empty',
+			usersBaseline: 'empty',
+			users: [
+				{
+					username: 'new-admin',
+					email: 'new-admin@example.com',
+					role: 'administrator',
+					meta: {},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan.map((item) => item.type)).toEqual([
+			'applyContentBaseline',
+			'applyUsersBaseline',
+			'defineUsers',
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'runPHP',
+			'runPHP',
+			'runPHPWithOptions',
+		]);
 	});
 
 	it('compiles Blueprint v2 declarations from raw JSON', async () => {

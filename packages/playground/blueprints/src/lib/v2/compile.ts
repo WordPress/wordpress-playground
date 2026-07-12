@@ -21,7 +21,10 @@ import {
 	type FileReference,
 } from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
-import { resolveBlueprintV2RuntimeConfiguration } from './resolve-runtime-configuration';
+import {
+	resolveBlueprintV2RuntimeConfiguration,
+	type BlueprintV2SiteMode,
+} from './resolve-runtime-configuration';
 
 export class UnsupportedBlueprintV2FeatureError extends Error {
 	public readonly featurePath: string;
@@ -38,6 +41,13 @@ export class UnsupportedBlueprintV2FeatureError extends Error {
 
 type BlueprintV2ApplicationOptions =
 	BlueprintV2Declaration['applicationOptions'];
+type BlueprintV2ContentBaseline = NonNullable<
+	BlueprintV2Declaration['contentBaseline']
+>;
+type BlueprintV2ContentType = Exclude<
+	BlueprintV2ContentBaseline,
+	'default' | 'empty'
+>[number];
 type BlueprintV2Constants = NonNullable<BlueprintV2Declaration['constants']>;
 type BlueprintV2SiteOptions = NonNullable<
 	BlueprintV2Declaration['siteOptions']
@@ -113,6 +123,15 @@ type BlueprintV2InstallAssetDefinition = {
 	humanReadableName?: string;
 };
 
+const SITE_CREATION_POST_TYPES = {
+	posts: 'post',
+	pages: 'page',
+	comments: undefined,
+} satisfies Record<BlueprintV2ContentType, string | undefined>;
+const SITE_CREATION_CONTENT_TYPES = Object.keys(
+	SITE_CREATION_POST_TYPES
+) as BlueprintV2ContentType[];
+
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
 export type BlueprintV2StepPlan = StepDefinition[];
 export type BlueprintV2StepPlanLoweringResult = {
@@ -125,6 +144,15 @@ type BlueprintV2LoweringContext = {
 };
 
 export type BlueprintV2ExecutionPlanItem =
+	| {
+			type: 'applyContentBaseline';
+			contentBaseline: BlueprintV2ContentBaseline;
+			sourcePath: '/contentBaseline';
+	  }
+	| {
+			type: 'applyUsersBaseline';
+			sourcePath: '/usersBaseline';
+	  }
 	| {
 			type: 'defineWpConfigConsts';
 			consts: BlueprintV2Constants;
@@ -235,7 +263,7 @@ export async function compileBlueprintV2(
 		options.siteMode,
 		options.onBlueprintValidated
 	);
-	const plan = createBlueprintV2ExecutionPlan(declaration);
+	const plan = createBlueprintV2ExecutionPlan(declaration, options.siteMode);
 	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
 	const v1Blueprint = createV1BlueprintForLoweredV2Steps(
 		declaration,
@@ -318,7 +346,7 @@ function createV1BlueprintForLoweredV2Steps(
 	return {
 		preferredVersions: {
 			php: runtime.phpVersion,
-			wp: runtime.wpVersion,
+			wp: declaration.target === 'php' ? false : runtime.wpVersion,
 		},
 		features: {
 			intl: runtime.intl,
@@ -364,9 +392,36 @@ function getUnsupportedPlanItemPath(item: BlueprintV2ExecutionPlanItem) {
  * instead of silently dropping them during lowering.
  */
 export function createBlueprintV2ExecutionPlan(
-	declaration: BlueprintV2Declaration
+	declaration: BlueprintV2Declaration,
+	siteMode: BlueprintV2SiteMode = 'create-new-site'
 ): BlueprintV2ExecutionPlan {
 	const plan: BlueprintV2ExecutionPlan = [];
+	const contentBaseline = declaration.contentBaseline;
+
+	if (
+		siteMode === 'create-new-site' &&
+		contentBaseline !== undefined &&
+		contentBaseline !== 'default' &&
+		(contentBaseline === 'empty' ||
+			SITE_CREATION_CONTENT_TYPES.some(
+				(contentType) => !contentBaseline.includes(contentType)
+			))
+	) {
+		plan.push({
+			type: 'applyContentBaseline',
+			contentBaseline,
+			sourcePath: '/contentBaseline',
+		});
+	}
+	if (
+		siteMode === 'create-new-site' &&
+		declaration.usersBaseline === 'empty'
+	) {
+		plan.push({
+			type: 'applyUsersBaseline',
+			sourcePath: '/usersBaseline',
+		});
+	}
 
 	if (
 		declaration.constants &&
@@ -554,6 +609,10 @@ function addProgressMetadata(
  */
 function getProgressCaption(planItem: BlueprintV2ExecutionPlanItem): string {
 	switch (planItem.type) {
+		case 'applyContentBaseline':
+			return 'Removing initial content';
+		case 'applyUsersBaseline':
+			return 'Removing initial users';
 		case 'defineWpConfigConsts':
 			return 'Defining constants';
 		case 'setSiteOptions':
@@ -675,6 +734,10 @@ function lowerBlueprintV2ExecutionPlanItem(
 	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	switch (planItem.type) {
+		case 'applyContentBaseline':
+			return lowerContentBaseline(planItem.contentBaseline);
+		case 'applyUsersBaseline':
+			return lowerUsersBaseline();
 		case 'defineWpConfigConsts':
 			return [
 				{
@@ -731,6 +794,132 @@ function lowerBlueprintV2ExecutionPlanItem(
 		default:
 			return undefined;
 	}
+}
+
+/**
+ * Removes content excluded from the requested creation baseline.
+ *
+ * Posts and pages are deleted through WordPress APIs so dependent records are
+ * removed with them. Empty tables have their sequences reset so later imports
+ * receive the same identifiers they would on a site created without defaults.
+ */
+function lowerContentBaseline(
+	contentBaseline: BlueprintV2ContentBaseline
+): StepDefinition[] {
+	const preservedContent: readonly BlueprintV2ContentType[] =
+		contentBaseline === 'default'
+			? SITE_CREATION_CONTENT_TYPES
+			: contentBaseline === 'empty'
+				? []
+				: contentBaseline;
+	const removedContent = SITE_CREATION_CONTENT_TYPES.filter(
+		(contentType) => !preservedContent.includes(contentType)
+	);
+	if (removedContent.length === 0) {
+		return [];
+	}
+
+	const postTypes = removedContent
+		.map((contentType) => SITE_CREATION_POST_TYPES[contentType])
+		.filter((postType): postType is string => postType !== undefined);
+	const removeComments = removedContent.includes('comments');
+
+	return [
+		{
+			step: 'runPHP',
+			code: `<?php
+			require '/wordpress/wp-load.php';
+
+			$post_types = ${JSON.stringify(postTypes)};
+			if (count($post_types) > 0) {
+				$placeholders = implode(', ', array_fill(0, count($post_types), '%s'));
+				$post_ids = $wpdb->get_col($wpdb->prepare(
+					"SELECT ID FROM {$wpdb->posts} " .
+					"WHERE post_type IN ($placeholders) ORDER BY ID DESC",
+					...$post_types
+				));
+				foreach ($post_ids as $post_id) {
+					wp_delete_post((int) $post_id, true);
+				}
+			}
+
+			if (${removeComments ? 'true' : 'false'}) {
+				$comment_ids = $wpdb->get_col(
+					"SELECT comment_ID FROM {$wpdb->comments}"
+				);
+				foreach ($comment_ids as $comment_id) {
+					wp_delete_comment((int) $comment_id, true);
+				}
+			}
+
+			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
+				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
+				if ((int) $count !== 0) {
+					return;
+				}
+				if (isset($GLOBALS['@pdo'])) {
+					$statement = $GLOBALS['@pdo']->prepare(
+						'DELETE FROM SQLITE_SEQUENCE WHERE NAME = :table_name'
+					);
+					$statement->execute([':table_name' => $table_name]);
+					return;
+				}
+				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
+			};
+
+			if (count($post_types) > 0) {
+				$reset_sequence_if_empty($wpdb->posts);
+				$reset_sequence_if_empty($wpdb->postmeta);
+			}
+			if (${removeComments ? 'true' : 'false'} || count($post_types) > 0) {
+				$reset_sequence_if_empty($wpdb->comments);
+				$reset_sequence_if_empty($wpdb->commentmeta);
+			}
+			`,
+		},
+	];
+}
+
+/**
+ * Removes the users created by the WordPress installation wizard.
+ *
+ * Schema validation guarantees content is removed first and the Blueprint
+ * declares a replacement administrator. Resetting the empty tables lets that
+ * administrator receive the same identifier as the vanilla account it replaces.
+ */
+function lowerUsersBaseline(): StepDefinition[] {
+	return [
+		{
+			step: 'runPHP',
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+
+			$user_ids = get_users(['fields' => 'ID']);
+			foreach ($user_ids as $user_id) {
+				wp_delete_user((int) $user_id);
+			}
+
+			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
+				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
+				if ((int) $count !== 0) {
+					return;
+				}
+				if (isset($GLOBALS['@pdo'])) {
+					$statement = $GLOBALS['@pdo']->prepare(
+						'DELETE FROM SQLITE_SEQUENCE WHERE NAME = :table_name'
+					);
+					$statement->execute([':table_name' => $table_name]);
+					return;
+				}
+				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
+			};
+
+			$reset_sequence_if_empty($wpdb->users);
+			$reset_sequence_if_empty($wpdb->usermeta);
+			`,
+		},
+	];
 }
 
 function lowerBlueprintV2Content(

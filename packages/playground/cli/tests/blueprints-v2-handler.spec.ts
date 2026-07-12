@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { BlueprintsV1Handler } from '../src/blueprints-v1/blueprints-v1-handler';
 import { BlueprintsV2Handler } from '../src/blueprints-v2/blueprints-v2-handler';
 import type { RunCLIArgs } from '../src/run-cli';
 import type { CLIOutput } from '../src/cli-output';
@@ -8,6 +9,7 @@ import type {
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import { assertBlueprintV2WordPressVersionCompatibility } from '@wp-playground/blueprints';
+import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { consumeAPI } from '@php-wasm/universal';
 import {
 	cachedDownload,
@@ -40,6 +42,18 @@ vi.mock('@wp-playground/blueprints', async (importOriginal) => {
 	return {
 		...actual,
 		assertBlueprintV2WordPressVersionCompatibility: vi.fn(),
+	};
+});
+
+vi.mock('@wp-playground/wordpress', async (importOriginal) => {
+	const actual = (await importOriginal()) as Record<string, unknown>;
+	return {
+		...actual,
+		resolveWordPressRelease: vi.fn(async (version: string) => ({
+			releaseUrl: `https://wordpress.org/wordpress-${version}.zip`,
+			version,
+			source: 'inferred',
+		})),
 	};
 });
 
@@ -557,6 +571,73 @@ describe('BlueprintsV2Handler', () => {
 		);
 	});
 
+	test('boots v2 PHP targets without WordPress or SQLite', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				blueprint: {
+					version: 2,
+					target: 'php',
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(cachedDownload).not.toHaveBeenCalled();
+		expect(fetchSqliteIntegration).not.toHaveBeenCalled();
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				wordPressZip: undefined,
+				sqliteIntegrationPluginZip: undefined,
+			}),
+			expect.anything()
+		);
+	});
+
+	test("uses Playground's captured prerelease for the beta label", async () => {
+		const { MinifiedWordPressVersions } =
+			await import('@wp-playground/wordpress-builds');
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				skipSqliteSetup: true,
+				blueprint: {
+					version: 2,
+					wordpressVersion: 'beta',
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith(
+			MinifiedWordPressVersions.beta
+		);
+		expect(cachedDownload).toHaveBeenCalledWith(
+			expect.stringContaining(MinifiedWordPressVersions.beta),
+			`${MinifiedWordPressVersions.beta}.zip`,
+			expect.anything()
+		);
+	});
+
 	test('passes v2 network access to the worker boot', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
@@ -648,6 +729,60 @@ describe('BlueprintsV2Handler', () => {
 			handler.bootWordPress(playground as any, {} as any)
 		).rejects.toThrow(/web runtime only/);
 		expect(playground.bootWordPress).not.toHaveBeenCalled();
+	});
+});
+
+describe('BlueprintsV1Handler', () => {
+	const cliOutput = {
+		updateProgress: vi.fn(),
+	} as unknown as CLIOutput;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	test('boots the WordPress and PHP versions declared by the Blueprint', async () => {
+		const { MinifiedWordPressVersions } =
+			await import('@wp-playground/wordpress-builds');
+		const handler = new BlueprintsV1Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				skipSqliteSetup: true,
+				'mount-before-install': [
+					{
+						hostPath: '/mounted',
+						vfsPath: '/wordpress',
+					},
+				],
+				blueprint: {
+					preferredVersions: {
+						php: '8.3',
+						wp: 'beta',
+					},
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith(
+			MinifiedWordPressVersions.beta
+		);
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: '8.3',
+				wpVersion: 'beta',
+			}),
+			expect.anything()
+		);
 	});
 });
 

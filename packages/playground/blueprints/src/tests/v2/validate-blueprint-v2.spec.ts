@@ -9,6 +9,65 @@ describe('Blueprint v2 schema validation', () => {
 		expect(validateBlueprintV2({ version: 2 })).toEqual({ valid: true });
 	});
 
+	it.each(['wordpress', 'php'])('accepts the %s target', (target) => {
+		expect(validateBlueprintV2({ version: 2, target })).toEqual({
+			valid: true,
+		});
+	});
+
+	it('accepts supported Playground PHP extensions', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						loadPhpExtensions: ['intl'],
+					},
+				},
+			})
+		).toEqual({ valid: true });
+	});
+
+	it.each([
+		'default',
+		'empty',
+		['posts'],
+		['pages'],
+		['posts', 'pages'],
+		['posts', 'pages', 'comments'],
+	])('accepts the content baseline %j', (contentBaseline) => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				contentBaseline,
+			})
+		).toEqual({ valid: true });
+	});
+
+	it('accepts the default user baseline', () => {
+		expect(
+			validateBlueprintV2({ version: 2, usersBaseline: 'default' })
+		).toEqual({ valid: true });
+	});
+
+	it('accepts an empty user baseline with a replacement administrator', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			})
+		).toEqual({ valid: true });
+	});
+
 	it.each([
 		{ permalink_structure: '/%postname%/' },
 		{ permalink_structure: false },
@@ -108,6 +167,130 @@ describe('Blueprint v2 schema validation', () => {
 				},
 			},
 			'/applicationOptions/wordpress-playground/unknown',
+		],
+		[
+			'an unsupported Playground PHP extension',
+			{
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						loadPhpExtensions: ['xdebug'],
+					},
+				},
+			},
+			'/applicationOptions/wordpress-playground/loadPhpExtensions/0',
+		],
+		[
+			'an unsupported application target',
+			{ version: 2, target: 'node' },
+			'/target',
+		],
+		[
+			'a WordPress content baseline on a PHP target',
+			{
+				version: 2,
+				target: 'php',
+				contentBaseline: 'default',
+			},
+			'/contentBaseline',
+		],
+		[
+			'an empty content-baseline list',
+			{
+				version: 2,
+				contentBaseline: [],
+			},
+			'/contentBaseline',
+		],
+		[
+			'an unsupported content-baseline type',
+			{
+				version: 2,
+				contentBaseline: ['users'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without their parent content',
+			{
+				version: 2,
+				contentBaseline: ['comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without baseline pages',
+			{
+				version: 2,
+				contentBaseline: ['posts', 'comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without baseline posts',
+			{
+				version: 2,
+				contentBaseline: ['pages', 'comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'duplicate content-baseline types',
+			{
+				version: 2,
+				contentBaseline: ['posts', 'posts'],
+			},
+			'/contentBaseline',
+		],
+		[
+			'the replaced afterSiteCreation property',
+			{
+				version: 2,
+				afterSiteCreation: { preserveContent: 'all' },
+			},
+			'/afterSiteCreation',
+		],
+		[
+			'an empty user baseline without an empty content baseline',
+			{
+				version: 2,
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			'/contentBaseline',
+		],
+		[
+			'an empty user baseline without declared users',
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+			},
+			'/users',
+		],
+		[
+			'an empty user baseline without a replacement administrator',
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'editor',
+						email: 'editor@example.com',
+						role: 'editor',
+						meta: {},
+					},
+				],
+			},
+			'/users/0/role',
 		],
 		[
 			'a trailing step missing a required property',

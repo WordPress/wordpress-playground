@@ -64,7 +64,7 @@ export async function resolveBlueprintV2RuntimeConfiguration(
 	return {
 		phpVersion: resolveV2PHPVersion(declaration),
 		wpVersion,
-		intl: false,
+		intl: playgroundOptions?.loadPhpExtensions?.includes('intl') ?? false,
 		networking: playgroundOptions?.networkAccess ?? false,
 		constants: declaration.constants ?? {},
 		extraLibraries: [],

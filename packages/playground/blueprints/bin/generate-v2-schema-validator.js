@@ -154,6 +154,63 @@ function patchSchema(schema) {
 		'^(?!.*(?:^|/)\\.\\.(?:/|$)).*$';
 
 	const blueprint = definitions['V2Schema.BlueprintV2'];
+	// TypeScript expresses the non-empty tuple, but not uniqueness or the
+	// relationship between comments and the content that may own them.
+	const contentBaseline = blueprint.properties.contentBaseline;
+	const retainedContentTypes = contentBaseline.anyOf.find(
+		(variant) => variant.type === 'array'
+	);
+	retainedContentTypes.uniqueItems = true;
+	retainedContentTypes.allOf = [
+		{
+			if: { contains: { const: 'comments' } },
+			then: {
+				allOf: [
+					{ contains: { const: 'posts' } },
+					{ contains: { const: 'pages' } },
+				],
+			},
+		},
+	];
+	// These declaration-wide invariants cannot be represented by the field
+	// types: removing the installer account must leave a manageable WordPress
+	// site, and PHP-only targets have no WordPress baseline to adjust.
+	blueprint.allOf = [
+		{
+			if: {
+				properties: { usersBaseline: { const: 'empty' } },
+				required: ['usersBaseline'],
+			},
+			then: {
+				properties: {
+					contentBaseline: { const: 'empty' },
+					users: {
+						type: 'array',
+						contains: {
+							type: 'object',
+							properties: {
+								role: { const: 'administrator' },
+							},
+							required: ['role'],
+						},
+					},
+				},
+				required: ['contentBaseline', 'users'],
+			},
+		},
+		{
+			if: {
+				properties: { target: { const: 'php' } },
+				required: ['target'],
+			},
+			then: {
+				properties: {
+					contentBaseline: false,
+					usersBaseline: false,
+				},
+			},
+		},
+	];
 	const siteOptions = blueprint.properties.siteOptions;
 	const permalinkStructure = siteOptions.properties.permalink_structure;
 	siteOptions.properties.permalink_structure = {
