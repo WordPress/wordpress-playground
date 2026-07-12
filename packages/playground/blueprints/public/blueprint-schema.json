@@ -2287,13 +2287,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												}
 											]
@@ -2710,13 +2710,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																	"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																	"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																}
 															}
 														]
@@ -3122,13 +3122,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																		"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																		"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																	}
 																}
 															]
@@ -3268,13 +3268,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																					"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																					"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																				}
 																			}
 																		]
@@ -3618,6 +3618,18 @@
 								"properties": {
 									"step": {
 										"type": "string",
+										"const": "enableMultisite",
+										"description": "Converts the target WordPress installation into a multisite network."
+									}
+								},
+								"required": ["step"],
+								"additionalProperties": false
+							},
+							{
+								"type": "object",
+								"properties": {
+									"step": {
+										"type": "string",
 										"const": "importContent"
 									},
 									"content": {
@@ -3799,13 +3811,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																							"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																							"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																						}
 																					}
 																				]
@@ -3947,13 +3959,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																										"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+																										"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 																									}
 																								}
 																							]
@@ -4251,13 +4263,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												}
 											]
@@ -4476,13 +4488,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+														"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 													}
 												}
 											]
@@ -4779,7 +4791,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724": {
+		"alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4793,13 +4805,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+						"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-145460-145554-1337903113-98268-145568-1337903113-98234-145568-1337903113-0-162724"
+						"$ref": "#/definitions/alias-1337903113-145800-145894-1337903113-98447-145908-1337903113-98413-145908-1337903113-0-163064"
 					}
 				}
 			]
@@ -4813,10 +4825,18 @@
 					"$ref": "#/definitions/DataSources.ExecutionContextPath"
 				},
 				{
+					"$ref": "#/definitions/DataSources.TargetSitePath"
+				},
+				{
 					"$ref": "#/definitions/DataSources.InlineFile"
 				}
 			],
 			"description": "A data reference that must resolve to a single file."
+		},
+		"DataSources.TargetSitePath": {
+			"type": "string",
+			"description": "A path within the target WordPress site, relative to the WordPress root directory. For example, site:wp-content/uploads/2024/01/image.jpg.\n\nUnlike an execution-context path, this path is resolved from the mutable target filesystem when the consuming step runs. Earlier steps may therefore create the referenced file. The runner must keep the path inside the target WordPress root; it never names a file on the host filesystem.",
+			"pattern": "^site:(?!\\/*$)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$)).+$"
 		}
 	}
 }

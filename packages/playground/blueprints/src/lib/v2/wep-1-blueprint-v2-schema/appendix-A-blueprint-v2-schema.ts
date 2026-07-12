@@ -1570,6 +1570,11 @@ export namespace V2Schema {
 		constants: WordPressConstants;
 	};
 
+	type EnableMultisiteStep = {
+		/** Converts the target WordPress installation into a multisite network. */
+		step: 'enableMultisite';
+	};
+
 	type ImportContentStep = {
 		step: 'importContent';
 		content: ContentDefinition[];
@@ -1693,6 +1698,7 @@ export namespace V2Schema {
 		| ActivateThemeStep
 		| CpStep
 		| DefineConstantsStep
+		| EnableMultisiteStep
 		| ImportContentStep
 		| ImportMediaStep
 		| ImportThemeStarterContentStep

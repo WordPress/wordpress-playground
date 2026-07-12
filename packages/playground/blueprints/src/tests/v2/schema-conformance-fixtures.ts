@@ -138,6 +138,7 @@ function createFileReferences(
 	return [
 		`https://example.com/${name}/url.${extension}`,
 		`./${name}/execution-context.${extension}`,
+		`site:wp-content/blueprint-v2-conformance/${name}/target-site.${extension}`,
 		{
 			filename: `inline.${extension}`,
 			content: inlineContent,
@@ -241,9 +242,7 @@ const statusPosts = postStatuses.map((post_status, index) => ({
 }));
 
 const mediaDefinitions = [
-	mediaFileReferences[0],
-	mediaFileReferences[1],
-	mediaFileReferences[2],
+	...mediaFileReferences,
 	...mediaFileReferences.map((source, index) => ({
 		source,
 		title: `Media ${index}`,
@@ -314,6 +313,14 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
+		source: wxrFileReferences[3],
+		authorsMode: 'map' as const,
+		authorsMap: {
+			remote: 'admin',
+		},
+	},
+	{
+		type: 'wxr' as const,
 		source: [...wxrFileReferences],
 		authorsMode: 'map' as const,
 		authorsMap: {
@@ -368,6 +375,11 @@ const contentDefinitions = [
 		importComments: false,
 		urlsMode: 'rewrite' as const,
 		urlsMap,
+	},
+	{
+		type: 'wxr' as const,
+		source: wxrFileReferences[3],
+		authorsMode: 'default-author' as const,
 	},
 ] satisfies NonNullable<BlueprintV2Declaration['content']>;
 
@@ -493,6 +505,10 @@ const fontCollection = {
 							src: fontFileReferences[index],
 						})
 					),
+					{
+						fontFamily: 'Conformance Sans',
+						src: fontFileReferences[3],
+					},
 				],
 			},
 			categories: ['sans-serif'],
@@ -718,6 +734,9 @@ const additionalSteps = [
 		command: 'wp option get blogname',
 		wpCliPath: '/tmp/wp-cli.phar',
 	},
+	{
+		step: 'enableMultisite' as const,
+	},
 ] satisfies NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
 >;
@@ -794,7 +813,8 @@ const maximalDeclaration = {
 	fonts: {
 		url_font: fontFileReferences[0],
 		execution_context_font: fontFileReferences[1],
-		inline_font: fontFileReferences[2],
+		target_site_font: fontFileReferences[2],
+		inline_font: fontFileReferences[3],
 		collection: fontCollection,
 	},
 	media: mediaDefinitions,

@@ -910,6 +910,61 @@ add_action('init', function () {
 		});
 	});
 
+	it('imports a target-site WXR file created by an earlier plugin install', async () => {
+		const wxr = await readFile(
+			new URL(
+				'../fixtures/import-wxr-base-url-rewriting.xml',
+				import.meta.url
+			),
+			'utf8'
+		);
+
+		await applyBlueprint({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'fixture-plugin',
+						files: {
+							'fixture-plugin.php': `<?php
+/**
+ * Plugin Name: Target-site WXR fixture
+ */
+`,
+							'sample-data': {
+								files: {
+									'content.xml': wxr,
+								},
+							},
+						},
+					},
+					targetDirectoryName: 'fixture-plugin',
+				},
+			],
+			content: [
+				{
+					type: 'wxr',
+					source: 'site:wp-content/plugins/fixture-plugin/sample-data/content.xml',
+					authorsMode: 'default-author',
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'imported' => (bool) get_page_by_title(
+						'"The Road Not Taken" by Robert Frost',
+						OBJECT,
+						'post'
+					),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({ imported: true });
+	});
+
 	it(
 		'applies WXR URL maps',
 		async () => {

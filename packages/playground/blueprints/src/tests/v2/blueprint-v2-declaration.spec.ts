@@ -56,7 +56,7 @@ describe('Blueprint v2 declaration types', () => {
 				},
 				{
 					type: 'wxr',
-					source: './content.wxr',
+					source: 'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
 				},
 			],
 			media: [
@@ -70,6 +70,9 @@ describe('Blueprint v2 declaration types', () => {
 				},
 			],
 			additionalStepsAfterExecution: [
+				{
+					step: 'enableMultisite',
+				},
 				{
 					step: 'runPHP',
 					code: {

@@ -126,6 +126,7 @@ export namespace DataSources {
 	export type FileDataReference =
 		| URLReference
 		| ExecutionContextPath
+		| TargetSitePath
 		| InlineFile;
 
 	/**
@@ -232,11 +233,13 @@ export namespace DataSources {
 	export type PHPVersion = SimpleVersionExpression | 'next';
 
 	/**
-	 * A path within the built WordPress site, relative to the WordPress root
+	 * A path within the target WordPress site, relative to the WordPress root
 	 * directory. For example, site:wp-content/uploads/2024/01/image.jpg.
 	 *
-	 * This type is only meaningful in imperative Blueprint steps for operations
-	 * such as creating new files or moving files and directories.
+	 * Unlike an execution-context path, this path is resolved from the mutable
+	 * target filesystem when the consuming step runs. Earlier steps may therefore
+	 * create the referenced file. The runner must keep the path inside the target
+	 * WordPress root; it never names a file on the host filesystem.
 	 */
 	export type TargetSitePath = `site:${string}`;
 

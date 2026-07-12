@@ -1056,10 +1056,17 @@ describe('compileBlueprintForExecution', () => {
 	it('lowers Blueprint v2 WXR content to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
+			plugins: [
+				{
+					source: 'woocommerce',
+					targetDirectoryName: 'woocommerce',
+				},
+			],
 			content: [
 				{
 					type: 'wxr',
 					source: [
+						'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
 						'./content.wxr',
 						{
 							filename: 'inline.wxr',
@@ -1083,6 +1090,33 @@ describe('compileBlueprintForExecution', () => {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
 		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'woocommerce',
+				},
+				options: {
+					activate: true,
+					targetFolderName: 'woocommerce',
+				},
+			},
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'vfs',
+					path: '/wordpress/wp-content/plugins/woocommerce/sample-data/sample_products.xml',
+				},
+				fetchAttachments: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
+				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
+				defaultAuthorUsername: 'editor',
+			},
 			{
 				step: 'importWxr',
 				file: {
@@ -1115,6 +1149,35 @@ describe('compileBlueprintForExecution', () => {
 				authorsMode: 'default-author',
 				importUsers: false,
 				defaultAuthorUsername: 'editor',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 multisite initialization before later WP-CLI steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{ step: 'enableMultisite' },
+				{
+					step: 'wp-cli',
+					command: "wp site create --slug=food --title='The Foodie'",
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'enableMultisite',
+			},
+			{
+				step: 'wp-cli',
+				command: "wp site create --slug=food --title='The Foodie'",
+				wpCliPath: undefined,
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);

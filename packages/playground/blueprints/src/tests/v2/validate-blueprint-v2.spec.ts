@@ -91,6 +91,21 @@ describe('Blueprint v2 schema validation', () => {
 		).toEqual({ valid: true });
 	});
 
+	it('accepts target-site file sources and multisite initialization', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				content: [
+					{
+						type: 'wxr',
+						source: 'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
+					},
+				],
+				additionalStepsAfterExecution: [{ step: 'enableMultisite' }],
+			})
+		).toEqual({ valid: true });
+	});
+
 	it('preserves backslashes as valid POSIX path bytes', () => {
 		expect(
 			validateBlueprintV2({
@@ -309,6 +324,30 @@ describe('Blueprint v2 schema validation', () => {
 			'an execution-context path with parent traversal',
 			{ version: 2, wordpressVersion: '../wordpress.zip' },
 			'/wordpressVersion',
+		],
+		[
+			'an empty target-site file path',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:' }],
+			},
+			'/content/0/source',
+		],
+		[
+			'a target-site file path naming the WordPress root',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:/' }],
+			},
+			'/content/0/source',
+		],
+		[
+			'a target-site file path escaping the WordPress root',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:../secret.xml' }],
+			},
+			'/content/0/source',
 		],
 		[
 			'an unknown content type',

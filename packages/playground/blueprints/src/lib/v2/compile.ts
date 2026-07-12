@@ -1,5 +1,5 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { basename, joinPaths } from '@php-wasm/util';
+import { basename, joinPaths, resolvePathUnder } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import type { ResolveRuntimeConfigurationOptions } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
@@ -687,6 +687,8 @@ function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
 			return 'Copying files';
 		case 'defineConstants':
 			return 'Defining constants';
+		case 'enableMultisite':
+			return 'Enabling multisite';
 		case 'importContent':
 			return 'Importing content';
 		case 'importMedia':
@@ -1026,6 +1028,12 @@ function lowerAdditionalBlueprintV2Step(
 				{
 					step: 'defineWpConfigConsts',
 					consts: step.constants,
+				},
+			];
+		case 'enableMultisite':
+			return [
+				{
+					step: 'enableMultisite',
 				},
 			];
 		case 'importContent':
@@ -2606,6 +2614,12 @@ function convertV2FileDataReferenceToV1(
 		if (isHttpUrl(reference)) {
 			return { resource: 'url', url: reference };
 		}
+		if (isTargetSitePath(reference)) {
+			return {
+				resource: 'vfs',
+				path: toPlaygroundPath(reference, featurePath),
+			};
+		}
 		if (isExecutionContextPath(reference)) {
 			return {
 				resource: 'bundled',
@@ -2614,7 +2628,7 @@ function convertV2FileDataReferenceToV1(
 		}
 		throw new UnsupportedBlueprintV2FeatureError(
 			featurePath,
-			'Blueprint v2 file references must be URLs or execution-context paths.'
+			'Blueprint v2 file references must be URLs, execution-context paths, or target-site paths.'
 		);
 	}
 
@@ -2766,13 +2780,17 @@ function fileReferenceBasename(
 		if (isExecutionContextPath(reference)) {
 			return basename(normalizeExecutionContextPath(reference));
 		}
+		if (isTargetSitePath(reference)) {
+			return basename(toPlaygroundPath(reference, featurePath));
+		}
 	}
 	if (isInlineFile(reference)) {
 		return reference.filename;
 	}
 	throw new UnsupportedBlueprintV2FeatureError(
 		featurePath,
-		'Blueprint v2 file references must be URLs, execution-context paths, or inline files.'
+		'Blueprint v2 file references must be URLs, execution-context paths, ' +
+			'target-site paths, or inline files.'
 	);
 }
 
@@ -2823,29 +2841,35 @@ function asArray<T>(value: T | T[]): T[] {
  * file steps expect.
  *
  * V2 paths in imperative file steps are site-relative (`site:...`) or plain
- * relative paths. Empty paths and parent-directory segments are rejected because
- * they would make destructive steps like `rm` ambiguous or unsafe.
+ * relative paths. Paths that resolve outside the WordPress root are rejected.
  */
-function toPlaygroundPath(path: string): string {
+function toPlaygroundPath(path: string, featurePath = 'path'): string {
 	if (typeof path !== 'string' || path.trim() === '') {
 		throw new UnsupportedBlueprintV2FeatureError(
-			'path',
+			featurePath,
 			'Invalid Blueprint v2 path: must not be empty.'
 		);
 	}
-	if (pathContainsParentDirectorySegment(path)) {
+
+	const hasTargetSitePrefix = path.startsWith('site:');
+	const pathWithinSite = hasTargetSitePrefix
+		? path.slice('site:'.length)
+		: path;
+	if (!hasTargetSitePrefix && pathWithinSite === '/wordpress') {
+		return '/wordpress';
+	}
+	const candidatePath =
+		!hasTargetSitePrefix && pathWithinSite.startsWith('/wordpress/')
+			? pathWithinSite
+			: joinPaths('/wordpress', pathWithinSite);
+	const resolvedPath = resolvePathUnder(candidatePath, '/wordpress');
+	if (!resolvedPath) {
 		throw new UnsupportedBlueprintV2FeatureError(
-			'path',
-			`Invalid Blueprint v2 path "${path}": must not contain parent directory segments.`
+			featurePath,
+			`Invalid Blueprint v2 path "${path}": must stay within the target WordPress root.`
 		);
 	}
-	if (path.startsWith('site:')) {
-		return joinPaths('/wordpress', path.slice('site:'.length));
-	}
-	if (path === '/wordpress' || path.startsWith('/wordpress/')) {
-		return path;
-	}
-	return joinPaths('/wordpress', path);
+	return resolvedPath;
 }
 
 /**
@@ -2859,6 +2883,11 @@ function isHttpUrl(value: string) {
 	} catch {
 		return false;
 	}
+}
+
+/** Checks whether a file reference names the mutable target-site filesystem. */
+function isTargetSitePath(value: string) {
+	return value.startsWith('site:');
 }
 
 /**

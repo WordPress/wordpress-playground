@@ -104,6 +104,11 @@ function patchSchema(schema) {
 	);
 	patchStringDefinition(
 		definitions,
+		'DataSources.TargetSitePath',
+		'^site:(?!\\/*$)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$)).+$'
+	);
+	patchStringDefinition(
+		definitions,
 		'DataSources.SimpleVersionExpression',
 		'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$'
 	);
