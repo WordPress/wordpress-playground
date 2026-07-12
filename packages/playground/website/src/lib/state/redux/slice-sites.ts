@@ -23,6 +23,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import {
+	deleteBlueprintBundle,
 	isTraversableFilesystemBackend,
 	persistBlueprintBundle,
 } from '../opfs/opfs-blueprint-bundle-storage';
@@ -669,16 +670,15 @@ export function setStoredSiteSpecFromBlueprintBundle(
 			);
 		}
 
-		const runtimeConfiguration = (await resolveRuntimeConfiguration(
-			blueprintBundle as any
-		))!;
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprintBundle);
 		const now = Date.now();
 		const sites = selectAllSites(getState());
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
 			slugBaseName = getDefaultSiteNameFromBlueprint(
-				blueprintBundle as any,
+				blueprintBundle,
 				siteName
 			);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
@@ -709,7 +709,12 @@ export function setStoredSiteSpecFromBlueprintBundle(
 			},
 		};
 
-		await dispatch(addSite(newSiteInfo));
+		try {
+			await dispatch(addSite(newSiteInfo));
+		} catch (error) {
+			await deleteBlueprintBundle(siteSlug);
+			throw error;
+		}
 		return newSiteInfo;
 	};
 }

@@ -5,6 +5,7 @@ describe('stored site specs', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
+	let deleteBlueprintBundle: ReturnType<typeof vi.fn>;
 	let removeWordPressFilesKeepMetadata: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
 
@@ -13,6 +14,7 @@ describe('stored site specs', () => {
 		createSite = vi.fn();
 		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
+		deleteBlueprintBundle = vi.fn();
 		removeWordPressFilesKeepMetadata = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
 
@@ -35,6 +37,7 @@ describe('stored site specs', () => {
 			resolveRuntimeConfiguration,
 		}));
 		vi.doMock('../opfs/opfs-blueprint-bundle-storage', () => ({
+			deleteBlueprintBundle,
 			isTraversableFilesystemBackend: (value: unknown) =>
 				typeof value === 'object' &&
 				value !== null &&
@@ -404,6 +407,7 @@ describe('stored site specs', () => {
 			newSite.metadata,
 			undefined
 		);
+		expect(deleteBlueprintBundle).not.toHaveBeenCalled();
 		expect(writes).toEqual(['bundle', 'metadata']);
 		expect(state.sites.entities).toMatchObject({
 			'source-site': sourceSite,
@@ -427,6 +431,30 @@ describe('stored site specs', () => {
 
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
 		expect(createSite).not.toHaveBeenCalled();
+	});
+
+	it('removes an edited Blueprint bundle when site creation fails', async () => {
+		const { setStoredSiteSpecFromBlueprintBundle } =
+			await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		createSite.mockRejectedValue(new Error('Could not write metadata'));
+
+		await expect(
+			setStoredSiteSpecFromBlueprintBundle(
+				'Edited Blueprint',
+				createBundleBlueprint() as any,
+				'edited-blueprint'
+			)(createThunkDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Could not write metadata');
+
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
 	});
 });
 
@@ -504,6 +532,17 @@ function createSiteInfo({
 
 function createDispatch() {
 	return vi.fn(async (action) => action);
+}
+
+function createThunkDispatch() {
+	const dispatch = vi.fn();
+	dispatch.mockImplementation(async (action) => {
+		if (typeof action === 'function') {
+			return action(dispatch, createEmptyGetState());
+		}
+		return action;
+	});
+	return dispatch;
 }
 
 function createBundleBlueprint() {
