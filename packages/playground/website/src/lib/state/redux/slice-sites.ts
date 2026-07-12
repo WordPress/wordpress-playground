@@ -582,6 +582,11 @@ export function createStoredSite(
 			);
 		}
 
+		/**
+		 * A setup URL needs resolving and carries its original URL params and
+		 * autosave fingerprint. An editable bundle is already the source of
+		 * truth and will be persisted below, so it has neither.
+		 */
 		let blueprint: ResolvedBlueprint['blueprint'];
 		let originalBlueprintSource: BlueprintSource;
 		let originalUrlParams: OriginalUrlParams | undefined;
