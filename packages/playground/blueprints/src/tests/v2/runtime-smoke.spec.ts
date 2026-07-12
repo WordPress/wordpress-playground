@@ -86,6 +86,33 @@ describe('Blueprint v2 runtime smoke tests', () => {
 		});
 	});
 
+	it('clears the published-post cache after removing initial posts', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'publishedPostCount' => (int) $wpdb->get_var(
+						"SELECT COUNT(*) FROM {$wpdb->posts} " .
+						"WHERE post_type = 'post' AND post_status = 'publish'"
+					),
+					'calendarCache' => get_option(
+						'wp_calendar_block_has_published_posts',
+						null
+					),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			publishedPostCount: 0,
+			calendarCache: null,
+		});
+	});
+
 	it('preserves only the selected initial content types', async () => {
 		await applyBlueprint({
 			version: 2,

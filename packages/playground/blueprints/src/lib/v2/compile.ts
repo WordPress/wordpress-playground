@@ -822,6 +822,7 @@ function lowerContentBaseline(
 	const postTypes = removedContent
 		.map((contentType) => SITE_CREATION_POST_TYPES[contentType])
 		.filter((postType): postType is string => postType !== undefined);
+	const removePosts = removedContent.includes('posts');
 	const removeComments = removedContent.includes('comments');
 
 	return [
@@ -841,6 +842,12 @@ function lowerContentBaseline(
 				foreach ($post_ids as $post_id) {
 					wp_delete_post((int) $post_id, true);
 				}
+			}
+
+			// WordPress refreshes this cache before deleting the post row, so removing
+			// the last published post leaves the cache set to true.
+			if (${removePosts ? 'true' : 'false'}) {
+				delete_option('wp_calendar_block_has_published_posts');
 			}
 
 			if (${removeComments ? 'true' : 'false'}) {
