@@ -557,101 +557,13 @@ export function setTemporarySiteSpec(
 }
 
 /**
- * Creates the metadata record for a new OPFS-backed Playground.
- *
- * This intentionally overlaps with `setTemporarySiteSpec`: both capture the
- * setup URL, resolve the Blueprint, and derive the runtime configuration.
- * Stored sites diverge after that by writing OPFS metadata immediately, keeping
- * more than one site record, and marking the first file sync as pending. Boot
- * then uses the same setup URL to install WordPress in MEMFS before copying the
- * initialized files into OPFS.
+ * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
+ * bundle. Bundles are stored with the new Playground before their metadata is
+ * written because they may include edits that cannot be represented by a URL.
  */
-export function setStoredSiteSpec(
+export function createStoredSite(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL,
-	preferredSlug?: string,
-	options: {
-		/**
-		 * Whether the stored site is an autosave or an explicit user save.
-		 */
-		persistence?: SitePersistence;
-	} = {}
-) {
-	return async (
-		dispatch: PlaygroundDispatch,
-		getState: () => PlaygroundReduxState
-	) => {
-		const originalUrlParams = getOriginalUrlParams(
-			playgroundUrlWithQueryApiArgs
-		);
-
-		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
-			playgroundUrlWithQueryApiArgs
-		);
-		const now = Date.now();
-		const sites = selectAllSites(getState());
-		let displayName = siteName;
-		let slugBaseName = siteName;
-		if (!preferredSlug) {
-			slugBaseName = getDefaultSiteNameFromBlueprint(
-				resolvedBlueprint.blueprint,
-				siteName
-			);
-			displayName = getSiteNameWithCreationTimeIfDuplicate(
-				slugBaseName,
-				sites.map((site) => site.metadata.name),
-				new Date(now)
-			);
-		}
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(slugBaseName),
-			{ unavailableSlugs: sites.map((site) => site.slug) }
-		);
-		const runtimeConfiguration = (await resolveRuntimeConfiguration(
-			resolvedBlueprint.blueprint
-		))!;
-		let originalBlueprintSource = resolvedBlueprint.source!;
-		if (isTraversableFilesystemBackend(resolvedBlueprint.blueprint)) {
-			await persistBlueprintBundle(siteSlug, resolvedBlueprint.blueprint);
-			originalBlueprintSource = {
-				type: 'opfs-site',
-			};
-		}
-		const newSiteInfo: SiteInfo = {
-			slug: siteSlug,
-			originalUrlParams,
-			metadata: {
-				name: displayName,
-				id: crypto.randomUUID(),
-				whenCreated: now,
-				whenLastUsed: now,
-				persistence: options.persistence ?? 'explicit',
-				storage: 'opfs' as const,
-				initialOpfsSyncPending: true,
-				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-					playgroundUrlWithQueryApiArgs
-				),
-				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource,
-				runtimeConfiguration,
-			},
-		};
-
-		await dispatch(addSite(newSiteInfo));
-		return newSiteInfo;
-	};
-}
-
-/**
- * Creates a new OPFS-backed Playground from an editable Blueprint bundle.
- *
- * Unlike `setStoredSiteSpec`, this does not need a setup URL. The bundle may
- * include edited files that cannot be represented by a Blueprint URL, so it
- * is stored with the new Playground before its metadata is written.
- */
-export function setStoredSiteSpecFromBlueprintBundle(
-	siteName: string,
-	blueprintBundle: TraversableFilesystemBackend,
+	source: URL | TraversableFilesystemBackend,
 	preferredSlug?: string,
 	options: {
 		/**
@@ -670,17 +582,16 @@ export function setStoredSiteSpecFromBlueprintBundle(
 			);
 		}
 
+		const resolvedSource = await resolveStoredSiteSource(source);
+		const blueprint = resolvedSource.blueprint;
 		const runtimeConfiguration =
-			await resolveRuntimeConfiguration(blueprintBundle);
+			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
 		const sites = selectAllSites(getState());
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
-			slugBaseName = getDefaultSiteNameFromBlueprint(
-				blueprintBundle,
-				siteName
-			);
+			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
 				slugBaseName,
 				sites.map((site) => site.metadata.name),
@@ -691,10 +602,17 @@ export function setStoredSiteSpecFromBlueprintBundle(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
-
-		await persistBlueprintBundle(siteSlug, blueprintBundle);
+		let originalBlueprintSource = resolvedSource.originalBlueprintSource;
+		const isBlueprintBundle = isTraversableFilesystemBackend(blueprint);
+		if (isBlueprintBundle) {
+			await persistBlueprintBundle(siteSlug, blueprint);
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
+			originalUrlParams: resolvedSource.originalUrlParams,
 			metadata: {
 				name: displayName,
 				id: crypto.randomUUID(),
@@ -703,8 +621,14 @@ export function setStoredSiteSpecFromBlueprintBundle(
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
-				originalBlueprint: blueprintBundle,
-				originalBlueprintSource: { type: 'opfs-site' },
+				...(resolvedSource.sourceSetupUrlFingerprint
+					? {
+							sourceSetupUrlFingerprint:
+								resolvedSource.sourceSetupUrlFingerprint,
+						}
+					: {}),
+				originalBlueprint: blueprint,
+				originalBlueprintSource,
 				runtimeConfiguration,
 			},
 		};
@@ -712,10 +636,41 @@ export function setStoredSiteSpecFromBlueprintBundle(
 		try {
 			await dispatch(addSite(newSiteInfo));
 		} catch (error) {
-			await deleteBlueprintBundle(siteSlug);
+			if (isBlueprintBundle) {
+				await deleteBlueprintBundle(siteSlug);
+			}
 			throw error;
 		}
 		return newSiteInfo;
+	};
+}
+
+/**
+ * Compatibility alias for callers that create a stored Playground from a URL.
+ */
+export const setStoredSiteSpec = createStoredSite;
+
+async function resolveStoredSiteSource(
+	source: URL | TraversableFilesystemBackend
+): Promise<{
+	blueprint: ResolvedBlueprint['blueprint'];
+	originalBlueprintSource: BlueprintSource;
+	originalUrlParams?: OriginalUrlParams;
+	sourceSetupUrlFingerprint?: string;
+}> {
+	if (!(source instanceof URL)) {
+		return {
+			blueprint: source,
+			originalBlueprintSource: { type: 'opfs-site' as const },
+		};
+	}
+
+	const resolvedBlueprint = await resolveSiteBlueprintFromUrl(source);
+	return {
+		blueprint: resolvedBlueprint.blueprint,
+		originalBlueprintSource: resolvedBlueprint.source!,
+		originalUrlParams: getOriginalUrlParams(source),
+		sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(source),
 	};
 }
 

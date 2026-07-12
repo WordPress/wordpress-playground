@@ -1,7 +1,8 @@
 import type { OriginalUrlParams } from '../original-url-params';
 import type { SiteInfo } from './slice-sites';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
-describe('stored site specs', () => {
+describe('stored site creation', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -318,11 +319,13 @@ describe('stored site specs', () => {
 		expect(removeWordPressFilesKeepMetadata).not.toHaveBeenCalled();
 	});
 
-	it('does not persist a bundle for a new stored site before validating setup', async () => {
+	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
 		);
-		const { setStoredSiteSpec } = await import('./slice-sites');
+		const { createStoredSite, setStoredSiteSpec } =
+			await import('./slice-sites');
+		expect(setStoredSiteSpec).toBe(createStoredSite);
 		const addSite = setStoredSiteSpec(
 			'Autosaved site',
 			new URL(
@@ -340,8 +343,7 @@ describe('stored site specs', () => {
 	});
 
 	it('creates a new stored site from an edited Blueprint bundle', async () => {
-		const { setStoredSiteSpecFromBlueprintBundle, sitesSlice } =
-			await import('./slice-sites');
+		const { createStoredSite, sitesSlice } = await import('./slice-sites');
 		const runtimeConfiguration = {
 			phpVersion: '8.3',
 			wpVersion: 'latest',
@@ -381,9 +383,9 @@ describe('stored site specs', () => {
 			writes.push('metadata');
 		});
 
-		const newSite = await setStoredSiteSpecFromBlueprintBundle(
+		const newSite = await createStoredSite(
 			'Edited Blueprint',
-			editedBundle as any,
+			editedBundle,
 			'source-site',
 			{ persistence: 'autosave' }
 		)(dispatch as any, getState as any);
@@ -419,14 +421,13 @@ describe('stored site specs', () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
 		);
-		const { setStoredSiteSpecFromBlueprintBundle } =
-			await import('./slice-sites');
+		const { createStoredSite } = await import('./slice-sites');
 
 		await expect(
-			setStoredSiteSpecFromBlueprintBundle(
-				'Edited Blueprint',
-				createBundleBlueprint() as any
-			)(createDispatch() as any, createEmptyGetState() as any)
+			createStoredSite('Edited Blueprint', createBundleBlueprint())(
+				createDispatch() as any,
+				createEmptyGetState() as any
+			)
 		).rejects.toThrow('Invalid setup');
 
 		expect(persistBlueprintBundle).not.toHaveBeenCalled();
@@ -434,8 +435,7 @@ describe('stored site specs', () => {
 	});
 
 	it('removes an edited Blueprint bundle when site creation fails', async () => {
-		const { setStoredSiteSpecFromBlueprintBundle } =
-			await import('./slice-sites');
+		const { createStoredSite } = await import('./slice-sites');
 		resolveRuntimeConfiguration.mockResolvedValue({
 			phpVersion: '8.3',
 			wpVersion: 'latest',
@@ -447,9 +447,9 @@ describe('stored site specs', () => {
 		createSite.mockRejectedValue(new Error('Could not write metadata'));
 
 		await expect(
-			setStoredSiteSpecFromBlueprintBundle(
+			createStoredSite(
 				'Edited Blueprint',
-				createBundleBlueprint() as any,
+				createBundleBlueprint(),
 				'edited-blueprint'
 			)(createThunkDispatch() as any, createEmptyGetState() as any)
 		).rejects.toThrow('Could not write metadata');
@@ -545,7 +545,7 @@ function createThunkDispatch() {
 	return dispatch;
 }
 
-function createBundleBlueprint() {
+function createBundleBlueprint(): TraversableFilesystemBackend {
 	return {
 		read: vi.fn(),
 		listFiles: vi.fn(),
