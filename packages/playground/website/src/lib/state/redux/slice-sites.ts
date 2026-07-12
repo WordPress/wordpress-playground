@@ -582,8 +582,20 @@ export function createStoredSite(
 			);
 		}
 
-		const resolvedSource = await resolveStoredSiteSource(source);
-		const blueprint = resolvedSource.blueprint;
+		let blueprint: ResolvedBlueprint['blueprint'];
+		let originalBlueprintSource: BlueprintSource;
+		let originalUrlParams: OriginalUrlParams | undefined;
+		let sourceSetupUrlFingerprint: string | undefined;
+		if (source instanceof URL) {
+			const resolvedBlueprint = await resolveSiteBlueprintFromUrl(source);
+			blueprint = resolvedBlueprint.blueprint;
+			originalBlueprintSource = resolvedBlueprint.source!;
+			originalUrlParams = getOriginalUrlParams(source);
+			sourceSetupUrlFingerprint = getAutosaveFingerprintFromURL(source);
+		} else {
+			blueprint = source;
+			originalBlueprintSource = { type: 'opfs-site' };
+		}
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
@@ -602,17 +614,18 @@ export function createStoredSite(
 			preferredSlug || deriveSlugFromSiteName(slugBaseName),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
-		let originalBlueprintSource = resolvedSource.originalBlueprintSource;
-		const isBlueprintBundle = isTraversableFilesystemBackend(blueprint);
-		if (isBlueprintBundle) {
-			await persistBlueprintBundle(siteSlug, blueprint);
+		const blueprintBundle = isTraversableFilesystemBackend(blueprint)
+			? blueprint
+			: undefined;
+		if (blueprintBundle) {
+			await persistBlueprintBundle(siteSlug, blueprintBundle);
 			originalBlueprintSource = {
 				type: 'opfs-site',
 			};
 		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
-			originalUrlParams: resolvedSource.originalUrlParams,
+			originalUrlParams,
 			metadata: {
 				name: displayName,
 				id: crypto.randomUUID(),
@@ -621,10 +634,10 @@ export function createStoredSite(
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
-				...(resolvedSource.sourceSetupUrlFingerprint
+				...(sourceSetupUrlFingerprint
 					? {
 							sourceSetupUrlFingerprint:
-								resolvedSource.sourceSetupUrlFingerprint,
+								sourceSetupUrlFingerprint,
 						}
 					: {}),
 				originalBlueprint: blueprint,
@@ -636,7 +649,7 @@ export function createStoredSite(
 		try {
 			await dispatch(addSite(newSiteInfo));
 		} catch (error) {
-			if (isBlueprintBundle) {
+			if (blueprintBundle) {
 				await deleteBlueprintBundle(siteSlug);
 			}
 			throw error;
@@ -649,30 +662,6 @@ export function createStoredSite(
  * Compatibility alias for callers that create a stored Playground from a URL.
  */
 export const setStoredSiteSpec = createStoredSite;
-
-async function resolveStoredSiteSource(
-	source: URL | TraversableFilesystemBackend
-): Promise<{
-	blueprint: ResolvedBlueprint['blueprint'];
-	originalBlueprintSource: BlueprintSource;
-	originalUrlParams?: OriginalUrlParams;
-	sourceSetupUrlFingerprint?: string;
-}> {
-	if (!(source instanceof URL)) {
-		return {
-			blueprint: source,
-			originalBlueprintSource: { type: 'opfs-site' as const },
-		};
-	}
-
-	const resolvedBlueprint = await resolveSiteBlueprintFromUrl(source);
-	return {
-		blueprint: resolvedBlueprint.blueprint,
-		originalBlueprintSource: resolvedBlueprint.source!,
-		originalUrlParams: getOriginalUrlParams(source),
-		sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(source),
-	};
-}
 
 /**
  * Replaces an autosaved Playground's WordPress files with files from a new setup.
