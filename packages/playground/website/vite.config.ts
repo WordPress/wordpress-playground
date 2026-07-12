@@ -18,6 +18,7 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { exec as execCb } from 'node:child_process';
+import { Agent } from 'node:http';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
@@ -33,8 +34,13 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { vitePlaywrightHmr } from '../../vite-extensions/vite-playwright-hmr';
 
 const exec = promisify(execCb);
+// A Playground boot loads hundreds of modules through the remote proxy. Reuse
+// sockets so concurrent browser contexts do not exhaust macOS ephemeral ports.
+const remoteProxyAgent = new Agent({ keepAlive: true });
 
 // Determine if we are running in a devcontainer.
 const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
@@ -135,7 +141,10 @@ const prPreviewMockScenarios: Record<
 	},
 };
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+// URL.pathname leaves spaces percent-encoded, so Vite cannot find files in a
+// worktree such as "WordPress Playground". Convert the file URL natively.
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 export default defineConfig(({ command, mode }) => {
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -201,6 +210,7 @@ export default defineConfig(({ command, mode }) => {
 				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
+					agent: remoteProxyAgent,
 				},
 			},
 			fs: {
@@ -208,6 +218,8 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			// This is inert unless the Playwright dev target opts into the Firefox fix.
+			vitePlaywrightHmr(),
 			// In a devcontainer, Vite prints container IP instead of host IP.
 			// Override the printed URL to show host IP instead (127.0.0.1).
 			isDevcontainer

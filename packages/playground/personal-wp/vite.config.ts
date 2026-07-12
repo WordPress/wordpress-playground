@@ -36,7 +36,9 @@ const proxy: CommonServerOptions['proxy'] = {
 	},
 };
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+// URL.pathname leaves spaces percent-encoded, while Vite needs a native filesystem path.
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 export default defineConfig(({ command, mode }) => {
 	const isProductionBuild = mode === 'production';
 

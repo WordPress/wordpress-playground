@@ -43,6 +43,13 @@
 					"buildTarget": "playground-remote:build:development",
 					"hmr": true
 				},
+				"development-for-playwright": {
+					"buildTarget": "playground-remote:build:development",
+					"hmr": {
+						"host": "127.0.0.1",
+						"clientPort": 4400
+					}
+				},
 				"production": {
 					"buildTarget": "playground-remote:build:production",
 					"hmr": false

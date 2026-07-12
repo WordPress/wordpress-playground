@@ -63,6 +63,20 @@
 				],
 				"parallel": true,
 				"color": true
+			},
+			"configurations": {
+				"playwright": {
+					"commands": [
+						"node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
+						"nx run playground-php-cors-proxy:start",
+						"nx dev playground-remote --configuration=development-for-playwright",
+						"nx dev playground-website-extras --configuration=development-for-playwright",
+						"sleep 1; nx dev:standalone playground-website --configuration=development-for-playwright --output-style=stream-without-prefixes"
+					],
+					"env": {
+						"PLAYWRIGHT_MOCK_VITE_HMR_IN_FIREFOX": "true"
+					}
+				}
 			}
 		},
 		"dev:standalone": {
@@ -75,6 +89,13 @@
 				"development": {
 					"buildTarget": "playground-website:build:standalone:development",
 					"hmr": true
+				},
+				"development-for-playwright": {
+					"buildTarget": "playground-website:build:standalone:development",
+					"hmr": {
+						"host": "127.0.0.1",
+						"clientPort": 5400
+					}
 				},
 				"production": {
 					"buildTarget": "playground-website:build:standalone:production",
@@ -183,6 +204,16 @@
 				"parallel": false
 			}
 		},
+		"e2e:playwright:deployment": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.config.ts packages/playground/website/playwright/e2e/deployment.spec.ts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["e2e:playwright:prepare-app-deploy-and-offline-mode"]
+		},
 		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
 			"executor": "nx:noop",
 			"dependsOn": [
@@ -194,8 +225,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
-					"unzip ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
 				]
 			}
 		},

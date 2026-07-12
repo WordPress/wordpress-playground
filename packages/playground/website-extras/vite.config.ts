@@ -20,6 +20,8 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { vitePlaywrightHmr } from '../../vite-extensions/vite-playwright-hmr';
 
 export default defineConfig(({ mode }) => {
 	const corsProxyUrl =
@@ -62,6 +64,8 @@ export default defineConfig(({ mode }) => {
 		},
 
 		plugins: [
+			// This is inert unless the Playwright dev target opts into the Firefox fix.
+			vitePlaywrightHmr(),
 			react({
 				jsxRuntime: 'automatic',
 			}),
