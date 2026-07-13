@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
@@ -138,12 +138,15 @@ async function readDatabaseSize(
 ): Promise<number> {
 	const response = await playground.run({
 		code: `<?php
-$stat = stat(${phpVar(databasePath)});
+$stat = stat(getenv('DATABASE_PATH'));
 if ($stat === false) {
 	throw new RuntimeException('Could not stat the database.');
 }
 echo $stat['size'];
 `,
+		env: {
+			DATABASE_PATH: databasePath,
+		},
 	});
 	const sizeText = response.text.trim();
 	const size = Number(sizeText);
