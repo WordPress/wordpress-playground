@@ -27,6 +27,11 @@ import {
 	getAutosaveFingerprintFromURL,
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
+import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
+import {
+	areAutosaveRestoreNotificationsDisabled,
+	disableAutosaveRestoreNotifications,
+} from './autosave-restore-preference';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -78,13 +83,19 @@ export function EnsurePlaygroundSiteIsSelected({
 		setDeclinedAutosaveRestoreFingerprints,
 	] = useState<string[]>([]);
 	const [autosaveNudgeError, setAutosaveNudgeError] = useState<string>();
+	const [
+		autosaveRestoreNotificationsDisabled,
+		setAutosaveRestoreNotificationsDisabled,
+	] = useState(areAutosaveRestoreNotificationsDisabled);
 	const [isAutosaveNudgeActionPending, setIsAutosaveNudgeActionPending] =
 		useState(false);
+	const autosaveNudgeActionPendingRef = useRef(false);
 	const currentSetupUrlFingerprint = useMemo(
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
 	);
 	const canShowAutosaveNudge =
+		!autosaveRestoreNotificationsDisabled &&
 		autosaveNudge &&
 		activeSite &&
 		activeSite.slug !== autosaveNudge.site.slug &&
@@ -207,6 +218,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
+					!autosaveRestoreNotificationsDisabled &&
 					!declinedAutosaveRestoreFingerprints.includes(
 						currentSetupUrlFingerprint
 					) &&
@@ -242,6 +254,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		// a restore candidate and create a second temporary site.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
+		autosaveRestoreNotificationsDisabled,
 		declinedAutosaveRestoreFingerprints,
 		url.href,
 		requestedSiteSlug,
@@ -271,6 +284,43 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
+	const keepNewPlayground = async (disableFutureNotifications = false) => {
+		if (!autosaveNudge || autosaveNudgeActionPendingRef.current) {
+			return;
+		}
+		const dismissedNudge = autosaveNudge;
+		autosaveNudgeActionPendingRef.current = true;
+		setAutosaveNudge(undefined);
+		setAutosaveNudgeError(undefined);
+		setIsAutosaveNudgeActionPending(true);
+		try {
+			await sitesAPI.autosaveTemporarySite(undefined, {
+				updateUrl: false,
+				excludeFromPruning: [dismissedNudge.site.slug],
+			});
+			setDeclinedAutosaveRestoreFingerprints((fingerprints) => [
+				...fingerprints,
+				dismissedNudge.setupUrlFingerprint,
+			]);
+			if (disableFutureNotifications) {
+				disableAutosaveRestoreNotifications();
+				setAutosaveRestoreNotificationsDisabled(true);
+			}
+		} catch (error) {
+			logger.error(
+				'Error autosaving the new Playground after declining restore.',
+				error
+			);
+			setAutosaveNudge(dismissedNudge);
+			setAutosaveNudgeError(
+				'Could not keep the new Playground. Please try again.'
+			);
+		} finally {
+			autosaveNudgeActionPendingRef.current = false;
+			setIsAutosaveNudgeActionPending(false);
+		}
+	};
+
 	return (
 		<>
 			{children}
@@ -280,6 +330,10 @@ export function EnsurePlaygroundSiteIsSelected({
 					error={autosaveNudgeError}
 					isBusy={isAutosaveNudgeActionPending}
 					onRestore={async () => {
+						if (autosaveNudgeActionPendingRef.current) {
+							return;
+						}
+						autosaveNudgeActionPendingRef.current = true;
 						setAutosaveNudgeError(undefined);
 						setIsAutosaveNudgeActionPending(true);
 						try {
@@ -296,36 +350,12 @@ export function EnsurePlaygroundSiteIsSelected({
 								'Could not restore the autosave. Try again or keep the new Playground.'
 							);
 						} finally {
+							autosaveNudgeActionPendingRef.current = false;
 							setIsAutosaveNudgeActionPending(false);
 						}
 					}}
-					onKeepNew={async () => {
-						setAutosaveNudgeError(undefined);
-						setIsAutosaveNudgeActionPending(true);
-						try {
-							await sitesAPI.autosaveTemporarySite(undefined, {
-								updateUrl: false,
-								excludeFromPruning: [autosaveNudge.site.slug],
-							});
-							setDeclinedAutosaveRestoreFingerprints(
-								(fingerprints) => [
-									...fingerprints,
-									autosaveNudge.setupUrlFingerprint,
-								]
-							);
-							setAutosaveNudge(undefined);
-						} catch (error) {
-							logger.error(
-								'Error autosaving the new Playground after declining restore.',
-								error
-							);
-							setAutosaveNudgeError(
-								'Could not keep the new Playground. Please try again.'
-							);
-						} finally {
-							setIsAutosaveNudgeActionPending(false);
-						}
-					}}
+					onKeepNew={() => keepNewPlayground()}
+					onDisableNotifications={() => keepNewPlayground(true)}
 				/>
 			)}
 		</>
@@ -341,24 +371,47 @@ function RestoreAutosaveNudge({
 	isBusy,
 	onRestore,
 	onKeepNew,
+	onDisableNotifications,
 }: {
 	site: SiteInfo;
 	error?: string;
 	isBusy: boolean;
 	onRestore: () => Promise<void>;
 	onKeepNew: () => Promise<void>;
+	onDisableNotifications: () => Promise<void>;
 }) {
+	const nudgeRef = useRef<HTMLElement>(null);
 	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
 
+	useEffect(() => {
+		const keepNewPlaygroundOnOutsidePointer = (event: PointerEvent) => {
+			if (isBusy || nudgeRef.current?.contains(event.target as Node)) {
+				return;
+			}
+			void onKeepNew();
+		};
+		return listenForPointerDownAcrossIframes(
+			keepNewPlaygroundOnOutsidePointer
+		);
+	}, [isBusy, onKeepNew]);
+
 	return (
-		<aside className={css.nudge} aria-label="Recent autosaved Playground">
+		<aside
+			ref={nudgeRef}
+			className={css.nudge}
+			aria-label="Recent autosaved Playground"
+		>
 			<div className={css.copy}>
 				<div className={css.title}>Recent autosave available</div>
 				<div className={css.description}>
 					Another Playground was created {getRelativeDate(createdAt)}{' '}
 					from the same URL.
 				</div>
-				{error && <div className={css.error}>{error}</div>}
+				{error && (
+					<div className={css.error} role="alert">
+						{error}
+					</div>
+				)}
 			</div>
 			<div className={css.actions}>
 				<Button variant="primary" onClick={onRestore} disabled={isBusy}>
@@ -370,6 +423,13 @@ function RestoreAutosaveNudge({
 					disabled={isBusy}
 				>
 					No, thanks
+				</Button>
+				<Button
+					variant="link"
+					onClick={onDisableNotifications}
+					disabled={isBusy}
+				>
+					Don’t notify me about autosaves
 				</Button>
 			</div>
 		</aside>

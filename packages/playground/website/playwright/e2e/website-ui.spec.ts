@@ -1681,6 +1681,79 @@ echo get_option('blogname');
 		expect(blogName).toBe(expectedBlogName);
 	});
 
+	test('should persist the choice not to offer autosave restores', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('restore-opt-out');
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		await website.page.goto(setupUrl);
+		const nudge = website.page.getByLabel('Recent autosaved Playground');
+		await expect(nudge).toBeVisible();
+		await nudge
+			.getByRole('button', { name: 'Don’t notify me about autosaves' })
+			.click();
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		expect(
+			await website.page.evaluate(() =>
+				localStorage.getItem(
+					'playground-disable-autosave-restore-notifications'
+				)
+			)
+		).toBe('true');
+
+		await website.page.goto(setupUrl);
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
+	});
+
+	test('should dismiss the restore card and autosave when WordPress is clicked', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('restore-outside');
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.goto(setupUrl);
+		const nudge = website.page.getByLabel('Recent autosaved Playground');
+		await expect(nudge).toBeVisible();
+		await website.waitForNestedIframes();
+
+		await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
+	});
+
 	test('should start fresh from a setup URL when an autosave exists', async ({
 		website,
 		browserName,
