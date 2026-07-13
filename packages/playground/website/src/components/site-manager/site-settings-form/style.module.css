@@ -142,7 +142,7 @@
 	border-radius: 2px;
 	outline: none;
 	box-shadow:
-		0 0 0 6px var(--action-menu-item-background),
+		0 0 0 7px var(--action-menu-item-background),
 		0 0 0 8px #3858e9;
 }
 
@@ -217,13 +217,13 @@
 
 .action-menu-item[aria-disabled='true']:focus-visible {
 	box-shadow:
-		0 0 0 6px var(--action-menu-item-background),
+		0 0 0 7px var(--action-menu-item-background),
 		0 0 0 8px #949494;
 }
 
 @media (forced-colors: active) {
 	.action-menu-item:focus-visible {
-		outline: 2px solid CanvasText;
+		outline: 1px solid CanvasText;
 		outline-offset: 6px;
 		box-shadow: none;
 	}

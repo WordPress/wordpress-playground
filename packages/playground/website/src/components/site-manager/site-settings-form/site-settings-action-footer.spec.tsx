@@ -20,7 +20,7 @@ const defaults: SiteFormData = {
 	multisite: false,
 };
 
-describe('settings action pending state', () => {
+describe('settings action footer', () => {
 	let container: HTMLDivElement;
 	let root: Root;
 
@@ -74,6 +74,29 @@ describe('settings action pending state', () => {
 
 		expect(getButton('Apply to this Playground').disabled).toBe(true);
 		expect(getButton('More settings actions').disabled).toBe(true);
+	});
+
+	it('uses the only available action as the primary action', () => {
+		const onCreateFresh = vi.fn();
+		act(() => {
+			root.render(
+				<SiteSettingsActionFooter
+					values={defaults}
+					defaultValues={defaults}
+					submit={submit}
+					siteName="Test Playground"
+					sitePersistence="autosave"
+					onApply={vi.fn()}
+					onCreateFresh={onCreateFresh}
+					isPending={false}
+				/>
+			);
+		});
+
+		const primaryAction = getButton('Create a fresh Playground');
+		expect(primaryAction.disabled).toBe(false);
+		act(() => primaryAction.click());
+		expect(onCreateFresh).toHaveBeenCalledWith(defaults);
 	});
 
 	it('keeps a temporary-Playground failure beside its disabled action', () => {

@@ -38,7 +38,6 @@ export function SiteSettingsActionFooter({
 		values,
 		defaultValues
 	);
-	const canApplyToCurrent = !freshPlaygroundReason;
 	const hasRuntimeChanges = hasApplicableRuntimeChanges(
 		values,
 		defaultValues
@@ -48,6 +47,7 @@ export function SiteSettingsActionFooter({
 		(!hasRuntimeChanges
 			? 'Change PHP version or network access to apply.'
 			: undefined);
+	const canApplyToCurrent = !applyUnavailableReason;
 
 	return (
 		<VStack
@@ -70,9 +70,7 @@ export function SiteSettingsActionFooter({
 							? undefined
 							: () => void submit(onCreateFresh)()
 					}
-					disabled={
-						isPending || (canApplyToCurrent && !hasRuntimeChanges)
-					}
+					disabled={isPending}
 					isBusy={isPending}
 				>
 					{canApplyToCurrent
