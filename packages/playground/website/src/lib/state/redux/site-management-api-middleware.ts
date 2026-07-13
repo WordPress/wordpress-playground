@@ -486,6 +486,39 @@ export function createSitesAPI(
 		},
 
 		/**
+		 * Applies the runtime settings that can change without replacing WordPress.
+		 *
+		 * PHP and networking share one metadata write so changing both cannot boot an
+		 * intermediate runtime and then immediately tear it down for the second change.
+		 */
+		async updateRuntimeSettings(settings: {
+			phpVersion: AllPHPVersion;
+			networking: boolean;
+		}): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (site.metadata.storage === 'none') {
+				throw new Error(
+					'Cannot update settings on a temporary site. Save it first.'
+				);
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						runtimeConfiguration: {
+							...site.metadata.runtimeConfiguration,
+							phpVersion: settings.phpVersion,
+							networking: settings.networking,
+						},
+					},
+				})
+			);
+		},
+
+		/**
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
