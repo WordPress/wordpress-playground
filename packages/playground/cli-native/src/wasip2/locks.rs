@@ -412,7 +412,7 @@ mod platform {
     use std::collections::HashMap;
     use std::io;
     use std::os::windows::io::RawHandle;
-    use std::sync::{Condvar, Mutex, OnceLock};
+    use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
     use std::time::Duration;
     use windows_sys::Win32::Foundation::{
         GetLastError, ERROR_ACCESS_DENIED, ERROR_INVALID_FUNCTION, ERROR_INVALID_HANDLE,
@@ -421,7 +421,8 @@ mod platform {
         HANDLE,
     };
     use windows_sys::Win32::Storage::FileSystem::{
-        LockFileEx, UnlockFileEx, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
+        FileIdInfo, GetFileInformationByHandleEx, LockFileEx, UnlockFileEx, FILE_ID_INFO,
+        LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
     };
     use windows_sys::Win32::System::IO::OVERLAPPED;
 
@@ -437,18 +438,87 @@ mod platform {
         by_handle: HashMap<usize, Vec<HeldLock>>,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    struct FileIdentity {
+        volume_serial_number: u64,
+        file_id: [u8; 16],
+    }
+
     struct LockCoordinator {
         ledger: Mutex<LockLedger>,
         changed: Condvar,
     }
 
-    static LOCK_COORDINATOR: OnceLock<LockCoordinator> = OnceLock::new();
+    static LOCK_COORDINATORS: OnceLock<RwLock<HashMap<FileIdentity, Arc<LockCoordinator>>>> =
+        OnceLock::new();
 
-    fn coordinator() -> &'static LockCoordinator {
-        LOCK_COORDINATOR.get_or_init(|| LockCoordinator {
-            ledger: Mutex::new(LockLedger::default()),
-            changed: Condvar::new(),
+    fn coordinator(handle: RawHandle) -> Result<Arc<LockCoordinator>, LockError> {
+        let identity = file_identity(handle)?;
+        let coordinators = LOCK_COORDINATORS.get_or_init(|| RwLock::new(HashMap::new()));
+
+        if let Some(coordinator) = coordinators
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&identity)
+            .cloned()
+        {
+            return Ok(coordinator);
+        }
+
+        let mut coordinators = coordinators
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // Coordinators retain handle-owned lock ledgers between API calls, so
+        // keep them alive for the process lifetime. The registry guard is
+        // dropped before any per-file ledger or native lock is acquired.
+        Ok(Arc::clone(coordinators.entry(identity).or_insert_with(
+            || {
+                Arc::new(LockCoordinator {
+                    ledger: Mutex::new(LockLedger::default()),
+                    changed: Condvar::new(),
+                })
+            },
+        )))
+    }
+
+    fn file_identity(handle: RawHandle) -> Result<FileIdentity, LockError> {
+        let mut information = FILE_ID_INFO::default();
+        let result = unsafe {
+            GetFileInformationByHandleEx(
+                handle as HANDLE,
+                FileIdInfo,
+                std::ptr::from_mut(&mut information).cast(),
+                std::mem::size_of::<FILE_ID_INFO>() as u32,
+            )
+        };
+        if result == 0 {
+            return Err(classify_identity_error(unsafe { GetLastError() }));
+        }
+        let file_id = information.FileId.Identifier;
+        if file_id == [0; 16] || file_id == [u8::MAX; 16] {
+            // Windows specifies both values as sentinels for filesystems that
+            // cannot provide a unique 128-bit identifier. A raw HANDLE or the
+            // legacy 64-bit index would split same-file coordination or collide
+            // on ReFS, respectively, so fail instead of guessing an identity.
+            return Err(LockError::Unsupported);
+        }
+        Ok(FileIdentity {
+            volume_serial_number: information.VolumeSerialNumber,
+            file_id,
         })
+    }
+
+    fn classify_identity_error(code: u32) -> LockError {
+        match code {
+            ERROR_INVALID_HANDLE => LockError::BadDescriptor,
+            ERROR_OPERATION_ABORTED => LockError::Interrupted,
+            ERROR_INVALID_FUNCTION | ERROR_INVALID_PARAMETER | ERROR_NOT_SUPPORTED => {
+                LockError::Unsupported
+            }
+            ERROR_ACCESS_DENIED => LockError::PermissionDenied,
+            ERROR_NOT_ENOUGH_MEMORY => LockError::ResourceExhausted,
+            _ => LockError::Io(io::Error::from_raw_os_error(code as i32)),
+        }
     }
 
     pub(super) fn lock_whole(
@@ -478,7 +548,7 @@ mod platform {
         kind: LockKind,
     ) -> Result<LockState, LockError> {
         let (start, end) = bounds(range)?;
-        let coordinator = coordinator();
+        let coordinator = coordinator(handle)?;
         let mut ledger = coordinator
             .ledger
             .lock()
@@ -552,14 +622,14 @@ mod platform {
         mode: LockMode,
     ) -> Result<(), LockError> {
         let (start, end) = bounds(range)?;
-        let coordinator = coordinator();
+        let coordinator = coordinator(handle)?;
         let mut ledger = coordinator
             .ledger
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         loop {
-            match reconfigure(&mut ledger, handle, start, end, Some(kind)) {
+            match reconfigure(&coordinator, &mut ledger, handle, start, end, Some(kind)) {
                 Err(LockError::WouldBlock) if mode == LockMode::Blocking => {
                     // Always issue FAIL_IMMEDIATELY native requests while the
                     // coordinator is locked. The condition-variable wait drops
@@ -578,15 +648,16 @@ mod platform {
 
     fn remove_lock(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
         let (start, end) = bounds(range)?;
-        let coordinator = coordinator();
+        let coordinator = coordinator(handle)?;
         let mut ledger = coordinator
             .ledger
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        reconfigure(&mut ledger, handle, start, end, None)
+        reconfigure(&coordinator, &mut ledger, handle, start, end, None)
     }
 
     fn reconfigure(
+        coordinator: &LockCoordinator,
         ledger: &mut LockLedger,
         handle: RawHandle,
         start: u64,
@@ -614,7 +685,7 @@ mod platform {
         }
 
         set_tracked(ledger, key, join_locks(untouched, desired));
-        coordinator().changed.notify_all();
+        coordinator.changed.notify_all();
         Ok(())
     }
 
@@ -809,7 +880,10 @@ mod platform {
         use super::*;
         use std::fs::{self, OpenOptions};
         use std::os::windows::io::AsRawHandle;
-        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::{
+            atomic::{AtomicU64, Ordering},
+            Arc,
+        };
 
         static NEXT_PATH: AtomicU64 = AtomicU64::new(0);
 
@@ -833,18 +907,52 @@ mod platform {
         }
 
         #[test]
-        fn missing_native_lock_purges_a_stale_handle_entry() {
-            let path = std::env::temp_dir().join(format!(
-                "wp-playground-stale-lock-{}-{}.tmp",
-                std::process::id(),
-                NEXT_PATH.fetch_add(1, Ordering::Relaxed)
-            ));
-            let file = OpenOptions::new()
-                .create_new(true)
+        fn separate_handles_for_the_same_file_share_a_coordinator() {
+            let path = temp_path("same-file-coordinator");
+            let first_file = open_new_file(&path);
+            let second_file = OpenOptions::new()
                 .read(true)
                 .write(true)
                 .open(&path)
                 .unwrap();
+
+            let first = coordinator(first_file.as_raw_handle()).unwrap();
+            let second = coordinator(second_file.as_raw_handle()).unwrap();
+            assert!(Arc::ptr_eq(&first, &second));
+
+            drop(first_file);
+            drop(second_file);
+            fs::remove_file(path).unwrap();
+        }
+
+        #[test]
+        fn different_files_have_independent_coordinator_mutexes() {
+            let first_path = temp_path("first-file-coordinator");
+            let second_path = temp_path("second-file-coordinator");
+            let first_file = open_new_file(&first_path);
+            let second_file = open_new_file(&second_path);
+            let first = coordinator(first_file.as_raw_handle()).unwrap();
+            let second = coordinator(second_file.as_raw_handle()).unwrap();
+
+            assert!(!Arc::ptr_eq(&first, &second));
+            let _first_guard = first
+                .ledger
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let second_guard = second.ledger.try_lock();
+            assert!(second_guard.is_ok());
+            drop(second_guard);
+
+            drop(first_file);
+            drop(second_file);
+            fs::remove_file(first_path).unwrap();
+            fs::remove_file(second_path).unwrap();
+        }
+
+        #[test]
+        fn missing_native_lock_purges_a_stale_handle_entry() {
+            let path = temp_path("stale-lock");
+            let file = open_new_file(&path);
             let handle = file.as_raw_handle();
             let key = handle as usize;
             let stale = HeldLock {
@@ -852,7 +960,8 @@ mod platform {
                 end: 11,
                 kind: LockKind::Exclusive,
             };
-            coordinator()
+            let coordinator = coordinator(handle).unwrap();
+            coordinator
                 .ledger
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -860,7 +969,7 @@ mod platform {
                 .insert(key, vec![stale]);
 
             remove_lock(handle, ByteRange::new(10, Some(1))).unwrap();
-            assert!(!coordinator()
+            assert!(!coordinator
                 .ledger
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -869,7 +978,7 @@ mod platform {
 
             let fresh = ByteRange::new(20, Some(1));
             set_lock(handle, fresh, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
-            let tracked = coordinator()
+            let tracked = coordinator
                 .ledger
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -889,6 +998,23 @@ mod platform {
             remove_lock(handle, ByteRange::WHOLE_FILE).unwrap();
             drop(file);
             fs::remove_file(path).unwrap();
+        }
+
+        fn temp_path(label: &str) -> std::path::PathBuf {
+            std::env::temp_dir().join(format!(
+                "wp-playground-{label}-{}-{}.tmp",
+                std::process::id(),
+                NEXT_PATH.fetch_add(1, Ordering::Relaxed)
+            ))
+        }
+
+        fn open_new_file(path: &std::path::Path) -> std::fs::File {
+            OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .open(path)
+                .unwrap()
         }
     }
 }
