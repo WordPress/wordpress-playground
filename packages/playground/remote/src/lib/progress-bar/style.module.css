@@ -23,19 +23,6 @@
 	transition: opacity ease-in 0.25s;
 }
 
-.overlay::before {
-	position: absolute;
-	width: min(640px, calc(100% - 48px));
-	height: 260px;
-	border: 1px solid rgb(0 0 0 / 0.06);
-	border-radius: 28px;
-	background: rgb(255 255 255 / 0.74);
-	box-shadow:
-		0 24px 70px rgb(0 0 0 / 0.09),
-		0 1px 0 rgb(255 255 255 / 0.7) inset;
-	content: '';
-}
-
 .overlay.is-hidden {
 	opacity: 0;
 	pointer-events: none;
@@ -141,19 +128,17 @@
 }
 
 /* The stable Playground name — larger and bolder than the caption, sitting just
-   above it. It never changes as boot stages advance. */
+   above it. It wraps in full and never changes as boot stages advance. */
 .title {
 	font-weight: 600;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
-	line-height: 1.08;
+	line-height: 1.12;
 	margin: 0 0 0.45rem;
 	width: calc(100% - 48px);
 	max-width: 720px;
-	overflow: hidden;
+	overflow-wrap: anywhere;
 	text-align: center;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .title-hidden {
@@ -189,14 +174,6 @@
 			),
 			linear-gradient(180deg, #191a1d 0%, #1e1e1e 100%);
 		color: #fff;
-	}
-
-	.overlay::before {
-		border-color: rgb(255 255 255 / 0.06);
-		background: rgb(31 32 36 / 0.76);
-		box-shadow:
-			0 24px 70px rgb(0 0 0 / 0.28),
-			0 1px 0 rgb(255 255 255 / 0.05) inset;
 	}
 
 	.wrapper {
