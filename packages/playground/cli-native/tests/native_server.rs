@@ -712,14 +712,26 @@ function wait_for_stage($path, $stage) {
 $coordination = '/wordpress/coordination.txt';
 $db = new SQLite3('/wordpress/sqlite-writer-reader.db');
 $db->busyTimeout(1);
-$db->exec('BEGIN IMMEDIATE;');
-$db->exec('UPDATE test SET name = "after" WHERE id = 1');
+$begin_ok = $db->exec('BEGIN IMMEDIATE;');
+$update_ok = $begin_ok && $db->exec('UPDATE test SET name = "after" WHERE id = 1');
+$write_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
 file_put_contents($coordination, 'writer-ready');
 wait_for_stage($coordination, 'reader-finished');
-$db->exec('COMMIT;');
+$commit_ok = $db->exec('COMMIT;');
+$commit_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
 $db->close();
 ob_clean();
-echo json_encode(['ok' => true]);
+echo json_encode([
+    'ok' => $begin_ok && $update_ok && $commit_ok,
+    'write_error' => $write_error,
+    'commit_error' => $commit_error,
+]);
 "#,
     );
     write_script(
@@ -759,6 +771,22 @@ ob_clean();
 echo json_encode(['value' => $value, 'read_error' => $read_error]);
 "#,
     );
+    write_script(
+        &root,
+        "sqlite-final.php",
+        r#"<?php
+ob_start();
+$db = new SQLite3('/wordpress/sqlite-writer-reader.db');
+$value = @$db->querySingle('SELECT name FROM test WHERE id = 1');
+$read_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
+$db->close();
+ob_clean();
+echo json_encode(['value' => $value, 'read_error' => $read_error]);
+"#,
+    );
 
     let (address, guard, stderr_thread) = start_native_server(&root, 2);
     let seed_json = response_json(&send_get(&address, "/seed.php"));
@@ -777,6 +805,12 @@ echo json_encode(['value' => $value, 'read_error' => $read_error]);
     assert_eq!(
         reader_json["read_error"]["last_error_code"], 0,
         "{reader_json}"
+    );
+    let final_json = response_json(&send_get(&address, "/sqlite-final.php"));
+    assert_eq!(final_json["value"], "after", "{final_json}");
+    assert_eq!(
+        final_json["read_error"]["last_error_code"], 0,
+        "{final_json}"
     );
 
     drop(guard);

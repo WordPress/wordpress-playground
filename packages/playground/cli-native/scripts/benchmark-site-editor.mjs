@@ -31,12 +31,13 @@ export const DEFAULT_IGNORED_REQUEST_PATTERNS = [
 
 const HELP = `Usage:
   node benchmark-site-editor.mjs \\
+    --target 'Node Playground CLI=http://127.0.0.1:9401' \\
     --target Wasmtime=http://127.0.0.1:9400 \\
-    --target php-fpm=http://127.0.0.1:8081 \\
+    --target 'nginx/native PHP=http://127.0.0.1:8081' \\
     --storage-state ./wordpress-auth.json
 
 Required:
-  --target LABEL=BASE_URL       Repeat for at least two targets.
+  --target LABEL=BASE_URL       Repeat for every target to measure.
   Authentication via one or more of:
   --storage-state [LABEL::]PATH Playwright storage-state JSON.
   --auth-cookie [LABEL::]HEADER Cookie header, e.g. name=value; other=value.
@@ -281,8 +282,8 @@ export function scopedValue(target, label) {
 }
 
 function validateOptions(options) {
-	if (options.targets.length < 2) {
-		throw new Error('at least two --target values are required');
+	if (options.targets.length < 1) {
+		throw new Error('at least one --target value is required');
 	}
 	const labels = new Set();
 	for (const target of options.targets) {
