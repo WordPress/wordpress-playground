@@ -174,7 +174,7 @@ export function SiteInfoPanel({
 						gap={2}
 						justify="space-between"
 						align="flex-start"
-						wrap={mobileUi}
+						wrap={true}
 						expanded={true}
 						className={`${css.padded} ${css.siteInfoHeader}`}
 						style={{ paddingBottom: 10 }}
@@ -206,10 +206,7 @@ export function SiteInfoPanel({
 								/>
 							)}
 						</FlexItem>
-						<FlexItem
-							className={css.siteInfoHeaderDetails}
-							style={{ flexGrow: 1 }}
-						>
+						<FlexItem className={css.siteInfoHeaderDetails}>
 							<Flex direction="column" gap={0.25} expanded={true}>
 								<Flex
 									direction="row"
@@ -305,90 +302,104 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
-						{isAutosaved && (
+						<Flex
+							gap={2}
+							justify="flex-end"
+							align="stretch"
+							expanded={false}
+							className={css.siteInfoHeaderPrimaryActions}
+						>
+							{isAutosaved && (
+								<FlexItem className={css.siteInfoHeaderAction}>
+									<Button
+										variant="primary"
+										onClick={openSaveModal}
+									>
+										Store permanently
+									</Button>
+								</FlexItem>
+							)}
+							{mobileUi ? (
+								<FlexItem className={css.siteInfoHeaderAction}>
+									<Button
+										variant="primary"
+										onClick={() => {
+											dispatch(setSiteManagerOpen(false));
+										}}
+									>
+										Open site
+									</Button>
+								</FlexItem>
+							) : (
+								<>
+									<FlexItem
+										className={css.siteInfoHeaderAction}
+									>
+										<Button
+											variant="tertiary"
+											disabled={!playground}
+											onClick={() =>
+												navigateTo('/wp-admin/')
+											}
+										>
+											WP Admin
+										</Button>
+									</FlexItem>
+									<FlexItem
+										className={css.siteInfoHeaderAction}
+									>
+										<Button
+											variant="secondary"
+											disabled={!playground}
+											onClick={() => navigateTo('/')}
+										>
+											Homepage
+										</Button>
+									</FlexItem>
+								</>
+							)}
 							<FlexItem className={css.siteInfoHeaderAction}>
-								<Button
-									variant="primary"
-									onClick={openSaveModal}
-								>
-									Store permanently
-								</Button>
-							</FlexItem>
-						)}
-						{mobileUi ? (
-							<FlexItem className={css.siteInfoHeaderAction}>
-								<Button
-									variant="primary"
-									onClick={() => {
-										dispatch(setSiteManagerOpen(false));
+								<DropdownMenu
+									icon={moreVertical}
+									label="Additional actions"
+									popoverProps={{
+										placement: 'bottom-end',
 									}}
 								>
-									Open site
-								</Button>
-							</FlexItem>
-						) : (
-							<>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="tertiary"
-										disabled={!playground}
-										onClick={() => navigateTo('/wp-admin/')}
-									>
-										WP Admin
-									</Button>
-								</FlexItem>
-								<FlexItem className={css.siteInfoHeaderAction}>
-									<Button
-										variant="secondary"
-										disabled={!playground}
-										onClick={() => navigateTo('/')}
-									>
-										Homepage
-									</Button>
-								</FlexItem>
-							</>
-						)}
-						<FlexItem className={css.siteInfoHeaderAction}>
-							<DropdownMenu
-								icon={moreVertical}
-								label="Additional actions"
-								popoverProps={{
-									placement: 'bottom-end',
-								}}
-							>
-								{({ onClose }) => (
-									<>
-										{!isTemporary && (
+									{({ onClose }) => (
+										<>
+											{!isTemporary && (
+												<MenuGroup>
+													<MenuItem
+														aria-label="Delete this Playground"
+														className={css.danger}
+														onClick={() =>
+															removeSiteAndCloseMenu(
+																onClose
+															)
+														}
+													>
+														Delete
+													</MenuItem>
+												</MenuGroup>
+											)}
 											<MenuGroup>
-												<MenuItem
-													aria-label="Delete this Playground"
-													className={css.danger}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
+												<GithubExportMenuItem
+													onClose={onClose}
+													disabled={
+														offline || !playground
 													}
-												>
-													Delete
-												</MenuItem>
+												/>
+												<DownloadAsZipMenuItem
+													onClose={onClose}
+													disabled={!playground}
+												/>
 											</MenuGroup>
-										)}
-										<MenuGroup>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-										</MenuGroup>
-									</>
-								)}
-							</DropdownMenu>
-						</FlexItem>
+										</>
+									)}
+								</DropdownMenu>
+							</FlexItem>
+						</Flex>
 					</Flex>
 				</FlexItem>
 				<FlexItem style={{ flexGrow: 1 }}>
