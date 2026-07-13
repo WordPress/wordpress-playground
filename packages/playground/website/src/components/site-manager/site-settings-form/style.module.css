@@ -112,13 +112,15 @@
 }
 
 .action-menu-item {
+	--action-menu-item-background: #fff;
+
 	display: block;
 	box-sizing: border-box;
 	width: 100%;
 	padding: 10px 12px;
 	border: 0;
 	border-radius: 7px;
-	background: #fff;
+	background: var(--action-menu-item-background);
 	color: var(--ink, #21201d);
 	cursor: pointer;
 	font: inherit;
@@ -127,18 +129,21 @@
 }
 
 .action-menu-item + .action-menu-item {
-	margin-top: 2px;
+	margin-top: 10px;
 }
 
 .action-menu-item:hover,
 .action-menu-item:focus-visible {
-	background: #f3f3f1;
+	--action-menu-item-background: #f3f3f1;
 }
 
 .action-menu-item:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: 6px;
-	box-shadow: none;
+	/* The 8px ring extends this radius to match the popover's 10px corners. */
+	border-radius: 2px;
+	outline: none;
+	box-shadow:
+		0 0 0 6px var(--action-menu-item-background),
+		0 0 0 8px #3858e9;
 }
 
 .action-menu-item[aria-disabled='true'] {
@@ -193,12 +198,14 @@
 .create-fresh-menu-item:hover,
 .create-fresh-menu-item:focus-visible,
 .selected-fresh-menu-item {
-	background: #f1edff;
+	--action-menu-item-background: #f1edff;
+
 	color: #573eb5;
 }
 
 .selected-apply-menu-item {
-	background: #f1f3ff;
+	--action-menu-item-background: #f1f3ff;
+
 	color: #304bd1;
 }
 
