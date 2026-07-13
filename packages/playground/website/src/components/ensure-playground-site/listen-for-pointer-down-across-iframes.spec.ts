@@ -4,6 +4,7 @@ import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-acr
 
 describe('listenForPointerDownAcrossIframes', () => {
 	afterEach(() => {
+		vi.restoreAllMocks();
 		document.body.replaceChildren();
 	});
 
@@ -38,6 +39,50 @@ describe('listenForPointerDownAcrossIframes', () => {
 		);
 
 		expect(listener).toHaveBeenCalledOnce();
+		stopListening();
+	});
+
+	it('stops listening in the previous document after an iframe navigates', () => {
+		const frame = document.createElement('iframe');
+		const firstDocument =
+			document.implementation.createHTMLDocument('first');
+		const secondDocument =
+			document.implementation.createHTMLDocument('second');
+		let frameDocument = firstDocument;
+		Object.defineProperty(frame, 'contentDocument', {
+			configurable: true,
+			get: () => frameDocument,
+		});
+		document.body.append(frame);
+		const listener = vi.fn();
+		const stopListening = listenForPointerDownAcrossIframes(listener);
+
+		firstDocument.body.dispatchEvent(
+			new MouseEvent('pointerdown', { bubbles: true })
+		);
+		frameDocument = secondDocument;
+		frame.dispatchEvent(new Event('load'));
+		firstDocument.body.dispatchEvent(
+			new MouseEvent('pointerdown', { bubbles: true })
+		);
+		secondDocument.body.dispatchEvent(
+			new MouseEvent('pointerdown', { bubbles: true })
+		);
+
+		expect(listener).toHaveBeenCalledTimes(2);
+		stopListening();
+	});
+
+	it('does not rescan a document when an unrelated element is added', async () => {
+		const listener = vi.fn();
+		const querySelectorAll = vi.spyOn(document, 'querySelectorAll');
+		const stopListening = listenForPointerDownAcrossIframes(listener);
+		querySelectorAll.mockClear();
+
+		document.body.append(document.createElement('div'));
+		await waitForMutationObservers();
+
+		expect(querySelectorAll).not.toHaveBeenCalled();
 		stopListening();
 	});
 

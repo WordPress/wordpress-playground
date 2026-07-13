@@ -9,54 +9,109 @@ export function listenForPointerDownAcrossIframes(
 ): () => void {
 	const documents = new Set<Document>();
 	const frameLoadListeners = new Map<HTMLIFrameElement, () => void>();
-	const observers = new Set<MutationObserver>();
+	const frameDocuments = new Map<HTMLIFrameElement, Document>();
+	const observers = new Map<Document, MutationObserver>();
 
-	const listenInDocument = (targetDocument: Document) => {
+	listenInDocument(document);
+
+	return () => {
+		stopListeningInDocument(document);
+		Array.from(frameLoadListeners).forEach(([frame]) =>
+			stopListeningInFrame(frame)
+		);
+		Array.from(documents).forEach(stopListeningInDocument);
+	};
+
+	function listenInDocument(targetDocument: Document) {
 		if (documents.has(targetDocument)) {
 			return;
 		}
 		documents.add(targetDocument);
 		targetDocument.addEventListener('pointerdown', listener, true);
 
-		const listenInFrames = () => {
-			targetDocument.querySelectorAll('iframe').forEach(listenInFrame);
-		};
-		listenInFrames();
-		const observer = new MutationObserver(listenInFrames);
+		targetDocument.querySelectorAll('iframe').forEach(listenInFrame);
+		const observer = new MutationObserver((records) => {
+			for (const record of records) {
+				record.removedNodes.forEach((node) =>
+					visitFrames(node, stopListeningInFrame)
+				);
+				record.addedNodes.forEach((node) =>
+					visitFrames(node, listenInFrame)
+				);
+			}
+		});
 		observer.observe(targetDocument.documentElement, {
 			childList: true,
 			subtree: true,
 		});
-		observers.add(observer);
-	};
+		observers.set(targetDocument, observer);
+	}
 
-	const listenInFrame = (frame: HTMLIFrameElement) => {
+	function stopListeningInDocument(targetDocument: Document) {
+		if (!documents.delete(targetDocument)) {
+			return;
+		}
+		targetDocument.removeEventListener('pointerdown', listener, true);
+		observers.get(targetDocument)?.disconnect();
+		observers.delete(targetDocument);
+		targetDocument.querySelectorAll('iframe').forEach(stopListeningInFrame);
+	}
+
+	function listenInFrame(frame: HTMLIFrameElement) {
 		if (frameLoadListeners.has(frame)) {
 			return;
 		}
 		const listenAfterLoad = () => {
+			let nextDocument: Document | null = null;
 			try {
-				if (frame.contentDocument) {
-					listenInDocument(frame.contentDocument);
-				}
+				nextDocument = frame.contentDocument;
 			} catch {
 				// Embedded consumers may point Playground at a cross-origin remote.
+			}
+			const previousDocument = frameDocuments.get(frame);
+			if (previousDocument === nextDocument) {
+				return;
+			}
+			if (previousDocument) {
+				stopListeningInDocument(previousDocument);
+			}
+			if (nextDocument) {
+				frameDocuments.set(frame, nextDocument);
+				listenInDocument(nextDocument);
+			} else {
+				frameDocuments.delete(frame);
 			}
 		};
 		frameLoadListeners.set(frame, listenAfterLoad);
 		frame.addEventListener('load', listenAfterLoad);
 		listenAfterLoad();
-	};
+	}
 
-	listenInDocument(document);
+	function stopListeningInFrame(frame: HTMLIFrameElement) {
+		const loadListener = frameLoadListeners.get(frame);
+		if (!loadListener) {
+			return;
+		}
+		frame.removeEventListener('load', loadListener);
+		frameLoadListeners.delete(frame);
+		const frameDocument = frameDocuments.get(frame);
+		frameDocuments.delete(frame);
+		if (frameDocument) {
+			stopListeningInDocument(frameDocument);
+		}
+	}
 
-	return () => {
-		documents.forEach((targetDocument) =>
-			targetDocument.removeEventListener('pointerdown', listener, true)
-		);
-		frameLoadListeners.forEach((loadListener, frame) =>
-			frame.removeEventListener('load', loadListener)
-		);
-		observers.forEach((observer) => observer.disconnect());
-	};
+	function visitFrames(
+		node: Node,
+		visit: (frame: HTMLIFrameElement) => void
+	) {
+		if (node.nodeType !== Node.ELEMENT_NODE) {
+			return;
+		}
+		const element = node as Element;
+		if (element.matches('iframe')) {
+			visit(element as HTMLIFrameElement);
+		}
+		element.querySelectorAll('iframe').forEach(visit);
+	}
 }
