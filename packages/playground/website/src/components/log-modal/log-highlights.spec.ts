@@ -20,6 +20,12 @@ describe('splitLogHighlights', () => {
 		]);
 	});
 
+	it('does not highlight lowercase words that resemble severity markers', () => {
+		expect(splitLogHighlights('error: nope fatal: nope')).toEqual([
+			{ text: 'error: nope fatal: nope', highlight: false },
+		]);
+	});
+
 	it('keeps punctuation before a marker in the plain segment', () => {
 		expect(splitLogHighlights('(Error: failed)')).toEqual([
 			{ text: '(', highlight: false },
