@@ -202,9 +202,7 @@ function SettingsActionMenu({
 				ref={freshRef}
 				type="button"
 				role="menuitem"
-				className={`${css.actionMenuItem} ${css.createFreshMenuItem} ${
-					canApplyToCurrent ? '' : css.selectedFreshMenuItem
-				}`}
+				className={`${css.actionMenuItem} ${css.createFreshMenuItem}`}
 				onClick={onCreateFresh}
 			>
 				<span className={css.actionMenuTitle}>
