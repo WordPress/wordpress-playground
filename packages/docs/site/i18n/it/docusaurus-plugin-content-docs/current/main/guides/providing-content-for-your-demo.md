@@ -13,7 +13,7 @@ There are several [Blueprint steps](/blueprints/steps) and strategies you can
 use to import content (or generate it) in the Playground instance. This guide
 walks through the available sources. For a focused comparison of XML, PHP, and
 ZIP imports—including pros, cons, and measured performance—see
-[Import content into WordPress with Blueprints](/guides/import-content-with-blueprints).
+[Importing content into WordPress with Blueprints](/guides/import-content-with-blueprints).
 -->
 
 Per creare una buona demo con WordPress Playground, puoi caricare contenuti
@@ -24,7 +24,7 @@ Puoi usare diversi [passaggi Blueprint](/blueprints/steps) e strategie per
 importare o generare contenuti nell’istanza Playground. Questa guida presenta le
 fonti disponibili. Per un confronto mirato tra importazioni XML, PHP e ZIP,
 inclusi vantaggi, svantaggi e prestazioni misurate, consulta
-[Importare contenuti in WordPress con i Blueprint](/guides/import-content-with-blueprints).
+[Importazione di contenuti in WordPress con i Blueprint](/guides/import-content-with-blueprints).
 
 ## `importWxr`
 

@@ -1,31 +1,32 @@
 ---
-title: Importar conteúdo para o WordPress com Blueprints
+title: Importando conteúdo para o WordPress com Blueprints
 slug: /guides/import-content-with-blueprints
 description: Compare exportações WXR, runPHP e snapshots ZIP para importar conteúdo em uma nova instância do WordPress Playground.
 ---
 
-<!-- # Import content into WordPress with Blueprints -->
+<!-- # Importing content into WordPress with Blueprints -->
 
-# Importar conteúdo para o WordPress com Blueprints
+# Importando conteúdo para o WordPress com Blueprints
 
 <!--
-A new WordPress Playground site starts with very little content. A Blueprint can
-populate it from a WordPress export file, generate content with WordPress APIs,
+A new WordPress Playground site starts with basic content. A Blueprint can help
+fill that gap from a WordPress export file, generate content with WordPress APIs,
 or restore a Playground ZIP snapshot.
 
-This guide focuses on choosing and benchmarking those three import methods. For
-theme starter content, WP-CLI, media, and other demo-building strategies, see
+This guide focuses on choosing a Blueprint content import method and presents a
+small benchmark comparing three approaches. Importing data can be useful for
+theme starter content, test fixtures, educational content, and other
+demo-building strategies. For more options, see
 [Providing content for your demo with Playground](/guides/providing-content-for-your-demo).
 -->
 
-Um novo site do WordPress Playground começa com pouco conteúdo. Um Blueprint
-pode preenchê-lo a partir de um arquivo de exportação do WordPress, gerar
+Um novo site do WordPress Playground começa com um conteúdo básico. Uma Blueprint
+pode ajudar a preencher este gap a partir de um arquivo de exportação do WordPress, gerar
 conteúdo com as APIs do WordPress ou restaurar um snapshot ZIP do Playground.
 
-Este guia se concentra na escolha e no benchmark desses três métodos de
-importação. Para conteúdo inicial de temas, WP-CLI, mídia e outras estratégias
-de criação de demonstrações, consulte
-[Fornecer conteúdo para sua demonstração com o Playground](/guides/providing-content-for-your-demo).
+Este guia se concentra na escolha dos métodos de importação de conteúdo via blueprints criar um pequeno benchmark comparando estes três métodos de
+importação. Importação de dados podem ser úties para conteúdo inicial de temas, base de testes e conteúdo educacional para outras estratégias
+de criação de demonstrações, consulte [Fornecer conteúdo para sua demonstração com o Playground](/guides/providing-content-for-your-demo).
 
 <!-- These approaches solve different problems: -->
 
@@ -34,16 +35,16 @@ Essas abordagens resolvem problemas diferentes:
 <!--
 | Method                                                                        | Best for                                                          | What it moves                                                                                 |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`importWxr`](#import-a-wordpress-xml-export-with-importwxr)                  | Portable content shared between WordPress sites                   | Posts, pages, custom post types, terms, authors, comments, and attachment references          |
+| [`importWxr`](#import-a-wordpress-xml-export-with-importwxr)                  | Portable content shared between WordPress sites without overwriting existing content | Posts, pages, custom post types, terms, authors, comments, and attachment references          |
 | [`runPHP`](#generate-content-with-runphp)                                     | Small, deterministic fixtures and content that needs custom logic | Anything the PHP code creates through WordPress APIs                                          |
 | [`importWordPressFiles`](#restore-a-playground-zip-with-importwordpressfiles) | Restoring a complete Playground demo                              | The database and any WordPress files present in the ZIP, such as plugins, themes, and uploads |
 -->
 
-| Método                                                                             | Melhor opção para                                                  | O que transfere                                                                                    |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [`importWxr`](#importar-uma-exportação-xml-do-wordpress-com-importwxr)             | Conteúdo portátil compartilhado entre sites WordPress              | Posts, páginas, tipos de post personalizados, termos, autores, comentários e referências de anexos |
-| [`runPHP`](#gerar-conteúdo-com-runphp)                                             | Pequenos conjuntos de dados determinísticos e lógica personalizada | Tudo o que o código PHP criar por meio das APIs do WordPress                                       |
-| [`importWordPressFiles`](#restaurar-um-zip-do-playground-com-importwordpressfiles) | Restaurar uma demonstração completa do Playground                  | O banco de dados e os arquivos WordPress presentes no ZIP, como plugins, temas e arquivos enviados |
+| Método                                                                             | Melhor opção para                                                                                                           | O que transfere                                                                                    |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [`importWxr`](#importar-uma-exportação-xml-do-wordpress-com-importwxr)             | Conteúdo portátil compartilhado entre sites WordPress ideal para importar o conteúdo sem sobrescrever o conteúdo antecessor | Posts, páginas, tipos de post personalizados, termos, autores, comentários e referências de anexos |
+| [`runPHP`](#gerar-conteúdo-com-runphp)                                             | Pequenos conjuntos de dados determinísticos e lógica personalizada                                                          | Tudo o que o código PHP criar por meio das APIs do WordPress                                       |
+| [`importWordPressFiles`](#restaurar-um-zip-do-playground-com-importwordpressfiles) | Restaurar uma demonstração completa do Playground                                                                           | O banco de dados e os arquivos WordPress presentes no ZIP, como plugins, temas e arquivos enviados |
 
 <!--
 If you only need posts and terms, start with WXR. If the content is generated or
@@ -104,10 +105,10 @@ Este exemplo espera encontrar `content.xml` ao lado de `blueprint.json` em um
 
 <!--
 For a hosted file, replace the `bundled` resource with a
-[`url` resource](/blueprints/steps/resources#urlreference). Set `fetchAttachments` to
-`true` and enable `features.networking` when the importer must download the
-media files referenced by the WXR file. Network transfer can dominate the total
-setup time, so the benchmark later in this guide disables attachment fetching.
+[`url` resource](/blueprints/steps/resources#urlreference). Set
+`fetchAttachments` to `true` when the importer must download the media files
+referenced by the WXR file. Network transfer can dominate the total setup time,
+so the benchmark later in this guide disables attachment fetching.
 
 `importWxr` can also map imported authors to local users, create users, and
 apply explicit URL replacements. See the
@@ -115,12 +116,9 @@ apply explicit URL replacements. See the
 another domain.
 -->
 
-Para um arquivo hospedado, substitua o recurso `bundled` por um
-[recurso `url`](/blueprints/steps/resources#urlreference). Defina
-`fetchAttachments` como `true` e ative `features.networking` quando o importador
-precisar baixar os arquivos de mídia referenciados pelo arquivo WXR. A
-transferência de rede pode dominar o tempo total de configuração, por isso o
-benchmark apresentado mais adiante desativa a obtenção de anexos.
+Para um arquivo hospedado, substitua o recurso `bundled` por um [recurso `url`](/blueprints/steps/resources#urlreference).
+Defina `fetchAttachments` como `true` quando o importador precisar baixar os arquivos de mídia referenciados pelo arquivo WXR.
+A transferência de rede pode dominar o tempo total de configuração, por isso o benchmark apresentado mais adiante desativa a obtenção de anexos.
 
 O `importWxr` também pode mapear autores importados para usuários locais, criar
 usuários e aplicar substituições explícitas de URL. Consulte as
@@ -138,7 +136,8 @@ domínio.
 - Can fetch attachments and rewrite old content URLs for the new site.
 - Keeps content separate from the destination's WordPress core, plugins,
   themes, and most site settings.
-- Is easy to inspect, version, and edit because the source is XML.
+- Is easy to inspect, version, and edit manually in any text editor because the
+  source is XML.
 -->
 
 - Usa o formato padrão e portátil do WordPress para troca de conteúdo.
@@ -147,7 +146,7 @@ domínio.
 - Pode obter anexos e reescrever URLs de conteúdo antigas para o novo site.
 - Mantém o conteúdo separado do núcleo do WordPress, dos plugins, dos temas e da
   maioria das configurações do site de destino.
-- É fácil de inspecionar, versionar e editar porque a origem está em XML.
+- É fácil de inspecionar, pode ser editado manualmente por qualquer editor de texto, versionar e editar porque a origem está em XML.
 
 <!-- ### Cons -->
 
@@ -385,69 +384,17 @@ arbitrárias de servidores de produção.
 - Deve ser restaurado apenas de uma fonte confiável; pode conter PHP executável
   e um banco de dados inteiro.
 
-<!-- ## Run the benchmark and example checks -->
+<!-- ### Test results for the different methods -->
 
-## Executar o benchmark e as verificações dos exemplos
-
-<!--
-The repository includes an executable benchmark for the three examples. It
-creates the same 100 published posts with each method, starts with a fresh
-WordPress site for every round, and fails a round unless exactly 100 matching
-posts exist afterward.
-
-From the repository root, run:
--->
-
-O repositório inclui um benchmark executável para os três exemplos. Ele cria os
-mesmos 100 posts publicados com cada método, começa com um novo site WordPress
-em cada rodada e considera a rodada com falha se não existirem exatamente 100
-posts correspondentes no final.
-
-Na raiz do repositório, execute:
-
-```bash
-npm exec nx run playground-cli:perf-import-content -- --rounds=5 --posts=100
-```
+### Resultado dos testes entre os diferentes métodos
 
 <!--
-The benchmark prepares the WordPress runtime, WordPress Importer plugin, WXR
-payload, and ZIP snapshot before starting the timer. It measures only the
-`importWxr`, `runPHP`, or `importWordPressFiles` operation. Attachment fetching,
-runtime boot, resource downloads, ZIP creation, and result verification are not
-included. It calls the same step handlers against an in-memory Playground
-instance; it is not an end-to-end Playground CLI benchmark.
-
-This controlled scope answers “how long does the import operation take once a
-new WordPress instance is ready?” It does not predict a full demo's loading
-time. For that, separately measure downloads, WordPress boot, media fetching,
-plugin activation, and the first rendered page.
--->
-
-O benchmark prepara o runtime do WordPress, o plugin WordPress Importer, a carga
-WXR e o snapshot ZIP antes de iniciar o cronômetro. Ele mede apenas a operação
-`importWxr`, `runPHP` ou `importWordPressFiles`. A obtenção de anexos, a
-inicialização do runtime, os downloads de recursos, a criação do ZIP e a
-verificação dos resultados não estão incluídos. Ele chama os mesmos handlers de
-passos em uma instância do Playground na memória; não é um benchmark completo
-da CLI do Playground.
-
-Esse escopo controlado responde: “quanto tempo a operação de importação leva
-quando uma nova instância do WordPress já está pronta?”. Ele não prevê o tempo
-de carregamento de uma demonstração completa. Para isso, meça separadamente os
-downloads, a inicialização do WordPress, a obtenção de mídia, a ativação de
-plugins e a primeira página renderizada.
-
-<!-- ### Reference result -->
-
-### Resultado de referência
-
-<!--
-The following result was measured on July 13, 2026, on an Apple M4 Pro with
+The following test results were measured on July 13, 2026, on an Apple M4 Pro with
 24 GB of memory. It used Node.js 22.16, WordPress 7.0, PHP 8.3, 100 posts,
 and five fresh-site rounds per method:
 -->
 
-O resultado a seguir foi medido em 13 de julho de 2026, em um Apple M4 Pro com
+O resultado dos testes a seguir foi medido em 13 de julho de 2026, em um Apple M4 Pro com
 24 GB de memória. Foram usados Node.js 22.16, WordPress 7.0, PHP 8.3, 100 posts e
 cinco rodadas com um site novo para cada método:
 
