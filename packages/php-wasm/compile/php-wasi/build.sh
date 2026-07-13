@@ -143,6 +143,9 @@ REPRODUCIBLE_PATH_FLAGS=(
 	"-ffile-prefix-map=$ROOT=/src"
 )
 
+# SQLite defaults WASI builds to unix-dotfile, where even shared reader locks
+# become exclusive lock directories. Use the POSIX VFS so independent component
+# workers reach the fcntl bridge and its host-owned OFD locks instead.
 SQLITE_CFLAGS="$OPTIMIZATION_FLAG ${REPRODUCIBLE_PATH_FLAGS[*]} -include $ROOT/component/fcntl_compat.h -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS5 -DSQLITE_USE_URI -DSQLITE_OMIT_LOAD_EXTENSION"
 (
 	cd "$SQLITE_BUILD"

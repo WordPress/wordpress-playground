@@ -2,6 +2,9 @@
 #define WP_PLAYGROUND_WASI_FCNTL_COMPAT_H
 
 /* wasi-libc implements fcntl but hides the unsupported record-lock commands. */
+#ifndef SQLITE_DEFAULT_UNIX_VFS
+#define SQLITE_DEFAULT_UNIX_VFS "unix"
+#endif
 #ifndef F_RDLCK
 #define F_RDLCK 0
 #endif

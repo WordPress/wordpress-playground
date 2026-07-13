@@ -75,6 +75,10 @@ impl Wasip2ContextBuilder {
 
     pub fn build(self) -> wasmtime::Result<Wasip2HostState> {
         let mut builder = WasiCtxBuilder::new();
+        // Component requests already run synchronously on dedicated native
+        // threads. Keep blocking filesystem calls on those threads instead of
+        // bouncing every operation through Tokio's blocking pool and awaiting it.
+        builder.allow_blocking_current_thread(true);
         for preopen in self.preopens {
             builder.preopened_dir(
                 preopen.host_path,
