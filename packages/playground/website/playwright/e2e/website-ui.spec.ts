@@ -85,6 +85,23 @@ async function getRunningPhpVersion(page: Page) {
 	});
 }
 
+/**
+ * Waits for a settings submission to replace and fully boot the temporary site.
+ */
+async function waitForTemporaryPlaygroundReset(
+	page: Page,
+	previousSiteSlug: string
+) {
+	// The settings form starts an asynchronous replacement. Waiting for the
+	// active slug prevents the old, already-ready client from satisfying isReady().
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(page))?.slug, {
+			timeout: 120_000,
+		})
+		.not.toBe(previousSiteSlug);
+	await page.evaluate(() => (window as any).playgroundSites.isReady());
+}
+
 async function replaceBlueprintEditorContents(
 	page: Page,
 	blueprint: Blueprint
@@ -588,16 +605,22 @@ SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
-		await website.page.getByLabel('PHP version').selectOption(version);
+		const previousSite = await getActivePlaygroundSite(website.page);
+		const phpVersion = website.page.getByLabel('PHP version');
+		await phpVersion.selectOption(version);
+		// Confirm the controlled form retained the user's choice before submit.
+		await expect(phpVersion).toHaveValue(version);
 		await website.page
 			.getByText('Discard current work & create a fresh Playground')
 			.click();
-		await website.ensureSiteManagerIsClosed();
-		await website.ensureSiteManagerIsOpen();
+		await expect
+			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
+				timeout: 120_000,
+			})
+			.toBe(version);
+		await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
-		await expect(website.page.getByLabel('PHP version')).toHaveValue(
-			version
-		);
+		await expect(phpVersion).toHaveValue(version);
 	});
 });
 
@@ -610,18 +633,20 @@ Object.keys(MinifiedWordPressVersions)
 		}) => {
 			await website.goto('./?storage=temp');
 			await website.ensureSiteManagerIsOpen();
-			await website.page
-				.getByLabel('WordPress version')
-				.selectOption(version);
+			const previousSite = await getActivePlaygroundSite(website.page);
+			const wordpressVersion =
+				website.page.getByLabel('WordPress version');
+			await wordpressVersion.selectOption(version);
+			await expect(wordpressVersion).toHaveValue(version);
 			await website.page
 				.getByText('Discard current work & create a fresh Playground')
 				.click();
-			await website.ensureSiteManagerIsClosed();
-			await website.ensureSiteManagerIsOpen();
+			await waitForTemporaryPlaygroundReset(
+				website.page,
+				previousSite.slug
+			);
 
-			await expect(
-				website.page.getByLabel('WordPress version')
-			).toHaveValue(version);
+			await expect(wordpressVersion).toHaveValue(version);
 		});
 	});
 
@@ -643,12 +668,12 @@ test('should enable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').check();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
@@ -657,12 +682,12 @@ test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp&networking=yes');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').uncheck();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
 });
@@ -708,11 +733,12 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').check();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.waitForNestedIframes();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	const updatedParams = new URL(website.page.url()).searchParams;
 	expect(updatedParams.get('storage')).toBe('temp');
