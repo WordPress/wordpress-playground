@@ -28,10 +28,14 @@ describe('Query API', () => {
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
 			cy.visit('/?url=/wp-admin/');
-			const expectedBodyClass =
-				'version-' + LatestSupportedWordPressVersion.replace('.', '-');
+			// WordPress derives the admin body branch class from (float) $wp_version.
+			const expectedBranchClass =
+				'branch-' +
+				parseFloat(LatestSupportedWordPressVersion)
+					.toString()
+					.replace('.', '-');
 			cy.wordPressDocument()
-				.find(`body.${expectedBodyClass}`)
+				.find(`body.${expectedBranchClass}`)
 				.should('exist');
 		});
 

@@ -25,8 +25,11 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import { CodeEditor, type CodeEditorHandle } from '@wp-playground/components';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
+import {
+	CodeEditor,
+	FileExplorerSidebar,
+	type CodeEditorHandle,
+} from '@wp-playground/components';
 import {
 	formatEditor,
 	getStringNodeAtPosition,
@@ -284,7 +287,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
-	const [treeFocusPath, setTreeFocusPath] = useState<string | null>(null);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -325,34 +327,45 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	/**
+	 * `flush()` starts the latest delayed save. This ordered promise also includes
+	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
+	 */
+	const saveBarrierRef = useRef<Promise<boolean>>(Promise.resolve(true));
 	const dispatch = useAppDispatch();
 	const playgroundClient = useAppSelector((state) =>
 		site ? selectClientInfoBySiteSlug(state, site.slug)?.client : undefined
 	);
 
 	// Save file to filesystem
-	const saveFile = useDebouncedCallback(
-		async (path: string, content: string) => {
+	const saveFile = useDebouncedCallback(enqueueSave, 200, [filesystem]);
+
+	function enqueueSave(path: string, content: string): Promise<boolean> {
+		saveBarrierRef.current = saveBarrierRef.current.then(async () => {
 			try {
 				await filesystem.writeFile(path, content);
 				setSaveError(null);
+				return true;
 			} catch (error) {
 				logger.error('Failed to save file', error);
 				setSaveError('Could not save changes. Try again.');
+				return false;
 			}
-		},
-		200,
-		[filesystem]
-	);
+		});
+		return saveBarrierRef.current;
+	}
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
+			if (readOnly || isRecreating) {
+				return;
+			}
 			setCode(newCode);
 			if (currentPath) {
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, saveFile]
+		[currentPath, isRecreating, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -369,7 +382,6 @@ export const BlueprintBundleEditor = forwardRef<
 				setSaveError(null);
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
-				setTreeFocusPath(BLUEPRINT_JSON_PATH);
 			} catch (error) {
 				logger.error('Could not open blueprint.json', error);
 			}
@@ -396,6 +408,10 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		try {
 			setIsRecreating(true);
+			saveFile.flush();
+			if (!(await saveBarrierRef.current)) {
+				return;
+			}
 			setSaveError(null);
 			const isAutosaved = isAutosavedSite(site);
 			const bundle =
@@ -472,7 +488,7 @@ export const BlueprintBundleEditor = forwardRef<
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [dispatch, filesystem, playgroundClient, readOnly, site]);
+	}, [dispatch, filesystem, playgroundClient, readOnly, saveFile, site]);
 
 	// autorun token hook
 	useEffect(() => {
@@ -489,7 +505,6 @@ export const BlueprintBundleEditor = forwardRef<
 			setMessageContent(null);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(path);
 
 			if (shouldFocus) {
 				setTimeout(() => editorRef.current?.focus(), 20);
@@ -504,7 +519,6 @@ export const BlueprintBundleEditor = forwardRef<
 		setMessageContent(null);
 		setDisplayPath(null);
 		setSaveError(null);
-		setTreeFocusPath(null);
 	}, []);
 
 	// Open the string editor modal for the string at the current cursor position
@@ -544,6 +558,9 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
+			if (readOnly || isRecreating) {
+				return;
+			}
 			const view = cmViewRef.current;
 			if (!view) return;
 
@@ -561,7 +578,12 @@ export const BlueprintBundleEditor = forwardRef<
 			// Format the document after the change
 			setTimeout(() => formatEditor(view), 0);
 		},
-		[stringEditorState.contentStart, stringEditorState.contentEnd]
+		[
+			isRecreating,
+			readOnly,
+			stringEditorState.contentEnd,
+			stringEditorState.contentStart,
+		]
 	);
 
 	const closeStringEditor = useCallback(() => {
@@ -585,7 +607,6 @@ export const BlueprintBundleEditor = forwardRef<
 
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(null);
 		},
 		[]
 	);
@@ -719,12 +740,11 @@ export const BlueprintBundleEditor = forwardRef<
 							currentPath={currentPath}
 							selectedDirPath={selectedDirPath}
 							setSelectedDirPath={setSelectedDirPath}
-							focusPath={treeFocusPath}
 							onFileOpened={handleFileOpened}
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly}
+							readOnly={readOnly || isRecreating}
 						/>
 					</aside>
 					<section className={styles.editorWrapper}>
@@ -849,7 +869,7 @@ export const BlueprintBundleEditor = forwardRef<
 										onChange={handleCodeChange}
 										currentPath={currentPath}
 										className={styles.editor}
-										readOnly={readOnly}
+										readOnly={readOnly || isRecreating}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
 												? blueprintSchemaExtensions

@@ -350,7 +350,7 @@ export namespace V2Schema {
 		 * }
 		 * ```
 		 */
-		fonts?: Record<string, DataSources.DataReference | FontCollection>;
+		fonts?: Record<string, DataSources.FileDataReference | FontCollection>;
 
 		/**
 		 * A list of media files to upload to the WordPress Media Library – in formats
@@ -469,9 +469,8 @@ export namespace V2Schema {
 				type: 'posts';
 				source:
 					| DataSources.FileDataReference
-					| DataSources.FileDataReference[]
 					| WordPressPost
-					| WordPressPost[];
+					| (DataSources.FileDataReference | WordPressPost)[];
 		  } & URLMappingConfig)
 		/**
 		 * WXR files to import.
@@ -561,7 +560,6 @@ export namespace V2Schema {
 		 * @default false.
 		 */
 		importComments?: boolean;
-
 	} & URLMappingConfig;
 
 	type MediaDefinition =
@@ -1206,7 +1204,7 @@ export namespace V2Schema {
 		/** CSS font-display value. */
 		fontDisplay?: 'auto' | 'block' | 'fallback' | 'swap' | 'optional';
 		/** Paths or URLs to the font files. */
-		src: DataSources.DataReference | DataSources.DataReference[];
+		src: DataSources.FileDataReference | DataSources.FileDataReference[];
 		/** CSS font-stretch value. */
 		fontStretch?: string;
 		/** CSS ascent-override value. */

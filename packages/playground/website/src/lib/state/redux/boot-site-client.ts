@@ -8,7 +8,6 @@ import { addClientInfo, updateClientInfo } from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
-	type BlueprintDeclaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -235,11 +234,6 @@ export function bootSiteClient(
 				scope: site.slug,
 				blueprint,
 				extensions: phpExtensions,
-				experimentalBlueprintsV2Runner:
-					!shouldBootFromStoredFiles &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
@@ -250,7 +244,7 @@ export function bootSiteClient(
 						playgroundClient;
 				},
 				// Log Blueprint events
-				onBlueprintValidated: logSupportedBlueprintEvents,
+				onBlueprintValidated: logBlueprintEvents,
 				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
@@ -533,13 +527,6 @@ function waitForPendingOpfsSiteRemovalRetry(
 			resolve();
 		}
 	});
-}
-
-function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {
-	if ('version' in blueprint && blueprint.version === 2) {
-		return;
-	}
-	return logBlueprintEvents(blueprint as any);
 }
 
 /**
