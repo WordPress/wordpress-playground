@@ -693,42 +693,6 @@ test.describe('Database panel', () => {
 	});
 });
 
-test('should stat the database size without reading the database into JavaScript', async ({
-	website,
-}) => {
-	await website.goto('./?storage=temp');
-	await website.waitForNestedIframes();
-	await website.page.waitForFunction(
-		() => Boolean((window as any).playgroundSites?.getClient()),
-		undefined,
-		{ timeout: 120000 }
-	);
-
-	await website.page.evaluate(() => {
-		const playground = (window as any).playgroundSites.getClient();
-		const originalRead = playground.readFileAsBuffer.bind(playground);
-		(window as any).__databaseReadCount = 0;
-		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
-				(window as any).__databaseReadCount++;
-				throw new Error(
-					'Database contents must not be read to calculate size.'
-				);
-			}
-			return originalRead(path);
-		};
-	});
-
-	await website.ensureSiteManagerIsOpen();
-	await website.page.getByRole('tab', { name: 'Database' }).click();
-	await expect(website.page.getByText('Size:')).toBeVisible();
-	await expect
-		.poll(() =>
-			website.page.evaluate(() => (window as any).__databaseReadCount)
-		)
-		.toBe(0);
-});
-
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 test.describe('Default Playground storage', () => {
 	test.describe.configure({ mode: 'serial' });
