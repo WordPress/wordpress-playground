@@ -411,7 +411,8 @@ mod platform {
     use windows_sys::Win32::Foundation::{
         GetLastError, ERROR_ACCESS_DENIED, ERROR_INVALID_FUNCTION, ERROR_INVALID_HANDLE,
         ERROR_INVALID_PARAMETER, ERROR_IO_PENDING, ERROR_LOCK_VIOLATION, ERROR_NOT_ENOUGH_MEMORY,
-        ERROR_NOT_SUPPORTED, ERROR_OPERATION_ABORTED, ERROR_POSSIBLE_DEADLOCK, HANDLE,
+        ERROR_NOT_LOCKED, ERROR_NOT_SUPPORTED, ERROR_OPERATION_ABORTED, ERROR_POSSIBLE_DEADLOCK,
+        HANDLE,
     };
     use windows_sys::Win32::Storage::FileSystem::{
         LockFileEx, UnlockFileEx, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
@@ -423,11 +424,11 @@ mod platform {
         kind: LockKind,
         mode: LockMode,
     ) -> Result<(), LockError> {
-        lock(handle, ByteRange::WHOLE_FILE, kind, mode)
+        replace_lock(handle, ByteRange::WHOLE_FILE, kind, mode)
     }
 
     pub(super) fn unlock_whole(handle: RawHandle) -> Result<(), LockError> {
-        unlock(handle, ByteRange::WHOLE_FILE)
+        unlock_all(handle, ByteRange::WHOLE_FILE)
     }
 
     pub(super) fn lock_range(
@@ -436,7 +437,7 @@ mod platform {
         kind: LockKind,
         mode: LockMode,
     ) -> Result<(), LockError> {
-        lock(handle, range, kind, mode)
+        replace_lock(handle, range, kind, mode)
     }
 
     pub(super) fn query_range(
@@ -477,7 +478,21 @@ mod platform {
     }
 
     pub(super) fn unlock_range(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
-        unlock(handle, range)
+        unlock_all(handle, range)
+    }
+
+    fn replace_lock(
+        handle: RawHandle,
+        range: ByteRange,
+        kind: LockKind,
+        mode: LockMode,
+    ) -> Result<(), LockError> {
+        // POSIX fcntl replaces this owner's lock over the requested range.
+        // LockFileEx instead stacks shared locks and rejects an exclusive lock
+        // that overlaps a shared lock held by the same handle. Clear exact
+        // prior acquisitions first so SQLite can promote SHARED to EXCLUSIVE.
+        unlock_all(handle, range)?;
+        lock(handle, range, kind, mode)
     }
 
     fn lock(
@@ -512,6 +527,19 @@ mod platform {
     }
 
     fn unlock(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
+        if unlock_once(handle, range)? {
+            Ok(())
+        } else {
+            Err(classify(ERROR_NOT_LOCKED))
+        }
+    }
+
+    fn unlock_all(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
+        while unlock_once(handle, range)? {}
+        Ok(())
+    }
+
+    fn unlock_once(handle: RawHandle, range: ByteRange) -> Result<bool, LockError> {
         let (length_low, length_high, mut overlapped) = native_range(range)?;
         let result = unsafe {
             UnlockFileEx(
@@ -523,9 +551,14 @@ mod platform {
             )
         };
         if result != 0 {
-            Ok(())
+            Ok(true)
         } else {
-            Err(classify(unsafe { GetLastError() }))
+            let code = unsafe { GetLastError() };
+            if code == ERROR_NOT_LOCKED {
+                Ok(false)
+            } else {
+                Err(classify(code))
+            }
         }
     }
 
@@ -649,6 +682,21 @@ mod tests {
             run_helper(&path, "query-range-exclusive", Some(range)),
             "exclusive"
         );
+        unlock_range(&file, range).unwrap();
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn range_lock_replaces_same_handle_lock_on_windows() {
+        let path = temp_file("same-handle-range-replacement");
+        let file = open_file(&path);
+        let range = ByteRange::new(10, Some(10));
+
+        lock_range(&file, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        lock_range(&file, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        lock_range(&file, range, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
         unlock_range(&file, range).unwrap();
 
         remove_temp_file(path);
