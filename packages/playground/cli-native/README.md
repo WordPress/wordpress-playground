@@ -31,6 +31,10 @@ This gives concurrent requests real parallel execution. SQLite transactions
 still coordinate through native advisory locks, including independent workers
 inside the same process.
 
+SQLite uses its `unix` VFS so shared readers and a reserved writer can overlap
+through the host fcntl/OFD bridge. It remains in rollback-journal mode because
+WASI does not provide the shared-memory operations required by SQLite WAL.
+
 The component build and its inputs live in
 `packages/php-wasm/compile/php-wasi`. Its checked-in output is selected by
 `assets/php-assets.json`; no JavaScript loader is packaged by the native CLI.
@@ -140,17 +144,19 @@ The Rust suite loads the checked-in component rather than an optional `/tmp`
 fixture. It covers typed request transfer, header/body separation, fatal-error
 recovery, parallel workers, and two concurrent `BEGIN IMMEDIATE` SQLite
 transactions through the guest lock bridge. The ignored native-server suite
-adds packaged WordPress, Blueprint, snapshot, editor, and lock smokes.
+also verifies overlapping SQLite readers, a reserved writer with a concurrent
+reader, packaged WordPress, Blueprint, snapshot, editor, and lock smokes.
 
 ## Benchmark the Site Editor
 
-Start matched WordPress installations under this runtime and nginx/php-fpm,
-then run:
+Start matched WordPress installations under Node Playground CLI, this runtime,
+and nginx/native PHP, then run:
 
 ```bash
 node packages/playground/cli-native/scripts/benchmark-site-editor.mjs \
+  --target 'Node Playground CLI=http://127.0.0.1:9401' \
   --target Wasmtime=http://127.0.0.1:9400 \
-  --target nginx-php-fpm=http://127.0.0.1:8081 \
+  --target 'nginx/native PHP=http://127.0.0.1:8081' \
   --storage-state ./wordpress-auth.json
 ```
 

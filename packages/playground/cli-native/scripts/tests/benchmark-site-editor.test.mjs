@@ -89,14 +89,16 @@ test('parseArgs uses the browser executable environment fallback', () => {
 });
 
 test('parseArgs rejects incomplete or ambiguous benchmark configurations', () => {
+	const singleTarget = parseArgs([
+		'--target',
+		'only=http://127.0.0.1:9400',
+		'--allow-unauthenticated',
+	]);
+	assert.equal(singleTarget.targets.length, 1);
+
 	assert.throws(
-		() =>
-			parseArgs([
-				'--target',
-				'only=http://127.0.0.1:9400',
-				'--allow-unauthenticated',
-			]),
-		/at least two --target/
+		() => parseArgs(['--allow-unauthenticated']),
+		/at least one --target/
 	);
 	assert.throws(
 		() =>
