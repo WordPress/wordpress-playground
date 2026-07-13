@@ -7,9 +7,12 @@
 //!
 //! On Linux, Android, and Apple hosts, byte-range locks use open-file-description
 //! commands so separate Wasmtime Stores in one process still conflict correctly.
-//! Windows range locks are handle-owned. Other Unix targets fall back to
-//! process-owned POSIX record locks and therefore require process-isolated
-//! workers for correct byte-range lock ownership.
+//! Windows range locks are handle-owned. A process-local interval ledger maps
+//! POSIX-style replacement and spanning unlocks onto exact `LockFileEx`
+//! acquisitions. Overlapping conversions and queries cannot be atomic against
+//! unrelated external processes. Other Unix targets fall back to process-owned
+//! POSIX record locks and therefore require process-isolated workers for correct
+//! byte-range lock ownership.
 
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -406,8 +409,11 @@ mod platform {
 #[cfg(windows)]
 mod platform {
     use super::{ByteRange, LockError, LockKind, LockMode, LockState};
+    use std::collections::HashMap;
     use std::io;
     use std::os::windows::io::RawHandle;
+    use std::sync::{Condvar, Mutex, OnceLock};
+    use std::time::Duration;
     use windows_sys::Win32::Foundation::{
         GetLastError, ERROR_ACCESS_DENIED, ERROR_INVALID_FUNCTION, ERROR_INVALID_HANDLE,
         ERROR_INVALID_PARAMETER, ERROR_IO_PENDING, ERROR_LOCK_VIOLATION, ERROR_NOT_ENOUGH_MEMORY,
@@ -419,16 +425,42 @@ mod platform {
     };
     use windows_sys::Win32::System::IO::OVERLAPPED;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct HeldLock {
+        start: u64,
+        end: u64,
+        kind: LockKind,
+    }
+
+    #[derive(Default)]
+    struct LockLedger {
+        by_handle: HashMap<usize, Vec<HeldLock>>,
+    }
+
+    struct LockCoordinator {
+        ledger: Mutex<LockLedger>,
+        changed: Condvar,
+    }
+
+    static LOCK_COORDINATOR: OnceLock<LockCoordinator> = OnceLock::new();
+
+    fn coordinator() -> &'static LockCoordinator {
+        LOCK_COORDINATOR.get_or_init(|| LockCoordinator {
+            ledger: Mutex::new(LockLedger::default()),
+            changed: Condvar::new(),
+        })
+    }
+
     pub(super) fn lock_whole(
         handle: RawHandle,
         kind: LockKind,
         mode: LockMode,
     ) -> Result<(), LockError> {
-        replace_lock(handle, ByteRange::WHOLE_FILE, kind, mode)
+        set_lock(handle, ByteRange::WHOLE_FILE, kind, mode)
     }
 
     pub(super) fn unlock_whole(handle: RawHandle) -> Result<(), LockError> {
-        unlock_all(handle, ByteRange::WHOLE_FILE)
+        remove_lock(handle, ByteRange::WHOLE_FILE)
     }
 
     pub(super) fn lock_range(
@@ -437,7 +469,7 @@ mod platform {
         kind: LockKind,
         mode: LockMode,
     ) -> Result<(), LockError> {
-        replace_lock(handle, range, kind, mode)
+        set_lock(handle, range, kind, mode)
     }
 
     pub(super) fn query_range(
@@ -445,21 +477,53 @@ mod platform {
         range: ByteRange,
         kind: LockKind,
     ) -> Result<LockState, LockError> {
-        match lock(handle, range, kind, LockMode::NonBlocking) {
-            Ok(()) => {
-                unlock(handle, range)?;
-                Ok(LockState::Unlocked)
-            }
+        let (start, end) = bounds(range)?;
+        let coordinator = coordinator();
+        let mut ledger = coordinator
+            .ledger
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let key = handle as usize;
+        let tracked = ledger.by_handle.get(&key).cloned().unwrap_or_default();
+        let (untouched, touched) = partition_locks(tracked, start, end);
+
+        // F_GETLK ignores this open-file-description's own locks. LockFileEx
+        // has no equivalent query and its probes see locks on the same handle,
+        // so temporarily remove only this handle's intersecting acquisitions
+        // while every in-process lock operation is excluded by the coordinator.
+        // All native calls here are nonblocking; uncoordinated external processes
+        // can only make this point-in-time result stale, just as with F_GETLK.
+        let prior = release_tracked(handle, &touched)?;
+        let result = query_without_own_locks(handle, range, start, end, kind);
+        let (restored, restore_error) = acquire_prefix(handle, &prior);
+        set_tracked(&mut ledger, key, join_locks(untouched, restored));
+        if let Some(error) = restore_error {
+            return Err(error);
+        }
+        result
+    }
+
+    fn query_without_own_locks(
+        handle: RawHandle,
+        range: ByteRange,
+        start: u64,
+        end: u64,
+        kind: LockKind,
+    ) -> Result<LockState, LockError> {
+        let requested = HeldLock { start, end, kind };
+        match probe(handle, requested) {
+            Ok(()) => Ok(LockState::Unlocked),
             Err(LockError::WouldBlock) if kind == LockKind::Exclusive => {
-                match lock(handle, range, LockKind::Shared, LockMode::NonBlocking) {
-                    Ok(()) => {
-                        unlock(handle, range)?;
-                        Ok(LockState::Locked {
-                            kind: LockKind::Shared,
-                            range,
-                            owner_process_id: None,
-                        })
-                    }
+                let shared = HeldLock {
+                    kind: LockKind::Shared,
+                    ..requested
+                };
+                match probe(handle, shared) {
+                    Ok(()) => Ok(LockState::Locked {
+                        kind: LockKind::Shared,
+                        range,
+                        owner_process_id: None,
+                    }),
                     Err(LockError::WouldBlock) => Ok(LockState::Locked {
                         kind: LockKind::Exclusive,
                         range,
@@ -478,37 +542,192 @@ mod platform {
     }
 
     pub(super) fn unlock_range(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
-        unlock_all(handle, range)
+        remove_lock(handle, range)
     }
 
-    fn replace_lock(
+    fn set_lock(
         handle: RawHandle,
         range: ByteRange,
         kind: LockKind,
         mode: LockMode,
     ) -> Result<(), LockError> {
-        // POSIX fcntl replaces this owner's lock over the requested range.
-        // LockFileEx instead stacks shared locks and rejects an exclusive lock
-        // that overlaps a shared lock held by the same handle. Clear exact
-        // prior acquisitions first so SQLite can promote SHARED to EXCLUSIVE.
-        unlock_all(handle, range)?;
-        lock(handle, range, kind, mode)
-    }
+        let (start, end) = bounds(range)?;
+        let coordinator = coordinator();
+        let mut ledger = coordinator
+            .ledger
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-    fn lock(
-        handle: RawHandle,
-        range: ByteRange,
-        kind: LockKind,
-        mode: LockMode,
-    ) -> Result<(), LockError> {
-        let (length_low, length_high, mut overlapped) = native_range(range)?;
-        let mut flags = match kind {
-            LockKind::Shared => 0,
-            LockKind::Exclusive => LOCKFILE_EXCLUSIVE_LOCK,
-        };
-        if mode == LockMode::NonBlocking {
-            flags |= LOCKFILE_FAIL_IMMEDIATELY;
+        loop {
+            match reconfigure(&mut ledger, handle, start, end, Some(kind)) {
+                Err(LockError::WouldBlock) if mode == LockMode::Blocking => {
+                    // Always issue FAIL_IMMEDIATELY native requests while the
+                    // coordinator is locked. The condition-variable wait drops
+                    // the mutex, allowing the conflicting worker to unlock.
+                    // The timeout also observes locks released by other processes.
+                    let (next, _) = coordinator
+                        .changed
+                        .wait_timeout(ledger, Duration::from_millis(10))
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    ledger = next;
+                }
+                result => return result,
+            }
         }
+    }
+
+    fn remove_lock(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
+        let (start, end) = bounds(range)?;
+        let coordinator = coordinator();
+        let mut ledger = coordinator
+            .ledger
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        reconfigure(&mut ledger, handle, start, end, None)
+    }
+
+    fn reconfigure(
+        ledger: &mut LockLedger,
+        handle: RawHandle,
+        start: u64,
+        end: u64,
+        replacement: Option<LockKind>,
+    ) -> Result<(), LockError> {
+        let key = handle as usize;
+        let tracked = ledger.by_handle.get(&key).cloned().unwrap_or_default();
+        let (untouched, touched) = partition_locks(tracked, start, end);
+        let prior = release_tracked(handle, &touched)?;
+        let desired = edited_locks(&prior, start, end, replacement);
+        let (acquired, acquisition_error) = acquire_prefix(handle, &desired);
+
+        if let Some(error) = acquisition_error {
+            // A failed POSIX conversion leaves the old lock map unchanged.
+            // Unrelated native acquisitions were never released. No other
+            // in-process operation can take the touched ranges while the
+            // coordinator is held, so restoring them is deterministic for the
+            // worker pool. External processes may race, in which case the
+            // restoration error is the more important result.
+            let cleanup_error = release_exact(handle, &acquired).err();
+            let (restored, restore_error) = acquire_prefix(handle, &prior);
+            set_tracked(ledger, key, join_locks(untouched, restored));
+            return Err(restore_error.or(cleanup_error).unwrap_or(error));
+        }
+
+        set_tracked(ledger, key, join_locks(untouched, desired));
+        coordinator().changed.notify_all();
+        Ok(())
+    }
+
+    fn release_tracked(
+        handle: RawHandle,
+        tracked: &[HeldLock],
+    ) -> Result<Vec<HeldLock>, LockError> {
+        let mut released = Vec::with_capacity(tracked.len());
+        for held in tracked.iter().copied() {
+            match unlock_native(handle, held) {
+                Ok(true) => released.push(held),
+                Ok(false) => {
+                    // A closed file releases its OS locks. If Windows later
+                    // reuses the numeric HANDLE, discard the stale acquisition.
+                }
+                Err(error) => {
+                    let (_, restore_error) = acquire_prefix(handle, &released);
+                    return Err(restore_error.unwrap_or(error));
+                }
+            }
+        }
+        Ok(released)
+    }
+
+    fn acquire_prefix(handle: RawHandle, locks: &[HeldLock]) -> (Vec<HeldLock>, Option<LockError>) {
+        let mut acquired = Vec::with_capacity(locks.len());
+        for held in locks.iter().copied() {
+            match lock_native(handle, held) {
+                Ok(()) => acquired.push(held),
+                Err(error) => return (acquired, Some(error)),
+            }
+        }
+        (acquired, None)
+    }
+
+    fn release_exact(handle: RawHandle, locks: &[HeldLock]) -> Result<(), LockError> {
+        for held in locks.iter().copied() {
+            if !unlock_native(handle, held)? {
+                return Err(classify(ERROR_NOT_LOCKED));
+            }
+        }
+        Ok(())
+    }
+
+    fn set_tracked(ledger: &mut LockLedger, key: usize, locks: Vec<HeldLock>) {
+        if locks.is_empty() {
+            ledger.by_handle.remove(&key);
+        } else {
+            ledger.by_handle.insert(key, locks);
+        }
+    }
+
+    fn edited_locks(
+        current: &[HeldLock],
+        start: u64,
+        end: u64,
+        replacement: Option<LockKind>,
+    ) -> Vec<HeldLock> {
+        let mut edited = Vec::with_capacity(current.len() + 1);
+        for held in current.iter().copied() {
+            if held.end <= start || end <= held.start {
+                edited.push(held);
+                continue;
+            }
+            if held.start < start {
+                edited.push(HeldLock { end: start, ..held });
+            }
+            if end < held.end {
+                edited.push(HeldLock { start: end, ..held });
+            }
+        }
+        if let Some(kind) = replacement {
+            edited.push(HeldLock { start, end, kind });
+        }
+        sort_locks(edited)
+    }
+
+    fn partition_locks(
+        locks: Vec<HeldLock>,
+        start: u64,
+        end: u64,
+    ) -> (Vec<HeldLock>, Vec<HeldLock>) {
+        locks
+            .into_iter()
+            .partition(|held| held.end <= start || end <= held.start)
+    }
+
+    fn join_locks(mut untouched: Vec<HeldLock>, touched: Vec<HeldLock>) -> Vec<HeldLock> {
+        untouched.extend(touched);
+        sort_locks(untouched)
+    }
+
+    fn sort_locks(mut locks: Vec<HeldLock>) -> Vec<HeldLock> {
+        locks.sort_unstable_by_key(|held| (held.start, held.end));
+        debug_assert!(locks.windows(2).all(|pair| pair[0].end <= pair[1].start));
+        locks
+    }
+
+    fn probe(handle: RawHandle, requested: HeldLock) -> Result<(), LockError> {
+        lock_native(handle, requested)?;
+        if unlock_native(handle, requested)? {
+            Ok(())
+        } else {
+            Err(classify(ERROR_NOT_LOCKED))
+        }
+    }
+
+    fn lock_native(handle: RawHandle, held: HeldLock) -> Result<(), LockError> {
+        let (length_low, length_high, mut overlapped) = native_range(held)?;
+        let flags = match held.kind {
+            LockKind::Shared => LOCKFILE_FAIL_IMMEDIATELY,
+            LockKind::Exclusive => LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY,
+        };
         let result = unsafe {
             LockFileEx(
                 handle as HANDLE,
@@ -526,21 +745,8 @@ mod platform {
         }
     }
 
-    fn unlock(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
-        if unlock_once(handle, range)? {
-            Ok(())
-        } else {
-            Err(classify(ERROR_NOT_LOCKED))
-        }
-    }
-
-    fn unlock_all(handle: RawHandle, range: ByteRange) -> Result<(), LockError> {
-        while unlock_once(handle, range)? {}
-        Ok(())
-    }
-
-    fn unlock_once(handle: RawHandle, range: ByteRange) -> Result<bool, LockError> {
-        let (length_low, length_high, mut overlapped) = native_range(range)?;
+    fn unlock_native(handle: RawHandle, held: HeldLock) -> Result<bool, LockError> {
+        let (length_low, length_high, mut overlapped) = native_range(held)?;
         let result = unsafe {
             UnlockFileEx(
                 handle as HANDLE,
@@ -562,16 +768,25 @@ mod platform {
         }
     }
 
-    fn native_range(range: ByteRange) -> Result<(u32, u32, OVERLAPPED), LockError> {
-        let length = range
-            .length
-            .unwrap_or_else(|| u64::MAX.saturating_sub(range.start));
+    fn bounds(range: ByteRange) -> Result<(u64, u64), LockError> {
+        let end = match range.length {
+            Some(length) => range.start.checked_add(length).ok_or(LockError::Overflow)?,
+            None => u64::MAX,
+        };
+        if end == range.start {
+            return Err(LockError::InvalidRange);
+        }
+        Ok((range.start, end))
+    }
+
+    fn native_range(held: HeldLock) -> Result<(u32, u32, OVERLAPPED), LockError> {
+        let length = held.end.saturating_sub(held.start);
         if length == 0 {
             return Err(LockError::InvalidRange);
         }
         let mut overlapped = OVERLAPPED::default();
-        overlapped.Anonymous.Anonymous.Offset = range.start as u32;
-        overlapped.Anonymous.Anonymous.OffsetHigh = (range.start >> 32) as u32;
+        overlapped.Anonymous.Anonymous.Offset = held.start as u32;
+        overlapped.Anonymous.Anonymous.OffsetHigh = (held.start >> 32) as u32;
         Ok((length as u32, (length >> 32) as u32, overlapped))
     }
 
@@ -586,6 +801,94 @@ mod platform {
             ERROR_ACCESS_DENIED => LockError::PermissionDenied,
             ERROR_NOT_ENOUGH_MEMORY => LockError::ResourceExhausted,
             _ => LockError::Io(io::Error::from_raw_os_error(code as i32)),
+        }
+    }
+
+    #[cfg(test)]
+    mod ledger_tests {
+        use super::*;
+        use std::fs::{self, OpenOptions};
+        use std::os::windows::io::AsRawHandle;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static NEXT_PATH: AtomicU64 = AtomicU64::new(0);
+
+        #[test]
+        fn partition_selects_only_intersecting_native_acquisitions() {
+            let shared = HeldLock {
+                start: 100,
+                end: 110,
+                kind: LockKind::Shared,
+            };
+            let reserved = HeldLock {
+                start: 200,
+                end: 201,
+                kind: LockKind::Exclusive,
+            };
+
+            let (untouched, touched) = partition_locks(vec![shared, reserved], 200, 201);
+
+            assert_eq!(untouched, vec![shared]);
+            assert_eq!(touched, vec![reserved]);
+        }
+
+        #[test]
+        fn missing_native_lock_purges_a_stale_handle_entry() {
+            let path = std::env::temp_dir().join(format!(
+                "wp-playground-stale-lock-{}-{}.tmp",
+                std::process::id(),
+                NEXT_PATH.fetch_add(1, Ordering::Relaxed)
+            ));
+            let file = OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .open(&path)
+                .unwrap();
+            let handle = file.as_raw_handle();
+            let key = handle as usize;
+            let stale = HeldLock {
+                start: 10,
+                end: 11,
+                kind: LockKind::Exclusive,
+            };
+            coordinator()
+                .ledger
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .by_handle
+                .insert(key, vec![stale]);
+
+            remove_lock(handle, ByteRange::new(10, Some(1))).unwrap();
+            assert!(!coordinator()
+                .ledger
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .by_handle
+                .contains_key(&key));
+
+            let fresh = ByteRange::new(20, Some(1));
+            set_lock(handle, fresh, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+            let tracked = coordinator()
+                .ledger
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .by_handle
+                .get(&key)
+                .cloned()
+                .unwrap();
+            assert_eq!(
+                tracked,
+                vec![HeldLock {
+                    start: 20,
+                    end: 21,
+                    kind: LockKind::Exclusive,
+                }]
+            );
+
+            remove_lock(handle, ByteRange::WHOLE_FILE).unwrap();
+            drop(file);
+            fs::remove_file(path).unwrap();
         }
     }
 }
@@ -697,6 +1000,141 @@ mod tests {
         lock_range(&file, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
         lock_range(&file, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
         lock_range(&file, range, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        unlock_range(&file, range).unwrap();
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn adjacent_windows_locks_can_be_unlocked_by_their_union() {
+        let path = temp_file("adjacent-range-unlock");
+        let file = open_file(&path);
+        let first = ByteRange::new(10, Some(1));
+        let second = ByteRange::new(11, Some(1));
+        let union = ByteRange::new(10, Some(2));
+
+        lock_range(&file, first, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        lock_range(&file, second, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        unlock_range(&file, union).unwrap();
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(union)),
+            "acquired"
+        );
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn disjoint_windows_edit_preserves_shared_range() {
+        let path = temp_file("disjoint-range-edit");
+        let file = open_file(&path);
+        let shared = ByteRange::new(100, Some(10));
+        let reserved = ByteRange::new(200, Some(1));
+
+        lock_range(&file, shared, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        lock_range(&file, reserved, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(shared)),
+            "would-block"
+        );
+        unlock_range(&file, reserved).unwrap();
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(shared)),
+            "would-block"
+        );
+        unlock_range(&file, shared).unwrap();
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn whole_range_unlock_releases_narrower_windows_locks() {
+        let path = temp_file("whole-range-unlock");
+        let file = open_file(&path);
+        let narrow = ByteRange::new(20, Some(4));
+
+        lock_range(&file, narrow, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        unlock_range(&file, ByteRange::WHOLE_FILE).unwrap();
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(narrow)),
+            "acquired"
+        );
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn partial_windows_unlock_splits_the_owned_lock() {
+        let path = temp_file("partial-range-unlock");
+        let file = open_file(&path);
+        let whole = ByteRange::new(30, Some(10));
+        let middle = ByteRange::new(34, Some(2));
+        let left = ByteRange::new(30, Some(4));
+        let right = ByteRange::new(36, Some(4));
+
+        lock_range(&file, whole, LockKind::Exclusive, LockMode::NonBlocking).unwrap();
+        unlock_range(&file, middle).unwrap();
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(middle)),
+            "acquired"
+        );
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(left)),
+            "would-block"
+        );
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(right)),
+            "would-block"
+        );
+        unlock_range(&file, ByteRange::WHOLE_FILE).unwrap();
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn failed_windows_conversion_restores_the_prior_shared_lock() {
+        let path = temp_file("failed-range-conversion");
+        let first = open_file(&path);
+        let second = open_file(&path);
+        let range = ByteRange::new(50, Some(8));
+
+        lock_range(&first, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        lock_range(&second, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        assert!(matches!(
+            lock_range(&first, range, LockKind::Exclusive, LockMode::NonBlocking),
+            Err(LockError::WouldBlock)
+        ));
+        unlock_range(&second, range).unwrap();
+        assert!(matches!(
+            lock_range(&second, range, LockKind::Exclusive, LockMode::NonBlocking),
+            Err(LockError::WouldBlock)
+        ));
+        unlock_range(&first, range).unwrap();
+
+        remove_temp_file(path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_query_ignores_and_restores_same_handle_locks() {
+        let path = temp_file("same-handle-query");
+        let file = open_file(&path);
+        let range = ByteRange::new(70, Some(6));
+
+        lock_range(&file, range, LockKind::Shared, LockMode::NonBlocking).unwrap();
+        assert_eq!(
+            query_range(&file, range, LockKind::Exclusive).unwrap(),
+            LockState::Unlocked
+        );
+        assert_eq!(
+            run_helper(&path, "try-range-exclusive", Some(range)),
+            "would-block"
+        );
         unlock_range(&file, range).unwrap();
 
         remove_temp_file(path);
