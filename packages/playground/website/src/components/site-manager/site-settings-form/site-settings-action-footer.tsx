@@ -79,6 +79,7 @@ export function SiteSettingsActionFooter({
 				</Button>
 				<Dropdown
 					className={css.splitButtonDropdown}
+					focusOnMount={false}
 					popoverProps={{
 						placement: 'top-end',
 						className: css.actionMenuPopover,
@@ -148,8 +149,8 @@ function SettingsActionMenu({
 	const items = [applyRef, freshRef];
 
 	useEffect(() => {
-		applyRef.current?.focus();
-	}, []);
+		(canApplyToCurrent ? applyRef : freshRef).current?.focus();
+	}, [canApplyToCurrent]);
 
 	const moveFocus = (event: React.KeyboardEvent, nextIndex: number) => {
 		event.preventDefault();

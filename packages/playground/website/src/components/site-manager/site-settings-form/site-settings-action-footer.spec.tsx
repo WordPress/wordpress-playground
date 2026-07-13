@@ -99,6 +99,29 @@ describe('settings action footer', () => {
 		expect(onCreateFresh).toHaveBeenCalledWith(defaults);
 	});
 
+	it('focuses the only available action when the menu opens', async () => {
+		await act(async () => {
+			root.render(
+				<SiteSettingsActionFooter
+					values={defaults}
+					defaultValues={defaults}
+					submit={submit}
+					siteName="Test Playground"
+					sitePersistence="autosave"
+					onApply={vi.fn()}
+					onCreateFresh={vi.fn()}
+					isPending={false}
+				/>
+			);
+		});
+
+		await act(async () => getButton('More settings actions').click());
+
+		expect(document.activeElement?.textContent).toContain(
+			'Create a fresh Playground'
+		);
+	});
+
 	it('keeps a temporary-Playground failure beside its disabled action', () => {
 		act(() => {
 			root.render(

@@ -114,6 +114,7 @@
 .action-menu-item {
 	--action-menu-item-background: #fff;
 
+	position: relative;
 	display: block;
 	box-sizing: border-box;
 	width: 100%;
@@ -142,7 +143,7 @@
 	border-radius: 2px;
 	outline: none;
 	box-shadow:
-		0 0 0 7px var(--action-menu-item-background),
+		0 0 0 6px var(--action-menu-item-background),
 		0 0 0 8px #3858e9;
 }
 
@@ -169,6 +170,8 @@
 }
 
 .action-menu-title {
+	position: relative;
+	z-index: 1;
 	display: block;
 	font-weight: 500;
 	line-height: 1.4;
@@ -176,6 +179,8 @@
 }
 
 .action-menu-description {
+	position: relative;
+	z-index: 1;
 	display: block;
 	max-width: 100%;
 	margin-top: 2px;
@@ -204,6 +209,25 @@
 	color: #304bd1;
 }
 
+.action-menu-item.selected-apply-menu-item:not(:focus-visible)::before,
+.action-menu-item.selected-fresh-menu-item:not(:focus-visible)::before {
+	position: absolute;
+	z-index: 0;
+	background: var(--action-menu-item-background);
+	content: '';
+	pointer-events: none;
+}
+
+.action-menu-item.selected-apply-menu-item:not(:focus-visible)::before {
+	inset: -8px -8px 0;
+	border-radius: 10px 10px 7px 7px;
+}
+
+.action-menu-item.selected-fresh-menu-item:not(:focus-visible)::before {
+	inset: 0 -8px -8px;
+	border-radius: 7px 7px 10px 10px;
+}
+
 .action-menu-item[aria-disabled='true'] {
 	--action-menu-item-background: #f3f3f1;
 
@@ -217,13 +241,13 @@
 
 .action-menu-item[aria-disabled='true']:focus-visible {
 	box-shadow:
-		0 0 0 7px var(--action-menu-item-background),
+		0 0 0 6px var(--action-menu-item-background),
 		0 0 0 8px #949494;
 }
 
 @media (forced-colors: active) {
 	.action-menu-item:focus-visible {
-		outline: 1px solid CanvasText;
+		outline: 2px solid CanvasText;
 		outline-offset: 6px;
 		box-shadow: none;
 	}
