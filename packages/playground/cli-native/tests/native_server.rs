@@ -543,6 +543,249 @@ echo "body=" . file_get_contents('php://input') . "\n";
 
 #[test]
 #[ignore = "Full native server process execution is an explicit smoke test."]
+fn native_server_sqlite_fcntl_shared_readers_overlap() {
+    if skip_macos_lock_smoke("sqlite fcntl shared-reader smoke") {
+        return;
+    }
+
+    let root = temp_dir("server-sqlite-fcntl-readers");
+    write_script(
+        &root,
+        "seed.php",
+        r#"<?php
+ob_start();
+$db = new SQLite3('/wordpress/sqlite-readers.db');
+$ok = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+$ok = $ok && $db->exec('INSERT INTO test (name) VALUES ("seed")');
+if (!$ok) {
+    ob_clean();
+    echo json_encode(['error' => $db->lastErrorMsg()]);
+    exit(1);
+}
+$db->close();
+ob_clean();
+echo json_encode(['ok' => true]);
+"#,
+    );
+    fs::write(root.join("coordination.txt"), b"initial").unwrap();
+    write_script(
+        &root,
+        "sqlite-reader-one.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) {
+            return true;
+        }
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+$db = new SQLite3('/wordpress/sqlite-readers.db');
+$db->busyTimeout(1);
+$db->exec('BEGIN DEFERRED;');
+$value = $db->querySingle('SELECT name FROM test WHERE id = 1');
+$read_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
+file_put_contents($coordination, 'reader-one-active');
+wait_for_stage($coordination, 'reader-two-finished');
+$db->exec('COMMIT;');
+$db->close();
+ob_clean();
+echo json_encode(['value' => $value, 'read_error' => $read_error]);
+"#,
+    );
+    write_script(
+        &root,
+        "sqlite-reader-two.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) {
+            return true;
+        }
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+wait_for_stage($coordination, 'reader-one-active');
+$db = new SQLite3('/wordpress/sqlite-readers.db');
+$db->busyTimeout(1);
+$db->exec('BEGIN DEFERRED;');
+$value = @$db->querySingle('SELECT name FROM test WHERE id = 1');
+$read_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
+if ($read_error['last_error_code'] === 0) {
+    $db->exec('COMMIT;');
+} else {
+    $db->exec('ROLLBACK;');
+}
+$db->close();
+file_put_contents($coordination, 'reader-two-finished');
+ob_clean();
+echo json_encode(['value' => $value, 'read_error' => $read_error]);
+"#,
+    );
+
+    let (address, guard, stderr_thread) = start_native_server(&root, 2);
+    assert_eq!(response_json(&send_get(&address, "/seed.php"))["ok"], true);
+
+    let first_address = address.clone();
+    let first = thread::spawn(move || send_get(&first_address, "/sqlite-reader-one.php"));
+    let second_address = address.clone();
+    let second = thread::spawn(move || send_get(&second_address, "/sqlite-reader-two.php"));
+
+    let first_json = response_json(&first.join().unwrap());
+    let second_json = response_json(&second.join().unwrap());
+    assert_eq!(first_json["value"], "seed", "{first_json}");
+    assert_eq!(
+        first_json["read_error"]["last_error_code"], 0,
+        "{first_json}"
+    );
+    assert_eq!(second_json["value"], "seed", "{second_json}");
+    assert_eq!(
+        second_json["read_error"]["last_error_code"], 0,
+        "{second_json}"
+    );
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native server process execution is an explicit smoke test."]
+fn native_server_sqlite_fcntl_reserved_writer_allows_concurrent_reader() {
+    if skip_macos_lock_smoke("sqlite fcntl reserved-writer smoke") {
+        return;
+    }
+
+    let root = temp_dir("server-sqlite-fcntl-writer-reader");
+    write_script(
+        &root,
+        "seed.php",
+        r#"<?php
+ob_start();
+$db = new SQLite3('/wordpress/sqlite-writer-reader.db');
+$ok = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+$ok = $ok && $db->exec('INSERT INTO test (name) VALUES ("before")');
+$journal_mode = $db->querySingle('PRAGMA journal_mode=WAL');
+if (!$ok) {
+    ob_clean();
+    echo json_encode(['error' => $db->lastErrorMsg()]);
+    exit(1);
+}
+$db->close();
+ob_clean();
+echo json_encode(['ok' => true, 'journal_mode' => $journal_mode]);
+"#,
+    );
+    fs::write(root.join("coordination.txt"), b"initial").unwrap();
+    write_script(
+        &root,
+        "sqlite-writer.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) {
+            return true;
+        }
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+$db = new SQLite3('/wordpress/sqlite-writer-reader.db');
+$db->busyTimeout(1);
+$db->exec('BEGIN IMMEDIATE;');
+$db->exec('UPDATE test SET name = "after" WHERE id = 1');
+file_put_contents($coordination, 'writer-ready');
+wait_for_stage($coordination, 'reader-finished');
+$db->exec('COMMIT;');
+$db->close();
+ob_clean();
+echo json_encode(['ok' => true]);
+"#,
+    );
+    write_script(
+        &root,
+        "sqlite-reader.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) {
+            return true;
+        }
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+wait_for_stage($coordination, 'writer-ready');
+$db = new SQLite3('/wordpress/sqlite-writer-reader.db');
+$db->busyTimeout(1);
+$db->exec('BEGIN DEFERRED;');
+$value = @$db->querySingle('SELECT name FROM test WHERE id = 1');
+$read_error = [
+    'last_error_code' => $db->lastErrorCode(),
+    'last_error_msg' => $db->lastErrorMsg(),
+];
+if ($read_error['last_error_code'] === 0) {
+    $db->exec('COMMIT;');
+} else {
+    $db->exec('ROLLBACK;');
+}
+$db->close();
+file_put_contents($coordination, 'reader-finished');
+ob_clean();
+echo json_encode(['value' => $value, 'read_error' => $read_error]);
+"#,
+    );
+
+    let (address, guard, stderr_thread) = start_native_server(&root, 2);
+    let seed_json = response_json(&send_get(&address, "/seed.php"));
+    assert_eq!(seed_json["ok"], true, "{seed_json}");
+    assert_eq!(seed_json["journal_mode"], "delete", "{seed_json}");
+
+    let writer_address = address.clone();
+    let writer = thread::spawn(move || send_get(&writer_address, "/sqlite-writer.php"));
+    let reader_address = address.clone();
+    let reader = thread::spawn(move || send_get(&reader_address, "/sqlite-reader.php"));
+
+    let writer_json = response_json(&writer.join().unwrap());
+    let reader_json = response_json(&reader.join().unwrap());
+    assert_eq!(writer_json["ok"], true, "{writer_json}");
+    assert_eq!(reader_json["value"], "before", "{reader_json}");
+    assert_eq!(
+        reader_json["read_error"]["last_error_code"], 0,
+        "{reader_json}"
+    );
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native server process execution is an explicit smoke test."]
 fn native_server_sqlite_fcntl_exclusive_lock_blocks_concurrent_writer() {
     if skip_macos_lock_smoke("sqlite fcntl lock smoke") {
         return;

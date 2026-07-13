@@ -5,7 +5,7 @@
 		"8.2": {
 			"wasm": {
 				"path": "packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm",
-				"sha256": "99ede38d726838c1a16e83f7be16159bfba02e00cad8929b64f3cd8bf121a9f2"
+				"sha256": "f53e4b6aef59ac385c8291b76a51ebc0ab350bb080b9e5fb2315374ab8181224"
 			}
 		}
 	}
