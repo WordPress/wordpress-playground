@@ -408,9 +408,15 @@ test.describe('php-code-snippet embed', () => {
 
 		await editable.evaluate((snippet: any) => {
 			snippet._testRunCount = 0;
+			snippet._testRunGate = new Promise<void>((resolve) => {
+				snippet._releaseTestRun = resolve;
+			});
 			snippet._runOnce = async function () {
 				this._testRunCount += 1;
-				await new Promise((resolve) => setTimeout(resolve, 100));
+				if (this._testRunCount === 1) {
+					// Keep the first run active until the test has queued the second one.
+					await this._testRunGate;
+				}
 				const outputWrap = this.shadowRoot.querySelector('.output');
 				const outputBody =
 					this.shadowRoot.querySelector('.output-body');
@@ -424,11 +430,16 @@ test.describe('php-code-snippet embed', () => {
 		await expect(runButton).toHaveAttribute('aria-busy', /true/);
 		await expect(runButton).toBeEnabled();
 		await runButton.click();
+		await expect(editable.locator('.run-label')).toHaveText('Queued');
+
+		// Release the first run only after every transient queued state is observed.
+		await editable.evaluate((snippet: any) => snippet._releaseTestRun());
 
 		await expect(editable.locator('.output-body')).toContainText(
 			'run-count:2'
 		);
 		await expect(runButton).toBeEnabled();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 	});
 
 	test('Run button starts from pointer activation even if click is canceled', async ({
@@ -713,9 +724,13 @@ test.describe('php-code-snippet embed', () => {
 		const runShortcut = editable.locator('.run-shortcut');
 
 		await editable.evaluate((snippet: any) => {
+			snippet._testRunGate = new Promise<void>((resolve) => {
+				snippet._releaseTestRun = resolve;
+			});
 			snippet._runOnce = async function (code: string) {
 				this._setRunButtonProgress('Running', 42);
-				await new Promise((resolve) => setTimeout(resolve, 500));
+				// Hold this state until the test has inspected every progress indicator.
+				await this._testRunGate;
 				const outputWrap = this.shadowRoot.querySelector('.output');
 				const outputBody =
 					this.shadowRoot.querySelector('.output-body');
@@ -742,6 +757,9 @@ test.describe('php-code-snippet embed', () => {
 		await expect(runShortcut).toBeHidden();
 		await expect(runLabel).toHaveText('Running');
 		await expect(runPercent).toHaveText('42%');
+
+		// Completion is test-controlled so browser speed cannot hide the progress state.
+		await editable.evaluate((snippet: any) => snippet._releaseTestRun());
 		await expect(outputBody).toContainText('slow-run-marker', {
 			timeout: 60_000,
 		});
