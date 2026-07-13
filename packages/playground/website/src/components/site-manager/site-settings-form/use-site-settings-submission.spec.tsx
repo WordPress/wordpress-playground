@@ -82,6 +82,22 @@ describe('useSiteSettingsSubmission', () => {
 		expect(onSuccess).toHaveBeenCalledTimes(1);
 	});
 
+	it('does not report an onSuccess failure as a submission failure', async () => {
+		const action = vi
+			.fn<(_: SiteFormData) => Promise<void>>()
+			.mockResolvedValue();
+		const onSuccess = vi.fn(() => {
+			throw new Error('Could not close the settings panel.');
+		});
+		act(() => root.render(<Probe onSuccess={onSuccess} />));
+
+		await expect(act(() => state.run(action, formData))).rejects.toThrow(
+			'Could not close the settings panel.'
+		);
+		expect(state.error).toBeUndefined();
+		expect(state.isPending).toBe(false);
+	});
+
 	function Probe({ onSuccess }: { onSuccess: () => void }) {
 		state = useSiteSettingsSubmission(onSuccess);
 		return null;

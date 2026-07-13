@@ -24,17 +24,18 @@ export function useSiteSettingsSubmission(onSuccess?: () => void) {
 			setError(undefined);
 			try {
 				await action(data);
-				onSuccess?.();
 			} catch (cause) {
 				setError(
 					cause instanceof Error
 						? cause.message
 						: 'Could not update Playground settings. Please try again.'
 				);
+				return;
 			} finally {
 				pendingRef.current = false;
 				setIsPending(false);
 			}
+			onSuccess?.();
 		},
 		[onSuccess]
 	);
