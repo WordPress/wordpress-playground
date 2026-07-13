@@ -23,6 +23,8 @@ export function SiteDatabasePanel({
 			setDatabaseSize(null);
 			return;
 		}
+		setDatabasePath(null);
+		setDatabaseSize(null);
 		let cancelled = false;
 
 		async function fetchDatabaseSize() {
@@ -33,14 +35,15 @@ export function SiteDatabasePanel({
 					await playground.documentRoot,
 					RELATIVE_DATABASE_PATH
 				);
-				const size = await readDatabaseSize(playground, path);
 				if (!cancelled) {
 					setDatabasePath(path);
+				}
+				const size = await readDatabaseSize(playground, path);
+				if (!cancelled) {
 					setDatabaseSize(size);
 				}
 			} catch {
 				if (!cancelled) {
-					setDatabasePath(null);
 					setDatabaseSize(null);
 				}
 			}
@@ -142,8 +145,9 @@ if ($stat === false) {
 echo $stat['size'];
 `,
 	});
-	const size = Number(response.text);
-	if (!Number.isFinite(size) || size < 0) {
+	const sizeText = response.text.trim();
+	const size = Number(sizeText);
+	if (sizeText === '' || !Number.isSafeInteger(size) || size < 0) {
 		throw new Error('Database stat returned an invalid size.');
 	}
 	return size;
