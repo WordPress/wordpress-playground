@@ -137,7 +137,7 @@
 
 .action-menu-item:focus-visible {
 	outline: 2px solid #3858e9;
-	outline-offset: 0;
+	outline-offset: 6px;
 	box-shadow: none;
 }
 
