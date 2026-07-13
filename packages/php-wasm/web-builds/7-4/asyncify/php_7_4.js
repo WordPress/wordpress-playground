@@ -8187,10 +8187,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -8214,7 +8211,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -9123,23 +9119,23 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var _executor_globals = (Module['_executor_globals'] = 10274408);
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10265976);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10265984);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10265996);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10265716);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 10264088);
+	var _executor_globals = (Module['_executor_globals'] = 10274312);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10265880);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10265888);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10265900);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10265620);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 10263992);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		10264156);
+		10264060);
 	var _std_object_handlers = (Module['_std_object_handlers'] = 9689592);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
 	var _stdout = (Module['_stdout'] = 10257536);
-	var _timezone = (Module['_timezone'] = 10368968);
-	var _tzname = (Module['_tzname'] = 10368976);
-	var ___heap_base = 11430832;
+	var _timezone = (Module['_timezone'] = 10368872);
+	var _tzname = (Module['_tzname'] = 10368880);
+	var ___heap_base = 11430736;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		10382236);
+		10382140);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
 	] = 10257784);

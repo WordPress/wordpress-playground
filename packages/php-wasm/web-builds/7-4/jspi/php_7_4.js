@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 13381183;
+export const dependenciesTotalSize = 13381182;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7958,10 +7958,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -7985,7 +7982,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -8806,24 +8802,24 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
-	var _file_globals = (Module['_file_globals'] = 10340960);
-	var _sapi_module = (Module['_sapi_module'] = 10290456);
-	var _sapi_globals = (Module['_sapi_globals'] = 10290600);
-	var _compiler_globals = (Module['_compiler_globals'] = 10274936);
-	var _executor_globals = (Module['_executor_globals'] = 10275352);
-	var _zend_compile_string = (Module['_zend_compile_string'] = 10276492);
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10266920);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 10266924);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10266928);
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 10266932);
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 10266936);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10266940);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10266660);
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 10266640);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 10265032);
+	var _file_globals = (Module['_file_globals'] = 10340848);
+	var _sapi_module = (Module['_sapi_module'] = 10290344);
+	var _sapi_globals = (Module['_sapi_globals'] = 10290488);
+	var _compiler_globals = (Module['_compiler_globals'] = 10274824);
+	var _executor_globals = (Module['_executor_globals'] = 10275240);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 10276380);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10266808);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 10266812);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10266816);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 10266820);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 10266824);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10266828);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10266548);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 10266528);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 10264920);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		10265100);
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 10265104);
+		10264988);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 10264992);
 	var _std_object_handlers = (Module['_std_object_handlers'] = 9690072);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
@@ -8834,11 +8830,11 @@ export function init(RuntimeName, PHPLoader) {
 	var __playground_zend_side_module_function_exports = (Module[
 		'__playground_zend_side_module_function_exports'
 	] = 10063952);
-	var _timezone = (Module['_timezone'] = 10369912);
-	var _tzname = (Module['_tzname'] = 10369920);
-	var ___heap_base = 11432304;
+	var _timezone = (Module['_timezone'] = 10369800);
+	var _tzname = (Module['_tzname'] = 10369808);
+	var ___heap_base = 11432192;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		10383708);
+		10383596);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
 	] = 10258464);
