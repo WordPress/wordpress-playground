@@ -142,7 +142,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [WordPress Playground at WordCamp Gdynia 2025 (in Polish)](https://wordpress.tv/2025/04/21/wordpress-playground/) by Magdalena Paciorek
 - [Discovering Playground, the demo tool(in Spanish)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) by Alex Cuadra
 - [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
-- [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025(in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentow-de-tu-navegador/) by Álvaro Gómez Velasco
+- [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025(in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) by Álvaro Gómez Velasco
 - [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
 - [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
 - [Streamlined Block Theme Development: Using WordPress Playground and GitHub for No-Code Version Control of Site Editor Changes](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) by Birgit Pauli-Haack
@@ -179,7 +179,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [ওয়ার্ডক্যাম্প গদানিয়া ২০২৫-এ ওয়ার্ডপ্রেস প্লেগ্রাউন্ড (পোলিশ ভাষায়)](https://wordpress.tv/2025/04/21/wordpress-playground/) - ম্যাগডালেনা প্যাকিয়োরেকি
 - [প্লেগ্রাউন্ড আবিষ্কার, ডেমো টুল (স্প্যানিশ ভাষায়)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) - অ্যালেক্স কুয়াদ্রা
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: সম্পূর্ণ এবং কার্যকর ওয়ার্ডপ্রেস ইনস্টলেশন (স্প্যানিশ ভাষায়)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) - ফার্নান্দো গার্সিয়া রেবোলেডো
-- [প্লেগ্রাউন্ড: ওয়ার্ডক্যাম্প মাদ্রিদ ২০২৫-এ আপনার ব্রাউজারের মধ্যে একটি ওয়ান-অফ ওয়ার্ডপ্রেস (স্প্যানিশ ভাষায়)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentow-de-tu-navegador/) - আলভারো গোমেজ ভেলাস্কো
+- [প্লেগ্রাউন্ড: ওয়ার্ডক্যাম্প মাদ্রিদ ২০২৫-এ আপনার ব্রাউজারের মধ্যে একটি ওয়ান-অফ ওয়ার্ডপ্রেস (স্প্যানিশ ভাষায়)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) - আলভারো গোমেজ ভেলাস্কো
 - [শুধু একটি ব্রাউজার দিয়ে ওয়ার্ডপ্রেস ব্যবহার করুন! ওয়ার্ডপ্রেস প্লেগ্রাউন্ড টিউটোরিয়াল: প্লেগ্রাউন্ডের মৌলিক ব্যবহার (জাপানি ভাষায়)](https://www.youtube.com/watch?v=6s_B0WvJauU) - শিমোমুরা তোমোকি
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: কীভাবে ব্লুপ্রিন্ট ব্যবহার করবেন](https://www.youtube.com/watch?v=Vcao6uXguWg) - শিমোমুরা তোমোকি
 - [স্ট্রিমলাইনড ব্লক থিম ডেভেলপমেন্ট: সাইট এডিটর পরিবর্তনের নো-কোড ভার্সন কন্ট্রোলের জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড এবং গিটহাব ব্যবহার করা](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) - বিরজিত পাওলি-হ্যাক
@@ -189,3 +189,19 @@ There's a set of redirections in place to make it easier the access to some of t
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে পরবর্তী ওয়ার্ডপ্রেস রিলিজ কীভাবে পরীক্ষা করবেন](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) - ফেলিপ সিন্ট্রা
 - [runCLI এর মাধ্যমে সরাসরি জাভাস্ক্রিপ্ট কোড থেকে ওয়ার্ডপ্রেস চালানো](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) - ফেলিপ সিন্ট্রা
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: টেস্ট অটোমেশনের পথ](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার শুরু করার উপায়](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) - অ্যাডাম জেলিনস্কি
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: বর্তমান ও ভবিষ্যৎ ব্যবহার](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) - আন্তোনিও সেহাস
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: বিখ্যাত «৫ সেকেন্ড» ইনস্টল](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) - ডেভ কেলাম
+- [wp-now দিয়ে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড পরীক্ষা করা](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) - জোনাথন বসেনজার
+- [Translate Live: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড দিয়ে প্রসঙ্গভিত্তিক অনুবাদ](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) - অ্যালেক্স কার্ক
+- [VS Code-এ ওয়ার্ডপ্রেস প্লেগ্রাউন্ড পরীক্ষা করা](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) - জোনাথন বসেনজার
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লকে একটি উন্নতি জমা দেওয়া](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) - জোনাথন বসেনজার
+- [অ্যাডাম জেলিনস্কি: সার্ভার ছাড়া ওয়ার্ডপ্রেস – ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ও অ্যাপ্লিকেশনের নতুন দৃষ্টান্ত (পোলিশ ভাষায়)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) - অ্যাডাম জেলিনস্কি
+- [ইনস্টলেশন, কম্পিউটার বা ইন্টারনেট ছাড়াই ওয়ার্ডপ্রেস: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড পরিচিতি (পোলিশ ভাষায়)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) - অ্যাডাম জেলিনস্কি
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড দিয়ে GitHub ব্রাঞ্চ প্রিভিউ করা](https://wordpress.tv/2025/12/09/previewing-github-branches-with-wordpress-playground/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ল্যান্ডিং পেজের পরিচিতি](https://wordpress.tv/2025/12/09/introduction-to-wordpress-playground-landing-page/) - ফেলিপ সিন্ট্রা
+- [AI এজেন্টের সাথে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করা](https://wordpress.tv/2025/12/09/using-wordpress-playground-to-work-with-ai-agents/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লুপ্রিন্ট: শূন্য থেকে দক্ষতা (স্প্যানিশ ভাষায়)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস ব্লুপ্রিন্ট দিয়ে শুরু করা (বাংলা ভাষায়)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) - মনজুর আলম
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড + AI: স্বয়ংক্রিয় টেস্টিং পাইপলাইন তৈরি](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে নতুন কী?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) - ফেলিপ সিন্ট্রা

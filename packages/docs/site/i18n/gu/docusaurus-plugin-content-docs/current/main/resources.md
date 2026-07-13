@@ -176,3 +176,23 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [સુવ્યવસ્થિત બ્લોક થીમ વિકાસ: સાઇટ એડિટર ફેરફારોના નો-કોડ વર્ઝન કંટ્રોલ માટે WordPress Playground અને GitHub નો ઉપયોગ (અંગ્રેજીમાં)](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) Birgit Pauli-Haack દ્વારા
 - [Playground, WordPress શીખવવા માટે અત્યાર સુધી શોધાયેલ શ્રેષ્ઠ સાધન (સ્પેનિશમાં)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) Nilo Vélez દ્વારા
 - [Red Bull pit stop કરતાં ઝડપથી પરીક્ષણ: WordPress Playground અને WooCommerce Blueprints (અંગ્રેજીમાં)](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) Daniel Dudzic દ્વારા
+- [શું WordPress Playground ફક્ત વિકાસકર્તાઓ માટે જ છે? (અંગ્રેજીમાં)](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) Fellyph Cintra દ્વારા
+- [WordPress Playground સાથે આગામી WordPress રિલીઝનું પરીક્ષણ કેવી રીતે કરવું (અંગ્રેજીમાં)](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) Fellyph Cintra દ્વારા
+- [runCLI વડે JavaScript કોડમાંથી સીધું WordPress ચલાવવું (અંગ્રેજીમાં)](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) Fellyph Cintra દ્વારા
+- [WordPress Playground: પરીક્ષણ ઓટોમેશનનો માર્ગ (અંગ્રેજીમાં)](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) Fellyph Cintra દ્વારા
+- [WordPress Playground નો ઉપયોગ કેવી રીતે શરૂ કરવો (અંગ્રેજીમાં)](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) Adam Zielinski દ્વારા
+- [WordPress Playground: વર્તમાન અને ભવિષ્યની એપ્લિકેશન્સ (અંગ્રેજીમાં)](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) Antonio Sejas દ્વારા
+- [WordPress Playground: પ્રખ્યાત «5 સેકન્ડ» ઇન્સ્ટોલ (અંગ્રેજીમાં)](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) Dave Kellam દ્વારા
+- [wp-now સાથે WordPress Playground નું પરીક્ષણ (અંગ્રેજીમાં)](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) Jonathan Bossenger દ્વારા
+- [Translate Live: WordPress Playground સાથે સંદર્ભમાં અનુવાદ (અંગ્રેજીમાં)](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) Alex Kirk દ્વારા
+- [VS Code માં WordPress Playground નું પરીક્ષણ (અંગ્રેજીમાં)](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) Jonathan Bossenger દ્વારા
+- [WordPress Playground Block માં સુધારો સબમિટ કરવો (અંગ્રેજીમાં)](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) Jonathan Bossenger દ્વારા
+- [Adam Zielinski: સર્વર વિના WordPress – WordPress Playground અને એપ્લિકેશન્સનો નવો અભિગમ (પોલિશમાં)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) Adam Zielinski દ્વારા
+- [ઇન્સ્ટોલેશન, કમ્પ્યુટર કે ઇન્ટરનેટ વિના WordPress: WordPress Playground નો પરિચય (પોલિશમાં)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) Adam Zielinski દ્વારા
+- [WordPress Playground સાથે GitHub બ્રાન્ચનું પૂર્વાવલોકન (અંગ્રેજીમાં)](https://wordpress.tv/2025/12/09/previewing-github-branches-with-wordpress-playground/) Fellyph Cintra દ્વારા
+- [WordPress Playground લેન્ડિંગ પેજનો પરિચય (અંગ્રેજીમાં)](https://wordpress.tv/2025/12/09/introduction-to-wordpress-playground-landing-page/) Fellyph Cintra દ્વારા
+- [AI એજન્ટ્સ સાથે WordPress Playground નો ઉપયોગ (અંગ્રેજીમાં)](https://wordpress.tv/2025/12/09/using-wordpress-playground-to-work-with-ai-agents/) Fellyph Cintra દ્વારા
+- [WordPress Playground Blueprints: શૂન્યથી નિષ્ણાત સુધી (સ્પેનિશમાં)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) Fellyph Cintra દ્વારા
+- [WordPress Blueprints સાથે શરૂઆત (બંગાળીમાં)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) Monzur Alam દ્વારા
+- [WordPress Playground + AI: સ્વાયત્ત પરીક્ષણ પાઇપલાઇન બનાવવી (અંગ્રેજીમાં)](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) Fellyph Cintra દ્વારા
+- [WordPress Playground માં નવું શું છે? (અંગ્રેજીમાં)](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) Fellyph Cintra દ્વારા

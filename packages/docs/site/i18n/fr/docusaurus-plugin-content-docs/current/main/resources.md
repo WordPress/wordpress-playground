@@ -184,3 +184,19 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 - [Comment tester la prochaine version de WordPress avec WordPress Playground (en anglais)](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) par Fellyph Cintra
 - [Exécuter WordPress directement depuis le code JavaScript avec runCLI (en anglais)](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) par Fellyph Cintra
 - [WordPress Playground : Le chemin vers l'automatisation des tests (en anglais)](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) par Fellyph Cintra
+- [Comment commencer à utiliser WordPress Playground (en anglais)](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) par Adam Zielinski
+- [WordPress Playground : Applications actuelles et futures (en anglais)](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) par Antonio Sejas
+- [WordPress Playground : La célèbre installation en « 5 secondes » (en anglais)](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) par Dave Kellam
+- [Tester WordPress Playground avec wp-now (en anglais)](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) par Jonathan Bossenger
+- [Translate Live : Traduction en contexte avec WordPress Playground (en anglais)](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) par Alex Kirk
+- [Tester WordPress Playground dans VS Code (en anglais)](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) par Jonathan Bossenger
+- [Soumettre une amélioration au bloc WordPress Playground (en anglais)](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) par Jonathan Bossenger
+- [Adam Zielinski : WordPress sans serveur – découvrez WordPress Playground et un nouveau paradigme d'applications (en polonais)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) par Adam Zielinski
+- [WordPress sans installation, sans ordinateur et sans Internet : Découvrez WordPress Playground (en polonais)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) par Adam Zielinski
+- [Prévisualiser les branches GitHub avec WordPress Playground (en anglais)](https://wordpress.tv/2025/12/09/previewing-github-branches-with-wordpress-playground/) par Fellyph Cintra
+- [Introduction à la page de présentation de WordPress Playground (en anglais)](https://wordpress.tv/2025/12/09/introduction-to-wordpress-playground-landing-page/) par Fellyph Cintra
+- [Utiliser WordPress Playground avec des agents d'IA (en anglais)](https://wordpress.tv/2025/12/09/using-wordpress-playground-to-work-with-ai-agents/) par Fellyph Cintra
+- [WordPress Playground Blueprints : De zéro à pro (en espagnol)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) par Fellyph Cintra
+- [Bien démarrer avec WordPress Blueprints (en bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) par Monzur Alam
+- [WordPress Playground + IA : Créer des pipelines de test autonomes (en anglais)](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) par Fellyph Cintra
+- [Quoi de neuf dans WordPress Playground ? (en anglais)](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) par Fellyph Cintra
