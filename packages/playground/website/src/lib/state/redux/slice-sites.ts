@@ -671,17 +671,15 @@ export const setStoredSiteSpec = createStoredSite;
 /**
  * Replaces an autosaved Playground's WordPress files with files from a new setup.
  *
- * This is used after the user clicks "Apply Settings & Recreate Playground"
- * in the autosaved settings form. The site keeps the same slug and name in the
- * sidebar, but the old WordPress directory is deleted and the next boot
- * installs WordPress from `playgroundUrlWithQueryApiArgs`.
+ * This supports the public site-management API's same-site replacement
+ * behavior. The settings UI creates a separate Playground instead. Here, the
+ * site keeps the same slug and name, but the old WordPress directory is deleted
+ * and the next boot installs WordPress from `playgroundUrlWithQueryApiArgs`.
  *
  * Callers must not use this for edits that can keep the existing files, such as
  * changing PHP version or networking. Those should update site metadata and
- * reboot. Longer term, the Dock UI should create a new Playground for setup
- * changes and leave the previous Playground untouched. Until that UX exists,
- * this function writes `opfsSiteRemovalPending` so a reload can finish deleting old
- * WordPress files if the tab closes during the deletion.
+ * reboot. This function writes `opfsSiteRemovalPending` so a reload can finish
+ * deleting old WordPress files if the tab closes during the deletion.
  */
 export function resetAutosavedSiteSpec(
 	siteSlug: string,

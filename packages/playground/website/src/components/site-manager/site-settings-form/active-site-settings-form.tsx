@@ -24,9 +24,9 @@ export function ActiveSiteSettingsForm({
 				/>
 			);
 		case 'opfs':
-			// Autosaved Playgrounds are recoverable unsaved work, so keep the
-			// full setup form available. Explicitly saved OPFS Playgrounds are
-			// user-confirmed artifacts, so they keep the limited stored-site form.
+			// Autosaved Playgrounds need recovery-specific action copy and
+			// retention behavior. Explicit OPFS Playgrounds share the stored-site
+			// flow with local directory Playgrounds.
 			if (isAutosavedSite(activeSite)) {
 				return (
 					<AutosavedSiteSettingsForm

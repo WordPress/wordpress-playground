@@ -396,9 +396,9 @@ export function createSitesAPI(
 		/**
 		 * Recreates the active autosaved Playground with new setup settings.
 		 *
-		 * Today this keeps the same sidebar entry and replaces the WordPress
-		 * files under that site's OPFS directory. The future Dock flow should
-		 * create a separate Playground for setup changes instead.
+		 * This public API keeps its same-site replacement behavior for existing
+		 * callers. The settings UI creates a separate Playground for setup changes
+		 * so the current site's files remain available.
 		 *
 		 * @param settings Optional site settings.
 		 * @throws When no site is selected, the active site is not autosaved, or

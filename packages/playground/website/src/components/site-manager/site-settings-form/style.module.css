@@ -46,7 +46,6 @@
 
 .footer {
 	background-color: #f3f6fd;
-	position: relative;
 	button {
 		width: 100%;
 		align-self: center;
@@ -148,13 +147,9 @@
 
 .action-error {
 	animation: action-error-in 120ms ease-out;
-	bottom: 3px;
 	color: var(--color-alert-red, #cc1818);
 	font-size: 13px;
-	left: 24px;
 	line-height: 1.4;
-	position: absolute;
-	right: 24px;
 }
 
 @keyframes action-error-in {
