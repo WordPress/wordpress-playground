@@ -29,9 +29,9 @@ Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress
 
 To provide a good demo of your theme or plugin via Playground, you may want to load it with default content that highlights the features of your product. Check this guide to learn how to do so.
 
-## [Import content into WordPress with Blueprints](/guides/import-content-with-blueprints)
+## [Importing content into WordPress with Blueprints](/guides/import-content-with-blueprints)
 
-Compare XML exports, generated PHP content, and ZIP snapshots, including their trade-offs and a reproducible benchmark for importing the same dataset into fresh WordPress instances.
+Compare XML exports, generated PHP content, and ZIP snapshots, including their trade-offs and test results for importing the same dataset into fresh WordPress instances.
 
 ## [WordPress Playground for Theme Developers](/guides/for-theme-developers)
 
