@@ -174,6 +174,7 @@ export function SiteInfoPanel({
 						gap={2}
 						justify="space-between"
 						align="flex-start"
+						wrap={mobileUi}
 						expanded={true}
 						className={`${css.padded} ${css.siteInfoHeader}`}
 						style={{ paddingBottom: 10 }}
@@ -205,7 +206,10 @@ export function SiteInfoPanel({
 								/>
 							)}
 						</FlexItem>
-						<FlexItem style={{ flexGrow: 1 }}>
+						<FlexItem
+							className={css.siteInfoHeaderDetails}
+							style={{ flexGrow: 1 }}
+						>
 							<Flex direction="column" gap={0.25} expanded={true}>
 								<Flex
 									direction="row"
@@ -312,7 +316,7 @@ export function SiteInfoPanel({
 							</FlexItem>
 						)}
 						{mobileUi ? (
-							<FlexItem style={{ flexShrink: 0 }}>
+							<FlexItem className={css.siteInfoHeaderAction}>
 								<Button
 									variant="primary"
 									onClick={() => {

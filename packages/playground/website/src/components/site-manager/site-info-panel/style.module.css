@@ -213,7 +213,12 @@
 	min-width: 0;
 }
 
-.siteInfoHeaderAction {
+.is-mobile .site-info-header-details {
+	flex-basis: 0;
+	min-width: 200px;
+}
+
+.site-info-header-action {
 	flex: none;
 	flex-shrink: 0;
 }
