@@ -15,7 +15,7 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 			disabled={disabled}
 			onClick={() => {
 				if (!playground) return;
-				startDownload(playground);
+				void downloadPlaygroundAsZip(playground);
 				onClose();
 			}}
 		>
@@ -24,7 +24,8 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 	);
 }
 
-async function startDownload(playground: PlaygroundClient) {
+/** Downloads a self-contained archive of the supplied Playground. */
+export async function downloadPlaygroundAsZip(playground: PlaygroundClient) {
 	const bytes = await zipWpContent(playground, {
 		selfContained: true,
 	});
