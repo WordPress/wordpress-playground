@@ -9,8 +9,8 @@ import type { SiteFormData } from './unconnected-site-settings-form';
  * `metadata.runtimeConfiguration`, which records boot settings such as PHP,
  * WordPress, and networking. Raw setup URL fields that are not part of runtime
  * configuration, such as `language` and `multisite`, stay in
- * `originalUrlParams`. The form reads both so it shows the setup that will be
- * used when recreating a temporary or autosaved Playground.
+ * `originalUrlParams`. The form reads both so it can compare edits with the
+ * current setup before applying runtime changes or creating a fresh Playground.
  */
 export function getSetupFormDefaultValues(
 	siteInfo: SiteInfo
@@ -20,6 +20,7 @@ export function getSetupFormDefaultValues(
 	const language = searchParams.language;
 	const multisite = searchParams.multisite;
 	return {
+		// @TODO: Handle an unsupported PHP version coming up here.
 		phpVersion: runtimeConf?.phpVersion as any,
 		wpVersion: runtimeConf?.wpVersion as any,
 		withNetworking: runtimeConf?.networking,

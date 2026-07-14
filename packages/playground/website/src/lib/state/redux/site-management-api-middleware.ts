@@ -396,9 +396,9 @@ export function createSitesAPI(
 		/**
 		 * Recreates the active autosaved Playground with new setup settings.
 		 *
-		 * Today this keeps the same sidebar entry and replaces the WordPress
-		 * files under that site's OPFS directory. The future Dock flow should
-		 * create a separate Playground for setup changes instead.
+		 * This public API keeps its same-site replacement behavior for existing
+		 * callers. The settings UI creates a separate Playground for setup changes
+		 * so the current site's files remain available.
 		 *
 		 * @param settings Optional site settings.
 		 * @throws When no site is selected, the active site is not autosaved, or
@@ -479,6 +479,56 @@ export function createSitesAPI(
 						runtimeConfiguration: {
 							...site.metadata.runtimeConfiguration,
 							networking: enabled,
+						},
+					},
+				})
+			);
+		},
+
+		/**
+		 * Applies the runtime settings that can change without replacing WordPress.
+		 * When the settings already match, reloads the current WordPress page.
+		 *
+		 * PHP and networking share one metadata write so changing both cannot boot an
+		 * intermediate runtime and then immediately tear it down for the second change.
+		 */
+		async updateRuntimeSettings(settings: {
+			phpVersion: AllPHPVersion;
+			networking: boolean;
+		}): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (site.metadata.storage === 'none') {
+				throw new Error(
+					'Cannot update settings on a temporary site. Save it first.'
+				);
+			}
+			const currentRuntimeConfiguration =
+				site.metadata.runtimeConfiguration;
+			if (
+				currentRuntimeConfiguration.phpVersion ===
+					settings.phpVersion &&
+				currentRuntimeConfiguration.networking === settings.networking
+			) {
+				const client = selectClientBySiteSlug(getState(), site.slug);
+				if (!client) {
+					throw new Error(
+						'Cannot reload a Playground that is not running.'
+					);
+				}
+				await client.goTo(await client.getCurrentURL());
+				return;
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						runtimeConfiguration: {
+							...site.metadata.runtimeConfiguration,
+							phpVersion: settings.phpVersion,
+							networking: settings.networking,
 						},
 					},
 				})

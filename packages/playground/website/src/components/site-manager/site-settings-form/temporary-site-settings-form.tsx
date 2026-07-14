@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import css from './style.module.css';
-import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
@@ -10,13 +8,15 @@ import {
 	getSetupFormDefaultValues,
 	getSiteSettingsFromFormData,
 } from './setup-form-values';
+import { TemporarySiteSettingsActionFooter } from './site-settings-action-footer';
+import type { SiteSettingsSubmission } from './use-site-settings-submission';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,
-	onSubmit,
+	submission,
 }: {
 	siteSlug: string;
-	onSubmit?: () => void;
+	submission: SiteSettingsSubmission;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
@@ -27,7 +27,6 @@ export function TemporarySiteSettingsForm({
 			undefined,
 			getSiteSettingsFromFormData(data)
 		);
-		onSubmit?.();
 	};
 	const defaultValues = useMemo(
 		() => getSetupFormDefaultValues(siteInfo),
@@ -37,23 +36,13 @@ export function TemporarySiteSettingsForm({
 	return (
 		<UnconnectedSiteSettingsForm
 			className="is-temporary-site"
-			onSubmit={updateSite}
+			onSubmit={(data) => submission.run(updateSite, data)}
 			defaultValues={defaultValues}
 			footer={
-				<VStack
-					justify="flex-end"
-					spacing={6}
-					style={{ margin: 0 }}
-					className={`${css.footer} ${css.formSection}`}
-				>
-					<p>
-						<b>Destructive action!</b> Applying these settings will
-						reset the WordPress site to its initial state.
-					</p>
-					<Button type="submit" variant="primary">
-						Apply Settings & Reset Playground
-					</Button>
-				</VStack>
+				<TemporarySiteSettingsActionFooter
+					isPending={submission.isPending}
+					error={submission.error}
+				/>
 			}
 		/>
 	);
