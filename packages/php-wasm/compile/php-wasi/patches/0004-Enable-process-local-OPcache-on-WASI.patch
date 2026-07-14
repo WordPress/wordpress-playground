@@ -141,15 +141,24 @@ index 1afcff2..1e1f413 100644
  	int ret, er;
  
  	if (!filename) {
-@@ -968,6 +984,16 @@ static int zend_get_stream_timestamp(const char *filename, zend_stat_t *statbuf)
+@@ -968,6 +984,25 @@ static int zend_get_stream_timestamp(const char *filename, zend_stat_t *statbuf)
  	return SUCCESS;
  }
  
 +static inline accel_time_t zend_accel_stat_timestamp(const zend_stat_t *statbuf)
 +{
 +#ifdef PHP_WASI
-+	return (accel_time_t) statbuf->st_mtim.tv_sec * ZEND_ACCEL_NANOSECONDS_PER_SECOND
-+		+ (accel_time_t) statbuf->st_mtim.tv_nsec;
++	accel_time_t seconds;
++	accel_time_t nanoseconds;
++	if (__builtin_mul_overflow(
++			(accel_time_t) statbuf->st_mtim.tv_sec,
++			(accel_time_t) ZEND_ACCEL_NANOSECONDS_PER_SECOND,
++			&seconds)
++		|| __builtin_add_overflow(
++			seconds, (accel_time_t) statbuf->st_mtim.tv_nsec, &nanoseconds)) {
++		return 0;
++	}
++	return zend_accel_timestamp_encode(nanoseconds);
 +#else
 +	return statbuf->st_mtime;
 +#endif
@@ -158,7 +167,7 @@ index 1afcff2..1e1f413 100644
  #if ZEND_WIN32
  static accel_time_t zend_get_file_handle_timestamp_win(zend_file_handle *file_handle, size_t *size)
  {
-@@ -1030,7 +1056,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+@@ -1030,7 +1065,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
  			if (size) {
  				*size = tmpbuf->st_size;
  			}
@@ -167,7 +176,7 @@ index 1afcff2..1e1f413 100644
  		}
  	}
  
-@@ -1070,7 +1096,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+@@ -1070,7 +1105,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
  		case ZEND_HANDLE_STREAM:
  			{
  				php_stream *stream = (php_stream *)file_handle->handle.stream.handle;
@@ -176,7 +185,7 @@ index 1afcff2..1e1f413 100644
  				int ret, er;
  
  				if (!stream ||
-@@ -1102,7 +1128,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+@@ -1102,7 +1137,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
  	if (size) {
  		*size = statbuf.st_size;
  	}
@@ -185,7 +194,7 @@ index 1afcff2..1e1f413 100644
  }
  
  static inline int do_validate_timestamps(zend_persistent_script *persistent_script, zend_file_handle *file_handle)
-@@ -1789,7 +1815,8 @@ static zend_persistent_script *opcache_compile_file(zend_file_handle *file_handl
+@@ -1789,7 +1824,8 @@ static zend_persistent_script *opcache_compile_file(zend_file_handle *file_handl
  
  		/* check if file is too new (may be it's not written completely yet) */
  		if (ZCG(accel_directives).file_update_protection &&
@@ -195,7 +204,7 @@ index 1afcff2..1e1f413 100644
  			*op_array_p = accelerator_orig_compile_file(file_handle, type);
  			return NULL;
  		}
-@@ -2835,6 +2862,9 @@ static inline int accel_find_sapi(void)
+@@ -2835,6 +2871,9 @@ static inline int accel_find_sapi(void)
  		"uwsgi",
  		"fuzzer",
  		"frankenphp",
@@ -205,7 +214,7 @@ index 1afcff2..1e1f413 100644
  		NULL
  	};
  	const char **sapi_name;
-@@ -4600,8 +4630,8 @@ static int accel_finish_startup(void)
+@@ -4600,8 +4639,8 @@ static int accel_finish_startup(void)
  	}
  
  	if (ZCG(accel_directives).preload && *ZCG(accel_directives).preload) {
@@ -220,18 +229,43 @@ diff --git a/ext/opcache/ZendAccelerator.h b/ext/opcache/ZendAccelerator.h
 index bc92854..92756fd 100644
 --- a/ext/opcache/ZendAccelerator.h
 +++ b/ext/opcache/ZendAccelerator.h
-@@ -103,6 +103,28 @@ typedef unsigned __int64 accel_time_t;
+@@ -103,6 +103,55 @@ typedef unsigned __int64 accel_time_t;
  typedef time_t accel_time_t;
  #endif
  
 +#ifdef PHP_WASI
 +# define ZEND_ACCEL_NANOSECONDS_PER_SECOND 1000000000LL
++
++/* Reserve zero for OPcache's "timestamp unavailable" sentinel. */
++static inline accel_time_t zend_accel_timestamp_encode(accel_time_t timestamp)
++{
++	accel_time_t encoded;
++	if (timestamp >= 0) {
++		if (__builtin_add_overflow(timestamp, (accel_time_t) 1, &encoded)) {
++			return 0;
++		}
++		return encoded;
++	}
++	return timestamp;
++}
++
++static inline accel_time_t zend_accel_timestamp_decode(accel_time_t timestamp)
++{
++	return timestamp > 0 ? timestamp - 1 : timestamp;
++}
 +#endif
 +
 +static inline accel_time_t zend_accel_timestamp_from_seconds(time_t timestamp)
 +{
 +#ifdef PHP_WASI
-+	return (accel_time_t) timestamp * ZEND_ACCEL_NANOSECONDS_PER_SECOND;
++	accel_time_t nanoseconds;
++	if (__builtin_mul_overflow(
++			(accel_time_t) timestamp,
++			(accel_time_t) ZEND_ACCEL_NANOSECONDS_PER_SECOND,
++			&nanoseconds)) {
++		return 0;
++	}
++	return zend_accel_timestamp_encode(nanoseconds);
 +#else
 +	return (accel_time_t) timestamp;
 +#endif
@@ -240,7 +274,9 @@ index bc92854..92756fd 100644
 +static inline time_t zend_accel_timestamp_seconds(accel_time_t timestamp)
 +{
 +#ifdef PHP_WASI
-+	return (time_t) (timestamp / ZEND_ACCEL_NANOSECONDS_PER_SECOND);
++	return (time_t) (
++		zend_accel_timestamp_decode(timestamp) / ZEND_ACCEL_NANOSECONDS_PER_SECOND
++	);
 +#else
 +	return (time_t) timestamp;
 +#endif

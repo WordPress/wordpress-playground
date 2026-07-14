@@ -54,17 +54,22 @@ impl PhpOutputCapture {
         std::mem::take(&mut self.output)
     }
 
-    fn write(&mut self, destination: output::Channel, bytes: &[u8]) {
-        match destination {
-            output::Channel::Stdout => self.output.stdout.extend_from_slice(bytes),
-            output::Channel::Stderr => self.output.stderr.extend_from_slice(bytes),
+    fn write_owned(&mut self, destination: output::Channel, bytes: Vec<u8>) {
+        let output = match destination {
+            output::Channel::Stdout => &mut self.output.stdout,
+            output::Channel::Stderr => &mut self.output.stderr,
+        };
+        if output.is_empty() {
+            *output = bytes;
+        } else {
+            output.extend_from_slice(&bytes);
         }
     }
 }
 
 impl output::Host for Wasip2HostState {
     fn write(&mut self, destination: output::Channel, bytes: Vec<u8>) -> wasmtime::Result<()> {
-        self.php_output.write(destination, &bytes);
+        self.php_output.write_owned(destination, bytes);
         Ok(())
     }
 }
@@ -169,17 +174,24 @@ mod tests {
     #[test]
     fn output_capture_resets_and_takes_binary_channels_independently() {
         let mut capture = PhpOutputCapture::default();
-        capture.write(output::Channel::Stdout, &[0, 255]);
-        capture.write(output::Channel::Stderr, b"warning");
+        capture.write_owned(output::Channel::Stdout, vec![0, 255]);
+        capture.write_owned(output::Channel::Stderr, b"warning".to_vec());
 
         let output = capture.take();
         assert_eq!(output.stdout(), &[0, 255]);
         assert_eq!(output.stderr(), b"warning");
         assert_eq!(capture.take(), Default::default());
 
-        capture.write(output::Channel::Stderr, b"discard me");
+        capture.write_owned(output::Channel::Stderr, b"discard me".to_vec());
         capture.reset();
         assert_eq!(capture.take(), Default::default());
+
+        let owned = vec![1, 2, 3, 4];
+        let owned_allocation = owned.as_ptr();
+        capture.write_owned(output::Channel::Stdout, owned);
+        assert_eq!(capture.output.stdout.as_ptr(), owned_allocation);
+        capture.write_owned(output::Channel::Stdout, vec![5, 6]);
+        assert_eq!(capture.take().stdout(), &[1, 2, 3, 4, 5, 6]);
     }
 
     #[test]
@@ -403,6 +415,96 @@ echo '|', $stats['hits'] ?? -1;
             &opcache_stats(after_reset.output.stdout())[..2],
             ["loaded", "enabled"]
         );
+
+        drop(php);
+        fs::remove_dir_all(site_path).unwrap();
+        fs::remove_dir_all(tmp_path).unwrap();
+    }
+
+    #[test]
+    fn persistent_php_opcache_caches_epoch_zero_scripts_and_revalidates_them() {
+        let component_path = test_component_path();
+        assert!(
+            component_path.is_file(),
+            "PHP WASIp2 component is missing: {}",
+            component_path.display()
+        );
+
+        let site_path = temp_dir("persistent-php-opcache-epoch-zero");
+        let tmp_path = temp_dir("persistent-php-opcache-epoch-zero-tmp");
+        fs::write(
+            site_path.join("php.ini"),
+            concat!(
+                "opcache.enable=1\n",
+                "opcache.memory_consumption=16\n",
+                "opcache.interned_strings_buffer=2\n",
+                "opcache.max_accelerated_files=1000\n",
+                "opcache.validate_timestamps=1\n",
+                "opcache.revalidate_freq=0\n",
+                "opcache.file_update_protection=2\n",
+            ),
+        )
+        .unwrap();
+        fs::write(site_path.join("epoch.php"), b"<?php echo 'v1';").unwrap();
+        fs::write(
+            site_path.join("epoch-status.php"),
+            br#"<?php
+$status = function_exists('opcache_get_status') ? opcache_get_status(true) : false;
+$script = is_array($status) ? ($status['scripts']['/site/epoch.php'] ?? null) : null;
+echo is_array($script) ? 'cached' : 'missing';
+echo '|', is_array($script) ? ($script['timestamp'] ?? -1) : -1;
+"#,
+        )
+        .unwrap();
+        set_modified_time(&site_path.join("epoch.php"), UNIX_EPOCH);
+        set_modified_time(
+            &site_path.join("epoch-status.php"),
+            UNIX_EPOCH + Duration::from_secs(1_700_000_000),
+        );
+
+        let runtime = Wasip2ComponentRuntime::new().unwrap();
+        let component = runtime.load_component(&component_path).unwrap();
+        let state = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&site_path, "/site"))
+            .preopen(CapabilityPreopen::read_write(&tmp_path, "/tmp"))
+            .build()
+            .unwrap();
+        let mut php = Wasip2PhpInstance::instantiate(&component, state).unwrap();
+        php.initialize("/site/php.ini").unwrap();
+
+        for _ in 0..2 {
+            let response = php
+                .handle_request(&request("/epoch.php", "/site/epoch.php"))
+                .unwrap();
+            assert_eq!(response.exit_status, 0);
+            assert_eq!(response.output.stdout(), b"v1");
+        }
+        let status = php
+            .handle_request(&request("/epoch-status.php", "/site/epoch-status.php"))
+            .unwrap();
+        assert_eq!(status.exit_status, 0);
+        assert_eq!(
+            status.output.stdout(),
+            b"cached|0",
+            "a real epoch-zero mtime must not collide with OPcache's unavailable sentinel"
+        );
+
+        fs::write(site_path.join("epoch.php"), b"<?php echo 'v2';").unwrap();
+        set_modified_time(
+            &site_path.join("epoch.php"),
+            UNIX_EPOCH + Duration::from_nanos(1),
+        );
+        let after_forward_edit = php
+            .handle_request(&request("/epoch.php", "/site/epoch.php"))
+            .unwrap();
+        assert_eq!(after_forward_edit.output.stdout(), b"v2");
+
+        fs::write(site_path.join("epoch.php"), b"<?php echo 'v3';").unwrap();
+        set_modified_time(&site_path.join("epoch.php"), UNIX_EPOCH);
+        let after_reverse_edit = php
+            .handle_request(&request("/epoch.php", "/site/epoch.php"))
+            .unwrap();
+        assert_eq!(after_reverse_edit.output.stdout(), b"v3");
 
         drop(php);
         fs::remove_dir_all(site_path).unwrap();
