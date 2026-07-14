@@ -117,10 +117,6 @@ async function replaceBlueprintEditorContents(
 	});
 }
 
-function escapeRegExp(text: string) {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -1224,7 +1220,7 @@ test.describe('Default Playground storage', () => {
 			.toBe(true);
 	});
 
-	test('should show intent-driven creation actions in the overlay', async ({
+	test('should keep New Playground drafts without stealing keyboard focus', async ({
 		website,
 		browserName,
 	}) => {
@@ -1236,46 +1232,112 @@ test.describe('Default Playground storage', () => {
 		await website.goto(
 			getUniqueSavedPlaygroundSetupUrl('creation-actions')
 		);
-		const siteSlugBeforeGitHubImport = new URL(
+		const siteSlugBeforeGitHubTab = new URL(
 			website.page.url()
 		).searchParams.get('site-slug');
 		await website.openSavedPlaygroundsOverlay();
-		await expect(
-			website.page.getByRole('button', { name: 'New Playground' })
-		).toBeVisible();
+		await website.page
+			.getByRole('button', { name: 'New Playground', exact: true })
+			.click();
+		for (const tabName of [
+			'Blueprint gallery',
+			'Blueprint URL',
+			'Write a Blueprint',
+			'Pull request',
+			'GitHub',
+			'Import zip',
+		]) {
+			await expect(
+				website.page.getByRole('tab', {
+					name: tabName,
+					exact: true,
+				})
+			).toBeVisible();
+		}
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Preview a WordPress PR',
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
 			})
 		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', {
-				name: 'Preview a Gutenberg PR',
-			})
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Import from GitHub' })
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', {
-				name: 'Open a Blueprint URL',
-			})
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Import a .zip' })
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Unsaved Playground' })
-		).toHaveCount(0);
 
 		await website.page
-			.getByRole('button', { name: 'Import from GitHub' })
+			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
+			.click();
+		const draft = website.page.locator('.cm-content');
+		await expect(draft).toBeFocused({ timeout: 5000 });
+		await draft.fill(
+			JSON.stringify({ landingPage: '/draft-kept/', steps: [] }, null, 2)
+		);
+		await expect(draft).toContainText('draft-kept');
+
+		await website.page
+			.getByRole('button', { name: 'Playgrounds', exact: true })
+			.click();
+		await website.page
+			.getByRole('button', { name: 'New Playground', exact: true })
+			.click();
+		await expect(website.page.locator('.cm-content')).toContainText(
+			'draft-kept'
+		);
+
+		await website.page.getByRole('button', { name: 'Close' }).click();
+		await website.openSavedPlaygroundsOverlay();
+		await website.page
+			.getByRole('button', { name: 'New Playground', exact: true })
+			.click();
+		const galleryTab = website.page.getByRole('tab', {
+			name: 'Blueprint gallery',
+			exact: true,
+		});
+		const blueprintUrlTab = website.page.getByRole('tab', {
+			name: 'Blueprint URL',
+			exact: true,
+		});
+		const writeTab = website.page.getByRole('tab', {
+			name: 'Write a Blueprint',
+			exact: true,
+		});
+		await galleryTab.focus();
+		await galleryTab.press('ArrowRight');
+		await expect(blueprintUrlTab).toBeFocused();
+		await blueprintUrlTab.press('ArrowRight');
+		await expect(writeTab).toBeFocused({ timeout: 5000 });
+		await expect(website.page.locator('.cm-content')).not.toBeFocused({
+			timeout: 5000,
+		});
+		await expect(website.page.locator('.cm-content')).toContainText(
+			'draft-kept'
+		);
+
+		await website.page
+			.getByRole('tab', { name: 'Pull request', exact: true })
 			.click();
 		await expect(
-			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+			website.page.getByRole('heading', {
+				name: 'Preview a pull request',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('textbox', {
+				name: 'Pull request URL or number',
+			})
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Preview',
+				exact: true,
+			})
+		).toBeVisible();
+
+		await website.page
+			.getByRole('tab', { name: 'GitHub', exact: true })
+			.click();
+		await expect(
+			website.page.getByRole('heading', { name: 'Import from GitHub' })
 		).toBeVisible();
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			siteSlugBeforeGitHubImport
+			siteSlugBeforeGitHubTab
 		);
 	});
 
@@ -1316,23 +1378,34 @@ test.describe('Default Playground storage', () => {
 		});
 
 		await website.openSavedPlaygroundsOverlay();
-		const targetRow = website.page
-			.locator('[class*="siteRow"]')
-			.filter({ hasText: setup.targetName })
-			.first();
-		await targetRow.getByRole('button', { name: 'Site actions' }).click();
+		const targetRow = website.page.locator(
+			`[data-playground-row="${setup.targetSlug}"]`
+		);
+		await targetRow
+			.getByRole('button', { name: `Actions for ${setup.targetName}` })
+			.click();
 		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
-		const dialog = website.page.getByRole('dialog', {
+		const nameInput = targetRow.getByRole('textbox', {
 			name: 'Rename Playground',
 		});
 		const newName = `Renamed Recovery ${Date.now()}`;
-		await expect(
-			dialog.getByRole('textbox', { name: /name/i })
-		).toHaveValue(setup.targetName);
-		await dialog.getByRole('textbox', { name: /name/i }).fill(newName);
-		await dialog.getByRole('button', { name: 'Rename' }).click();
-		await expect(dialog).not.toBeVisible();
+		await expect(nameInput).toHaveValue(setup.targetName);
+		await nameInput.fill(newName);
+		await nameInput.press('Enter');
+		await expect(nameInput).not.toBeVisible();
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(targetSlug) =>
+						(window as any).playgroundSites
+							.list()
+							.find((site: any) => site.slug === targetSlug)
+							?.name,
+					setup.targetSlug
+				)
+			)
+			.toBe(newName);
 
 		const sitesAfterRename = await website.page.evaluate(
 			({ targetSlug, activeSlug }) => {
@@ -1359,6 +1432,76 @@ test.describe('Default Playground storage', () => {
 		});
 	});
 
+	test('should reveal a full Playground title only when it is truncated', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const longName = `A Playground title long enough to be clipped ${'x'.repeat(28)}`;
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('long-title'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+		await website.page.setViewportSize({ width: 390, height: 844 });
+		await website.openSavedPlaygroundsOverlay();
+		const shortTitle = website.page
+			.locator('span[class*="siteRowName"]')
+			.filter({ hasText: activeSite.name });
+		await expect(shortTitle).toHaveAttribute('tabindex', '-1');
+		await shortTitle.hover();
+		await expect(
+			website.page.getByRole('tooltip', {
+				name: activeSite.name,
+				exact: true,
+			})
+		).toHaveCount(0);
+		await website.page
+			.getByRole('button', { name: `Actions for ${activeSite.name}` })
+			.click();
+		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+		const renameInput = website.page.getByRole('textbox', {
+			name: 'Rename Playground',
+		});
+		await renameInput.fill(longName);
+		await renameInput.press('Enter');
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.find((site: any) => site.slug === slug)?.name,
+					activeSite.slug
+				)
+			)
+			.toBe(longName);
+		const title = website.page
+			.locator('span[class*="siteRowName"]')
+			.filter({ hasText: longName });
+		await expect(title).toBeVisible();
+		expect(
+			await title.evaluate(
+				(element) => element.scrollWidth > element.clientWidth
+			)
+		).toBe(true);
+		await expect(title).toHaveAttribute('tabindex', '0');
+		const tooltip = website.page.getByRole('tooltip', {
+			name: longName,
+			exact: true,
+		});
+		await title.focus();
+		await expect(tooltip).toBeVisible({ timeout: 5000 });
+		await website.page.keyboard.press('Tab');
+		await expect(tooltip).not.toBeVisible({ timeout: 5000 });
+		await title.hover();
+		await expect(tooltip).toBeVisible({ timeout: 5000 });
+	});
+
 	test('should treat New Playground as an explicit fresh start', async ({
 		website,
 		browserName,
@@ -1376,12 +1519,18 @@ test.describe('Default Playground storage', () => {
 
 		await website.openSavedPlaygroundsOverlay();
 		await website.page
-			.getByRole('button', { name: 'New Playground' })
+			.getByRole('button', { name: 'New Playground', exact: true })
 			.click();
-		const overlay = website.page
-			.locator('[class*="overlay"]')
-			.filter({ hasText: 'Playground' });
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await website.page
+			.getByRole('button', {
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
+			})
+			.click();
+		const overlayTabs = website.page.getByRole('group', {
+			name: 'Playground panels',
+		});
+		await expect(overlayTabs).toHaveCount(0, { timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -1394,9 +1543,15 @@ test.describe('Default Playground storage', () => {
 
 		await website.openSavedPlaygroundsOverlay();
 		await website.page
-			.getByRole('button', { name: 'New Playground' })
+			.getByRole('button', { name: 'New Playground', exact: true })
 			.click();
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await website.page
+			.getByRole('button', {
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
+			})
+			.click();
+		await expect(overlayTabs).toHaveCount(0, { timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -1446,10 +1601,10 @@ test.describe('Default Playground storage', () => {
 		});
 		await website.page
 			.getByRole('button', {
-				name: new RegExp(`^${escapeRegExp(firstSite.name)}`),
+				name: `Open ${firstSite.name}`,
 			})
 			.click();
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect(overlayTabs).toHaveCount(0, { timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,

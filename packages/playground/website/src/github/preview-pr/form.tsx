@@ -274,14 +274,11 @@ export default function PreviewPRForm({
 						Gutenberg branch links work too.
 					</p>
 				)}
-				{errorMsg &&
-					(inline ? (
-						<Notice status="error" isDismissible={false}>
-							{errorMsg}
-						</Notice>
-					) : (
-						<div>{errorMsg}</div>
-					))}
+				{errorMsg && (
+					<Notice status="error" isDismissible={false}>
+						{errorMsg}
+					</Notice>
+				)}
 			</div>
 			{inline ? (
 				<div className={css.inlineActions}>

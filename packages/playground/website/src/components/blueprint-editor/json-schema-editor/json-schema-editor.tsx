@@ -367,11 +367,17 @@ export function JSONSchemaEditor({
 			}
 		}
 
-		if (autofocus) {
-			view.focus();
-		}
+		// A pointer-activated tab receives its default focus after the click
+		// handler. Defer editor focus until that click completes so mouse users
+		// land in the editor; keyboard/touch callers pass autofocus=false.
+		const focusTimer = autofocus
+			? window.setTimeout(() => view.focus(), 0)
+			: undefined;
 
 		return () => {
+			if (focusTimer !== undefined) {
+				window.clearTimeout(focusTimer);
+			}
 			view.destroy();
 			viewRef.current = null;
 		};
