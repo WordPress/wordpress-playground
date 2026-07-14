@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createSpawnHandler } from '@php-wasm/util';
 import { __private__dont__use, PHP } from './php';
 
 describe('PHP mounts', () => {
@@ -101,4 +102,55 @@ describe('PHP spawn handlers', () => {
 			'sendmail handler'
 		);
 	});
+
+	it('routes PHP code execution to command-specific handlers', async () => {
+		const php = new PHP();
+		const runtime = createRuntimeThatExecutes(php, ['sendmail', '-t']);
+		(php as any)[__private__dont__use] = runtime;
+
+		php.setCommandSpawnHandler(
+			'sendmail',
+			createSpawnHandler(async (command: string[], processApi: any) => {
+				expect(command).toEqual(['sendmail', '-t']);
+				processApi.stdout('sent mail');
+				await new Promise((resolve) => setTimeout(resolve, 1));
+				processApi.exit(0);
+			})
+		);
+		await php.setSpawnHandler(() => {
+			throw new Error('generic handler');
+		});
+
+		const response = await php.run({
+			code: `<?php echo exec("sendmail -t");`,
+		});
+
+		expect(runtime.FS.writeFile).toHaveBeenCalledWith(
+			'/internal/eval.php',
+			`<?php echo exec("sendmail -t");`
+		);
+		expect(response.text).toBe('sent mail');
+	});
 });
+
+function createRuntimeThatExecutes(php: PHP, command: string[]) {
+	const runtime: any = {
+		FS: {
+			cwd: vi.fn(() => '/'),
+			writeFile: vi.fn(),
+		},
+		ccall: vi.fn(async (name: string) => {
+			if (name !== 'wasm_sapi_handle_request') {
+				return 0;
+			}
+
+			const response = await php.cli(command);
+			runtime.onStdout(await response.stdoutBytes);
+			runtime.onStderr(
+				new TextEncoder().encode(await response.stderrText)
+			);
+			return await response.exitCode;
+		}),
+	};
+	return runtime;
+}
