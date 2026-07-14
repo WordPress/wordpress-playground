@@ -81,4 +81,24 @@ describe('PHP spawn handlers', () => {
 
 		await expect(php.cli(['pwd', '-P'])).rejects.toThrow('generic handler');
 	});
+
+	it('keeps command-specific handlers after replacing the generic handler', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				cwd: vi.fn(() => '/'),
+			},
+		};
+
+		php.setCommandSpawnHandler('sendmail', () => {
+			throw new Error('sendmail handler');
+		});
+		await php.setSpawnHandler(() => {
+			throw new Error('generic handler');
+		});
+
+		await expect(php.cli(['/usr/sbin/sendmail', '-t'])).rejects.toThrow(
+			'sendmail handler'
+		);
+	});
 });
