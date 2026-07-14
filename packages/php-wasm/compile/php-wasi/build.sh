@@ -214,7 +214,9 @@ PHP_BUILD_SYSTEM="$PHP_UNAME"
 
 (
 	cd "$PHP_BUILD"
-	run_logged "$LOG_DIR/php-configure.log" env \
+	# Keep host-specific pkg-config launchers out of PHP's recorded configure
+	# command. The canonical container resolves pkg-config through PATH.
+	run_logged "$LOG_DIR/php-configure.log" env -u PKG_CONFIG \
 		CC="$CC" CXX="$CXX" AR="$AR" RANLIB="$RANLIB" \
 		CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS" \
 		PHP_UNAME="$PHP_UNAME" PHP_BUILD_SYSTEM="$PHP_BUILD_SYSTEM" \
