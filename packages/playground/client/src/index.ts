@@ -57,6 +57,11 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * A stable label for the loading progress bar, typically the name of the
+	 * Playground being started. It stays visible while boot captions change.
+	 */
+	siteName?: string;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -165,11 +170,11 @@ export async function startPlaygroundWeb(
 		options.blueprint
 	);
 
-	remoteUrl = setQueryParams(remoteUrl, {
+	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
+	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
+	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
-		// The v2 handler compiles and runs steps in this package. The iframe
-		// only needs the normal remote API.
-		'blueprints-runner': 'v1',
+		progressbarTitle: options.siteName || undefined,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

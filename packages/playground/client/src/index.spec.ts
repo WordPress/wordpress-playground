@@ -49,8 +49,10 @@ describe('startPlaygroundWeb', () => {
 		await expect(
 			startPlaygroundWeb({
 				iframe,
-				remoteUrl: 'http://localhost/remote.html',
+				remoteUrl:
+					'http://localhost/remote.html?blueprints-runner=v2&existing=1',
 				progressTracker: createProgressTracker(),
+				siteName: 'Curious Harbor',
 				blueprint: {
 					steps: [],
 				},
@@ -59,7 +61,11 @@ describe('startPlaygroundWeb', () => {
 
 		expect(mocks.BlueprintsV1Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV2Handler).not.toHaveBeenCalled();
-		expect(iframe.src).toContain('blueprints-runner=v1');
+		expect(iframe.src).not.toContain('blueprints-runner');
+		expect(iframe.src).toContain('existing=1');
+		expect(new URL(iframe.src).searchParams.get('progressbarTitle')).toBe(
+			'Curious Harbor'
+		);
 	});
 
 	it('routes Blueprint v2 declarations through the v2 handler', async () => {
@@ -86,7 +92,7 @@ describe('startPlaygroundWeb', () => {
 
 		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
-		expect(iframe.src).toContain('blueprints-runner=v1');
+		expect(iframe.src).not.toContain('blueprints-runner');
 	});
 
 	it('routes Blueprint v2 bundles through the v2 handler', async () => {
@@ -115,7 +121,7 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.createBlueprintReflection).toHaveBeenCalledWith(bundle);
 		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
-		expect(iframe.src).toContain('blueprints-runner=v1');
+		expect(iframe.src).not.toContain('blueprints-runner');
 	});
 });
 

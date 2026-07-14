@@ -61,14 +61,10 @@ export * from './lib/steps/handlers';
 export type {
 	BlueprintV2,
 	BlueprintV2Declaration,
-	RawBlueprintV2Data,
-	ParsedBlueprintV1orV2String as ParsedBlueprintV2String,
 } from './lib/v2/blueprint-v2-declaration';
-export { getV2Runner } from './lib/v2/get-v2-runner';
-export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
-export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 export {
 	compileBlueprintV2,
+	createBlueprintV2ExecutionPlan,
 	resolveBlueprintV2WordPressSource,
 } from './lib/v2/compile';
 export type {

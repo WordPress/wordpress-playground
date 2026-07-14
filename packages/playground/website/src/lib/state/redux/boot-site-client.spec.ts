@@ -10,6 +10,7 @@ import {
 import { bootSiteClient } from './boot-site-client';
 import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
+import { logBlueprintEvents } from '../../tracking';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -285,6 +286,7 @@ describe('bootSiteClient', () => {
 
 		expect(startPlaygroundWeb).toHaveBeenCalledWith(
 			expect.objectContaining({
+				onBlueprintValidated: logBlueprintEvents,
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
 				mounts: [
 					expect.objectContaining({

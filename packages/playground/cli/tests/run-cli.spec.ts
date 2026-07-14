@@ -286,32 +286,30 @@ describe.each(blueprintVersions)(
 			}
 		});
 
-		test('should keep the experimental v2 flag as a compatibility alias', async () => {
-			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
-				code?: number | string | null
-			) => {
-				throw new Error(
-					`process.exit unexpectedly called with "${code}"`
-				);
+		test('should reject the retired experimental v2 flag', async () => {
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((() => undefined) as any);
+			// The yargs exit is caught by parseOptionsAndRunCLI(), which exits
+			// again. Throw only once so the outer exit can return to the test.
+			exitSpy.mockImplementationOnce((() => {
+				throw new Error('Stop after the yargs failure');
 			}) as any);
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
 
 			try {
-				await using cliResult = await parseOptionsAndRunCLI([
+				await parseOptionsAndRunCLI([
 					'server',
 					'--experimental-blueprints-v2-runner',
-					'--wordpress-install-mode=do-not-attempt-installing',
-					'--verbosity=quiet',
-					'--port=0',
-					'--workers=1',
 				]);
-				const cliServer = cliResult[internalsKeyForTesting].cliServer;
-
-				expect(
-					await cliServer.playground.fileExists(
-						'/wordpress/wp-load.php'
-					)
-				).toBe(false);
+				expect(exitSpy).toHaveBeenCalledWith(1);
+				expect(consoleErrorSpy).toHaveBeenCalledWith(
+					expect.stringContaining('experimental-blueprints-v2-runner')
+				);
 			} finally {
+				consoleErrorSpy.mockRestore();
 				exitSpy.mockRestore();
 			}
 		});

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PHP } from '@php-wasm/universal';
 
-describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
+describe('PlaygroundWorkerEndpointBlueprints', () => {
 	beforeEach(() => {
 		vi.resetModules();
 		vi.stubGlobal('self', {
@@ -48,7 +48,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			}),
 			loadWebRuntime: vi.fn(),
 		}));
-		await import('./playground-worker-endpoint-blueprints-v1');
+		await import('./playground-worker-endpoint-blueprints');
 		if (!endpoint) {
 			throw new Error('Expected exposeAPI to receive an endpoint');
 		}
@@ -109,7 +109,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			}),
 			loadWebRuntime: vi.fn(),
 		}));
-		await import('./playground-worker-endpoint-blueprints-v1');
+		await import('./playground-worker-endpoint-blueprints');
 		if (!endpoint) {
 			throw new Error('Expected exposeAPI to receive an endpoint');
 		}
@@ -174,7 +174,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			}),
 			loadWebRuntime: vi.fn(),
 		}));
-		await import('./playground-worker-endpoint-blueprints-v1');
+		await import('./playground-worker-endpoint-blueprints');
 		if (!endpoint) {
 			throw new Error('Expected exposeAPI to receive an endpoint');
 		}
@@ -227,7 +227,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 				}),
 				loadWebRuntime: vi.fn(),
 			}));
-			await import('./playground-worker-endpoint-blueprints-v1');
+			await import('./playground-worker-endpoint-blueprints');
 			if (!endpoint) {
 				throw new Error('Expected exposeAPI to receive an endpoint');
 			}
@@ -276,7 +276,7 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			}),
 			loadWebRuntime: vi.fn(),
 		}));
-		await import('./playground-worker-endpoint-blueprints-v1');
+		await import('./playground-worker-endpoint-blueprints');
 		if (!endpoint) {
 			throw new Error('Expected exposeAPI to receive an endpoint');
 		}
@@ -314,13 +314,13 @@ describe('PlaygroundWorkerEndpointBlueprintsV1', () => {
 			loadWebRuntime: vi.fn(),
 		}));
 
-		await import('./playground-worker-endpoint-blueprints-v1');
+		await import('./playground-worker-endpoint-blueprints');
 
 		vi.resetModules();
 		await expect(
-			import('./playground-worker-endpoint-blueprints-v1')
+			import('./playground-worker-endpoint-blueprints')
 		).rejects.toThrow(
-			'The Blueprints v1 Playground worker tried to expose its Comlink endpoint more than once in the same worker global.'
+			'The Blueprints Playground worker tried to expose its Comlink endpoint more than once in the same worker global.'
 		);
 	});
 });
