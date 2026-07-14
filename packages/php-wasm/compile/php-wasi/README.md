@@ -37,7 +37,8 @@ JOBS=16 packages/php-wasm/compile/php-wasi/build.sh
 The default profile is `O2/GOTO`, using PHP's fully threaded, all-inline
 executor. The HYBRID alternative combines computed-goto dispatch with a mix of
 inline and called opcode handlers. Performance experiments can select either
-VM and/or `O3`:
+VM and/or `O3`. SQLite is always compiled with `THREADSAFE=1`, preserving its
+mutex implementation and memory barriers:
 
 ```sh
 PHP_WASI_OPT_LEVEL=O3 PHP_WASI_VM_KIND=GOTO \
@@ -64,6 +65,8 @@ there is no cross-worker shared memory. WASI validation retains nanosecond file
 timestamps so same-second edits are visible immediately, while OPcache's
 default file-update protection avoids caching a file during a write. SQLite is
 built with FTS5, URI support, column metadata, and loadable extensions disabled.
+Its WASI VFS can mirror WAL shared-memory regions through a host-provided
+`sqlite-wal-shm` component interface.
 
 ## Component ABI
 
@@ -139,7 +142,8 @@ packages/php-wasm/compile/php-wasi/validate.sh \
 
 This runs full-feature WebAssembly validation (which catches pathological
 functions exceeding Wasmtime's local limit) and verifies the resolved WASI
-0.2.6, request/output, and lock interfaces. The scripts in `tests/smoke` cover
+0.2.6, request/output, lock, and SQLite WAL shared-memory interfaces. The
+scripts in `tests/smoke` cover
 normal output and temp files, header-only redirects and cookies, a fatal
 bailout, recovery on the same worker, WASI-backed cryptographic randomness,
 filter validation and password hashing, and transactional/concurrent PDO
