@@ -1700,7 +1700,7 @@ echo get_option('blogname');
 		const nudge = website.page.getByLabel('Recent autosaved Playground');
 		await expect(nudge).toBeVisible();
 		await nudge
-			.getByRole('button', { name: 'Don’t notify me about autosaves' })
+			.getByRole('button', { name: 'Stop showing autosave prompts' })
 			.click();
 		await expect(nudge).toHaveCount(0);
 		await expect(
@@ -1857,7 +1857,9 @@ echo get_option('blogname');
 			);
 			sampleStatus();
 		});
-		await website.page.getByRole('button', { name: 'No, thanks' }).click();
+		await website.page
+			.getByRole('button', { name: 'Keep this Playground' })
+			.click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
@@ -2097,7 +2099,7 @@ echo get_option('blogname');
 		});
 
 		const keepNewButton = website.page.getByRole('button', {
-			name: 'No, thanks',
+			name: 'Keep this Playground',
 		});
 		// Saving may route directly to the saved Playground and clear the
 		// nudge. If it stays visible, dismissing it must not undo the save.

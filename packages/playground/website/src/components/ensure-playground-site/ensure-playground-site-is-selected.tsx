@@ -431,17 +431,19 @@ function YouHaveAutosaveNudge({
 						onClick={onKeepNew}
 						disabled={isBusy}
 					>
-						No, thanks
+						Keep this Playground
 					</Button>
 				</div>
-				<Button
-					variant="link"
-					className={css.disableNotifications}
-					onClick={onDisableNotifications}
-					disabled={isBusy}
-				>
-					Don’t notify me about autosaves
-				</Button>
+				<div className={css.preferenceAction}>
+					<Button
+						variant="link"
+						className={css.disableNotifications}
+						onClick={onDisableNotifications}
+						disabled={isBusy}
+					>
+						Stop showing autosave prompts
+					</Button>
+				</div>
 			</div>
 		</aside>
 	);
