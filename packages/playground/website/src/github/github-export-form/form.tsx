@@ -495,7 +495,7 @@ export default function GitHubExportForm({
 	}
 
 	return (
-		<GitHubOAuthGuard>
+		<GitHubOAuthGuard intro="Export plugins, themes, or a wp-content directory to a GitHub repository.">
 			<form id="export-playground-form" onSubmit={handleSubmit}>
 				<p>
 					You may export WordPress plugins, themes, and entire
