@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
-	RecentAutosaveNudgeContext,
+	RecentAutosaveNudgeProvider,
 	useRecentAutosaveNudgeVisible,
 } from './recent-autosave-nudge-context';
 
@@ -12,9 +12,9 @@ describe('RecentAutosaveNudgeContext', () => {
 	it('exposes visible nudges to descendants', () => {
 		expect(
 			renderToStaticMarkup(
-				<RecentAutosaveNudgeContext.Provider value>
+				<RecentAutosaveNudgeProvider visible>
 					<Visibility />
-				</RecentAutosaveNudgeContext.Provider>
+				</RecentAutosaveNudgeProvider>
 			)
 		).toBe('visible');
 	});
