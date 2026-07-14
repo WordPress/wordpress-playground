@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
-import { Spinner, TextControl } from '@wordpress/components';
+import { Button, Notice, Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -13,7 +13,15 @@ import {
 
 interface PreviewPRFormProps {
 	onClose: () => void;
-	target: 'wordpress' | 'gutenberg';
+	/**
+	 * Preferred repository for ambiguous (bare) input. A recognized GitHub URL
+	 * always wins over this; it only decides whether a bare number/branch is a
+	 * WordPress Core or Gutenberg reference. Defaults to WordPress Core.
+	 */
+	target?: 'wordpress' | 'gutenberg';
+	/** Render a single left-aligned primary action (dock pane) instead of the
+	 *  modal's right-aligned Cancel/Submit row. */
+	inline?: boolean;
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -38,6 +46,7 @@ export const targetParams = {
 export default function PreviewPRForm({
 	onClose,
 	target = 'wordpress',
+	inline = false,
 }: PreviewPRFormProps) {
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
@@ -234,8 +243,9 @@ export default function PreviewPRForm({
 		window.location.href = urlWithPreview.toString();
 	}
 
-	const inputLabel =
-		target === 'wordpress'
+	const inputLabel = inline
+		? 'Pull request URL or number'
+		: target === 'wordpress'
 			? 'PR number or URL'
 			: 'PR number, URL, or a branch name';
 
@@ -251,20 +261,46 @@ export default function PreviewPRForm({
 					disabled={submitting}
 					label={inputLabel}
 					value={value}
-					autoFocus
+					autoFocus={!inline}
 					onChange={(e) => {
 						setError('');
 						setValue(e);
 					}}
 				/>
-				{errorMsg && <div>{errorMsg}</div>}
+				{inline && (
+					<p className={css.hint}>
+						Paste a link to a WordPress Core or Gutenberg pull
+						request — or just the PR number for WordPress Core.
+						Gutenberg branch links work too.
+					</p>
+				)}
+				{errorMsg &&
+					(inline ? (
+						<Notice status="error" isDismissible={false}>
+							{errorMsg}
+						</Notice>
+					) : (
+						<div>{errorMsg}</div>
+					))}
 			</div>
-			<ModalButtons
-				areDisabled={submitting}
-				onCancel={onClose}
-				onSubmit={handleSubmit}
-				submitText="Preview"
-			/>
+			{inline ? (
+				<div className={css.inlineActions}>
+					<Button
+						variant="primary"
+						type="submit"
+						disabled={submitting}
+					>
+						Preview
+					</Button>
+				</div>
+			) : (
+				<ModalButtons
+					areDisabled={submitting}
+					onCancel={onClose}
+					onSubmit={handleSubmit}
+					submitText="Preview"
+				/>
+			)}
 		</form>
 	);
 }

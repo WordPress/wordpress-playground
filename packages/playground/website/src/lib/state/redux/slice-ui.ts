@@ -163,6 +163,10 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	/** Draft kept while the New Playground panel is closed or hidden. */
+	writeOwnBlueprintDraft?: string;
+	/** Playground slug from which the current authoring draft was seeded. */
+	writeOwnSeededSlug?: string;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -275,6 +279,18 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setWriteOwnBlueprintDraft: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -337,6 +353,8 @@ export const {
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

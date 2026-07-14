@@ -88,6 +88,17 @@ async function populateFilesystemFromBlueprint(
 }
 
 /**
+ * Reads a site's `blueprint.json` as text without changing its stored bundle.
+ * Used to seed compact Blueprint authoring surfaces.
+ */
+export async function readSiteBlueprintJson(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+): Promise<string> {
+	const fs = await createFilesystemFromOriginalBlueprint(originalBlueprint);
+	return fs.readFileAsText('/blueprint.json');
+}
+
+/**
  * Returns an editable filesystem for a site's Blueprint declaration or bundle.
  *
  * Bundle backends can be used directly. Declaration-only Blueprints are copied
