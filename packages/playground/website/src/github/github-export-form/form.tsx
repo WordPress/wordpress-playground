@@ -486,8 +486,13 @@ export default function GitHubExportForm({
 				)}
 
 				<div className={forms.submitRow}>
-					<Button variant="primary" size="large" onClick={onClose}>
-						Close this modal
+					<Button
+						type="button"
+						variant="primary"
+						size="large"
+						onClick={onClose}
+					>
+						Done
 					</Button>
 				</div>
 			</form>

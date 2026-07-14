@@ -24,6 +24,7 @@ export function SiteFileBrowser({
 			isVisible={isVisible}
 			initialPath={`${documentRoot}/wp-config.php`}
 			placeholderText="Start this Playground to browse and edit its files."
+			dockPresentation
 		/>
 	);
 }

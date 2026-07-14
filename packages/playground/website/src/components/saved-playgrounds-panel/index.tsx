@@ -823,7 +823,7 @@ export function SavedPlaygroundsPanel({
 				// Blueprint rather than blocking the handoff.
 			}
 		}
-		dispatch(setSiteManagerSection('blueprints'));
+		dispatch(setSiteManagerSection('blueprint'));
 	};
 
 	/**

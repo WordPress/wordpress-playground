@@ -17,23 +17,23 @@
 	flex-shrink: 0;
 }
 
+/* "Saved" uses a calm, desaturated sage green with a check that settles into
+   the dark dock. "Autosaved" is icon-less white text — plainer, since it's the
+   transient default. Only "unsaved" stays vibrant (it wants attention). */
 .saved {
-	color: #86efac;
+	color: #a0c49a;
 }
 
 .saved svg {
-	fill: #86efac;
+	fill: #a0c49a;
 }
 
+/* "Autosaved" keeps the same blue as the in-progress "Autosaving" state, so the
+   color doesn't change as the save settles. */
 .autosaved {
 	color: #93c5fd;
 }
 
-.autosaved svg {
-	fill: #93c5fd;
-}
-
-.autosaved .label,
 .saving .label {
 	font-weight: 600;
 }
@@ -43,9 +43,25 @@
 	transition: background 0.15s ease;
 }
 
-.actionable:hover,
-.actionable[aria-expanded='true'] {
+.actionable:hover {
 	background: rgba(255, 255, 255, 0.08);
+}
+
+.actionable:disabled,
+.error:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.actionable:disabled:hover,
+.error:disabled:hover {
+	background: transparent;
+}
+
+.actionable:focus-visible,
+.error:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
 }
 
 .unsaved {
@@ -78,70 +94,28 @@
 	display: inline;
 }
 
-.popover {
-	z-index: 100000;
-}
-
-.popover :global(.components-popover__content) {
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-	color: #1e1e1e;
-	padding: 0;
-	width: min(320px, calc(100vw - 24px));
-}
-
-.popover-content {
-	display: grid;
+/* Local-directory "Saved" pill opens a small menu carrying the one disk action
+   ("Reload files from disk"), so the dock no longer needs a separate, unclear
+   "Sync local files" button next to the status. The popover renders on the
+   default light surface, so its text is dark. */
+.saved-menu-content {
+	display: flex;
+	flex-direction: column;
 	gap: 10px;
-	padding: 14px;
+	padding: 12px;
+	max-width: 260px;
 }
 
-.popover-title {
-	font-size: 14px;
-	font-weight: 600;
-	line-height: 1.3;
-}
-
-.popover-description {
-	color: #50575e;
-	font-size: 13px;
-	line-height: 1.45;
+.saved-menu-hint {
 	margin: 0;
-	white-space: normal;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #5f5b54;
 }
 
-.popover-error {
-	color: #b32d2e;
-	font-size: 13px;
-	line-height: 1.45;
-	margin: 0;
-	white-space: normal;
-}
-
-.primary-action {
-	align-items: center;
-	background: #3858e9;
-	border: 1px solid #6c84ff;
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	display: inline-flex;
-	font-size: 13px;
-	font-weight: 600;
-	justify-content: center;
-	line-height: 1.2;
-	min-height: 34px;
-	padding: 8px 12px;
-	transition: background 0.15s ease;
-	width: fit-content;
-}
-
-.primary-action:hover,
-.primary-action:focus-visible {
-	background: #4f6df0;
-	border-color: #8fa1ff;
+.saved-menu-action.saved-menu-action {
+	justify-content: flex-start;
+	width: 100%;
 }
 
 .progress-ring {
@@ -170,4 +144,10 @@
 	.indicator {
 		font-size: 13px;
 	}
+}
+
+/* --- Restored from the deployed build --- */
+
+.loading {
+	color: #f7f5f2b3;
 }

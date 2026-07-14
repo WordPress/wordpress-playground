@@ -7,6 +7,7 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { SiteToolPanels } from './site-tool-panels';
 
 vi.mock('../../../lib/state/redux/store', () => ({
+	useAppDispatch: () => vi.fn(),
 	useAppSelector: () => false,
 }));
 
@@ -86,13 +87,13 @@ describe('SiteToolPanels', () => {
 		container.remove();
 	});
 
-	it('keeps every tool mounted and shows only the active tab', async () => {
+	it('mounts tools on first visit and keeps them mounted when hidden', async () => {
 		await renderPanels('database');
 
 		const database = findTool('database');
 		expect(database.closest('[hidden]')).toBeNull();
 		for (const name of ['settings', 'files', 'blueprint', 'logs']) {
-			expect(findTool(name).closest('[hidden]')).not.toBeNull();
+			expect(findOptionalTool(name)).toBeNull();
 		}
 
 		await renderPanels('logs');
@@ -118,10 +119,14 @@ describe('SiteToolPanels', () => {
 	}
 
 	function findTool(name: string) {
-		const tool = container.querySelector(`[data-testid="${name}"]`);
+		const tool = findOptionalTool(name);
 		if (!tool) {
 			throw new Error(`Could not find ${name} tool.`);
 		}
 		return tool;
+	}
+
+	function findOptionalTool(name: string) {
+		return container.querySelector(`[data-testid="${name}"]`);
 	}
 });
