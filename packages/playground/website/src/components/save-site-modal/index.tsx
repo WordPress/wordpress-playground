@@ -1,10 +1,11 @@
 import {
+	useCallback,
 	useEffect,
 	useMemo,
 	useState,
 	useRef,
 	type CSSProperties,
-	type ReactElement,
+	type ReactNode,
 } from 'react';
 import {
 	Button,
@@ -32,22 +33,31 @@ import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 
 type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
 
+type SaveSiteModalProps =
+	| {
+			/** Render the form inside the Dock instead of a standalone modal. */
+			asPane: true;
+			onClose: () => void;
+			onCloseBlockedChange?: (isBlocked: boolean) => void;
+	  }
+	| {
+			asPane?: false;
+			onClose?: never;
+			onCloseBlockedChange?: never;
+	  };
+
 const helpTextStyle: CSSProperties = {
 	color: '#757575',
 	fontSize: 12,
 	marginTop: 8,
 };
 
-export function SaveSiteModal({
-	asPane = false,
-	onClose,
-	onCloseBlockedChange,
-}: {
-	/** Render the form inside the Dock instead of a standalone modal. */
-	asPane?: boolean;
-	onClose?: () => void;
-	onCloseBlockedChange?: (isBlocked: boolean) => void;
-} = {}) {
+export function SaveSiteModal(props: SaveSiteModalProps = {}) {
+	const { asPane = false } = props;
+	const onClose = props.asPane ? props.onClose : undefined;
+	const onCloseBlockedChange = props.asPane
+		? props.onCloseBlockedChange
+		: undefined;
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const siteSlugToSave = useAppSelector((state) => state.ui.siteSlugToSave);
@@ -145,14 +155,14 @@ export function SaveSiteModal({
 	const isAutosaved = site && isAutosavedSite(site);
 	const canSaveSite =
 		site && (site.metadata.storage === 'none' || isAutosaved);
-	const closeSurface = () => {
-		if (asPane) {
-			onClose?.();
+	const closeSurface = useCallback(() => {
+		dispatch(setSiteSlugToSave(undefined));
+		if (onClose) {
+			onClose();
 			return;
 		}
 		dispatch(setActiveModal(null));
-		dispatch(setSiteSlugToSave(undefined));
-	};
+	}, [dispatch, onClose]);
 
 	useEffect(() => {
 		if (!asPane) {
@@ -169,13 +179,8 @@ export function SaveSiteModal({
 		if (site && canSaveSite) {
 			return;
 		}
-		if (asPane) {
-			onClose?.();
-		} else {
-			dispatch(setActiveModal(null));
-			dispatch(setSiteSlugToSave(undefined));
-		}
-	}, [asPane, canSaveSite, dispatch, onClose, site]);
+		closeSurface();
+	}, [canSaveSite, closeSurface, site]);
 
 	if (!site || !canSaveSite) {
 		return null;
@@ -504,7 +509,7 @@ function SaveSurface({
 	asPane: boolean;
 	isDismissible: boolean;
 	onRequestClose: () => void;
-	children: ReactElement;
+	children: ReactNode;
 }) {
 	if (asPane) {
 		return children;
