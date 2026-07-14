@@ -165,6 +165,7 @@ export interface SiteBlueprintBundleEditorHandle {
 type SiteBlueprintBundleEditorProps = {
 	className?: string;
 	site: SiteInfo;
+	dockPresentation?: boolean;
 };
 
 /**
@@ -174,7 +175,10 @@ type SiteBlueprintBundleEditorProps = {
 export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorHandle,
 	SiteBlueprintBundleEditorProps
->(function SiteBlueprintBundleEditor({ className, site }, ref) {
+>(function SiteBlueprintBundleEditor(
+	{ className, site, dockPresentation = false },
+	ref
+) {
 	const dispatch = useAppDispatch();
 	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
 		null
@@ -278,6 +282,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					site={site}
 					className={className}
 					readOnly={readOnly}
+					dockPresentation={dockPresentation}
 				/>
 			)}
 		</div>
