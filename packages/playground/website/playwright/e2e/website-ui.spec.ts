@@ -960,9 +960,16 @@ test.describe('Default Playground storage', () => {
 		).toBeEnabled();
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Apply to this Playground',
+				name: 'Create a fresh Playground',
+				exact: true,
 			})
-		).toBeDisabled();
+		).toBeEnabled();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+		).toHaveCount(0);
 
 		await website.page
 			.getByRole('button', { name: 'More settings actions' })
@@ -976,8 +983,10 @@ test.describe('Default Playground storage', () => {
 		await expect(freshMenuItem).toContainText(
 			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
 		);
-		await expect(applyMenuItem).toBeFocused();
+		await expect(freshMenuItem).toBeFocused();
 		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'true');
+		await website.page.keyboard.press('ArrowUp');
+		await expect(applyMenuItem).toBeFocused();
 		await website.page.keyboard.press('ArrowDown');
 		await expect(freshMenuItem).toBeFocused();
 		await website.page.keyboard.press('Home');

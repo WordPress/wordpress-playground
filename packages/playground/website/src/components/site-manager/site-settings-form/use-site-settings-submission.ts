@@ -42,3 +42,7 @@ export function useSiteSettingsSubmission(onSuccess?: () => void) {
 
 	return { error, isPending, run };
 }
+
+export type SiteSettingsSubmission = ReturnType<
+	typeof useSiteSettingsSubmission
+>;

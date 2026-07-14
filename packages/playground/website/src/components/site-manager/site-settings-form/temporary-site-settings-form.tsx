@@ -9,20 +9,19 @@ import {
 	getSiteSettingsFromFormData,
 } from './setup-form-values';
 import { TemporarySiteSettingsActionFooter } from './site-settings-action-footer';
-import { useSiteSettingsSubmission } from './use-site-settings-submission';
+import type { SiteSettingsSubmission } from './use-site-settings-submission';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,
-	onSubmit,
+	submission,
 }: {
 	siteSlug: string;
-	onSubmit?: () => void;
+	submission: SiteSettingsSubmission;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
 	const sitesAPI = useSitesAPI();
-	const submission = useSiteSettingsSubmission(onSubmit);
 	const updateSite = async (data: SiteFormData) => {
 		await sitesAPI.createNewTemporarySite(
 			undefined,
