@@ -24,41 +24,76 @@ function isHttps() {
     return false;
 }
 
+function getManifestId($start_url) {
+    $url_parts = parse_url($start_url);
+    $path = $url_parts['path'] ?? '/';
+    $query = [];
+
+    if (!empty($url_parts['query'])) {
+        parse_str($url_parts['query'], $query);
+        unset($query['random']);
+        ksort($query);
+    }
+
+    return $path . ($query ? '?' . http_build_query($query) : '');
+}
+
 $base_url = (isHttps() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
-$start_url = $base_url . ($_GET ? '/?' . http_build_query($_GET) : '');
+$start_url = $base_url . ($_GET ? '/?' . http_build_query($_GET) : '/');
 
 $app_name = $_GET['app_name'] ?? 'WordPress Playground';
 
 $manifest = [
+	"id" => getManifestId($start_url),
 	"theme_color" => "#ffffff",
 	"background_color" => "#ffffff",
 	"display" => "standalone",
-	"scope" => $base_url,
+	"display_override" => [ "standalone" ],
+	"scope" => $base_url . "/",
 	"start_url" => $start_url,
 	"short_name" => $app_name,
 	"description" => $app_name,
 	"name" => $app_name,
+	"categories" => [ "development", "education", "utilities" ],
+	"screenshots" => [
+		[
+			"src" => $base_url . "/ogimage.png",
+			"sizes" => "1200x600",
+			"type" => "image/png",
+			"form_factor" => "wide"
+		]
+	],
 	"icons" => [
 		[
 			"src" => $base_url . "/logo-192.png",
 			"sizes" => "192x192",
-			"type" => "image/png"
+			"type" => "image/png",
+			"purpose" => "any"
 		],
 		[
 			"src" => $base_url . "/logo-256.png",
 			"sizes" => "256x256",
-			"type" => "image/png"
+			"type" => "image/png",
+			"purpose" => "any"
 		],
 		[
 			"src" => $base_url . "/logo-384.png",
 			"sizes" => "384x384",
-            "type" => "image/png"
+			"type" => "image/png",
+			"purpose" => "any"
 		],
 		[
 			"src" => $base_url . "/logo-512.png",
 			"sizes" => "512x512",
-			"type" => "image/png"
-        ]
+			"type" => "image/png",
+			"purpose" => "any"
+		],
+		[
+			"src" => $base_url . "/maskable-icon-512.png",
+			"sizes" => "512x512",
+			"type" => "image/png",
+			"purpose" => "maskable"
+		]
 	]
 ];
 
