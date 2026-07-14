@@ -30,6 +30,7 @@ import {
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
 import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
+import { RecentAutosaveNudgeProvider } from './recent-autosave-nudge-context';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -316,7 +317,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	};
 
 	return (
-		<>
+		<RecentAutosaveNudgeProvider visible={!!canShowAutosaveNudge}>
 			{children}
 			{canShowAutosaveNudge && (
 				<YouHaveAutosaveNudge
@@ -362,7 +363,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					}}
 				/>
 			)}
-		</>
+		</RecentAutosaveNudgeProvider>
 	);
 }
 
