@@ -1,9 +1,11 @@
+// @vitest-environment jsdom
+
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { oAuthState } from '../state';
 import GitHubOAuthGuard from '.';
 
-const originalOAuthState = oAuthState.value;
+const originalOAuthState = { ...oAuthState.value };
 
 describe('GitHubOAuthGuard', () => {
 	beforeEach(() => {
@@ -34,4 +36,3 @@ describe('GitHubOAuthGuard', () => {
 		expect(markup).not.toContain('Importing plugins');
 	});
 });
-// @vitest-environment jsdom
