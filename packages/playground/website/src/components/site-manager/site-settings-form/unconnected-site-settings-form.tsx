@@ -16,9 +16,8 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getForcedPhpVersionForWordPress,
 	isOlderWordPressVersion,
-	OlderWordPressVersions,
 } from './older-wordpress-versions';
-import { formatWordPressVersionLabel } from './wordpress-release-names';
+import { getWordPressVersionOptions } from './wordpress-version-options';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -144,42 +143,12 @@ export function UnconnectedSiteSettingsForm({
 	}, [forcedPhpVersion, setValue, getValues]);
 
 	const wpVersionOptions = useMemo(() => {
-		const modernOptions = Object.keys(supportedWPVersions || {}).map(
-			(version) => ({
-				label: formatWordPressVersionLabel(
-					`${supportedWPVersions[version]}`
-				),
-				value: version,
-			})
-		);
-		if (!includeOlderVersions) {
-			return [
-				// Without an empty option, React sometimes says the
-				// current selected version is "trunk" when `wp` is
-				// actually "6.4".
-				{ label: '-- Select a version --', value: '' },
-				...modernOptions,
-			];
-		}
-		return [
-			{ label: '-- Select a version --', value: '' },
-			{
-				label: '── Current versions ──',
-				value: '__modern_sep',
-				disabled: true,
-			},
-			...modernOptions,
-			{
-				label: '── Older versions ──',
-				value: '__older_sep',
-				disabled: true,
-			},
-			...OlderWordPressVersions.map((version) => ({
-				label: formatWordPressVersionLabel(version),
-				value: version,
-			})),
-		];
-	}, [supportedWPVersions, includeOlderVersions]);
+		return getWordPressVersionOptions({
+			supportedWPVersions,
+			includeOlderVersions,
+			selectedVersion: mergedDefaults.wpVersion,
+		});
+	}, [supportedWPVersions, includeOlderVersions, mergedDefaults.wpVersion]);
 
 	const phpVersionOptions = useMemo(() => {
 		if (forcedPhpVersion) {
