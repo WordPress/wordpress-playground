@@ -32,8 +32,11 @@ still coordinate through native advisory locks, including independent workers
 inside the same process.
 
 SQLite uses its `unix` VFS so shared readers and a reserved writer can overlap
-through the host fcntl/OFD bridge. It remains in rollback-journal mode because
-WASI does not provide the shared-memory operations required by SQLite WAL.
+through the host fcntl/OFD bridge. WAL mode keeps a private wal-index mirror in
+each component and atomically exchanges changed ranges with a canonical image
+owned by the native CLI process at SQLite lock and barrier boundaries. This
+coordinates workers within one CLI process; separate CLI processes must not
+concurrently open the same mounted database in WAL mode.
 
 The component build and its inputs live in
 `packages/php-wasm/compile/php-wasi`. Its checked-in output is selected by

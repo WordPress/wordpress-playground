@@ -791,7 +791,7 @@ echo json_encode(['value' => $value, 'read_error' => $read_error]);
     let (address, guard, stderr_thread) = start_native_server(&root, 2);
     let seed_json = response_json(&send_get(&address, "/seed.php"));
     assert_eq!(seed_json["ok"], true, "{seed_json}");
-    assert_eq!(seed_json["journal_mode"], "delete", "{seed_json}");
+    assert_eq!(seed_json["journal_mode"], "wal", "{seed_json}");
 
     let writer_address = address.clone();
     let writer = thread::spawn(move || send_get(&writer_address, "/sqlite-writer.php"));
@@ -938,6 +938,229 @@ echo json_encode([
         "{contender_json}"
     );
     assert_eq!(contender_json["attempt_after_unlock"]["last_error_code"], 0);
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native server process execution is an explicit smoke test."]
+fn native_server_sqlite_wal_exclusive_mode_flushes_before_switching_to_normal() {
+    if skip_macos_lock_smoke("sqlite WAL exclusive-mode transition smoke") {
+        return;
+    }
+
+    let root = temp_dir("server-sqlite-wal-exclusive-normal");
+    write_script(
+        &root,
+        "seed.php",
+        r#"<?php
+ob_start();
+$db = new SQLite3('/wordpress/sqlite-wal-exclusive-normal.db');
+$journal_mode = $db->querySingle('PRAGMA journal_mode=WAL');
+$ok = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+$ok = $ok && $db->exec('INSERT INTO test VALUES (1, "before")');
+$error = ['code' => $db->lastErrorCode(), 'message' => $db->lastErrorMsg()];
+$db->close();
+ob_clean();
+echo json_encode(['ok' => $ok, 'journal_mode' => $journal_mode, 'error' => $error]);
+"#,
+    );
+    fs::write(root.join("coordination.txt"), b"initial").unwrap();
+    write_script(
+        &root,
+        "exclusive-writer.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) return true;
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+$db = new SQLite3('/wordpress/sqlite-wal-exclusive-normal.db');
+$db->busyTimeout(1000);
+$journal_mode = $db->querySingle('PRAGMA journal_mode');
+$exclusive_mode = $db->querySingle('PRAGMA locking_mode=EXCLUSIVE');
+$ok = $db->exec('BEGIN IMMEDIATE');
+$ok = $ok && $db->exec('UPDATE test SET name = "after" WHERE id = 1');
+$ok = $ok && $db->exec('COMMIT');
+$normal_mode = $db->querySingle('PRAGMA locking_mode=NORMAL');
+$transition_ok = $db->exec('BEGIN IMMEDIATE');
+$transition_ok = $transition_ok && $db->exec('COMMIT');
+$error = ['code' => $db->lastErrorCode(), 'message' => $db->lastErrorMsg()];
+// NORMAL updates the pager setting immediately. The empty write transaction
+// drives pager_end_transaction(), which performs WAL mode 1->0 and releases
+// the main-database EXCLUSIVE lock while this mirror session remains open.
+file_put_contents($coordination, 'writer-normal');
+wait_for_stage($coordination, 'reader-finished');
+$db->close();
+ob_clean();
+echo json_encode([
+    'ok' => $ok,
+    'journal_mode' => $journal_mode,
+    'exclusive_mode' => $exclusive_mode,
+    'normal_mode' => $normal_mode,
+    'transition_ok' => $transition_ok,
+    'error' => $error,
+]);
+"#,
+    );
+    write_script(
+        &root,
+        "normal-reader.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) return true;
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+wait_for_stage($coordination, 'writer-normal');
+$db = new SQLite3('/wordpress/sqlite-wal-exclusive-normal.db');
+$db->busyTimeout(1000);
+$journal_mode = $db->querySingle('PRAGMA journal_mode');
+$value = @$db->querySingle('SELECT name FROM test WHERE id = 1');
+$error = ['code' => $db->lastErrorCode(), 'message' => $db->lastErrorMsg()];
+$db->close();
+file_put_contents($coordination, 'reader-finished');
+ob_clean();
+echo json_encode([
+    'journal_mode' => $journal_mode,
+    'value' => $value,
+    'error' => $error,
+]);
+"#,
+    );
+
+    let (address, guard, stderr_thread) = start_native_server(&root, 2);
+    let seed = response_json(&send_get(&address, "/seed.php"));
+    assert_eq!(seed["ok"], true, "{seed}");
+    assert_eq!(seed["journal_mode"], "wal", "{seed}");
+
+    let writer_address = address.clone();
+    let writer = thread::spawn(move || send_get(&writer_address, "/exclusive-writer.php"));
+    let reader_address = address.clone();
+    let reader = thread::spawn(move || send_get(&reader_address, "/normal-reader.php"));
+    let writer_json = response_json(&writer.join().unwrap());
+    let reader_json = response_json(&reader.join().unwrap());
+
+    assert_eq!(writer_json["ok"], true, "{writer_json}");
+    assert_eq!(writer_json["journal_mode"], "wal", "{writer_json}");
+    assert_eq!(writer_json["exclusive_mode"], "exclusive", "{writer_json}");
+    assert_eq!(writer_json["normal_mode"], "normal", "{writer_json}");
+    assert_eq!(writer_json["transition_ok"], true, "{writer_json}");
+    assert_eq!(writer_json["error"]["code"], 0, "{writer_json}");
+    assert_eq!(reader_json["journal_mode"], "wal", "{reader_json}");
+    assert_eq!(reader_json["value"], "after", "{reader_json}");
+    assert_eq!(reader_json["error"]["code"], 0, "{reader_json}");
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native server process execution is an explicit smoke test."]
+fn native_server_sqlite_wal_mode_persists_across_exclusive_close_and_reopen() {
+    if skip_macos_lock_smoke("sqlite persisted journal-mode reopen smoke") {
+        return;
+    }
+
+    let root = temp_dir("server-sqlite-wal-exclusive-reopen");
+    fs::write(root.join("coordination.txt"), b"initial").unwrap();
+    write_script(
+        &root,
+        "exclusive-close.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) return true;
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+$db = new SQLite3('/wordpress/sqlite-wal-exclusive-reopen.db');
+$journal_mode = $db->querySingle('PRAGMA journal_mode=WAL');
+$locking_mode = $db->querySingle('PRAGMA locking_mode=EXCLUSIVE');
+$ok = $db->exec('BEGIN IMMEDIATE');
+$ok = $ok && $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+$ok = $ok && $db->exec('INSERT INTO test VALUES (1, "persisted")');
+$ok = $ok && $db->exec('COMMIT');
+$error = ['code' => $db->lastErrorCode(), 'message' => $db->lastErrorMsg()];
+$db->close();
+file_put_contents($coordination, 'writer-closed');
+wait_for_stage($coordination, 'reader-finished');
+ob_clean();
+echo json_encode([
+    'ok' => $ok,
+    'journal_mode' => $journal_mode,
+    'locking_mode' => $locking_mode,
+    'error' => $error,
+]);
+"#,
+    );
+    write_script(
+        &root,
+        "reopen-reader.php",
+        r#"<?php
+ob_start();
+function wait_for_stage($path, $stage) {
+    for ($i = 0; $i < 1200; $i++) {
+        if (trim((string) @file_get_contents($path)) === $stage) return true;
+        usleep(100 * 1000);
+    }
+    ob_clean();
+    echo json_encode(['error' => 'timeout', 'waiting_for' => $stage]);
+    exit(2);
+}
+$coordination = '/wordpress/coordination.txt';
+wait_for_stage($coordination, 'writer-closed');
+$db = new SQLite3('/wordpress/sqlite-wal-exclusive-reopen.db');
+$db->busyTimeout(1000);
+$journal_mode = $db->querySingle('PRAGMA journal_mode');
+$value = @$db->querySingle('SELECT name FROM test WHERE id = 1');
+$error = ['code' => $db->lastErrorCode(), 'message' => $db->lastErrorMsg()];
+$db->close();
+file_put_contents($coordination, 'reader-finished');
+ob_clean();
+echo json_encode([
+    'journal_mode' => $journal_mode,
+    'value' => $value,
+    'error' => $error,
+]);
+"#,
+    );
+
+    let (address, guard, stderr_thread) = start_native_server(&root, 2);
+    let writer_address = address.clone();
+    let writer = thread::spawn(move || send_get(&writer_address, "/exclusive-close.php"));
+    let reader_address = address.clone();
+    let reader = thread::spawn(move || send_get(&reader_address, "/reopen-reader.php"));
+    let writer_json = response_json(&writer.join().unwrap());
+    let reader_json = response_json(&reader.join().unwrap());
+
+    assert_eq!(writer_json["ok"], true, "{writer_json}");
+    assert_eq!(writer_json["journal_mode"], "wal", "{writer_json}");
+    assert_eq!(writer_json["locking_mode"], "exclusive", "{writer_json}");
+    assert_eq!(writer_json["error"]["code"], 0, "{writer_json}");
+    assert_eq!(reader_json["journal_mode"], "wal", "{reader_json}");
+    assert_eq!(reader_json["value"], "persisted", "{reader_json}");
+    assert_eq!(reader_json["error"]["code"], 0, "{reader_json}");
 
     drop(guard);
     let _ = stderr_thread.join();

@@ -8,19 +8,21 @@ use wasmtime_wasi::WasiView;
 use super::context::Wasip2HostState;
 use super::locks::{self, ByteRange, LockKind, LockMode, LockState};
 
-mod bindings {
+pub(crate) mod bindings {
     wasmtime::component::bindgen!({
         path: "wit",
         world: "filesystem-lock-host",
         imports: { default: trappable },
         with: {
             "wasi:filesystem/types.descriptor": wasmtime_wasi::filesystem::Descriptor,
+            "wordpress-playground:filesystem-locks/sqlite-wal-shm.wal-shm": crate::wasip2::sqlite_shm::WalShmSession,
         },
         require_store_data_send: true,
     });
 }
 
 use bindings::wordpress_playground::filesystem_locks::filesystem_locks as wit_locks;
+use bindings::wordpress_playground::filesystem_locks::sqlite_wal_shm as wit_shm;
 
 /// A synchronous WASIp2 component runtime with capability-based WASI and the
 /// Playground file-lock extension registered in one linker.
@@ -45,6 +47,7 @@ impl Wasip2ComponentRuntime {
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
         wit_locks::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
+        wit_shm::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
         super::php::add_to_linker(&mut linker)?;
 
         Ok(Self { engine, linker })
@@ -149,6 +152,78 @@ impl wit_locks::Host for Wasip2HostState {
     }
 }
 
+impl wit_shm::Host for Wasip2HostState {
+    fn open(
+        &mut self,
+        file: Resource<Descriptor>,
+    ) -> wasmtime::Result<Result<Resource<super::sqlite_shm::WalShmSession>, wit_shm::ShmError>>
+    {
+        let file = match self.lockable_file(file) {
+            Ok(file) => file,
+            Err(_) => return Ok(Err(wit_shm::ShmError::BadDescriptor)),
+        };
+        let session = match super::sqlite_shm::WalShmSession::open(file) {
+            Ok(session) => session,
+            Err(error) => return Ok(Err(error.into())),
+        };
+        let resource = WasiView::ctx(self).table.push(session)?;
+        Ok(Ok(resource))
+    }
+
+    fn reset(
+        &mut self,
+        shm: Resource<super::sqlite_shm::WalShmSession>,
+    ) -> wasmtime::Result<Result<(), wit_shm::ShmError>> {
+        let view = WasiView::ctx(self);
+        let session = view.table.get(&shm)?;
+        Ok(session.reset().map_err(Into::into))
+    }
+
+    fn current_epoch(
+        &mut self,
+        shm: Resource<super::sqlite_shm::WalShmSession>,
+    ) -> wasmtime::Result<Result<u64, wit_shm::ShmError>> {
+        let view = WasiView::ctx(self);
+        let session = view.table.get(&shm)?;
+        Ok(Ok(session.current_epoch()))
+    }
+
+    fn exchange(
+        &mut self,
+        shm: Resource<super::sqlite_shm::WalShmSession>,
+        region_size: u32,
+        known_generations: Vec<u64>,
+        dirty_ranges: Vec<wit_shm::ShmRange>,
+        expected: Vec<u8>,
+        replacement: Vec<u8>,
+        force_refresh: bool,
+    ) -> wasmtime::Result<Result<wit_shm::ExchangeResult, wit_shm::ShmError>> {
+        let result = {
+            let view = WasiView::ctx(self);
+            let session = view.table.get(&shm)?;
+            session.exchange(
+                region_size,
+                &known_generations,
+                &dirty_ranges,
+                &expected,
+                &replacement,
+                force_refresh,
+            )
+        };
+        Ok(result.map_err(Into::into))
+    }
+}
+
+impl wit_shm::HostWalShm for Wasip2HostState {
+    fn drop(
+        &mut self,
+        resource: Resource<super::sqlite_shm::WalShmSession>,
+    ) -> wasmtime::Result<()> {
+        WasiView::ctx(self).table.delete(resource)?;
+        Ok(())
+    }
+}
+
 impl From<wit_locks::LockKind> for LockKind {
     fn from(kind: wit_locks::LockKind) -> Self {
         match kind {
@@ -217,6 +292,21 @@ impl From<locks::LockError> for wit_locks::LockError {
     }
 }
 
+impl From<super::sqlite_shm::ShmError> for wit_shm::ShmError {
+    fn from(error: super::sqlite_shm::ShmError) -> Self {
+        match error {
+            super::sqlite_shm::ShmError::InvalidArgument => Self::InvalidArgument,
+            super::sqlite_shm::ShmError::Conflict => Self::Conflict,
+            super::sqlite_shm::ShmError::ResourceExhausted => Self::ResourceExhausted,
+            super::sqlite_shm::ShmError::Io(error) => Self::IoError(
+                error
+                    .raw_os_error()
+                    .and_then(|code| u32::try_from(code).ok()),
+            ),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -228,7 +318,7 @@ mod tests {
     use wasmtime_wasi::filesystem::{Descriptor, WasiFilesystemView};
     use wasmtime_wasi::p2::bindings::{filesystem::preopens, sync::filesystem::types};
 
-    use super::{wit_locks, Wasip2ComponentRuntime};
+    use super::{wit_locks, wit_shm, Wasip2ComponentRuntime};
     use crate::wasip2::{CapabilityPreopen, Wasip2ContextBuilder};
 
     static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(1);
@@ -333,6 +423,206 @@ mod tests {
 
         drop(state);
         fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    fn wal_shm_import_shares_generations_across_host_states() {
+        let host_path = temp_dir("wal-shm-import");
+        fs::write(host_path.join("database-shm"), b"").unwrap();
+        let mut first = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&host_path, "/workspace"))
+            .build()
+            .unwrap();
+        let mut second = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&host_path, "/workspace"))
+            .build()
+            .unwrap();
+        let first_file = open_test_file(&mut first, "database-shm");
+        let second_file = open_test_file(&mut second, "database-shm");
+        let first_shm = wit_shm::Host::open(
+            &mut first,
+            Resource::<Descriptor>::new_borrow(first_file.rep()),
+        )
+        .unwrap()
+        .unwrap();
+        let second_shm = wit_shm::Host::open(
+            &mut second,
+            Resource::<Descriptor>::new_borrow(second_file.rep()),
+        )
+        .unwrap()
+        .unwrap();
+
+        let initial = wit_shm::Host::exchange(
+            &mut first,
+            Resource::new_borrow(first_shm.rep()),
+            32,
+            vec![0],
+            vec![],
+            vec![],
+            vec![],
+            false,
+        )
+        .unwrap()
+        .unwrap();
+        let initial_epoch =
+            wit_shm::Host::current_epoch(&mut second, Resource::new_borrow(second_shm.rep()))
+                .unwrap()
+                .unwrap();
+        assert_eq!(initial_epoch, initial.epoch);
+        let written = wit_shm::Host::exchange(
+            &mut first,
+            Resource::new_borrow(first_shm.rep()),
+            32,
+            initial.generations,
+            vec![wit_shm::ShmRange {
+                region: 0,
+                offset: 0,
+                data_offset: 0,
+                length: 4,
+            }],
+            vec![0; 4],
+            vec![7; 4],
+            false,
+        )
+        .unwrap()
+        .unwrap();
+        let written_epoch =
+            wit_shm::Host::current_epoch(&mut second, Resource::new_borrow(second_shm.rep()))
+                .unwrap()
+                .unwrap();
+        assert_eq!(written_epoch, written.epoch);
+        assert!(written_epoch > initial_epoch);
+
+        let observed = wit_shm::Host::exchange(
+            &mut second,
+            Resource::new_borrow(second_shm.rep()),
+            32,
+            vec![0],
+            vec![],
+            vec![],
+            vec![],
+            false,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(&observed.data[0..4], &[7; 4]);
+        assert_eq!(observed.epoch, written_epoch);
+
+        wit_shm::Host::reset(&mut second, Resource::new_borrow(second_shm.rep()))
+            .unwrap()
+            .unwrap();
+        let reset_epoch =
+            wit_shm::Host::current_epoch(&mut first, Resource::new_borrow(first_shm.rep()))
+                .unwrap()
+                .unwrap();
+        assert!(reset_epoch > written_epoch);
+        let reset = wit_shm::Host::exchange(
+            &mut first,
+            Resource::new_borrow(first_shm.rep()),
+            32,
+            written.generations,
+            vec![],
+            vec![],
+            vec![],
+            false,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(reset.data, vec![0; 32]);
+        assert!(reset.epoch >= reset_epoch);
+
+        drop(first);
+        drop(second);
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    fn wal_shm_drop_releases_canonical_state_and_reuses_the_resource_slot() {
+        let host_path = temp_dir("wal-shm-drop");
+        fs::write(host_path.join("database-shm"), b"").unwrap();
+        let mut state = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&host_path, "/workspace"))
+            .build()
+            .unwrap();
+        let file = open_test_file(&mut state, "database-shm");
+        let mut resource_rep = None;
+
+        for marker in 1..=64_u8 {
+            let shm =
+                wit_shm::Host::open(&mut state, Resource::<Descriptor>::new_borrow(file.rep()))
+                    .unwrap()
+                    .unwrap();
+            match resource_rep {
+                Some(resource_rep) => assert_eq!(shm.rep(), resource_rep),
+                None => resource_rep = Some(shm.rep()),
+            }
+
+            // The preceding resource was the only strong reference to this
+            // file's canonical state, so every reopen must start empty.
+            let initial = wit_shm::Host::exchange(
+                &mut state,
+                Resource::new_borrow(shm.rep()),
+                32,
+                vec![0],
+                vec![],
+                vec![],
+                vec![],
+                false,
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(initial.data, vec![0; 32]);
+
+            wit_shm::Host::exchange(
+                &mut state,
+                Resource::new_borrow(shm.rep()),
+                32,
+                initial.generations,
+                vec![wit_shm::ShmRange {
+                    region: 0,
+                    offset: 0,
+                    data_offset: 0,
+                    length: 4,
+                }],
+                vec![0; 4],
+                vec![marker; 4],
+                false,
+            )
+            .unwrap()
+            .unwrap();
+
+            wit_shm::HostWalShm::drop(&mut state, shm).unwrap();
+        }
+
+        drop(state);
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    fn open_test_file(
+        state: &mut crate::wasip2::Wasip2HostState,
+        path: &str,
+    ) -> Resource<Descriptor> {
+        let directory = {
+            let mut filesystem = state.filesystem();
+            preopens::Host::get_directories(&mut filesystem)
+                .unwrap()
+                .pop()
+                .unwrap()
+                .0
+        };
+        let file = {
+            let mut filesystem = state.filesystem();
+            types::HostDescriptor::open_at(
+                &mut filesystem,
+                directory,
+                types::PathFlags::empty(),
+                path.into(),
+                types::OpenFlags::empty(),
+                types::DescriptorFlags::READ | types::DescriptorFlags::WRITE,
+            )
+            .unwrap()
+        };
+        file
     }
 
     fn temp_dir(label: &str) -> std::path::PathBuf {

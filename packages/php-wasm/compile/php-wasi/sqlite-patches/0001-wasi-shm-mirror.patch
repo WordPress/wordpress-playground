@@ -1,0 +1,722 @@
+--- a/sqlite3.c
++++ b/sqlite3.c
+@@ -41033,7 +41033,8 @@
+   return rc;
+ }
+
+-#if !defined(SQLITE_WASI) && !defined(SQLITE_OMIT_WAL)
++#if (!defined(SQLITE_WASI) || defined(SQLITE_WASI_SHM_MIRROR)) \
++ && !defined(SQLITE_OMIT_WAL)
+ /* Forward reference */
+ static int unixIsSharingShmNode(unixFile*);
+ #else
+@@ -43328,7 +43329,8 @@
+
+ /* Forward declaration */
+ static int unixGetTempname(int nBuf, char *zBuf);
+-#if !defined(SQLITE_WASI) && !defined(SQLITE_OMIT_WAL)
++#if (!defined(SQLITE_WASI) || defined(SQLITE_WASI_SHM_MIRROR)) \
++ && !defined(SQLITE_OMIT_WAL)
+  static int unixFcntlExternalReader(unixFile*, int*);
+ #endif
+ #if defined(SQLITE_DEBUG) || defined(SQLITE_ENABLE_FILESTAT)
+@@ -43470,7 +43472,8 @@
+ #endif /* SQLITE_ENABLE_LOCKING_STYLE && defined(__APPLE__) */
+
+     case SQLITE_FCNTL_EXTERNAL_READER: {
+-#if !defined(SQLITE_WASI) && !defined(SQLITE_OMIT_WAL)
++#if (!defined(SQLITE_WASI) || defined(SQLITE_WASI_SHM_MIRROR)) \
++ && !defined(SQLITE_OMIT_WAL)
+       return unixFcntlExternalReader((unixFile*)id, (int*)pArg);
+ #else
+       *(int*)pArg = 0;
+@@ -43704,7 +43707,8 @@
+
+ #endif /* !defined(SQLITE_OMIT_WAL) || SQLITE_MAX_MMAP_SIZE>0 */
+
+-#if !defined(SQLITE_WASI) && !defined(SQLITE_OMIT_WAL)
++#if (!defined(SQLITE_WASI) || defined(SQLITE_WASI_SHM_MIRROR)) \
++ && !defined(SQLITE_OMIT_WAL)
+
+ /*
+ ** Object used to represent an shared memory buffer.
+@@ -43764,6 +43768,16 @@
+   u8 isReadonly;             /* True if read-only */
+   u8 isUnlocked;             /* True if no DMS lock held */
+   char **apRegion;           /* Array of mapped shared-memory regions */
++#ifdef SQLITE_WASI_SHM_MIRROR
++  sqlite3_mutex *pMirrorMutex; /* Serialize mirrors sharing this node */
++  char **apBaseline;         /* Last synchronized image of each region */
++  uint64_t *aMirrorGeneration; /* Host generation of each local region */
++  uint64_t mirrorEpoch;      /* Host epoch represented by this mirror */
++  wp_wasi_wal_shm_handle_t walShm; /* Host-owned canonical WAL index */
++  int nMirrorExclusive;       /* Node-wide exclusive SHM lock slots */
++  u8 mirrorPossiblyDirty;     /* Exclusive holder may have changed SHM */
++  u8 mirrorUnsynced;         /* Retry host sync after a failed xShmMap */
++#endif
+   int nRef;                  /* Number of unixShm objects pointing to this */
+   unixShm *pFirst;           /* All unixShm objects pointing to this */
+ #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
+@@ -43986,6 +44000,255 @@
+   return rc;
+ }
+
++#ifdef SQLITE_WASI_SHM_MIRROR
++/*
++** WebAssembly component instances do not share linear memory. Keep a private
++** mirror and baseline in each instance, but make the native host the owner of
++** the canonical wal-index. Each exchange sends only coalesced dirty words
++** and receives only ranges newer than this mirror's per-region generations.
++*/
++typedef enum unixWasiShmMode {
++  UNIX_WASI_SHM_REFRESH,      /* Pull host deltas without scanning */
++  UNIX_WASI_SHM_COMMIT,       /* Push local deltas; skip host if clean */
++  UNIX_WASI_SHM_PRESERVE      /* Pull deltas around unpublished local bytes */
++} unixWasiShmMode;
++
++/* pMirrorMutex must be held by the caller. */
++static int unixWasiShmExchangeLocked(
++  unixShmNode *pNode,
++  unixWasiShmMode eMode
++){
++  wp_wasi_wal_shm_range_t *aRange = 0;
++  wp_wasi_wal_shm_exchange_result_t result;
++  u8 *aData = 0;
++  u8 *aExpected = 0;
++  u8 *aReplacement = 0;
++  sqlite3_uint64 nData = 0;
++  sqlite3_uint64 nRange = 0;
++  sqlite3_uint64 iData = 0;
++  sqlite3_uint64 iRange = 0;
++  int iRegion;
++  int rc = SQLITE_OK;
++
++  memset(&result, 0, sizeof(result));
++  if( pNode->hShm<0 || pNode->nRegion==0 ) return SQLITE_OK;
++  if( pNode->walShm==WP_WASI_WAL_SHM_INVALID_HANDLE ){
++    return SQLITE_IOERR_SHMMAP;
++  }
++  assert( (pNode->szRegion&3)==0 );
++  assert( pNode->apBaseline!=0 && pNode->aMirrorGeneration!=0 );
++  assert( sqlite3_mutex_held(pNode->pMirrorMutex) );
++  assert( eMode>=UNIX_WASI_SHM_REFRESH && eMode<=UNIX_WASI_SHM_PRESERVE );
++
++  /* First count consecutive dirty 32-bit words and their payload bytes. */
++  if( eMode!=UNIX_WASI_SHM_REFRESH ){
++    for(iRegion=0; iRegion<pNode->nRegion; iRegion++){
++      const u32 *aLocal = (const u32*)pNode->apRegion[iRegion];
++      const u32 *aBase = (const u32*)pNode->apBaseline[iRegion];
++      int nWord = pNode->szRegion/(int)sizeof(u32);
++      int i = 0;
++      while( i<nWord ){
++        int iFirst;
++        while( i<nWord && aLocal[i]==aBase[i] ) i++;
++        iFirst = i;
++        while( i<nWord && aLocal[i]!=aBase[i] ) i++;
++        if( i>iFirst ){
++          sqlite3_uint64 nByte = (sqlite3_uint64)(i-iFirst)*sizeof(u32);
++          nRange++;
++          nData += nByte;
++          if( nRange>0xffffffff || nData>0xffffffff ){
++            rc = SQLITE_TOOBIG;
++            goto exchange_done;
++          }
++        }
++      }
++    }
++  }
++  if( eMode==UNIX_WASI_SHM_COMMIT && nRange==0 && !pNode->mirrorUnsynced ){
++    goto exchange_done;
++  }
++  if( nRange!=0 && pNode->isReadonly && eMode==UNIX_WASI_SHM_COMMIT ){
++    rc = SQLITE_READONLY;
++    goto exchange_done;
++  }
++
++  if( nRange ){
++    if( nData>SQLITE_MAX_ALLOCATION_SIZE/2 ){
++      rc = SQLITE_NOMEM_BKPT;
++      goto exchange_done;
++    }
++    aRange = sqlite3_malloc64(nRange*sizeof(*aRange));
++    aData = sqlite3_malloc64(nData*2);
++    if( aRange==0 || aData==0 ){
++      rc = SQLITE_NOMEM_BKPT;
++      goto exchange_done;
++    }
++    aExpected = aData;
++    aReplacement = &aData[nData];
++
++    for(iRegion=0; iRegion<pNode->nRegion; iRegion++){
++      const u32 *aLocal = (const u32*)pNode->apRegion[iRegion];
++      const u32 *aBase = (const u32*)pNode->apBaseline[iRegion];
++      int nWord = pNode->szRegion/(int)sizeof(u32);
++      int i = 0;
++      while( i<nWord ){
++        int iFirst;
++        while( i<nWord && aLocal[i]==aBase[i] ) i++;
++        iFirst = i;
++        while( i<nWord && aLocal[i]!=aBase[i] ) i++;
++        if( i>iFirst ){
++          int nByte = (i-iFirst)*(int)sizeof(u32);
++          aRange[iRange].region = (u32)iRegion;
++          aRange[iRange].offset = (u32)(iFirst*sizeof(u32));
++          aRange[iRange].data_offset = (u32)iData;
++          aRange[iRange].length = (u32)nByte;
++          memcpy(&aExpected[iData], &aBase[iFirst], nByte);
++          memcpy(
++              &aReplacement[iData],
++              eMode==UNIX_WASI_SHM_PRESERVE ? &aBase[iFirst] : &aLocal[iFirst],
++              nByte
++          );
++          iData += nByte;
++          iRange++;
++        }
++      }
++    }
++    assert( iRange==nRange && iData==nData );
++  }
++
++  if( wp_wasi_wal_shm_exchange(
++          pNode->walShm, (u32)pNode->szRegion,
++          pNode->aMirrorGeneration, (size_t)pNode->nRegion,
++          aRange, (size_t)nRange, aExpected, aReplacement, (size_t)nData,
++          0, &result
++      )<0 ){
++    rc = errno==ENOMEM ? SQLITE_NOMEM_BKPT : SQLITE_IOERR_SHMMAP;
++    goto exchange_done;
++  }
++  if( result.generations_len!=(size_t)pNode->nRegion
++   || (result.generations_len && result.generations==0)
++   || (result.updates_len && result.updates==0)
++   || (result.data_len && result.data==0)
++   || result.epoch<pNode->mirrorEpoch
++  ){
++    rc = SQLITE_IOERR_SHMMAP;
++    goto exchange_done;
++  }
++  for(iRegion=0; iRegion<pNode->nRegion; iRegion++){
++    if( result.generations[iRegion]>result.epoch ){
++      rc = SQLITE_IOERR_SHMMAP;
++      goto exchange_done;
++    }
++  }
++
++  /* Validate every host range before changing either local image. */
++  for(iRange=0; iRange<result.updates_len; iRange++){
++    wp_wasi_wal_shm_range_t *pRange = &result.updates[iRange];
++    sqlite3_uint64 iDirty;
++    if( pRange->region>=(u32)pNode->nRegion
++     || pRange->length==0
++     || ((pRange->offset|pRange->data_offset|pRange->length)&3)!=0
++     || pRange->offset>(u32)pNode->szRegion
++     || pRange->length>(u32)pNode->szRegion-pRange->offset
++     || pRange->data_offset>result.data_len
++     || pRange->length>result.data_len-pRange->data_offset
++    ){
++      rc = SQLITE_IOERR_SHMMAP;
++      goto exchange_done;
++    }
++    for(iDirty=0; iDirty<nRange; iDirty++){
++      wp_wasi_wal_shm_range_t *pDirty = &aRange[iDirty];
++      if( pRange->region==pDirty->region
++       && pRange->offset<pDirty->offset+pDirty->length
++       && pDirty->offset<pRange->offset+pRange->length
++      ){
++        rc = SQLITE_IOERR_SHMMAP;
++        goto exchange_done;
++      }
++    }
++  }
++  /* Apply remote deltas before acknowledging this guest's local writes. */
++  for(iRange=0; iRange<result.updates_len; iRange++){
++    wp_wasi_wal_shm_range_t *pRange = &result.updates[iRange];
++    void *pLocal = &pNode->apRegion[pRange->region][pRange->offset];
++    void *pBase = &pNode->apBaseline[pRange->region][pRange->offset];
++    const void *pRemote = &result.data[pRange->data_offset];
++    memcpy(pBase, pRemote, pRange->length);
++    memcpy(pLocal, pRemote, pRange->length);
++  }
++  for(iRange=0; iRange<nRange; iRange++){
++    wp_wasi_wal_shm_range_t *pRange = &aRange[iRange];
++    memcpy(
++        &pNode->apBaseline[pRange->region][pRange->offset],
++        &aReplacement[pRange->data_offset], pRange->length
++    );
++  }
++  memcpy(
++      pNode->aMirrorGeneration, result.generations,
++      result.generations_len*sizeof(result.generations[0])
++  );
++  pNode->mirrorEpoch = result.epoch;
++  pNode->mirrorUnsynced = 0;
++
++exchange_done:
++  wp_wasi_wal_shm_exchange_result_free(&result);
++  sqlite3_free(aData);
++  sqlite3_free(aRange);
++  return rc;
++}
++
++/* Pull only when the host's scalar epoch says this mirror is stale. */
++static int unixWasiShmRefreshIfStaleLocked(
++  unixShmNode *pNode,
++  unixWasiShmMode eMode
++){
++  uint64_t hostEpoch = 0;
++  assert( sqlite3_mutex_held(pNode->pMirrorMutex) );
++  assert( eMode==UNIX_WASI_SHM_REFRESH || eMode==UNIX_WASI_SHM_PRESERVE );
++  if( pNode->mirrorUnsynced ){
++    return unixWasiShmExchangeLocked(pNode, eMode);
++  }
++  if( wp_wasi_wal_shm_current_epoch(pNode->walShm, &hostEpoch)<0 ){
++    return errno==ENOMEM ? SQLITE_NOMEM_BKPT : SQLITE_IOERR_SHMMAP;
++  }
++  if( hostEpoch<pNode->mirrorEpoch ) return SQLITE_IOERR_SHMMAP;
++  if( hostEpoch==pNode->mirrorEpoch ) return SQLITE_OK;
++  return unixWasiShmExchangeLocked(pNode, eMode);
++}
++
++/* Avoid scanning every mapped region when a clean connection is closed. */
++static int unixWasiShmCommitIfNeeded(unixShmNode *pNode){
++  int rc = SQLITE_OK;
++  sqlite3_mutex_enter(pNode->pMirrorMutex);
++  if( pNode->mirrorPossiblyDirty || pNode->mirrorUnsynced ){
++    rc = unixWasiShmExchangeLocked(pNode, UNIX_WASI_SHM_COMMIT);
++    if( rc==SQLITE_OK && pNode->nMirrorExclusive==0 ){
++      pNode->mirrorPossiblyDirty = 0;
++    }
++  }
++  sqlite3_mutex_leave(pNode->pMirrorMutex);
++  return rc;
++}
++
++/* Never refresh over unpublished bytes owned by a sibling connection. */
++static int unixWasiShmCatchUp(unixShmNode *pNode){
++  int rc;
++  sqlite3_mutex_enter(pNode->pMirrorMutex);
++  rc = unixWasiShmRefreshIfStaleLocked(
++      pNode,
++      pNode->nMirrorExclusive==0
++          ? UNIX_WASI_SHM_REFRESH : UNIX_WASI_SHM_PRESERVE
++  );
++  sqlite3_mutex_leave(pNode->pMirrorMutex);
++  return rc;
++}
++
++static void unixWasiShmFatal(int rc, const char *zOperation){
++  sqlite3_log(rc, "WASI wal-index mirror %s failed", zOperation);
++  abort();
++}
++#endif /* SQLITE_WASI_SHM_MIRROR */
++
+ /*
+ ** Return the minimum number of 32KB shm regions that should be mapped at
+ ** a time, assuming that each mapping must be an integer multiple of the
+@@ -43996,11 +44259,15 @@
+ ** shm regions.
+ */
+ static int unixShmRegionPerMap(void){
++#ifdef SQLITE_WASI_SHM_MIRROR
++  return 1;
++#else
+   int shmsz = 32*1024;            /* SHM region size */
+   int pgsz = osGetpagesize();   /* System page size */
+   assert( ((pgsz-1)&pgsz)==0 );   /* Page size must be a power of 2 */
+   if( pgsz<shmsz ) return 1;
+   return pgsz/shmsz;
++#endif
+ }
+
+ /*
+@@ -44017,19 +44284,33 @@
+     int i;
+     assert( p->pInode==pFd->pInode );
+     sqlite3_mutex_free(p->pShmMutex);
++#ifdef SQLITE_WASI_SHM_MIRROR
++    sqlite3_mutex_free(p->pMirrorMutex);
++#endif
+ #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
+     for(i=0; i<SQLITE_SHM_NLOCK; i++){
+       sqlite3_mutex_free(p->aMutex[i]);
+     }
+ #endif
+     for(i=0; i<p->nRegion; i+=nShmPerMap){
++#ifdef SQLITE_WASI_SHM_MIRROR
++      sqlite3_free(p->apRegion[i]);
++      sqlite3_free(p->apBaseline[i]);
++#else
+       if( p->hShm>=0 ){
+         osMunmap(p->apRegion[i], p->szRegion);
+       }else{
+         sqlite3_free(p->apRegion[i]);
+       }
++#endif
+     }
+     sqlite3_free(p->apRegion);
++#ifdef SQLITE_WASI_SHM_MIRROR
++    sqlite3_free(p->apBaseline);
++    sqlite3_free(p->aMirrorGeneration);
++    wp_wasi_wal_shm_close(p->walShm);
++    p->walShm = WP_WASI_WAL_SHM_INVALID_HANDLE;
++#endif
+     if( p->hShm>=0 ){
+       robust_close(pFd, p->hShm, __LINE__);
+       p->hShm = -1;
+@@ -44103,6 +44384,11 @@
+       if( rc==SQLITE_OK && robust_ftruncate(pShmNode->hShm, 3) ){
+         rc = unixLogError(SQLITE_IOERR_SHMOPEN,"ftruncate",pShmNode->zFilename);
+       }
++#ifdef SQLITE_WASI_SHM_MIRROR
++      if( rc==SQLITE_OK && wp_wasi_wal_shm_reset(pShmNode->walShm)<0 ){
++        rc = SQLITE_IOERR_SHMOPEN;
++      }
++#endif
+     }
+   }else if( lock.l_type==F_WRLCK ){
+     rc = SQLITE_BUSY;
+@@ -44207,6 +44493,9 @@
+     sqlite3FileSuffix3(pDbFd->zPath, zShm);
+ #endif
+     pShmNode->hShm = -1;
++#ifdef SQLITE_WASI_SHM_MIRROR
++    pShmNode->walShm = WP_WASI_WAL_SHM_INVALID_HANDLE;
++#endif
+     pDbFd->pInode->pShmNode = pShmNode;
+     pShmNode->pInode = pDbFd->pInode;
+     if( sqlite3GlobalConfig.bCoreMutex ){
+@@ -44215,6 +44504,13 @@
+         rc = SQLITE_NOMEM_BKPT;
+         goto shm_open_err;
+       }
++#ifdef SQLITE_WASI_SHM_MIRROR
++      pShmNode->pMirrorMutex = sqlite3_mutex_alloc(SQLITE_MUTEX_FAST);
++      if( pShmNode->pMirrorMutex==0 ){
++        rc = SQLITE_NOMEM_BKPT;
++        goto shm_open_err;
++      }
++#endif
+ #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
+       {
+         int ii;
+@@ -44249,6 +44545,14 @@
+       ** the original owner will not be able to connect.
+       */
+       robustFchown(pShmNode->hShm, sStat.st_uid, sStat.st_gid);
++#ifdef SQLITE_WASI_SHM_MIRROR
++      if( wp_wasi_wal_shm_open(
++              pShmNode->hShm, &pShmNode->walShm
++          )<0 ){
++        rc = SQLITE_IOERR_SHMOPEN;
++        goto shm_open_err;
++      }
++#endif
+
+       rc = unixLockSharedMemory(pDbFd, pShmNode);
+       if( rc!=SQLITE_OK && rc!=SQLITE_READONLY_CANTINIT ) goto shm_open_err;
+@@ -44342,6 +44646,10 @@
+
+   if( pShmNode->nRegion<nReqRegion ){
+     char **apNew;                      /* New apRegion[] array */
++#ifdef SQLITE_WASI_SHM_MIRROR
++    char **apBaselineNew;              /* New baseline pointer array */
++    uint64_t *aGenerationNew;          /* New host generation array */
++#endif
+     int nByte = nReqRegion*szRegion;   /* Minimum required file size */
+     struct stat sStat;                 /* Used by fstat() */
+
+@@ -44399,10 +44707,46 @@
+       goto shmpage_out;
+     }
+     pShmNode->apRegion = apNew;
++#ifdef SQLITE_WASI_SHM_MIRROR
++    apBaselineNew = (char **)sqlite3_realloc(
++        pShmNode->apBaseline, nReqRegion*sizeof(char *)
++    );
++    if( !apBaselineNew ){
++      rc = SQLITE_IOERR_NOMEM_BKPT;
++      goto shmpage_out;
++    }
++    pShmNode->apBaseline = apBaselineNew;
++    aGenerationNew = (uint64_t *)sqlite3_realloc64(
++        pShmNode->aMirrorGeneration, nReqRegion*sizeof(uint64_t)
++    );
++    if( !aGenerationNew ){
++      rc = SQLITE_IOERR_NOMEM_BKPT;
++      goto shmpage_out;
++    }
++    memset(
++        &aGenerationNew[pShmNode->nRegion], 0,
++        (nReqRegion-pShmNode->nRegion)*sizeof(uint64_t)
++    );
++    pShmNode->aMirrorGeneration = aGenerationNew;
++    pShmNode->mirrorUnsynced = 1;
++#endif
+     while( pShmNode->nRegion<nReqRegion ){
+       int nMap = szRegion*nShmPerMap;
+       int i;
+       void *pMem;
++#ifdef SQLITE_WASI_SHM_MIRROR
++      void *pBaseline;
++      pMem = sqlite3_malloc64(nMap);
++      pBaseline = sqlite3_malloc64(nMap);
++      if( pMem==0 || pBaseline==0 ){
++        sqlite3_free(pMem);
++        sqlite3_free(pBaseline);
++        rc = SQLITE_NOMEM_BKPT;
++        goto shmpage_out;
++      }
++      memset(pMem, 0, nMap);
++      memset(pBaseline, 0, nMap);
++#else
+       if( pShmNode->hShm>=0 ){
+         pMem = osMmap(0, nMap,
+             pShmNode->isReadonly ? PROT_READ : PROT_READ|PROT_WRITE,
+@@ -44420,13 +44764,24 @@
+         }
+         memset(pMem, 0, nMap);
+       }
++#endif
+
+       for(i=0; i<nShmPerMap; i++){
+         pShmNode->apRegion[pShmNode->nRegion+i] = &((char*)pMem)[szRegion*i];
++#ifdef SQLITE_WASI_SHM_MIRROR
++        pShmNode->apBaseline[pShmNode->nRegion+i] =
++            &((char*)pBaseline)[szRegion*i];
++#endif
+       }
+       pShmNode->nRegion += nShmPerMap;
+     }
+   }
++#ifdef SQLITE_WASI_SHM_MIRROR
++  if( rc==SQLITE_OK && pShmNode->hShm>=0 && pShmNode->mirrorUnsynced ){
++    rc = unixWasiShmCatchUp(pShmNode);
++    if( rc==SQLITE_OK ) pShmNode->mirrorUnsynced = 0;
++  }
++#endif
+
+ shmpage_out:
+   if( pShmNode->nRegion>iRegion ){
+@@ -44587,6 +44942,14 @@
+       if( flags & SQLITE_SHM_UNLOCK ){
+         /* Case (a) - unlock.  */
+         int bUnlock = 1;
++#ifdef SQLITE_WASI_SHM_MIRROR
++        int bMirrorExclusive = (flags & SQLITE_SHM_EXCLUSIVE)!=0;
++        if( bMirrorExclusive ){
++          sqlite3_mutex_enter(pShmNode->pMirrorMutex);
++          rc = unixWasiShmExchangeLocked(pShmNode, UNIX_WASI_SHM_COMMIT);
++          if( rc!=SQLITE_OK ) unixWasiShmFatal(rc, "before unlock");
++        }
++#endif
+         assert( (p->exclMask & p->sharedMask)==0 );
+         assert( !(flags & SQLITE_SHM_EXCLUSIVE) || (p->exclMask & mask)==mask );
+         assert( !(flags & SQLITE_SHM_SHARED) || (p->sharedMask & mask)==mask );
+@@ -44611,22 +44974,56 @@
+             memset(&aLock[ofst], 0, sizeof(int)*n);
+             p->sharedMask &= ~mask;
+             p->exclMask &= ~mask;
++#ifdef SQLITE_WASI_SHM_MIRROR
++            if( bMirrorExclusive ){
++              assert( pShmNode->nMirrorExclusive>=n );
++              pShmNode->nMirrorExclusive -= n;
++              if( pShmNode->nMirrorExclusive==0 ){
++                pShmNode->mirrorPossiblyDirty = 0;
++              }
++            }
++#endif
+           }
+         }
++#ifdef SQLITE_WASI_SHM_MIRROR
++        if( bMirrorExclusive ){
++          sqlite3_mutex_leave(pShmNode->pMirrorMutex);
++        }
++#endif
+       }else if( flags & SQLITE_SHM_SHARED ){
+         /* Case (b) - a shared lock.  */
++#if defined(SQLITE_WASI_SHM_MIRROR) && defined(SQLITE_ENABLE_SNAPSHOT)
++        int bSystemLock = 0;
++#endif
+
+         if( aLock[ofst]<0 ){
+           /* An exclusive lock is held by some other connection. BUSY. */
+           rc = SQLITE_BUSY;
+         }else if( aLock[ofst]==0 ){
+           rc = unixShmSystemLock(pDbFd, F_RDLCK, ofst+UNIX_SHM_BASE, n);
++#if defined(SQLITE_WASI_SHM_MIRROR) && defined(SQLITE_ENABLE_SNAPSHOT)
++          bSystemLock = rc==SQLITE_OK;
++#endif
+         }
+
+         /* Get the local shared locks */
+         if( rc==SQLITE_OK ){
+           p->sharedMask |= mask;
+           aLock[ofst]++;
++#if defined(SQLITE_WASI_SHM_MIRROR) && defined(SQLITE_ENABLE_SNAPSHOT)
++          /* WAL_CKPT_LOCK is numeric slot 1, but is defined after the VFS. */
++          if( ofst==1 && (rc = unixWasiShmCatchUp(pShmNode))!=SQLITE_OK ){
++            p->sharedMask &= ~mask;
++            aLock[ofst]--;
++            if( bSystemLock
++             && unixShmSystemLock(
++                    pDbFd, F_UNLCK, ofst+UNIX_SHM_BASE, n
++                )!=SQLITE_OK
++            ){
++              unixWasiShmFatal(SQLITE_IOERR_SHMLOCK, "lock rollback");
++            }
++          }
++#endif
+         }
+       }else{
+         /* Case (c) - an exclusive lock.  */
+@@ -44654,6 +45051,29 @@
+             for(ii=ofst; ii<ofst+n; ii++){
+               aLock[ii] = -1;
+             }
++#ifdef SQLITE_WASI_SHM_MIRROR
++            sqlite3_mutex_enter(pShmNode->pMirrorMutex);
++            rc = unixWasiShmRefreshIfStaleLocked(
++                pShmNode,
++                pShmNode->nMirrorExclusive==0
++                    ? UNIX_WASI_SHM_REFRESH : UNIX_WASI_SHM_PRESERVE
++            );
++            if( rc==SQLITE_OK ){
++              pShmNode->nMirrorExclusive += n;
++              pShmNode->mirrorPossiblyDirty = 1;
++            }
++            sqlite3_mutex_leave(pShmNode->pMirrorMutex);
++            if( rc!=SQLITE_OK ){
++              int rollbackRc = unixShmSystemLock(
++                  pDbFd, F_UNLCK, ofst+UNIX_SHM_BASE, n
++              );
++              p->exclMask &= ~mask;
++              memset(&aLock[ofst], 0, sizeof(int)*n);
++              if( rollbackRc!=SQLITE_OK ){
++                unixWasiShmFatal(rollbackRc, "lock rollback");
++              }
++            }
++#endif
+           }
+         }
+       }
+@@ -44685,13 +45105,35 @@
+ static void unixShmBarrier(
+   sqlite3_file *fd                /* Database file holding the shared memory */
+ ){
+-  UNUSED_PARAMETER(fd);
+   sqlite3MemoryBarrier();         /* compiler-defined memory barrier */
+   assert( fd->pMethods->xLock==nolockLock
+        || unixFileMutexNotheld((unixFile*)fd)
+   );
++#ifdef SQLITE_WASI_SHM_MIRROR
++  {
++    unixFile *pDbFd = (unixFile*)fd;
++    int rc = SQLITE_IOERR_SHMMAP;
++    if( pDbFd->pShm!=0 ){
++      unixShm *pShm = pDbFd->pShm;
++      unixShmNode *pNode = pShm->pShmNode;
++      sqlite3_mutex_enter(pNode->pMirrorMutex);
++      /* WAL_WRITE_LOCK is numeric slot 0, but is defined after the VFS. */
++      rc = (pShm->exclMask & 1)!=0 ? SQLITE_OK
++          : unixWasiShmRefreshIfStaleLocked(
++              pNode,
++              pNode->nMirrorExclusive==0
++                  ? UNIX_WASI_SHM_REFRESH : UNIX_WASI_SHM_PRESERVE
++          );
++      sqlite3_mutex_leave(pNode->pMirrorMutex);
++    }
++    if( rc!=SQLITE_OK ) unixWasiShmFatal(rc, "barrier");
++  }
++  sqlite3MemoryBarrier();
++#else
++  UNUSED_PARAMETER(fd);
+   unixEnterMutex();               /* Also mutex, for redundancy */
+   unixLeaveMutex();
++#endif
+ }
+
+ /*
+@@ -44721,6 +45163,15 @@
+   /* Remove connection p from the set of connections associated
+   ** with pShmNode */
+   sqlite3_mutex_enter(pShmNode->pShmMutex);
++#ifdef SQLITE_WASI_SHM_MIRROR
++  {
++    int rc = unixWasiShmCommitIfNeeded(pShmNode);
++    if( rc!=SQLITE_OK ){
++      sqlite3_mutex_leave(pShmNode->pShmMutex);
++      return rc;
++    }
++  }
++#endif
+   for(pp=&pShmNode->pFirst; (*pp)!=p; pp = &(*pp)->pNext){}
+   *pp = p->pNext;
+
+@@ -67828,54 +68279,64 @@
+ /*
+ ** Set or release locks on the WAL.  Locks are either shared or exclusive.
+ ** A lock cannot be moved directly between shared and exclusive - it must go
+ ** through the unlocked state first.
+ **
+-** In locking_mode=EXCLUSIVE, all of these routines become no-ops.
++** In locking_mode=EXCLUSIVE, shared-lock routines become no-ops. The
++** mirrored VFS still routes exclusive locks through xShmLock so writes to
++** its private WAL-index mirror are published at unlock.
+ */
++static int walExclusiveLockIsNoop(Wal *pWal){
++#ifdef SQLITE_WASI_SHM_MIRROR
++  return pWal->exclusiveMode==WAL_HEAPMEMORY_MODE;
++#else
++  return pWal->exclusiveMode!=WAL_NORMAL_MODE;
++#endif
++}
++
+ static int walLockShared(Wal *pWal, int lockIdx){
+   int rc;
+   if( pWal->exclusiveMode ) return SQLITE_OK;
+   rc = sqlite3OsShmLock(pWal->pDbFd, lockIdx, 1,
+                         SQLITE_SHM_LOCK | SQLITE_SHM_SHARED);
+   WALTRACE(("WAL%p: acquire SHARED-%s %s\n", pWal,
+             walLockName(lockIdx), rc ? "failed" : "ok"));
+   VVA_ONLY( pWal->lockError = (u8)(rc!=SQLITE_OK && (rc&0xFF)!=SQLITE_BUSY); )
+ #ifdef SQLITE_USE_SEH
+   if( rc==SQLITE_OK ) pWal->lockMask |= (1 << lockIdx);
+ #endif
+   return rc;
+ }
+ static void walUnlockShared(Wal *pWal, int lockIdx){
+   if( pWal->exclusiveMode ) return;
+   (void)sqlite3OsShmLock(pWal->pDbFd, lockIdx, 1,
+                          SQLITE_SHM_UNLOCK | SQLITE_SHM_SHARED);
+ #ifdef SQLITE_USE_SEH
+   pWal->lockMask &= ~(1 << lockIdx);
+ #endif
+   WALTRACE(("WAL%p: release SHARED-%s\n", pWal, walLockName(lockIdx)));
+ }
+ static int walLockExclusive(Wal *pWal, int lockIdx, int n){
+   int rc;
+-  if( pWal->exclusiveMode ) return SQLITE_OK;
++  if( walExclusiveLockIsNoop(pWal) ) return SQLITE_OK;
+   rc = sqlite3OsShmLock(pWal->pDbFd, lockIdx, n,
+                         SQLITE_SHM_LOCK | SQLITE_SHM_EXCLUSIVE);
+   WALTRACE(("WAL%p: acquire EXCLUSIVE-%s cnt=%d %s\n", pWal,
+             walLockName(lockIdx), n, rc ? "failed" : "ok"));
+   VVA_ONLY( pWal->lockError = (u8)(rc!=SQLITE_OK && (rc&0xFF)!=SQLITE_BUSY); )
+ #ifdef SQLITE_USE_SEH
+   if( rc==SQLITE_OK ){
+     pWal->lockMask |= (((1<<n)-1) << (SQLITE_SHM_NLOCK+lockIdx));
+   }
+ #endif
+   return rc;
+ }
+ static void walUnlockExclusive(Wal *pWal, int lockIdx, int n){
+-  if( pWal->exclusiveMode ) return;
++  if( walExclusiveLockIsNoop(pWal) ) return;
+   (void)sqlite3OsShmLock(pWal->pDbFd, lockIdx, n,
+                          SQLITE_SHM_UNLOCK | SQLITE_SHM_EXCLUSIVE);
+ #ifdef SQLITE_USE_SEH
+   pWal->lockMask &= ~(((1<<n)-1) << (SQLITE_SHM_NLOCK+lockIdx));
+ #endif
+   WALTRACE(("WAL%p: release EXCLUSIVE-%s cnt=%d\n", pWal,
+              walLockName(lockIdx), n));
+ }

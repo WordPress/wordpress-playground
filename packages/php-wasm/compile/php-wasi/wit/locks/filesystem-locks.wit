@@ -62,6 +62,62 @@ interface filesystem-locks {
   ) -> result<lock-state, lock-error>;
 }
 
+/// Process-local shared memory for SQLite's WAL index.
+///
+/// Component instances have private linear memories, so the host owns the
+/// canonical image and exchanges only the words changed by each instance.
+interface sqlite-wal-shm {
+  use wasi:filesystem/types@0.2.0.{descriptor};
+
+  resource wal-shm;
+
+  /// A byte range whose payload begins at `data-offset` in a flat byte list.
+  record shm-range {
+    region: u32,
+    offset: u32,
+    data-offset: u32,
+    length: u32,
+  }
+
+  /// The canonical host epoch, ranges, and generations returned by an exchange.
+  record exchange-result {
+    /// File-wide publication epoch for this exact exchange snapshot.
+    epoch: u64,
+    generations: list<u64>,
+    updates: list<shm-range>,
+    data: list<u8>,
+  }
+
+  variant shm-error {
+    bad-descriptor,
+    invalid-argument,
+    conflict,
+    resource-exhausted,
+    io-error(option<u32>),
+  }
+
+  /// Attach to the WAL index identified by an open `-shm` descriptor.
+  open: func(file: borrow<descriptor>) -> result<wal-shm, shm-error>;
+
+  /// Reset an index after SQLite wins the exclusive dead-man-switch lock.
+  reset: func(shm: borrow<wal-shm>) -> result<_, shm-error>;
+
+  /// Read the file-wide publication epoch without exchanging region data.
+  current-epoch: func(shm: borrow<wal-shm>) -> result<u64, shm-error>;
+
+  /// Atomically merge guest changes and return changes not yet observed by it.
+  exchange: func(
+    shm: borrow<wal-shm>,
+    region-size: u32,
+    known-generations: list<u64>,
+    dirty-ranges: list<shm-range>,
+    expected: list<u8>,
+    replacement: list<u8>,
+    force-refresh: bool,
+  ) -> result<exchange-result, shm-error>;
+}
+
 world bridge {
   import filesystem-locks;
+  import sqlite-wal-shm;
 }

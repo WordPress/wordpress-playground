@@ -91,7 +91,7 @@ download \
 	"https://github.com/php/php-src/archive/$PHP_COMMIT.tar.gz" \
 	"$PHP_ARCHIVE" "$PHP_SOURCE_SHA256"
 download \
-	"https://sqlite.org/2025/sqlite-autoconf-$SQLITE_AUTOCONF_VERSION.tar.gz" \
+	"https://sqlite.org/$SQLITE_RELEASE_YEAR/sqlite-autoconf-$SQLITE_AUTOCONF_VERSION.tar.gz" \
 	"$SQLITE_ARCHIVE" "$SQLITE_SOURCE_SHA256"
 
 WASI_SDK="$BUILD_DIR/wasi-sdk-$WASI_SDK_VERSION"
@@ -114,6 +114,10 @@ tar -xzf "$SQLITE_ARCHIVE" --strip-components=1 -C "$SQLITE_SOURCE"
 for patch_file in "$ROOT"/patches/*.patch; do
 	run_logged "$LOG_DIR/$(basename "$patch_file").log" \
 		patch --directory="$PHP_SOURCE" --strip=1 --forward --input="$patch_file"
+done
+for patch_file in "$ROOT"/sqlite-patches/*.patch; do
+	run_logged "$LOG_DIR/$(basename "$patch_file").log" \
+		patch --directory="$SQLITE_SOURCE" --strip=1 --forward --input="$patch_file"
 done
 
 if [[ "$PHP_WASI_VM_KIND" == "GOTO" ]]; then
@@ -143,20 +147,50 @@ REPRODUCIBLE_PATH_FLAGS=(
 	"-ffile-prefix-map=$ROOT=/src"
 )
 
+# SQLite's WAL mirror calls into the host bridge. Generate and compile that
+# bridge before creating libsqlite3.a so PHP's configure-time SQLite link probes
+# can resolve the mirror symbols just like the final component link can.
+run_logged "$LOG_DIR/wit-locks.log" \
+	wit-bindgen c --world bridge --out-dir "$GENERATED_DIR/locks" "$ROOT/wit/locks"
+run_logged "$LOG_DIR/lock-bindings.log" "$CC" -c "$OPTIMIZATION_FLAG" \
+	"${REPRODUCIBLE_PATH_FLAGS[@]}" -I"$GENERATED_DIR/locks" \
+	"$GENERATED_DIR/locks/bridge.c" -o "$GENERATED_DIR/locks/bridge.o"
+run_logged "$LOG_DIR/lock-bridge.log" "$CC" -c "$OPTIMIZATION_FLAG" \
+	"${REPRODUCIBLE_PATH_FLAGS[@]}" -I"$GENERATED_DIR/locks" -I"$ROOT/component" \
+	"$ROOT/component/fcntl_bridge.c" -o "$GENERATED_DIR/fcntl_bridge.o"
+
 # SQLite defaults WASI builds to unix-dotfile, where even shared reader locks
 # become exclusive lock directories. Use the POSIX VFS so independent component
-# workers reach the fcntl bridge and its host-owned OFD locks instead.
-SQLITE_CFLAGS="$OPTIMIZATION_FLAG ${REPRODUCIBLE_PATH_FLAGS[*]} -include $ROOT/component/fcntl_compat.h -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS5 -DSQLITE_USE_URI -DSQLITE_OMIT_LOAD_EXTENSION"
+# workers reach the fcntl bridge and its host-owned OFD locks instead. Since
+# workers have private linear memories, exchange WAL shared-memory regions with
+# a host-owned canonical image at SQLite's lock and barrier boundaries.
+SQLITE_CFLAGS="$OPTIMIZATION_FLAG ${REPRODUCIBLE_PATH_FLAGS[*]} -include $ROOT/component/fcntl_compat.h -DSQLITE_WASI_SHM_MIRROR -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS5 -DSQLITE_USE_URI -DSQLITE_OMIT_LOAD_EXTENSION"
+SQLITE_CONFIGURE_ARGS=(
+	--host=wasm32-wasi
+	--build=x86_64-pc-linux-gnu
+	--prefix="$PREFIX"
+	--disable-shared
+	--enable-static
+	--disable-readline
+	--disable-load-extension
+	--enable-threadsafe
+)
 (
 	cd "$SQLITE_BUILD"
 	run_logged "$LOG_DIR/sqlite-configure.log" env \
 		CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$SQLITE_CFLAGS" \
-		"$SQLITE_SOURCE/configure" \
-		--host=wasm32-wasi --build=x86_64-pc-linux-gnu --prefix="$PREFIX" \
-		--disable-shared --enable-static --disable-readline --disable-load-extension
+		"$SQLITE_SOURCE/configure" "${SQLITE_CONFIGURE_ARGS[@]}"
 )
+if ! grep -Eq '(^|[[:space:]])-DSQLITE_THREADSAFE=1([[:space:]]|$)' \
+		"$SQLITE_BUILD/Makefile"; then
+	echo "SQLite configure did not preserve SQLITE_THREADSAFE=1" >&2
+	exit 1
+fi
 run_logged "$LOG_DIR/sqlite-build.log" make -C "$SQLITE_BUILD" -j"$JOBS" sqlite3.o
-run_logged "$LOG_DIR/sqlite-archive.log" "$AR" rcs "$SQLITE_BUILD/libsqlite3.a" "$SQLITE_BUILD/sqlite3.o"
+run_logged "$LOG_DIR/sqlite-archive.log" "$AR" rcs "$SQLITE_BUILD/libsqlite3.a" \
+	"$SQLITE_BUILD/sqlite3.o" "$GENERATED_DIR/fcntl_bridge.o" \
+	"$GENERATED_DIR/locks/bridge.o" \
+	"$GENERATED_DIR/locks/bridge_component_type.o"
 run_logged "$LOG_DIR/sqlite-ranlib.log" "$RANLIB" "$SQLITE_BUILD/libsqlite3.a"
 
 mkdir -p "$PREFIX/include" "$PREFIX/lib/pkgconfig"
@@ -202,8 +236,6 @@ run_logged "$LOG_DIR/php-build.log" make -C "$PHP_BUILD" -j"$JOBS" libphp.la
 
 run_logged "$LOG_DIR/wit-php.log" \
 	wit-bindgen c --world php --out-dir "$GENERATED_DIR/php" "$ROOT/wit/php"
-run_logged "$LOG_DIR/wit-locks.log" \
-	wit-bindgen c --world bridge --out-dir "$GENERATED_DIR/locks" "$ROOT/wit/locks"
 
 PHP_INCLUDES=(
 	-I"$PHP_BUILD" -I"$PHP_BUILD/main" -I"$PHP_BUILD/TSRM" -I"$PHP_BUILD/Zend"
@@ -214,18 +246,11 @@ PHP_INCLUDES=(
 run_logged "$LOG_DIR/component-sapi.log" "$CC" -c "$OPTIMIZATION_FLAG" \
 	"${SJLJ_FLAGS[@]}" "${EMULATION_DEFINES[@]}" \
 	"${REPRODUCIBLE_PATH_FLAGS[@]}" -D_GNU_SOURCE \
-	"${PHP_INCLUDES[@]}" -I"$GENERATED_DIR" \
+	"${PHP_INCLUDES[@]}" -I"$PREFIX/include" -I"$GENERATED_DIR" \
 	"$ROOT/component/php_wasi_component.c" -o "$GENERATED_DIR/php_wasi_component.o"
 run_logged "$LOG_DIR/component-bindings.log" "$CC" -c "$OPTIMIZATION_FLAG" \
 	"${REPRODUCIBLE_PATH_FLAGS[@]}" -I"$GENERATED_DIR/php" \
 	"$GENERATED_DIR/php/php.c" -o "$GENERATED_DIR/php/php.o"
-run_logged "$LOG_DIR/lock-bindings.log" "$CC" -c "$OPTIMIZATION_FLAG" \
-	"${REPRODUCIBLE_PATH_FLAGS[@]}" -I"$GENERATED_DIR/locks" \
-	"$GENERATED_DIR/locks/bridge.c" -o "$GENERATED_DIR/locks/bridge.o"
-run_logged "$LOG_DIR/lock-bridge.log" "$CC" -c "$OPTIMIZATION_FLAG" \
-	"${REPRODUCIBLE_PATH_FLAGS[@]}" -I"$GENERATED_DIR/locks" -I"$ROOT/component" \
-	"$ROOT/component/fcntl_bridge.c" -o "$GENERATED_DIR/fcntl_bridge.o"
-
 run_logged "$LOG_DIR/component-link.log" "$CC" "$OPTIMIZATION_FLAG" -mexec-model=reactor \
 	-Wl,-z,stack-size=8388608 \
 	-Wl,--initial-memory=67108864 -Wl,--max-memory=1073741824 \
@@ -240,7 +265,7 @@ install -m 0644 "$PHP_BUILD/.libs/libphp.a" "$DIST_DIR/libphp.a"
 install -m 0644 "$PREFIX/lib/libsqlite3.a" "$DIST_DIR/libsqlite3.a"
 "$ROOT/validate.sh" "$DIST_DIR/php-wasi-component.wasm"
 
-echo "Built with $JOBS parallel jobs ($PHP_WASI_OPT_LEVEL/$PHP_WASI_VM_KIND):"
+echo "Built with $JOBS parallel jobs ($PHP_WASI_OPT_LEVEL/$PHP_WASI_VM_KIND, SQLite THREADSAFE=1):"
 echo "  $DIST_DIR/php-wasi-component.wasm"
 echo "  $DIST_DIR/libphp.a"
 echo "  $DIST_DIR/libsqlite3.a"
