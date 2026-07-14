@@ -85,16 +85,14 @@ describe('GitHubExportSessionProvider', () => {
 			});
 		});
 
-		expect(getSession()).toMatchObject({
-			filesBeforeChanges: ['before-change'],
-			values: {
-				repoUrl: 'https://github.com/new-owner/new-repo/pull/12',
-				prNumber: '12',
-				toPathInRepo: '/theme',
-				prAction: 'update',
-				contentType: 'theme',
-				theme: 'new-theme',
-			},
+		expect(getSession().filesBeforeChanges).toEqual(['before-change']);
+		expect(getSession().values).toEqual({
+			repoUrl: 'https://github.com/new-owner/new-repo/pull/12',
+			prNumber: '12',
+			toPathInRepo: '/theme',
+			prAction: 'update',
+			contentType: 'theme',
+			theme: 'new-theme',
 		});
 
 		act(() => {

@@ -47,8 +47,11 @@ export function GitHubExportSessionProvider({
 				toPathInRepo: details.path,
 				prAction: pr ? 'update' : 'create',
 				contentType: details.contentType,
-				plugin: details.pluginOrThemeName,
-				theme: details.pluginOrThemeName,
+				...(details.contentType === 'plugin'
+					? { plugin: details.pluginOrThemeName }
+					: details.contentType === 'theme'
+						? { theme: details.pluginOrThemeName }
+						: {}),
 			});
 			setFilesBeforeChanges(details.files);
 		},
