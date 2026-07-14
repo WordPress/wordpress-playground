@@ -1,0 +1,121 @@
+.share-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: 0 var(--space-6) var(--space-6);
+}
+
+.back-button {
+	align-items: center;
+	align-self: flex-start;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink);
+	cursor: pointer;
+	display: inline-flex;
+	font-size: 20px;
+	font-weight: 600;
+	gap: 4px;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	/* This replaces the DockPane title when GitHub export is open, so give it
+	   the shared pane-title rhythm: 32px above the title and 24px below it. */
+	margin: 0 0 var(--space-6);
+	padding: var(--space-8) var(--space-2) 0 0;
+	transition: background 120ms ease;
+}
+
+.back-button:hover {
+	background: var(--paper-3);
+}
+
+.back-button :global(svg) {
+	fill: var(--ink-faint);
+	margin-left: -6px;
+}
+
+@media (max-width: 1024px) {
+	.back-button {
+		margin-bottom: var(--space-4);
+		padding-top: var(--space-6);
+	}
+}
+
+.export-loading {
+	display: flex;
+	justify-content: center;
+	padding: var(--space-8);
+}
+
+.group {
+	align-items: flex-start;
+	background: #ffffff;
+	border-radius: var(--radius-card);
+	box-shadow:
+		0 1px 2px rgba(40, 33, 23, 0.06),
+		0 4px 10px rgba(40, 33, 23, 0.05);
+	display: flex;
+	gap: var(--space-3);
+	padding: var(--space-4);
+}
+
+.group-icon {
+	align-items: center;
+	background: var(--paper-3);
+	border-radius: var(--radius-card);
+	color: var(--accent-link);
+	display: flex;
+	flex-shrink: 0;
+	height: 38px;
+	justify-content: center;
+	width: 38px;
+}
+
+.group-icon :global(svg) {
+	fill: currentColor;
+}
+
+.group-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.group-title {
+	color: var(--ink);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+	margin: 0;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	margin-top: var(--space-1);
+}
+
+.hint {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.actions p {
+	font-size: 13px;
+	line-height: 1.4;
+	margin: 0;
+}
+
+.status {
+	color: var(--ink-muted);
+}
+
+.error {
+	color: var(--color-alert-red, #cc1818);
+}
