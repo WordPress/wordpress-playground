@@ -8,6 +8,7 @@ export type DockPaneProps = {
 	title: string;
 	children: ReactNode;
 	description?: string;
+	headerSubtitle?: ReactNode;
 	className?: string;
 	style?: CSSProperties;
 	isEditor?: boolean;
@@ -30,6 +31,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		{
 			title,
 			description,
+			headerSubtitle,
 			children,
 			className,
 			style,
@@ -97,11 +99,12 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 					<div className={css.paneHeader}>
 						<div className={css.paneHeaderMain}>
 							<h2>{title}</h2>
-							{description && (
-								<p className={css.paneDescription}>
-									{description}
-								</p>
-							)}
+							{headerSubtitle ??
+								(description && (
+									<p className={css.paneDescription}>
+										{description}
+									</p>
+								))}
 						</div>
 						{headerAction}
 					</div>
