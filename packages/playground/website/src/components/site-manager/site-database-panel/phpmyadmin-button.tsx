@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
@@ -42,10 +43,16 @@ export function PhpMyAdminButton({
 		let cancelled = false;
 
 		async function detectPhpMyAdmin() {
-			if (!playground) return;
-			const isDir = await playground.isDir(PHPMYADMIN_INSTALL_PATH);
-			if (cancelled) return;
-			setState(isDir ? 'ready' : 'idle');
+			try {
+				if (!playground) return;
+				const isDir = await playground.isDir(PHPMYADMIN_INSTALL_PATH);
+				if (cancelled) return;
+				setState(isDir ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect phpMyAdmin', error);
+				setState('idle');
+			}
 		}
 
 		void detectPhpMyAdmin();

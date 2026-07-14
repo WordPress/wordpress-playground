@@ -5,6 +5,8 @@ import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
 
+export const OBJECT_URL_REVOKE_DELAY_MS = 60_000;
+
 export function DownloadButton({
 	playground,
 	databasePath,
@@ -46,7 +48,11 @@ export function DownloadButton({
 					</FlexItem>
 				</Flex>
 			</Button>
-			{error && <div className={css.error}>{error}</div>}
+			{error && (
+				<div className={css.error} role="alert">
+					{error}
+				</div>
+			)}
 		</>
 	);
 }
@@ -72,5 +78,5 @@ export async function downloadDatabase(
 	document.body.appendChild(link);
 	link.click();
 	document.body.removeChild(link);
-	setTimeout(() => URL.revokeObjectURL(url), 60_000);
+	setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_REVOKE_DELAY_MS);
 }

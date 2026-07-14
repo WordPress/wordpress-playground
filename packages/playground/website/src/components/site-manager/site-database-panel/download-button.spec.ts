@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { downloadDatabase } from './download-button';
+import {
+	downloadDatabase,
+	OBJECT_URL_REVOKE_DELAY_MS,
+} from './download-button';
 
 describe('downloadDatabase', () => {
 	const createObjectURL = vi.fn(() => 'blob:database');
@@ -53,8 +58,7 @@ describe('downloadDatabase', () => {
 		).toBeNull();
 		expect(revokeObjectURL).not.toHaveBeenCalled();
 
-		vi.advanceTimersByTime(60_000);
+		vi.advanceTimersByTime(OBJECT_URL_REVOKE_DELAY_MS);
 		expect(revokeObjectURL).toHaveBeenCalledWith('blob:database');
 	});
 });
-// @vitest-environment jsdom
