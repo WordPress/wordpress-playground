@@ -418,16 +418,22 @@ function YouHaveAutosaveNudge({
 				)}
 			</div>
 			<div className={css.actions}>
-				<Button variant="primary" onClick={onRestore} disabled={isBusy}>
-					Restore Autosave
-				</Button>
-				<Button
-					variant="tertiary"
-					onClick={onKeepNew}
-					disabled={isBusy}
-				>
-					No, thanks
-				</Button>
+				<div className={css.decisionActions}>
+					<Button
+						variant="primary"
+						onClick={onRestore}
+						disabled={isBusy}
+					>
+						Restore Autosave
+					</Button>
+					<Button
+						variant="tertiary"
+						onClick={onKeepNew}
+						disabled={isBusy}
+					>
+						No, thanks
+					</Button>
+				</div>
 				<Button
 					variant="link"
 					onClick={onDisableNotifications}

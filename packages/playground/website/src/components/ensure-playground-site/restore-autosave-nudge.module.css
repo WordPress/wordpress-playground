@@ -4,10 +4,12 @@
 	top: 62px;
 	right: 16px;
 	display: flex;
-	align-items: center;
-	gap: 16px;
-	max-width: min(520px, calc(100vw - 32px));
-	padding: 12px;
+	align-items: stretch;
+	flex-direction: column;
+	gap: 12px;
+	box-sizing: border-box;
+	width: min(400px, calc(100vw - 32px));
+	padding: 16px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
@@ -41,9 +43,16 @@
 
 .actions {
 	display: flex;
-	flex: 0 0 auto;
+	align-items: flex-start;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.decisionActions {
+	display: flex;
 	align-items: center;
-	gap: 6px;
+	flex-wrap: wrap;
+	gap: 8px;
 }
 
 @media (max-width: 600px) {
@@ -51,11 +60,6 @@
 		top: 108px;
 		left: 12px;
 		right: 12px;
-		align-items: stretch;
-		flex-direction: column;
-	}
-
-	.actions {
-		justify-content: flex-end;
+		width: auto;
 	}
 }
