@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { readDockFullWidth, writeDockFullWidth } from './dock-full-width';
 
 describe('Dock full-width preference', () => {
@@ -35,4 +37,3 @@ describe('Dock full-width preference', () => {
 		setItem.mockRestore();
 	});
 });
-// @vitest-environment jsdom
