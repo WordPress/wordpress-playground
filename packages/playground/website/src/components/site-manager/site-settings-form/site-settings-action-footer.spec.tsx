@@ -81,7 +81,7 @@ describe('settings action footer', () => {
 		act(() => {
 			root.render(
 				<SiteSettingsActionFooter
-					values={defaults}
+					values={{ ...defaults, wpVersion: '6.7' }}
 					defaultValues={defaults}
 					submit={submit}
 					siteName="Test Playground"
@@ -99,11 +99,30 @@ describe('settings action footer', () => {
 		expect(onCreateFresh).toHaveBeenCalledWith(defaults);
 	});
 
+	it('keeps apply available when the form is unchanged', () => {
+		act(() => {
+			root.render(
+				<SiteSettingsActionFooter
+					values={defaults}
+					defaultValues={defaults}
+					submit={submit}
+					siteName="Test Playground"
+					sitePersistence="autosave"
+					onApply={vi.fn()}
+					onCreateFresh={vi.fn()}
+					isPending={false}
+				/>
+			);
+		});
+
+		expect(getButton('Apply to this Playground').disabled).toBe(false);
+	});
+
 	it('focuses the only available action when the menu opens', async () => {
 		await act(async () => {
 			root.render(
 				<SiteSettingsActionFooter
-					values={defaults}
+					values={{ ...defaults, wpVersion: '6.7' }}
 					defaultValues={defaults}
 					submit={submit}
 					siteName="Test Playground"

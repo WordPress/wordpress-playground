@@ -10,10 +10,7 @@ import {
 } from '../../../lib/state/redux/site-lifecycle';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import type { SiteSettingsFormFooterContext } from './unconnected-site-settings-form';
-import {
-	getFreshPlaygroundReason,
-	hasApplicableRuntimeChanges,
-} from './site-settings-actions';
+import { getFreshPlaygroundReason } from './site-settings-actions';
 import css from './style.module.css';
 
 export function SiteSettingsActionFooter({
@@ -38,15 +35,7 @@ export function SiteSettingsActionFooter({
 		values,
 		defaultValues
 	);
-	const hasRuntimeChanges = hasApplicableRuntimeChanges(
-		values,
-		defaultValues
-	);
-	const applyUnavailableReason =
-		freshPlaygroundReason ??
-		(!hasRuntimeChanges
-			? 'Change PHP version or network access to apply.'
-			: undefined);
+	const applyUnavailableReason = freshPlaygroundReason;
 	const canApplyToCurrent = !applyUnavailableReason;
 
 	return (

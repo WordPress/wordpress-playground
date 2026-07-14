@@ -38,19 +38,6 @@ export function getFreshPlaygroundReason(
 	return `Changing ${formatList(changedFields)} requires a fresh Playground.`;
 }
 
-export function hasApplicableRuntimeChanges(
-	values: SiteFormData,
-	defaultValues: SiteFormData
-): boolean {
-	return Object.keys(siteSettingActions)
-		.map((field) => field as keyof SiteFormData)
-		.some(
-			(field) =>
-				siteSettingActions[field].action === 'apply' &&
-				values[field] !== defaultValues[field]
-		);
-}
-
 function formatList(items: string[]): string {
 	if (items.length === 1) {
 		return items[0];

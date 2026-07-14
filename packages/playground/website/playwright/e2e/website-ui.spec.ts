@@ -927,6 +927,7 @@ test.describe('Default Playground storage', () => {
 
 	test('should offer full settings and keyboard-accessible actions for an autosaved Playground', async ({
 		website,
+		wordpress,
 		browserName,
 	}) => {
 		test.skip(
@@ -960,16 +961,10 @@ test.describe('Default Playground storage', () => {
 		).toBeEnabled();
 		await expect(
 			website.page.getByRole('button', {
-				name: 'Create a fresh Playground',
-				exact: true,
-			})
-		).toBeEnabled();
-		await expect(
-			website.page.getByRole('button', {
 				name: 'Apply to this Playground',
 				exact: true,
 			})
-		).toHaveCount(0);
+		).toBeEnabled();
 
 		await website.page
 			.getByRole('button', { name: 'More settings actions' })
@@ -983,16 +978,30 @@ test.describe('Default Playground storage', () => {
 		await expect(freshMenuItem).toContainText(
 			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
 		);
-		await expect(freshMenuItem).toBeFocused();
-		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'true');
-		await website.page.keyboard.press('ArrowUp');
 		await expect(applyMenuItem).toBeFocused();
+		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
 		await website.page.keyboard.press('ArrowDown');
 		await expect(freshMenuItem).toBeFocused();
 		await website.page.keyboard.press('Home');
 		await expect(applyMenuItem).toBeFocused();
 		await website.page.keyboard.press('End');
 		await expect(freshMenuItem).toBeFocused();
+
+		await website.page.keyboard.press('Escape');
+		const body = wordpress.locator('body');
+		await body.evaluate((element) =>
+			element.setAttribute('data-settings-no-op-marker', 'present')
+		);
+		await website.page
+			.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+			.click();
+		await expect(body).not.toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
+		);
 	});
 
 	test('should atomically apply PHP and network settings to the current autosave', async ({

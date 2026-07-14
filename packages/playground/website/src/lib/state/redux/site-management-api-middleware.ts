@@ -487,6 +487,7 @@ export function createSitesAPI(
 
 		/**
 		 * Applies the runtime settings that can change without replacing WordPress.
+		 * When the settings already match, reloads the current WordPress page.
 		 *
 		 * PHP and networking share one metadata write so changing both cannot boot an
 		 * intermediate runtime and then immediately tear it down for the second change.
@@ -503,6 +504,22 @@ export function createSitesAPI(
 				throw new Error(
 					'Cannot update settings on a temporary site. Save it first.'
 				);
+			}
+			const currentRuntimeConfiguration =
+				site.metadata.runtimeConfiguration;
+			if (
+				currentRuntimeConfiguration.phpVersion ===
+					settings.phpVersion &&
+				currentRuntimeConfiguration.networking === settings.networking
+			) {
+				const client = selectClientBySiteSlug(getState(), site.slug);
+				if (!client) {
+					throw new Error(
+						'Cannot reload a Playground that is not running.'
+					);
+				}
+				await client.goTo(await client.getCurrentURL());
+				return;
 			}
 			await dispatch(
 				updateSiteMetadata({

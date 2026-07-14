@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SiteFormData } from './unconnected-site-settings-form';
-import {
-	getFreshPlaygroundReason,
-	hasApplicableRuntimeChanges,
-} from './site-settings-actions';
+import { getFreshPlaygroundReason } from './site-settings-actions';
 
 const defaults: SiteFormData = {
 	phpVersion: '8.3',
@@ -50,26 +47,5 @@ describe('getFreshPlaygroundReason', () => {
 		).toBe(
 			'Changing WordPress version, language, and multisite requires a fresh Playground.'
 		);
-	});
-});
-
-describe('hasApplicableRuntimeChanges', () => {
-	it('rejects a no-op submission', () => {
-		expect(hasApplicableRuntimeChanges(defaults, defaults)).toBe(false);
-	});
-
-	it('accepts either PHP or networking changes', () => {
-		expect(
-			hasApplicableRuntimeChanges(
-				{ ...defaults, phpVersion: '8.4' },
-				defaults
-			)
-		).toBe(true);
-		expect(
-			hasApplicableRuntimeChanges(
-				{ ...defaults, withNetworking: false },
-				defaults
-			)
-		).toBe(true);
 	});
 });
