@@ -27,7 +27,7 @@ MCP, or Model Context Protocol, gives your AI assistant control over the Playgro
 - Run PHP inside the Playground site
 - Request pages and inspect the response
 
-This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, and redirects.
+This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, rest API requests, and redirects.
 
 ## Good use cases for MCP
 
