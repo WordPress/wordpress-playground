@@ -1147,7 +1147,7 @@ export async function runCLI(
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
 			// Remember whether we are already disposing so we can avoid:
-			// - we can avoid multiple, conflicting dispose attempts
+			// - multiple, conflicting dispose attempts
 			// - logging that a worker exited while the CLI itself is exiting
 			let disposing = false;
 			const disposeCLI = async function disposeCLI() {
