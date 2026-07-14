@@ -436,6 +436,7 @@ function YouHaveAutosaveNudge({
 				</div>
 				<Button
 					variant="link"
+					className={css.disableNotifications}
 					onClick={onDisableNotifications}
 					disabled={isBusy}
 				>

@@ -55,6 +55,14 @@
 	gap: 10px;
 }
 
+.disableNotifications:global(.components-button.is-link) {
+	color: #646970;
+}
+
+.disableNotifications:global(.components-button.is-link):hover {
+	color: #3c434a;
+}
+
 @media (max-width: 600px) {
 	.nudge {
 		top: 108px;
