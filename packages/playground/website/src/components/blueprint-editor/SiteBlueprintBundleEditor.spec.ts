@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it, vi } from 'vitest';
 import { InMemoryFilesystemBackend } from '@wp-playground/storage';
 import { readSiteBlueprintJson } from './SiteBlueprintBundleEditor';
@@ -20,8 +22,9 @@ describe('readSiteBlueprintJson', () => {
 	it('does not modify a persisted bundle while reading it', async () => {
 		const backend = new InMemoryFilesystemBackend();
 
-		await expect(readSiteBlueprintJson(backend)).rejects.toThrow();
+		await expect(readSiteBlueprintJson(backend)).rejects.toThrow(
+			'File not found: /blueprint.json'
+		);
 		expect(await backend.fileExists('/blueprint.json')).toBe(false);
 	});
 });
-// @vitest-environment jsdom
