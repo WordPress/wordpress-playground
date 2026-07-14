@@ -280,13 +280,6 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
-	const keepNewPlaygroundAndDisableYouHaveAutosaveNudge = async () => {
-		if (await keepNewPlayground()) {
-			setYouHaveAutosaveNudgeEnabled(false);
-			setYouHaveAutosaveNudgeEnabledState(false);
-		}
-	};
-
 	const keepNewPlayground = async (): Promise<boolean> => {
 		if (!autosaveNudge || autosaveNudgeActionPendingRef.current) {
 			return false;
@@ -361,9 +354,12 @@ export function EnsurePlaygroundSiteIsSelected({
 					onDismiss={async () => {
 						await keepNewPlayground();
 					}}
-					onDisableNotifications={
-						keepNewPlaygroundAndDisableYouHaveAutosaveNudge
-					}
+					onDisableNotifications={async () => {
+						if (await keepNewPlayground()) {
+							setYouHaveAutosaveNudgeEnabled(false);
+							setYouHaveAutosaveNudgeEnabledState(false);
+						}
+					}}
 				/>
 			)}
 		</>
