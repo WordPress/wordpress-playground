@@ -18,9 +18,6 @@ import type { ClientInfo } from './slice-clients';
 import clientsReducer, { selectAllClientInfo } from './slice-clients';
 import { useDispatch, useSelector } from 'react-redux';
 
-const YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY =
-	'playground-you-have-autosave-nudge-enabled';
-
 // NOTE: A GetDefaultMiddleware type is not exported from @reduxjs/toolkit,
 // so we have to derive it from the configureStore() signature.
 type ConfigureStoreOptions<T> = Parameters<typeof configureStore<T>>[0];
@@ -118,6 +115,9 @@ export const useActiveSite = () => useAppSelector(selectActiveSite);
  * Returns the active site only when it has a durable storage backend.
  */
 export const useActiveStoredSite = () => useAppSelector(selectActiveStoredSite);
+
+const YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY =
+	'playground-you-have-autosave-nudge-enabled';
 
 /** Reads whether matching autosaves should be offered on the current device. */
 export function isYouHaveAutosaveNudgeEnabled(): boolean {

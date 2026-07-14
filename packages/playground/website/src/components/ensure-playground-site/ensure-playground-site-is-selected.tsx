@@ -280,9 +280,16 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	}, [url.searchParams]);
 
-	const keepNewPlayground = async (disableFutureNotifications = false) => {
+	const keepNewPlaygroundAndDisableYouHaveAutosaveNudge = async () => {
+		if (await keepNewPlayground()) {
+			setYouHaveAutosaveNudgeEnabled(false);
+			setYouHaveAutosaveNudgeEnabledState(false);
+		}
+	};
+
+	const keepNewPlayground = async (): Promise<boolean> => {
 		if (!autosaveNudge || autosaveNudgeActionPendingRef.current) {
-			return;
+			return false;
 		}
 		const dismissedNudge = autosaveNudge;
 		autosaveNudgeActionPendingRef.current = true;
@@ -298,10 +305,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				...fingerprints,
 				dismissedNudge.setupUrlFingerprint,
 			]);
-			if (disableFutureNotifications) {
-				setYouHaveAutosaveNudgeEnabled(false);
-				setYouHaveAutosaveNudgeEnabledState(false);
-			}
+			return true;
 		} catch (error) {
 			logger.error(
 				'Error autosaving the new Playground after declining restore.',
@@ -311,6 +315,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			setAutosaveNudgeError(
 				'Could not keep the new Playground. Please try again.'
 			);
+			return false;
 		} finally {
 			autosaveNudgeActionPendingRef.current = false;
 			setIsAutosaveNudgeActionPending(false);
@@ -350,8 +355,15 @@ export function EnsurePlaygroundSiteIsSelected({
 							setIsAutosaveNudgeActionPending(false);
 						}
 					}}
-					onKeepNew={() => keepNewPlayground()}
-					onDisableNotifications={() => keepNewPlayground(true)}
+					onKeepNew={async () => {
+						await keepNewPlayground();
+					}}
+					onDismiss={async () => {
+						await keepNewPlayground();
+					}}
+					onDisableNotifications={
+						keepNewPlaygroundAndDisableYouHaveAutosaveNudge
+					}
 				/>
 			)}
 		</>
@@ -367,6 +379,7 @@ function YouHaveAutosaveNudge({
 	isBusy,
 	onRestore,
 	onKeepNew,
+	onDismiss,
 	onDisableNotifications,
 }: {
 	site: SiteInfo;
@@ -374,22 +387,21 @@ function YouHaveAutosaveNudge({
 	isBusy: boolean;
 	onRestore: () => Promise<void>;
 	onKeepNew: () => Promise<void>;
+	onDismiss: () => Promise<void>;
 	onDisableNotifications: () => Promise<void>;
 }) {
 	const nudgeRef = useRef<HTMLElement>(null);
 	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
 
 	useEffect(() => {
-		const keepNewPlaygroundOnOutsidePointer = (event: PointerEvent) => {
+		const dismissOnOutsidePointer = (event: PointerEvent) => {
 			if (isBusy || nudgeRef.current?.contains(event.target as Node)) {
 				return;
 			}
-			void onKeepNew();
+			void onDismiss();
 		};
-		return listenForPointerDownAcrossIframes(
-			keepNewPlaygroundOnOutsidePointer
-		);
-	}, [isBusy, onKeepNew]);
+		return listenForPointerDownAcrossIframes(dismissOnOutsidePointer);
+	}, [isBusy, onDismiss]);
 
 	return (
 		<aside
