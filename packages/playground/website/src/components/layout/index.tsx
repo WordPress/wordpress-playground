@@ -113,7 +113,6 @@ export function Layout() {
  * the "Show modal" button is rendered.
  */
 function Modals() {
-	const query = new URL(document.location.href).searchParams;
 	const githubExportSession = useGitHubExportSession();
 
 	const currentModal = useAppSelector(
@@ -181,7 +180,10 @@ function Modals() {
 		);
 	}
 
-	if (query.get('gh-ensure-auth') === 'yes') {
+	const shouldEnsureGitHubAuth =
+		new URL(document.location.href).searchParams.get('gh-ensure-auth') ===
+		'yes';
+	if (shouldEnsureGitHubAuth) {
 		return <GitHubOAuthGuardModal />;
 	}
 
