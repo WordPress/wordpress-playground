@@ -13,7 +13,9 @@ import {
 	wasSiteRecentlyInteractedWith,
 } from '../../lib/state/redux/slice-sites';
 import {
+	isYouHaveAutosaveNudgeEnabled,
 	selectActiveSite,
+	setYouHaveAutosaveNudgeEnabled,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
@@ -28,10 +30,6 @@ import {
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
 import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
-import {
-	areAutosaveRestoreNotificationsDisabled,
-	disableAutosaveRestoreNotifications,
-} from './autosave-restore-preference';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -79,14 +77,12 @@ export function EnsurePlaygroundSiteIsSelected({
 		setupUrlFingerprint: string;
 	}>();
 	const [
-		declinedAutosaveRestoreFingerprints,
-		setDeclinedAutosaveRestoreFingerprints,
+		declinedYouHaveAutosaveFingerprints,
+		setDeclinedYouHaveAutosaveFingerprints,
 	] = useState<string[]>([]);
 	const [autosaveNudgeError, setAutosaveNudgeError] = useState<string>();
-	const [
-		autosaveRestoreNotificationsDisabled,
-		setAutosaveRestoreNotificationsDisabled,
-	] = useState(areAutosaveRestoreNotificationsDisabled);
+	const [youHaveAutosaveNudgeEnabled, setYouHaveAutosaveNudgeEnabledState] =
+		useState(isYouHaveAutosaveNudgeEnabled);
 	const [isAutosaveNudgeActionPending, setIsAutosaveNudgeActionPending] =
 		useState(false);
 	const autosaveNudgeActionPendingRef = useRef(false);
@@ -95,7 +91,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		[url.href]
 	);
 	const canShowAutosaveNudge =
-		!autosaveRestoreNotificationsDisabled &&
+		youHaveAutosaveNudgeEnabled &&
 		autosaveNudge &&
 		activeSite &&
 		activeSite.slug !== autosaveNudge.site.slug &&
@@ -218,8 +214,8 @@ export function EnsurePlaygroundSiteIsSelected({
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
-					!autosaveRestoreNotificationsDisabled &&
-					!declinedAutosaveRestoreFingerprints.includes(
+					youHaveAutosaveNudgeEnabled &&
+					!declinedYouHaveAutosaveFingerprints.includes(
 						currentSetupUrlFingerprint
 					) &&
 					wasSiteRecentlyInteractedWith(matchingAutosave)
@@ -254,8 +250,8 @@ export function EnsurePlaygroundSiteIsSelected({
 		// a restore candidate and create a second temporary site.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
-		autosaveRestoreNotificationsDisabled,
-		declinedAutosaveRestoreFingerprints,
+		youHaveAutosaveNudgeEnabled,
+		declinedYouHaveAutosaveFingerprints,
 		url.href,
 		requestedSiteSlug,
 		siteListingStatus,
@@ -298,13 +294,13 @@ export function EnsurePlaygroundSiteIsSelected({
 				updateUrl: false,
 				excludeFromPruning: [dismissedNudge.site.slug],
 			});
-			setDeclinedAutosaveRestoreFingerprints((fingerprints) => [
+			setDeclinedYouHaveAutosaveFingerprints((fingerprints) => [
 				...fingerprints,
 				dismissedNudge.setupUrlFingerprint,
 			]);
 			if (disableFutureNotifications) {
-				disableAutosaveRestoreNotifications();
-				setAutosaveRestoreNotificationsDisabled(true);
+				setYouHaveAutosaveNudgeEnabled(false);
+				setYouHaveAutosaveNudgeEnabledState(false);
 			}
 		} catch (error) {
 			logger.error(
@@ -325,7 +321,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		<>
 			{children}
 			{canShowAutosaveNudge && (
-				<RestoreAutosaveNudge
+				<YouHaveAutosaveNudge
 					site={autosaveNudge.site}
 					error={autosaveNudgeError}
 					isBusy={isAutosaveNudgeActionPending}
@@ -365,7 +361,7 @@ export function EnsurePlaygroundSiteIsSelected({
 /**
  * Shows the restore choice for a recent autosave matching the current setup URL.
  */
-function RestoreAutosaveNudge({
+function YouHaveAutosaveNudge({
 	site,
 	error,
 	isBusy,

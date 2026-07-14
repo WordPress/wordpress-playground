@@ -1681,7 +1681,7 @@ echo get_option('blogname');
 		expect(blogName).toBe(expectedBlogName);
 	});
 
-	test('should persist the choice not to offer autosave restores', async ({
+	test('should persist disabling the You Have Autosave nudge', async ({
 		website,
 		browserName,
 	}) => {
@@ -1709,10 +1709,10 @@ echo get_option('blogname');
 		expect(
 			await website.page.evaluate(() =>
 				localStorage.getItem(
-					'playground-disable-autosave-restore-notifications'
+					'playground-you-have-autosave-nudge-enabled'
 				)
 			)
-		).toBe('true');
+		).toBe('false');
 
 		await website.page.goto(setupUrl);
 		await expect(nudge).toHaveCount(0);
