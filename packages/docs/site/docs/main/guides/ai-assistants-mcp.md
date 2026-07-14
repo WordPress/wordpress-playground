@@ -95,7 +95,7 @@ If the assistant says no browser tab is connected, open the MCP Playground URL i
 
 ## MCP vs CLI
 
-WordPress Playground has two complementary products: the Playground website and the Playground CLI. The website is the browser experience at [playground.wordpress.net](https://playground.wordpress.net/). The CLI is the local automation environment for terminal, scripting, and CI workflows.
+WordPress Playground has two complementary products: the Playground website and the Playground CLI. The website is the browser experience at [playground.wordpress.net](https://playground.wordpress.net/). The CLI is the local environment for development, scripting, and CI workflows.
 
 The choice depends on what you want the AI assistant to control.
 
