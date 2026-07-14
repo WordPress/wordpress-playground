@@ -7,8 +7,16 @@ import {
 	type Tooltip,
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
-import { Button, Icon, Notice } from '@wordpress/components';
-import { download, link } from '@wordpress/icons';
+import {
+	Button,
+	Dropdown,
+	Icon,
+	MenuGroup,
+	MenuItem,
+	Notice,
+	Tooltip as WpTooltip,
+} from '@wordpress/components';
+import { chevronDown, download, help, link } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -265,6 +273,7 @@ export type BlueprintBundleEditorProps = {
 	site?: SiteInfo;
 	autoRunToken?: number;
 	readOnly?: boolean;
+	dockPresentation?: boolean;
 };
 
 export interface BlueprintBundleEditorHandle {
@@ -277,7 +286,14 @@ export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintFilesystemEditor(
-	{ filesystem, className, site, autoRunToken, readOnly },
+	{
+		filesystem,
+		className,
+		site,
+		autoRunToken,
+		readOnly,
+		dockPresentation = false,
+	},
 	ref
 ) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>('/');
@@ -719,7 +735,11 @@ export const BlueprintBundleEditor = forwardRef<
 	const disableRunButton = isRecreating || !site || hasValidationErrors;
 	return (
 		<>
-			<div className={classNames(styles.container, className)}>
+			<div
+				className={classNames(styles.container, className, {
+					[styles.dockPresentation]: dockPresentation,
+				})}
+			>
 				<div
 					className={classNames(styles.content, {
 						[styles.sidebarOpen]: showExplorerOnMobile,
@@ -745,6 +765,14 @@ export const BlueprintBundleEditor = forwardRef<
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
 							readOnly={readOnly || isRecreating}
+							{...(dockPresentation
+								? {
+										title: 'Blueprint',
+										showBinaryPreviewHeader: false,
+										dockPresentation: true,
+										useWordPressTooltips: true,
+									}
+								: {})}
 						/>
 					</aside>
 					<section className={styles.editorWrapper}>
@@ -762,36 +790,133 @@ export const BlueprintBundleEditor = forwardRef<
 									? 'Hide files'
 									: 'Browse files'}
 							</Button>
-							<div
-								className={classNames(styles.editorPath, {
-									[styles.editorPathPlaceholder]:
-										!currentPath?.length,
-								})}
-							>
-								{displayPath ||
-									selectedDirPath ||
-									'Browse files under /'}
-							</div>
+							{!dockPresentation && (
+								<div
+									className={classNames(styles.editorPath, {
+										[styles.editorPathPlaceholder]:
+											!currentPath?.length,
+									})}
+								>
+									{displayPath ||
+										selectedDirPath ||
+										'Browse files under /'}
+								</div>
+							)}
 
 							<div className={styles.editorHeaderActions}>
-								<Button
-									variant="tertiary"
-									className={styles.editorToolbarButton}
-									onClick={handleShareBlueprint}
-									title="Copy link to blueprint"
-									aria-label="Copy link to blueprint"
-									disabled={!isBundleShareable}
-								>
-									<Icon icon={link} />
-								</Button>
-								<Button
-									variant="tertiary"
-									className={styles.editorToolbarButton}
-									onClick={handleDownloadBundle}
-									title="Download bundle"
-								>
-									<Icon icon={download} />
-								</Button>
+								{dockPresentation ? (
+									<>
+										<WpTooltip
+											text="See Blueprints documentation"
+											delay={0}
+											placement="top"
+										>
+											<a
+												className={
+													styles.editorDocsLink
+												}
+												href="https://wordpress.github.io/wordpress-playground/blueprints"
+												target="_blank"
+												rel="noreferrer"
+												aria-label="See Blueprints documentation"
+											>
+												<Icon icon={help} size={24} />
+											</a>
+										</WpTooltip>
+										<Dropdown
+											className={styles.editorExport}
+											popoverProps={{
+												placement: 'bottom-end',
+											}}
+											renderToggle={({
+												isOpen,
+												onToggle,
+											}) => (
+												<Button
+													variant="secondary"
+													className={classNames(
+														styles.editorToolbarButton,
+														styles.editorExportToggle
+													)}
+													onClick={onToggle}
+													aria-expanded={isOpen}
+													aria-haspopup="menu"
+												>
+													Export
+													<Icon
+														icon={chevronDown}
+														size={20}
+													/>
+												</Button>
+											)}
+											renderContent={({ onClose }) => (
+												<>
+													<MenuGroup>
+														<MenuItem
+															icon={link}
+															disabled={
+																!isBundleShareable
+															}
+															onClick={() => {
+																handleShareBlueprint();
+																onClose();
+															}}
+														>
+															Copy Blueprint URL
+														</MenuItem>
+														<MenuItem
+															icon={download}
+															onClick={() => {
+																handleDownloadBundle();
+																onClose();
+															}}
+														>
+															Download Zip
+														</MenuItem>
+													</MenuGroup>
+													{!isBundleShareable && (
+														<p
+															className={
+																styles.exportHint
+															}
+														>
+															Multi-file
+															Blueprints can’t be
+															shared as a URL —
+															download a zip
+															instead.
+														</p>
+													)}
+												</>
+											)}
+										/>
+									</>
+								) : (
+									<>
+										<Button
+											variant="tertiary"
+											className={
+												styles.editorToolbarButton
+											}
+											onClick={handleShareBlueprint}
+											title="Copy link to blueprint"
+											aria-label="Copy link to blueprint"
+											disabled={!isBundleShareable}
+										>
+											<Icon icon={link} />
+										</Button>
+										<Button
+											variant="tertiary"
+											className={
+												styles.editorToolbarButton
+											}
+											onClick={handleDownloadBundle}
+											title="Download bundle"
+										>
+											<Icon icon={download} />
+										</Button>
+									</>
+								)}
 								{!readOnly && (
 									<Button
 										variant="primary"
@@ -837,7 +962,9 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{!readOnly && !isBundleShareable ? (
+						{!dockPresentation &&
+						!readOnly &&
+						!isBundleShareable ? (
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="warning" isDismissible={false}>
 									This Blueprint bundle contains multiple

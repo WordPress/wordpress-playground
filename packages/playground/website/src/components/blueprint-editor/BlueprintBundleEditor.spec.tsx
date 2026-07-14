@@ -14,6 +14,7 @@ const EDITED_BLUEPRINT = '{"steps":[{"step":"login"}]}';
 const mocks = vi.hoisted(() => ({
 	changeCode: undefined as ((code: string) => void) | undefined,
 	dispatch: vi.fn(),
+	fileExplorerProps: undefined as Record<string, unknown> | undefined,
 	resolveRuntimeConfiguration: vi.fn(),
 }));
 
@@ -34,7 +35,10 @@ vi.mock('@wp-playground/components', async () => {
 				return null;
 			}
 		),
-		FileExplorerSidebar: () => null,
+		FileExplorerSidebar: (props: Record<string, unknown>) => {
+			mocks.fileExplorerProps = props;
+			return null;
+		},
 	};
 });
 
@@ -79,6 +83,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			writeFile,
 		} as unknown as AsyncWritableFilesystem;
 		mocks.changeCode = undefined;
+		mocks.fileExplorerProps = undefined;
 		mocks.dispatch.mockReset();
 		mocks.resolveRuntimeConfiguration.mockReset();
 	});
@@ -123,9 +128,38 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		);
 	});
 
-	async function renderEditor(): Promise<
-		React.RefObject<BlueprintBundleEditorHandle>
-	> {
+	it('keeps the existing presentation by default', async () => {
+		await renderEditor();
+
+		expect(container.textContent).not.toContain('Export');
+		expect(
+			container.querySelector(
+				'a[aria-label="See Blueprints documentation"]'
+			)
+		).toBeNull();
+		expect(mocks.fileExplorerProps).not.toHaveProperty('dockPresentation');
+	});
+
+	it('can render the Blueprint editor as Dock content', async () => {
+		await renderEditor(true);
+
+		expect(container.textContent).toContain('Export');
+		expect(
+			container.querySelector(
+				'a[aria-label="See Blueprints documentation"]'
+			)
+		).not.toBeNull();
+		expect(mocks.fileExplorerProps).toMatchObject({
+			title: 'Blueprint',
+			showBinaryPreviewHeader: false,
+			dockPresentation: true,
+			useWordPressTooltips: true,
+		});
+	});
+
+	async function renderEditor(
+		dockPresentation = false
+	): Promise<React.RefObject<BlueprintBundleEditorHandle>> {
 		const editorRef = createRef<BlueprintBundleEditorHandle>();
 		await act(async () => {
 			root.render(
@@ -133,6 +167,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 					ref={editorRef}
 					filesystem={filesystem}
 					site={site}
+					dockPresentation={dockPresentation}
 				/>
 			);
 			await Promise.resolve();
