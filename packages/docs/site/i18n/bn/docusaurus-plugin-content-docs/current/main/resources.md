@@ -21,7 +21,6 @@ There's a set of redirections in place to make it easier the access to some of t
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(see [URLReference](/blueprints/steps/resources#urlreference) for more info)</em></li>
 </ul>
 
 </div>
@@ -37,7 +36,6 @@ There's a set of redirections in place to make it easier the access to some of t
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → প্লেগ্রাউন্ড ব্লুপ্রিন্ট বিল্ডার</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → ওয়ার্ডপ্রেসের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → গুটেনবার্গের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → প্লেগ্রাউন্ড প্রক্সি সার্ভিস <em>(আরও তথ্যের জন্য [URLReference](/blueprints/steps/resources#urlreference) দেখুন)</em></li>
 </ul>
 
 </div>
@@ -67,10 +65,8 @@ There's a set of redirections in place to make it easier the access to some of t
 - Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
-- [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
-- [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 - [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
 - [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
@@ -87,10 +83,8 @@ There's a set of redirections in place to make it easier the access to some of t
 - লাইভ ট্রান্সলেশন: [অ্যাপ](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [ঘোষণা](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [আরও বিস্তারিত](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [ইন্টারেক্টিভ কোড ব্লক](https://wordpress.org/plugins/interactive-code-block/) যা [HTML ট্যাগ প্রসেসর টিউটোরিয়াল](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) এবং [প্লেগ্রাউন্ড JS API টিউটোরিয়ালকে](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/) পরিচালনা করে
 - [গুটেনবার্গ পুল রিকোয়েস্ট প্রিভিউয়ার](https://playground.wordpress.net/gutenberg.html)
-- [নোটিফিকেশন প্লাগইন লাইভ ডেমো](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – আপনার ফোনে ওয়ার্ডপ্রেস চালানো প্রথম iOS অ্যাপ
-- [প্লেগ্রাউন্ড এমবেডার](https://joost.blog/embedded-playground/) যা শর্টকোড ব্যবহার করে WordPress.org ডকুমেন্টেশনে প্লেগ্রাউন্ডের উদাহরণ এমবেড করতে পারে
 - [wp.org-এ প্লাগইন ডেমো](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – একটি ইউজার স্ক্রিপ্ট যা WordPress.org-এ প্লাগইন পেজগুলোতে একটি "demo" ট্যাব যুক্ত করে
 - [ওয়ার্ডপ্রেস পুল রিকোয়েস্ট প্রিভিউয়ার](https://playground.wordpress.net/wordpress.html)
 - [দুটি প্লেগ্রাউন্ডের মধ্যে সিনক্রোনাইজেশন](https://playground.wordpress.net/demos/sync.html)

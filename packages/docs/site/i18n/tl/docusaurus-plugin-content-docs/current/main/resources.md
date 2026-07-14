@@ -15,7 +15,6 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Blueprint Builder ng Playground</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer para sa WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer para sa Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(tingnan ang [URLReference](/blueprints/steps/resources#urlreference) para sa detalye)</em></li>
 </ul>
 
 </div>
@@ -30,15 +29,13 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 ## Mga App na Ginawa Gamit ang WordPress Playground
 
 - [Opisyal na demo](https://playground.wordpress.net/) at ang [showcase](https://developer.wordpress.org/playground) app – mag-install ng theme, subukan ang plugin, gumawa ng pahina, at i-export ang ginawa mo
-- [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) – CLI tool para sa instant na WordPress dev envs
+- [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – CLI tool para sa instant na WordPress dev envs
 - [WordPress Playground para sa VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 - Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [detalye](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
-- [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) na nagpapatakbo ng [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) at [Playground JS API tutorial](https://adamadam.blog/2023/04/12/interactive-intro-to-wordpress-playground-public-api/)
+- [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) na nagpapatakbo ng [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) at [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
-- [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – ang kauna-unahang iOS app na nagpapatakbo ng WordPress sa iyong telepono
-- [Playground embedder](https://joost.blog/embedded-playground/) para mag-embed ng mga Playground example sa WordPress.org documentation gamit ang shortcodes
 - [Plugin demos sa wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – userscript na nagdaragdag ng "demo" tab sa mga pahina ng plugin sa WordPress.org
 - [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 - [Synchronization sa pagitan ng dalawang Playground](https://playground.wordpress.net/demos/sync.html)

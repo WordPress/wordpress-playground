@@ -24,7 +24,6 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → WordPress માટે Playground PR viewer</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Gutenberg માટે Playground PR viewer</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(વધુ માહિતી માટે [URLReference](/blueprints/steps/resources#urlreference) જુઓ)</em></li>
 </ul>
 
 </div>
@@ -60,10 +59,8 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
--   [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 -   [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 -   [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
--   [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 -   [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
 -   [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 -   [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
@@ -78,10 +75,8 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) જે [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) અને [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/) ને સંચાલિત કરે છે
 - [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
-- [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – તમારા ફોન પર WordPress ચલાવતી પ્રથમ iOS એપ
-- [Playground embedder](https://joost.blog/embedded-playground/) shortcodes નો ઉપયોગ કરીને WordPress.org documentation માં Playground ઉદાહરણો એમ્બેડ કરવા માટે
 - [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – એક user script જે WordPress.org પર plugin પૃષ્ઠો પર "demo" ટેબ ઉમેરે છે
 - [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 - [બે Playgrounds વચ્ચે સમન્વય](https://playground.wordpress.net/demos/sync.html)

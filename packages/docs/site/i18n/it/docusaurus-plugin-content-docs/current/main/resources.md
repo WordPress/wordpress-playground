@@ -16,7 +16,6 @@ Sono disponibili alcuni reindirizzamenti per facilitare l’accesso agli strumen
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → generatore di Blueprint di Playground</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → visualizzatore delle pull request di WordPress in Playground</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → visualizzatore delle pull request di Gutenberg in Playground</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → precedente servizio proxy di Playground <em>(per i repository Git, preferisci [git:directory](/blueprints/steps/resources#gitdirectoryreference))</em></li>
 </ul>
 
 </div>
@@ -37,10 +36,8 @@ Sono disponibili alcuni reindirizzamenti per facilitare l’accesso agli strumen
 - Traduzioni in tempo reale: [applicazione](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [annuncio](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [ulteriori dettagli](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Blocco di codice interattivo](https://wordpress.org/plugins/interactive-code-block/) usato nel [tutorial su HTML Tag Processor](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) e nel [tutorial sull’API JavaScript di Playground](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Visualizzatore delle pull request di Gutenberg](https://playground.wordpress.net/gutenberg.html)
-- [Demo dal vivo del plugin Notifications](https://johnhooks.io/playground-experiment/)
 - [REPL GraphQL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – la prima applicazione iOS in assoluto che esegue WordPress sul telefono
-- [Playground embedder](https://joost.blog/embedded-playground/) per incorporare esempi di Playground nella documentazione di WordPress.org tramite shortcode
 - [Demo dei plugin su WordPress.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – uno userscript che aggiunge una scheda «demo» alle pagine dei plugin su WordPress.org
 - [Visualizzatore delle pull request di WordPress](https://playground.wordpress.net/wordpress.html)
 - [Sincronizzazione tra due Playground](https://playground.wordpress.net/demos/sync.html)

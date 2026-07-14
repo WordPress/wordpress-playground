@@ -24,7 +24,6 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Constructeur de blueprints Playground</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visualiseur de PR Playground pour WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visualiseur de PR Playground pour Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Service Proxy Playground <em>(voir [URLReference](/blueprints/steps/resources#urlreference) pour plus d'information)</em></li>
 </ul>
 
 </div>
@@ -60,10 +59,8 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
--   [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 -   [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 -   [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
--   [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 -   [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
 -   [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 -   [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
@@ -78,10 +75,8 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 - Traductions en direct : [Application](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [annonce](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [plus de détails](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Bloc de code interactif](https://wordpress.org/plugins/interactive-code-block/) qui alimente le [tutoriel HTML Tag Processor](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) et le [tutoriel API JS de Playground](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Visualiseur de Pull Request Gutenberg](https://playground.wordpress.net/gutenberg.html)
-- [Démo en direct de l'extension Notifications](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – la toute première application iOS exécutant WordPress sur votre téléphone
-- [Intégrateur Playground](https://joost.blog/embedded-playground/) pour intégrer des exemples Playground dans la documentation WordPress.org à l'aide de shortcodes
 - [Démos d'extensions sur wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – un script utilisateur qui ajoute un onglet « démo » aux pages d'extensions sur WordPress.org
 - [Visualiseur de Pull Request WordPress](https://playground.wordpress.net/wordpress.html)
 - [Synchronisation entre deux Playgrounds](https://playground.wordpress.net/demos/sync.html)

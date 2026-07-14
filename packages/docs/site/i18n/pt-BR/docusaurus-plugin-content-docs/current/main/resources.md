@@ -21,7 +21,6 @@ There's a set of redirections in place to make it easier the access to some of t
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(see [URLReference](/blueprints/steps/resources#urlreference) for more info)</em></li>
 </ul>
 
 </div>
@@ -37,7 +36,6 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Construtor de Blueprints do Playground</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visualizador de PR do Playground para WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visualizador de PR do Playground para Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Serviço Proxy do Playground <em>(veja [URLReference](/blueprints/steps/resources#urlreference) para mais informações)</em></li>
 </ul>
 
 </div>
@@ -73,10 +71,8 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
--   [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 -   [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 -   [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
--   [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 -   [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
 -   [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 -   [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
@@ -91,10 +87,8 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 - Traduções ao vivo: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [anúncio](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [mais detalhes](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Bloco de código interativo](https://wordpress.org/plugins/interactive-code-block/) que alimenta o [tutorial do Processador de Tags HTML](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) e o [tutorial da API JS do Playground](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Visualizador de Pull Request do Gutenberg](https://playground.wordpress.net/gutenberg.html)
-- [Demo ao vivo do plugin de notificações](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – o primeiro aplicativo iOS que executa WordPress no seu telefone
-- [Incorporador de Playground](https://joost.blog/embedded-playground/) para incorporar exemplos do Playground na documentação do WordPress.org usando shortcodes
 - [Demos de plugins no wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – um script de usuário que adiciona uma aba "demo" às páginas de plugins no WordPress.org
 - [Visualizador de Pull Request do WordPress](https://playground.wordpress.net/wordpress.html)
 - [Sincronização entre dois Playgrounds](https://playground.wordpress.net/demos/sync.html)
