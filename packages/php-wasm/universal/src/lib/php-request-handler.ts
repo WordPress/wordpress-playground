@@ -1,10 +1,4 @@
-import { dirname, joinPaths } from '@php-wasm/util';
-import {
-	ensurePathPrefix,
-	toRelativeUrl,
-	removePathPrefix,
-	DEFAULT_BASE_URL,
-} from './urls';
+import { ensurePathPrefix, toRelativeUrl, DEFAULT_BASE_URL } from './urls';
 import type { PHP } from './php';
 import { normalizeHeaders } from './php';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
@@ -16,6 +10,8 @@ import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
 import { SinglePHPInstanceManager } from './single-php-instance-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
+import { RequestRouter } from './request-router';
+import type { RouterFilesystem } from './request-router';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -448,201 +444,57 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns A StreamedPHPResponse.
 	 */
 	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
-		const isAbsolute = looksLikeAbsoluteUrl(request.url);
-		const originalRequestUrl = new URL(
-			// Remove the hash part of the URL as it's not meant for the server.
-			request.url.split('#')[0],
-			isAbsolute ? undefined : DEFAULT_BASE_URL
-		);
-
-		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
 		const primaryPhp = await this.getPrimaryPhp();
-		/**
-		 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
-		 * into a site-relative path, such as `/wp-admin/index.php`.
-		 */
-		const siteRelativePath = removePathPrefix(
-			/**
-			 * URL.pathname returns a URL-encoded path. We need to decode it
-			 * before using it as a filesystem path.
-			 */
-			decodeURIComponent(rewrittenRequestUrl.pathname),
-			this.#PATHNAME
-		);
-		let fsPath = this.#resolveToFsPath(siteRelativePath);
-		if (primaryPhp.isDir(fsPath)) {
-			// Ensure directory URIs have a trailing slash. Otherwise,
-			// relative URIs in index.php or index.html files are relative
-			// to the next directory up.
-			//
-			// Example:
-			// For an index page served for URI "/settings", we naturally expect
-			// links to be relative to "/settings", but without the trailing
-			// slash, a relative link "edit.php" resolves to "/edit.php"
-			// rather than "/settings/edit.php".
-			//
-			// This treatment of relative links is correct behavior for the browser:
-			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
-			//
-			// But user intent for `/settings/index.php` is that its relative
-			// URIs are relative to `/settings/`. So we redirect to add a
-			// trailing slash to directory URIs to meet this expecatation.
-			//
-			// This behavior is also necessary for WordPress to function properly.
-			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
-			// links to other admin pages like `edit.php` will incorrectly
-			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
-			if (!siteRelativePath.endsWith('/')) {
+		const route = this.#createRouter(primaryPhp).resolve(request);
+
+		switch (route.type) {
+			case 'static-file':
+				return StreamedPHPResponse.fromPHPResponse(
+					this.#serveStaticFile(primaryPhp, route.fsPath)
+				);
+			case 'php':
+				return await this.#spawnPHPAndDispatchRequest(
+					request,
+					route.originalRequestUrl,
+					route.rewrittenRequestUrl,
+					route.fsPath
+				);
+			case 'redirect':
 				return StreamedPHPResponse.fromPHPResponse(
 					new PHPResponse(
-						301,
-						{ location: [`${rewrittenRequestUrl.pathname}/`] },
+						route.statusCode,
+						route.headers,
 						new Uint8Array(0)
 					)
 				);
-			}
-
-			// We can only satisfy requests for directories with a default file
-			// so let's first resolve to a default path when available.
-			for (const possibleIndexFile of ['index.php', 'index.html']) {
-				const possibleIndexPath = joinPaths(fsPath, possibleIndexFile);
-				if (primaryPhp.isFile(possibleIndexPath)) {
-					fsPath = possibleIndexPath;
-
-					// Include the resolved index file in the final rewritten request URL.
-					rewrittenRequestUrl.pathname = joinPaths(
-						rewrittenRequestUrl.pathname,
-						possibleIndexFile
-					);
-					break;
-				}
-			}
-		}
-
-		if (!primaryPhp.isFile(fsPath)) {
-			/**
-			 * Try resolving a partial path.
-			 *
-			 * Example:
-			 *
-			 * – Request URL: /file.php/index.php
-			 * – Document Root: /var/www
-			 *
-			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
-			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
-			 */
-			let pathToTry = siteRelativePath;
-			while (
-				pathToTry.startsWith('/') &&
-				pathToTry !== dirname(pathToTry)
-			) {
-				pathToTry = dirname(pathToTry);
-				const resolvedPathToTry = this.#resolveToFsPath(pathToTry);
-				if (
-					primaryPhp.isFile(resolvedPathToTry) &&
-					// Only run partial path resolution for PHP files.
-					resolvedPathToTry.endsWith('.php')
-				) {
-					fsPath = this.#resolveToFsPath(pathToTry);
-					break;
-				}
-			}
-		}
-
-		if (!primaryPhp.isFile(fsPath)) {
-			const fileNotFoundAction = this.getFileNotFoundAction(
-				rewrittenRequestUrl.pathname
-			);
-			switch (fileNotFoundAction.type) {
-				case 'response':
-					return StreamedPHPResponse.fromPHPResponse(
-						fileNotFoundAction.response
-					);
-				case 'internal-redirect':
-					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
-					break;
-				case '404':
-					return StreamedPHPResponse.forHttpCode(404);
-				default:
-					throw new Error(
-						'Unsupported file-not-found action type: ' +
-							// Cast because TS asserts the remaining possibility is `never`
-							`'${
-								(fileNotFoundAction as FileNotFoundAction).type
-							}'`
-					);
-			}
-		}
-
-		// We need to confirm that the current target file exists because
-		// file-not-found fallback actions may redirect to non-existent files.
-		if (primaryPhp.isFile(fsPath)) {
-			if (fsPath.endsWith('.php')) {
-				return await this.#spawnPHPAndDispatchRequest(
-					request,
-					originalRequestUrl,
-					rewrittenRequestUrl,
-					fsPath
-				);
-			} else {
-				return StreamedPHPResponse.fromPHPResponse(
-					this.#serveStaticFile(primaryPhp, fsPath)
-				);
-			}
-		} else {
-			return StreamedPHPResponse.forHttpCode(404);
+			case 'response':
+				return StreamedPHPResponse.fromPHPResponse(route.response);
+			case '404':
+				return StreamedPHPResponse.forHttpCode(404);
 		}
 	}
 
 	/**
-	 * Apply the rewrite rules to the original request URL.
+	 * Builds a RequestRouter for a single request.
 	 *
-	 * @param originalRequestUrl - The original request URL.
-	 * @returns The rewritten request URL.
+	 * A fresh router per request keeps the routing decisions in sync with
+	 * `rewriteRules` and `getFileNotFoundAction`, which are public and may
+	 * be reassigned between requests, and with the PHP instance backing the
+	 * filesystem lookups.
 	 */
-	#applyRewriteRules(originalRequestUrl: URL): URL {
-		const siteRelativePath = removePathPrefix(
-			decodeURIComponent(originalRequestUrl.pathname),
-			this.#PATHNAME
-		);
-		const rewrittenRequestPath = applyRewriteRules(
-			siteRelativePath,
-			this.rewriteRules
-		);
-		const rewrittenRequestUrl = new URL(
-			joinPaths(this.#PATHNAME, rewrittenRequestPath),
-			originalRequestUrl.toString()
-		);
-		// Merge the query string parameters from the original request URL.
-		for (const [key, value] of originalRequestUrl.searchParams.entries()) {
-			rewrittenRequestUrl.searchParams.append(key, value);
-		}
-		return rewrittenRequestUrl;
-	}
-
-	/**
-	 * Resolves a URL path to a filesystem path, checking path aliases first.
-	 *
-	 * If the URL path matches a configured alias prefix, the alias's
-	 * filesystem path is used instead of the document root.
-	 *
-	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
-	 * @returns The resolved filesystem path
-	 */
-	#resolveToFsPath(urlPath: string): string {
-		// Check if the URL path matches any alias
-		for (const alias of this.#pathAliases) {
-			if (
-				urlPath === alias.urlPrefix ||
-				urlPath.startsWith(alias.urlPrefix + '/')
-			) {
-				// Replace the URL prefix with the filesystem path
-				const relativePath = urlPath.slice(alias.urlPrefix.length);
-				return joinPaths(alias.fsPath, relativePath);
-			}
-		}
-		// No alias matched, use the document root
-		return joinPaths(this.#DOCROOT, urlPath);
+	#createRouter(php: PHP): RequestRouter {
+		const fs: RouterFilesystem = {
+			isFile: (path: string) => php.isFile(path),
+			isDir: (path: string) => php.isDir(path),
+		};
+		return new RequestRouter({
+			documentRoot: this.#DOCROOT,
+			pathname: this.#PATHNAME,
+			rewriteRules: this.rewriteRules,
+			pathAliases: this.#pathAliases,
+			getFileNotFoundAction: (uri) => this.getFileNotFoundAction(uri),
+			fs,
+		});
 	}
 
 	/**
@@ -657,9 +509,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 			200,
 			{
 				'content-length': [`${arrayBuffer.byteLength}`],
-				// @TODO: Infer the content-type from the arrayBuffer instead of the
-				// file path. The code below won't return the correct mime-type if the
-				// extension was tampered with.
+				// @TODO: Infer the content-type from the
+				// arrayBuffer instead of the file path.
+				// The code below won't return the correct
+				// mime-type if the extension was tampered with.
 				'content-type': [inferMimeType(fsPath)],
 				'accept-ranges': ['bytes'],
 				'cache-control': ['public, max-age=0'],
@@ -1034,23 +887,4 @@ export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 		}
 	}
 	return path;
-}
-
-/**
- * Checks if the given URL looks like an absolute URL.
- *
- * @param url - The URL to check.
- * @returns `true` if the URL looks like an absolute URL, `false` otherwise.
- */
-function looksLikeAbsoluteUrl(url: string): boolean {
-	try {
-		// NOTE: We could just use URL.canParse() but are avoiding it here
-		// because we've seen users with older Safari versions that don't support it.
-		// Maybe Playground will break in other ways for them,
-		// but since this is an easy, low-risk change, let's give it a try.
-		new URL(url);
-		return true;
-	} catch {
-		return false;
-	}
 }

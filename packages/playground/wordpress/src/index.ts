@@ -18,7 +18,9 @@ export {
 	bootWordPressAndRequestHandler,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
+	getWordPressRoutingConfig,
 } from './boot';
+export type { WordPressRoutingOptions } from './boot';
 export * from './streaming-tar-extract';
 export type {
 	PhpIniOptions,

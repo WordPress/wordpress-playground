@@ -482,12 +482,8 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	}
 
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
-		documentRoot: options.documentRoot || '/wordpress',
+		...getWordPressRoutingConfig(options),
 		absoluteUrl: options.siteUrl,
-		rewriteRules: wordPressRewriteRules,
-		pathAliases: options.pathAliases,
-		getFileNotFoundAction:
-			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
 
 		/**
@@ -633,6 +629,38 @@ async function installWordPress(php: PHP) {
 	if (defaultedToPrettyPermalinks.text !== '1') {
 		logger.warn('Failed to default to pretty permalinks after WP install.');
 	}
+}
+
+/**
+ * The inputs a request router needs to resolve a request URL to a file in a
+ * WordPress installation.
+ */
+export type WordPressRoutingOptions = {
+	documentRoot?: string;
+	pathAliases?: PathAlias[];
+	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+};
+
+/**
+ * Builds the routing configuration for a WordPress site.
+ *
+ * Every router resolving requests for the same site must be built from this
+ * function. `bootWordPress()` uses it for the `PHPRequestHandler` running in
+ * the worker, and the Playground CLI uses it for the `RequestRouter` that
+ * serves static files from the main thread. Should the two disagree on the
+ * document root, the rewrite rules or the file-not-found action, the same
+ * request could resolve to a different file depending on which one saw it.
+ */
+export function getWordPressRoutingConfig(
+	options: WordPressRoutingOptions = {}
+) {
+	return {
+		documentRoot: options.documentRoot || '/wordpress',
+		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases ?? [],
+		getFileNotFoundAction:
+			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
+	};
 }
 
 export function getFileNotFoundActionForWordPress(

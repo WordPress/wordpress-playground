@@ -16,7 +16,10 @@ import {
 	exposeSyncAPI,
 	printDebugDetails,
 	describeError,
+	RequestRouter,
+	inferMimeType,
 } from '@php-wasm/universal';
+import type { RouterFilesystem } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
@@ -28,8 +31,16 @@ import {
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
+import fs, {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	rmSync,
+	statSync,
+	createReadStream,
+} from 'fs';
 import type { Server } from 'http';
+import { Readable } from 'stream';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import {
@@ -68,7 +79,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import { type WordPressInstallMode } from '@wp-playground/wordpress';
+import {
+	type WordPressInstallMode,
+	getWordPressRoutingConfig,
+} from '@wp-playground/wordpress';
 import {
 	type Mount,
 	addXdebugIDEConfig,
@@ -1030,6 +1044,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
+	let mainThreadRouter: RequestRouter | undefined;
+	let mapVfsToHost: ((vfsPath: string) => string | undefined) | undefined;
 
 	const server = await startServer({
 		port: args.port
@@ -1385,6 +1401,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				});
 			}
 
+			// Build the mount table (VFS path → host path) so the
+			// main-thread router can map VFS paths to host disk.
+			// Post-install mounts override pre-install mounts for
+			// the same VFS prefix.
+			const allMounts = [
+				...(args['mount-before-install'] || []),
+				...(args['mount'] || []),
+			];
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			const useBlueprintsV2Handler = await shouldUseBlueprintsV2Handler(
 				args,
@@ -1551,6 +1576,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					wordPressReady = true;
 
+					// Create main-thread router backed by the
+					// host filesystem so static files can be served
+					// without a worker round-trip.
+					const routerResult = createMainThreadRouter(
+						allMounts,
+						args['pathAliases'] || []
+					);
+					mainThreadRouter = routerResult.router;
+					mapVfsToHost = routerResult.mapVfsToHost;
+
 					if (useBlueprintsV2Handler) {
 						const compiledInputBlueprint =
 							await handler.compileInputBlueprint(
@@ -1703,6 +1738,28 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					new PHPResponse(302, headers, new Uint8Array())
 				);
 			}
+			// Main-thread routing: serve static files straight from the
+			// host filesystem so they don't occupy a PHP worker.
+			//
+			// Only a `static-file` route is handled here, and only when the
+			// file is really present on the host. Every other outcome —
+			// PHP scripts, redirects, 404s, file-not-found fallbacks — is
+			// left to the worker, which owns the authoritative filesystem
+			// and request handler configuration. Answering those here would
+			// mean duplicating the worker's routing policy against a
+			// filesystem view that only covers the mounted directories.
+			if (mainThreadRouter && mapVfsToHost) {
+				const route = mainThreadRouter.resolve(request);
+				if (route.type === 'static-file') {
+					const hostPath = mapVfsToHost(route.fsPath);
+					const response =
+						hostPath && serveStaticFileFromHost(hostPath);
+					if (response) {
+						return response;
+					}
+				}
+			}
+
 			if (cookieStore) {
 				request = {
 					...request,
@@ -1718,8 +1775,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				};
 			}
 
-			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
-			// It might be more efficient to let the worker respond directly
 			const response = await playgroundPool.requestStreamed(request);
 
 			if (cookieStore) {
@@ -1817,6 +1872,133 @@ function validateAndNormalizeBlueprintsV2Args(
 	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
 		args.mode = 'mount-only';
 	}
+}
+
+/**
+ * Creates a RequestRouter backed by the host filesystem for
+ * main-thread static file serving.
+ *
+ * The router maps VFS paths (e.g. /wordpress/wp-content/style.css)
+ * to host paths via the CLI's mount table, allowing static files to
+ * be served directly from disk without a worker round-trip.
+ */
+function createMainThreadRouter(
+	mounts: Mount[],
+	pathAliases: PathAlias[]
+): {
+	router: RequestRouter;
+	mapVfsToHost: (vfsPath: string) => string | undefined;
+} {
+	// Sort mounts longest-prefix-first so the most specific mount wins when
+	// multiple mounts overlap. Two mounts of the same VFS path are broken by
+	// mount order, so the last one applied wins — as it does in the VFS.
+	const sortedMounts = mounts
+		.map((mount, order) => ({ mount, order }))
+		.sort(
+			(a, b) =>
+				b.mount.vfsPath.length - a.mount.vfsPath.length ||
+				b.order - a.order
+		)
+		.map(({ mount }) => mount);
+
+	function mapVfsToHost(vfsPath: string): string | undefined {
+		for (const mount of sortedMounts) {
+			if (
+				vfsPath === mount.vfsPath ||
+				vfsPath.startsWith(mount.vfsPath + '/')
+			) {
+				const relativePath = vfsPath.slice(mount.vfsPath.length);
+				return path.join(mount.hostPath, relativePath);
+			}
+		}
+		return undefined;
+	}
+
+	const hostFs: RouterFilesystem = {
+		isFile(vfsPath: string): boolean {
+			const hostPath = mapVfsToHost(vfsPath);
+			if (!hostPath) return false;
+			try {
+				return statSync(hostPath).isFile();
+			} catch {
+				return false;
+			}
+		},
+		isDir(vfsPath: string): boolean {
+			const hostPath = mapVfsToHost(vfsPath);
+			if (!hostPath) return false;
+			try {
+				return statSync(hostPath).isDirectory();
+			} catch {
+				return false;
+			}
+		},
+	};
+
+	// Built from the same config as the worker's PHPRequestHandler, so both
+	// resolve a request URL to the same file.
+	const router = new RequestRouter({
+		...getWordPressRoutingConfig({ pathAliases }),
+		fs: hostFs,
+	});
+
+	return { router, mapVfsToHost };
+}
+
+/**
+ * Serves a static file from the host filesystem as a
+ * StreamedPHPResponse, using Node.js streams to avoid
+ * buffering the entire file in memory.
+ *
+ * Returns `undefined` when the file cannot be stat'ed, which happens when
+ * it is removed between the router's `isFile()` check and this call. The
+ * caller then falls back to the PHP worker.
+ */
+function serveStaticFileFromHost(
+	hostPath: string
+): StreamedPHPResponse | undefined {
+	let size: number;
+	try {
+		size = statSync(hostPath).size;
+	} catch {
+		return undefined;
+	}
+
+	const headersJson = JSON.stringify({
+		status: 200,
+		headers: [
+			`content-type: ${inferMimeType(hostPath)}`,
+			`content-length: ${size}`,
+			'accept-ranges: bytes',
+			'cache-control: public, max-age=0',
+		],
+	});
+
+	const headersStream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode(headersJson));
+			controller.close();
+		},
+	});
+
+	// Readable.toWeb() propagates backpressure to the file stream, so a
+	// large file is not read into memory faster than it is sent out.
+	const stdout = Readable.toWeb(
+		createReadStream(hostPath)
+	) as ReadableStream<Uint8Array>;
+
+	const stderr = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.close();
+		},
+	});
+
+	return new StreamedPHPResponse(
+		headersStream,
+		stdout,
+		stderr,
+		Promise.resolve(0)
+	);
 }
 
 /**

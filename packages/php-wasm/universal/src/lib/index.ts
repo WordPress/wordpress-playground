@@ -101,6 +101,12 @@ export type {
 	FileNotFoundAction,
 	CookieStore,
 } from './php-request-handler';
+export { RequestRouter } from './request-router';
+export type {
+	RouterFilesystem,
+	ResolvedRoute,
+	RequestRouterConfig,
+} from './request-router';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
