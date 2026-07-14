@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Notice } from '@wordpress/components';
+import { check } from '@wordpress/icons';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
@@ -25,6 +26,7 @@ export type PlaygroundFileEditorProps = {
 	documentRoot: string;
 	initialPath?: string | null;
 	placeholderText?: string;
+	dockPresentation?: boolean;
 };
 
 type PendingSave = {
@@ -44,6 +46,7 @@ export function PlaygroundFileEditor({
 	documentRoot,
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
+	dockPresentation = false,
 }: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
@@ -411,19 +414,52 @@ export function PlaygroundFileEditor({
 		flushPendingSave();
 	}, [flushPendingSave]);
 
+	const handleDockManualSave = useCallback(() => {
+		if (
+			!pendingSaveRef.current &&
+			saveState === SaveState.ERROR &&
+			filesystem &&
+			currentPath
+		) {
+			pendingSaveRef.current = {
+				filesystem,
+				path: currentPath,
+				content: code,
+			};
+		}
+		if (!pendingSaveRef.current) {
+			return;
+		}
+		setSaveError(null);
+		handleManualSave();
+	}, [code, currentPath, filesystem, handleManualSave, saveState]);
+
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
+	const saveButtonLabel = getSaveButtonLabel(saveState);
+	const saveButtonStateClassName = getSaveButtonStateClassName(
+		saveState,
+		styles
+	);
 
 	if (!filesystem) {
 		return (
-			<div className={styles['container']}>
+			<div
+				className={classNames(styles['container'], {
+					[styles['dockPresentation']]: dockPresentation,
+				})}
+			>
 				<div className={styles['placeholder']}>{placeholderText}</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className={styles['container']}>
+		<div
+			className={classNames(styles['container'], {
+				[styles['dockPresentation']]: dockPresentation,
+			})}
+		>
 			<div
 				className={classNames(styles['content'], {
 					[styles['sidebarOpen']]: showExplorerOnMobile,
@@ -443,6 +479,8 @@ export function PlaygroundFileEditor({
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot={documentRoot}
+						dockPresentation={dockPresentation}
+						useWordPressTooltips={dockPresentation}
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>
@@ -468,14 +506,45 @@ export function PlaygroundFileEditor({
 								? currentPath
 								: `Browse files under ${documentRoot}`}
 						</div>
-						<div
-							className={classNames(
-								styles['saveStatus'],
-								saveStatusClassName
-							)}
-						>
-							{saveStatusLabel}
-						</div>
+						{dockPresentation && !readOnly && currentPath ? (
+							<Button
+								variant={
+									saveState === SaveState.IDLE ||
+									saveState === SaveState.SAVED
+										? 'secondary'
+										: 'primary'
+								}
+								isDestructive={saveState === SaveState.ERROR}
+								icon={
+									saveState === SaveState.IDLE ||
+									saveState === SaveState.SAVED
+										? check
+										: undefined
+								}
+								className={classNames(
+									styles['saveButton'],
+									saveButtonStateClassName
+								)}
+								isBusy={saveState === SaveState.SAVING}
+								disabled={
+									saveState !== SaveState.PENDING &&
+									saveState !== SaveState.ERROR
+								}
+								onClick={handleDockManualSave}
+								title={saveButtonLabel}
+							>
+								{saveButtonLabel}
+							</Button>
+						) : !dockPresentation ? (
+							<div
+								className={classNames(
+									styles['saveStatus'],
+									saveStatusClassName
+								)}
+							>
+								{saveStatusLabel}
+							</div>
+						) : null}
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>
@@ -536,6 +605,32 @@ function getSaveStatusClassName(
 			return styleSheet['saveStatusSaving'];
 		case SaveState.ERROR:
 			return styleSheet['saveStatusError'];
+		default:
+			return undefined;
+	}
+}
+
+function getSaveButtonLabel(saveState: SaveState) {
+	switch (saveState) {
+		case SaveState.PENDING:
+			return 'Save file';
+		case SaveState.SAVING:
+			return 'Saving…';
+		case SaveState.ERROR:
+			return 'Retry save';
+		default:
+			return 'File saved';
+	}
+}
+
+function getSaveButtonStateClassName(
+	saveState: SaveState,
+	styleSheet: typeof styles
+) {
+	switch (saveState) {
+		case SaveState.IDLE:
+		case SaveState.SAVED:
+			return styleSheet['saveButtonSaved'];
 		default:
 			return undefined;
 	}

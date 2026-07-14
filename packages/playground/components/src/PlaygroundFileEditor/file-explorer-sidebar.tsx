@@ -6,7 +6,7 @@ import React, {
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
-import { Icon } from '@wordpress/components';
+import { Button, Icon, Tooltip } from '@wordpress/components';
 import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import styles from './file-explorer.module.css';
@@ -44,6 +44,10 @@ export type FileExplorerSidebarProps = {
 	) => Promise<void> | void;
 	documentRoot: string;
 	readOnly?: boolean;
+	title?: string;
+	showBinaryPreviewHeader?: boolean;
+	dockPresentation?: boolean;
+	useWordPressTooltips?: boolean;
 };
 
 /**
@@ -59,6 +63,10 @@ export function FileExplorerSidebar({
 	onShowMessage,
 	documentRoot,
 	readOnly = false,
+	title = 'Files',
+	showBinaryPreviewHeader = true,
+	dockPresentation = false,
+	useWordPressTooltips = false,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -98,12 +106,34 @@ export function FileExplorerSidebar({
 
 			if (previewRead.type === 'too-large') {
 				const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
+				if (!dockPresentation) {
+					await onShowMessage(
+						path,
+						<>
+							<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
+							<p>
+								Open or download it outside the in-browser
+								editor.
+							</p>
+						</>
+					);
+					return;
+				}
+				const filename = basename(path) || 'download';
 				await onShowMessage(
 					path,
 					<>
 						<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
 						<p>
-							Open or download it outside the in-browser editor.
+							<Button
+								type="button"
+								variant="link"
+								onClick={() => {
+									void downloadFile(path, filename);
+								}}
+							>
+								Download {filename}
+							</Button>
 						</p>
 					</>
 				);
@@ -132,6 +162,7 @@ export function FileExplorerSidebar({
 							mimeType={mimeType}
 							dataUrl={dataUrl}
 							downloadUrl={downloadUrl}
+							showHeader={showBinaryPreviewHeader}
 						/>
 					);
 					return;
@@ -157,6 +188,24 @@ export function FileExplorerSidebar({
 		} catch (error) {
 			logger.error('Could not open file', error);
 			await onShowMessage(null, 'Could not open file.');
+		}
+	};
+
+	/** Reads a rejected large file only after the user asks to download it. */
+	const downloadFile = async (path: string, filename: string) => {
+		try {
+			const file = await filesystem.read(path);
+			const data = new Uint8Array(await file.arrayBuffer());
+			const { url } = createDownloadUrl(data, filename);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+		} catch (error) {
+			logger.error('Could not download file', error);
+			await onShowMessage(path, 'Could not download file.');
 		}
 	};
 
@@ -201,6 +250,7 @@ export function FileExplorerSidebar({
 		<div
 			className={classNames(styles['fileExplorerContainer'], {
 				[styles['dropActive']]: isDraggingSidebar,
+				[styles['dockPresentation']]: dockPresentation,
 			})}
 			onDragEnter={(event) => {
 				if (
@@ -236,55 +286,94 @@ export function FileExplorerSidebar({
 			onDrop={handleSidebarDrop}
 		>
 			<div className={styles['fileExplorerHeader']}>
-				<span className={styles['fileExplorerTitle']}>Files</span>
+				<span className={styles['fileExplorerTitle']}>{title}</span>
 				{!readOnly ? (
 					<div className={styles['fileExplorerActions']}>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => {
-								if (!treeRef.current) {
-									return;
+						<FileActionTooltip
+							label="Create new file"
+							useWordPressTooltip={useWordPressTooltips}
+						>
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton']
+								)}
+								type="button"
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFile();
+								}}
+								aria-label="Create new file"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Create new file'
 								}
-								void treeRef.current.createFile();
-							}}
-							aria-label="Create new file"
-							title="Create new file"
+							>
+								{dockPresentation ? (
+									<FilePlusIcon />
+								) : (
+									<Icon icon={fileIcon} size={20} />
+								)}
+							</button>
+						</FileActionTooltip>
+						<FileActionTooltip
+							label="Create new folder"
+							useWordPressTooltip={useWordPressTooltips}
 						>
-							<Icon icon={fileIcon} size={20} />
-						</button>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => {
-								if (!treeRef.current) {
-									return;
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton']
+								)}
+								type="button"
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFolder();
+								}}
+								aria-label="Create new folder"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Create new folder'
 								}
-								void treeRef.current.createFolder();
-							}}
-							aria-label="Create new folder"
-							title="Create new folder"
+							>
+								{dockPresentation ? (
+									<FolderPlusIcon />
+								) : (
+									<Icon icon={folderIcon} size={20} />
+								)}
+							</button>
+						</FileActionTooltip>
+						<FileActionTooltip
+							label="Upload files"
+							useWordPressTooltip={useWordPressTooltips}
 						>
-							<Icon icon={folderIcon} size={20} />
-						</button>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => uploadInputRef.current?.click()}
-							aria-label="Upload files"
-							title="Upload files"
-						>
-							<Icon icon={upload} size={20} />
-						</button>
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton'],
+									styles['fileExplorerUploadButton']
+								)}
+								type="button"
+								onClick={() => uploadInputRef.current?.click()}
+								aria-label="Upload files"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Upload files'
+								}
+							>
+								<Icon
+									icon={upload}
+									size={dockPresentation ? 16 : 20}
+								/>
+							</button>
+						</FileActionTooltip>
 						<input
 							ref={uploadInputRef}
 							type="file"
@@ -329,3 +418,80 @@ export function FileExplorerSidebar({
 		</div>
 	);
 }
+
+function FileActionTooltip({
+	label,
+	useWordPressTooltip,
+	children,
+}: {
+	label: string;
+	useWordPressTooltip: boolean;
+	children: JSX.Element;
+}) {
+	if (!useWordPressTooltip) {
+		return children;
+	}
+	return (
+		<Tooltip text={label} delay={0} placement="top">
+			{children}
+		</Tooltip>
+	);
+}
+
+const FilePlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M11 6h7l5 5v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M18 6v5h5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
+
+const FolderPlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M6 9h7l3 3h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M6 9V8a2 2 0 0 1 2-2h5l3 3"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
