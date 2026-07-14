@@ -99,12 +99,17 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 					<div className={css.paneHeader}>
 						<div className={css.paneHeaderMain}>
 							<h2>{title}</h2>
-							{headerSubtitle ??
-								(description && (
+							{headerSubtitle !== undefined ? (
+								<div className={css.paneDescription}>
+									{headerSubtitle}
+								</div>
+							) : (
+								description && (
 									<p className={css.paneDescription}>
 										{description}
 									</p>
-								))}
+								)
+							)}
 						</div>
 						{headerAction}
 					</div>

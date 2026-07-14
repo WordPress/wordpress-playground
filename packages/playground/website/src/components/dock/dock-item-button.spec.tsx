@@ -48,7 +48,7 @@ describe('DockItemButton', () => {
 			/>
 		);
 
-		expect(markup).toContain('disabled=""');
+		expect(markup).toMatch(/<button\b[^>]*\sdisabled(?:="")?(?=\s|>)/);
 	});
 });
 

@@ -48,10 +48,12 @@ describe('DockTogglePill', () => {
 		);
 
 		expect(markup).toContain('title="Tools cannot be hidden right now"');
-		expect(countMatches(markup, 'disabled=""')).toBe(1);
+		expect(markup).toContain(
+			'aria-label="Tools cannot be hidden right now"'
+		);
+		const buttons = markup.match(/<button\b[^>]*>/g);
+		expect(buttons).toHaveLength(2);
+		expect(buttons?.[0]).toMatch(/\sdisabled(?:="")?(?=\s|>)/);
+		expect(buttons?.[1]).not.toMatch(/\sdisabled(?:="")?(?=\s|>)/);
 	});
 });
-
-function countMatches(value: string, substring: string) {
-	return value.split(substring).length - 1;
-}

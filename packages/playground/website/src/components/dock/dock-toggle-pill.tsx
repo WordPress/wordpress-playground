@@ -28,6 +28,12 @@ export function DockTogglePill({
 	onToggleCollapsed,
 	onToggleFullWidth,
 }: DockTogglePillProps) {
+	const collapseButtonLabel = collapseDisabled
+		? 'Tools cannot be hidden right now'
+		: isCollapsed
+			? 'Show tools'
+			: 'Hide tools';
+
 	return (
 		<div className={css.dockTogglePill}>
 			<button
@@ -36,15 +42,9 @@ export function DockTogglePill({
 				className={classNames(css.dockPillBtn, css.dockPillCollapse, {
 					[css.dockPillCollapseClosed]: isCollapsed,
 				})}
-				aria-label={isCollapsed ? 'Show tools' : 'Hide tools'}
+				aria-label={collapseButtonLabel}
 				aria-expanded={!isCollapsed}
-				title={
-					collapseDisabled
-						? 'Tools cannot be hidden right now'
-						: isCollapsed
-							? 'Show tools'
-							: 'Hide tools'
-				}
+				title={collapseButtonLabel}
 				disabled={collapseDisabled}
 				onClick={onToggleCollapsed}
 			>
