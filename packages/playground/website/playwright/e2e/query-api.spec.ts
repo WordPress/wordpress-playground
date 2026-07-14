@@ -165,9 +165,9 @@ test('should load WordPress latest by default', async ({
 		parseFloat(LatestSupportedWordPressVersion)
 			.toString()
 			.replace('.', '-');
-	await expect(wordpress.locator(`body.${expectedBranchClass}`)).toContainText(
-		'Dashboard'
-	);
+	await expect(
+		wordpress.locator(`body.${expectedBranchClass}`)
+	).toContainText('Dashboard');
 });
 
 test('should load WordPress 6.3 when requested', async ({
