@@ -166,6 +166,7 @@ export function SavedPlaygroundsPanel({
 	const playground = usePlaygroundClient();
 	const localFsAvailability = useLocalFsAvailability(playground ?? undefined);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+	const panelRootRef = useRef<HTMLDivElement>(null);
 	const creationPanelRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
 
@@ -483,8 +484,8 @@ export function SavedPlaygroundsPanel({
 
 	const snapshotRowRects = () => {
 		const rects = new Map<string, DOMRect>();
-		document
-			.querySelectorAll<HTMLElement>('[data-playground-row]')
+		panelRootRef.current
+			?.querySelectorAll<HTMLElement>('[data-playground-row]')
 			.forEach((element) => {
 				const slug = element.getAttribute('data-playground-row');
 				if (slug) {
@@ -515,9 +516,10 @@ export function SavedPlaygroundsPanel({
 				if (!dx && !dy) {
 					return;
 				}
-				const element = document.querySelector<HTMLElement>(
-					`[data-playground-row="${slug}"]`
-				);
+				const element =
+					panelRootRef.current?.querySelector<HTMLElement>(
+						`[data-playground-row="${slug}"]`
+					);
 				if (!element) {
 					return;
 				}
@@ -1588,6 +1590,7 @@ export function SavedPlaygroundsPanel({
 
 	return (
 		<div
+			ref={panelRootRef}
 			className={classNames(css.playgroundsPane, {
 				[css.newPane]: panel === 'new',
 			})}
