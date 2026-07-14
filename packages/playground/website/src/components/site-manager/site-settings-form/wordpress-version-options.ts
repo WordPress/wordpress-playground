@@ -27,7 +27,10 @@ export function getWordPressVersionOptions({
 	if (
 		selectedVersion &&
 		!modernOptions.some((option) => option.value === selectedVersion) &&
-		!(OlderWordPressVersions as readonly string[]).includes(selectedVersion)
+		(!includeOlderVersions ||
+			!(OlderWordPressVersions as readonly string[]).includes(
+				selectedVersion
+			))
 	) {
 		modernOptions.unshift({
 			label: formatWordPressVersionLabel(selectedVersion),
