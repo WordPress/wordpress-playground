@@ -41,18 +41,22 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 You can use an in-browser [Blueprints editor](https://playground.wordpress.net/builder/builder.html) to build, validate, and preview your Blueprints in the browser.
 -->
 
-:::danger 注意
+<div class="callout callout-warning">
+
+**注意**
 
 エディタは現在開発中であり、埋め込まれたプレイグラウンドの読み込みに失敗する場合があります。回避するには、ページを更新してください。この問題は認識しており、改善に取り組んでいます。
 
-:::
+</div>
 
 <!--
-:::danger Caution
+<div class="callout callout-warning">
+
+**Caution**
 
 The editor is under development and the embedded Playground sometimes fails to load. To get around it, refresh the page. We're aware of that, and are working to improve the experience.
 
-:::
+</div>
 -->
 
 ## ファイルシステムとデータベースを確認する
@@ -73,9 +77,9 @@ Some blueprint steps (such as [`writeFile`](/blueprints/steps#WriteFileStep)) al
 To check the final internal filesystem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
 -->
 
-:::tip
+<div class="callout callout-tip">
 
-WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 > JavaScript API > デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
+WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 &gt; JavaScript API &gt; デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -86,12 +90,12 @@ true
 
 使用できるメソッドの完全なリストは[こちら](/api/client/interface/PlaygroundClient)で確認できます。
 
-:::
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers &gt; JavaScript API &gt; Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -102,7 +106,7 @@ true
 
 Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 
-:::
+</div>
 -->
 
 ## ブラウザコンソールでエラーを確認する
@@ -123,18 +127,18 @@ Chrome、Firefox、Safari\*、Edge で開発者ツールを開くには、Window
 To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 まだ有効にしていない場合は、開発メニューを有効にします。**Safari > 設定... > 詳細** に移動し、**Web 開発者向けの機能を表示** をオンにします。
 
-:::
+</div>
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Advanced** and check **Show features for web developers**.
 
-:::
+</div>
 -->
 
 開発者ツールウィンドウでは、ネットワークリクエストの検査、コンソールログの表示、JavaScript のデバッグ、ウェブページに適用されている DOM と CSS スタイルの確認が可能です。これは、ブループリントの問題の診断と修正に不可欠です。
@@ -164,9 +168,11 @@ You can `error_log` your own error messages through [`runPHP` step](/blueprints/
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
-:::
+
+</div>
 -->
 
 ## 助けを求める

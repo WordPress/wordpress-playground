@@ -1,0 +1,61 @@
+.pane-loading {
+	align-items: center;
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: var(--space-3, 12px);
+	justify-content: center;
+	min-height: 160px;
+	padding: var(--space-8, 32px) var(--space-6, 24px);
+	text-align: center;
+}
+
+.pane-loading-text {
+	font-size: 13px;
+	line-height: 1.4;
+	margin: 0;
+}
+
+.boot-notice-collapsible {
+	display: grid;
+	grid-template-rows: 1fr;
+	opacity: 1;
+	transition:
+		grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 0.22s ease,
+		margin-bottom 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.boot-notice-collapsible.is-hidden {
+	grid-template-rows: 0fr;
+	margin-bottom: calc(-1 * var(--boot-gap, 0px));
+	opacity: 0;
+	pointer-events: none;
+}
+
+.boot-notice-inner {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.boot-notice {
+	align-items: center;
+	background: var(--paper-3, #ece8e1);
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	gap: var(--space-2, 8px);
+	padding: var(--space-3, 12px) var(--space-4, 16px);
+}
+
+.boot-notice-text {
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.boot-notice-collapsible {
+		transition: none;
+	}
+}

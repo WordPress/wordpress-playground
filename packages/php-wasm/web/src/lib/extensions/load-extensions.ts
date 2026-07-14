@@ -3,11 +3,13 @@ import type {
 	EmscriptenOptions,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
-	SupportedPHPVersion,
+	AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	withResolvedPHPExtensions,
 	resolvePHPExtension,
+	isLegacyPHPVersion,
+	isPHPNextVersion,
 } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './intl/get-intl-extension-module';
 
@@ -57,7 +59,7 @@ export type PHPWebExtension =
  * downloads do not block each other.
  */
 export async function withPHPExtensions(
-	version: SupportedPHPVersion,
+	version: AllPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	options: EmscriptenOptions,
 	extensions: PHPWebExtension[] = []
@@ -84,10 +86,22 @@ export async function withPHPExtensions(
  * fetched and staged before PHP reads the generated `intl.ini`.
  */
 async function resolveRuntimePHPWebExtension(
-	version: SupportedPHPVersion,
+	version: AllPHPVersion,
 	asyncMode: PHPWasmAsyncMode,
 	extension: PHPWebExtension
 ): Promise<ResolvedPHPExtension> {
+	if (isLegacyPHPVersion(version)) {
+		throw new Error(
+			`Extensions are not available for legacy PHP ${version}.`
+		);
+	}
+
+	if (isPHPNextVersion(version)) {
+		// PHP extension side modules must be built against the same ABI as
+		// the main module. The PHP next publisher only ships main modules.
+		throw new Error('Extensions are not available for PHP next.');
+	}
+
 	/*
 	 * External extension requests always carry a `source`. Built-in web
 	 * extension requests are either strings or `{ name }` objects. This shape

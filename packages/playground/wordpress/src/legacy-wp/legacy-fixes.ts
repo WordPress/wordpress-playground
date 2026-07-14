@@ -3,7 +3,7 @@
  *
  * Two kinds of patches live here:
  *
- *   * Full source-level rewrites that let WordPress 1.0–2.8 boot on
+ *   * Full source-level rewrites that let WordPress 0.7–2.8 boot on
  *     the PHP 5.2 WASM + SQLite stack. Entry point:
  *     {@link patchWordPressSourceFiles}. Used from legacy-wp/legacy-boot.ts.
  *   * A mysqli-check backport that lets WP 5.0–6.1 boot on SQLite.
@@ -33,6 +33,11 @@
 import type { PHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
+import {
+	prepareWp07SourceTree,
+	runWp07PostInstallFixups,
+} from './wp-07-support';
+import { rewriteRelativePhpIncludes } from './relative-paths';
 
 /**
  * Backports WP 6.2's mysqli check to WP 5.0–6.1 on SQLite: the
@@ -90,7 +95,7 @@ export const LEGACY_WP_ERROR_REPORTING_PHP_EXPR = 'E_ALL & ~8192 & ~2048';
  * Patches WordPress source files for legacy version compatibility.
  *
  * Applies all necessary patches to make old WordPress versions
- * (1.0 through 2.8) work with modern PHP and the SQLite integration.
+ * (0.7 through 2.8) work with modern PHP and the SQLite integration.
  *
  * Called from legacy-wp/legacy-boot.ts; legacy boot path only.
  */
@@ -98,6 +103,8 @@ export async function patchWordPressSourceFiles(
 	php: PHP,
 	documentRoot: string
 ) {
+	if (await prepareWp07SourceTree(php, documentRoot)) return;
+
 	await ensureVersionPhp(php, documentRoot);
 	await ensureWpLoadPhp(php, documentRoot);
 
@@ -940,62 +947,13 @@ async function patchWpAdminRelativePaths(php: PHP, documentRoot: string) {
 	// /wordpress instead of the file's own directory. Rewrite every
 	// relative require/include in wp-admin to a dirname(__FILE__)-based
 	// absolute path. Covers WP 1.2 through 3.6.
-	const toDirnameExpr = (relPath: string): string => {
-		let remaining = relPath;
-		let upLevels = 0;
-		while (remaining.startsWith('../')) {
-			upLevels++;
-			remaining = remaining.slice(3);
-		}
-		while (remaining.startsWith('./')) {
-			remaining = remaining.slice(2);
-		}
-		let dirExpr = 'dirname(__FILE__)';
-		for (let i = 0; i < upLevels; i++) {
-			dirExpr = `dirname(${dirExpr})`;
-		}
-		return `${dirExpr} . '/${remaining}'`;
-	};
 	const wpAdminDir = joinPaths(documentRoot, 'wp-admin');
 	if (php.isDir(wpAdminDir)) {
 		for (const file of php.listFiles(wpAdminDir)) {
 			if (!file.endsWith('.php')) continue;
 			const filePath = joinPaths(wpAdminDir, file);
 			const content = php.readFileAsText(filePath);
-			const patched = content
-				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\.\/[^'"]+)\2\s*\)/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
-				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*(['"])(\.\/[^'"]+)\2\s*\)/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
-				// Bare filename (e.g. 'admin-header.php'). Restrict to
-				// .php to avoid false positives.
-				.replace(
-					/((?:require|include)(?:_once)?)\s*\(\s*(['"])([a-z][\w-]*\.php)\2\s*\)/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
-				// Statement form without parentheses (WP 2.0 uses this).
-				.replace(
-					/((?:require|include)(?:_once)?)\s+(['"])(\.\.\/[^'"]+)\2/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
-				.replace(
-					/((?:require|include)(?:_once)?)\s+(['"])(\.\/[^'"]+)\2/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
-				.replace(
-					/((?:require|include)(?:_once)?)\s+(['"])([a-z][\w-]*\.php)\2/g,
-					(_, keyword, _q, path) =>
-						`${keyword}(${toDirnameExpr(path)})`
-				)
+			const patched = rewriteRelativePhpIncludes(content)
 				// Drop the leading slash from `ABSPATH . '/wp-...'`.
 				.replace(/ABSPATH\s*\.\s*'\/wp-/g, "ABSPATH . 'wp-");
 			if (patched !== content) {
@@ -1559,6 +1517,9 @@ if (!function_exists('mysqli_close')) {
 /**
  * Post-install fixups for legacy WordPress.
  *
+ * Stage 0 (WP 0.7 only): delegates to the gated b2/cafelog fixups in
+ * wp-07-support.ts because WP 0.7 has b2* tables, not wp_* tables.
+ *
  * Stage 1 (always): boots WordPress and patches data via $wpdb —
  * siteurl/home, admin password, roles/caps, default content.
  *
@@ -1573,6 +1534,8 @@ export async function runPostInstallLegacyFixups(
 	php: PHP,
 	siteUrl: string
 ): Promise<void> {
+	if (await runWp07PostInstallFixups(php)) return;
+
 	let wpVersion: string | null = null;
 	const versionPhp = joinPaths(php.documentRoot, 'wp-includes/version.php');
 	if (php.fileExists(versionPhp)) {

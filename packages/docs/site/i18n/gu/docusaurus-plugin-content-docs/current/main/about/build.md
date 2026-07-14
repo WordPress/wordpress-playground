@@ -100,11 +100,11 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
 
-:::
+</div>
 -->
 
 કનેક્શનની બંને બાજુએ કરેલા ફેરફારો અંગે:

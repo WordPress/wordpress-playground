@@ -1,5 +1,9 @@
 import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
-import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
+import {
+	FSHelpers,
+	MountStillActiveError,
+	__private__dont__use,
+} from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
@@ -38,7 +42,19 @@ export interface MountOptions {
 	onMount?: (mount: DirectoryHandleMount) => void;
 }
 export interface DirectoryHandleMount {
+	/**
+	 * Replays captured MEMFS changes into OPFS until the journal settles.
+	 *
+	 * Event capture remains active. If applying a normalized operation fails,
+	 * that operation and its unattempted suffix remain queued for retry.
+	 */
 	flush(): Promise<void>;
+	/**
+	 * Flushes all captured changes and detaches after a successful drain.
+	 *
+	 * If draining fails, rejects with `MountStillActiveError` without
+	 * detaching, so callers can retry the same mount.
+	 */
 	unmount(): Promise<void>;
 }
 export type SyncProgress = {
@@ -46,8 +62,12 @@ export type SyncProgress = {
 	files: number;
 	/** The number of all files that need to be synced. */
 	total: number;
+	/** The current stage of the initial sync. */
+	phase?: 'copying' | 'flushing';
 };
-export type SyncProgressCallback = (progress: SyncProgress) => void;
+export type SyncProgressCallback = (
+	progress: SyncProgress
+) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
@@ -55,6 +75,15 @@ interface JournalFSEventsToOpfsOptions {
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 
+/**
+ * Creates a PHP mount handler backed by an OPFS directory.
+ *
+ * During MEMFS-to-OPFS setup, journaling starts before the initial copy so
+ * writes made during setup are captured. If copying or reporting its progress
+ * fails, it discards the incomplete mount without replacing the original
+ * setup error. Successful mounts use the retryable final-flush contract of
+ * `DirectoryHandleMount`.
+ */
 export function createDirectoryHandleMountHandler(
 	handle: FileSystemDirectoryHandle,
 	options: MountOptions = { initialSync: {} }
@@ -74,17 +103,44 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
 		} else {
-			await copyMemfsToOpfs(
-				FS,
-				handle,
-				vfsMountPoint,
-				options.initialSync.onProgress
-			);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			let lastProgress: SyncProgress | undefined;
+			try {
+				await copyMemfsToOpfs(
+					FS,
+					handle,
+					vfsMountPoint,
+					async (progress) => {
+						lastProgress = {
+							...progress,
+							phase: 'copying',
+						};
+						await options.initialSync.onProgress?.(lastProgress);
+					}
+				);
+				await options.initialSync.onProgress?.({
+					files: lastProgress?.files ?? 0,
+					total: lastProgress?.total ?? 0,
+					phase: 'flushing',
+				});
+				void mount.flush().catch((error) => {
+					logger.error('OPFS flush failed after initial sync', {
+						error,
+						vfsMountPoint,
+					});
+				});
+			} catch (error) {
+				// Setup never completed, so there is no valid mount to keep retryable.
+				await mount.discard();
+				throw error;
+			}
+			return mount.unmount;
 		}
-		const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
-		options.onMount?.(mount);
-		return mount.unmount;
 	};
 }
 
@@ -195,6 +251,10 @@ export async function copyMemfsToOpfs(
 	// so we report progress. Throttle the progress callback to avoid flooding
 	// the main thread with excessive updates.
 	let numFilesCompleted = 0;
+	await onProgress?.({
+		files: numFilesCompleted,
+		total: filesToCreate.length,
+	});
 	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
 
 	// Limit max concurrent writes because Safari may otherwise encounter
@@ -207,23 +267,35 @@ export async function copyMemfsToOpfs(
 	// if needed.
 	const maxConcurrentWrites = 100;
 	const concurrentWrites = new Set();
+	// Records any file whose OPFS write rejected. A single failed write must
+	// fail the whole copy: otherwise a rejection that loses the `Promise.race`
+	// below — or that lands in the final sub-`maxConcurrentWrites` batch, which
+	// is never raced — would be swallowed by the `allSettled` in the finally,
+	// and the copy would resolve as "100% complete" while silently missing a
+	// file. That is how a saved Playground lands on disk without, say,
+	// wp-includes/sodium_compat/autoload.php and then fatals on the next boot.
+	const failedWrites: Array<{ memfsPath: string; error: unknown }> = [];
 
 	try {
 		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
-			const promise = overwriteOpfsFile(
-				opfsDir,
-				entryName,
-				FS,
-				memfsPath
-			).then(() => {
-				numFilesCompleted++;
-				concurrentWrites.delete(promise);
-
-				throttledProgressCallback?.({
-					files: numFilesCompleted,
-					total: filesToCreate.length,
+			const promise = overwriteOpfsFile(opfsDir, entryName, FS, memfsPath)
+				.then(
+					() => {
+						numFilesCompleted++;
+						throttledProgressCallback?.({
+							files: numFilesCompleted,
+							total: filesToCreate.length,
+						});
+					},
+					// Record the rejection rather than letting it escape here;
+					// it is re-raised as one error once every write has settled.
+					(error) => {
+						failedWrites.push({ memfsPath, error });
+					}
+				)
+				.finally(() => {
+					concurrentWrites.delete(promise);
 				});
-			});
 			concurrentWrites.add(promise);
 
 			if (concurrentWrites.size >= maxConcurrentWrites) {
@@ -240,6 +312,26 @@ export async function copyMemfsToOpfs(
 		// to a conflict with writes from the earlier attempt.
 		await Promise.allSettled(concurrentWrites);
 	}
+	throttledProgressCallback?.cancel();
+
+	// Fail loud: a partial copy must reject so callers treat the save as failed
+	// (leaving the temporary-placeholder / "initial sync pending" markers in
+	// place) instead of recording a complete, durable save that cannot boot.
+	if (failedWrites.length > 0) {
+		const failedNames = failedWrites
+			.map(({ memfsPath }) => memfsPath)
+			.join(', ');
+		throw new Error(
+			`Failed to copy ${failedWrites.length} of ${filesToCreate.length} ` +
+				`file(s) to OPFS (${failedNames}). The save is incomplete.`,
+			{ cause: failedWrites[0].error }
+		);
+	}
+
+	await onProgress?.({
+		files: filesToCreate.length,
+		total: filesToCreate.length,
+	});
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {
@@ -277,12 +369,21 @@ async function overwriteOpfsFile(
 	}
 }
 
+/**
+ * Mirrors MEMFS changes below a mount point to an OPFS directory.
+ *
+ * The returned `flush()` persists changes without detaching. `unmount()` drains
+ * the journal and detaches only after a successful drain. `discard()` stops
+ * capture without starting a final flush, then waits for any flush already in
+ * flight. `unmount()` uses it after a successful drain; failed initial setup
+ * uses it to abandon an incomplete mount.
+ */
 export function journalFSEventsToOpfs(
 	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
 	options: JournalFSEventsToOpfsOptions = {}
-): DirectoryHandleMount {
+) {
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
@@ -290,6 +391,11 @@ export function journalFSEventsToOpfs(
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 	let flushPromise: Promise<void> | undefined;
 
+	/**
+	 * Drains the journal without detaching its listeners.
+	 *
+	 * Concurrent callers share the same in-flight promise.
+	 */
 	function flush() {
 		if (flushPromise === undefined) {
 			flushPromise = flushJournal().finally(() => {
@@ -299,13 +405,47 @@ export function journalFSEventsToOpfs(
 		return flushPromise;
 	}
 
+	/**
+	 * Drains the journal and detaches its listeners as one commit boundary.
+	 *
+	 * A failed drain leaves the journal attached and throws
+	 * `MountStillActiveError`, allowing the same mount to be retried.
+	 */
 	async function unmount() {
 		try {
-			await flush();
-		} finally {
-			unbindJournal();
-			php.removeEventListener('request.end', flushInBackground);
-			php.removeEventListener('filesystem.write', flushInBackground);
+			while (true) {
+				await flush();
+				if (journal.length === 0) {
+					// discard() removes the listeners synchronously before its first
+					// await, so nothing can be captured after this empty check.
+					await discard();
+					return;
+				}
+			}
+		} catch (error) {
+			throw new MountStillActiveError(error);
+		}
+	}
+
+	/**
+	 * Stops capturing changes without starting another flush.
+	 *
+	 * An in-flight flush may continue processing queued entries. Use this only
+	 * after `unmount()` has observed an empty journal or while rolling back failed
+	 * setup. It waits for that flush, but logs its failure so the setup error
+	 * remains the one returned to the caller.
+	 */
+	async function discard() {
+		const inFlightFlush = flushPromise;
+		unbindJournal();
+		php.removeEventListener('request.end', flushInBackground);
+		php.removeEventListener('filesystem.write', flushInBackground);
+		try {
+			await inFlightFlush;
+		} catch (error) {
+			// Setup rollback must finish outstanding writes, but its original copy
+			// error remains the useful failure for the caller.
+			logger.error('OPFS flush failed while discarding a mount', error);
 		}
 	}
 
@@ -333,6 +473,13 @@ export function journalFSEventsToOpfs(
 		}
 	}
 
+	/**
+	 * Replays one normalized journal batch while holding PHP's execution semaphore.
+	 *
+	 * If replay fails, restores the failed operation and its unattempted suffix
+	 * ahead of events captured during replay. Completed operations are not
+	 * retried because moves and deletes are not generally safe to apply twice.
+	 */
 	async function flushJournalOnce() {
 		if (journal.length === 0) {
 			return;
@@ -340,25 +487,25 @@ export function journalFSEventsToOpfs(
 
 		const release = await php.semaphore.acquire();
 
-		// Concurrency safety note
-		// As I understand it, journal is specific to a PHP instance,
-		// so it's not possible to have concurrency push of entries to journal
-		// But this can change in future so it doesn't hurt to read from journal
-		// in a concurrent safe way, which is what we are doing here.
-
-		// We first copy it to a new array
+		// Remove exactly this snapshot. Filesystem hooks may append entries while
+		// this batch awaits OPFS, and those newer entries must remain in the journal.
 		const journalEntries = [...journal];
-		// and then only delete however many entries we were able to grab
-		// since with concurrent writes there could have been more insertions
 		journal.splice(0, journalEntries.length);
 
 		const compressedJournal = normalizeFilesystemOperations(journalEntries);
+		let processedEntryCount = 0;
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
 			for (const entry of compressedJournal) {
 				await rewriter.processEntry(entry);
+				processedEntryCount++;
 			}
+		} catch (error) {
+			// Put the failed operation and unattempted remainder back ahead of
+			// events captured while this batch was replaying.
+			journal.unshift(...compressedJournal.slice(processedEntryCount));
+			throw error;
 		} finally {
 			release();
 		}
@@ -369,6 +516,7 @@ export function journalFSEventsToOpfs(
 	return {
 		flush,
 		unmount,
+		discard,
 	};
 }
 
@@ -389,6 +537,12 @@ class OpfsRewriter {
 		return normalizeMemfsPath(path.substring(this.memfsRoot.length));
 	}
 
+	/**
+	 * Applies one normalized MEMFS journal operation to OPFS.
+	 *
+	 * Destructive steps tolerate an already-missing source because a previous
+	 * attempt may mutate OPFS before reporting failure and then be retried.
+	 */
 	public async processEntry(entry: JournalEntry) {
 		if (
 			!entry.path.startsWith(this.memfsRoot) ||
@@ -453,10 +607,18 @@ class OpfsRewriter {
 						opfsDir,
 						entry.toPath
 					);
-					// Then delete the old directory
-					await opfsParent.removeEntry(name, {
-						recursive: true,
-					});
+					// Then delete the old directory. A retry may observe that a
+					// previous attempt removed it before reporting an error.
+					try {
+						await opfsParent.removeEntry(name, {
+							recursive: true,
+						});
+					} catch (error) {
+						if ((error as DOMException).name !== 'NotFoundError') {
+							throw error;
+						}
+						// A previous attempt already completed the removal.
+					}
 				} else {
 					/**
 					 * Delete the old file and creating a new one.
@@ -532,15 +694,21 @@ async function resolveParent(
 	return handle as any;
 }
 
+type CancelableThrottledFunction<T extends (...args: any[]) => any> = T & {
+	cancel(): void;
+};
+
 function throttle<T extends (...args: any[]) => any>(
 	fn: T,
 	debounceMs: number
-): T {
+): CancelableThrottledFunction<T> {
 	let lastCallTime = 0;
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 	let pendingArgs: Parameters<T> | undefined;
 
-	return function throttledCallback(...args: Parameters<T>) {
+	const throttledCallback = function throttledCallback(
+		...args: Parameters<T>
+	) {
 		pendingArgs = args;
 
 		const timeSinceLastCall = Date.now() - lastCallTime;
@@ -549,8 +717,30 @@ function throttle<T extends (...args: any[]) => any>(
 			timeoutId = setTimeout(() => {
 				timeoutId = undefined;
 				lastCallTime = Date.now();
-				fn(...pendingArgs!);
+				const args = pendingArgs!;
+				pendingArgs = undefined;
+				try {
+					void Promise.resolve(fn(...args)).catch(
+						logThrottledProgressCallbackError
+					);
+				} catch (error) {
+					logThrottledProgressCallbackError(error);
+				}
 			}, delay);
 		}
-	} as T;
+	} as CancelableThrottledFunction<T>;
+
+	throttledCallback.cancel = () => {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = undefined;
+		pendingArgs = undefined;
+	};
+
+	return throttledCallback;
+}
+
+function logThrottledProgressCallbackError(error: unknown) {
+	logger.error('Throttled progress callback failed', { error });
 }

@@ -6,6 +6,10 @@ on:
 concurrency:
     group: cors-proxy-deployment
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     # Check preconditions in a separate job because secrets aren't
     # available in job-level `if` conditions.
@@ -27,6 +31,8 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions: {}
         environment:
             name: cors-proxy-wp-cloud
         outputs:
@@ -56,6 +62,9 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read # Required to clone the repo.
         environment:
             name: cors-proxy-wp-cloud
         steps:

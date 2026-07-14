@@ -4,54 +4,41 @@ slug: /developers/local-development/wp-now
 orphan: true
 ---
 
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
-:::
-
-# wp-now NPM package
-
-[wp-now](https://www.npmjs.com/package/@wp-now/wp-now) is a command-line tool designed to simplify the process of running WordPress locally. It provides a quick and easy way to set up a local WordPress environment with minimal configuration.
-
-Key Features:
-
-- **Command-line Interface**: Easy to use for developers comfortable with CLI.
-- **Quick Setup**: Set up a local WordPress environment in seconds.
-- **Customizable**: Allows for configuration to suit specific development needs.
-
-[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
-
-<div class="callout callout-info">
-
-**Documentation**
-
-`wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
 </div>
 
-## Launch wp-now in a plugin or theme directory
+# wp-now NPM package
 
-Navigate to your plugin or theme directory and start `wp-now` with the following commands:
+[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is deprecated.
+Use [Playground CLI](/developers/local-development/wp-playground-cli) instead.
+It uses the same WordPress Playground runtime and is maintained in the main
+WordPress Playground repository.
 
-```bash
-cd my-plugin-or-theme-directory
-npx @wp-now/wp-now start
-```
+## Migrate to Playground CLI
 
-## Launch wp-now in the `wp-content` directory with options
+The familiar wp-now workflow maps to the Playground CLI `start` command:
 
-You can also start `wp-now` from any `wp-content` folder. The following example passes parameters for changing the PHP and WordPress versions and loading a blueprint file.
+| wp-now                                                  | Playground CLI                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
+| `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
+| `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
+| `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
 
-```bash
-cd my-wordpress-folder/wp-content
-npx @wp-now/wp-now start --wp=6.4 --php=8.3 --blueprint=path/to/blueprint.json
-```
+`@wp-playground/cli start` automatically detects whether the selected directory
+is a plugin, theme, `wp-content` directory, or WordPress installation. When it
+manages the WordPress root directory, it persists the site in
+`~/.wordpress-playground/sites/<path-hash>/`. If the selected directory is a full
+WordPress installation, that directory becomes the persistent store instead.
 
-## Install wp-now globally
-
-Alternatively, you can install `@wp-now/wp-now` globally to load it from any directory:
-
-```bash
-npm install -g @wp-now/wp-now
-cd my-plugin-or-theme-directory
-wp-now start
-```
+For manual mounts, automation, or CI workflows, use the lower-level
+`@wp-playground/cli server` command. See the
+[Playground CLI documentation](/developers/local-development/wp-playground-cli)
+for details.

@@ -132,9 +132,13 @@ Playground generates a unique link for your saved site. Bookmark it, and you can
 
 Need to move your work elsewhere? Choose **Download as .zip** to export your entire Playground — including plugins, themes, and content. You can restore it later or even host it on a real server.
 
-:::tip Keep Your Playground Link
+<div class="callout callout-tip">
+
+**Keep Your Playground Link**
+
 When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-:::
+
+</div>
 
 ## Next Steps
 

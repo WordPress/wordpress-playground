@@ -3,14 +3,22 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution パッケージは非推奨です
+<div class="callout callout-warning">
+
+**パッケージは非推奨です**
+
 NPM パッケージ @wp-now/wp-now は非推奨となり、今後アップデートは行われません。開発フローでコマンドラインツールを使用するには、NPM パッケージ `@wp-playground/cli` を使用してください。
-:::
+
+</div>
 
 <!--
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 -->
 
 # wp-now NPM パッケージ
@@ -56,11 +64,13 @@ Key Features:
 </div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 -->
 
 ## プラグインまたはテーマディレクトリで wp-now を起動します

@@ -1,5 +1,8 @@
 import type { PHPLoaderModule, AllPHPVersion } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { getPHPNextModule } from './get-php-next-module';
+
+export type PHPWasmAsyncMode = 'jspi' | 'asyncify';
 
 /**
  * Loads the PHP loader module for the given PHP version.
@@ -14,9 +17,12 @@ import { LatestSupportedPHPVersion } from '@php-wasm/universal';
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
-	version: AllPHPVersion = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion,
+	asyncMode: PHPWasmAsyncMode = 'asyncify'
 ): Promise<PHPLoaderModule> {
 	switch (version) {
+		case 'next':
+			return (await getPHPNextModule()).getPHPLoaderModule(asyncMode);
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/web-8-5')).getPHPLoaderModule();

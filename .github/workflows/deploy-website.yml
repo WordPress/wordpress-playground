@@ -9,6 +9,10 @@ on:
 concurrency:
     group: website-deployment
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     # Check preconditions in a separate job because secrets aren't
     # available in job-level `if` conditions.
@@ -29,6 +33,8 @@ jobs:
                 github.actor == 'ashfame'
             )
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions: {}
         environment:
             name: playground-wordpress-net-wp-cloud
         outputs:
@@ -58,6 +64,9 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read # Required to clone the repo.
         environment:
             name: playground-wordpress-net-wp-cloud
         steps:
@@ -67,6 +76,8 @@ jobs:
                   # Allow deploying a specific ref for folks who want to pin a specific version.
                   ref: ${{ vars.GIT_REF_TO_DEPLOY }}
             - uses: ./.github/actions/prepare-playground
+            - name: Sync PHP next build assets
+              run: npm run sync:php-next
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}

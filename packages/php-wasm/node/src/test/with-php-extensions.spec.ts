@@ -105,6 +105,54 @@ describe('withPHPExtensions', () => {
 		).rejects.toThrow('External PHP extensions require JSPI');
 	});
 
+	it('stages extension artifacts without adding a php.ini scan dir', async () => {
+		const tempDir = await mkdtemp(
+			path.join(tmpdir(), 'php-wasm-extension-')
+		);
+		try {
+			const extensionBytes = new Uint8Array([1, 2, 3]);
+			await writeFile(
+				path.join(tempDir, 'sqlite_markdown.so'),
+				extensionBytes
+			);
+			await writeFile(
+				path.join(tempDir, 'manifest.json'),
+				JSON.stringify({
+					name: 'sqlite_markdown',
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							sourcePath: 'sqlite_markdown.so',
+						},
+					],
+				})
+			);
+
+			const options = await withPHPExtensions('8.4', 'jspi', {}, [
+				{
+					source: {
+						format: 'manifest',
+						manifestUrl: path.join(tempDir, 'manifest.json'),
+					},
+					loadWithIniDirective: false,
+				},
+			]);
+			const fs = createFakeFS();
+
+			expect(options.ENV?.['PHP_INI_SCAN_DIR']).toBeUndefined();
+			options.onRuntimeInitialized?.({ FS: fs } as any);
+
+			expect(
+				fs.files.get(`${PHP_EXTENSIONS_DIR}/sqlite_markdown.so`)
+			).toEqual(extensionBytes);
+			expect(
+				fs.files.has(`${PHP_EXTENSIONS_DIR}/sqlite_markdown.ini`)
+			).toBe(false);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it('treats drive-letter-shaped strings as local paths, not URL schemes', () => {
 		const source = normalizeNodeExtensionSource({
 			format: 'manifest',

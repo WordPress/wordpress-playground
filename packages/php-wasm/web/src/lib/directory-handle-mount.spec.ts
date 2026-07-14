@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { __private__dont__use, type PHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { journalFSEventsToOpfs } from './directory-handle-mount';
+import {
+	copyMemfsToOpfs,
+	createDirectoryHandleMountHandler,
+	journalFSEventsToOpfs,
+} from './directory-handle-mount';
 
 class MemoryFileHandle {
 	kind = 'file' as const;
@@ -148,6 +152,38 @@ describe('journalFSEventsToOpfs', () => {
 		await firstFlush;
 	});
 
+	it('waits for an in-flight flush when discarding an incomplete mount', async () => {
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		const { FS, files, php, removeEventListener } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', async () => {
+			writeStarted.resolve();
+			await releaseWrite.promise;
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+		void mount.flush();
+		await writeStarted.promise;
+
+		let discardSettled = false;
+		const discard = mount.discard().then(() => {
+			discardSettled = true;
+		});
+		await Promise.resolve();
+
+		expect(removeEventListener).toHaveBeenCalled();
+		expect(discardSettled).toBe(false);
+
+		releaseWrite.resolve();
+		await discard;
+		expect(discardSettled).toBe(true);
+	});
+
 	it('processes new writes on a subsequent flush after the previous flush succeeded', async () => {
 		// Regression guard for the `flushPromise` single-flight reset on the
 		// success path. If `flushPromise` were not cleared in the `.finally()`
@@ -244,13 +280,52 @@ describe('journalFSEventsToOpfs', () => {
 		expect(FS.write).toBe(originalWrite);
 	});
 
-	it('removes listeners even when unmount flush fails', async () => {
+	it('flushes writes queued as the in-flight flush settles before unmounting', async () => {
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		let writeCount = 0;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', async () => {
+			writeCount++;
+			if (writeCount === 1) {
+				writeStarted.resolve();
+				await releaseWrite.promise;
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/first.txt', encode('first'));
+		FS.write({ path: '/wordpress/first.txt' });
+		const inFlightFlush = mount.flush();
+		await writeStarted.promise;
+		const enqueueAtFlushBoundary = inFlightFlush.then(() => {
+			files.set('/wordpress/second.txt', encode('second'));
+			FS.write({ path: '/wordpress/second.txt' });
+		});
+		const unmount = mount.unmount();
+
+		releaseWrite.resolve();
+		await Promise.all([enqueueAtFlushBoundary, unmount]);
+
+		expect(decode(opfsRoot.files.get('first.txt')!.bytes)).toBe('first');
+		expect(decode(opfsRoot.files.get('second.txt')!.bytes)).toBe('second');
+	});
+
+	it('keeps listeners until a failed unmount flush can be retried', async () => {
 		const flushError = new Error('flush failed');
+		let shouldFail = true;
 		const { FS, addEventListener, files, php, removeEventListener } =
 			createFakePhp();
 		const originalWrite = FS.write;
 		const opfsRoot = new MemoryDirectoryHandle('root', () => {
-			throw flushError;
+			if (shouldFail) {
+				shouldFail = false;
+				throw flushError;
+			}
 		});
 		const mount = journalFSEventsToOpfs(
 			php,
@@ -267,7 +342,14 @@ describe('journalFSEventsToOpfs', () => {
 		files.set('/wordpress/file.txt', encode('saved'));
 		FS.write({ path: '/wordpress/file.txt' });
 
-		await expect(mount.unmount()).rejects.toBe(flushError);
+		await expect(mount.unmount()).rejects.toMatchObject({
+			name: 'MountStillActiveError',
+			cause: flushError,
+		});
+		expect(removeEventListener).not.toHaveBeenCalled();
+		expect(FS.write).not.toBe(originalWrite);
+
+		await mount.unmount();
 		expect(removeEventListener).toHaveBeenCalledWith(
 			'filesystem.write',
 			filesystemWriteListener
@@ -323,11 +405,37 @@ describe('journalFSEventsToOpfs', () => {
 		FS.write({ path: '/wordpress/file.txt' });
 		await expect(mount.flush()).rejects.toThrow('temporary flush failure');
 
-		files.set('/wordpress/file.txt', encode('second'));
-		FS.write({ path: '/wordpress/file.txt' });
 		await mount.flush();
 
-		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('second');
+		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('first');
+	});
+
+	it('retries only the failed suffix of a partially completed batch', async () => {
+		let writeCount = 0;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			writeCount++;
+			if (writeCount === 2) {
+				throw new Error('second write failed');
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/first.txt', encode('first'));
+		files.set('/wordpress/second.txt', encode('second'));
+		FS.write({ path: '/wordpress/first.txt' });
+		FS.write({ path: '/wordpress/second.txt' });
+
+		await expect(mount.flush()).rejects.toThrow('second write failed');
+		await mount.flush();
+
+		expect(writeCount).toBe(3);
+		expect(decode(opfsRoot.files.get('first.txt')!.bytes)).toBe('first');
+		expect(decode(opfsRoot.files.get('second.txt')!.bytes)).toBe('second');
 	});
 
 	it('fails explicit flushes that never settle instead of hanging', async () => {
@@ -355,9 +463,311 @@ describe('journalFSEventsToOpfs', () => {
 	});
 });
 
+describe('createDirectoryHandleMountHandler', () => {
+	it('fails loud when a single OPFS write rejects instead of reporting a complete copy', async () => {
+		// Regression guard: a transient per-file OPFS write failure (e.g.
+		// Safari's "Invalid platform file handle" near the sync-access-handle
+		// limit) used to be swallowed — the rejected write lost the internal
+		// Promise.race / sat in the never-raced final batch, was absorbed by the
+		// finally's Promise.allSettled, and the copy resolved at "100%". The save
+		// then looked complete on disk while missing a core file, and the next
+		// boot fatally required() it. The copy must now reject so callers keep
+		// the save marked incomplete.
+		const { FS, files } = createFakePhp();
+		// Two files (< the 100-write concurrency limit) both land in the final
+		// batch that Promise.race never inspects — the exact swallowed regime.
+		FS.readdir.mockReturnValue(['.', '..', 'ok.txt', 'autoload.php']);
+		files.set('/wordpress/ok.txt', encode('ok'));
+		files.set('/wordpress/autoload.php', encode('<?php'));
+
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const realGetFileHandle = opfsRoot.getFileHandle.bind(opfsRoot);
+		opfsRoot.getFileHandle = (async (
+			name: string,
+			options?: { create?: boolean }
+		) => {
+			if (name === 'autoload.php') {
+				return {
+					kind: 'file',
+					name,
+					createWritable: async () => ({
+						truncate: async () => {},
+						write: async () => {
+							throw new Error(
+								'UnknownError: Invalid platform file handle'
+							);
+						},
+						close: async () => {},
+						seek: async () => {},
+					}),
+				} as unknown as FileSystemFileHandle;
+			}
+			return realGetFileHandle(name, options);
+		}) as typeof opfsRoot.getFileHandle;
+
+		await expect(
+			copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress'
+			)
+		).rejects.toMatchObject({
+			message: expect.stringContaining('/wordpress/autoload.php'),
+			cause: expect.objectContaining({
+				message: 'UnknownError: Invalid platform file handle',
+			}),
+		});
+
+		// The healthy file was written; the failing one was dropped — a partial
+		// copy, which is exactly why the whole operation must reject.
+		expect(decode(opfsRoot.files.get('ok.txt')!.bytes)).toBe('ok');
+		expect(opfsRoot.files.has('autoload.php')).toBe(false);
+	});
+
+	it('discards the journal and preserves the copy error when initial sync fails', async () => {
+		const copyError = new Error('initial copy failed');
+		const flushError = new Error('rollback flush failed');
+		const { FS, dispatchEvent, files, php, removeEventListener } =
+			createFakePhp();
+		const originalWrite = FS.write;
+		FS.readdir.mockReturnValue(['.', '..', 'bad.txt']);
+		files.set('/wordpress/bad.txt', encode('bad'));
+		let writeCount = 0;
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			writeCount++;
+			if (writeCount === 1) {
+				files.set('/wordpress/live.txt', encode('live'));
+				FS.write({ path: '/wordpress/live.txt' });
+				dispatchEvent('filesystem.write');
+				throw copyError;
+			}
+			throw flushError;
+		});
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: { direction: 'memfs-to-opfs' },
+			}
+		);
+
+		try {
+			await expect(
+				mountHandler(php, FS as any, '/wordpress')
+			).rejects.toMatchObject({ cause: copyError });
+			expect(loggerError).toHaveBeenCalledWith(
+				'OPFS flush failed while discarding a mount',
+				flushError
+			);
+			expect(removeEventListener).toHaveBeenCalledWith(
+				'request.end',
+				expect.any(Function)
+			);
+			expect(removeEventListener).toHaveBeenCalledWith(
+				'filesystem.write',
+				expect.any(Function)
+			);
+			expect(FS.write).toBe(originalWrite);
+		} finally {
+			loggerError.mockRestore();
+		}
+	});
+
+	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {
+		let changedDuringInitialSync = false;
+		let mount: { flush(): Promise<void> } | undefined;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (changedDuringInitialSync) {
+				return;
+			}
+			changedDuringInitialSync = true;
+			files.set('/wordpress/database.sqlite', encode('changed'));
+			FS.write({ path: '/wordpress/database.sqlite' });
+		});
+		files.set('/wordpress/database.sqlite', encode('initial'));
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+		await mount!.flush();
+
+		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
+			'changed'
+		);
+	});
+
+	it('does not block the initial MEMFS to OPFS sync on the final flush', async () => {
+		let mount: { flush(): Promise<void> } | undefined;
+		let changedDuringInitialSync = false;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			if (changedDuringInitialSync) {
+				return;
+			}
+			changedDuringInitialSync = true;
+			FS.write({ path: '/wordpress/database.sqlite' });
+		});
+		files.set('/wordpress/database.sqlite', encode('initial'));
+		const releaseSemaphore = await php.semaphore.acquire();
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+				},
+				onMount: (createdMount) => {
+					mount = createdMount;
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+		releaseSemaphore();
+		await mount!.flush();
+
+		expect(decode(opfsRoot.files.get('database.sqlite')!.bytes)).toBe(
+			'initial'
+		);
+	});
+
+	it('reports a flushing phase after the initial MEMFS to OPFS copy', async () => {
+		const progressEvents: Array<{
+			files: number;
+			total: number;
+			phase?: 'copying' | 'flushing';
+		}> = [];
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		files.set('/wordpress/database.sqlite', encode('initial'));
+
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: {
+					direction: 'memfs-to-opfs',
+					onProgress: (progress) => {
+						progressEvents.push(progress);
+					},
+				},
+			}
+		);
+
+		await mountHandler(php, FS as any, '/wordpress');
+
+		expect(progressEvents[0]).toEqual({
+			files: 0,
+			total: 1,
+			phase: 'copying',
+		});
+		expect(progressEvents).toContainEqual({
+			files: 1,
+			total: 1,
+			phase: 'flushing',
+		});
+	});
+
+	it('handles rejected async throttled progress callbacks', async () => {
+		vi.useFakeTimers();
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+
+		try {
+			const progressError = new Error('progress failed');
+			const releaseWrite = deferred<void>();
+			let writeCount = 0;
+			const { FS, files } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root', () => {
+				writeCount++;
+				if (writeCount === 2) {
+					return releaseWrite.promise;
+				}
+				return undefined;
+			});
+			FS.readdir.mockReturnValue(['.', '..', 'first.txt', 'second.txt']);
+			files.set('/wordpress/first.txt', encode('first'));
+			files.set('/wordpress/second.txt', encode('second'));
+
+			const copyPromise = copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress',
+				async (progress) => {
+					if (progress.files > 0 && progress.files < progress.total) {
+						throw progressError;
+					}
+				}
+			);
+
+			await vi.advanceTimersByTimeAsync(100);
+			expect(loggerError).toHaveBeenCalledWith(
+				'Throttled progress callback failed',
+				{
+					error: progressError,
+				}
+			);
+
+			releaseWrite.resolve();
+			await copyPromise;
+		} finally {
+			loggerError.mockRestore();
+			vi.useRealTimers();
+		}
+	});
+
+	it('does not emit stale copy progress after the final progress event', async () => {
+		vi.useFakeTimers();
+
+		try {
+			const progressEvents: Array<{ files: number; total: number }> = [];
+			const { FS, files } = createFakePhp();
+			const opfsRoot = new MemoryDirectoryHandle('root');
+			FS.readdir.mockReturnValue(['.', '..', 'first.txt', 'second.txt']);
+			files.set('/wordpress/first.txt', encode('first'));
+			files.set('/wordpress/second.txt', encode('second'));
+
+			await copyMemfsToOpfs(
+				FS as any,
+				opfsRoot as unknown as FileSystemDirectoryHandle,
+				'/wordpress',
+				(progress) => {
+					progressEvents.push(progress);
+				}
+			);
+
+			const progressEventCount = progressEvents.length;
+			await vi.advanceTimersByTimeAsync(1000);
+
+			expect(progressEvents).toHaveLength(progressEventCount);
+			expect(progressEvents.at(-1)).toEqual({
+				files: 2,
+				total: 2,
+			});
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
+
 function createFakePhp() {
 	const files = new Map<string, Uint8Array>();
 	const FS = {
+		mkdirTree: vi.fn(),
+		readdir: vi.fn(() => ['.', '..', 'database.sqlite']),
 		write: vi.fn(),
 		truncate: vi.fn(),
 		unlink: vi.fn(),

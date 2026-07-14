@@ -63,9 +63,11 @@ Playground creates fresh WordPress instances on each page load. Refreshing the b
 - **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
 -->
 
-:::tip
-El botón de actualización integrado en Playground solo vuelve a cargar el contenido de WordPress: conserva el estado de PHP/WP. El botón de actualización del navegador (F5 o Cmd+R) destruye toda la instancia.
-:::
+<div class="callout callout-tip">
+
+El botón de actualización dedicado dentro de Playground solo recarga el contenido de WordPress—preserva tu estado de PHP/WP. El botón de actualización del navegador (F5 o Cmd+R) destruye la instancia completa.
+
+</div>
 
 ![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 

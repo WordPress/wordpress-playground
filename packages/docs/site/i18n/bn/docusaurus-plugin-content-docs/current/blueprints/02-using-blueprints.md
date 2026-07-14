@@ -8,10 +8,10 @@ description: URL ফ্র্যাগমেন্ট, কোয়েরি প
 
 আপনি নিম্নলিখিত উপায়ে ব্লুপ্রিন্ট ব্যবহার করতে পারেন:
 
--   Playground-এ URL ফ্র্যাগমেন্ট হিসাবে সেগুলি পাস করে।
--   `blueprint-url` প্যারামিটার ব্যবহার করে একটি URL থেকে সেগুলি লোড করে।
--   ব্লুপ্রিন্ট বান্ডেল (ZIP ফাইল বা ডিরেক্টরি) ব্যবহার করে।
--   JavaScript API ব্যবহার করে।
+- Playground-এ URL ফ্র্যাগমেন্ট হিসাবে সেগুলি পাস করে।
+- `blueprint-url` প্যারামিটার ব্যবহার করে একটি URL থেকে সেগুলি লোড করে।
+- ব্লুপ্রিন্ট বান্ডেল (ZIP ফাইল বা ডিরেক্টরি) ব্যবহার করে।
+- JavaScript API ব্যবহার করে।
 
 ## URL ফ্র্যাগমেন্ট
 
@@ -32,7 +32,8 @@ description: URL ফ্র্যাগমেন্ট, কোয়েরি প
 এবং তারপর আপনি
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}` এ যাবেন।
 
-:::tip
+<div class="callout callout-tip">
+
 Javascript-এ, আপনি [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) এবং [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) দিয়ে যেকোনো blueprint JSON এর একটি কমপ্যাক্ট সংস্করণ পেতে পারেন
 উদাহরণ:
 
@@ -47,7 +48,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"8.3","wp":"6.5"}}
 ```
 
-:::
+</div>
 
 অনুসরণ করার জন্য আপনাকে লিঙ্ক পেস্ট করতে হবে না। আমরা একটি "Try it out" বাটন সহ কোড উদাহরণ ব্যবহার করব যা স্বয়ংক্রিয়ভাবে আপনার জন্য উদাহরণগুলি চালাবে:
 
@@ -66,7 +67,8 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 এটি চালাতে, https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19 এ যান
 
-:::tip
+<div class="callout callout-tip">
+
 JavaScript-এ, আপনি গ্লোবাল ফাংশন `btoa()` দিয়ে [Base64 ফরম্যাটে](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) যেকোনো blueprint JSON পেতে পারেন।
 
 উদাহরণ:
@@ -82,7 +84,7 @@ const blueprintJson = `{
 const base64Blueprint = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 ### URL থেকে ব্লুপ্রিন্ট লোড করুন
 

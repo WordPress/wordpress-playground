@@ -1,7 +1,8 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
@@ -17,9 +18,246 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	return Buffer.from(zipBytes!);
 }
 
+async function createPluginThemeExportZip(): Promise<Buffer> {
+	const files = [
+		new File(
+			[
+				`<?php
+/**
+ * Plugin Name: Close Race Plugin
+ */
+`,
+			],
+			'wp-content/plugins/close-race-plugin/close-race-plugin.php'
+		),
+		new File(
+			[
+				`/*
+Theme Name: Close Race Theme
+*/
+`,
+			],
+			'wp-content/themes/close-race-theme/style.css'
+		),
+		new File(
+			[`<?php echo 'Close Race Theme';`],
+			'wp-content/themes/close-race-theme/index.php'
+		),
+	];
+	const zipStream = encodeZip(files);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
+
 // OPFS tests must run serially because OPFS storage is shared at the browser
 // level, so tests would interfere with each other's saved sites if run in parallel.
 test.describe.configure({ mode: 'serial' });
+
+/**
+ * Returns a URL that opts this test out of default browser storage.
+ *
+ * `storage=temp` is what makes the site temporary. The random value keeps
+ * repeated navigations from reusing a temporary site created earlier in this
+ * serial OPFS test file.
+ */
+function getTemporaryPlaygroundUrl(hash = '') {
+	return `./?storage=temp&random=${Math.random().toString(36).slice(2)}${hash}`;
+}
+
+const OPFS_CLEANUP_LOCK_HOLDER_KEY = 'simulate-opfs-cleanup-lock-holder';
+const OPFS_CLEANUP_FAILURE_COUNT_KEY = 'opfs-cleanup-failure-count';
+
+/**
+ * Makes OPFS file removal fail while another test tab is marked as open.
+ *
+ * Chromium does not give us a reliable way to force a real OPFS lock in CI.
+ * This patch creates the same kind of failure the boot code sees: removing an
+ * old file rejects until the other tab closes. Closing the holder tab removes
+ * the marker through `beforeunload`/`pagehide`, so the next retry can succeed.
+ */
+async function simulateOpfsCleanupBlockedByAnotherTab(context: BrowserContext) {
+	await context.addInitScript(
+		({ lockHolderKey, failureCountKey }) => {
+			const tabId = `${Date.now()}-${Math.random()}`;
+			const releaseLockForThisTab = () => {
+				if (localStorage.getItem(lockHolderKey) === tabId) {
+					localStorage.removeItem(lockHolderKey);
+				}
+			};
+			(window as any).simulateOpfsCleanupLockForThisTab = () => {
+				localStorage.setItem(lockHolderKey, tabId);
+				localStorage.removeItem(failureCountKey);
+			};
+			window.addEventListener('beforeunload', releaseLockForThisTab);
+			window.addEventListener('pagehide', releaseLockForThisTab);
+
+			const originalRemoveEntry =
+				FileSystemDirectoryHandle.prototype.removeEntry;
+			FileSystemDirectoryHandle.prototype.removeEntry =
+				function removeEntry(name, options) {
+					const lockHolder = localStorage.getItem(lockHolderKey);
+					if (
+						lockHolder &&
+						lockHolder !== tabId &&
+						name !== 'wp-runtime.json' &&
+						name !== 'blueprint'
+					) {
+						const failureCount = Number(
+							localStorage.getItem(failureCountKey) || '0'
+						);
+						localStorage.setItem(
+							failureCountKey,
+							String(failureCount + 1)
+						);
+						return Promise.reject(
+							new DOMException(
+								`Simulated OPFS cleanup lock for ${name}`,
+								'InvalidStateError'
+							)
+						);
+					}
+					return originalRemoveEntry.call(this, name, options);
+				};
+		},
+		{
+			lockHolderKey: OPFS_CLEANUP_LOCK_HOLDER_KEY,
+			failureCountKey: OPFS_CLEANUP_FAILURE_COUNT_KEY,
+		}
+	);
+}
+
+/**
+ * Writes the OPFS state left by an interrupted saved Playground reset.
+ *
+ * `wp-runtime.json` already asks for the new setup, but old WordPress files
+ * still sit next to it because the tab closed before cleanup finished.
+ */
+async function writePendingOpfsResetSite(page: Page, slug: string) {
+	await page.evaluate(
+		async ({ dirName, siteSlug }) => {
+			const root = await navigator.storage.getDirectory();
+			try {
+				await root.removeEntry('sites', { recursive: true });
+			} catch (error) {
+				if (error?.name !== 'NotFoundError') {
+					throw error;
+				}
+			}
+			const sites = await root.getDirectoryHandle('sites', {
+				create: true,
+			});
+			const siteDirectory = await sites.getDirectoryHandle(dirName, {
+				create: true,
+			});
+			const metadata = {
+				slug: siteSlug,
+				originalUrlParams: undefined,
+				originalBlueprintSource: { type: 'none' },
+				originalBlueprint: {
+					preferredVersions: { php: '8.4', wp: false },
+					landingPage: '/index.php',
+					steps: [
+						{
+							step: 'writeFile',
+							path: '/wordpress/index.php',
+							data: '<?php echo "cleanup retry ready";',
+						},
+					],
+				},
+				name: siteSlug,
+				id: siteSlug,
+				whenCreated: Date.now(),
+				whenLastUsed: Date.now(),
+				persistence: 'autosave',
+				storage: 'opfs',
+				initialOpfsSyncPending: true,
+				opfsSiteRemovalPending: true,
+				sourceSetupUrlFingerprint: `test-${siteSlug}`,
+				runtimeConfiguration: {
+					phpVersion: '8.4',
+					wpVersion: 'latest',
+					intl: false,
+					networking: true,
+					extraLibraries: [],
+					constants: {},
+				},
+			};
+			await writeFile(
+				siteDirectory,
+				'wp-runtime.json',
+				JSON.stringify(metadata, null, 2)
+			);
+			await writeFile(
+				siteDirectory,
+				'wp-config.php',
+				'<?php /* old config */'
+			);
+			await writeFile(
+				siteDirectory,
+				'wp-settings.php',
+				'<?php /* old settings */'
+			);
+			await writeFile(
+				siteDirectory,
+				'old-reset-sentinel.php',
+				'old site'
+			);
+			const wpContent = await siteDirectory.getDirectoryHandle(
+				'wp-content',
+				{ create: true }
+			);
+			const database = await wpContent.getDirectoryHandle('database', {
+				create: true,
+			});
+			await writeFile(database, '.ht.sqlite', 'old sqlite placeholder');
+
+			async function writeFile(
+				directory: FileSystemDirectoryHandle,
+				name: string,
+				contents: string
+			) {
+				const file = await directory.getFileHandle(name, {
+					create: true,
+				});
+				const writable = await file.createWritable();
+				await writable.write(contents);
+				await writable.close();
+			}
+		},
+		{ dirName: getDirectoryNameForSlug(slug), siteSlug: slug }
+	);
+}
+
+async function readPendingResetSiteState(page: Page, slug: string) {
+	return await page.evaluate(
+		async ({ dirName }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(dirName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const metadata = JSON.parse(
+				await (await metadataFile.getFile()).text()
+			);
+			const hasEntry = async (name: string) => {
+				try {
+					await siteDirectory.getFileHandle(name);
+					return true;
+				} catch (error) {
+					if (error?.name === 'NotFoundError') {
+						return false;
+					}
+					throw error;
+				}
+			};
+			return {
+				metadata,
+				hasOldResetSentinel: await hasEntry('old-reset-sentinel.php'),
+			};
+		},
+		{ dirName: getDirectoryNameForSlug(slug) }
+	);
+}
 
 /**
  * Helper function to handle the save site modal flow
@@ -32,6 +270,10 @@ async function saveSiteViaModal(
 	}
 ) {
 	const { customName, storageType = 'opfs' } = options || {};
+
+	// The site manager remembers the last selected tab. The save notice only
+	// lives on the Settings tab, so select it before looking for the button.
+	await page.getByRole('tab', { name: 'Settings' }).click();
 
 	// Click the "Save site locally" button in the temporary site notice to open the modal.
 	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
@@ -71,18 +313,79 @@ async function saveSiteViaModal(
 	await expect(dialog).not.toBeVisible({ timeout: 60000 });
 }
 
+test('should retry pending OPFS cleanup after another tab releases storage', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await simulateOpfsCleanupBlockedByAnotherTab(context);
+	const slug = `pending-cleanup-${Date.now()}`;
+	await website.page.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() => !!navigator.storage?.getDirectory);
+	await writePendingOpfsResetSite(website.page, slug);
+
+	const lockPage = await context.newPage();
+	await lockPage.goto(getTemporaryPlaygroundUrl());
+	await lockPage.evaluate(() => {
+		(window as any).simulateOpfsCleanupLockForThisTab();
+	});
+
+	await website.page.goto(
+		`./?site-slug=${encodeURIComponent(slug)}&random=${Date.now()}`
+	);
+	await expect
+		.poll(() =>
+			website.page.evaluate(
+				(failureCountKey) =>
+					Number(localStorage.getItem(failureCountKey) || '0'),
+				OPFS_CLEANUP_FAILURE_COUNT_KEY
+			)
+		)
+		.toBeGreaterThan(0);
+
+	// This mirrors the user closing another Playground tab that still holds on
+	// to the old OPFS files. The next automatic retry should finish cleanup and boot.
+	await lockPage.close({ runBeforeUnload: true });
+	await expect
+		.poll(() =>
+			website.page.evaluate(
+				(lockHolderKey) => localStorage.getItem(lockHolderKey),
+				OPFS_CLEANUP_LOCK_HOLDER_KEY
+			)
+		)
+		.toBeNull();
+
+	await expect(website.wordpress().locator('body')).toContainText(
+		'cleanup retry ready',
+		{ timeout: 120000 }
+	);
+	await expect(
+		website.page.getByText('Close other Playground tabs, then reload')
+	).not.toBeVisible();
+
+	const storedSite = await readPendingResetSiteState(website.page, slug);
+	expect(storedSite.metadata.opfsSiteRemovalPending).toBeUndefined();
+	expect(storedSite.hasOldResetSentinel).toBe(false);
+});
+
 test('should switch between sites', async ({ website, browserName }) => {
 	test.skip(
 		browserName !== 'chromium',
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 
 	await website.ensureSiteManagerIsOpen();
 
 	// Save the temporary site using the modal
-	await saveSiteViaModal(website.page);
+	const firstSiteName = 'Switching Test Site';
+	await saveSiteViaModal(website.page, { customName: firstSiteName });
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		'Unsaved Playground',
@@ -91,19 +394,46 @@ test('should switch between sites', async ({ website, browserName }) => {
 			timeout: 90000,
 		}
 	);
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		firstSiteName
+	);
 
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Click on Temporary Playground in the overlay's site list
+	// Start another saved Playground, then switch back to the first one.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
+	await website.ensureSiteManagerIsOpen();
+
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		firstSiteName
+	);
+	await expect(
+		website.page.getByText('Autosaved in this browser')
+	).toBeVisible({ timeout: 120000 });
+	await expect
+		.poll(() =>
+			website.page.evaluate(() => {
+				const activeSite = (window as any).playgroundSites
+					.list()
+					.find((site: any) => site.isActive);
+				return activeSite
+					? `${activeSite.storage}:${activeSite.persistence}`
+					: null;
+			})
+		)
+		.toBe('opfs:autosave');
+
+	await website.openSavedPlaygroundsOverlay();
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
+		.filter({ hasText: firstSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
-	// The overlay closes and site manager opens with the selected site
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
+		firstSiteName
 	);
 });
 
@@ -129,7 +459,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 
 	await website.ensureSiteManagerIsOpen();
 
@@ -153,11 +485,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Switch to Temporary Playground
-	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' })
-		.click();
+	// Create another Playground, then switch back.
+	await website.page.getByRole('button', { name: 'New Playground' }).click();
+	await website.waitForNestedIframes();
 
 	// Open the overlay again to switch back to the stored site
 	await website.openSavedPlaygroundsOverlay();
@@ -180,7 +510,7 @@ test('should rename a saved Playground and persist after reload', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Save the temporary site to OPFS so rename is available
@@ -238,7 +568,7 @@ test('should show save site modal with correct elements', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Click the Save button in the site manager panel
@@ -282,7 +612,7 @@ test('should close save site modal without saving', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
@@ -328,7 +658,7 @@ test('should have playground name input text selected by default', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
@@ -363,7 +693,7 @@ test('should save site with custom name', async ({ website, browserName }) => {
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	const customName = 'My Custom Playground Name';
@@ -396,7 +726,7 @@ test('should not persist save site modal through page refresh', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
@@ -433,7 +763,7 @@ test('should display OPFS storage option as selected by default', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getTemporaryPlaygroundUrl());
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
@@ -455,7 +785,67 @@ test('should display OPFS storage option as selected by default', async ({
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should import ZIP into temporary site when a saved site exists', async ({
+test('should flash import progress and finish after a close attempt during ZIP import', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openSavedPlaygroundsOverlay();
+
+	const zipBuffer = await createPluginThemeExportZip();
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			await dialog.accept();
+		});
+	await fileInput.setInputFiles({
+		name: 'playground-export-with-plugin-and-theme.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+	const zipStatus = website.page.getByTestId('zip-import-status');
+	await expect(zipStatus).toBeVisible();
+	const closeButton = website.page.getByRole('button', { name: 'Close' });
+	await expect(closeButton).toBeEnabled();
+	await closeButton.click();
+	await expect(zipStatus).toBeVisible();
+	await expect(zipStatus).toHaveClass(/zipImportStatusAttention/);
+	await importComplete;
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(async () => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					if (!playground) {
+						return { plugin: false, theme: false };
+					}
+					const documentRoot = await playground.documentRoot;
+					return {
+						plugin: await playground.fileExists(
+							`${documentRoot}/wp-content/plugins/close-race-plugin/close-race-plugin.php`
+						),
+						theme: await playground.fileExists(
+							`${documentRoot}/wp-content/themes/close-race-theme/style.css`
+						),
+					};
+				}),
+			{ timeout: 90000 }
+		)
+		.toEqual({ plugin: true, theme: true });
+});
+
+test('should import ZIP into a new saved site when a saved site exists', async ({
 	website,
 	wordpress,
 	browserName,
@@ -477,7 +867,9 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 
 	// Verify the marker is present
 	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
@@ -518,11 +910,13 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 		buffer: zipBuffer,
 	});
 
-	// The import should switch us to a temporary playground.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
+	// The import should switch us to a new saved Playground by default.
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		savedSiteName,
 		{ timeout: 30000 }
+	);
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground'
 	);
 
 	// Now verify the saved site still has the original content.
@@ -533,16 +927,17 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: savedSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
-	// by the ZIP import (which went to a temporary site instead)
+	// by the ZIP import (which went to a new saved site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
 	);
 });
 
-test('should create temporary site when importing ZIP while on a saved site with no existing temporary site', async ({
+test('should create a saved site when importing ZIP while on a saved site with no existing temporary site', async ({
 	website,
 	wordpress,
 	browserName,
@@ -564,7 +959,9 @@ test('should create temporary site when importing ZIP while on a saved site with
 			},
 		],
 	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
 	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
 
 	await website.ensureSiteManagerIsOpen();
@@ -598,14 +995,10 @@ test('should create temporary site when importing ZIP while on a saved site with
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// Verify there's no "Temporary Playground" in the list initially
-	// (the temporary site row should show but clicking it would create one)
-	const tempPlaygroundRow = website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Unsaved Playground' });
-
-	// The row exists but it's for creating a new temporary playground
-	await expect(tempPlaygroundRow).toBeVisible();
+	const importZipButton = website.page.getByRole('button', {
+		name: 'Import a .zip',
+	});
+	await expect(importZipButton).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
@@ -628,11 +1021,13 @@ test('should create temporary site when importing ZIP while on a saved site with
 		buffer: zipBuffer,
 	});
 
-	// The import should trigger creation of a new temporary site.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
+	// The import should trigger creation of a new saved site by default.
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		savedSiteName,
 		{ timeout: 30000 }
+	);
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground'
 	);
 
 	// Verify the saved site is still intact by switching to it
@@ -642,9 +1037,10 @@ test('should create temporary site when importing ZIP while on a saved site with
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: savedSiteName })
 		.click();
+	await website.ensureSiteManagerIsOpen();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
-	// by the ZIP import (which went to a temporary site instead)
+	// by the ZIP import (which went to a new saved site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
@@ -670,9 +1066,10 @@ test.describe('Missing site modal', () => {
 		// Clear all storage to ensure clean state
 		await context.clearCookies();
 
-		// Use a unique slug that definitely doesn't exist
+		// Use a unique temporary slug so the missing-site prompt is expected.
+		// Missing saved-site URLs create a new autosaved site by default.
 		const uniqueSlug = `missing-modal-test-${Date.now()}`;
-		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
 
 		// The modal should appear early, even before WordPress fully loads
 		await expect(
@@ -697,7 +1094,7 @@ test.describe('Missing site modal', () => {
 		await context.clearCookies();
 
 		const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
-		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
 
 		// Wait for modal
 		const dialog = website.page.getByRole('dialog', {

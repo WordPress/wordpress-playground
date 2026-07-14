@@ -24,7 +24,14 @@ test('should show app, backup, and troubleshooting tools', async ({
 
 	await website.ensureSiteToolsIsOpen();
 
-	await expect(website.page.getByText('Install Apps')).toBeVisible();
+	await expect(
+		website.page.getByRole('heading', {
+			name: 'Installing apps has moved here:',
+		})
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: /App Launcher/ })
+	).toBeVisible();
 	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();
@@ -44,6 +51,16 @@ test('should show app, backup, and troubleshooting tools', async ({
 			name: 'Install Health Check & Troubleshoot',
 		})
 	).toBeVisible();
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).toHaveAttribute('href', /playground-recovery-mode=health-check/);
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).not.toHaveAttribute('href', /blueprint-url=/);
 });
 
 test('should close the Site Tools panel with its close button', async ({
@@ -52,12 +69,16 @@ test('should close the Site Tools panel with its close button', async ({
 	await website.goto('./');
 
 	await website.ensureSiteToolsIsOpen();
-	await expect(website.page.getByText('Install Apps')).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: /App Launcher/ })
+	).toBeVisible();
 
 	await website.page
 		.getByRole('button', { name: /Close Site Tools/ })
 		.click();
-	await expect(website.page.getByText('Install Apps')).not.toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: /App Launcher/ })
+	).not.toBeVisible();
 });
 
 test('should display the page title as "My WordPress"', async ({ website }) => {
@@ -79,6 +100,8 @@ test('should navigate within WordPress from Site Tools shortcuts', async ({
 	).toBeVisible();
 
 	await website.page.getByRole('button', { name: 'Homepage' }).click();
-	await expect(website.page).toHaveURL(/\/$/);
-	await expect(wordpress.locator('p.wp-block-site-title')).toBeVisible();
+	await expect(website.page).toHaveURL(/\/my-apps\/$/);
+	await expect(
+		wordpress.locator('a[href$="/my-apps/?recipes"]')
+	).toBeVisible();
 });

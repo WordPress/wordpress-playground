@@ -29,10 +29,11 @@ const decodeBase64UTF8 = (base64: string) => {
 export const loadStateFromURL = () => {
 	const fragment = window.location.hash.slice(1);
 	if (!fragment) {
+		const query = new URLSearchParams(window.location.search);
 		return {
 			code: DEFAULT_CODE,
-			phpVersion: undefined,
-			wpVersion: undefined,
+			phpVersion: query.get('php') ?? undefined,
+			wpVersion: query.get('wp') ?? undefined,
 		};
 	}
 	const decoded = decodeBase64UTF8(fragment);

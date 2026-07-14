@@ -32,13 +32,15 @@ Playground peut être intégré sur votre site en utilisant la balise HTML `<ifr
 
 Chaque visiteur obtiendra sa propre instance WordPress privée gratuitement. Vous pouvez ensuite la personnaliser en utilisant l'une des [APIs Playground](/developers/apis/).
 
-:::caution Careful with the demo site
+<div class="callout callout-warning">
+
+**Careful with the demo site**
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
-:::
+</div>
 
 <!-- ## Control the embedded website -->
 

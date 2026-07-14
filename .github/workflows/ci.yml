@@ -5,6 +5,10 @@ on:
             - trunk
     pull_request:
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     # This step:
     # * Warms up the node_modules cache
@@ -18,6 +22,9 @@ jobs:
         name: 'Lint and typecheck'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -30,6 +37,9 @@ jobs:
     test-unit-asyncify:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         strategy:
             fail-fast: false
             matrix:
@@ -79,6 +89,9 @@ jobs:
     test-unit-jspi:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         strategy:
             fail-fast: false
             matrix:
@@ -130,6 +143,9 @@ jobs:
                 os: [ubuntu-latest, windows-latest, macos-latest]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         name: 'test-playground-cli (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
@@ -148,6 +164,9 @@ jobs:
                 async-strategy: [asyncify, jspi]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
@@ -161,6 +180,9 @@ jobs:
     test-e2e-php-wasm-web-jspi:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -171,6 +193,9 @@ jobs:
     test-e2e-php-wasm-web-asyncify:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -181,6 +206,9 @@ jobs:
     test-e2e:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v4
@@ -201,6 +229,9 @@ jobs:
     test-e2e-playwright:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         strategy:
             fail-fast: false
             matrix:
@@ -282,6 +313,9 @@ jobs:
 
     test-e2e-personal-wp:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -301,6 +335,9 @@ jobs:
     test-e2e-components:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -320,6 +357,9 @@ jobs:
     # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
     test-e2e-mcp:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -341,6 +381,9 @@ jobs:
     test-docs-api-reference:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -360,6 +403,9 @@ jobs:
     test-built-npm-packages:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -367,12 +413,19 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
+            - name: Validate publish package overrides
+              run: node tools/scripts/check-publish-package-overrides.mjs
+            - name: Install Playwright Browsers
+              run: npx --no-install playwright install --with-deps chromium
             - name: Build packages, start local registry, and run integration tests
               run: packages/playground/test-built-npm-packages/run-tests.sh
 
     test-playground-client-types-rollup:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -388,6 +441,9 @@ jobs:
     test-running-unbuilt-playground-cli:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -400,6 +456,9 @@ jobs:
     test-php-wasm-cli-smoke:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -412,6 +471,9 @@ jobs:
     detect-compile-extension-helper-changes:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo and fetch commit history.
         outputs:
             changed: ${{ steps.changed.outputs.changed }}
         steps:
@@ -447,6 +509,9 @@ jobs:
         needs: detect-compile-extension-helper-changes
         if: (github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request') && needs.detect-compile-extension-helper-changes.outputs.changed == 'true'
         runs-on: ubuntu-latest
+        timeout-minutes: 60
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -481,6 +546,8 @@ jobs:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -511,6 +578,9 @@ jobs:
     test-redis-extension:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         services:
             redis:
                 image: redis:7-alpine
@@ -539,6 +609,9 @@ jobs:
     test-memcached-extension:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         services:
             memcached:
                 image: memcached:1.6-alpine
@@ -562,6 +635,9 @@ jobs:
     build:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
@@ -592,8 +668,9 @@ jobs:
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
         permissions:
-            pages: write # to deploy to Pages
-            id-token: write # to verify the deployment originates from an appropriate source
+            contents: read # Required to clone the repo.
+            pages: write # Required to deploy to GitHub Pages.
+            id-token: write # Required to verify the deployment originates from an appropriate source.
 
         # Deploy to the github-pages environment
         environment:
@@ -602,6 +679,7 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             - uses: actions/checkout@v4
               with:

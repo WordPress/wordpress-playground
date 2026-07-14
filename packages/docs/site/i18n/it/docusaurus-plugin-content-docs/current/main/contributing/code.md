@@ -13,11 +13,13 @@ description: Una guida per i contributi al codice, che copre come fare il fork d
 <!--
 Like all WordPress projects, Playground uses GitHub to manage code and track issues. The main repository is at [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and the Playground Tools repository is at [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
 
-:::
+</div>
 
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
 
@@ -72,11 +74,13 @@ Playground will open in a new browser tab and refresh automatically with each ch
 
 When your'e ready, commit the changes and submit a Pull Request.
 
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
 ## Contribuire con Pull Request

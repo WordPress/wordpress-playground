@@ -6,6 +6,10 @@ import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
+import {
+	getSetupFormDefaultValues,
+	getSiteSettingsFromFormData,
+} from './setup-form-values';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,
@@ -19,29 +23,16 @@ export function TemporarySiteSettingsForm({
 	)!;
 	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		await sitesAPI.createNewTemporarySite(undefined, {
-			phpVersion: data.phpVersion,
-			wpVersion: data.wpVersion,
-			networking: data.withNetworking,
-			language: data.language,
-			multisite: data.multisite,
-		});
+		await sitesAPI.createNewTemporarySite(
+			undefined,
+			getSiteSettingsFromFormData(data)
+		);
 		onSubmit?.();
 	};
-	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
-		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
-		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
-		return {
-			phpVersion: runtimeConf?.phpVersion as any,
-			wpVersion: runtimeConf?.wpVersion as any,
-			withNetworking: runtimeConf?.networking,
-			language: 'language' in searchParams ? searchParams.language : '',
-			multisite:
-				'multisite' in searchParams
-					? searchParams.multisite === 'yes'
-					: false,
-		};
-	}, [siteInfo]);
+	const defaultValues = useMemo(
+		() => getSetupFormDefaultValues(siteInfo),
+		[siteInfo]
+	);
 
 	return (
 		<UnconnectedSiteSettingsForm

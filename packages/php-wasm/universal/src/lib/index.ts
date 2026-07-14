@@ -18,6 +18,7 @@ export {
 	printDebugDetails,
 	prettyPrintFullStackTrace,
 	printResponseDebugDetails,
+	describeError,
 } from './error-reporting';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
@@ -47,7 +48,9 @@ export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
 	AllPHPVersions,
+	PHPNextVersion,
 	isLegacyPHPVersion,
+	isPHPNextVersion,
 	LatestSupportedPHPVersion,
 	LegacyPHPVersions,
 	SupportedPHPVersions,
@@ -63,7 +66,12 @@ export {
 	LEGACY_PHP_INI_CONTENT,
 	LEGACY_PHP_INI_PATH,
 } from './legacy-php-ini';
-export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
+export {
+	MountStillActiveError,
+	PHP,
+	__private__dont__use,
+	PHPExecutionFailureError,
+} from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';
@@ -105,6 +113,7 @@ export {
 export type {
 	InstallPHPExtensionFilesOptions,
 	PHPExtensionIniDirective,
+	PHPExtensionLoadDirective,
 	ResolvedInstallOptions,
 	ResolvedPHPExtension,
 	PHPExtensionManifest,

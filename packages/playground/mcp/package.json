@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/mcp",
-	"version": "3.1.30",
+	"version": "3.1.44",
 	"description": "MCP server for WordPress Playground - enables AI agents to interact with the WordPress Playground website.",
 	"repository": {
 		"type": "git",
@@ -37,7 +37,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.0",
-		"ws": "^8.18.0",
+		"ws": "8.21.0",
 		"zod": "^4.3"
 	},
 	"devDependencies": {

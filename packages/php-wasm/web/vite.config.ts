@@ -33,18 +33,19 @@ export default defineConfig({
 		/*
 		 * This transforms rewrite dynamic import paths so they work from the dist output.
 		 *
-		 * Why the '../../../' prefix? Rollup computes the final import path relative to
+		 * Why the '../../' prefix? Rollup computes the final import path relative to
 		 * where the source file was located. Since everything gets bundled into
 		 * index.js at the dist root, we need to "climb out" of the source directory
-		 * structure. Rollup then normalizes '../../../foo' to './foo' in the output.
+		 * structure. Rollup then normalizes '../../foo' to './foo' in the output.
 		 */
 		viteExternalDynamicImports([
 			{
 				// Source: src/lib/extensions/load-extensions.ts
-				// Input:  './lib/extensions/intl/shared/icu.dat'
+				// Input:  './intl/shared/icu.dat'
 				// Output: './shared/icu.dat'
 				regex: /icu\.dat$/,
-				transform: (specifier) => `../../../${specifier}`,
+				transform: (specifier) =>
+					`../../${specifier.split('/').slice(-2).join('/')}`,
 			},
 		]),
 		...viteGlobalExtensions,

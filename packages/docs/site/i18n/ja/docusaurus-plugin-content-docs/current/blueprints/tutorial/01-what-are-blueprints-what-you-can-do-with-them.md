@@ -142,7 +142,10 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 </div>
 
 <!--
-:::info **More Resources**
+<div class="callout callout-info">
+
+**More Resources**
+
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
@@ -150,5 +153,5 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 -   [Blueprints examples](/blueprints/examples)
 -   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
 
-:::
+</div>
  -->

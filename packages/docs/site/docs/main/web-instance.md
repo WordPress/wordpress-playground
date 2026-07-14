@@ -77,9 +77,10 @@ This panel shows all the ways to launch WordPress Playground: import `.zip` file
 
 The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery and your Saved Playgrounds.
 
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

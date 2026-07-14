@@ -23,9 +23,11 @@ Bienvenue dans ce cours accéléré sur les blueprints où vous trouverez tout c
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Si vous rencontrez des difficultés en suivant ce tutoriel, consultez la section [Dépanner et déboguer les blueprints](/blueprints/troubleshoot-and-debug) pour des conseils et des outils pour vous aider à les résoudre.
-:::
+
+</div>
 
 <!--
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.

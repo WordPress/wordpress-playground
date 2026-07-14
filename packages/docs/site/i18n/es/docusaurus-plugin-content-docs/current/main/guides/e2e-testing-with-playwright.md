@@ -12,9 +12,11 @@ End-to-end testing verifies that your WordPress plugin or theme works correctly 
 Las pruebas de extremo a extremo verifican que tu plugin o tema WordPress funciona correctamente desde la perspectiva del usuario: haciendo clic en botones, completando formularios y navegando por páginas en un navegador real. Esta guía muestra cómo combinar [Playwright](https://playwright.dev/) con la [CLI de WordPress Playground](/developers/local-development/wp-playground-cli) para escribir pruebas E2E fiables sin Docker, bases de datos ni configuración manual.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started).
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -99,7 +101,10 @@ WordPress Playground needs more time to start than a typical web app. The 120-se
 WordPress Playground necesita más tiempo para iniciarse que una aplicación web típica. El timeout de prueba de 120 segundos y el timeout de aserción de 30 segundos tienen en cuenta el tiempo de arranque de WordPress y la carga de páginas. Configurar `workers: 1` evita conflictos de puertos cuando varias pruebas comparten un servidor Playground.
 
 <!--
-:::tip[Using baseURL with dynamic ports]
+<div class="callout callout-tip">
+
+**Using baseURL with dynamic ports**
+
 By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
 
 ```typescript
@@ -107,10 +112,14 @@ const cli = await runCLI({ command: "server", port: 9500, blueprint });
 ```
 
 Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
-:::
+
+</div>
 -->
 
-:::tip[Usar baseURL con puertos dinámicos]
+<div class="callout callout-tip">
+
+**Usar baseURL con puertos dinámicos**
+
 Por defecto, Playground usará el puerto `9400`. Si quieres seleccionar un puerto diferente, pasa `port: [NUEVO_NÚMERO_DE_PUERTO]` en las opciones de `runCLI` para seleccionar un puerto diferente:
 
 ```typescript
@@ -118,17 +127,22 @@ const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
 Luego añade `baseURL: "http://localhost:9500"` a la sección `use` anterior. Nota que `testMatch` tiene por defecto `**/*.spec.ts` — personalízalo si tus archivos de prueba usan un patrón de nombres diferente.
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 The WordPress Playground project uses even longer timeouts (300s test, 60s assertion) for its own tests. Start with the values above and increase if your CI environment is slower.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 El proyecto WordPress Playground usa timeouts aún mayores (300s de prueba, 60s de aserción) para sus propias pruebas. Empieza con los valores anteriores y aumenta si tu entorno CI es más lento.
-:::
+
+</div>
 
 <!--
 ### First test file
@@ -255,14 +269,22 @@ await page.locator('#submit').click();
 ```
 
 <!--
-:::tip[Generate locators automatically]
+<div class="callout callout-tip">
+
+**Generate locators automatically**
+
 Run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
-:::
+
+</div>
 -->
 
-:::tip[Generar localizadores automáticamente]
+<div class="callout callout-tip">
+
+**Generar localizadores automáticamente**
+
 Ejecuta `npx playwright codegen localhost:9400/wp-admin/` para abrir un navegador y grabar interacciones. Playwright genera código de localizador mientras haces clic, ayudándote a descubrir qué localizadores semánticos funcionan para cada elemento.
-:::
+
+</div>
 
 <!--
 ## Auto-waiting and web-first assertions
@@ -478,14 +500,18 @@ const blueprint = {
 ```
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Usa la [Playground Step Library](https://akirk.github.io/playground-step-library/) o [Pootle Playground](https://pootleplayground.com/) para prototipar tu configuración de Blueprint visualmente antes de añadirla a tu código de prueba.
-:::
+
+</div>
 
 <!--
 ### Testing WordPress admin pages
@@ -749,13 +775,19 @@ jobs:
 <!--
 This workflow installs dependencies, downloads Chromium, runs the tests, and uploads the HTML report as an artifact. The `--with-deps` flag installs system libraries Chromium needs on Ubuntu.
 
-:::tip[Sharding for faster CI]
+<div class="callout callout-tip">
+
+**Sharding for faster CI**
+
 Split tests across multiple CI jobs with Playwright's built-in sharding:
 -->
 
 Este workflow instala dependencias, descarga Chromium, ejecuta las pruebas y sube el informe HTML como artefacto. La opción `--with-deps` instala las bibliotecas del sistema que Chromium necesita en Ubuntu.
 
-:::tip[Fragmentación para CI más rápido]
+<div class="callout callout-tip">
+
+**Fragmentación para CI más rápido**
+
 Divide las pruebas en múltiples jobs de CI con la fragmentación incorporada de Playwright:
 
 ```bash
@@ -765,12 +797,15 @@ npx playwright test --shard=3/3
 ```
 
 Crea tres jobs paralelos en la matriz de tu workflow, cada uno ejecutando un fragmento diferente. Esto reduce el tiempo total de CI proporcionalmente.
-:::
+
+</div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For manual PR testing alongside automated E2E tests, see [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview).
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -856,9 +891,11 @@ npx playwright test --ui
 **Screenshot en fallo** — la configuración `screenshot: "only-on-failure"` en el config guarda un screenshot cada vez que una prueba falla. Encuentra los screenshots en el directorio `test-results/`.
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Combine `--debug` with a specific test file to focus your investigation: `npx playwright test tests/e2e/settings.spec.ts --debug`
-:::
+
+</div>
 
 ## Next steps
 
@@ -868,9 +905,11 @@ Combine `--debug` with a specific test file to focus your investigation: `npx pl
 - [Adding PR Preview Buttons](/guides/github-action-pr-preview) — combine automated tests with manual PR previews
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Combina `--debug` con un archivo de prueba específico para centrar tu investigación: `npx playwright test tests/e2e/settings.spec.ts --debug`
-:::
+
+</div>
 
 ## Próximos pasos
 

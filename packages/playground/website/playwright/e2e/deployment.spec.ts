@@ -15,6 +15,7 @@ const url = new URL(`http://localhost:${port}`);
 // disable auto-login, the old Playground build encounters
 // a boot error.
 url.searchParams.set('login', 'no');
+url.searchParams.set('storage', 'temp');
 // Specify the theme so we can assert against expected default content.
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
@@ -72,9 +73,7 @@ for (const cachingEnabled of [true, false]) {
 		server!.switchToNewVersion();
 		await page.goto(url.href);
 		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByLabel('Open Site Manager')
-		).toBeVisible();
+		await website.waitForPlaygroundShell();
 		await expect(wordpress.locator('body')).toContainText(
 			'My WordPress Website'
 		);
@@ -170,7 +169,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.reload();
 	await website.waitForNestedIframes();
 
-	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);

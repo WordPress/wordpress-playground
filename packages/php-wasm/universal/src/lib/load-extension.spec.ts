@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { PHP_EXTENSIONS_DIR, resolvePHPExtension } from './load-extension';
+import {
+	PHP_EXTENSIONS_DIR,
+	resolvePHPExtension,
+	withResolvedPHPExtensions,
+} from './load-extension';
 
 describe('resolvePHPExtension', () => {
 	it('resolves a regular extension for startup', async () => {
@@ -33,6 +37,24 @@ describe('resolvePHPExtension', () => {
 		expect(extension.iniContent).toBe(
 			`zend_extension=${PHP_EXTENSIONS_DIR}/xdebug.so`
 		);
+	});
+
+	it('resolves a side module without registering it in php.ini', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'so',
+				name: 'sqlite_markdown',
+				bytes: new Uint8Array([1, 2, 3]),
+			},
+			phpVersion: '8.4',
+			loadWithIniDirective: false,
+		});
+
+		expect(extension.soPath).toBe(
+			`${PHP_EXTENSIONS_DIR}/sqlite_markdown.so`
+		);
+		expect(extension.iniPath).toBeUndefined();
+		expect(extension.iniContent).toBeUndefined();
 	});
 
 	it('explains that direct URL sources require absolute URLs', async () => {
@@ -78,6 +100,68 @@ describe('resolvePHPExtension', () => {
 		});
 
 		expect(extension.soBytes).toEqual(artifactBytes);
+	});
+
+	it('applies manifest-declared runtime settings', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifest: {
+					name: 'spx',
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							sourcePath: 'spx.so',
+						},
+					],
+					extensionDir: '/internal/shared/extensions',
+					iniEntries: {
+						'spx.http_enabled': '1',
+					},
+					env: {
+						SPX_DATA_DIR: '/internal/shared/spx/data',
+					},
+				},
+				baseUrl: 'https://example.com/extensions/',
+			},
+			phpVersion: '8.4',
+			fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+		});
+
+		expect(extension.soPath).toBe('/internal/shared/extensions/spx.so');
+		expect(extension.iniContent).toBe(
+			'extension=/internal/shared/extensions/spx.so\n' +
+				'spx.http_enabled=1'
+		);
+		expect(extension.env).toEqual({
+			SPX_DATA_DIR: '/internal/shared/spx/data',
+		});
+	});
+
+	it('resolves manifest sources without php.ini registration', async () => {
+		const extension = await resolvePHPExtension({
+			source: {
+				format: 'manifest',
+				manifest: {
+					name: 'sqlite_markdown',
+					loadWithIniDirective: false,
+					artifacts: [
+						{
+							phpVersion: '8.4',
+							sourcePath: 'sqlite_markdown.so',
+						},
+					],
+				},
+				baseUrl: 'https://example.com/extensions/',
+			},
+			phpVersion: '8.4',
+			fetch: async () => new Response(new Uint8Array([1, 2, 3])),
+		});
+
+		expect(extension.soPath).toBe(
+			`${PHP_EXTENSIONS_DIR}/sqlite_markdown.so`
+		);
+		expect(extension.iniPath).toBeUndefined();
 	});
 
 	it('rejects manifests that do not match the generated schema validator', async () => {
@@ -233,5 +317,70 @@ describe('resolvePHPExtension', () => {
 		expect(completedSidecarFetches).toBe(12);
 		expect(artifactStartedBeforeManifestCompleted).toBe(true);
 		expect(maxActiveSidecarFetches).toBe(5);
+	});
+});
+
+describe('withResolvedPHPExtensions', () => {
+	it('installs extension files before PHP startup', () => {
+		const calls: string[] = [];
+		const options = withResolvedPHPExtensions(
+			{
+				preRun: [() => calls.push('existing preRun')],
+				onRuntimeInitialized: () => calls.push('runtime initialized'),
+			},
+			[
+				{
+					soPath: `${PHP_EXTENSIONS_DIR}/example.so`,
+					soBytes: new Uint8Array([1, 2, 3]),
+					iniPath: `${PHP_EXTENSIONS_DIR}/example.ini`,
+					iniContent: `extension=${PHP_EXTENSIONS_DIR}/example.so`,
+					extraFiles: {
+						directories: [`${PHP_EXTENSIONS_DIR}/data/cache`],
+						files: {
+							[`${PHP_EXTENSIONS_DIR}/data/config.json`]:
+								'{"enabled":true}',
+						},
+					},
+					extensionDir: PHP_EXTENSIONS_DIR,
+				},
+			]
+		);
+		const writtenFiles: Record<string, string | Uint8Array> = {};
+		const createdDirectories: string[] = [];
+		const FS = {
+			lookupPath: () => {
+				throw new Error('missing');
+			},
+			mkdirTree: (path: string) => {
+				createdDirectories.push(path);
+			},
+			writeFile: (path: string, contents: string | Uint8Array) => {
+				writtenFiles[path] = contents;
+				calls.push(`write ${path}`);
+			},
+		};
+
+		const preRun = options['preRun'] as Array<(runtime: unknown) => void>;
+		expect(preRun).toHaveLength(2);
+		preRun.forEach((callback) => callback({ FS }));
+		options.onRuntimeInitialized?.({ FS } as any);
+
+		expect(calls).toEqual([
+			'existing preRun',
+			`write ${PHP_EXTENSIONS_DIR}/example.so`,
+			`write ${PHP_EXTENSIONS_DIR}/example.ini`,
+			`write ${PHP_EXTENSIONS_DIR}/data/config.json`,
+			'runtime initialized',
+		]);
+		expect(createdDirectories).toEqual([
+			PHP_EXTENSIONS_DIR,
+			`${PHP_EXTENSIONS_DIR}/data/cache`,
+			`${PHP_EXTENSIONS_DIR}/data`,
+		]);
+		expect(writtenFiles).toEqual({
+			[`${PHP_EXTENSIONS_DIR}/example.so`]: new Uint8Array([1, 2, 3]),
+			[`${PHP_EXTENSIONS_DIR}/example.ini`]: `extension=${PHP_EXTENSIONS_DIR}/example.so`,
+			[`${PHP_EXTENSIONS_DIR}/data/config.json`]: '{"enabled":true}',
+		});
 	});
 });

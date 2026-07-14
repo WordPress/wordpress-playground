@@ -1,5 +1,5 @@
 import type { AllPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersionsList } from '@php-wasm/universal';
+import { PHPNextVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
 import { useEffect, useMemo, useState } from 'react';
@@ -106,11 +106,12 @@ export function UnconnectedSiteSettingsForm({
 			}
 			return;
 		}
-		// Unlocking: if the current value isn't one of the modern
-		// supported versions (e.g. it was just 5.2 or 7.4 for a
+		// Unlocking: if the current value isn't one of the available
+		// selectable versions (e.g. it was just 5.2 or 7.4 for a
 		// locked older WP), reset to the recommended default so the
 		// dropdown doesn't render a value that isn't in its options.
 		if (
+			current !== PHPNextVersion &&
 			!(SupportedPHPVersionsList as readonly string[]).includes(current)
 		) {
 			setValue('phpVersion', RecommendedPHPVersion as AllPHPVersion);
@@ -164,10 +165,16 @@ export function UnconnectedSiteSettingsForm({
 				},
 			];
 		}
-		return SupportedPHPVersionsList.map((version) => ({
-			label: `PHP ${version}`,
-			value: version,
-		}));
+		return [
+			{
+				label: 'PHP Next',
+				value: PHPNextVersion,
+			},
+			...SupportedPHPVersionsList.map((version) => ({
+				label: `PHP ${version}`,
+				value: version,
+			})),
+		];
 	}, [forcedPhpVersion]);
 
 	return (
