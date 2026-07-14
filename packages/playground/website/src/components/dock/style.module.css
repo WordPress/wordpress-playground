@@ -40,6 +40,16 @@
 	color: #f7f5f2;
 }
 
+.dock-item:disabled {
+	color: rgba(247, 245, 242, 0.4);
+	cursor: default;
+}
+
+.dock-item:disabled:hover {
+	background: transparent;
+	color: rgba(247, 245, 242, 0.4);
+}
+
 .dock-item-active {
 	background: rgba(247, 245, 242, 0.22);
 	color: #ffffff;
@@ -117,6 +127,16 @@
 .dock-pill-btn:hover {
 	background: rgba(247, 245, 242, 0.14);
 	color: #ffffff;
+}
+
+.dock-pill-btn:disabled {
+	color: rgba(247, 245, 242, 0.4);
+	cursor: default;
+}
+
+.dock-pill-btn:disabled:hover {
+	background: transparent;
+	color: rgba(247, 245, 242, 0.4);
 }
 
 .dock-pill-btn:focus-visible {

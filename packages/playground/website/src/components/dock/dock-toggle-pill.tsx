@@ -10,6 +10,7 @@ import css from './style.module.css';
 export type DockTogglePillProps = {
 	isCollapsed: boolean;
 	isFullWidth: boolean;
+	collapseDisabled?: boolean;
 	collapseButtonRef?: Ref<HTMLButtonElement>;
 	onToggleCollapsed: MouseEventHandler<HTMLButtonElement>;
 	onToggleFullWidth: MouseEventHandler<HTMLButtonElement>;
@@ -22,10 +23,17 @@ export type DockTogglePillProps = {
 export function DockTogglePill({
 	isCollapsed,
 	isFullWidth,
+	collapseDisabled = false,
 	collapseButtonRef,
 	onToggleCollapsed,
 	onToggleFullWidth,
 }: DockTogglePillProps) {
+	const collapseButtonLabel = collapseDisabled
+		? 'Tools cannot be hidden right now'
+		: isCollapsed
+			? 'Show tools'
+			: 'Hide tools';
+
 	return (
 		<div className={css.dockTogglePill}>
 			<button
@@ -34,9 +42,10 @@ export function DockTogglePill({
 				className={classNames(css.dockPillBtn, css.dockPillCollapse, {
 					[css.dockPillCollapseClosed]: isCollapsed,
 				})}
-				aria-label={isCollapsed ? 'Show tools' : 'Hide tools'}
+				aria-label={collapseButtonLabel}
 				aria-expanded={!isCollapsed}
-				title={isCollapsed ? 'Show tools' : 'Hide tools'}
+				title={collapseButtonLabel}
+				disabled={collapseDisabled}
 				onClick={onToggleCollapsed}
 			>
 				<DockCollapseChevronIcon />
