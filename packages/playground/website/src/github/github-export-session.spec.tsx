@@ -44,15 +44,8 @@ describe('GitHubExportSessionProvider', () => {
 		session = undefined;
 	});
 
-	it('keeps query, import, and export state in one session', () => {
-		act(() => {
-			root.render(
-				<GitHubExportSessionProvider>
-					<SessionProbe />
-				</GitHubExportSessionProvider>
-			);
-		});
-
+	it('initializes export form state from URL query parameters', () => {
+		renderProvider();
 		expect(getSession()).toMatchObject({
 			allowZipExport: false,
 			values: {
@@ -67,7 +60,10 @@ describe('GitHubExportSessionProvider', () => {
 				plugin: 'example',
 			},
 		});
+	});
 
+	it('keeps import and export state in one session', () => {
+		renderProvider();
 		act(() => {
 			getSession().recordImport({
 				url: 'https://github.com/new-owner/new-repo/pull/12',
@@ -112,6 +108,16 @@ describe('GitHubExportSessionProvider', () => {
 		expect(getSession().filesBeforeChanges).toBeUndefined();
 		expect(getSession().values.commitMessage).toBe('Export wp-content');
 	});
+
+	function renderProvider() {
+		act(() => {
+			root.render(
+				<GitHubExportSessionProvider>
+					<SessionProbe />
+				</GitHubExportSessionProvider>
+			);
+		});
+	}
 
 	function SessionProbe() {
 		session = useGitHubExportSession();

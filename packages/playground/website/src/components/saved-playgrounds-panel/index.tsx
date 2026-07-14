@@ -20,6 +20,7 @@ import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
+import { useGitHubExportSession } from '../../github/github-export-session';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
 import { isValidBlueprintDraft } from './is-valid-blueprint-draft';
 import {
@@ -163,6 +164,7 @@ export function SavedPlaygroundsPanel({
 	const activeSiteSyncLabel = getActiveSiteSyncLabel(activeClientInfo);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
+	const githubExportSession = useGitHubExportSession();
 	const playground = usePlaygroundClient();
 	const localFsAvailability = useLocalFsAvailability(playground ?? undefined);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
@@ -1436,7 +1438,8 @@ export function SavedPlaygroundsPanel({
 								createSiteForGitHubImport
 							}
 							onClose={() => setActiveCreationTab('gallery')}
-							onImported={() => {
+							onImported={(details) => {
+								githubExportSession.recordImport(details);
 								// eslint-disable-next-line no-alert
 								alert(
 									'Import finished! Your Playground has been updated.'
