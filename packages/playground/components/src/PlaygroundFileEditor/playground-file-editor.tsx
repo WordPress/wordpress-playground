@@ -526,9 +526,12 @@ export function PlaygroundFileEditor({
 									saveButtonStateClassName
 								)}
 								isBusy={saveState === SaveState.SAVING}
-								disabled={saveState === SaveState.SAVING}
+								disabled={
+									saveState !== SaveState.PENDING &&
+									saveState !== SaveState.ERROR
+								}
 								onClick={handleDockManualSave}
-								title="Save this file"
+								title={saveButtonLabel}
 							>
 								{saveButtonLabel}
 							</Button>

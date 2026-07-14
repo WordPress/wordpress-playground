@@ -6,7 +6,7 @@ import React, {
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
-import { Icon, Tooltip } from '@wordpress/components';
+import { Button, Icon, Tooltip } from '@wordpress/components';
 import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import styles from './file-explorer.module.css';
@@ -125,16 +125,15 @@ export function FileExplorerSidebar({
 					<>
 						<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
 						<p>
-							<a
-								href="#"
-								download={filename}
-								onClick={(event) => {
-									event.preventDefault();
+							<Button
+								type="button"
+								variant="link"
+								onClick={() => {
 									void downloadFile(path, filename);
 								}}
 							>
 								Download {filename}
-							</a>
+							</Button>
 						</p>
 					</>
 				);
