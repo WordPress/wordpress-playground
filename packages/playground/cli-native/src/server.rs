@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
-    fs, io,
+    env, fs, io,
     io::{Cursor, Read, Seek, Write},
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
@@ -47,6 +47,8 @@ const WORKER_RECYCLE_IDLE_DELAY_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_WORKER_REC
 const DEFAULT_LAZY_WORKER_IDLE_TIMEOUT: Duration = Duration::from_secs(10);
 const LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_LAZY_WORKER_IDLE_TIMEOUT_MS";
 const SERVER_PHP_INI_ENTRIES: &[&str] = &["implicit_flush=0", "output_buffering=65536"];
+const READY_FILE_ENV_VAR: &str = "WP_PLAYGROUND_WASMTIME_READY_FILE";
+const WASMTIME_HOST_READY_PROTOCOL_VERSION: u8 = 2;
 const AUTO_LOGIN_COOKIE_NAME: &str = "playground_auto_login_already_happened";
 const CLEAR_AUTO_LOGIN_COOKIE: &str = "playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
 const DEFAULT_WP_CLI_PATH: &str = "/tmp/wp-cli.phar";
@@ -115,6 +117,31 @@ struct HttpProtocolError {
 }
 
 type HttpParseResult<T> = std::result::Result<T, HttpProtocolError>;
+
+/// Machine-readable state published once a Wasmtime host can accept requests.
+///
+/// The regular CLI output remains for people. Embedders must use this file so
+/// a wording or color change in the human banner never becomes an API break.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WasmtimeHostReadyManifest<'a> {
+    protocol_version: u8,
+    server_url: &'a str,
+    site_url: &'a str,
+    pid: u32,
+    mounts: Vec<WasmtimeHostReadyMount<'a>>,
+}
+
+/// A host-backed VFS mount selected by the Wasmtime startup sequence.
+///
+/// The Node adapter needs this final list because `start` can replace its
+/// default site directory after auto-mount and managed-storage resolution.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WasmtimeHostReadyMount<'a> {
+    vfs_path: &'a str,
+    host_path: String,
+}
 
 impl HttpProtocolError {
     fn new(status: u16, message: impl Into<String>) -> Self {
@@ -1090,6 +1117,142 @@ fn ready_message(server_url: &str, worker_count: usize, style: TerminalStyle) ->
     )
 }
 
+/// Reads the optional host-only readiness destination before server startup.
+///
+/// The environment variable is deliberately not a CLI flag. It is a private
+/// process contract for the Node wrapper, not a user-facing server setting.
+fn wasmtime_host_ready_file_from_env() -> Result<Option<PathBuf>> {
+    let Some(path) = env::var_os(READY_FILE_ENV_VAR) else {
+        return Ok(None);
+    };
+    let path = PathBuf::from(path);
+    if !path.is_absolute() {
+        return Err(CliError::new(format!(
+            "{READY_FILE_ENV_VAR} must be an absolute path"
+        )));
+    }
+    let parent = path.parent().ok_or_else(|| {
+        CliError::new(format!(
+            "{READY_FILE_ENV_VAR} must name a file inside a directory"
+        ))
+    })?;
+    if !parent.is_dir() {
+        return Err(CliError::new(format!(
+            "{READY_FILE_ENV_VAR} parent directory does not exist: {}",
+            parent.display()
+        )));
+    }
+    if path.file_name().is_none() {
+        return Err(CliError::new(format!(
+            "{READY_FILE_ENV_VAR} must name a file"
+        )));
+    }
+    Ok(Some(path))
+}
+
+/// Atomically publishes the loopback address after the worker pool is ready.
+///
+/// A fresh wrapper-owned directory supplies an unused destination. Rejecting an
+/// existing manifest catches stale or incorrectly reused wrapper state.
+fn write_wasmtime_host_ready_manifest(
+    ready_file: &Path,
+    server_url: &str,
+    site_url: &str,
+    mounts: &[Mount],
+) -> Result<()> {
+    if ready_file.exists() {
+        return Err(CliError::new(format!(
+            "{READY_FILE_ENV_VAR} already exists: {}",
+            ready_file.display()
+        )));
+    }
+    let parent = ready_file.parent().ok_or_else(|| {
+        CliError::new(format!(
+            "{READY_FILE_ENV_VAR} must name a file inside a directory"
+        ))
+    })?;
+    let file_name = ready_file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            CliError::new(format!(
+                "{READY_FILE_ENV_VAR} file name must be valid UTF-8"
+            ))
+        })?;
+    let temporary = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
+    let manifest = WasmtimeHostReadyManifest {
+        protocol_version: WASMTIME_HOST_READY_PROTOCOL_VERSION,
+        server_url,
+        site_url,
+        pid: std::process::id(),
+        mounts: mounts
+            .iter()
+            .map(|mount| WasmtimeHostReadyMount {
+                vfs_path: &mount.vfs_path,
+                host_path: mount.host_path.to_string_lossy().into_owned(),
+            })
+            .collect(),
+    };
+    let payload = serde_json::to_vec(&manifest).map_err(|error| {
+        CliError::new(format!(
+            "Failed to encode Wasmtime readiness manifest: {error}"
+        ))
+    })?;
+
+    let mut temporary_created = false;
+    let write_result = (|| -> Result<()> {
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary).map_err(|error| {
+            CliError::from_io_context(
+                format!(
+                    "Failed to create Wasmtime readiness manifest {}",
+                    temporary.display()
+                ),
+                error,
+            )
+        })?;
+        temporary_created = true;
+        file.write_all(&payload).map_err(|error| {
+            CliError::from_io_context(
+                format!(
+                    "Failed to write Wasmtime readiness manifest {}",
+                    temporary.display()
+                ),
+                error,
+            )
+        })?;
+        file.sync_all().map_err(|error| {
+            CliError::from_io_context(
+                format!(
+                    "Failed to sync Wasmtime readiness manifest {}",
+                    temporary.display()
+                ),
+                error,
+            )
+        })?;
+        fs::rename(&temporary, ready_file).map_err(|error| {
+            CliError::from_io_context(
+                format!(
+                    "Failed to publish Wasmtime readiness manifest {}",
+                    ready_file.display()
+                ),
+                error,
+            )
+        })?;
+        Ok(())
+    })();
+    if temporary_created && write_result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    write_result
+}
+
 fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
     let mut mounts = Vec::new();
     mounts.extend(config.options.mounts_before_install.clone());
@@ -1196,6 +1359,7 @@ fn run_listener(
     runtime: &NativeRuntime,
     mut host_options: PhpWorkerOptions,
 ) -> Result<u8> {
+    let wasmtime_host_ready_file = wasmtime_host_ready_file_from_env()?;
     progress(&config.options, "Binding HTTP server");
     let listener = bind_server_listener(config.options.port)?;
     let actual_port = listener
@@ -1207,6 +1371,7 @@ fn run_listener(
         .site_url
         .clone()
         .unwrap_or_else(|| format!("http://127.0.0.1:{actual_port}"));
+    let loopback_server_url = format!("http://127.0.0.1:{actual_port}");
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
         let style = TerminalStyle::stdout();
         let mut stdout = io::stdout().lock();
@@ -1280,6 +1445,10 @@ fn run_listener(
         lazy_workers,
     )?);
     release_unused_process_memory();
+
+    if let Some(ready_file) = wasmtime_host_ready_file.as_deref() {
+        write_wasmtime_host_ready_manifest(ready_file, &loopback_server_url, &server_url, mounts)?;
+    }
 
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
         let style = TerminalStyle::stdout();
@@ -6064,7 +6233,7 @@ fn run_startup_step_with_symlink_policy(
         | StartupStep::Rm { .. }
         | StartupStep::Rmdir { .. }
         | StartupStep::Cp { .. }
-        | StartupStep::Mv { .. } => unreachable!("native startup step should have returned"),
+        | StartupStep::Mv { .. } => unreachable!("Wasmtime startup step should have returned"),
     };
     let script_vfs_path = format!("/tmp/wp-playground-native-startup-{index}.php");
     let script_host_path = host_path_for_vfs_path(mounts, &script_vfs_path)
@@ -9483,19 +9652,22 @@ mod tests {
         startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
         startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
         unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
-        wordpress_importer_install_step, wordpress_translation_url_from_api_response,
-        worker_after_request_label, worker_recycle_backoff, worker_recycle_idle_delay_from_env,
-        wp_cli_runner_script, wp_installation_wizard_request, write_http_response_with_counter,
+        wasmtime_host_ready_file_from_env, wordpress_importer_install_step,
+        wordpress_translation_url_from_api_response, worker_after_request_label,
+        worker_recycle_backoff, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
+        wp_installation_wizard_request, write_http_response_with_counter,
         write_server_http_response_with_counter, write_static_file_response,
-        write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
-        FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
-        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
-        PhpRunOptions, PhpRunScript, PhpWorker, RequestTotalRequest, RouteTarget,
-        ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest, WorkerKind,
-        WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection, AUTO_LOGIN_COOKIE_NAME,
-        CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT, DEFAULT_MAX_REQUESTS_PER_WORKER,
-        DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR, MAX_REQUESTS_PER_WORKER_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        write_wasmtime_host_ready_manifest, write_wordpress_snapshot_zip, zip_path_to_string,
+        DefineWpConfigMethod, DownloadableAsset, FileContentSource, FileTreeEntry, FileTreeSource,
+        GitDirectoryResource, HttpRequest, HttpResponse, IfAlreadyInstalled, InstallAssetSource,
+        InstallAssetStep, PhpConstantValue, PhpRunOptions, PhpRunScript, PhpWorker,
+        RequestTotalRequest, RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep,
+        WorkerAfterRequest, WorkerKind, WorkerLease, WorkerPoolShared, WorkerPoolState,
+        WorkerSelection, AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE,
+        DEFAULT_LAZY_WORKER_IDLE_TIMEOUT, DEFAULT_MAX_REQUESTS_PER_WORKER, DEFAULT_WP_CLI_PATH,
+        LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR, MAX_REQUESTS_PER_WORKER_ENV_VAR, READY_FILE_ENV_VAR,
+        WASMTIME_HOST_READY_PROTOCOL_VERSION, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -10530,6 +10702,94 @@ mod tests {
 
         let listener = bind_server_listener_with_default(None, occupied_port).unwrap();
         assert_ne!(listener.local_addr().unwrap().port(), occupied_port);
+    }
+
+    #[test]
+    fn wasmtime_host_ready_manifest_publishes_the_live_loopback_address() {
+        let root = temp_dir("ready-manifest");
+        let ready_file = root.join("ready.json");
+        let wordpress = root.join("wordpress");
+        fs::create_dir_all(&wordpress).unwrap();
+        let mounts = vec![Mount::new(&wordpress, "/wordpress").unwrap()];
+
+        write_wasmtime_host_ready_manifest(
+            &ready_file,
+            "http://127.0.0.1:49152",
+            "https://playground.example.test",
+            &mounts,
+        )
+        .unwrap();
+
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+        assert_eq!(
+            manifest["protocolVersion"],
+            WASMTIME_HOST_READY_PROTOCOL_VERSION
+        );
+        assert_eq!(manifest["serverUrl"], "http://127.0.0.1:49152");
+        assert_eq!(manifest["siteUrl"], "https://playground.example.test");
+        assert_eq!(manifest["pid"], std::process::id());
+        assert_eq!(manifest["mounts"][0]["vfsPath"], "/wordpress");
+        assert_eq!(
+            manifest["mounts"][0]["hostPath"].as_str(),
+            Some(wordpress.to_string_lossy().as_ref())
+        );
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn wasmtime_host_ready_manifest_refuses_to_replace_existing_state() {
+        let root = temp_dir("ready-manifest-existing");
+        let ready_file = root.join("ready.json");
+        fs::write(&ready_file, b"old state").unwrap();
+
+        let error = write_wasmtime_host_ready_manifest(
+            &ready_file,
+            "http://127.0.0.1:49152",
+            "http://127.0.0.1:49152",
+            &[],
+        )
+        .expect_err("an existing readiness manifest must not be replaced");
+
+        assert!(error.to_string().contains("already exists"));
+        assert_eq!(fs::read(&ready_file).unwrap(), b"old state");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn wasmtime_host_ready_file_environment_requires_an_absolute_existing_parent() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous = std::env::var_os(READY_FILE_ENV_VAR);
+        std::env::remove_var(READY_FILE_ENV_VAR);
+        assert_eq!(wasmtime_host_ready_file_from_env().unwrap(), None);
+
+        std::env::set_var(READY_FILE_ENV_VAR, "ready.json");
+        assert!(wasmtime_host_ready_file_from_env()
+            .expect_err("relative readiness paths must be rejected")
+            .to_string()
+            .contains("absolute path"));
+
+        let root = temp_dir("ready-file-environment");
+        let missing_parent = root.join("missing-parent").join("ready.json");
+        std::env::set_var(READY_FILE_ENV_VAR, &missing_parent);
+        assert!(wasmtime_host_ready_file_from_env()
+            .expect_err("the readiness parent must already exist")
+            .to_string()
+            .contains("parent directory does not exist"));
+
+        let expected = root.join("ready.json");
+        std::env::set_var(READY_FILE_ENV_VAR, &expected);
+        assert_eq!(wasmtime_host_ready_file_from_env().unwrap(), Some(expected));
+
+        if let Some(previous) = previous {
+            std::env::set_var(READY_FILE_ENV_VAR, previous);
+        } else {
+            std::env::remove_var(READY_FILE_ENV_VAR);
+        }
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

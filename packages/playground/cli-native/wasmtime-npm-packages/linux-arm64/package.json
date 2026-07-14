@@ -1,0 +1,35 @@
+{
+	"name": "@wp-playground/cli-wasmtime-linux-arm64",
+	"version": "3.1.43",
+	"description": "Wasmtime host for @wp-playground/cli on Linux arm64",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"license": "GPL-2.0-or-later",
+	"os": [
+		"linux"
+	],
+	"cpu": [
+		"arm64"
+	],
+	"libc": [
+		"glibc"
+	],
+	"files": [
+		"bin",
+		"share",
+		"package-manifest.json"
+	],
+	"exports": {
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
+	}
+}

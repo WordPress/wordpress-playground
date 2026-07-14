@@ -131,6 +131,12 @@ const plugins = [
 
 const external = [
 	...getExternalModules(),
+	'node:child_process',
+	'node:events',
+	'node:module',
+	'node:os',
+	'node:path',
+	'node:url',
 	'@php-wasm/node',
 	'@php-wasm/web',
 	'@php-wasm/universal',

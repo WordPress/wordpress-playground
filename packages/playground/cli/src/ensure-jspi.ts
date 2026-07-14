@@ -19,8 +19,8 @@ export function shouldRespawnWithJSPI(): boolean {
 		return false;
 	}
 
-	// Explicit opt-out. The `unbuilt-asyncify` NX target sets this
-	// to prevent the respawn on Node versions that support JSPI.
+	// Explicit opt-out for legacy callers that need to prevent the respawn
+	// on Node versions that support JSPI.
 	if (process.env['PLAYGROUND_NO_JSPI_RESPAWN']) {
 		return false;
 	}

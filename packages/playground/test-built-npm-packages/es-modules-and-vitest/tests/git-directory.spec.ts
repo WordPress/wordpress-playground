@@ -1,15 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runCLI } from '@wp-playground/cli';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersions } from '@php-wasm/universal';
 
-const phpVersion = process.env.PHP_VERSION as SupportedPHPVersion;
-if (!phpVersion) {
-	throw new Error('PHP_VERSION is not set');
-}
-if (!SupportedPHPVersions.includes(phpVersion)) {
-	throw new Error(`PHP_VERSION '${phpVersion}' is not supported`);
+const WASMTIME_PHP_VERSION = '8.2';
+const phpVersion = process.env.PHP_VERSION;
+if (phpVersion !== WASMTIME_PHP_VERSION) {
+	throw new Error(
+		`PHP_VERSION must be '${WASMTIME_PHP_VERSION}' for the Wasmtime CLI, got '${phpVersion ?? ''}'`
+	);
 }
 
 describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {

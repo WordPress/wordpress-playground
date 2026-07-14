@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Rewrite package.json to use local packages
-"$SCRIPT_DIR/../use-local-packages.sh" ./package.json
+bash "$SCRIPT_DIR/../use-local-packages.sh" ./package.json
 
 # Install dependencies from local registry
 npm install

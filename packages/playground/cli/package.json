@@ -34,5 +34,13 @@
 	"bin": {
 		"wp-playground-cli": "wp-playground.js"
 	},
-	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
+	"optionalDependencies": {
+		"@wp-playground/cli-wasmtime-linux-x64": "file:../cli-native/wasmtime-npm-packages/linux-x64",
+		"@wp-playground/cli-wasmtime-linux-arm64": "file:../cli-native/wasmtime-npm-packages/linux-arm64",
+		"@wp-playground/cli-wasmtime-macos-x64": "file:../cli-native/wasmtime-npm-packages/macos-x64",
+		"@wp-playground/cli-wasmtime-macos-arm64": "file:../cli-native/wasmtime-npm-packages/macos-arm64",
+		"@wp-playground/cli-wasmtime-windows-x64": "file:../cli-native/wasmtime-npm-packages/windows-x64",
+		"@wp-playground/cli-wasmtime-windows-arm64": "file:../cli-native/wasmtime-npm-packages/windows-arm64"
+	}
 }

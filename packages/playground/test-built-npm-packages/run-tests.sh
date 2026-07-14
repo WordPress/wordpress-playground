@@ -71,6 +71,43 @@ if [ "$SKIP_BUILD" = false ]; then
   echo ""
   echo "=== Building and packaging all packages ==="
   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
+
+  echo ""
+  echo "=== Building and packaging the current-platform Wasmtime host ==="
+  WASMTIME_PLATFORM_LABEL="$(node -e '
+    const platform = process.platform === "darwin"
+      ? "macos"
+      : process.platform === "win32"
+        ? "windows"
+        : process.platform;
+    if (!["linux", "macos", "windows"].includes(platform) || !["x64", "arm64"].includes(process.arch)) {
+      throw new Error(`Unsupported Wasmtime npm package target: ${process.platform}-${process.arch}`);
+    }
+    process.stdout.write(`${platform}-${process.arch}`);
+  ')"
+  NATIVE_EXECUTABLE_SUFFIX="$(node -e 'process.stdout.write(process.platform === "win32" ? ".exe" : "")')"
+  NATIVE_TARGET_DIRECTORY="${CARGO_TARGET_DIR:-packages/playground/cli-native/target}"
+  NATIVE_PACKAGE_OUTPUT="$NATIVE_TARGET_DIRECTORY/self-hosting-package"
+  NATIVE_PACKAGE_NAME="wp-playground-native-$VERSION-$WASMTIME_PLATFORM_LABEL"
+
+  WP_PLAYGROUND_NATIVE_VERSION="$VERSION" cargo build \
+    --manifest-path packages/playground/cli-native/Cargo.toml \
+    --release \
+    --bin wp-playground-native \
+    --bin package-native-cli
+  WP_PLAYGROUND_NATIVE_VERSION="$VERSION" \
+    "$NATIVE_TARGET_DIRECTORY/release/package-native-cli$NATIVE_EXECUTABLE_SUFFIX" \
+      --binary "$NATIVE_TARGET_DIRECTORY/release/wp-playground-native$NATIVE_EXECUTABLE_SUFFIX" \
+      --out-dir "$NATIVE_PACKAGE_OUTPUT" \
+      --name "$NATIVE_PACKAGE_NAME" \
+      --no-precompile-wasmtime \
+      --skip-archive
+  node packages/playground/cli-native/scripts/package-wasmtime-platform-for-self-hosting.mjs \
+    --label "$WASMTIME_PLATFORM_LABEL" \
+    --source "$NATIVE_PACKAGE_OUTPUT/$NATIVE_PACKAGE_NAME" \
+    --destination "dist/packages/playground/cli-wasmtime-$WASMTIME_PLATFORM_LABEL" \
+    --archive-directory "$HOST_PATH/v$VERSION" \
+    --version "$VERSION"
 fi
 
 # Start the HTTP server in background
@@ -125,7 +162,7 @@ FAILED=false
 if [ "$RUN_ES_MODULES" = true ]; then
   echo ""
   echo "=== Running ES Modules tests ==="
-  if ! "$SCRIPT_DIR/es-modules-and-vitest/run-with-local-packages.sh"; then
+  if ! bash "$SCRIPT_DIR/es-modules-and-vitest/run-with-local-packages.sh"; then
     FAILED=true
   fi
 fi
@@ -133,7 +170,7 @@ fi
 if [ "$RUN_COMMONJS" = true ]; then
   echo ""
   echo "=== Running CommonJS tests ==="
-  if ! "$SCRIPT_DIR/commonjs-and-jest/run-with-local-packages.sh"; then
+  if ! bash "$SCRIPT_DIR/commonjs-and-jest/run-with-local-packages.sh"; then
     FAILED=true
   fi
 fi

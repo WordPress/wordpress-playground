@@ -90,6 +90,12 @@ export default async function packageForSelfHostingExecutor(
 			packageJson.devDependencies
 		);
 	}
+	if (packageJson.optionalDependencies) {
+		packageJson.optionalDependencies = mapToSelfHostedDependencies(
+			hostingBaseUrl,
+			packageJson.optionalDependencies
+		);
+	}
 
 	// TODO: Should 'dist' not be hardcoded?
 	const tarballOutputDir = path.join(
