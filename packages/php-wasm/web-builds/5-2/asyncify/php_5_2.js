@@ -4716,7 +4716,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
@@ -7192,6 +7192,13 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				/**
+				 * Descriptor 0 was not provided, so the child process must observe EOF.
+				 * Closing stdin explicitly lets spawn handlers distinguish that case from
+				 * a valid pipe whose first bytes have not arrived yet.
+				 */
+				cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});

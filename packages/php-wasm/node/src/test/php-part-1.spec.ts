@@ -728,6 +728,46 @@ phpLoaderOptions.forEach((options) => {
 		});
 
 		describe('proc_open()', () => {
+			it('closes child stdin when descriptor 0 is omitted', async () => {
+				let stdinFinished = false;
+				const handler = createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						const stdin = processApi.childProcess.stdin;
+						stdinFinished =
+							stdin.ended ||
+							(await new Promise<boolean>((resolve) => {
+								const timeout = setTimeout(
+									() => resolve(false),
+									1000
+								);
+								stdin.once('finish', () => {
+									clearTimeout(timeout);
+									resolve(true);
+								});
+							}));
+						processApi.exit(stdinFinished ? 0 : 1);
+					}
+				);
+				php.setSpawnHandler(handler);
+
+				const result = await php.run({
+					code: `<?php
+						$proc = proc_open(
+							"wait-for-stdin-eof",
+							array(
+								1 => array("pipe", "w"),
+								2 => array("pipe", "w"),
+							),
+							$pipes
+						);
+						echo proc_close($proc);
+					`,
+				});
+
+				expect(result.text).toBe('0');
+				expect(stdinFinished).toBe(true);
+			});
+
 			it('resolves without crashing with unknown function signature mismatch', async () => {
 				const promise = php.runStream({
 					code: `<?php
