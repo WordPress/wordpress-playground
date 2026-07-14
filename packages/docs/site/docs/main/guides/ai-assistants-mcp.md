@@ -14,7 +14,7 @@ MCP is most useful when the site itself matters: a saved Playground, a persisten
 
 ## What MCP adds to Playground
 
-MCP, or Model Context Protocol, gives your AI assistant tools for the Playground site that is open in your browser. Instead of only describing a task, the assistant can act on the site:
+MCP, or Model Context Protocol, gives your AI assistant control over the Playground site that is open in your browser. Instead of only describing a task, the assistant can act on the site:
 
 - Open the exact Playground URL needed to connect to the MCP server
 - List your available Playground sites
