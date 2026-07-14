@@ -16,7 +16,6 @@ There's a set of redirections in place to make it easier the access to some of t
 <li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
 <li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
 <li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
-<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Legacy Playground Proxy Service <em>(for Git repositories, prefer [git:directory](/blueprints/steps/resources#gitdirectoryreference))</em></li>
 </ul>
 
 </div>
@@ -37,10 +36,8 @@ There's a set of redirections in place to make it easier the access to some of t
 - Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 - [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 - [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
-- [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 - [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
 - [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
-- [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 - [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
 - [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
