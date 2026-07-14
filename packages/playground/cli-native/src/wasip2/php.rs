@@ -492,7 +492,7 @@ echo '|', is_array($script) ? ($script['timestamp'] ?? -1) : -1;
         fs::write(site_path.join("epoch.php"), b"<?php echo 'v2';").unwrap();
         set_modified_time(
             &site_path.join("epoch.php"),
-            UNIX_EPOCH + Duration::from_nanos(1),
+            UNIX_EPOCH + Duration::from_secs(1),
         );
         let after_forward_edit = php
             .handle_request(&request("/epoch.php", "/site/epoch.php"))
