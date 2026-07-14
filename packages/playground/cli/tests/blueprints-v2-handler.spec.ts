@@ -7,8 +7,12 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
+import { assertBlueprintV2WordPressVersionCompatibility } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/universal';
-import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
+import {
+	cachedDownload,
+	fetchSqliteIntegration,
+} from '../src/blueprints-v1/download';
 
 vi.mock('@php-wasm/universal', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -22,9 +26,20 @@ vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
 	return {
 		...actual,
+		cachedDownload: vi.fn(
+			async () => new File(['WordPress'], 'wordpress.zip')
+		),
 		fetchSqliteIntegration: vi.fn(
 			async () => new File(['sqlite'], 'sqlite.zip')
 		),
+	};
+});
+
+vi.mock('@wp-playground/blueprints', async (importOriginal) => {
+	const actual = (await importOriginal()) as Record<string, unknown>;
+	return {
+		...actual,
+		assertBlueprintV2WordPressVersionCompatibility: vi.fn(),
 	};
 });
 
@@ -35,6 +50,9 @@ describe('BlueprintsV2Handler', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(
+			assertBlueprintV2WordPressVersionCompatibility
+		).mockResolvedValue(undefined);
 	});
 
 	test('applies CLI defaults and normalizes additional steps before compiling', async () => {
@@ -365,6 +383,7 @@ describe('BlueprintsV2Handler', () => {
 		);
 		const playground = {
 			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn().mockResolvedValue({ text: ' 6.8.5\n' }),
 		};
 
 		await handler.bootWordPress(playground as any, {} as any);
@@ -374,6 +393,114 @@ describe('BlueprintsV2Handler', () => {
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			}),
 			expect.anything()
+		);
+		expect(playground.run).toHaveBeenCalledWith({
+			code: expect.stringMatching(
+				/file_exists\([^)]+version\.php[^]*echo \$wp_version/
+			),
+		});
+		expect(
+			assertBlueprintV2WordPressVersionCompatibility
+		).toHaveBeenCalledWith(
+			expect.objectContaining({
+				version: 2,
+				wordpressVersion: 'latest',
+			}),
+			'6.8.5'
+		);
+		expect(
+			vi.mocked(assertBlueprintV2WordPressVersionCompatibility).mock
+				.invocationCallOrder[0]
+		).toBeLessThan(playground.bootWordPress.mock.invocationCallOrder[0]);
+	});
+
+	test('rejects incompatible WordPress before applying a v2 Blueprint', async () => {
+		vi.mocked(
+			assertBlueprintV2WordPressVersionCompatibility
+		).mockRejectedValueOnce(new Error('Incompatible WordPress version'));
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'apply-to-existing-site',
+				skipSqliteSetup: true,
+				blueprint: {
+					version: 2,
+					wordpressVersion: {
+						min: '6.8',
+					},
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn().mockResolvedValue({ text: '6.7.5' }),
+		};
+
+		await expect(
+			handler.bootWordPress(playground as any, {} as any)
+		).rejects.toThrow('Incompatible WordPress version');
+		expect(playground.bootWordPress).not.toHaveBeenCalled();
+	});
+
+	test('does not validate WordPress when creating a new site', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'create-new-site',
+				skipSqliteSetup: true,
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn(),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(playground.run).not.toHaveBeenCalled();
+		expect(
+			assertBlueprintV2WordPressVersionCompatibility
+		).not.toHaveBeenCalled();
+	});
+
+	test('loads a bundled v2 WordPress archive instead of downloading core', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'create-new-site',
+				skipSqliteSetup: true,
+				blueprint: createBundle(
+					{
+						version: 2,
+						wordpressVersion: './wordpress.zip',
+					},
+					{ 'wordpress.zip': 'bundled WordPress' }
+				),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn(),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(cachedDownload).not.toHaveBeenCalled();
+		const bootOptions = playground.bootWordPress.mock.calls[0][0];
+		expect(new TextDecoder().decode(bootOptions.wordPressZip)).toBe(
+			'bundled WordPress'
 		);
 	});
 
@@ -452,6 +579,7 @@ describe('BlueprintsV2Handler', () => {
 		);
 		const playground = {
 			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn().mockResolvedValue({ text: '6.8.5' }),
 		};
 
 		await handler.bootWordPress(playground as any, {} as any);
@@ -482,6 +610,7 @@ describe('BlueprintsV2Handler', () => {
 		);
 		const playground = {
 			bootWordPress: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn().mockResolvedValue({ text: '6.8.5' }),
 		};
 
 		await handler.bootWordPress(playground as any, {} as any);

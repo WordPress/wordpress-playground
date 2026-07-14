@@ -1,7 +1,8 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
@@ -13,6 +14,37 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 		type: 'text/plain',
 	});
 	const zipStream = encodeZip([file]);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
+
+async function createPluginThemeExportZip(): Promise<Buffer> {
+	const files = [
+		new File(
+			[
+				`<?php
+/**
+ * Plugin Name: Close Race Plugin
+ */
+`,
+			],
+			'wp-content/plugins/close-race-plugin/close-race-plugin.php'
+		),
+		new File(
+			[
+				`/*
+Theme Name: Close Race Theme
+*/
+`,
+			],
+			'wp-content/themes/close-race-theme/style.css'
+		),
+		new File(
+			[`<?php echo 'Close Race Theme';`],
+			'wp-content/themes/close-race-theme/index.php'
+		),
+	];
+	const zipStream = encodeZip(files);
 	const zipBytes = await collectBytes(zipStream);
 	return Buffer.from(zipBytes!);
 }
@@ -30,6 +62,201 @@ test.describe.configure({ mode: 'serial' });
  */
 function getTemporaryPlaygroundUrl(hash = '') {
 	return `./?storage=temp&random=${Math.random().toString(36).slice(2)}${hash}`;
+}
+
+const OPFS_CLEANUP_LOCK_HOLDER_KEY = 'simulate-opfs-cleanup-lock-holder';
+const OPFS_CLEANUP_FAILURE_COUNT_KEY = 'opfs-cleanup-failure-count';
+
+/**
+ * Makes OPFS file removal fail while another test tab is marked as open.
+ *
+ * Chromium does not give us a reliable way to force a real OPFS lock in CI.
+ * This patch creates the same kind of failure the boot code sees: removing an
+ * old file rejects until the other tab closes. Closing the holder tab removes
+ * the marker through `beforeunload`/`pagehide`, so the next retry can succeed.
+ */
+async function simulateOpfsCleanupBlockedByAnotherTab(context: BrowserContext) {
+	await context.addInitScript(
+		({ lockHolderKey, failureCountKey }) => {
+			const tabId = `${Date.now()}-${Math.random()}`;
+			const releaseLockForThisTab = () => {
+				if (localStorage.getItem(lockHolderKey) === tabId) {
+					localStorage.removeItem(lockHolderKey);
+				}
+			};
+			(window as any).simulateOpfsCleanupLockForThisTab = () => {
+				localStorage.setItem(lockHolderKey, tabId);
+				localStorage.removeItem(failureCountKey);
+			};
+			window.addEventListener('beforeunload', releaseLockForThisTab);
+			window.addEventListener('pagehide', releaseLockForThisTab);
+
+			const originalRemoveEntry =
+				FileSystemDirectoryHandle.prototype.removeEntry;
+			FileSystemDirectoryHandle.prototype.removeEntry =
+				function removeEntry(name, options) {
+					const lockHolder = localStorage.getItem(lockHolderKey);
+					if (
+						lockHolder &&
+						lockHolder !== tabId &&
+						name !== 'wp-runtime.json' &&
+						name !== 'blueprint'
+					) {
+						const failureCount = Number(
+							localStorage.getItem(failureCountKey) || '0'
+						);
+						localStorage.setItem(
+							failureCountKey,
+							String(failureCount + 1)
+						);
+						return Promise.reject(
+							new DOMException(
+								`Simulated OPFS cleanup lock for ${name}`,
+								'InvalidStateError'
+							)
+						);
+					}
+					return originalRemoveEntry.call(this, name, options);
+				};
+		},
+		{
+			lockHolderKey: OPFS_CLEANUP_LOCK_HOLDER_KEY,
+			failureCountKey: OPFS_CLEANUP_FAILURE_COUNT_KEY,
+		}
+	);
+}
+
+/**
+ * Writes the OPFS state left by an interrupted saved Playground reset.
+ *
+ * `wp-runtime.json` already asks for the new setup, but old WordPress files
+ * still sit next to it because the tab closed before cleanup finished.
+ */
+async function writePendingOpfsResetSite(page: Page, slug: string) {
+	await page.evaluate(
+		async ({ dirName, siteSlug }) => {
+			const root = await navigator.storage.getDirectory();
+			try {
+				await root.removeEntry('sites', { recursive: true });
+			} catch (error) {
+				if (error?.name !== 'NotFoundError') {
+					throw error;
+				}
+			}
+			const sites = await root.getDirectoryHandle('sites', {
+				create: true,
+			});
+			const siteDirectory = await sites.getDirectoryHandle(dirName, {
+				create: true,
+			});
+			const metadata = {
+				slug: siteSlug,
+				originalUrlParams: undefined,
+				originalBlueprintSource: { type: 'none' },
+				originalBlueprint: {
+					preferredVersions: { php: '8.4', wp: false },
+					landingPage: '/index.php',
+					steps: [
+						{
+							step: 'writeFile',
+							path: '/wordpress/index.php',
+							data: '<?php echo "cleanup retry ready";',
+						},
+					],
+				},
+				name: siteSlug,
+				id: siteSlug,
+				whenCreated: Date.now(),
+				whenLastUsed: Date.now(),
+				persistence: 'autosave',
+				storage: 'opfs',
+				initialOpfsSyncPending: true,
+				opfsSiteRemovalPending: true,
+				sourceSetupUrlFingerprint: `test-${siteSlug}`,
+				runtimeConfiguration: {
+					phpVersion: '8.4',
+					wpVersion: 'latest',
+					intl: false,
+					networking: true,
+					extraLibraries: [],
+					constants: {},
+				},
+			};
+			await writeFile(
+				siteDirectory,
+				'wp-runtime.json',
+				JSON.stringify(metadata, null, 2)
+			);
+			await writeFile(
+				siteDirectory,
+				'wp-config.php',
+				'<?php /* old config */'
+			);
+			await writeFile(
+				siteDirectory,
+				'wp-settings.php',
+				'<?php /* old settings */'
+			);
+			await writeFile(
+				siteDirectory,
+				'old-reset-sentinel.php',
+				'old site'
+			);
+			const wpContent = await siteDirectory.getDirectoryHandle(
+				'wp-content',
+				{ create: true }
+			);
+			const database = await wpContent.getDirectoryHandle('database', {
+				create: true,
+			});
+			await writeFile(database, '.ht.sqlite', 'old sqlite placeholder');
+
+			async function writeFile(
+				directory: FileSystemDirectoryHandle,
+				name: string,
+				contents: string
+			) {
+				const file = await directory.getFileHandle(name, {
+					create: true,
+				});
+				const writable = await file.createWritable();
+				await writable.write(contents);
+				await writable.close();
+			}
+		},
+		{ dirName: getDirectoryNameForSlug(slug), siteSlug: slug }
+	);
+}
+
+async function readPendingResetSiteState(page: Page, slug: string) {
+	return await page.evaluate(
+		async ({ dirName }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(dirName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const metadata = JSON.parse(
+				await (await metadataFile.getFile()).text()
+			);
+			const hasEntry = async (name: string) => {
+				try {
+					await siteDirectory.getFileHandle(name);
+					return true;
+				} catch (error) {
+					if (error?.name === 'NotFoundError') {
+						return false;
+					}
+					throw error;
+				}
+			};
+			return {
+				metadata,
+				hasOldResetSentinel: await hasEntry('old-reset-sentinel.php'),
+			};
+		},
+		{ dirName: getDirectoryNameForSlug(slug) }
+	);
 }
 
 /**
@@ -85,6 +312,66 @@ async function saveSiteViaModal(
 	// The save operation syncs to OPFS which can take time, so we use a longer timeout.
 	await expect(dialog).not.toBeVisible({ timeout: 60000 });
 }
+
+test('should retry pending OPFS cleanup after another tab releases storage', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await simulateOpfsCleanupBlockedByAnotherTab(context);
+	const slug = `pending-cleanup-${Date.now()}`;
+	await website.page.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() => !!navigator.storage?.getDirectory);
+	await writePendingOpfsResetSite(website.page, slug);
+
+	const lockPage = await context.newPage();
+	await lockPage.goto(getTemporaryPlaygroundUrl());
+	await lockPage.evaluate(() => {
+		(window as any).simulateOpfsCleanupLockForThisTab();
+	});
+
+	await website.page.goto(
+		`./?site-slug=${encodeURIComponent(slug)}&random=${Date.now()}`
+	);
+	await expect
+		.poll(() =>
+			website.page.evaluate(
+				(failureCountKey) =>
+					Number(localStorage.getItem(failureCountKey) || '0'),
+				OPFS_CLEANUP_FAILURE_COUNT_KEY
+			)
+		)
+		.toBeGreaterThan(0);
+
+	// This mirrors the user closing another Playground tab that still holds on
+	// to the old OPFS files. The next automatic retry should finish cleanup and boot.
+	await lockPage.close({ runBeforeUnload: true });
+	await expect
+		.poll(() =>
+			website.page.evaluate(
+				(lockHolderKey) => localStorage.getItem(lockHolderKey),
+				OPFS_CLEANUP_LOCK_HOLDER_KEY
+			)
+		)
+		.toBeNull();
+
+	await expect(website.wordpress().locator('body')).toContainText(
+		'cleanup retry ready',
+		{ timeout: 120000 }
+	);
+	await expect(
+		website.page.getByText('Close other Playground tabs, then reload')
+	).not.toBeVisible();
+
+	const storedSite = await readPendingResetSiteState(website.page, slug);
+	expect(storedSite.metadata.opfsSiteRemovalPending).toBeUndefined();
+	expect(storedSite.hasOldResetSentinel).toBe(false);
+});
 
 test('should switch between sites', async ({ website, browserName }) => {
 	test.skip(
@@ -496,6 +783,66 @@ test('should display OPFS storage option as selected by default', async ({
 
 	// Close the modal
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should flash import progress and finish after a close attempt during ZIP import', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openSavedPlaygroundsOverlay();
+
+	const zipBuffer = await createPluginThemeExportZip();
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+	const importComplete = website.page
+		.waitForEvent('dialog')
+		.then(async (dialog) => {
+			await dialog.accept();
+		});
+	await fileInput.setInputFiles({
+		name: 'playground-export-with-plugin-and-theme.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+	const zipStatus = website.page.getByTestId('zip-import-status');
+	await expect(zipStatus).toBeVisible();
+	const closeButton = website.page.getByRole('button', { name: 'Close' });
+	await expect(closeButton).toBeEnabled();
+	await closeButton.click();
+	await expect(zipStatus).toBeVisible();
+	await expect(zipStatus).toHaveClass(/zipImportStatusAttention/);
+	await importComplete;
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(async () => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					if (!playground) {
+						return { plugin: false, theme: false };
+					}
+					const documentRoot = await playground.documentRoot;
+					return {
+						plugin: await playground.fileExists(
+							`${documentRoot}/wp-content/plugins/close-race-plugin/close-race-plugin.php`
+						),
+						theme: await playground.fileExists(
+							`${documentRoot}/wp-content/themes/close-race-theme/style.css`
+						),
+					};
+				}),
+			{ timeout: 90000 }
+		)
+		.toEqual({ plugin: true, theme: true });
 });
 
 test('should import ZIP into a new saved site when a saved site exists', async ({

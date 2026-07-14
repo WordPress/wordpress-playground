@@ -10,6 +10,7 @@ import {
 import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 import { compileBlueprintV2, type CompiledBlueprintV2 } from './v2/compile';
+import type { ResolveRuntimeConfigurationOptions } from './resolve-runtime-configuration';
 
 export type BlueprintExecutionPath = 'v1' | 'v2';
 
@@ -27,10 +28,13 @@ export type CompiledBlueprintForExecution =
 			run: (playground: UniversalPHP) => Promise<void>;
 	  };
 
-export interface CompileBlueprintForExecutionOptions extends Omit<
-	CompileBlueprintV1Options,
-	'onBlueprintValidated' | 'streamBundledFile'
-> {
+export interface CompileBlueprintForExecutionOptions
+	extends
+		Omit<
+			CompileBlueprintV1Options,
+			'onBlueprintValidated' | 'streamBundledFile'
+		>,
+		ResolveRuntimeConfigurationOptions {
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
@@ -52,7 +56,8 @@ export async function compileBlueprintForExecution(
 	if (isBlueprintV2Declaration(declaration)) {
 		return compileBlueprintV2ForExecution(
 			isRawJsonInput ? declaration : input,
-			declaration
+			declaration,
+			options
 		);
 	}
 	if (isRawJsonInput) {
@@ -65,14 +70,17 @@ export async function compileBlueprintForExecution(
 
 async function compileBlueprintV2ForExecution(
 	input: Blueprint | BlueprintBundle,
-	declaration: BlueprintV2Declaration
+	declaration: BlueprintV2Declaration,
+	options: CompileBlueprintForExecutionOptions
 ): Promise<CompiledBlueprintForExecution> {
-	const compiled = await compileBlueprintV2(
-		declaration,
-		isBlueprintBundle(input)
-			? { streamBundledFile: (...args: [any]) => input.read(...args) }
-			: {}
-	);
+	const compiled = await compileBlueprintV2(declaration, {
+		progress: options.progress,
+		streamBundledFile: isBlueprintBundle(input)
+			? (...args: [any]) => input.read(...args)
+			: undefined,
+		siteMode: options.siteMode,
+		onBlueprintValidated: options.onBlueprintValidated,
+	});
 	return {
 		version: 2,
 		declaration,

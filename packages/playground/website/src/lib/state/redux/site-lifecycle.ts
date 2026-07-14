@@ -64,32 +64,39 @@ export function wasSiteRecentlyInteractedWith(
  * Indicates whether a site is an automatic browser-storage recovery copy.
  */
 export function isAutosavedSite(site: SiteInfo) {
-	return (
-		site.metadata.storage === 'opfs' &&
-		site.metadata.persistence === 'autosave'
-	);
+	return isOpfsBackedSite(site) && site.metadata.persistence === 'autosave';
 }
 
 /**
  * Indicates whether a site should be treated as explicitly saved.
  */
 export function isExplicitlySavedSite(site: SiteInfo) {
-	return site.metadata.storage !== 'none' && !isAutosavedSite(site);
+	return isStoredSite(site) && !isAutosavedSite(site);
 }
 
 /**
- * Indicates whether the restored site has an interrupted first OPFS sync.
- *
- * `initialOpfsSyncPending` is cleared only after a full MEMFS-to-OPFS copy.
- * While it remains set on a site loaded from storage, the OPFS directory may
- * contain enough files to look installed but not enough to boot reliably.
+ * Indicates whether a site is not yet a stored Playground. The classification
+ * follows metadata.storage, which can remain 'none' while storage work runs.
  */
-export function hasInterruptedInitialOpfsSync(site: SiteInfo) {
-	return (
-		site.metadata.storage === 'opfs' &&
-		site.loadedFromStorage === true &&
-		site.metadata.initialOpfsSyncPending === true
-	);
+export function isTemporarySite(site: SiteInfo) {
+	return !isStoredSite(site);
+}
+
+/**
+ * Indicates whether a site has durable storage. Autosaved sites are stored but
+ * not explicitly saved, so callers that need user-pinned sites use
+ * isExplicitlySavedSite instead.
+ */
+export function isStoredSite(site: SiteInfo) {
+	return site.metadata.storage !== 'none';
+}
+
+/**
+ * Indicates whether a site's durable backend is browser OPFS, rather than a
+ * local directory or temporary memory-only storage.
+ */
+export function isOpfsBackedSite(site: SiteInfo) {
+	return site.metadata.storage === 'opfs';
 }
 
 /**
@@ -99,7 +106,7 @@ export function hasInterruptedInitialOpfsSync(site: SiteInfo) {
  * report a value here.
  */
 export function getSitePublicPersistence(site: SiteInfo) {
-	if (site.metadata.storage === 'none') {
+	if (isTemporarySite(site)) {
 		return undefined;
 	}
 	return isAutosavedSite(site) ? 'autosave' : 'explicit';

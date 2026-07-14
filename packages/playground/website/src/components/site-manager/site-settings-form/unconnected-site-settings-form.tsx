@@ -3,7 +3,12 @@ import { PHPNextVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import {
+	Controller,
+	type UseFormHandleSubmit,
+	useForm,
+	useWatch,
+} from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
@@ -23,7 +28,9 @@ type ConfigurableFields = Record<
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
 	header?: React.ReactNode;
-	footer?: React.ReactNode;
+	footer?:
+		| React.ReactNode
+		| ((context: SiteSettingsFormFooterContext) => React.ReactNode);
 	className?: string;
 	enabledFields?: ConfigurableFields;
 	defaultValues?: Partial<SiteFormData>;
@@ -35,6 +42,12 @@ export interface SiteFormData {
 	language: string;
 	withNetworking: boolean;
 	multisite: boolean;
+}
+
+export interface SiteSettingsFormFooterContext {
+	values: SiteFormData;
+	defaultValues: SiteFormData;
+	submit: UseFormHandleSubmit<SiteFormData>;
 }
 
 export function UnconnectedSiteSettingsForm({
@@ -73,6 +86,17 @@ export function UnconnectedSiteSettingsForm({
 
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
+	const comparableDefaults = useMemo<SiteFormData>(
+		() => ({
+			...mergedDefaults,
+			wpVersion:
+				latestWPVersion &&
+				['', 'latest'].includes(mergedDefaults.wpVersion)
+					? latestWPVersion
+					: mergedDefaults.wpVersion,
+		}),
+		[latestWPVersion, mergedDefaults]
+	);
 
 	// If the caller restored a stored site running an older WP
 	// version, expand the dropdown automatically so the current
@@ -81,7 +105,8 @@ export function UnconnectedSiteSettingsForm({
 		isOlderWordPressVersion(mergedDefaults.wpVersion)
 	);
 
-	const currentWpVersion = useWatch({ control, name: 'wpVersion' });
+	const values = useWatch({ control }) as SiteFormData;
+	const currentWpVersion = values.wpVersion;
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
 
 	useEffect(() => {
@@ -562,7 +587,13 @@ export function UnconnectedSiteSettingsForm({
 					)}
 				/>
 			</VStack>
-			{footer}
+			{typeof footer === 'function'
+				? footer({
+						values,
+						defaultValues: comparableDefaults,
+						submit: handleSubmit,
+					})
+				: footer}
 		</form>
 	);
 }

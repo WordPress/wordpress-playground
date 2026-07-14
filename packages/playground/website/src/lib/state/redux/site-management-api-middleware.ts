@@ -396,9 +396,9 @@ export function createSitesAPI(
 		/**
 		 * Recreates the active autosaved Playground with new setup settings.
 		 *
-		 * Autosaved Playgrounds behave like recoverable unsaved work: changing
-		 * setup settings replaces the current WordPress files under the same
-		 * autosaved slug instead of creating another autosave.
+		 * This public API keeps its same-site replacement behavior for existing
+		 * callers. The settings UI creates a separate Playground for setup changes
+		 * so the current site's files remain available.
 		 *
 		 * @param settings Optional site settings.
 		 * @throws When no site is selected, the active site is not autosaved, or
@@ -411,17 +411,16 @@ export function createSitesAPI(
 			}
 			if (!isAutosavedSite(site)) {
 				throw new Error(
-					'Only autosaved Playgrounds can be recreated in place.'
+					'Only autosaved Playgrounds can replace their stored files.'
 				);
 			}
 			const setupUrl = getSetupUrlForNewSite(settings, {
 				baseUrl: getSetupUrlFromSite(site, window.location.href),
 				onlySetupParams: true,
 			});
-			await selectClientBySiteSlug(
-				getState(),
-				site.slug
-			)?.unmountOpfs('/wordpress');
+			await selectClientBySiteSlug(getState(), site.slug)?.unmountOpfs(
+				'/wordpress'
+			);
 			dispatch(removeClientInfo(site.slug));
 			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
 			redirectTo(setupUrl.toString());
@@ -480,6 +479,56 @@ export function createSitesAPI(
 						runtimeConfiguration: {
 							...site.metadata.runtimeConfiguration,
 							networking: enabled,
+						},
+					},
+				})
+			);
+		},
+
+		/**
+		 * Applies the runtime settings that can change without replacing WordPress.
+		 * When the settings already match, reloads the current WordPress page.
+		 *
+		 * PHP and networking share one metadata write so changing both cannot boot an
+		 * intermediate runtime and then immediately tear it down for the second change.
+		 */
+		async updateRuntimeSettings(settings: {
+			phpVersion: AllPHPVersion;
+			networking: boolean;
+		}): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (site.metadata.storage === 'none') {
+				throw new Error(
+					'Cannot update settings on a temporary site. Save it first.'
+				);
+			}
+			const currentRuntimeConfiguration =
+				site.metadata.runtimeConfiguration;
+			if (
+				currentRuntimeConfiguration.phpVersion ===
+					settings.phpVersion &&
+				currentRuntimeConfiguration.networking === settings.networking
+			) {
+				const client = selectClientBySiteSlug(getState(), site.slug);
+				if (!client) {
+					throw new Error(
+						'Cannot reload a Playground that is not running.'
+					);
+				}
+				await client.goTo(await client.getCurrentURL());
+				return;
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						runtimeConfiguration: {
+							...site.metadata.runtimeConfiguration,
+							phpVersion: settings.phpVersion,
+							networking: settings.networking,
 						},
 					},
 				})

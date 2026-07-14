@@ -5,6 +5,7 @@ import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 
 const helpers = {
 	deleteSite: () => {},
+	reloadPage: () => {},
 	restartWithoutPr: () => {},
 	reloadWithoutBlueprint: () => {},
 };
@@ -25,17 +26,46 @@ describe('getSiteErrorView', () => {
 		expect(renderToStaticMarkup(view.body)).toContain(url);
 	});
 
-	it('uses generic browser-storage wording for interrupted initial OPFS syncs', () => {
+	it('explains interrupted initial saves without storage jargon', () => {
 		const view = getSiteErrorView({
 			error: 'initial-opfs-sync-interrupted',
 			site: createSite(),
 			helpers,
 		});
 
-		expect(view.title).toBe('Browser storage save was interrupted');
+		expect(view.title).toBe('Start a new Playground to continue');
 		expect(renderToStaticMarkup(view.body)).toContain(
-			'the browser-storage save finished'
+			'This saved Playground is incomplete and can’t be reopened'
 		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'the previous save stopped before all WordPress files were copied'
+		);
+		expect(renderToStaticMarkup(view.actions[0])).toContain(
+			'Start a new Playground'
+		);
+	});
+
+	it('uses browser-storage wording when pending cleanup cannot finish', () => {
+		const view = getSiteErrorView({
+			error: 'browser-storage-cleanup-failed',
+			site: createSite(),
+			helpers,
+		});
+
+		expect(view.title).toBe('Close other Playground tabs, then reload');
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'An earlier reset was interrupted, and old site files are'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'Playground tried to remove those old files again before'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'may show the old site instead of the reset site'
+		);
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'click <strong>Reload</strong>'
+		);
+		expect(renderToStaticMarkup(view.actions[0])).toContain('Reload');
 	});
 
 	it('says when the entire Blueprint could not be downloaded', () => {

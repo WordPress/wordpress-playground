@@ -213,6 +213,11 @@ export const JustViewport = function JustViewport({
 			return;
 		}
 
+		// This effect owns one iframe boot. Changing site slug or runtime
+		// settings creates a new iframe while `startPlaygroundWeb()` or OPFS
+		// sync work from the previous iframe may still finish later. The signal
+		// lets `bootSiteClient()` ignore those stale callbacks; cleanup removes
+		// this iframe's client info once.
 		const abortController = new AbortController();
 		dispatch(
 			bootSiteClient(siteSlug, iframe, {

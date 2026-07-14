@@ -15,7 +15,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 10px 14px;
+	padding: 8px 10px 8px 14px;
 	background: var(--color-gray-050);
 	border-bottom: 1px solid var(--color-gray-200);
 }
@@ -31,7 +31,7 @@
 .fileExplorerActions {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 2px;
 }
 
 .fileExplorerButton {
@@ -72,11 +72,6 @@
 }
 
 .fileExplorerIconButton svg {
-	width: 24px;
-	height: 24px;
-}
-
-.fileExplorerUploadButton svg {
 	width: 20px;
 	height: 20px;
 }

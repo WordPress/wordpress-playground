@@ -1,9 +1,21 @@
 import { InMemoryFilesystem } from '@wp-playground/storage';
+import { ProgressTracker } from '@php-wasm/progress';
 import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import type { BlueprintV2Declaration } from '../lib/v2/blueprint-v2-declaration';
-import { UnsupportedBlueprintV2FeatureError } from '../lib/v2/compile';
+import type { InvalidBlueprintError } from '../lib/invalid-blueprint-error';
+import { lowerBlueprintV2ExecutionPlan } from '../lib/v2/compile';
+
+function withoutProgress(step: any) {
+	const rest = { ...step };
+	delete rest.progress;
+	return rest;
+}
+
+function withoutProgressFromSteps(steps: any[]) {
+	return steps.map(withoutProgress);
+}
 
 describe('compileBlueprintForExecution', () => {
 	it('compiles Blueprint v1 declarations through the v1 compiler', async () => {
@@ -90,6 +102,51 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('reports a validated Blueprint v2 declaration exactly once', async () => {
+		const declaration = { version: 2 } as const;
+		const onBlueprintValidated = vi.fn();
+
+		const compiled = await compileBlueprintForExecution(declaration, {
+			onBlueprintValidated,
+		});
+		await compiled.run({} as any);
+
+		expect(onBlueprintValidated).toHaveBeenCalledOnce();
+		expect(onBlueprintValidated).toHaveBeenCalledWith(declaration);
+	});
+
+	it('reports schema success before runtime configuration fails', async () => {
+		const declaration = { version: 2, phpVersion: '5.6' } as const;
+		const onBlueprintValidated = vi.fn();
+
+		await expect(
+			compileBlueprintForExecution(declaration, {
+				onBlueprintValidated,
+			})
+		).rejects.toThrow('Unsupported Blueprint v2 PHP version "5.6"');
+		expect(onBlueprintValidated).toHaveBeenCalledOnce();
+		expect(onBlueprintValidated).toHaveBeenCalledWith(declaration);
+	});
+
+	it('compiles existing-site v2 constraints without selecting a download', async () => {
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				wordpressVersion: {
+					min: '6.8.2',
+					max: '6.8.4',
+				},
+			},
+			{ siteMode: 'apply-to-existing-site' }
+		);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.runtime.wpVersion).toBe('latest');
+	});
+
 	it('compiles Blueprint v2 declarations from raw JSON', async () => {
 		const compiled = await compileBlueprintForExecution(
 			JSON.stringify({
@@ -141,6 +198,41 @@ describe('compileBlueprintForExecution', () => {
 		await expect(
 			compileBlueprintForExecution('{ "version": 2')
 		).rejects.toThrow('Raw JSON input must be valid JSON.');
+	});
+
+	it('rejects malformed Blueprint v2 declarations from raw JSON', async () => {
+		const onBlueprintValidated = vi.fn();
+
+		await expect(
+			compileBlueprintForExecution(
+				JSON.stringify({ version: 2, plugins: 'akismet' }),
+				{ onBlueprintValidated }
+			)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/plugins' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
+		expect(onBlueprintValidated).not.toHaveBeenCalled();
+	});
+
+	it('rejects malformed Blueprint v2 declarations from bundles', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({ version: 2, pluginz: [] }),
+		});
+
+		await expect(
+			compileBlueprintForExecution(bundle)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: [
+				{
+					path: '/pluginz',
+					message: 'must NOT have additional properties',
+				},
+			],
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 
 	it.each(['null', '[]'])(
@@ -407,6 +499,8 @@ describe('compileBlueprintForExecution', () => {
 			'installTheme',
 			'installTheme',
 			'installPlugin',
+			'writeFile',
+			'runPHPWithOptions',
 			'setSiteLanguage',
 			'mkdir',
 			'defineWpConfigConsts',
@@ -461,6 +555,27 @@ describe('compileBlueprintForExecution', () => {
 					activate: false,
 					activationOptions: {
 						mode: 'test',
+					},
+				},
+			},
+			{
+				step: 'writeFile',
+				path: '/tmp/blueprint-media-0',
+				data: {
+					resource: 'bundled',
+					path: 'media/image.jpg',
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					env: {
+						BLUEPRINT_MEDIA: JSON.stringify([
+							{
+								path: '/tmp/blueprint-media-0',
+								filename: 'image.jpg',
+							},
+						]),
 					},
 				},
 			},
@@ -525,7 +640,192 @@ describe('compileBlueprintForExecution', () => {
 		]);
 		expect(
 			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importMedia']);
+		).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 install options to v1 install step options', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			plugins: [
+				{
+					source: './plugins/sample-plugin.zip',
+					active: false,
+					ifAlreadyInstalled: 'skip',
+					onError: 'skip-plugin',
+					targetDirectoryName: 'sample-plugin-target',
+					humanReadableName: 'Sample Plugin',
+					activationOptions: {
+						source: 'blueprint-v2',
+					},
+				},
+			],
+			themes: [
+				{
+					source: './themes/sample-theme.zip',
+					ifAlreadyInstalled: 'error',
+					onError: 'skip-theme',
+					targetDirectoryName: 'sample-theme-target',
+					humanReadableName: 'Sample Theme',
+				},
+			],
+			activeTheme: {
+				source: './themes/active-theme.zip',
+				ifAlreadyInstalled: 'overwrite',
+				targetDirectoryName: 'active-theme-target',
+				humanReadableName: 'Active Theme',
+			},
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'bundled',
+					path: 'themes/sample-theme.zip',
+				},
+				ifAlreadyInstalled: 'error',
+				options: {
+					activate: false,
+					importStarterContent: false,
+					onError: 'skip-theme',
+					targetFolderName: 'sample-theme-target',
+					humanReadableName: 'Sample Theme',
+				},
+			},
+			{
+				step: 'installTheme',
+				themeData: {
+					resource: 'bundled',
+					path: 'themes/active-theme.zip',
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: true,
+					importStarterContent: false,
+					targetFolderName: 'active-theme-target',
+					humanReadableName: 'Active Theme',
+				},
+			},
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'bundled',
+					path: 'plugins/sample-plugin.zip',
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+					activationOptions: {
+						source: 'blueprint-v2',
+					},
+					onError: 'skip-plugin',
+					targetFolderName: 'sample-plugin-target',
+					humanReadableName: 'Sample Plugin',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('adds useful progress metadata to Blueprint v2 generated steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			media: ['./media/image.jpg'],
+			additionalStepsAfterExecution: [
+				{
+					step: 'mkdir',
+					path: 'site:wp-content/uploads/from-v2',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(
+			compiled.compiled.steps.map((step) => ({
+				step: step.step,
+				progress: step.progress,
+			}))
+		).toEqual([
+			{
+				step: 'writeFile',
+				progress: {
+					caption: 'Importing media',
+					weight: 0.5,
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				progress: {
+					caption: 'Importing media',
+					weight: 0.5,
+				},
+			},
+			{
+				step: 'mkdir',
+				progress: {
+					caption: 'Creating directory',
+					weight: 1,
+				},
+			},
+		]);
+	});
+
+	it('does not add progress metadata when a Blueprint v2 plan item produces no steps', () => {
+		const result = lowerBlueprintV2ExecutionPlan([
+			{
+				type: 'runStep',
+				step: {
+					step: 'writeFiles',
+					files: {},
+				},
+				sourcePath: '/additionalStepsAfterExecution/0',
+			},
+		]);
+
+		expect(result).toEqual({
+			steps: [],
+			unsupportedPlan: [],
+		});
+	});
+
+	it('reports Blueprint v2 progress through the provided progress tracker', async () => {
+		const progress = new ProgressTracker();
+		const events: Array<{ progress: number; caption: string }> = [];
+		progress.addEventListener('progress', (event: any) => {
+			events.push({
+				progress: event.detail.progress,
+				caption: event.detail.caption,
+			});
+		});
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'mkdir',
+						path: 'site:wp-content/uploads/from-v2',
+					},
+				],
+			},
+			{ progress }
+		);
+
+		await compiled.run({
+			mkdir: vi.fn(),
+		} as any);
+
+		expect(events).toContainEqual({
+			progress: 0,
+			caption: 'Creating directory',
+		});
+		expect(events.at(-1)?.progress).toBe(100);
 	});
 
 	it('lowers Blueprint v2 mysql-dump content to runSql steps', async () => {
@@ -550,7 +850,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -592,7 +892,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -604,7 +904,7 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('reports the source index for unsupported Blueprint v2 mysql-dump sources', async () => {
+	it('reports the source index for invalid Blueprint v2 mysql-dump sources', async () => {
 		const declaration = {
 			version: 2,
 			content: [
@@ -615,9 +915,14 @@ describe('compileBlueprintForExecution', () => {
 			],
 		} as unknown as BlueprintV2Declaration;
 
-		await expect(compileBlueprintForExecution(declaration)).rejects.toThrow(
-			'content.source[1]: Blueprint v2 file references must be URLs or execution-context paths.'
-		);
+		await expect(
+			compileBlueprintForExecution(declaration)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/content/0/source/1' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 
 	it('lowers Blueprint v2 WXR content to importWxr steps', async () => {
@@ -634,7 +939,10 @@ describe('compileBlueprintForExecution', () => {
 						},
 					],
 					staticAssets: 'hotlink',
-					urlsMode: 'preserve',
+					urlsMode: 'rewrite',
+					urlsMap: {
+						'https://old.example': 'https://new.example',
+					},
 					authorsMode: 'default-author',
 					defaultAuthorUsername: 'editor',
 					importComments: true,
@@ -646,7 +954,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'importWxr',
 				file: {
@@ -654,8 +962,13 @@ describe('compileBlueprintForExecution', () => {
 					path: 'content.wxr',
 				},
 				fetchAttachments: false,
-				rewriteUrls: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
 				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
 				defaultAuthorUsername: 'editor',
 			},
 			{
@@ -666,15 +979,20 @@ describe('compileBlueprintForExecution', () => {
 					contents: '<rss />',
 				},
 				fetchAttachments: false,
-				rewriteUrls: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
 				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
 				defaultAuthorUsername: 'editor',
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('keeps WXR content with unsupported author behavior in the unsupported plan', async () => {
+	it('lowers Blueprint v2 WXR author maps to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
 			content: [
@@ -693,21 +1011,35 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([]);
-		expect(
-			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importContent']);
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'bundled',
+					path: 'content.wxr',
+				},
+				fetchAttachments: true,
+				rewriteUrls: true,
+				importComments: false,
+				authorsMode: 'map',
+				importUsers: false,
+				authorsMap: {
+					remote: 'admin',
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
-	it('keeps WXR content with unsupported importer behavior in the unsupported plan', async () => {
+	it('lowers Blueprint v2 WXR user import options to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
 			content: [
 				{
 					type: 'wxr',
 					source: './content.wxr',
-					authorsMode: 'default-author',
-					importUsers: false,
+					authorsMode: 'create',
+					importUsers: true,
 				},
 			],
 		});
@@ -716,10 +1048,21 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([]);
-		expect(
-			compiled.compiled.unsupportedPlan.map((item) => item.type)
-		).toEqual(['importContent']);
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'bundled',
+					path: 'content.wxr',
+				},
+				fetchAttachments: true,
+				rewriteUrls: true,
+				importComments: false,
+				authorsMode: 'create',
+				importUsers: true,
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
 	it('lowers Blueprint v2 importContent steps through content lowering', async () => {
@@ -747,7 +1090,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'runSql',
 				sql: {
@@ -764,6 +1107,8 @@ describe('compileBlueprintForExecution', () => {
 				fetchAttachments: true,
 				rewriteUrls: true,
 				importComments: false,
+				authorsMode: 'default-author',
+				importUsers: false,
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
@@ -801,7 +1146,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'writeFile',
 				path: '/wordpress/wp-content/uploads/readme.txt',
@@ -869,7 +1214,7 @@ describe('compileBlueprintForExecution', () => {
 		if (compiled.version !== 2) {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
-		expect(compiled.compiled.steps).toEqual([
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
 			{
 				step: 'unzip',
 				zipFile: {
@@ -895,6 +1240,301 @@ describe('compileBlueprintForExecution', () => {
 				},
 			},
 		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 runPHP file references through a temp file', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'runPHP',
+					code: './scripts/bootstrap.php',
+					env: {
+						MODE: 'test',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'writeFile',
+				path: '/tmp/blueprint-run-php-0.php',
+				data: {
+					resource: 'bundled',
+					path: 'scripts/bootstrap.php',
+				},
+			},
+			{
+				step: 'runPHPWithOptions',
+				options: {
+					code: '<?php require "/tmp/blueprint-run-php-0.php";',
+					env: {
+						MODE: 'test',
+					},
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 posts content to PHP import steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			content: [
+				{
+					type: 'posts',
+					source: [
+						{
+							post_title: 'Inline post',
+							post_content: '<p>Hello</p>',
+							post_status: 'publish',
+						},
+						'./posts/about.html',
+					],
+					urlsMode: 'preserve',
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgress(compiled.compiled.steps[0])).toEqual({
+			step: 'writeFile',
+			path: '/tmp/blueprint-post-content-0',
+			data: {
+				resource: 'bundled',
+				path: 'posts/about.html',
+			},
+		});
+		expect(compiled.compiled.steps[1]).toMatchObject({
+			step: 'runPHPWithOptions',
+			options: {
+				env: {
+					BLUEPRINT_URLS_MODE: 'preserve',
+					BLUEPRINT_URLS_MAP: '{}',
+				},
+			},
+		});
+		const env = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(env.BLUEPRINT_POSTS)).toEqual([
+			{
+				post_title: 'Inline post',
+				post_content: '<p>Hello</p>',
+				post_status: 'publish',
+			},
+		]);
+		expect(JSON.parse(env.BLUEPRINT_POST_FILES)).toEqual([
+			{
+				path: '/tmp/blueprint-post-content-0',
+				post_title: 'Untitled Post',
+				post_type: 'post',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 mu-plugins to file writes', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			muPlugins: [
+				{
+					filename: 'demo-mu.php',
+					content: '<?php add_filter("the_title", "trim");',
+				},
+				{
+					directoryName: 'mu-package',
+					files: {
+						'load.php': '<?php',
+					},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/demo-mu.php',
+				data: {
+					resource: 'literal',
+					name: 'demo-mu.php',
+					contents: '<?php add_filter("the_title", "trim");',
+				},
+			},
+			{
+				step: 'writeFiles',
+				writeToPath: '/wordpress/wp-content/mu-plugins/mu-package',
+				filesTree: {
+					resource: 'literal:directory',
+					name: 'mu-package',
+					files: {
+						'load.php': '<?php',
+					},
+				},
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 importMedia steps to media import PHP', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'importMedia',
+					media: [
+						{
+							source: './media/logo.png',
+							title: 'Logo',
+							alt: 'Site logo',
+						},
+					],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgress(compiled.compiled.steps[0])).toEqual({
+			step: 'writeFile',
+			path: '/tmp/blueprint-media-0',
+			data: {
+				resource: 'bundled',
+				path: 'media/logo.png',
+			},
+		});
+		const env = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(env.BLUEPRINT_MEDIA)).toEqual([
+			{
+				path: '/tmp/blueprint-media-0',
+				filename: 'logo.png',
+				title: 'Logo',
+				alt: 'Site logo',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 roles, users, post types, and fonts', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			fonts: {
+				'brand-sans': {
+					filename: 'brand-sans.woff2',
+					content: 'fontdata',
+				},
+			},
+			roles: [
+				{
+					name: 'movie_curator',
+					capabilities: {
+						read: 'true',
+						edit_posts: 'true',
+					},
+				},
+			],
+			users: [
+				{
+					username: 'curator',
+					email: 'curator@example.com',
+					role: 'movie_curator',
+					meta: {
+						department: 'film',
+					},
+				},
+			],
+			postTypes: {
+				movie: {
+					label: 'Movies',
+					public: true,
+					show_in_rest: true,
+				},
+			},
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'writeFile',
+			'runPHPWithOptions',
+			'runPHPWithOptions',
+			'runPHPWithOptions',
+			'writeFile',
+		]);
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			path: '/tmp/blueprint-font-0',
+			data: {
+				resource: 'literal',
+				name: 'brand-sans.woff2',
+				contents: 'fontdata',
+			},
+		});
+		const fontEnv = (compiled.compiled.steps[1] as any).options.env;
+		expect(JSON.parse(fontEnv.BLUEPRINT_FONT_COLLECTIONS)[0]).toMatchObject(
+			{
+				slug: 'brand-sans',
+				name: 'Brand Sans',
+			}
+		);
+		expect(JSON.parse(fontEnv.BLUEPRINT_FONT_FILES)).toEqual({
+			'blueprint-font-file:font-0': {
+				path: '/tmp/blueprint-font-0',
+				filename: 'brand-sans.woff2',
+			},
+		});
+		expect(
+			JSON.parse(
+				(compiled.compiled.steps[2] as any).options.env.BLUEPRINT_ROLES
+			)
+		).toEqual([
+			{
+				name: 'movie_curator',
+				capabilities: {
+					read: 'true',
+					edit_posts: 'true',
+				},
+			},
+		]);
+		expect(
+			JSON.parse(
+				(compiled.compiled.steps[3] as any).options.env.BLUEPRINT_USERS
+			)
+		).toEqual([
+			{
+				username: 'curator',
+				email: 'curator@example.com',
+				role: 'movie_curator',
+				meta: {
+					department: 'film',
+				},
+			},
+		]);
+		expect(compiled.compiled.steps[4]).toMatchObject({
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/blueprint-post-type-0.php',
+			data: {
+				resource: 'literal',
+				name: 'blueprint-post-type-0.php',
+			},
+		});
+		expect((compiled.compiled.steps[4] as any).data.contents).toContain(
+			'register_post_type("movie"'
+		);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);
 	});
 
@@ -1018,33 +1658,23 @@ describe('compileBlueprintForExecution', () => {
 		);
 	});
 
-	it('rejects unsupported Blueprint v2 plans before running lowered steps', async () => {
-		const compiled = await compileBlueprintForExecution({
+	it('rejects unknown Blueprint v2 content before producing a plan', async () => {
+		const declaration = {
 			version: 2,
-			media: ['./media/image.jpg'],
-			additionalStepsAfterExecution: [
+			content: [
 				{
-					step: 'mkdir',
-					path: 'site:wp-content/uploads/from-v2',
+					type: 'unsupported-content',
 				},
 			],
-		});
-		const playground = {
-			mkdir: vi.fn(),
-		};
+		} as unknown as BlueprintV2Declaration;
 
-		let thrownError: unknown;
-		try {
-			await compiled.run(playground as any);
-		} catch (error) {
-			thrownError = error;
-		}
-
-		expect(thrownError).toBeInstanceOf(UnsupportedBlueprintV2FeatureError);
-		expect(thrownError).toMatchObject({
-			featurePath: 'executionPlan',
-			message: expect.stringContaining('/media/0 (importMedia)'),
-		});
-		expect(playground.mkdir).not.toHaveBeenCalled();
+		await expect(
+			compileBlueprintForExecution(declaration)
+		).rejects.toMatchObject({
+			name: 'InvalidBlueprintError',
+			validationErrors: expect.arrayContaining([
+				expect.objectContaining({ path: '/content/0/type' }),
+			]),
+		} satisfies Partial<InvalidBlueprintError>);
 	});
 });
