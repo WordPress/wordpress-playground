@@ -159,9 +159,13 @@ test('should load WordPress latest by default', async ({
 }) => {
 	await website.goto('./?storage=temp&url=/wp-admin/');
 
-	const expectedBodyClass =
-		'version-' + LatestSupportedWordPressVersion.replace('.', '-');
-	await expect(wordpress.locator(`body.${expectedBodyClass}`)).toContainText(
+	// WordPress derives the admin body branch class from (float) $wp_version.
+	const expectedBranchClass =
+		'branch-' +
+		parseFloat(LatestSupportedWordPressVersion)
+			.toString()
+			.replace('.', '-');
+	await expect(wordpress.locator(`body.${expectedBranchClass}`)).toContainText(
 		'Dashboard'
 	);
 });

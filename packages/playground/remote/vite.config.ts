@@ -68,8 +68,8 @@ export default defineConfig(({ mode }) => {
 			'**/*.wasm',
 			'**/*.so',
 			'**/*.dat',
-			'**/*.phar',
 			'*.zip',
+			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
 		resolve: {

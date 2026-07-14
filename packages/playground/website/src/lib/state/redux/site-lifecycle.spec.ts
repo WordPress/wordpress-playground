@@ -4,6 +4,10 @@ import {
 	getSitePublicPersistence,
 	getSitesSortedByRecency,
 	isAutosavedSite,
+	isExplicitlySavedSite,
+	isOpfsBackedSite,
+	isStoredSite,
+	isTemporarySite,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 import type { SiteInfo } from './slice-sites';
@@ -135,6 +139,35 @@ describe('autosaved site helpers', () => {
 	});
 });
 
+describe('site storage helpers', () => {
+	it('keeps temporary, stored, and OPFS-backed classifications distinct', () => {
+		const temporarySite = createSite('temporary', { storage: 'none' });
+		const opfsSite = createSite('opfs', { storage: 'opfs' });
+		const autosavedSite = createSite('autosaved', {
+			storage: 'opfs',
+			persistence: 'autosave',
+		});
+		const localSite = createSite('local', { storage: 'local-fs' });
+
+		expect(isTemporarySite(temporarySite)).toBe(true);
+		expect(isStoredSite(temporarySite)).toBe(false);
+		expect(isOpfsBackedSite(temporarySite)).toBe(false);
+
+		expect(isTemporarySite(opfsSite)).toBe(false);
+		expect(isStoredSite(opfsSite)).toBe(true);
+		expect(isOpfsBackedSite(opfsSite)).toBe(true);
+		expect(isExplicitlySavedSite(opfsSite)).toBe(true);
+
+		expect(isAutosavedSite(autosavedSite)).toBe(true);
+		expect(isStoredSite(autosavedSite)).toBe(true);
+		expect(isExplicitlySavedSite(autosavedSite)).toBe(false);
+
+		expect(isTemporarySite(localSite)).toBe(false);
+		expect(isStoredSite(localSite)).toBe(true);
+		expect(isOpfsBackedSite(localSite)).toBe(false);
+	});
+});
+
 describe('site recency helpers', () => {
 	it('sorts sites by recency without mutating the input array', () => {
 		const sites = [
@@ -151,10 +184,13 @@ describe('site recency helpers', () => {
 
 function createSite(
 	slug: string,
-	metadata: Partial<SiteInfo['metadata']> = {}
+	options: Partial<SiteInfo['metadata']> &
+		Pick<Partial<SiteInfo>, 'loadedFromStorage'> = {}
 ): SiteInfo {
+	const { loadedFromStorage, ...metadata } = options;
 	return {
 		slug,
+		loadedFromStorage,
 		metadata: {
 			storage: 'opfs',
 			id: slug,

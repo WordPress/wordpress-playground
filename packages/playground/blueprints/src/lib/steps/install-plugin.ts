@@ -117,7 +117,7 @@ export const installPlugin: StepHandler<
 		);
 	}
 
-	let assetFolderPath = '';
+	let assetPath = '';
 	let assetNiceName = '';
 	const progressName = () => options.humanReadableName || assetNiceName;
 
@@ -162,7 +162,7 @@ export const installPlugin: StepHandler<
 					targetPath: `${await playground.documentRoot}/wp-content/plugins`,
 					targetFolderName: targetFolderName,
 				});
-				assetFolderPath = assetResult.assetFolderPath;
+				assetPath = assetResult.assetFolderPath;
 				assetNiceName = assetResult.assetFolderName;
 			} else if (pluginData.name.endsWith('.php')) {
 				const destinationFilePath = joinPaths(
@@ -173,7 +173,7 @@ export const installPlugin: StepHandler<
 					path: destinationFilePath,
 					data: pluginData,
 				});
-				assetFolderPath = pluginsDirectoryPath;
+				assetPath = destinationFilePath;
 				assetNiceName = pluginData.name;
 			} else {
 				throw new Error(
@@ -199,7 +199,7 @@ export const installPlugin: StepHandler<
 					rmRoot: true,
 				}
 			);
-			assetFolderPath = pluginDirectoryPath;
+			assetPath = pluginDirectoryPath;
 		}
 
 		// Activate
@@ -210,7 +210,7 @@ export const installPlugin: StepHandler<
 			if (options.activationOptions !== undefined) {
 				activationOptionName = await setPluginActivationOptions(
 					playground,
-					assetFolderPath,
+					assetPath,
 					options.activationOptions
 				);
 			}
@@ -218,7 +218,7 @@ export const installPlugin: StepHandler<
 				await activatePlugin(
 					playground,
 					{
-						pluginPath: assetFolderPath,
+						pluginPath: assetPath,
 						pluginName: progressName(),
 					},
 					progress

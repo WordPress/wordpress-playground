@@ -632,7 +632,7 @@ phpLoaderOptions.forEach((options) => {
 						fwrite($fp, "WordPress\n");
 						fclose($fp);
 
-						sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+						sleep(1);
 
 						$fp = popen("cat out", "r");
 						echo 'stdout: ' . fread($fp, 1024);
@@ -645,16 +645,92 @@ phpLoaderOptions.forEach((options) => {
 					rmSync('out', { force: true });
 				}
 			});
+
+			it('concurrent popen("w") calls use correct PIDs', async () => {
+				try {
+					const result = await php.run({
+						code: `<?php
+						$firstWriter = popen(
+							"cat > concurrent-popen-first-output.txt",
+							"w"
+						);
+						$secondWriter = popen(
+							"cat > concurrent-popen-second-output.txt",
+							"w"
+						);
+						fwrite($firstWriter, "first");
+						fwrite($secondWriter, "second");
+						$firstExitCode = pclose($firstWriter);
+						$secondExitCode = pclose($secondWriter);
+
+						$firstReader = popen(
+							"cat concurrent-popen-first-output.txt",
+							"r"
+						);
+						$firstOutput = fread($firstReader, 1024);
+						pclose($firstReader);
+
+						$secondReader = popen(
+							"cat concurrent-popen-second-output.txt",
+							"r"
+						);
+						$secondOutput = fread($secondReader, 1024);
+						pclose($secondReader);
+
+						echo "$firstExitCode,$secondExitCode|$firstOutput|$secondOutput";
+					`,
+					});
+					expect(result.text).toEqual('0,0|first|second');
+				} finally {
+					rmSync('concurrent-popen-first-output.txt', {
+						force: true,
+					});
+					rmSync('concurrent-popen-second-output.txt', {
+						force: true,
+					});
+				}
+			});
+			it('concurrent popen("w") pclose returns correct exit codes', async () => {
+				try {
+					const result = await php.run({
+						code: `<?php
+						$successfulWriter = popen(
+							"cat > concurrent-popen-successful-output.txt",
+							"w"
+						);
+						$failingWriter = popen(
+							"sh -c 'cat > /dev/null; exit 42'",
+							"w"
+						);
+						$secondSuccessfulWriter = popen(
+							"cat > concurrent-popen-second-successful-output.txt",
+							"w"
+						);
+						fwrite($successfulWriter, "a");
+						fwrite($failingWriter, "b");
+						fwrite($secondSuccessfulWriter, "c");
+						$successfulExitCode = pclose($successfulWriter);
+						$failingExitCode = pclose($failingWriter);
+						$secondSuccessfulExitCode = pclose($secondSuccessfulWriter);
+						echo "$successfulExitCode,$failingExitCode,$secondSuccessfulExitCode";
+					`,
+					});
+					expect(result.text).toEqual('0,42,0');
+				} finally {
+					rmSync('concurrent-popen-successful-output.txt', {
+						force: true,
+					});
+					rmSync('concurrent-popen-second-successful-output.txt', {
+						force: true,
+					});
+				}
+			});
 		});
 
 		describe('proc_open()', () => {
-			// This test applies only to these PHP versions
-			// due to a new patch that replaces the use of
-			// EMULATE_FUNCTION_POINTER_CASTS option.
-			if (phpVersion === '7.4') {
-				it('resolves without crashing with unknown function signature mismatch', async () => {
-					const promise = php.runStream({
-						code: `<?php
+			it('resolves without crashing with unknown function signature mismatch', async () => {
+				const promise = php.runStream({
+					code: `<?php
 						$descriptorspec = array(
 							1 => array("pipe","w")
 						);
@@ -671,13 +747,12 @@ phpLoaderOptions.forEach((options) => {
 							$pipes
 						);
 						`,
-					});
-
-					await expect(promise).resolves.not.toThrow(
-						/null function or function signature mismatch/
-					);
 				});
-			}
+
+				await expect(promise).resolves.not.toThrow(
+					/null function or function signature mismatch/
+				);
+			});
 
 			it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({

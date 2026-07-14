@@ -22,6 +22,7 @@ define('SIGNAL_RETENTION_MS', 15 * 60 * 1000);
 define('SIGNAL_POLL_TIMEOUT_SEC', 25);
 define('MAX_SIGNAL_BODY_BYTES', 8 * 1024);
 define('MAX_SIGNAL_ID_BYTES', 64);
+define('MAX_GUEST_ID_BYTES', 36);
 define('MAX_SIGNAL_SDP_BYTES', 4096);
 define('MAX_SIGNAL_ICE_CANDIDATE_BYTES', 1024);
 define('SESSIONS_TABLE', 'playground_remote_access_sessions');
@@ -178,7 +179,14 @@ function handleResolveAccessCode(string $rawAccessCode): void {
 function handleStatus(string $sessionId): void {
     $queryString = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY) ?? '';
     parse_str($queryString, $queryParams);
-    $guestId = isset($queryParams['gid']) ? (string) $queryParams['gid'] : null;
+    $guestId = null;
+    if (array_key_exists('gid', $queryParams)) {
+        $guestId = $queryParams['gid'];
+        if (!is_string($guestId) || !isBoundedString($guestId, 1, MAX_GUEST_ID_BYTES)) {
+            jsonResponse(['error' => 'Invalid guest id'], 400);
+            return;
+        }
+    }
     $now = nowMs();
 
     $session = getSession($sessionId);
@@ -261,7 +269,14 @@ function handlePollSignal(string $sessionId): void {
     parse_str($queryString, $queryParams);
     $to = (string) ($queryParams['to'] ?? '');
     $since = (int) ($queryParams['since'] ?? 0);
-    $guestId = isset($queryParams['gid']) ? (string) $queryParams['gid'] : null;
+    $guestId = null;
+    if (array_key_exists('gid', $queryParams)) {
+        $guestId = $queryParams['gid'];
+        if (!is_string($guestId) || !isBoundedString($guestId, 1, MAX_GUEST_ID_BYTES)) {
+            jsonResponse(['error' => 'Invalid guest id'], 400);
+            return;
+        }
+    }
     if (!in_array($to, ['host', 'guest'], true)) {
         jsonResponse(['error' => 'Invalid signal recipient'], 400);
         return;

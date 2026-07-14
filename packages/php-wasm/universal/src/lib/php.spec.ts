@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { __private__dont__use, PHP } from './php';
+import { __private__dont__use, MountStillActiveError, PHP } from './php';
 
 describe('PHP mounts', () => {
 	it('forgets mount tracking even when the unmount callback fails', async () => {
@@ -8,9 +8,9 @@ describe('PHP mounts', () => {
 		//
 		// 1. Invokes the underlying unmount callback returned by the
 		//    mount handler.
-		// 2. Deletes the entry from `#mounts` in a `finally` block so the
-		//    JS-side bookkeeping stays authoritative even if the
-		//    underlying filesystem unmount throws.
+		// 2. Deletes the entry from `#mounts` after ordinary failures so the
+		//    JS-side bookkeeping stays authoritative when the underlying
+		//    filesystem did not explicitly report that it remains mounted.
 		//
 		// `#mounts` is not observable from outside the class, so we
 		// verify the cleanup transitively through `hotSwapPHPRuntime`,
@@ -27,7 +27,7 @@ describe('PHP mounts', () => {
 		//
 		// - `unmountCallback` must have been called exactly once across
 		//   both the explicit `unmount()` call and the subsequent
-		//   `hotSwapPHPRuntime` attempt. Any stale `#mounts` entry would
+		//   `hotSwapPHPRuntime` attempt. Any stale ordinary-failure entry would
 		//   bump the count to 2.
 		const php = new PHP();
 		(php as any)[__private__dont__use] = {
@@ -54,5 +54,34 @@ describe('PHP mounts', () => {
 			'Runtime with id 0 not found'
 		);
 		expect(unmountCallback).toHaveBeenCalledTimes(1);
+	});
+
+	it('retains mount tracking when the unmount reports it is still active', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				chdir: vi.fn(),
+				cwd: vi.fn(() => '/'),
+				lookupPath: vi.fn(() => ({})),
+				readdir: vi.fn(() => ['.', '..']),
+			},
+			spawnProcess: undefined,
+		};
+		const flushError = new Error('flush failed');
+		const activeError = new MountStillActiveError(flushError);
+		const unmountCallback = vi
+			.fn()
+			.mockRejectedValueOnce(activeError)
+			.mockResolvedValueOnce(undefined);
+		const unmount = await php.mount('/mounted', async () => {
+			return unmountCallback;
+		});
+
+		await expect(unmount()).rejects.toBe(activeError);
+		await expect(php.hotSwapPHPRuntime(0 as any)).rejects.toThrow(
+			'Runtime with id 0 not found'
+		);
+
+		expect(unmountCallback).toHaveBeenCalledTimes(2);
 	});
 });
