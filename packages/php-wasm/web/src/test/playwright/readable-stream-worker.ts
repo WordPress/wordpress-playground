@@ -4,8 +4,9 @@ self.postMessage('worker-script-started');
 
 class ReadableStreamWorker extends PHPWorker {
 	#streamFinished = true;
+	#transferableStreamProbeRejected = false;
 
-	emitStream() {
+	emitStream(forceMessagePortFallback = false) {
 		this.#streamFinished = false;
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream<Uint8Array>({
@@ -18,11 +19,47 @@ class ReadableStreamWorker extends PHPWorker {
 				}, 500);
 			},
 		});
-		this.dispatchEvent({ type: 'test.stream', stdin: stream });
+		const originalPostMessage = MessagePort.prototype.postMessage;
+		let transferableStreamProbeRejected = false;
+		if (forceMessagePortFallback) {
+			/**
+			 * Emulates a runtime without transferable streams. The production feature
+			 * detection must reject the probe and select the MessagePort bridge.
+			 */
+			MessagePort.prototype.postMessage = function (
+				this: MessagePort,
+				message: unknown,
+				optionsOrTransfer: StructuredSerializeOptions | Transferable[]
+			) {
+				if (message instanceof ReadableStream) {
+					transferableStreamProbeRejected = true;
+					throw new DOMException(
+						'Transferable streams disabled by test',
+						'DataCloneError'
+					);
+				}
+				const options = Array.isArray(optionsOrTransfer)
+					? { transfer: optionsOrTransfer }
+					: optionsOrTransfer;
+				return originalPostMessage.call(this, message, options);
+			} as MessagePort['postMessage'];
+		}
+
+		try {
+			this.dispatchEvent({ type: 'test.stream', stdin: stream });
+		} finally {
+			MessagePort.prototype.postMessage = originalPostMessage;
+			this.#transferableStreamProbeRejected =
+				transferableStreamProbeRejected;
+		}
 	}
 
 	isStreamFinished() {
 		return this.#streamFinished;
+	}
+
+	wasTransferableStreamProbeRejected() {
+		return this.#transferableStreamProbeRejected;
 	}
 }
 

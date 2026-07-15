@@ -253,8 +253,8 @@ function setupTransferHandlers() {
 		port?: MessagePort;
 	};
 	/**
-	 * Keeps the stream live while it crosses the Comlink boundary. Safari cannot
-	 * transfer ReadableStreams, so the handler uses the existing MessagePort bridge.
+	 * Keeps the stream live while it crosses the Comlink boundary. Runtimes without
+	 * transferable stream support use the existing MessagePort bridge.
 	 */
 	const readableStreamTransferHandler: Comlink.TransferHandler<
 		ReadableStream<Uint8Array>,
@@ -283,36 +283,36 @@ function setupTransferHandlers() {
 		'READABLE_STREAM',
 		readableStreamTransferHandler
 	);
-	type EventWithReadableStream = {
+	type EventWithReadableStdin = {
 		type: string;
 		stdin: ReadableStream<Uint8Array>;
 	};
-	type SerializedEventWithReadableStream = {
+	type SerializedEventWithReadableStdin = {
 		type: string;
 		stdin: SerializedReadableStream;
 	};
 	/**
-	 * Transfers an event whose stdin contains a ReadableStream. Comlink applies a
-	 * transfer handler to the top-level value only, so it will not discover the
-	 * nested stream on its own.
+	 * Transfers a worker event whose `stdin` property is a ReadableStream. Comlink
+	 * applies a transfer handler to the top-level value only, so it will not discover
+	 * the `stdin` stream on its own.
 	 */
-	const eventWithReadableStreamTransferHandler: Comlink.TransferHandler<
-		EventWithReadableStream,
-		SerializedEventWithReadableStream
+	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
+		EventWithReadableStdin,
+		SerializedEventWithReadableStdin
 	> = {
-		canHandle: (obj: unknown): obj is EventWithReadableStream =>
+		canHandle: (obj: unknown): obj is EventWithReadableStdin =>
 			typeof obj === 'object' &&
 			obj !== null &&
 			'type' in obj &&
 			typeof obj.type === 'string' &&
 			'stdin' in obj &&
 			readableStreamTransferHandler.canHandle(obj.stdin),
-		serialize(event): [SerializedEventWithReadableStream, Transferable[]] {
+		serialize(event): [SerializedEventWithReadableStdin, Transferable[]] {
 			const [stdin, transferables] =
 				readableStreamTransferHandler.serialize(event.stdin);
 			return [{ ...event, stdin }, transferables];
 		},
-		deserialize(event): EventWithReadableStream {
+		deserialize(event): EventWithReadableStdin {
 			return {
 				...event,
 				stdin: readableStreamTransferHandler.deserialize(event.stdin),
@@ -320,8 +320,8 @@ function setupTransferHandlers() {
 		},
 	};
 	Comlink.transferHandlers.set(
-		'EVENT_WITH_READABLE_STREAM',
-		eventWithReadableStreamTransferHandler
+		'EVENT_WITH_READABLE_STDIN',
+		eventWithReadableStdinTransferHandler
 	);
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
@@ -492,12 +492,12 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 					break;
 				}
 				if (value) {
-					// Ensure we transfer an owned buffer
-					const owned =
-						value.byteOffset === 0 &&
-						value.byteLength === value.buffer.byteLength
-							? value
-							: value.slice();
+					/**
+					 * ReadableStream.tee() gives each branch the same chunk object. Transfer
+					 * an owned copy so detaching this buffer does not invalidate another
+					 * listener's branch.
+					 */
+					const owned = value.slice();
 					const buf = owned.buffer;
 					try {
 						port1.postMessage({ t: 'chunk', b: buf }, [
