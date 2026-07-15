@@ -14,7 +14,7 @@ const path = (filename: string) =>
 
 export default defineConfig({
 	root: __dirname,
-	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip', '**/*.tar.zst'],
 	cacheDir: '../../../node_modules/.vite/playground-remote-access',
 	plugins: [
 		viteTsConfigPaths({

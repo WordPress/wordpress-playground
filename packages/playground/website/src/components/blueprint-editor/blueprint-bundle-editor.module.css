@@ -143,6 +143,82 @@
 	height: 18px;
 }
 
+.dockPresentation .content {
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .sidebarWrapper {
+	background: var(--paper-1, #ffffff);
+	border-right-color: var(--line-subtle, #ddd);
+}
+
+.dockPresentation .editorHeader {
+	background: var(--paper-2, #ffffff);
+	border-bottom-color: var(--line-subtle, #ddd);
+	min-height: 56px;
+	padding: 8px 16px;
+}
+
+.dockPresentation .editorHeaderActions {
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	margin-left: auto;
+	min-width: 0;
+}
+
+.editorExport {
+	display: inline-flex;
+}
+
+.editorExportToggle svg {
+	margin-left: 4px;
+	margin-right: -2px;
+}
+
+.exportHint {
+	border-top: 1px solid var(--line-subtle, #e0e0e0);
+	color: var(--ink-muted, #50575e);
+	font-size: 12px;
+	line-height: 1.4;
+	margin: 4px 0 0;
+	max-width: 240px;
+	padding: 8px 12px 4px;
+}
+
+.editorDocsLink {
+	align-items: center;
+	border-radius: 6px;
+	color: var(--ink-muted, #50575e);
+	display: inline-flex;
+	height: 32px;
+	justify-content: center;
+	margin-right: 2px;
+	width: 32px;
+}
+
+.editorDocsLink:hover {
+	background: rgba(20, 18, 15, 0.06);
+	color: var(--accent, #3858e9);
+}
+
+.dockPresentation .editor,
+.dockPresentation .editor :global(.cm-editor),
+.dockPresentation .placeholder,
+.dockPresentation .messageArea {
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .editor :global(.cm-gutters) {
+	background: var(--paper-2, #ffffff);
+	border-right: 1px solid var(--line-subtle, #ddd);
+	color: var(--ink-faint, #787c82);
+}
+
+.dockPresentation .editor :global(.cm-activeLine),
+.dockPresentation .editor :global(.cm-activeLineGutter) {
+	background: var(--paper-3, #f0f0f1);
+}
+
 .mobileToggle {
 	display: none;
 }
@@ -196,5 +272,60 @@
 
 	.content {
 		flex-direction: column;
+	}
+}
+
+@media (min-width: 961px) and (max-width: 1024px) {
+	.dockPresentation .sidebarWrapper {
+		bottom: 0;
+		box-shadow: 0 18px 40px rgba(40, 33, 23, 0.18);
+		display: none;
+		left: 0;
+		position: absolute;
+		top: 0;
+		width: min(85%, 340px);
+	}
+
+	.dockPresentation .sidebarOpen .sidebarWrapper {
+		display: flex;
+	}
+
+	.dockPresentation .mobileOverlay {
+		background: rgba(40, 33, 23, 0.3);
+		display: none;
+		inset: 0;
+		position: absolute;
+		z-index: 2;
+	}
+
+	.dockPresentation .sidebarOpen .mobileOverlay {
+		display: block;
+	}
+
+	.dockPresentation .editorHeader .mobileToggle {
+		display: inline-flex;
+		order: 1;
+	}
+
+	.dockPresentation .content {
+		flex-direction: column;
+	}
+}
+
+@media (max-width: 1024px) {
+	.dockPresentation .editorHeaderActions {
+		gap: 8px;
+		justify-content: flex-start;
+		order: 3;
+		width: 100%;
+	}
+
+	.dockPresentation .editorDocsLink {
+		margin-right: 0;
+	}
+
+	.dockPresentation .editorHeaderActions .editorToolbarButton:last-child {
+		flex: 1 0 100%;
+		justify-content: center;
 	}
 }

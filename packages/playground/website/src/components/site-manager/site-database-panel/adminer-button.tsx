@@ -1,4 +1,5 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { logger } from '@php-wasm/logger';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
@@ -61,21 +62,33 @@ export function AdminerButton({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		if (!playground) {
+			setState('idle');
+			setError(null);
+			return;
+		}
+		let cancelled = false;
+
 		async function detectAdminer() {
-			if (!playground) {
-				return;
-			}
-
-			const documentRoot = await playground.documentRoot;
-			const adminerPath = `${documentRoot}/adminer`;
-
-			if (await playground.isDir(adminerPath)) {
-				setState('ready');
-			} else {
+			try {
+				if (!playground) return;
+				const documentRoot = await playground.documentRoot;
+				if (cancelled) return;
+				const adminerPath = `${documentRoot}/adminer`;
+				const isDir = await playground.isDir(adminerPath);
+				if (cancelled) return;
+				setState(isDir ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect Adminer', error);
 				setState('idle');
 			}
 		}
-		detectAdminer();
+
+		void detectAdminer();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenAdminer = async () => {

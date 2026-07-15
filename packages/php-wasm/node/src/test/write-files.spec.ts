@@ -69,8 +69,70 @@ describe('writeFiles', () => {
 			writeFiles(php, '/test', {
 				'../escape.txt': 'file',
 			})
-		).rejects.toThrow('File paths must stay inside the target directory.');
+		).rejects.toThrow(
+			'Invalid file tree path "../escape.txt": it must resolve inside "/test".'
+		);
 
+		expect(php.fileExists('/escape.txt')).toBe(false);
+	});
+
+	it.each(['', '.', '/absolute.txt'])(
+		'rejects invalid file tree path "%s"',
+		async (path) => {
+			await expect(
+				writeFiles(php, '/test', {
+					[path]: 'file',
+				})
+			).rejects.toThrow(
+				`Invalid file tree path ${JSON.stringify(
+					path
+				)}: it must resolve inside "/test".`
+			);
+		}
+	);
+
+	it('allows redundant path segments that stay inside the target directory', async () => {
+		await writeFiles(php, '/test', {
+			'sub/./file.txt': 'file',
+			'sub//nested.txt': 'nested',
+			'sub/../sibling.txt': 'sibling',
+		});
+
+		expect(php.readFileAsText('/test/sub/file.txt')).toBe('file');
+		expect(php.readFileAsText('/test/sub/nested.txt')).toBe('nested');
+		expect(php.readFileAsText('/test/sibling.txt')).toBe('sibling');
+	});
+
+	it('allows absolute file tree paths when writing from the filesystem root', async () => {
+		await writeFiles(php, '/', {
+			'/tmp/root-file.txt': 'file',
+			'/./tmp/root-dot-file.txt': 'file',
+		});
+
+		expect(php.fileExists('/tmp/root-file.txt')).toBe(true);
+		expect(php.fileExists('/tmp/root-dot-file.txt')).toBe(true);
+	});
+
+	it('validates paths before removing existing files', async () => {
+		php.writeFile('/test/keep.txt', 'file');
+
+		await expect(
+			writeFiles(
+				php,
+				'/test',
+				{
+					'safe/nested': {
+						'../../escape.txt': 'file',
+					},
+				},
+				{ rmRoot: true }
+			)
+		).rejects.toThrow(
+			'Invalid file tree path "../../escape.txt": it must resolve inside ' +
+				'"/test/safe/nested".'
+		);
+
+		expect(php.fileExists('/test/keep.txt')).toBe(true);
 		expect(php.fileExists('/escape.txt')).toBe(false);
 	});
 

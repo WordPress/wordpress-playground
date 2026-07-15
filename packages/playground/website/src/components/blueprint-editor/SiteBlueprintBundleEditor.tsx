@@ -88,19 +88,60 @@ async function populateFilesystemFromBlueprint(
 }
 
 /**
+ * A minimal valid Blueprint. Every Playground starts from some Blueprint, so the
+ * editor should never open empty — when a site has no Blueprint on record we seed
+ * this stub so there is always a `blueprint.json` to view and edit.
+ */
+const STUB_BLUEPRINT_JSON = `${JSON.stringify(
+	{
+		$schema: 'https://playground.wordpress.net/blueprint-schema.json',
+		steps: [],
+	},
+	null,
+	2
+)}\n`;
+
+/**
+ * Reads a site's `blueprint.json` as text without changing its stored bundle.
+ * Used to seed compact Blueprint authoring surfaces.
+ */
+export async function readSiteBlueprintJson(
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+): Promise<string> {
+	const fs = await createFilesystemFromOriginalBlueprint(originalBlueprint, {
+		seedMissingBlueprintJson: !isFilesystemBackend(originalBlueprint),
+	});
+	return fs.readFileAsText('/blueprint.json');
+}
+
+/**
  * Returns an editable filesystem for a site's Blueprint declaration or bundle.
  *
  * Bundle backends can be used directly. Declaration-only Blueprints are copied
  * into a fresh in-memory filesystem so the editor always works with files.
+ * Editable filesystems get a stub `blueprint.json` when needed; read-only
+ * callers can leave a persisted bundle untouched instead.
  */
 async function createFilesystemFromOriginalBlueprint(
-	originalBlueprint: SiteInfo['metadata']['originalBlueprint']
+	originalBlueprint: SiteInfo['metadata']['originalBlueprint'],
+	options: {
+		/**
+		 * Whether a filesystem-backed bundle may be seeded with a missing
+		 * `blueprint.json`. Read-only callers leave persisted bundles untouched.
+		 */
+		seedMissingBlueprintJson?: boolean;
+	} = {}
 ): Promise<EventedFilesystem> {
+	const { seedMissingBlueprintJson = true } = options;
 	// If originalBlueprint is already a filesystem backend (e.g.,
 	// PersistedBlueprintBundle), use it directly instead of populating from
 	// Blueprint JSON.
 	if (isFilesystemBackend(originalBlueprint)) {
-		return new EventedFilesystem(originalBlueprint);
+		const fs = new EventedFilesystem(originalBlueprint);
+		if (seedMissingBlueprintJson) {
+			await ensureBlueprintJson(fs);
+		}
+		return fs;
 	}
 
 	// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
@@ -111,7 +152,19 @@ async function createFilesystemFromOriginalBlueprint(
 			originalBlueprint as Blueprint
 		);
 	}
+	await ensureBlueprintJson(fs);
 	return fs;
+}
+
+/**
+ * Guarantees the editor always has a `blueprint.json` to show. A bundle (or a
+ * declaration-only Blueprint) that somehow carries none would otherwise render
+ * the editor empty.
+ */
+async function ensureBlueprintJson(fs: EventedFilesystem): Promise<void> {
+	if (!(await fs.fileExists('/blueprint.json'))) {
+		await fs.writeFile('/blueprint.json', STUB_BLUEPRINT_JSON);
+	}
 }
 
 function collectBundledResourcePaths(value: unknown): Set<string> {
@@ -154,6 +207,7 @@ export interface SiteBlueprintBundleEditorHandle {
 type SiteBlueprintBundleEditorProps = {
 	className?: string;
 	site: SiteInfo;
+	dockPresentation?: boolean;
 };
 
 /**
@@ -163,7 +217,10 @@ type SiteBlueprintBundleEditorProps = {
 export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorHandle,
 	SiteBlueprintBundleEditorProps
->(function SiteBlueprintBundleEditor({ className, site }, ref) {
+>(function SiteBlueprintBundleEditor(
+	{ className, site, dockPresentation = false },
+	ref
+) {
 	const dispatch = useAppDispatch();
 	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
 		null
@@ -223,7 +280,14 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 			setFilesystemIfMounted(
 				await createFilesystemFromOriginalBlueprint(
-					site.metadata.originalBlueprint
+					site.metadata.originalBlueprint,
+					{
+						seedMissingBlueprintJson:
+							!readOnly ||
+							!isFilesystemBackend(
+								site.metadata.originalBlueprint
+							),
+					}
 				)
 			);
 		};
@@ -267,6 +331,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					site={site}
 					className={className}
 					readOnly={readOnly}
+					dockPresentation={dockPresentation}
 				/>
 			)}
 		</div>

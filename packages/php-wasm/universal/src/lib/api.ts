@@ -248,6 +248,81 @@ function setupTransferHandlers() {
 			return port;
 		},
 	});
+	type SerializedReadableStream = {
+		stream?: ReadableStream<Uint8Array>;
+		port?: MessagePort;
+	};
+	/**
+	 * Keeps the stream live while it crosses the Comlink boundary. Runtimes without
+	 * transferable stream support use the existing MessagePort bridge.
+	 */
+	const readableStreamTransferHandler: Comlink.TransferHandler<
+		ReadableStream<Uint8Array>,
+		SerializedReadableStream
+	> = {
+		canHandle: (obj: unknown): obj is ReadableStream<Uint8Array> =>
+			typeof ReadableStream !== 'undefined' &&
+			obj instanceof ReadableStream,
+		serialize(
+			stream: ReadableStream<Uint8Array>
+		): [SerializedReadableStream, Transferable[]] {
+			if (supportsTransferableStreams()) {
+				return [{ stream }, [stream as unknown as Transferable]];
+			}
+
+			const port = streamToPort(stream);
+			return [{ port }, [port]];
+		},
+		deserialize(
+			data: SerializedReadableStream
+		): ReadableStream<Uint8Array> {
+			return data.stream || portToStream(data.port!);
+		},
+	};
+	Comlink.transferHandlers.set(
+		'READABLE_STREAM',
+		readableStreamTransferHandler
+	);
+	type EventWithReadableStdin = {
+		type: string;
+		stdin: ReadableStream<Uint8Array>;
+	};
+	type SerializedEventWithReadableStdin = {
+		type: string;
+		stdin: SerializedReadableStream;
+	};
+	/**
+	 * Transfers a worker event whose `stdin` property is a ReadableStream. Comlink
+	 * applies a transfer handler to the top-level value only, so it will not discover
+	 * the `stdin` stream on its own.
+	 */
+	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
+		EventWithReadableStdin,
+		SerializedEventWithReadableStdin
+	> = {
+		canHandle: (obj: unknown): obj is EventWithReadableStdin =>
+			typeof obj === 'object' &&
+			obj !== null &&
+			'type' in obj &&
+			typeof obj.type === 'string' &&
+			'stdin' in obj &&
+			readableStreamTransferHandler.canHandle(obj.stdin),
+		serialize(event): [SerializedEventWithReadableStdin, Transferable[]] {
+			const [stdin, transferables] =
+				readableStreamTransferHandler.serialize(event.stdin);
+			return [{ ...event, stdin }, transferables];
+		},
+		deserialize(event): EventWithReadableStdin {
+			return {
+				...event,
+				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+			};
+		},
+	};
+	Comlink.transferHandlers.set(
+		'EVENT_WITH_READABLE_STDIN',
+		eventWithReadableStdinTransferHandler
+	);
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&
@@ -395,11 +470,21 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
+ *   { t: 'cancel' }                – consumer cancelled the stream
  */
 export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
+	const reader = stream.getReader();
+	const onMessage = (event: MessageEvent) => {
+		if (event.data?.t === 'cancel') {
+			reader.cancel().catch(() => {
+				// The consumer has already cancelled and cannot observe source errors.
+			});
+		}
+	};
+	port1.addEventListener('message', onMessage);
+	port1.start();
 	(async () => {
-		const reader = stream.getReader();
 		try {
 			while (true) {
 				const { done, value } = await reader.read();
@@ -417,12 +502,12 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 					break;
 				}
 				if (value) {
-					// Ensure we transfer an owned buffer
-					const owned =
-						value.byteOffset === 0 &&
-						value.byteLength === value.buffer.byteLength
-							? value
-							: value.slice();
+					/**
+					 * ReadableStream.tee() gives each branch the same chunk object. Transfer
+					 * an owned copy so detaching this buffer does not invalidate another
+					 * listener's branch.
+					 */
+					const owned = value.slice();
 					const buf = owned.buffer;
 					try {
 						port1.postMessage({ t: 'chunk', b: buf }, [
@@ -443,6 +528,7 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 				// Ignore error
 			}
 		} finally {
+			port1.removeEventListener('message', onMessage);
 			try {
 				port1.close();
 			} catch {
@@ -524,6 +610,11 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			}
 		},
 		cancel() {
+			try {
+				port.postMessage({ t: 'cancel' });
+			} catch {
+				// The producer has already closed its port.
+			}
 			try {
 				port.close();
 			} catch {

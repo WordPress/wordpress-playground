@@ -101,43 +101,6 @@ const plugins = [
 		},
 	},
 	/**
-	 * In library mode, Vite bundles all `?url` imports as JS modules with a single,
-	 * base64 export. blueprints.phar is too large for that. We need to preserve it
-	 * as an actual file.
-	 *
-	 * ... more comment tbd ...
-	 *
-	 * @see https://github.com/vitejs/vite/issues/3295
-	 */
-	{
-		name: 'build-phars-as-URL-modules-not-data-imports',
-
-		transform(code, id) {
-			if (id?.includes('.phar')) {
-				// @TODO don't hardcode it
-				// @TODO use URL on the web and path on Node.js
-				return {
-					code: `
-						import { fileURLToPath } from 'url';
-						import { dirname, join } from 'path';
-
-						let pharPath;
-						if (typeof __dirname !== 'undefined') {
-							// CommonJS
-							pharPath = join(__dirname, "./blueprints.phar");
-						} else {
-							// ESM
-							pharPath = join(import.meta.dirname, "./blueprints.phar");
-						}
-
-						export default pharPath;
-					`,
-					map: null,
-				};
-			}
-		},
-	},
-	/**
 	 * Copies the bundled SQLite integration plugin zip into the
 	 * output directory so the built CLI can read it at runtime.
 	 */

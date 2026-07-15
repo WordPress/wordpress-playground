@@ -65,6 +65,39 @@ export function getSetupUrlFromUrl(url: URL) {
 }
 
 /**
+ * Returns the setup URL stored with a site.
+ *
+ * Stored Playgrounds may be opened from a route like `?site-slug=demo`, which
+ * does not fully describe the setup that created them. Recreating an autosaved
+ * Playground must start from the saved setup params instead of the current
+ * browser URL so Blueprint, plugin, theme, and other setup params are retained.
+ */
+export function getSetupUrlFromSite(
+	site: SiteInfo,
+	baseUrl: string | URL
+) {
+	if (!site.originalUrlParams) {
+		return getSetupUrlFromUrl(new URL(baseUrl));
+	}
+
+	const setupUrl = new URL(baseUrl);
+	setupUrl.search = '';
+	for (const [key, value] of Object.entries(
+		site.originalUrlParams.searchParams ?? {}
+	)) {
+		if (!SETUP_QUERY_PARAMS.has(key)) {
+			continue;
+		}
+		const values = Array.isArray(value) ? value : [value];
+		for (const item of values) {
+			setupUrl.searchParams.append(key, item);
+		}
+	}
+	setupUrl.hash = site.originalUrlParams.hash ?? '';
+	return setupUrl;
+}
+
+/**
  * Returns the autosave fingerprint originally associated with a site.
  *
  * Existing saved sites may not have stored `sourceSetupUrlFingerprint`, so this

@@ -3,6 +3,7 @@ import {
 	dirname,
 	joinPaths,
 	normalizePath,
+	resolvePathUnder,
 	toPosixPath,
 } from '../lib/paths';
 
@@ -27,6 +28,80 @@ describe('joinPaths', () => {
 			'../wp-content'
 		);
 		expect(joinPaths('/', '/')).toEqual('/');
+	});
+});
+
+describe('resolvePathUnder', () => {
+	it('resolves relative paths under the parent path', () => {
+		expect(resolvePathUnder('wp-content/plugin.php', '/wordpress')).toEqual(
+			'/wordpress/wp-content/plugin.php'
+		);
+	});
+
+	it('normalizes redundant path segments that stay under the parent path', () => {
+		expect(
+			resolvePathUnder('wp-content/./plugins//plugin.php', '/wordpress')
+		).toEqual('/wordpress/wp-content/plugins/plugin.php');
+		expect(
+			resolvePathUnder('wp-content/../index.php', '/wordpress')
+		).toEqual('/wordpress/index.php');
+	});
+
+	it('checks absolute paths as already-resolved paths', () => {
+		expect(
+			resolvePathUnder('/wordpress/wp-content/index.php', '/wordpress')
+		).toEqual('/wordpress/wp-content/index.php');
+		expect(
+			resolvePathUnder('/tmp/index.php', '/wordpress')
+		).toBeUndefined();
+	});
+
+	it('allows absolute paths under the filesystem root', () => {
+		expect(resolvePathUnder('/./tmp/file.php', '/')).toEqual(
+			'/tmp/file.php'
+		);
+		expect(resolvePathUnder('tmp/file.php', '/')).toEqual('/tmp/file.php');
+	});
+
+	it('returns undefined for empty or current-directory parent paths', () => {
+		expect(resolvePathUnder('file.php', '')).toBeUndefined();
+		expect(resolvePathUnder('file.php', '.')).toBeUndefined();
+		expect(resolvePathUnder('file.php', './')).toBeUndefined();
+		expect(resolvePathUnder('/file.php', '')).toBeUndefined();
+	});
+
+	it('returns undefined when the path names the parent itself', () => {
+		expect(resolvePathUnder('', '/wordpress')).toBeUndefined();
+		expect(resolvePathUnder('.', '/wordpress')).toBeUndefined();
+		expect(resolvePathUnder('/wordpress', '/wordpress')).toBeUndefined();
+		expect(resolvePathUnder('/wordpress/', '/wordpress')).toBeUndefined();
+		expect(resolvePathUnder('/', '/')).toBeUndefined();
+	});
+
+	it('returns undefined when the resolved path escapes the parent path', () => {
+		expect(resolvePathUnder('../escape.php', '/wordpress')).toBeUndefined();
+		expect(
+			resolvePathUnder('wp-content/../../escape.php', '/wordpress')
+		).toBeUndefined();
+		expect(
+			resolvePathUnder('/wordpress-backup/file.php', '/wordpress')
+		).toBeUndefined();
+	});
+
+	it('returns undefined for paths containing null bytes', () => {
+		expect(
+			resolvePathUnder('wp-content/\0.php', '/wordpress')
+		).toBeUndefined();
+		expect(
+			resolvePathUnder('wp-content/file.php', '/wordpress\0')
+		).toBeUndefined();
+	});
+
+	it('supports relative parent paths', () => {
+		expect(resolvePathUnder('wp-content/plugin.php', 'wordpress')).toEqual(
+			'wordpress/wp-content/plugin.php'
+		);
+		expect(resolvePathUnder('../escape.php', 'wordpress')).toBeUndefined();
 	});
 });
 

@@ -21,12 +21,14 @@ import {
 	useActiveSite,
 	useAppSelector,
 	useAppDispatch,
+	useTemporarySite,
 } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
-	selectSortedSites,
-	selectTemporarySite,
+	isStoredSite,
+	isTemporarySite,
+	selectSortedStoredSites,
 } from '../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
@@ -108,10 +110,8 @@ export function SavedPlaygroundsOverlay({
 	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
-	const storedSites = useAppSelector(selectSortedSites).filter(
-		(site) => site.metadata.storage !== 'none'
-	);
-	const temporarySite = useAppSelector(selectTemporarySite);
+	const storedSites = useAppSelector(selectSortedStoredSites);
+	const temporarySite = useTemporarySite();
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
@@ -119,6 +119,9 @@ export function SavedPlaygroundsOverlay({
 	const activeClientInfo = usePlaygroundClientInfo();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
 	const zipImportInProgressRef = useRef(false);
+	const zipImportPendingRef = useRef(false);
+	const zipImportAttentionFrameRef = useRef<number | null>(null);
+	const zipImportAttentionTimeoutRef = useRef<number | null>(null);
 
 	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -128,8 +131,54 @@ export function SavedPlaygroundsOverlay({
 	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
 		string | null
 	>(null);
+	const [isZipImportPending, setIsZipImportPending] = useState(false);
+	const [isZipImportAttentionVisible, setIsZipImportAttentionVisible] =
+		useState(false);
 	const isCompactLayout = useIsCompactLayout();
 	const activeOpfsSyncStatus = activeClientInfo?.opfsSync?.status;
+
+	function setZipImportPending(isPending: boolean) {
+		zipImportPendingRef.current = isPending;
+		setIsZipImportPending(isPending);
+		if (!isPending) {
+			clearZipImportAttention();
+		}
+	}
+
+	function closeOverlay() {
+		if (zipImportPendingRef.current) {
+			clearZipImportAttention();
+			zipImportAttentionFrameRef.current = window.requestAnimationFrame(
+				() => {
+					setIsZipImportAttentionVisible(true);
+					zipImportAttentionTimeoutRef.current = window.setTimeout(
+						() => setIsZipImportAttentionVisible(false),
+						900
+					);
+				}
+			);
+			return;
+		}
+		onClose();
+	}
+
+	useEffect(() => {
+		return () => clearZipImportAttention(false);
+	}, []);
+
+	function clearZipImportAttention(hideStatus = true) {
+		if (hideStatus) {
+			setIsZipImportAttentionVisible(false);
+		}
+		if (zipImportAttentionFrameRef.current !== null) {
+			window.cancelAnimationFrame(zipImportAttentionFrameRef.current);
+			zipImportAttentionFrameRef.current = null;
+		}
+		if (zipImportAttentionTimeoutRef.current !== null) {
+			window.clearTimeout(zipImportAttentionTimeoutRef.current);
+			zipImportAttentionTimeoutRef.current = null;
+		}
+	}
 
 	useEffect(() => {
 		if (
@@ -173,9 +222,11 @@ export function SavedPlaygroundsOverlay({
 				alert(
 					'File imported! This Playground instance has been updated and will refresh shortly.'
 				);
+				setZipImportPending(false);
 				onClose();
 			} catch (error) {
 				logger.error(error);
+				setZipImportPending(false);
 				alert(
 					'Unable to import file. Is it a valid WordPress Playground export?'
 				);
@@ -215,17 +266,23 @@ export function SavedPlaygroundsOverlay({
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
-		if (zipImportInProgressRef.current || pendingZipFile) {
+		if (
+			zipImportPendingRef.current ||
+			zipImportInProgressRef.current ||
+			pendingZipFile
+		) {
 			e.target.value = '';
 			return;
 		}
 
+		setZipImportPending(true);
 		try {
 			const targetSlug = await createSiteForImport();
 			setPendingZipTargetSlug(targetSlug);
 			setPendingZipFile(file);
 		} catch (error) {
 			logger.error(error);
+			setZipImportPending(false);
 			alert(
 				'No active Playground to import into. Please create one first.'
 			);
@@ -284,6 +341,9 @@ export function SavedPlaygroundsOverlay({
 	});
 
 	const onSiteClick = (slug: string) => {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteManagerSection('site-details'));
 		onClose();
 		void sitesAPI.setActiveSite(slug).catch((error) => {
@@ -296,18 +356,27 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteSlugToDelete(site.slug));
 		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
 		closeMenu();
 	};
 
 	const handleRenameSite = (site: SiteInfo, closeMenu: () => void) => {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteSlugToRename(site.slug));
 		dispatch(setActiveModal(modalSlugs.RENAME_SITE));
 		closeMenu();
 	};
 
 	const openSaveModalForSite = (site: SiteInfo, closeMenu?: () => void) => {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteSlugToSave(site.slug));
 		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 		closeMenu?.();
@@ -315,7 +384,7 @@ export function SavedPlaygroundsOverlay({
 	};
 
 	const getStoredSiteDetails = (site: SiteInfo) => {
-		if (site.metadata.storage === 'none') {
+		if (isTemporarySite(site)) {
 			return 'Not saved to browser storage';
 		}
 		const createdDate = formatSiteCreatedDate(site);
@@ -337,6 +406,9 @@ export function SavedPlaygroundsOverlay({
 	 * in-app Blueprint previews follow the default browser autosave policy.
 	 */
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteManagerOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
@@ -353,6 +425,9 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	function createVanillaSite() {
+		if (isZipImportPending) {
+			return;
+		}
 		dispatch(setSiteManagerOpen(false));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
@@ -411,13 +486,15 @@ export function SavedPlaygroundsOverlay({
 		},
 		{
 			id: 'zip',
-			title: 'Import .zip',
-			ariaLabel: 'Import .zip - Import a .zip',
+			title: isZipImportPending ? 'Importing .zip…' : 'Import .zip',
+			ariaLabel: isZipImportPending
+				? 'Importing .zip'
+				: 'Import .zip - Import a .zip',
 			icon: upload,
 			onClick: () => {
 				zipFileInputRef.current?.click();
 			},
-			disabled: false,
+			disabled: isZipImportPending,
 		},
 	];
 
@@ -437,7 +514,7 @@ export function SavedPlaygroundsOverlay({
 	function renderSiteRow(site: SiteInfo) {
 		const isSelected = site.slug === activeSite?.slug;
 		const isAutosave = isAutosavedSite(site);
-		const isStoredSite = site.metadata.storage !== 'none';
+		const isStored = isStoredSite(site);
 
 		return (
 			<div
@@ -449,6 +526,7 @@ export function SavedPlaygroundsOverlay({
 				<button
 					className={css.siteRowContent}
 					onClick={() => onSiteClick(site.slug)}
+					disabled={isZipImportPending}
 				>
 					<div className={css.siteRowLogo}>
 						{site.metadata.logo ? (
@@ -469,13 +547,14 @@ export function SavedPlaygroundsOverlay({
 						</span>
 					</div>
 				</button>
-				{isStoredSite && (
+				{isStored && (
 					<div className={css.siteRowActions}>
 						{isAutosave && (
 							<button
 								type="button"
 								className={css.keepButton}
 								onClick={() => openSaveModalForSite(site)}
+								disabled={isZipImportPending}
 								aria-label="Store this Playground permanently"
 								title="Store this Playground permanently so it is not pruned from recent autosaves."
 							>
@@ -491,6 +570,7 @@ export function SavedPlaygroundsOverlay({
 							icon={moreVertical}
 							label="Site actions"
 							className={css.siteRowMenu}
+							toggleProps={{ disabled: isZipImportPending }}
 							popoverProps={{
 								placement: 'bottom-end',
 							}}
@@ -582,6 +662,7 @@ export function SavedPlaygroundsOverlay({
 						type="button"
 						className={css.viewAllPlaygroundsButton}
 						onClick={() => setShowAllStoredSites(true)}
+						disabled={isZipImportPending}
 					>
 						View all
 					</button>
@@ -593,6 +674,7 @@ export function SavedPlaygroundsOverlay({
 							type="button"
 							className={css.viewAllPlaygroundsButton}
 							onClick={() => setShowAllStoredSites(false)}
+							disabled={isZipImportPending}
 						>
 							Show fewer
 						</button>
@@ -604,12 +686,12 @@ export function SavedPlaygroundsOverlay({
 	if (viewMode === 'blueprints') {
 		return (
 			<Overlay
-				onClose={onClose}
+				onClose={closeOverlay}
 				className={css.playgroundsOverlay}
 				contentClassName={css.playgroundsContent}
 			>
 				<OverlayHeader
-					onClose={onClose}
+					onClose={closeOverlay}
 					onBack={() => {
 						setViewMode('main');
 						setSearchQuery('');
@@ -779,7 +861,7 @@ export function SavedPlaygroundsOverlay({
 
 	return (
 		<Overlay
-			onClose={onClose}
+			onClose={closeOverlay}
 			className={css.playgroundsOverlay}
 			contentClassName={css.playgroundsContent}
 		>
@@ -794,7 +876,7 @@ export function SavedPlaygroundsOverlay({
 				type="button"
 				className={css.playgroundsCloseButton}
 				aria-label="Close"
-				onClick={onClose}
+				onClick={closeOverlay}
 			>
 				<Icon icon={close} size={28} />
 			</button>
@@ -815,7 +897,10 @@ export function SavedPlaygroundsOverlay({
 										className={css.creationButton}
 										aria-label={option.ariaLabel}
 										onClick={option.onClick}
-										disabled={option.disabled}
+										disabled={
+											option.disabled ||
+											isZipImportPending
+										}
 									>
 										{hasIcon && (
 											<span
@@ -843,6 +928,22 @@ export function SavedPlaygroundsOverlay({
 								);
 							})}
 						</div>
+						{isZipImportPending && (
+							<p
+								className={classNames(css.zipImportStatus, {
+									[css.zipImportStatusAttention]:
+										isZipImportAttentionVisible,
+								})}
+								role="status"
+								aria-live="polite"
+								data-testid="zip-import-status"
+							>
+								<Spinner />
+								<span>
+									Importing .zip… This may take a moment.
+								</span>
+							</p>
+						)}
 					</OverlaySection>
 					{renderYourPlaygroundsSection()}
 

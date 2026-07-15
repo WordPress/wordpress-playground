@@ -1,5 +1,6 @@
 import { MenuItem } from '@wordpress/components';
 
+import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
@@ -15,7 +16,9 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 			disabled={disabled}
 			onClick={() => {
 				if (!playground) return;
-				startDownload(playground);
+				void downloadPlaygroundAsZip(playground).catch((error) =>
+					logger.error('Failed to download Playground zip', error)
+				);
 				onClose();
 			}}
 		>
@@ -24,7 +27,8 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 	);
 }
 
-async function startDownload(playground: PlaygroundClient) {
+/** Downloads a self-contained archive of the supplied Playground. */
+export async function downloadPlaygroundAsZip(playground: PlaygroundClient) {
 	const bytes = await zipWpContent(playground, {
 		selfContained: true,
 	});

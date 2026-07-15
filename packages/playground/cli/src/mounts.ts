@@ -76,10 +76,22 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 
 export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
-		await php.mount(
-			mount.vfsPath,
-			createNodeFsMountHandler(mount.hostPath)
-		);
+		try {
+			await php.mount(
+				mount.vfsPath,
+				createNodeFsMountHandler(mount.hostPath)
+			);
+		} catch (error) {
+			// Wrap the raw mount failure with the offending paths and a
+			// root-cause summary so callers that only read `.message`
+			// (e.g. the boot-failure path) still get an actionable error.
+			const errorSummary =
+				error instanceof Error ? error.message : String(error);
+			throw new Error(
+				`Error mounting path ${mount.hostPath} at ${mount.vfsPath}: ${errorSummary}`,
+				{ cause: error }
+			);
+		}
 	}
 }
 
@@ -144,17 +156,10 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			vfsPath,
 			autoMounted: true,
 		});
-		newArgs['additional-blueprint-steps'].push(
-			args['experimental-blueprints-v2-runner']
-				? {
-						step: 'activateTheme',
-						themeDirectoryName: themeName,
-					}
-				: {
-						step: 'activateTheme',
-						themeFolderName: themeName,
-					}
-		);
+		newArgs['additional-blueprint-steps'].push({
+			step: 'activateTheme',
+			themeFolderName: themeName,
+		});
 	} else if (containsWpContentDirectories(path)) {
 		/**
 		 * Mount each wp-content file and directory individually.

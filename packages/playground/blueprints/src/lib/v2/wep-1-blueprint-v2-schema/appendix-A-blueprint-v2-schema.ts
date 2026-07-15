@@ -221,9 +221,13 @@ export namespace V2Schema {
 		 * @example `"activeTheme": "adventurer@4.6.0"`
 		 * @example
 		 * ```json
-		 * "activeTheme": {
-		 *     "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *     "id": "kanso"
+		 * {
+		 *     "version": 2,
+		 *     "activeTheme": {
+		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *         "targetDirectoryName": "kanso",
+		 *         "importStarterContent": true
+		 *     }
 		 * }
 		 * ```
 		 */
@@ -235,14 +239,17 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * themes: [
-		 *     "stylish-press-theme",
-		 *     "adventurer@4.6.0",
-		 *     {
-		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *         "id": "kanso"
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "themes": [
+		 *         "stylish-press-theme",
+		 *         "adventurer@4.6.0",
+		 *         {
+		 *             "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *             "targetDirectoryName": "kanso"
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
 		themes?: ThemeDefinition[];
@@ -253,16 +260,20 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * plugins: [
-		 *     "jetpack",
-		 *     "akismet@6.4.3",
-		 *     "./query-monitor.php",
-		 *     "./code-block.zip",
-		 *     {
-		 *         "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
-		 *         "active": false
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "plugins": [
+		 *         "jetpack",
+		 *         "akismet@6.4.3",
+		 *         "./query-monitor.php",
+		 *         "./code-block.zip",
+		 *         {
+		 *             "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
+		 *             "active": false
+		 *         }
+		 *     ]
+		 * }
+		 * ```
 		 */
 		plugins?: PluginDefinition[];
 
@@ -272,14 +283,15 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * muPlugins: [
-		 *     {
-		 *         "file": {
+		 * {
+		 *     "version": 2,
+		 *     "muPlugins": [
+		 *         {
 		 *             "filename": "addFilter-0.php",
 		 *             "content": "<?php add_action( 'requests-requests.before_request', function( &$url ) {\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\n} );"
 		 *         }
-		 *     }
-		 * ]
+		 *     ]
+		 * }
 		 * ```
 		 */
 		muPlugins?: Array<DataSources.DataReference>;
@@ -338,7 +350,7 @@ export namespace V2Schema {
 		 * }
 		 * ```
 		 */
-		fonts?: Record<string, DataSources.DataReference | FontCollection>;
+		fonts?: Record<string, DataSources.FileDataReference | FontCollection>;
 
 		/**
 		 * A list of media files to upload to the WordPress Media Library – in formats
@@ -447,19 +459,18 @@ export namespace V2Schema {
 	};
 
 	type ContentDefinition =
-		| ({
+		| {
 				type: 'mysql-dump';
 				source:
 					| DataSources.FileDataReference
 					| DataSources.FileDataReference[];
-		  } & URLMappingConfig)
+		  }
 		| ({
 				type: 'posts';
 				source:
 					| DataSources.FileDataReference
-					| DataSources.FileDataReference[]
 					| WordPressPost
-					| WordPressPost[];
+					| (DataSources.FileDataReference | WordPressPost)[];
 		  } & URLMappingConfig)
 		/**
 		 * WXR files to import.
@@ -467,20 +478,23 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * content: [
-		 *     {
-		 *         "type": "wxr",
-		 *         "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
-		 *     },
-		 *     {
-		 *         "type": "wxr",
-		 *         "url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
-		 *         "rewriteUrls": true,
-		 *         "fetchStaticAssets": false,
-		 *         "users": false,
-		 *         "comments": false,
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "content": [
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
+		 *         },
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
+		 *             "urlsMode": "rewrite",
+		 *             "staticAssets": "hotlink",
+		 *             "importUsers": false,
+		 *             "importComments": false
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
 		| WXRContentDefinition;
@@ -546,13 +560,6 @@ export namespace V2Schema {
 		 * @default false.
 		 */
 		importComments?: boolean;
-
-		/**
-		 * Whether to import site settings from the remote site.
-		 *
-		 * @default false.
-		 */
-		importSiteOptions?: boolean;
 	} & URLMappingConfig;
 
 	type MediaDefinition =
@@ -1197,7 +1204,7 @@ export namespace V2Schema {
 		/** CSS font-display value. */
 		fontDisplay?: 'auto' | 'block' | 'fallback' | 'swap' | 'optional';
 		/** Paths or URLs to the font files. */
-		src: DataSources.DataReference | DataSources.DataReference[];
+		src: DataSources.FileDataReference | DataSources.FileDataReference[];
 		/** CSS font-stretch value. */
 		fontStretch?: string;
 		/** CSS ascent-override value. */

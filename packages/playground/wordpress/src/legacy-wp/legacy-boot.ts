@@ -103,7 +103,9 @@ export async function bootLegacyWordPress(
 	}
 
 	if (options.wordPressZip) {
-		await unzipWordPress(php, await options.wordPressZip);
+		await unzipWordPress(php, await options.wordPressZip, {
+			expectedFileCount: options.wordPressBundleFileCount,
+		});
 	}
 
 	if (options.constants) {

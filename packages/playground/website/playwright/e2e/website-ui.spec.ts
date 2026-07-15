@@ -66,6 +66,25 @@ async function getActivePlaygroundSite(page: Page) {
 	);
 }
 
+async function getRunningPhpVersion(page: Page) {
+	return page.evaluate(async () => {
+		const playground = (window as any).playgroundSites?.getClient();
+		if (!playground) {
+			return undefined;
+		}
+		return Promise.race([
+			playground
+				.run({
+					code: '<?php echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;',
+				})
+				.then((response: { text: string }) => response.text),
+			new Promise<undefined>((resolve) =>
+				window.setTimeout(() => resolve(undefined), 1000)
+			),
+		]);
+	});
+}
+
 async function replaceBlueprintEditorContents(
 	page: Page,
 	blueprint: Blueprint
@@ -133,7 +152,7 @@ SupportedPHPVersions.forEach(async (version) => {
 		await website.ensureSiteManagerIsOpen();
 		await website.page.getByLabel('PHP version').selectOption(version);
 		await website.page
-			.getByText('Apply Settings & Reset Playground')
+			.getByText('Discard current work & create a fresh Playground')
 			.click();
 		await website.ensureSiteManagerIsClosed();
 		await website.ensureSiteManagerIsOpen();
@@ -157,7 +176,7 @@ Object.keys(MinifiedWordPressVersions)
 				.getByLabel('WordPress version')
 				.selectOption(version);
 			await website.page
-				.getByText('Apply Settings & Reset Playground')
+				.getByText('Discard current work & create a fresh Playground')
 				.click();
 			await website.ensureSiteManagerIsClosed();
 			await website.ensureSiteManagerIsOpen();
@@ -167,6 +186,24 @@ Object.keys(MinifiedWordPressVersions)
 			).toHaveValue(version);
 		});
 	});
+
+test('should offer only the destructive fresh-site action for a temporary Playground', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsOpen();
+	await expect(
+		website.page.getByRole('button', {
+			name: 'Discard current work & create a fresh Playground',
+		})
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: 'More settings actions' })
+	).toHaveCount(0);
+	await expect(
+		website.page.getByRole('button', { name: 'Apply to this Playground' })
+	).toHaveCount(0);
+});
 
 test('should display networking as active by default', async ({ website }) => {
 	await website.goto('./?storage=temp');
@@ -187,7 +224,9 @@ test('should enable networking when requested', async ({ website }) => {
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').check();
-	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.page
+		.getByText('Discard current work & create a fresh Playground')
+		.click();
 	await website.ensureSiteManagerIsClosed();
 	await website.ensureSiteManagerIsOpen();
 
@@ -199,7 +238,9 @@ test('should disable networking when requested', async ({ website }) => {
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').uncheck();
-	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.page
+		.getByText('Discard current work & create a fresh Playground')
+		.click();
 	await website.ensureSiteManagerIsClosed();
 	await website.ensureSiteManagerIsOpen();
 
@@ -248,7 +289,9 @@ test('should keep query arguments when updating settings', async ({
 
 	await website.ensureSiteManagerIsOpen();
 	await website.page.getByLabel('Network access').check();
-	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.page
+		.getByText('Discard current work & create a fresh Playground')
+		.click();
 	await website.waitForNestedIframes();
 
 	const updatedParams = new URL(website.page.url()).searchParams;
@@ -353,6 +396,15 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 
 	// Navigate to Blueprint tab
 	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await expect(
+		website.page.getByRole('button', { name: 'Create new file' })
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: 'Create new folder' })
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('button', { name: 'Upload files' })
+	).toBeVisible();
 
 	// Create a simple blueprint that writes "Blueprint test" to index.php
 	const blueprint: Blueprint = {
@@ -701,8 +753,22 @@ test.describe('Default Playground storage', () => {
 			(window as any).__saveStatusSamples = [];
 			let installed = false;
 			const sampleStatus = () => {
+				const statusAnnouncement = [
+					...document.querySelectorAll('[role="status"]'),
+				]
+					.map((node) => (node.textContent || '').trim())
+					.find((text) =>
+						[
+							'Save complete',
+							'Autosave complete',
+							'Save failed',
+							'Autosave failed',
+						].includes(text)
+					);
 				const statusButton = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="progressbar"], button'
+					),
 				].find((node) => {
 					const label = (node.textContent || '').trim();
 					return (
@@ -718,7 +784,10 @@ test.describe('Default Playground storage', () => {
 				}
 				(window as any).__saveStatusSamples.push({
 					text: (statusButton.textContent || '').trim(),
+					role: statusButton.getAttribute('role'),
 					ariaLabel: statusButton.getAttribute('aria-label'),
+					ariaValueNow: statusButton.getAttribute('aria-valuenow'),
+					statusAnnouncement: statusAnnouncement ?? null,
 					color: getComputedStyle(statusButton).color,
 				});
 			};
@@ -760,9 +829,9 @@ test.describe('Default Playground storage', () => {
 			null
 		);
 		await expect(website.page.getByText('Autosaving')).toHaveCount(0);
-		await expect(
-			website.page.getByText('Finalizing autosave')
-		).toHaveCount(0);
+		await expect(website.page.getByText('Finalizing autosave')).toHaveCount(
+			0
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toHaveCount(0);
@@ -771,13 +840,19 @@ test.describe('Default Playground storage', () => {
 				(
 					sample: {
 						text: string;
+						role: string | null;
 						ariaLabel: string | null;
+						ariaValueNow: string | null;
+						statusAnnouncement: string | null;
 						color: string;
 					},
 					index: number,
 					all: {
 						text: string;
+						role: string | null;
 						ariaLabel: string | null;
+						ariaValueNow: string | null;
+						statusAnnouncement: string | null;
 						color: string;
 					}[]
 				) => {
@@ -785,23 +860,47 @@ test.describe('Default Playground storage', () => {
 					return (
 						!previous ||
 						previous.text !== sample.text ||
+						previous.role !== sample.role ||
 						previous.ariaLabel !== sample.ariaLabel ||
+						previous.ariaValueNow !== sample.ariaValueNow ||
+						previous.statusAnnouncement !==
+							sample.statusAnnouncement ||
 						previous.color !== sample.color
 					);
 				}
 			)
 		);
-		expect(
-			saveStatusSamples.some(({ text }) => text === 'Autosaved')
-		).toBe(true);
+		expect(saveStatusSamples.some(({ text }) => text === 'Autosaved')).toBe(
+			true
+		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
 		).toBe(false);
+		const progressbarSamples = saveStatusSamples.filter(
+			({ role }) => role === 'progressbar'
+		);
+		expect(progressbarSamples.length).toBeGreaterThan(0);
 		expect(
-			saveStatusSamples.some(({ ariaLabel }) =>
-				/^Autosaved [1-9]\d*%$/.test(ariaLabel ?? '')
+			progressbarSamples.every(
+				({ ariaLabel }) => ariaLabel === 'Autosave progress'
 			)
 		).toBe(true);
+		expect(
+			progressbarSamples.some(({ ariaValueNow }) =>
+				/^[1-9]\d*$/.test(ariaValueNow ?? '')
+			)
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(
+				({ statusAnnouncement }) =>
+					statusAnnouncement === 'Autosave complete'
+			)
+		).toBe(true);
+		expect(
+			saveStatusSamples.some(({ statusAnnouncement }) =>
+				/\d+%/.test(statusAnnouncement ?? '')
+			)
+		).toBe(false);
 	});
 
 	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
@@ -847,6 +946,9 @@ test.describe('Default Playground storage', () => {
 		// Recreate failures are shown inline and leave the Run button available,
 		// so retry the action instead of waiting on an unchanged iframe.
 		await expect(async () => {
+			await expect(runBlueprintButton).toBeEnabled({
+				timeout: 5000,
+			});
 			await runBlueprintButton.click();
 			await expect(
 				website.page.getByText(
@@ -870,8 +972,9 @@ test.describe('Default Playground storage', () => {
 			});
 	});
 
-	test('should offer full settings for an autosaved Playground', async ({
+	test('should offer full settings and keyboard-accessible actions for an autosaved Playground', async ({
 		website,
+		wordpress,
 		browserName,
 	}) => {
 		test.skip(
@@ -879,12 +982,13 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.page.goto('./');
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('settings-actions')
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
-		).toBeVisible({
-			timeout: 120000,
-		});
+		).toBeVisible({ timeout: 120000 });
+		const autosavedSite = await getActivePlaygroundSite(website.page);
 
 		await website.page
 			.getByRole('button', { name: 'Edit Playground settings' })
@@ -903,11 +1007,51 @@ test.describe('Default Playground storage', () => {
 			website.page.getByLabel('Create a multisite network')
 		).toBeEnabled();
 		await expect(
-			website.page.getByText('Apply Settings & Recreate Playground')
-		).toBeVisible();
+			website.page.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+		).toBeEnabled();
+
+		await website.page
+			.getByRole('button', { name: 'More settings actions' })
+			.click();
+		const applyMenuItem = website.page.getByRole('menuitem', {
+			name: /Apply to this Playground/,
+		});
+		const freshMenuItem = website.page.getByRole('menuitem', {
+			name: /Create a fresh Playground/,
+		});
+		await expect(freshMenuItem).toContainText(
+			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
+		);
+		await expect(applyMenuItem).toBeFocused();
+		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
+		await website.page.keyboard.press('ArrowDown');
+		await expect(freshMenuItem).toBeFocused();
+		await website.page.keyboard.press('Home');
+		await expect(applyMenuItem).toBeFocused();
+		await website.page.keyboard.press('End');
+		await expect(freshMenuItem).toBeFocused();
+
+		await website.page.keyboard.press('Escape');
+		const body = wordpress.locator('body');
+		await body.evaluate((element) =>
+			element.setAttribute('data-settings-no-op-marker', 'present')
+		);
+		await website.page
+			.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+			.click();
+		await expect(body).not.toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
+		);
 	});
 
-	test('should apply settings to an autosaved Playground under the same slug', async ({
+	test('should atomically apply PHP and network settings to the current autosave', async ({
 		website,
 		browserName,
 	}) => {
@@ -916,9 +1060,7 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto(
-			getUniqueSavedPlaygroundSetupUrl('settings-recreate')
-		);
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('settings-apply'));
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
@@ -929,24 +1071,17 @@ test.describe('Default Playground storage', () => {
 			.click();
 		const phpSelect = website.page.getByLabel('PHP version');
 		const currentPhpVersion = await phpSelect.inputValue();
-		const nextPhpVersion = SupportedPHPVersions.find(
-			(version) => version !== currentPhpVersion
-		)!;
+		const nextPhpVersion = currentPhpVersion === '8.4' ? '8.3' : '8.4';
 		await phpSelect.selectOption(nextPhpVersion);
+		await website.page.getByLabel('Allow network access').uncheck();
 		const applySettingsButton = website.page.getByRole('button', {
-			name: 'Apply Settings & Recreate Playground',
+			name: 'Apply to this Playground',
 		});
-		// The settings popover should close when recreation starts. If the click
-		// is lost, retry the user action before asserting on the new setup URL.
-		await expect(async () => {
-			await applySettingsButton.click();
-			await expect(applySettingsButton).toBeHidden({ timeout: 10000 });
-		}).toPass({ timeout: 120000 });
+		await expect(applySettingsButton).toBeEnabled();
+		await applySettingsButton.click();
 
 		await expect
-			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
-				timeout: 120000,
-			})
+			.poll(() => getRunningPhpVersion(website.page), { timeout: 120000 })
 			.toBe(nextPhpVersion);
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -971,6 +1106,169 @@ test.describe('Default Playground storage', () => {
 				)
 			)
 			.toBe(1);
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+		await expect(website.page.getByLabel('PHP version')).toHaveValue(
+			nextPhpVersion
+		);
+		await expect(
+			website.page.getByLabel('Allow network access')
+		).not.toBeChecked();
+	});
+
+	test('should create exactly one fresh Playground for structural settings', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('settings-fresh'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+		const sitesBefore = await website.page.evaluate(
+			() => (window as any).playgroundSites.list().length
+		);
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+		const wpSelect = website.page.getByLabel('WordPress version');
+		const currentWpVersion = await wpSelect.inputValue();
+		const nextWpVersion = Object.keys(MinifiedWordPressVersions).find(
+			(version) =>
+				!['beta', 'default', currentWpVersion].includes(version)
+		)!;
+		await wpSelect.selectOption(nextWpVersion);
+
+		const mainAction = website.page.getByRole('button', {
+			name: 'Create a fresh Playground',
+			exact: true,
+		});
+		await expect(mainAction).toBeEnabled();
+		await website.page
+			.getByRole('button', { name: 'More settings actions' })
+			.click();
+		const applyMenuItem = website.page.getByRole('menuitem', {
+			name: /Apply to this Playground/,
+		});
+		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'true');
+		await expect(applyMenuItem).toContainText(
+			'Changing WordPress version requires a fresh Playground.'
+		);
+		await website.page.keyboard.press('Escape');
+
+		// Two same-task clicks exercise the gap before React can paint disabled.
+		await mainAction.evaluate((button: HTMLButtonElement) => {
+			button.click();
+			button.click();
+		});
+		await expect(mainAction).toBeHidden({ timeout: 120000 });
+
+		await expect
+			.poll(
+				() =>
+					website.page.evaluate(
+						() => (window as any).playgroundSites.list().length
+					),
+				{ timeout: 120000 }
+			)
+			.toBe(sitesBefore + 1);
+		const freshSite = await getActivePlaygroundSite(website.page);
+		expect(freshSite.slug).not.toBe(originalSite.slug);
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.some((site: any) => site.slug === slug),
+					originalSite.slug
+				)
+			)
+			.toBe(true);
+	});
+
+	test('should preserve an explicitly saved Playground when creating a fresh site', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('stored-settings'));
+		const statusButton = website.page.getByRole('button', {
+			name: 'Autosaved',
+		});
+		await expect(statusButton).toBeVisible({ timeout: 120000 });
+		await statusButton.click();
+		await website.page
+			.getByRole('button', { name: 'Store permanently' })
+			.click();
+		const saveDialog = website.page.getByRole('dialog', {
+			name: 'Save Playground',
+		});
+		await saveDialog.getByRole('button', { name: 'Save' }).click();
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({ persistence: 'explicit' });
+		const storedSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Edit Playground settings' })
+			.click();
+		await expect(
+			website.page.getByLabel('WordPress version')
+		).toBeEnabled();
+		await expect(website.page.getByLabel('Language')).toBeEnabled();
+		await expect(
+			website.page.getByLabel('Create a multisite network')
+		).toBeEnabled();
+		await website.page
+			.getByRole('button', { name: 'More settings actions' })
+			.click();
+		await expect(
+			website.page.getByRole('menuitem', {
+				name: /Create a fresh Playground/,
+			})
+		).toContainText(`“${storedSite.name}” stays in Saved Playgrounds.`);
+		await website.page.keyboard.press('Escape');
+		await website.page.getByLabel('Language').selectOption('pl_PL');
+		await website.page
+			.getByRole('button', {
+				name: 'Create a fresh Playground',
+				exact: true,
+			})
+			.click();
+
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.some(
+								(site: any) =>
+									site.slug === slug &&
+									site.persistence === 'explicit'
+							),
+					storedSite.slug
+				)
+			)
+			.toBe(true);
 	});
 
 	test('should show intent-driven creation actions in the overlay', async ({
@@ -1163,7 +1461,9 @@ test.describe('Default Playground storage', () => {
 			(window as any).__siteSwitchStatusSamples = [];
 			const sampleStatus = () => {
 				const status = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="status"], [role="progressbar"], button'
+					),
 				]
 					.map((node) => (node.textContent || '').trim())
 					.find((text) =>
@@ -1210,6 +1510,11 @@ test.describe('Default Playground storage', () => {
 			return (window as any).__siteSwitchStatusSamples;
 		});
 		expect(switchStatusSamples).not.toContain('Autosaving');
+		await expect(
+			website.page
+				.getByRole('status')
+				.filter({ hasText: /Save complete|Autosave complete/ })
+		).toHaveCount(0);
 	});
 
 	test('should show autosave browser storage details in the Site Manager by default', async ({
@@ -1430,6 +1735,79 @@ echo get_option('blogname');
 		expect(blogName).toBe(expectedBlogName);
 	});
 
+	test('should persist disabling the You Have Autosave nudge', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('restore-opt-out');
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		await website.page.goto(setupUrl);
+		const nudge = website.page.getByLabel('Recent autosaved Playground');
+		await expect(nudge).toBeVisible();
+		await nudge
+			.getByRole('button', { name: 'Stop showing autosave prompts' })
+			.click();
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		expect(
+			await website.page.evaluate(() =>
+				localStorage.getItem(
+					'playground-you-have-autosave-nudge-enabled'
+				)
+			)
+		).toBe('false');
+
+		await website.page.goto(setupUrl);
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
+	});
+
+	test('should dismiss the restore card and autosave when WordPress is clicked', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
+		);
+
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('restore-outside');
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.goto(setupUrl);
+		const nudge = website.page.getByLabel('Recent autosaved Playground');
+		await expect(nudge).toBeVisible();
+		await website.waitForNestedIframes();
+
+		await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+		await expect(nudge).toHaveCount(0);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
+	});
+
 	test('should start fresh from a setup URL when an autosave exists', async ({
 		website,
 		browserName,
@@ -1503,7 +1881,9 @@ echo get_option('blogname');
 			(window as any).__keepNewStatusSamples = [];
 			const sampleStatus = () => {
 				const status = [
-					...document.querySelectorAll('[role="status"], button'),
+					...document.querySelectorAll(
+						'[role="status"], [role="progressbar"], button'
+					),
 				]
 					.map((node) => (node.textContent || '').trim())
 					.find((text) =>
@@ -1533,7 +1913,9 @@ echo get_option('blogname');
 			);
 			sampleStatus();
 		});
-		await website.page.getByRole('button', { name: 'No, thanks' }).click();
+		await website.page
+			.getByRole('button', { name: 'Keep this Playground' })
+			.click();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
@@ -1773,7 +2155,7 @@ echo get_option('blogname');
 		});
 
 		const keepNewButton = website.page.getByRole('button', {
-			name: 'No, thanks',
+			name: 'Keep this Playground',
 		});
 		// Saving may route directly to the saved Playground and clear the
 		// nudge. If it stays visible, dismissing it must not undo the save.

@@ -362,12 +362,34 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
-	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+	protected dispatchEvent<EventType extends PHPWorkerEvent>(
+		event: EventType
+	) {
 		const listeners = this.#eventListeners.get(event.type);
 		if (!listeners) {
 			return;
 		}
-		for (const listener of listeners) {
+		const eventListeners = [...listeners];
+		if (eventListeners.length > 1 && hasReadableStdin(event)) {
+			/**
+			 * A ReadableStream can only be transferred through Comlink once. Give each
+			 * listener its own branch so one listener cannot lock the stream before the
+			 * remaining listeners receive the event.
+			 */
+			const streams = teeReadableStream(
+				event.stdin,
+				eventListeners.length
+			);
+			let streamIndex = 0;
+			for (const listener of eventListeners) {
+				listener({
+					...event,
+					stdin: streams[streamIndex++],
+				} as EventType);
+			}
+			return;
+		}
+		for (const listener of eventListeners) {
 			listener(event);
 		}
 	}
@@ -407,4 +429,35 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 		throw new Error('PHPWorker is not connected to a request handler.');
 	}
+}
+
+function hasReadableStdin(
+	event: PHPWorkerEvent
+): event is PHPWorkerEvent & { stdin: ReadableStream<Uint8Array> } {
+	return (
+		'stdin' in event &&
+		typeof ReadableStream !== 'undefined' &&
+		event.stdin instanceof ReadableStream
+	);
+}
+
+/**
+ * Creates one independently transferable stream branch per event listener.
+ *
+ * ReadableStream.tee() may buffer unread chunks for a slow branch. PHPWorker
+ * does not coordinate backpressure between listeners.
+ */
+function teeReadableStream(
+	stream: ReadableStream<Uint8Array>,
+	branches: number
+): ReadableStream<Uint8Array>[] {
+	const streams: ReadableStream<Uint8Array>[] = [];
+	let remaining = stream;
+	while (streams.length < branches - 1) {
+		const [branch, next] = remaining.tee();
+		streams.push(branch);
+		remaining = next;
+	}
+	streams.push(remaining);
+	return streams;
 }

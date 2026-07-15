@@ -4,10 +4,12 @@
 	top: 62px;
 	right: 16px;
 	display: flex;
-	align-items: center;
+	align-items: stretch;
+	flex-direction: column;
 	gap: 16px;
-	max-width: min(520px, calc(100vw - 32px));
-	padding: 12px;
+	box-sizing: border-box;
+	width: min(400px, calc(100vw - 32px));
+	padding: 18px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
@@ -26,7 +28,7 @@
 }
 
 .description {
-	margin-top: 2px;
+	margin-top: 4px;
 	color: #50575e;
 	font-size: 12px;
 	line-height: 17px;
@@ -41,9 +43,30 @@
 
 .actions {
 	display: flex;
-	flex: 0 0 auto;
+	align-items: flex-start;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.decisionActions {
+	display: flex;
 	align-items: center;
-	gap: 6px;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.preferenceAction {
+	width: 100%;
+	padding-top: 12px;
+	border-top: 1px solid #dcdcde;
+}
+
+.disableNotifications:global(.components-button.is-link) {
+	color: #646970;
+}
+
+.disableNotifications:global(.components-button.is-link):hover {
+	color: #3c434a;
 }
 
 @media (max-width: 600px) {
@@ -51,11 +74,6 @@
 		top: 108px;
 		left: 12px;
 		right: 12px;
-		align-items: stretch;
-		flex-direction: column;
-	}
-
-	.actions {
-		justify-content: flex-end;
+		width: auto;
 	}
 }

@@ -40,16 +40,9 @@ import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
+import { InvalidBlueprintError } from '../invalid-blueprint-error';
 
-export class InvalidBlueprintError extends Error {
-	public readonly validationErrors?: unknown;
-
-	constructor(message: string, validationErrors?: unknown) {
-		super(message);
-		this.name = 'InvalidBlueprintError';
-		this.validationErrors = validationErrors;
-	}
-}
+export { InvalidBlueprintError };
 
 /**
  * Error thrown when a single Blueprint step fails during execution.
@@ -142,7 +135,7 @@ export interface CompileBlueprintV1Options {
 
 export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
-	options: Omit<CompileBlueprintV1Options, 'streamBundledFile'> = {}
+	options: CompileBlueprintV1Options = {}
 ): Promise<CompiledBlueprintV1> {
 	const finalOptions: CompileBlueprintV1Options = {
 		...options,
@@ -703,7 +696,8 @@ function compileStep<S extends StepDefinition>(
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight
+		(step.progress?.weight || 1) / totalProgressWeight,
+		step.progress?.caption
 	);
 
 	const args: any = {};
@@ -722,6 +716,9 @@ function compileStep<S extends StepDefinition>(
 
 	const run = async (playground: UniversalPHP) => {
 		try {
+			if (step.progress?.caption) {
+				stepProgress.setCaption(step.progress.caption);
+			}
 			stepProgress.fillSlowly();
 			return await keyedStepHandlers[step.step](
 				playground,
