@@ -3,6 +3,7 @@ import {
 	useCallback,
 	useEffect,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 } from 'react';
@@ -26,6 +27,7 @@ import {
 import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
+	setShareExportOpen,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 } from '../../lib/state/redux/slice-ui';
@@ -50,6 +52,7 @@ import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
 import { DockPane } from './dock-pane';
+import type { DockPaneHeaderOverride } from './dock-pane';
 import { DockTogglePill } from './dock-toggle-pill';
 import {
 	DOCK_DRAG_EDGE,
@@ -189,18 +192,22 @@ export function Dock({
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
 	const section = useAppSelector((state) => state.ui.siteManagerSection);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
+	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
+		useState<DockPaneHeaderOverride>();
+	const handleNewPlaygroundHeaderChange = useCallback(
+		(header: DockPaneHeaderOverride | undefined) =>
+			setNewPlaygroundHeaderOverride(header),
+		[]
+	);
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneCopy = PANE_COPY[section];
-	const paneTitle =
-		section === 'share' && shareExportOpen
-			? 'Export to GitHub'
-			: paneCopy.title;
+	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = section === 'blueprint' || section === 'files';
-	const isFixedHeightSection = section === 'new';
-	const showSharedHeader =
-		!isEditorSection && !(section === 'share' && shareExportOpen);
+	const isFixedHeightSection =
+		section === 'new' || (section === 'share' && shareExportOpen);
+	const showSharedHeader = !isEditorSection;
 	const siteDetailsVisible = siteManagerIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
@@ -232,6 +239,24 @@ export function Dock({
 	const cornerRectRef = useRef<DOMRect | null>(null);
 	const lastDockWidthRef = useRef(0);
 	const modeSwitchTimerRef = useRef<number | null>(null);
+	const closeGitHubExport = useCallback(
+		() => dispatch(setShareExportOpen(false)),
+		[dispatch]
+	);
+	const githubExportHeaderOverride = useMemo<DockPaneHeaderOverride>(
+		() => ({
+			title: 'Export to GitHub',
+			backLabel: 'Back to export options',
+			onBack: closeGitHubExport,
+		}),
+		[closeGitHubExport]
+	);
+	const paneHeaderOverride =
+		section === 'new'
+			? newPlaygroundHeaderOverride
+			: section === 'share' && shareExportOpen
+				? githubExportHeaderOverride
+				: undefined;
 
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
 	const [paneHeight, setPaneHeight] = useState(0);
@@ -416,69 +441,6 @@ export function Dock({
 		return () =>
 			tools.removeEventListener('scroll', updatePlaygroundsAnchor);
 	}, []);
-
-	// Animate the Export pane's height when it swaps between its list and the
-	// inline GitHub form. CSS cannot transition to or from content-driven auto
-	// height, so measure the new height, jump back, then animate forward. Pinning
-	// bottom-anchored content keeps it in place while the pane's top edge moves.
-	const shareHeightRef = useRef<number | null>(null);
-	useLayoutEffect(() => {
-		const pane = paneRef.current;
-		// Retained panes remain mounted after close in this modular Dock. Do not
-		// measure that display:none node, and leave full-screen mobile panes to their
-		// top/bottom constraints. Reduced-motion users keep the immediate swap.
-		if (
-			!siteManagerIsOpen ||
-			isMobile ||
-			section !== 'share' ||
-			!pane ||
-			prefersReducedMotion()
-		) {
-			shareHeightRef.current = null;
-			return;
-		}
-
-		pane.style.transition = 'none';
-		pane.style.height = '';
-		const newHeight = pane.offsetHeight;
-		const oldHeight = shareHeightRef.current;
-		shareHeightRef.current = newHeight;
-		if (oldHeight === null || oldHeight === newHeight) {
-			pane.style.transition = '';
-			return;
-		}
-
-		const bottomAnchored = pane.style.top === 'auto';
-		if (bottomAnchored) {
-			pane.style.display = 'flex';
-			pane.style.flexDirection = 'column';
-			pane.style.justifyContent = 'flex-end';
-		}
-		pane.style.height = `${oldHeight}px`;
-		void pane.offsetHeight;
-		pane.style.transition = 'height 320ms cubic-bezier(0.33, 1, 0.68, 1)';
-		pane.style.height = `${newHeight}px`;
-
-		let finished = false;
-		const finish = () => {
-			if (finished) {
-				return;
-			}
-			finished = true;
-			pane.style.height = '';
-			pane.style.transition = '';
-			pane.style.display = '';
-			pane.style.flexDirection = '';
-			pane.style.justifyContent = '';
-			pane.removeEventListener('transitionend', finish);
-		};
-		pane.addEventListener('transitionend', finish);
-		const timer = window.setTimeout(finish, 420);
-		return () => {
-			window.clearTimeout(timer);
-			finish();
-		};
-	}, [isMobile, section, shareExportOpen, siteManagerIsOpen]);
 
 	useEffect(() => {
 		// Opening Store permanently from the visible status must not unfold a
@@ -1163,6 +1125,7 @@ export function Dock({
 							</button>
 						) : undefined
 					}
+					headerOverride={paneHeaderOverride}
 					className={classNames({
 						[css.hostPaneHidden]:
 							!siteManagerIsOpen && paneExitComplete,
@@ -1193,6 +1156,9 @@ export function Dock({
 						isOpen={siteManagerIsOpen}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
+						onNewPlaygroundHeaderChange={
+							handleNewPlaygroundHeaderChange
+						}
 					/>
 				</DockPane>
 			</CSSTransition>

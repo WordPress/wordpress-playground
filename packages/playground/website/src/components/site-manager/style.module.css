@@ -17,6 +17,32 @@
 	min-width: 0;
 }
 
+.saved-playgrounds-panel {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
+}
+
+/* Author-level display rules override the browser's default [hidden] rule.
+   Keep retained New/Playgrounds content out of every other Dock pane. */
+.saved-playgrounds-panel[hidden] {
+	display: none;
+}
+
+.share-panel {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
+}
+
+.share-panel[hidden] {
+	display: none;
+}
+
 .empty-panel {
 	align-items: center;
 	color: var(--ink-muted, #5f5b54);

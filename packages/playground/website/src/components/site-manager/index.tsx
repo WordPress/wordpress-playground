@@ -6,6 +6,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
+import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
 import { SaveSiteModal } from '../save-site-modal';
 import { SiteInfoPanel, type SiteInfoTabName } from './site-info-panel';
@@ -17,12 +18,21 @@ export type SiteManagerProps = {
 	isOpen: boolean;
 	mobileUi: boolean;
 	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
+	onNewPlaygroundHeaderChange: (
+		header: DockPaneHeaderOverride | undefined
+	) => void;
 };
 
 /** Routes the active Dock destination to the existing website tool surface. */
 export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 	function SiteManager(
-		{ className, isOpen, mobileUi, onPaneCloseBlockedChange },
+		{
+			className,
+			isOpen,
+			mobileUi,
+			onPaneCloseBlockedChange,
+			onNewPlaygroundHeaderChange,
+		},
 		ref
 	) {
 		const dispatch = useAppDispatch();
@@ -93,6 +103,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 				{activePanel}
 				{savedPlaygroundsPanelMounted && (
 					<div
+						className={css.savedPlaygroundsPanel}
 						hidden={
 							!isOpen ||
 							(activeSection !== 'new' &&
@@ -108,11 +119,15 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 							}
 							onClose={() => dispatch(setSiteManagerOpen(false))}
 							onCloseBlockedChange={onPaneCloseBlockedChange}
+							onPaneHeaderChange={onNewPlaygroundHeaderChange}
 						/>
 					</div>
 				)}
 				{sharePanelMounted && (
-					<div hidden={!isOpen || activeSection !== 'share'}>
+					<div
+						className={css.sharePanel}
+						hidden={!isOpen || activeSection !== 'share'}
+					>
 						<SiteSharePanel key={activeSite?.slug ?? 'no-site'} />
 					</div>
 				)}

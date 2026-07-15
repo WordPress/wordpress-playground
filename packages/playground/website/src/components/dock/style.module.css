@@ -335,7 +335,38 @@
 }
 
 .pane-header-main {
+	flex: 1;
 	min-width: 0;
+}
+
+.pane-back {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink-muted);
+	cursor: pointer;
+	display: inline-flex;
+	flex: none;
+	height: 28px;
+	justify-content: center;
+	margin-left: -6px;
+	padding: 0;
+	width: 28px;
+}
+
+.pane-back:hover {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+.pane-back:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--accent);
+	outline: none;
+}
+
+.pane-back svg {
+	fill: currentColor;
 }
 
 /* Right-aligned header action (e.g. "New Playground" on Your Playgrounds): a

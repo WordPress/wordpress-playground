@@ -27,6 +27,7 @@ import {
 	useState,
 	useEffect,
 	useLayoutEffect,
+	useCallback,
 	useRef,
 	lazy,
 	Suspense,
@@ -67,6 +68,7 @@ import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -144,6 +146,7 @@ interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
 	onCloseBlockedChange: (isBlocked: boolean) => void;
+	onPaneHeaderChange: (header: DockPaneHeaderOverride | undefined) => void;
 }
 
 /**
@@ -153,6 +156,7 @@ export function SavedPlaygroundsPanel({
 	onClose,
 	panel,
 	onCloseBlockedChange,
+	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const storedSites = useAppSelector(selectSortedSites).filter(
@@ -185,11 +189,34 @@ export function SavedPlaygroundsPanel({
 	// one is already in flight.
 	const importingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
-	// Keyboard and touch activation keep their focus on the tab instead.
+	// Keyboard and touch activation otherwise keep their focus on the tab. The
+	// dedicated GitHub view moves keyboard focus to its Back button because it
+	// hides the tablist.
 	const creationTabPointerTypeRef = useRef<string>();
 	const focusCreationFieldAfterMouseClickRef = useRef(false);
+	const creationFocusTargetRef = useRef<CreationTabId | 'back'>();
+	const creationBackButtonRef = useRef<HTMLButtonElement>(null);
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
+	const handleCreationBack = useCallback(() => {
+		creationFocusTargetRef.current = 'gallery';
+		setActiveCreationTab('gallery');
+	}, []);
+
+	useLayoutEffect(() => {
+		onPaneHeaderChange(
+			panel === 'new' && activeCreationTab === 'github'
+				? {
+						title: 'Import from GitHub',
+						backLabel: 'Back to ways to start a new Playground',
+						backButtonRef: creationBackButtonRef,
+						focusBackButton:
+							creationFocusTargetRef.current === 'back',
+						onBack: handleCreationBack,
+					}
+				: undefined
+		);
+	}, [activeCreationTab, handleCreationBack, onPaneHeaderChange, panel]);
 	const [autofocusWriteOwn, setAutofocusWriteOwn] = useState(false);
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
 	const writeOwnDraft =
@@ -269,6 +296,19 @@ export function SavedPlaygroundsPanel({
 			'input:not([type="hidden"]):not([type="radio"]), textarea, select'
 		);
 		field?.focus();
+	}, [activeCreationTab]);
+
+	useEffect(() => {
+		const target = creationFocusTargetRef.current;
+		if (!target) {
+			return;
+		}
+		creationFocusTargetRef.current = undefined;
+		if (target === 'back') {
+			creationBackButtonRef.current?.focus();
+		} else {
+			document.getElementById(`creation-tab-${target}`)?.focus();
+		}
 	}, [activeCreationTab]);
 
 	useEffect(() => {
@@ -910,6 +950,8 @@ export function SavedPlaygroundsPanel({
 		}
 		event.preventDefault();
 		const nextId = enabled[nextIndex].id;
+		creationFocusTargetRef.current =
+			nextId === 'github' ? 'back' : undefined;
 		setAutofocusWriteOwn(false);
 		setActiveCreationTab(nextId);
 		document.getElementById(`creation-tab-${nextId}`)?.focus();
@@ -924,11 +966,15 @@ export function SavedPlaygroundsPanel({
 	const handleCreationTabClick = (tabId: CreationTabId) => {
 		// `click` also fires for keyboard activation. Pair it with pointer type so
 		// only a real mouse click receives the typing convenience.
-		const activatedWithMouse =
-			creationTabPointerTypeRef.current === 'mouse';
+		const pointerType = creationTabPointerTypeRef.current;
+		const activatedWithMouse = pointerType === 'mouse';
 		creationTabPointerTypeRef.current = undefined;
 		focusCreationFieldAfterMouseClickRef.current =
 			activatedWithMouse && tabId !== activeCreationTab;
+		creationFocusTargetRef.current =
+			pointerType === undefined && tabId === 'github'
+				? 'back'
+				: undefined;
 		setAutofocusWriteOwn(activatedWithMouse && tabId === 'write-own');
 		setActiveCreationTab(tabId);
 	};
@@ -1246,6 +1292,7 @@ export function SavedPlaygroundsPanel({
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
+		const isGitHubImportOpen = activeCreationTab === 'github';
 		// The roving Tab stop must land on an ENABLED tab. If the active tab is a
 		// network source that just went offline (disabled), a disabled element with
 		// tabIndex=0 is dropped from the focus order — which would leave the tablist
@@ -1265,6 +1312,7 @@ export function SavedPlaygroundsPanel({
 				)}
 			>
 				<div
+					hidden={isGitHubImportOpen}
 					className={css.creationTabs}
 					role="tablist"
 					aria-label="Ways to start a new Playground"
@@ -1303,16 +1351,32 @@ export function SavedPlaygroundsPanel({
 				</div>
 				<div
 					id="creation-panel"
-					className={css.creationPanel}
+					className={classNames(css.creationPanel, {
+						[css.creationPanelDedicated]: isGitHubImportOpen,
+					})}
 					ref={creationPanelRef}
-					role="tabpanel"
-					aria-labelledby={`creation-tab-${activeCreationTab}`}
+					role={isGitHubImportOpen ? 'region' : 'tabpanel'}
+					aria-label={
+						isGitHubImportOpen
+							? activeMethod?.panelTitle
+							: undefined
+					}
+					aria-labelledby={
+						isGitHubImportOpen
+							? undefined
+							: `creation-tab-${activeCreationTab}`
+					}
 				>
-					<div className={css.panelHeader}>
-						<h3 className={css.panelTitle}>
-							{activeMethod?.panelTitle}
-						</h3>
-					</div>
+					{!isGitHubImportOpen && (
+						<div className={css.panelHeader}>
+							<h3
+								id="creation-panel-title"
+								className={css.panelTitle}
+							>
+								{activeMethod?.panelTitle}
+							</h3>
+						</div>
+					)}
 					{renderActiveCreationTab()}
 				</div>
 			</OverlaySection>

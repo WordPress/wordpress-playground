@@ -1849,6 +1849,14 @@ test.describe('Default Playground storage', () => {
 			name: 'Write a Blueprint',
 			exact: true,
 		});
+		const pullRequestTab = newPane.getByRole('tab', {
+			name: 'Pull request',
+			exact: true,
+		});
+		const githubTab = newPane.getByRole('tab', {
+			name: 'GitHub',
+			exact: true,
+		});
 		await galleryTab.click();
 		await galleryTab.focus();
 		await galleryTab.press('ArrowRight');
@@ -1861,10 +1869,26 @@ test.describe('Default Playground storage', () => {
 		await expect(newPane.locator('.cm-content')).toContainText(
 			'draft-kept'
 		);
+		await writeTab.press('ArrowRight');
+		await expect(pullRequestTab).toBeFocused();
+		await pullRequestTab.press('ArrowRight');
+		const creationBackButton = website.page.getByRole('button', {
+			name: 'Back to ways to start a new Playground',
+		});
+		await expect(creationBackButton).toBeFocused();
+		const githubImportPane = website.page.getByRole('dialog', {
+			name: 'Import from GitHub pane',
+		});
+		await expect(
+			githubImportPane.getByRole('heading', {
+				name: 'Import from GitHub',
+				level: 2,
+			})
+		).toBeVisible();
+		await creationBackButton.click();
+		await expect(galleryTab).toBeFocused();
 
-		await newPane
-			.getByRole('tab', { name: 'Pull request', exact: true })
-			.click();
+		await pullRequestTab.click();
 		await expect(
 			newPane.getByRole('heading', { name: 'Preview a pull request' })
 		).toBeVisible();
@@ -1877,17 +1901,214 @@ test.describe('Default Playground storage', () => {
 			newPane.getByRole('button', { name: 'Preview', exact: true })
 		).toBeVisible();
 
-		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		await githubTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Import from GitHub' })
+			githubImportPane.getByRole('heading', {
+				name: 'Import from GitHub',
+				level: 2,
+			})
 		).toBeVisible();
 		await expect(
-			website.page.getByRole('dialog', { name: 'Import from GitHub' })
+			githubImportPane.getByRole('tablist', {
+				name: 'Ways to start a new Playground',
+			})
+		).not.toBeVisible();
+		await expect(creationBackButton).toBeVisible();
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Import from GitHub',
+				exact: true,
+			})
 		).toHaveCount(0);
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			siteSlugBeforeGitHubTab
 		);
 	});
+
+	test('should open GitHub export as a styled subpanel', async ({
+		website,
+	}) => {
+		await website.page.addInitScript(() => {
+			localStorage.setItem('github-token', 'github-e2e-token');
+		});
+		await website.goto(
+			'./?storage=temp' +
+				'&ghexport-repo-url=https%3A%2F%2Fgithub.com%2Fowner%2Frepo' +
+				'&ghexport-content-type=wp-content' +
+				'&ghexport-pr-action=create' +
+				'&ghexport-repo-root=%2Fwp-content' +
+				'&ghexport-commit-message=Changes%20from%20Playground'
+		);
+
+		// Open a retained New subpanel first. Switching to Export must hide it,
+		// not stack the two retained panels in one scroll container.
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		const importIntro = website.page.getByText(
+			/You may import WordPress plugins/
+		);
+		await expect(importIntro).toBeVisible();
+
+		await website.openDockPane('Export');
+		const exportOptionsPane = website.page.getByRole('dialog', {
+			name: 'Export pane',
+		});
+		const openGitHubExport = exportOptionsPane.getByRole('button', {
+			name: 'Export to GitHub',
+			exact: true,
+		});
+		await expect(openGitHubExport).toBeEnabled({ timeout: 120000 });
+		await openGitHubExport.click();
+
+		const githubExportPane = website.page.getByRole('dialog', {
+			name: 'Export to GitHub pane',
+		});
+		const heading = githubExportPane.getByRole('heading', {
+			name: 'Export to GitHub',
+			level: 2,
+		});
+		await expect(heading).toBeVisible();
+		await expect(importIntro).not.toBeVisible();
+		const backButton = githubExportPane.getByRole('button', {
+			name: 'Back to export options',
+		});
+		await expect(backButton).toBeVisible();
+
+		const contentType = githubExportPane.getByRole('combobox', {
+			name: 'I am exporting:',
+		});
+		const repoUrl = githubExportPane.getByRole('textbox', {
+			name: /Pull Request to target this GitHub repo/,
+		});
+		const commitMessage = githubExportPane.getByRole('textbox', {
+			name: 'Commit message:',
+		});
+		await expect(contentType).toBeVisible();
+		await expect(repoUrl).toBeVisible();
+		await expect(commitMessage).toBeVisible();
+		await expect(repoUrl).toBeFocused();
+		expect(
+			await contentType.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					borderRadius: style.borderRadius,
+					fontSize: style.fontSize,
+					minHeight: style.minHeight,
+					paddingTop: style.paddingTop,
+				};
+			})
+		).toEqual({
+			borderRadius: '8px',
+			fontSize: '15px',
+			minHeight: '42px',
+			paddingTop: '10px',
+		});
+		const [commitMessageFont, repoUrlFont] = await Promise.all([
+			commitMessage.evaluate(
+				(element) => getComputedStyle(element).fontFamily
+			),
+			repoUrl.evaluate((element) => getComputedStyle(element).fontFamily),
+		]);
+		expect(commitMessageFont).toBe(repoUrlFont);
+
+		const formPanel = githubExportPane.getByRole('region', {
+			name: 'Export to GitHub form',
+		});
+		await expect
+			.poll(() =>
+				formPanel.evaluate(
+					(element) => element.scrollHeight > element.clientHeight
+				)
+			)
+			.toBe(true);
+		const headingTop = await heading.evaluate(
+			(element) => element.getBoundingClientRect().top
+		);
+		await formPanel.hover();
+		await website.page.mouse.wheel(0, 1000);
+		await expect
+			.poll(() => formPanel.evaluate((element) => element.scrollTop))
+			.toBeGreaterThan(0);
+		expect(
+			await heading.evaluate(
+				(element) => element.getBoundingClientRect().top
+			)
+		).toBe(headingTop);
+
+		await backButton.click();
+		await expect(openGitHubExport).toBeFocused();
+		await expect(
+			exportOptionsPane.getByRole('heading', {
+				name: 'Export',
+				level: 2,
+			})
+		).toBeVisible();
+	});
+
+	for (const { name, viewport } of [
+		{ name: 'desktop', viewport: { width: 1280, height: 600 } },
+		{ name: 'mobile', viewport: { width: 320, height: 600 } },
+	]) {
+		test(`should scroll the dedicated GitHub import form on ${name}`, async ({
+			website,
+		}) => {
+			await website.page.setViewportSize(viewport);
+			await website.page.addInitScript(() => {
+				localStorage.setItem('github-token', 'github-e2e-token');
+			});
+			await website.goto('./?storage=temp');
+			await website.openDockPane('New Playground');
+			const newPane = website.page.getByRole('dialog', {
+				name: 'New Playground pane',
+			});
+			const githubTab = newPane.getByRole('tab', {
+				name: 'GitHub',
+				exact: true,
+			});
+			await githubTab.click();
+			const githubImportPane = website.page.getByRole('dialog', {
+				name: 'Import from GitHub pane',
+			});
+			const formPanel = githubImportPane.getByRole('region', {
+				name: 'Import from GitHub',
+			});
+			await formPanel
+				.getByRole('button', { name: 'Need an example?' })
+				.click();
+			await expect
+				.poll(() =>
+					formPanel.evaluate(
+						(element) => element.scrollHeight > element.clientHeight
+					)
+				)
+				.toBe(true);
+			await formPanel.hover();
+			await website.page.mouse.wheel(0, 1000);
+			await expect
+				.poll(() => formPanel.evaluate((element) => element.scrollTop))
+				.toBeGreaterThan(0);
+
+			await githubImportPane
+				.getByRole('button', {
+					name: 'Back to ways to start a new Playground',
+				})
+				.click();
+			await expect(
+				newPane.getByRole('tablist', {
+					name: 'Ways to start a new Playground',
+				})
+			).toBeVisible();
+			await expect(
+				newPane.getByRole('tab', {
+					name: 'Blueprint gallery',
+					exact: true,
+				})
+			).toBeFocused();
+		});
+	}
 
 	test('should rename an inactive autosaved Playground without keeping it', async ({
 		website,
