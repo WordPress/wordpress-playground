@@ -27,7 +27,7 @@
 	width: calc(100% - 48px);
 	max-width: 420px;
 	height: 9px;
-	margin: 1.45rem auto 0;
+	margin: 19px auto 0;
 	overflow: hidden;
 	border-radius: 999px;
 	background: #d8dce2;
@@ -111,7 +111,7 @@
 .caption {
 	font-weight: 300;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
+	font-size: 14px;
 	line-height: 1.12;
 	margin: 0;
 	width: calc(100% - 48px);
