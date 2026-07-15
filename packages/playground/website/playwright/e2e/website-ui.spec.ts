@@ -283,13 +283,22 @@ test('should keep the whole Dock pane visible while it closes', async ({
 			}
 
 			const openHeight = element.getBoundingClientRect().height;
-			activeTool.click();
-			await new Promise<void>((resolve) =>
-				requestAnimationFrame(() => resolve())
-			);
+			// Sample when CSSTransition changes classes. On a busy CI worker, an
+			// animation frame can run after the 240ms exit timeout has elapsed.
+			const closingHeight = await new Promise<number>((resolve) => {
+				const observer = new MutationObserver(() => {
+					observer.disconnect();
+					resolve(element.getBoundingClientRect().height);
+				});
+				observer.observe(element, {
+					attributes: true,
+					attributeFilter: ['class'],
+				});
+				activeTool.click();
+			});
 			return {
 				openHeight,
-				closingHeight: element.getBoundingClientRect().height,
+				closingHeight,
 			};
 		}
 	);
