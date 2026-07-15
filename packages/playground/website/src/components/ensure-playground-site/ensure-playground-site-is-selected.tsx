@@ -199,9 +199,9 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (shouldUseTemporarySite) {
 				await sitesAPI.createNewTemporarySite();
 			} else {
-				// Recreating an autosave resets the same slug before routing to
-				// its new setup URL. Keep that pending site selected instead of
-				// treating the route change as a request for another autosave.
+				// A matching autosave may already be waiting for its first OPFS
+				// sync. Keep it selected instead of creating a duplicate for the
+				// same setup URL.
 				if (
 					activeSite &&
 					isAutosavedSite(activeSite) &&
