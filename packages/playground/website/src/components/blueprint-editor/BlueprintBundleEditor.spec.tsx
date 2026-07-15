@@ -10,6 +10,7 @@ import {
 	BlueprintBundleEditor,
 	type BlueprintBundleEditorHandle,
 } from './BlueprintBundleEditor';
+import styles from './blueprint-bundle-editor.module.css';
 
 type SiteInfo = SliceSitesModule.SiteInfo;
 
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 	loggerError: vi.fn(),
 	pruneAutosavedSites: vi.fn(),
 	resolveRuntimeConfiguration: vi.fn(),
+	isBundleShareable: true,
 	setActiveSite: vi.fn(),
 	setSiteManagerOpen: vi.fn(),
 	updateSite: vi.fn(),
@@ -52,7 +54,10 @@ vi.mock('@wp-playground/components', async () => {
 });
 
 vi.mock('../../lib/hooks/use-blueprint-url-hash', () => ({
-	useBlueprintUrlHash: () => ({ isShareable: true, urlHash: '' }),
+	useBlueprintUrlHash: () => ({
+		isShareable: mocks.isBundleShareable,
+		urlHash: '',
+	}),
 }));
 
 vi.mock('../../lib/state/redux/store', () => ({
@@ -114,6 +119,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		mocks.loggerError.mockReset();
 		mocks.pruneAutosavedSites.mockReset();
 		mocks.resolveRuntimeConfiguration.mockReset();
+		mocks.isBundleShareable = true;
 		mocks.setActiveSite.mockReset();
 		mocks.setActiveSite.mockImplementation((slug) => ({
 			type: 'set-active-site',
@@ -388,6 +394,48 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			useWordPressTooltips: true,
 		});
 	});
+
+	it('keeps the shareable export item at the standard menu item size', async () => {
+		await renderEditor({ dockPresentation: true });
+
+		openExportMenu();
+
+		const copyBlueprintUrl = document.querySelector<HTMLButtonElement>(
+			'button[aria-label="Copy Blueprint URL"]'
+		);
+		expect(copyBlueprintUrl).not.toBeNull();
+		expect(
+			copyBlueprintUrl!.classList.contains(styles.exportMenuItemWithHint)
+		).toBe(false);
+		expect(copyBlueprintUrl!.disabled).toBe(false);
+	});
+
+	it('keeps the contextual hint on the disabled export item', async () => {
+		mocks.isBundleShareable = false;
+		await renderEditor({ dockPresentation: true });
+
+		openExportMenu();
+
+		const copyBlueprintUrl = document.querySelector<HTMLButtonElement>(
+			'button[aria-label="Copy Blueprint URL"]'
+		);
+		expect(copyBlueprintUrl).not.toBeNull();
+		expect(
+			copyBlueprintUrl!.classList.contains(styles.exportMenuItemWithHint)
+		).toBe(true);
+		expect(copyBlueprintUrl!.disabled).toBe(true);
+		expect(copyBlueprintUrl!.textContent).toContain(
+			'Multi-file Blueprints can’t be shared as a URL'
+		);
+	});
+
+	function openExportMenu() {
+		const exportButton = Array.from(
+			container.querySelectorAll('button')
+		).find((button) => button.textContent?.includes('Export'));
+		expect(exportButton).toBeDefined();
+		act(() => exportButton!.click());
+	}
 
 	async function renderEditor({
 		dockPresentation = false,
