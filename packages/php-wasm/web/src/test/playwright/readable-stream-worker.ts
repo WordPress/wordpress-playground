@@ -4,19 +4,26 @@ self.postMessage('worker-script-started');
 
 class ReadableStreamWorker extends PHPWorker {
 	#streamFinished = true;
+	#streamCancelled = false;
 	#transferableStreamProbeRejected = false;
 
-	emitStream(forceMessagePortFallback = false) {
+	emitStream(forceMessagePortFallback = false, secondChunkDelay = 500) {
 		this.#streamFinished = false;
+		this.#streamCancelled = false;
 		const encoder = new TextEncoder();
+		let secondChunkTimeout: ReturnType<typeof setTimeout>;
 		const stream = new ReadableStream<Uint8Array>({
 			start: (controller) => {
 				controller.enqueue(encoder.encode('first chunk'));
-				setTimeout(() => {
+				secondChunkTimeout = setTimeout(() => {
 					controller.enqueue(encoder.encode('second chunk'));
 					controller.close();
 					this.#streamFinished = true;
-				}, 500);
+				}, secondChunkDelay);
+			},
+			cancel: () => {
+				clearTimeout(secondChunkTimeout);
+				this.#streamCancelled = true;
 			},
 		});
 		const originalPostMessage = MessagePort.prototype.postMessage;
@@ -56,6 +63,10 @@ class ReadableStreamWorker extends PHPWorker {
 
 	isStreamFinished() {
 		return this.#streamFinished;
+	}
+
+	wasStreamCancelled() {
+		return this.#streamCancelled;
 	}
 
 	wasTransferableStreamProbeRejected() {

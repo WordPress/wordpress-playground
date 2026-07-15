@@ -470,11 +470,21 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
+ *   { t: 'cancel' }                – consumer cancelled the stream
  */
 export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
+	const reader = stream.getReader();
+	const onMessage = (event: MessageEvent) => {
+		if (event.data?.t === 'cancel') {
+			reader.cancel().catch(() => {
+				// The consumer has already cancelled and cannot observe source errors.
+			});
+		}
+	};
+	port1.addEventListener('message', onMessage);
+	port1.start();
 	(async () => {
-		const reader = stream.getReader();
 		try {
 			while (true) {
 				const { done, value } = await reader.read();
@@ -518,6 +528,7 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 				// Ignore error
 			}
 		} finally {
+			port1.removeEventListener('message', onMessage);
 			try {
 				port1.close();
 			} catch {
@@ -599,6 +610,11 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			}
 		},
 		cancel() {
+			try {
+				port.postMessage({ t: 'cancel' });
+			} catch {
+				// The producer has already closed its port.
+			}
 			try {
 				port.close();
 			} catch {
