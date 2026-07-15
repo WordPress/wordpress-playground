@@ -33,7 +33,7 @@ Você pode acompanhar o status dessas questões no [quadro do projeto Playground
 ### Temporary by design
 -->
 
-O Playground cria instâncias novas do WordPress a cada carregamento de página. Atualizar a página do navegador descarta todas as alterações no banco de dados, uploads e modificações.
+O Playground cria instâncias novas do WordPress a cada carregamento de página. Atualizar a página do navegador descarta todas as alterações no banco de dados, os arquivos enviados e outras modificações.
 
 <!--
 Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
@@ -60,7 +60,7 @@ Playground creates fresh WordPress instances on each page load. Refreshing the b
 -->
 
 <div class="callout callout-tip">
-O botão de atualização dedicado dentro do Playground apenas recarrega o conteúdo do WordPress—ele preserva seu estado PHP/WP. O botão de atualização do navegador (F5 ou Cmd+R) destrói a instância inteira.
+O botão de atualização dedicado dentro do Playground apenas recarrega o conteúdo do WordPress — ele preserva seu estado PHP/WP. O botão de atualização do navegador (F5 ou Cmd+R) destrói a instância inteira.
 </div>
 
 ![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
@@ -93,14 +93,14 @@ O botão de atualização dedicado dentro do Playground apenas recarrega o conte
 ### Browser support
 -->
 
-O WordPress Playground foi feito para funcionar nos principais navegadores de desktop e mobile. Isso inclui:
+O WordPress Playground foi feito para funcionar nos principais navegadores de computadores e dispositivos móveis. Isso inclui:
 
 <!--
 WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:
 -->
 
-- **Navegadores desktop**: Chrome, Firefox, Safari, Edge e outros baseados em Chromium
-- **Navegadores mobile**: Safari (iOS), Chrome (Android) e outras variantes
+- **Navegadores para computadores**: Chrome, Firefox, Safari, Edge e outros baseados em Chromium
+- **Navegadores para dispositivos móveis**: Safari (iOS), Chrome (Android) e outras variantes
 
 <!--
 - **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers
@@ -123,12 +123,12 @@ Os tempos de carregamento variam conforme o que o Playground precisa configurar:
 Loading times vary based on what Playground needs to set up:
 -->
 
-| Cenário                                | Tempo de carregamento típico     |
-| -------------------------------------- | -------------------------------- |
-| WordPress novo (sem plugins)           | 5–10 segundos                    |
-| Com plugins pequenos                   | 10–20 segundos                   |
-| Com plugins grandes (ex.: WooCommerce) | 30–60 segundos                   |
-| Em dispositivos móveis                 | 1,5–2× mais lento que no desktop |
+| Cenário                                | Tempo de carregamento típico          |
+| -------------------------------------- | ------------------------------------- |
+| WordPress novo (sem plugins)           | 5–10 segundos                         |
+| Com plugins pequenos                   | 10–20 segundos                        |
+| Com plugins grandes (ex.: WooCommerce) | 30–60 segundos                        |
+| Em dispositivos móveis                 | 1,5–2× mais lento que em computadores |
 
 <!--
 | Scenario                               | Typical Load Time          |
@@ -139,10 +139,10 @@ Loading times vary based on what Playground needs to set up:
 | On mobile devices                      | 1.5-2x slower than desktop |
 -->
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+![Gráfico com os tempos típicos de carregamento do WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 <!--
-![Save Button](@site/static/img/playground-performance-graph.webp)
+![Graph showing typical WordPress Playground load times](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 -->
 
 **Fatores que afetam o desempenho:**
@@ -152,7 +152,7 @@ Loading times vary based on what Playground needs to set up:
 -->
 
 - **Tamanho do plugin**: plugins grandes demoram mais para instalar em tempo de execução
-- **Velocidade da rede**: arquivos WASM têm cerca de 5–15 MB por versão do PHP (reduzidos de forma significativa pela otimização de build `MAIN_MODULE=2`)
+- **Velocidade da rede**: arquivos WASM têm entre 15 e 30 MB
 - **Memória do dispositivo**: a alocação inicial de memória WASM é de 64 MB, crescendo dinamicamente conforme necessário. Dispositivos com pouca memória podem ficar mais lentos
 - **Navegador**: Chrome e Edge costumam ter melhor desempenho; Safari, um pouco mais lento
 
@@ -214,20 +214,32 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 
 Você pode executar comandos `wp-cli` pelo passo [`wp-cli`](/blueprints/steps#WPCLIStep) dos Blueprints. No entanto, como o Playground roda no navegador, ele não oferece suporte à [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponíveis. Não existe uma lista definitiva de comandos suportados, então experimentar na [demo online](https://playground.wordpress.net/demos/wp-cli.html) ajuda a avaliar o que é possível.
 
-Quando você usa o [Playground CLI](/developers/local-development/wp-playground-cli), o comando `php` oferece suporte completo ao WP-CLI executando os scripts diretamente no runtime PHP WASM.
+<!--
+You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+-->
+
+Quando você usa o [Playground CLI](/developers/local-development/wp-playground-cli), o comando `php` pode executar scripts PHP, incluindo um arquivo `wp-cli.phar` montado, diretamente no ambiente de execução PHP em WASM.
+
+<!--
+When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
+-->
 
 ## Melhorias recentes {#recent-improvements}
 
-Várias limitações anteriores foram resolvidas em versões recentes:
+Várias limitações anteriores foram resolvidas:
 
-- **Downloads de arquivos grandes (>2 GB)**: exportações e downloads agora são transmitidos em fluxo direto em vez de ficarem em buffer na memória, permitindo exportar sites grandes (por exemplo, backups do All-in-One WP Migration) que antes falhavam.
-- **Uploads de arquivos via cURL no PHP**: envios multipart com `CURLFile` agora funcionam corretamente no navegador. O deadlock de `Expect: 100-continue` e os problemas de encaminhamento multipart no proxy CORS foram resolvidos.
-- **Respostas PHP de longa duração**: o service worker agora transmite as respostas PHP em vez de armazená-las em buffer, eliminando o timeout de 25 segundos que antes fazia falhar importações de site e outras operações demoradas.
-- **Tratamento de erros de download**: quando downloads de WASM ou scripts falham (por problemas de rede, bloqueadores de anúncios etc.), o Playground agora exibe um modal de erro útil em vez de uma página em branco.
+- **Arquivos grandes no Playground CLI (>2 GB)**: a CLI agora pode transmitir as respostas diretamente, em vez de armazená-las em buffer na memória. Isso permite exportar sites grandes (por exemplo, backups do All-in-One WP Migration) que antes falhavam.
+- **Envio de arquivos via cURL no PHP**: envios de formulários multipart com `CURLFile` agora funcionam corretamente no navegador. O deadlock de `Expect: 100-continue` e os problemas de encaminhamento multipart no proxy CORS foram resolvidos.
+- **Respostas PHP de longa duração**: o service worker agora transmite o corpo da resposta depois de receber os cabeçalhos, em vez de armazenar a resposta inteira em buffer. Assim, o corpo da resposta fica fora do tempo limite de 25 segundos das mensagens, e as importações de sites e outras operações demoradas podem continuar depois que os cabeçalhos são recebidos.
+- **Tratamento de erros ao baixar arquivos**: quando não é possível baixar um arquivo WASM ou um script necessário devido a um problema de rede, bloqueador de anúncios ou situação semelhante, o Playground exibe um modal de erro útil em vez de uma página em branco.
 
 <!--
-- **Large file downloads (>2GB)**: File exports and downloads now stream directly instead of buffering in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
-- **PHP curl file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
-- **Long-running PHP responses**: The service worker now streams PHP responses instead of buffering them, eliminating the 25-second timeout that previously caused site imports and other long-running operations to fail.
-- **Download error handling**: When WASM or script downloads fail (due to network issues, ad blockers, etc.), Playground now displays a helpful error modal instead of a blank page.
+## Recent improvements {#recent-improvements}
+
+Several previous limitations have been addressed:
+
+- **Large file downloads in Playground CLI (>2 GB)**: The CLI can now stream responses directly instead of buffering them in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
+- **PHP cURL file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
+- **Long-running PHP responses**: The service worker now streams the response body after receiving the headers instead of buffering the entire response. This keeps the response body outside the 25-second message timeout, so site imports and other long-running operations can continue after the headers are received.
+- **Download error handling**: When a required WASM or script download fails because of a network issue, an ad blocker, or a similar problem, Playground displays a helpful error modal instead of a blank page.
 -->

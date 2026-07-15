@@ -149,7 +149,7 @@ Loading times vary based on what Playground needs to set up:
 | On mobile devices                      | 1.5-2x slower than desktop |
 -->
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+![Gráfico con los tiempos de carga típicos de WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **Factores que influyen en el rendimiento:**
 
@@ -224,20 +224,32 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 
 Puedes ejecutar comandos de `wp-cli` mediante el paso [`wp-cli`](/blueprints/steps#WPCLIStep) de Blueprints. Sin embargo, como Playground se ejecuta en el navegador, no admite la [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponibles. No existe una lista definitiva de comandos compatibles, así que experimentar en [la demo en línea](https://playground.wordpress.net/demos/wp-cli.html) te ayudará a evaluar qué es posible.
 
-Al usar [Playground CLI](/developers/local-development/wp-playground-cli), el comando `php` ofrece compatibilidad total con WP-CLI al ejecutar scripts directamente sobre el runtime de PHP WASM.
+<!--
+You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+-->
+
+Al usar [Playground CLI](/developers/local-development/wp-playground-cli), el comando `php` puede ejecutar scripts PHP, incluido un archivo `wp-cli.phar` montado, directamente en el entorno de ejecución PHP en WASM.
+
+<!--
+When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
+-->
 
 ## Mejoras recientes {#recent-improvements}
 
-Varias limitaciones anteriores se han resuelto en versiones recientes:
+Se han resuelto varias limitaciones anteriores:
 
-- **Descargas de archivos grandes (>2 GB)**: las exportaciones y descargas ahora se transmiten en streaming en lugar de almacenarse en memoria, lo que permite exportar sitios grandes (por ejemplo, copias de All-in-One WP Migration) que antes fallaban.
-- **Subidas de archivos cURL en PHP**: las subidas multipart con `CURLFile` ahora funcionan correctamente en el navegador. Se han resuelto el bloqueo de `Expect: 100-continue` y los problemas de reenvío multipart del proxy CORS.
-- **Respuestas PHP de larga duración**: el service worker ahora transmite las respuestas PHP en lugar de almacenarlas en búfer, eliminando el tiempo de espera de 25 segundos que antes hacía fallar las importaciones de sitios y otras operaciones largas.
-- **Gestión de errores de descarga**: cuando fallan las descargas de WASM o scripts (por problemas de red, bloqueadores de anuncios, etc.), Playground ahora muestra un modal de error útil en lugar de una página en blanco.
+- **Descargas de archivos grandes en Playground CLI (>2 GB)**: la CLI ahora puede transmitir las respuestas directamente en lugar de almacenarlas en memoria, lo que permite exportar sitios grandes (por ejemplo, copias de All-in-One WP Migration) que antes fallaban.
+- **Subidas de archivos mediante cURL en PHP**: las subidas de formularios multipart con `CURLFile` ahora funcionan correctamente en el navegador. Se han resuelto el bloqueo de `Expect: 100-continue` y los problemas de reenvío multipart del proxy CORS.
+- **Respuestas PHP de larga duración**: el service worker ahora transmite el cuerpo de la respuesta después de recibir las cabeceras, en lugar de almacenar en memoria la respuesta completa. De este modo, el cuerpo queda fuera del tiempo de espera de 25 segundos de los mensajes, por lo que las importaciones de sitios y otras operaciones largas pueden continuar después de recibir las cabeceras.
+- **Gestión de errores de descarga**: cuando falla una descarga necesaria de WASM o de un script por un problema de red, un bloqueador de anuncios o una causa similar, Playground muestra un modal de error útil en lugar de una página en blanco.
 
 <!--
-- **Large file downloads (>2GB)**: File exports and downloads now stream directly instead of buffering in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
-- **PHP curl file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
-- **Long-running PHP responses**: The service worker now streams PHP responses instead of buffering them, eliminating the 25-second timeout that previously caused site imports and other long-running operations to fail.
-- **Download error handling**: When WASM or script downloads fail (due to network issues, ad blockers, etc.), Playground now displays a helpful error modal instead of a blank page.
+## Recent improvements {#recent-improvements}
+
+Several previous limitations have been addressed:
+
+- **Large file downloads in Playground CLI (>2 GB)**: The CLI can now stream responses directly instead of buffering them in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
+- **PHP cURL file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
+- **Long-running PHP responses**: The service worker now streams the response body after receiving the headers instead of buffering the entire response. This keeps the response body outside the 25-second message timeout, so site imports and other long-running operations can continue after the headers are received.
+- **Download error handling**: When a required WASM or script download fails because of a network issue, an ad blocker, or a similar problem, Playground displays a helpful error modal instead of a blank page.
 -->
