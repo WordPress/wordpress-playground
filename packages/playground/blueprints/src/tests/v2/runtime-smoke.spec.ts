@@ -116,7 +116,7 @@ describe('Blueprint v2 runtime smoke tests', () => {
 	it('preserves only the selected initial content types', async () => {
 		await applyBlueprint({
 			version: 2,
-			contentBaseline: ['posts'],
+			contentBaseline: 'posts',
 		});
 
 		const result = await runWordPressJson({

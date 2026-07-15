@@ -165,6 +165,7 @@ function patchSchema(schema) {
 	const retainedContentTypes = contentBaseline.anyOf.find(
 		(variant) => variant.type === 'array'
 	);
+	contentBaseline.not = { const: 'comments' };
 	retainedContentTypes.uniqueItems = true;
 	retainedContentTypes.allOf = [
 		{

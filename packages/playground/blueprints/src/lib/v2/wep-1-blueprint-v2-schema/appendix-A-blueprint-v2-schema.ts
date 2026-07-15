@@ -83,9 +83,9 @@ export namespace V2Schema {
 
 		/**
 		 * The content from a vanilla WordPress installation to retain before
-		 * applying the rest of the Blueprint. `default` leaves the installation
-		 * unchanged, `empty` removes its posts, pages, and comments, and a list
-		 * retains only the selected content types.
+		 * applying the rest of the Blueprint. `keep-all` leaves the installation
+		 * unchanged, `empty` removes its posts, pages, and comments, a content type
+		 * retains only that type, and a list retains the selected content types.
 		 *
 		 * This policy runs only when the current invocation creates vanilla
 		 * WordPress. It is skipped when applying the Blueprint to an existing site,
@@ -98,9 +98,13 @@ export namespace V2Schema {
 		 * Comments can only be retained together with both posts and pages because
 		 * the schema cannot know which type contains their parent records.
 		 *
-		 * @default "default"
+		 * @default "keep-all"
 		 */
-		contentBaseline?: 'default' | 'empty' | [ContentType, ...ContentType[]];
+		contentBaseline?:
+			| 'keep-all'
+			| 'empty'
+			| ContentType
+			| [ContentType, ...ContentType[]];
 
 		/**
 		 * The users from a vanilla WordPress installation to retain before applying

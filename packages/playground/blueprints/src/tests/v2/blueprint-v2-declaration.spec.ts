@@ -14,7 +14,7 @@ describe('Blueprint v2 declaration types', () => {
 		const blueprints = [
 			{
 				version: 2,
-				contentBaseline: 'default',
+				contentBaseline: 'keep-all',
 				usersBaseline: 'default',
 			},
 			{
@@ -32,11 +32,15 @@ describe('Blueprint v2 declaration types', () => {
 			},
 			{
 				version: 2,
+				contentBaseline: 'posts',
+			},
+			{
+				version: 2,
 				contentBaseline: ['posts', 'pages', 'comments'],
 			},
 		] satisfies BlueprintV2Declaration[];
 
-		expect(blueprints).toHaveLength(3);
+		expect(blueprints).toHaveLength(4);
 	});
 
 	it('accepts file data references for file-only fields', () => {

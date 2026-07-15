@@ -229,10 +229,10 @@ describe('compileBlueprintForExecution', () => {
 		]);
 	});
 
-	it('treats default creation baselines as no-ops', async () => {
+	it('treats keep-all creation baselines as no-ops', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
-			contentBaseline: 'default',
+			contentBaseline: 'keep-all',
 			usersBaseline: 'default',
 		});
 

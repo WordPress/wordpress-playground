@@ -924,7 +924,7 @@ export const v2SchemaConformanceCases = [
 		declaration: {
 			version: 2,
 			$schema: './blueprint-schema.json',
-			contentBaseline: 'default',
+			contentBaseline: 'keep-all',
 			usersBaseline: 'default',
 			applicationOptions: {
 				'wordpress-playground': {
@@ -955,6 +955,13 @@ export const v2SchemaConformanceCases = [
 		declaration: {
 			version: 2,
 			contentBaseline: ['posts', 'pages', 'comments'],
+		},
+	},
+	{
+		name: 'single content baseline type',
+		declaration: {
+			version: 2,
+			contentBaseline: 'posts',
 		},
 	},
 	...directActiveThemeCases,

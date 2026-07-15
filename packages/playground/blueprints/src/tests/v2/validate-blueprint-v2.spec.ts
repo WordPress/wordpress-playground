@@ -31,8 +31,10 @@ describe('Blueprint v2 schema validation', () => {
 	});
 
 	it.each([
-		'default',
+		'keep-all',
 		'empty',
+		'posts',
+		'pages',
 		['posts'],
 		['pages'],
 		['posts', 'pages'],
@@ -207,7 +209,23 @@ describe('Blueprint v2 schema validation', () => {
 			{
 				version: 2,
 				wordpressVersion: 'none',
+				contentBaseline: 'keep-all',
+			},
+			'/contentBaseline',
+		],
+		[
+			'the replaced content-baseline sentinel',
+			{
+				version: 2,
 				contentBaseline: 'default',
+			},
+			'/contentBaseline',
+		],
+		[
+			'comments without scalar parent content',
+			{
+				version: 2,
+				contentBaseline: 'comments',
 			},
 			'/contentBaseline',
 		],

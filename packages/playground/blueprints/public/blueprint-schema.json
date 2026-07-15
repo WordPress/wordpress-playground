@@ -1962,11 +1962,16 @@
 					"anyOf": [
 						{
 							"type": "string",
-							"const": "default"
+							"const": "keep-all"
 						},
 						{
 							"type": "string",
 							"const": "empty"
+						},
+						{
+							"type": "string",
+							"enum": ["posts", "pages", "comments"],
+							"description": "Content types created by a vanilla WordPress installation and controlled by `contentBaseline`."
 						},
 						{
 							"type": "array",
@@ -2002,8 +2007,11 @@
 							]
 						}
 					],
-					"description": "The content from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `default` leaves the installation unchanged, `empty` removes its posts, pages, and comments, and a list retains only the selected content types.\n\nThis policy runs only when the current invocation creates vanilla WordPress. It is skipped when applying the Blueprint to an existing site, so it cannot erase content from that site. It is not valid when `wordpressVersion` is \"none\". Metadata and relationships follow their parent content. Empty content tables have their sequences reset so subsequent imports receive the identifiers they would on a site created without default content.\n\nComments can only be retained together with both posts and pages because the schema cannot know which type contains their parent records.",
-					"default": "default"
+					"description": "The content from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `keep-all` leaves the installation unchanged, `empty` removes its posts, pages, and comments, a content type retains only that type, and a list retains the selected content types.\n\nThis policy runs only when the current invocation creates vanilla WordPress. It is skipped when applying the Blueprint to an existing site, so it cannot erase content from that site. It is not valid when `wordpressVersion` is \"none\". Metadata and relationships follow their parent content. Empty content tables have their sequences reset so subsequent imports receive the identifiers they would on a site created without default content.\n\nComments can only be retained together with both posts and pages because the schema cannot know which type contains their parent records.",
+					"default": "keep-all",
+					"not": {
+						"const": "comments"
+					}
 				},
 				"usersBaseline": {
 					"type": "string",
@@ -2282,13 +2290,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												}
 											]
@@ -2705,13 +2713,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																	"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																	"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																}
 															}
 														]
@@ -3117,13 +3125,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																		"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																		"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																	}
 																}
 															]
@@ -3263,13 +3271,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																					"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																					"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																				}
 																			}
 																		]
@@ -3806,13 +3814,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																							"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																							"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																						}
 																					}
 																				]
@@ -3954,13 +3962,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																										"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+																										"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 																									}
 																								}
 																							]
@@ -4258,13 +4266,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												}
 											]
@@ -4483,13 +4491,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+														"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 													}
 												}
 											]
@@ -4786,7 +4794,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151": {
+		"alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4800,13 +4808,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+						"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-145887-145981-1337903113-98559-145995-1337903113-98525-145995-1337903113-0-163151"
+						"$ref": "#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202"
 					}
 				}
 			]

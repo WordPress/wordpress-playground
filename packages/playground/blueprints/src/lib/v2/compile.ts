@@ -44,9 +44,9 @@ type BlueprintV2ApplicationOptions =
 type BlueprintV2ContentBaseline = NonNullable<
 	BlueprintV2Declaration['contentBaseline']
 >;
-type BlueprintV2ContentType = Exclude<
+type BlueprintV2ContentType = Extract<
 	BlueprintV2ContentBaseline,
-	'default' | 'empty'
+	readonly unknown[]
 >[number];
 type BlueprintV2Constants = NonNullable<BlueprintV2Declaration['constants']>;
 type BlueprintV2SiteOptions = NonNullable<
@@ -401,20 +401,19 @@ export function createBlueprintV2ExecutionPlan(
 	const plan: BlueprintV2ExecutionPlan = [];
 	const contentBaseline = declaration.contentBaseline;
 
-	if (
-		siteMode === 'create-new-site' &&
-		contentBaseline !== undefined &&
-		contentBaseline !== 'default' &&
-		(contentBaseline === 'empty' ||
+	if (siteMode === 'create-new-site' && contentBaseline !== undefined) {
+		const preservedContent = getPreservedContentTypes(contentBaseline);
+		if (
 			SITE_CREATION_CONTENT_TYPES.some(
-				(contentType) => !contentBaseline.includes(contentType)
-			))
-	) {
-		plan.push({
-			type: 'applyContentBaseline',
-			contentBaseline,
-			sourcePath: '/contentBaseline',
-		});
+				(contentType) => !preservedContent.includes(contentType)
+			)
+		) {
+			plan.push({
+				type: 'applyContentBaseline',
+				contentBaseline,
+				sourcePath: '/contentBaseline',
+			});
+		}
 	}
 	if (
 		siteMode === 'create-new-site' &&
@@ -811,12 +810,7 @@ function lowerBlueprintV2ExecutionPlanItem(
 function lowerContentBaseline(
 	contentBaseline: BlueprintV2ContentBaseline
 ): StepDefinition[] {
-	const preservedContent: readonly BlueprintV2ContentType[] =
-		contentBaseline === 'default'
-			? SITE_CREATION_CONTENT_TYPES
-			: contentBaseline === 'empty'
-				? []
-				: contentBaseline;
+	const preservedContent = getPreservedContentTypes(contentBaseline);
 	const removedContent = SITE_CREATION_CONTENT_TYPES.filter(
 		(contentType) => !preservedContent.includes(contentType)
 	);
@@ -877,6 +871,18 @@ function lowerContentBaseline(
 			`,
 		},
 	];
+}
+
+function getPreservedContentTypes(
+	contentBaseline: BlueprintV2ContentBaseline
+): readonly BlueprintV2ContentType[] {
+	if (contentBaseline === 'keep-all') {
+		return SITE_CREATION_CONTENT_TYPES;
+	}
+	if (contentBaseline === 'empty') {
+		return [];
+	}
+	return asArray(contentBaseline);
 }
 
 /**
