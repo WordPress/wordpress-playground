@@ -139,7 +139,7 @@
 	align-items: center;
 	background: var(--paper-3);
 	border-radius: var(--radius-card);
-	color: var(--accent-link);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex-shrink: 0;
 	height: 38px;
