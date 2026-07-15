@@ -910,6 +910,7 @@ export const BlueprintBundleEditor = forwardRef<
 								{!readOnly && (
 									<Button
 										variant="primary"
+										isDestructive={!isStored}
 										className={classNames(
 											styles.editorToolbarButton,
 											{

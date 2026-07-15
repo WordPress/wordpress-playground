@@ -356,6 +356,9 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(container.textContent).toContain(
 			'Discard current Playground & run Blueprint'
 		);
+		expect(
+			container.querySelector('button.is-destructive')?.textContent
+		).toContain('Discard current Playground & run Blueprint');
 		expect(container.textContent).not.toContain('Run in a new Playground');
 		expect(container.textContent).not.toContain(
 			'creates a fresh autosaved Playground'
