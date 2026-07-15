@@ -657,6 +657,13 @@ export function Dock({
 		const finishDockDrag = () => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
+			// Let the next click target the restored corner launcher instead of
+			// staying captured by the Dock that just finished folding.
+			try {
+				dock.releasePointerCapture(pointerId);
+			} catch {
+				// Synthetic pointer events may not support capture.
+			}
 			dragArmedRef.current = false;
 			if (!draggedRef.current) {
 				return;
@@ -664,6 +671,12 @@ export function Dock({
 			draggedRef.current = false;
 
 			const eatClick = (clickEvent: MouseEvent) => {
+				if (
+					!(clickEvent.target instanceof Node) ||
+					!dockRef.current?.contains(clickEvent.target)
+				) {
+					return;
+				}
 				clickEvent.stopPropagation();
 				clickEvent.preventDefault();
 			};

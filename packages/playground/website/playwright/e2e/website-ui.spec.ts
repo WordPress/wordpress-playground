@@ -447,6 +447,76 @@ test('should switch the desktop Dock between full width and collapsed states', a
 	).toBeVisible();
 });
 
+test('should fold and restore the desktop Dock without hiding an open pane', async ({
+	website,
+}) => {
+	await website.page.emulateMedia({ reducedMotion: 'reduce' });
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const initialBounds = await dock.boundingBox();
+	expect(initialBounds).not.toBeNull();
+
+	await dragDockPastLeftEdge();
+	const launcher = website.page.getByRole('button', {
+		name: 'Show Playground tools',
+	});
+	await expect(launcher).toBeVisible();
+	await expect(dock).not.toBeVisible();
+
+	await launcher.click();
+	await expect(dock).toBeVisible();
+	await expect(launcher).toHaveCount(0);
+	const restoredBounds = await dock.boundingBox();
+	expect(restoredBounds).not.toBeNull();
+	expect(Math.abs(restoredBounds!.x - initialBounds!.x)).toBeLessThan(3);
+
+	await website.openDockPane('Files');
+	await dragDockPastLeftEdge();
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane' })
+	).toBeVisible();
+	await expect(dock).toBeVisible();
+	await expect(launcher).toHaveCount(0);
+
+	async function dragDockPastLeftEdge() {
+		const bounds = await dock.boundingBox();
+		expect(bounds).not.toBeNull();
+		const startX = bounds!.x + bounds!.width / 2;
+		const endX = -bounds!.width;
+		await dock.dispatchEvent('pointerdown', {
+			bubbles: true,
+			button: 0,
+			buttons: 1,
+			clientX: startX,
+			isPrimary: true,
+			pointerId: 1,
+		});
+		await website.page.evaluate((clientX) => {
+			window.dispatchEvent(
+				new PointerEvent('pointermove', {
+					bubbles: true,
+					button: 0,
+					buttons: 1,
+					clientX,
+					isPrimary: true,
+					pointerId: 1,
+				})
+			);
+			window.dispatchEvent(
+				new PointerEvent('pointerup', {
+					bubbles: true,
+					button: 0,
+					clientX,
+					isPrimary: true,
+					pointerId: 1,
+				})
+			);
+		}, endX);
+	}
+});
+
 SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		await website.goto('./?storage=temp');
@@ -830,6 +900,15 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	await expect(
 		website.page.getByRole('dialog', { name: 'Export pane' })
 	).toBeFocused();
+	const exportPane = website.page.getByRole('dialog', {
+		name: 'Export pane',
+	});
+	const preview = website.page.locator('[class*="site-view-content"]');
+	await exportPane.getByRole('button', { name: 'Close' }).click();
+	await expect(exportPane).not.toBeVisible();
+	await expect(preview).not.toHaveAttribute('inert', /.*/);
+	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
+
 	await website.page.setViewportSize({ width: 320, height: 700 });
 	await website.openDockPane('Site details');
 	const siteDetailsPane = website.page.getByRole('dialog', {
@@ -840,9 +919,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		.boundingBox();
 	expect(closeBounds).not.toBeNull();
 
-	const previewBounds = await website.page
-		.locator('[class*="site-view-content"]')
-		.boundingBox();
+	const previewBounds = await preview.boundingBox();
 	const dockBounds = await dock.boundingBox();
 	expect(previewBounds).not.toBeNull();
 	expect(dockBounds).not.toBeNull();
