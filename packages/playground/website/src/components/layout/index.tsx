@@ -4,11 +4,12 @@ import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
-import { useState, useRef, lazy, Suspense } from 'react';
-import type { ExportFormValues } from '../../github/github-export-form/form';
-import { asPullRequestAction } from '../../github/github-export-form/form';
+import { useRef, lazy, Suspense } from 'react';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
-import { asContentType } from '../../github/import-from-github';
+import {
+	GitHubExportSessionProvider,
+	useGitHubExportSession,
+} from '../../github/github-export-session';
 import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
 import type { DisplayMode } from '../playground-viewport';
@@ -66,33 +67,35 @@ export function Layout() {
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
 
 	return (
-		<div className={`${css.layout}`}>
-			<Modals />
-			<CSSTransition
-				nodeRef={siteManagerWrapperRef}
-				in={siteManagerIsOpen}
-				timeout={500}
-				classNames={{
-					enter: css.siteManagerWrapperEnter,
-					enterActive: css.siteManagerWrapperEnterActive,
-					exit: css.siteManagerWrapperExit,
-					exitActive: css.siteManagerWrapperExitActive,
-				}}
-				unmountOnExit
-			>
-				<div
-					ref={siteManagerWrapperRef}
-					className={css.siteManagerWrapper}
+		<GitHubExportSessionProvider>
+			<div className={`${css.layout}`}>
+				<Modals />
+				<CSSTransition
+					nodeRef={siteManagerWrapperRef}
+					in={siteManagerIsOpen}
+					timeout={500}
+					classNames={{
+						enter: css.siteManagerWrapperEnter,
+						enterActive: css.siteManagerWrapperEnterActive,
+						exit: css.siteManagerWrapperExit,
+						exitActive: css.siteManagerWrapperExitActive,
+					}}
+					unmountOnExit
 				>
-					<SiteManager />
-				</div>
-			</CSSTransition>
-			<div className={css.siteView}>
-				<div className={css.siteViewContent}>
-					<PlaygroundViewport displayMode={displayMode} />
+					<div
+						ref={siteManagerWrapperRef}
+						className={css.siteManagerWrapper}
+					>
+						<SiteManager />
+					</div>
+				</CSSTransition>
+				<div className={css.siteView}>
+					<div className={css.siteViewContent}>
+						<PlaygroundViewport displayMode={displayMode} />
+					</div>
 				</div>
 			</div>
-		</div>
+		</GitHubExportSessionProvider>
 	);
 }
 
@@ -110,49 +113,7 @@ export function Layout() {
  * the "Show modal" button is rendered.
  */
 function Modals() {
-	const query = new URL(document.location.href).searchParams;
-
-	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
-	const [githubExportValues, setGithubExportValues] = useState<
-		Partial<ExportFormValues>
-	>(() => {
-		const values: Partial<ExportFormValues> = {};
-		if (query.get('ghexport-repo-url')) {
-			values.repoUrl = query.get('ghexport-repo-url')!;
-		}
-		if (query.get('ghexport-content-type')) {
-			values.contentType = asContentType(
-				query.get('ghexport-content-type')
-			);
-		}
-		if (query.get('ghexport-pr-action')) {
-			values.prAction = asPullRequestAction(
-				query.get('ghexport-pr-action')
-			);
-		}
-		if (query.get('ghexport-pr-number')) {
-			values.prNumber = query.get('ghexport-pr-number')?.toString();
-		}
-		if (query.get('ghexport-playground-root')) {
-			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
-		}
-		if (query.get('ghexport-repo-root')) {
-			values.toPathInRepo = query.get('ghexport-repo-root')!;
-		}
-		if (query.get('ghexport-path')) {
-			values.relativeExportPaths = query.getAll('ghexport-path');
-		}
-		if (query.get('ghexport-commit-message')) {
-			values.commitMessage = query.get('ghexport-commit-message')!;
-		}
-		if (query.get('ghexport-plugin')) {
-			values.plugin = query.get('ghexport-plugin')!;
-		}
-		if (query.get('ghexport-theme')) {
-			values.theme = query.get('ghexport-theme')!;
-		}
-		return values;
-	});
+	const githubExportSession = useGitHubExportSession();
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
@@ -198,25 +159,7 @@ function Modals() {
 					createNewSiteBeforeImport={
 						currentModal === modalSlugs.GITHUB_IMPORT_NEW_SITE
 					}
-					onImported={({
-						url,
-						path,
-						files,
-						pluginOrThemeName,
-						contentType,
-						urlInformation: { owner, repo, type, pr },
-					}) => {
-						setGithubExportValues({
-							repoUrl: url,
-							prNumber: pr?.toString(),
-							toPathInRepo: path,
-							prAction: pr ? 'update' : 'create',
-							contentType,
-							plugin: pluginOrThemeName,
-							theme: pluginOrThemeName,
-						});
-						setGithubExportFiles(files);
-					}}
+					onImported={githubExportSession.recordImport}
 				/>
 			</LazyModal>
 		);
@@ -224,22 +167,23 @@ function Modals() {
 		return (
 			<LazyModal>
 				<GithubExportModal
-					allowZipExport={
-						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
-						'yes'
+					allowZipExport={githubExportSession.allowZipExport}
+					initialValues={githubExportSession.values}
+					initialFilesBeforeChanges={
+						githubExportSession.filesBeforeChanges
 					}
-					initialValues={githubExportValues}
-					initialFilesBeforeChanges={githubExportFiles}
-					onExported={(prUrl, formValues) => {
-						setGithubExportValues(formValues);
-						setGithubExportFiles(undefined);
-					}}
+					onExported={(_prUrl, formValues) =>
+						githubExportSession.recordExport(formValues)
+					}
 				/>
 			</LazyModal>
 		);
 	}
 
-	if (query.get('gh-ensure-auth') === 'yes') {
+	const shouldEnsureGitHubAuth =
+		new URL(document.location.href).searchParams.get('gh-ensure-auth') ===
+		'yes';
+	if (shouldEnsureGitHubAuth) {
 		return <GitHubOAuthGuardModal />;
 	}
 

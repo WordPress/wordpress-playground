@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import css from './style.module.css';
-import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
@@ -10,28 +8,41 @@ import {
 	getSetupFormDefaultValues,
 	getSiteSettingsFromFormData,
 } from './setup-form-values';
+import { SiteSettingsActionFooter } from './site-settings-action-footer';
+import type { SiteSettingsSubmission } from './use-site-settings-submission';
 
 /**
  * Renders the setup settings form for an autosaved Playground.
  *
- * Autosaved Playgrounds represent recoverable unsaved work, so changing setup
- * fields recreates the same autosaved site instead of creating a second site or
- * preserving the previous WordPress files.
+ * PHP and networking can be applied to the current Playground. Setup changes
+ * create a fresh autosaved Playground while preserving the current one.
  */
 export function AutosavedSiteSettingsForm({
 	siteSlug,
-	onSubmit,
+	submission,
 }: {
 	siteSlug: string;
-	onSubmit?: () => void;
+	submission: SiteSettingsSubmission;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
 	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		await sitesAPI.recreateAutosavedSite(getSiteSettingsFromFormData(data));
-		onSubmit?.();
+		await sitesAPI.updateRuntimeSettings({
+			phpVersion: data.phpVersion,
+			networking: data.withNetworking,
+		});
+	};
+	const createFreshSite = async (data: SiteFormData) => {
+		await sitesAPI.createNewSavedSite(
+			undefined,
+			getSiteSettingsFromFormData(data),
+			{
+				persistence: 'autosave',
+				excludeFromPruning: [siteSlug],
+			}
+		);
 	};
 	const defaultValues = useMemo(
 		() => getSetupFormDefaultValues(siteInfo),
@@ -41,25 +52,21 @@ export function AutosavedSiteSettingsForm({
 	return (
 		<UnconnectedSiteSettingsForm
 			className="is-autosaved-site"
-			onSubmit={updateSite}
+			onSubmit={(data) => submission.run(updateSite, data)}
 			defaultValues={defaultValues}
-			footer={
-				<VStack
-					justify="flex-end"
-					spacing={6}
-					style={{ margin: 0 }}
-					className={`${css.footer} ${css.formSection}`}
-				>
-					<p>
-						<b>Destructive action!</b> Applying these settings will
-						recreate this autosaved Playground under the same name
-						and replace its current WordPress files.
-					</p>
-					<Button type="submit" variant="primary">
-						Apply Settings & Recreate Playground
-					</Button>
-				</VStack>
-			}
+			footer={(context) => (
+				<SiteSettingsActionFooter
+					{...context}
+					siteName={siteInfo.metadata.name}
+					sitePersistence="autosave"
+					onApply={(data) => submission.run(updateSite, data)}
+					onCreateFresh={(data) =>
+						submission.run(createFreshSite, data)
+					}
+					isPending={submission.isPending}
+					error={submission.error}
+				/>
+			)}
 		/>
 	);
 }

@@ -2,7 +2,13 @@
 	position: absolute;
 	top: 0;
 	left: 0;
-	background: #fff;
+	background:
+		radial-gradient(
+			circle at 50% calc(50% - 140px),
+			rgb(56 88 233 / 0.13),
+			transparent 34%
+		),
+		linear-gradient(180deg, #f7f9fc 0%, #fff 100%);
 	z-index: 5;
 	display: flex;
 	flex-direction: column;
@@ -10,6 +16,9 @@
 	height: 100%;
 	justify-content: center;
 	align-items: center;
+	box-sizing: border-box;
+	overflow: hidden;
+	padding: 24px;
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
 }
@@ -21,12 +30,30 @@
 
 .wrapper {
 	position: relative;
-	width: 512px;
-	max-width: 60vw;
-	height: 4px;
-	margin: 4px auto;
-	border-radius: 10px;
-	background: #e0e0e0;
+	width: calc(100% - 48px);
+	max-width: 420px;
+	height: 9px;
+	margin: 1.45rem auto 0;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #d8dce2;
+	box-shadow:
+		0 1px 0 rgb(255 255 255 / 0.72) inset,
+		0 10px 24px rgb(0 0 0 / 0.08);
+}
+
+.wrapper::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.58) 50%,
+		transparent 100%
+	);
+	animation: track-shimmer 2.2s ease-in-out infinite;
+	content: '';
+	transform: translateX(-100%);
 }
 
 .wrapper-definite .progress-bar.is-indefinite,
@@ -45,14 +72,23 @@
 	left: 0;
 	bottom: 0;
 	right: 100%;
+	z-index: 1;
 	width: 0;
-	background: #3858e9;
-	border-radius: 2px;
-	transition: opacity linear 0.2s, width ease-in 0.2s;
+	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
+	border-radius: inherit;
+	transition:
+		opacity linear 0.2s,
+		width ease-in 0.2s;
 }
 
 .progress-bar.is-indefinite {
 	animation: indefinite-loading 2s linear infinite;
+}
+
+@keyframes track-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
 }
 
 @keyframes indefinite-loading {
@@ -78,19 +114,79 @@
 	}
 }
 
+/* A quiet prefix above the name, so the big text below reads as the Playground
+   being started, not a page title. */
+.label {
+	color: #757575;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: clamp(0.9rem, 1.45vw, 1rem);
+	font-weight: 500;
+	letter-spacing: 0.01em;
+	line-height: 1.3;
+	margin: 0 0 0.45rem;
+	text-align: center;
+}
+
+/* The stable Playground name — larger and bolder than the caption, sitting just
+   above it. It wraps in full and never changes as boot stages advance. */
+.title {
+	font-weight: 600;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
+	line-height: 1.12;
+	margin: 0 0 0.45rem;
+	width: calc(100% - 48px);
+	max-width: 720px;
+	overflow-wrap: anywhere;
+	text-align: center;
+}
+
 .caption {
 	font-weight: 400;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 1.1rem;
+	font-size: clamp(0.95rem, 1.75vw, 1.12rem);
+	/* With the name carrying identity above, the changing stage caption reads as
+	   secondary status. */
+	color: #757575;
+	line-height: 1.3;
+	margin: 0;
+	text-align: center;
+}
+
+.label,
+.title,
+.caption,
+.wrapper {
+	z-index: 1;
 }
 
 @media (prefers-color-scheme: dark) {
 	.overlay {
-		background: #1e1e1e;
+		background:
+			radial-gradient(
+				circle at 50% calc(50% - 140px),
+				rgb(56 88 233 / 0.2),
+				transparent 34%
+			),
+			linear-gradient(180deg, #191a1d 0%, #1e1e1e 100%);
 		color: #fff;
 	}
 
 	.wrapper {
-		background: #32363a;
+		background: #2f3338;
+		box-shadow:
+			inset 0 0 0 1px rgb(255 255 255 / 0.04),
+			0 10px 28px rgb(0 0 0 / 0.22);
+	}
+
+	.progress-bar {
+		box-shadow: 0 0 18px rgb(72 103 255 / 0.45);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wrapper::after,
+	.progress-bar.is-indefinite {
+		animation: none;
 	}
 }

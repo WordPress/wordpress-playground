@@ -3,7 +3,8 @@
  * but we have encountered V8 crashes with both Vitest and the Node.js test runner
  * when calling Playgroun CLI's runCLI() function multiple times.
  *
- * So here is a manual test runner that spawns a new node test process for each PHP version.
+ * So here is a manual test runner that spawns a new node test process
+ * for each PHP version and spec file.
  *
  * !! If we can manage to call runCLI() twice in a row in a process,
  * we might be able to return to using Vitest. 🙏
@@ -25,8 +26,10 @@ type Result = {
 };
 
 const results: Result[] = [];
+// CLI specs boot WordPress. Keep the per-file timeout above the
+// individual test timeout so slower PHP versions can finish.
 const timeoutMs = Number.parseInt(
-	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '180000',
 	10
 );
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -38,6 +41,7 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 const testFiles = [
 	'./tests/deps.spec.ts',
 	'./tests/wp.spec.ts',
+	'./tests/git-directory.spec.ts',
 	'./tests/assets.spec.ts',
 ];
 

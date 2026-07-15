@@ -10,6 +10,8 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 function validateOrigin(origin: string) {
 	try {
@@ -27,10 +29,6 @@ function validateOrigin(origin: string) {
 const additionalRemoteOriginsModulePath = join(
 	__dirname,
 	'src/additional-remote-origins.ts'
-);
-const isomorphicGitEsmEntry = join(
-	__dirname,
-	'../../../node_modules/isomorphic-git/index.js'
 );
 
 export default defineConfig({
@@ -83,12 +81,7 @@ export default defineConfig({
 		},
 	],
 	resolve: {
-		alias: [
-			{
-				find: /^isomorphic-git$/,
-				replacement: isomorphicGitEsmEntry,
-			},
-		],
+		alias: [isomorphicGitBrowserAlias()],
 	},
 
 	// Configuration for building your library.

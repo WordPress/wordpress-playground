@@ -8,6 +8,8 @@ export type SiteError =
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
+	| 'browser-storage-cleanup-failed'
+	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
 	| 'github-artifact-expired'
@@ -159,8 +161,13 @@ export interface UIState {
 	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
+	shareExportOpen: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	/** Draft kept while the New Playground panel is closed or hidden. */
+	writeOwnBlueprintDraft?: string;
+	/** Playground slug from which the current authoring draft was seeded. */
+	writeOwnSeededSlug?: string;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -188,6 +195,7 @@ const initialState: UIState = {
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
+	shareExportOpen: false,
 	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
 	// even if they seem redundant. We may experiment which toggling the manager
 	// to be open by default or closed by default, and we do not want to lose
@@ -267,11 +275,26 @@ const uiSlice = createSlice({
 		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
 		},
+		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
+			state.shareExportOpen = action.payload;
+		},
 		setSiteManagerSection: (
 			state,
 			action: PayloadAction<SiteManagerSection>
 		) => {
 			state.siteManagerSection = action.payload;
+		},
+		setWriteOwnBlueprintDraft: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
@@ -333,8 +356,11 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
+	setShareExportOpen,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

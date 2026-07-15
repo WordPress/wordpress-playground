@@ -8,7 +8,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar, randomFilename } from '@php-wasm/util';
 import { setURLScope } from '@php-wasm/scopes';
 
 describe('Blueprint step importWordPressFiles', () => {
@@ -184,35 +184,166 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
-	it('should serialize concurrent imports of the same export', async () => {
-		await sourcePHP.run({
+	it('should preserve live files and clean staging when preparation fails', async () => {
+		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
+		const documentRoot = await targetPHP.documentRoot;
+		const dbDropInPath = joinPaths(documentRoot, 'wp-content', 'db.php');
+		const databasePath = joinPaths(documentRoot, 'wp-content', 'database');
+		const dbDropInContents = '<?php // Live SQLite drop-in';
+		await targetPHP.writeFile(dbDropInPath, dbDropInContents);
+		expect(await targetPHP.fileExists(databasePath)).toBe(true);
+
+		const listFiles = targetPHP.listFiles.bind(targetPHP);
+		const listFilesSpy = vi
+			.spyOn(targetPHP, 'listFiles')
+			.mockImplementation((path, options) => {
+				if (path.startsWith('/tmp/import-wordpress-files-')) {
+					throw new Error('Injected pre-commit failure');
+				}
+				return listFiles(path, options);
+			});
+
+		try {
+			await expect(
+				importWordPressFiles(targetPHP, {
+					wordPressFilesZip: zipFile,
+				})
+			).rejects.toThrow('Injected pre-commit failure');
+		} finally {
+			listFilesSpy.mockRestore();
+		}
+
+		expect(await targetPHP.readFileAsText(dbDropInPath)).toBe(
+			dbDropInContents
+		);
+		expect(await targetPHP.fileExists(databasePath)).toBe(true);
+		expect(
+			(await targetPHP.listFiles('/tmp')).filter((path) =>
+				path.startsWith('import-wordpress-files-')
+			)
+		).toEqual([]);
+	});
+
+	it('should preserve remaining staged files when replacement fails', async () => {
+		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
+		const documentRoot = await targetPHP.documentRoot;
+		const mv = targetPHP.mv.bind(targetPHP);
+		const mvSpy = vi
+			.spyOn(targetPHP, 'mv')
+			.mockImplementation((fromPath, toPath) => {
+				if (
+					fromPath.startsWith('/tmp/import-wordpress-files-') &&
+					toPath.startsWith(`${documentRoot}/`)
+				) {
+					throw new Error('Injected replacement failure');
+				}
+				return mv(fromPath, toPath);
+			});
+
+		try {
+			await expect(
+				importWordPressFiles(targetPHP, {
+					wordPressFilesZip: zipFile,
+				})
+			).rejects.toThrow('Injected replacement failure');
+		} finally {
+			mvSpy.mockRestore();
+		}
+
+		const stagingDirectories = (await targetPHP.listFiles('/tmp')).filter(
+			(path) => path.startsWith('import-wordpress-files-')
+		);
+		expect(stagingDirectories).toHaveLength(1);
+		expect(
+			await targetPHP.fileExists(
+				joinPaths(
+					'/tmp',
+					stagingDirectories[0],
+					'wp-content',
+					'plugins',
+					'import-test',
+					'import-test.php'
+				)
+			)
+		).toBe(true);
+	});
+
+	it('should import WordPress files from a single wrapping directory', async () => {
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		const pluginPath =
+			'playground-export/wp-content/plugins/nested-plugin/nested-plugin.php';
+		const themePath =
+			'playground-export/wp-content/themes/nested-theme/style.css';
+
+		await targetPHP.run({
 			code: `<?php
-			require ${phpVar(await sourcePHP.documentRoot)} . '/wp-load.php';
-			update_option('blogname', 'Concurrent import test');
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+			$zip->addFromString(${phpVar(pluginPath)}, ${phpVar('<?php /* Plugin Name: Nested Plugin */')});
+			$zip->addFromString(${phpVar(themePath)}, ${phpVar('/* Theme Name: Nested Theme */')});
+			$zip->close();
 			`,
 		});
 
-		const zipBuffer = await zipWpContent(sourcePHP, {
-			selfContained: true,
+		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		await targetPHP.unlink(zipPath);
+		const zipFile = new File([zipBuffer], 'nested-wordpress-files.zip');
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: zipFile,
 		});
 
-		await Promise.all([
-			importWordPressFiles(targetPHP, {
-				wordPressFilesZip: new File([zipBuffer], 'export-a.zip'),
-			}),
-			importWordPressFiles(targetPHP, {
-				wordPressFilesZip: new File([zipBuffer], 'export-b.zip'),
-			}),
-		]);
+		const documentRoot = await targetPHP.documentRoot;
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/wp-content/plugins/nested-plugin/nested-plugin.php`
+			)
+		).toBe(true);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/wp-content/themes/nested-theme/style.css`
+			)
+		).toBe(true);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/playground-export/wp-content/plugins/nested-plugin/nested-plugin.php`
+			)
+		).toBe(false);
+	});
 
-		const result = await targetPHP.run({
+	it('should unwrap WordPress file archives without wp-content', async () => {
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		const configSamplePath = 'playground-export/wp-config-sample.php';
+		const configSampleContents = '<?php /* Nested config sample */';
+
+		await targetPHP.run({
 			code: `<?php
-			require ${phpVar(await targetPHP.documentRoot)} . '/wp-load.php';
-			echo get_option('blogname');
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+			$zip->addFromString(${phpVar(configSamplePath)}, ${phpVar(configSampleContents)});
+			$zip->close();
 			`,
 		});
 
-		expect(result.text).toBe('Concurrent import test');
+		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		await targetPHP.unlink(zipPath);
+		const zipFile = new File([zipBuffer], 'nested-wordpress-config.zip');
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: zipFile,
+		});
+
+		const documentRoot = await targetPHP.documentRoot;
+		expect(
+			await targetPHP.readFileAsText(
+				`${documentRoot}/wp-config-sample.php`
+			)
+		).toBe(configSampleContents);
+		expect(
+			await targetPHP.fileExists(
+				`${documentRoot}/playground-export/wp-config-sample.php`
+			)
+		).toBe(false);
 	});
 
 	it('should infer scope from database when manifest is missing and still replace URLs', async () => {
@@ -279,3 +410,19 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 });
+
+async function createMinimalWordPressFilesZip(playground: PHP) {
+	const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+	await playground.run({
+		code: `<?php
+		$zip = new ZipArchive();
+		$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+		$zip->addFromString('wp-content/plugins/import-test/import-test.php', '<?php');
+		$zip->close();
+		`,
+	});
+
+	const zipBuffer = await playground.readFileAsBuffer(zipPath);
+	await playground.unlink(zipPath);
+	return new File([zipBuffer], 'minimal-wordpress-files.zip');
+}

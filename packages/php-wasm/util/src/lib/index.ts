@@ -8,6 +8,7 @@ export {
 	basename,
 	normalizePath,
 	isParentOf,
+	resolvePathUnder,
 	ensureAbsolutePath,
 	toPosixPath,
 } from './paths';

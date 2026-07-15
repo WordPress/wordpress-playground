@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { joinPaths } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
@@ -6,39 +7,52 @@ import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+const RELATIVE_DATABASE_PATH = 'wp-content/database/.ht.sqlite';
 
 export function SiteDatabasePanel({
 	playground,
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
+	const [databasePath, setDatabasePath] = useState<string | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
 
 	useEffect(() => {
 		if (!playground) {
+			setDatabasePath(null);
 			setDatabaseSize(null);
 			return;
 		}
+		setDatabasePath(null);
+		setDatabaseSize(null);
+		let cancelled = false;
 
 		async function fetchDatabaseSize() {
 			if (!playground) return;
 
 			try {
-				const fileExists = await playground.fileExists(DATABASE_PATH);
-				if (fileExists) {
-					const buffer =
-						await playground.readFileAsBuffer(DATABASE_PATH);
-					setDatabaseSize(buffer.byteLength);
-				} else {
-					setDatabaseSize(null);
+				const path = joinPaths(
+					await playground.documentRoot,
+					RELATIVE_DATABASE_PATH
+				);
+				if (!cancelled) {
+					setDatabasePath(path);
+				}
+				const size = await readDatabaseSize(playground, path);
+				if (!cancelled) {
+					setDatabaseSize(size);
 				}
 			} catch {
-				setDatabaseSize(null);
+				if (!cancelled) {
+					setDatabaseSize(null);
+				}
 			}
 		}
 
 		void fetchDatabaseSize();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const formatBytes = (bytes: number): string => {
@@ -90,7 +104,9 @@ export function SiteDatabasePanel({
 					</span>
 					<span className={css.label}>SQLite database path:</span>
 					<span className={css.value}>
-						<code>{DATABASE_PATH}</code>
+						<code>
+							{databasePath ?? `…/${RELATIVE_DATABASE_PATH}`}
+						</code>
 					</span>
 					{databaseSize !== null && (
 						<>
@@ -104,10 +120,38 @@ export function SiteDatabasePanel({
 			</VStack>
 
 			<div className={css.buttonGroup}>
-				<DownloadButton playground={playground} />
+				<DownloadButton
+					playground={playground}
+					databasePath={databasePath}
+				/>
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
 			</div>
 		</VStack>
 	);
+}
+
+/** Stats the database inside PHP without copying its contents into JavaScript. */
+async function readDatabaseSize(
+	playground: PlaygroundClient,
+	databasePath: string
+): Promise<number> {
+	const response = await playground.run({
+		code: `<?php
+$stat = stat(getenv('DATABASE_PATH'));
+if ($stat === false) {
+	throw new RuntimeException('Could not stat the database.');
+}
+echo $stat['size'];
+`,
+		env: {
+			DATABASE_PATH: databasePath,
+		},
+	});
+	const sizeText = response.text.trim();
+	const size = Number(sizeText);
+	if (sizeText === '' || !Number.isSafeInteger(size) || size < 0) {
+		throw new Error('Database stat returned an invalid size.');
+	}
+	return size;
 }

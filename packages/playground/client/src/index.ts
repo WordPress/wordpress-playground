@@ -28,6 +28,12 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
+import {
+	BlueprintReflection,
+	isBlueprintBundle,
+	type Blueprint,
+	type BlueprintDeclaration,
+} from '@wp-playground/blueprints';
 import type {
 	BlueprintV1,
 	BlueprintV1Declaration,
@@ -44,20 +50,23 @@ import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * A stable label for the loading progress bar, typically the name of the
+	 * Playground being started. It stays visible while boot captions change.
+	 */
+	siteName?: string;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
 	 */
 	extensions?: PHPWebExtension[];
-	/**
-	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
-	 */
-	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
@@ -131,6 +140,14 @@ export interface StartPlaygroundOptions {
 	pathAliases?: PathAlias[];
 }
 
+export interface StartPlaygroundWebOptions extends Omit<
+	StartPlaygroundOptions,
+	'blueprint' | 'onBlueprintValidated'
+> {
+	blueprint?: Blueprint;
+	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
+}
+
 /**
  * Loads playground in iframe and returns a PlaygroundClient instance.
  *
@@ -139,7 +156,7 @@ export interface StartPlaygroundOptions {
  * @returns A PlaygroundClient instance.
  */
 export async function startPlaygroundWeb(
-	options: StartPlaygroundOptions
+	options: StartPlaygroundWebOptions
 ): Promise<PlaygroundClient> {
 	const {
 		iframe,
@@ -149,12 +166,20 @@ export async function startPlaygroundWeb(
 	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
+	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
+		options.blueprint
+	);
 
-	remoteUrl = setQueryParams(remoteUrl, {
+	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
+	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
+	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
-		'blueprints-runner': options.experimentalBlueprintsV2Runner
-			? 'v2'
-			: 'v1',
+		progressbarTitle: options.siteName || undefined,
+		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
+			globalThis.location.href
+		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)
+			? '1'
+			: undefined,
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
@@ -163,14 +188,27 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const handler = options.experimentalBlueprintsV2Runner
+	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
-		: new BlueprintsV1Handler(options);
+		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
 
 	return playground;
+}
+
+async function shouldUseBlueprintV2Handler(
+	blueprint: StartPlaygroundWebOptions['blueprint']
+) {
+	if (!blueprint) {
+		return false;
+	}
+	if (!isBlueprintBundle(blueprint)) {
+		return 'version' in blueprint && blueprint.version === 2;
+	}
+	const reflection = await BlueprintReflection.create(blueprint);
+	return reflection.getVersion() === 2;
 }
 
 /**

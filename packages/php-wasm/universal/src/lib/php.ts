@@ -5,6 +5,7 @@ import {
 	createSpawnHandler,
 	dirname,
 	joinPaths,
+	splitShellCommand,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
@@ -48,6 +49,23 @@ export class PHPExecutionFailureError extends Error {
 }
 
 export type UnmountFunction = (() => Promise<any>) | (() => any);
+
+/**
+ * Signals that an unmount failed before the mount was detached.
+ *
+ * Only this error guarantees that the mount remains active and its teardown can
+ * be retried, so registries may retain it. `cause` is the underlying failure that
+ * prevented the unmount. Ordinary unmount errors make no such guarantee.
+ */
+export class MountStillActiveError extends Error {
+	constructor(cause: unknown) {
+		super('The filesystem could not be flushed and remains mounted.', {
+			cause,
+		});
+		this.name = 'MountStillActiveError';
+	}
+}
+
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
@@ -99,6 +117,8 @@ export class PHP implements Disposable {
 	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#spawnHandler?: SpawnHandler;
+	#commandSpawnHandlers = new Map<string, SpawnHandler>();
 	#rotationOptions: {
 		enabled: boolean;
 		recreateRuntime: () => Promise<number> | number;
@@ -245,9 +265,61 @@ export class PHP implements Disposable {
 			//		  parent context.
 			// Perhaps this library would be useful:
 			// https://github.com/WebReflection/coincident/
-			handler = createSpawnHandler(eval(handler));
+			handler = createSpawnHandler(eval(handler)) as SpawnHandler;
 		}
-		this[__private__dont__use].spawnProcess = handler;
+		this.#spawnHandler = handler;
+	}
+
+	/**
+	 * Overrides spawning of a specific binary, e.g. `sendmail`. The override
+	 * applies to any argv[0] whose basename matches `command` and takes
+	 * precedence over the handler installed via setSpawnHandler().
+	 */
+	setCommandSpawnHandler(command: string, handler: SpawnHandler) {
+		this.#commandSpawnHandlers.set(command, handler);
+	}
+
+	/**
+	 * Routes every process spawn requested by the PHP runtime.
+	 *
+	 * Commands registered via setCommandSpawnHandler() are dispatched to
+	 * their dedicated handlers; setSpawnHandler() cannot displace them.
+	 * Every other command is delegated to the handler installed via
+	 * setSpawnHandler().
+	 */
+	#dispatchSpawn(
+		command: string | string[],
+		args: string[] = [],
+		options: any = {}
+	) {
+		const commandArray = Array.isArray(command)
+			? command
+			: args.length
+				? [command as string, ...args]
+				: splitShellCommand(command as string);
+		const commandSpawnHandler =
+			commandArray[0] &&
+			this.#commandSpawnHandlers.get(basename(commandArray[0]));
+		if (commandSpawnHandler) {
+			return (commandSpawnHandler as any)(
+				commandArray[0],
+				commandArray.slice(1),
+				options
+			);
+		}
+		if (this.#spawnHandler) {
+			return (this.#spawnHandler as any)(command, args, options);
+		}
+		// Throw the same error the Emscripten runtime used to throw when
+		// no Module["spawnProcess"] was provided. The PHP-side popen() and
+		// proc_open() bindings recognize the SPAWN_UNSUPPORTED code and
+		// translate it to ENOSYS.
+		const error = new Error(
+			`popen(), proc_open() are unsupported on this PHP instance. Call php.setSpawnHandler()
+			and provide a callback to handle spawning processes, or disable popen(), proc_open() via php.ini.`
+		);
+		(error as any).code = 'SPAWN_UNSUPPORTED';
+		throw error;
 	}
 
 	/** @deprecated Use PHPRequestHandler instead. */
@@ -279,6 +351,14 @@ export class PHP implements Disposable {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+		// The runtime never sees user-provided spawn handlers directly –
+		// every spawn flows through the dispatcher so that per-command
+		// handlers cannot be displaced by a setSpawnHandler() call.
+		runtime.spawnProcess = (
+			command: string | string[],
+			args?: string[],
+			options?: any
+		) => this.#dispatchSpawn(command, args, options);
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
 			null,
@@ -1415,7 +1495,6 @@ export class PHP implements Disposable {
 
 		const oldFS = this[__private__dont__use].FS;
 		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
-		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Temporarily set CWD to / and restore it at the end of this method.
 		//
@@ -1463,12 +1542,9 @@ export class PHP implements Disposable {
 			// Ignore the exit-related exception
 		}
 
-		// Initialize the new runtime
+		// Initialize the new runtime. The new runtime gets a fresh spawn
+		// dispatcher; the spawn handlers survive on this instance.
 		this.initializeRuntime(runtime);
-
-		if (oldSpawnProcess) {
-			this[__private__dont__use].spawnProcess = oldSpawnProcess;
-		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
@@ -1533,6 +1609,10 @@ export class PHP implements Disposable {
 	/**
 	 * Mounts a filesystem to a given path in the PHP filesystem.
 	 *
+	 * The returned unmount function removes the mount from runtime-rotation
+	 * tracking on success or ordinary failure. `MountStillActiveError` leaves it
+	 * tracked because the handler guarantees the mount remains live and retryable.
+	 *
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 * @param  mountHandler - The mount handler to use.
 	 * @return Unmount function to unmount the filesystem.
@@ -1551,13 +1631,17 @@ export class PHP implements Disposable {
 			unmount: async () => {
 				try {
 					await unmountCallback();
-				} finally {
-					// JS mount tracking is authoritative. Even if the
-					// underlying filesystem unmount fails, forget this entry
-					// so later runtime swaps and remounts cannot reuse a stale
-					// mount handler.
+				} catch (error) {
+					if (error instanceof MountStillActiveError) {
+						throw error;
+					}
+					// Unless the callback guarantees that the mount remains live,
+					// retaining it could retry stale teardown state during a later
+					// runtime swap.
 					delete this.#mounts[virtualFSPath];
+					throw error;
 				}
+				delete this.#mounts[virtualFSPath];
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
@@ -1632,14 +1716,10 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
-		const process = this[__private__dont__use].spawnProcess(
-			argv[0],
-			argv.slice(1),
-			{
-				env: options.env,
-				cwd: options.cwd ?? this.cwd(),
-			}
-		) as ChildProcess;
+		const process = this.#dispatchSpawn(argv[0], argv.slice(1), {
+			env: options.env,
+			cwd: options.cwd ?? this.cwd(),
+		}) as ChildProcess;
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
