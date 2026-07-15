@@ -109,7 +109,7 @@
 }
 
 .caption {
-	font-weight: 400;
+	font-weight: 300;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
 	line-height: 1.12;
