@@ -175,10 +175,27 @@
 	margin-right: -2px;
 }
 
+.exportMenuItemWithHint {
+	height: auto;
+	justify-content: flex-start;
+	min-height: 52px;
+	padding-bottom: 8px;
+	padding-top: 8px;
+	text-align: left;
+}
+
+.exportMenuItemWithHint :global(.components-menu-item__item) {
+	align-items: flex-start;
+	min-width: 0;
+	white-space: normal;
+}
+
 .exportMenuItemBody {
+	align-items: flex-start;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	line-height: 1.4;
 	white-space: normal;
 }
 
@@ -188,6 +205,7 @@
 	font-weight: 400;
 	line-height: 1.4;
 	max-width: 240px;
+	white-space: normal;
 }
 
 .runHint {

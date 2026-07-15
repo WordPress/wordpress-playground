@@ -844,6 +844,9 @@ export const BlueprintBundleEditor = forwardRef<
 													<MenuGroup>
 														<MenuItem
 															icon={link}
+															className={
+																styles.exportMenuItemWithHint
+															}
 															disabled={
 																!isBundleShareable
 															}
@@ -858,7 +861,8 @@ export const BlueprintBundleEditor = forwardRef<
 																}
 															>
 																<span>
-																	Copy Blueprint
+																	Copy
+																	Blueprint
 																	URL
 																</span>
 																{!isBundleShareable && (
@@ -867,7 +871,15 @@ export const BlueprintBundleEditor = forwardRef<
 																			styles.exportMenuItemHint
 																		}
 																	>
-																		Multi-file Blueprints can’t be shared as a URL — download a zip instead.
+																		Multi-file
+																		Blueprints
+																		can’t be
+																		shared
+																		as a URL
+																		—
+																		download
+																		a zip
+																		instead.
 																	</span>
 																)}
 															</span>
