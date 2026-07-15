@@ -161,35 +161,47 @@ async function mockGitHubOAuth(page: Page, browserName: string) {
 }
 
 async function mockGitHubRepositoryAnalysis(page: Page) {
-	await page
-		.context()
-		.route(
-			'https://api.github.com/repos/playground-test/import-source**',
-			async (route) => {
-				const url = new URL(route.request().url());
-				let body;
-				if (url.pathname === '/repos/playground-test/import-source') {
-					body = { default_branch: 'trunk' };
-				} else if (
-					url.pathname ===
-					'/repos/playground-test/import-source/branches/trunk'
-				) {
-					body = { commit: { sha: 'test-commit-sha' } };
-				} else if (
-					url.pathname ===
-					'/repos/playground-test/import-source/contents'
-				) {
-					body = [{ name: 'plugin.php', type: 'file' }];
-				} else {
-					await route.abort();
-					return;
-				}
-				await route.fulfill({
-					contentType: 'application/json',
-					body: JSON.stringify(body),
-				});
+	// WebKit does not intercept these cross-origin requests with context.route,
+	// so mock fetch before the application initializes.
+	await page.addInitScript(() => {
+		const originalFetch = window.fetch;
+		window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+			const requestUrl =
+				input instanceof Request ? input.url : String(input);
+			const url = new URL(requestUrl);
+			if (
+				url.origin !== 'https://api.github.com' ||
+				!url.pathname.startsWith('/repos/playground-test/import-source')
+			) {
+				return originalFetch.call(this, input, init);
 			}
-		);
+
+			let body;
+			if (url.pathname === '/repos/playground-test/import-source') {
+				body = { default_branch: 'trunk' };
+			} else if (
+				url.pathname ===
+				'/repos/playground-test/import-source/branches/trunk'
+			) {
+				body = { commit: { sha: 'test-commit-sha' } };
+			} else if (
+				url.pathname === '/repos/playground-test/import-source/contents'
+			) {
+				body = [{ name: 'plugin.php', type: 'file' }];
+			} else {
+				return Promise.reject(
+					new Error(`Unexpected GitHub API request: ${url}`)
+				);
+			}
+
+			return Promise.resolve(
+				new Response(JSON.stringify(body), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				})
+			);
+		} as typeof fetch;
+	});
 }
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
