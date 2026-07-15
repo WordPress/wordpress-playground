@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, Notice, Spinner, Tooltip } from '@wordpress/components';
+import {
+	Button,
+	Notice,
+	Spinner,
+	Tooltip,
+	VisuallyHidden,
+} from '@wordpress/components';
 import { cautionFilled, check, pending } from '@wordpress/icons';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
@@ -569,6 +575,11 @@ export function PlaygroundFileEditor({
 							>
 								{saveStatusLabel}
 							</div>
+						) : null}
+						{dockPresentation && !readOnly && currentPath ? (
+							<VisuallyHidden role="status" aria-live="polite">
+								{dockSaveTooltip}
+							</VisuallyHidden>
 						) : null}
 					</div>
 					{saveError ? (

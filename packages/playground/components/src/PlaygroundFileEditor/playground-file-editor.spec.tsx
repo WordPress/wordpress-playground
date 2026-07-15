@@ -136,6 +136,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		await clickButton('Open test file');
 		const saveButton = findButton('Save');
 		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(findSaveStatus().textContent).toBe('All changes saved.');
 		expect(
 			saveButton.classList.contains(styles['dockSaveButtonSaved'])
 		).toBe(true);
@@ -143,6 +144,9 @@ describe('PlaygroundFileEditor presentation', () => {
 		await clickButton('Edit test file');
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
+		expect(findSaveStatus().textContent).toBe(
+			'Unsaved changes. Click to save now.'
+		);
 		expect(
 			saveButton.classList.contains(styles['dockSaveButtonPending'])
 		).toBe(true);
@@ -154,6 +158,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		);
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(findSaveStatus().textContent).toBe('Saving changes…');
 		expect(container.querySelector('.components-spinner')).toBeNull();
 
 		await act(async () => {
@@ -174,6 +179,7 @@ describe('PlaygroundFileEditor presentation', () => {
 			await writePromise;
 		});
 		expect(findButton('Save')).toBe(saveButton);
+		expect(findSaveStatus().textContent).toBe('All changes saved.');
 		expect(
 			saveButton.classList.contains(styles['dockSaveButtonSaved'])
 		).toBe(true);
@@ -236,5 +242,13 @@ describe('PlaygroundFileEditor presentation', () => {
 			throw new Error(`Could not find button “${label}”.`);
 		}
 		return button;
+	}
+
+	function findSaveStatus() {
+		const status = container.querySelector('[role="status"]');
+		if (!status) {
+			throw new Error('Could not find save status.');
+		}
+		return status;
 	}
 });

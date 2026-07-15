@@ -749,8 +749,6 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Type the new content with a delay between keystrokes
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
-	// Wait a moment for the change to be processed
-	await website.page.waitForTimeout(500);
 	const saveButton = filesPane.getByRole('button', {
 		name: 'Save',
 		exact: true,
