@@ -38,6 +38,7 @@ export const getExternalModules = () => {
 		'node:http',
 		'node:net',
 		'node:process',
+		'node:url',
 		/^@php-wasm\//,
 		/^@wp-playground\//,
 		...deps,
