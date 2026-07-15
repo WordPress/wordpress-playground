@@ -12,13 +12,12 @@ type SiteResetChanges = {
  *
  * Why the files need to be deleted:
  *
- * Autosaved Playgrounds keep the same sidebar entry and OPFS directory when the
- * user clicks "Apply Settings & Recreate Playground" or "Run Blueprint and
- * reset site". The metadata changes first: `wp-runtime.json` starts describing
- * the new setup or edited Blueprint. The WordPress files in that OPFS directory
- * still came from the previous setup, so they must be removed before the next
- * boot. Otherwise Playground would open the previous WordPress site while the
- * metadata says it should be using the new setup.
+ * The public autosave-recreation API keeps the same sidebar entry and OPFS
+ * directory while changing its setup. The metadata changes first:
+ * `wp-runtime.json` starts describing the new setup while the WordPress files in
+ * that OPFS directory still came from the previous setup. They must be removed
+ * before the next boot, or Playground would open the previous WordPress site
+ * while its metadata describes the replacement.
  *
  * How this makes that deletion safe across tab closes:
  *
@@ -34,9 +33,9 @@ type SiteResetChanges = {
  *
  * Do not use this when the existing WordPress files can keep running, such as
  * changing PHP version or networking. Those should update metadata and reboot
- * the same files. Longer term, the Dock UI should create a new Playground for
- * setup changes instead of deleting files from the current autosave; this
- * helper only protects today's behavior of deleting and recreating files under
+ * the same files. The Dock UI creates a fresh Playground for setup changes that
+ * need different WordPress files and for Blueprint runs; this helper only
+ * protects the public API's compatibility behavior of recreating files under
  * the same autosaved slug.
  */
 export async function resetAutosavedSiteFilesWithPendingMarker(

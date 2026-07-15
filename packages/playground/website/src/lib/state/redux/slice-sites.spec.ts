@@ -434,6 +434,32 @@ describe('stored site creation', () => {
 		expect(createSite).not.toHaveBeenCalled();
 	});
 
+	it('removes a partial Blueprint bundle when copying it fails', async () => {
+		const { createStoredSite } = await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		persistBlueprintBundle.mockRejectedValue(
+			new Error('Could not copy bundle')
+		);
+
+		await expect(
+			createStoredSite(
+				'Edited Blueprint',
+				createBundleBlueprint(),
+				'edited-blueprint'
+			)(createThunkDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Could not copy bundle');
+
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
+		expect(createSite).not.toHaveBeenCalled();
+	});
+
 	it('removes an edited Blueprint bundle when site creation fails', async () => {
 		const { createStoredSite } = await import('./slice-sites');
 		resolveRuntimeConfiguration.mockResolvedValue({

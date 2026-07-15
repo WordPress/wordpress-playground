@@ -623,7 +623,6 @@ export function createStoredSite(
 			? blueprint
 			: undefined;
 		if (blueprintBundle) {
-			await persistBlueprintBundle(siteSlug, blueprintBundle);
 			originalBlueprintSource = {
 				type: 'opfs-site',
 			};
@@ -652,6 +651,9 @@ export function createStoredSite(
 		};
 
 		try {
+			if (blueprintBundle) {
+				await persistBlueprintBundle(siteSlug, blueprintBundle);
+			}
 			await dispatch(addSite(newSiteInfo));
 		} catch (error) {
 			if (blueprintBundle) {
