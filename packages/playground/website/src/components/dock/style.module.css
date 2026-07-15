@@ -184,7 +184,7 @@
 	letter-spacing: 0.015em;
 	line-height: 1;
 	/* One line per label so every tool button is the same height and the icons
-	   stay on a shared baseline (a 2-line label like "Site details" otherwise
+	   stay on a shared baseline (a 2-line label like "Site Settings" otherwise
 	   made its button taller than its neighbours). */
 	white-space: nowrap;
 }
@@ -287,7 +287,7 @@
 	overflow: hidden;
 }
 
-/* Site details and Export hold short forms, so they get a
+/* Site Settings and Export hold short forms, so they get a
    narrower pane. Compound selector so it also beats the `.pane` width override
    in the mobile media query below (equal specificity, later in source). */
 .pane.pane-compact {

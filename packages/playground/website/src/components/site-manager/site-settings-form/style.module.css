@@ -68,9 +68,7 @@
 }
 
 .footer {
-	background-color: #f3f6fd;
-	border-top: 1px solid var(--line-subtle);
-	padding-top: var(--space-4);
+	padding-top: 0;
 	position: relative;
 	button {
 		width: 100%;
@@ -228,16 +226,16 @@
 	color: #304bd1;
 }
 
-.action-menu-item[aria-disabled='true'] {
+.action-menu-item:disabled {
 	color: #757575;
 	cursor: not-allowed;
 }
 
-.action-menu-item[aria-disabled='true'] .action-menu-description {
+.action-menu-item:disabled .action-menu-description {
 	color: inherit;
 }
 
-.action-menu-item[aria-disabled='true']:focus-visible {
+.action-menu-item:disabled:focus-visible {
 	box-shadow: inset 0 0 0 2px #949494;
 }
 

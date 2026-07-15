@@ -69,7 +69,7 @@ export class WebsitePage {
 			name: 'Playground tools',
 		});
 		if (await dock.isVisible()) {
-			await this.openDockPane('Site details', 'Site details pane');
+			await this.openDockPane('Site Settings', 'Site Settings pane');
 			return;
 		}
 
