@@ -228,16 +228,16 @@
 	color: #304bd1;
 }
 
-.action-menu-item[aria-disabled='true'] {
+.action-menu-item:disabled {
 	color: #757575;
 	cursor: not-allowed;
 }
 
-.action-menu-item[aria-disabled='true'] .action-menu-description {
+.action-menu-item:disabled .action-menu-description {
 	color: inherit;
 }
 
-.action-menu-item[aria-disabled='true']:focus-visible {
+.action-menu-item:disabled:focus-visible {
 	box-shadow: inset 0 0 0 2px #949494;
 }
 

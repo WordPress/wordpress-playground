@@ -47,13 +47,15 @@ export function SiteSettingsActionFooter({
 
 	useEffect(() => {
 		if (!canApplyToCurrent) {
-			forcedFreshActionRef.current = true;
-			setSelectedAction('fresh');
+			if (selectedAction === 'apply') {
+				forcedFreshActionRef.current = true;
+				setSelectedAction('fresh');
+			}
 		} else if (forcedFreshActionRef.current) {
 			forcedFreshActionRef.current = false;
 			setSelectedAction('apply');
 		}
-	}, [canApplyToCurrent]);
+	}, [canApplyToCurrent, selectedAction]);
 
 	return (
 		<VStack
@@ -198,12 +200,13 @@ function SettingsActionMenu({
 				type="button"
 				role="menuitem"
 				aria-disabled={!!applyUnavailableReason}
+				disabled={!!applyUnavailableReason}
 				className={`${css.actionMenuItem} ${
 					selectedAction === 'apply' && canApplyToCurrent
 						? css.selectedApplyMenuItem
 						: ''
 				}`}
-				onClick={() => !applyUnavailableReason && onSelectApply()}
+				onClick={onSelectApply}
 			>
 				<span className={css.actionMenuTitle}>
 					Apply to this Playground

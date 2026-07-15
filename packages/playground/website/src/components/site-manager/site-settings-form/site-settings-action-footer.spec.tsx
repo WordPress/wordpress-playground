@@ -164,9 +164,7 @@ describe('settings action footer', () => {
 		callback(defaults)) as SiteSettingsFormFooterContext['submit'];
 
 	function getButton(name: string): HTMLButtonElement {
-		const button = Array.from(
-			document.body.querySelectorAll('button')
-		).find(
+		const button = Array.from(container.querySelectorAll('button')).find(
 			(candidate) =>
 				candidate.textContent?.trim() === name ||
 				candidate.getAttribute('aria-label') === name
