@@ -2,6 +2,10 @@
 import css from './style.module.css';
 
 export interface ProgressBarOptions {
+	/**
+	 * @deprecated The startup loader no longer displays site titles.
+	 */
+	title?: string;
 	caption?: string;
 	progress?: number;
 	isIndefinite?: boolean;

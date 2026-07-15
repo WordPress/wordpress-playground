@@ -10,9 +10,11 @@ describe('ProgressBar', () => {
 
 	it('shows the boot caption as a heading and announces updates', () => {
 		const progressBar = new ProgressBar({
+			title: 'Curious Harbor',
 			caption: 'Preparing WordPress',
 		});
 
+		expect(progressBar.element.textContent).not.toContain('Curious Harbor');
 		expect(progressBar.captionElement.textContent).toBe(
 			'Preparing WordPress'
 		);
