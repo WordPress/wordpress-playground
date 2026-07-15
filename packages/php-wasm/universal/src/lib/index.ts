@@ -74,6 +74,8 @@ export {
 } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
+export { phpEventStdinTransfer } from '@php-wasm/util';
+export type { PHPEventWithStdinTransfer } from '@php-wasm/util';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,

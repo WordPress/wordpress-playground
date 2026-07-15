@@ -1,4 +1,8 @@
-import { exposeAPI, PHPWorker } from '@php-wasm/universal';
+import {
+	exposeAPI,
+	PHPWorker,
+	phpEventStdinTransfer,
+} from '@php-wasm/universal';
 
 self.postMessage('worker-script-started');
 
@@ -53,7 +57,11 @@ class ReadableStreamWorker extends PHPWorker {
 		}
 
 		try {
-			this.dispatchEvent({ type: 'test.stream', stdin: stream });
+			this.dispatchEvent({
+				type: 'test.stream',
+				stdin: stream,
+				[phpEventStdinTransfer]: true,
+			});
 		} finally {
 			MessagePort.prototype.postMessage = originalPostMessage;
 			this.#transferableStreamProbeRejected =

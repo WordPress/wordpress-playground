@@ -5,6 +5,7 @@ import {
 	createSpawnHandler,
 	dirname,
 	joinPaths,
+	phpEventStdinTransfer,
 	splitShellCommand,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
@@ -198,7 +199,33 @@ export class PHP implements Disposable {
 			...(this.#eventListeners.get(event.type) || []),
 			...(this.#eventListeners.get('*') || []),
 		];
-		if (!listeners) {
+		if (listeners.length === 0) {
+			return;
+		}
+		const transfersStdin =
+			phpEventStdinTransfer in event &&
+			event[phpEventStdinTransfer] === true &&
+			'stdin' in event &&
+			typeof ReadableStream !== 'undefined' &&
+			event.stdin instanceof ReadableStream;
+		if (listeners.length > 1 && transfersStdin) {
+			/**
+			 * A stream permits only one active reader, and a transferred stream cannot
+			 * be transferred again. Split the unassigned branch before calling each
+			 * listener, then give the final branch to the final listener. PHPWorker may
+			 * split its wildcard branch again for remote listeners. Unread branches may
+			 * buffer the full input because tee() does not coordinate backpressure.
+			 */
+			let remainingStdin = event.stdin as ReadableStream<Uint8Array>;
+			for (let index = 0; index < listeners.length - 1; index++) {
+				const [stdin, nextStdin] = remainingStdin.tee();
+				remainingStdin = nextStdin;
+				listeners[index]({ ...event, stdin } as Event);
+			}
+			listeners[listeners.length - 1]({
+				...event,
+				stdin: remainingStdin,
+			} as Event);
 			return;
 		}
 		for (const listener of listeners) {
