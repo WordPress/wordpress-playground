@@ -846,7 +846,9 @@ export const BlueprintBundleEditor = forwardRef<
 													<MenuItem
 														icon={link}
 														className={
-															styles.exportMenuItemWithHint
+															!isBundleShareable
+																? styles.exportMenuItemWithHint
+																: undefined
 														}
 														aria-label="Copy Blueprint URL"
 														aria-describedby={
