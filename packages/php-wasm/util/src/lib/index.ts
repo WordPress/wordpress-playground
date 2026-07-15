@@ -13,6 +13,8 @@ export {
 	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
+export { phpEventStdinTransfer } from './php-event';
+export type { PHPEventWithStdinTransfer } from './php-event';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';

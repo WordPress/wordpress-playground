@@ -1,6 +1,70 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSpawnHandler } from '@php-wasm/util';
+import {
+	createSpawnHandler,
+	phpEventStdinTransfer,
+	type PHPEventWithStdinTransfer,
+} from '@php-wasm/util';
 import { __private__dont__use, MountStillActiveError, PHP } from './php';
+
+type RuntimeInitializedWithStdin = PHPEventWithStdinTransfer & {
+	type: 'runtime.initialized';
+};
+
+describe('PHP events', () => {
+	it('gives every matching listener its own branded stdin stream', async () => {
+		const php = new PHP();
+		const streamContents: Promise<number[]>[] = [];
+		const collectStdin = (event: RuntimeInitializedWithStdin) => {
+			// Lock each stream immediately, before dispatch advances to the next listener.
+			streamContents.push(readStream(event.stdin));
+		};
+		php.addEventListener('runtime.initialized', (event) => {
+			if (event.type === 'runtime.initialized') {
+				collectStdin(event as RuntimeInitializedWithStdin);
+			}
+		});
+		php.addEventListener('runtime.initialized', (event) => {
+			if (event.type === 'runtime.initialized') {
+				collectStdin(event as RuntimeInitializedWithStdin);
+			}
+		});
+		php.addEventListener('*', (event) => {
+			if (event.type === 'runtime.initialized') {
+				collectStdin(event as RuntimeInitializedWithStdin);
+			}
+		});
+
+		php.dispatchEvent({
+			type: 'runtime.initialized',
+			stdin: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new Uint8Array([1, 2, 3]));
+					controller.close();
+				},
+			}),
+			[phpEventStdinTransfer]: true,
+		} satisfies RuntimeInitializedWithStdin);
+
+		expect(streamContents).toHaveLength(3);
+		expect(await Promise.all(streamContents)).toEqual([
+			[1, 2, 3],
+			[1, 2, 3],
+			[1, 2, 3],
+		]);
+	});
+});
+
+async function readStream(stream: ReadableStream<Uint8Array>) {
+	const bytes: number[] = [];
+	const reader = stream.getReader();
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			return bytes;
+		}
+		bytes.push(...value);
+	}
+}
 
 describe('PHP mounts', () => {
 	it('forgets mount tracking even when the unmount callback fails', async () => {
