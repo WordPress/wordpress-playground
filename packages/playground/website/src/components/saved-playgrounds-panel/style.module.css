@@ -813,7 +813,7 @@
 
 .playgrounds-pane.new-pane .creationIcon {
 	align-items: center;
-	color: var(--ink-soft, #2f2d28);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex: none;
 	height: 20px;
@@ -824,12 +824,6 @@
 .playgrounds-pane.new-pane .creationIcon :global(svg) {
 	height: 20px;
 	width: 20px;
-}
-
-/* One icon language: every glyph (incl. the solid octocat) follows currentColor
-   so the tab icons read as one set. */
-.playgrounds-pane.new-pane .creationIcon :global(svg path) {
-	fill: currentColor;
 }
 
 .playgrounds-pane.new-pane .creationTitle {
@@ -863,8 +857,8 @@
 	}
 }
 
-/* Active tab: a raised white segment with a defined edge and an accent icon —
-   it reads above the resting cells by value, not by shadow alone. */
+/* Active tab: a raised white segment with a defined edge; it reads above
+   the resting cells by value, not by shadow alone. */
 .playgrounds-pane.new-pane .creationButtonActive,
 .playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
 	background: #ffffff;
@@ -881,7 +875,7 @@
 }
 
 .playgrounds-pane.new-pane .creationButtonActive .creationIcon {
-	color: var(--accent, #3858e9);
+	color: var(--action-icon, #4f4b45);
 }
 
 /* The active tab's flow scrolls within this panel; a sticky heading names it. */
@@ -1212,8 +1206,14 @@
 
 .playgrounds-pane .creationIcon,
 .playgrounds-pane .creationIcon :global(svg) {
-	color: #3858e9;
-	fill: #3858e9;
+	color: var(--action-icon, #4f4b45);
+	fill: currentColor;
+}
+
+/* One icon language: every glyph (incl. the solid octocat) follows currentColor
+   so the action icons read as one set. */
+.playgrounds-pane .creationIcon :global(svg [stroke]:not([stroke='none'])) {
+	stroke: currentColor;
 }
 
 /* The WordPress mark hardcodes a white path fill, which an svg-level rule can't
