@@ -183,6 +183,21 @@
 	color: var(--ink-faint, #787c82);
 }
 
+.dockDirtyIndicator {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	margin-left: 8px;
+	border-radius: 50%;
+	background: var(--ink-faint, #787c82);
+	vertical-align: middle;
+}
+
+.dockSavingStatus {
+	margin-left: 8px;
+	color: var(--ink-faint, #787c82);
+}
+
 .dockPresentation .editor,
 .dockPresentation .editor :global(.cm-editor) {
 	background: var(--paper-1, #ffffff);

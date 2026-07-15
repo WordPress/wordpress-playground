@@ -113,7 +113,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		).toBe(true);
 	});
 
-	it('keeps one Dock Save button and flushes a pending edit on click', async () => {
+	it('keeps the Dock Save button stable and flushes a pending edit on click', async () => {
 		vi.useFakeTimers();
 		let finishWrite: () => void = () => {};
 		const writePromise = new Promise<void>((resolve) => {
@@ -135,9 +135,11 @@ describe('PlaygroundFileEditor presentation', () => {
 
 		await clickButton('Open test file');
 		const saveButton = findButton('Save');
-		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
 		expect(findSaveStatus().textContent).toBe('All changes saved.');
 		expect(saveButton.classList.contains('is-secondary')).toBe(true);
+		expect(saveButton.querySelector('svg')).toBeNull();
+		expect(findDirtyIndicator()).toBeNull();
 
 		await clickButton('Edit test file');
 		expect(findButton('Save')).toBe(saveButton);
@@ -146,26 +148,34 @@ describe('PlaygroundFileEditor presentation', () => {
 			'Unsaved changes. Click to save now.'
 		);
 		expect(saveButton.classList.contains('is-secondary')).toBe(true);
+		expect(saveButton.querySelector('svg')).toBeNull();
+		const dirtyIndicator = findDirtyIndicator();
+		expect(dirtyIndicator).not.toBeNull();
+
+		await clickButton('Edit test file');
+		expect(findDirtyIndicator()).toBe(dirtyIndicator);
 
 		await clickButton('Save');
 		expect(filesystem.writeFile).toHaveBeenCalledWith(
 			'/wordpress/test.php',
-			'initial!'
+			'initial!!'
 		);
 		expect(findButton('Save')).toBe(saveButton);
-		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
 		expect(findSaveStatus().textContent).toBe('Saving changes…');
-		expect(container.querySelector('.components-spinner')).toBeNull();
+		expect(findDirtyIndicator()).toBe(dirtyIndicator);
+		expect(findSavingStatus()).toBeNull();
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(699);
 		});
-		expect(container.querySelector('.components-spinner')).toBeNull();
+		expect(findSavingStatus()).toBeNull();
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(1);
 		});
-		expect(container.querySelector('.components-spinner')).not.toBeNull();
+		expect(findSavingStatus()?.textContent).toBe('Saving…');
+		expect(saveButton.querySelector('svg')).toBeNull();
 
 		await act(async () => {
 			finishWrite();
@@ -173,6 +183,8 @@ describe('PlaygroundFileEditor presentation', () => {
 		});
 		expect(findButton('Save')).toBe(saveButton);
 		expect(findSaveStatus().textContent).toBe('All changes saved.');
+		expect(findDirtyIndicator()).toBeNull();
+		expect(findSavingStatus()).toBeNull();
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(2000);
@@ -201,6 +213,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		const saveButton = findButton('Save');
 		await clickButton('Edit test file');
 		expect(findButton('Save')).toBe(saveButton);
+		expect(findDirtyIndicator()).not.toBeNull();
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(1499);
@@ -214,7 +227,8 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(filesystem.writeFile).toHaveBeenCalledOnce();
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.textContent).toBe('Save');
-		expect(container.querySelector('.components-spinner')).toBeNull();
+		expect(saveButton.querySelector('svg')).toBeNull();
+		expect(findDirtyIndicator()).toBeNull();
 	});
 
 	async function clickButton(label: string) {
@@ -237,5 +251,13 @@ describe('PlaygroundFileEditor presentation', () => {
 			throw new Error('Could not find save status.');
 		}
 		return status;
+	}
+
+	function findDirtyIndicator() {
+		return container.querySelector(`.${styles['dockDirtyIndicator']}`);
+	}
+
+	function findSavingStatus() {
+		return container.querySelector(`.${styles['dockSavingStatus']}`);
 	}
 });

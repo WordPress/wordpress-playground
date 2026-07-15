@@ -757,7 +757,10 @@ test('should edit a file in the code editor and see changes in the viewport', as
 
 	// Save immediately instead of waiting for the autosave debounce.
 	await saveButton.click();
-	await expect(saveButton).toHaveAttribute('aria-disabled', 'true');
+	await expect(filesPane.getByRole('status')).toHaveText(
+		'All changes saved.'
+	);
+	await expect(saveButton).toBeEnabled();
 	await expect(saveButton).toHaveText('Save');
 
 	// Close the site manager to see the viewport

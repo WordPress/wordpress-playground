@@ -1,13 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import {
-	Button,
-	Notice,
-	Spinner,
-	Tooltip,
-	VisuallyHidden,
-} from '@wordpress/components';
-import { cautionFilled, check, pending } from '@wordpress/icons';
+import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
@@ -63,7 +56,7 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [showSavingSpinner, setShowSavingSpinner] = useState(false);
+	const [showSavingStatus, setShowSavingStatus] = useState(false);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -285,15 +278,15 @@ export function PlaygroundFileEditor({
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
-	// Fast filesystem writes should not flash a spinner between pending and
-	// saved. Only surface progress when the write lasts long enough to be useful.
+	// Fast filesystem writes should not flash a saving status. Only surface
+	// progress when the write lasts long enough to be useful.
 	useEffect(() => {
 		if (saveState !== SaveState.SAVING) {
-			setShowSavingSpinner(false);
+			setShowSavingStatus(false);
 			return;
 		}
 		const timeout = window.setTimeout(
-			() => setShowSavingSpinner(true),
+			() => setShowSavingStatus(true),
 			SAVING_STATUS_DELAY_MS
 		);
 		return () => window.clearTimeout(timeout);
@@ -458,23 +451,11 @@ export function PlaygroundFileEditor({
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
-	const dockSaveIconState = getDockSaveIconState(
-		saveState,
-		showSavingSpinner
-	);
 	const dockSaveTooltip = getDockSaveTooltip(saveState);
-	const dockSaveIcon =
-		dockSaveIconState === 'error' ? (
-			cautionFilled
-		) : dockSaveIconState === 'saving' ? (
-			<Spinner />
-		) : dockSaveIconState === 'pending' ? (
-			pending
-		) : (
-			check
-		);
-	const dockSaveDisabled =
-		saveState !== SaveState.PENDING && saveState !== SaveState.ERROR;
+	const dockHasUnsavedChanges =
+		saveState === SaveState.PENDING ||
+		saveState === SaveState.SAVING ||
+		saveState === SaveState.ERROR;
 
 	if (!filesystem) {
 		return (
@@ -539,19 +520,26 @@ export function PlaygroundFileEditor({
 							{currentPath?.length
 								? currentPath
 								: `Browse files under ${documentRoot}`}
+							{dockPresentation && dockHasUnsavedChanges ? (
+								<span
+									className={styles['dockDirtyIndicator']}
+									aria-hidden="true"
+								/>
+							) : null}
+							{dockPresentation && showSavingStatus ? (
+								<span className={styles['dockSavingStatus']}>
+									Saving…
+								</span>
+							) : null}
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
 							<Tooltip text={dockSaveTooltip} placement="top">
 								<Button
 									variant="secondary"
 									className={styles['dockSaveButton']}
-									icon={dockSaveIcon}
-									iconSize={16}
 									isDestructive={
-										dockSaveIconState === 'error'
+										saveState === SaveState.ERROR
 									}
-									disabled={dockSaveDisabled}
-									accessibleWhenDisabled
 									onClick={handleDockManualSave}
 								>
 									Save
@@ -635,22 +623,6 @@ function getSaveStatusClassName(
 		default:
 			return undefined;
 	}
-}
-
-function getDockSaveIconState(
-	saveState: SaveState,
-	showSavingSpinner: boolean
-) {
-	if (saveState === SaveState.ERROR) {
-		return 'error';
-	}
-	if (saveState === SaveState.SAVING && showSavingSpinner) {
-		return 'saving';
-	}
-	if (saveState === SaveState.PENDING || saveState === SaveState.SAVING) {
-		return 'pending';
-	}
-	return 'saved';
 }
 
 function getDockSaveTooltip(saveState: SaveState) {
