@@ -204,16 +204,19 @@ export namespace DataSources {
 		| `${Slug}@${SimpleVersionExpression}`;
 
 	/**
-	 * WordPress version, e.g. "latest", "beta", "trunk", "6.4",
+	 * WordPress version, e.g. "latest", "beta", "trunk", "none", "6.4",
 	 * "6.4.3", "6.8-RC1", or "6.7-beta2".
 	 *
 	 * These refer to slugs of specific WordPress releases as listed in
 	 * the first table column on https://wordpress.org/download/releases/.
+	 * "none" is not a release. It means the Blueprint runs PHP without
+	 * installing WordPress.
 	 *
 	 * The WordPressVersion type is only meaningful in the top-level
 	 * `wordpressVersion` property.
 	 */
 	export type WordPressVersion =
+		| 'none'
 		| 'beta'
 		| 'trunk'
 		| 'nightly'

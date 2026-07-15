@@ -346,7 +346,10 @@ function createV1BlueprintForLoweredV2Steps(
 	return {
 		preferredVersions: {
 			php: runtime.phpVersion,
-			wp: declaration.target === 'php' ? false : runtime.wpVersion,
+			wp:
+				declaration.wordpressVersion === 'none'
+					? false
+					: runtime.wpVersion,
 		},
 		features: {
 			intl: runtime.intl,

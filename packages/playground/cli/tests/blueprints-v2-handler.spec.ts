@@ -570,14 +570,14 @@ describe('BlueprintsV2Handler', () => {
 		);
 	});
 
-	test('boots v2 PHP targets without WordPress or SQLite', async () => {
+	test('boots v2 PHP-only Blueprints without WordPress or SQLite', async () => {
 		const handler = new BlueprintsV2Handler(
 			{
 				command: 'server',
 				wordpressInstallMode: 'download-and-install',
 				blueprint: {
 					version: 2,
-					target: 'php',
+					wordpressVersion: 'none',
 				},
 			} as RunCLIArgs,
 			{

@@ -130,7 +130,7 @@ function patchSchema(schema) {
 	patchStringDefinition(
 		definitions,
 		'DataSources.WordPressVersion',
-		'^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
+		'^(?:latest|beta|trunk|nightly|none|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
 	);
 	patchStringDefinition(
 		definitions,
@@ -179,7 +179,7 @@ function patchSchema(schema) {
 	];
 	// These declaration-wide invariants cannot be represented by the field
 	// types: removing the installer account must leave a manageable WordPress
-	// site, and PHP-only targets have no WordPress baseline to adjust.
+	// site, and PHP-only Blueprints have no WordPress baseline to adjust.
 	blueprint.allOf = [
 		{
 			if: {
@@ -205,8 +205,8 @@ function patchSchema(schema) {
 		},
 		{
 			if: {
-				properties: { target: { const: 'php' } },
-				required: ['target'],
+				properties: { wordpressVersion: { const: 'none' } },
+				required: ['wordpressVersion'],
 			},
 			then: {
 				properties: {

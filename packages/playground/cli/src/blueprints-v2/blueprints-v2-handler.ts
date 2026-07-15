@@ -316,7 +316,7 @@ export class BlueprintsV2Handler {
 /**
  * Detects PHP-only mode before upgrading v1 declarations to v2.
  *
- * V1 uses `preferredVersions.wp: false`; v2 names the application target.
+ * V1 uses `preferredVersions.wp: false`; v2 uses `wordpressVersion: "none"`.
  */
 async function blueprintRequestsPhpOnlyMode(
 	blueprint: RunCLIArgs['blueprint']
@@ -328,14 +328,14 @@ async function blueprintRequestsPhpOnlyMode(
 	const declaration = reflection.getDeclaration();
 	return reflection.getVersion() === 1
 		? (declaration as any).preferredVersions?.wp === false
-		: (declaration as BlueprintV2Declaration).target === 'php';
+		: (declaration as BlueprintV2Declaration).wordpressVersion === 'none';
 }
 
 /**
  * Maps Blueprint v2 CLI modes onto the worker's WordPress install modes.
  *
  * A PHP-only Blueprint wins over CLI defaults because downloading WordPress
- * would change the declared application target.
+ * would contradict `wordpressVersion: "none"`.
  */
 function resolveV2WordPressInstallMode(
 	args: RunCLIArgs,
@@ -344,7 +344,7 @@ function resolveV2WordPressInstallMode(
 	if (phpOnlyMode) {
 		if (args.mode && args.mode !== 'mount-only') {
 			throw new Error(
-				'Conflicting options: WordPress was requested, but the Blueprint targets PHP without WordPress. Pick one.'
+				'Conflicting options: WordPress was requested, but the Blueprint sets `wordpressVersion: "none"`. Pick one.'
 			);
 		}
 		return 'do-not-attempt-installing';
@@ -401,10 +401,7 @@ function applyCliOptionsToBlueprint(
 	if (blueprint.phpVersion === undefined) {
 		blueprint.phpVersion = args.php || RecommendedPHPVersion;
 	}
-	if (
-		blueprint.target !== 'php' &&
-		blueprint.wordpressVersion === undefined
-	) {
+	if (blueprint.wordpressVersion === undefined) {
 		blueprint.wordpressVersion = args.wp || 'latest';
 	}
 	const playgroundOptions =

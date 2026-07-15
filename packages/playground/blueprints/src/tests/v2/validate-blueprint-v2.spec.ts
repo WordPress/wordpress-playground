@@ -9,8 +9,10 @@ describe('Blueprint v2 schema validation', () => {
 		expect(validateBlueprintV2({ version: 2 })).toEqual({ valid: true });
 	});
 
-	it.each(['wordpress', 'php'])('accepts the %s target', (target) => {
-		expect(validateBlueprintV2({ version: 2, target })).toEqual({
+	it('accepts wordpressVersion "none"', () => {
+		expect(
+			validateBlueprintV2({ version: 2, wordpressVersion: 'none' })
+		).toEqual({
 			valid: true,
 		});
 	});
@@ -196,15 +198,15 @@ describe('Blueprint v2 schema validation', () => {
 			'/applicationOptions/wordpress-playground/loadPhpExtensions/0',
 		],
 		[
-			'an unsupported application target',
-			{ version: 2, target: 'node' },
-			'/target',
+			'an unsupported WordPress version sentinel',
+			{ version: 2, wordpressVersion: 'node' },
+			'/wordpressVersion',
 		],
 		[
-			'a WordPress content baseline on a PHP target',
+			'a WordPress content baseline without WordPress',
 			{
 				version: 2,
-				target: 'php',
+				wordpressVersion: 'none',
 				contentBaseline: 'default',
 			},
 			'/contentBaseline',

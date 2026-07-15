@@ -743,7 +743,6 @@ const additionalSteps = [
 
 const maximalDeclaration = {
 	version: 2 as const,
-	target: 'wordpress' as const,
 	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
 	blueprintMeta: {
 		name: 'Schema conformance',
@@ -914,10 +913,10 @@ export const v2SchemaConformanceCases = [
 		declaration: maximalDeclaration,
 	},
 	{
-		name: 'PHP target',
+		name: 'PHP-only Blueprint',
 		declaration: {
 			version: 2,
-			target: 'php',
+			wordpressVersion: 'none',
 		},
 	},
 	{

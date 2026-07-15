@@ -12,15 +12,6 @@ export namespace V2Schema {
 		version: 2;
 
 		/**
-		 * The application environment this Blueprint prepares. WordPress is
-		 * installed by default. A PHP target boots the PHP runtime without
-		 * downloading WordPress or initializing its database.
-		 *
-		 * @default "wordpress"
-		 */
-		target?: 'wordpress' | 'php';
-
-		/**
 		 * JSON Schema URL.
 		 */
 		$schema?: DataSources.URLReference | DataSources.ExecutionContextPath;
@@ -98,10 +89,11 @@ export namespace V2Schema {
 		 *
 		 * This policy runs only when the current invocation creates vanilla
 		 * WordPress. It is skipped when applying the Blueprint to an existing site,
-		 * so it cannot erase content from that site. It is not valid for a PHP
-		 * target. Metadata and relationships follow their parent content. Empty
-		 * content tables have their sequences reset so subsequent imports receive
-		 * the identifiers they would on a site created without default content.
+		 * so it cannot erase content from that site. It is not valid when
+		 * `wordpressVersion` is "none". Metadata and relationships follow their
+		 * parent content. Empty content tables have their sequences reset so
+		 * subsequent imports receive the identifiers they would on a site created
+		 * without default content.
 		 *
 		 * Comments can only be retained together with both posts and pages because
 		 * the schema cannot know which type contains their parent records.
@@ -125,7 +117,7 @@ export namespace V2Schema {
 		 * the resulting WordPress site remains manageable.
 		 *
 		 * Like `contentBaseline`, this policy is skipped when applying the Blueprint
-		 * to an existing site and is not valid for a PHP target.
+		 * to an existing site and is not valid when `wordpressVersion` is "none".
 		 *
 		 * @default "default"
 		 */
@@ -224,7 +216,8 @@ export namespace V2Schema {
 		 *
 		 * A string selects the version for a newly created site. A branch such as
 		 * `6.8` selects the newest available release in that branch. Strings are
-		 * selection hints and do not reject an existing site.
+		 * selection hints and do not reject an existing site. `"none"` boots the
+		 * PHP runtime without downloading WordPress or initializing its database.
 		 *
 		 * An object declares compatibility bounds. The runner chooses the newest
 		 * available release within those bounds for a new site and verifies an

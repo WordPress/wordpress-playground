@@ -81,7 +81,8 @@ export class BlueprintsV2Handler {
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
 		const resolvedWordPressInstallMode =
-			compiled.version === 2 && compiled.declaration.target === 'php'
+			compiled.version === 2 &&
+			compiled.declaration.wordpressVersion === 'none'
 				? 'do-not-attempt-installing'
 				: requestedWordPressInstallMode;
 		const usesExistingWordPressFiles = isExistingSiteInstallMode(

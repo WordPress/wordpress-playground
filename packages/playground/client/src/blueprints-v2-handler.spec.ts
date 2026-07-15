@@ -133,11 +133,11 @@ describe('BlueprintsV2Handler', () => {
 		expect(onClientConnected).toHaveBeenCalledWith(mocks.playground);
 	});
 
-	it('boots PHP targets without installing WordPress', async () => {
+	it('boots PHP-only Blueprints without installing WordPress', async () => {
 		const iframe = createIframe();
 		const blueprint = {
 			version: 2,
-			target: 'php',
+			wordpressVersion: 'none',
 		} as const;
 		const handler = new BlueprintsV2Handler({
 			iframe,
@@ -156,12 +156,11 @@ describe('BlueprintsV2Handler', () => {
 		expect(mocks.resolveBlueprintV2WordPressSource).not.toHaveBeenCalled();
 	});
 
-	it('does not preflight existing WordPress files for PHP targets', async () => {
+	it('does not preflight existing WordPress files for PHP-only Blueprints', async () => {
 		const iframe = createIframe();
 		const blueprint = {
 			version: 2,
-			target: 'php',
-			wordpressVersion: { min: '6.8' },
+			wordpressVersion: 'none',
 		} as const;
 		const handler = new BlueprintsV2Handler({
 			iframe,

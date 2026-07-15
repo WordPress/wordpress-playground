@@ -102,19 +102,19 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
-	it('runs PHP-target steps without requiring WordPress', async () => {
+	it('runs PHP-only steps without requiring WordPress', async () => {
 		const playground = {
-			run: vi.fn().mockResolvedValue({ text: 'PHP target' }),
+			run: vi.fn().mockResolvedValue({ text: 'PHP-only Blueprint' }),
 		};
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
-			target: 'php',
+			wordpressVersion: 'none',
 			additionalStepsAfterExecution: [
 				{
 					step: 'runPHP',
 					code: {
 						filename: 'php-target.php',
-						content: '<?php echo "PHP target";',
+						content: '<?php echo "PHP-only Blueprint";',
 					},
 				},
 			],
@@ -123,7 +123,7 @@ describe('compileBlueprintForExecution', () => {
 		await compiled.run(playground as any);
 
 		expect(playground.run).toHaveBeenCalledWith({
-			code: '<?php echo "PHP target";',
+			code: '<?php echo "PHP-only Blueprint";',
 		});
 	});
 

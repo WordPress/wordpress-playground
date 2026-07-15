@@ -1,10 +1,10 @@
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
 describe('Blueprint v2 declaration types', () => {
-	it('accepts WordPress and PHP application targets', () => {
+	it('accepts a PHP-only WordPress version sentinel', () => {
 		const blueprints = [
-			{ version: 2, target: 'wordpress' },
-			{ version: 2, target: 'php' },
+			{ version: 2, wordpressVersion: 'latest' },
+			{ version: 2, wordpressVersion: 'none' },
 		] satisfies BlueprintV2Declaration[];
 
 		expect(blueprints).toHaveLength(2);
@@ -408,10 +408,10 @@ const blueprintWithUnsupportedContentBaselineType = {
 	contentBaseline: ['users'],
 } satisfies BlueprintV2Declaration;
 
-const blueprintWithUnsupportedTarget = {
+const blueprintWithUnsupportedWordPressVersion = {
 	version: 2,
-	// @ts-expect-error Only WordPress and PHP application targets are supported.
-	target: 'node',
+	// @ts-expect-error Only supported WordPress version values are accepted.
+	wordpressVersion: 'node',
 } satisfies BlueprintV2Declaration;
 
 void blueprintWithDirectoryAsRunPHPCode;
@@ -428,4 +428,4 @@ void blueprintWithNonComparablePHPVersionRecommendation;
 void blueprintWithUrlMappingForMysqlDump;
 void blueprintWithEmptyContentBaselineList;
 void blueprintWithUnsupportedContentBaselineType;
-void blueprintWithUnsupportedTarget;
+void blueprintWithUnsupportedWordPressVersion;
