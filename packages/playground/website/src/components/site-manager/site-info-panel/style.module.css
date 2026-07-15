@@ -20,6 +20,7 @@
 }
 
 .site-info-panel-content {
+	flex: 1;
 	min-height: 0;
 }
 

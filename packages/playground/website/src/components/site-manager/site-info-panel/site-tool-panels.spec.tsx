@@ -94,7 +94,7 @@ describe('SiteToolPanels', () => {
 	});
 
 	it('mounts tools on first visit and keeps them mounted when hidden', async () => {
-		await renderPanels('database');
+		await renderPanels('database', playground);
 
 		const database = findTool('database');
 		expect(database.closest('[hidden]')).toBeNull();
@@ -102,30 +102,39 @@ describe('SiteToolPanels', () => {
 			expect(findOptionalTool(name)).toBeNull();
 		}
 
-		await renderPanels('logs');
+		await renderPanels('logs', playground);
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
 		expect(findTool('logs').closest('[hidden]')).toBeNull();
 	});
 
 	it('enables the Blueprint editor Dock presentation', async () => {
-		await renderPanels('blueprint');
+		await renderPanels('blueprint', playground);
 
 		expect(
 			findTool('blueprint').getAttribute('data-dock-presentation')
 		).toBe('true');
 	});
 
+	it('explains that Playground files are still loading', async () => {
+		await renderPanels('files', undefined);
+
+		expect(container.querySelector('[role="status"]')?.textContent).toBe(
+			'Playground files are still loading…'
+		);
+	});
+
 	async function renderPanels(
 		activeTabName: React.ComponentProps<
 			typeof SiteToolPanels
-		>['activeTabName']
+		>['activeTabName'],
+		client: PlaygroundClient | undefined
 	) {
 		await act(async () => {
 			root.render(
 				<SiteToolPanels
 					site={site}
-					playground={playground}
+					playground={client}
 					activeTabName={activeTabName}
 				/>
 			);
