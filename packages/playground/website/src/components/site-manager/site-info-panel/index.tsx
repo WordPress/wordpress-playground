@@ -39,8 +39,12 @@ export function SiteInfoPanel({
 				className={css.siteInfoPanelContent}
 			>
 				<FlexItem
-					className={css.siteInfoPanelTools}
-					style={{ flexGrow: 1 }}
+					style={{
+						display: 'flex',
+						flexDirection: 'column',
+						flexGrow: 1,
+						minHeight: 0,
+					}}
 				>
 					<SiteToolPanels
 						site={site}
