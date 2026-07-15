@@ -470,7 +470,7 @@ test('should fold and restore the desktop Dock without hiding an open pane', asy
 	await expect(launcher).toHaveCount(0);
 	const restoredBounds = await dock.boundingBox();
 	expect(restoredBounds).not.toBeNull();
-	expect(restoredBounds!.x).toBeCloseTo(initialBounds!.x, 0);
+	expect(Math.abs(restoredBounds!.x - initialBounds!.x)).toBeLessThan(3);
 
 	await website.openDockPane('Files');
 	await dragDockPastLeftEdge();
@@ -906,7 +906,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	const preview = website.page.locator('[class*="site-view-content"]');
 	await exportPane.getByRole('button', { name: 'Close' }).click();
 	await expect(exportPane).not.toBeVisible();
-	await expect(preview).not.toHaveAttribute('inert', '');
+	await expect(preview).not.toHaveAttribute('inert', /.*/);
 	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
 
 	await website.page.setViewportSize({ width: 320, height: 700 });

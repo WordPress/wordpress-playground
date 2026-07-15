@@ -657,6 +657,11 @@ export function Dock({
 		const finishDockDrag = () => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
+			try {
+				dock.releasePointerCapture(pointerId);
+			} catch {
+				// Synthetic pointer events may not support capture.
+			}
 			dragArmedRef.current = false;
 			if (!draggedRef.current) {
 				return;
