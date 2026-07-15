@@ -20,8 +20,14 @@ vi.mock('../site-file-browser', () => ({
 }));
 
 vi.mock('../../blueprint-editor/SiteBlueprintBundleEditor', () => ({
-	SiteBlueprintBundleEditor: () => (
-		<div data-testid="blueprint">Blueprint editor</div>
+	SiteBlueprintBundleEditor: ({
+		dockPresentation,
+	}: {
+		dockPresentation?: boolean;
+	}) => (
+		<div data-testid="blueprint" data-dock-presentation={dockPresentation}>
+			Blueprint editor
+		</div>
 	),
 }));
 
@@ -100,6 +106,14 @@ describe('SiteToolPanels', () => {
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
 		expect(findTool('logs').closest('[hidden]')).toBeNull();
+	});
+
+	it('enables the Blueprint editor Dock presentation', async () => {
+		await renderPanels('blueprint');
+
+		expect(
+			findTool('blueprint').getAttribute('data-dock-presentation')
+		).toBe('true');
 	});
 
 	async function renderPanels(

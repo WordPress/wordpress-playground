@@ -117,6 +117,49 @@ async function replaceBlueprintEditorContents(
 	});
 }
 
+/**
+ * Completes the real popup handshake with a same-origin test callback.
+ *
+ * Production intentionally does not restore GitHub tokens from localStorage,
+ * so tests must enter the form through the same OAuth boundary as users.
+ */
+async function mockGitHubOAuth(page: Page, browserName: string) {
+	if (browserName === 'firefox') {
+		await page.addInitScript(() => {
+			window.open = () => {
+				const iframe = document.createElement('iframe');
+				iframe.hidden = true;
+				document.body.appendChild(iframe);
+				return iframe.contentWindow;
+			};
+		});
+	}
+
+	await page.context().route('**/oauth.php?redirect=1*', async (route) => {
+		const requestUrl = new URL(route.request().url());
+		const state = requestUrl.searchParams.get('state') || '';
+		await route.fulfill({
+			contentType: 'text/html',
+			body: `<!doctype html>
+<html>
+	<body>
+		<script>
+			(window.opener || window.parent).postMessage(
+				${JSON.stringify({
+					type: 'playground-github-oauth-token',
+					state,
+					token: 'gho_e2e_token',
+				})},
+				window.location.origin
+			);
+			window.close();
+		</script>
+	</body>
+</html>`,
+		});
+	});
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -629,24 +672,15 @@ test('should keep the last Blueprint edit when its Dock pane closes', async ({
 }) => {
 	await website.goto('./?storage=temp');
 	await website.openDockPane('Current Blueprint', 'Blueprint pane');
-	const editor = website.page.locator(
-		'[class*="blueprint-editor"] .cm-content'
-	);
-	await editor.fill(
-		JSON.stringify(
+	await replaceBlueprintEditorContents(website.page, {
+		steps: [
 			{
-				steps: [
-					{
-						step: 'writeFile',
-						path: '/wordpress/close-flush.txt',
-						data: 'Saved before close',
-					},
-				],
+				step: 'writeFile',
+				path: '/wordpress/close-flush.txt',
+				data: 'Saved before close',
 			},
-			null,
-			2
-		)
-	);
+		],
+	});
 	await website.page.keyboard.press('Escape');
 	await expect(
 		website.page.getByRole('dialog', { name: 'Blueprint pane' })
@@ -2010,10 +2044,9 @@ test.describe('Default Playground storage', () => {
 
 	test('should open GitHub export as a styled subpanel', async ({
 		website,
+		browserName,
 	}) => {
-		await website.page.addInitScript(() => {
-			localStorage.setItem('github-token', 'github-e2e-token');
-		});
+		await mockGitHubOAuth(website.page, browserName);
 		await website.goto(
 			'./?storage=temp' +
 				'&ghexport-repo-url=https%3A%2F%2Fgithub.com%2Fowner%2Frepo' +
@@ -2030,6 +2063,9 @@ test.describe('Default Playground storage', () => {
 			name: 'New Playground pane',
 		});
 		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		await website.page
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
 		const importIntro = website.page.getByText(
 			/You may import WordPress plugins/
 		);
@@ -2137,11 +2173,10 @@ test.describe('Default Playground storage', () => {
 	]) {
 		test(`should scroll the dedicated GitHub import form on ${name}`, async ({
 			website,
+			browserName,
 		}) => {
 			await website.page.setViewportSize(viewport);
-			await website.page.addInitScript(() => {
-				localStorage.setItem('github-token', 'github-e2e-token');
-			});
+			await mockGitHubOAuth(website.page, browserName);
 			await website.goto('./?storage=temp');
 			await website.openDockPane('New Playground');
 			const newPane = website.page.getByRole('dialog', {
@@ -2155,6 +2190,9 @@ test.describe('Default Playground storage', () => {
 			const githubImportPane = website.page.getByRole('dialog', {
 				name: 'Import from GitHub pane',
 			});
+			await githubImportPane
+				.getByRole('link', { name: 'Connect your GitHub account' })
+				.click();
 			const formPanel = githubImportPane.getByRole('region', {
 				name: 'Import from GitHub',
 			});

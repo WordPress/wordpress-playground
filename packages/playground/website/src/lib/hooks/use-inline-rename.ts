@@ -3,6 +3,8 @@ import type { ChangeEvent, KeyboardEvent, MouseEvent, FocusEvent } from 'react';
 import { logger } from '@php-wasm/logger';
 import type { SiteInfo } from '../state/redux/slice-sites';
 import { useSitesAPI } from '../state/redux/site-management-api-middleware';
+import { useAppDispatch } from '../state/redux/store';
+import { setDockOperationNotice } from '../state/redux/slice-ui';
 
 /**
  * Inline Playground renaming for compact UI surfaces. Enter or blur commits;
@@ -11,6 +13,7 @@ import { useSitesAPI } from '../state/redux/site-management-api-middleware';
  */
 export function useInlineRename() {
 	const sitesAPI = useSitesAPI();
+	const dispatch = useAppDispatch();
 	const [renamingSlug, setRenamingSlug] = useState<string | null>(null);
 	const [value, setValue] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -39,13 +42,18 @@ export function useInlineRename() {
 			return;
 		}
 		try {
+			dispatch(setDockOperationNotice(undefined));
 			await sitesAPI.rename(trimmed, site.slug);
 		} catch (error) {
 			logger.error('Renaming the Playground failed.', error);
 			skipNextBlurRef.current = false;
 			setRenamingSlug(site.slug);
-			alert(
-				`Couldn’t rename “${site.metadata.name}”. Your new name is still in the field so you can try again.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t rename “${site.metadata.name}”`,
+					message:
+						'Your new name is still in the field so you can try again.',
+				})
 			);
 		}
 	};

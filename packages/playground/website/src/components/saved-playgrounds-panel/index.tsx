@@ -55,6 +55,7 @@ import {
 import {
 	modalSlugs,
 	setActiveModal,
+	setDockOperationNotice,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToDelete,
@@ -488,8 +489,11 @@ export function SavedPlaygroundsPanel({
 			const site = storedSites.find(
 				(candidate) => candidate.slug === slug
 			);
-			alert(
-				`Couldn’t open “${site?.metadata.name ?? slug}”. This Playground is still available in your list.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
+					message: 'This Playground is still available in your list.',
+				})
 			);
 		});
 	};
@@ -594,6 +598,7 @@ export function SavedPlaygroundsPanel({
 			return;
 		}
 		closeMenu();
+		dispatch(setDockOperationNotice(undefined));
 		rowRectsRef.current = snapshotRowRects();
 		animateMoveRef.current = true;
 		const stored = isAutosavedSite(site)
@@ -602,8 +607,11 @@ export function SavedPlaygroundsPanel({
 		void stored.catch((error) => {
 			animateMoveRef.current = false;
 			logger.error('Error storing Playground in the browser', error);
-			alert(
-				`Couldn’t store “${site.metadata.name}” in browser storage. No changes were made to this Playground.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
+					message: 'No changes were made to this Playground.',
+				})
 			);
 		});
 	};
@@ -621,6 +629,7 @@ export function SavedPlaygroundsPanel({
 			return;
 		}
 		try {
+			dispatch(setDockOperationNotice(undefined));
 			if (site.slug === activeSite?.slug) {
 				closeMenu();
 				await sitesAPI.saveToLocalFileSystem();
@@ -638,8 +647,11 @@ export function SavedPlaygroundsPanel({
 				return; // The user dismissed the directory picker.
 			}
 			logger.error('Error saving Playground to a local directory', error);
-			alert(
-				`Couldn’t save ${site.metadata.name} locally. The Playground in your browser is unchanged.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t save ${site.metadata.name} locally`,
+					message: 'The Playground in your browser is unchanged.',
+				})
 			);
 		}
 	};

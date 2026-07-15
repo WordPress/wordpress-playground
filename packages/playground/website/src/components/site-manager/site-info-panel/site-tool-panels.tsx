@@ -143,6 +143,7 @@ export function SiteToolPanels({
 							key={site.slug}
 							site={site}
 							className={classNames(css.blueprintEditor)}
+							dockPresentation
 						/>
 					</Suspense>
 				</div>

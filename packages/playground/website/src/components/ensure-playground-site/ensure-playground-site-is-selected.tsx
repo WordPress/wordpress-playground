@@ -21,7 +21,11 @@ import {
 } from '../../lib/state/redux/store';
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
-import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setActiveModal,
+	setDockOperationNotice,
+} from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import {
@@ -111,8 +115,14 @@ export function EnsurePlaygroundSiteIsSelected({
 		opfsSiteStorage.list().then(
 			(sites) => dispatch(OPFSSitesLoaded(sites)),
 			(error) => {
-				// @TODO: Display an error modal explaining what happened.
 				logger.error('Error loading sites:', error);
+				dispatch(
+					setDockOperationNotice({
+						title: 'Couldn’t load Playgrounds',
+						message:
+							'Reload the page to try browser storage again.',
+					})
+				);
 				dispatch(OPFSSitesLoaded([]));
 			}
 		);
