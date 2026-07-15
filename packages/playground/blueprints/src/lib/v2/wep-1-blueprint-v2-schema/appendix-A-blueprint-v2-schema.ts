@@ -452,6 +452,10 @@ export namespace V2Schema {
 		additionalStepsAfterExecution?: Array<Step>;
 	};
 
+	/**
+	 * Content types created by a vanilla WordPress installation and controlled
+	 * by `contentBaseline`.
+	 */
 	type ContentType = 'posts' | 'pages' | 'comments';
 
 	type LicenseKeyword =
