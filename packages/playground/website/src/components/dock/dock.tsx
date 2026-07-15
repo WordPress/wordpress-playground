@@ -657,6 +657,8 @@ export function Dock({
 		const finishDockDrag = () => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
+			// Let the next click target the restored corner launcher instead of
+			// staying captured by the Dock that just finished folding.
 			try {
 				dock.releasePointerCapture(pointerId);
 			} catch {
