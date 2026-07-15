@@ -401,13 +401,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 											],
@@ -870,14 +870,14 @@ const schema11 = {
 															{
 																type: 'array',
 																items: {
-																	$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																	$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																},
 															},
 															{
 																type: 'object',
 																additionalProperties:
 																	{
-																		$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																		$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																	},
 															},
 														],
@@ -1326,14 +1326,14 @@ const schema11 = {
 																{
 																	type: 'array',
 																	items: {
-																		$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																		$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																	},
 																},
 																{
 																	type: 'object',
 																	additionalProperties:
 																		{
-																			$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																			$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																		},
 																},
 															],
@@ -1500,14 +1500,14 @@ const schema11 = {
 																				{
 																					type: 'array',
 																					items: {
-																						$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																						$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																					},
 																				},
 																				{
 																					type: 'object',
 																					additionalProperties:
 																						{
-																							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																							$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																						},
 																				},
 																			],
@@ -2080,14 +2080,14 @@ const schema11 = {
 																								{
 																									type: 'array',
 																									items: {
-																										$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																										$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																									},
 																								},
 																								{
 																									type: 'object',
 																									additionalProperties:
 																										{
-																											$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																											$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																										},
 																								},
 																							],
@@ -2274,14 +2274,14 @@ const schema11 = {
 																											{
 																												type: 'array',
 																												items: {
-																													$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																													$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																												},
 																											},
 																											{
 																												type: 'object',
 																												additionalProperties:
 																													{
-																														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																													},
 																											},
 																										],
@@ -2600,13 +2600,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 											],
@@ -2742,6 +2742,32 @@ const schema11 = {
 							{
 								type: 'object',
 								properties: {
+									step: {
+										type: 'string',
+										const: 'resetData',
+									},
+									contentTypes: {
+										type: 'array',
+										items: {
+											type: 'string',
+											enum: [
+												'posts',
+												'pages',
+												'comments',
+											],
+											description:
+												'Content types created by a vanilla WordPress installation and controlled by `contentBaseline`.',
+										},
+										description:
+											'Content types to remove. When omitted, all posts, pages, custom post types, and comments are removed.',
+									},
+								},
+								required: ['step'],
+								additionalProperties: false,
+							},
+							{
+								type: 'object',
+								properties: {
 									step: { type: 'string', const: 'runPHP' },
 									code: {
 										$ref: '#/definitions/DataSources.FileDataReference',
@@ -2805,13 +2831,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+														$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 													},
 												},
 											],
@@ -3072,7 +3098,7 @@ const schema11 = {
 			description:
 				'Plugin directory reference, e.g. "jetpack", "jetpack@6.4", or "akismet@6.4.3".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to "wordpress-seo" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step',
 		},
-		'alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205':
+		'alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606':
 			{
 				anyOf: [
 					{ type: 'string' },
@@ -3081,13 +3107,13 @@ const schema11 = {
 					{
 						type: 'array',
 						items: {
-							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+							$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 						},
 					},
 					{
 						type: 'object',
 						additionalProperties: {
-							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+							$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 						},
 					},
 				],
@@ -3486,13 +3512,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 									],
@@ -3949,13 +3975,13 @@ const schema12 = {
 													{
 														type: 'array',
 														items: {
-															$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+															$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 														},
 													},
 													{
 														type: 'object',
 														additionalProperties: {
-															$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+															$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 														},
 													},
 												],
@@ -4368,14 +4394,14 @@ const schema12 = {
 														{
 															type: 'array',
 															items: {
-																$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 															},
 														},
 														{
 															type: 'object',
 															additionalProperties:
 																{
-																	$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																	$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																},
 														},
 													],
@@ -4538,14 +4564,14 @@ const schema12 = {
 																		{
 																			type: 'array',
 																			items: {
-																				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																				$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																			},
 																		},
 																		{
 																			type: 'object',
 																			additionalProperties:
 																				{
-																					$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																					$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																				},
 																		},
 																	],
@@ -5066,14 +5092,14 @@ const schema12 = {
 																				{
 																					type: 'array',
 																					items: {
-																						$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																						$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																					},
 																				},
 																				{
 																					type: 'object',
 																					additionalProperties:
 																						{
-																							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																							$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																						},
 																				},
 																			],
@@ -5258,14 +5284,14 @@ const schema12 = {
 																									{
 																										type: 'array',
 																										items: {
-																											$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																											$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																										},
 																									},
 																									{
 																										type: 'object',
 																										additionalProperties:
 																											{
-																												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+																												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 																											},
 																									},
 																								],
@@ -5555,13 +5581,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 									],
@@ -5691,6 +5717,25 @@ const schema12 = {
 					{
 						type: 'object',
 						properties: {
+							step: { type: 'string', const: 'resetData' },
+							contentTypes: {
+								type: 'array',
+								items: {
+									type: 'string',
+									enum: ['posts', 'pages', 'comments'],
+									description:
+										'Content types created by a vanilla WordPress installation and controlled by `contentBaseline`.',
+								},
+								description:
+									'Content types to remove. When omitted, all posts, pages, custom post types, and comments are removed.',
+							},
+						},
+						required: ['step'],
+						additionalProperties: false,
+					},
+					{
+						type: 'object',
+						properties: {
 							step: { type: 'string', const: 'runPHP' },
 							code: {
 								$ref: '#/definitions/DataSources.FileDataReference',
@@ -5746,13 +5791,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+												$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 											},
 										},
 									],
@@ -7055,13 +7100,13 @@ const schema37 = {
 		{
 			type: 'array',
 			items: {
-				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+				$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 			},
 		},
 		{
 			type: 'object',
 			additionalProperties: {
-				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
+				$ref: '#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606',
 			},
 		},
 	],
@@ -35708,7 +35753,7 @@ function validate11(
 									}
 									errors++;
 								}
-							} else if (tag1 === 'runPHP') {
+							} else if (tag1 === 'resetData') {
 								if (
 									data315 &&
 									typeof data315 == 'object' &&
@@ -35736,37 +35781,14 @@ function validate11(
 										}
 										errors++;
 									}
-									if (data315.code === undefined) {
-										const err791 = {
-											instancePath:
-												instancePath +
-												'/additionalStepsAfterExecution/' +
-												i39,
-											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/14/required',
-											keyword: 'required',
-											params: { missingProperty: 'code' },
-											message:
-												"must have required property '" +
-												'code' +
-												"'",
-										};
-										if (vErrors === null) {
-											vErrors = [err791];
-										} else {
-											vErrors.push(err791);
-										}
-										errors++;
-									}
 									for (const key90 in data315) {
 										if (
 											!(
 												key90 === 'step' ||
-												key90 === 'code' ||
-												key90 === 'env'
+												key90 === 'contentTypes'
 											)
 										) {
-											const err792 = {
+											const err791 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -35781,9 +35803,9 @@ function validate11(
 													'must NOT have additional properties',
 											};
 											if (vErrors === null) {
-												vErrors = [err792];
+												vErrors = [err791];
 											} else {
-												vErrors.push(err792);
+												vErrors.push(err791);
 											}
 											errors++;
 										}
@@ -35791,7 +35813,7 @@ function validate11(
 									if (data315.step !== undefined) {
 										let data461 = data315.step;
 										if (typeof data461 !== 'string') {
-											const err793 = {
+											const err792 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -35804,14 +35826,14 @@ function validate11(
 												message: 'must be string',
 											};
 											if (vErrors === null) {
-												vErrors = [err793];
+												vErrors = [err792];
 											} else {
-												vErrors.push(err793);
+												vErrors.push(err792);
 											}
 											errors++;
 										}
-										if ('runPHP' !== data461) {
-											const err794 = {
+										if ('resetData' !== data461) {
+											const err793 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -35821,76 +35843,85 @@ function validate11(
 													'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/step/const',
 												keyword: 'const',
 												params: {
-													allowedValue: 'runPHP',
+													allowedValue: 'resetData',
 												},
 												message:
 													'must be equal to constant',
 											};
 											if (vErrors === null) {
-												vErrors = [err794];
+												vErrors = [err793];
 											} else {
-												vErrors.push(err794);
+												vErrors.push(err793);
 											}
 											errors++;
 										}
 									}
-									if (data315.code !== undefined) {
-										if (
-											!validate40(data315.code, {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/code',
-												parentData: data315,
-												parentDataProperty: 'code',
-												rootData,
-											})
-										) {
-											vErrors =
-												vErrors === null
-													? validate40.errors
-													: vErrors.concat(
-															validate40.errors
-														);
-											errors = vErrors.length;
-										}
-									}
-									if (data315.env !== undefined) {
-										let data463 = data315.env;
-										if (
-											data463 &&
-											typeof data463 == 'object' &&
-											!Array.isArray(data463)
-										) {
-											for (const key91 in data463) {
+									if (data315.contentTypes !== undefined) {
+										let data462 = data315.contentTypes;
+										if (Array.isArray(data462)) {
+											const len55 = data462.length;
+											for (
+												let i55 = 0;
+												i55 < len55;
+												i55++
+											) {
+												let data463 = data462[i55];
 												if (
-													typeof data463[key91] !==
-													'string'
+													typeof data463 !== 'string'
 												) {
-													const err795 = {
+													const err794 = {
 														instancePath:
 															instancePath +
 															'/additionalStepsAfterExecution/' +
 															i39 +
-															'/env/' +
-															key91
-																.replace(
-																	/~/g,
-																	'~0'
-																)
-																.replace(
-																	/\//g,
-																	'~1'
-																),
+															'/contentTypes/' +
+															i55,
 														schemaPath:
-															'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/env/additionalProperties/type',
+															'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/contentTypes/items/type',
 														keyword: 'type',
 														params: {
 															type: 'string',
 														},
 														message:
 															'must be string',
+													};
+													if (vErrors === null) {
+														vErrors = [err794];
+													} else {
+														vErrors.push(err794);
+													}
+													errors++;
+												}
+												if (
+													!(
+														data463 === 'posts' ||
+														data463 === 'pages' ||
+														data463 === 'comments'
+													)
+												) {
+													const err795 = {
+														instancePath:
+															instancePath +
+															'/additionalStepsAfterExecution/' +
+															i39 +
+															'/contentTypes/' +
+															i55,
+														schemaPath:
+															'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/contentTypes/items/enum',
+														keyword: 'enum',
+														params: {
+															allowedValues:
+																schema12
+																	.properties
+																	.additionalStepsAfterExecution
+																	.items
+																	.oneOf[14]
+																	.properties
+																	.contentTypes
+																	.items.enum,
+														},
+														message:
+															'must be equal to one of the allowed values',
 													};
 													if (vErrors === null) {
 														vErrors = [err795];
@@ -35906,12 +35937,12 @@ function validate11(
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
-													'/env',
+													'/contentTypes',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/env/type',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/14/properties/contentTypes/type',
 												keyword: 'type',
-												params: { type: 'object' },
-												message: 'must be object',
+												params: { type: 'array' },
+												message: 'must be array',
 											};
 											if (vErrors === null) {
 												vErrors = [err796];
@@ -35940,7 +35971,7 @@ function validate11(
 									}
 									errors++;
 								}
-							} else if (tag1 === 'runSQL') {
+							} else if (tag1 === 'runPHP') {
 								if (
 									data315 &&
 									typeof data315 == 'object' &&
@@ -35968,7 +35999,7 @@ function validate11(
 										}
 										errors++;
 									}
-									if (data315.source === undefined) {
+									if (data315.code === undefined) {
 										const err799 = {
 											instancePath:
 												instancePath +
@@ -35977,12 +36008,10 @@ function validate11(
 											schemaPath:
 												'#/properties/additionalStepsAfterExecution/items/oneOf/15/required',
 											keyword: 'required',
-											params: {
-												missingProperty: 'source',
-											},
+											params: { missingProperty: 'code' },
 											message:
 												"must have required property '" +
-												'source' +
+												'code' +
 												"'",
 										};
 										if (vErrors === null) {
@@ -35992,11 +36021,12 @@ function validate11(
 										}
 										errors++;
 									}
-									for (const key92 in data315) {
+									for (const key91 in data315) {
 										if (
 											!(
-												key92 === 'step' ||
-												key92 === 'source'
+												key91 === 'step' ||
+												key91 === 'code' ||
+												key91 === 'env'
 											)
 										) {
 											const err800 = {
@@ -36008,7 +36038,7 @@ function validate11(
 													'#/properties/additionalStepsAfterExecution/items/oneOf/15/additionalProperties',
 												keyword: 'additionalProperties',
 												params: {
-													additionalProperty: key92,
+													additionalProperty: key91,
 												},
 												message:
 													'must NOT have additional properties',
@@ -36022,8 +36052,8 @@ function validate11(
 										}
 									}
 									if (data315.step !== undefined) {
-										let data465 = data315.step;
-										if (typeof data465 !== 'string') {
+										let data464 = data315.step;
+										if (typeof data464 !== 'string') {
 											const err801 = {
 												instancePath:
 													instancePath +
@@ -36043,7 +36073,7 @@ function validate11(
 											}
 											errors++;
 										}
-										if ('runSQL' !== data465) {
+										if ('runPHP' !== data464) {
 											const err802 = {
 												instancePath:
 													instancePath +
@@ -36054,7 +36084,7 @@ function validate11(
 													'#/properties/additionalStepsAfterExecution/items/oneOf/15/properties/step/const',
 												keyword: 'const',
 												params: {
-													allowedValue: 'runSQL',
+													allowedValue: 'runPHP',
 												},
 												message:
 													'must be equal to constant',
@@ -36063,6 +36093,239 @@ function validate11(
 												vErrors = [err802];
 											} else {
 												vErrors.push(err802);
+											}
+											errors++;
+										}
+									}
+									if (data315.code !== undefined) {
+										if (
+											!validate40(data315.code, {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/code',
+												parentData: data315,
+												parentDataProperty: 'code',
+												rootData,
+											})
+										) {
+											vErrors =
+												vErrors === null
+													? validate40.errors
+													: vErrors.concat(
+															validate40.errors
+														);
+											errors = vErrors.length;
+										}
+									}
+									if (data315.env !== undefined) {
+										let data466 = data315.env;
+										if (
+											data466 &&
+											typeof data466 == 'object' &&
+											!Array.isArray(data466)
+										) {
+											for (const key92 in data466) {
+												if (
+													typeof data466[key92] !==
+													'string'
+												) {
+													const err803 = {
+														instancePath:
+															instancePath +
+															'/additionalStepsAfterExecution/' +
+															i39 +
+															'/env/' +
+															key92
+																.replace(
+																	/~/g,
+																	'~0'
+																)
+																.replace(
+																	/\//g,
+																	'~1'
+																),
+														schemaPath:
+															'#/properties/additionalStepsAfterExecution/items/oneOf/15/properties/env/additionalProperties/type',
+														keyword: 'type',
+														params: {
+															type: 'string',
+														},
+														message:
+															'must be string',
+													};
+													if (vErrors === null) {
+														vErrors = [err803];
+													} else {
+														vErrors.push(err803);
+													}
+													errors++;
+												}
+											}
+										} else {
+											const err804 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/env',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/15/properties/env/type',
+												keyword: 'type',
+												params: { type: 'object' },
+												message: 'must be object',
+											};
+											if (vErrors === null) {
+												vErrors = [err804];
+											} else {
+												vErrors.push(err804);
+											}
+											errors++;
+										}
+									}
+								} else {
+									const err805 = {
+										instancePath:
+											instancePath +
+											'/additionalStepsAfterExecution/' +
+											i39,
+										schemaPath:
+											'#/properties/additionalStepsAfterExecution/items/oneOf/15/type',
+										keyword: 'type',
+										params: { type: 'object' },
+										message: 'must be object',
+									};
+									if (vErrors === null) {
+										vErrors = [err805];
+									} else {
+										vErrors.push(err805);
+									}
+									errors++;
+								}
+							} else if (tag1 === 'runSQL') {
+								if (
+									data315 &&
+									typeof data315 == 'object' &&
+									!Array.isArray(data315)
+								) {
+									if (data315.step === undefined) {
+										const err806 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/16/required',
+											keyword: 'required',
+											params: { missingProperty: 'step' },
+											message:
+												"must have required property '" +
+												'step' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err806];
+										} else {
+											vErrors.push(err806);
+										}
+										errors++;
+									}
+									if (data315.source === undefined) {
+										const err807 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/16/required',
+											keyword: 'required',
+											params: {
+												missingProperty: 'source',
+											},
+											message:
+												"must have required property '" +
+												'source' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err807];
+										} else {
+											vErrors.push(err807);
+										}
+										errors++;
+									}
+									for (const key93 in data315) {
+										if (
+											!(
+												key93 === 'step' ||
+												key93 === 'source'
+											)
+										) {
+											const err808 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39,
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/16/additionalProperties',
+												keyword: 'additionalProperties',
+												params: {
+													additionalProperty: key93,
+												},
+												message:
+													'must NOT have additional properties',
+											};
+											if (vErrors === null) {
+												vErrors = [err808];
+											} else {
+												vErrors.push(err808);
+											}
+											errors++;
+										}
+									}
+									if (data315.step !== undefined) {
+										let data468 = data315.step;
+										if (typeof data468 !== 'string') {
+											const err809 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/16/properties/step/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err809];
+											} else {
+												vErrors.push(err809);
+											}
+											errors++;
+										}
+										if ('runSQL' !== data468) {
+											const err810 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/16/properties/step/const',
+												keyword: 'const',
+												params: {
+													allowedValue: 'runSQL',
+												},
+												message:
+													'must be equal to constant',
+											};
+											if (vErrors === null) {
+												vErrors = [err810];
+											} else {
+												vErrors.push(err810);
 											}
 											errors++;
 										}
@@ -36090,178 +36353,7 @@ function validate11(
 										}
 									}
 								} else {
-									const err803 = {
-										instancePath:
-											instancePath +
-											'/additionalStepsAfterExecution/' +
-											i39,
-										schemaPath:
-											'#/properties/additionalStepsAfterExecution/items/oneOf/15/type',
-										keyword: 'type',
-										params: { type: 'object' },
-										message: 'must be object',
-									};
-									if (vErrors === null) {
-										vErrors = [err803];
-									} else {
-										vErrors.push(err803);
-									}
-									errors++;
-								}
-							} else if (tag1 === 'setSiteLanguage') {
-								if (
-									data315 &&
-									typeof data315 == 'object' &&
-									!Array.isArray(data315)
-								) {
-									if (data315.step === undefined) {
-										const err804 = {
-											instancePath:
-												instancePath +
-												'/additionalStepsAfterExecution/' +
-												i39,
-											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/16/required',
-											keyword: 'required',
-											params: { missingProperty: 'step' },
-											message:
-												"must have required property '" +
-												'step' +
-												"'",
-										};
-										if (vErrors === null) {
-											vErrors = [err804];
-										} else {
-											vErrors.push(err804);
-										}
-										errors++;
-									}
-									if (data315.language === undefined) {
-										const err805 = {
-											instancePath:
-												instancePath +
-												'/additionalStepsAfterExecution/' +
-												i39,
-											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/16/required',
-											keyword: 'required',
-											params: {
-												missingProperty: 'language',
-											},
-											message:
-												"must have required property '" +
-												'language' +
-												"'",
-										};
-										if (vErrors === null) {
-											vErrors = [err805];
-										} else {
-											vErrors.push(err805);
-										}
-										errors++;
-									}
-									for (const key93 in data315) {
-										if (
-											!(
-												key93 === 'step' ||
-												key93 === 'language'
-											)
-										) {
-											const err806 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39,
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/16/additionalProperties',
-												keyword: 'additionalProperties',
-												params: {
-													additionalProperty: key93,
-												},
-												message:
-													'must NOT have additional properties',
-											};
-											if (vErrors === null) {
-												vErrors = [err806];
-											} else {
-												vErrors.push(err806);
-											}
-											errors++;
-										}
-									}
-									if (data315.step !== undefined) {
-										let data467 = data315.step;
-										if (typeof data467 !== 'string') {
-											const err807 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/step',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/16/properties/step/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											};
-											if (vErrors === null) {
-												vErrors = [err807];
-											} else {
-												vErrors.push(err807);
-											}
-											errors++;
-										}
-										if ('setSiteLanguage' !== data467) {
-											const err808 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/step',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/16/properties/step/const',
-												keyword: 'const',
-												params: {
-													allowedValue:
-														'setSiteLanguage',
-												},
-												message:
-													'must be equal to constant',
-											};
-											if (vErrors === null) {
-												vErrors = [err808];
-											} else {
-												vErrors.push(err808);
-											}
-											errors++;
-										}
-									}
-									if (data315.language !== undefined) {
-										if (
-											typeof data315.language !== 'string'
-										) {
-											const err809 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/language',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/16/properties/language/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											};
-											if (vErrors === null) {
-												vErrors = [err809];
-											} else {
-												vErrors.push(err809);
-											}
-											errors++;
-										}
-									}
-								} else {
-									const err810 = {
+									const err811 = {
 										instancePath:
 											instancePath +
 											'/additionalStepsAfterExecution/' +
@@ -36273,20 +36365,20 @@ function validate11(
 										message: 'must be object',
 									};
 									if (vErrors === null) {
-										vErrors = [err810];
+										vErrors = [err811];
 									} else {
-										vErrors.push(err810);
+										vErrors.push(err811);
 									}
 									errors++;
 								}
-							} else if (tag1 === 'setSiteOptions') {
+							} else if (tag1 === 'setSiteLanguage') {
 								if (
 									data315 &&
 									typeof data315 == 'object' &&
 									!Array.isArray(data315)
 								) {
 									if (data315.step === undefined) {
-										const err811 = {
+										const err812 = {
 											instancePath:
 												instancePath +
 												'/additionalStepsAfterExecution/' +
@@ -36301,14 +36393,14 @@ function validate11(
 												"'",
 										};
 										if (vErrors === null) {
-											vErrors = [err811];
+											vErrors = [err812];
 										} else {
-											vErrors.push(err811);
+											vErrors.push(err812);
 										}
 										errors++;
 									}
-									if (data315.options === undefined) {
-										const err812 = {
+									if (data315.language === undefined) {
+										const err813 = {
 											instancePath:
 												instancePath +
 												'/additionalStepsAfterExecution/' +
@@ -36317,17 +36409,17 @@ function validate11(
 												'#/properties/additionalStepsAfterExecution/items/oneOf/17/required',
 											keyword: 'required',
 											params: {
-												missingProperty: 'options',
+												missingProperty: 'language',
 											},
 											message:
 												"must have required property '" +
-												'options' +
+												'language' +
 												"'",
 										};
 										if (vErrors === null) {
-											vErrors = [err812];
+											vErrors = [err813];
 										} else {
-											vErrors.push(err812);
+											vErrors.push(err813);
 										}
 										errors++;
 									}
@@ -36335,10 +36427,10 @@ function validate11(
 										if (
 											!(
 												key94 === 'step' ||
-												key94 === 'options'
+												key94 === 'language'
 											)
 										) {
-											const err813 = {
+											const err814 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -36353,17 +36445,17 @@ function validate11(
 													'must NOT have additional properties',
 											};
 											if (vErrors === null) {
-												vErrors = [err813];
+												vErrors = [err814];
 											} else {
-												vErrors.push(err813);
+												vErrors.push(err814);
 											}
 											errors++;
 										}
 									}
 									if (data315.step !== undefined) {
-										let data469 = data315.step;
-										if (typeof data469 !== 'string') {
-											const err814 = {
+										let data470 = data315.step;
+										if (typeof data470 !== 'string') {
+											const err815 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -36376,14 +36468,14 @@ function validate11(
 												message: 'must be string',
 											};
 											if (vErrors === null) {
-												vErrors = [err814];
+												vErrors = [err815];
 											} else {
-												vErrors.push(err814);
+												vErrors.push(err815);
 											}
 											errors++;
 										}
-										if ('setSiteOptions' !== data469) {
-											const err815 = {
+										if ('setSiteLanguage' !== data470) {
+											const err816 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
@@ -36394,41 +36486,212 @@ function validate11(
 												keyword: 'const',
 												params: {
 													allowedValue:
+														'setSiteLanguage',
+												},
+												message:
+													'must be equal to constant',
+											};
+											if (vErrors === null) {
+												vErrors = [err816];
+											} else {
+												vErrors.push(err816);
+											}
+											errors++;
+										}
+									}
+									if (data315.language !== undefined) {
+										if (
+											typeof data315.language !== 'string'
+										) {
+											const err817 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/language',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/language/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err817];
+											} else {
+												vErrors.push(err817);
+											}
+											errors++;
+										}
+									}
+								} else {
+									const err818 = {
+										instancePath:
+											instancePath +
+											'/additionalStepsAfterExecution/' +
+											i39,
+										schemaPath:
+											'#/properties/additionalStepsAfterExecution/items/oneOf/17/type',
+										keyword: 'type',
+										params: { type: 'object' },
+										message: 'must be object',
+									};
+									if (vErrors === null) {
+										vErrors = [err818];
+									} else {
+										vErrors.push(err818);
+									}
+									errors++;
+								}
+							} else if (tag1 === 'setSiteOptions') {
+								if (
+									data315 &&
+									typeof data315 == 'object' &&
+									!Array.isArray(data315)
+								) {
+									if (data315.step === undefined) {
+										const err819 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/18/required',
+											keyword: 'required',
+											params: { missingProperty: 'step' },
+											message:
+												"must have required property '" +
+												'step' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err819];
+										} else {
+											vErrors.push(err819);
+										}
+										errors++;
+									}
+									if (data315.options === undefined) {
+										const err820 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/18/required',
+											keyword: 'required',
+											params: {
+												missingProperty: 'options',
+											},
+											message:
+												"must have required property '" +
+												'options' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err820];
+										} else {
+											vErrors.push(err820);
+										}
+										errors++;
+									}
+									for (const key95 in data315) {
+										if (
+											!(
+												key95 === 'step' ||
+												key95 === 'options'
+											)
+										) {
+											const err821 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39,
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/18/additionalProperties',
+												keyword: 'additionalProperties',
+												params: {
+													additionalProperty: key95,
+												},
+												message:
+													'must NOT have additional properties',
+											};
+											if (vErrors === null) {
+												vErrors = [err821];
+											} else {
+												vErrors.push(err821);
+											}
+											errors++;
+										}
+									}
+									if (data315.step !== undefined) {
+										let data472 = data315.step;
+										if (typeof data472 !== 'string') {
+											const err822 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/step/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err822];
+											} else {
+												vErrors.push(err822);
+											}
+											errors++;
+										}
+										if ('setSiteOptions' !== data472) {
+											const err823 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/step/const',
+												keyword: 'const',
+												params: {
+													allowedValue:
 														'setSiteOptions',
 												},
 												message:
 													'must be equal to constant',
 											};
 											if (vErrors === null) {
-												vErrors = [err815];
+												vErrors = [err823];
 											} else {
-												vErrors.push(err815);
+												vErrors.push(err823);
 											}
 											errors++;
 										}
 									}
 									if (data315.options !== undefined) {
-										let data470 = data315.options;
+										let data473 = data315.options;
 										if (
-											data470 &&
-											typeof data470 == 'object' &&
-											!Array.isArray(data470)
+											data473 &&
+											typeof data473 == 'object' &&
+											!Array.isArray(data473)
 										) {
-											for (const key95 in data470) {
-												let data471 = data470[key95];
-												const _errs1291 = errors;
-												let valid308 = false;
-												const _errs1292 = errors;
+											for (const key96 in data473) {
+												let data474 = data473[key96];
+												const _errs1300 = errors;
+												let valid312 = false;
+												const _errs1301 = errors;
 												if (
-													typeof data471 !== 'string'
+													typeof data474 !== 'string'
 												) {
-													const err816 = {
+													const err824 = {
 														instancePath:
 															instancePath +
 															'/additionalStepsAfterExecution/' +
 															i39 +
 															'/options/' +
-															key95
+															key96
 																.replace(
 																	/~/g,
 																	'~0'
@@ -36438,7 +36701,7 @@ function validate11(
 																	'~1'
 																),
 														schemaPath:
-															'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf/0/type',
+															'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf/0/type',
 														keyword: 'type',
 														params: {
 															type: 'string',
@@ -36447,28 +36710,28 @@ function validate11(
 															'must be string',
 													};
 													if (vErrors === null) {
-														vErrors = [err816];
+														vErrors = [err824];
 													} else {
-														vErrors.push(err816);
+														vErrors.push(err824);
 													}
 													errors++;
 												}
 												var _valid43 =
-													_errs1292 === errors;
-												valid308 = valid308 || _valid43;
-												if (!valid308) {
-													const _errs1294 = errors;
+													_errs1301 === errors;
+												valid312 = valid312 || _valid43;
+												if (!valid312) {
+													const _errs1303 = errors;
 													if (
-														typeof data471 !==
+														typeof data474 !==
 														'boolean'
 													) {
-														const err817 = {
+														const err825 = {
 															instancePath:
 																instancePath +
 																'/additionalStepsAfterExecution/' +
 																i39 +
 																'/options/' +
-																key95
+																key96
 																	.replace(
 																		/~/g,
 																		'~0'
@@ -36478,7 +36741,7 @@ function validate11(
 																		'~1'
 																	),
 															schemaPath:
-																'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf/1/type',
+																'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf/1/type',
 															keyword: 'type',
 															params: {
 																type: 'boolean',
@@ -36487,37 +36750,37 @@ function validate11(
 																'must be boolean',
 														};
 														if (vErrors === null) {
-															vErrors = [err817];
+															vErrors = [err825];
 														} else {
 															vErrors.push(
-																err817
+																err825
 															);
 														}
 														errors++;
 													}
 													var _valid43 =
-														_errs1294 === errors;
-													valid308 =
-														valid308 || _valid43;
-													if (!valid308) {
-														const _errs1296 =
+														_errs1303 === errors;
+													valid312 =
+														valid312 || _valid43;
+													if (!valid312) {
+														const _errs1305 =
 															errors;
 														if (
 															!(
-																typeof data471 ==
+																typeof data474 ==
 																	'number' &&
 																isFinite(
-																	data471
+																	data474
 																)
 															)
 														) {
-															const err818 = {
+															const err826 = {
 																instancePath:
 																	instancePath +
 																	'/additionalStepsAfterExecution/' +
 																	i39 +
 																	'/options/' +
-																	key95
+																	key96
 																		.replace(
 																			/~/g,
 																			'~0'
@@ -36527,7 +36790,7 @@ function validate11(
 																			'~1'
 																		),
 																schemaPath:
-																	'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf/2/type',
+																	'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf/2/type',
 																keyword: 'type',
 																params: {
 																	type: 'number',
@@ -36539,40 +36802,40 @@ function validate11(
 																vErrors === null
 															) {
 																vErrors = [
-																	err818,
+																	err826,
 																];
 															} else {
 																vErrors.push(
-																	err818
+																	err826
 																);
 															}
 															errors++;
 														}
 														var _valid43 =
-															_errs1296 ===
+															_errs1305 ===
 															errors;
-														valid308 =
-															valid308 ||
+														valid312 =
+															valid312 ||
 															_valid43;
-														if (!valid308) {
-															const _errs1298 =
+														if (!valid312) {
+															const _errs1307 =
 																errors;
 															if (
 																Array.isArray(
-																	data471
+																	data474
 																)
 															) {
-																const len55 =
-																	data471.length;
+																const len56 =
+																	data474.length;
 																for (
-																	let i55 = 0;
-																	i55 < len55;
-																	i55++
+																	let i56 = 0;
+																	i56 < len56;
+																	i56++
 																) {
 																	if (
 																		!validate34(
-																			data471[
-																				i55
+																			data474[
+																				i56
 																			],
 																			{
 																				instancePath:
@@ -36580,7 +36843,7 @@ function validate11(
 																					'/additionalStepsAfterExecution/' +
 																					i39 +
 																					'/options/' +
-																					key95
+																					key96
 																						.replace(
 																							/~/g,
 																							'~0'
@@ -36590,11 +36853,11 @@ function validate11(
 																							'~1'
 																						) +
 																					'/' +
-																					i55,
+																					i56,
 																				parentData:
-																					data471,
+																					data474,
 																				parentDataProperty:
-																					i55,
+																					i56,
 																				rootData,
 																			}
 																		)
@@ -36611,13 +36874,13 @@ function validate11(
 																	}
 																}
 															} else {
-																const err819 = {
+																const err827 = {
 																	instancePath:
 																		instancePath +
 																		'/additionalStepsAfterExecution/' +
 																		i39 +
 																		'/options/' +
-																		key95
+																		key96
 																			.replace(
 																				/~/g,
 																				'~0'
@@ -36627,7 +36890,7 @@ function validate11(
 																				'~1'
 																			),
 																	schemaPath:
-																		'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf/3/type',
+																		'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf/3/type',
 																	keyword:
 																		'type',
 																	params: {
@@ -36641,37 +36904,37 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err819,
+																		err827,
 																	];
 																} else {
 																	vErrors.push(
-																		err819
+																		err827
 																	);
 																}
 																errors++;
 															}
 															var _valid43 =
-																_errs1298 ===
+																_errs1307 ===
 																errors;
-															valid308 =
-																valid308 ||
+															valid312 =
+																valid312 ||
 																_valid43;
-															if (!valid308) {
-																const _errs1301 =
+															if (!valid312) {
+																const _errs1310 =
 																	errors;
 																if (
-																	data471 &&
-																	typeof data471 ==
+																	data474 &&
+																	typeof data474 ==
 																		'object' &&
 																	!Array.isArray(
-																		data471
+																		data474
 																	)
 																) {
-																	for (const key96 in data471) {
+																	for (const key97 in data474) {
 																		if (
 																			!validate34(
-																				data471[
-																					key96
+																				data474[
+																					key97
 																				],
 																				{
 																					instancePath:
@@ -36679,7 +36942,7 @@ function validate11(
 																						'/additionalStepsAfterExecution/' +
 																						i39 +
 																						'/options/' +
-																						key95
+																						key96
 																							.replace(
 																								/~/g,
 																								'~0'
@@ -36689,7 +36952,7 @@ function validate11(
 																								'~1'
 																							) +
 																						'/' +
-																						key96
+																						key97
 																							.replace(
 																								/~/g,
 																								'~0'
@@ -36699,9 +36962,9 @@ function validate11(
 																								'~1'
 																							),
 																					parentData:
-																						data471,
+																						data474,
 																					parentDataProperty:
-																						key96,
+																						key97,
 																					rootData,
 																				}
 																			)
@@ -36718,14 +36981,14 @@ function validate11(
 																		}
 																	}
 																} else {
-																	const err820 =
+																	const err828 =
 																		{
 																			instancePath:
 																				instancePath +
 																				'/additionalStepsAfterExecution/' +
 																				i39 +
 																				'/options/' +
-																				key95
+																				key96
 																					.replace(
 																						/~/g,
 																						'~0'
@@ -36735,7 +36998,7 @@ function validate11(
 																						'~1'
 																					),
 																			schemaPath:
-																				'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf/4/type',
+																				'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf/4/type',
 																			keyword:
 																				'type',
 																			params: {
@@ -36750,33 +37013,33 @@ function validate11(
 																	) {
 																		vErrors =
 																			[
-																				err820,
+																				err828,
 																			];
 																	} else {
 																		vErrors.push(
-																			err820
+																			err828
 																		);
 																	}
 																	errors++;
 																}
 																var _valid43 =
-																	_errs1301 ===
+																	_errs1310 ===
 																	errors;
-																valid308 =
-																	valid308 ||
+																valid312 =
+																	valid312 ||
 																	_valid43;
 															}
 														}
 													}
 												}
-												if (!valid308) {
-													const err821 = {
+												if (!valid312) {
+													const err829 = {
 														instancePath:
 															instancePath +
 															'/additionalStepsAfterExecution/' +
 															i39 +
 															'/options/' +
-															key95
+															key96
 																.replace(
 																	/~/g,
 																	'~0'
@@ -36786,24 +37049,24 @@ function validate11(
 																	'~1'
 																),
 														schemaPath:
-															'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/additionalProperties/anyOf',
+															'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/additionalProperties/anyOf',
 														keyword: 'anyOf',
 														params: {},
 														message:
 															'must match a schema in anyOf',
 													};
 													if (vErrors === null) {
-														vErrors = [err821];
+														vErrors = [err829];
 													} else {
-														vErrors.push(err821);
+														vErrors.push(err829);
 													}
 													errors++;
 												} else {
-													errors = _errs1291;
+													errors = _errs1300;
 													if (vErrors !== null) {
-														if (_errs1291) {
+														if (_errs1300) {
 															vErrors.length =
-																_errs1291;
+																_errs1300;
 														} else {
 															vErrors = null;
 														}
@@ -36811,42 +37074,42 @@ function validate11(
 												}
 											}
 										} else {
-											const err822 = {
+											const err830 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
 													'/options',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/17/properties/options/type',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/options/type',
 												keyword: 'type',
 												params: { type: 'object' },
 												message: 'must be object',
 											};
 											if (vErrors === null) {
-												vErrors = [err822];
+												vErrors = [err830];
 											} else {
-												vErrors.push(err822);
+												vErrors.push(err830);
 											}
 											errors++;
 										}
 									}
 								} else {
-									const err823 = {
+									const err831 = {
 										instancePath:
 											instancePath +
 											'/additionalStepsAfterExecution/' +
 											i39,
 										schemaPath:
-											'#/properties/additionalStepsAfterExecution/items/oneOf/17/type',
+											'#/properties/additionalStepsAfterExecution/items/oneOf/18/type',
 										keyword: 'type',
 										params: { type: 'object' },
 										message: 'must be object',
 									};
 									if (vErrors === null) {
-										vErrors = [err823];
+										vErrors = [err831];
 									} else {
-										vErrors.push(err823);
+										vErrors.push(err831);
 									}
 									errors++;
 								}
@@ -36857,13 +37120,13 @@ function validate11(
 									!Array.isArray(data315)
 								) {
 									if (data315.step === undefined) {
-										const err824 = {
+										const err832 = {
 											instancePath:
 												instancePath +
 												'/additionalStepsAfterExecution/' +
 												i39,
 											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/18/required',
+												'#/properties/additionalStepsAfterExecution/items/oneOf/19/required',
 											keyword: 'required',
 											params: { missingProperty: 'step' },
 											message:
@@ -36872,20 +37135,20 @@ function validate11(
 												"'",
 										};
 										if (vErrors === null) {
-											vErrors = [err824];
+											vErrors = [err832];
 										} else {
-											vErrors.push(err824);
+											vErrors.push(err832);
 										}
 										errors++;
 									}
 									if (data315.zipFile === undefined) {
-										const err825 = {
+										const err833 = {
 											instancePath:
 												instancePath +
 												'/additionalStepsAfterExecution/' +
 												i39,
 											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/18/required',
+												'#/properties/additionalStepsAfterExecution/items/oneOf/19/required',
 											keyword: 'required',
 											params: {
 												missingProperty: 'zipFile',
@@ -36896,20 +37159,20 @@ function validate11(
 												"'",
 										};
 										if (vErrors === null) {
-											vErrors = [err825];
+											vErrors = [err833];
 										} else {
-											vErrors.push(err825);
+											vErrors.push(err833);
 										}
 										errors++;
 									}
 									if (data315.extractToPath === undefined) {
-										const err826 = {
+										const err834 = {
 											instancePath:
 												instancePath +
 												'/additionalStepsAfterExecution/' +
 												i39,
 											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/18/required',
+												'#/properties/additionalStepsAfterExecution/items/oneOf/19/required',
 											keyword: 'required',
 											params: {
 												missingProperty:
@@ -36921,73 +37184,73 @@ function validate11(
 												"'",
 										};
 										if (vErrors === null) {
-											vErrors = [err826];
+											vErrors = [err834];
 										} else {
-											vErrors.push(err826);
+											vErrors.push(err834);
 										}
 										errors++;
 									}
-									for (const key97 in data315) {
+									for (const key98 in data315) {
 										if (
 											!(
-												key97 === 'step' ||
-												key97 === 'zipFile' ||
-												key97 === 'extractToPath'
+												key98 === 'step' ||
+												key98 === 'zipFile' ||
+												key98 === 'extractToPath'
 											)
 										) {
-											const err827 = {
+											const err835 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39,
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/18/additionalProperties',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/19/additionalProperties',
 												keyword: 'additionalProperties',
 												params: {
-													additionalProperty: key97,
+													additionalProperty: key98,
 												},
 												message:
 													'must NOT have additional properties',
 											};
 											if (vErrors === null) {
-												vErrors = [err827];
+												vErrors = [err835];
 											} else {
-												vErrors.push(err827);
+												vErrors.push(err835);
 											}
 											errors++;
 										}
 									}
 									if (data315.step !== undefined) {
-										let data474 = data315.step;
-										if (typeof data474 !== 'string') {
-											const err828 = {
+										let data477 = data315.step;
+										if (typeof data477 !== 'string') {
+											const err836 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
 													'/step',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/step/type',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/step/type',
 												keyword: 'type',
 												params: { type: 'string' },
 												message: 'must be string',
 											};
 											if (vErrors === null) {
-												vErrors = [err828];
+												vErrors = [err836];
 											} else {
-												vErrors.push(err828);
+												vErrors.push(err836);
 											}
 											errors++;
 										}
-										if ('unzip' !== data474) {
-											const err829 = {
+										if ('unzip' !== data477) {
+											const err837 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
 													'/step',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/step/const',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/step/const',
 												keyword: 'const',
 												params: {
 													allowedValue: 'unzip',
@@ -36996,9 +37259,9 @@ function validate11(
 													'must be equal to constant',
 											};
 											if (vErrors === null) {
-												vErrors = [err829];
+												vErrors = [err837];
 											} else {
-												vErrors.push(err829);
+												vErrors.push(err837);
 											}
 											errors++;
 										}
@@ -37030,210 +37293,14 @@ function validate11(
 											typeof data315.extractToPath !==
 											'string'
 										) {
-											const err830 = {
+											const err838 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
 													'/extractToPath',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/18/properties/extractToPath/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											};
-											if (vErrors === null) {
-												vErrors = [err830];
-											} else {
-												vErrors.push(err830);
-											}
-											errors++;
-										}
-									}
-								} else {
-									const err831 = {
-										instancePath:
-											instancePath +
-											'/additionalStepsAfterExecution/' +
-											i39,
-										schemaPath:
-											'#/properties/additionalStepsAfterExecution/items/oneOf/18/type',
-										keyword: 'type',
-										params: { type: 'object' },
-										message: 'must be object',
-									};
-									if (vErrors === null) {
-										vErrors = [err831];
-									} else {
-										vErrors.push(err831);
-									}
-									errors++;
-								}
-							} else if (tag1 === 'wp-cli') {
-								if (
-									data315 &&
-									typeof data315 == 'object' &&
-									!Array.isArray(data315)
-								) {
-									if (data315.step === undefined) {
-										const err832 = {
-											instancePath:
-												instancePath +
-												'/additionalStepsAfterExecution/' +
-												i39,
-											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/19/required',
-											keyword: 'required',
-											params: { missingProperty: 'step' },
-											message:
-												"must have required property '" +
-												'step' +
-												"'",
-										};
-										if (vErrors === null) {
-											vErrors = [err832];
-										} else {
-											vErrors.push(err832);
-										}
-										errors++;
-									}
-									if (data315.command === undefined) {
-										const err833 = {
-											instancePath:
-												instancePath +
-												'/additionalStepsAfterExecution/' +
-												i39,
-											schemaPath:
-												'#/properties/additionalStepsAfterExecution/items/oneOf/19/required',
-											keyword: 'required',
-											params: {
-												missingProperty: 'command',
-											},
-											message:
-												"must have required property '" +
-												'command' +
-												"'",
-										};
-										if (vErrors === null) {
-											vErrors = [err833];
-										} else {
-											vErrors.push(err833);
-										}
-										errors++;
-									}
-									for (const key98 in data315) {
-										if (
-											!(
-												key98 === 'step' ||
-												key98 === 'command' ||
-												key98 === 'wpCliPath'
-											)
-										) {
-											const err834 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39,
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/19/additionalProperties',
-												keyword: 'additionalProperties',
-												params: {
-													additionalProperty: key98,
-												},
-												message:
-													'must NOT have additional properties',
-											};
-											if (vErrors === null) {
-												vErrors = [err834];
-											} else {
-												vErrors.push(err834);
-											}
-											errors++;
-										}
-									}
-									if (data315.step !== undefined) {
-										let data477 = data315.step;
-										if (typeof data477 !== 'string') {
-											const err835 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/step',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/step/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											};
-											if (vErrors === null) {
-												vErrors = [err835];
-											} else {
-												vErrors.push(err835);
-											}
-											errors++;
-										}
-										if ('wp-cli' !== data477) {
-											const err836 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/step',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/step/const',
-												keyword: 'const',
-												params: {
-													allowedValue: 'wp-cli',
-												},
-												message:
-													'must be equal to constant',
-											};
-											if (vErrors === null) {
-												vErrors = [err836];
-											} else {
-												vErrors.push(err836);
-											}
-											errors++;
-										}
-									}
-									if (data315.command !== undefined) {
-										if (
-											typeof data315.command !== 'string'
-										) {
-											const err837 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/command',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/command/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											};
-											if (vErrors === null) {
-												vErrors = [err837];
-											} else {
-												vErrors.push(err837);
-											}
-											errors++;
-										}
-									}
-									if (data315.wpCliPath !== undefined) {
-										if (
-											typeof data315.wpCliPath !==
-											'string'
-										) {
-											const err838 = {
-												instancePath:
-													instancePath +
-													'/additionalStepsAfterExecution/' +
-													i39 +
-													'/wpCliPath',
-												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/wpCliPath/type',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/19/properties/extractToPath/type',
 												keyword: 'type',
 												params: { type: 'string' },
 												message: 'must be string',
@@ -37265,7 +37332,7 @@ function validate11(
 									}
 									errors++;
 								}
-							} else if (tag1 === 'writeFiles') {
+							} else if (tag1 === 'wp-cli') {
 								if (
 									data315 &&
 									typeof data315 == 'object' &&
@@ -37293,7 +37360,7 @@ function validate11(
 										}
 										errors++;
 									}
-									if (data315.files === undefined) {
+									if (data315.command === undefined) {
 										const err841 = {
 											instancePath:
 												instancePath +
@@ -37303,11 +37370,11 @@ function validate11(
 												'#/properties/additionalStepsAfterExecution/items/oneOf/20/required',
 											keyword: 'required',
 											params: {
-												missingProperty: 'files',
+												missingProperty: 'command',
 											},
 											message:
 												"must have required property '" +
-												'files' +
+												'command' +
 												"'",
 										};
 										if (vErrors === null) {
@@ -37321,7 +37388,8 @@ function validate11(
 										if (
 											!(
 												key99 === 'step' ||
-												key99 === 'files'
+												key99 === 'command' ||
+												key99 === 'wpCliPath'
 											)
 										) {
 											const err842 = {
@@ -37368,7 +37436,7 @@ function validate11(
 											}
 											errors++;
 										}
-										if ('writeFiles' !== data480) {
+										if ('wp-cli' !== data480) {
 											const err844 = {
 												instancePath:
 													instancePath +
@@ -37379,7 +37447,7 @@ function validate11(
 													'#/properties/additionalStepsAfterExecution/items/oneOf/20/properties/step/const',
 												keyword: 'const',
 												params: {
-													allowedValue: 'writeFiles',
+													allowedValue: 'wp-cli',
 												},
 												message:
 													'must be equal to constant',
@@ -37392,24 +37460,219 @@ function validate11(
 											errors++;
 										}
 									}
-									if (data315.files !== undefined) {
-										let data481 = data315.files;
+									if (data315.command !== undefined) {
 										if (
-											data481 &&
-											typeof data481 == 'object' &&
-											!Array.isArray(data481)
+											typeof data315.command !== 'string'
 										) {
-											for (const key100 in data481) {
+											const err845 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/command',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/20/properties/command/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err845];
+											} else {
+												vErrors.push(err845);
+											}
+											errors++;
+										}
+									}
+									if (data315.wpCliPath !== undefined) {
+										if (
+											typeof data315.wpCliPath !==
+											'string'
+										) {
+											const err846 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/wpCliPath',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/20/properties/wpCliPath/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err846];
+											} else {
+												vErrors.push(err846);
+											}
+											errors++;
+										}
+									}
+								} else {
+									const err847 = {
+										instancePath:
+											instancePath +
+											'/additionalStepsAfterExecution/' +
+											i39,
+										schemaPath:
+											'#/properties/additionalStepsAfterExecution/items/oneOf/20/type',
+										keyword: 'type',
+										params: { type: 'object' },
+										message: 'must be object',
+									};
+									if (vErrors === null) {
+										vErrors = [err847];
+									} else {
+										vErrors.push(err847);
+									}
+									errors++;
+								}
+							} else if (tag1 === 'writeFiles') {
+								if (
+									data315 &&
+									typeof data315 == 'object' &&
+									!Array.isArray(data315)
+								) {
+									if (data315.step === undefined) {
+										const err848 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/21/required',
+											keyword: 'required',
+											params: { missingProperty: 'step' },
+											message:
+												"must have required property '" +
+												'step' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err848];
+										} else {
+											vErrors.push(err848);
+										}
+										errors++;
+									}
+									if (data315.files === undefined) {
+										const err849 = {
+											instancePath:
+												instancePath +
+												'/additionalStepsAfterExecution/' +
+												i39,
+											schemaPath:
+												'#/properties/additionalStepsAfterExecution/items/oneOf/21/required',
+											keyword: 'required',
+											params: {
+												missingProperty: 'files',
+											},
+											message:
+												"must have required property '" +
+												'files' +
+												"'",
+										};
+										if (vErrors === null) {
+											vErrors = [err849];
+										} else {
+											vErrors.push(err849);
+										}
+										errors++;
+									}
+									for (const key100 in data315) {
+										if (
+											!(
+												key100 === 'step' ||
+												key100 === 'files'
+											)
+										) {
+											const err850 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39,
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/21/additionalProperties',
+												keyword: 'additionalProperties',
+												params: {
+													additionalProperty: key100,
+												},
+												message:
+													'must NOT have additional properties',
+											};
+											if (vErrors === null) {
+												vErrors = [err850];
+											} else {
+												vErrors.push(err850);
+											}
+											errors++;
+										}
+									}
+									if (data315.step !== undefined) {
+										let data483 = data315.step;
+										if (typeof data483 !== 'string') {
+											const err851 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/21/properties/step/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											};
+											if (vErrors === null) {
+												vErrors = [err851];
+											} else {
+												vErrors.push(err851);
+											}
+											errors++;
+										}
+										if ('writeFiles' !== data483) {
+											const err852 = {
+												instancePath:
+													instancePath +
+													'/additionalStepsAfterExecution/' +
+													i39 +
+													'/step',
+												schemaPath:
+													'#/properties/additionalStepsAfterExecution/items/oneOf/21/properties/step/const',
+												keyword: 'const',
+												params: {
+													allowedValue: 'writeFiles',
+												},
+												message:
+													'must be equal to constant',
+											};
+											if (vErrors === null) {
+												vErrors = [err852];
+											} else {
+												vErrors.push(err852);
+											}
+											errors++;
+										}
+									}
+									if (data315.files !== undefined) {
+										let data484 = data315.files;
+										if (
+											data484 &&
+											typeof data484 == 'object' &&
+											!Array.isArray(data484)
+										) {
+											for (const key101 in data484) {
 												if (
 													!validate12(
-														data481[key100],
+														data484[key101],
 														{
 															instancePath:
 																instancePath +
 																'/additionalStepsAfterExecution/' +
 																i39 +
 																'/files/' +
-																key100
+																key101
 																	.replace(
 																		/~/g,
 																		'~0'
@@ -37418,9 +37681,9 @@ function validate11(
 																		/\//g,
 																		'~1'
 																	),
-															parentData: data481,
+															parentData: data484,
 															parentDataProperty:
-																key100,
+																key101,
 															rootData,
 														}
 													)
@@ -37435,47 +37698,47 @@ function validate11(
 												}
 											}
 										} else {
-											const err845 = {
+											const err853 = {
 												instancePath:
 													instancePath +
 													'/additionalStepsAfterExecution/' +
 													i39 +
 													'/files',
 												schemaPath:
-													'#/properties/additionalStepsAfterExecution/items/oneOf/20/properties/files/type',
+													'#/properties/additionalStepsAfterExecution/items/oneOf/21/properties/files/type',
 												keyword: 'type',
 												params: { type: 'object' },
 												message: 'must be object',
 											};
 											if (vErrors === null) {
-												vErrors = [err845];
+												vErrors = [err853];
 											} else {
-												vErrors.push(err845);
+												vErrors.push(err853);
 											}
 											errors++;
 										}
 									}
 								} else {
-									const err846 = {
+									const err854 = {
 										instancePath:
 											instancePath +
 											'/additionalStepsAfterExecution/' +
 											i39,
 										schemaPath:
-											'#/properties/additionalStepsAfterExecution/items/oneOf/20/type',
+											'#/properties/additionalStepsAfterExecution/items/oneOf/21/type',
 										keyword: 'type',
 										params: { type: 'object' },
 										message: 'must be object',
 									};
 									if (vErrors === null) {
-										vErrors = [err846];
+										vErrors = [err854];
 									} else {
-										vErrors.push(err846);
+										vErrors.push(err854);
 									}
 									errors++;
 								}
 							} else {
-								const err847 = {
+								const err855 = {
 									instancePath:
 										instancePath +
 										'/additionalStepsAfterExecution/' +
@@ -37492,14 +37755,14 @@ function validate11(
 										'value of tag "step" must be in oneOf',
 								};
 								if (vErrors === null) {
-									vErrors = [err847];
+									vErrors = [err855];
 								} else {
-									vErrors.push(err847);
+									vErrors.push(err855);
 								}
 								errors++;
 							}
 						} else {
-							const err848 = {
+							const err856 = {
 								instancePath:
 									instancePath +
 									'/additionalStepsAfterExecution/' +
@@ -37515,14 +37778,14 @@ function validate11(
 								message: 'tag "step" must be string',
 							};
 							if (vErrors === null) {
-								vErrors = [err848];
+								vErrors = [err856];
 							} else {
-								vErrors.push(err848);
+								vErrors.push(err856);
 							}
 							errors++;
 						}
 					} else {
-						const err849 = {
+						const err857 = {
 							instancePath:
 								instancePath +
 								'/additionalStepsAfterExecution/' +
@@ -37534,15 +37797,15 @@ function validate11(
 							message: 'must be object',
 						};
 						if (vErrors === null) {
-							vErrors = [err849];
+							vErrors = [err857];
 						} else {
-							vErrors.push(err849);
+							vErrors.push(err857);
 						}
 						errors++;
 					}
 				}
 			} else {
-				const err850 = {
+				const err858 = {
 					instancePath:
 						instancePath + '/additionalStepsAfterExecution',
 					schemaPath:
@@ -37552,15 +37815,15 @@ function validate11(
 					message: 'must be array',
 				};
 				if (vErrors === null) {
-					vErrors = [err850];
+					vErrors = [err858];
 				} else {
-					vErrors.push(err850);
+					vErrors.push(err858);
 				}
 				errors++;
 			}
 		}
 	} else {
-		const err851 = {
+		const err859 = {
 			instancePath,
 			schemaPath: '#/type',
 			keyword: 'type',
@@ -37568,9 +37831,9 @@ function validate11(
 			message: 'must be object',
 		};
 		if (vErrors === null) {
-			vErrors = [err851];
+			vErrors = [err859];
 		} else {
-			vErrors.push(err851);
+			vErrors.push(err859);
 		}
 		errors++;
 	}

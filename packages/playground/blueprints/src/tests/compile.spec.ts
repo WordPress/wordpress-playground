@@ -194,9 +194,13 @@ describe('compileBlueprintForExecution', () => {
 			},
 		]);
 		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
-			'runPHP',
+			'resetData',
 			'setSiteOptions',
 		]);
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			step: 'resetData',
+			contentTypes: ['posts', 'pages', 'comments'],
+		});
 	});
 
 	it('skips creation baselines for existing sites', async () => {
@@ -269,7 +273,7 @@ describe('compileBlueprintForExecution', () => {
 			'defineUsers',
 		]);
 		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
-			'runPHP',
+			'resetData',
 			'runPHP',
 			'runPHPWithOptions',
 		]);
@@ -1178,6 +1182,30 @@ describe('compileBlueprintForExecution', () => {
 				step: 'wp-cli',
 				command: "wp site create --slug=food --title='The Foodie'",
 				wpCliPath: undefined,
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers an ordered Blueprint v2 content reset to resetData', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'resetData',
+					contentTypes: ['pages', 'comments'],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'resetData',
+				contentTypes: ['pages', 'comments'],
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);

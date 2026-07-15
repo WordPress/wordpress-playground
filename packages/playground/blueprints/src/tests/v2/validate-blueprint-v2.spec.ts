@@ -110,6 +110,20 @@ describe('Blueprint v2 schema validation', () => {
 		).toEqual({ valid: true });
 	});
 
+	it('accepts ordered content resets', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'resetData',
+						contentTypes: ['pages', 'comments'],
+					},
+				],
+			})
+		).toEqual({ valid: true });
+	});
+
 	it('preserves backslashes as valid POSIX path bytes', () => {
 		expect(
 			validateBlueprintV2({

@@ -1615,6 +1615,15 @@ export namespace V2Schema {
 		path: string;
 	};
 
+	type ResetDataStep = {
+		step: 'resetData';
+		/**
+		 * Content types to remove. When omitted, all posts, pages, custom post
+		 * types, and comments are removed.
+		 */
+		contentTypes?: Array<ContentType>;
+	};
+
 	type RunPHPStep = {
 		step: 'runPHP';
 		/**
@@ -1709,6 +1718,7 @@ export namespace V2Schema {
 		| MvStep
 		| RmStep
 		| RmdirStep
+		| ResetDataStep
 		| RunPHPStep
 		| RunSQLStep
 		| SetSiteLanguageStep

@@ -737,6 +737,10 @@ const additionalSteps = [
 	{
 		step: 'enableMultisite' as const,
 	},
+	{
+		step: 'resetData' as const,
+		contentTypes: ['pages', 'comments'] as const,
+	},
 ] satisfies NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
 >;

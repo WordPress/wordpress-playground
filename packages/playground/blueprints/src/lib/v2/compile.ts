@@ -123,14 +123,11 @@ type BlueprintV2InstallAssetDefinition = {
 	humanReadableName?: string;
 };
 
-const SITE_CREATION_POST_TYPES = {
-	posts: 'post',
-	pages: 'page',
-	comments: undefined,
-} satisfies Record<BlueprintV2ContentType, string | undefined>;
-const SITE_CREATION_CONTENT_TYPES = Object.keys(
-	SITE_CREATION_POST_TYPES
-) as BlueprintV2ContentType[];
+const SITE_CREATION_CONTENT_TYPES: BlueprintV2ContentType[] = [
+	'posts',
+	'pages',
+	'comments',
+];
 
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
 export type BlueprintV2StepPlan = StepDefinition[];
@@ -709,6 +706,8 @@ function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
 			return 'Removing file';
 		case 'rmdir':
 			return 'Removing directory';
+		case 'resetData':
+			return 'Resetting WordPress data';
 		case 'runPHP':
 			return 'Running PHP';
 		case 'runSQL':
@@ -739,7 +738,14 @@ function lowerBlueprintV2ExecutionPlanItem(
 ): StepDefinition[] | undefined {
 	switch (planItem.type) {
 		case 'applyContentBaseline':
-			return lowerContentBaseline(planItem.contentBaseline);
+			return [
+				{
+					step: 'resetData',
+					contentTypes: getRemovedContentTypes(
+						planItem.contentBaseline
+					),
+				},
+			];
 		case 'applyUsersBaseline':
 			return lowerUsersBaseline();
 		case 'defineWpConfigConsts':
@@ -800,77 +806,13 @@ function lowerBlueprintV2ExecutionPlanItem(
 	}
 }
 
-/**
- * Removes content excluded from the requested creation baseline.
- *
- * Posts and pages are deleted through WordPress APIs so dependent records are
- * removed with them. Empty tables have their sequences reset so later imports
- * receive the same identifiers they would on a site created without defaults.
- */
-function lowerContentBaseline(
+function getRemovedContentTypes(
 	contentBaseline: BlueprintV2ContentBaseline
-): StepDefinition[] {
+): BlueprintV2ContentType[] {
 	const preservedContent = getPreservedContentTypes(contentBaseline);
-	const removedContent = SITE_CREATION_CONTENT_TYPES.filter(
+	return SITE_CREATION_CONTENT_TYPES.filter(
 		(contentType) => !preservedContent.includes(contentType)
 	);
-	if (removedContent.length === 0) {
-		return [];
-	}
-
-	const postTypes = removedContent
-		.map((contentType) => SITE_CREATION_POST_TYPES[contentType])
-		.filter((postType): postType is string => postType !== undefined);
-	const removePosts = removedContent.includes('posts');
-	const removeComments = removedContent.includes('comments');
-
-	return [
-		{
-			step: 'runPHP',
-			code: `<?php
-			require '/wordpress/wp-load.php';
-
-			$post_types = ${JSON.stringify(postTypes)};
-			if (count($post_types) > 0) {
-				$placeholders = implode(', ', array_fill(0, count($post_types), '%s'));
-				$post_ids = $wpdb->get_col($wpdb->prepare(
-					"SELECT ID FROM {$wpdb->posts} " .
-					"WHERE post_type IN ($placeholders) ORDER BY ID DESC",
-					...$post_types
-				));
-				foreach ($post_ids as $post_id) {
-					wp_delete_post((int) $post_id, true);
-				}
-			}
-
-			// WordPress refreshes this cache before deleting the post row, so removing
-			// the last published post leaves the cache set to true.
-			if (${removePosts ? 'true' : 'false'}) {
-				delete_option('wp_calendar_block_has_published_posts');
-			}
-
-			if (${removeComments ? 'true' : 'false'}) {
-				$comment_ids = $wpdb->get_col(
-					"SELECT comment_ID FROM {$wpdb->comments}"
-				);
-				foreach ($comment_ids as $comment_id) {
-					wp_delete_comment((int) $comment_id, true);
-				}
-			}
-
-			${getResetSequenceIfEmptyPHP()}
-
-			if (count($post_types) > 0) {
-				$reset_sequence_if_empty($wpdb->posts);
-				$reset_sequence_if_empty($wpdb->postmeta);
-			}
-			if (${removeComments ? 'true' : 'false'} || count($post_types) > 0) {
-				$reset_sequence_if_empty($wpdb->comments);
-				$reset_sequence_if_empty($wpdb->commentmeta);
-			}
-			`,
-		},
-	];
 }
 
 function getPreservedContentTypes(
@@ -905,18 +847,7 @@ function lowerUsersBaseline(): StepDefinition[] {
 				wp_delete_user((int) $user_id);
 			}
 
-			${getResetSequenceIfEmptyPHP()}
-
-			$reset_sequence_if_empty($wpdb->users);
-			$reset_sequence_if_empty($wpdb->usermeta);
-			`,
-		},
-	];
-}
-
-/** Returns the shared database sequence reset used by creation baselines. */
-function getResetSequenceIfEmptyPHP(): string {
-	return `$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
+			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
 				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
 				if ((int) $count !== 0) {
 					return;
@@ -929,7 +860,13 @@ function getResetSequenceIfEmptyPHP(): string {
 					return;
 				}
 				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
-			};`;
+			};
+
+			$reset_sequence_if_empty($wpdb->users);
+			$reset_sequence_if_empty($wpdb->usermeta);
+			`,
+		},
+	];
 }
 
 function lowerBlueprintV2Content(
@@ -1079,6 +1016,13 @@ function lowerAdditionalBlueprintV2Step(
 				{
 					step: 'rmdir',
 					path: toPlaygroundPath(step.path),
+				},
+			];
+		case 'resetData':
+			return [
+				{
+					step: 'resetData',
+					contentTypes: step.contentTypes,
 				},
 			];
 		case 'runPHP':
