@@ -28,6 +28,12 @@
 	transform: scale(0.95);
 }
 
+.refresh-button:disabled,
+.refresh-button:disabled:hover {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
+}
+
 .input-container {
 	position: relative;
 	display: flex;
@@ -65,6 +71,11 @@
 
 .input:focus {
 	outline: none;
+}
+
+.input:disabled {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
 }
 
 /* Popover container */
@@ -106,7 +117,8 @@
 }
 
 .suggestion-item:hover,
-.suggestion-item:focus {
+.suggestion-item:focus,
+.suggestion-item-active {
 	background: #4f5861;
 	color: #e0e6eb;
 	outline: none;
