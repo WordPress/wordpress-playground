@@ -8,16 +8,11 @@ describe('ProgressBar', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('keeps the Playground name stable while its boot caption changes', () => {
+	it('updates the boot caption', () => {
 		const progressBar = new ProgressBar({
-			title: 'Curious Harbor',
 			caption: 'Preparing WordPress',
 		});
 
-		expect(progressBar.labelElement.textContent).toBe(
-			'Starting Your Playground:'
-		);
-		expect(progressBar.titleElement.textContent).toBe('Curious Harbor');
 		expect(progressBar.captionElement.textContent).toBe(
 			'Preparing WordPress'
 		);
@@ -34,24 +29,18 @@ describe('ProgressBar', () => {
 
 		progressBar.setOptions({ caption: 'Installing WordPress' });
 
-		expect(progressBar.titleElement.textContent).toBe('Curious Harbor');
 		expect(progressBar.captionElement.textContent).toBe(
 			'Installing WordPress'
 		);
 	});
 
-	it('can clear the Playground name and caption', () => {
+	it('can clear the boot caption', () => {
 		const progressBar = new ProgressBar({
-			title: 'Curious Harbor',
 			caption: 'Preparing WordPress',
 		});
 
-		progressBar.setOptions({ title: undefined, caption: '' });
+		progressBar.setOptions({ caption: '' });
 
-		expect(progressBar.title).toBe('');
-		expect(progressBar.titleElement.textContent).toBe('');
-		expect(progressBar.titleElement.hidden).toBe(true);
-		expect(progressBar.labelElement.hidden).toBe(true);
 		expect(progressBar.caption).toBe('');
 		expect(progressBar.captionElement.textContent).toBe('');
 	});

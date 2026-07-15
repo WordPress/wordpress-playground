@@ -232,8 +232,6 @@ export function bootSiteClient(
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
-				// Keep the Playground identified while its boot-stage caption changes.
-				siteName: site.metadata.name,
 				blueprint,
 				extensions: phpExtensions,
 				// Intercept the Playground client even if the
