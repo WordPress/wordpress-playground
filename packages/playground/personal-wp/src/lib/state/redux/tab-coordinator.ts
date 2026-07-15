@@ -10,6 +10,8 @@
  * runtime disappears.
  */
 
+import type { BlueprintInstallUsageStatsRequestSource } from '../../personalwp/usage-stats';
+
 export type MainTabStatus = 'connected' | 'booting' | 'missing';
 
 export type TabInfo = {
@@ -50,6 +52,12 @@ type MainTabFocusAcknowledgedMessage = {
 	siteSlug: string;
 };
 
+type McpConnectRequestMessage = {
+	type: 'mcp-connect-request';
+	siteSlug: string;
+	port: number;
+};
+
 type MainTabStatusMessage = {
 	type: 'main-tab-status';
 	tabId: string;
@@ -63,6 +71,7 @@ type InstallBlueprintRequestMessage = {
 	requestingTabId: string;
 	siteSlug: string;
 	blueprintUrl: string;
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
 type InstallBlueprintResultMessage = {
@@ -83,6 +92,7 @@ type TabCoordinatorMessage =
 	| BackupCompletedMessage
 	| MainTabFocusRequestMessage
 	| MainTabFocusAcknowledgedMessage
+	| McpConnectRequestMessage
 	| MainTabStatusMessage
 	| InstallBlueprintRequestMessage
 	| InstallBlueprintResultMessage
@@ -119,8 +129,12 @@ let channel: BroadcastChannel | null = null;
 let currentTabInfo: TabInfo | null = null;
 let currentOptions: TabCoordinatorOptions = {};
 let backupRequestCallback: (() => Promise<boolean>) | null = null;
+let mcpConnectRequestCallback: ((port: number) => void) | null = null;
 let installBlueprintRequestCallback:
-	| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+	| ((
+			blueprintUrl: string,
+			options?: InstallBlueprintRequestOptions
+	  ) => Promise<InstallBlueprintCommandResult>)
 	| null = null;
 let userBlueprintInstallCallback:
 	| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
@@ -184,6 +198,7 @@ export function destroyTabCoordinator(): void {
 	currentTabInfo = null;
 	currentOptions = {};
 	backupRequestCallback = null;
+	mcpConnectRequestCallback = null;
 	installBlueprintRequestCallback = null;
 	userBlueprintInstallCallback = null;
 	clearTitleFlash();
@@ -222,9 +237,26 @@ export function setBackupRequestCallback(
 	backupRequestCallback = callback;
 }
 
+export function setMcpConnectRequestCallback(
+	callback: ((port: number) => void) | null
+): void {
+	mcpConnectRequestCallback = callback;
+}
+
+export type InstallBlueprintRequestOptions = {
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
+};
+
+export type RemoteBlueprintInstallOptions = InstallBlueprintRequestOptions & {
+	timeoutMs?: number;
+};
+
 export function setInstallBlueprintRequestCallback(
 	callback:
-		| ((blueprintUrl: string) => Promise<InstallBlueprintCommandResult>)
+		| ((
+				blueprintUrl: string,
+				options?: InstallBlueprintRequestOptions
+		  ) => Promise<InstallBlueprintCommandResult>)
 		| null
 ): void {
 	installBlueprintRequestCallback = callback;
@@ -310,7 +342,7 @@ export async function requestRemoteBackup(
 export async function requestRemoteBlueprintInstall(
 	siteSlug: string,
 	blueprintUrl: string,
-	timeoutMs = INSTALL_BLUEPRINT_TIMEOUT_MS
+	optionsOrTimeout: RemoteBlueprintInstallOptions | number = {}
 ): Promise<InstallBlueprintCommandResult> {
 	if (!channel || !currentTabInfo) {
 		return {
@@ -322,6 +354,11 @@ export async function requestRemoteBlueprintInstall(
 	const tabId = currentTabInfo.tabId;
 	const requestId = createRequestId();
 	const currentChannel = channel;
+	const options =
+		typeof optionsOrTimeout === 'number'
+			? { timeoutMs: optionsOrTimeout }
+			: optionsOrTimeout;
+	const timeoutMs = options.timeoutMs ?? INSTALL_BLUEPRINT_TIMEOUT_MS;
 
 	return new Promise((resolve) => {
 		let resolved = false;
@@ -362,6 +399,9 @@ export async function requestRemoteBlueprintInstall(
 			requestingTabId: tabId,
 			siteSlug,
 			blueprintUrl,
+			...(options.usageStatsRequestSource
+				? { usageStatsRequestSource: options.usageStatsRequestSource }
+				: {}),
 		} satisfies InstallBlueprintRequestMessage);
 	});
 }
@@ -412,6 +452,17 @@ export async function requestMainTabFocus(
 			siteSlug,
 		} satisfies MainTabFocusRequestMessage);
 	});
+}
+
+export function requestRemoteMcpConnect(siteSlug: string, port: number): void {
+	if (!channel || !currentTabInfo) {
+		return;
+	}
+	channel.postMessage({
+		type: 'mcp-connect-request',
+		siteSlug,
+		port,
+	} satisfies McpConnectRequestMessage);
 }
 
 export function broadcastSiteReset(siteSlug: string): void {
@@ -488,6 +539,16 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 			}
 			break;
 
+		case 'mcp-connect-request':
+			if (
+				message.siteSlug === currentTabInfo.siteSlug &&
+				isCurrentMainTab() &&
+				mcpConnectRequestCallback
+			) {
+				mcpConnectRequestCallback(message.port);
+			}
+			break;
+
 		case 'main-tab-status':
 			if (
 				message.siteSlug === currentTabInfo.siteSlug &&
@@ -508,7 +569,13 @@ function handleMessage(event: MessageEvent<TabCoordinatorMessage>): void {
 				isCurrentMainTab() &&
 				installBlueprintRequestCallback
 			) {
-				installBlueprintRequestCallback(message.blueprintUrl)
+				(message.usageStatsRequestSource
+					? installBlueprintRequestCallback(message.blueprintUrl, {
+							usageStatsRequestSource:
+								message.usageStatsRequestSource,
+						})
+					: installBlueprintRequestCallback(message.blueprintUrl)
+				)
 					.catch(
 						(error): InstallBlueprintCommandResult => ({
 							status: 'error',

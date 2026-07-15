@@ -54,12 +54,12 @@ describe('decodeBlueprintHash', () => {
 		expect(JSON.parse(decodeBlueprintHash(raw))).toEqual(blueprint);
 	});
 
-	it('returns non-JSON hashes unchanged (e.g. last-autosave)', () => {
-		expect(decodeBlueprintHash('#last-autosave')).toBe('last-autosave');
+	it('returns non-JSON hashes unchanged', () => {
+		expect(decodeBlueprintHash('#not-json')).toBe('not-json');
 	});
 
 	it('handles raw hash without leading #', () => {
-		expect(decodeBlueprintHash('last-autosave')).toBe('last-autosave');
+		expect(decodeBlueprintHash('not-json')).toBe('not-json');
 	});
 
 	it('returns empty string for empty hash', () => {

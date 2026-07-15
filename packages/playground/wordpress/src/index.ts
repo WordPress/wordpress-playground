@@ -7,6 +7,11 @@ import { writeCommonPlatformMuPlugins } from './platform-mu-plugins';
 import { SQLITE_PRELOAD_LOADER_CLASS } from './sqlite-preload-loader';
 import { setupLegacyPlatformLevelMuPlugins } from './legacy-wp/legacy-mu-plugins';
 import { preloadLegacySqliteIntegration } from './legacy-wp/legacy-sqlite-preload';
+import {
+	createDecodedTarStream,
+	extractTarStreamToPhp,
+	isZstdBundle,
+} from './streaming-tar-extract';
 
 export {
 	bootWordPress,
@@ -14,6 +19,7 @@ export {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 } from './boot';
+export * from './streaming-tar-extract';
 export type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -21,6 +27,7 @@ export type {
 } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
+export { getWordPressStableVersions } from './wordpress-releases';
 
 export * from './version-detect';
 export * from './rewrite-rules';
@@ -419,15 +426,18 @@ export async function preloadSqliteIntegration(
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
-	const stopIfDbPhpExists = `<?php
-	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)})) {
-		return;
-	}
-	?>`;
+	const stopIfDbPhpExists = `
+		// Do not preload this if WordPress comes with a custom db.php file.
+		if(file_exists(${phpVar(dbPhpPath)})) {
+			return;
+		}
+		`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
+	await php.writeFile(
+		SQLITE_MUPLUGIN_PATH,
+		`<?php${stopIfDbPhpExists}?>` + dbPhp
+	);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
 		buildModernSqlitePreload(stopIfDbPhpExists, SQLITE_MUPLUGIN_PATH)
@@ -451,24 +461,23 @@ export async function preloadSqliteIntegration(
 
 /**
  * Builds the 0-sqlite.php preload content for modern PHP (7+).
- * Matches trunk behavior: require_once, simple db.php guard,
- * minimal mysqli_connect stub.
+ * The mysqli_connect stub must load before the custom db.php guard
+ * because WordPress may check for it even when a drop-in handles the DB.
  */
 function buildModernSqlitePreload(
 	stopIfDbPhpExists: string,
 	muPluginPath: string
 ): string {
-	return (
-		stopIfDbPhpExists +
-		`<?php
+	return `<?php
+	if(!function_exists('mysqli_connect')) {
+		function mysqli_connect() {}
+	}
 
-${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
+	${stopIfDbPhpExists}
 
-		`
-	);
+	${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
+
+		`;
 }
 
 /**
@@ -485,9 +494,39 @@ if(!function_exists('mysqli_connect')) {
  * accept the limitation, and switch to the PHP implementation as soon
  * as that's viable.
  */
-export async function unzipWordPress(php: PHP, wpZip: File) {
+export async function unzipWordPress(
+	php: PHP,
+	wpZip: File,
+	options: { expectedFileCount?: number } = {}
+) {
 	php.mkdir('/tmp/unzipped-wordpress');
-	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+
+	// Keep the public `wordPressZip` API name, but route by magic bytes.
+	// Core bundles can use a solid `tar.zst`; wordpress.org releases, custom
+	// URLs, nightly/trunk GitHub master.zip files, API-supplied archives, and
+	// GitHub artifacts continue to use the PHP `ZipArchive` path. The full
+	// uncompressed tar is never materialized.
+	const magic = new Uint8Array(await wpZip.slice(0, 4).arrayBuffer());
+	if (isZstdBundle(magic)) {
+		const tarStream = await createDecodedTarStream(wpZip.stream(), 'zstd');
+		const stats = await extractTarStreamToPhp(
+			tarStream,
+			php,
+			'/tmp/unzipped-wordpress'
+		);
+		if (
+			options.expectedFileCount != null &&
+			stats.fileCount !== options.expectedFileCount
+		) {
+			throw new Error(
+				`WordPress core bundle file-count parity check failed: ` +
+					`extracted ${stats.fileCount} files, expected ${options.expectedFileCount}. ` +
+					`The download may be truncated or corrupt.`
+			);
+		}
+	} else {
+		await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+	}
 
 	// The zip file may contain another zip file if it's coming from GitHub
 	// artifacts @TODO: Don't make so many guesses about the zip file contents.

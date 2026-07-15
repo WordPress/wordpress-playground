@@ -22,7 +22,6 @@ describe('Bridge', () => {
 			if (event === 'clientConnected') {
 				setTimeout(cb, 0);
 			}
-
 			return this;
 		});
 	});
@@ -145,6 +144,52 @@ describe('Bridge', () => {
 				'/foo/bar.php',
 				'/foo/baz/qux.php',
 			]);
+		});
+
+		it('forwards excludedPaths to the bridge', async () => {
+			const paths = ['/foo', '/bar'];
+
+			await startBridge({ excludedPaths: paths });
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			expect(args.excludedPaths).toEqual(paths);
+		});
+
+		// Excluded prefixes prune the recursive walk so we never enumerate
+		// huge trees like /internal/shared, node_modules, or wp-includes
+		// that DevTools has no business listing.
+		it('skips excluded directories while walking the filesystem', async () => {
+			const filesystem: Record<string, string[]> = {
+				'/foo': ['bar.php', 'internal'],
+				'/foo/internal': ['shared'],
+				'/foo/internal/shared': ['skip-me.php'],
+			};
+
+			const php: Partial<PHP> = {
+				listFiles: vi.fn(
+					(directory: string) => filesystem[directory] || []
+				),
+				isDir: vi.fn((path: string) => path in filesystem),
+			};
+
+			await startBridge({
+				phpInstance: php as PHP,
+				phpRoot: '/foo',
+				excludedPaths: ['/foo/internal'],
+			});
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			// Only the non-excluded file is reported.
+			expect(args.knownScriptUrls).toEqual(['/foo/bar.php']);
+
+			// And we never recursed into the excluded subtree at all —
+			// no listFiles call ever hits it.
+			expect(php.listFiles).not.toHaveBeenCalledWith('/foo/internal');
+			expect(php.listFiles).not.toHaveBeenCalledWith(
+				'/foo/internal/shared'
+			);
 		});
 	});
 

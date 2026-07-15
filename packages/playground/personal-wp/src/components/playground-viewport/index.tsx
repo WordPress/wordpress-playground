@@ -20,7 +20,10 @@ import {
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import { selectSiteBySlug } from '../../lib/state/redux/slice-sites';
+import {
+	markSiteMigrationApplied,
+	selectSiteBySlug,
+} from '../../lib/state/redux/slice-sites';
 import {
 	getMainTabUnavailableMessage,
 	markMainTabReady,
@@ -41,12 +44,27 @@ import Button from '../button';
 import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
+	getTrustedBlueprintInstallSource,
 	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstallExecution,
 	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
 import type { BlueprintInstallPreview } from './blueprint-install';
 import { isAllowedBlueprintUrl } from '../../lib/blueprint-url';
+import {
+	getBlueprintUsageStatsProperties,
+	getSiteUsageStatsProperties,
+	logPersonalWpEvent,
+} from '../../lib/personalwp/usage-stats';
+import type {
+	BlueprintInstallUsageStatsRequestSource,
+	BlueprintInstallUsageStatsTrigger,
+} from '../../lib/personalwp/usage-stats';
+import {
+	APP_LAUNCHER_BLUEPRINT_URL,
+	MY_APPS_MIGRATION,
+	hasMyAppsPlugin,
+} from '../../lib/personalwp/my-apps';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -976,6 +994,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const blueprintInstallDialogResolverRef = useRef<
 		((confirmed: boolean) => void) | null
 	>(null);
+	const myAppsMigrationsInProgressRef = useRef<Set<string>>(new Set());
 
 	const clearInstallBannerResetTimeout = useCallback(() => {
 		if (installBannerResetTimeoutRef.current) {
@@ -1110,6 +1129,25 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					setBlueprintInstallStatus('Opening app\u2026');
 					await playground.goTo(declaration.landingPage);
 				}
+				if (site?.metadata.storage !== 'none') {
+					logPersonalWpEvent('blueprint_installed', {
+						...getSiteUsageStatsProperties(site.metadata),
+						trigger: options.usageStatsTrigger ?? 'app-request',
+						...(options.usageStatsRequestSource
+							? {
+									request_source:
+										options.usageStatsRequestSource,
+								}
+							: {}),
+						...getBlueprintUsageStatsProperties(
+							declaration,
+							blueprintUrl,
+							{
+								requestSource: options.usageStatsRequestSource,
+							}
+						),
+					});
+				}
 			} catch (e) {
 				logger.error('Failed to apply blueprint:', e);
 				setBlueprintInstallStatus('Installation failed');
@@ -1128,11 +1166,92 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			playground,
 			scheduleInstallBannerReset,
 			setBlueprintInstallStatus,
+			site,
 		]
 	);
+	const currentSiteSlug = site?.slug;
+	const currentSiteStorage = site?.metadata.storage;
+	const myAppsMigrationApplied =
+		site?.metadata.appliedMigrations?.[MY_APPS_MIGRATION];
+
+	useEffect(() => {
+		if (
+			!currentSiteSlug ||
+			currentSiteStorage === 'none' ||
+			!hasLocalRuntimeClient ||
+			!playground ||
+			myAppsMigrationApplied ||
+			myAppsMigrationsInProgressRef.current.has(currentSiteSlug)
+		) {
+			return;
+		}
+
+		let cancelled = false;
+		const siteSlugToMigrate = currentSiteSlug;
+		const playgroundClient = playground;
+		myAppsMigrationsInProgressRef.current.add(siteSlugToMigrate);
+
+		async function markMyAppsMigrationApplied() {
+			await dispatch(
+				markSiteMigrationApplied({
+					slug: siteSlugToMigrate,
+					migration: MY_APPS_MIGRATION,
+				})
+			);
+		}
+
+		async function migrateMyAppsPlugin() {
+			try {
+				if (await hasMyAppsPlugin(playgroundClient)) {
+					if (!cancelled) {
+						await markMyAppsMigrationApplied();
+					}
+					return;
+				}
+
+				const result = await applyBlueprint(
+					APP_LAUNCHER_BLUEPRINT_URL,
+					{
+						allowNavigation: false,
+					}
+				);
+				if (
+					!cancelled &&
+					result.status === 'success' &&
+					(await hasMyAppsPlugin(playgroundClient))
+				) {
+					await markMyAppsMigrationApplied();
+				}
+			} catch (error) {
+				logger.error(
+					'Failed to migrate the App Launcher plugin:',
+					error
+				);
+			} finally {
+				myAppsMigrationsInProgressRef.current.delete(siteSlugToMigrate);
+			}
+		}
+
+		void migrateMyAppsPlugin();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		applyBlueprint,
+		currentSiteSlug,
+		currentSiteStorage,
+		dispatch,
+		hasLocalRuntimeClient,
+		myAppsMigrationApplied,
+		playground,
+	]);
 
 	const applyBlueprintInMainTab = useCallback(
-		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
+		async (
+			blueprintUrl: string,
+			options: ApplyBlueprintInMainTabOptions = {}
+		): Promise<InstallBlueprintResult> => {
 			clearInstallBannerResetTimeout();
 			try {
 				setBlueprintInstallStatus('Installing app\u2026');
@@ -1142,7 +1261,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				);
 				const result = await requestRemoteBlueprintInstall(
 					siteSlug,
-					install.blueprintUrl
+					install.blueprintUrl,
+					{
+						usageStatsRequestSource:
+							options.usageStatsRequestSource,
+					}
 				);
 				if (result.status === 'error') {
 					setBlueprintInstallStatus('Installation failed');
@@ -1215,9 +1338,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		if (!hasLocalRuntimeClient) {
 			return;
 		}
-		setInstallBlueprintRequestCallback((blueprintUrl) =>
+		setInstallBlueprintRequestCallback((blueprintUrl, options) =>
 			applyBlueprint(blueprintUrl, {
 				allowNavigation: false,
+				usageStatsTrigger: 'dependent-tab-request',
+				usageStatsRequestSource: options?.usageStatsRequestSource,
 			})
 		);
 		void markMainTabReady();
@@ -1300,6 +1425,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			iframeRef.current,
 			url
 		);
+		const usageStatsRequestSource =
+			getUsageStatsRequestSourceForInstallMessage(
+				event,
+				iframeRef.current,
+				url
+			);
 		if (
 			!skipConfirmation &&
 			!(await requestBlueprintInstallConfirmation(blueprintUrl))
@@ -1316,8 +1447,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			blueprintUrl,
 			requestId,
 			...(installLocally
-				? await applyBlueprint(blueprintUrl)
-				: await applyBlueprintInMainTab(blueprintUrl)),
+				? await applyBlueprint(blueprintUrl, {
+						usageStatsRequestSource,
+					})
+				: await applyBlueprintInMainTab(blueprintUrl, {
+						usageStatsRequestSource,
+					})),
 		});
 	}
 
@@ -1393,6 +1528,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					aria-pressed={siteManagerIsOpen}
 					className={css.sidebarLatchButton}
 					onClick={() => {
+						if (!siteManagerIsOpen) {
+							logPersonalWpEvent('sidebar_opened');
+						}
 						dispatch(setSiteManagerOpen(!siteManagerIsOpen));
 					}}
 				>
@@ -1805,6 +1943,12 @@ type BlueprintInstallPreviewState =
 
 type ApplyBlueprintOptions = {
 	allowNavigation?: boolean;
+	usageStatsTrigger?: Exclude<BlueprintInstallUsageStatsTrigger, 'url'>;
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
+};
+
+type ApplyBlueprintInMainTabOptions = {
+	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
 type InstallBlueprintResult = {
@@ -1882,6 +2026,24 @@ function shouldSkipConfirmationForInstallMessage(
 		getWindowLocation(iframe?.contentWindow),
 		currentUrl,
 	].some(shouldSkipBlueprintInstallConfirmation);
+}
+
+function getUsageStatsRequestSourceForInstallMessage(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null,
+	currentUrl: string | undefined
+): BlueprintInstallUsageStatsRequestSource | undefined {
+	for (const location of [
+		getWindowLocation(event.source),
+		getWindowLocation(iframe?.contentWindow),
+		currentUrl,
+	]) {
+		const source = getTrustedBlueprintInstallSource(location);
+		if (source) {
+			return source;
+		}
+	}
+	return undefined;
 }
 
 function getWindowLocation(

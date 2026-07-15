@@ -2,6 +2,21 @@
 	position: relative;
 }
 
+/* Short note under the field explaining what input is accepted. */
+.hint {
+	margin: 8px 0 0;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+/* Inline (dock pane) actions: a single left-aligned primary, matching the other
+   New-pane flows. The modal variant keeps the right-aligned Cancel/Submit row. */
+.inline-actions {
+	display: flex;
+	margin-top: 12px;
+}
+
 .overlay {
 	width: 100%;
 	height: 100%;

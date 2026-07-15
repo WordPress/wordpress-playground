@@ -280,6 +280,145 @@
 	line-height: 18px;
 }
 
+/* -- Remote access -- */
+
+.remote-access-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.remote-access-url {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+	color: #1e1e1e;
+	font-size: 12px;
+	line-height: 18px;
+	word-break: break-all;
+}
+
+.remote-access-code-block {
+	display: grid;
+	gap: 4px;
+	padding: 12px;
+	border: 1px solid #1e1e1e;
+	border-radius: 6px;
+	background: #ffffff;
+}
+
+.remote-access-code-block span {
+	color: #50575e;
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.remote-access-code-block strong {
+	font-size: 13px;
+	line-height: 18px;
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.remote-access-code-block b {
+	color: #1e1e1e;
+	font-size: 28px;
+	line-height: 34px;
+	font-weight: 600;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.remote-access-buttons {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.remote-access-status {
+	font-size: 12px;
+	line-height: 18px;
+	color: #50575e;
+}
+
+.remote-access-approval {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid #dba617;
+	border-radius: 4px;
+	background: #fff8e5;
+	color: #1e1e1e;
+	font-size: 13px;
+	line-height: 18px;
+}
+
+.remote-access-approval-input {
+	width: 72px;
+	padding: 6px 8px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.remote-access-diagnostics {
+	padding: 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+	font-size: 12px;
+	line-height: 18px;
+	color: #50575e;
+}
+
+.remote-access-diagnostics summary {
+	color: #1e1e1e;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.remote-access-diagnostics[open] summary {
+	margin-bottom: 6px;
+}
+
+.remote-access-metrics {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 4px 10px;
+	font-variant-numeric: tabular-nums;
+}
+
+.remote-access-metrics span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.remote-access-last-request,
+.remote-access-last-error {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.remote-access-last-request {
+	color: #1e1e1e;
+}
+
+.remote-access-last-error {
+	color: #b32d2e;
+}
+
 /* ── Apps ── */
 
 .apps-loading {

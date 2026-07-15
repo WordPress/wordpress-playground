@@ -1,0 +1,1419 @@
+/* Filters bar for blueprints gallery */
+.filtersBar {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 20px 32px;
+	flex-shrink: 0;
+}
+
+.searchWrapper {
+	display: flex;
+	max-width: 400px;
+	align-items: center;
+	width: 100%;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 24px;
+}
+
+.searchField {
+	flex: 1;
+	background: transparent;
+	border: none;
+	padding: 12px 16px 12px 0;
+	color: #fff;
+	font-size: clamp(15px, 1.5vw, 16px);
+	outline: none;
+}
+
+.searchField::placeholder {
+	color: #6b7280;
+}
+
+.searchIcon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 12px 12px 12px 16px;
+	color: #6b7280;
+}
+
+.emptyMessage {
+	color: #6b7280;
+	font-size: clamp(14px, 1.4vw, 15px);
+	margin: 0;
+	padding: 32px;
+	text-align: center;
+	background: #2c3338;
+	border-radius: 8px;
+}
+
+.creationTabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.creationPanel {
+	margin-top: 16px;
+	min-width: 0;
+}
+
+.inlineForm {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.inlineFormHint {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.inlineFormActions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.creationButton {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 16px 12px;
+	min-width: 100px;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	color: inherit;
+	font: inherit;
+}
+
+.creationButton:hover:not(:disabled) {
+	background: #353b41;
+	border-color: #4a5258;
+}
+
+.creationButton:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.creationIcon {
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 58px;
+	height: 58px;
+}
+
+.creationIcon :global(svg) {
+	fill: #fff;
+	width: 28px;
+	height: 28px;
+}
+
+.creationTitle {
+	font-size: clamp(13px, 1.3vw, 14px);
+	font-weight: 500;
+	color: #fff;
+	text-align: center;
+}
+
+/* Blueprint preview row (grid on desktop) */
+.blueprintsRow {
+	display: flex;
+	gap: 16px;
+	padding-bottom: 8px;
+}
+
+.blueprintPreviewCard {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 120px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	color: inherit;
+	font: inherit;
+}
+
+.blueprintPreviewCard:hover .blueprintPreviewThumbnail {
+	border-color: #3858e9;
+}
+
+.blueprintPreviewThumbnail {
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	background: #2c3338;
+	border: 2px solid #3c4349;
+	border-radius: 8px;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: border-color 0.15s ease;
+}
+
+.blueprintPreviewThumbnail img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.blueprintPreviewTitle {
+	font-size: clamp(13px, 1.3vw, 14px);
+	color: #e5e6e6;
+	text-align: center;
+	width: 100%;
+	line-height: 1.4;
+	word-wrap: break-word;
+}
+
+.blueprintPlaceholder {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #3858e9;
+}
+
+.blueprintPlaceholder svg {
+	width: 40px;
+	height: 40px;
+}
+
+/* Sites list - vertical rows */
+.sitesList {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid #3c4349;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.siteRow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid #3c4349;
+	transition: background 0.15s ease;
+}
+
+.siteRow:last-child {
+	border-bottom: none;
+}
+
+.siteRow:hover {
+	background: #2c3338;
+}
+
+.siteRowSelected {
+	background: #2a3654;
+	border-left: 3px solid #3858e9;
+}
+
+.siteRowContent {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 16px 20px;
+	flex: 1;
+	background: none;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+	justify-content: flex-start;
+	color: inherit;
+	font: inherit;
+}
+
+.siteRowSelected .siteRowContent {
+	padding-left: 17px;
+}
+
+.siteRowLogo {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #2a3654;
+	border-radius: 10px;
+	color: #3858e9;
+	flex-shrink: 0;
+}
+
+.siteRowLogo img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	border-radius: 10px;
+}
+
+.siteRowLogo svg {
+	width: 24px;
+	height: 24px;
+}
+
+.siteRowInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.siteRowName {
+	font-size: clamp(14px, 1.4vw, 15px);
+	font-weight: 500;
+	color: #fff;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Inline rename field — replaces the row's title in place (no modal). Matches
+   the title's type so the row doesn't shift, with an accent ring to show it's
+   editable. */
+.siteRowNameInput {
+	box-sizing: border-box;
+	/* Fill the row's available width (the +16px offsets the -8px side margins
+	   below, so it bleeds 8px each side and lands flush in the row's padding). */
+	width: calc(100% + 16px);
+	/* Bleed the padding + border outward (negative margins == padding + border)
+	   so the text sits exactly where the static title did — entering edit mode
+	   shifts nothing. */
+	margin: -3px -8px;
+	padding: 2px 7px;
+	font-family: inherit;
+	font-size: 16px;
+	font-weight: 500;
+	line-height: inherit;
+	color: var(--ink, #21201d);
+	background: var(--paper-1, #f7f5f2);
+	border: 1px solid var(--accent, #3858e9);
+	border-radius: var(--radius-control, 6px);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	outline: none;
+}
+
+.siteRowContent:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: -2px;
+}
+
+.siteRowDate {
+	font-size: clamp(12px, 1.2vw, 13px);
+	color: #6b7280;
+}
+
+/* Current Playground: its name sits on a line with a small status badge. */
+.currentSiteNameLine {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+/* "Unsaved" pill — a calm amber chip mirroring the dock's yellow Unsaved
+   status, so the current Playground's row plainly says it's lost on refresh. */
+.unsavedBadge {
+	flex-shrink: 0;
+	border-radius: 999px;
+	padding: 1px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 16px;
+	letter-spacing: 0.01em;
+	background: #fdeeb3;
+	color: #7c4a03;
+}
+
+/* The active Playground's row mirrors the dock's "Saving" status while an OPFS
+   sync is in flight, so progress is visible from the list too. */
+.siteRowSaving {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--accent, #3858e9);
+}
+
+.siteRowSavingSpinner {
+	width: 12px;
+	height: 12px;
+	border: 1.5px solid rgba(56, 88, 233, 0.25);
+	border-top-color: var(--accent, #3858e9);
+	border-radius: 50%;
+	animation: siteRowSavingSpin 0.7s linear infinite;
+}
+
+@keyframes siteRowSavingSpin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.siteRowSavingSpinner {
+		animation-duration: 2.4s;
+	}
+}
+
+.siteRowMenu {
+	margin-right: 12px;
+}
+
+.siteRowActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	padding-right: 8px;
+}
+
+.siteRowMenu button {
+	color: #949494 !important;
+}
+
+.siteRowMenu button:hover {
+	color: #fff !important;
+	background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dangerMenuItem {
+	color: var(--color-alert-red, #cc1818) !important;
+}
+
+.dangerMenuItem:hover {
+	background: rgba(220, 38, 38, 0.1) !important;
+}
+
+/* Loading state */
+.loadingContainer {
+	display: flex;
+	justify-content: center;
+	padding: 32px;
+}
+
+@media (max-width: 900px) {
+	.creationButton {
+		flex: 0 0 auto;
+	}
+}
+
+/* Switch blueprints to list layout on tablet/mobile */
+@media (max-width: 875px) {
+	.blueprintsRow {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.blueprintPreviewCard {
+		flex-direction: row;
+		align-items: center;
+		gap: 16px;
+		min-width: unset;
+		background: #2c3338;
+		border: 1px solid #3c4349;
+		border-radius: 8px;
+		padding: 0 16px 0 0;
+		transition: all 0.15s ease;
+		overflow: hidden;
+	}
+
+	.blueprintPreviewCard:hover {
+		border-color: #3858e9;
+		background: #353b41;
+	}
+
+	.blueprintPreviewCard:hover .blueprintPreviewThumbnail {
+		border-color: transparent;
+	}
+
+	.blueprintPreviewThumbnail {
+		height: 115px;
+		width: 140px;
+		aspect-ratio: unset;
+		flex-shrink: 0;
+		background: #252a2e;
+		border: none;
+		border-radius: 7px 0 0 7px;
+	}
+
+	.blueprintPreviewTitle {
+		text-align: left;
+		flex: 1;
+		width: auto;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-weight: 500;
+	}
+}
+
+@media (max-width: 640px) {
+	.filtersBar {
+		padding: 16px 20px;
+	}
+
+	.creationButton {
+		min-width: unset;
+		padding: 12px 8px;
+	}
+
+	.blueprintPreviewCard {
+		padding: 0 14px 0 0;
+	}
+
+	.blueprintPreviewTitle {
+		font-size: 15px;
+	}
+
+	.siteRowContent {
+		padding: 12px 16px;
+	}
+
+	.siteRowActions {
+		padding-right: 4px;
+	}
+
+	.siteRowLogo {
+		width: 36px;
+		height: 36px;
+	}
+}
+
+.playgroundsSection {
+	margin-bottom: 0;
+}
+
+.playgroundsSection h2 {
+	font-size: clamp(24px, 2.2vw, 28px) !important;
+	line-height: 1.2 !important;
+	margin-bottom: 18px !important;
+}
+
+.playgroundsColumns .playgroundsSection h2 {
+	text-align: center;
+}
+
+.playgroundsList .siteRowContent {
+	min-height: 88px;
+	padding: 20px 24px;
+}
+
+.playgroundsList .siteRowSelected .siteRowContent {
+	padding-left: 21px;
+}
+
+.playgroundsList .siteRowLogo {
+	height: 50px;
+	width: 50px;
+}
+
+.playgroundsList .siteRowLogo svg {
+	height: 31px;
+	width: 31px;
+}
+
+.playgroundsList .siteRowName {
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.playgroundsList .siteRowDate {
+	font-size: 16px;
+}
+
+.playgroundsList .siteRowMenu {
+	margin-right: 16px;
+}
+
+.playgroundsList {
+	max-height: 273px;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+}
+
+.playgroundsSection .creationButton {
+	min-height: 112px;
+	min-width: 0;
+	padding: 14px 10px;
+}
+
+.playgroundsSection .creationIcon {
+	height: 42px;
+	width: 42px;
+}
+
+.playgroundsSection .creationIcon :global(svg) {
+	height: 32px;
+	width: 32px;
+}
+
+.playgroundsSection .creationTitle {
+	font-size: 18px;
+	font-weight: 600;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintsRow {
+	display: grid;
+	gap: 24px 20px;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	padding: 0 8px 16px 0;
+}
+
+.blueprintsSection .blueprintPreviewCard {
+	min-width: 0;
+}
+
+.blueprintsSection .blueprintPreviewTitle {
+	font-size: 18px;
+	line-height: 1.25;
+}
+
+.blueprintsSection .blueprintPreviewThumbnail {
+	border-radius: 8px;
+}
+
+@media (max-width: 1050px) {
+	.playgroundsSection .creationTitle {
+		font-size: 16px;
+	}
+}
+
+@media (max-width: 875px) {
+	.playgroundsList {
+		max-height: none;
+		overflow-y: visible;
+		scrollbar-gutter: auto;
+	}
+
+	.blueprintsSection .blueprintsRow {
+		gap: 8px;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	}
+
+	.blueprintsSection .blueprintPreviewCard {
+		align-items: center;
+		background: none;
+		border: none;
+		flex-direction: column;
+		gap: 8px;
+		overflow: visible;
+		padding: 0;
+	}
+
+	.blueprintsSection .blueprintPreviewThumbnail {
+		aspect-ratio: 4 / 3;
+		border: 2px solid #3c4349;
+		border-radius: 8px;
+		height: auto;
+		width: 100% !important;
+	}
+
+	.blueprintsSection .blueprintPreviewTitle {
+		font-size: 16px;
+		text-align: center;
+		white-space: normal;
+	}
+}
+
+@media (max-width: 640px) {
+	.playgroundsList .siteRowContent {
+		min-height: 76px;
+		padding: 14px 16px;
+	}
+
+	.playgroundsList .siteRowSelected .siteRowContent {
+		padding-left: 13px;
+	}
+
+	.playgroundsList .siteRowLogo {
+		height: 40px;
+		width: 40px;
+	}
+
+	.playgroundsList .siteRowName {
+		font-size: 16px;
+	}
+
+	.playgroundsList .siteRowDate {
+		font-size: 13px;
+	}
+
+	.playgroundsSection .creationButton {
+		min-height: 86px;
+		padding: 10px 6px;
+	}
+
+	.playgroundsSection .creationIcon {
+		height: 30px;
+		width: 30px;
+	}
+
+	.playgroundsSection .creationIcon :global(svg) {
+		height: 24px;
+		width: 24px;
+	}
+
+	.playgroundsSection .creationTitle {
+		font-size: 14px;
+	}
+}
+
+.site-group {
+	display: grid;
+	gap: 8px;
+	margin-bottom: 18px;
+}
+
+.site-group:last-child {
+	margin-bottom: 0;
+}
+
+.site-group-title {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	line-height: 1.3;
+	margin: 0;
+	text-transform: uppercase;
+}
+
+.current-site-row .siteRowContent {
+	cursor: default;
+}
+
+.playgrounds-pane {
+	height: auto;
+	overflow: visible;
+	padding: 0 24px 24px;
+	color: #21201d;
+}
+
+.playgrounds-pane .playgroundsSection {
+	margin-bottom: 32px;
+}
+
+.playgrounds-pane .playgroundsSection:last-child {
+	margin-bottom: 0;
+}
+
+/* The whole pane scrolls as one — don't give the lists their own scrollbar. */
+.playgrounds-pane .playgroundsList {
+	max-height: none;
+	overflow-y: visible;
+	scrollbar-gutter: auto;
+}
+
+.playgrounds-pane .playgroundsSection h2 {
+	color: #21201d !important;
+	font-size: 22px !important;
+	line-height: 1.2 !important;
+	margin: 0 0 16px !important;
+}
+
+/* The "New Playground" creation surface is one tabbed control: a sticky strip
+   of compact tabs over a panel that swaps to the active flow. The tab strip
+   stays in view while the Blueprint gallery (or any flow) scrolls beneath it;
+   the negative side margins + opaque background let it span the pane gutters so
+   nothing peeks through. */
+/* The New pane runs at a fixed height (set on the dock pane): the dock's pane
+   header stays at the top, the tab strip stays put, and only the active tab's
+   panel scrolls. So switching tabs never moves the tabs. */
+.playgrounds-pane.new-pane {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding: 0 24px;
+}
+
+.playgrounds-pane.new-pane .creationSection {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	margin-bottom: 0;
+	min-height: 0;
+}
+
+/* The tab strip is a recessed "segmented control": a warm well (paper-4) with a
+   defined edge and an inset shadow, holding the methods as a 3-column grid. The
+   three Blueprint sources fill the top row; the code/import flows the bottom.
+   Inactive cells are transparent so the well reads through; the active cell is a
+   raised white segment. */
+.playgrounds-pane.new-pane .creationTabs {
+	background: var(--paper-4, #e7e2da);
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: 14px;
+	box-shadow: inset 0 1px 2px rgba(40, 33, 23, 0.05);
+	display: grid;
+	flex: none;
+	gap: 6px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin: var(--space-1, 4px) 0 0;
+	padding: 6px;
+}
+
+.playgrounds-pane.new-pane .creationButton {
+	align-items: center;
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-soft, #2f2d28);
+	cursor: pointer;
+	flex-direction: row;
+	gap: 10px;
+	justify-content: flex-start;
+	/* Override the old big-card min-height (112px) that the shared
+	   .playgroundsSection rule still sets — these are compact tabs now. */
+	min-height: 0;
+	min-width: 0;
+	padding: 10px 12px;
+	transition:
+		background 0.12s ease,
+		box-shadow 0.12s ease,
+		color 0.12s ease;
+}
+
+.playgrounds-pane.new-pane .creationButton:hover:not(:disabled) {
+	background: var(--paper-2, #faf8f5);
+	color: var(--ink, #21201d);
+}
+
+.playgrounds-pane.new-pane .creationButton:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+.playgrounds-pane.new-pane .creationIcon {
+	align-items: center;
+	color: var(--ink-soft, #2f2d28);
+	display: flex;
+	flex: none;
+	height: 20px;
+	justify-content: center;
+	width: 20px;
+}
+
+.playgrounds-pane.new-pane .creationIcon :global(svg) {
+	height: 20px;
+	width: 20px;
+}
+
+/* One icon language: every glyph (incl. the solid octocat) follows currentColor
+   so the tab icons read as one set. */
+.playgrounds-pane.new-pane .creationIcon :global(svg path) {
+	fill: currentColor;
+}
+
+.playgrounds-pane.new-pane .creationTitle {
+	color: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: -0.005em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* On phones the 3-column tab grid clips the longer labels, but a single-column
+   list of six full-width rows eats too much of the panel. A 2-column grid strikes
+   the balance: three rows instead of six, still icon + full (wrapping) label at a
+   comfortable touch height. */
+@media (max-width: 1024px) {
+	.playgrounds-pane.new-pane .creationTabs {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.playgrounds-pane.new-pane .creationButton {
+		min-height: 44px;
+		padding: 10px 12px;
+	}
+
+	.playgrounds-pane.new-pane .creationTitle {
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+	}
+}
+
+/* Active tab: a raised white segment with a defined edge and an accent icon —
+   it reads above the resting cells by value, not by shadow alone. */
+.playgrounds-pane.new-pane .creationButtonActive,
+.playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
+	background: #ffffff;
+	box-shadow:
+		inset 0 0 0 1px var(--line-control, rgba(33, 32, 29, 0.14)),
+		0 1px 1px rgba(40, 33, 23, 0.05),
+		0 2px 6px rgba(40, 33, 23, 0.12);
+	color: var(--ink, #21201d);
+}
+
+.playgrounds-pane.new-pane .creationButtonActive .creationTitle {
+	color: var(--ink, #21201d);
+	font-weight: 600;
+}
+
+.playgrounds-pane.new-pane .creationButtonActive .creationIcon {
+	color: var(--accent, #3858e9);
+}
+
+/* The active tab's flow scrolls within this panel; a sticky heading names it. */
+.playgrounds-pane.new-pane .creationPanel {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	margin-top: var(--space-6, 24px);
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	padding-bottom: 24px;
+}
+
+.playgrounds-pane.new-pane .panelHeader {
+	background: var(--paper-1, #f7f5f2);
+	flex-shrink: 0;
+	padding: 0 0 var(--space-3, 12px);
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+/* "Write your own" fills the panel so the editor grows to the available height
+   and the Create button stays pinned in view instead of dropping below the
+   fold. */
+.playgrounds-pane.new-pane .writeOwnFlow {
+	flex: 1;
+	min-height: 0;
+}
+
+.playgrounds-pane.new-pane .writeOwnFlow .inlineFormActions {
+	flex-shrink: 0;
+}
+
+/* A sentence-case heading naming the active flow (restores the "Start from a
+   Blueprint" header for the gallery), one weight below the 20px pane title. */
+.playgrounds-pane.new-pane .panelTitle {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: -0.005em;
+	line-height: 1.3;
+	margin: 0;
+}
+
+/* "Write your own": a schema-aware code surface, warmed to match the other
+   in-dock editors rather than reading as a cold white box. It grows to fill the
+   panel (min 160px) so the Create button below it is always reachable. */
+.playgrounds-pane.new-pane .writeOwnEditor {
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-card, 8px);
+	display: flex;
+	flex-direction: column;
+	/* Positioning context for the absolutely-placed "open the full editor"
+	   button, and a flex column so the editor grows to fill the panel. */
+	position: relative;
+	flex: 1;
+	min-height: 160px;
+	overflow: hidden;
+}
+
+.playgrounds-pane.new-pane .writeOwnEditor :global(.cm-editor) {
+	background: var(--paper-1, #f7f5f2);
+	height: 100%;
+}
+
+.playgrounds-pane.new-pane .writeOwnEditor :global(.cm-gutters) {
+	background: var(--paper-2, #faf8f5);
+	border-right: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
+	color: var(--ink-faint, #8a857b);
+}
+
+.playgrounds-pane.new-pane .writeOwnEditor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+/* Inline creation flows (PR / GitHub / Blueprint URL / zip) reuse the modal
+   form bodies. @wordpress/components fields are already themed by the dock pane;
+   these rules retheme the remaining native inputs/labels/headings so the GitHub
+   and PR flows read as native dock forms, not transplanted modal markup. */
+.playgrounds-pane .inlineForm {
+	/* Body copy defaults to ink-soft; quieter notes opt down to ink-faint via
+	   their own class, so each flow reads as heading → body → fine print. */
+	color: var(--ink-soft, #2f2d28);
+	display: flex;
+	flex-direction: column;
+	font-size: 14px;
+	gap: 14px;
+	line-height: 1.5;
+}
+
+/* Explicit warm secondary color — without it the overlay's `.section p` rule
+   leaks a cool #9ca3af gray (~2.3:1) into these flows. */
+.playgrounds-pane .inlineForm :global(p) {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+	max-width: 60ch;
+}
+
+.playgrounds-pane .inlineForm :global(p[role='alert']) {
+	color: var(--color-alert-red, #cc1818);
+}
+
+/* The pane's one filled primary: bring the GitHub connect CTA into the accent
+   button language (it ships as a foreign full-width #000 bar from the modal). */
+.playgrounds-pane
+	.inlineForm
+	:global(a[aria-label='Connect your GitHub account']) {
+	align-self: flex-start;
+	background: var(--accent, #3858e9);
+	border-radius: var(--radius-control, 6px);
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 600;
+	gap: 8px;
+	padding: 10px 16px;
+	transition: background 0.12s ease;
+}
+
+.playgrounds-pane
+	.inlineForm
+	:global(a[aria-label='Connect your GitHub account']:hover) {
+	background: var(--accent-hover, #2f4ad1);
+}
+
+.playgrounds-pane
+	.inlineForm
+	:global(a[aria-label='Connect your GitHub account'] svg) {
+	height: 18px;
+	width: 18px;
+}
+
+.playgrounds-pane .inlineForm :global(h3) {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0;
+}
+
+.playgrounds-pane .inlineForm :global(label) {
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex-direction: column;
+	font-size: 13px;
+	gap: 6px;
+}
+
+.playgrounds-pane .inlineForm :global(input[type='text']),
+.playgrounds-pane .inlineForm :global(input[type='url']),
+.playgrounds-pane .inlineForm :global(select) {
+	background: #ffffff;
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.18));
+	border-radius: var(--radius-card, 8px);
+	box-shadow: none;
+	color: var(--ink, #21201d);
+	font-size: 15px;
+	margin: 0;
+	padding: 10px 12px;
+	width: 100%;
+}
+
+.playgrounds-pane .inlineForm :global(input[type='text']:focus),
+.playgrounds-pane .inlineForm :global(input[type='url']:focus),
+.playgrounds-pane .inlineForm :global(select:focus) {
+	border-color: var(--accent, #3858e9);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
+	outline: none;
+}
+
+.playgrounds-pane .inlineFormHint {
+	color: var(--ink-muted, #5f5b54);
+}
+
+/* Inline docs link inside a hint — accent, underlines on hover. */
+.playgrounds-pane .inlineForm .inlineFormLink,
+.playgrounds-pane .inlineFormLink {
+	color: var(--accent, #3858e9);
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.playgrounds-pane .inlineForm .inlineFormLink:hover,
+.playgrounds-pane .inlineFormLink:hover {
+	text-decoration: underline;
+}
+
+/* Flat, calm list: rows sit directly on the pane with no per-group white box —
+   the section eyebrows do the grouping. Rows are separated by hairlines and get
+   a rounded fill on hover/active, so hierarchy comes from spacing and value, not
+   nested frames. (The "Faithful & Refined" canonical look.) */
+.playgrounds-pane .sitesList {
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	overflow: visible;
+	/* Shrink to the section width so a long Playground name truncates instead of
+	   widening the whole list (the flex/grid default min-width:auto otherwise lets
+	   the longest name push the list — and the pane — into horizontal overflow). */
+	min-width: 0;
+	/* Bleed the rows' hover/active highlight into the pane gutter so the row
+	   CONTENT (avatar, name) lines up with the section eyebrows and title, while
+	   the rounded highlight still has breathing room on both sides. */
+	margin-left: calc(-1 * var(--space-2));
+	margin-right: calc(-1 * var(--space-2));
+}
+
+.playgrounds-pane .siteRow {
+	border-bottom: 0;
+	/* No radius: a rounded row clips the inset-shadow divider into bent corners.
+	   Square rows keep the dividers straight and the hover/current fills read as
+	   clean full-width bands. */
+	border-radius: 0;
+	/* Let the row shrink to the list width so its name truncates. */
+	min-width: 0;
+}
+
+/* A single hairline between adjacent rows. It stays put on hover/active so the
+   list keeps its structure — only the row's fill changes. */
+.playgrounds-pane .siteRow + .siteRow {
+	box-shadow: inset 0 1px 0 var(--line-subtle);
+}
+
+.playgrounds-pane .siteRow:hover {
+	background: var(--paper-2);
+}
+
+.playgrounds-pane .siteRowSelected,
+.playgrounds-pane .current-site-row {
+	background: var(--paper-3);
+	border-left: 0;
+}
+
+.playgrounds-pane .siteRowContent {
+	min-height: 48px;
+	min-width: 0; /* let long Playground names truncate so actions never overflow */
+	padding: 8px var(--space-2);
+}
+
+/* Denser rows: the 50px gallery logo and 20px name drove the row height, so
+   trim both to fit more Playgrounds in view without scrolling. */
+/* Neutral logo chips — a blue-tinted box on every row added up to a lot of
+   accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
+.playgrounds-pane .siteRowLogo {
+	background: var(--paper-3);
+	color: var(--ink-soft);
+	height: 38px;
+	width: 38px;
+}
+
+.playgrounds-pane .siteRowLogo svg {
+	height: 22px;
+	width: 22px;
+}
+
+.playgrounds-pane .siteRowName,
+.playgrounds-pane .creationTitle,
+.playgrounds-pane .blueprintTitle {
+	color: #21201d !important;
+}
+
+.playgrounds-pane .siteRowName {
+	font-size: 16px;
+}
+
+.playgrounds-pane .siteRowDate,
+.playgrounds-pane .blueprintDescription {
+	color: #5f5b54 !important;
+}
+
+.playgrounds-pane .siteRowDate {
+	font-size: 13px;
+}
+
+.playgrounds-pane .siteRowMenu button {
+	color: #5f5b54 !important;
+}
+
+.playgrounds-pane .siteRowMenu button:hover {
+	background: rgba(33, 30, 25, 0.08) !important;
+	color: #21201d !important;
+}
+
+.playgrounds-pane .siteRowActions {
+	align-items: center;
+	display: flex;
+	flex-shrink: 0;
+	gap: var(--space-2);
+	padding-right: var(--space-2);
+}
+
+/* The "..." menu is the one action affordance on every row — always present but
+   quiet (a faint ink glyph that darkens on hover). */
+.playgrounds-pane .siteRowMenu {
+	opacity: 0.65;
+	transition: opacity 0.12s ease;
+}
+
+.playgrounds-pane .siteRow:hover .siteRowMenu,
+.playgrounds-pane .siteRow:focus-within .siteRowMenu,
+.playgrounds-pane .siteRowMenu:hover {
+	opacity: 1;
+}
+
+.playgrounds-pane .creationButton,
+.playgrounds-pane .blueprintCard,
+.playgrounds-pane .blueprintPreviewCard {
+	background: #ffffff;
+	border: 1px solid rgba(33, 30, 25, 0.14);
+	color: #21201d;
+}
+
+.playgrounds-pane .creationButton:hover:not(:disabled),
+.playgrounds-pane .blueprintPreviewCard:hover {
+	background: rgba(33, 30, 25, 0.045);
+	border-color: rgba(33, 30, 25, 0.28);
+}
+
+.playgrounds-pane .creationIcon,
+.playgrounds-pane .creationIcon :global(svg) {
+	color: #3858e9;
+	fill: #3858e9;
+}
+
+/* The WordPress mark hardcodes a white path fill, which an svg-level rule can't
+   override. Recolor the path itself so the logo is visible on the light pane. */
+.playgrounds-pane .newPlaygroundIcon :global(svg path),
+.playgrounds-pane .siteRowLogo :global(svg path),
+.playgrounds-pane .blueprintPlaceholder :global(svg path) {
+	fill: #3858e9;
+}
+
+.playgrounds-pane .blueprintsRow {
+	display: grid;
+	gap: 16px;
+	/* Fluid columns: ~160px-wide cards that reflow to one column on very narrow
+	   screens and more columns as the pane widens (full-screen on tablets), so the
+	   gallery never forces two cramped, overflowing cards. min(160px, 100%) keeps a
+	   single column from overflowing below 160px. */
+	grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+}
+
+.playgrounds-pane .filtersBar {
+	gap: 12px;
+	padding: 0 0 16px;
+}
+
+.playgrounds-pane .searchWrapper {
+	background: #ffffff;
+	border-color: rgba(33, 30, 25, 0.14);
+	border-radius: 8px;
+	max-width: none;
+}
+
+.playgrounds-pane .searchWrapper:focus-within {
+	border-color: var(--accent, #3858e9);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
+}
+
+.playgrounds-pane .searchField {
+	color: #21201d;
+	font-size: 15px;
+	padding: 10px 12px 10px 0;
+}
+
+.playgrounds-pane .searchField::placeholder,
+.playgrounds-pane .searchIcon {
+	color: var(--ink-faint, #8a857b);
+}
+
+.playgrounds-pane .blueprintPreviewThumbnail,
+.playgrounds-pane .blueprintThumbnail {
+	background: var(--paper-3, #ece8e1);
+	border-color: rgba(33, 30, 25, 0.14);
+}
+
+.playgrounds-pane .blueprintPreviewTitle {
+	color: #21201d;
+	font-size: 15px;
+}
+
+/* Blueprint tiles read as proper cards: a screenshot on top, a titled footer
+   below, with a gentle lift on hover. */
+.playgrounds-pane.new-pane .blueprintsRow {
+	gap: 14px;
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewCard {
+	align-items: stretch;
+	border-radius: 12px;
+	/* Vertical card (thumbnail over title), overriding the legacy ≤875px overlay
+	   rule that flips cards to a horizontal dark list — which squeezed the title
+	   to nothing in the full-screen pane. */
+	flex-direction: column;
+	gap: 0;
+	/* Shrink to the grid cell so the (nowrap) title truncates instead of forcing
+	   the card — and the gallery — wider than the pane. */
+	min-width: 0;
+	overflow: hidden;
+	padding: 0;
+	text-align: left;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease,
+		transform 0.15s ease;
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewCard:hover {
+	background: #ffffff;
+	border-color: rgba(56, 88, 233, 0.45);
+	box-shadow: 0 8px 20px rgba(40, 33, 23, 0.13);
+	transform: translateY(-2px);
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewThumbnail {
+	aspect-ratio: 16 / 10;
+	border: none;
+	border-bottom: 1px solid rgba(33, 30, 25, 0.1);
+	border-radius: 0;
+	/* Full-width thumbnail on top of the vertical card (overrides the legacy
+	   ≤875px fixed 140px-wide list-thumbnail). */
+	width: 100%;
+	height: auto;
+	flex-shrink: 1;
+	position: relative;
+}
+
+/* "Default" badge: a quiet frosted chip with accent text rather than a
+   saturated blue brick — the loudest mass on the surface otherwise. White
+   backing keeps it legible over the card thumbnail (an on-paper 12% tint would
+   not), while the accent-link text carries the same quiet-accent language as the
+   current-playground card. */
+.playgrounds-pane.new-pane .blueprintBadge {
+	background: rgba(255, 255, 255, 0.92);
+	border-radius: 5px;
+	box-shadow: inset 0 0 0 1px rgba(33, 30, 25, 0.08);
+	color: var(--accent-link);
+	font-size: 11px;
+	font-weight: 600;
+	left: 8px;
+	letter-spacing: 0.01em;
+	padding: 2px 7px;
+	position: absolute;
+	top: 8px;
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewBody {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	/* Let the title clamp instead of widening the card. */
+	min-width: 0;
+	padding: 10px 12px 12px;
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewTitle {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	display: -webkit-box;
+	overflow: hidden;
+	text-align: left;
+	text-overflow: ellipsis;
+	width: 100%;
+}
+
+.playgrounds-pane.new-pane .blueprintPreviewDescription {
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 1;
+	color: var(--ink-muted, #5f5b54);
+	display: -webkit-box;
+	font-size: 12px;
+	line-height: 1.4;
+	overflow: hidden;
+}
+
+.playgrounds-pane .emptyMessage {
+	background: #ffffff;
+	color: #5f5b54;
+}
+
+.playgrounds-pane .showMoreButton {
+	border-color: rgba(33, 30, 25, 0.14);
+	color: #5f5b54;
+}
+
+.playgrounds-pane .showMoreButton:hover {
+	background: rgba(33, 30, 25, 0.045);
+	color: #21201d;
+}
+
+@media (max-width: 640px) {
+	.playgrounds-pane {
+		padding: 0 20px 24px;
+	}
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0px;
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-control, 6px);
+	background: var(--paper-2, #faf8f5);
+	color: var(--ink-muted, #5f5b54);
+	cursor: pointer;
+	box-shadow: rgba(40, 33, 23, 0.08) 0px 1px 2px;
+	transition:
+		background 0.12s,
+		color 0.12s;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:hover:not(:disabled) {
+	background: var(--paper-4, #e7e2da);
+	color: var(--ink, #21201d);
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:focus-visible {
+	outline: 2px solid var(--accent, #3858e9);
+	outline-offset: 2px;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand:disabled {
+	cursor: default;
+	opacity: 0.4;
+}
+
+.playgrounds-pane.new-pane .writeOwnExpand svg {
+	fill: currentcolor;
+}

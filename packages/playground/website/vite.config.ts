@@ -30,6 +30,8 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const exec = promisify(execCb);
@@ -83,6 +85,9 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {

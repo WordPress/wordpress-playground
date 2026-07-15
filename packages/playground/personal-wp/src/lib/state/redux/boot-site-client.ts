@@ -32,6 +32,7 @@ import {
 	selectBlueprintResolvedFromUrl,
 	setBlueprintResolvedFromUrl,
 } from './slice-sites';
+import type { SiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import {
@@ -42,6 +43,18 @@ import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
+import {
+	getUsageStatsDate,
+	getBlueprintUsageStatsProperties,
+	getSiteUsageStatsProperties,
+	isUsageStatsAllowedOnCurrentHost,
+	logPersonalWpEvent,
+	shouldLogReturningVisitUsageStats,
+} from '../../personalwp/usage-stats';
+import {
+	isHealthCheckRecoveryBlueprint,
+	isHealthCheckRecoveryUrl,
+} from '../../health-check-recovery';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -81,7 +94,7 @@ export function bootSiteClient(
 		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
 		const hasUrlBlueprint =
-			urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+			!!urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -232,15 +245,13 @@ export function bootSiteClient(
 			blueprint.preferredVersions?.wp === false;
 
 		// Check if we're in recovery mode (Health Check troubleshooting).
-		// In recovery mode, skip the WordPress install check to avoid
-		// loading WordPress before blueprint steps run. The check would
-		// load WordPress and crash due to a broken plugin.
-		const urlBlueprintLandingPage = hasUrlBlueprint
-			? urlBlueprint.blueprint.landingPage
-			: undefined;
-		const isRecoveryMode = urlBlueprintLandingPage?.includes(
-			'health-check-disable-plugin-hash'
-		);
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const isRecoveryMode =
+			isHealthCheckRecoveryUrl(new URL(window.location.href)) ||
+			(hasUrlBlueprint &&
+				isHealthCheckRecoveryBlueprint(urlBlueprint.blueprint));
 		const wordpressInstallMode =
 			blueprintRequestedNoWordPress || isRecoveryMode
 				? 'do-not-attempt-installing'
@@ -270,11 +281,6 @@ export function bootSiteClient(
 				blueprint,
 				disableProgressBar: true,
 				progressTracker,
-				experimentalBlueprintsV2Runner:
-					!isWordPressInstalled &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
@@ -372,6 +378,27 @@ export function bootSiteClient(
 			);
 		});
 
+		const bootCompletedAt = Date.now();
+		const usageStatsMetadata = logBootUsageStats({
+			site,
+			hasUrlBlueprint,
+			urlBlueprint: hasUrlBlueprint ? urlBlueprint.blueprint : undefined,
+			isWordPressInstalled,
+			wordpressInstallMode,
+			bootCompletedAt,
+		});
+		if (site.metadata.storage !== 'none') {
+			dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					metadata: {
+						lastAccessDate: bootCompletedAt,
+						...usageStatsMetadata,
+					},
+				})
+			);
+		}
+
 		// Clear URL blueprint after successful boot
 		if (hasUrlBlueprint) {
 			dispatch(setBlueprintResolvedFromUrl(null));
@@ -393,6 +420,65 @@ export function bootSiteClient(
 		};
 	};
 }
+
+function logBootUsageStats({
+	site,
+	hasUrlBlueprint,
+	urlBlueprint,
+	isWordPressInstalled,
+	wordpressInstallMode,
+	bootCompletedAt,
+}: {
+	site: ReturnType<typeof selectSiteBySlug>;
+	hasUrlBlueprint: boolean;
+	urlBlueprint?: BlueprintV1Declaration;
+	isWordPressInstalled: boolean;
+	wordpressInstallMode: string;
+	bootCompletedAt: number;
+}): BootUsageStatsMetadata {
+	if (
+		!site ||
+		site.metadata.storage === 'none' ||
+		!isUsageStatsAllowedOnCurrentHost()
+	) {
+		return {};
+	}
+
+	const siteProperties = getSiteUsageStatsProperties(
+		site.metadata,
+		bootCompletedAt
+	);
+	const metadata: BootUsageStatsMetadata = {};
+	if (wordpressInstallMode === 'download-and-install') {
+		logPersonalWpEvent('wordpress_installed', {
+			...siteProperties,
+			original_blueprint_source:
+				site.metadata.originalBlueprintSource.type,
+		});
+	} else if (
+		isWordPressInstalled &&
+		shouldLogReturningVisitUsageStats(site.metadata, bootCompletedAt)
+	) {
+		logPersonalWpEvent('returning_visit', siteProperties);
+		metadata.lastUsageStatsReturningVisitDate =
+			getUsageStatsDate(bootCompletedAt);
+	}
+
+	if (hasUrlBlueprint && urlBlueprint) {
+		logPersonalWpEvent('blueprint_installed', {
+			...siteProperties,
+			trigger: 'url',
+			...getBlueprintUsageStatsProperties(urlBlueprint),
+		});
+	}
+
+	return metadata;
+}
+
+type BootUsageStatsMetadata = Pick<
+	SiteMetadata,
+	'lastUsageStatsReturningVisitDate'
+>;
 
 function bootDependentModeClient({
 	siteSlug,

@@ -48,6 +48,37 @@ npx @wp-playground/cli@latest start
 - Opens browser automatically
 - Auto-mounts the project by default
 
+## Migrating from wp-now
+
+The deprecated `@wp-now/wp-now` package maps most directly to the `start`
+command:
+
+| wp-now                                                  | Playground CLI                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `npx @wp-now/wp-now start`                              | `npx @wp-playground/cli@latest start`                              |
+| `npx @wp-now/wp-now start --path=./plugin`              | `cd ./plugin && npx @wp-playground/cli@latest start`               |
+| `npx @wp-now/wp-now start --wp=6.8 --php=8.3`           | `npx @wp-playground/cli@latest start --wp=6.8 --php=8.3`           |
+| `npx @wp-now/wp-now start --blueprint=./blueprint.json` | `npx @wp-playground/cli@latest start --blueprint=./blueprint.json` |
+| `npx @wp-now/wp-now start --skip-browser`               | `npx @wp-playground/cli@latest start --skip-browser`               |
+| `npx @wp-now/wp-now start --reset`                      | `npx @wp-playground/cli@latest start --reset`                      |
+
+The main workflow change is where the saved site lives:
+
+- With `wp-now`, `--path=./plugin` picked the project and the saved site.
+- With Playground CLI, `start` saves the site for the current directory. For
+  the closest match, `cd` into the project first, then run `start`.
+- When Playground CLI creates WordPress for you, it keeps the WordPress files
+  in `~/.wordpress-playground/sites/<path-hash>/`.
+- If you run it on a full WordPress directory, or mount a directory at
+  `/wordpress`, that directory is the WordPress site. Changes are written
+  there.
+- `start --path=./plugin` still mounts that folder, but it does not make
+  `./plugin` the saved site. The saved site still belongs to the directory
+  where you ran the command.
+
+Use `start` for the familiar wp-now-style flow. Use `server` only when you want
+to spell out mounts, storage, or automation yourself.
+
 ### Using `server` (Advanced)
 
 The `server` command provides full control over configuration:
@@ -58,7 +89,12 @@ npx @wp-playground/cli@latest server
 
 ![Playground CLI in Action](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
 
-**Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.
+**Automatic site persistence:** When the `start` command manages the WordPress
+root directory, it keeps your WordPress site persistent across sessions. Your
+files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`,
+where `<path-hash>` is derived from the command's current working directory. If
+you start from a full WordPress installation, or explicitly mount `/wordpress`,
+that mounted directory becomes the persistent store instead.
 
 This is useful when:
 
@@ -77,7 +113,7 @@ The `--reset` flag works only with `start`. For `server`, manually delete the pe
 By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
-npx @wp-playground/cli@latest server --wp=6.8 --php=8.3
+npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
 ```
 
 ### Loading Blueprints
@@ -196,7 +232,8 @@ npx @wp-playground/cli@latest server --mount=./wp-content:/wordpress/wp-content
 
 ### Data Persistence in `start` mode
 
-Running in `start` mode, Playground CLI **automatically persists** your WordPress site in a dedicated directory:
+When `start` manages the WordPress root directory, Playground CLI
+**automatically persists** your WordPress site in a dedicated directory:
 
 ```
 ~/.wordpress-playground/sites/<path-hash>/
@@ -205,18 +242,23 @@ Running in `start` mode, Playground CLI **automatically persists** your WordPres
 └── tmp/              # Temporary PHP files
 ```
 
-The `<path-hash>` is derived from your project directory path. This ensures isolation between different projects while persisting changes automatically.
+The `<path-hash>` is derived from the command's current working directory.
+This ensures isolation between different projects when you run `start` from each
+project directory.
 
 #### Persistence behavior
 
-- **Default (no explicit mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
-- **Explicit `/wordpress` mount**: If you provide a mount path for `/wordpress`, automatic persistence is skipped. Your mount configuration takes precedence.
+- **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
+- **Full WordPress directory or explicit `/wordpress` mount**: Automatic persistence in `~/.wordpress-playground/sites/<path-hash>/` is skipped. The mounted WordPress directory is the persistent store.
 
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
     - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
     - **Persisted automatically** between sessions
+- **Full WordPress directory or explicit `/wordpress` mount**:
+    - Database: Follows the mounted WordPress directory
+    - **Persisted in that mounted directory**
 
 #### Resetting a persisted site
 
@@ -236,18 +278,26 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
 
-The `start` command has a dedicated argument:
+The `start` command supports these common optional arguments. Run
+`npx @wp-playground/cli@latest start --help` for the full list:
 
+- `--path=<path>`: Path to the project directory. Defaults to the current working directory.
+- `--wp=<version>`: WordPress version to use. Defaults to the latest.
+- `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
+- `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
+- `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
+- `--login`: Automatically log the user in as an administrator. Defaults to true.
+- `--skip-browser`: Do not open the site in your default browser.
 - `--reset`: Delete the stored site and start fresh. Defaults to false.
+- `--no-auto-mount`: Disable automatic project detection.
 
-The `server` command supports the following optional arguments:
+The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
 - `--version`: Show version number.
-- `--outfile`: When building, write to this output file.
 - `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.5`.
+- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.3`.
 - `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
 - `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.

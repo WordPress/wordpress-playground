@@ -38,6 +38,7 @@ export class BlueprintsV1Handler {
 			wordpressInstallMode,
 			onClientConnected,
 			pathAliases,
+			disableProgressBar,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -52,7 +53,9 @@ export class BlueprintsV1Handler {
 			iframe.ownerDocument!.defaultView!
 		) as PlaygroundClient;
 		await playground.isConnected();
-		progressTracker.pipe(playground);
+		if (!disableProgressBar) {
+			progressTracker.pipe(playground);
+		}
 
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);

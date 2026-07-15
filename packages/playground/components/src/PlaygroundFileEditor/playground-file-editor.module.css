@@ -85,6 +85,22 @@
 	font-weight: 500;
 }
 
+.saveButton {
+	/* Fixed width so the label swapping between Save / Saving… / Saved / Retry
+	   save doesn't jog the dock header layout. */
+	min-width: 96px;
+	justify-content: center;
+	white-space: nowrap;
+}
+
+/* In sync: a calm, confirmed "✓ Saved" (secondary button + green check/label),
+   distinct from the solid blue "Save" that appears with pending edits. */
+.saveButton.saveButtonSaved,
+.saveButton.saveButtonSaved svg {
+	color: var(--color-success, #007017);
+	fill: var(--color-success, #007017);
+}
+
 .editor {
 	flex: 1;
 	min-height: 0;
@@ -157,6 +173,71 @@
 	display: none;
 }
 
+/* Quiet Paper is opt-in because these components also render in DevTools,
+   Personal WP, FilePickerControl, and standalone harnesses. */
+.dockPresentation .content {
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .sidebarWrapper {
+	border-right-color: var(--line-subtle, #ddd);
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .editorHeader {
+	min-height: 56px;
+	padding: 8px 16px 8px 24px;
+	border-bottom-color: var(--line-subtle, #ddd);
+	background: var(--paper-2, #ffffff);
+}
+
+.dockPresentation .editorPath {
+	color: var(--ink-muted, #50575e);
+}
+
+.dockPresentation .editorPathPlaceholder {
+	color: var(--ink-faint, #787c82);
+}
+
+.dockPresentation .editor,
+.dockPresentation .editor :global(.cm-editor) {
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .editor :global(.cm-gutters) {
+	background: var(--paper-2, #ffffff);
+	color: var(--ink-faint, #787c82);
+	border-right: 1px solid var(--line-subtle, #ddd);
+}
+
+.dockPresentation .editor :global(.cm-activeLine),
+.dockPresentation .editor :global(.cm-activeLineGutter) {
+	background: var(--paper-3, #f0f0f1);
+}
+
+.dockPresentation .placeholder {
+	color: var(--ink-muted, #50575e);
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .messageArea {
+	background: var(--paper-1, #ffffff);
+}
+
+.dockPresentation .messageArea a {
+	color: var(--accent-link, #2271b1);
+}
+
+.dockPresentation .messageArea a:hover {
+	color: var(--accent-hover, #135e96);
+}
+
+/* This specificity outranks WordPress' `.components-button { display }`
+   regardless of stylesheet load order. */
+.dockPresentation .editorHeader .mobileToggle {
+	display: none;
+}
+
 @media (max-width: 960px) {
 	.sidebarWrapper {
 		position: absolute;
@@ -205,6 +286,62 @@
 	}
 
 	.content {
+		flex-direction: column;
+	}
+}
+
+/* The website Dock switches at 1024px; only its explicit presentation follows
+   that breakpoint. Default consumers retain the original 960px behavior. */
+@media (max-width: 1024px) {
+	.dockPresentation .sidebarWrapper {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(85%, 340px);
+		box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+		display: none;
+	}
+
+	.dockPresentation .sidebarOpen .sidebarWrapper {
+		display: flex;
+	}
+
+	.dockPresentation .mobileOverlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 2;
+		display: none;
+	}
+
+	.dockPresentation .sidebarOpen .mobileOverlay {
+		display: block;
+	}
+
+	.dockPresentation .editorHeader {
+		flex-wrap: wrap;
+		gap: 8px;
+		background: var(--paper-2, #ffffff);
+	}
+
+	.dockPresentation .editorPath {
+		width: 100%;
+		order: 2;
+		/* Keep long paths clear of the dock pane's close button. */
+		margin-right: 48px;
+	}
+
+	.dockPresentation .editorHeader .mobileToggle {
+		display: inline-flex;
+		order: 1;
+	}
+
+	.dockPresentation .saveButton {
+		order: 3;
+	}
+
+	.dockPresentation .content {
 		flex-direction: column;
 	}
 }

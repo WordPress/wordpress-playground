@@ -263,7 +263,7 @@ class InMemoryFilesystem
 	}
 }
 
-const createFilesystem = () =>
+export const createFilesystem = () =>
 	new InMemoryFilesystem(cloneStructure(baseFilesystem));
 
 export function FilePickerTreeHarness() {

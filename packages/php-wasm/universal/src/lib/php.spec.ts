@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { __private__dont__use, PHP } from './php';
+import { createSpawnHandler } from '@php-wasm/util';
+import { __private__dont__use, MountStillActiveError, PHP } from './php';
 
 describe('PHP mounts', () => {
 	it('forgets mount tracking even when the unmount callback fails', async () => {
@@ -8,9 +9,9 @@ describe('PHP mounts', () => {
 		//
 		// 1. Invokes the underlying unmount callback returned by the
 		//    mount handler.
-		// 2. Deletes the entry from `#mounts` in a `finally` block so the
-		//    JS-side bookkeeping stays authoritative even if the
-		//    underlying filesystem unmount throws.
+		// 2. Deletes the entry from `#mounts` after ordinary failures so the
+		//    JS-side bookkeeping stays authoritative when the underlying
+		//    filesystem did not explicitly report that it remains mounted.
 		//
 		// `#mounts` is not observable from outside the class, so we
 		// verify the cleanup transitively through `hotSwapPHPRuntime`,
@@ -27,7 +28,7 @@ describe('PHP mounts', () => {
 		//
 		// - `unmountCallback` must have been called exactly once across
 		//   both the explicit `unmount()` call and the subsequent
-		//   `hotSwapPHPRuntime` attempt. Any stale `#mounts` entry would
+		//   `hotSwapPHPRuntime` attempt. Any stale ordinary-failure entry would
 		//   bump the count to 2.
 		const php = new PHP();
 		(php as any)[__private__dont__use] = {
@@ -37,7 +38,6 @@ describe('PHP mounts', () => {
 				lookupPath: vi.fn(() => ({})),
 				readdir: vi.fn(() => ['.', '..']),
 			},
-			spawnProcess: undefined,
 		};
 		const unmountError = new Error('unmount failed');
 		const unmountCallback = vi.fn(async () => {
@@ -55,4 +55,131 @@ describe('PHP mounts', () => {
 		);
 		expect(unmountCallback).toHaveBeenCalledTimes(1);
 	});
+
+	it('retains mount tracking when the unmount reports it is still active', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				chdir: vi.fn(),
+				cwd: vi.fn(() => '/'),
+				lookupPath: vi.fn(() => ({})),
+				readdir: vi.fn(() => ['.', '..']),
+			},
+			spawnProcess: undefined,
+		};
+		const flushError = new Error('flush failed');
+		const activeError = new MountStillActiveError(flushError);
+		const unmountCallback = vi
+			.fn()
+			.mockRejectedValueOnce(activeError)
+			.mockResolvedValueOnce(undefined);
+		const unmount = await php.mount('/mounted', async () => {
+			return unmountCallback;
+		});
+
+		await expect(unmount()).rejects.toBe(activeError);
+		await expect(php.hotSwapPHPRuntime(0 as any)).rejects.toThrow(
+			'Runtime with id 0 not found'
+		);
+
+		expect(unmountCallback).toHaveBeenCalledTimes(2);
+	});
 });
+
+describe('PHP spawn handlers', () => {
+	it('routes commands to command-specific or generic handlers', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				cwd: vi.fn(() => '/'),
+			},
+		};
+		await expect(php.cli(['pwd'])).rejects.toMatchObject({
+			code: 'SPAWN_UNSUPPORTED',
+		});
+
+		await php.setSpawnHandler(() => {
+			throw new Error('generic handler');
+		});
+		php.setCommandSpawnHandler('sendmail', () => {
+			throw new Error('sendmail handler');
+		});
+
+		await expect(php.cli(['/usr/sbin/sendmail', '-t'])).rejects.toThrow(
+			'sendmail handler'
+		);
+
+		await expect(php.cli(['pwd', '-P'])).rejects.toThrow('generic handler');
+	});
+
+	it('keeps command-specific handlers after replacing the generic handler', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = {
+			FS: {
+				cwd: vi.fn(() => '/'),
+			},
+		};
+
+		php.setCommandSpawnHandler('sendmail', () => {
+			throw new Error('sendmail handler');
+		});
+		await php.setSpawnHandler(() => {
+			throw new Error('generic handler');
+		});
+
+		await expect(php.cli(['/usr/sbin/sendmail', '-t'])).rejects.toThrow(
+			'sendmail handler'
+		);
+	});
+
+	it('routes PHP code execution to command-specific handlers', async () => {
+		const php = new PHP();
+		const runtime = createRuntimeThatExecutes(php, ['sendmail', '-t']);
+		(php as any)[__private__dont__use] = runtime;
+
+		php.setCommandSpawnHandler(
+			'sendmail',
+			createSpawnHandler(async (command: string[], processApi: any) => {
+				expect(command).toEqual(['sendmail', '-t']);
+				processApi.stdout('sent mail');
+				await new Promise((resolve) => setTimeout(resolve, 1));
+				processApi.exit(0);
+			})
+		);
+		await php.setSpawnHandler(() => {
+			throw new Error('generic handler');
+		});
+
+		const response = await php.run({
+			code: `<?php echo exec("sendmail -t");`,
+		});
+
+		expect(runtime.FS.writeFile).toHaveBeenCalledWith(
+			'/internal/eval.php',
+			`<?php echo exec("sendmail -t");`
+		);
+		expect(response.text).toBe('sent mail');
+	});
+});
+
+function createRuntimeThatExecutes(php: PHP, command: string[]) {
+	const runtime: any = {
+		FS: {
+			cwd: vi.fn(() => '/'),
+			writeFile: vi.fn(),
+		},
+		ccall: vi.fn(async (name: string) => {
+			if (name !== 'wasm_sapi_handle_request') {
+				return 0;
+			}
+
+			const response = await php.cli(command);
+			runtime.onStdout(await response.stdoutBytes);
+			runtime.onStderr(
+				new TextEncoder().encode(await response.stderrText)
+			);
+			return await response.exitCode;
+		}),
+	};
+	return runtime;
+}
