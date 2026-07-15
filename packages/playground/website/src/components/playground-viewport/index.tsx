@@ -135,7 +135,14 @@ export const KeepAliveTemporarySitesViewport = () => {
 
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
 	if (!sitesFinishedLoading) {
-		return <LoadingViewport caption="Loading Playgrounds" />;
+		return (
+			<div className={css.loadingViewport}>
+				<h1 className={css.loadingCaption}>Loading Playgrounds</h1>
+				<div className={css.progressWrapper}>
+					<div className={css.progressBar} />
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -159,7 +166,12 @@ export const KeepAliveTemporarySitesViewport = () => {
 				</div>
 			)}
 			{!hasVisibleSite && (
-				<LoadingViewport caption="Preparing WordPress" />
+				<div className={css.loadingViewport}>
+					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
+					<div className={css.progressWrapper}>
+						<div className={css.progressBar} />
+					</div>
+				</div>
 			)}
 			{slugsSeenSoFar.map((slug) => {
 				const site = sitesBySlug.get(slug);
@@ -182,17 +194,6 @@ export const KeepAliveTemporarySitesViewport = () => {
 		</>
 	);
 };
-
-function LoadingViewport({ caption }: { caption: string }) {
-	return (
-		<div className={css.loadingViewport}>
-			<h1 className={css.loadingCaption}>{caption}</h1>
-			<div className={css.progressWrapper}>
-				<div className={css.progressBar} />
-			</div>
-		</div>
-	);
-}
 
 export const JustViewport = function JustViewport({
 	siteSlug,
