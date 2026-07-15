@@ -664,6 +664,12 @@ export function Dock({
 			draggedRef.current = false;
 
 			const eatClick = (clickEvent: MouseEvent) => {
+				if (
+					!(clickEvent.target instanceof Node) ||
+					!dockRef.current?.contains(clickEvent.target)
+				) {
+					return;
+				}
 				clickEvent.stopPropagation();
 				clickEvent.preventDefault();
 			};
