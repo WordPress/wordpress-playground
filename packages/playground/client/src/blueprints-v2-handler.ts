@@ -66,19 +66,13 @@ export class BlueprintsV2Handler {
 			shouldInstallWordPress,
 			wordpressInstallMode,
 		});
-		// The `if-needed` mode may initialize the database, but WordPress core
-		// still comes from the mounted files rather than a fallback download.
-		const usesExistingWordPressFiles =
-			requestedWordPressInstallMode === 'install-from-existing-files' ||
-			requestedWordPressInstallMode ===
-				'install-from-existing-files-if-needed';
 		const compiled = await compileBlueprintForExecution(blueprint, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			onBlueprintValidated,
 			corsProxy,
 			gitAdditionalHeadersCallback,
-			siteMode: usesExistingWordPressFiles
+			siteMode: isExistingSiteInstallMode(requestedWordPressInstallMode)
 				? 'apply-to-existing-site'
 				: 'create-new-site',
 		});
@@ -90,6 +84,9 @@ export class BlueprintsV2Handler {
 			compiled.version === 2 && compiled.declaration.target === 'php'
 				? 'do-not-attempt-installing'
 				: requestedWordPressInstallMode;
+		const usesExistingWordPressFiles = isExistingSiteInstallMode(
+			resolvedWordPressInstallMode
+		);
 		const wordPressZip =
 			compiled.version === 2 &&
 			resolvedWordPressInstallMode === 'download-and-install'
@@ -160,5 +157,20 @@ function resolveWordPressInstallMode({
 		(shouldInstallWordPress === false
 			? 'install-from-existing-files-if-needed'
 			: 'download-and-install')
+	);
+}
+
+/**
+ * Indicates whether boot will reuse WordPress files supplied by the caller.
+ *
+ * The `if-needed` mode may initialize the database, but WordPress core still
+ * comes from the mounted files rather than a fallback download.
+ */
+function isExistingSiteInstallMode(
+	wordpressInstallMode: WordPressInstallMode
+): boolean {
+	return (
+		wordpressInstallMode === 'install-from-existing-files' ||
+		wordpressInstallMode === 'install-from-existing-files-if-needed'
 	);
 }

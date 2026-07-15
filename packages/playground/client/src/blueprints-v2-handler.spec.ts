@@ -156,6 +156,30 @@ describe('BlueprintsV2Handler', () => {
 		expect(mocks.resolveBlueprintV2WordPressSource).not.toHaveBeenCalled();
 	});
 
+	it('does not preflight existing WordPress files for PHP targets', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			target: 'php',
+			wordpressVersion: { min: '6.8' },
+		} as const;
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				blueprint: undefined,
+			})
+		);
+	});
+
 	it('does not pipe remote progress when progress UI is disabled', async () => {
 		const iframe = createIframe();
 		const blueprint = {

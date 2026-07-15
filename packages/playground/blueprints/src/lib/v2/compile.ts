@@ -861,20 +861,7 @@ function lowerContentBaseline(
 				}
 			}
 
-			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
-				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
-				if ((int) $count !== 0) {
-					return;
-				}
-				if (isset($GLOBALS['@pdo'])) {
-					$statement = $GLOBALS['@pdo']->prepare(
-						'DELETE FROM SQLITE_SEQUENCE WHERE NAME = :table_name'
-					);
-					$statement->execute([':table_name' => $table_name]);
-					return;
-				}
-				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
-			};
+			${getResetSequenceIfEmptyPHP()}
 
 			if (count($post_types) > 0) {
 				$reset_sequence_if_empty($wpdb->posts);
@@ -909,7 +896,18 @@ function lowerUsersBaseline(): StepDefinition[] {
 				wp_delete_user((int) $user_id);
 			}
 
-			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
+			${getResetSequenceIfEmptyPHP()}
+
+			$reset_sequence_if_empty($wpdb->users);
+			$reset_sequence_if_empty($wpdb->usermeta);
+			`,
+		},
+	];
+}
+
+/** Returns the shared database sequence reset used by creation baselines. */
+function getResetSequenceIfEmptyPHP(): string {
+	return `$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
 				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
 				if ((int) $count !== 0) {
 					return;
@@ -922,13 +920,7 @@ function lowerUsersBaseline(): StepDefinition[] {
 					return;
 				}
 				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
-			};
-
-			$reset_sequence_if_empty($wpdb->users);
-			$reset_sequence_if_empty($wpdb->usermeta);
-			`,
-		},
-	];
+			};`;
 }
 
 function lowerBlueprintV2Content(
