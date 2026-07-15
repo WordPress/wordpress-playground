@@ -28,6 +28,8 @@ import { logger } from '@php-wasm/logger';
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
 	getPlaygroundBeforeImport?: () => Promise<PlaygroundClient>;
+	onRepositoryResolved?: () => void;
+	showRepositoryDetails?: boolean;
 	onImported: (details: {
 		url: string;
 		urlInformation: GitHubURLInformation;
@@ -43,6 +45,8 @@ export interface GitHubImportFormProps {
 export default function GitHubImportForm({
 	playground,
 	getPlaygroundBeforeImport,
+	onRepositoryResolved,
+	showRepositoryDetails = true,
 	onImported,
 }: GitHubImportFormProps) {
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -113,6 +117,7 @@ export default function GitHubImportForm({
 				setPath(importSource.path ?? '');
 				setBranch(importSource.ref ?? '');
 				setContentType(guessedContentType);
+				onRepositoryResolved?.();
 				return;
 			} catch (e: any) {
 				if (
@@ -143,6 +148,10 @@ export default function GitHubImportForm({
 					setIsAnalyzing(false);
 				}
 			}
+		}
+		if (!showRepositoryDetails) {
+			onRepositoryResolved?.();
+			return;
 		}
 		if (!contentType) {
 			setErrors({
@@ -271,7 +280,7 @@ export default function GitHubImportForm({
 				) : (
 					false
 				)}
-				{urlInformation && !isAnalyzing ? (
+				{urlInformation && showRepositoryDetails && !isAnalyzing ? (
 					<>
 						{urlInformation ? (
 							<div>
@@ -391,8 +400,10 @@ export default function GitHubImportForm({
 								<Spinner size={20} />
 								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
 							</>
-						) : (
+						) : showRepositoryDetails ? (
 							'Import'
+						) : (
+							'Continue'
 						)}
 					</Button>
 				</div>

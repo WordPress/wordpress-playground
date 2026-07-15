@@ -19,7 +19,16 @@ export type SiteError =
 	| 'network-firewall-interference'
 	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type SiteManagerSection =
+	| 'new'
+	| 'playgrounds'
+	| 'blueprint'
+	| 'settings'
+	| 'database'
+	| 'files'
+	| 'logs'
+	| 'share'
+	| 'save';
 
 export const modalSlugs = {
 	LOG: 'log',
@@ -164,10 +173,17 @@ export interface UIState {
 	shareExportOpen: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
-	/** Draft kept while the New Playground panel is closed or hidden. */
+	/**
+	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
+	 * pane does not discard the user's work.
+	 */
 	writeOwnBlueprintDraft?: string;
 	/** Playground slug from which the current authoring draft was seeded. */
 	writeOwnSeededSlug?: string;
+	dockOperationNotice?: {
+		title: string;
+		message?: string;
+	};
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -201,16 +217,22 @@ const initialState: UIState = {
 	// to be open by default or closed by default, and we do not want to lose
 	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
-		shouldOpenSiteManagerByDefault &&
 		// The site manager should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		// We do not expect to render the Playground app UI in an iframe.
-		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on small screens (mobile/tablet),
-		// as that would mean seeing something that's not Playground filling
-		// your entire screen – quite a confusing experience.
-		window.innerWidth >= BREAKPOINTS.tablet,
-	siteManagerSection: 'site-details',
+		(query.get('overlay') !== null ||
+			(shouldOpenSiteManagerByDefault &&
+				// We do not expect to render the Playground app UI in an iframe.
+				!isEmbeddedInAnIframe &&
+				// Don't default to the site manager on small screens (mobile/tablet),
+				// as that would mean seeing something that's not Playground filling
+				// your entire screen – quite a confusing experience.
+				window.innerWidth >= BREAKPOINTS.tablet)),
+	siteManagerSection:
+		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
+			? 'new'
+			: query.get('overlay') !== null
+				? 'playgrounds'
+				: 'settings',
 };
 
 const uiSlice = createSlice({
@@ -296,6 +318,12 @@ const uiSlice = createSlice({
 		) => {
 			state.writeOwnSeededSlug = action.payload;
 		},
+		setDockOperationNotice: (
+			state,
+			action: PayloadAction<UIState['dockOperationNotice']>
+		) => {
+			state.dockOperationNotice = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -361,6 +389,7 @@ export const {
 	setSiteManagerSection,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
+	setDockOperationNotice,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

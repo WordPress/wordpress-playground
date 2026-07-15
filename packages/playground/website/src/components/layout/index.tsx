@@ -1,10 +1,8 @@
 import css from './style.module.css';
 
-import { SiteManager } from '../site-manager';
-import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
-import { useAppSelector } from '../../lib/state/redux/store';
-import { useRef, lazy, Suspense } from 'react';
+import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import {
 	GitHubExportSessionProvider,
@@ -21,10 +19,12 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
-import { modalSlugs } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
+import { Dock } from '../dock';
+import classNames from 'classnames';
 
 /**
  * Lazy modal wrapper component to reduce Suspense repetition
@@ -64,36 +64,70 @@ export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
-	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
+	const dispatch = useAppDispatch();
+	const [paneCloseBlocked, setPaneCloseBlocked] = useState(false);
+	const siteViewContentRef = useRef<HTMLDivElement>(null);
+	const showDock = displayMode !== 'seamless';
+
+	// React 18 does not forward inert. Set it on the preview explicitly so an
+	// obscured WordPress iframe also leaves the keyboard and accessibility trees.
+	useEffect(() => {
+		const siteViewContent = siteViewContentRef.current;
+		if (!siteViewContent) {
+			return;
+		}
+		if (showDock && siteManagerIsOpen) {
+			siteViewContent.setAttribute('inert', '');
+		} else {
+			siteViewContent.removeAttribute('inert');
+		}
+	}, [showDock, siteManagerIsOpen]);
+
+	/** Closes the active pane unless its current operation owns the surface. */
+	const closeDockPane = () => {
+		if (!paneCloseBlocked) {
+			dispatch(setSiteManagerOpen(false));
+		}
+	};
 
 	return (
 		<GitHubExportSessionProvider>
-			<div className={`${css.layout}`}>
+			<div
+				className={classNames(css.layout, {
+					[css.hasDockPane]: showDock && siteManagerIsOpen,
+				})}
+			>
 				<Modals />
-				<CSSTransition
-					nodeRef={siteManagerWrapperRef}
-					in={siteManagerIsOpen}
-					timeout={500}
-					classNames={{
-						enter: css.siteManagerWrapperEnter,
-						enterActive: css.siteManagerWrapperEnterActive,
-						exit: css.siteManagerWrapperExit,
-						exitActive: css.siteManagerWrapperExitActive,
-					}}
-					unmountOnExit
-				>
-					<div
-						ref={siteManagerWrapperRef}
-						className={css.siteManagerWrapper}
-					>
-						<SiteManager />
-					</div>
-				</CSSTransition>
 				<div className={css.siteView}>
-					<div className={css.siteViewContent}>
+					<div
+						ref={siteViewContentRef}
+						className={classNames(css.siteViewContent, {
+							[css.siteViewContentBlurred]:
+								showDock && siteManagerIsOpen,
+						})}
+					>
 						<PlaygroundViewport displayMode={displayMode} />
 					</div>
+					{showDock && (
+						<button
+							type="button"
+							className={classNames(css.previewDismiss, {
+								[css.previewDismissVisible]: siteManagerIsOpen,
+							})}
+							aria-label="Close Playground tools"
+							aria-hidden={siteManagerIsOpen ? undefined : true}
+							tabIndex={siteManagerIsOpen ? 0 : -1}
+							disabled={paneCloseBlocked}
+							onClick={closeDockPane}
+						/>
+					)}
 				</div>
+				{showDock && (
+					<Dock
+						paneCloseBlocked={paneCloseBlocked}
+						onPaneCloseBlockedChange={setPaneCloseBlocked}
+					/>
+				)}
 			</div>
 		</GitHubExportSessionProvider>
 	);

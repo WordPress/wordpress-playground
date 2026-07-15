@@ -56,13 +56,21 @@ import {
 	selectClientInfoBySiteSlug,
 } from '../../lib/state/redux/slice-clients';
 import {
+	createStoredSite,
 	isAutosavedSite,
+	isExplicitlySavedSite,
+	pruneAutosavedSites,
 	sitesSlice,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	setActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { resetAutosavedSiteFilesWithPendingMarker } from '../../lib/state/opfs/opfs-autosave-reset';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -307,7 +315,7 @@ export const BlueprintBundleEditor = forwardRef<
 		string | JSX.Element | null
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
-	const [isRecreating, setIsRecreating] = useState(false);
+	const [isRunningBlueprint, setIsRunningBlueprint] = useState(false);
 	const [validationResult, setValidationResult] =
 		useState<BlueprintValidationResult | null>(null);
 	const [stringEditorState, setStringEditorState] =
@@ -373,7 +381,7 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
-			if (readOnly || isRecreating) {
+			if (readOnly || isRunningBlueprint) {
 				return;
 			}
 			setCode(newCode);
@@ -381,7 +389,7 @@ export const BlueprintBundleEditor = forwardRef<
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, isRecreating, readOnly, saveFile]
+		[currentPath, isRunningBlueprint, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -414,16 +422,13 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
-	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (
-			!site ||
-			readOnly ||
-			(site.metadata.storage !== 'none' && !isAutosavedSite(site))
-		) {
+	const handleRunBlueprint = useCallback(async () => {
+		if (!site || readOnly) {
 			return;
 		}
+		const runInNewPlayground = isExplicitlySavedSite(site);
 		try {
-			setIsRecreating(true);
+			setIsRunningBlueprint(true);
 			saveFile.flush();
 			if (!(await saveBarrierRef.current)) {
 				return;
@@ -436,6 +441,24 @@ export const BlueprintBundleEditor = forwardRef<
 					null) as EventedFilesystem | null);
 			if (!bundle) {
 				throw new Error('Blueprint bundle is not available.');
+			}
+			if (runInNewPlayground) {
+				const newSite = await dispatch(
+					createStoredSite(
+						site.metadata.name,
+						(filesystem as EventedFilesystem).backend,
+						undefined,
+						{ persistence: 'autosave' }
+					)
+				);
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [newSite.slug],
+					})
+				);
+				dispatch(setSiteManagerOpen(false));
+				dispatch(setActiveSite(newSite.slug));
+				return;
 			}
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				bundle as any
@@ -499,17 +522,21 @@ export const BlueprintBundleEditor = forwardRef<
 				);
 			}
 		} catch (error) {
-			logger.error('Failed to recreate from blueprint', error);
-			setSaveError('Could not recreate Playground. Try again.');
+			logger.error('Failed to run Blueprint', error);
+			setSaveError(
+				runInNewPlayground
+					? 'Could not create Playground. Try again.'
+					: 'Could not recreate Playground. Try again.'
+			);
 		} finally {
-			setIsRecreating(false);
+			setIsRunningBlueprint(false);
 		}
 	}, [dispatch, filesystem, playgroundClient, readOnly, saveFile, site]);
 
 	// autorun token hook
 	useEffect(() => {
 		if (autoRunToken === undefined) return;
-		void handleRecreateFromBlueprint();
+		void handleRunBlueprint();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [autoRunToken]);
 
@@ -574,7 +601,7 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
-			if (readOnly || isRecreating) {
+			if (readOnly || isRunningBlueprint) {
 				return;
 			}
 			const view = cmViewRef.current;
@@ -595,7 +622,7 @@ export const BlueprintBundleEditor = forwardRef<
 			setTimeout(() => formatEditor(view), 0);
 		},
 		[
-			isRecreating,
+			isRunningBlueprint,
 			readOnly,
 			stringEditorState.contentEnd,
 			stringEditorState.contentStart,
@@ -726,13 +753,14 @@ export const BlueprintBundleEditor = forwardRef<
 		() => ({
 			downloadBundle: handleDownloadBundle,
 			getBundle: async () => filesystem,
-			triggerRecreate: handleRecreateFromBlueprint,
+			triggerRecreate: handleRunBlueprint,
 		}),
-		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
+		[handleDownloadBundle, filesystem, handleRunBlueprint]
 	);
 
 	const isAutosaved = site ? isAutosavedSite(site) : false;
-	const disableRunButton = isRecreating || !site || hasValidationErrors;
+	const isExplicitlySaved = site ? isExplicitlySavedSite(site) : false;
+	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
 	return (
 		<>
 			<div
@@ -764,7 +792,7 @@ export const BlueprintBundleEditor = forwardRef<
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly || isRecreating}
+							readOnly={readOnly || isRunningBlueprint}
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
@@ -927,8 +955,8 @@ export const BlueprintBundleEditor = forwardRef<
 													hasValidationErrors,
 											}
 										)}
-										onClick={handleRecreateFromBlueprint}
-										isBusy={isRecreating}
+										onClick={handleRunBlueprint}
+										isBusy={isRunningBlueprint}
 										disabled={disableRunButton}
 										title={
 											hasValidationErrors
@@ -941,9 +969,11 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										{isAutosaved
-											? 'Run Blueprint and reset site'
-											: 'Run Blueprint'}
+										{isExplicitlySaved
+											? 'Run in a new Playground'
+											: isAutosaved
+												? 'Run Blueprint and reset site'
+												: 'Run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -996,7 +1026,9 @@ export const BlueprintBundleEditor = forwardRef<
 										onChange={handleCodeChange}
 										currentPath={currentPath}
 										className={styles.editor}
-										readOnly={readOnly || isRecreating}
+										readOnly={
+											readOnly || isRunningBlueprint
+										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
 												? blueprintSchemaExtensions
