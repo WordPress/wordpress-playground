@@ -68,8 +68,6 @@
 }
 
 .footer {
-	background-color: #f3f6fd;
-	border-top: 1px solid var(--line-subtle);
 	padding-top: var(--space-4);
 	position: relative;
 	button {
