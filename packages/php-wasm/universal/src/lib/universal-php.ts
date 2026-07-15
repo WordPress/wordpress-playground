@@ -1,3 +1,4 @@
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import type { Remote } from './comlink-sync';
 import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
@@ -50,7 +51,8 @@ export type PHPEvent =
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeExitEvent
-	| PHPFilesystemWriteEvent;
+	| PHPFilesystemWriteEvent
+	| PHPSendmailSpawnedEvent;
 
 /**
  * A callback function that handles PHP events.
