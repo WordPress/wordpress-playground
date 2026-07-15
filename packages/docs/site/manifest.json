@@ -20,12 +20,19 @@
 		"parent": "handbook",
 		"order": 20
 	},
+	"troubleshooting": {
+		"title": "Troubleshooting",
+		"slug": "troubleshooting",
+		"markdown_source": "docs/main/troubleshooting.md",
+		"parent": "handbook",
+		"order": 30
+	},
 	"about": {
 		"title": "About WordPress Playground",
 		"slug": "about",
 		"markdown_source": "docs/main/about/index.md",
 		"parent": "handbook",
-		"order": 30
+		"order": 40
 	},
 	"about/build": {
 		"title": "Build",
@@ -53,56 +60,98 @@
 		"slug": "guides",
 		"markdown_source": "docs/main/guides/index.md",
 		"parent": "handbook",
-		"order": 40
+		"order": 50
+	},
+	"guides/php-code-snippets": {
+		"title": "PHP code snippets and embeds",
+		"slug": "php-code-snippets",
+		"markdown_source": "docs/main/guides/php-code-snippets.md",
+		"parent": "guides",
+		"order": 10
+	},
+	"guides/php-frameworks": {
+		"title": "Run PHP frameworks in Playground",
+		"slug": "php-frameworks",
+		"markdown_source": "docs/main/guides/php-frameworks.md",
+		"parent": "guides",
+		"order": 20
+	},
+	"guides/agent-skill-wp-playground": {
+		"title": "Using the WordPress Playground Agent Skill",
+		"slug": "agent-skill-wp-playground",
+		"markdown_source": "docs/main/guides/agent-skill-wp-playground.md",
+		"parent": "guides",
+		"order": 30
 	},
 	"guides/wordpress-native-ios-app": {
 		"title": "WordPress Playground in native iOS apps",
 		"slug": "wordpress-native-ios-app",
 		"markdown_source": "docs/main/guides/wordpress-native-ios-app.md",
 		"parent": "guides",
-		"order": 10
+		"order": 40
 	},
 	"guides/for-plugin-developers": {
 		"title": "WordPress Playground for Plugin Developers",
 		"slug": "for-plugin-developers",
 		"markdown_source": "docs/main/guides/for-plugin-developers.md",
 		"parent": "guides",
-		"order": 20
+		"order": 50
 	},
 	"guides/for-theme-developers": {
 		"title": "WordPress Playground for Theme Developers",
 		"slug": "for-theme-developers",
 		"markdown_source": "docs/main/guides/for-theme-developers.md",
 		"parent": "guides",
-		"order": 30
+		"order": 60
 	},
 	"guides/providing-content-for-your-demo": {
 		"title": "Providing content for your demo with Playground",
 		"slug": "providing-content-for-your-demo",
 		"markdown_source": "docs/main/guides/providing-content-for-your-demo.md",
 		"parent": "guides",
-		"order": 40
+		"order": 70
 	},
 	"guides/github-action-pr-preview": {
 		"title": "Adding PR Preview Buttons with GitHub Actions",
 		"slug": "github-action-pr-preview",
 		"markdown_source": "docs/main/guides/github-action-pr-preview.md",
 		"parent": "guides",
-		"order": 50
+		"order": 80
 	},
 	"guides/playground-for-everyone": {
 		"title": "WordPress Playground for Everyone",
 		"slug": "playground-for-everyone",
 		"markdown_source": "docs/main/guides/playground-for-everyone.md",
 		"parent": "guides",
-		"order": 60
+		"order": 90
+	},
+	"guides/programmatic-playground-cli": {
+		"title": "Programmatic Usage of Playground CLI",
+		"slug": "programmatic-playground-cli",
+		"markdown_source": "docs/main/guides/programmatic-playground-cli.md",
+		"parent": "guides",
+		"order": 100
+	},
+	"guides/phpunit-testing": {
+		"title": "Running PHPUnit with the Playground CLI",
+		"slug": "phpunit-testing",
+		"markdown_source": "docs/main/guides/phpunit-testing.md",
+		"parent": "guides",
+		"order": 110
+	},
+	"guides/e2e-testing-with-playwright": {
+		"title": "E2E Testing with Playwright and WordPress Playground",
+		"slug": "e2e-testing-with-playwright",
+		"markdown_source": "docs/main/guides/e2e-testing-with-playwright.md",
+		"parent": "guides",
+		"order": 120
 	},
 	"contributing": {
 		"title": "Contributing to WordPress Playground project",
 		"slug": "contributing",
 		"markdown_source": "docs/main/contributing/index.md",
 		"parent": "handbook",
-		"order": 50
+		"order": 60
 	},
 	"contributing/code": {
 		"title": "Code contributions",
@@ -165,14 +214,14 @@
 		"slug": "resources",
 		"markdown_source": "docs/main/resources.md",
 		"parent": "handbook",
-		"order": 60
+		"order": 70
 	},
 	"changelog": {
 		"title": "Changelog",
 		"slug": "changelog",
 		"markdown_source": "docs/main/changelog.md",
 		"parent": "handbook",
-		"order": 70
+		"order": 80
 	},
 	"blueprints": {
 		"title": "Blueprints",
@@ -349,12 +398,19 @@
 		"parent": "developers/apis",
 		"order": 10
 	},
+	"developers/apis/sites-api": {
+		"title": "Sites API",
+		"slug": "sites-api",
+		"markdown_source": "docs/developers/06-apis/sites-api/01-index.md",
+		"parent": "developers/apis",
+		"order": 20
+	},
 	"developers/apis/javascript-api": {
 		"title": "JavaScript API",
 		"slug": "javascript-api",
 		"markdown_source": "docs/developers/06-apis/javascript-api/01-index.md",
 		"parent": "developers/apis",
-		"order": 20
+		"order": 30
 	},
 	"developers/apis/javascript-api/index-html-vs-remote-html": {
 		"title": "remote.html vs index.html",
@@ -390,6 +446,27 @@
 		"markdown_source": "docs/developers/06-apis/javascript-api/06-mount-data.md",
 		"parent": "developers/apis/javascript-api",
 		"order": 50
+	},
+	"developers/apis/javascript-api/php-extensions": {
+		"title": "Loading PHP extensions",
+		"slug": "php-extensions",
+		"markdown_source": "docs/developers/06-apis/javascript-api/07-php-extensions.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 60
+	},
+	"developers/apis/javascript-api/build-php-extensions": {
+		"title": "Building PHP extensions",
+		"slug": "build-php-extensions",
+		"markdown_source": "docs/developers/06-apis/javascript-api/08-build-php-extensions.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 70
+	},
+	"developers/apis/javascript-api/php-extension-dependencies": {
+		"title": "PHP extension dependencies",
+		"slug": "php-extension-dependencies",
+		"markdown_source": "docs/developers/06-apis/javascript-api/09-php-extension-dependencies.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 80
 	},
 	"developers/architecture": {
 		"title": "Architecture overview",
