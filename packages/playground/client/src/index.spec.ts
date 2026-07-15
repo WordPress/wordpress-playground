@@ -63,8 +63,8 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV2Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
 		expect(iframe.src).toContain('existing=1');
-		expect(new URL(iframe.src).searchParams.get('progressbarTitle')).toBe(
-			'Curious Harbor'
+		expect(new URL(iframe.src).searchParams.has('progressbarTitle')).toBe(
+			false
 		);
 	});
 
