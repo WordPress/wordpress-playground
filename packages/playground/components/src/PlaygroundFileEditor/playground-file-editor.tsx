@@ -543,22 +543,13 @@ export function PlaygroundFileEditor({
 						{dockPresentation && !readOnly && currentPath ? (
 							<Tooltip text={dockSaveTooltip} placement="top">
 								<Button
-									className={classNames(
-										styles['dockSaveButton'],
-										{
-											[styles['dockSaveButtonSaved']]:
-												dockSaveIconState === 'saved',
-											[styles['dockSaveButtonPending']]:
-												dockSaveIconState === 'pending',
-											[styles['dockSaveButtonSaving']]:
-												dockSaveIconState === 'saving',
-											[styles['dockSaveButtonError']]:
-												dockSaveIconState === 'error',
-										}
-									)}
-									size="compact"
+									variant="secondary"
+									className={styles['dockSaveButton']}
 									icon={dockSaveIcon}
 									iconSize={16}
+									isDestructive={
+										dockSaveIconState === 'error'
+									}
 									disabled={dockSaveDisabled}
 									accessibleWhenDisabled
 									onClick={handleDockManualSave}

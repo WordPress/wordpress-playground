@@ -137,9 +137,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		const saveButton = findButton('Save');
 		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
 		expect(findSaveStatus().textContent).toBe('All changes saved.');
-		expect(
-			saveButton.classList.contains(styles['dockSaveButtonSaved'])
-		).toBe(true);
+		expect(saveButton.classList.contains('is-secondary')).toBe(true);
 
 		await clickButton('Edit test file');
 		expect(findButton('Save')).toBe(saveButton);
@@ -147,9 +145,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(findSaveStatus().textContent).toBe(
 			'Unsaved changes. Click to save now.'
 		);
-		expect(
-			saveButton.classList.contains(styles['dockSaveButtonPending'])
-		).toBe(true);
+		expect(saveButton.classList.contains('is-secondary')).toBe(true);
 
 		await clickButton('Save');
 		expect(filesystem.writeFile).toHaveBeenCalledWith(
@@ -170,9 +166,6 @@ describe('PlaygroundFileEditor presentation', () => {
 			await vi.advanceTimersByTimeAsync(1);
 		});
 		expect(container.querySelector('.components-spinner')).not.toBeNull();
-		expect(
-			saveButton.classList.contains(styles['dockSaveButtonSaving'])
-		).toBe(true);
 
 		await act(async () => {
 			finishWrite();
@@ -180,9 +173,6 @@ describe('PlaygroundFileEditor presentation', () => {
 		});
 		expect(findButton('Save')).toBe(saveButton);
 		expect(findSaveStatus().textContent).toBe('All changes saved.');
-		expect(
-			saveButton.classList.contains(styles['dockSaveButtonSaved'])
-		).toBe(true);
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(2000);
@@ -224,9 +214,6 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(filesystem.writeFile).toHaveBeenCalledOnce();
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.textContent).toBe('Save');
-		expect(
-			saveButton.classList.contains(styles['dockSaveButtonSaved'])
-		).toBe(true);
 		expect(container.querySelector('.components-spinner')).toBeNull();
 	});
 
