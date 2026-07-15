@@ -4,6 +4,7 @@ import { createRequire } from 'module';
 import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
 import { type PluginOption, defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -142,7 +143,7 @@ const external = [
 	'@wp-playground/blueprints',
 ];
 
-export default defineConfig({
+export const cliViteConfig = {
 	root: __dirname,
 	base: './',
 	assetsInclude: ['**/*.ini'],
@@ -199,6 +200,7 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		exclude: [...configDefaults.exclude, 'tests/posix-kernel/**'],
 		reporters: ['default'],
 		// Increase timeout to:
 		// - Ensure CLI tests can download WordPress
@@ -206,10 +208,19 @@ export default defineConfig({
 		testTimeout: 30000,
 		poolOptions: {
 			forks: {
+				// Cap concurrency so per-fork kandelo + nginx + php-fpm
+				// cold-starts stay within NGINX_READY_TIMEOUT_MS. minForks
+				// is set explicitly because tinypool rejects a CPU-derived
+				// default that exceeds maxForks.
+				maxForks: 2,
+				minForks: 1,
 				execArgv: [
 					'--experimental-strip-types',
 					'--experimental-transform-types',
 					'--disable-warning=ExperimentalWarning',
+					// kandelo's kernel.wasm needs WebAssembly exnref, which
+					// Node 24's V8 keeps behind a flag.
+					'--experimental-wasm-exnref',
 					// Use our own ESM loader to help resolve modules within the Worker script.
 					'--import',
 					// Convert path to file:// URL because it is required for running in Windows.
@@ -223,4 +234,6 @@ export default defineConfig({
 			},
 		},
 	},
-});
+};
+
+export default defineConfig(cliViteConfig);
