@@ -362,7 +362,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
-	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+	protected dispatchEvent<EventType extends PHPWorkerEvent>(
+		event: EventType
+	) {
 		const listeners = this.#eventListeners.get(event.type);
 		if (!listeners) {
 			return;
@@ -383,7 +385,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 				listener({
 					...event,
 					stdin: streams[streamIndex++],
-				} as Event);
+				} as EventType);
 			}
 			return;
 		}
@@ -449,9 +451,13 @@ function teeReadableStream(
 	stream: ReadableStream<Uint8Array>,
 	branches: number
 ): ReadableStream<Uint8Array>[] {
-	if (branches === 1) {
-		return [stream];
+	const streams: ReadableStream<Uint8Array>[] = [];
+	let remaining = stream;
+	while (streams.length < branches - 1) {
+		const [branch, next] = remaining.tee();
+		streams.push(branch);
+		remaining = next;
 	}
-	const [first, remaining] = stream.tee();
-	return [first, ...teeReadableStream(remaining, branches - 1)];
+	streams.push(remaining);
+	return streams;
 }

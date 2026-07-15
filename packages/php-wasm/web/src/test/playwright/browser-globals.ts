@@ -11,7 +11,6 @@ import {
 	loadWebRuntime,
 	spawnPHPWorkerThread,
 } from '../../lib';
-// @ts-ignore
 import readableStreamWorkerUrl from './readable-stream-worker.ts?worker&url';
 
 declare global {
