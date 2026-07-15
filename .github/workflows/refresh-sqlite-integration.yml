@@ -4,7 +4,7 @@ on:
     workflow_dispatch:
     # Refresh SQLite before the weekly website deploy.
     schedule:
-        - cron: '0 10 * * 2'
+        - cron: '0 9 * * 2'
 
 # Disable permissions for all available scopes by default.
 # Any needed permissions should be configured at the job level.
