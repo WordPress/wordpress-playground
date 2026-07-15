@@ -224,7 +224,6 @@ export function Dock({
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLElement>(null);
 	const operationToastRef = useRef<HTMLDivElement>(null);
-	const playgroundsButtonRef = useRef<HTMLButtonElement>(null);
 	const toolsRef = useRef<HTMLDivElement>(null);
 	const focusBeforePaneRef = useRef<HTMLElement | null>(null);
 	const hasOpenedPaneRef = useRef(false);
@@ -306,9 +305,6 @@ export function Dock({
 		if (toolsRef.current) {
 			observer.observe(toolsRef.current);
 		}
-		if (playgroundsButtonRef.current) {
-			observer.observe(playgroundsButtonRef.current);
-		}
 		return () => observer.disconnect();
 	}, []);
 
@@ -381,66 +377,18 @@ export function Dock({
 		const root = document.documentElement;
 		const headerHeight = Math.max(0, dockSize.height - toolsHeight);
 		const visibleHeight = isCollapsed ? headerHeight : dockSize.height;
-		const playgroundsButtonRect =
-			playgroundsButtonRef.current?.getBoundingClientRect();
 		if (visibleHeight > 0) {
 			root.style.setProperty(
 				'--dock-docked-height',
 				`${visibleHeight}px`
 			);
 		}
-		if (playgroundsButtonRect) {
-			root.style.setProperty(
-				'--dock-playgrounds-center-x',
-				`${playgroundsButtonRect.left + playgroundsButtonRect.width / 2}px`
-			);
-			root.style.setProperty(
-				'--dock-playgrounds-top-offset',
-				`${viewportSize.height - playgroundsButtonRect.top}px`
-			);
-		}
 		root.toggleAttribute('data-dock-full-width', isFullWidth && !isMobile);
 		return () => {
 			root.style.removeProperty('--dock-docked-height');
-			root.style.removeProperty('--dock-playgrounds-center-x');
-			root.style.removeProperty('--dock-playgrounds-top-offset');
 			root.removeAttribute('data-dock-full-width');
 		};
-	}, [
-		dockCenter,
-		dockSize.height,
-		dockSize.width,
-		isCollapsed,
-		isFullWidth,
-		isMobile,
-		toolsHeight,
-		viewportSize.height,
-		viewportSize.width,
-	]);
-
-	useEffect(() => {
-		const tools = toolsRef.current;
-		if (!tools) {
-			return;
-		}
-		// A mobile Dock scroll changes the button's viewport position without
-		// resizing it. Keep the restore card's pointer attached to the button.
-		const updatePlaygroundsAnchor = () => {
-			const rect = playgroundsButtonRef.current?.getBoundingClientRect();
-			if (!rect) {
-				return;
-			}
-			document.documentElement.style.setProperty(
-				'--dock-playgrounds-center-x',
-				`${rect.left + rect.width / 2}px`
-			);
-		};
-		tools.addEventListener('scroll', updatePlaygroundsAnchor, {
-			passive: true,
-		});
-		return () =>
-			tools.removeEventListener('scroll', updatePlaygroundsAnchor);
-	}, []);
+	}, [dockSize.height, isCollapsed, isFullWidth, isMobile, toolsHeight]);
 
 	useEffect(() => {
 		// Opening Store permanently from the visible status must not unfold a
@@ -1271,11 +1219,6 @@ export function Dock({
 						{DOCK_ITEMS.map((item, index) => (
 							<DockItemButton
 								key={item.section}
-								ref={
-									item.section === 'playgrounds'
-										? playgroundsButtonRef
-										: undefined
-								}
 								label={item.label}
 								ariaLabel={item.ariaLabel}
 								icon={item.icon}

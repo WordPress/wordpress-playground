@@ -2625,7 +2625,7 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page
 				.getByLabel('Recent autosaved Playground')
-				.getByText(/Autosaved/)
+				.getByText('Recent autosave available', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -2727,7 +2727,7 @@ echo get_option('blogname');
 			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
 	});
 
-	test('should keep the mobile restore card and pointer inside the viewport and attached to Playgrounds', async ({
+	test('should keep the mobile restore card inside the viewport and mark Playgrounds', async ({
 		website,
 		browserName,
 	}) => {
@@ -2748,25 +2748,12 @@ echo get_option('blogname');
 			name: /Playgrounds/,
 		});
 		await expect(nudge).toBeVisible();
-		await expect(playgroundsButton).toBeVisible();
+		await expect(playgroundsButton).toHaveAccessibleName(
+			'Your Playgrounds — recent autosave available'
+		);
 		await assertRestoreCardGeometry();
 
-		const tools = dock.locator('[class*="dock-tools"]').first();
-		const anchorBeforeScroll = await website.page.evaluate(() =>
-			document.documentElement.style.getPropertyValue(
-				'--dock-playgrounds-center-x'
-			)
-		);
-		await tools.evaluate((element) => element.scrollBy({ left: 24 }));
-		await expect
-			.poll(() =>
-				website.page.evaluate(() =>
-					document.documentElement.style.getPropertyValue(
-						'--dock-playgrounds-center-x'
-					)
-				)
-			)
-			.not.toBe(anchorBeforeScroll);
+		await website.page.setViewportSize({ width: 320, height: 600 });
 		await assertRestoreCardGeometry();
 
 		async function assertRestoreCardGeometry() {
@@ -2774,34 +2761,24 @@ echo get_option('blogname');
 				const card = document.querySelector<HTMLElement>(
 					'[aria-label="Recent autosaved Playground"]'
 				)!;
-				const button = document.querySelector<HTMLElement>(
-					'[aria-label="Playground tools"] button[aria-label*="Playgrounds"]'
-				)!;
 				const cardRect = card.getBoundingClientRect();
-				const buttonRect = button.getBoundingClientRect();
-				const pointerLeft = Number.parseFloat(
-					getComputedStyle(card, '::after').left
-				);
 				return {
+					cardTop: cardRect.top,
 					cardLeft: cardRect.left,
 					cardRight: cardRect.right,
-					pointerX: cardRect.left + pointerLeft,
-					buttonCenterX: buttonRect.left + buttonRect.width / 2,
-					pointerTipY: cardRect.bottom + 10,
-					buttonTop: buttonRect.top,
+					cardBottom: cardRect.bottom,
 					viewportWidth: window.innerWidth,
+					viewportHeight: window.innerHeight,
 				};
 			});
+			expect(geometry.cardTop).toBeGreaterThanOrEqual(0);
 			expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
 			expect(geometry.cardRight).toBeLessThanOrEqual(
 				geometry.viewportWidth
 			);
-			expect(
-				Math.abs(geometry.pointerX - geometry.buttonCenterX)
-			).toBeLessThanOrEqual(2);
-			expect(
-				Math.abs(geometry.pointerTipY - geometry.buttonTop)
-			).toBeLessThanOrEqual(2);
+			expect(geometry.cardBottom).toBeLessThanOrEqual(
+				geometry.viewportHeight
+			);
 		}
 	});
 
