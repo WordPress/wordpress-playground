@@ -160,6 +160,38 @@ async function mockGitHubOAuth(page: Page, browserName: string) {
 	});
 }
 
+async function mockGitHubRepositoryAnalysis(page: Page) {
+	await page
+		.context()
+		.route(
+			'https://api.github.com/repos/playground-test/import-source**',
+			async (route) => {
+				const url = new URL(route.request().url());
+				let body;
+				if (url.pathname === '/repos/playground-test/import-source') {
+					body = { default_branch: 'trunk' };
+				} else if (
+					url.pathname ===
+					'/repos/playground-test/import-source/branches/trunk'
+				) {
+					body = { commit: { sha: 'test-commit-sha' } };
+				} else if (
+					url.pathname ===
+					'/repos/playground-test/import-source/contents'
+				) {
+					body = [{ name: 'plugin.php', type: 'file' }];
+				} else {
+					await route.abort();
+					return;
+				}
+				await route.fulfill({
+					contentType: 'application/json',
+					body: JSON.stringify(body),
+				});
+			}
+		);
+}
+
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
@@ -1903,6 +1935,8 @@ test.describe('Default Playground storage', () => {
 			browserName !== 'chromium',
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
+		await mockGitHubOAuth(website.page, browserName);
+		await mockGitHubRepositoryAnalysis(website.page);
 
 		await website.goto(
 			getUniqueSavedPlaygroundSetupUrl('creation-actions')
@@ -1936,6 +1970,24 @@ test.describe('Default Playground storage', () => {
 		await newPane
 			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
 			.click();
+		expect(
+			await newPane
+				.getByRole('tablist', {
+					name: 'Ways to start a new Playground',
+				})
+				.evaluate((tablist) => {
+					const pane = tablist.closest('[role="dialog"]')!;
+					const tablistRect = tablist.getBoundingClientRect();
+					const paneRect = pane.getBoundingClientRect();
+					return {
+						leftInset: Math.round(tablistRect.left - paneRect.left),
+						rightInset: Math.round(
+							paneRect.right - tablistRect.right
+						),
+						overflows: tablist.scrollWidth > tablist.clientWidth,
+					};
+				})
+		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
 		const draft = newPane.locator('.cm-content');
 		await expect(draft).toBeFocused({ timeout: 5000 });
 		await draft.fill(
@@ -1989,21 +2041,19 @@ test.describe('Default Playground storage', () => {
 		await writeTab.press('ArrowRight');
 		await expect(pullRequestTab).toBeFocused();
 		await pullRequestTab.press('ArrowRight');
-		const creationBackButton = website.page.getByRole('button', {
-			name: 'Back to ways to start a new Playground',
-		});
-		await expect(creationBackButton).toBeFocused();
-		const githubImportPane = website.page.getByRole('dialog', {
-			name: 'Import from GitHub pane',
-		});
+		await expect(githubTab).toBeFocused();
 		await expect(
-			githubImportPane.getByRole('heading', {
-				name: 'Import from GitHub',
-				level: 2,
+			newPane.getByRole('tablist', {
+				name: 'Ways to start a new Playground',
 			})
 		).toBeVisible();
-		await creationBackButton.click();
-		await expect(galleryTab).toBeFocused();
+		await newPane
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		const githubUrlInput = newPane.getByRole('textbox', {
+			name: /I want to import from this GitHub URL/,
+		});
+		await expect(githubUrlInput).toBeVisible();
 
 		await pullRequestTab.click();
 		await expect(
@@ -2020,26 +2070,66 @@ test.describe('Default Playground storage', () => {
 
 		await githubTab.click();
 		await expect(
+			newPane.getByRole('heading', {
+				name: 'Import from GitHub',
+				level: 3,
+			})
+		).toBeVisible();
+		await expect(
+			newPane.getByRole('tablist', {
+				name: 'Ways to start a new Playground',
+			})
+		).toBeVisible();
+		await expect(githubUrlInput).toBeVisible();
+		await expect(
+			newPane.getByRole('button', { name: 'Continue', exact: true })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Import from GitHub pane',
+			})
+		).toHaveCount(0);
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			siteSlugBeforeGitHubTab
+		);
+
+		await githubUrlInput.fill(
+			'https://github.com/playground-test/import-source'
+		);
+		await newPane
+			.getByRole('button', { name: 'Continue', exact: true })
+			.click();
+		const githubImportPane = website.page.getByRole('dialog', {
+			name: 'Import from GitHub pane',
+		});
+		await expect(
 			githubImportPane.getByRole('heading', {
 				name: 'Import from GitHub',
 				level: 2,
 			})
 		).toBeVisible();
 		await expect(
-			githubImportPane.getByRole('tablist', {
-				name: 'Ways to start a new Playground',
+			githubImportPane.getByRole('combobox', {
+				name: 'I am importing a:',
 			})
-		).not.toBeVisible();
-		await expect(creationBackButton).toBeVisible();
+		).toBeVisible();
+		const creationBackButton = githubImportPane.getByRole('button', {
+			name: 'Back to the GitHub repository URL',
+		});
+		await expect(creationBackButton).toBeFocused();
+		await creationBackButton.click();
+		await expect(githubUrlInput).toHaveValue(
+			'https://github.com/playground-test/import-source'
+		);
 		await expect(
-			website.page.getByRole('dialog', {
-				name: 'Import from GitHub',
-				exact: true,
+			newPane.getByRole('combobox', {
+				name: 'I am importing a:',
 			})
 		).toHaveCount(0);
-		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			siteSlugBeforeGitHubTab
-		);
+		await expect(
+			newPane.getByRole('button', { name: 'Continue', exact: true })
+		).toBeVisible();
+		await expect(githubTab).toBeFocused();
 	});
 
 	test('should open GitHub export as a styled subpanel', async ({
@@ -2177,6 +2267,7 @@ test.describe('Default Playground storage', () => {
 		}) => {
 			await website.page.setViewportSize(viewport);
 			await mockGitHubOAuth(website.page, browserName);
+			await mockGitHubRepositoryAnalysis(website.page);
 			await website.goto('./?storage=temp');
 			await website.openDockPane('New Playground');
 			const newPane = website.page.getByRole('dialog', {
@@ -2187,12 +2278,20 @@ test.describe('Default Playground storage', () => {
 				exact: true,
 			});
 			await githubTab.click();
+			await newPane
+				.getByRole('link', { name: 'Connect your GitHub account' })
+				.click();
+			await newPane
+				.getByRole('textbox', {
+					name: /I want to import from this GitHub URL/,
+				})
+				.fill('https://github.com/playground-test/import-source');
+			await newPane
+				.getByRole('button', { name: 'Continue', exact: true })
+				.click();
 			const githubImportPane = website.page.getByRole('dialog', {
 				name: 'Import from GitHub pane',
 			});
-			await githubImportPane
-				.getByRole('link', { name: 'Connect your GitHub account' })
-				.click();
 			const formPanel = githubImportPane.getByRole('region', {
 				name: 'Import from GitHub',
 			});
@@ -2214,7 +2313,7 @@ test.describe('Default Playground storage', () => {
 
 			await githubImportPane
 				.getByRole('button', {
-					name: 'Back to ways to start a new Playground',
+					name: 'Back to the GitHub repository URL',
 				})
 				.click();
 			await expect(
@@ -2224,7 +2323,7 @@ test.describe('Default Playground storage', () => {
 			).toBeVisible();
 			await expect(
 				newPane.getByRole('tab', {
-					name: 'Blueprint gallery',
+					name: 'GitHub',
 					exact: true,
 				})
 			).toBeFocused();

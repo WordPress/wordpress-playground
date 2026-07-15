@@ -743,7 +743,9 @@
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
+	min-width: 0;
 	padding: 0 24px;
+	width: 100%;
 }
 
 .playgrounds-pane.new-pane .creationSection {
@@ -752,6 +754,8 @@
 	flex-direction: column;
 	margin-bottom: 0;
 	min-height: 0;
+	min-width: 0;
+	width: 100%;
 }
 
 /* The tab strip is a recessed "segmented control": a warm well (paper-4) with a

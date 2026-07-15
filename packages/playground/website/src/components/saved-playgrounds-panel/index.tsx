@@ -199,17 +199,21 @@ export function SavedPlaygroundsPanel({
 	const creationBackButtonRef = useRef<HTMLButtonElement>(null);
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
+	const [isGitHubImportDetailsOpen, setIsGitHubImportDetailsOpen] =
+		useState(false);
 	const handleCreationBack = useCallback(() => {
-		creationFocusTargetRef.current = 'gallery';
-		setActiveCreationTab('gallery');
+		creationFocusTargetRef.current = 'github';
+		setIsGitHubImportDetailsOpen(false);
 	}, []);
 
 	useLayoutEffect(() => {
 		onPaneHeaderChange(
-			panel === 'new' && activeCreationTab === 'github'
+			panel === 'new' &&
+				activeCreationTab === 'github' &&
+				isGitHubImportDetailsOpen
 				? {
 						title: 'Import from GitHub',
-						backLabel: 'Back to ways to start a new Playground',
+						backLabel: 'Back to the GitHub repository URL',
 						backButtonRef: creationBackButtonRef,
 						focusBackButton:
 							creationFocusTargetRef.current === 'back',
@@ -217,7 +221,13 @@ export function SavedPlaygroundsPanel({
 					}
 				: undefined
 		);
-	}, [activeCreationTab, handleCreationBack, onPaneHeaderChange, panel]);
+	}, [
+		activeCreationTab,
+		handleCreationBack,
+		isGitHubImportDetailsOpen,
+		onPaneHeaderChange,
+		panel,
+	]);
 	const [autofocusWriteOwn, setAutofocusWriteOwn] = useState(false);
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
 	const writeOwnDraft =
@@ -238,6 +248,7 @@ export function SavedPlaygroundsPanel({
 
 	useEffect(() => {
 		if (isCreationTabDisabled(activeCreationTab, offline)) {
+			setIsGitHubImportDetailsOpen(false);
 			setActiveCreationTab('gallery');
 		}
 	}, [activeCreationTab, offline]);
@@ -310,7 +321,7 @@ export function SavedPlaygroundsPanel({
 		} else {
 			document.getElementById(`creation-tab-${target}`)?.focus();
 		}
-	}, [activeCreationTab]);
+	}, [activeCreationTab, isGitHubImportDetailsOpen]);
 
 	useEffect(() => {
 		if (panel !== 'new') {
@@ -962,9 +973,9 @@ export function SavedPlaygroundsPanel({
 		}
 		event.preventDefault();
 		const nextId = enabled[nextIndex].id;
-		creationFocusTargetRef.current =
-			nextId === 'github' ? 'back' : undefined;
+		creationFocusTargetRef.current = undefined;
 		setAutofocusWriteOwn(false);
+		setIsGitHubImportDetailsOpen(false);
 		setActiveCreationTab(nextId);
 		document.getElementById(`creation-tab-${nextId}`)?.focus();
 	};
@@ -983,11 +994,9 @@ export function SavedPlaygroundsPanel({
 		creationTabPointerTypeRef.current = undefined;
 		focusCreationFieldAfterMouseClickRef.current =
 			activatedWithMouse && tabId !== activeCreationTab;
-		creationFocusTargetRef.current =
-			pointerType === undefined && tabId === 'github'
-				? 'back'
-				: undefined;
+		creationFocusTargetRef.current = undefined;
 		setAutofocusWriteOwn(activatedWithMouse && tabId === 'write-own');
+		setIsGitHubImportDetailsOpen(false);
 		setActiveCreationTab(tabId);
 	};
 
@@ -1304,7 +1313,8 @@ export function SavedPlaygroundsPanel({
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
-		const isGitHubImportOpen = activeCreationTab === 'github';
+		const isGitHubImportOpen =
+			activeCreationTab === 'github' && isGitHubImportDetailsOpen;
 		// The roving Tab stop must land on an ENABLED tab. If the active tab is a
 		// network source that just went offline (disabled), a disabled element with
 		// tabIndex=0 is dropped from the focus order — which would leave the tablist
@@ -1510,6 +1520,11 @@ export function SavedPlaygroundsPanel({
 					<div className={css.inlineForm}>
 						<GitHubImportForm
 							playground={playground!}
+							showRepositoryDetails={isGitHubImportDetailsOpen}
+							onRepositoryResolved={() => {
+								creationFocusTargetRef.current = 'back';
+								setIsGitHubImportDetailsOpen(true);
+							}}
 							getPlaygroundBeforeImport={
 								createSiteForGitHubImport
 							}
