@@ -709,6 +709,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	await website.goto('./?storage=temp');
 
 	await website.openDockPane('Files');
+	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -750,14 +751,16 @@ test('should edit a file in the code editor and see changes in the viewport', as
 
 	// Wait a moment for the change to be processed
 	await website.page.waitForTimeout(500);
+	const saveButton = filesPane.getByRole('button', {
+		name: 'Save',
+		exact: true,
+	});
+	await expect(saveButton).toBeEnabled();
 
-	// Save the file (Cmd+S or Ctrl+S)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
-	);
-
-	// Wait for save to complete (look for save indicator if there is one)
-	await website.page.waitForTimeout(1000);
+	// Save immediately instead of waiting for the autosave debounce.
+	await saveButton.click();
+	await expect(saveButton).toHaveAttribute('aria-disabled', 'true');
+	await expect(saveButton).toHaveText('Save');
 
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();

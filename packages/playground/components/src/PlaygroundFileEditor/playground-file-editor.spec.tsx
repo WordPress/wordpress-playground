@@ -80,6 +80,7 @@ describe('PlaygroundFileEditor presentation', () => {
 	afterEach(() => {
 		act(() => root.unmount());
 		container.remove();
+		vi.useRealTimers();
 	});
 
 	it('keeps the existing presentation unless Dock presentation is requested', () => {
@@ -112,7 +113,8 @@ describe('PlaygroundFileEditor presentation', () => {
 		).toBe(true);
 	});
 
-	it('enables Dock save for a pending edit and disables it while saving', async () => {
+	it('keeps one Dock Save button and flushes a pending edit on click', async () => {
+		vi.useFakeTimers();
 		let finishWrite: () => void = () => {};
 		const writePromise = new Promise<void>((resolve) => {
 			finishWrite = resolve;
@@ -132,23 +134,94 @@ describe('PlaygroundFileEditor presentation', () => {
 		});
 
 		await clickButton('Open test file');
-		expect(findButton('File saved').disabled).toBe(true);
+		const saveButton = findButton('Save');
+		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(
+			saveButton.classList.contains(styles['dockSaveButtonSaved'])
+		).toBe(true);
 
 		await clickButton('Edit test file');
-		expect(findButton('Save file').disabled).toBe(false);
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
+		expect(
+			saveButton.classList.contains(styles['dockSaveButtonPending'])
+		).toBe(true);
 
-		await clickButton('Save file');
+		await clickButton('Save');
 		expect(filesystem.writeFile).toHaveBeenCalledWith(
 			'/wordpress/test.php',
 			'initial!'
 		);
-		expect(findButton('Saving…').disabled).toBe(true);
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.getAttribute('aria-disabled')).toBe('true');
+		expect(container.querySelector('.components-spinner')).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(699);
+		});
+		expect(container.querySelector('.components-spinner')).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(container.querySelector('.components-spinner')).not.toBeNull();
+		expect(
+			saveButton.classList.contains(styles['dockSaveButtonSaving'])
+		).toBe(true);
 
 		await act(async () => {
 			finishWrite();
 			await writePromise;
 		});
-		expect(findButton('File saved').disabled).toBe(true);
+		expect(findButton('Save')).toBe(saveButton);
+		expect(
+			saveButton.classList.contains(styles['dockSaveButtonSaved'])
+		).toBe(true);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(2000);
+		});
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.textContent).toBe('Save');
+	});
+
+	it('autosaves after the debounce without changing the Dock button', async () => {
+		vi.useFakeTimers();
+		const filesystem = Object.assign(new EventTarget(), {
+			writeFile: vi.fn(() => Promise.resolve()),
+		}) as unknown as AsyncWritableFilesystem;
+
+		await act(async () => {
+			root.render(
+				<PlaygroundFileEditor
+					filesystem={filesystem}
+					documentRoot="/wordpress"
+					dockPresentation
+				/>
+			);
+		});
+
+		await clickButton('Open test file');
+		const saveButton = findButton('Save');
+		await clickButton('Edit test file');
+		expect(findButton('Save')).toBe(saveButton);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1499);
+		});
+		expect(filesystem.writeFile).not.toHaveBeenCalled();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+
+		expect(filesystem.writeFile).toHaveBeenCalledOnce();
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.textContent).toBe('Save');
+		expect(
+			saveButton.classList.contains(styles['dockSaveButtonSaved'])
+		).toBe(true);
+		expect(container.querySelector('.components-spinner')).toBeNull();
 	});
 
 	async function clickButton(label: string) {

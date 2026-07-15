@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, Notice } from '@wordpress/components';
-import { check } from '@wordpress/icons';
+import { Button, Notice, Spinner, Tooltip } from '@wordpress/components';
+import { cautionFilled, check, pending } from '@wordpress/icons';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
@@ -9,6 +9,7 @@ import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
+const SAVING_STATUS_DELAY_MS = 700;
 
 const SaveState = {
 	IDLE: 'idle',
@@ -56,6 +57,7 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [showSavingSpinner, setShowSavingSpinner] = useState(false);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -277,6 +279,20 @@ export function PlaygroundFileEditor({
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
+	// Fast filesystem writes should not flash a spinner between pending and
+	// saved. Only surface progress when the write lasts long enough to be useful.
+	useEffect(() => {
+		if (saveState !== SaveState.SAVING) {
+			setShowSavingSpinner(false);
+			return;
+		}
+		const timeout = window.setTimeout(
+			() => setShowSavingSpinner(true),
+			SAVING_STATUS_DELAY_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [saveState]);
+
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
 			// Save cursor position of current file before switching
@@ -436,11 +452,23 @@ export function PlaygroundFileEditor({
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
-	const saveButtonLabel = getSaveButtonLabel(saveState);
-	const saveButtonStateClassName = getSaveButtonStateClassName(
+	const dockSaveIconState = getDockSaveIconState(
 		saveState,
-		styles
+		showSavingSpinner
 	);
+	const dockSaveTooltip = getDockSaveTooltip(saveState);
+	const dockSaveIcon =
+		dockSaveIconState === 'error' ? (
+			cautionFilled
+		) : dockSaveIconState === 'saving' ? (
+			<Spinner />
+		) : dockSaveIconState === 'pending' ? (
+			pending
+		) : (
+			check
+		);
+	const dockSaveDisabled =
+		saveState !== SaveState.PENDING && saveState !== SaveState.ERROR;
 
 	if (!filesystem) {
 		return (
@@ -507,34 +535,31 @@ export function PlaygroundFileEditor({
 								: `Browse files under ${documentRoot}`}
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
-							<Button
-								variant={
-									saveState === SaveState.IDLE ||
-									saveState === SaveState.SAVED
-										? 'secondary'
-										: 'primary'
-								}
-								isDestructive={saveState === SaveState.ERROR}
-								icon={
-									saveState === SaveState.IDLE ||
-									saveState === SaveState.SAVED
-										? check
-										: undefined
-								}
-								className={classNames(
-									styles['saveButton'],
-									saveButtonStateClassName
-								)}
-								isBusy={saveState === SaveState.SAVING}
-								disabled={
-									saveState !== SaveState.PENDING &&
-									saveState !== SaveState.ERROR
-								}
-								onClick={handleDockManualSave}
-								title={saveButtonLabel}
-							>
-								{saveButtonLabel}
-							</Button>
+							<Tooltip text={dockSaveTooltip} placement="top">
+								<Button
+									className={classNames(
+										styles['dockSaveButton'],
+										{
+											[styles['dockSaveButtonSaved']]:
+												dockSaveIconState === 'saved',
+											[styles['dockSaveButtonPending']]:
+												dockSaveIconState === 'pending',
+											[styles['dockSaveButtonSaving']]:
+												dockSaveIconState === 'saving',
+											[styles['dockSaveButtonError']]:
+												dockSaveIconState === 'error',
+										}
+									)}
+									size="compact"
+									icon={dockSaveIcon}
+									iconSize={16}
+									disabled={dockSaveDisabled}
+									accessibleWhenDisabled
+									onClick={handleDockManualSave}
+								>
+									Save
+								</Button>
+							</Tooltip>
 						) : !dockPresentation ? (
 							<div
 								className={classNames(
@@ -610,28 +635,31 @@ function getSaveStatusClassName(
 	}
 }
 
-function getSaveButtonLabel(saveState: SaveState) {
-	switch (saveState) {
-		case SaveState.PENDING:
-			return 'Save file';
-		case SaveState.SAVING:
-			return 'Saving…';
-		case SaveState.ERROR:
-			return 'Retry save';
-		default:
-			return 'File saved';
+function getDockSaveIconState(
+	saveState: SaveState,
+	showSavingSpinner: boolean
+) {
+	if (saveState === SaveState.ERROR) {
+		return 'error';
 	}
+	if (saveState === SaveState.SAVING && showSavingSpinner) {
+		return 'saving';
+	}
+	if (saveState === SaveState.PENDING || saveState === SaveState.SAVING) {
+		return 'pending';
+	}
+	return 'saved';
 }
 
-function getSaveButtonStateClassName(
-	saveState: SaveState,
-	styleSheet: typeof styles
-) {
+function getDockSaveTooltip(saveState: SaveState) {
 	switch (saveState) {
-		case SaveState.IDLE:
-		case SaveState.SAVED:
-			return styleSheet['saveButtonSaved'];
+		case SaveState.PENDING:
+			return 'Unsaved changes. Click to save now.';
+		case SaveState.SAVING:
+			return 'Saving changes…';
+		case SaveState.ERROR:
+			return 'Saving failed. Click to retry.';
 		default:
-			return undefined;
+			return 'All changes saved.';
 	}
 }
