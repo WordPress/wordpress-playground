@@ -267,19 +267,19 @@ test('should keep a settings draft across Dock destinations and close', async ({
 	website,
 }) => {
 	await website.goto('./?storage=temp');
-	await website.openDockPane('Site details');
+	await website.openDockPane('Site Settings');
 	const networking = website.page.getByLabel('Network access');
 	await expect(networking).toBeChecked();
 	await networking.uncheck();
 
 	await website.openDockPane('Database');
 	await expect(networking).not.toBeVisible();
-	await website.openDockPane('Site details');
+	await website.openDockPane('Site Settings');
 	await expect(networking).not.toBeChecked();
 
 	await website.page.keyboard.press('Escape');
 	await expect(networking).not.toBeVisible();
-	await website.openDockPane('Site details');
+	await website.openDockPane('Site Settings');
 	await expect(networking).not.toBeChecked();
 });
 
@@ -287,9 +287,9 @@ test('should offer only the destructive fresh-site action for a temporary Playgr
 	website,
 }) => {
 	await website.goto('./?storage=temp');
-	await website.openDockPane('Site details');
+	await website.openDockPane('Site Settings');
 	const pane = website.page.getByRole('dialog', {
-		name: 'Site details pane',
+		name: 'Site Settings pane',
 	});
 	await expect(
 		pane.getByRole('button', {
@@ -877,7 +877,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['New Playground', 'New Playground pane'],
 		['Your Playgrounds', 'Your Playgrounds pane'],
 		['Current Blueprint', 'Blueprint pane'],
-		['Site details', 'Site details pane'],
+		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
 		['Logs', 'Logs pane'],
@@ -910,9 +910,9 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
 
 	await website.page.setViewportSize({ width: 320, height: 700 });
-	await website.openDockPane('Site details');
+	await website.openDockPane('Site Settings');
 	const siteDetailsPane = website.page.getByRole('dialog', {
-		name: 'Site details pane',
+		name: 'Site Settings pane',
 	});
 	const closeBounds = await siteDetailsPane
 		.getByRole('button', { name: 'Close' })
@@ -1506,7 +1506,7 @@ test.describe('Default Playground storage', () => {
 		});
 		const autosavedSite = await getActivePlaygroundSite(website.page);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 
 		await expect(
 			website.page.getByText(
@@ -1548,10 +1548,36 @@ test.describe('Default Playground storage', () => {
 		await website.page.keyboard.press('End');
 		await expect(freshMenuItem).toBeFocused();
 
-		await website.page.keyboard.press('Escape');
 		const body = wordpress.locator('body');
 		await body.evaluate((element) =>
 			element.setAttribute('data-settings-no-op-marker', 'present')
+		);
+		await freshMenuItem.click();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Create a fresh Playground',
+				exact: true,
+			})
+		).toBeEnabled();
+		await expect(body).toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
+		);
+		await website.page
+			.getByRole('button', { name: 'More settings actions' })
+			.click();
+		await website.page
+			.getByRole('menuitem', { name: /Apply to this Playground/ })
+			.click();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+		).toBeEnabled();
+		await expect(body).toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
 		);
 		await website.page
 			.getByRole('button', {
@@ -1582,7 +1608,7 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 		const phpSelect = website.page.getByLabel('PHP version');
 		const currentPhpVersion = await phpSelect.inputValue();
 		const nextPhpVersion = currentPhpVersion === '8.4' ? '8.3' : '8.4';
@@ -1621,7 +1647,7 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe(1);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 		await expect(website.page.getByLabel('PHP version')).toHaveValue(
 			nextPhpVersion
 		);
@@ -1645,7 +1671,7 @@ test.describe('Default Playground storage', () => {
 			() => (window as any).playgroundSites.list().length
 		);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 		const wpSelect = website.page.getByLabel('WordPress version');
 		const currentWpVersion = await wpSelect.inputValue();
 		const nextWpVersion = Object.keys(MinifiedWordPressVersions).find(
@@ -1684,7 +1710,7 @@ test.describe('Default Playground storage', () => {
 			button.click();
 		});
 		await expect(
-			website.page.getByRole('dialog', { name: 'Site details pane' })
+			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
 
 		await expect
@@ -1732,7 +1758,7 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		const storedSite = await getActivePlaygroundSite(website.page);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 		await expect(
 			website.page.getByLabel('WordPress version')
 		).toBeEnabled();
@@ -1757,7 +1783,7 @@ test.describe('Default Playground storage', () => {
 			})
 			.click();
 		await expect(
-			website.page.getByRole('dialog', { name: 'Site details pane' })
+			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
 		const freshSite = await getActivePlaygroundSite(website.page);
 		expect(freshSite.slug).not.toBe(storedSite.slug);
@@ -1890,9 +1916,9 @@ test.describe('Default Playground storage', () => {
 			0
 		);
 
-		await website.openDockPane('Site details');
+		await website.openDockPane('Site Settings');
 		const settingsPane = website.page.getByRole('dialog', {
-			name: 'Site details pane',
+			name: 'Site Settings pane',
 		});
 		await expect(notice).toBeVisible();
 		await notice.evaluate(async (element) => {
@@ -2632,7 +2658,7 @@ test.describe('Default Playground storage', () => {
 		).toHaveCount(0);
 	});
 
-	test('should show autosaved status without an unsaved Site details warning', async ({
+	test('should show autosaved status without an unsaved Site Settings warning', async ({
 		website,
 		browserName,
 	}) => {
@@ -3183,7 +3209,7 @@ echo get_option('blogname');
 		);
 	});
 
-	test('should not duplicate the unsaved warning in Site details', async ({
+	test('should not duplicate the unsaved warning in Site Settings', async ({
 		website,
 	}) => {
 		await website.goto('./?storage=temp');

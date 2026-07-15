@@ -102,8 +102,8 @@ const DOCK_ITEMS: DockItem[] = [
 	},
 	{
 		section: 'settings',
-		label: 'Site details',
-		ariaLabel: 'Site details',
+		label: 'Site Settings',
+		ariaLabel: 'Site Settings',
 		icon: <Icon icon={wordpress} size={24} />,
 	},
 	{
@@ -150,7 +150,7 @@ const PANE_COPY: Record<
 			'Review and edit the Blueprint that describes this Playground.',
 	},
 	settings: {
-		title: 'Site details',
+		title: 'Site Settings',
 		description:
 			'Change this Playground’s WordPress, PHP, language, and network settings.',
 	},

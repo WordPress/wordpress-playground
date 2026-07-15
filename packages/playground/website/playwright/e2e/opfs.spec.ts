@@ -525,7 +525,7 @@ test('should rename a saved Playground and persist after reload', async ({
 
 	await website.ensureSiteManagerIsOpen();
 
-	// Rename from the Site details header.
+	// Rename from the Site Settings header.
 	await website.page
 		.getByRole('button', { name: 'Rename Playground' })
 		.click();
