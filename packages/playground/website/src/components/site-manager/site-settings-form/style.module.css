@@ -68,7 +68,7 @@
 }
 
 .footer {
-	padding-top: var(--space-4);
+	padding-top: 0;
 	position: relative;
 	button {
 		width: 100%;
