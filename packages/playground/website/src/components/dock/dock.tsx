@@ -1104,7 +1104,7 @@ export function Dock({
 					}}
 				>
 					<SiteManager
-						isOpen={paneContentVisible}
+						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
 						onNewPlaygroundHeaderChange={

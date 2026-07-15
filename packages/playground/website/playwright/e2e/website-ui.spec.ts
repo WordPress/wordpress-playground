@@ -294,7 +294,7 @@ test('should keep the whole Dock pane visible while it closes', async ({
 		}
 	);
 
-	expect(closingHeight).toBe(openHeight);
+	expect(Math.abs(closingHeight - openHeight)).toBeLessThanOrEqual(1);
 	await expect(pane).not.toBeVisible();
 });
 

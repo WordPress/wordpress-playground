@@ -15,7 +15,7 @@ import css from './style.module.css';
 
 export type SiteManagerProps = {
 	className?: string;
-	isOpen: boolean;
+	isVisible: boolean;
 	mobileUi: boolean;
 	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
 	onNewPlaygroundHeaderChange: (
@@ -28,7 +28,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 	function SiteManager(
 		{
 			className,
-			isOpen,
+			isVisible,
 			mobileUi,
 			onPaneCloseBlockedChange,
 			onNewPlaygroundHeaderChange,
@@ -48,7 +48,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			activeSection === 'logs'
 				? activeSection
 				: null;
-		const activeSiteTab = isOpen ? selectedSiteTab : null;
+		const activeSiteTab = isVisible ? selectedSiteTab : null;
 		const [mountedSiteSlug, setMountedSiteSlug] = useState<string | null>(
 			null
 		);
@@ -83,14 +83,14 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		let activePanel: JSX.Element | null = null;
 		if (activeSection === 'save') {
 			activePanel =
-				isOpen && activeSite ? (
+				isVisible && activeSite ? (
 					<SaveSiteModal
 						asPane
 						onClose={closeSavePane}
 						onCloseBlockedChange={onPaneCloseBlockedChange}
 					/>
 				) : null;
-		} else if (selectedSiteTab && !activeSite && isOpen) {
+		} else if (selectedSiteTab && !activeSite && isVisible) {
 			activePanel = (
 				<div className={css.emptyPanel}>
 					Start or select a Playground before opening this tool.
@@ -105,7 +105,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 					<div
 						className={css.savedPlaygroundsPanel}
 						hidden={
-							!isOpen ||
+							!isVisible ||
 							(activeSection !== 'new' &&
 								activeSection !== 'playgrounds')
 						}
@@ -126,7 +126,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 				{sharePanelMounted && (
 					<div
 						className={css.sharePanel}
-						hidden={!isOpen || activeSection !== 'share'}
+						hidden={!isVisible || activeSection !== 'share'}
 					>
 						<SiteSharePanel key={activeSite?.slug ?? 'no-site'} />
 					</div>
