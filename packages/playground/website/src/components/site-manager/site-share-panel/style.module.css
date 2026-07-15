@@ -151,6 +151,10 @@
 	fill: currentColor;
 }
 
+.group-icon :global(svg [stroke]:not([stroke='none'])) {
+	stroke: currentColor;
+}
+
 .group-body {
 	display: flex;
 	flex: 1;

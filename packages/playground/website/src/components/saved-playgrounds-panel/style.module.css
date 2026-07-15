@@ -822,16 +822,8 @@
 }
 
 .playgrounds-pane.new-pane .creationIcon :global(svg) {
-	color: inherit;
-	fill: currentColor;
 	height: 20px;
 	width: 20px;
-}
-
-/* One icon language: every glyph (incl. the solid octocat) follows currentColor
-   so the tab icons read as one set. */
-.playgrounds-pane.new-pane .creationIcon :global(svg path) {
-	fill: currentColor;
 }
 
 .playgrounds-pane.new-pane .creationTitle {
@@ -1216,6 +1208,12 @@
 .playgrounds-pane .creationIcon :global(svg) {
 	color: var(--action-icon, #4f4b45);
 	fill: currentColor;
+}
+
+/* One icon language: every glyph (incl. the solid octocat) follows currentColor
+   so the action icons read as one set. */
+.playgrounds-pane .creationIcon :global(svg [stroke]:not([stroke='none'])) {
+	stroke: currentColor;
 }
 
 /* The WordPress mark hardcodes a white path fill, which an svg-level rule can't
