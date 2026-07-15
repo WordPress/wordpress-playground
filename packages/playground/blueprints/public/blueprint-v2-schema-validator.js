@@ -135,10 +135,10 @@ const schema11 = {
 				},
 				usersBaseline: {
 					type: 'string',
-					enum: ['default', 'empty'],
+					enum: ['keep-all', 'empty'],
 					description:
-						'The users from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `default` retains the administrator created by WordPress, while `empty` removes it before creating the users declared by this Blueprint.\n\nEmpty user tables have their sequences reset before those users are created.\n\nAn empty user baseline requires an empty content baseline so removing the installation administrator cannot silently delete or orphan authored content. It also requires at least one declared administrator, ensuring the resulting WordPress site remains manageable.\n\nLike `contentBaseline`, this policy is skipped when applying the Blueprint to an existing site and is not valid when `wordpressVersion` is "none".',
-					default: 'default',
+						'The users from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `keep-all` retains the administrator created by WordPress, while `empty` removes it before creating the users declared by this Blueprint.\n\nEmpty user tables have their sequences reset before those users are created.\n\nAn empty user baseline requires an empty content baseline so removing the installation administrator cannot silently delete or orphan authored content. It also requires at least one declared administrator, ensuring the resulting WordPress site remains manageable.\n\nLike `contentBaseline`, this policy is skipped when applying the Blueprint to an existing site and is not valid when `wordpressVersion` is "none".',
+					default: 'keep-all',
 				},
 				siteLanguage: {
 					type: 'string',
@@ -401,13 +401,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 											],
@@ -870,14 +870,14 @@ const schema11 = {
 															{
 																type: 'array',
 																items: {
-																	$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																	$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																},
 															},
 															{
 																type: 'object',
 																additionalProperties:
 																	{
-																		$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																		$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																	},
 															},
 														],
@@ -1326,14 +1326,14 @@ const schema11 = {
 																{
 																	type: 'array',
 																	items: {
-																		$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																		$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																	},
 																},
 																{
 																	type: 'object',
 																	additionalProperties:
 																		{
-																			$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																			$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																		},
 																},
 															],
@@ -1500,14 +1500,14 @@ const schema11 = {
 																				{
 																					type: 'array',
 																					items: {
-																						$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																						$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																					},
 																				},
 																				{
 																					type: 'object',
 																					additionalProperties:
 																						{
-																							$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																						},
 																				},
 																			],
@@ -2080,14 +2080,14 @@ const schema11 = {
 																								{
 																									type: 'array',
 																									items: {
-																										$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																										$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																									},
 																								},
 																								{
 																									type: 'object',
 																									additionalProperties:
 																										{
-																											$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																											$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																										},
 																								},
 																							],
@@ -2274,14 +2274,14 @@ const schema11 = {
 																											{
 																												type: 'array',
 																												items: {
-																													$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																													$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																												},
 																											},
 																											{
 																												type: 'object',
 																												additionalProperties:
 																													{
-																														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																													},
 																											},
 																										],
@@ -2600,13 +2600,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 											],
@@ -2805,13 +2805,13 @@ const schema11 = {
 												{
 													type: 'array',
 													items: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 												{
 													type: 'object',
 													additionalProperties: {
-														$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+														$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 													},
 												},
 											],
@@ -3072,7 +3072,7 @@ const schema11 = {
 			description:
 				'Plugin directory reference, e.g. "jetpack", "jetpack@6.4", or "akismet@6.4.3".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to "wordpress-seo" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step',
 		},
-		'alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202':
+		'alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205':
 			{
 				anyOf: [
 					{ type: 'string' },
@@ -3081,13 +3081,13 @@ const schema11 = {
 					{
 						type: 'array',
 						items: {
-							$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 						},
 					},
 					{
 						type: 'object',
 						additionalProperties: {
-							$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 						},
 					},
 				],
@@ -3232,10 +3232,10 @@ const schema12 = {
 		},
 		usersBaseline: {
 			type: 'string',
-			enum: ['default', 'empty'],
+			enum: ['keep-all', 'empty'],
 			description:
-				'The users from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `default` retains the administrator created by WordPress, while `empty` removes it before creating the users declared by this Blueprint.\n\nEmpty user tables have their sequences reset before those users are created.\n\nAn empty user baseline requires an empty content baseline so removing the installation administrator cannot silently delete or orphan authored content. It also requires at least one declared administrator, ensuring the resulting WordPress site remains manageable.\n\nLike `contentBaseline`, this policy is skipped when applying the Blueprint to an existing site and is not valid when `wordpressVersion` is "none".',
-			default: 'default',
+				'The users from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `keep-all` retains the administrator created by WordPress, while `empty` removes it before creating the users declared by this Blueprint.\n\nEmpty user tables have their sequences reset before those users are created.\n\nAn empty user baseline requires an empty content baseline so removing the installation administrator cannot silently delete or orphan authored content. It also requires at least one declared administrator, ensuring the resulting WordPress site remains manageable.\n\nLike `contentBaseline`, this policy is skipped when applying the Blueprint to an existing site and is not valid when `wordpressVersion` is "none".',
+			default: 'keep-all',
 		},
 		siteLanguage: {
 			type: 'string',
@@ -3486,13 +3486,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 									],
@@ -3949,13 +3949,13 @@ const schema12 = {
 													{
 														type: 'array',
 														items: {
-															$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+															$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 														},
 													},
 													{
 														type: 'object',
 														additionalProperties: {
-															$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+															$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 														},
 													},
 												],
@@ -4368,14 +4368,14 @@ const schema12 = {
 														{
 															type: 'array',
 															items: {
-																$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 															},
 														},
 														{
 															type: 'object',
 															additionalProperties:
 																{
-																	$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																	$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																},
 														},
 													],
@@ -4538,14 +4538,14 @@ const schema12 = {
 																		{
 																			type: 'array',
 																			items: {
-																				$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																			},
 																		},
 																		{
 																			type: 'object',
 																			additionalProperties:
 																				{
-																					$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																					$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																				},
 																		},
 																	],
@@ -5066,14 +5066,14 @@ const schema12 = {
 																				{
 																					type: 'array',
 																					items: {
-																						$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																						$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																					},
 																				},
 																				{
 																					type: 'object',
 																					additionalProperties:
 																						{
-																							$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																							$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																						},
 																				},
 																			],
@@ -5258,14 +5258,14 @@ const schema12 = {
 																									{
 																										type: 'array',
 																										items: {
-																											$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																											$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																										},
 																									},
 																									{
 																										type: 'object',
 																										additionalProperties:
 																											{
-																												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+																												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 																											},
 																									},
 																								],
@@ -5555,13 +5555,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 									],
@@ -5746,13 +5746,13 @@ const schema12 = {
 										{
 											type: 'array',
 											items: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 										{
 											type: 'object',
 											additionalProperties: {
-												$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+												$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 											},
 										},
 									],
@@ -7055,13 +7055,13 @@ const schema37 = {
 		{
 			type: 'array',
 			items: {
-				$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 			},
 		},
 		{
 			type: 'object',
 			additionalProperties: {
-				$ref: '#/definitions/alias-1337903113-145938-146032-1337903113-98559-146046-1337903113-98525-146046-1337903113-0-163202',
+				$ref: '#/definitions/alias-1337903113-145941-146035-1337903113-98559-146049-1337903113-98525-146049-1337903113-0-163205',
 			},
 		},
 	],
@@ -9289,7 +9289,7 @@ function validate11(
 				}
 				errors++;
 			}
-			if (!(data36 === 'default' || data36 === 'empty')) {
+			if (!(data36 === 'keep-all' || data36 === 'empty')) {
 				const err80 = {
 					instancePath: instancePath + '/usersBaseline',
 					schemaPath: '#/properties/usersBaseline/enum',

@@ -48,9 +48,9 @@ describe('Blueprint v2 schema validation', () => {
 		).toEqual({ valid: true });
 	});
 
-	it('accepts the default user baseline', () => {
+	it('accepts the keep-all user baseline', () => {
 		expect(
-			validateBlueprintV2({ version: 2, usersBaseline: 'default' })
+			validateBlueprintV2({ version: 2, usersBaseline: 'keep-all' })
 		).toEqual({ valid: true });
 	});
 
@@ -220,6 +220,14 @@ describe('Blueprint v2 schema validation', () => {
 				contentBaseline: 'default',
 			},
 			'/contentBaseline',
+		],
+		[
+			'the replaced user-baseline sentinel',
+			{
+				version: 2,
+				usersBaseline: 'default',
+			},
+			'/usersBaseline',
 		],
 		[
 			'comments without scalar parent content',

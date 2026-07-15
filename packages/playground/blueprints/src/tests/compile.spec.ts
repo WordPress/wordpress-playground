@@ -233,7 +233,7 @@ describe('compileBlueprintForExecution', () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
 			contentBaseline: 'keep-all',
-			usersBaseline: 'default',
+			usersBaseline: 'keep-all',
 		});
 
 		expect(compiled.version).toBe(2);

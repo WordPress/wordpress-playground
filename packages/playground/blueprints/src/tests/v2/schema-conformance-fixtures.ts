@@ -925,7 +925,7 @@ export const v2SchemaConformanceCases = [
 			version: 2,
 			$schema: './blueprint-schema.json',
 			contentBaseline: 'keep-all',
-			usersBaseline: 'default',
+			usersBaseline: 'keep-all',
 			applicationOptions: {
 				'wordpress-playground': {
 					login: {

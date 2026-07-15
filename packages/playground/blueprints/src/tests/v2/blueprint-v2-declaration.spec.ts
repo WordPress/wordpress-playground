@@ -15,7 +15,7 @@ describe('Blueprint v2 declaration types', () => {
 			{
 				version: 2,
 				contentBaseline: 'keep-all',
-				usersBaseline: 'default',
+				usersBaseline: 'keep-all',
 			},
 			{
 				version: 2,

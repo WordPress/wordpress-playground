@@ -108,7 +108,7 @@ export namespace V2Schema {
 
 		/**
 		 * The users from a vanilla WordPress installation to retain before applying
-		 * the rest of the Blueprint. `default` retains the administrator created by
+		 * the rest of the Blueprint. `keep-all` retains the administrator created by
 		 * WordPress, while `empty` removes it before creating the users declared by
 		 * this Blueprint.
 		 *
@@ -123,9 +123,9 @@ export namespace V2Schema {
 		 * Like `contentBaseline`, this policy is skipped when applying the Blueprint
 		 * to an existing site and is not valid when `wordpressVersion` is "none".
 		 *
-		 * @default "default"
+		 * @default "keep-all"
 		 */
-		usersBaseline?: 'default' | 'empty';
+		usersBaseline?: 'keep-all' | 'empty';
 
 		/**
 		 * SITE OPTIONS {{{
