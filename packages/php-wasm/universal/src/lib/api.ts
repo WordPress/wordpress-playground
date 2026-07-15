@@ -248,6 +248,72 @@ function setupTransferHandlers() {
 			return port;
 		},
 	});
+	type SerializedReadableStream = {
+		stream?: ReadableStream<Uint8Array>;
+		port?: MessagePort;
+	};
+	const readableStreamTransferHandler: Comlink.TransferHandler<
+		ReadableStream<Uint8Array>,
+		SerializedReadableStream
+	> = {
+		canHandle: (obj: unknown): obj is ReadableStream<Uint8Array> =>
+			typeof ReadableStream !== 'undefined' &&
+			obj instanceof ReadableStream,
+		serialize(
+			stream: ReadableStream<Uint8Array>
+		): [SerializedReadableStream, Transferable[]] {
+			if (supportsTransferableStreams()) {
+				return [{ stream }, [stream as unknown as Transferable]];
+			}
+
+			const port = streamToPort(stream);
+			return [{ port }, [port]];
+		},
+		deserialize(
+			data: SerializedReadableStream
+		): ReadableStream<Uint8Array> {
+			return data.stream || portToStream(data.port!);
+		},
+	};
+	Comlink.transferHandlers.set(
+		'READABLE_STREAM',
+		readableStreamTransferHandler
+	);
+	type EventWithReadableStream = {
+		type: string;
+		stdin: ReadableStream<Uint8Array>;
+	};
+	type SerializedEventWithReadableStream = {
+		type: string;
+		stdin: SerializedReadableStream;
+	};
+	const eventWithReadableStreamTransferHandler: Comlink.TransferHandler<
+		EventWithReadableStream,
+		SerializedEventWithReadableStream
+	> = {
+		canHandle: (obj: unknown): obj is EventWithReadableStream =>
+			typeof obj === 'object' &&
+			obj !== null &&
+			'type' in obj &&
+			typeof obj.type === 'string' &&
+			'stdin' in obj &&
+			readableStreamTransferHandler.canHandle(obj.stdin),
+		serialize(event): [SerializedEventWithReadableStream, Transferable[]] {
+			const [stdin, transferables] =
+				readableStreamTransferHandler.serialize(event.stdin);
+			return [{ ...event, stdin }, transferables];
+		},
+		deserialize(event): EventWithReadableStream {
+			return {
+				...event,
+				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+			};
+		},
+	};
+	Comlink.transferHandlers.set(
+		'EVENT_WITH_READABLE_STREAM',
+		eventWithReadableStreamTransferHandler
+	);
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&

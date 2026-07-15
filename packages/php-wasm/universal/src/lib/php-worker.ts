@@ -367,7 +367,27 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		if (!listeners) {
 			return;
 		}
-		for (const listener of listeners) {
+		const eventListeners = [...listeners];
+		if (eventListeners.length > 1 && hasReadableStdin(event)) {
+			/**
+			 * A ReadableStream can only be transferred through Comlink once. Give each
+			 * listener its own branch so one listener cannot lock the stream before the
+			 * remaining listeners receive the event.
+			 */
+			const streams = teeReadableStream(
+				event.stdin,
+				eventListeners.length
+			);
+			let streamIndex = 0;
+			for (const listener of eventListeners) {
+				listener({
+					...event,
+					stdin: streams[streamIndex++],
+				} as Event);
+			}
+			return;
+		}
+		for (const listener of eventListeners) {
 			listener(event);
 		}
 	}
@@ -407,4 +427,25 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 		throw new Error('PHPWorker is not connected to a request handler.');
 	}
+}
+
+function hasReadableStdin(
+	event: PHPWorkerEvent
+): event is PHPWorkerEvent & { stdin: ReadableStream<Uint8Array> } {
+	return (
+		'stdin' in event &&
+		typeof ReadableStream !== 'undefined' &&
+		event.stdin instanceof ReadableStream
+	);
+}
+
+function teeReadableStream(
+	stream: ReadableStream<Uint8Array>,
+	branches: number
+): ReadableStream<Uint8Array>[] {
+	if (branches === 1) {
+		return [stream];
+	}
+	const [first, remaining] = stream.tee();
+	return [first, ...teeReadableStream(remaining, branches - 1)];
 }
