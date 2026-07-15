@@ -20,6 +20,13 @@
 }
 
 .site-info-panel-content {
+	flex: 1;
+	min-height: 0;
+}
+
+.site-info-panel-content > .site-info-panel-tools {
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
 }
 

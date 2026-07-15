@@ -38,7 +38,10 @@ export function SiteInfoPanel({
 				expanded={true}
 				className={css.siteInfoPanelContent}
 			>
-				<FlexItem style={{ flexGrow: 1 }}>
+				<FlexItem
+					className={css.siteInfoPanelTools}
+					style={{ flexGrow: 1 }}
+				>
 					<SiteToolPanels
 						site={site}
 						playground={playground}

@@ -116,16 +116,29 @@ describe('SiteToolPanels', () => {
 		).toBe('true');
 	});
 
+	it('explains that Playground files are still loading', async () => {
+		const bootingPlayground = {
+			documentRoot: new Promise(() => {}),
+		} as PlaygroundClient;
+
+		await renderPanels('files', bootingPlayground);
+
+		expect(container.textContent).toContain(
+			'Playground files are still loading…'
+		);
+	});
+
 	async function renderPanels(
 		activeTabName: React.ComponentProps<
 			typeof SiteToolPanels
-		>['activeTabName']
+		>['activeTabName'],
+		client = playground
 	) {
 		await act(async () => {
 			root.render(
 				<SiteToolPanels
 					site={site}
-					playground={playground}
+					playground={client}
 					activeTabName={activeTabName}
 				/>
 			);
