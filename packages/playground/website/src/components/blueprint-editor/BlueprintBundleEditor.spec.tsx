@@ -353,7 +353,9 @@ describe('BlueprintBundleEditor Run barrier', () => {
 	it('keeps the existing presentation by default', async () => {
 		await renderEditor();
 
-		expect(container.textContent).toContain('Run Blueprint');
+		expect(container.textContent).toContain(
+			'Discard current Playground & run Blueprint'
+		);
 		expect(container.textContent).not.toContain('Run in a new Playground');
 		expect(container.textContent).not.toContain(
 			'creates a fresh autosaved Playground'

@@ -933,7 +933,7 @@ export const BlueprintBundleEditor = forwardRef<
 										/>
 										{isStored
 											? 'Run in a new Playground'
-											: 'Run Blueprint'}
+											: 'Discard current Playground & run Blueprint'}
 									</Button>
 								)}
 							</div>
