@@ -68,6 +68,19 @@ class EndpointWithoutRequestHandler extends TestEndpoint {
 }
 
 describe('PlaygroundWorkerEndpoint', () => {
+	test('copies files using the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const primaryPhp = {
+			...createMockPHP(),
+			cp: vi.fn(),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		await endpoint.cp('/source', '/target');
+
+		expect(primaryPhp.cp).toHaveBeenCalledWith('/source', '/target');
+	});
+
 	test('listeners receive events from each PHP instance', async () => {
 		const endpoint = new TestEndpoint();
 		const phpA = createMockPHP();
