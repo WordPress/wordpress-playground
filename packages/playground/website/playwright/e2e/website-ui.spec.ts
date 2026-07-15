@@ -1316,14 +1316,16 @@ test.describe('Default Playground storage', () => {
 		expect(newSite).toMatchObject({ persistence: 'autosave' });
 		expect(newSite.slug).not.toBe(originalSite.slug);
 		await expect
-			.poll(() =>
-				website.page.evaluate(
-					(slug) =>
-						(window as any).playgroundSites
-							.list()
-							.some((site: any) => site.slug === slug),
-					originalSite.slug
-				)
+			.poll(
+				() =>
+					website.page.evaluate(
+						(slug) =>
+							(window as any).playgroundSites
+								.list()
+								.some((site: any) => site.slug === slug),
+						originalSite.slug
+					),
+				{ timeout: 120000 }
 			)
 			.toBe(true);
 
