@@ -31,6 +31,7 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
+	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -313,6 +314,7 @@ export const BlueprintBundleEditor = forwardRef<
 		useState<BlueprintValidationResult | null>(null);
 	const hasValidationErrors =
 		validationResult !== null && !validationResult.valid;
+	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -847,6 +849,12 @@ export const BlueprintBundleEditor = forwardRef<
 															className={
 																styles.exportMenuItemWithHint
 															}
+															aria-label="Copy Blueprint URL"
+															aria-describedby={
+																!isBundleShareable
+																	? copyBlueprintUrlHintId
+																	: undefined
+															}
 															disabled={
 																!isBundleShareable
 															}
@@ -867,6 +875,9 @@ export const BlueprintBundleEditor = forwardRef<
 																</span>
 																{!isBundleShareable && (
 																	<span
+																		id={
+																			copyBlueprintUrlHintId
+																		}
 																		className={
 																			styles.exportMenuItemHint
 																		}
