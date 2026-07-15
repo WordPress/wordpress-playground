@@ -263,6 +263,41 @@ test('should route tools through one Dock pane', async ({ website }) => {
 	await expect(databaseTool).toBeFocused();
 });
 
+test('should keep the whole Dock pane visible while it closes', async ({
+	website,
+}) => {
+	await website.page.goto('./?storage=temp');
+	await website.openDockPane('Your Playgrounds');
+	const pane = website.page.locator(
+		'section[aria-label="Your Playgrounds pane"]'
+	);
+	await expect(pane).toHaveCSS('opacity', '1');
+
+	const { openHeight, closingHeight } = await pane.evaluate(
+		async (element) => {
+			const activeTool = document.querySelector<HTMLButtonElement>(
+				'nav[aria-label="Playground tools"] button[aria-pressed="true"]'
+			);
+			if (!activeTool) {
+				throw new Error('The active Dock tool was not found');
+			}
+
+			const openHeight = element.getBoundingClientRect().height;
+			activeTool.click();
+			await new Promise<void>((resolve) =>
+				requestAnimationFrame(() => resolve())
+			);
+			return {
+				openHeight,
+				closingHeight: element.getBoundingClientRect().height,
+			};
+		}
+	);
+
+	expect(closingHeight).toBe(openHeight);
+	await expect(pane).not.toBeVisible();
+});
+
 test('should keep a settings draft across Dock destinations and close', async ({
 	website,
 }) => {

@@ -278,6 +278,9 @@ export function Dock({
 	const [isMaximizing, setIsMaximizing] = useState(false);
 	const [paneExitComplete, setPaneExitComplete] =
 		useState(!siteManagerIsOpen);
+	// Retain the full pane body until its exit motion finishes. Hiding it when
+	// close starts would collapse the surface to its header before it can leave.
+	const paneContentVisible = siteManagerIsOpen || !paneExitComplete;
 
 	useEffect(() => {
 		if (typeof ResizeObserver === 'undefined') {
@@ -1101,7 +1104,7 @@ export function Dock({
 					}}
 				>
 					<SiteManager
-						isOpen={siteManagerIsOpen}
+						isOpen={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
 						onNewPlaygroundHeaderChange={
