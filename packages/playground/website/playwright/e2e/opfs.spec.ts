@@ -130,6 +130,7 @@ async function setActivePlaygroundSite(page: Page, siteSlug: string) {
 }
 
 async function openPlaygroundPath(page: Page, path: string) {
+	// goTo() resolves after the nested iframe loads, so no additional test delay is needed.
 	await page.evaluate(
 		(requestedPath) => (window as any).playground.goTo(requestedPath),
 		path
