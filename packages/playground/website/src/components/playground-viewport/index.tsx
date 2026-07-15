@@ -137,7 +137,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 	if (!sitesFinishedLoading) {
 		return (
 			<div className={css.loadingViewport}>
-				<h3 className={css.loadingCaption}>&nbsp;</h3>
+				<h1 className={css.loadingCaption}>Loading Playgrounds</h1>
 				<div className={css.progressWrapper}>
 					<div className={css.progressBar} />
 				</div>
@@ -167,9 +167,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{!hasVisibleSite && (
 				<div className={css.loadingViewport}>
-					<h3 className={css.loadingCaption}>
-						{activeSite?.metadata.name || ' '}
-					</h3>
+					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
 					<div className={css.progressWrapper}>
 						<div className={css.progressBar} />
 					</div>

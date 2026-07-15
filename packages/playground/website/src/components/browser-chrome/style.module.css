@@ -24,6 +24,7 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .content {
+	position: relative;
 	background: #ffffff;
 	display: flex;
 	flex-grow: 1;
