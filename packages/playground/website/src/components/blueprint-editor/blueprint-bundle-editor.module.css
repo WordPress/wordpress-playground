@@ -175,14 +175,19 @@
 	margin-right: -2px;
 }
 
-.exportHint {
-	border-top: 1px solid var(--line-subtle, #e0e0e0);
+.exportMenuItemBody {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	white-space: normal;
+}
+
+.exportMenuItemHint {
 	color: var(--ink-muted, #50575e);
 	font-size: 12px;
+	font-weight: 400;
 	line-height: 1.4;
-	margin: 4px 0 0;
 	max-width: 240px;
-	padding: 8px 12px 4px;
 }
 
 .runHint {

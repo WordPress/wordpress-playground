@@ -852,7 +852,25 @@ export const BlueprintBundleEditor = forwardRef<
 																onClose();
 															}}
 														>
-															Copy Blueprint URL
+															<span
+																className={
+																	styles.exportMenuItemBody
+																}
+															>
+																<span>
+																	Copy Blueprint
+																	URL
+																</span>
+																{!isBundleShareable && (
+																	<span
+																		className={
+																			styles.exportMenuItemHint
+																		}
+																	>
+																		Multi-file Blueprints can’t be shared as a URL — download a zip instead.
+																	</span>
+																)}
+															</span>
 														</MenuItem>
 														<MenuItem
 															icon={download}
@@ -864,19 +882,6 @@ export const BlueprintBundleEditor = forwardRef<
 															Download Zip
 														</MenuItem>
 													</MenuGroup>
-													{!isBundleShareable && (
-														<p
-															className={
-																styles.exportHint
-															}
-														>
-															Multi-file
-															Blueprints can’t be
-															shared as a URL —
-															download a zip
-															instead.
-														</p>
-													)}
 												</>
 											)}
 										/>
