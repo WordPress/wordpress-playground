@@ -1250,6 +1250,89 @@ test.describe('Default Playground storage', () => {
 			});
 	});
 
+	test('should edit a Blueprint for a saved Playground and run it in a new Playground', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('saved-blueprint-edit')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.getByRole('button', { name: 'Autosaved' }).click();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await savePane.getByRole('button', { name: 'Save' }).click();
+		await expect(savePane).not.toBeVisible({ timeout: 120000 });
+		await expect(
+			website.page.getByText('Saved', { exact: true })
+		).toBeVisible();
+		const savedSite = await getActivePlaygroundSite(website.page);
+
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.getByText(/This Blueprint is read-only/)
+		).toHaveCount(0);
+		const editedBlueprint = {
+			landingPage: '/index.php',
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/index.php',
+					data: 'Saved Blueprint test',
+				},
+			],
+		} satisfies Blueprint;
+		const blueprintContents = website.page.locator(
+			'[class*="blueprint-editor"] .cm-content'
+		);
+		await expect(blueprintContents).toHaveAttribute(
+			'contenteditable',
+			'true'
+		);
+		await blueprintContents.fill(JSON.stringify(editedBlueprint, null, 2));
+		await website.page
+			.getByRole('button', { name: 'Run in a new Playground' })
+			.click();
+
+		await expect(
+			website.page.getByRole('dialog', { name: 'Blueprint pane' })
+		).not.toBeVisible({ timeout: 120000 });
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Saved Blueprint test',
+			{ timeout: 120000 }
+		);
+		const newSite = await getActivePlaygroundSite(website.page);
+		expect(newSite).toMatchObject({ persistence: 'autosave' });
+		expect(newSite.slug).not.toBe(savedSite.slug);
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.some((site: any) => site.slug === slug),
+					savedSite.slug
+				)
+			)
+			.toBe(true);
+
+		await website.page.evaluate((slug) => {
+			return (window as any).playgroundSites.setActiveSite(slug);
+		}, savedSite.slug);
+		await website.waitForNestedIframes();
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).not.toContainText('Saved Blueprint test');
+	});
+
 	test('should offer full settings for an autosaved Playground', async ({
 		website,
 		wordpress,

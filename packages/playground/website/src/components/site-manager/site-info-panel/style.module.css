@@ -282,15 +282,6 @@
 	overflow: auto;
 }
 
-.blueprintNotice {
-	padding: 12px 16px;
-	background: #f0f6fc;
-	border-bottom: 1px solid var(--color-gray-200);
-	font-size: 13px;
-	color: var(--color-gray-700);
-	line-height: 1.5;
-}
-
 @media (max-width: 600px) {
 	.blueprint-header {
 		padding: 8px 0 8px 12px;

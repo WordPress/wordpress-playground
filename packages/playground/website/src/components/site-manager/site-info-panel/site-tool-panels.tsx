@@ -2,7 +2,6 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { isExplicitlySavedSite } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { SiteLogs } from '../../log-modal';
@@ -45,7 +44,6 @@ export function SiteToolPanels({
 		() => (activeTabName ? [activeTabName] : [])
 	);
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
-	const isBlueprintReadOnly = isExplicitlySavedSite(site);
 	const settingsMounted =
 		activeTabName === 'settings' || mountedTabNames.includes('settings');
 	const filesMounted =
@@ -136,13 +134,6 @@ export function SiteToolPanels({
 					})}
 					hidden={activeTabName !== 'blueprint'}
 				>
-					{isBlueprintReadOnly && (
-						<div className={css.blueprintNotice}>
-							This Blueprint is read-only for saved Playgrounds.
-							Create an Unsaved Playground to edit and test
-							Blueprint changes.
-						</div>
-					)}
 					<Suspense
 						fallback={
 							<PaneLoading message="Loading the Blueprint editor…" />
