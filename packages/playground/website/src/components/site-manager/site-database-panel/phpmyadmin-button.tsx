@@ -99,7 +99,7 @@ export function PhpMyAdminButton({
 		<>
 			<Flex direction="column" gap={0} expanded={false}>
 				<Button
-					variant="primary"
+					variant="secondary"
 					disabled={!playground || isLoading}
 					isBusy={isLoading}
 					onClick={handleOpenPhpMyAdmin}

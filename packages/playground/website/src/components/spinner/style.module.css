@@ -10,7 +10,7 @@
 	height: 80%;
 	border-radius: 50%;
 	border: 2px solid;
-	border-color: var(--spinner-color, #fff) transparent;
+	border-color: var(--spinner-color, currentColor) transparent;
 	animation: spinner 1.2s linear infinite;
 }
 @keyframes spinner {
