@@ -33,7 +33,6 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
-import { resolveCliWordPressVersion } from '../resolve-cli-wordpress-version';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -66,9 +65,6 @@ export class BlueprintsV1Handler {
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
-		);
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
 		let preinstalledWpContentPath: string | undefined = undefined;
@@ -99,9 +95,7 @@ export class BlueprintsV1Handler {
 				);
 			}) as any);
 
-			wpDetails = await resolveWordPressRelease(
-				await resolveCliWordPressVersion(runtimeConfiguration.wpVersion)
-			);
+			wpDetails = await resolveWordPressRelease(this.args.wp);
 			preinstalledWpContentPath = path.join(
 				CACHE_FOLDER,
 				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
@@ -126,7 +120,7 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress('Preparing SQLite database');
 			// Use pre-patched v3.0.0-rc.3 for legacy PHP (closures replaced
 			// with named functions, PHP 5.2 polyfills added offline).
-			const phpVersion = runtimeConfiguration.phpVersion;
+			const phpVersion = this.args.php || RecommendedPHPVersion;
 			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 			const sqliteVersion = isLegacyPhp ? 'v3.0.0-rc.3-php52' : 'trunk';
 			sqliteIntegrationPluginZip =
@@ -134,6 +128,10 @@ export class BlueprintsV1Handler {
 		}
 
 		this.cliOutput.updateProgress('Booting WordPress');
+
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 
 		// TODO: Fix this type issue that requires the cast to unknown
 		await (

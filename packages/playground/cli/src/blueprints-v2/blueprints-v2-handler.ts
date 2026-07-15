@@ -37,7 +37,6 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
-import { resolveCliWordPressVersion } from '../resolve-cli-wordpress-version';
 
 /**
  * Boots Playground CLI workers using the native TypeScript Blueprint v2
@@ -109,9 +108,7 @@ export class BlueprintsV2Handler {
 				}) as any);
 
 				const wpDetails = await resolveWordPressRelease(
-					await resolveCliWordPressVersion(
-						runtimeConfiguration.wpVersion
-					)
+					runtimeConfiguration.wpVersion
 				);
 				wordPressZip = await cachedDownload(
 					wpDetails.releaseUrl,
