@@ -31,6 +31,7 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
+	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -313,6 +314,7 @@ export const BlueprintBundleEditor = forwardRef<
 		useState<BlueprintValidationResult | null>(null);
 	const hasValidationErrors =
 		validationResult !== null && !validationResult.valid;
+	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -840,44 +842,65 @@ export const BlueprintBundleEditor = forwardRef<
 												</Button>
 											)}
 											renderContent={({ onClose }) => (
-												<>
-													<MenuGroup>
-														<MenuItem
-															icon={link}
-															disabled={
-																!isBundleShareable
-															}
-															onClick={() => {
-																handleShareBlueprint();
-																onClose();
-															}}
-														>
-															Copy Blueprint URL
-														</MenuItem>
-														<MenuItem
-															icon={download}
-															onClick={() => {
-																handleDownloadBundle();
-																onClose();
-															}}
-														>
-															Download Zip
-														</MenuItem>
-													</MenuGroup>
-													{!isBundleShareable && (
-														<p
+												<MenuGroup>
+													<MenuItem
+														icon={link}
+														className={
+															styles.exportMenuItemWithHint
+														}
+														aria-label="Copy Blueprint URL"
+														aria-describedby={
+															!isBundleShareable
+																? copyBlueprintUrlHintId
+																: undefined
+														}
+														disabled={
+															!isBundleShareable
+														}
+														onClick={() => {
+															handleShareBlueprint();
+															onClose();
+														}}
+													>
+														<span
 															className={
-																styles.exportHint
+																styles.exportMenuItemBody
 															}
 														>
-															Multi-file
-															Blueprints can’t be
-															shared as a URL —
-															download a zip
-															instead.
-														</p>
-													)}
-												</>
+															<span>
+																Copy Blueprint
+																URL
+															</span>
+															{!isBundleShareable && (
+																<span
+																	id={
+																		copyBlueprintUrlHintId
+																	}
+																	className={
+																		styles.exportMenuItemHint
+																	}
+																>
+																	Multi-file
+																	Blueprints
+																	can’t be
+																	shared as a
+																	URL —
+																	download a
+																	zip instead.
+																</span>
+															)}
+														</span>
+													</MenuItem>
+													<MenuItem
+														icon={download}
+														onClick={() => {
+															handleDownloadBundle();
+															onClose();
+														}}
+													>
+														Download Zip
+													</MenuItem>
+												</MenuGroup>
 											)}
 										/>
 									</>
