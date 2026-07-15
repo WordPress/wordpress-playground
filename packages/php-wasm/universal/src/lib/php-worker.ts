@@ -439,6 +439,12 @@ function hasReadableStdin(
 	);
 }
 
+/**
+ * Creates one independently transferable stream branch per event listener.
+ *
+ * ReadableStream.tee() may buffer unread chunks for a slow branch. PHPWorker
+ * does not coordinate backpressure between listeners.
+ */
 function teeReadableStream(
 	stream: ReadableStream<Uint8Array>,
 	branches: number

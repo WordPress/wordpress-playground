@@ -252,6 +252,10 @@ function setupTransferHandlers() {
 		stream?: ReadableStream<Uint8Array>;
 		port?: MessagePort;
 	};
+	/**
+	 * Keeps the stream live while it crosses the Comlink boundary. Safari cannot
+	 * transfer ReadableStreams, so the handler uses the existing MessagePort bridge.
+	 */
 	const readableStreamTransferHandler: Comlink.TransferHandler<
 		ReadableStream<Uint8Array>,
 		SerializedReadableStream
@@ -287,6 +291,11 @@ function setupTransferHandlers() {
 		type: string;
 		stdin: SerializedReadableStream;
 	};
+	/**
+	 * Transfers an event whose stdin contains a ReadableStream. Comlink applies a
+	 * transfer handler to the top-level value only, so it will not discover the
+	 * nested stream on its own.
+	 */
 	const eventWithReadableStreamTransferHandler: Comlink.TransferHandler<
 		EventWithReadableStream,
 		SerializedEventWithReadableStream
