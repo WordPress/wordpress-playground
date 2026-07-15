@@ -185,6 +185,16 @@
 	padding: 8px 12px 4px;
 }
 
+.runHint {
+	background: var(--paper-2, #ffffff);
+	border-bottom: 1px solid var(--line-subtle, #ddd);
+	color: var(--ink-muted, #50575e);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+	padding: 10px 16px;
+}
+
 .editorDocsLink {
 	align-items: center;
 	border-radius: 6px;

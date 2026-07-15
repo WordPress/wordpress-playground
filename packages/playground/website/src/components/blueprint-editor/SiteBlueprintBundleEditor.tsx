@@ -243,9 +243,10 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
-	// Autosaves edit their own persisted Blueprint bundle. Explicit saves edit
-	// an in-memory copy and can run it in a new Playground without changing the
-	// preserved site.
+	// Autosaves edit their own persisted Blueprint draft so changes survive a
+	// reload. Running that draft copies it into a fresh Playground instead of
+	// replacing the autosave's WordPress files. Explicit saves use an in-memory
+	// draft so editing cannot change the preserved Blueprint.
 	const isAutosaved = isAutosavedSite(site);
 	const isExplicitlySaved = isExplicitlySavedSite(site);
 

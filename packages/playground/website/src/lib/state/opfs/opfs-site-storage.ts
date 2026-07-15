@@ -276,11 +276,10 @@ class OpfsSiteStorage {
 	 * Removes WordPress files from an OPFS-backed site while preserving the
 	 * site metadata file and the editable Blueprint bundle directory.
 	 *
-	 * Autosaved reset paths use this after the user chooses to keep the same
-	 * sidebar entry but boot it from new settings or an edited Blueprint. Keep
-	 * the metadata file and editable Blueprint bundle; delete everything else
-	 * because those entries are the old WordPress runtime tree that the next
-	 * boot must recreate from the new setup.
+	 * The public autosave-recreation API uses this to keep the same sidebar entry
+	 * while booting from new settings. Keep the metadata file and editable
+	 * Blueprint bundle; delete everything else because those entries are the old
+	 * WordPress runtime tree that the next boot must recreate from the new setup.
 	 */
 	async removeWordPressFilesKeepMetadata(slug: string): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);

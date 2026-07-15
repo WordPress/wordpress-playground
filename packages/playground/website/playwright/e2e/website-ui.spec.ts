@@ -1251,7 +1251,7 @@ test.describe('Default Playground storage', () => {
 		).toBe(false);
 	});
 
-	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
+	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
 		website,
 		wordpress,
 		browserName,
@@ -1266,13 +1266,17 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
+		await runPHPAndFlushOpfs(
+			website.page,
+			"<?php file_put_contents('/wordpress/index.php', 'Original autosaved Playground');"
+		);
 
 		await website.openDockPane('Current Blueprint', 'Blueprint pane');
 		await expect(
 			website.page
 				.getByLabel('WordPress Playground')
 				.getByText(
-					'Running this Blueprint will recreate this autosaved Playground under the same name and replace all its files.'
+					`Running this Blueprint creates a fresh autosaved Playground. “${originalSite.name}” stays in Recent autosaves.`
 				)
 		).toBeVisible();
 
@@ -1296,36 +1300,48 @@ test.describe('Default Playground storage', () => {
 			website.page.locator('[class*="blueprint-editor"] .cm-content')
 		).toContainText('Autosaved Blueprint test');
 
-		const runBlueprintButton = website.page.getByRole('button', {
-			name: 'Run Blueprint and reset site',
-		});
-		// Recreate failures are shown inline and leave the Run button available,
-		// so retry the action instead of waiting on an unchanged iframe.
-		await expect(async () => {
-			await expect(runBlueprintButton).toBeEnabled({
-				timeout: 5000,
-			});
-			await runBlueprintButton.click();
-			await expect(
-				website.page.getByText(
-					'Could not recreate Playground. Try again.'
-				)
-			).toHaveCount(0, { timeout: 5000 });
-			await website.waitForNestedIframes();
-			await expect(wordpress.locator('body')).toContainText(
-				'Autosaved Blueprint test',
-				{ timeout: 30000 }
-			);
-		}).toPass({ timeout: 180000 });
+		await website.page
+			.getByRole('button', { name: 'Run in a new Playground' })
+			.click();
+
+		await expect(
+			website.page.getByRole('dialog', { name: 'Blueprint pane' })
+		).not.toBeVisible({ timeout: 120000 });
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Autosaved Blueprint test',
+			{ timeout: 120000 }
+		);
+		const newSite = await getActivePlaygroundSite(website.page);
+		expect(newSite).toMatchObject({ persistence: 'autosave' });
+		expect(newSite.slug).not.toBe(originalSite.slug);
 		await expect
-			.poll(() => getActivePlaygroundSite(website.page), {
-				timeout: 120000,
-			})
-			.toMatchObject({
-				slug: originalSite.slug,
-				name: originalSite.name,
-				persistence: 'autosave',
-			});
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.some((site: any) => site.slug === slug),
+					originalSite.slug
+				)
+			)
+			.toBe(true);
+
+		await website.page.evaluate((slug) => {
+			return (window as any).playgroundSites.setActiveSite(slug);
+		}, originalSite.slug);
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Original autosaved Playground',
+			{ timeout: 120000 }
+		);
+		await expect(wordpress.locator('body')).not.toContainText(
+			'Autosaved Blueprint test'
+		);
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).toContainText('Autosaved Blueprint test');
 	});
 
 	test('should edit a Blueprint for a saved Playground and run it in a new Playground', async ({
