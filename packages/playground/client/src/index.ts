@@ -57,6 +57,10 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * @deprecated This option no longer appears in the loading progress bar.
+	 */
+	siteName?: string;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.

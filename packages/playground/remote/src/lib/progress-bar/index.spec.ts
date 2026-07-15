@@ -8,7 +8,7 @@ describe('ProgressBar', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('updates the boot caption', () => {
+	it('shows the boot caption as a heading and announces updates', () => {
 		const progressBar = new ProgressBar({
 			caption: 'Preparing WordPress',
 		});
@@ -18,18 +18,21 @@ describe('ProgressBar', () => {
 		);
 		expect(
 			progressBar.element.querySelectorAll('h1, h2, h3, h4, h5, h6')
-		).toHaveLength(0);
-		expect(progressBar.captionElement.getAttribute('role')).toBe('status');
-		expect(progressBar.captionElement.getAttribute('aria-live')).toBe(
+		).toHaveLength(1);
+		expect(progressBar.statusElement.getAttribute('role')).toBe('status');
+		expect(progressBar.statusElement.getAttribute('aria-live')).toBe(
 			'polite'
 		);
-		expect(progressBar.captionElement.getAttribute('aria-atomic')).toBe(
+		expect(progressBar.statusElement.getAttribute('aria-atomic')).toBe(
 			'true'
 		);
 
 		progressBar.setOptions({ caption: 'Installing WordPress' });
 
 		expect(progressBar.captionElement.textContent).toBe(
+			'Installing WordPress'
+		);
+		expect(progressBar.statusElement.textContent).toBe(
 			'Installing WordPress'
 		);
 	});

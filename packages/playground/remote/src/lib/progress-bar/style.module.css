@@ -109,7 +109,7 @@
 }
 
 .caption {
-	font-weight: 600;
+	font-weight: 400;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
 	line-height: 1.12;
@@ -123,6 +123,16 @@
 .caption,
 .wrapper {
 	z-index: 1;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
 }
 
 @media (prefers-color-scheme: dark) {
