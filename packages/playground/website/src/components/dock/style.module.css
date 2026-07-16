@@ -689,7 +689,10 @@
 	   visual stack on mobile. */
 	.dock {
 		border-radius: 0;
-		clip-path: inset(0);
+		clip-path: none;
+		/* The square bar uses the mobile box-shadow below; retaining the desktop
+		   drop-shadow would stack both elevation effects. */
+		filter: none;
 		bottom: 0;
 		left: 0;
 		right: 0;
