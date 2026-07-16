@@ -61,6 +61,57 @@ class FakeChild extends EventEmitter {
 
 const openServers: Server[] = [];
 
+class StudioBlueprintBundle {
+	readonly reads: string[] = [];
+	private readonly blueprintJSON: string;
+
+	constructor(blueprintJSON: string) {
+		this.blueprintJSON = blueprintJSON;
+	}
+
+	async read(
+		path: string
+	): Promise<{ stream(): ReadableStream<Uint8Array> }> {
+		this.reads.push(path);
+		const bytes = new TextEncoder().encode(this.blueprintJSON);
+		return {
+			stream() {
+				return new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.enqueue(bytes);
+						controller.close();
+					},
+				});
+			},
+		};
+	}
+}
+
+function streamedBlueprintBundle(
+	chunks: Uint8Array[],
+	onCancel?: () => void,
+	closeAfterStart = true
+): { read(path: string): Promise<{ stream(): ReadableStream<Uint8Array> }> } {
+	return {
+		async read(_path: string) {
+			return {
+				stream() {
+					return new ReadableStream<Uint8Array>({
+						start(controller) {
+							for (const chunk of chunks)
+								controller.enqueue(chunk);
+							if (closeAfterStart) controller.close();
+						},
+						cancel() {
+							onCancel?.();
+						},
+					});
+				},
+			};
+		},
+	};
+}
+
 beforeEach(() => {
 	mocks.writeHandshake = true;
 	mocks.nativeServerUrl = 'http://127.0.0.1:65534';
@@ -288,6 +339,203 @@ describe.sequential('programmatic native server lifecycle', () => {
 		).rejects.toMatchObject({
 			code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
 		});
+	});
+
+	it('accepts and translates the exact-layout Studio startup shape', async () => {
+		const constants = {
+			DB_NAME: 'wordpress',
+			WP_DEBUG: false,
+			WP_DEBUG_LOG: true,
+			WP_DEBUG_DISPLAY: false,
+		};
+		const bundle = new StudioBlueprintBundle(
+			JSON.stringify({
+				constants,
+				preferredVersions: { php: '8.2', wp: '6.8' },
+				steps: [
+					{
+						step: 'setSiteOptions',
+						options: { blogname: 'Studio' },
+					},
+				],
+			})
+		);
+		const result = (await runCLI({
+			command: 'server',
+			internalCookieStore: false,
+			login: false,
+			followSymlinks: true,
+			skipSqliteSetup: false,
+			port: 0,
+			'mount-before-install': [
+				{
+					hostPath: '/studio/site',
+					vfsPath: '/wordpress',
+				},
+			],
+			'site-url': 'http://localhost:8881',
+			blueprint: bundle,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
+			redis: false,
+			memcached: false,
+		})) as RunCLIServer;
+
+		expect(bundle.reads).toEqual(['/blueprint.json']);
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(
+			argv.slice(argv.indexOf('--php'), argv.indexOf('--php') + 2)
+		).toEqual(['--php', '8.2']);
+		expect(
+			argv.slice(argv.indexOf('--wp'), argv.indexOf('--wp') + 2)
+		).toEqual(['--wp', '6.8']);
+		expect(argv).not.toContain('--internal-cookie-store');
+		expect(argv).not.toContain('--redis');
+		expect(argv).not.toContain('--memcached');
+		const blueprintPath = argv[argv.indexOf('--blueprint') + 1];
+		if (!blueprintPath) throw new Error('missing Studio Blueprint path');
+		expect(JSON.parse(await readFile(blueprintPath, 'utf8'))).toEqual({
+			steps: [
+				{ step: 'defineWpConfigConsts', consts: constants },
+				{
+					step: 'setSiteOptions',
+					options: { blogname: 'Studio' },
+				},
+			],
+		});
+		await result[Symbol.asyncDispose]();
+	});
+
+	it('rejects enabled Studio-only integrations before acquisition', async () => {
+		for (const name of [
+			'internalCookieStore',
+			'redis',
+			'memcached',
+		] as const)
+			await expect(
+				runCLI({ command: 'server', [name]: true })
+			).rejects.toMatchObject({
+				name: 'NativeCLIError',
+				code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+			});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('cancels Studio Blueprint streams that exceed the JSON limit', async () => {
+		const onCancel = vi.fn();
+		const blueprint = streamedBlueprintBundle(
+			[new Uint8Array(16 * 1024 * 1024 + 1)],
+			onCancel,
+			false
+		);
+		await expect(
+			runCLI({ command: 'server', blueprint })
+		).rejects.toMatchObject({
+			name: 'NativeCLIError',
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			message: expect.stringContaining('must not exceed'),
+		});
+		expect(onCancel).toHaveBeenCalledOnce();
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('rejects invalid UTF-8 in Studio Blueprint streams', async () => {
+		const blueprint = streamedBlueprintBundle([
+			new Uint8Array([0xc3, 0x28]),
+		]);
+		await expect(
+			runCLI({ command: 'server', blueprint })
+		).rejects.toMatchObject({
+			name: 'NativeCLIError',
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			message: expect.stringContaining('valid UTF-8'),
+		});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('rejects unsafe or unsupported Studio Blueprint metadata before acquisition', async () => {
+		const readAccessor = {};
+		Object.defineProperty(readAccessor, 'read', {
+			get: () => async () => undefined,
+		});
+		const streamedFileAccessor = {};
+		Object.defineProperty(streamedFileAccessor, 'stream', {
+			get: () => () => undefined,
+		});
+		const streamAccessor = {
+			async read() {
+				return streamedFileAccessor;
+			},
+		};
+		const proxiedBundle = new Proxy(
+			{
+				async read() {
+					return undefined;
+				},
+			},
+			{}
+		);
+		for (const blueprint of [
+			new StudioBlueprintBundle(
+				JSON.stringify({
+					preferredVersions: { php: '8.3', wp: 'latest' },
+				})
+			),
+			new StudioBlueprintBundle(
+				JSON.stringify({
+					constants: [],
+					preferredVersions: { php: '8.2', wp: 'latest' },
+				})
+			),
+			readAccessor,
+			streamAccessor,
+			proxiedBundle,
+		])
+			await expect(
+				runCLI({ command: 'server', blueprint })
+			).rejects.toMatchObject({
+				name: 'NativeCLIError',
+				code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('captures the Studio bundle capability before caller mutation', async () => {
+		const bundle = new StudioBlueprintBundle(
+			JSON.stringify({
+				preferredVersions: { php: '8.2', wp: '6.8' },
+				constants: { SNAPSHOT_VALUE: 'before' },
+			})
+		);
+		const args: RunCLIArgs = {
+			command: 'server',
+			blueprint: bundle,
+		};
+		const mutatedRead = vi.fn(async () => {
+			throw new Error('mutated read must not run');
+		});
+		const running = runCLI(args) as Promise<RunCLIServer>;
+		args.blueprint = { steps: [{ step: 'mutated' }] };
+		Object.defineProperty(bundle, 'read', { value: mutatedRead });
+
+		const result = await running;
+		expect(bundle.reads).toEqual(['/blueprint.json']);
+		expect(mutatedRead).not.toHaveBeenCalled();
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		const blueprintPath = argv[argv.indexOf('--blueprint') + 1];
+		if (!blueprintPath) throw new Error('missing Studio Blueprint path');
+		expect(JSON.parse(await readFile(blueprintPath, 'utf8'))).toEqual({
+			steps: [
+				{
+					step: 'defineWpConfigConsts',
+					consts: { SNAPSHOT_VALUE: 'before' },
+				},
+			],
+		});
+		await result[Symbol.asyncDispose]();
 	});
 
 	it('snapshots nested arguments before the first await', async () => {

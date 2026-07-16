@@ -27,6 +27,7 @@ export interface ProgrammaticOptionCompatibility {
 	name: string;
 	commands?: string[];
 	status: CompatibilityStatus;
+	allowFalse?: boolean;
 	diagnostic?: string;
 }
 

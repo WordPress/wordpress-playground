@@ -33,4 +33,9 @@ library calls never terminate the Node process. Programmatic calls
 synchronously snapshot and validate
 plain-object, dense-array, Blueprint, mount, constant, enum, numeric,
 command-scope, NUL, 256-worker, and Blueprint-size/depth constraints before
-acquisition. See `compatibility.json` for the CLI contract.
+acquisition. Studio's readable Blueprint bundle shape is accepted by reading
+only its bounded, strict-UTF-8 `/blueprint.json`; supported top-level preferred
+versions and constants are translated to native arguments and steps. The
+schema's explicitly listed unsupported booleans accept only `false` as a
+no-capability value; enabled and unknown options still reject. See
+`compatibility.json` for the CLI contract.

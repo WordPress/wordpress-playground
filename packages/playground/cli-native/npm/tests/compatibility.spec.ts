@@ -86,6 +86,7 @@ describe('compatibility schema v2', () => {
 			const items = inventory[section] as Array<{
 				name: string;
 				status: string;
+				allowFalse?: unknown;
 				diagnostic?: string;
 				errorContains?: string;
 			}>;
@@ -102,6 +103,11 @@ describe('compatibility schema v2', () => {
 					expect(item.diagnostic ?? item.errorContains).toBeTypeOf(
 						'string'
 					);
+				if (Object.hasOwn(item, 'allowFalse')) {
+					expect(section).toBe('options');
+					expect(item.status).toBe('unsupported-by-design');
+					expect(item.allowFalse).toBe(true);
+				}
 			}
 		}
 
@@ -115,6 +121,17 @@ describe('compatibility schema v2', () => {
 		]);
 		const options = names(inventory['options']);
 		expect(options).toContain('command');
+		expect(
+			(
+				inventory['options'] as Array<{
+					name: string;
+					allowFalse?: boolean;
+				}>
+			)
+				.filter(({ allowFalse }) => allowFalse === true)
+				.map(({ name }) => name)
+				.sort()
+		).toEqual(['internalCookieStore', 'memcached', 'redis']);
 		const cliOptions = inventory['cliOptions'] as Array<{
 			name: string;
 			commands: string[];

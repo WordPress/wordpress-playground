@@ -1196,6 +1196,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use serde::Deserialize;
     use std::{
         collections::BTreeSet,
         env, fs,
@@ -1229,6 +1230,16 @@ mod tests {
 
     fn matrix() -> serde_json::Value {
         serde_json::from_str(include_str!("../compatibility.json")).unwrap()
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct ProgrammaticOptionCompatibility {
+        name: String,
+        commands: Option<Vec<String>>,
+        status: String,
+        allow_false: Option<bool>,
+        diagnostic: Option<String>,
     }
 
     #[test]
@@ -1279,6 +1290,47 @@ mod tests {
                 "invalid compatibility status {status}"
             );
         }
+
+        let programmatic_options: Vec<ProgrammaticOptionCompatibility> =
+            serde_json::from_value(matrix["options"].clone()).unwrap();
+        let mut allow_false_options = BTreeSet::new();
+        for entry in programmatic_options {
+            assert!(
+                matches!(
+                    entry.status.as_str(),
+                    "supported" | "native-only" | "unsupported-by-design"
+                ),
+                "invalid compatibility status {}",
+                entry.status
+            );
+            if entry.status == "unsupported-by-design" {
+                assert!(
+                    entry.diagnostic.is_some(),
+                    "{} must declare an unsupported diagnostic",
+                    entry.name
+                );
+            }
+            if let Some(allow_false) = entry.allow_false {
+                assert!(allow_false, "{} allowFalse must be true", entry.name);
+                assert_eq!(entry.status, "unsupported-by-design");
+                assert!(
+                    entry
+                        .commands
+                        .as_ref()
+                        .is_some_and(|commands| !commands.is_empty()),
+                    "{} allowFalse must be command-scoped",
+                    entry.name
+                );
+                allow_false_options.insert(entry.name);
+            }
+        }
+        assert_eq!(
+            allow_false_options,
+            ["internalCookieStore", "memcached", "redis"]
+                .into_iter()
+                .map(str::to_string)
+                .collect()
+        );
     }
 
     #[test]

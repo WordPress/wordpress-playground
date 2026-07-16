@@ -14,6 +14,7 @@ interface InventoryEntry {
 	status: 'supported' | 'native-only' | 'unsupported-by-design';
 	kind?: 'value' | 'type';
 	commands?: string[];
+	allowFalse?: boolean;
 }
 
 describe('upstream-derived compatibility inventory', () => {
@@ -73,21 +74,37 @@ describe('upstream-derived compatibility inventory', () => {
 				.filter(({ status }) => status === 'supported')
 				.map(({ name }) => name)
 		);
-		for (const [cliName, metadata] of deriveCLIOptions(runCLISource)
-			.options) {
+		const derivedOptions = deriveCLIOptions(runCLISource).options;
+		const allowFalseOptions = new Set<string>();
+		for (const [cliName, metadata] of derivedOptions) {
 			for (const programmaticName of [
 				cliName,
 				camelCaseOptionName(cliName),
 			]) {
 				if (!upstreamOptions.has(programmaticName)) continue;
+				const entry = optionInventory.get(programmaticName);
 				assertCommands(
-					optionInventory.get(programmaticName),
+					entry,
 					metadata.commands,
 					supportedCommands,
 					`RunCLIArgs.${programmaticName}`
 				);
+				if (entry?.allowFalse === true) {
+					allowFalseOptions.add(programmaticName);
+					expect(entry.status).toBe('unsupported-by-design');
+					expect(
+						metadata.boolean,
+						`RunCLIArgs.${programmaticName} must be an upstream boolean option`
+					).toBe(true);
+				}
 			}
 		}
+		expect([...allowFalseOptions].sort()).toEqual(
+			inventory.options
+				.filter(({ allowFalse }) => allowFalse === true)
+				.map(({ name }) => name)
+				.sort()
+		);
 
 		const upstreamServerMembers = flattenServerMembers(
 			checker,

@@ -151,6 +151,7 @@
 			"name": "internalCookieStore",
 			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "unsupported-by-design",
+			"allowFalse": true,
 			"diagnostic": "Node cookie-store mediation"
 		},
 		{
@@ -174,12 +175,14 @@
 			"name": "redis",
 			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "unsupported-by-design",
+			"allowFalse": true,
 			"diagnostic": "Redis extension"
 		},
 		{
 			"name": "memcached",
 			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "unsupported-by-design",
+			"allowFalse": true,
 			"diagnostic": "Memcached extension"
 		},
 		{

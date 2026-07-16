@@ -11,6 +11,7 @@ import { request as httpsRequest } from 'node:https';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isProxy } from 'node:util/types';
 import {
 	CLIArgsValidationError,
 	NativeCLIError,
@@ -384,19 +385,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const snapshot = snapshotSupportedArgs(args);
 	const validatedArgs = snapshot.args;
+	const blueprintJSON = await materializeBlueprintJSON(
+		snapshot.blueprintJSON,
+		validatedArgs
+	);
 	if (
 		validatedArgs.command === 'start' ||
 		validatedArgs.command === 'server'
 	) {
-		return await startControlledServer(
-			validatedArgs,
-			snapshot.blueprintJSON
-		);
+		return await startControlledServer(validatedArgs, blueprintJSON);
 	}
-	const serialized = await serializeRunCLIArgs(
-		validatedArgs,
-		snapshot.blueprintJSON
-	);
+	const serialized = await serializeRunCLIArgs(validatedArgs, blueprintJSON);
 	let hasInitiatingFailure = false;
 	try {
 		let result: Awaited<ReturnType<typeof runNativeCLI>>;
@@ -427,6 +426,131 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		} catch (cleanupFailure) {
 			if (!hasInitiatingFailure) throw cleanupFailure;
 		}
+	}
+}
+
+async function materializeBlueprintJSON(
+	source: string | Promise<string> | undefined,
+	args: RunCLIArgs
+): Promise<string | undefined> {
+	if (source === undefined) return undefined;
+	let text: string;
+	try {
+		text = await source;
+	} catch (cause) {
+		if (cause instanceof NativeCLIError) throw cause;
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI could not read blueprint.json from the Blueprint bundle.',
+			{ cause }
+		);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(text);
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI Blueprint bundle blueprint.json is not valid JSON.',
+			{ cause }
+		);
+	}
+	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+		invalidRequest('Native CLI Blueprint JSON must be an object.');
+
+	const blueprint = snapshotJSONValue(parsed, new WeakSet(), 'blueprint', 0, {
+		nodes: 0,
+	}) as Record<string, unknown>;
+	translateBlueprintTopLevel(blueprint, args);
+	const translated = snapshotJSONValue(
+		blueprint,
+		new WeakSet(),
+		'blueprint',
+		0,
+		{ nodes: 0 }
+	);
+	let json: string;
+	try {
+		json = JSON.stringify(translated);
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI Blueprint could not be serialized as JSON.',
+			{ cause }
+		);
+	}
+	if (Buffer.byteLength(json, 'utf8') > MAX_BLUEPRINT_JSON_BYTES)
+		invalidRequest(
+			`Native CLI blueprint JSON must not exceed ${MAX_BLUEPRINT_JSON_BYTES} bytes.`
+		);
+	return json;
+}
+
+function translateBlueprintTopLevel(
+	blueprint: Record<string, unknown>,
+	args: RunCLIArgs
+): void {
+	if (blueprint['preferredVersions'] !== undefined) {
+		const preferredVersions = snapshotPlainRecord(
+			blueprint['preferredVersions'],
+			'Native CLI Blueprint preferredVersions'
+		);
+		const keys = Object.keys(preferredVersions).sort();
+		if (keys.length !== 2 || keys[0] !== 'php' || keys[1] !== 'wp')
+			invalidRequest(
+				'Native CLI Blueprint preferredVersions must contain only php and wp.'
+			);
+		const php = preferredVersions['php'];
+		if (php !== '8.2')
+			invalidRequest(
+				'Native CLI Blueprint preferredVersions.php must be the supported value "8.2".'
+			);
+		const wp = preferredVersions['wp'];
+		if (wp === false)
+			unsupported(
+				'Native CLI v1 does not support preferredVersions.wp=false PHP-only Blueprints.'
+			);
+		if (typeof wp !== 'string' || wp.length === 0)
+			invalidRequest(
+				'Native CLI Blueprint preferredVersions.wp must be a non-empty string.'
+			);
+		assertNoNul(wp, 'Native CLI Blueprint preferredVersions.wp');
+		args.php = php;
+		args.wp = wp;
+		delete blueprint['preferredVersions'];
+	}
+
+	if (blueprint['constants'] !== undefined) {
+		const constants = snapshotPlainRecord(
+			blueprint['constants'],
+			'Native CLI Blueprint constants'
+		);
+		for (const [name, value] of Object.entries(constants)) {
+			if (name.length === 0)
+				invalidRequest(
+					'Native CLI Blueprint constant names must not be empty.'
+				);
+			assertNoNul(name, 'Native CLI Blueprint constant name');
+			if (
+				typeof value !== 'string' &&
+				typeof value !== 'boolean' &&
+				(typeof value !== 'number' || !Number.isFinite(value))
+			)
+				invalidRequest(
+					`Native CLI Blueprint constant \`${name}\` must be a string, boolean, or finite number.`
+				);
+			if (typeof value === 'string')
+				assertNoNul(value, `Native CLI Blueprint constant \`${name}\``);
+		}
+		const steps = blueprint['steps'];
+		if (steps !== undefined && !Array.isArray(steps))
+			invalidRequest('Native CLI Blueprint steps must be an array.');
+		blueprint['steps'] = [
+			{ step: 'defineWpConfigConsts', consts: constants },
+			...((steps ?? []) as unknown[]),
+		];
+		delete blueprint['constants'];
 	}
 }
 
@@ -787,7 +911,7 @@ const MAX_BLUEPRINT_JSON_BYTES = 16 * 1024 * 1024;
 
 interface SupportedArgsSnapshot {
 	args: RunCLIArgs;
-	blueprintJSON?: string;
+	blueprintJSON?: string | Promise<string>;
 }
 
 function snapshotSupportedArgs(value: unknown): SupportedArgsSnapshot {
@@ -833,6 +957,18 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 				`The native CLI does not support the programmatic option \`${key}\`.`
 			);
 		if (propertyValue === undefined) {
+			delete args[key];
+			continue;
+		}
+		if (
+			compatibility.status === 'unsupported-by-design' &&
+			compatibility.allowFalse === true &&
+			propertyValue === false
+		) {
+			if (!compatibility.commands?.includes(command))
+				invalidRequest(
+					`Native CLI option \`${key}\` is not supported by the ${command} command.`
+				);
 			delete args[key];
 			continue;
 		}
@@ -953,9 +1089,6 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 		);
 	if (typeof args.autoMount === 'string')
 		assertNoNul(args.autoMount, 'Native CLI autoMount');
-	const blueprint = snapshotBlueprint(args.blueprint);
-	args.blueprint = blueprint.value;
-
 	args.mount = snapshotMounts(args.mount, 'mount');
 	args['mount-before-install'] = snapshotMounts(
 		args['mount-before-install'],
@@ -985,6 +1118,8 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 				);
 			definedNames.add(name);
 		}
+	const blueprint = snapshotBlueprint(args.blueprint);
+	args.blueprint = blueprint.value;
 	return {
 		args,
 		blueprintJSON: blueprint.json,
@@ -1052,7 +1187,7 @@ function snapshotDenseArray(value: unknown, description: string): unknown[] {
 
 function snapshotBlueprint(value: unknown): {
 	value: unknown;
-	json?: string;
+	json?: string | Promise<string>;
 } {
 	if (value === undefined) return { value: undefined };
 	if (typeof value === 'string') {
@@ -1065,6 +1200,16 @@ function snapshotBlueprint(value: unknown): {
 		invalidRequest(
 			'Native CLI blueprint must be a path or plain JSON object.'
 		);
+	const read = snapshotDataMethod(
+		value,
+		'read',
+		'Native CLI Blueprint filesystem bundle'
+	);
+	if (read)
+		return {
+			value: Object.create(null),
+			json: readBlueprintBundle(read),
+		};
 	const budget = { nodes: 0 };
 	const snapshot = snapshotJSONValue(
 		value,
@@ -1088,6 +1233,134 @@ function snapshotBlueprint(value: unknown): {
 			`Native CLI blueprint JSON must not exceed ${MAX_BLUEPRINT_JSON_BYTES} bytes.`
 		);
 	return { value: snapshot, json };
+}
+
+function snapshotDataMethod(
+	owner: object,
+	name: string,
+	description: string
+): ((...args: unknown[]) => unknown) | undefined {
+	let candidate: object | null = owner;
+	for (let depth = 0; candidate !== null; depth++) {
+		if (isProxy(candidate))
+			invalidRequest(`${description} must not be a Proxy.`);
+		if (candidate === Object.prototype) return undefined;
+		if (depth > MAX_BLUEPRINT_DEPTH)
+			invalidRequest(`${description} prototype chain is too deep.`);
+		const descriptor = Object.getOwnPropertyDescriptor(candidate, name);
+		if (descriptor) {
+			if (
+				!('value' in descriptor) ||
+				typeof descriptor.value !== 'function'
+			)
+				invalidRequest(
+					`${description}.${name} must be a data-property function.`
+				);
+			const method = descriptor.value as (...args: unknown[]) => unknown;
+			return (...args: unknown[]) => Reflect.apply(method, owner, args);
+		}
+		candidate = Object.getPrototypeOf(candidate);
+	}
+	return undefined;
+}
+
+async function readBlueprintBundle(
+	read: (...args: unknown[]) => unknown
+): Promise<string> {
+	let file: unknown;
+	try {
+		file = await read('/blueprint.json');
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI could not read /blueprint.json from the Blueprint filesystem bundle.',
+			{ cause }
+		);
+	}
+	if (typeof file !== 'object' || file === null)
+		invalidRequest(
+			'Native CLI Blueprint filesystem read() must return a streamed file.'
+		);
+	const streamMethod = snapshotDataMethod(
+		file,
+		'stream',
+		'Native CLI Blueprint streamed file'
+	);
+	if (!streamMethod)
+		invalidRequest(
+			'Native CLI Blueprint filesystem read() result must expose stream().'
+		);
+	let stream: unknown;
+	try {
+		stream = streamMethod();
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI could not open the Blueprint filesystem stream.',
+			{ cause }
+		);
+	}
+	if (isProxy(stream))
+		invalidRequest(
+			'Native CLI Blueprint filesystem stream() must not return a Proxy.'
+		);
+	if (!(stream instanceof ReadableStream))
+		invalidRequest(
+			'Native CLI Blueprint filesystem stream() must return a ReadableStream.'
+		);
+
+	let reader: ReadableStreamDefaultReader<unknown>;
+	try {
+		reader = ReadableStream.prototype.getReader.call(
+			stream
+		) as ReadableStreamDefaultReader<unknown>;
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI could not acquire the Blueprint filesystem stream reader.',
+			{ cause }
+		);
+	}
+	const chunks: Buffer[] = [];
+	let length = 0;
+	try {
+		for (;;) {
+			const result = await reader.read();
+			if (result.done) break;
+			if (isProxy(result.value) || !(result.value instanceof Uint8Array))
+				invalidRequest(
+					'Native CLI Blueprint filesystem stream must contain Uint8Array chunks.'
+				);
+			const chunk = Buffer.from(result.value);
+			length += chunk.byteLength;
+			if (length > MAX_BLUEPRINT_JSON_BYTES)
+				invalidRequest(
+					`Native CLI blueprint JSON must not exceed ${MAX_BLUEPRINT_JSON_BYTES} bytes.`
+				);
+			chunks.push(chunk);
+		}
+	} catch (cause) {
+		await reader.cancel().catch(() => undefined);
+		if (cause instanceof NativeCLIError) throw cause;
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI could not read the Blueprint filesystem stream.',
+			{ cause }
+		);
+	} finally {
+		reader.releaseLock();
+	}
+	try {
+		return new TextDecoder('utf-8', { fatal: true }).decode(
+			Buffer.concat(chunks, length)
+		);
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI Blueprint bundle blueprint.json must be valid UTF-8.',
+			{ cause }
+		);
+	}
 }
 
 function snapshotJSONValue(
