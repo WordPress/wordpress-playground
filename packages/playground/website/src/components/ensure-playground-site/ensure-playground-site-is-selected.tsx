@@ -474,20 +474,24 @@ function YouHaveAutosaveNudge({
 		</aside>
 	);
 
-	if (!anchorButton) {
-		return card;
-	}
 	return (
-		<Popover
-			className={css.nudgePopover}
-			anchor={anchorButton}
-			placement="top"
-			offset={18}
-			shift
-			noArrow={false}
-			focusOnMount={false}
-		>
-			{card}
-		</Popover>
+		<>
+			<div className={css.scrim} aria-hidden="true" />
+			{anchorButton ? (
+				<Popover
+					className={css.nudgePopover}
+					anchor={anchorButton}
+					placement="top"
+					offset={18}
+					shift
+					noArrow={false}
+					focusOnMount={false}
+				>
+					{card}
+				</Popover>
+			) : (
+				card
+			)}
+		</>
 	);
 }

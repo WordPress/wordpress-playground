@@ -149,7 +149,26 @@
 	text-decoration: underline !important;
 }
 
+/* On phones the sheet sits directly on page content and its 1px gutters leave
+   no room for a shadow to read, so a passive scrim provides the separation.
+   It stays below the Dock (50) so the Playgrounds button the caret points at
+   keeps full contrast, and it ignores pointer events so a tap anywhere
+   outside still dismisses the nudge. */
+.scrim {
+	display: none;
+}
+
 @media (max-width: 600px) {
+	.scrim {
+		display: block;
+		position: fixed;
+		z-index: 25;
+		inset: 0;
+		background: rgb(0 0 0 / 40%);
+		animation: scrimFadeIn 200ms ease-out;
+		pointer-events: none;
+	}
+
 	/* Phones get a compact sheet: tighter spacing, and the anchored card
 	   spans the viewport right above the Dock's bottom bar. */
 	.nudge {
@@ -166,5 +185,15 @@
 		left: 12px;
 		right: 12px;
 		width: auto;
+	}
+}
+
+@keyframes scrimFadeIn {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
 	}
 }
