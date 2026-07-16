@@ -91,15 +91,51 @@ export function SiteLogs({ className }: { className?: string }) {
 					<main className={css.logList}>{logList()}</main>
 				) : logs.length > 0 ? (
 					<div className={css.logEmptyPlaceholder}>
-						No matching logs found.
+						<p className={css.logEmptyHint}>
+							No logs match “{searchTerm}”.
+						</p>
+						<button
+							type="button"
+							className={css.logClearSearch}
+							onClick={() => setSearchTerm('')}
+						>
+							Clear search
+						</button>
 					</div>
 				) : (
-					<div>
-						Error logs for Playground, WordPress, and PHP will show
-						up here when something goes wrong.
-						<br />
-						<br />
-						No problems so far – yay! 🎉
+					<div className={css.logEmptyState}>
+						<p className={css.logEmptyTitle}>Nothing logged yet</p>
+						<p className={css.logEmptyHint}>
+							This is the combined log for your Playground. Three
+							kinds of messages land here as you use it:
+						</p>
+						<ul className={css.logLegend}>
+							<li>
+								<span className={css.logLegendTerm}>PHP</span>
+								<span className={css.logLegendDesc}>
+									fatal errors, warnings, and notices from
+									your code
+								</span>
+							</li>
+							<li>
+								<span className={css.logLegendTerm}>
+									WordPress
+								</span>
+								<span className={css.logLegendDesc}>
+									entries written to the debug log when
+									WP_DEBUG is on
+								</span>
+							</li>
+							<li>
+								<span className={css.logLegendTerm}>
+									Playground
+								</span>
+								<span className={css.logLegendDesc}>
+									runtime messages from the Playground app
+									itself
+								</span>
+							</li>
+						</ul>
 					</div>
 				)}
 			</div>

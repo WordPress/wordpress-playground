@@ -2,7 +2,7 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
+import { joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -235,6 +235,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				/**
+				 * The remote runtime has no mail server. Capture sendmail stdin as an
+				 * event through a null transport; consumers must relay the message if
+				 * they want it delivered.
+				 */
+				php.setCommandSpawnHandler(
+					'sendmail',
+					sendmailSpawnHandler(php)
+				);
+
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',

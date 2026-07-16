@@ -1,17 +1,117 @@
+.dock {
+	background: #21201d;
+	/* Welded to the bottom edge: only the top corners round, and the bottom is
+	   clipped flush so it reads as part of the viewport edge. */
+	border-radius: 18px 18px 0 0;
+	bottom: 0;
+	clip-path: inset(0 round 18px 18px 0 0);
+	display: flex;
+	/* drop-shadow (not box-shadow) so it follows the clipped silhouette. Two soft
+	   upward casts lift the bar off the page; a tight near-opaque edge cast defines
+	   the boundary on light or similar-toned backgrounds, where a soft shadow alone
+	   washes out and the bar looks pasted on. */
+	filter: drop-shadow(0 -14px 34px rgba(12, 10, 8, 0.5))
+		drop-shadow(0 -3px 10px rgba(12, 10, 8, 0.34))
+		drop-shadow(0 0 1px rgba(12, 10, 8, 0.6));
+	flex-direction: column;
+	/* A light rim on the inside edges (the bottom is clipped flush) keeps a crisp
+	   outline where the page behind is dark; the brighter top line reads as the lit
+	   top edge of a raised panel. Inset so it's clipped and rounded with the box. */
+	box-shadow:
+		inset 0 0 0 1px rgba(255, 251, 243, 0.16),
+		inset 0 2px 0 -1px rgba(255, 251, 243, 0.26);
+	left: 50%;
+	max-width: calc(100vw - 24px);
+	position: fixed;
+	transform: translateX(-50%);
+	transition:
+		transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+		clip-path 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+	/* The whole surface is a drag handle, so none of the chrome's text (tool
+	   labels, the save status) is selectable — a press that stays under the
+	   drag threshold must not leave a selection behind. The address input
+	   opts back in below; it's the one place text interaction is real. */
+	user-select: none;
+	-webkit-user-select: none;
+	/* Content-based width so it stays put when dragged — auto width is
+	   shrink-to-fit and can change as the dock's `left` moves toward an edge. */
+	width: max-content;
+	z-index: 50;
+}
+
+.dock-address input {
+	user-select: text;
+	-webkit-user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dock {
+		transition: none;
+	}
+}
+
+.dock-dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.dock-top-row {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+}
+
+.dock-address {
+	flex: 1;
+	min-width: 0;
+}
+
+.dock-status {
+	align-items: center;
+	display: flex;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* The active Playground's name is kept in the DOM for screen readers and as the
+   stable "Playground title" hook, but not shown — the save-status pill carries
+   the only visible status, and the name would just repeat it for unsaved sites. */
+.dock-site-name {
+	border: 0;
+	clip: rect(0, 0, 0, 0);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+.dock-tools {
+	align-items: stretch;
+	display: flex;
+	gap: 2px;
+}
+
+/* Group divider before the "Blueprint" tool. The line is a short, vertically
+   centered pseudo-element living in the gap — it doesn't pad or border the
+   button, so the button's rounded hover/active highlight stays flush in its own
+   box (no offset dead strip beside the rounded corners). */
 .with-separator {
 	margin-left: 9px;
 	position: relative;
 }
 
 .with-separator::before {
-	background: rgba(247, 245, 242, 0.16);
 	content: '';
-	height: 24px;
-	left: -5px;
 	position: absolute;
 	top: 50%;
-	transform: translateY(-50%);
+	left: -5px;
 	width: 1px;
+	height: 24px;
+	transform: translateY(-50%);
+	background: rgba(247, 245, 242, 0.16);
 }
 
 .dock-item {
@@ -29,6 +129,7 @@
 	min-height: 52px;
 	min-width: 72px;
 	padding: 8px 7px 7px;
+	/* Anchors the recent-autosave dot to the tool button. */
 	position: relative;
 	transition:
 		background 120ms ease,
@@ -40,16 +141,8 @@
 	color: #f7f5f2;
 }
 
-.dock-item:disabled {
-	color: rgba(247, 245, 242, 0.4);
-	cursor: default;
-}
-
-.dock-item:disabled:hover {
-	background: transparent;
-	color: rgba(247, 245, 242, 0.4);
-}
-
+/* The open pane gets a persistent, stronger highlight than hover so it reads as
+   "current" — the fill alone marks it (no underline bar). */
 .dock-item-active {
 	background: rgba(247, 245, 242, 0.22);
 	color: #ffffff;
@@ -67,6 +160,7 @@
 
 .dock-item-primary:hover,
 .dock-item-primary.dock-item-active {
+	/* Matches the surface accent-hover (#2f4ad1) used in pane content. */
 	background: #2f4ad1;
 	color: #ffffff;
 }
@@ -89,26 +183,1017 @@
 	font-weight: 500;
 	letter-spacing: 0.015em;
 	line-height: 1;
+	/* One line per label so every tool button is the same height and the icons
+	   stay on a shared baseline (a 2-line label like "Site Settings" otherwise
+	   made its button taller than its neighbours). */
 	white-space: nowrap;
 }
 
-.dock-item-dot {
-	background: #d63638;
-	border: 2px solid #21201d;
-	border-radius: 999px;
-	height: 10px;
-	position: absolute;
-	right: 12px;
-	top: 8px;
-	width: 10px;
+/* Panel checkboxes read on-brand — the accent blue with a white check when on,
+   overriding WordPress' teal admin color (#007cba) and any muted per-panel
+   accent (the site-info panel remaps the WP accent to gray). */
+.pane :global(.components-checkbox-control__input[type='checkbox']) {
+	border-color: var(--line-control);
+	border-radius: 4px;
+}
+.pane :global(.components-checkbox-control__input[type='checkbox']:checked),
+.pane
+	:global(
+		.components-checkbox-control__input[type='checkbox']:indeterminate
+	) {
+	background: var(--accent, #3858e9);
+	border-color: var(--accent, #3858e9);
 }
 
+.pane {
+	--file-tree-row-height: 36px;
+
+	/* "Quiet Paper" design tokens — inherited by all pane content so every
+	   surface, space, and color comes from one warm scale. */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-12: 48px;
+	/* Child panels use the same content edge as the shared title. */
+	--pane-inline-padding: var(--space-6);
+	--paper-1: #f7f5f2; /* pane surface */
+	--paper-2: #faf8f5; /* raised */
+	--paper-3: #ece8e1; /* recessed well: notices, code chips */
+	--paper-4: #e7e2da; /* control hover */
+	--paper-5: #e2dcd2; /* control active */
+	--line-subtle: rgba(33, 32, 29, 0.08);
+	--line-control: rgba(33, 32, 29, 0.14);
+	--line-hover: rgba(33, 32, 29, 0.22);
+	--ink: #21201d;
+	--ink-soft: #2f2d28;
+	--ink-muted: #5f5b54;
+	--ink-faint: #8a857b;
+	--action-icon: #4f4b45;
+	--accent: #3858e9;
+	--accent-hover: #2f4ad1;
+	--accent-link: #2645c9;
+	--radius-card: 8px;
+	--radius-control: 6px;
+
+	background: var(--paper-1);
+	border-radius: 14px;
+	bottom: 94px;
+	/* Shadow only — a floating element doesn't also need a hard border
+	   (the doubled edge is a slop tell). A faint top highlight fakes a lit top. */
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.55),
+		0 1px 2px rgba(40, 33, 23, 0.05),
+		0 8px 18px rgba(40, 33, 23, 0.09),
+		0 26px 56px rgba(40, 33, 23, 0.18);
+	color: var(--ink);
+	/* Simple panes scroll as one piece — the header scrolls with the content
+	   rather than staying pinned. Editor panes override this below. */
+	display: block;
+	max-height: min(620px, calc(100dvh - 174px));
+	left: 50%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	position: fixed;
+	transform: translate(-50%, 0);
+	width: min(600px, calc(100vw - 40px));
+	z-index: 40;
+}
+
+.pane-editor {
+	/* Editor panes drop the pane header and carry their title in the
+	   file-browser bar, so the body fills the whole pane. */
+	display: grid;
+	grid-template-rows: minmax(0, 1fr);
+	height: min(780px, calc(100dvh - 148px));
+	max-height: none;
+	overflow: hidden;
+	width: min(1120px, calc(100vw - 40px));
+}
+
+/* The New pane runs at a fixed height (set inline) so its tab strip stays put
+   as tabs change; the header stays at the top and the body scrolls within. */
+.pane-fixed-height {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.pane-fixed-height .pane-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* Site Settings and Export hold short forms, so they get a
+   narrower pane. Compound selector so it also beats the `.pane` width override
+   in the mobile media query below (equal specificity, later in source). */
+.pane.pane-compact {
+	width: min(440px, calc(100vw - 40px));
+}
+
+/* Start states. CSSTransition keeps the base (`-enter`/`-exit`) class on the
+   node alongside the `-active` class for the whole transition, so the `-active`
+   rules MUST come later in source order to win — otherwise the end state never
+   applies and the pane snaps instead of animating (the old close bug). */
+.pane-enter {
+	opacity: 0;
+	transform: translate(-50%, 14px);
+}
+
+.pane-exit {
+	opacity: 1;
+	transform: translate(-50%, 0);
+}
+
+/* End states. Open decelerates into place (ease-out); close is its exact
+   time-reverse — accelerating away (ease-in) over the same distance/duration. */
+.pane-enter-active {
+	opacity: 1;
+	transform: translate(-50%, 0);
+	transition:
+		opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+		transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pane-exit-active {
+	opacity: 0;
+	transform: translate(-50%, 14px);
+	transition:
+		opacity 240ms cubic-bezier(0.64, 0, 0.78, 0),
+		transform 240ms cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+.pane-header {
+	align-items: center;
+	display: flex;
+	gap: var(--space-4);
+	justify-content: space-between;
+	padding: var(--space-6);
+	width: 100%;
+}
+
+.pane-header-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.pane-editor-header {
+	display: none;
+}
+
+.pane-back {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink-muted);
+	cursor: pointer;
+	display: inline-flex;
+	flex: none;
+	height: 28px;
+	justify-content: center;
+	margin-left: -6px;
+	padding: 0;
+	width: 28px;
+}
+
+.pane-back:hover {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+.pane-back:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--accent);
+	outline: none;
+}
+
+.pane-back svg {
+	fill: currentColor;
+}
+
+/* Right-aligned header action (e.g. "New Playground" on Your Playgrounds): a
+   quiet neutral affordance beside the title. Kept off-accent so it doesn't
+   compete with the active Playground card for attention. */
+.pane-header-action {
+	align-items: center;
+	background: transparent;
+	border: 1px solid var(--line-control);
+	border-radius: var(--radius-card);
+	color: var(--ink-soft);
+	cursor: pointer;
+	display: inline-flex;
+	flex-shrink: 0;
+	font-size: 13px;
+	font-weight: 600;
+	gap: 6px;
+	padding: 8px 12px;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease;
+	white-space: nowrap;
+}
+
+.pane-header-action:hover {
+	background: var(--paper-4);
+	border-color: var(--line-hover);
+}
+
+.pane-header-action svg {
+	fill: currentColor;
+}
+
+.pane-editor .pane-header {
+	padding: var(--space-6) var(--space-6) var(--space-4);
+}
+
+/* A header that carries a subtitle (the settings name, or any pane description)
+   reads as one title+subtitle unit, so the break to the body is tight — far less
+   than the default title-only header padding. */
+.pane-header:has(.settings-identity),
+.pane-header:has(.pane-description) {
+	padding-bottom: var(--space-3);
+}
+
+.pane-header h2 {
+	color: var(--ink);
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	margin: 0;
+}
+
+/* Title + subtitle read as one unit; the section break to the body is the
+   header's bottom padding. */
+.pane-description {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.45;
+	margin: var(--space-2) 0 0;
+}
+
+/* The active Playground's name sits right under the "This Playground" title as
+   the header's subtitle line, with a quiet pencil to rename — so the pane names
+   the specific Playground without a separate row. */
+.settings-identity {
+	align-items: center;
+	display: flex;
+	gap: var(--space-1);
+	margin-top: var(--space-2);
+	min-width: 0;
+}
+
+.settings-name {
+	color: var(--ink-soft);
+	font-size: 14px;
+	font-weight: 500;
+	margin: 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* A quiet inline edit affordance, sized to sit on the name's optical centre. */
+.settings-rename {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-control);
+	color: var(--ink-faint);
+	cursor: pointer;
+	display: inline-flex;
+	flex: none;
+	height: 24px;
+	justify-content: center;
+	padding: 0;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+	width: 24px;
+}
+
+.settings-rename:hover,
+.settings-rename:focus-visible {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+.settings-rename :global(svg) {
+	fill: currentColor;
+}
+
+/* Inline rename field for the "This Playground" header. Matches the name's
+   metrics with negative margins (== padding + border) so toggling edit mode
+   shifts nothing. */
+.settings-name-input {
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	margin: -3px -8px;
+	padding: 2px 7px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: inherit;
+	color: var(--ink, #21201d);
+	background: var(--paper-1, #f7f5f2);
+	border: 1px solid var(--accent, #3858e9);
+	border-radius: var(--radius-control, 6px);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	outline: none;
+}
+
+/* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
+   NO outer shadow, so they read as carved-in context that never out-shouts the
+   title. (A bordered, filled box rivaling the H1 is the classic AI-slop tell.) */
+.pane :global(.components-notice) {
+	background: var(--paper-3);
+	border: 0;
+	border-radius: var(--radius-card);
+	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.04);
+	color: var(--ink-muted);
+	margin: 0;
+	padding: var(--space-4);
+}
+
+/* Status is signalled by a single restrained left rule (kept as an inset shadow
+   so the "NO border, NO filled box" rule above still holds), never an
+   off-palette colour slab. Warning/info/success stay quiet parchment wells —
+   the same calm treatment the settings pane uses for its reset note — so a
+   caution never out-shouts the warm surface; only a true error carries red. */
+.pane :global(.components-notice.is-warning),
+.pane :global(.components-notice.is-success) {
+	background: var(--paper-3);
+}
+
+/* Info wells (e.g. the Database "Early access" panel) carry a control-weight
+   edge so they separate from the near-equal paper pane instead of receding. */
+.pane :global(.components-notice.is-info) {
+	background: var(--paper-3);
+	box-shadow:
+		inset 0 0 0 1px var(--line-subtle),
+		inset 0 1px 1px rgba(40, 33, 23, 0.05);
+}
+
+.pane :global(.components-notice.is-error) {
+	background: var(--paper-3);
+	box-shadow:
+		inset 3px 0 0 0 #cc1818,
+		inset 0 1px 1px rgba(40, 33, 23, 0.04);
+}
+
+.pane :global(.components-notice .components-notice__content) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.pane :global(.components-notice .components-notice__content a) {
+	color: var(--accent-link);
+}
+
+.pane :global(.components-notice .components-notice__dismiss) {
+	color: var(--ink-faint);
+}
+
+/* Button hierarchy: exactly one filled blue primary per pane. Every secondary /
+   tertiary becomes a quiet ink control on paper (destructive stays red). */
+
+/* The filled primary uses the surface accent, not WordPress' admin teal
+   (#007cba) — Gutenberg's default is-primary keys off --wp-admin-theme-color,
+   which isn't on the warm ramp. (is-destructive primaries stay red.) */
+.pane :global(.components-button.is-primary:not(.is-destructive)) {
+	background: var(--accent);
+}
+
+.pane
+	:global(
+		.components-button.is-primary:not(.is-destructive):hover:not(:disabled)
+	) {
+	background: var(--accent-hover);
+}
+
+.pane :global(.components-button.is-secondary:not(.is-destructive)) {
+	box-shadow: inset 0 0 0 1px var(--line-control);
+	color: var(--ink);
+}
+
+.pane
+	:global(
+		.components-button.is-secondary:not(.is-destructive):hover:not(
+				:disabled
+			)
+	) {
+	background: var(--paper-4);
+	box-shadow: inset 0 0 0 1px var(--line-hover);
+	color: var(--ink);
+}
+
+.pane :global(.components-button.is-tertiary:not(.is-destructive)) {
+	color: var(--ink);
+}
+
+.pane
+	:global(
+		.components-button.is-tertiary:not(.is-destructive):hover:not(:disabled)
+	) {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
+/* Keep focus inside controls so clipped ancestors cannot cut off the active
+   state. The white inset on primary buttons stays visible against their blue. */
+.pane .pane-body :global(.components-button:focus:not(:disabled)) {
+	box-shadow: inset 0 0 0 2px rgba(56, 88, 233, 0.8);
+	outline: none;
+}
+
+.pane .pane-body :global(.components-button.is-primary:focus:not(:disabled)) {
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* Form fields — warm, consistent, refined across every pane (Store permanently,
+   This Playground, Share). The default WordPress controls otherwise read as
+   admin chrome and clash with the paper surface. */
+.pane .pane-body :global(.components-text-control__input),
+.pane .pane-body :global(.components-select-control__input) {
+	background: #ffffff;
+	border-color: var(--line-control);
+	border-radius: var(--radius-card);
+	box-shadow: none;
+	color: var(--ink);
+	font-size: 15px;
+	padding: 10px 12px;
+}
+
+.pane .pane-body :global(.components-text-control__input:focus),
+.pane .pane-body :global(.components-select-control__input:focus) {
+	border-color: var(--accent);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
+	outline: none;
+}
+
+.pane :global(.components-input-control__backdrop) {
+	border-color: var(--line-control) !important;
+	border-radius: var(--radius-control) !important;
+}
+
+/* Field labels are sentence case — UPPERCASE is reserved for section eyebrows
+   (e.g. "START FROM A BLUEPRINT"), so a label never doubles up the all-caps
+   header above it. */
+.pane :global(.components-base-control__label) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.pane :global(.components-radio-control__input),
+.pane :global(.components-checkbox-control__input) {
+	accent-color: var(--accent);
+}
+
+/* The save surface keeps the native WordPress radio blue used by the deployed
+   Dock while the rest of the pane actions use the stronger Quiet Paper accent. */
+.pane-save {
+	--wp-admin-theme-color: #007cba;
+	--wp-admin-theme-color--rgb: 0, 124, 186;
+}
+
+.pane :global(.components-radio-control__label),
+.pane :global(.components-checkbox-control__label) {
+	color: var(--ink-soft);
+}
+
+.pane-body {
+	min-height: 0;
+}
+
+.pane-editor .pane-body {
+	overflow: hidden;
+}
+
+/* Mobile-only close affordance. The full-screen mobile pane covers the
+   tap-outside scrim, so each panel needs a visible X back to the preview. On
+   desktop the dock tool toggle and the scrim already close the pane. */
+.pane-close {
+	display: none;
+}
+
+@media (max-width: 1024px) {
+	/* The dock becomes a flush full-width bottom bar (the mobile-app pattern):
+	   the tools row sits on TOP, the address + status row below it. column-reverse
+	   keeps the DOM order (address row first, for desktop) while flipping the
+	   visual stack on mobile. */
+	.dock {
+		border-radius: 0;
+		clip-path: none;
+		/* The square bar uses the mobile box-shadow below; retaining the desktop
+		   drop-shadow would stack both elevation effects. */
+		filter: none;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		top: auto;
+		max-width: none;
+		width: auto;
+		/* Keep the 16px side gutter, but let dock-body own the vertical frame and
+		   safe-area clearance so the two Dock rows do not get double padding. */
+		padding: 0 8px;
+		transform: none;
+		cursor: default;
+		box-shadow:
+			0 -1px 0 rgba(247, 245, 242, 0.08),
+			0 -10px 30px rgba(33, 30, 25, 0.4);
+	}
+
+	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
+	   (swipe to scroll), and buttons keep their size instead of squashing. */
+	.dock-tools {
+		max-height: 80px;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+		/* Center the tools on a wide bar (tablets), but fall back to the start
+		   edge when they overflow so the first tool never gets cut off. */
+		justify-content: safe center;
+	}
+
+	.dock-tools::-webkit-scrollbar {
+		display: none;
+	}
+
+	.dock-item {
+		flex-shrink: 0;
+		min-width: 60px;
+	}
+
+	/* 16px keeps iOS from auto-zooming when the inline rename field focuses. */
+	.settings-name-input {
+		font-size: 16px;
+	}
+
+	/* Panels fill the screen above the bar, edge to edge — `--dock-height` is set
+	   inline so the panel always clears the (collapsible) bar. */
+	.pane,
+	.pane.pane-compact,
+	.pane-editor,
+	.pane-fixed-height {
+		border-radius: 0;
+		top: 0;
+		bottom: var(--dock-height, 124px);
+		left: 0;
+		right: 0;
+		width: auto;
+		max-width: none;
+		height: auto;
+		max-height: none;
+		transform: none;
+		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+		/* Flex column so the title row stays above the independently scrolling
+		   panel body. */
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	/* The panel body fills the space under the close bar (and header) and scrolls
+	   on its own, keeping the close control pinned at the top. Editor and
+	   fixed-height panes keep their internal scroll via existing overflow:hidden. */
+	.pane-body {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+	}
+
+	/* Full-screen panels fade + rise in (no horizontal-centering transform). */
+	.pane-enter {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+
+	.pane-enter-active {
+		opacity: 1;
+		transform: translateY(0);
+		transition:
+			opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+			transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.pane-exit {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.pane-exit-active {
+		opacity: 0;
+		transform: translateY(20px);
+		transition:
+			opacity 200ms cubic-bezier(0.64, 0, 0.78, 0),
+			transform 200ms cubic-bezier(0.64, 0, 0.78, 0);
+	}
+
+	.pane-header {
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: 20px var(--space-3) 20px var(--pane-inline-padding);
+		position: relative;
+	}
+
+	/* The X shares the title's center without making the title row taller. This
+	   keeps title and subtitle as the same compact text block used before the
+	   mobile close control was added. */
+	.pane-title-row {
+		align-items: center;
+		display: flex;
+		gap: var(--space-2);
+		padding-right: 44px;
+		width: 100%;
+	}
+
+	.pane-header:has(.settings-identity),
+	.pane-header:has(.pane-description) {
+		padding-bottom: var(--space-3);
+	}
+
+	.pane-title-row .pane-close {
+		position: absolute;
+		right: var(--space-3);
+		top: 10px;
+	}
+
+	.pane-editor-header {
+		align-items: center;
+		background: var(--paper-2);
+		border-bottom: 1px solid var(--line-subtle);
+		display: flex;
+		flex: none;
+		gap: var(--space-2);
+		min-height: 64px;
+		padding: 0 var(--space-3) 0 var(--pane-inline-padding);
+		width: 100%;
+	}
+
+	.pane-editor-header h2 {
+		color: var(--ink);
+		font-size: 20px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+		line-height: 1.2;
+		margin: 0;
+	}
+
+	.pane-editor-header-slot {
+		align-items: center;
+		display: flex;
+		flex: 1;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	/* Below 389px, even compact labelled actions cannot share the title line.
+	   Keep title/Help/X together and move both file actions as one group. */
+	@media (max-width: 388px) {
+		.pane-editor-header:has([data-dock-pane-header-actions]) {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			grid-template-rows: 64px auto;
+			padding-bottom: var(--space-3);
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			.pane-editor-header-slot {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-actions] {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-help] {
+			grid-column: 2;
+			grid-row: 1;
+			justify-self: start;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-utilities] {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			justify-self: start;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions]) .pane-close {
+			grid-column: 3;
+			grid-row: 1;
+		}
+	}
+
+	.pane-back {
+		margin-top: -2px;
+	}
+
+	/* The dock's bottom bar already carries a "New" tool, so the in-pane
+	   "New Playground" header action is redundant on mobile — hide it so the
+	   close X can own the header's top-right corner without crowding. */
+	.pane-header-action {
+		display: none;
+	}
+
+	/* The 44px target stays pinned in the non-scrolling header. Standard panes
+	   position it against the title without expanding the text block; editor
+	   panes keep it as the final flex item in their 64px toolbar. */
+	.pane-close {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: var(--radius-control);
+		color: var(--ink-faint);
+		cursor: pointer;
+		display: flex;
+		flex: none;
+		height: 44px;
+		justify-content: center;
+		margin-left: auto;
+		padding: 0;
+		width: 44px;
+	}
+
+	.pane-close:hover {
+		background: var(--paper-4);
+		color: var(--ink);
+	}
+
+	.pane-close:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	.pane-close svg {
+		fill: currentColor;
+	}
+}
+
+.dock-switching {
+	transition: none;
+}
+
+/* Collapsing slides only the tools row off the bottom edge (--dock-body-h now
+   measures the tools), leaving the address row resting on the edge. */
+.dock-collapsed {
+	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
+}
+
+.dock-dragged {
+	left: var(--dock-center, 50%);
+}
+
+/* Overdrag previews the fold by shrinking and rounding the Dock toward the
+   armed corner. The base transform/clip transitions ease it in and out. */
+.dock-will-corner {
+	clip-path: inset(0 round 20px);
+	opacity: 0.82;
+}
+
+.dock-will-corner-left {
+	transform: translateX(-50%) scale(0.8);
+	transform-origin: left bottom;
+}
+
+.dock-will-corner-right {
+	transform: translateX(-50%) scale(0.8);
+	transform-origin: right bottom;
+}
+
+/* Releasing an armed drag continues the preview into its corner launcher. */
+.dock-folding {
+	clip-path: inset(0 round 20px);
+	opacity: 0;
+	pointer-events: none;
+}
+
+.dock-folding-left {
+	animation: dock-fold 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+	transform-origin: left bottom;
+}
+
+.dock-folding-right {
+	animation: dock-fold 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+	transform-origin: right bottom;
+}
+
+@keyframes dock-fold {
+	from {
+		opacity: 0.82;
+		transform: translateX(-50%) scale(0.8);
+	}
+	to {
+		opacity: 0;
+		transform: translateX(-50%) scale(0.06);
+	}
+}
+
+/* Web Animations supplies the unfold geometry; CSS only parks pointer input. */
+.dock-unfolding {
+	pointer-events: none;
+}
+
+/* Committed: the bar is replaced by the corner launcher (rendered separately). */
+.dock-cornered {
+	display: none;
+}
+
+/* The corner launcher — a small round-square button that brings the Dock back. */
+.dock-corner {
+	align-items: center;
+	animation: dock-corner-pop 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+	/* A light tile so the blue brand logo reads at full contrast (blue on white) —
+	   the way the mark is meant to be shown, not muddy blue-on-dark. */
+	background: #ffffff;
+	border: 0;
+	border-radius: 13px;
+	bottom: 16px;
+	cursor: grab;
+	display: flex;
+	/* A soft neutral shadow plus a hairline dark edge separate the tile from the
+	   page whether the background behind it is light or dark. */
+	filter: drop-shadow(0 6px 18px rgba(20, 18, 15, 0.3))
+		drop-shadow(0 2px 5px rgba(20, 18, 15, 0.22));
+	box-shadow: inset 0 0 0 1px rgba(20, 18, 15, 0.12);
+	height: 46px;
+	justify-content: center;
+	position: fixed;
+	transition: background 0.14s ease;
+	touch-action: none;
+	width: 46px;
+	z-index: 50;
+}
+
+/* Dragged out: the launcher keeps pointer capture but hides, so the reappearing
+   bar following the pointer is the only thing the user sees move. */
+.dock-corner-dragging {
+	cursor: grabbing;
+	opacity: 0;
+}
+
+@keyframes dock-corner-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.35);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+.dock-corner:hover {
+	background: #f2f0ec;
+}
+
+.dock-corner:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+/* The Playground brand mark in its native brand blue (#3858e9), reading at full
+   contrast on the light tile — the on-brand icon, not a plain monochrome W. */
+.dock-corner-logo {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+}
+
+.dock-corner-logo svg {
+	height: 28px;
+	width: 28px;
+}
+
+.dock-corner-left {
+	left: 16px;
+}
+
+.dock-corner-right {
+	right: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dock-will-corner,
+	.dock-will-corner-left,
+	.dock-will-corner-right {
+		clip-path: inset(0 round 18px 18px 0 0);
+		opacity: 0.55;
+		transform: translateX(-50%);
+	}
+
+	.dock-corner {
+		animation: none;
+	}
+}
+
+.dock-full {
+	border-radius: 0;
+	clip-path: inset(0 0 0 0);
+	max-width: none;
+	width: 100vw;
+}
+
+.dock-full.dock-collapsed {
+	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
+}
+
+.dock-full .dock-tools {
+	justify-content: center;
+}
+
+/* No drag handle: while the dock can move, its whole dark chrome is the grab
+   (real controls keep their own cursors and swallow the press in JS). */
+.dock-can-move {
+	cursor: grab;
+	touch-action: none;
+}
+
+.dock-can-move.dock-dragging {
+	cursor: grabbing;
+}
+
+/* The grab affordance (the hr-11 "sheen"): warm light pools along the dock's
+   top edge under the pointer, with a bright hairline riding the very edge —
+   invisible at rest, answered on approach. Driven by --sheen-x/--sheen-o,
+   written from the dock's pointer handlers. */
+.dock-sheen {
+	border-radius: 18px 18px 0 0;
+	height: 30px;
+	inset: 0 0 auto;
+	opacity: var(--sheen-o, 0);
+	overflow: hidden;
+	pointer-events: none;
+	position: absolute;
+	transition: opacity 0.3s ease;
+	z-index: 3;
+}
+
+.dock-sheen::before {
+	background: radial-gradient(
+		180px 32px at var(--sheen-x, 50%) 0,
+		rgba(255, 251, 243, 0.27),
+		rgba(255, 251, 243, 0.06) 55%,
+		transparent 80%
+	);
+	content: '';
+	inset: 0;
+	position: absolute;
+}
+
+.dock-sheen::after {
+	background: radial-gradient(
+		110px 3px at var(--sheen-x, 50%) 1px,
+		rgba(255, 251, 243, 0.85),
+		rgba(255, 251, 243, 0.16) 62%,
+		transparent 85%
+	);
+	content: '';
+	height: 2px;
+	inset: 0 0 auto;
+	position: absolute;
+}
+
+/* Full width isn't draggable, so it gets no grab affordance either. */
+.dock-full .dock-sheen {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dock-sheen {
+		transition: none;
+	}
+}
+
+/* Two switches fused into one split capsule (the hr-11 "pill" study): the left
+   half hides/shows the tools, the right half toggles full width. State lives
+   in the glyphs themselves — the chevron flips while the tools are hidden and
+   the screen mark swaps between full-bleed and floating — so no pressed
+   styling is needed. */
 .dock-toggle-pill {
 	align-items: stretch;
-	background: rgba(247, 245, 242, 0.1);
-	border: 1px solid rgba(247, 245, 242, 0.16);
-	border-radius: 999px;
-	display: flex;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
+	display: inline-flex;
+	flex: none;
+	height: 34px;
 	overflow: hidden;
 }
 
@@ -116,84 +1201,216 @@
 	align-items: center;
 	background: transparent;
 	border: 0;
-	color: rgba(247, 245, 242, 0.72);
+	color: rgba(247, 245, 241, 0.62);
 	cursor: pointer;
-	display: inline-flex;
+	display: flex;
 	justify-content: center;
-	min-height: 34px;
-	padding: 0 10px;
+	padding: 0;
+	transition:
+		background 0.13s ease,
+		color 0.13s ease;
+	width: 36px;
+}
+
+.dock-pill-btn + .dock-pill-btn {
+	border-left: 1px solid rgba(255, 251, 243, 0.09);
 }
 
 .dock-pill-btn:hover {
-	background: rgba(247, 245, 242, 0.14);
-	color: #ffffff;
+	background: rgba(255, 251, 243, 0.12);
+	color: #f7f5f1;
 }
 
-.dock-pill-btn:disabled {
-	color: rgba(247, 245, 242, 0.4);
+.dock-pill-btn:focus-visible {
+	outline: 2px solid #8fa3f7;
+	outline-offset: -2px;
+}
+
+.dock-pill-btn svg {
+	display: block;
+}
+
+/* The collapse chevron flips to point up when the tools are hidden. */
+.dock-pill-collapse svg {
+	transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dock-collapsed .dock-pill-collapse svg {
+	transform: rotate(180deg);
+}
+
+.dock-body {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	/* One 8px frame all around. The measure that matters is the ink touching
+	   each edge: the toggle pill (full-row, bordered) at the top, the tool
+	   buttons at the sides and bottom — all of them clear the dock's edge by
+	   the same 8px. */
+	padding: 8px;
+}
+
+/* Operation failures outlive individual panes, so this surface stays outside
+   both pane and Dock layout. Its inline position follows whichever Dock surface
+   is visible without shifting the preview, pane, or Dock when it appears. */
+.dock-operation-toast {
+	align-items: center;
+	animation: dock-operation-toast-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+	background: #681f1b;
+	border: 1px solid #9f4c45;
+	border-radius: 11px;
+	bottom: 12px;
+	box-shadow: 0 15px 36px rgba(65, 12, 9, 0.32);
+	color: #fff;
+	display: flex;
+	font-size: 14px;
+	gap: 14px;
+	left: 50%;
+	line-height: 1.35;
+	min-height: 62px;
+	padding: 10px 11px 10px 16px;
+	position: fixed;
+	transform: translateX(-50%);
+	transition:
+		bottom 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+		left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+	width: min(520px, calc(100vw - 24px));
+	z-index: 60;
+}
+
+.dock-operation-toast-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.dock-operation-toast-title {
+	font-weight: 780;
+}
+
+.dock-operation-toast-message {
+	color: #f5cfcb;
+	font-size: 12px;
+	line-height: 1.4;
+	margin-top: 2px;
+}
+
+.dock-operation-toast button {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 7px;
+	color: #ffe8e5;
+	cursor: pointer;
+	display: flex;
+	flex: none;
+	height: 28px;
+	justify-content: center;
+	padding: 0;
+	width: 28px;
+}
+
+.dock-operation-toast button:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+}
+
+.dock-operation-toast button:focus-visible {
+	outline: 2px solid #fff6f4;
+	outline-offset: 2px;
+}
+
+.dock-operation-toast button svg {
+	fill: currentColor;
+}
+
+@keyframes dock-operation-toast-in {
+	from {
+		opacity: 0;
+		transform: translate(-50%, 5px);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, 0);
+	}
+}
+
+.dock-item-dot {
+	background: var(--accent, #3858e9);
+	border-radius: 50%;
+	box-shadow: 0 0 0 2px #21201d;
+	height: 7px;
+	pointer-events: none;
+	position: absolute;
+	right: 10px;
+	top: 6px;
+	width: 7px;
+}
+
+@media (forced-colors: active) {
+	.dock-operation-toast {
+		border: 2px solid CanvasText;
+	}
+}
+
+@media (max-width: 1024px) {
+	.dock-collapsed {
+		transform: none;
+	}
+
+	/* The mobile bar is fixed and full-screen-panelled, so it cannot be dragged
+	   or switched into the desktop full-width mode. The collapse half remains as
+	   the arrow that shows and hides the tools row. */
+	.dock-sheen,
+	.dock-pill-full-width {
+		display: none;
+	}
+
+	.dock-body {
+		flex-direction: column-reverse;
+		gap: 8px;
+		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+
+	/* Give the tool buttons more separation from the preview without making the
+	   collapsed address row taller. */
+	.dock:not(.dock-collapsed) .dock-body {
+		padding-top: 16px;
+	}
+
+	/* On mobile the address row stays docked while the arrow removes the tools
+	   row from layout. This lets the measured Dock height follow what is visible. */
+	.dock-collapsed .dock-tools {
+		display: none;
+	}
+}
+
+/* Modular Dock component compatibility and post-deployment accessibility. */
+.dock-item:disabled,
+.dock-pill-btn:disabled,
+.pane-header-action:disabled {
 	cursor: default;
+	opacity: 0.45;
+}
+
+.dock-item:disabled:hover,
+.pane-header-action:disabled:hover {
+	background: transparent;
+	color: inherit;
 }
 
 .dock-pill-btn:disabled:hover {
 	background: transparent;
-	color: rgba(247, 245, 242, 0.4);
-}
-
-.dock-pill-btn:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: -2px;
-}
-
-.dock-pill-collapse {
-	border-right: 1px solid rgba(247, 245, 242, 0.16);
-}
-
-.dock-pill-collapse svg {
-	transition: transform 160ms ease;
+	color: rgba(247, 245, 241, 0.62);
 }
 
 .dock-pill-collapse-closed svg {
 	transform: rotate(180deg);
 }
 
-.dock-corner {
-	align-items: center;
-	background: #21201d;
-	border: 0;
-	border-radius: 999px;
-	bottom: 12px;
-	box-shadow:
-		inset 0 0 0 1px rgba(255, 251, 243, 0.16),
-		0 8px 24px rgba(12, 10, 8, 0.34);
-	color: #f7f5f2;
-	cursor: pointer;
-	display: inline-flex;
-	height: 48px;
-	justify-content: center;
-	position: fixed;
-	width: 48px;
-	z-index: 50;
-}
-
-.dock-corner:disabled {
-	cursor: default;
-}
-
-.dock-corner-left {
-	left: 12px;
-}
-
-.dock-corner-right {
-	right: 12px;
-}
-
-.dock-corner-dragging {
-	opacity: 0;
-}
-
-.dock-corner-logo {
-	display: inline-flex;
-	line-height: 0;
+.dock-collapsed .dock-tools {
+	pointer-events: none;
+	transition: visibility 0s 360ms;
+	visibility: hidden;
 }
 
 .dock-tabs {
@@ -219,73 +1436,8 @@
 	min-height: 0;
 }
 
-.pane {
-	--space-3: 12px;
-	--space-4: 16px;
-	--space-6: 24px;
-	--space-8: 32px;
-	--paper-1: #f7f5f2;
-	--ink: #21201d;
-	--ink-muted: #5f5b54;
-	--line-subtle: rgba(33, 32, 29, 0.08);
-
-	background: var(--paper-1);
-	border-radius: 14px;
-	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
-	color: var(--ink);
-	display: block;
-	max-height: min(620px, calc(100dvh - 174px));
-	overflow-x: hidden;
-	overflow-y: auto;
-	position: fixed;
-	width: min(600px, calc(100vw - 40px));
-	z-index: 40;
-}
-
-.pane-editor {
-	display: flex;
-	flex-direction: column;
-	min-height: min(620px, calc(100dvh - 174px));
-	width: min(1120px, calc(100vw - 40px));
-}
-
-.pane-fixed-height {
-	display: flex;
-	flex-direction: column;
-}
-
-.pane-compact {
-	width: min(480px, calc(100vw - 40px));
-}
-
-.pane-close {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 999px;
-	color: var(--ink-muted);
-	cursor: pointer;
+.pane.host-pane-hidden {
 	display: none;
-	height: 40px;
-	justify-content: center;
-	position: absolute;
-	right: var(--space-4);
-	top: var(--space-4);
-	width: 40px;
-}
-
-.pane-close:disabled {
-	cursor: default;
-	opacity: 0.45;
-}
-
-.pane-close:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: 2px;
 }
 
 .visually-hidden {
@@ -300,58 +1452,30 @@
 	width: 1px;
 }
 
-.pane-header {
-	align-items: flex-start;
-	border-bottom: 1px solid var(--line-subtle);
-	display: flex;
-	gap: var(--space-4);
-	justify-content: space-between;
-	padding: var(--space-6) var(--space-6) var(--space-4);
+.pane-close:disabled {
+	cursor: default;
+	opacity: 0.45;
 }
 
-.pane-header-main {
-	min-width: 0;
-}
-
-.pane-header h2 {
-	font-size: 20px;
-	line-height: 1.2;
-	margin: 0;
-}
-
-.pane-description {
-	color: var(--ink-muted);
-	font-size: 13px;
-	line-height: 1.4;
-	margin: var(--space-3) 0 0;
-}
-
-.pane-body {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-height: 0;
-}
-
-@media (max-width: 1024px) {
-	.pane {
-		border-radius: 0;
-		bottom: var(--dock-height, 0);
-		left: 0;
-		max-height: none;
-		position: fixed;
-		right: 0;
-		top: 0;
-		width: auto;
-	}
-
-	.pane-close {
-		display: inline-flex;
-	}
+.dock-corner-logo img {
+	display: block;
+	height: 28px;
+	width: 28px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.dock-pill-collapse svg {
+	.dock-collapsed .dock-tools {
+		transition-delay: 0s;
+	}
+
+	.dock-pill-collapse svg,
+	.pane-enter-active,
+	.pane-exit-active {
+		transition: none;
+	}
+
+	.dock-operation-toast {
+		animation: none;
 		transition: none;
 	}
 }

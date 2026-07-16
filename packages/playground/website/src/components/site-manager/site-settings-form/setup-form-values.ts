@@ -33,8 +33,8 @@ export function getSetupFormDefaultValues(
  * Converts setup-form values to the settings shape accepted by the site API.
  *
  * The form names the networking checkbox `withNetworking` to read naturally in
- * the UI layer. Site creation and autosave recreation use `networking`, matching
- * the runtime configuration field stored in site metadata.
+ * the UI layer. Site creation uses `networking`, matching the runtime
+ * configuration field stored in site metadata.
  */
 export function getSiteSettingsFromFormData(data: SiteFormData): SiteSettings {
 	return {

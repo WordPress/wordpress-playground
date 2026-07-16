@@ -1,3 +1,7 @@
+import {
+	phpEventStdinTransfer,
+	type PHPEventWithStdinTransfer,
+} from '@php-wasm/util';
 import type { PHPResponseData } from './php-response';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
@@ -283,26 +287,24 @@ function setupTransferHandlers() {
 		'READABLE_STREAM',
 		readableStreamTransferHandler
 	);
-	type EventWithReadableStdin = {
-		type: string;
-		stdin: ReadableStream<Uint8Array>;
-	};
 	type SerializedEventWithReadableStdin = {
 		type: string;
 		stdin: SerializedReadableStream;
 	};
 	/**
-	 * Transfers a worker event whose `stdin` property is a ReadableStream. Comlink
-	 * applies a transfer handler to the top-level value only, so it will not discover
-	 * the `stdin` stream on its own.
+	 * Transfers a worker event explicitly branded with `phpEventStdinTransfer`.
+	 * Comlink applies a transfer handler to the top-level value only, so it will not
+	 * discover the nested `stdin` stream on its own.
 	 */
 	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
-		EventWithReadableStdin,
+		PHPEventWithStdinTransfer,
 		SerializedEventWithReadableStdin
 	> = {
-		canHandle: (obj: unknown): obj is EventWithReadableStdin =>
+		canHandle: (obj: unknown): obj is PHPEventWithStdinTransfer =>
 			typeof obj === 'object' &&
 			obj !== null &&
+			phpEventStdinTransfer in obj &&
+			obj[phpEventStdinTransfer] === true &&
 			'type' in obj &&
 			typeof obj.type === 'string' &&
 			'stdin' in obj &&
@@ -312,10 +314,12 @@ function setupTransferHandlers() {
 				readableStreamTransferHandler.serialize(event.stdin);
 			return [{ ...event, stdin }, transferables];
 		},
-		deserialize(event): EventWithReadableStdin {
+		deserialize(event): PHPEventWithStdinTransfer {
+			// Symbol properties are not structured-cloned. Restore the brand locally.
 			return {
 				...event,
 				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+				[phpEventStdinTransfer]: true,
 			};
 		},
 	};

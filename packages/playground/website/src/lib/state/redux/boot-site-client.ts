@@ -232,8 +232,6 @@ export function bootSiteClient(
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
-				// Keep the Playground identified while its boot-stage caption changes.
-				siteName: site.metadata.name,
 				blueprint,
 				extensions: phpExtensions,
 				// Intercept the Playground client even if the
@@ -428,13 +426,11 @@ export function bootSiteClient(
 }
 
 /**
- * Finishes deleting old WordPress files after a tab closed during reset.
+ * Finishes a same-site autosave reset started by an older Playground build.
  *
- * `opfsSiteRemovalPending` means `wp-runtime.json` already describes the new setup,
- * but the OPFS directory may still contain WordPress files from the previous
- * autosave. Boot must delete those files before it mounts OPFS or installs
- * WordPress from the new setup. Otherwise the previous site can open while the
- * metadata says the site should use the new settings or edited Blueprint.
+ * Those builds wrote `opfsSiteRemovalPending` after replacing the setup metadata
+ * but before deleting the previous WordPress files. Boot must still honor that
+ * persisted marker or it can mount files that do not match `wp-runtime.json`.
  */
 async function finishPendingOpfsSiteRemoval({
 	siteSlug,

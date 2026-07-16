@@ -3,6 +3,7 @@ import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import {
 	type AsyncWritableFilesystem,
+	copyFilesystem,
 	EventedFilesystem,
 	InMemoryFilesystemBackend,
 	type WritableFilesystemBackend,
@@ -117,27 +118,41 @@ export async function readSiteBlueprintJson(
 /**
  * Returns an editable filesystem for a site's Blueprint declaration or bundle.
  *
- * Bundle backends can be used directly. Declaration-only Blueprints are copied
- * into a fresh in-memory filesystem so the editor always works with files.
- * Editable filesystems get a stub `blueprint.json` when needed; read-only
- * callers can leave a persisted bundle untouched instead.
+ * Bundle backends can be used directly or copied into an isolated draft.
+ * Declaration-only Blueprints are copied into a fresh in-memory filesystem so
+ * the editor always works with files. Editable filesystems get a stub
+ * `blueprint.json` when needed; non-editing callers can leave a persisted
+ * bundle untouched instead.
  */
 async function createFilesystemFromOriginalBlueprint(
 	originalBlueprint: SiteInfo['metadata']['originalBlueprint'],
 	options: {
 		/**
 		 * Whether a filesystem-backed bundle may be seeded with a missing
-		 * `blueprint.json`. Read-only callers leave persisted bundles untouched.
+		 * `blueprint.json`. Non-editing callers leave persisted bundles untouched.
 		 */
 		seedMissingBlueprintJson?: boolean;
+		/**
+		 * Whether a filesystem-backed bundle must be copied before editing.
+		 * Explicitly saved Playgrounds use a private draft so typing cannot
+		 * change the Blueprint stored with the preserved Playground.
+		 */
+		copyFilesystemBackend?: boolean;
 	} = {}
 ): Promise<EventedFilesystem> {
-	const { seedMissingBlueprintJson = true } = options;
-	// If originalBlueprint is already a filesystem backend (e.g.,
-	// PersistedBlueprintBundle), use it directly instead of populating from
-	// Blueprint JSON.
+	const { seedMissingBlueprintJson = true, copyFilesystemBackend = false } =
+		options;
+	// A filesystem-backed bundle can be edited directly or copied before use.
+	// Either path preserves every bundled file instead of reconstructing the
+	// bundle from Blueprint JSON references.
 	if (isFilesystemBackend(originalBlueprint)) {
-		const fs = new EventedFilesystem(originalBlueprint);
+		const backend = copyFilesystemBackend
+			? new InMemoryFilesystemBackend()
+			: originalBlueprint;
+		if (copyFilesystemBackend) {
+			await copyFilesystem(originalBlueprint, backend);
+		}
+		const fs = new EventedFilesystem(backend);
 		if (seedMissingBlueprintJson) {
 			await ensureBlueprintJson(fs);
 		}
@@ -208,6 +223,7 @@ type SiteBlueprintBundleEditorProps = {
 	className?: string;
 	site: SiteInfo;
 	dockPresentation?: boolean;
+	mobileHeaderTarget?: Element | null;
 };
 
 /**
@@ -218,7 +234,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorHandle,
 	SiteBlueprintBundleEditorProps
 >(function SiteBlueprintBundleEditor(
-	{ className, site, dockPresentation = false },
+	{ className, site, dockPresentation = false, mobileHeaderTarget = null },
 	ref
 ) {
 	const dispatch = useAppDispatch();
@@ -228,12 +244,12 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
-	// Autosaved and explicitly saved Playgrounds both use OPFS, but they
-	// represent different lifecycle states. Autosaves are recovery copies that
-	// can still be reshaped by editing their Blueprint; explicit saves are
-	// user-preserved site artifacts, so their Blueprints remain read-only.
+	// Autosaves edit their own persisted Blueprint draft so changes survive a
+	// reload. Running that draft copies it into a fresh Playground instead of
+	// replacing the autosave's WordPress files. Explicit saves use an in-memory
+	// draft so editing cannot change the preserved Blueprint.
 	const isAutosaved = isAutosavedSite(site);
-	const readOnly = isExplicitlySavedSite(site);
+	const isExplicitlySaved = isExplicitlySavedSite(site);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -282,11 +298,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 				await createFilesystemFromOriginalBlueprint(
 					site.metadata.originalBlueprint,
 					{
-						seedMissingBlueprintJson:
-							!readOnly ||
-							!isFilesystemBackend(
-								site.metadata.originalBlueprint
-							),
+						copyFilesystemBackend: isExplicitlySaved,
 					}
 				)
 			);
@@ -305,11 +317,10 @@ export const SiteBlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 		// Rebuild the editor filesystem only when it switches to a different site
-		// or between regular and autosaved site lifecycles. Usage metadata such as
-		// `whenLastUsed` can change while the user is editing and should not
-		// remount the editor.
+		// or lifecycle. Usage metadata such as `whenLastUsed` can change while the
+		// user is editing and should not remount the editor.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [dispatch, site.slug, isAutosaved]);
+	}, [dispatch, site.slug, isAutosaved, isExplicitlySaved]);
 
 	useImperativeHandle(
 		ref,
@@ -330,8 +341,8 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					filesystem={filesystem}
 					site={site}
 					className={className}
-					readOnly={readOnly}
 					dockPresentation={dockPresentation}
+					mobileHeaderTarget={mobileHeaderTarget}
 				/>
 			)}
 		</div>

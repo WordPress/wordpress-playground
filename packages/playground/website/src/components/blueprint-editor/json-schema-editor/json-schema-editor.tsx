@@ -301,9 +301,10 @@ export function JSONSchemaEditor({
 					display: 'flex',
 					alignItems: 'center',
 					padding: '0',
-					background: '#1e1e1e',
-					borderRadius: '6px',
-					boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+					background: 'var(--paper-2, #faf8f5)',
+					border: '1px solid var(--line-subtle, rgba(33,32,29,0.1))',
+					borderRadius: 'var(--radius-control, 6px)',
+					boxShadow: '0 2px 8px rgba(40,33,23,0.16)',
 				},
 				'.cm-string-editor-button': {
 					display: 'inline-flex',
@@ -314,7 +315,7 @@ export function JSONSchemaEditor({
 					border: 'none',
 					borderRadius: '4px',
 					background: 'transparent',
-					color: '#fff',
+					color: 'var(--ink, #21201d)',
 					cursor: 'pointer',
 					fontSize: '12px',
 					fontFamily: 'system-ui, sans-serif',
@@ -322,7 +323,7 @@ export function JSONSchemaEditor({
 					transition: 'background 0.15s',
 				},
 				'.cm-string-editor-button:hover': {
-					background: 'rgba(255,255,255,0.15)',
+					background: 'var(--paper-4, rgba(33,32,29,0.08))',
 				},
 			}),
 		];
@@ -353,12 +354,22 @@ export function JSONSchemaEditor({
 
 		formatEditor(view);
 
-		// Position cursor after the first key/value pair if it's the default schema
+		// Drop the cursor where the user is most likely to start typing. If the
+		// doc has an empty "steps": [] array, land inside it so steps can be
+		// added right away; otherwise fall back to just after the schema URL.
 		const doc = view.state.doc.toString();
+		const emptyStepsMatch = doc.match(/"steps"\s*:\s*\[(?=\s*\])/);
 		const schemaUrl =
 			'"https://playground.wordpress.net/blueprint-schema.json"';
 		const schemaLineEnd = doc.indexOf(schemaUrl);
-		if (schemaLineEnd > 0) {
+		if (emptyStepsMatch && emptyStepsMatch.index !== undefined) {
+			const cursorPos = emptyStepsMatch.index + emptyStepsMatch[0].length;
+			if (cursorPos <= view.state.doc.length) {
+				view.dispatch({
+					selection: { anchor: cursorPos },
+				});
+			}
+		} else if (schemaLineEnd > 0) {
 			const cursorPos = schemaLineEnd + schemaUrl.length;
 			if (cursorPos <= view.state.doc.length) {
 				view.dispatch({
@@ -367,11 +378,17 @@ export function JSONSchemaEditor({
 			}
 		}
 
-		if (autofocus) {
-			view.focus();
-		}
+		// A pointer-activated tab receives its default focus after the click
+		// handler. Defer editor focus until that click completes so mouse users
+		// land in the editor; keyboard/touch callers pass autofocus=false.
+		const focusTimer = autofocus
+			? window.setTimeout(() => view.focus(), 0)
+			: undefined;
 
 		return () => {
+			if (focusTimer !== undefined) {
+				window.clearTimeout(focusTimer);
+			}
 			view.destroy();
 			viewRef.current = null;
 		};
