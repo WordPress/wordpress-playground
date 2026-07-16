@@ -22,6 +22,32 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+## Saved-site export API
+
+Use `startPlaygroundAPI()` to work with saved OPFS Playgrounds without booting WordPress, PHP, workers, or a service worker. The API endpoint must have the same origin and browser storage partition as the Playground that saved the site. In browsers that partition third-party storage, save and export under the same top-level site.
+
+The `/api.html` entry point is part of the full Playground website deployment. It is not included in the `@wp-playground/remote` npm package.
+
+```js
+import { startPlaygroundAPI } from 'https://playground.wordpress.net/client/index.js';
+
+const iframe = document.createElement('iframe');
+iframe.hidden = true;
+iframe.sandbox.add('allow-scripts');
+iframe.sandbox.add('allow-same-origin');
+document.body.appendChild(iframe);
+
+const api = await startPlaygroundAPI({
+	iframe,
+	apiUrl: 'https://playground.wordpress.net/api.html',
+});
+const zip = await api.exportSavedSiteAsZip('my-site', {
+	patterns: ['/*', '!/wp-content/', '!/wp-content/**'],
+});
+```
+
+The optional `patterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `patterns` is omitted, the ZIP contains the complete saved site.
+
 ## npm package
 
 The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.

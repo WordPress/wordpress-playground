@@ -192,6 +192,17 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Production serves api.html from the origin root. Preserve that
+					// URL in development even though the website uses a Vite base.
+					server.middlewares.use((req, _res, next) => {
+						if (
+							req.url === '/api.html' ||
+							req.url?.startsWith('/api.html?')
+						) {
+							req.url = `/website-server${req.url}`;
+						}
+						next();
+					});
 					// Let static playground pages import the local client package in dev.
 					server.middlewares.use(
 						'/website-server/client/index.js',
@@ -305,6 +316,7 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					api: fileURLToPath(new URL('./api.html', import.meta.url)),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),
@@ -332,6 +344,12 @@ export default defineConfig(({ command, mode }) => {
 				},
 				output: {
 					manualChunks: (id) => {
+						// Rollup recursively assigns the API entry's dependencies to this chunk.
+						// This prevents the optional Blueprint editor chunk from claiming OPFS storage.
+						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
+							return 'opfs-site-storage';
+						}
+
 						// Split CodeMirror and Lezer packages into separate chunks
 						// that will be placed in assets/optional/ directory
 

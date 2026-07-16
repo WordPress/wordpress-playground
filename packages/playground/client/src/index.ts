@@ -42,7 +42,7 @@ import type {
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import type { PathAlias } from '@php-wasm/universal';
+import { consumeAPI, type PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -143,6 +143,26 @@ export interface StartPlaygroundWebOptions extends Omit<
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
+export interface ExportSavedSiteAsZipOptions {
+	/**
+	 * Gitignore-style patterns applied to paths relative to the saved site root.
+	 * Matching paths are excluded and patterns starting with `!` re-include paths.
+	 */
+	patterns?: readonly string[];
+}
+
+export interface PlaygroundAPIClient {
+	exportSavedSiteAsZip(
+		slug: string,
+		options?: ExportSavedSiteAsZipOptions
+	): Promise<Blob | undefined>;
+}
+
+export interface StartPlaygroundAPIOptions {
+	iframe: HTMLIFrameElement;
+	apiUrl: string;
+}
+
 /**
  * Loads playground in iframe and returns a PlaygroundClient instance.
  *
@@ -190,6 +210,34 @@ export async function startPlaygroundWeb(
 	progressTracker.finish();
 
 	return playground;
+}
+
+/**
+ * Loads the lightweight Playground API endpoint without booting WordPress.
+ *
+ * The API endpoint and saved OPFS site must share an origin and storage partition.
+ */
+export async function startPlaygroundAPI(
+	options: StartPlaygroundAPIOptions
+): Promise<PlaygroundAPIClient> {
+	const { iframe, apiUrl } = options;
+	assertLikelyCompatibleAPIOrigin(apiUrl);
+	allowStorageAccessByUserActivation(iframe);
+	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
+
+	await new Promise((resolve) => {
+		iframe.src = resolvedAPIUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
+	const api = consumeAPI<PlaygroundAPIClient>(
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
+	);
+	await api.isConnected();
+	await api.isReady();
+
+	return api;
 }
 
 async function shouldUseBlueprintV2Handler(
@@ -261,16 +309,27 @@ const remoteOrigin =
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, remoteOrigin);
+	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html');
+}
+
+function assertLikelyCompatibleAPIOrigin(apiUrl: string) {
+	assertLikelyCompatibleRemotePath(apiUrl, '/api.html');
+}
+
+function assertLikelyCompatibleRemotePath(
+	urlString: string,
+	expectedPath: string
+) {
+	const url = new URL(urlString, remoteOrigin);
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === '/remote.html';
+		url.pathname === expectedPath;
 
 	if (!validRemote) {
 		throw new Error(
 			`Invalid remote URL: ${url}. ` +
-				'Expected remote URL to have a path of "/remote.html" based ' +
+				`Expected remote URL to have a path of "${expectedPath}" based ` +
 				`on one of the following origins:\n ${validRemoteOrigins.join(
 					'\n'
 				)}`

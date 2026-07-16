@@ -92,6 +92,13 @@ assert_equal(
     'My WordPress relay endpoint should not be edge cached'
 );
 
+$api_headers = playground_get_custom_response_headers( '/api.html' );
+assert_equal(
+    true,
+    in_array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate', $api_headers, true ),
+    'Playground API entry point should not be edge cached'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';

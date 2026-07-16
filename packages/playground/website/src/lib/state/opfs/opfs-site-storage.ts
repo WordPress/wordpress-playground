@@ -8,21 +8,14 @@
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
 import type { SiteInfo, SiteMetadata } from '../redux/slice-sites';
 import type { OriginalUrlParams } from '../original-url-params';
+import type { ExportSavedSiteAsZipOptions } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
-import {
-	type ExtraLibrary,
-	type PHPConstants,
-	getBlueprintDeclaration,
-} from '@wp-playground/blueprints';
+import ignore from 'ignore';
+import type { ExtraLibrary, PHPConstants } from '@wp-playground/blueprints';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import {
-	BUNDLE_DIR_NAME,
-	loadPersistedBlueprintBundle,
-	loadPersistedBlueprintBundleFromPath,
-} from './opfs-blueprint-bundle-storage';
 import {
 	OPFS_SITES_ROOT_PATH,
 	getCandidateDirectoryNamesForSlug,
@@ -35,6 +28,7 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -159,12 +153,15 @@ class OpfsSiteStorage {
 	 * half-written or mismatched files is just corrupt output with a nicer file
 	 * extension.
 	 */
-	async exportSavedSiteAsZip(slug: string): Promise<Blob | undefined> {
+	async exportSavedSiteAsZip(
+		slug: string,
+		options: ExportSavedSiteAsZipOptions = {}
+	): Promise<Blob | undefined> {
 		const siteDirectory = await this.getSavedSiteDirectory(slug);
 		if (!siteDirectory) {
 			return undefined;
 		}
-		return await zipDirectory(siteDirectory);
+		return await zipDirectory(siteDirectory, options.patterns);
 	}
 
 	/**
@@ -229,6 +226,10 @@ class OpfsSiteStorage {
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
+				const {
+					loadPersistedBlueprintBundle,
+					loadPersistedBlueprintBundleFromPath,
+				} = await import('./opfs-blueprint-bundle-storage');
 				siteInfo.metadata.originalBlueprint = isLegacyDirectoryName
 					? await loadPersistedBlueprintBundleFromPath(sitePath)
 					: await loadPersistedBlueprintBundle(siteInfo.slug);
@@ -285,6 +286,8 @@ class OpfsSiteStorage {
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
+		const { BUNDLE_DIR_NAME } =
+			await import('./opfs-blueprint-bundle-storage');
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		const namesToDelete: string[] = [];
 		for await (const [name] of siteDirectory.entries()) {
@@ -340,31 +343,12 @@ function getSiteMetadataPath(siteDirName: string) {
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata,
+	metadata: SiteMetadata,
 	originalUrlParams?: OriginalUrlParams
 ): Promise<string> {
-	return JSON.stringify(
-		{
-			slug,
-			originalUrlParams,
-			originalBlueprintSource,
-			/**
-			 * Site metadata stores Blueprint declaration JSON, not arbitrary
-			 * bundle files. When the source is not `opfs-site`, saving records
-			 * `blueprint.json` only; bundled resource files are not copied into
-			 * the metadata file. Autosaved Playgrounds persist editable bundle
-			 * files beside WordPress files, so metadata points at that OPFS
-			 * bundle directory instead of duplicating the declaration here.
-			 */
-			originalBlueprint:
-				originalBlueprintSource?.type === 'opfs-site'
-					? undefined
-					: await getBlueprintDeclaration(originalBlueprint as any),
-			...metadata,
-		},
-		undefined,
-		'  '
-	);
+	const { metadataToStoredFormat: serializeMetadata } =
+		await import('./opfs-site-metadata');
+	return await serializeMetadata(slug, metadata, originalUrlParams);
 }
 
 function storedFormatToMetadata(data: string) {
@@ -464,10 +448,14 @@ function isMissingOpfsEntry(error: unknown) {
  * callers can use the Blob directly, and converting it copies the whole archive
  * for no useful reason.
  */
-async function zipDirectory(directory: FileSystemDirectoryHandle) {
+async function zipDirectory(
+	directory: FileSystemDirectoryHandle,
+	patterns: readonly string[] = []
+) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+	const pathMatcher = ignore().add(patterns);
 	try {
-		await addDirectoryEntries(zipWriter, directory, '');
+		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
 		return await zipWriter.close();
 	} catch (error) {
 		await zipWriter.close().catch(() => undefined);
@@ -485,7 +473,8 @@ async function zipDirectory(directory: FileSystemDirectoryHandle) {
 async function addDirectoryEntries(
 	zipWriter: ZipWriter<Blob>,
 	directory: FileSystemDirectoryHandle,
-	relativeDirPath: string
+	relativeDirPath: string,
+	pathMatcher: ReturnType<typeof ignore>
 ) {
 	for await (const [name, entry] of directory.entries()) {
 		const relativePath = relativeDirPath
@@ -493,11 +482,26 @@ async function addDirectoryEntries(
 			: name;
 
 		if (entry.kind === 'directory') {
-			await zipWriter.add(`${relativePath}/`, undefined, {
-				directory: true,
-			});
-			await addDirectoryEntries(zipWriter, entry, relativePath);
+			const archivePath = `${relativePath}/`;
+			if (!pathMatcher.ignores(archivePath)) {
+				await zipWriter.add(archivePath, undefined, {
+					directory: true,
+					externalFileAttributes:
+						ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
+				});
+			}
+			// Keep traversing excluded directories because a later negated
+			// pattern may re-include one of their descendants.
+			await addDirectoryEntries(
+				zipWriter,
+				entry,
+				relativePath,
+				pathMatcher
+			);
 		} else {
+			if (pathMatcher.ignores(relativePath)) {
+				continue;
+			}
 			await zipWriter.add(
 				relativePath,
 				new BlobReader(await entry.getFile())
