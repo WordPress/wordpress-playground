@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@wordpress/components';
+import classNames from 'classnames';
+import { Button, Popover } from '@wordpress/components';
 import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
@@ -34,7 +35,10 @@ import {
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
 import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
-import { RecentAutosaveNudgeProvider } from './recent-autosave-nudge-context';
+import {
+	RecentAutosaveNudgeProvider,
+	useRecentAutosaveNudgeAnchor,
+} from './recent-autosave-nudge-context';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -379,6 +383,10 @@ export function EnsurePlaygroundSiteIsSelected({
 
 /**
  * Shows the restore choice for a recent autosave matching the current setup URL.
+ *
+ * The choice concerns saved Playgrounds, so the card sits above the Dock with
+ * a caret pointing at the Playgrounds button. When that button is off screen
+ * (collapsed or cornered Dock), the card floats in the top-right corner.
  */
 function YouHaveAutosaveNudge({
 	site,
@@ -398,6 +406,7 @@ function YouHaveAutosaveNudge({
 	onDisableNotifications: () => Promise<void>;
 }) {
 	const nudgeRef = useRef<HTMLElement>(null);
+	const anchorButton = useRecentAutosaveNudgeAnchor();
 	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
 
 	useEffect(() => {
@@ -410,10 +419,36 @@ function YouHaveAutosaveNudge({
 		return listenForPointerDownAcrossIframes(dismissOnOutsidePointer);
 	}, [isBusy, onDismiss]);
 
-	return (
+	// On desktop the Playgrounds button sits below the Dock's address row, so
+	// anchoring to the button's horizontal position combined with the Dock's
+	// top edge keeps the card above the whole Dock while the caret still
+	// points down at the button.
+	const popoverAnchor = useMemo(() => {
+		if (!anchorButton) {
+			return null;
+		}
+		const dock = anchorButton.closest('nav');
+		return {
+			getBoundingClientRect() {
+				const buttonRect = anchorButton.getBoundingClientRect();
+				const dockTop =
+					dock?.getBoundingClientRect().top ?? buttonRect.top;
+				return new window.DOMRect(
+					buttonRect.x,
+					dockTop,
+					buttonRect.width,
+					Math.max(buttonRect.bottom - dockTop, 0)
+				);
+			},
+		};
+	}, [anchorButton]);
+
+	const card = (
 		<aside
 			ref={nudgeRef}
-			className={css.nudge}
+			className={classNames(css.nudge, {
+				[css.nudgeFloating]: !popoverAnchor,
+			})}
 			aria-label="Recent autosaved Playground"
 		>
 			<div className={css.copy}>
@@ -457,5 +492,22 @@ function YouHaveAutosaveNudge({
 				</div>
 			</div>
 		</aside>
+	);
+
+	if (!popoverAnchor) {
+		return card;
+	}
+	return (
+		<Popover
+			className={css.nudgePopover}
+			anchor={popoverAnchor}
+			placement="top"
+			offset={16}
+			shift
+			noArrow={false}
+			focusOnMount={false}
+		>
+			{card}
+		</Popover>
 	);
 }

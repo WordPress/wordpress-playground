@@ -1,8 +1,4 @@
 .nudge {
-	position: fixed;
-	z-index: 30;
-	top: 62px;
-	right: 16px;
 	display: flex;
 	align-items: stretch;
 	flex-direction: column;
@@ -10,11 +6,39 @@
 	box-sizing: border-box;
 	width: min(400px, calc(100vw - 32px));
 	padding: 18px;
+	color: #1e1e1e;
+}
+
+/* Fallback position for when the Playgrounds Dock button is off screen and
+   the card cannot point at it. */
+.nudgeFloating {
+	position: fixed;
+	z-index: 30;
+	top: 62px;
+	right: 16px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
 	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
-	color: #1e1e1e;
+}
+
+/* Keep the anchored nudge above the Dock (50) but below any modal overlay. */
+.nudgePopover:global(.components-popover) {
+	z-index: 60;
+}
+
+/* The popover shell carries the card visuals so its caret can blend into the
+   card's bottom border. */
+.nudgePopover :global(.components-popover__content) {
+	width: auto;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.nudgePopover :global(.components-popover__triangle-border) {
+	stroke: #dcdcde;
 }
 
 .copy {
@@ -70,7 +94,22 @@
 }
 
 @media (max-width: 600px) {
+	/* Phones get a compact sheet: tighter spacing, and the anchored card
+	   spans the viewport right above the Dock's bottom bar. */
 	.nudge {
+		padding: 14px 16px;
+		gap: 12px;
+	}
+
+	.nudgePopover .nudge {
+		width: calc(100vw - 4px);
+	}
+
+	.preferenceAction {
+		padding-top: 10px;
+	}
+
+	.nudgeFloating {
 		top: 108px;
 		left: 12px;
 		right: 12px;

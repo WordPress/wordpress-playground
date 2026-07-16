@@ -47,7 +47,10 @@ import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
-import { useRecentAutosaveNudgeVisible } from '../ensure-playground-site/recent-autosave-nudge-context';
+import {
+	useRecentAutosaveNudgeVisible,
+	useSetRecentAutosaveNudgeAnchor,
+} from '../ensure-playground-site/recent-autosave-nudge-context';
 import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
@@ -215,6 +218,8 @@ export function Dock({
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
 	const recentAutosaveNudgeVisible = useRecentAutosaveNudgeVisible();
+	const setRecentAutosaveNudgeAnchor = useSetRecentAutosaveNudgeAnchor();
+	const playgroundsButtonRef = useRef<HTMLButtonElement>(null);
 	const operationNotice = useAppSelector(
 		(state) => state.ui.dockOperationNotice
 	);
@@ -406,6 +411,18 @@ export function Dock({
 		setIsFolding(false);
 		setIsMaximizing(false);
 	}, [section, dockPaneIsOpen]);
+
+	// The autosave nudge points at the Playgrounds button, so only offer that
+	// button as an anchor while it is actually on screen. A collapsed or
+	// cornered Dock hides the tools row, and the nudge then falls back to its
+	// free-floating position instead of pointing at nothing.
+	useEffect(() => {
+		const playgroundsButtonVisible = !isCollapsed && cornerSide === null;
+		setRecentAutosaveNudgeAnchor(
+			playgroundsButtonVisible ? playgroundsButtonRef.current : null
+		);
+		return () => setRecentAutosaveNudgeAnchor(null);
+	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
 
 	// The overlay query parameter only describes New and Playgrounds. Remove it
 	// when that requested pane closes or another Dock destination replaces it.
@@ -1234,6 +1251,11 @@ export function Dock({
 						{DOCK_ITEMS.map((item, index) => (
 							<DockItemButton
 								key={item.section}
+								ref={
+									item.section === 'playgrounds'
+										? playgroundsButtonRef
+										: undefined
+								}
 								label={item.label}
 								ariaLabel={item.ariaLabel}
 								icon={item.icon}
