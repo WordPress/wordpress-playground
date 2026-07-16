@@ -359,7 +359,10 @@ describe('BlueprintsV2Handler', () => {
 		await handler.bootRequestHandler({
 			worker: { phpPort: {}, processId: 7 } as any,
 			fileLockManagerPort: {} as any,
-			childWorkerServicePort,
+			workerConfig: {
+				processId: 7,
+				childWorkerServicePort,
+			},
 			nativeInternalDirPath: '/tmp/playground',
 		});
 
@@ -369,8 +372,8 @@ describe('BlueprintsV2Handler', () => {
 			}),
 			expect.objectContaining({
 				processId: 7,
-			}),
-			childWorkerServicePort
+				childWorkerServicePort,
+			})
 		);
 	});
 

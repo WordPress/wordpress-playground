@@ -606,6 +606,62 @@ function setupTransferHandlers() {
 			return new StreamedPHPResponse(headers, stdout, stderr, exitCode);
 		},
 	});
+	// Comlink applies transfer handlers to the top-level value only. Collect
+	// ports nested in plain API result objects so structured clone receives the
+	// complete transfer list for aggregate results such as worker boot configs.
+	Comlink.transferHandlers.set('MESSAGE_PORT_CONTAINER', {
+		canHandle(obj: unknown): obj is MessagePortContainer {
+			return (
+				isMessagePortContainer(obj) &&
+				collectMessagePorts(obj).length > 0
+			);
+		},
+		serialize(
+			container: MessagePortContainer
+		): [MessagePortContainer, Transferable[]] {
+			return [container, collectMessagePorts(container)];
+		},
+		deserialize(container: MessagePortContainer): MessagePortContainer {
+			return container;
+		},
+	});
+}
+
+type MessagePortContainer = unknown[] | Record<string, unknown>;
+
+function collectMessagePorts(container: MessagePortContainer): MessagePort[] {
+	const ports = new Set<MessagePort>();
+	collectMessagePortsInto(container, ports, new WeakSet<object>());
+	return Array.from(ports);
+}
+
+function collectMessagePortsInto(
+	value: unknown,
+	ports: Set<MessagePort>,
+	visited: WeakSet<object>
+): void {
+	if (value instanceof MessagePort) {
+		ports.add(value);
+		return;
+	}
+	if (!isMessagePortContainer(value) || visited.has(value)) {
+		return;
+	}
+	visited.add(value);
+	for (const nestedValue of Object.values(value)) {
+		collectMessagePortsInto(nestedValue, ports, visited);
+	}
+}
+
+function isMessagePortContainer(value: unknown): value is MessagePortContainer {
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+	if (Array.isArray(value)) {
+		return true;
+	}
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === Object.prototype || prototype === null;
 }
 
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:

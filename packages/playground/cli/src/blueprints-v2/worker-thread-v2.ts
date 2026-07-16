@@ -27,6 +27,8 @@ import type {
 	WorkerConfig,
 	WorkerPlatformConfig,
 } from '../worker-boot-config';
+import { CHILD_WORKER_CONTROL_READY } from '../worker-boot-config';
+import { bootSpawnedChildWorker } from '../spawned-child-worker';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -75,11 +77,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
-	/**
-	 * Platform-wide boot config this worker was started with, forwarded verbatim
-	 * to any child worker it spawns via proc_open()/system().
-	 */
-	platformConfig: WorkerPlatformConfig | undefined;
 	/**
 	 * Service exposed by the main thread for creating child workers. Used when
 	 * PHP in this worker shells out (proc_open()/system()): the main thread
@@ -167,24 +164,19 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 	async bootRequestHandler(
 		platformConfig: WorkerPlatformConfig,
-		workerConfig: WorkerConfig,
-		childWorkerServicePort: MessagePort
+		workerConfig: WorkerConfig
 	) {
 		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
 		this.childWorkerService = consumeAPI<ChildWorkerService>(
-			childWorkerServicePort
+			workerConfig.childWorkerServicePort
 		);
-
-		// Remember the platform config so we can forward it verbatim to any
-		// child worker this one spawns via proc_open()/system().
-		this.platformConfig = platformConfig;
 
 		const options: WorkerBootRequestHandlerOptions = {
 			...platformConfig,
-			...workerConfig,
+			processId: workerConfig.processId,
 		};
 
 		try {
@@ -215,122 +207,26 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(async () => {
-						if (!this.childWorkerService) {
-							throw new Error(
-								'Cannot spawn a child PHP process: this ' +
-									'worker has no child-worker service.'
-							);
-						}
-
-						// Ask the main thread to create and pre-wire a child
-						// worker: it spawns the worker, exposes a direct
-						// FileLockManager port and a service port on it, and
-						// mints a fresh processId. We just plug the ports in
-						// and boot it.
-						const { childId, processId } =
-							await this.childWorkerService.createChildWorker();
-						const childExited =
-							this.childWorkerService.waitForChildExit(childId);
-						let child:
-							| RemoteAPI<PlaygroundCliBlueprintV2Worker>
-							| undefined;
-						try {
-							const phpPort = await raceWithChildExit(
-								this.childWorkerService.takeChildWorkerPort(
-									childId,
-									'php'
-								),
-								childExited
-							);
-							const lockPort = await raceWithChildExit(
-								this.childWorkerService.takeChildWorkerPort(
-									childId,
-									'fileLockManager'
-								),
-								childExited
-							);
-							const servicePort = await raceWithChildExit(
-								this.childWorkerService.takeChildWorkerPort(
-									childId,
-									'childWorkerService'
-								),
-								childExited
-							);
-							const childApi =
-								consumeAPI<PlaygroundCliBlueprintV2Worker>(
-									phpPort
-								);
-							child = childApi;
-							// The child talks to the shared lock manager on the
-							// MAIN thread directly (lockPort's far end is
-							// exposed there), never relaying its synchronous
-							// flock() calls through this worker — which is
-							// blocked inside system() while the child runs and
-							// would otherwise deadlock it.
-							await raceWithChildExit(
-								childApi.useFileLockManager(lockPort),
-								childExited
-							);
-							await raceWithChildExit(
-								childApi.bootRequestHandler(
-									this.platformConfig!,
-									{
-										processId,
-										childId,
-									},
-									servicePort
-								),
-								childExited
-							);
-							return {
-								php: childApi,
-								exited: childExited,
-								reap: () => {
-									try {
-										childApi[releaseApiProxy]();
-									} catch {
-										/** */
-									}
-									// Deterministically terminate the child and
-									// release its main-thread ports. Best-effort:
-									// swallow the async rejection so reap() can't
-									// throw.
-									this.childWorkerService!.disposeChildWorker(
-										childId
-									).catch(() => {
-										/** */
-									});
-								},
-							};
-						} catch (e) {
-							// Roll back so a failed spawn can't leak the child
-							// worker or its main-thread ports.
-							try {
-								child?.[releaseApiProxy]();
-							} catch {
-								/** */
-							}
-							try {
-								await this.childWorkerService.disposeChildWorker(
-									childId
-								);
-							} catch {
-								/** */
-							}
-							throw e;
-						}
-					}),
+				spawnHandler: this.createSandboxedSpawnHandler.bind(
+					this,
+					platformConfig
+				),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
-			if (workerConfig.childId !== undefined) {
-				await this.childWorkerService.registerChildWorker(
-					workerConfig.childId,
-					(mounts) => this.mountAfterWordPressInstall(mounts)
+			if (workerConfig.childWorkerControlPort) {
+				exposeAPI(
+					{
+						mountAfterWordPressInstall:
+							this.mountAfterWordPressInstall.bind(this),
+					},
+					undefined,
+					workerConfig.childWorkerControlPort
+				);
+				workerConfig.childWorkerControlPort.postMessage(
+					CHILD_WORKER_CONTROL_READY
 				);
 			}
 
@@ -351,13 +247,25 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
-}
 
-function raceWithChildExit<T>(
-	operation: Promise<T>,
-	childExited: Promise<never>
-): Promise<T> {
-	return Promise.race([operation, childExited]);
+	private createSandboxedSpawnHandler(platformConfig: WorkerPlatformConfig) {
+		return sandboxedSpawnHandlerFactory(
+			this.getSpawnedPHPInstance.bind(this, platformConfig)
+		);
+	}
+
+	private async getSpawnedPHPInstance(platformConfig: WorkerPlatformConfig) {
+		if (!this.childWorkerService) {
+			throw new Error(
+				'Cannot spawn a child PHP process: this ' +
+					'worker has no child-worker service.'
+			);
+		}
+		return bootSpawnedChildWorker<PlaygroundCliBlueprintV2Worker>(
+			this.childWorkerService,
+			platformConfig
+		);
+	}
 }
 
 /**

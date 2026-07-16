@@ -33,6 +33,7 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
+import type { WorkerConfig } from '../worker-boot-config';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -176,12 +177,12 @@ export class BlueprintsV1Handler {
 	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		childWorkerServicePort,
+		workerConfig,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		childWorkerServicePort: NodeMessagePort;
+		workerConfig: WorkerConfig;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
@@ -205,8 +206,7 @@ export class BlueprintsV1Handler {
 				nativeInternalDirPath,
 				pathAliases: this.args.pathAliases,
 			},
-			{ processId: worker.processId },
-			childWorkerServicePort
+			workerConfig
 		);
 		await playground.isReady();
 		return playground;

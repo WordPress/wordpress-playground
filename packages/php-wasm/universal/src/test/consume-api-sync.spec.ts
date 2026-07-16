@@ -1,11 +1,7 @@
-import { MessageChannel, type MessagePort } from 'node:worker_threads';
+import { build } from 'esbuild';
+import { MessageChannel, Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import {
-	consumeAPI,
-	consumeAPISync,
-	exposeAPI,
-	exposeSyncAPI,
-} from '../lib/api';
+import { consumeAPISync, exposeAPI, exposeSyncAPI } from '../lib/api';
 
 /**
  * These tests pin down the trap behind
@@ -65,29 +61,113 @@ describe('consumeAPISync() endpoint validation', () => {
 });
 
 describe('MessagePort transfer handling', () => {
-	it('naturally transfers a MessagePort returned from an exposed API', async () => {
+	it('transfers nested MessagePorts from an exposed API to a consumer worker', async () => {
 		const apiChannel = new MessageChannel();
-		const returnedChannel = new MessageChannel();
+		const phpChannel = new MessageChannel();
+		const fileLockManagerChannel = new MessageChannel();
+		const childWorkerServiceChannel = new MessageChannel();
+		const consumerWorker = await createMessagePortConsumerWorker();
 		const [setReady] = exposeAPI(
-			{ takePort: () => returnedChannel.port1 },
+			{
+				createChildWorker: () => ({
+					phpPort: phpChannel.port1,
+					fileLockManagerPort: fileLockManagerChannel.port1,
+					workerConfig: {
+						processId: 123,
+						childWorkerServicePort: childWorkerServiceChannel.port1,
+					},
+				}),
+			},
 			undefined,
 			apiChannel.port1
 		);
 		setReady();
-		const api = consumeAPI<{ takePort: () => MessagePort }>(
-			apiChannel.port2
-		);
+		const messagesFromConsumerWorker = Promise.all([
+			new Promise((resolve) => phpChannel.port2.once('message', resolve)),
+			new Promise((resolve) =>
+				fileLockManagerChannel.port2.once('message', resolve)
+			),
+			new Promise((resolve) =>
+				childWorkerServiceChannel.port2.once('message', resolve)
+			),
+		]);
+		const consumerWorkerError =
+			rejectWhenConsumerWorkerFails(consumerWorker);
 
-		const port = await api.takePort();
-		const message = new Promise((resolve) =>
-			returnedChannel.port2.once('message', resolve)
-		);
-		port.postMessage('transferred');
-		await expect(message).resolves.toBe('transferred');
-
-		apiChannel.port1.close();
-		apiChannel.port2.close();
-		port.close();
-		returnedChannel.port2.close();
+		try {
+			consumerWorker.postMessage({ apiPort: apiChannel.port2 }, [
+				apiChannel.port2,
+			]);
+			await expect(
+				Promise.race([messagesFromConsumerWorker, consumerWorkerError])
+			).resolves.toEqual([
+				'php port',
+				'file lock manager port',
+				'child worker service port for process 123',
+			]);
+		} finally {
+			apiChannel.port1.close();
+			phpChannel.port2.close();
+			fileLockManagerChannel.port2.close();
+			childWorkerServiceChannel.port2.close();
+			await consumerWorker.terminate();
+		}
 	});
 });
+
+async function createMessagePortConsumerWorker(): Promise<Worker> {
+	const workerBuild = await build({
+		bundle: true,
+		format: 'esm',
+		platform: 'node',
+		target: 'node22',
+		write: false,
+		stdin: {
+			loader: 'js',
+			resolveDir: import.meta.dirname,
+			sourcefile: 'message-port-consumer.worker.mjs',
+			contents: `
+		import { parentPort } from 'node:worker_threads';
+		import { consumeAPI } from '../lib/api.ts';
+
+		parentPort.once('message', async function consumeApi({ apiPort }) {
+			try {
+				const api = consumeAPI(apiPort);
+				const child = await api.createChildWorker();
+				child.phpPort.postMessage('php port');
+				child.fileLockManagerPort.postMessage(
+					'file lock manager port'
+				);
+				child.workerConfig.childWorkerServicePort.postMessage(
+					'child worker service port for process ' +
+						child.workerConfig.processId
+				);
+				child.phpPort.close();
+				child.fileLockManagerPort.close();
+				child.workerConfig.childWorkerServicePort.close();
+			} catch (error) {
+				parentPort.postMessage({
+					type: 'error',
+					message: error instanceof Error ? error.stack : String(error),
+				});
+			}
+		});
+			`,
+		},
+	});
+	const workerSource = workerBuild.outputFiles[0].text;
+	return new Worker(
+		new URL(`data:text/javascript,${encodeURIComponent(workerSource)}`)
+	);
+}
+
+function rejectWhenConsumerWorkerFails(worker: Worker): Promise<never> {
+	return new Promise<never>((_resolve, reject) => {
+		worker.once('error', reject);
+		worker.on('message', function rejectReportedWorkerError(message) {
+			if (message?.type === 'error') {
+				reject(new Error(message.message));
+			}
+		});
+	});
+}

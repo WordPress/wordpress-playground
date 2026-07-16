@@ -848,9 +848,9 @@ describe.each(blueprintVersions)(
 		}, 120000);
 
 		// A grandchild is booted by a child worker, which itself never installed
-		// WordPress. It learns whether to apply the post-install mounts only by
-		// inheriting that state down the spawn chain, so a mount visible to the
-		// parent must remain visible two levels down.
+		// WordPress. The main-thread service records post-install mounts and gives
+		// every future child a control endpoint, so a mount visible to the parent
+		// must remain visible two levels down.
 		test('grandchild processes spawned via nested proc_open() see post-install --mount files', async () => {
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-gc-')

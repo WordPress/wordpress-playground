@@ -3,6 +3,8 @@ import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import type { Mount } from '@php-wasm/cli-util';
 import type { MessagePort } from 'worker_threads';
 
+export const CHILD_WORKER_CONTROL_READY = 'child-worker-control-ready';
+
 /**
  * Boot configuration shared by every worker in a Playground CLI run.
  *
@@ -36,35 +38,52 @@ export interface WorkerPlatformConfig {
  * Unlike {@link WorkerPlatformConfig}, these fields must NOT be forwarded
  * verbatim to a child worker: the main thread mints a fresh `processId` for
  * every worker (reusing one would let two PHP instances share OS-level file
- * locks), and a fresh monotonic `childId` for every spawned child.
+ * locks) and distinct service/control endpoints.
  */
 export interface WorkerConfig {
 	processId: number;
 	/**
-	 * Stable service handle for a spawned child. Unlike `processId`, this value
-	 * is never recycled, so a delayed reap cannot target a newer worker.
+	 * Connects this worker directly to the main-thread child-worker service.
+	 * It belongs in the per-worker configuration because every worker receives
+	 * a distinct endpoint, even though all endpoints expose the same service.
 	 */
-	childId?: number;
+	childWorkerServicePort: MessagePort;
+	/**
+	 * Child workers expose their post-install mount API on this port after boot.
+	 * Top-level request workers are mounted directly and do not receive one.
+	 */
+	childWorkerControlPort?: MessagePort;
+}
+
+/** Runtime options left after the worker consumes its transport endpoints. */
+export type WorkerBootRequestHandlerOptions = WorkerPlatformConfig &
+	Pick<WorkerConfig, 'processId'>;
+
+/** Per-worker configuration that is present only for spawned children. */
+export interface ChildWorkerConfig extends WorkerConfig {
+	childWorkerControlPort: MessagePort;
 }
 
 /**
- * The full set of arguments the main thread passes to a worker's
- * `bootRequestHandler()`.
+ * The complete, naturally transferable result of creating a child worker.
+ *
+ * All worker-owned endpoints travel together so the caller can either finish
+ * booting the child or dispose it without a partially-consumed service record.
  */
-export type WorkerBootRequestHandlerOptions = WorkerPlatformConfig &
-	WorkerConfig;
-
-export type ChildWorkerPortName =
-	| 'php'
-	| 'fileLockManager'
-	| 'childWorkerService';
-
-/** Cloneable metadata for a child worker whose ports are taken separately. */
 export interface CreatedChildWorker {
 	/** Monotonic handle used for service operations over the child's lifetime. */
 	childId: number;
-	/** PHP process id used by the child's runtime. */
-	processId: number;
+	/** Endpoint for the child's Playground/PHP API. */
+	phpPort: MessagePort;
+	/** Direct endpoint for the main-thread file lock manager. */
+	fileLockManagerPort: MessagePort;
+	/** Configuration passed to the child's `bootRequestHandler()`. */
+	workerConfig: ChildWorkerConfig;
+}
+
+/** The private control API every child exposes to the main thread after boot. */
+export interface ChildWorkerControl {
+	mountAfterWordPressInstall: (mounts: Array<Mount>) => Promise<void>;
 }
 
 /**
@@ -74,23 +93,12 @@ export interface CreatedChildWorker {
  * FileLockManager and everything else needed to configure a worker.
  */
 export interface ChildWorkerService {
-	/** Spawn and pre-wire a child worker, returning its cloneable metadata. */
+	/** Spawn and pre-wire a child worker, returning every child-owned endpoint. */
 	createChildWorker: () => Promise<CreatedChildWorker>;
-	/**
-	 * Take one of the worker's ports. Returning each port as a top-level Comlink
-	 * result lets the MessagePort transfer handler transfer it automatically.
-	 */
-	takeChildWorkerPort: (
-		childId: number,
-		portName: ChildWorkerPortName
-	) => Promise<MessagePort>;
-	/** Register the operation used to mount a child after WordPress installs. */
-	registerChildWorker: (
-		childId: number,
-		mountAfterWordPressInstall: (mounts: Array<Mount>) => Promise<void>
-	) => Promise<void>;
-	/** Reject when the child exits, so pending remote calls can be interrupted. */
-	waitForChildExit: (childId: number) => Promise<never>;
+	/** Wait until any previously recorded post-install mounts are applied. */
+	waitForChildReady: (childId: number) => Promise<void>;
+	/** Fulfill when the child exits, so pending remote calls can be interrupted. */
+	waitForChildExit: (childId: number) => Promise<void>;
 	/** Terminate a child worker and close the main-thread ports it was given. */
 	disposeChildWorker: (childId: number) => Promise<void>;
 }

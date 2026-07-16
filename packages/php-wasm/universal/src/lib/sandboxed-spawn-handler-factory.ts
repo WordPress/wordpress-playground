@@ -18,7 +18,8 @@ export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
 		php: PHP | Remote<PHPWorker>;
 		reap: () => void;
-		exited?: Promise<never>;
+		/** Resolves when the remote runtime exits. */
+		runtimeExited?: Promise<void>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -99,20 +100,23 @@ export function sandboxedSpawnHandlerFactory(
 		let reap: (() => void) | undefined;
 		try {
 			const instance = await getPHPInstance();
-			const { php, exited } = instance;
+			const { php, runtimeExited } = instance;
 			reap = instance.reap;
 			if (options.cwd) {
-				await raceWithProcessExit(
+				await completeWhileRuntimeIsRunning(
 					php.chdir(options.cwd as string),
-					exited
+					runtimeExited
 				);
 			}
 
-			const cwd = await raceWithProcessExit(php.cwd(), exited);
+			const cwd = await completeWhileRuntimeIsRunning(
+				php.cwd(),
+				runtimeExited
+			);
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
-					const result = await raceWithProcessExit(
+					const result = await completeWhileRuntimeIsRunning(
 						php.cli(args, {
 							env: {
 								...options.env,
@@ -123,7 +127,7 @@ export function sandboxedSpawnHandlerFactory(
 								SHELL_PIPE: '0',
 							},
 						}),
-						exited
+						runtimeExited
 					);
 
 					const stdout = result.stdout.pipeTo(
@@ -140,17 +144,17 @@ export function sandboxedSpawnHandlerFactory(
 							},
 						})
 					);
-					const [exitCode] = await raceWithProcessExit(
+					const [exitCode] = await completeWhileRuntimeIsRunning(
 						Promise.all([result.exitCode, stdout, stderr]),
-						exited
+						runtimeExited
 					);
 					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
-					const files = await raceWithProcessExit(
+					const files = await completeWhileRuntimeIsRunning(
 						php.listFiles(args[1] ?? cwd),
-						exited
+						runtimeExited
 					);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
@@ -158,9 +162,11 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await raceWithProcessExit(
-						new Promise((resolve) => setTimeout(resolve, 10)),
-						exited
+					await completeWhileRuntimeIsRunning(
+						new Promise(function waitForOutputConsumption(resolve) {
+							setTimeout(resolve, 10);
+						}),
+						runtimeExited
 					);
 					processApi.exit(0);
 					break;
@@ -170,9 +176,11 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await raceWithProcessExit(
-						new Promise((resolve) => setTimeout(resolve, 10)),
-						exited
+					await completeWhileRuntimeIsRunning(
+						new Promise(function waitForOutputConsumption(resolve) {
+							setTimeout(resolve, 10);
+						}),
+						runtimeExited
 					);
 					processApi.exit(0);
 					break;
@@ -195,10 +203,25 @@ export function sandboxedSpawnHandlerFactory(
 	});
 }
 
-function raceWithProcessExit<T>(
+/**
+ * Comlink does not reject pending calls when their worker exits. Require each
+ * operation to finish while its runtime is still running so a crashed child
+ * becomes a proc_open() failure instead of leaving the parent pending forever.
+ */
+function completeWhileRuntimeIsRunning<T>(
 	operation: T | Promise<T>,
-	exited: Promise<never> | undefined
+	runtimeExited: Promise<void> | undefined
 ): Promise<T> {
 	const operationPromise = Promise.resolve(operation);
-	return exited ? Promise.race([operationPromise, exited]) : operationPromise;
+	if (!runtimeExited) {
+		return operationPromise;
+	}
+	const operationInterrupted = runtimeExited.then(
+		function throwRuntimeExitError(): never {
+			throw new Error(
+				'The PHP runtime exited before the operation completed.'
+			);
+		}
+	);
+	return Promise.race([operationPromise, operationInterrupted]);
 }

@@ -3,9 +3,9 @@ import { sandboxedSpawnHandlerFactory } from '../lib/sandboxed-spawn-handler-fac
 
 describe('sandboxedSpawnHandlerFactory()', () => {
 	it('interrupts a pending PHP call when the spawned runtime exits', async () => {
-		let rejectExit!: (error: Error) => void;
-		const exited = new Promise<never>((_resolve, reject) => {
-			rejectExit = reject;
+		let signalRuntimeExited!: () => void;
+		const runtimeExited = new Promise<void>((resolve) => {
+			signalRuntimeExited = resolve;
 		});
 		let resolveCliStarted!: () => void;
 		const cliStarted = new Promise<void>((resolve) => {
@@ -13,6 +13,11 @@ describe('sandboxedSpawnHandlerFactory()', () => {
 		});
 		let stdoutController!: ReadableStreamDefaultController<Uint8Array>;
 		let stderrController!: ReadableStreamDefaultController<Uint8Array>;
+		// The remote CLI call cannot finish on its own. Only the runtime-exit
+		// signal can unblock the sandboxed spawn handler.
+		const cliExitCodeThatNeverSettles = new Promise<number>(
+			() => undefined
+		);
 		const reap = vi.fn();
 		const php = {
 			cwd: vi.fn(() => '/wordpress'),
@@ -29,14 +34,14 @@ describe('sandboxedSpawnHandlerFactory()', () => {
 							stderrController = controller;
 						},
 					}),
-					exitCode: new Promise<number>(() => undefined),
+					exitCode: cliExitCodeThatNeverSettles,
 				};
 			}),
 		};
 		const spawn = sandboxedSpawnHandlerFactory(async () => ({
 			php: php as any,
 			reap,
-			exited,
+			runtimeExited,
 		}));
 		const child = spawn('/internal/shared/bin/php', [
 			'/wordpress/child.php',
@@ -48,7 +53,7 @@ describe('sandboxedSpawnHandlerFactory()', () => {
 		});
 
 		await cliStarted;
-		rejectExit(new Error('Spawned runtime exited unexpectedly.'));
+		signalRuntimeExited();
 		await expect(childExitCode).resolves.toBe(1);
 		stdoutController.close();
 		stderrController.close();
