@@ -31,6 +31,7 @@ export type LimitedPHPApi = Pick<
 	| 'writeFile'
 	| 'unlink'
 	| 'mv'
+	| 'cp'
 	| 'rmdir'
 	| 'listFiles'
 	| 'isDir'
@@ -164,6 +165,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!PHP.mv  */
 	async mv(fromPath: string, toPath: string) {
 		return _private.get(this)!.php!.mv(fromPath, toPath);
+	}
+
+	/** @inheritDoc @php-wasm/universal!PHP.cp  */
+	async cp(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.cp(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
