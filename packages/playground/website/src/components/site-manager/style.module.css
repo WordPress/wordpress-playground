@@ -1,76 +1,55 @@
 .site-manager {
-	padding-left: 0;
-	height: 100dvh;
-	overflow: hidden;
-	padding: var(--site-manager-border-width);
-	background-color: var(--site-manager-background-color);
-	/* Remove Playground background graphic because branding isn't finalized. */
-	/* background-image: url(../../../public/site-manager-background.svg); */
-	background-position: bottom left;
-	background-repeat: no-repeat;
-	width: 100%;
-
 	display: flex;
-	flex-direction: row;
-}
-
-.sidebar {
-	width: var(--site-manager-site-list-width);
+	flex: 1;
+	flex-direction: column;
 	height: 100%;
-	@media (max-width: 875px) {
-		width: 100%;
-	}
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
 }
 
 .site-manager-site-info {
-	min-width: 0;
-	height: 100%;
+	border-radius: 0;
+	box-shadow: none;
 	flex: 1 1 auto;
-}
-
-.site-info-resizable {
 	height: 100%;
-	display: flex;
-	flex: 0 0 auto;
-	max-width: var(--site-info-panel-max-width);
+	min-height: 0;
+	min-width: 0;
 }
 
-.site-info-resizable :global(.components-resizable-box__container),
-.site-info-resizable :global(.components-resizable-box__content) {
-	height: 100%;
+.saved-playgrounds-panel {
 	display: flex;
-	max-width: var(--site-info-panel-max-width);
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
 }
 
-@media (max-width: 875px) {
-	.site-info-resize-handle {
-		display: none !important;
-	}
+/* Author-level display rules override the browser's default [hidden] rule.
+   Keep retained New/Playgrounds content out of every other Dock pane. */
+.saved-playgrounds-panel[hidden] {
+	display: none;
 }
 
-.site-info-resize-handle {
-	position: absolute;
-	top: 0;
-	right: calc(-1 * var(--site-manager-border-width));
-	height: 100%;
-	width: calc(var(--site-manager-border-width));
-	z-index: 2;
-	cursor: ew-resize;
+.share-panel {
 	display: flex;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
+}
+
+.share-panel[hidden] {
+	display: none;
+}
+
+.empty-panel {
 	align-items: center;
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex: 1;
+	font-size: 14px;
 	justify-content: center;
-}
-
-.site-info-resize-handle::before {
-	content: '';
-	display: block;
-	width: 3px;
-	height: 82px;
-	border-radius: 1px;
-	background: rgba(255, 255, 255, 0.4);
-}
-
-.site-info-resize-handle:hover::before,
-.site-info-resize-handle:focus-visible::before {
-	background: rgba(255, 255, 255, 0.7);
+	padding: 32px;
+	text-align: center;
 }

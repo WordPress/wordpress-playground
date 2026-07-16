@@ -27,6 +27,7 @@ import {
 	useState,
 	useEffect,
 	useLayoutEffect,
+	useCallback,
 	useRef,
 	lazy,
 	Suspense,
@@ -54,8 +55,9 @@ import {
 import {
 	modalSlugs,
 	setActiveModal,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setDockOperationNotice,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setSiteSlugToDelete,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
@@ -67,6 +69,7 @@ import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -144,6 +147,7 @@ interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
 	onCloseBlockedChange: (isBlocked: boolean) => void;
+	onPaneHeaderChange: (header: DockPaneHeaderOverride | undefined) => void;
 }
 
 /**
@@ -153,6 +157,7 @@ export function SavedPlaygroundsPanel({
 	onClose,
 	panel,
 	onCloseBlockedChange,
+	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const storedSites = useAppSelector(selectSortedSites).filter(
@@ -185,11 +190,44 @@ export function SavedPlaygroundsPanel({
 	// one is already in flight.
 	const importingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
-	// Keyboard and touch activation keep their focus on the tab instead.
+	// Keyboard and touch activation otherwise keep their focus on the tab. The
+	// dedicated GitHub view moves keyboard focus to its Back button because it
+	// hides the tablist.
 	const creationTabPointerTypeRef = useRef<string>();
 	const focusCreationFieldAfterMouseClickRef = useRef(false);
+	const creationFocusTargetRef = useRef<CreationTabId | 'back'>();
+	const creationBackButtonRef = useRef<HTMLButtonElement>(null);
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
+	const [isGitHubImportDetailsOpen, setIsGitHubImportDetailsOpen] =
+		useState(false);
+	const handleCreationBack = useCallback(() => {
+		creationFocusTargetRef.current = 'github';
+		setIsGitHubImportDetailsOpen(false);
+	}, []);
+
+	useLayoutEffect(() => {
+		onPaneHeaderChange(
+			panel === 'new' &&
+				activeCreationTab === 'github' &&
+				isGitHubImportDetailsOpen
+				? {
+						title: 'Import from GitHub',
+						backLabel: 'Back to the GitHub repository URL',
+						backButtonRef: creationBackButtonRef,
+						focusBackButton:
+							creationFocusTargetRef.current === 'back',
+						onBack: handleCreationBack,
+					}
+				: undefined
+		);
+	}, [
+		activeCreationTab,
+		handleCreationBack,
+		isGitHubImportDetailsOpen,
+		onPaneHeaderChange,
+		panel,
+	]);
 	const [autofocusWriteOwn, setAutofocusWriteOwn] = useState(false);
 	const [blueprintUrlInput, setBlueprintUrlInput] = useState('');
 	const writeOwnDraft =
@@ -210,6 +248,7 @@ export function SavedPlaygroundsPanel({
 
 	useEffect(() => {
 		if (isCreationTabDisabled(activeCreationTab, offline)) {
+			setIsGitHubImportDetailsOpen(false);
 			setActiveCreationTab('gallery');
 		}
 	}, [activeCreationTab, offline]);
@@ -270,6 +309,19 @@ export function SavedPlaygroundsPanel({
 		);
 		field?.focus();
 	}, [activeCreationTab]);
+
+	useEffect(() => {
+		const target = creationFocusTargetRef.current;
+		if (!target) {
+			return;
+		}
+		creationFocusTargetRef.current = undefined;
+		if (target === 'back') {
+			creationBackButtonRef.current?.focus();
+		} else {
+			document.getElementById(`creation-tab-${target}`)?.focus();
+		}
+	}, [activeCreationTab, isGitHubImportDetailsOpen]);
 
 	useEffect(() => {
 		if (panel !== 'new') {
@@ -448,8 +500,11 @@ export function SavedPlaygroundsPanel({
 			const site = storedSites.find(
 				(candidate) => candidate.slug === slug
 			);
-			alert(
-				`Couldn’t open “${site?.metadata.name ?? slug}”. This Playground is still available in your list.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
+					message: 'This Playground is still available in your list.',
+				})
 			);
 		});
 	};
@@ -554,6 +609,7 @@ export function SavedPlaygroundsPanel({
 			return;
 		}
 		closeMenu();
+		dispatch(setDockOperationNotice(undefined));
 		rowRectsRef.current = snapshotRowRects();
 		animateMoveRef.current = true;
 		const stored = isAutosavedSite(site)
@@ -562,8 +618,11 @@ export function SavedPlaygroundsPanel({
 		void stored.catch((error) => {
 			animateMoveRef.current = false;
 			logger.error('Error storing Playground in the browser', error);
-			alert(
-				`Couldn’t store “${site.metadata.name}” in browser storage. No changes were made to this Playground.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
+					message: 'No changes were made to this Playground.',
+				})
 			);
 		});
 	};
@@ -581,6 +640,7 @@ export function SavedPlaygroundsPanel({
 			return;
 		}
 		try {
+			dispatch(setDockOperationNotice(undefined));
 			if (site.slug === activeSite?.slug) {
 				closeMenu();
 				await sitesAPI.saveToLocalFileSystem();
@@ -598,8 +658,11 @@ export function SavedPlaygroundsPanel({
 				return; // The user dismissed the directory picker.
 			}
 			logger.error('Error saving Playground to a local directory', error);
-			alert(
-				`Couldn’t save ${site.metadata.name} locally. The Playground in your browser is unchanged.`
+			dispatch(
+				setDockOperationNotice({
+					title: `Couldn’t save ${site.metadata.name} locally`,
+					message: 'The Playground in your browser is unchanged.',
+				})
 			);
 		}
 	};
@@ -707,7 +770,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				query: {
@@ -726,7 +789,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
 		redirectTo(PlaygroundRoute.newSite());
@@ -763,7 +826,7 @@ export function SavedPlaygroundsPanel({
 		if (!trimmed) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({ query: { 'blueprint-url': trimmed } })
 		);
@@ -781,7 +844,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip || !isWriteOwnValid) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				hash: encodeURIComponent(writeOwnDraft),
@@ -823,7 +886,7 @@ export function SavedPlaygroundsPanel({
 				// Blueprint rather than blocking the handoff.
 			}
 		}
-		dispatch(setSiteManagerSection('blueprints'));
+		dispatch(setDockPaneSection('blueprint'));
 	};
 
 	/**
@@ -848,7 +911,7 @@ export function SavedPlaygroundsPanel({
 		},
 		{
 			id: 'blueprint-url',
-			label: 'Blueprint URL',
+			label: 'From a URL',
 			panelTitle: 'Blueprint from a URL',
 			icon: <Icon icon={link} size={20} />,
 			disabled: offline,
@@ -862,14 +925,14 @@ export function SavedPlaygroundsPanel({
 		},
 		{
 			id: 'pull-request',
-			label: 'Pull request',
+			label: 'Preview a PR',
 			panelTitle: 'Preview a pull request',
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'github',
-			label: 'GitHub',
+			label: 'From GitHub',
 			panelTitle: 'Import from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
@@ -910,7 +973,9 @@ export function SavedPlaygroundsPanel({
 		}
 		event.preventDefault();
 		const nextId = enabled[nextIndex].id;
+		creationFocusTargetRef.current = undefined;
 		setAutofocusWriteOwn(false);
+		setIsGitHubImportDetailsOpen(false);
 		setActiveCreationTab(nextId);
 		document.getElementById(`creation-tab-${nextId}`)?.focus();
 	};
@@ -924,12 +989,14 @@ export function SavedPlaygroundsPanel({
 	const handleCreationTabClick = (tabId: CreationTabId) => {
 		// `click` also fires for keyboard activation. Pair it with pointer type so
 		// only a real mouse click receives the typing convenience.
-		const activatedWithMouse =
-			creationTabPointerTypeRef.current === 'mouse';
+		const pointerType = creationTabPointerTypeRef.current;
+		const activatedWithMouse = pointerType === 'mouse';
 		creationTabPointerTypeRef.current = undefined;
 		focusCreationFieldAfterMouseClickRef.current =
 			activatedWithMouse && tabId !== activeCreationTab;
+		creationFocusTargetRef.current = undefined;
 		setAutofocusWriteOwn(activatedWithMouse && tabId === 'write-own');
+		setIsGitHubImportDetailsOpen(false);
 		setActiveCreationTab(tabId);
 	};
 
@@ -1246,6 +1313,8 @@ export function SavedPlaygroundsPanel({
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
+		const isGitHubImportOpen =
+			activeCreationTab === 'github' && isGitHubImportDetailsOpen;
 		// The roving Tab stop must land on an ENABLED tab. If the active tab is a
 		// network source that just went offline (disabled), a disabled element with
 		// tabIndex=0 is dropped from the focus order — which would leave the tablist
@@ -1265,6 +1334,7 @@ export function SavedPlaygroundsPanel({
 				)}
 			>
 				<div
+					hidden={isGitHubImportOpen}
 					className={css.creationTabs}
 					role="tablist"
 					aria-label="Ways to start a new Playground"
@@ -1303,16 +1373,32 @@ export function SavedPlaygroundsPanel({
 				</div>
 				<div
 					id="creation-panel"
-					className={css.creationPanel}
+					className={classNames(css.creationPanel, {
+						[css.creationPanelDedicated]: isGitHubImportOpen,
+					})}
 					ref={creationPanelRef}
-					role="tabpanel"
-					aria-labelledby={`creation-tab-${activeCreationTab}`}
+					role={isGitHubImportOpen ? 'region' : 'tabpanel'}
+					aria-label={
+						isGitHubImportOpen
+							? activeMethod?.panelTitle
+							: undefined
+					}
+					aria-labelledby={
+						isGitHubImportOpen
+							? undefined
+							: `creation-tab-${activeCreationTab}`
+					}
 				>
-					<div className={css.panelHeader}>
-						<h3 className={css.panelTitle}>
-							{activeMethod?.panelTitle}
-						</h3>
-					</div>
+					{!isGitHubImportOpen && (
+						<div className={css.panelHeader}>
+							<h3
+								id="creation-panel-title"
+								className={css.panelTitle}
+							>
+								{activeMethod?.panelTitle}
+							</h3>
+						</div>
+					)}
 					{renderActiveCreationTab()}
 				</div>
 			</OverlaySection>
@@ -1434,6 +1520,11 @@ export function SavedPlaygroundsPanel({
 					<div className={css.inlineForm}>
 						<GitHubImportForm
 							playground={playground!}
+							showRepositoryDetails={isGitHubImportDetailsOpen}
+							onRepositoryResolved={() => {
+								creationFocusTargetRef.current = 'back';
+								setIsGitHubImportDetailsOpen(true);
+							}}
 							getPlaygroundBeforeImport={
 								createSiteForGitHubImport
 							}

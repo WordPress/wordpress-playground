@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DockCornerLauncher } from './dock-corner-launcher';
+import css from './style.module.css';
 
 describe('DockCornerLauncher', () => {
 	it('renders the minimized dock launcher with its logo content', () => {
@@ -24,5 +25,15 @@ describe('DockCornerLauncher', () => {
 		);
 
 		expect(markup).toContain('disabled=""');
+	});
+
+	it('stays mounted but visually hidden while dragging the dock back out', () => {
+		const markup = renderToStaticMarkup(
+			<DockCornerLauncher side="left" isDragging>
+				<span>WP</span>
+			</DockCornerLauncher>
+		);
+
+		expect(markup).toContain(css.dockCornerDragging);
 	});
 });

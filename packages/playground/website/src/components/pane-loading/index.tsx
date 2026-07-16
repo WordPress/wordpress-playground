@@ -10,7 +10,7 @@ import css from './style.module.css';
 export function PaneLoading({ message }: { message: string }) {
 	return (
 		<div className={css.paneLoading} role="status" aria-live="polite">
-			<Spinner size={28} />
+			<Spinner size={32} />
 			<p className={css.paneLoadingText}>{message}</p>
 		</div>
 	);

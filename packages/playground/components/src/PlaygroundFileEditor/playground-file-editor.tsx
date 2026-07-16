@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, Notice } from '@wordpress/components';
-import { check } from '@wordpress/icons';
+import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
@@ -9,6 +8,8 @@ import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
+const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
+const MANUAL_SAVED_FEEDBACK_DURATION_MS = 1000;
 
 const SaveState = {
 	IDLE: 'idle',
@@ -56,6 +57,9 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [manualSaveFeedback, setManualSaveFeedback] = useState<
+		'idle' | 'waiting' | 'saving' | 'saved'
+	>('idle');
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -70,6 +74,7 @@ export function PlaygroundFileEditor({
 		filesystem
 	);
 	const pendingSaveRef = useRef<PendingSave | null>(null);
+	const manualSaveRef = useRef<PendingSave | null>(null);
 	const lastWriteByFilesystemRef = useRef(
 		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
 	);
@@ -89,6 +94,7 @@ export function PlaygroundFileEditor({
 	 */
 	const saveFile = useCallback(async (pendingSave: PendingSave) => {
 		const { filesystem, path, content } = pendingSave;
+		const isManualSave = manualSaveRef.current === pendingSave;
 		const writes = lastWriteByFilesystemRef.current;
 		const previousWrite = writes.get(filesystem);
 		// A failed write reports its own error, but must not poison later writes.
@@ -118,11 +124,17 @@ export function PlaygroundFileEditor({
 		if (writes.get(filesystem) === writePromise) {
 			writes.delete(filesystem);
 		}
+		if (manualSaveRef.current === pendingSave) {
+			manualSaveRef.current = null;
+		}
 		if (ownsVisibleBuffer) {
 			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
 			setSaveError(
 				writeFailed ? 'Could not save changes. Try again.' : null
 			);
+			if (isManualSave) {
+				setManualSaveFeedback(writeFailed ? 'idle' : 'saved');
+			}
 		}
 	}, []);
 
@@ -277,6 +289,44 @@ export function PlaygroundFileEditor({
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
+	// A new edit or file selection cancels feedback from an older manual save.
+	useEffect(() => {
+		if (
+			manualSaveFeedback === 'idle' ||
+			saveState === SaveState.SAVING ||
+			saveState === SaveState.SAVED
+		) {
+			return;
+		}
+		setManualSaveFeedback('idle');
+	}, [manualSaveFeedback, saveState]);
+
+	useEffect(() => {
+		if (manualSaveFeedback !== 'saved') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() => setManualSaveFeedback('idle'),
+			MANUAL_SAVED_FEEDBACK_DURATION_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
+
+	// Fast manual writes go straight to "Saved" instead of flashing "Saving…".
+	useEffect(() => {
+		if (manualSaveFeedback !== 'waiting') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() =>
+				setManualSaveFeedback((feedback) =>
+					feedback === 'waiting' ? 'saving' : feedback
+				),
+			MANUAL_SAVING_FEEDBACK_DELAY_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
+
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
 			// Save cursor position of current file before switching
@@ -410,6 +460,8 @@ export function PlaygroundFileEditor({
 		if (!pendingSaveRef.current) {
 			return;
 		}
+		manualSaveRef.current = pendingSaveRef.current;
+		setManualSaveFeedback('waiting');
 		setSaveState(SaveState.SAVING);
 		flushPendingSave();
 	}, [flushPendingSave]);
@@ -436,11 +488,25 @@ export function PlaygroundFileEditor({
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
-	const saveButtonLabel = getSaveButtonLabel(saveState);
-	const saveButtonStateClassName = getSaveButtonStateClassName(
-		saveState,
-		styles
-	);
+	const dockSaveTooltip = getDockSaveTooltip(saveState);
+	let dockSaveButtonLabel = 'Save';
+	if (saveState === SaveState.ERROR) {
+		dockSaveButtonLabel = 'Retry';
+	} else if (
+		saveState === SaveState.SAVED &&
+		manualSaveFeedback === 'saved'
+	) {
+		dockSaveButtonLabel = 'Saved';
+	} else if (
+		saveState === SaveState.SAVING &&
+		manualSaveFeedback === 'saving'
+	) {
+		dockSaveButtonLabel = 'Saving…';
+	}
+	const dockHasUnsavedChanges =
+		saveState === SaveState.PENDING ||
+		saveState === SaveState.SAVING ||
+		saveState === SaveState.ERROR;
 
 	if (!filesystem) {
 		return (
@@ -501,40 +567,33 @@ export function PlaygroundFileEditor({
 								[styles['editorPathPlaceholder']]:
 									!currentPath?.length,
 							})}
+							title={currentPath ?? undefined}
 						>
 							{currentPath?.length
 								? currentPath
 								: `Browse files under ${documentRoot}`}
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
-							<Button
-								variant={
-									saveState === SaveState.IDLE ||
-									saveState === SaveState.SAVED
-										? 'secondary'
-										: 'primary'
-								}
-								isDestructive={saveState === SaveState.ERROR}
-								icon={
-									saveState === SaveState.IDLE ||
-									saveState === SaveState.SAVED
-										? check
-										: undefined
-								}
-								className={classNames(
-									styles['saveButton'],
-									saveButtonStateClassName
-								)}
-								isBusy={saveState === SaveState.SAVING}
-								disabled={
-									saveState !== SaveState.PENDING &&
-									saveState !== SaveState.ERROR
-								}
-								onClick={handleDockManualSave}
-								title={saveButtonLabel}
-							>
-								{saveButtonLabel}
-							</Button>
+							<div className={styles['editorHeaderActions']}>
+								{dockHasUnsavedChanges ? (
+									<span
+										className={styles['dockDirtyIndicator']}
+										aria-hidden="true"
+									/>
+								) : null}
+								<Tooltip text={dockSaveTooltip} placement="top">
+									<Button
+										variant="secondary"
+										className={styles['dockSaveButton']}
+										isDestructive={
+											saveState === SaveState.ERROR
+										}
+										onClick={handleDockManualSave}
+									>
+										{dockSaveButtonLabel}
+									</Button>
+								</Tooltip>
+							</div>
 						) : !dockPresentation ? (
 							<div
 								className={classNames(
@@ -544,6 +603,11 @@ export function PlaygroundFileEditor({
 							>
 								{saveStatusLabel}
 							</div>
+						) : null}
+						{dockPresentation && !readOnly && currentPath ? (
+							<VisuallyHidden role="status" aria-live="polite">
+								{dockSaveTooltip}
+							</VisuallyHidden>
 						) : null}
 					</div>
 					{saveError ? (
@@ -610,28 +674,15 @@ function getSaveStatusClassName(
 	}
 }
 
-function getSaveButtonLabel(saveState: SaveState) {
+function getDockSaveTooltip(saveState: SaveState) {
 	switch (saveState) {
 		case SaveState.PENDING:
-			return 'Save file';
+			return 'Unsaved changes. Click to save now.';
 		case SaveState.SAVING:
-			return 'Saving…';
+			return 'Saving changes…';
 		case SaveState.ERROR:
-			return 'Retry save';
+			return 'Saving failed. Click to retry.';
 		default:
-			return 'File saved';
-	}
-}
-
-function getSaveButtonStateClassName(
-	saveState: SaveState,
-	styleSheet: typeof styles
-) {
-	switch (saveState) {
-		case SaveState.IDLE:
-		case SaveState.SAVED:
-			return styleSheet['saveButtonSaved'];
-		default:
-			return undefined;
+			return 'All changes saved.';
 	}
 }

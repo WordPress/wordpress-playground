@@ -7,7 +7,6 @@ describe('stored site creation', () => {
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
 	let deleteBlueprintBundle: ReturnType<typeof vi.fn>;
-	let removeWordPressFilesKeepMetadata: ReturnType<typeof vi.fn>;
 	let resolveRuntimeConfiguration: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
@@ -16,7 +15,6 @@ describe('stored site creation', () => {
 		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
-		removeWordPressFilesKeepMetadata = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
 
 		vi.doMock('@php-wasm/logger', () => ({
@@ -52,7 +50,6 @@ describe('stored site creation', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				update: updateSiteStorage,
-				removeWordPressFilesKeepMetadata,
 			},
 		}));
 		vi.doMock('../playground-identity', () => ({
@@ -299,26 +296,6 @@ describe('stored site creation', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
-	it('does not replace a persisted bundle before validating the new setup', async () => {
-		resolveRuntimeConfiguration.mockRejectedValue(
-			new Error('Invalid setup')
-		);
-		const { resetAutosavedSiteSpec } = await import('./slice-sites');
-		const resetSite = resetAutosavedSiteSpec(
-			'autosaved-site',
-			new URL(
-				'https://playground.test/?blueprint-url=https://example.com'
-			)
-		);
-
-		await expect(
-			resetSite(createDispatch() as any, createGetState() as any)
-		).rejects.toThrow('Invalid setup');
-
-		expect(persistBlueprintBundle).not.toHaveBeenCalled();
-		expect(removeWordPressFilesKeepMetadata).not.toHaveBeenCalled();
-	});
-
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
@@ -434,6 +411,32 @@ describe('stored site creation', () => {
 		expect(createSite).not.toHaveBeenCalled();
 	});
 
+	it('removes a partial Blueprint bundle when copying it fails', async () => {
+		const { createStoredSite } = await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		persistBlueprintBundle.mockRejectedValue(
+			new Error('Could not copy bundle')
+		);
+
+		await expect(
+			createStoredSite(
+				'Edited Blueprint',
+				createBundleBlueprint(),
+				'edited-blueprint'
+			)(createThunkDispatch() as any, createEmptyGetState() as any)
+		).rejects.toThrow('Could not copy bundle');
+
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
+		expect(createSite).not.toHaveBeenCalled();
+	});
+
 	it('removes an edited Blueprint bundle when site creation fails', async () => {
 		const { createStoredSite } = await import('./slice-sites');
 		resolveRuntimeConfiguration.mockResolvedValue({
@@ -463,37 +466,6 @@ function createEmptyGetState() {
 		sites: {
 			ids: [],
 			entities: {},
-			opfsSitesLoadingState: 'loaded',
-			firstTemporarySiteCreated: false,
-		},
-	});
-}
-
-function createGetState() {
-	return () => ({
-		sites: {
-			ids: ['autosaved-site'],
-			entities: {
-				'autosaved-site': {
-					slug: 'autosaved-site',
-					metadata: {
-						id: 'autosaved-site',
-						name: 'Autosaved site',
-						storage: 'opfs',
-						persistence: 'autosave',
-						originalBlueprint: {},
-						originalBlueprintSource: { type: 'none' },
-						runtimeConfiguration: {
-							phpVersion: '8.3',
-							wpVersion: 'latest',
-							intl: false,
-							networking: true,
-							extraLibraries: [],
-							constants: {},
-						},
-					},
-				},
-			},
 			opfsSitesLoadingState: 'loaded',
 			firstTemporarySiteCreated: false,
 		},

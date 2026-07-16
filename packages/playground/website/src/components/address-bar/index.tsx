@@ -261,7 +261,7 @@ export default function AddressBar({
 				/>
 				{isOpen && (
 					<Popover
-						placement="bottom-start"
+						placement="top-start"
 						onClose={closeSuggestions}
 						anchor={inputRef.current}
 						noArrow={true}

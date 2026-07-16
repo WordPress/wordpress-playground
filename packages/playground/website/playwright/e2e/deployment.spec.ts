@@ -153,7 +153,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
-	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);

@@ -1,8 +1,22 @@
 import classNames from 'classnames';
-import { forwardRef, useId } from 'react';
-import type { CSSProperties, MouseEventHandler, ReactNode } from 'react';
-import { Icon, close } from '@wordpress/icons';
+import { forwardRef, useEffect, useId } from 'react';
+import type {
+	CSSProperties,
+	MouseEventHandler,
+	ReactNode,
+	RefObject,
+} from 'react';
+import { Icon, chevronLeft, close } from '@wordpress/icons';
 import css from './style.module.css';
+
+export type DockPaneHeaderOverride = {
+	title: string;
+	description?: string;
+	backLabel: string;
+	backButtonRef?: RefObject<HTMLButtonElement>;
+	focusBackButton?: boolean;
+	onBack: MouseEventHandler<HTMLButtonElement>;
+};
 
 export type DockPaneProps = {
 	title: string;
@@ -16,6 +30,7 @@ export type DockPaneProps = {
 	isCompact?: boolean;
 	showHeader?: boolean;
 	headerAction?: ReactNode;
+	headerOverride?: DockPaneHeaderOverride;
 	ariaLabel?: string;
 	closeDisabled?: boolean;
 	closeTitle?: string;
@@ -40,6 +55,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 			isCompact = false,
 			showHeader = true,
 			headerAction,
+			headerOverride,
 			ariaLabel,
 			closeDisabled = false,
 			closeTitle,
@@ -48,8 +64,18 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		ref
 	) {
 		const closeDescriptionId = useId();
+		const displayedTitle = headerOverride?.title ?? title;
+		const displayedDescription = headerOverride
+			? headerOverride.description
+			: description;
 		const closeDescription =
 			closeTitle && closeTitle !== 'Close' ? closeTitle : undefined;
+
+		useEffect(() => {
+			if (headerOverride?.focusBackButton) {
+				headerOverride.backButtonRef?.current?.focus();
+			}
+		}, [headerOverride]);
 
 		return (
 			<section
@@ -66,7 +92,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				style={style}
 				role="dialog"
 				tabIndex={-1}
-				aria-label={ariaLabel ?? `${title} pane`}
+				aria-label={ariaLabel ?? `${displayedTitle} pane`}
 			>
 				{onClose && (
 					<>
@@ -97,16 +123,27 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>
+						{headerOverride && (
+							<button
+								ref={headerOverride.backButtonRef}
+								type="button"
+								className={css.paneBack}
+								aria-label={headerOverride.backLabel}
+								onClick={headerOverride.onBack}
+							>
+								<Icon icon={chevronLeft} size={20} />
+							</button>
+						)}
 						<div className={css.paneHeaderMain}>
-							<h2>{title}</h2>
-							{headerSubtitle !== undefined ? (
+							<h2>{displayedTitle}</h2>
+							{!headerOverride && headerSubtitle !== undefined ? (
 								<div className={css.paneDescription}>
 									{headerSubtitle}
 								</div>
 							) : (
-								description && (
+								displayedDescription && (
 									<p className={css.paneDescription}>
-										{description}
+										{displayedDescription}
 									</p>
 								)
 							)}

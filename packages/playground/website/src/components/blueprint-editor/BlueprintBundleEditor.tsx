@@ -21,13 +21,17 @@ import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
 } from '@wp-playground/blueprints';
-import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import type {
+	AsyncWritableFilesystem,
+	EventedFilesystem,
+} from '@wp-playground/storage';
 import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 import classNames from 'classnames';
 import {
 	forwardRef,
 	useCallback,
 	useEffect,
+	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -51,22 +55,20 @@ import {
 import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
+import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
-	removeClientInfo,
-	selectClientInfoBySiteSlug,
-} from '../../lib/state/redux/slice-clients';
-import {
+	createStoredSite,
 	isAutosavedSite,
-	sitesSlice,
+	isStoredSite,
+	pruneAutosavedSites,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { resetAutosavedSiteFilesWithPendingMarker } from '../../lib/state/opfs/opfs-autosave-reset';
+import { setActiveSite, useAppDispatch } from '../../lib/state/redux/store';
+import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
-import type { EventedFilesystem } from '@wp-playground/storage';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -268,7 +270,7 @@ const PlayIcon = ({ className }: { className?: string }) => (
  * Inner editor that assumes the filesystem never changes.
  */
 export type BlueprintBundleEditorProps = {
-	filesystem: AsyncWritableFilesystem;
+	filesystem: EventedFilesystem;
 	className?: string;
 	site?: SiteInfo;
 	autoRunToken?: number;
@@ -279,7 +281,7 @@ export type BlueprintBundleEditorProps = {
 export interface BlueprintBundleEditorHandle {
 	downloadBundle: () => Promise<void>;
 	getBundle: () => Promise<AsyncWritableFilesystem | null>;
-	triggerRecreate: () => Promise<void>;
+	runBlueprint: () => Promise<void>;
 }
 
 export const BlueprintBundleEditor = forwardRef<
@@ -307,9 +309,12 @@ export const BlueprintBundleEditor = forwardRef<
 		string | JSX.Element | null
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
-	const [isRecreating, setIsRecreating] = useState(false);
+	const [isRunningBlueprint, setIsRunningBlueprint] = useState(false);
 	const [validationResult, setValidationResult] =
 		useState<BlueprintValidationResult | null>(null);
+	const hasValidationErrors =
+		validationResult !== null && !validationResult.valid;
+	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -348,10 +353,8 @@ export const BlueprintBundleEditor = forwardRef<
 	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
 	 */
 	const saveBarrierRef = useRef<Promise<boolean>>(Promise.resolve(true));
+	const runInProgressRef = useRef(false);
 	const dispatch = useAppDispatch();
-	const playgroundClient = useAppSelector((state) =>
-		site ? selectClientInfoBySiteSlug(state, site.slug)?.client : undefined
-	);
 
 	// Save file to filesystem
 	const saveFile = useDebouncedCallback(enqueueSave, 200, [filesystem]);
@@ -373,7 +376,7 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
-			if (readOnly || isRecreating) {
+			if (readOnly || isRunningBlueprint) {
 				return;
 			}
 			setCode(newCode);
@@ -381,7 +384,7 @@ export const BlueprintBundleEditor = forwardRef<
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, isRecreating, readOnly, saveFile]
+		[currentPath, isRunningBlueprint, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -414,102 +417,93 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
-	const handleRecreateFromBlueprint = useCallback(async () => {
+	const handleRunBlueprint = useCallback(async () => {
 		if (
 			!site ||
 			readOnly ||
-			(site.metadata.storage !== 'none' && !isAutosavedSite(site))
+			hasValidationErrors ||
+			runInProgressRef.current
 		) {
 			return;
 		}
+		runInProgressRef.current = true;
+		const runInNewPlayground = isStoredSite(site);
 		try {
-			setIsRecreating(true);
+			setIsRunningBlueprint(true);
 			saveFile.flush();
 			if (!(await saveBarrierRef.current)) {
 				return;
 			}
 			setSaveError(null);
-			const isAutosaved = isAutosavedSite(site);
-			const bundle =
-				(filesystem as EventedFilesystem | null) ??
-				((site.metadata.originalBlueprint ||
-					null) as EventedFilesystem | null);
-			if (!bundle) {
-				throw new Error('Blueprint bundle is not available.');
+			if (runInNewPlayground) {
+				const newSite = await dispatch(
+					createStoredSite(
+						site.metadata.name,
+						filesystem.backend,
+						undefined,
+						{ persistence: 'autosave' }
+					)
+				);
+				try {
+					await dispatch(
+						pruneAutosavedSites({
+							excludeSlugs: [site.slug, newSite.slug],
+						})
+					);
+				} catch (error) {
+					// The new Playground is already committed. Retention cleanup is
+					// housekeeping and must not turn a successful run into a retry
+					// that creates a duplicate Playground.
+					logger.error(
+						'Failed to prune autosaved Playgrounds',
+						error
+					);
+				}
+				dispatch(setDockPaneOpen(false));
+				dispatch(setActiveSite(newSite.slug));
+				return;
 			}
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				bundle as any
+				filesystem as any
 			);
 			const changes = {
-				...(isAutosaved ? { loadedFromStorage: false } : {}),
 				metadata: {
 					...site.metadata,
-					originalBlueprintSource: isAutosaved
-						? { type: 'opfs-site' as const }
-						: { type: 'none' as const },
-					originalBlueprint: isAutosaved
-						? (filesystem as EventedFilesystem).backend
-						: bundle,
+					originalBlueprintSource: { type: 'none' as const },
+					originalBlueprint: filesystem,
 					runtimeConfiguration,
 					initialOpfsSyncPending:
-						isAutosaved || site.metadata.initialOpfsSyncPending,
-					/**
-					 * Recreating an autosaved Playground discards the old
-					 * WordPress files and boots from the edited Blueprint.
-					 * Constants discovered from the previous runtime may no
-					 * longer exist in the recreated site, so they must be
-					 * rediscovered after the first OPFS sync.
-					 */
-					playgroundDefinedConstants: isAutosaved
-						? undefined
-						: site.metadata.playgroundDefinedConstants,
+						site.metadata.initialOpfsSyncPending,
+					playgroundDefinedConstants:
+						site.metadata.playgroundDefinedConstants,
 					whenCreated: Date.now(),
 				},
 				originalUrlParams: undefined,
 			};
-			if (isAutosaved) {
-				await playgroundClient?.unmountOpfs('/wordpress');
-				dispatch(removeClientInfo(site.slug));
-				// "Run Blueprint and reset site" changes the setup for this
-				// autosave. Delete the old WordPress files with
-				// `opfsSiteRemovalPending` so a tab close after the metadata
-				// write cannot leave the old site booting under the edited
-				// Blueprint.
-				const completedChanges =
-					await resetAutosavedSiteFilesWithPendingMarker(
-						site.slug,
-						changes
-					);
-				// The helper already wrote these changes to OPFS before and
-				// after deleting files. Update Redux without writing the same
-				// metadata a third time.
-				dispatch(
-					sitesSlice.actions.updateSite({
-						id: site.slug,
-						changes: completedChanges,
-					})
-				);
-			} else {
-				dispatch(removeClientInfo(site.slug));
-				await dispatch(
-					updateSite({
-						slug: site.slug,
-						changes,
-					})
-				);
-			}
+			dispatch(removeClientInfo(site.slug));
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes,
+				})
+			);
 		} catch (error) {
-			logger.error('Failed to recreate from blueprint', error);
-			setSaveError('Could not recreate Playground. Try again.');
+			logger.error('Failed to run Blueprint', error);
+			setSaveError(
+				runInNewPlayground
+					? 'Could not create Playground. Try again.'
+					: 'Could not recreate Playground. Try again.'
+			);
 		} finally {
-			setIsRecreating(false);
+			runInProgressRef.current = false;
+			setIsRunningBlueprint(false);
 		}
-	}, [dispatch, filesystem, playgroundClient, readOnly, saveFile, site]);
+	}, [dispatch, filesystem, hasValidationErrors, readOnly, saveFile, site]);
 
 	// autorun token hook
 	useEffect(() => {
 		if (autoRunToken === undefined) return;
-		void handleRecreateFromBlueprint();
+		void handleRunBlueprint();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [autoRunToken]);
 
@@ -574,7 +568,7 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
-			if (readOnly || isRecreating) {
+			if (readOnly || isRunningBlueprint) {
 				return;
 			}
 			const view = cmViewRef.current;
@@ -595,7 +589,7 @@ export const BlueprintBundleEditor = forwardRef<
 			setTimeout(() => formatEditor(view), 0);
 		},
 		[
-			isRecreating,
+			isRunningBlueprint,
 			readOnly,
 			stringEditorState.contentEnd,
 			stringEditorState.contentStart,
@@ -660,9 +654,6 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleValidationChange, openStringEditor]
 	);
 
-	const hasValidationErrors =
-		validationResult !== null && !validationResult.valid;
-
 	const handleDownloadBundle = useCallback(async () => {
 		try {
 			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
@@ -726,13 +717,14 @@ export const BlueprintBundleEditor = forwardRef<
 		() => ({
 			downloadBundle: handleDownloadBundle,
 			getBundle: async () => filesystem,
-			triggerRecreate: handleRecreateFromBlueprint,
+			runBlueprint: handleRunBlueprint,
 		}),
-		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
+		[handleDownloadBundle, filesystem, handleRunBlueprint]
 	);
 
 	const isAutosaved = site ? isAutosavedSite(site) : false;
-	const disableRunButton = isRecreating || !site || hasValidationErrors;
+	const isStored = site ? isStoredSite(site) : false;
+	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
 	return (
 		<>
 			<div
@@ -764,7 +756,7 @@ export const BlueprintBundleEditor = forwardRef<
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly || isRecreating}
+							readOnly={readOnly || isRunningBlueprint}
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
@@ -850,44 +842,67 @@ export const BlueprintBundleEditor = forwardRef<
 												</Button>
 											)}
 											renderContent={({ onClose }) => (
-												<>
-													<MenuGroup>
-														<MenuItem
-															icon={link}
-															disabled={
-																!isBundleShareable
-															}
-															onClick={() => {
-																handleShareBlueprint();
-																onClose();
-															}}
-														>
-															Copy Blueprint URL
-														</MenuItem>
-														<MenuItem
-															icon={download}
-															onClick={() => {
-																handleDownloadBundle();
-																onClose();
-															}}
-														>
-															Download Zip
-														</MenuItem>
-													</MenuGroup>
-													{!isBundleShareable && (
-														<p
+												<MenuGroup>
+													<MenuItem
+														icon={link}
+														className={
+															!isBundleShareable
+																? styles.exportMenuItemWithHint
+																: undefined
+														}
+														aria-label="Copy Blueprint URL"
+														aria-describedby={
+															!isBundleShareable
+																? copyBlueprintUrlHintId
+																: undefined
+														}
+														disabled={
+															!isBundleShareable
+														}
+														onClick={() => {
+															handleShareBlueprint();
+															onClose();
+														}}
+													>
+														<span
 															className={
-																styles.exportHint
+																styles.exportMenuItemBody
 															}
 														>
-															Multi-file
-															Blueprints can’t be
-															shared as a URL —
-															download a zip
-															instead.
-														</p>
-													)}
-												</>
+															<span>
+																Copy Blueprint
+																URL
+															</span>
+															{!isBundleShareable && (
+																<span
+																	id={
+																		copyBlueprintUrlHintId
+																	}
+																	className={
+																		styles.exportMenuItemHint
+																	}
+																>
+																	Multi-file
+																	Blueprints
+																	can’t be
+																	shared as a
+																	URL —
+																	download a
+																	zip instead.
+																</span>
+															)}
+														</span>
+													</MenuItem>
+													<MenuItem
+														icon={download}
+														onClick={() => {
+															handleDownloadBundle();
+															onClose();
+														}}
+													>
+														Download Zip
+													</MenuItem>
+												</MenuGroup>
 											)}
 										/>
 									</>
@@ -920,6 +935,7 @@ export const BlueprintBundleEditor = forwardRef<
 								{!readOnly && (
 									<Button
 										variant="primary"
+										isDestructive={!isStored}
 										className={classNames(
 											styles.editorToolbarButton,
 											{
@@ -927,8 +943,8 @@ export const BlueprintBundleEditor = forwardRef<
 													hasValidationErrors,
 											}
 										)}
-										onClick={handleRecreateFromBlueprint}
-										isBusy={isRecreating}
+										onClick={handleRunBlueprint}
+										isBusy={isRunningBlueprint}
 										disabled={disableRunButton}
 										title={
 											hasValidationErrors
@@ -941,9 +957,9 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										{isAutosaved
-											? 'Run Blueprint and reset site'
-											: 'Run Blueprint'}
+										{isStored
+											? 'Run in a new Playground'
+											: 'Discard current Playground & run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -974,14 +990,15 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{isAutosaved ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="warning" isDismissible={false}>
-									Running this Blueprint will recreate this
-									autosaved Playground under the same name and
-									replace all its files.
-								</Notice>
-							</div>
+						{isStored ? (
+							<p className={styles.runHint}>
+								Running this Blueprint creates a fresh autosaved
+								Playground. “{site?.metadata.name}” stays in{' '}
+								{isAutosaved
+									? 'Recent autosaves'
+									: 'Saved Playgrounds'}
+								.
+							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
 							messageContent ? (
@@ -996,7 +1013,9 @@ export const BlueprintBundleEditor = forwardRef<
 										onChange={handleCodeChange}
 										currentPath={currentPath}
 										className={styles.editor}
-										readOnly={readOnly || isRecreating}
+										readOnly={
+											readOnly || isRunningBlueprint
+										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
 												? blueprintSchemaExtensions

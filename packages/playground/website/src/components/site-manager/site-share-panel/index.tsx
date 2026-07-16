@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import { Button, Icon } from '@wordpress/components';
-import { chevronLeft, download, link } from '@wordpress/icons';
+import { download, link } from '@wordpress/icons';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GitHubIcon } from '../../../github/github';
 import { useGitHubExportSession } from '../../../github/github-export-session';
@@ -41,7 +41,6 @@ export function SiteSharePanel() {
 		(state) => state.ui.shareExportOpen
 	);
 	const githubExportSession = useGitHubExportSession();
-	const backButtonRef = useRef<HTMLButtonElement>(null);
 	const exportButtonRef = useRef<HTMLButtonElement>(null);
 	const exportWasOpenRef = useRef(false);
 
@@ -52,9 +51,7 @@ export function SiteSharePanel() {
 	}, [dispatch]);
 
 	useEffect(() => {
-		if (showGitHubExport) {
-			backButtonRef.current?.focus();
-		} else if (exportWasOpenRef.current) {
+		if (!showGitHubExport && exportWasOpenRef.current) {
 			exportButtonRef.current?.focus();
 		}
 		exportWasOpenRef.current = showGitHubExport;
@@ -104,16 +101,10 @@ export function SiteSharePanel() {
 
 	if (showGitHubExport) {
 		return (
-			<section className={css.sharePanel}>
-				<button
-					ref={backButtonRef}
-					type="button"
-					className={css.backButton}
-					onClick={() => dispatch(setShareExportOpen(false))}
-				>
-					<Icon icon={chevronLeft} size={24} />
-					Export to GitHub
-				</button>
+			<section
+				className={`${css.sharePanel} ${css.githubExportPanel}`}
+				aria-label="Export to GitHub form"
+			>
 				{playground ? (
 					<Suspense
 						fallback={
@@ -123,6 +114,7 @@ export function SiteSharePanel() {
 						}
 					>
 						<GitHubExportForm
+							className={css.githubExportForm}
 							playground={playground}
 							onClose={() => dispatch(setShareExportOpen(false))}
 							onExported={(_prUrl, formValues) =>

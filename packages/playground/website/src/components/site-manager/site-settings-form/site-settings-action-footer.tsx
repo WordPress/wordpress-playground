@@ -3,7 +3,7 @@ import {
 	Dropdown,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
 	MAX_AUTOSAVED_SITES,
 	type SitePersistence,
@@ -12,6 +12,8 @@ import type { SiteFormData } from './unconnected-site-settings-form';
 import type { SiteSettingsFormFooterContext } from './unconnected-site-settings-form';
 import { getFreshPlaygroundReason } from './site-settings-actions';
 import css from './style.module.css';
+
+type SettingsAction = 'apply' | 'fresh';
 
 export function SiteSettingsActionFooter({
 	siteName,
@@ -37,6 +39,23 @@ export function SiteSettingsActionFooter({
 	);
 	const applyUnavailableReason = freshPlaygroundReason;
 	const canApplyToCurrent = !applyUnavailableReason;
+	const [selectedAction, setSelectedAction] =
+		useState<SettingsAction>('apply');
+	const forcedFreshActionRef = useRef(false);
+	const primaryAction =
+		selectedAction === 'apply' && canApplyToCurrent ? 'apply' : 'fresh';
+
+	useEffect(() => {
+		if (!canApplyToCurrent) {
+			if (selectedAction === 'apply') {
+				forcedFreshActionRef.current = true;
+				setSelectedAction('fresh');
+			}
+		} else if (forcedFreshActionRef.current) {
+			forcedFreshActionRef.current = false;
+			setSelectedAction('apply');
+		}
+	}, [canApplyToCurrent, selectedAction]);
 
 	return (
 		<VStack
@@ -47,22 +66,22 @@ export function SiteSettingsActionFooter({
 		>
 			<div className={css.splitButton}>
 				<Button
-					type={canApplyToCurrent ? 'submit' : 'button'}
+					type={primaryAction === 'apply' ? 'submit' : 'button'}
 					variant="primary"
 					className={
-						canApplyToCurrent
+						primaryAction === 'apply'
 							? css.applyButton
 							: css.createFreshButton
 					}
 					onClick={
-						canApplyToCurrent
+						primaryAction === 'apply'
 							? undefined
 							: () => void submit(onCreateFresh)()
 					}
 					disabled={isPending}
 					isBusy={isPending}
 				>
-					{canApplyToCurrent
+					{primaryAction === 'apply'
 						? 'Apply to this Playground'
 						: 'Create a fresh Playground'}
 				</Button>
@@ -78,7 +97,7 @@ export function SiteSettingsActionFooter({
 							type="button"
 							variant="primary"
 							className={
-								canApplyToCurrent
+								primaryAction === 'apply'
 									? css.splitButtonToggle
 									: `${css.splitButtonToggle} ${css.createFreshButton}`
 							}
@@ -95,15 +114,18 @@ export function SiteSettingsActionFooter({
 						<SettingsActionMenu
 							canApplyToCurrent={canApplyToCurrent}
 							applyUnavailableReason={applyUnavailableReason}
+							selectedAction={primaryAction}
 							siteName={siteName}
 							sitePersistence={sitePersistence}
-							onApply={() => {
+							onSelectApply={() => {
 								onClose();
-								void submit(onApply)();
+								forcedFreshActionRef.current = false;
+								setSelectedAction('apply');
 							}}
-							onCreateFresh={() => {
+							onSelectCreateFresh={() => {
 								onClose();
-								void submit(onCreateFresh)();
+								forcedFreshActionRef.current = false;
+								setSelectedAction('fresh');
 							}}
 						/>
 					)}
@@ -121,25 +143,30 @@ export function SiteSettingsActionFooter({
 function SettingsActionMenu({
 	canApplyToCurrent,
 	applyUnavailableReason,
+	selectedAction,
 	siteName,
 	sitePersistence,
-	onApply,
-	onCreateFresh,
+	onSelectApply,
+	onSelectCreateFresh,
 }: {
 	canApplyToCurrent: boolean;
 	applyUnavailableReason?: string;
+	selectedAction: SettingsAction;
 	siteName: string;
 	sitePersistence: SitePersistence;
-	onApply: () => void;
-	onCreateFresh: () => void;
+	onSelectApply: () => void;
+	onSelectCreateFresh: () => void;
 }) {
 	const applyRef = useRef<HTMLButtonElement>(null);
 	const freshRef = useRef<HTMLButtonElement>(null);
 	const items = [applyRef, freshRef];
 
 	useEffect(() => {
-		(canApplyToCurrent ? applyRef : freshRef).current?.focus();
-	}, [canApplyToCurrent]);
+		(selectedAction === 'apply' && canApplyToCurrent
+			? applyRef
+			: freshRef
+		).current?.focus();
+	}, [canApplyToCurrent, selectedAction]);
 
 	const moveFocus = (event: React.KeyboardEvent, nextIndex: number) => {
 		event.preventDefault();
@@ -173,10 +200,13 @@ function SettingsActionMenu({
 				type="button"
 				role="menuitem"
 				aria-disabled={!!applyUnavailableReason}
+				disabled={!!applyUnavailableReason}
 				className={`${css.actionMenuItem} ${
-					canApplyToCurrent ? css.selectedApplyMenuItem : ''
+					selectedAction === 'apply' && canApplyToCurrent
+						? css.selectedApplyMenuItem
+						: ''
 				}`}
-				onClick={() => !applyUnavailableReason && onApply()}
+				onClick={onSelectApply}
 			>
 				<span className={css.actionMenuTitle}>
 					Apply to this Playground
@@ -192,7 +222,7 @@ function SettingsActionMenu({
 				type="button"
 				role="menuitem"
 				className={`${css.actionMenuItem} ${css.createFreshMenuItem}`}
-				onClick={onCreateFresh}
+				onClick={onSelectCreateFresh}
 			>
 				<span className={css.actionMenuTitle}>
 					Create a fresh Playground

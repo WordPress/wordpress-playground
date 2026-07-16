@@ -24,25 +24,51 @@
 	flex-direction: column;
 	justify-content: center;
 	align-items: center;
+	box-sizing: border-box;
+	overflow: hidden;
+	padding: 24px;
 	background: #fff;
 }
 
 .loading-caption {
-	font-weight: 400;
+	font-weight: 300;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 1.1rem;
+	font-size: 20px;
 	color: #000;
-	margin: 0 0 4px 0;
+	line-height: 1.12;
+	margin: 0;
+	width: calc(100% - 48px);
+	max-width: 720px;
+	overflow-wrap: anywhere;
+	text-align: center;
 }
 
 .progress-wrapper {
 	position: relative;
-	width: 512px;
-	max-width: 60vw;
-	height: 4px;
-	margin: 4px auto;
-	border-radius: 10px;
-	background: #e0e0e0;
+	width: calc(100% - 48px);
+	max-width: 420px;
+	height: 9px;
+	margin: 19px auto 0;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #d8dce2;
+	box-shadow:
+		0 1px 0 rgb(255 255 255 / 0.72) inset,
+		0 10px 24px rgb(0 0 0 / 0.08);
+}
+
+.progress-wrapper::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.58) 50%,
+		transparent 100%
+	);
+	animation: track-shimmer 2.2s ease-in-out infinite;
+	content: '';
+	transform: translateX(-100%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,7 +81,14 @@
 	}
 
 	.progress-wrapper {
-		background: #1e1e1e;
+		background: #2f3338;
+		box-shadow:
+			inset 0 0 0 1px rgb(255 255 255 / 0.04),
+			0 10px 28px rgb(0 0 0 / 0.22);
+	}
+
+	.progress-bar {
+		box-shadow: 0 0 18px rgb(72 103 255 / 0.45);
 	}
 }
 
@@ -65,10 +98,17 @@
 	left: 0;
 	bottom: 0;
 	right: 100%;
+	z-index: 1;
 	width: 0;
-	background: #3858e9;
-	border-radius: 2px;
+	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
+	border-radius: inherit;
 	animation: indefinite-loading 2s linear infinite;
+}
+
+@keyframes track-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
 }
 
 @keyframes indefinite-loading {
@@ -91,5 +131,12 @@
 		left: 100%;
 		right: 0%;
 		width: 0%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.progress-wrapper::after,
+	.progress-bar {
+		animation: none;
 	}
 }

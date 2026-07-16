@@ -5,41 +5,116 @@
 	padding: 0 var(--space-6) var(--space-6);
 }
 
-.back-button {
-	align-items: center;
-	align-self: flex-start;
-	background: transparent;
+.github-export-panel {
+	flex: 1;
+	min-height: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.github-export-form {
+	color: var(--ink-soft);
+	display: flex;
+	flex-direction: column;
+	font-size: 14px;
+	gap: var(--space-4);
+	line-height: 1.5;
+}
+
+.github-export-form > p {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+	max-width: 60ch;
+}
+
+/* The modal form ships its own separators and large browser-default controls.
+   Inside the Dock, use the same compact field rhythm as the GitHub import form. */
+.github-export-form > div {
 	border: 0;
-	border-radius: var(--radius-control);
+	margin: 0;
+	padding: 0;
+}
+
+.github-export-form :global(label) {
+	color: var(--ink-muted);
+	display: flex;
+	flex-direction: column;
+	font-size: 13px;
+	gap: 6px;
+	line-height: 1.4;
+}
+
+.github-export-form :global(input[type='text']),
+.github-export-form :global(input[type='url']),
+.github-export-form :global(select),
+.github-export-form :global(textarea) {
+	background: #ffffff;
+	border: 1px solid var(--line-control);
+	border-radius: var(--radius-card);
+	box-shadow: none;
+	box-sizing: border-box;
 	color: var(--ink);
-	cursor: pointer;
-	display: inline-flex;
-	font-size: 20px;
+	font-family: inherit;
+	font-size: 15px;
+	line-height: 1.4;
+	margin: 0;
+	min-height: 42px;
+	padding: 10px 12px;
+	width: 100%;
+}
+
+.github-export-form :global(textarea) {
+	min-height: 104px;
+	resize: vertical;
+}
+
+.github-export-form :global(select) {
+	appearance: none;
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+		linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+	background-position:
+		calc(100% - 16px) calc(50% - 2px),
+		calc(100% - 11px) calc(50% - 2px);
+	background-repeat: no-repeat;
+	background-size: 5px 5px;
+	padding-right: 36px;
+}
+
+.github-export-form :global(input[type='text']:focus),
+.github-export-form :global(input[type='url']:focus),
+.github-export-form :global(select:focus),
+.github-export-form :global(textarea:focus) {
+	border-color: var(--accent);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
+	outline: none;
+}
+
+.github-export-form :global(label:has(input[type='checkbox'])) {
+	align-items: flex-start;
+	color: var(--ink-soft);
+	flex-direction: row;
+	gap: var(--space-2);
+}
+
+.github-export-form :global(input[type='checkbox']) {
+	accent-color: var(--accent);
+	margin: 2px 0 0;
+}
+
+.github-export-form :global(button[type='submit']) {
+	background: var(--accent);
+	color: #ffffff;
+	font-size: 14px;
 	font-weight: 600;
-	gap: 4px;
-	letter-spacing: -0.01em;
-	line-height: 1.2;
-	/* This replaces the DockPane title when GitHub export is open, so give it
-	   the shared pane-title rhythm: 32px above the title and 24px below it. */
-	margin: 0 0 var(--space-6);
-	padding: var(--space-8) var(--space-2) 0 0;
-	transition: background 120ms ease;
+	min-height: 42px;
 }
 
-.back-button:hover {
-	background: var(--paper-3);
-}
-
-.back-button :global(svg) {
-	fill: var(--ink-faint);
-	margin-left: -6px;
-}
-
-@media (max-width: 1024px) {
-	.back-button {
-		margin-bottom: var(--space-4);
-		padding-top: var(--space-6);
-	}
+.github-export-form :global(button[type='submit']:hover:not(:disabled)) {
+	background: var(--accent-hover);
 }
 
 .export-loading {
@@ -64,7 +139,7 @@
 	align-items: center;
 	background: var(--paper-3);
 	border-radius: var(--radius-card);
-	color: var(--accent-link);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex-shrink: 0;
 	height: 38px;
@@ -74,6 +149,10 @@
 
 .group-icon :global(svg) {
 	fill: currentColor;
+}
+
+.group-icon :global(svg [stroke]:not([stroke='none'])) {
+	stroke: currentColor;
 }
 
 .group-body {

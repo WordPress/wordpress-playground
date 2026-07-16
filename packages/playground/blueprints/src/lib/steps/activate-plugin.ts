@@ -1,5 +1,6 @@
 import type { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
+import { joinPaths, randomString } from '@php-wasm/util';
 /**
  * @inheritDoc activatePlugin
  * @example
@@ -42,12 +43,13 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	 * Route this request's PHP errors to a scratch file we own, so we can
 	 * include them in the JS-side error message if activation fails. We
 	 * don't touch the user's debug.log — the activation snippet ini_sets
-	 * the path for this single request only.
+	 * the path for this single request only. CLI workers share /tmp, so each
+	 * activation needs its own path rather than a shared scratch filename.
 	 */
-	const activationLogPath = '/tmp/playground-activate-plugin.log';
-	if (await playground.fileExists(activationLogPath)) {
-		await playground.unlink(activationLogPath);
-	}
+	const activationLogPath = joinPaths(
+		'/tmp',
+		`playground-activate-plugin-${randomString(20, '')}.log`
+	);
 
 	/**
 	 * Instead of checking the plugin activation response,
@@ -64,7 +66,8 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	 * See WordPress source code for more details:
 	 * https://github.com/WordPress/wordpress-develop/blob/6.7/src/wp-admin/includes/plugin.php#L733
 	 */
-	const activatePluginResult = await playground.run({
+	let activationLog = '';
+	const activationRequest = playground.run({
 		code: `<?php
 			define( 'WP_ADMIN', true );
 			require_once( getenv('DOCROOT') . "/wp-load.php" );
@@ -108,24 +111,29 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			ACTIVATION_LOG: activationLogPath,
 		},
 	});
+	const activatePluginResult = await activationRequest.finally(async () => {
+		try {
+			/**
+			 * Drain the scratch log immediately so the file is gone whether
+			 * activation succeeded or failed. Ignore only a file that disappeared
+			 * before cleanup; other filesystem errors must surface.
+			 */
+			if (await playground.fileExists(activationLogPath)) {
+				activationLog = (
+					await playground.readFileAsText(activationLogPath)
+				).trim();
+				await playground.unlink(activationLogPath);
+			}
+		} catch (error) {
+			if (!isFileNotFoundError(error)) {
+				throw error;
+			}
+		}
+	});
 	if (activatePluginResult.text) {
 		logger.warn(
 			`Plugin ${pluginPath} activation printed the following bytes: ${activatePluginResult.text}`
 		);
-	}
-
-	/**
-	 * Drain the scratch log immediately so the file is gone whether
-	 * activation succeeded or failed. We only need its contents on the
-	 * failure path below, but reading and deleting unconditionally
-	 * keeps cleanup off the error branches.
-	 */
-	let activationLog = '';
-	if (await playground.fileExists(activationLogPath)) {
-		activationLog = (
-			await playground.readFileAsText(activationLogPath)
-		).trim();
-		await playground.unlink(activationLogPath);
 	}
 
 	/**
@@ -229,3 +237,14 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		`Plugin ${pluginPath} could not be activated.\n\n${details.join('\n\n')}`
 	);
 };
+
+// Emscripten's MEMFS reports ENOENT as errno 44 instead of a Node error code.
+const EMSCRIPTEN_ENOENT = 44;
+
+function isFileNotFoundError(error: unknown): boolean {
+	const fileSystemError = error as { code?: unknown; errno?: unknown };
+	return (
+		fileSystemError.code === 'ENOENT' ||
+		fileSystemError.errno === EMSCRIPTEN_ENOENT
+	);
+}

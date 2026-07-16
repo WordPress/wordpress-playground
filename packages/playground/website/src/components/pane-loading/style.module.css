@@ -1,6 +1,8 @@
 .pane-loading {
+	--spinner-color: currentColor;
+
 	align-items: center;
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink, #21201d);
 	display: flex;
 	flex: 1;
 	flex-direction: column;
@@ -12,8 +14,8 @@
 }
 
 .pane-loading-text {
-	font-size: 13px;
-	line-height: 1.4;
+	font-size: 16px;
+	line-height: 1.5;
 	margin: 0;
 }
 
