@@ -104,6 +104,11 @@ function patchSchema(schema) {
 	);
 	patchStringDefinition(
 		definitions,
+		'DataSources.TargetSitePath',
+		'^site:(?!\\/*$)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$)).+$'
+	);
+	patchStringDefinition(
+		definitions,
 		'DataSources.SimpleVersionExpression',
 		'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$'
 	);
@@ -125,7 +130,7 @@ function patchSchema(schema) {
 	patchStringDefinition(
 		definitions,
 		'DataSources.WordPressVersion',
-		'^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
+		'^(?:latest|beta|trunk|nightly|none|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
 	);
 	patchStringDefinition(
 		definitions,
@@ -154,6 +159,64 @@ function patchSchema(schema) {
 		'^(?!.*(?:^|/)\\.\\.(?:/|$)).*$';
 
 	const blueprint = definitions['V2Schema.BlueprintV2'];
+	// TypeScript expresses the non-empty tuple and excludes comments from the
+	// scalar form, but not uniqueness or the relationship between comments and
+	// the content that may own them in an array.
+	const contentBaseline = blueprint.properties.contentBaseline;
+	const retainedContentTypes = contentBaseline.anyOf.find(
+		(variant) => variant.type === 'array'
+	);
+	retainedContentTypes.uniqueItems = true;
+	retainedContentTypes.allOf = [
+		{
+			if: { contains: { const: 'comments' } },
+			then: {
+				allOf: [
+					{ contains: { const: 'posts' } },
+					{ contains: { const: 'pages' } },
+				],
+			},
+		},
+	];
+	// These declaration-wide invariants cannot be represented by the field
+	// types: removing the installer account must leave a manageable WordPress
+	// site, and PHP-only Blueprints have no WordPress baseline to adjust.
+	blueprint.allOf = [
+		{
+			if: {
+				properties: { usersBaseline: { const: 'empty' } },
+				required: ['usersBaseline'],
+			},
+			then: {
+				properties: {
+					contentBaseline: { const: 'empty' },
+					users: {
+						type: 'array',
+						contains: {
+							type: 'object',
+							properties: {
+								role: { const: 'administrator' },
+							},
+							required: ['role'],
+						},
+					},
+				},
+				required: ['contentBaseline', 'users'],
+			},
+		},
+		{
+			if: {
+				properties: { wordpressVersion: { const: 'none' } },
+				required: ['wordpressVersion'],
+			},
+			then: {
+				properties: {
+					contentBaseline: false,
+					usersBaseline: false,
+				},
+			},
+		},
+	];
 	const siteOptions = blueprint.properties.siteOptions;
 	const permalinkStructure = siteOptions.properties.permalink_structure;
 	siteOptions.properties.permalink_structure = {
