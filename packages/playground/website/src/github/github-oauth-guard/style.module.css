@@ -11,7 +11,8 @@
 	gap: 12px;
 }
 
-.authenticate.authenticate p {
+.authenticate.authenticate p,
+.authorizing.authorizing p {
 	color: var(--ink-muted, #5f5b54);
 	font-size: 13px;
 	line-height: 1.5;
@@ -49,13 +50,6 @@
 	align-items: center;
 	display: flex;
 	gap: 4px;
-}
-
-.authorizing.authorizing p {
-	color: var(--ink-muted, #5f5b54);
-	font-size: 13px;
-	line-height: 1.5;
-	margin: 0;
 }
 
 /* The one filled primary of the flow: inline width, accent fill, and the same
