@@ -840,12 +840,10 @@ fn run_stream_request(
         send_bounded_stream_event(&emitter_sender, event, &emitter_cancellation)
     });
     let task_cancellation = Arc::clone(&cancellation);
+    let stream_task = move |emitter, cancellation| handler(request, emitter, cancellation);
     let task = thread::Builder::new()
         .name("wp-playground-control-stream".to_string())
-        .spawn(move || {
-            let result = handler(request, emitter, task_cancellation);
-            let _ = sender.send(StreamMessage::Finished(result));
-        });
+        .spawn(move || run_stream_task(stream_task, emitter, sender, task_cancellation));
     let task = match task {
         Ok(task) => task,
         Err(error) => {
@@ -949,6 +947,26 @@ fn run_stream_request(
             break;
         }
     }
+    if !terminal_published && write_error.is_none() {
+        let (code, message) = if cancellation.load(Ordering::Acquire) {
+            (
+                "ERR_WP_PLAYGROUND_NATIVE_ABORTED",
+                "The native stream was cancelled",
+            )
+        } else {
+            (
+                "ERR_WP_PLAYGROUND_NATIVE_RUNTIME",
+                "The native stream ended without a completion result",
+            )
+        };
+        let frame = stream_error_frame(&id, code, message);
+        publish_stream_terminal(&events, &id, &frame);
+        terminal_published = true;
+        if let Err(error) = write_ndjson_frame(stream, &frame) {
+            cancellation.store(true, Ordering::Release);
+            write_error = Some(error);
+        }
+    }
     drop(receiver);
     disconnect_watcher_shutdown.store(true, Ordering::Release);
     let _ = disconnect_unblock.shutdown(Shutdown::Read);
@@ -979,6 +997,18 @@ fn run_stream_request(
         Some(error) => Err(error),
         None => Ok(()),
     }
+}
+
+fn run_stream_task<F>(
+    task: F,
+    emitter: ControlStreamEmitter,
+    sender: SyncSender<StreamMessage>,
+    cancellation: Arc<AtomicBool>,
+) where
+    F: FnOnce(ControlStreamEmitter, Arc<AtomicBool>) -> Result<ControlStreamResponse>,
+{
+    let result = task(emitter, Arc::clone(&cancellation));
+    let _ = send_stream_message(&sender, StreamMessage::Finished(result), &cancellation);
 }
 
 fn send_bounded_stream_event(
@@ -2365,6 +2395,52 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("consumer disconnected"));
+    }
+
+    #[test]
+    fn stream_task_completion_stops_promptly_when_cancelled_with_a_full_queue() {
+        let (sender, receiver) = sync_channel(1);
+        assert!(sender
+            .try_send(StreamMessage::Event(ControlStreamEvent::Headers {
+                status: 200,
+                headers: Vec::new(),
+            }))
+            .is_ok());
+
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let task_cancellation = Arc::clone(&cancellation);
+        let (task_returned_sender, task_returned_receiver) = mpsc::channel();
+        let (completed_sender, completed_receiver) = mpsc::channel();
+        let stream_task = move |_: ControlStreamEmitter, _: Arc<AtomicBool>| {
+            let _ = task_returned_sender.send(());
+            Ok(ControlStreamResponse { exit_code: 0 })
+        };
+        let completion_thread = thread::spawn(move || {
+            run_stream_task(stream_task, Arc::new(|_| Ok(())), sender, task_cancellation);
+            let _ = completed_sender.send(());
+        });
+
+        task_returned_receiver
+            .recv_timeout(Duration::from_millis(250))
+            .expect("the stream task should return before enqueueing completion");
+        assert!(matches!(
+            completed_receiver.recv_timeout(Duration::from_millis(20)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        cancellation.store(true, Ordering::Release);
+        completed_receiver
+            .recv_timeout(Duration::from_millis(250))
+            .expect("completion enqueue should observe cancellation");
+        completion_thread.join().unwrap();
+
+        assert!(matches!(
+            receiver.try_recv(),
+            Ok(StreamMessage::Event(ControlStreamEvent::Headers { .. }))
+        ));
+        assert!(matches!(
+            receiver.try_recv(),
+            Err(mpsc::TryRecvError::Disconnected)
+        ));
     }
 
     #[test]
