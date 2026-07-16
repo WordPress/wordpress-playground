@@ -4,7 +4,7 @@ slug: /developers/apis/sites-api
 description: Manage Playground sites from JavaScript — list, create, persist, switch, and configure the saved WordPress instances on playground.wordpress.net.
 ---
 
-The Sites API is a JavaScript API exposed by [playground.wordpress.net](https://playground.wordpress.net) for managing the saved WordPress sites in the site manager sidebar. Use it to list and switch between sites, spin up a new temporary site with a specific PHP or WordPress version, persist a temporary site to OPFS or the local filesystem, or change PHP version and networking on a saved site.
+The Sites API is a JavaScript API exposed by [playground.wordpress.net](https://playground.wordpress.net) for managing the WordPress sites shown in the Dock's **Playgrounds** pane. Use it to list and switch between sites, spin up a new temporary site with a specific PHP or WordPress version, persist a temporary site to OPFS or the local filesystem, or change PHP version and networking on a saved site.
 
 The API is reached via the `window.playgroundSites` global. Note that `window.playgroundSites` is not assigned during initial page load — wait for it to appear, then call [`isReady()`](#isready) before making any API calls.
 
