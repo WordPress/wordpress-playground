@@ -49,10 +49,6 @@ vi.mock('../../offline-notice', () => ({
 	OfflineNotice: () => <div>Offline</div>,
 }));
 
-vi.mock('../temporary-site-notice', () => ({
-	TemporarySiteNotice: () => <div>Temporary Playground</div>,
-}));
-
 const site = {
 	slug: 'test-site',
 	metadata: {
