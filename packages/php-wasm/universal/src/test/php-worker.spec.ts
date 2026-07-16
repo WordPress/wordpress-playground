@@ -82,6 +82,7 @@ describe('PlaygroundWorkerEndpoint', () => {
 		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
 		await endpoint.cp('/source', '/target');
 
+		expect(primaryPhp.cp).toHaveBeenCalledOnce();
 		expect(primaryPhp.cp).toHaveBeenCalledWith('/source', '/target');
 	});
 
