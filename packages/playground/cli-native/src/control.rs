@@ -770,11 +770,13 @@ fn run_stream_request(
             "Failed to monitor the native stream connection: {error}"
         ))
     })?;
-    disconnect_stream.set_read_timeout(None).map_err(|error| {
-        CliError::new(format!(
-            "Failed to configure native stream disconnect monitoring: {error}"
-        ))
-    })?;
+    disconnect_stream
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .map_err(|error| {
+            CliError::new(format!(
+                "Failed to configure native stream disconnect monitoring: {error}"
+            ))
+        })?;
     let disconnect_unblock = disconnect_stream.try_clone().map_err(|error| {
         CliError::new(format!(
             "Failed to prepare native stream disconnect cancellation: {error}"
@@ -803,6 +805,16 @@ fn run_stream_request(
                         return;
                     }
                     Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                        ) =>
+                    {
+                        if watcher_shutdown.load(Ordering::Acquire) {
+                            return;
+                        }
+                    }
                     Err(_) => {
                         if !watcher_shutdown.load(Ordering::Acquire) {
                             watcher_cancellation.store(true, Ordering::Release);
