@@ -1809,6 +1809,10 @@ function PullRequestIcon() {
 	);
 }
 
+/**
+ * Requests write permission, when supported, immediately after native directory
+ * selection and before any site metadata is created.
+ */
 async function requestLocalDirectoryWriteAccess(
 	directoryHandle: FileSystemDirectoryHandle
 ) {

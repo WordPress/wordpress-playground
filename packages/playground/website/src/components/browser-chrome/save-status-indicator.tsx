@@ -38,9 +38,9 @@ type SaveStatus =
 type SyncOperation = 'save' | 'autosave';
 
 /**
- * Compact persistence status for the Dock. The actionable states (autosaved,
- * unsaved, error) open the save surface directly on click, with the explanation
- * carried by a hover/focus tooltip rather than an extra explain-then-act popover.
+ * Compact persistence status for the Dock. Autosaved, unsaved, and error states
+ * open the save surface directly; saved local projects expose their available
+ * local actions from the same control.
  */
 export function SaveStatusIndicator({
 	disabled = false,
@@ -125,8 +125,8 @@ export function SaveStatusIndicator({
 	};
 
 	// Re-reads the linked local directory into the running Playground so edits
-	// made to the files on disk (outside Playground) show up. Re-mounts OPFS with
-	// an opfs-to-memfs sync, then reloads the page to reflect the new files.
+	// made to the files on disk (outside Playground) show up. Re-mounts the local
+	// project root, then reloads the page to reflect the new files.
 	const reloadFilesFromDisk = async () => {
 		const client = clientInfo?.client;
 		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
@@ -154,6 +154,7 @@ export function SaveStatusIndicator({
 		}
 	};
 
+	/** Returns whether the picker opened so the actions menu stays open on failure. */
 	const openDocumentRootPicker = async () => {
 		if (!activeSite?.metadata.localDirectoryBootConfiguration) {
 			return false;
@@ -189,10 +190,9 @@ export function SaveStatusIndicator({
 	}
 
 	if (status === 'saved') {
-		// Local-directory Playgrounds fold their one extra action — re-reading
-		// files edited on disk outside Playground — into the status itself, so
-		// the dock shows a single "Saved" control instead of a status chip plus
-		// a separate, unclear "Sync local files" button.
+		// Local-directory Playgrounds fold their available disk reload and
+		// document-root actions into the status itself, so the dock keeps one
+		// "Saved" control instead of adding storage-specific buttons beside it.
 		if (isLocalFs) {
 			return withStatusAnnouncement(
 				<>

@@ -19,6 +19,7 @@ export interface ClientInfo {
 	client: PlaygroundClient;
 	siteSlug: string;
 	url: string;
+	/** Despite its historical name, this persistent mount may use OPFS or local-fs. */
 	opfsMountDescriptor?: {
 		device: MountDevice;
 		mountpoint: string;

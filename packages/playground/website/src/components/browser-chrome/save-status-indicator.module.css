@@ -94,10 +94,9 @@
 	display: inline;
 }
 
-/* Local-directory "Saved" pill opens a small menu carrying the one disk action
-   ("Reload files from disk"), so the dock no longer needs a separate, unclear
-   "Sync local files" button next to the status. The popover renders on the
-   default light surface, so its text is dark. */
+/* Local-directory "Saved" pill opens a small menu for its available disk and
+   document-root actions, so the dock does not need storage-specific buttons
+   next to the status. The popover renders on the default light surface. */
 .saved-menu-content {
 	display: flex;
 	flex-direction: column;

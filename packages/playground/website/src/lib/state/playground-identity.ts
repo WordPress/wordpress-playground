@@ -117,7 +117,8 @@ export function getAutosaveFingerprintFromSite(site: SiteInfo) {
  *
  * Unlike the autosave setup fingerprint, this does not describe the original
  * setup URL. It only tracks runtime options passed into an already selected
- * site's boot process.
+ * site's boot process. Local mount, document-root, or mode changes participate
+ * so they replace the iframe instead of leaving the previous worker running.
  */
 export function getRuntimeBootFingerprint(
 	runtimeConfiguration: RuntimeConfiguration,

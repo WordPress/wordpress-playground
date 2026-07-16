@@ -82,7 +82,10 @@ export type WorkerBootOptions = {
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
-	/** Filesystem path served by PHP. Defaults to `/wordpress`. */
+	/**
+	 * Absolute filesystem path served by PHP. It may be nested beneath a mounted
+	 * project root, such as `/app/public`. Defaults to `/wordpress`.
+	 */
 	documentRoot?: string;
 	scope: string;
 	extensions?: PHPWebExtension[];

@@ -7,6 +7,11 @@ import { PlaygroundFileEditor } from '@wp-playground/components';
 import { joinPaths } from '@php-wasm/util';
 import { isLocalDirectoryPhpApp } from '../../../lib/local-directory-site';
 
+/**
+ * Browses from `filesystemRoot` while opening the conventional initial file inside
+ * the PHP document root. For local projects, using the mount root exposes files
+ * such as `vendor/` that intentionally sit outside a public document root.
+ */
 export function SiteFileBrowser({
 	site,
 	isVisible = true,

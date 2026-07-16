@@ -11,9 +11,9 @@ export const LOCAL_DIRECTORY_MOUNTPOINT = '/app' as const;
 export type LocalDirectorySiteMode = 'php' | 'wordpress';
 
 /**
- * The persisted paths needed to boot a site backed by a user-selected directory.
- * The document root stays relative so persisted metadata cannot name a path outside
- * the fixed mountpoint.
+ * Persisted boot configuration for a site backed by a selected local directory.
+ * The document root stays relative so metadata cannot name a path outside the
+ * fixed mountpoint.
  */
 export interface LocalDirectoryBootConfiguration {
 	mountpoint: typeof LOCAL_DIRECTORY_MOUNTPOINT;
@@ -21,7 +21,12 @@ export interface LocalDirectoryBootConfiguration {
 	siteMode: LocalDirectorySiteMode;
 }
 
-/** Returns the absolute PHP document root after validating the persisted config. */
+/**
+ * Resolves a configured document root beneath the fixed local mountpoint.
+ *
+ * Rejects unexpected mountpoints, site modes, non-canonical paths, and paths
+ * that escape the mounted project.
+ */
 export function getLocalDirectoryDocumentRoot(
 	configuration: LocalDirectoryBootConfiguration
 ): string {
@@ -43,7 +48,11 @@ export function getLocalDirectoryDocumentRoot(
 	return resolvedPath;
 }
 
-/** Converts a tree selection into the relative path persisted with the site. */
+/**
+ * Converts a canonical absolute tree selection into the persisted relative path.
+ * The tree root `/` becomes an empty path; non-canonical paths are rejected rather
+ * than silently normalized.
+ */
 export function getRelativeLocalDirectoryDocumentRoot(
 	selectedPath: string
 ): string {
@@ -66,7 +75,10 @@ export function getRelativeLocalDirectoryDocumentRoot(
 	return relativePath;
 }
 
-/** Converts a persisted relative document root back into the picker's root paths. */
+/**
+ * Converts a relative document root into a picker-rooted absolute path.
+ * Non-canonical or escaping paths are rejected rather than normalized.
+ */
 export function getLocalDirectoryPickerPath(documentRoot: string): string {
 	if (!documentRoot) {
 		return '/';
@@ -114,6 +126,12 @@ export function isLocalDirectoryPhpApp(
 	return configuration?.siteMode === 'php';
 }
 
+/**
+ * Resolves only canonical relative paths beneath a mountpoint.
+ *
+ * Returns undefined so callers can report errors appropriate to their input
+ * boundary.
+ */
 function resolveRelativeDocumentRoot(
 	documentRoot: string,
 	mountpoint: string

@@ -249,7 +249,7 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
-				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+				title="Playground wrapper (the actual site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize)}
 				ref={iframeRef}
 			/>

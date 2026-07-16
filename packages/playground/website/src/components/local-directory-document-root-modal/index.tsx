@@ -15,6 +15,12 @@ import {
 } from '../../lib/local-directory-site';
 import css from './style.module.css';
 
+/**
+ * Selects a directory-only PHP document root within a local project.
+ *
+ * The tree cannot modify the project, and the selected path is returned relative
+ * to the fixed local-directory mountpoint used during boot.
+ */
 export function LocalDirectoryDocumentRootModal({
 	directoryHandle,
 	initialDocumentRoot,
@@ -23,7 +29,9 @@ export function LocalDirectoryDocumentRootModal({
 	onSelect,
 }: {
 	directoryHandle: FileSystemDirectoryHandle;
+	/** Relative document root; an empty string selects the mount root. */
 	initialDocumentRoot: string;
+	/** Prefers `/public` only when the initial root is empty and `/public` is a directory. */
 	preferPublic?: boolean;
 	onRequestClose: () => void;
 	onSelect: (documentRoot: string) => Promise<void>;
@@ -77,6 +85,10 @@ export function LocalDirectoryDocumentRootModal({
 		};
 	}, [directoryHandle, initialDocumentRoot, preferPublic]);
 
+	/**
+	 * Keeps selection directory-only and accepts a directory only when its
+	 * filesystem check is still the latest selection request.
+	 */
 	const handleTreeSelection = async (path: string | null) => {
 		const request = ++selectionRequestRef.current;
 		if (!path || !filesystem) {
@@ -178,6 +190,12 @@ export function LocalDirectoryDocumentRootModal({
 	);
 }
 
+/**
+ * Requests read/write access when the browser exposes permission methods.
+ *
+ * The tree is read-only UI, but the eventual project mount must be writable.
+ * A filesystem read then verifies readable access before rendering the tree.
+ */
 async function ensureDirectoryPermission(
 	directoryHandle: FileSystemDirectoryHandle
 ) {

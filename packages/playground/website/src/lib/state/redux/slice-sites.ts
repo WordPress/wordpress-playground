@@ -670,7 +670,7 @@ export function createStoredSite(
 
 /**
  * Creates the metadata record for a site that boots directly from a local
- * directory. Its files remain there; site metadata stores only the boot
+ * directory. Project files remain in place; site metadata includes the boot
  * configuration while IndexedDB stores the directory handle separately.
  */
 export function createLocalDirectorySite(
@@ -861,7 +861,10 @@ export interface SiteMetadata {
 	 * they can be replayed after reload without changing the live boot config.
 	 */
 	playgroundDefinedConstants?: RuntimeConfiguration['constants'];
-	/** Boot paths and mode for sites opened directly from a local directory. */
+	/**
+	 * Boot paths and mode for sites opened directly from a local directory.
+	 * Legacy local-fs records omit this and retain `/wordpress` WordPress boot.
+	 */
 	localDirectoryBootConfiguration?: LocalDirectoryBootConfiguration;
 
 	// @TODO: Accept any string as a php version?

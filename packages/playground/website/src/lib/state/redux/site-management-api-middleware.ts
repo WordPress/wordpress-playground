@@ -513,9 +513,9 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Changes the directory served by the active local project. Classifying
-		 * the selected directory again keeps WordPress boot limited to compatible
-		 * SQLite-backed WordPress trees.
+		 * Changes and persists the directory served by the active local project.
+		 * Reclassifying the selection keeps WordPress boot limited to compatible
+		 * SQLite-backed trees; the boot fingerprint then restarts the site.
 		 */
 		async changeLocalDirectoryDocumentRoot(
 			documentRoot: string
@@ -710,8 +710,10 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Opens a site directly from a local directory. Files are mounted in
-		 * place; only the directory handle and safe boot configuration persist.
+		 * Opens a site directly from a local directory without copying its files.
+		 * Site metadata includes the safe boot configuration, while IndexedDB stores
+		 * the directory handle separately.
+		 * A failed handle write or initial boot attempts to remove both records.
 		 */
 		async createNewLocalDirectorySite(
 			directoryHandle: FileSystemDirectoryHandle,
@@ -751,6 +753,12 @@ export function createSitesAPI(
 	return api;
 }
 
+/**
+ * Attempts to remove both local-site records after creation fails.
+ *
+ * Cleanup attempts are independent so failure in one store does not prevent
+ * cleanup in the other.
+ */
 async function rollbackLocalDirectorySite(
 	siteSlug: string,
 	dispatch: PlaygroundDispatch

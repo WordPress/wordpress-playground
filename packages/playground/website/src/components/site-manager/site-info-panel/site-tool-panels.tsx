@@ -139,7 +139,7 @@ export function SiteToolPanels({
 								}
 							/>
 						) : (
-							// The file browser needs the booted WordPress runtime;
+							// The file browser needs the booted PHP runtime;
 							// show a clear loading state instead of a blank pane.
 							<PaneLoading message="Playground files are still loading…" />
 						)}

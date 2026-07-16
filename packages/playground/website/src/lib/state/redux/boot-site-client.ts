@@ -149,6 +149,8 @@ export function bootSiteClient(
 					type: 'local-fs',
 					handle: localDirectoryHandle,
 				},
+				// Local sites saved before boot configuration was introduced remain
+				// WordPress installations mounted at the historical document root.
 				mountpoint:
 					localDirectoryBootConfiguration?.mountpoint ?? '/wordpress',
 			} as const;
