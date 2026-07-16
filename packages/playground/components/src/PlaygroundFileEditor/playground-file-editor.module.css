@@ -184,18 +184,18 @@
 }
 
 .dockDirtyIndicator {
-	display: inline-block;
-	width: 8px;
-	height: 8px;
-	margin-left: 8px;
+	width: 6px;
+	height: 6px;
+	flex: 0 0 auto;
 	border-radius: 50%;
 	background: var(--ink-faint, #787c82);
-	vertical-align: middle;
+	opacity: 0.6;
 }
 
 .dockSavingStatus {
-	margin-left: 8px;
 	color: var(--ink-faint, #787c82);
+	font-size: 11px;
+	white-space: nowrap;
 }
 
 .dockPresentation .editor,
@@ -336,7 +336,7 @@
 		order: 1;
 	}
 
-	.dockPresentation .dockSaveButton {
+	.dockPresentation .editorHeaderActions {
 		order: 3;
 	}
 

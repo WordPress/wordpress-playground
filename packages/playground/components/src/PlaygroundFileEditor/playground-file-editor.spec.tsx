@@ -113,7 +113,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		).toBe(true);
 	});
 
-	it('keeps the Dock Save button stable and flushes a pending edit on click', async () => {
+	it('keeps the dirty indicator beside the stable Dock Save button', async () => {
 		vi.useFakeTimers();
 		let finishWrite: () => void = () => {};
 		const writePromise = new Promise<void>((resolve) => {
@@ -151,6 +151,8 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(saveButton.querySelector('svg')).toBeNull();
 		const dirtyIndicator = findDirtyIndicator();
 		expect(dirtyIndicator).not.toBeNull();
+		expect(dirtyIndicator?.parentElement).toBe(saveButton.parentElement);
+		expect(dirtyIndicator?.nextElementSibling).toBe(saveButton);
 
 		await clickButton('Edit test file');
 		expect(findDirtyIndicator()).toBe(dirtyIndicator);

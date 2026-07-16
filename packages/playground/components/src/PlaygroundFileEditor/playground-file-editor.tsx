@@ -520,31 +520,35 @@ export function PlaygroundFileEditor({
 							{currentPath?.length
 								? currentPath
 								: `Browse files under ${documentRoot}`}
-							{dockPresentation && dockHasUnsavedChanges ? (
-								<span
-									className={styles['dockDirtyIndicator']}
-									aria-hidden="true"
-								/>
-							) : null}
-							{dockPresentation && showSavingStatus ? (
-								<span className={styles['dockSavingStatus']}>
-									Saving…
-								</span>
-							) : null}
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
-							<Tooltip text={dockSaveTooltip} placement="top">
-								<Button
-									variant="secondary"
-									className={styles['dockSaveButton']}
-									isDestructive={
-										saveState === SaveState.ERROR
-									}
-									onClick={handleDockManualSave}
-								>
-									Save
-								</Button>
-							</Tooltip>
+							<div className={styles['editorHeaderActions']}>
+								{showSavingStatus ? (
+									<span
+										className={styles['dockSavingStatus']}
+									>
+										Saving…
+									</span>
+								) : null}
+								{dockHasUnsavedChanges ? (
+									<span
+										className={styles['dockDirtyIndicator']}
+										aria-hidden="true"
+									/>
+								) : null}
+								<Tooltip text={dockSaveTooltip} placement="top">
+									<Button
+										variant="secondary"
+										className={styles['dockSaveButton']}
+										isDestructive={
+											saveState === SaveState.ERROR
+										}
+										onClick={handleDockManualSave}
+									>
+										Save
+									</Button>
+								</Tooltip>
+							</div>
 						) : !dockPresentation ? (
 							<div
 								className={classNames(
