@@ -324,6 +324,11 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- When adding screenshots to Markdown docs, use the raw GitHub URL for the
+  committed asset, for example
+  `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.
+  Relative `/img/...` links work in Docusaurus but are not preserved by the
+  WordPress.org handbook importer.
 
 ## Important Notes
 
