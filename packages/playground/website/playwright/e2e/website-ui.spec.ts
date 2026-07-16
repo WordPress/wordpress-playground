@@ -755,6 +755,8 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	if (!browseBox || !saveBox || !closeBox || !pathBox) {
 		throw new Error('The responsive file editor controls must be visible.');
 	}
+	expect(browseBox.y).toBe(closeBox.y);
+	expect(saveBox.y).toBe(closeBox.y);
 	expect(saveBox.x + saveBox.width).toBeLessThan(closeBox.x);
 	expect(pathBox.y).toBeGreaterThanOrEqual(
 		Math.max(browseBox.y + browseBox.height, saveBox.y + saveBox.height)

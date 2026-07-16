@@ -321,6 +321,7 @@
 		flex-wrap: wrap;
 		gap: 8px;
 		background: var(--paper-2, #ffffff);
+		padding-top: 12px;
 	}
 
 	.dockPresentation .editorPath {
