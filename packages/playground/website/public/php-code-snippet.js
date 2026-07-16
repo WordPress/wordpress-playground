@@ -820,10 +820,10 @@ class PhpSnippet extends HTMLElement {
 
 	_readExpectedOutput() {
 		const script = this.querySelector(
-			'script[type="text/expected-output"]'
+			'script[type="text/expected-output"], script[type="text/expected-output+json"]'
 		);
 		if (script) {
-			return dedentLeading(script.textContent || '');
+			return readScriptPayload(script);
 		}
 		if (this.hasAttribute('expected-output')) {
 			return this.getAttribute('expected-output');
@@ -843,9 +843,9 @@ class PhpSnippet extends HTMLElement {
 			return await res.text();
 		}
 		const script = this.querySelector(
-			'script[type="application/x-php"], script[type="text/x-php"], script[type="text/php"]'
+			'script[type="application/x-php"], script[type="application/x-php+json"], script[type="text/x-php"], script[type="text/php"]'
 		);
-		if (script) return dedentLeading(script.textContent || '');
+		if (script) return readScriptPayload(script);
 		return dedentLeading(this.textContent || '');
 	}
 
@@ -1059,6 +1059,21 @@ class PhpSnippet extends HTMLElement {
 		};
 		outputBody.addEventListener('animationend', clear);
 	}
+}
+
+function readScriptPayload(script) {
+	const payload = script.textContent || '';
+	if (!script.type.endsWith('+json')) {
+		return dedentLeading(payload);
+	}
+
+	const decoded = JSON.parse(payload);
+	if (typeof decoded !== 'string') {
+		throw new TypeError(
+			`<script type="${script.type}"> JSON payload must decode to a string.`
+		);
+	}
+	return decoded;
 }
 
 function isRunShortcut(event) {
