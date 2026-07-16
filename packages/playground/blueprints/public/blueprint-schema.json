@@ -1978,7 +1978,7 @@
 						},
 						{
 							"type": "string",
-							"enum": ["posts", "pages", "comments"],
+							"enum": ["posts", "pages"],
 							"description": "Content types created by a vanilla WordPress installation and controlled by `contentBaseline`."
 						},
 						{
@@ -2016,10 +2016,7 @@
 						}
 					],
 					"description": "The content from a vanilla WordPress installation to retain before applying the rest of the Blueprint. `keep-all` leaves the installation unchanged, `empty` removes its posts, pages, and comments, a content type retains only that type, and a list retains the selected content types.\n\nThis policy runs only when the current invocation creates vanilla WordPress. It is skipped when applying the Blueprint to an existing site, so it cannot erase content from that site. It is not valid when `wordpressVersion` is \"none\". Metadata and relationships follow their parent content. Empty content tables have their sequences reset so subsequent imports receive the identifiers they would on a site created without default content.\n\nComments can only be retained together with both posts and pages because the schema cannot know which type contains their parent records.",
-					"default": "keep-all",
-					"not": {
-						"const": "comments"
-					}
+					"default": "keep-all"
 				},
 				"usersBaseline": {
 					"type": "string",
@@ -2298,13 +2295,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												}
 											]
@@ -2721,13 +2718,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																	"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																	"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																}
 															}
 														]
@@ -3133,13 +3130,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																		"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																		"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																	}
 																}
 															]
@@ -3279,13 +3276,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																					"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																					"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																				}
 																			}
 																		]
@@ -3822,13 +3819,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																							"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																							"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																						}
 																					}
 																				]
@@ -3970,13 +3967,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																										"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+																										"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 																									}
 																								}
 																							]
@@ -4274,13 +4271,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												}
 											]
@@ -4523,13 +4520,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+														"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 													}
 												}
 											]
@@ -4826,7 +4823,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606": {
+		"alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4840,13 +4837,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+						"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-146342-146436-1337903113-98734-146450-1337903113-98700-146450-1337903113-0-163606"
+						"$ref": "#/definitions/alias-1337903113-146490-146584-1337903113-98861-146598-1337903113-98827-146598-1337903113-0-163754"
 					}
 				}
 			]

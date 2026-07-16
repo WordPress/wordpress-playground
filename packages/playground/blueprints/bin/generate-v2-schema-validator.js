@@ -159,13 +159,13 @@ function patchSchema(schema) {
 		'^(?!.*(?:^|/)\\.\\.(?:/|$)).*$';
 
 	const blueprint = definitions['V2Schema.BlueprintV2'];
-	// TypeScript expresses the non-empty tuple, but not uniqueness or the
-	// relationship between comments and the content that may own them.
+	// TypeScript expresses the non-empty tuple and excludes comments from the
+	// scalar form, but not uniqueness or the relationship between comments and
+	// the content that may own them in an array.
 	const contentBaseline = blueprint.properties.contentBaseline;
 	const retainedContentTypes = contentBaseline.anyOf.find(
 		(variant) => variant.type === 'array'
 	);
-	contentBaseline.not = { const: 'comments' };
 	retainedContentTypes.uniqueItems = true;
 	retainedContentTypes.allOf = [
 		{

@@ -739,7 +739,7 @@ const additionalSteps = [
 	},
 	{
 		step: 'resetData' as const,
-		contentTypes: ['pages', 'comments'] as const,
+		contentTypes: ['posts', 'pages', 'comments'] as const,
 	},
 ] satisfies NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
@@ -966,6 +966,13 @@ export const v2SchemaConformanceCases = [
 		declaration: {
 			version: 2,
 			contentBaseline: 'posts',
+		},
+	},
+	{
+		name: 'single page baseline type',
+		declaration: {
+			version: 2,
+			contentBaseline: 'pages',
 		},
 	},
 	...directActiveThemeCases,

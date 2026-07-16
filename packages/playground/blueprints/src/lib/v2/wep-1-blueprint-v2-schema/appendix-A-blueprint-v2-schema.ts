@@ -103,7 +103,7 @@ export namespace V2Schema {
 		contentBaseline?:
 			| 'keep-all'
 			| 'empty'
-			| ContentType
+			| Exclude<ContentType, 'comments'>
 			| [ContentType, ...ContentType[]];
 
 		/**
