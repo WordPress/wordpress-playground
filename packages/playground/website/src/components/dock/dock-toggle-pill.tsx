@@ -52,7 +52,7 @@ export function DockTogglePill({
 			</button>
 			<button
 				type="button"
-				className={css.dockPillBtn}
+				className={classNames(css.dockPillBtn, css.dockPillFullWidth)}
 				aria-label={isFullWidth ? 'Exit full width' : 'Full width'}
 				aria-pressed={isFullWidth}
 				title={isFullWidth ? 'Exit full width' : 'Full width'}

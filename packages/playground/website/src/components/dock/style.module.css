@@ -689,13 +689,19 @@
 	   visual stack on mobile. */
 	.dock {
 		border-radius: 0;
+		clip-path: none;
+		/* The square bar uses the mobile box-shadow below; retaining the desktop
+		   drop-shadow would stack both elevation effects. */
+		filter: none;
 		bottom: 0;
 		left: 0;
 		right: 0;
 		top: auto;
 		max-width: none;
 		width: auto;
-		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+		/* Keep the 16px side gutter, but let dock-body own the vertical frame and
+		   safe-area clearance so the two Dock rows do not get double padding. */
+		padding: 0 8px;
 		transform: none;
 		cursor: default;
 		box-shadow:
@@ -1247,19 +1253,33 @@
 
 @media (max-width: 1024px) {
 	.dock-collapsed {
-		transform: translateY(var(--dock-body-h, 56px));
+		transform: none;
 	}
 
-	/* The mobile bar is fixed and full-screen-panelled: no drag (so no sheen),
-	   and the width/collapse toggles don't apply. */
+	/* The mobile bar is fixed and full-screen-panelled, so it cannot be dragged
+	   or switched into the desktop full-width mode. The collapse half remains as
+	   the arrow that shows and hides the tools row. */
 	.dock-sheen,
-	.dock-toggle-pill {
+	.dock-pill-full-width {
 		display: none;
 	}
 
 	.dock-body {
 		flex-direction: column-reverse;
+		gap: 8px;
 		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+
+	/* Give the tool buttons more separation from the preview without making the
+	   collapsed address row taller. */
+	.dock:not(.dock-collapsed) .dock-body {
+		padding-top: 16px;
+	}
+
+	/* On mobile the address row stays docked while the arrow removes the tools
+	   row from layout. This lets the measured Dock height follow what is visible. */
+	.dock-collapsed .dock-tools {
+		display: none;
 	}
 }
 

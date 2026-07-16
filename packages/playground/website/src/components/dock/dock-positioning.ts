@@ -87,9 +87,12 @@ export function getDockOperationToastStyle({
 		return undefined;
 	}
 
-	const visibleDockHeight = isCollapsed
-		? Math.max(0, dockSize.height - toolsHeight)
-		: dockSize.height;
+	// Mobile collapse removes the tools from layout, so dockSize is already the
+	// visible height. Desktop collapse translates them out without reflowing.
+	const visibleDockHeight =
+		isCollapsed && !isMobile
+			? Math.max(0, dockSize.height - toolsHeight)
+			: dockSize.height;
 	const desiredBottom =
 		visibleDockHeight +
 		DOCK_PANE_GAP +

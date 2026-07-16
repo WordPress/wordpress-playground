@@ -376,7 +376,11 @@ export function Dock({
 	useEffect(() => {
 		const root = document.documentElement;
 		const headerHeight = Math.max(0, dockSize.height - toolsHeight);
-		const visibleHeight = isCollapsed ? headerHeight : dockSize.height;
+		// Desktop collapse moves the tools below the viewport without changing the
+		// Dock's measured height. Mobile removes the tools from layout, so its live
+		// measurement already is the visible height.
+		const visibleHeight =
+			isCollapsed && !isMobile ? headerHeight : dockSize.height;
 		if (visibleHeight > 0) {
 			root.style.setProperty(
 				'--dock-docked-height',
@@ -1217,16 +1221,14 @@ export function Dock({
 								/>
 							)}
 						</div>
-						{!isMobile && (
-							<DockTogglePill
-								isCollapsed={isCollapsed}
-								isFullWidth={isFullWidth}
-								collapseDisabled={paneCloseBlocked}
-								collapseButtonRef={collapseButtonRef}
-								onToggleCollapsed={toggleCollapsed}
-								onToggleFullWidth={toggleFullWidth}
-							/>
-						)}
+						<DockTogglePill
+							isCollapsed={isCollapsed}
+							isFullWidth={isFullWidth}
+							collapseDisabled={paneCloseBlocked}
+							collapseButtonRef={collapseButtonRef}
+							onToggleCollapsed={toggleCollapsed}
+							onToggleFullWidth={toggleFullWidth}
+						/>
 					</div>
 					<div className={css.dockTools} ref={toolsRef}>
 						{DOCK_ITEMS.map((item, index) => (
