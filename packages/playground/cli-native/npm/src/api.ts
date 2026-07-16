@@ -1331,12 +1331,12 @@ async function readBlueprintBundle(
 				invalidRequest(
 					'Native CLI Blueprint filesystem stream must contain Uint8Array chunks.'
 				);
-			const chunk = Buffer.from(result.value);
-			length += chunk.byteLength;
-			if (length > MAX_BLUEPRINT_JSON_BYTES)
+			if (result.value.byteLength > MAX_BLUEPRINT_JSON_BYTES - length)
 				invalidRequest(
 					`Native CLI blueprint JSON must not exceed ${MAX_BLUEPRINT_JSON_BYTES} bytes.`
 				);
+			const chunk = Buffer.from(result.value);
+			length += chunk.byteLength;
 			chunks.push(chunk);
 		}
 	} catch (cause) {

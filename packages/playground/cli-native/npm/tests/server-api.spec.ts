@@ -423,21 +423,28 @@ describe.sequential('programmatic native server lifecycle', () => {
 
 	it('cancels Studio Blueprint streams that exceed the JSON limit', async () => {
 		const onCancel = vi.fn();
+		const oversizedChunk = new Uint8Array(16 * 1024 * 1024 + 1);
+		const bufferFrom = vi.spyOn(Buffer, 'from');
 		const blueprint = streamedBlueprintBundle(
-			[new Uint8Array(16 * 1024 * 1024 + 1)],
+			[oversizedChunk],
 			onCancel,
 			false
 		);
-		await expect(
-			runCLI({ command: 'server', blueprint })
-		).rejects.toMatchObject({
-			name: 'NativeCLIError',
-			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
-			message: expect.stringContaining('must not exceed'),
-		});
-		expect(onCancel).toHaveBeenCalledOnce();
-		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
-		expect(mocks.spawn).not.toHaveBeenCalled();
+		try {
+			await expect(
+				runCLI({ command: 'server', blueprint })
+			).rejects.toMatchObject({
+				name: 'NativeCLIError',
+				code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+				message: expect.stringContaining('must not exceed'),
+			});
+			expect(bufferFrom).not.toHaveBeenCalledWith(oversizedChunk);
+			expect(onCancel).toHaveBeenCalledOnce();
+			expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+			expect(mocks.spawn).not.toHaveBeenCalled();
+		} finally {
+			bufferFrom.mockRestore();
+		}
 	});
 
 	it('rejects invalid UTF-8 in Studio Blueprint streams', async () => {
