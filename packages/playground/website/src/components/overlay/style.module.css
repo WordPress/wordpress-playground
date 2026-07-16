@@ -3,6 +3,10 @@
 	width: 100%;
 }
 
+.section:last-child {
+	margin-bottom: 0;
+}
+
 .sectionTitle {
 	margin: 0 0 16px 0 !important;
 	font-size: clamp(18px, 2vw, 22px) !important;
