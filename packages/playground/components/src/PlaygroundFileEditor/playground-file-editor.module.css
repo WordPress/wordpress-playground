@@ -74,6 +74,12 @@
 	color: var(--color-gray-500);
 }
 
+.editorPathPortaled {
+	/* Centered line boxes leave the smaller monospace glyphs visibly high
+	   against the mobile Dock heading. */
+	transform: translateY(2px);
+}
+
 .editorHeaderActions {
 	display: flex;
 	align-items: center;
