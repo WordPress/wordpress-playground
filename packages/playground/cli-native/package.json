@@ -1,0 +1,37 @@
+{
+	"name": "@wp-playground/cli-native",
+	"version": "3.1.44",
+	"description": "Experimental native WordPress Playground CLI",
+	"private": true,
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"types": "./index.d.ts",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"wp-playground-cli": "wp-playground.js"
+	},
+	"engines": {
+		"node": ">=20.10.0"
+	},
+	"files": [
+		"*.js",
+		"*.cjs",
+		"*.d.ts",
+		"wp-playground.js",
+		"native-host-manifest.json",
+		"compatibility.json",
+		"share/**",
+		"README.md",
+		"LICENSE",
+		"THIRD_PARTY_NOTICES.md"
+	]
+}

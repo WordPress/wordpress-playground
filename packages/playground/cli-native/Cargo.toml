@@ -21,6 +21,8 @@ name = "wp_playground_native"
 path = "src/lib.rs"
 
 [dependencies]
+base64 = "0.22.1"
+getrandom = "0.3.4"
 reqwest = { version = "0.12", default-features = false, features = [
 	"blocking",
 	"rustls-tls",
@@ -28,7 +30,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 tar = { version = "0.4.44", default-features = false }
-wasmtime = { version = "46.0.0", default-features = false, features = [
+wasmtime = { version = "46.0.1", default-features = false, features = [
 	"cache",
 	"component-model",
 	"cranelift",
@@ -39,7 +41,7 @@ wasmtime = { version = "46.0.0", default-features = false, features = [
 	"std",
 	"wat",
 ] }
-wasmtime-wasi = { version = "46.0.0", default-features = false, features = [
+wasmtime-wasi = { version = "46.0.1", default-features = false, features = [
 	"p2",
 ] }
 zip = { version = "6.0.0", default-features = false, features = [

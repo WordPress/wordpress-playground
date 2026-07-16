@@ -6,19 +6,55 @@
 	"tags": ["scope:cli", "scope:experimental"],
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:native", "build:npm"]
+		},
+		"build:native": {
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "cargo build --manifest-path packages/playground/cli-native/Cargo.toml"
 			}
 		},
-		"test": {
+		"build:npm": {
 			"executor": "nx:run-commands",
+			"outputs": ["{workspaceRoot}/dist/packages/playground/cli-native"],
+			"options": {
+				"command": "vite build --config packages/playground/cli-native/npm/vite.config.ts"
+			}
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:native", "test:npm"]
+		},
+		"test:native": {
+			"executor": "nx:run-commands",
+			"parallelism": false,
 			"options": {
 				"command": "cargo test --manifest-path packages/playground/cli-native/Cargo.toml"
 			}
 		},
+		"test:npm": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vitest run --config packages/playground/cli-native/npm/vite.config.ts"
+			}
+		},
+		"test:native-smoke": {
+			"executor": "nx:run-commands",
+			"parallelism": false,
+			"options": {
+				"command": "cargo test --manifest-path packages/playground/cli-native/Cargo.toml --test native_server -- --ignored --test-threads=1"
+			}
+		},
+		"test:scripts": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/cli-native/scripts/run-script-tests.mjs"
+			}
+		},
 		"lint": {
 			"executor": "nx:run-commands",
+			"parallelism": false,
 			"options": {
 				"command": "cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml --all-targets -- -D warnings"
 			}
@@ -27,6 +63,19 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "cargo fmt --manifest-path packages/playground/cli-native/Cargo.toml"
+			}
+		},
+		"fmt:check": {
+			"executor": "nx:run-commands",
+			"parallelism": false,
+			"options": {
+				"command": "cargo fmt --manifest-path packages/playground/cli-native/Cargo.toml -- --check"
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "tsc -p packages/playground/cli-native/npm/tsconfig.json --noEmit"
 			}
 		},
 		"package-wordpress-smoke": {
@@ -39,6 +88,36 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "bash packages/playground/cli-native/scripts/benchmark-wordpress.sh"
+			}
+		},
+		"verify:private-boundary": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/cli-native/scripts/verify-private-package-boundary.mjs"
+			}
+		},
+		"verify:installed-package": {
+			"executor": "nx:run-commands",
+			"parallelism": false,
+			"dependsOn": ["build:npm"],
+			"options": {
+				"command": "node packages/playground/cli-native/scripts/verify-private-npm-package.mjs"
+			}
+		},
+		"verify": {
+			"executor": "nx:run-commands",
+			"dependsOn": [
+				"fmt:check",
+				"lint",
+				"typecheck",
+				"test",
+				"test:native-smoke",
+				"test:scripts",
+				"verify:private-boundary",
+				"verify:installed-package"
+			],
+			"options": {
+				"command": "node node_modules/nx/bin/nx run playground-cli:test-playground-cli --output-style=stream"
 			}
 		}
 	}

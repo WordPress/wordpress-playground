@@ -2,6 +2,7 @@ pub mod args;
 pub mod assets;
 pub mod automount;
 pub mod commands;
+pub mod control;
 pub mod download;
 pub mod error;
 pub mod mount;

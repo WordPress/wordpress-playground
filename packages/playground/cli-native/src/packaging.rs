@@ -327,6 +327,8 @@ pub fn run_packaged_wordpress_server_smoke(
         .arg(&site_root)
         .arg("/wordpress")
         .env_remove(ASSET_ROOT_ENV_VAR)
+        .env_remove("FORCE_COLOR")
+        .env("NO_COLOR", "1")
         .env(DISABLE_SOURCE_FALLBACK_ENV_VAR, "1")
         .env("WP_PLAYGROUND_NATIVE_LAZY_WORKERS", "1")
         .stdout(Stdio::null())
@@ -362,6 +364,20 @@ pub fn run_packaged_wordpress_server_smoke(
         editor_login_response
     } else {
         http_get_with_cookie_header(&server_url, editor_path, Some(&cookies))?
+    };
+    // This intentionally verifies only the authenticated Site Editor HTML shell. Asset loading and
+    // client-side rendering require a separate browser smoke.
+    let site_editor_shell_path = "/wp-admin/site-editor.php";
+    let site_editor_shell_login_response = http_get(&server_url, site_editor_shell_path)?;
+    let site_editor_shell_cookies = response_set_cookie_header(&site_editor_shell_login_response);
+    let site_editor_shell_response = if site_editor_shell_cookies.is_empty() {
+        site_editor_shell_login_response
+    } else {
+        http_get_with_cookie_header(
+            &server_url,
+            site_editor_shell_path,
+            Some(&site_editor_shell_cookies),
+        )?
     };
     if !cookies.is_empty() {
         let mut concurrent = Vec::new();
@@ -438,6 +454,17 @@ pub fn run_packaged_wordpress_server_smoke(
             response_excerpt_text(&editor_response)
         )));
     }
+    if !site_editor_shell_response.starts_with("HTTP/1.1 200 OK\r\n")
+        || !site_editor_shell_response.contains("site-editor-php")
+        || !site_editor_shell_response.contains("wp-admin-bar")
+        || site_editor_shell_response.contains("wasm_sapi_handle_request failed")
+        || site_editor_shell_response.contains("Internal Server Error")
+    {
+        return Err(CliError::new(format!(
+            "Packaged WordPress Site Editor HTML-shell smoke returned unexpected response:\n{}",
+            response_excerpt_text(&site_editor_shell_response)
+        )));
+    }
     let database = site_root
         .join("wp-content")
         .join("database")
@@ -497,6 +524,8 @@ pub fn run_packaged_run_blueprint_smoke(
         .arg("/tmp")
         .arg("--quiet")
         .env_remove(ASSET_ROOT_ENV_VAR)
+        .env_remove("FORCE_COLOR")
+        .env("NO_COLOR", "1")
         .env(DISABLE_SOURCE_FALLBACK_ENV_VAR, "1")
         .output()
         .map_err(|error| {
@@ -575,6 +604,8 @@ pub fn run_packaged_build_snapshot_smoke(
         .arg(&outfile)
         .arg("--quiet")
         .env_remove(ASSET_ROOT_ENV_VAR)
+        .env_remove("FORCE_COLOR")
+        .env("NO_COLOR", "1")
         .env(DISABLE_SOURCE_FALLBACK_ENV_VAR, "1")
         .output()
         .map_err(|error| {

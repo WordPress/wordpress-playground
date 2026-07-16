@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command as ProcessCommand,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Condvar, Mutex, TryLockError,
     },
     thread,
@@ -19,6 +19,10 @@ use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 use crate::{
     args::{CliOptions, CommandName, RuntimeConfig, Verbosity, WorkerCount, DEFAULT_PORT},
     automount::BlueprintStep,
+    control::{
+        ControlBackend, ControlHttpRequest, ControlHttpResponse, ControlOptions, ControlRunRequest,
+        ControlRunResponse, ControlServer,
+    },
     download::{cached_download_with_validator, download_bytes, url_cache_key},
     mount::Mount,
     paths::{SiteStorage, WordPressInstallMode},
@@ -48,6 +52,7 @@ const DEFAULT_LAZY_WORKER_IDLE_TIMEOUT: Duration = Duration::from_secs(10);
 const LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_LAZY_WORKER_IDLE_TIMEOUT_MS";
 const SERVER_PHP_INI_ENTRIES: &[&str] = &["implicit_flush=0", "output_buffering=65536"];
 const AUTO_LOGIN_COOKIE_NAME: &str = "playground_auto_login_already_happened";
+static NEXT_CONTROL_RUN_ID: AtomicU64 = AtomicU64::new(1);
 const CLEAR_AUTO_LOGIN_COOKIE: &str = "playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
 const DEFAULT_WP_CLI_PATH: &str = "/tmp/wp-cli.phar";
 const DEFAULT_WP_CLI_URL: &str = "https://playground.wordpress.net/wp-cli.phar";
@@ -82,6 +87,18 @@ struct HttpRequest {
     version: String,
     headers: Vec<(String, String)>,
     body: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RequestServerContext {
+    port: u16,
+    https: bool,
+}
+
+impl RequestServerContext {
+    fn http(port: u16) -> Self {
+        Self { port, https: false }
+    }
 }
 
 impl From<&HttpRequest> for HttpRequest {
@@ -141,6 +158,13 @@ struct WorkerPool {
     len: usize,
     lazy: bool,
     log_stats: bool,
+    dynamic_constants: Mutex<DynamicConstants>,
+}
+
+#[derive(Default)]
+struct DynamicConstants {
+    revision: u64,
+    values: Vec<(String, PhpConstantValue)>,
 }
 
 struct WorkerPoolShared {
@@ -391,6 +415,7 @@ impl WorkerPool {
             len,
             lazy,
             log_stats: env_flag("WP_PLAYGROUND_NATIVE_WORKER_STATS"),
+            dynamic_constants: Mutex::new(DynamicConstants::default()),
         }
     }
 
@@ -478,8 +503,35 @@ impl WorkerPool {
             worker.requests_handled = 0;
             worker.last_request_finished_at = Instant::now();
             worker.recycle_scheduled = false;
+            worker.constants_revision = 0;
+        }
+        let constants = self
+            .dynamic_constants
+            .lock()
+            .map_err(|_| CliError::new("PHP dynamic constants lock was poisoned"))?;
+        if worker.constants_revision != constants.revision {
+            worker.php_mut()?.define_constants(&constants.values);
+            worker.constants_revision = constants.revision;
         }
         Ok(recovered)
+    }
+
+    fn define_constant(&self, name: String, value: PhpConstantValue) -> Result<()> {
+        let mut constants = self
+            .dynamic_constants
+            .lock()
+            .map_err(|_| CliError::new("PHP dynamic constants lock was poisoned"))?;
+        if let Some((_, existing)) = constants
+            .values
+            .iter_mut()
+            .find(|(candidate, _)| candidate == &name)
+        {
+            *existing = value;
+        } else {
+            constants.values.push((name, value));
+        }
+        constants.revision = constants.revision.wrapping_add(1).max(1);
+        Ok(())
     }
 
     fn mark_request_finished(&self, worker: &mut PhpWorker) -> Result<WorkerAfterRequest> {
@@ -525,6 +577,7 @@ impl WorkerPool {
                         worker.php = Some(php);
                         worker.requests_handled = 0;
                         worker.recycle_scheduled = false;
+                        worker.constants_revision = 0;
                         drop(worker);
                         if lock_was_poisoned {
                             worker_lease.worker().clear_poison();
@@ -655,6 +708,7 @@ struct PhpWorker {
     requests_handled: usize,
     last_request_finished_at: Instant,
     recycle_scheduled: bool,
+    constants_revision: u64,
 }
 
 impl PhpWorker {
@@ -664,6 +718,7 @@ impl PhpWorker {
             requests_handled: 0,
             last_request_finished_at: Instant::now(),
             recycle_scheduled: false,
+            constants_revision: 0,
         }
     }
 
@@ -996,6 +1051,14 @@ impl RouteCounterContext<'_> {
 }
 
 pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Result<u8> {
+    run_native_server_with_control(runtime, config, None)
+}
+
+pub fn run_native_server_with_control(
+    runtime: &NativeRuntime,
+    config: &RuntimeConfig,
+    control: Option<ControlOptions>,
+) -> Result<u8> {
     progress(&config.options, "Preparing mounts");
     let mut mounts = server_mounts(config)?;
     let _document_root = ensure_wordpress_mount(&mut mounts)?;
@@ -1028,7 +1091,7 @@ pub fn run_native_server(runtime: &NativeRuntime, config: &RuntimeConfig) -> Res
         mounts: mounts.to_vec(),
         ..PhpWorkerOptions::default()
     };
-    run_listener(config, &mounts, runtime, host_options)
+    run_listener(config, &mounts, runtime, host_options, control)
 }
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {
@@ -1195,6 +1258,7 @@ fn run_listener(
     mounts: &[Mount],
     runtime: &NativeRuntime,
     mut host_options: PhpWorkerOptions,
+    control_options: Option<ControlOptions>,
 ) -> Result<u8> {
     progress(&config.options, "Binding HTTP server");
     let listener = bind_server_listener(config.options.port)?;
@@ -1207,6 +1271,7 @@ fn run_listener(
         .site_url
         .clone()
         .unwrap_or_else(|| format!("http://127.0.0.1:{actual_port}"));
+    let request_server_context = request_server_context(&server_url, actual_port);
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
         let style = TerminalStyle::stdout();
         let mut stdout = io::stdout().lock();
@@ -1280,6 +1345,32 @@ fn run_listener(
         lazy_workers,
     )?);
     release_unused_process_memory();
+    let mounts = Arc::new(mounts.to_vec());
+    let control_server = control_options
+        .map(|options| {
+            ControlServer::start(
+                options,
+                control_backend(ControlBackendConfig {
+                    server_url: &server_url,
+                    actual_port,
+                    request_server_context,
+                    worker_count,
+                    mounts: Arc::clone(&mounts),
+                    worker_pool: Arc::clone(&worker_pool),
+                    debug: config.options.debug,
+                    follow_symlinks: config.options.follow_symlinks,
+                }),
+            )
+        })
+        .transpose()?;
+    let shutdown = control_server.as_ref().map(ControlServer::shutdown_flag);
+    if control_server.is_some() {
+        listener.set_nonblocking(true).map_err(|error| {
+            CliError::new(format!(
+                "Failed to configure controlled HTTP server listener: {error}"
+            ))
+        })?;
+    }
 
     if !matches!(config.options.verbosity, Verbosity::Quiet) {
         let style = TerminalStyle::stdout();
@@ -1301,11 +1392,17 @@ fn run_listener(
         let _ = open_browser(&server_url);
     }
 
-    let mounts = Arc::new(mounts.to_vec());
     let first_request = Arc::new(AtomicBool::new(true));
-    for stream in listener.incoming() {
-        match stream {
+    loop {
+        if shutdown
+            .as_ref()
+            .is_some_and(|shutdown| shutdown.load(Ordering::Acquire))
+        {
+            break;
+        }
+        match listener.accept() {
             Ok(stream) => {
+                let (stream, _) = stream;
                 let worker_pool = Arc::clone(&worker_pool);
                 let mounts = Arc::clone(&mounts);
                 let first_request = Arc::clone(&first_request);
@@ -1319,7 +1416,7 @@ fn run_listener(
                         &mut stream,
                         &mounts,
                         &worker_pool,
-                        actual_port,
+                        request_server_context,
                         debug,
                         follow_symlinks,
                         &first_request,
@@ -1344,6 +1441,11 @@ fn run_listener(
                     }
                 });
             }
+            Err(error)
+                if control_server.is_some() && error.kind() == std::io::ErrorKind::WouldBlock =>
+            {
+                thread::sleep(Duration::from_millis(10));
+            }
             Err(error) => {
                 if !matches!(config.options.verbosity, Verbosity::Quiet) {
                     eprintln!("server connection error: {error}");
@@ -1352,11 +1454,286 @@ fn run_listener(
         }
     }
 
+    drop(control_server);
     Ok(0)
 }
 
 fn bind_server_listener(port: Option<u16>) -> Result<TcpListener> {
     bind_server_listener_with_default(port, DEFAULT_PORT)
+}
+
+struct ControlBackendConfig<'a> {
+    server_url: &'a str,
+    actual_port: u16,
+    request_server_context: RequestServerContext,
+    worker_count: usize,
+    mounts: Arc<Vec<Mount>>,
+    worker_pool: Arc<WorkerPool>,
+    debug: bool,
+    follow_symlinks: bool,
+}
+
+fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
+    let ControlBackendConfig {
+        server_url,
+        actual_port,
+        request_server_context,
+        worker_count,
+        mounts,
+        worker_pool,
+        debug,
+        follow_symlinks,
+    } = config;
+    let request_mounts = Arc::clone(&mounts);
+    let request_worker_pool = Arc::clone(&worker_pool);
+    let request = Arc::new(move |request: ControlHttpRequest| {
+        handle_control_http_request(
+            request,
+            &request_mounts,
+            &request_worker_pool,
+            request_server_context,
+            debug,
+            follow_symlinks,
+        )
+    });
+
+    let run_mounts = Arc::clone(&mounts);
+    let run_worker_pool = Arc::clone(&worker_pool);
+    let run = Arc::new(move |request: ControlRunRequest| {
+        handle_control_run(request, &run_mounts, &run_worker_pool, actual_port)
+    });
+
+    let resolve_mounts = Arc::clone(&mounts);
+    let resolve_path = Arc::new(move |vfs_path: &str| {
+        host_path_for_vfs_path_with_symlink_policy(
+            &resolve_mounts,
+            vfs_path,
+            symlink_policy_from_follow(follow_symlinks),
+        )
+        .ok_or_else(|| {
+            CliError::new(format!(
+                "VFS path is outside the mounted filesystem or crosses a blocked symlink: {vfs_path}"
+            ))
+        })
+    });
+
+    let constant_worker_pool = Arc::clone(&worker_pool);
+    let define_constant =
+        Arc::new(move |name, value| constant_worker_pool.define_constant(name, value));
+
+    ControlBackend {
+        server_url: server_url.to_string(),
+        native_server_url: format!("http://127.0.0.1:{actual_port}"),
+        worker_count,
+        document_root: "/wordpress".to_string(),
+        request,
+        run,
+        resolve_path,
+        define_constant,
+    }
+}
+
+fn handle_control_http_request(
+    request: ControlHttpRequest,
+    mounts: &[Mount],
+    worker_pool: &WorkerPool,
+    request_server_context: RequestServerContext,
+    debug: bool,
+    follow_symlinks: bool,
+) -> Result<ControlHttpResponse> {
+    let handled = handle_http_request(
+        HttpRequest {
+            method: request.method,
+            target: request.path,
+            version: "HTTP/1.1".to_string(),
+            headers: request.headers,
+            body: request.body,
+        },
+        mounts,
+        worker_pool,
+        request_server_context,
+        debug,
+        symlink_policy_from_follow(follow_symlinks),
+        None,
+    )?;
+    match handled.response {
+        ServerHttpResponse::Buffered(response) => Ok(ControlHttpResponse {
+            status: response.status,
+            headers: response.headers,
+            body: response.body,
+        }),
+        ServerHttpResponse::StaticFile(path) => {
+            let body = fs::read(&path).map_err(|error| {
+                CliError::new(format!(
+                    "Failed to read controlled static response {}: {error}",
+                    path.display()
+                ))
+            })?;
+            Ok(ControlHttpResponse {
+                status: 200,
+                headers: vec![(
+                    "Content-Type".to_string(),
+                    content_type_for_path(&path).to_string(),
+                )],
+                body,
+            })
+        }
+    }
+}
+
+fn handle_control_run(
+    request: ControlRunRequest,
+    mounts: &[Mount],
+    worker_pool: &WorkerPool,
+    port: u16,
+) -> Result<ControlRunResponse> {
+    let ControlRunRequest {
+        code,
+        script_path,
+        relative_uri,
+        protocol,
+        method,
+        headers,
+        body,
+        env,
+        server_entries,
+    } = request;
+    let (script_vfs_path, cleanup_path) = if let Some(code) = code {
+        let (script_vfs_path, script_host_path) = stage_control_run_script(mounts, &code)?;
+        (script_vfs_path, Some(script_host_path))
+    } else {
+        let script_vfs_path = script_path
+            .ok_or_else(|| CliError::new("Controlled PHP run is missing code or scriptPath"))?;
+        let script_host_path =
+            host_path_for_vfs_path(mounts, &script_vfs_path).ok_or_else(|| {
+                CliError::new(format!(
+                    "Controlled PHP script is outside mounts: {script_vfs_path}"
+                ))
+            })?;
+        if !script_host_path.is_file() {
+            return Err(CliError::new(format!(
+                "Controlled PHP script does not exist: {script_vfs_path}"
+            )));
+        }
+        (script_vfs_path, None)
+    };
+
+    let execution = (|| {
+        let mut php_request = php_request_from_http(
+            HttpRequest {
+                method,
+                target: relative_uri,
+                version: "HTTP/1.1".to_string(),
+                headers,
+                body,
+            },
+            &script_vfs_path,
+            None,
+            port,
+        );
+        for (key, value) in env {
+            upsert_php_entry(&mut php_request.env, &key, &value);
+        }
+        for (key, value) in server_entries {
+            upsert_php_entry(&mut php_request.server_entries, &key, &value);
+        }
+        let https = https_server_value(&protocol, u32::from(port));
+        upsert_php_entry(&mut php_request.env, "HTTPS", https);
+        upsert_php_entry(&mut php_request.server_entries, "HTTPS", https);
+        let worker = worker_pool.acquire()?;
+        let mut php_worker = worker
+            .worker()
+            .lock()
+            .map_err(|_| CliError::new("PHP worker lock was poisoned"))?;
+        worker_pool.recover_missing_php(&mut php_worker)?;
+        let response_result = php_worker.php_mut()?.run_sapi_request(&php_request);
+        let response = discard_instance_on_execution_error(&mut php_worker.php, response_result)?;
+        let worker_after_request = worker_pool.mark_request_finished(&mut php_worker)?;
+        let status = php_response_status(&response);
+        let parsed = parse_php_headers(status, &response.headers);
+        let result = ControlRunResponse {
+            exit_code: response.exit_code,
+            http_status_code: status,
+            headers: parsed.headers,
+            stdout: response.stdout,
+            stderr: response.stderr,
+        };
+        drop(php_worker);
+        match worker_after_request {
+            WorkerAfterRequest::Keep => {}
+            WorkerAfterRequest::Recycle { delay } => {
+                worker_pool.schedule_worker_recycle(worker, delay);
+            }
+        }
+        Ok(result)
+    })();
+    if let Some(cleanup_path) = cleanup_path {
+        let _ = fs::remove_file(cleanup_path);
+    }
+    execution
+}
+
+fn stage_control_run_script(mounts: &[Mount], code: &str) -> Result<(String, PathBuf)> {
+    stage_control_run_script_with_candidate(mounts, code, control_run_script_name)
+}
+
+fn stage_control_run_script_with_candidate(
+    mounts: &[Mount],
+    code: &str,
+    mut next_candidate: impl FnMut() -> Result<String>,
+) -> Result<(String, PathBuf)> {
+    for _ in 0..16 {
+        let script_vfs_path = format!("/tmp/{}", next_candidate()?);
+        let script_host_path = host_path_for_vfs_path(mounts, &script_vfs_path)
+            .ok_or_else(|| CliError::new("Missing safe /tmp mount for controlled PHP execution"))?;
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = match options.open(&script_host_path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(CliError::new(format!(
+                    "Failed to create private controlled PHP script {}: {error}",
+                    script_host_path.display()
+                )))
+            }
+        };
+        if let Err(error) = file.write_all(code.as_bytes()) {
+            drop(file);
+            let _ = fs::remove_file(&script_host_path);
+            return Err(CliError::new(format!(
+                "Failed to stage controlled PHP script {}: {error}",
+                script_host_path.display()
+            )));
+        }
+        return Ok((script_vfs_path, script_host_path));
+    }
+    Err(CliError::new(
+        "Failed to allocate a unique private controlled PHP script",
+    ))
+}
+
+fn control_run_script_name() -> Result<String> {
+    let id = NEXT_CONTROL_RUN_ID.fetch_add(1, Ordering::Relaxed);
+    let mut random = [0u8; 16];
+    getrandom::fill(&mut random).map_err(|error| {
+        CliError::new(format!("Failed to generate control script nonce: {error}"))
+    })?;
+    let mut nonce = String::with_capacity(random.len() * 2);
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    for byte in random {
+        nonce.push(HEX[usize::from(byte >> 4)] as char);
+        nonce.push(HEX[usize::from(byte & 0x0f)] as char);
+    }
+    Ok(format!(
+        "wp-playground-native-control-{}-{id}-{nonce}.php",
+        std::process::id()
+    ))
 }
 
 fn bind_server_listener_with_default(port: Option<u16>, default_port: u16) -> Result<TcpListener> {
@@ -1380,7 +1757,7 @@ fn handle_stream(
     stream: &mut TcpStream,
     mounts: &[Mount],
     worker_pool: &WorkerPool,
-    port: u16,
+    request_server_context: RequestServerContext,
     debug: bool,
     follow_symlinks: bool,
     first_request: &AtomicBool,
@@ -1445,7 +1822,7 @@ fn handle_stream(
             request,
             mounts,
             worker_pool,
-            port,
+            request_server_context,
             debug,
             symlink_policy_from_follow(follow_symlinks),
             request_id,
@@ -1778,7 +2155,7 @@ fn handle_http_request(
     request: HttpRequest,
     mounts: &[Mount],
     worker_pool: &WorkerPool,
-    port: u16,
+    request_server_context: RequestServerContext,
     debug: bool,
     symlink_policy: SymlinkPolicy,
     request_id: Option<RequestId>,
@@ -1823,7 +2200,7 @@ fn handle_http_request(
             let response_result = handle_php_route_request(
                 request,
                 php_worker.php_mut()?,
-                port,
+                request_server_context,
                 &vfs_path,
                 path_info.as_deref(),
                 debug,
@@ -1880,7 +2257,7 @@ fn handle_http_request(
 fn handle_php_route_request(
     request: impl Into<HttpRequest>,
     php: &mut PhpInstance,
-    port: u16,
+    request_server_context: RequestServerContext,
     vfs_path: &str,
     path_info: Option<&str>,
     _debug: bool,
@@ -1889,8 +2266,13 @@ fn handle_php_route_request(
     let request = request.into();
     let response_counter_request =
         request_id.map(|_| (request.method.clone(), request.target.clone()));
-    let php_request =
-        php_request_from_http_with_counter(&request, vfs_path, path_info, port, request_id);
+    let php_request = php_request_from_http_with_counter(
+        &request,
+        vfs_path,
+        path_info,
+        request_server_context,
+        request_id,
+    );
     let response = php.run_sapi_request(&php_request).map_err(|error| {
         let stderr = php.take_captured_stderr();
         let stdout = php.take_captured_stdout();
@@ -1927,14 +2309,20 @@ fn php_request_from_http(
     path_info: Option<&str>,
     port: u16,
 ) -> PhpRequest {
-    php_request_from_http_with_counter(request, script_path, path_info, port, None)
+    php_request_from_http_with_counter(
+        request,
+        script_path,
+        path_info,
+        RequestServerContext::http(port),
+        None,
+    )
 }
 
 fn php_request_from_http_with_counter(
     request: impl Into<HttpRequest>,
     script_path: &str,
     path_info: Option<&str>,
-    port: u16,
+    request_server_context: RequestServerContext,
     request_id: Option<RequestId>,
 ) -> PhpRequest {
     let started_at = request_id.map(|_| Instant::now());
@@ -1960,12 +2348,12 @@ fn php_request_from_http_with_counter(
     } = request;
     let host = header_value(&headers, "host")
         .map(str::to_string)
-        .unwrap_or_else(|| format!("127.0.0.1:{port}"));
+        .unwrap_or_else(|| format!("127.0.0.1:{}", request_server_context.port));
     let mut php_request = PhpRequest::for_script(script_path);
     php_request.request_uri = target.clone();
     php_request.method = method.clone();
     php_request.host = host.clone();
-    php_request.port = port as u32;
+    php_request.port = u32::from(request_server_context.port);
     php_request.body = body;
     php_request.content_type = header_value(&headers, "content-type").map(str::to_string);
     php_request.cookies = header_value(&headers, "cookie").map(str::to_string);
@@ -1985,11 +2373,14 @@ fn php_request_from_http_with_counter(
         ("QUERY_STRING".to_string(), query_string.to_string()),
         ("SERVER_PROTOCOL".to_string(), version.clone()),
         ("SERVER_NAME".to_string(), host_name(&host).to_string()),
-        ("SERVER_PORT".to_string(), port.to_string()),
+        (
+            "SERVER_PORT".to_string(),
+            request_server_context.port.to_string(),
+        ),
         ("HTTP_HOST".to_string(), host.clone()),
         (
             "HTTPS".to_string(),
-            https_server_value("http", port as u32).to_string(),
+            request_server_https_value(request_server_context).to_string(),
         ),
     ]);
 
@@ -2002,11 +2393,14 @@ fn php_request_from_http_with_counter(
         ("QUERY_STRING".to_string(), query_string.to_string()),
         ("SERVER_PROTOCOL".to_string(), version.clone()),
         ("SERVER_NAME".to_string(), host_name(&host).to_string()),
-        ("SERVER_PORT".to_string(), port.to_string()),
+        (
+            "SERVER_PORT".to_string(),
+            request_server_context.port.to_string(),
+        ),
         ("HTTP_HOST".to_string(), host.clone()),
         (
             "HTTPS".to_string(),
-            https_server_value("http", port as u32).to_string(),
+            request_server_https_value(request_server_context).to_string(),
         ),
     ]);
 
@@ -2136,6 +2530,27 @@ fn port_from_host(host: &str) -> Option<u16> {
         .rsplit_once(':')
         .and_then(|(_, port)| port.parse::<u16>().ok())
         .filter(|port| *port > 0)
+}
+
+fn request_server_context(server_url: &str, fallback_port: u16) -> RequestServerContext {
+    let Ok(url) = reqwest::Url::parse(server_url) else {
+        return RequestServerContext::http(fallback_port);
+    };
+    if !matches!(url.scheme(), "http" | "https") {
+        return RequestServerContext::http(fallback_port);
+    }
+    RequestServerContext {
+        port: url.port_or_known_default().unwrap_or(fallback_port),
+        https: url.scheme() == "https",
+    }
+}
+
+fn request_server_https_value(context: RequestServerContext) -> &'static str {
+    if context.https {
+        "on"
+    } else {
+        "off"
+    }
 }
 
 fn https_server_value(protocol: &str, port: u32) -> &'static str {
@@ -6149,7 +6564,7 @@ fn handle_startup_http_request(
         } => Ok(handle_php_route_request(
             request,
             php,
-            port,
+            RequestServerContext::http(port),
             &vfs_path,
             path_info.as_deref(),
             false,
@@ -9458,9 +9873,9 @@ mod tests {
     use super::{
         asset_folder_name_from_zip_filename, auto_login_username,
         bind_server_listener_with_default, boot_wordpress_site, clear_auto_login_cookie_response,
-        cpu_workers_minus_one, decode_chunked_body_with_limit, define_wp_config_consts_script,
-        directory_zip_name, discard_instance_on_execution_error, ensure_tmp_mount,
-        extract_scope_path, filename_from_url, git_archive_bytes_to_file_tree,
+        control_run_script_name, cpu_workers_minus_one, decode_chunked_body_with_limit,
+        define_wp_config_consts_script, directory_zip_name, discard_instance_on_execution_error,
+        ensure_tmp_mount, extract_scope_path, filename_from_url, git_archive_bytes_to_file_tree,
         git_archive_download_url, git_archive_supported_host, host_path_for_vfs_path,
         http_response_bytes, http_response_head_bytes_with_body_len,
         import_theme_starter_content_script, import_wordpress_files_replace_files,
@@ -9471,31 +9886,34 @@ mod tests {
         looks_like_zip_file, mark_worker_request_finished, max_requests_per_worker_from_env,
         maybe_boot_wordpress_site, multisite_url_settings, normalize_git_directory_path,
         parse_http_request, parse_http_request_owned, parse_http_request_owned_with_counter,
-        parse_php_headers, php_failure_detail, php_request_from_http, php_request_from_run_options,
-        php_response_status, php_single_quoted_string, read_http_request, ready_message,
-        reason_phrase, remove_wp_allow_multisite_define, request_error_total_counter,
-        request_path_from_target, request_total_fields, requested_worker_count, reset_data_script,
+        parse_php_headers, php_failure_detail, php_request_from_http,
+        php_request_from_http_with_counter, php_request_from_run_options, php_response_status,
+        php_single_quoted_string, read_http_request, ready_message, reason_phrase,
+        remove_wp_allow_multisite_define, request_error_total_counter, request_path_from_target,
+        request_server_context, request_total_fields, requested_worker_count, reset_data_script,
         resolve_git_directory_resource, resolve_route, route_target_label, run_git,
         run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
         server_banner_and_config, server_mounts, server_php_ini_entries,
         server_response_counter_stats, set_site_language_metadata_script,
         should_clear_auto_login_cookie, spawn_worker_lease_task, split_shell_command,
-        startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
-        startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
-        unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
-        wordpress_importer_install_step, wordpress_translation_url_from_api_response,
-        worker_after_request_label, worker_recycle_backoff, worker_recycle_idle_delay_from_env,
-        wp_cli_runner_script, wp_installation_wizard_request, write_http_response_with_counter,
+        stage_control_run_script_with_candidate, startup_steps_from_blueprint_json,
+        startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
+        startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
+        validate_install_asset_zip, wordpress_importer_install_step,
+        wordpress_translation_url_from_api_response, worker_after_request_label,
+        worker_recycle_backoff, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
+        wp_installation_wizard_request, write_http_response_with_counter,
         write_server_http_response_with_counter, write_static_file_response,
         write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
         FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
         HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
-        PhpRunOptions, PhpRunScript, PhpWorker, RequestTotalRequest, RouteTarget,
-        ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest, WorkerKind,
-        WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection, AUTO_LOGIN_COOKIE_NAME,
-        CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT, DEFAULT_MAX_REQUESTS_PER_WORKER,
-        DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR, MAX_REQUESTS_PER_WORKER_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        PhpRunOptions, PhpRunScript, PhpWorker, RequestServerContext, RequestTotalRequest,
+        RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest,
+        WorkerKind, WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection,
+        AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT,
+        DEFAULT_MAX_REQUESTS_PER_WORKER, DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR,
+        MAX_REQUESTS_PER_WORKER_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -10096,6 +10514,97 @@ mod tests {
         assert!(php_request
             .env
             .contains(&("PATH_INFO".to_string(), "/v1".to_string())));
+    }
+
+    #[test]
+    fn php_request_uses_public_site_url_port_and_protocol() {
+        let request = HttpRequest {
+            method: "GET".to_string(),
+            target: "/".to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers: vec![("host".to_string(), "127.0.0.1:4567".to_string())],
+            body: Vec::new(),
+        };
+        let public_context = request_server_context("http://127.0.0.1:4567", 39_123);
+        assert_eq!(
+            public_context,
+            RequestServerContext {
+                port: 4567,
+                https: false,
+            }
+        );
+        let php_request = php_request_from_http_with_counter(
+            &request,
+            "/wordpress/index.php",
+            None,
+            public_context,
+            None,
+        );
+
+        assert_eq!(php_request.port, 4567);
+        assert!(php_request
+            .server_entries
+            .contains(&("SERVER_PORT".to_string(), "4567".to_string())));
+        assert!(php_request
+            .server_entries
+            .contains(&("HTTPS".to_string(), "off".to_string())));
+
+        let https_context = request_server_context("https://wordpress.example", 39_123);
+        assert_eq!(
+            https_context,
+            RequestServerContext {
+                port: 443,
+                https: true,
+            }
+        );
+        let php_request = php_request_from_http_with_counter(
+            request,
+            "/wordpress/index.php",
+            None,
+            https_context,
+            None,
+        );
+        assert_eq!(php_request.port, 443);
+        assert!(php_request
+            .server_entries
+            .contains(&("SERVER_PORT".to_string(), "443".to_string())));
+        assert!(php_request
+            .server_entries
+            .contains(&("HTTPS".to_string(), "on".to_string())));
+    }
+
+    #[test]
+    fn controlled_run_script_staging_never_overwrites_a_collision() {
+        let tmp_root = temp_dir("control-run-script-collision");
+        let mounts = vec![Mount::new(&tmp_root, "/tmp").unwrap()];
+        let collision = tmp_root.join("already-there.php");
+        fs::write(&collision, b"keep me").unwrap();
+        let mut candidates = ["already-there.php", "new-private-script.php"].into_iter();
+
+        let (vfs_path, host_path) =
+            stage_control_run_script_with_candidate(&mounts, "<?php echo 'safe';", || {
+                Ok(candidates.next().unwrap().to_string())
+            })
+            .unwrap();
+
+        assert_eq!(vfs_path, "/tmp/new-private-script.php");
+        assert_eq!(fs::read(&collision).unwrap(), b"keep me");
+        assert_eq!(fs::read(&host_path).unwrap(), b"<?php echo 'safe';");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&host_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        fs::remove_file(&host_path).unwrap();
+        assert_eq!(fs::read(&collision).unwrap(), b"keep me");
+
+        let generated = control_run_script_name().unwrap();
+        assert!(generated.contains(&format!("control-{}-", std::process::id())));
+        assert!(generated.ends_with(".php"));
+        let _ = fs::remove_dir_all(tmp_root);
     }
 
     #[test]
@@ -11383,6 +11892,7 @@ mod tests {
             requests_handled,
             last_request_finished_at: Instant::now(),
             recycle_scheduled,
+            constants_revision: 0,
         }
     }
 

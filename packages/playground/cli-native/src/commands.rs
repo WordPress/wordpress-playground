@@ -1,16 +1,20 @@
 use std::{env, path::PathBuf};
 
 use crate::{
-    args::{normalize_for_runtime, CliOptions, RuntimeCommand, Verbosity, DEFAULT_PORT},
+    args::{
+        normalize_for_runtime, CliOptions, RuntimeCommand, Verbosity, DEFAULT_PORT,
+        SUPPORTED_PHP_VERSIONS,
+    },
+    control::ControlOptions,
     mount::Mount,
     paths::WordPressInstallMode,
     php_config::PhpWorkerOptions,
     php_runtime_files::PhpConstantValue,
     runtime::{NativeRuntime, WasmEngineProfile},
     server::{
-        ensure_tmp_mount, maybe_boot_wordpress_site, run_native_server, run_startup_steps,
-        startup_steps_from_options, write_wordpress_snapshot_zip_with_symlink_policy,
-        SymlinkPolicy,
+        ensure_tmp_mount, maybe_boot_wordpress_site, run_native_server_with_control,
+        run_startup_steps, startup_steps_from_options,
+        write_wordpress_snapshot_zip_with_symlink_policy, SymlinkPolicy,
     },
     terminal::TerminalStyle,
     wordpress::{
@@ -20,6 +24,10 @@ use crate::{
 };
 
 pub fn run(options: CliOptions) -> Result<u8> {
+    run_with_control(options, None)
+}
+
+pub fn run_with_control(options: CliOptions, handshake_path: Option<PathBuf>) -> Result<u8> {
     let cwd = env::current_dir()?;
     let home = home_dir().ok_or_else(|| CliError::new("Could not determine home directory"))?;
     let config = normalize_for_runtime(options, &cwd, &home)?;
@@ -29,6 +37,14 @@ pub fn run(options: CliOptions) -> Result<u8> {
             WasmEngineProfile::FastStartup
         }
     };
+    let control = handshake_path
+        .map(ControlOptions::from_handshake_path)
+        .transpose()?;
+    if control.is_some() && !matches!(config.command, RuntimeCommand::Server) {
+        return Err(CliError::new(
+            "--experimental-control-handshake is only supported by start and server",
+        ));
+    }
     progress(
         &config.options,
         format!(
@@ -45,10 +61,20 @@ pub fn run(options: CliOptions) -> Result<u8> {
     );
 
     match config.command {
-        RuntimeCommand::Server => run_native_server(&runtime, &config),
+        RuntimeCommand::Server => run_native_server_with_control(&runtime, &config, control),
         RuntimeCommand::RunBlueprint => run_blueprint_command(&runtime, &config.options),
         RuntimeCommand::BuildSnapshot => run_build_snapshot_command(&runtime, &config.options),
     }
+}
+
+pub fn prepare_native_runtime() -> Result<()> {
+    for profile in [WasmEngineProfile::FastStartup, WasmEngineProfile::Optimized] {
+        let runtime = NativeRuntime::from_default_asset_root_with_engine_profile(profile)?;
+        for php_version in SUPPORTED_PHP_VERSIONS {
+            runtime.php_artifact(php_version)?;
+        }
+    }
+    Ok(())
 }
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {

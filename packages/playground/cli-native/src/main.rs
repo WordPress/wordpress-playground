@@ -1,21 +1,79 @@
-use std::process::ExitCode;
+use std::{path::PathBuf, process::ExitCode};
 
-use wp_playground_native::{args::parse_cli_args, commands::run, terminal::TerminalStyle};
+use wp_playground_native::{
+    args::parse_cli_args,
+    commands::{prepare_native_runtime, run_with_control},
+    terminal::TerminalStyle,
+    CliError, Result,
+};
 
 fn main() -> ExitCode {
-    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let mut args = std::env::args().skip(1).collect::<Vec<_>>();
     if let Some(output) = immediate_output(&args, TerminalStyle::stdout().enabled()) {
         println!("{output}");
         return ExitCode::SUCCESS;
     }
-    match parse_cli_args(args).and_then(run) {
-        Ok(code) => ExitCode::from(code),
-        Err(error) => {
-            let style = TerminalStyle::stderr();
-            eprintln!("{} {error}", style.red("Error:"));
-            ExitCode::from(1)
-        }
+    if args == ["runtime", "install"] {
+        return match prepare_native_runtime() {
+            Ok(()) => {
+                println!("Native PHP runtime is ready");
+                ExitCode::SUCCESS
+            }
+            Err(error) => exit_with_error(error),
+        };
     }
+    let handshake = match extract_control_handshake(&mut args) {
+        Ok(handshake) => handshake,
+        Err(error) => return exit_with_error(error),
+    };
+    match parse_cli_args(args).and_then(|options| run_with_control(options, handshake)) {
+        Ok(code) => ExitCode::from(code),
+        Err(error) => exit_with_error(error),
+    }
+}
+
+fn exit_with_error(error: CliError) -> ExitCode {
+    let style = TerminalStyle::stderr();
+    eprintln!("{} {error}", style.red("Error:"));
+    ExitCode::from(1)
+}
+
+fn extract_control_handshake(args: &mut Vec<String>) -> Result<Option<PathBuf>> {
+    let mut handshake = None;
+    let mut index = 0;
+    while index < args.len() {
+        let inline = args[index]
+            .strip_prefix("--experimental-control-handshake=")
+            .map(str::to_string);
+        if args[index] == "--experimental-control-handshake" || inline.is_some() {
+            if handshake.is_some() {
+                return Err(CliError::new(
+                    "--experimental-control-handshake may only be specified once",
+                ));
+            }
+            let path = if let Some(path) = inline {
+                if path.is_empty() {
+                    return Err(CliError::new(
+                        "--experimental-control-handshake requires a path",
+                    ));
+                }
+                args.remove(index);
+                path
+            } else {
+                if index + 1 >= args.len() {
+                    return Err(CliError::new(
+                        "--experimental-control-handshake requires a path",
+                    ));
+                }
+                args.remove(index);
+                args.remove(index)
+            };
+            handshake = Some(PathBuf::from(path));
+            continue;
+        }
+        index += 1;
+    }
+    Ok(handshake)
 }
 
 fn immediate_output(args: &[String], color: bool) -> Option<String> {
@@ -45,7 +103,7 @@ fn has_help_flag_before_delimiter(args: &[String]) -> bool {
 fn is_command(command: &str) -> bool {
     matches!(
         command,
-        "start" | "server" | "run-blueprint" | "build-snapshot"
+        "start" | "server" | "run-blueprint" | "build-snapshot" | "runtime"
     )
 }
 
@@ -180,6 +238,10 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  wp-playground-native build-snapshot --blueprint blueprint.json --outfile wordpress.zip\n",
             "  wp-playground-native build-snapshot --auto-mount . --php 8.2"
         ),
+        Some("runtime") => concat!(
+            "Usage: wp-playground-native runtime install\n\n",
+            "Compiles and caches the packaged PHP WASIp2 component for both native engine profiles."
+        ),
         _ => concat!(
             "Usage: wp-playground-native <command> [options]\n\n",
             "Experimental Wasmtime WordPress Playground CLI.\n\n",
@@ -188,6 +250,7 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  server                 Start a lower-level mounted WordPress server\n",
             "  run-blueprint          Run Blueprint startup steps without serving\n",
             "  build-snapshot         Export a ZIP snapshot of /wordpress\n\n",
+            "  runtime install        Prepare and cache the packaged PHP runtime\n\n",
             "Global options:\n",
             "  -h, --help             Show help\n",
             "  -V, --version          Show version\n\n",
@@ -201,7 +264,7 @@ fn help_text(command: Option<&str>) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_help, immediate_output, version_text};
+    use super::{extract_control_handshake, format_help, immediate_output, version_text};
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
@@ -240,5 +303,19 @@ mod tests {
         assert!(output.contains("\x1b[1;36mUsage:\x1b[0m"));
         assert!(output.contains("\x1b[1;33mCommands:\x1b[0m"));
         assert!(output.contains("\x1b[32mstart\x1b[0m"));
+    }
+
+    #[test]
+    fn extracts_hidden_control_handshake_before_cli_parsing() {
+        let mut values = args(&[
+            "start",
+            "--experimental-control-handshake",
+            "/tmp/handshake.json",
+            "--port",
+            "9400",
+        ]);
+        let path = extract_control_handshake(&mut values).unwrap().unwrap();
+        assert_eq!(path, std::path::PathBuf::from("/tmp/handshake.json"));
+        assert_eq!(values, args(&["start", "--port", "9400"]));
     }
 }

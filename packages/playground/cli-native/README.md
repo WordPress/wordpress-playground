@@ -128,27 +128,22 @@ requires a byte-for-byte match.
 
 ## Test
 
-```bash
-cargo fmt --manifest-path packages/playground/cli-native/Cargo.toml -- --check
-cargo clippy --manifest-path packages/playground/cli-native/Cargo.toml \
-  --all-targets -- -D warnings
-cargo test --manifest-path packages/playground/cli-native/Cargo.toml
-python3 -m unittest discover \
-  -s packages/playground/cli-native/scripts/tests -p 'test_*.py'
-node --test \
-  packages/playground/cli-native/scripts/tests/benchmark-site-editor.test.mjs
+Run the complete current-platform gate from the repository root:
 
-# Full process, concurrency, packaged WordPress, Blueprint, and snapshot smokes:
-cargo test --manifest-path packages/playground/cli-native/Cargo.toml \
-  --test native_server -- --ignored --test-threads=1
+```bash
+npm exec -- nx run playground-cli-native:verify --output-style=stream
 ```
 
-The Rust suite loads the checked-in component rather than an optional `/tmp`
-fixture. It covers typed request transfer, header/body separation, fatal-error
-recovery, parallel workers, and two concurrent `BEGIN IMMEDIATE` SQLite
-transactions through the guest lock bridge. The ignored native-server suite
-also verifies overlapping SQLite readers, a reserved writer with a concurrent
-reader, packaged WordPress, Blueprint, snapshot, editor, and lock smokes.
+That target runs formatting, Clippy, TypeScript, Rust, npm, benchmark-script,
+full native-process/WAL, packaged WordPress, Blueprint, snapshot, clean npm
+install, and existing Node CLI regression checks. The Rust suite loads the
+checked-in component rather than an optional `/tmp` fixture. The explicit
+native-process suite runs serially and verifies overlapping SQLite readers, a
+reserved writer with a concurrent reader, WAL persistence and flushing,
+packaged WordPress, editor, Blueprint, snapshot, and file-lock behavior.
+
+See [`NPM_PACKAGE.md`](./NPM_PACKAGE.md) for the private package boundary,
+completion matrix, and the exact verification coverage.
 
 ## Benchmark the Site Editor
 
