@@ -24,15 +24,12 @@ import css from './style.module.css';
 export function LocalDirectoryDocumentRootModal({
 	directoryHandle,
 	initialDocumentRoot,
-	preferPublic = false,
 	onRequestClose,
 	onSelect,
 }: {
 	directoryHandle: FileSystemDirectoryHandle;
 	/** Relative document root; an empty string selects the mount root. */
 	initialDocumentRoot: string;
-	/** Prefers `/public` only when the initial root is empty and `/public` is a directory. */
-	preferPublic?: boolean;
 	onRequestClose: () => void;
 	onSelect: (documentRoot: string) => Promise<void>;
 }) {
@@ -61,12 +58,6 @@ export function LocalDirectoryDocumentRootModal({
 			let initialPath = getLocalDirectoryPickerPath(initialDocumentRoot);
 			if (!(await nextFilesystem.isDir(initialPath))) {
 				initialPath = '/';
-			} else if (
-				preferPublic &&
-				!initialDocumentRoot &&
-				(await nextFilesystem.isDir('/public'))
-			) {
-				initialPath = '/public';
 			}
 			if (!cancelled) {
 				lastAcceptedDirectoryRef.current = initialPath;
@@ -83,7 +74,7 @@ export function LocalDirectoryDocumentRootModal({
 		return () => {
 			cancelled = true;
 		};
-	}, [directoryHandle, initialDocumentRoot, preferPublic]);
+	}, [directoryHandle, initialDocumentRoot]);
 
 	/**
 	 * Keeps selection directory-only and accepts a directory only when its

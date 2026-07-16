@@ -71,7 +71,6 @@ import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
-import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
 import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 /**
@@ -188,8 +187,8 @@ export function SavedPlaygroundsPanel({
 		string | null
 	>(null);
 	const [isImportingZip, setIsImportingZip] = useState(false);
-	const [pendingLocalDirectoryHandle, setPendingLocalDirectoryHandle] =
-		useState<FileSystemDirectoryHandle | null>(null);
+	const [isOpeningLocalDirectory, setIsOpeningLocalDirectory] =
+		useState(false);
 	const [localDirectoryError, setLocalDirectoryError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
@@ -872,6 +871,7 @@ export function SavedPlaygroundsPanel({
 
 	const chooseLocalDirectory = async () => {
 		setLocalDirectoryError(undefined);
+		setIsOpeningLocalDirectory(true);
 		try {
 			const directoryHandle = await (
 				window as Window & {
@@ -885,7 +885,9 @@ export function SavedPlaygroundsPanel({
 				mode: 'readwrite',
 			});
 			await requestLocalDirectoryWriteAccess(directoryHandle);
-			setPendingLocalDirectoryHandle(directoryHandle);
+			await sitesAPI.createNewLocalDirectorySite(directoryHandle);
+			dispatch(setDockPaneOpen(false));
+			onClose();
 		} catch (error) {
 			if ((error as DOMException | undefined)?.name !== 'AbortError') {
 				logger.error('Error opening local directory', error);
@@ -893,20 +895,9 @@ export function SavedPlaygroundsPanel({
 					'The selected directory could not be opened.'
 				);
 			}
+		} finally {
+			setIsOpeningLocalDirectory(false);
 		}
-	};
-
-	const openLocalDirectory = async (documentRoot: string) => {
-		if (!pendingLocalDirectoryHandle) {
-			return;
-		}
-		await sitesAPI.createNewLocalDirectorySite(
-			pendingLocalDirectoryHandle,
-			documentRoot
-		);
-		setPendingLocalDirectoryHandle(null);
-		dispatch(setDockPaneOpen(false));
-		onClose();
 	};
 
 	/**
@@ -1671,8 +1662,8 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<p className={css.inlineFormHint}>
-							Choose a project folder, then select the folder
-							inside it that PHP should serve.
+							Choose a project folder. PHP serves its root by
+							default; you can change the document root later.
 						</p>
 						{localDirectoryError ? (
 							<p role="alert">{localDirectoryError}</p>
@@ -1680,9 +1671,13 @@ export function SavedPlaygroundsPanel({
 						<div className={css.inlineFormActions}>
 							<Button
 								variant="primary"
+								disabled={isOpeningLocalDirectory}
+								isBusy={isOpeningLocalDirectory}
 								onClick={() => void chooseLocalDirectory()}
 							>
-								Choose a directory…
+								{isOpeningLocalDirectory
+									? 'Opening…'
+									: 'Choose a directory…'}
 							</Button>
 						</div>
 					</div>
@@ -1771,33 +1766,22 @@ export function SavedPlaygroundsPanel({
 	}
 
 	return (
-		<>
-			<div
-				ref={panelRootRef}
-				className={classNames(css.playgroundsPane, {
-					[css.newPane]: panel === 'new',
-				})}
-			>
-				<input
-					type="file"
-					ref={zipFileInputRef}
-					onChange={handleImportZip}
-					accept=".zip,application/zip"
-					style={{ display: 'none' }}
-				/>
-				{panel !== 'new' && renderYourPlaygroundsSection()}
-				{panel !== 'playgrounds' && renderNewPlaygroundSection()}
-			</div>
-			{pendingLocalDirectoryHandle ? (
-				<LocalDirectoryDocumentRootModal
-					directoryHandle={pendingLocalDirectoryHandle}
-					initialDocumentRoot=""
-					preferPublic
-					onRequestClose={() => setPendingLocalDirectoryHandle(null)}
-					onSelect={openLocalDirectory}
-				/>
-			) : null}
-		</>
+		<div
+			ref={panelRootRef}
+			className={classNames(css.playgroundsPane, {
+				[css.newPane]: panel === 'new',
+			})}
+		>
+			<input
+				type="file"
+				ref={zipFileInputRef}
+				onChange={handleImportZip}
+				accept=".zip,application/zip"
+				style={{ display: 'none' }}
+			/>
+			{panel !== 'new' && renderYourPlaygroundsSection()}
+			{panel !== 'playgrounds' && renderNewPlaygroundSection()}
+		</div>
 	);
 }
 

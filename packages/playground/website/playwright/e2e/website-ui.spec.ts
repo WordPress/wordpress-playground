@@ -2847,7 +2847,7 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
-	test('should serve a local PHP project from a selectable document root', async ({
+	test('should open a local PHP project at its root and allow changing document root', async ({
 		website,
 		browserName,
 	}) => {
@@ -2936,34 +2936,32 @@ test.describe('Default Playground storage', () => {
 				window as any
 			).__successfulLocalDirectoryPicker;
 		});
-		await newPane
-			.getByRole('button', { name: 'Choose a directory…' })
-			.click();
-		let documentRootDialog = website.page.getByRole('dialog', {
-			name: 'Choose a document root',
-		});
-		await expect(documentRootDialog).toBeVisible();
 		const siteCountBeforeCancel = await website.page.evaluate(
 			() => (window as any).playgroundSites.list().length
 		);
-		await documentRootDialog
-			.getByRole('button', { name: 'Cancel' })
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = async () => {
+				throw new DOMException('The user cancelled.', 'AbortError');
+			};
+		});
+		await newPane
+			.getByRole('button', { name: 'Choose a directory…' })
 			.click();
-		await expect(documentRootDialog).not.toBeVisible();
+		await expect(
+			newPane.getByRole('button', { name: 'Choose a directory…' })
+		).toBeEnabled();
 		expect(
 			await website.page.evaluate(
 				() => (window as any).playgroundSites.list().length
 			)
 		).toBe(siteCountBeforeCancel);
-
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = (
+				window as any
+			).__successfulLocalDirectoryPicker;
+		});
 		await newPane
 			.getByRole('button', { name: 'Choose a directory…' })
-			.click();
-		documentRootDialog = website.page.getByRole('dialog', {
-			name: 'Choose a document root',
-		});
-		await documentRootDialog
-			.getByRole('button', { name: 'Use this directory' })
 			.click();
 
 		const getPhpAppState = () =>
@@ -2989,22 +2987,22 @@ test.describe('Default Playground storage', () => {
 				}
 			});
 		const appBody = website.wordpress().locator('body');
-		await expect(appBody).toHaveText('symfony-public', {
+		await expect(appBody).toHaveText('root-entry', {
 			timeout: 120000,
 		});
 		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
-			documentRoot: '/app/public',
-			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
 			hasWordPress: false,
 		});
 
 		await website.page.reload();
-		await expect(appBody).toHaveText('symfony-public', {
+		await expect(appBody).toHaveText('root-entry', {
 			timeout: 120000,
 		});
 		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
-			documentRoot: '/app/public',
-			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
 			hasWordPress: false,
 		});
 
@@ -3036,34 +3034,35 @@ test.describe('Default Playground storage', () => {
 		await website.page
 			.getByRole('button', { name: 'Change document root' })
 			.click();
-		documentRootDialog = website.page.getByRole('dialog', {
+		const documentRootDialog = website.page.getByRole('dialog', {
 			name: 'Choose a document root',
 		});
 		await documentRootDialog
-			.locator('.file-node-button[data-path="/"]')
+			.locator('.file-node-button[data-path="/public"]')
 			.click();
 		await documentRootDialog
 			.getByRole('button', { name: 'Use this directory' })
 			.click();
-		await expect(appBody).toHaveText('root-entry', { timeout: 120000 });
+		await expect(appBody).toHaveText('symfony-public', { timeout: 120000 });
 		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
-			documentRoot: '/app',
-			responses: ['root-entry', 'root-entry', 'root-entry'],
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
 			hasWordPress: false,
 		});
 
 		await website.page.reload();
-		await expect(appBody).toHaveText('root-entry', { timeout: 120000 });
+		await expect(appBody).toHaveText('symfony-public', { timeout: 120000 });
 		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
-			documentRoot: '/app',
-			responses: ['root-entry', 'root-entry', 'root-entry'],
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
 			hasWordPress: false,
 		});
 
 		await website.page.evaluate(async (name) => {
 			const storageRoot = await navigator.storage.getDirectory();
 			const project = await storageRoot.getDirectoryHandle(name);
-			const index = await project.getFileHandle('index.php');
+			const publicDirectory = await project.getDirectoryHandle('public');
+			const index = await publicDirectory.getFileHandle('index.php');
 			const writable = await index.createWritable();
 			await writable.write("<?php echo 'externally-edited';");
 			await writable.close();
@@ -3076,7 +3075,7 @@ test.describe('Default Playground storage', () => {
 			timeout: 120000,
 		});
 		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
-			documentRoot: '/app',
+			documentRoot: '/app/public',
 			responses: [
 				'externally-edited',
 				'externally-edited',

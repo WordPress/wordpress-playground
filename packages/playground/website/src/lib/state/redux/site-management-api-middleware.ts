@@ -711,19 +711,21 @@ export function createSitesAPI(
 
 		/**
 		 * Opens a site directly from a local directory without copying its files.
+		 * New sites initially serve the mount root; users can change the document
+		 * root after boot.
 		 * Site metadata includes the safe boot configuration, while IndexedDB stores
 		 * the directory handle separately.
 		 * A failed handle write or initial boot attempts to remove both records.
 		 */
 		async createNewLocalDirectorySite(
-			directoryHandle: FileSystemDirectoryHandle,
-			documentRoot: string
+			directoryHandle: FileSystemDirectoryHandle
 		): Promise<string> {
 			if (!opfsSiteStorage) {
 				throw new Error(
 					'Cannot save local project metadata because browser storage is not available.'
 				);
 			}
+			const documentRoot = '';
 			const filesystem = new EventedFilesystem(
 				OpfsFilesystemBackend.fromDirectoryHandle(directoryHandle)
 			);
