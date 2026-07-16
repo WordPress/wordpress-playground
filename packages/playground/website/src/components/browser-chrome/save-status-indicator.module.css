@@ -113,6 +113,13 @@
 	color: #5f5b54;
 }
 
+.saved-menu-error {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--color-alert-red, #cc1818);
+}
+
 .saved-menu-action.saved-menu-action {
 	justify-content: flex-start;
 	width: 100%;

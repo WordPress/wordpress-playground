@@ -682,6 +682,7 @@ export function createLocalDirectorySite(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		// Reject malformed boot metadata before the site is persisted.
 		getLocalDirectoryDocumentRoot(localDirectoryBootConfiguration);
 		const sites = selectAllSites(getState());
 		const now = Date.now();

@@ -188,10 +188,10 @@ export function UnconnectedSiteSettingsForm({
 					control={control}
 					name="wpVersion"
 					rules={{
-						required: {
-							message: 'WordPress Version is required',
-							value: true,
-						},
+						required:
+							siteMode === 'wordpress'
+								? 'WordPress Version is required'
+								: false,
 					}}
 					disabled={!enabledFields.wpVersion}
 					render={({ field: { onChange, ...rest } }) => (

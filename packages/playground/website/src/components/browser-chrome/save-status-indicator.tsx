@@ -58,6 +58,7 @@ export function SaveStatusIndicator({
 	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
 	const [documentRootDirectoryHandle, setDocumentRootDirectoryHandle] =
 		useState<FileSystemDirectoryHandle | null>(null);
+	const [documentRootPickerError, setDocumentRootPickerError] = useState('');
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -155,14 +156,20 @@ export function SaveStatusIndicator({
 
 	const openDocumentRootPicker = async () => {
 		if (!activeSite?.metadata.localDirectoryBootConfiguration) {
-			return;
+			return false;
 		}
+		setDocumentRootPickerError('');
 		try {
 			setDocumentRootDirectoryHandle(
 				await loadDirectoryHandle(activeSite.slug)
 			);
+			return true;
 		} catch (error) {
 			logger.error('Error loading the local directory handle.', error);
+			setDocumentRootPickerError(
+				"Couldn't open the linked directory. Try again, or reopen the project folder from Playgrounds."
+			);
+			return false;
 		}
 	};
 
@@ -199,7 +206,10 @@ export function SaveStatusIndicator({
 									css.saved,
 									css.actionable
 								)}
-								onClick={onToggle}
+								onClick={() => {
+									setDocumentRootPickerError('');
+									onToggle();
+								}}
 								disabled={disabled}
 								aria-expanded={isOpen}
 								title="Saved to a folder on this computer."
@@ -235,12 +245,23 @@ export function SaveStatusIndicator({
 										className={css.savedMenuAction}
 										disabled={disabled}
 										onClick={async () => {
-											await openDocumentRootPicker();
-											onClose();
+											if (
+												await openDocumentRootPicker()
+											) {
+												onClose();
+											}
 										}}
 									>
 										Change document root
 									</Button>
+								) : null}
+								{documentRootPickerError ? (
+									<p
+										className={css.savedMenuError}
+										role="alert"
+									>
+										{documentRootPickerError}
+									</p>
 								) : null}
 							</div>
 						)}
