@@ -334,7 +334,7 @@
 	display: flex;
 	gap: var(--space-4);
 	justify-content: space-between;
-	padding: var(--space-8) var(--space-6) var(--space-6);
+	padding: var(--space-6);
 	width: 100%;
 }
 
