@@ -38,6 +38,20 @@ describe('DockItemButton', () => {
 		expect(hiddenMarkerCount).toBe(2);
 	});
 
+	it('gives create actions a distinct role without marking them active', () => {
+		const markup = renderToStaticMarkup(
+			<DockItemButton
+				label="New"
+				ariaLabel="New Playground"
+				icon={<span>Plus icon</span>}
+				variant="create"
+			/>
+		);
+
+		expect(markup).toMatch(/class="[^"]*dockItemCreate/);
+		expect(markup).toContain('aria-pressed="false"');
+	});
+
 	it('can disable unavailable actions', () => {
 		const markup = renderToStaticMarkup(
 			<DockItemButton

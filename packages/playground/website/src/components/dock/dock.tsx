@@ -51,9 +51,11 @@ import { useRecentAutosaveNudgeVisible } from '../ensure-playground-site/recent-
 import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
+import type { DockItemButtonVariant } from './dock-item-button';
 import { DockPane } from './dock-pane';
 import type { DockPaneHeaderOverride } from './dock-pane';
 import { DockTogglePill } from './dock-toggle-pill';
+import { getDockToolsOverflow } from './dock-tools-overflow';
 import {
 	DOCK_DRAG_EDGE,
 	DOCK_OPERATION_TOAST_MIN_HEIGHT,
@@ -68,7 +70,8 @@ type DockItem = {
 	label: string;
 	ariaLabel: string;
 	icon: JSX.Element;
-	isPrimary?: boolean;
+	variant?: DockItemButtonVariant;
+	startsGroup?: boolean;
 };
 
 export type DockProps = {
@@ -80,19 +83,20 @@ const DRAG_THRESHOLD = 4;
 const CORNER_OVERDRAG = 36;
 const MOBILE_QUERY = '(max-width: 1024px)';
 
-const DOCK_ITEMS: DockItem[] = [
+const DOCK_ITEMS = [
 	{
 		section: 'new',
 		label: 'New',
 		ariaLabel: 'New Playground',
 		icon: <Icon icon={plus} size={24} />,
-		isPrimary: true,
+		variant: 'create',
 	},
 	{
 		section: 'playgrounds',
 		label: 'Playgrounds',
 		ariaLabel: 'Your Playgrounds',
 		icon: <Icon icon={grid} size={22} />,
+		startsGroup: true,
 	},
 	{
 		section: 'blueprint',
@@ -130,7 +134,7 @@ const DOCK_ITEMS: DockItem[] = [
 		ariaLabel: 'Export',
 		icon: <Icon icon={download} size={24} />,
 	},
-];
+] satisfies readonly DockItem[];
 
 const PANE_COPY: Record<
 	DockPaneSection,
@@ -261,6 +265,10 @@ export function Dock({
 		DOCK_OPERATION_TOAST_MIN_HEIGHT
 	);
 	const [toolsHeight, setToolsHeight] = useState(0);
+	const [toolsOverflow, setToolsOverflow] = useState({
+		canScrollBackward: false,
+		canScrollForward: false,
+	});
 	const [viewportSize, setViewportSize] = useState(() => ({
 		width: window.innerWidth,
 		height: window.innerHeight,
@@ -306,6 +314,41 @@ export function Dock({
 			observer.observe(toolsRef.current);
 		}
 		return () => observer.disconnect();
+	}, []);
+
+	useLayoutEffect(() => {
+		const tools = toolsRef.current;
+		if (!tools) {
+			return;
+		}
+
+		/** Keeps the mobile edge cues aligned with the visible destinations. */
+		const updateToolsOverflow = () => {
+			const next = getDockToolsOverflow(tools);
+			setToolsOverflow((current) =>
+				current.canScrollBackward === next.canScrollBackward &&
+				current.canScrollForward === next.canScrollForward
+					? current
+					: next
+			);
+		};
+
+		updateToolsOverflow();
+		tools.addEventListener('scroll', updateToolsOverflow, {
+			passive: true,
+		});
+		let observer: ResizeObserver | undefined;
+		if (typeof ResizeObserver === 'undefined') {
+			window.addEventListener('resize', updateToolsOverflow);
+		} else {
+			observer = new ResizeObserver(updateToolsOverflow);
+			observer.observe(tools);
+		}
+		return () => {
+			tools.removeEventListener('scroll', updateToolsOverflow);
+			window.removeEventListener('resize', updateToolsOverflow);
+			observer?.disconnect();
+		};
 	}, []);
 
 	useEffect(() => {
@@ -1228,32 +1271,42 @@ export function Dock({
 							/>
 						)}
 					</div>
-					<div className={css.dockTools} ref={toolsRef}>
-						{DOCK_ITEMS.map((item, index) => (
-							<DockItemButton
-								key={item.section}
-								label={item.label}
-								ariaLabel={item.ariaLabel}
-								icon={item.icon}
-								isPrimary={item.isPrimary}
-								isActive={
-									dockPaneIsOpen && section === item.section
-								}
-								disabled={paneCloseBlocked}
-								hasNotification={
-									item.section === 'playgrounds' &&
-									recentAutosaveNudgeVisible
-								}
-								notificationAriaSuffix="recent autosave available"
-								hasSeparator={index === 2}
-								onClick={(event) => {
-									// Safari does not focus buttons on click. Do it here so
-									// closing a pane returns focus to its Dock control.
-									event.currentTarget.focus();
-									openSection(item.section);
-								}}
-							/>
-						))}
+					<div
+						className={classNames(css.dockToolsViewport, {
+							[css.dockToolsOverflowBackward]:
+								toolsOverflow.canScrollBackward,
+							[css.dockToolsOverflowForward]:
+								toolsOverflow.canScrollForward,
+						})}
+					>
+						<div className={css.dockTools} ref={toolsRef}>
+							{DOCK_ITEMS.map((item) => (
+								<DockItemButton
+									key={item.section}
+									label={item.label}
+									ariaLabel={item.ariaLabel}
+									icon={item.icon}
+									variant={item.variant}
+									isActive={
+										dockPaneIsOpen &&
+										section === item.section
+									}
+									disabled={paneCloseBlocked}
+									hasNotification={
+										item.section === 'playgrounds' &&
+										recentAutosaveNudgeVisible
+									}
+									notificationAriaSuffix="recent autosave available"
+									hasSeparator={item.startsGroup}
+									onClick={(event) => {
+										// Safari does not focus buttons on click. Do it here so
+										// closing a pane returns focus to its Dock control.
+										event.currentTarget.focus();
+										openSection(item.section);
+									}}
+								/>
+							))}
+						</div>
 					</div>
 				</div>
 			</nav>

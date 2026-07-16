@@ -3,12 +3,14 @@ import { forwardRef } from 'react';
 import type { MouseEventHandler, ReactNode } from 'react';
 import css from './style.module.css';
 
+export type DockItemButtonVariant = 'destination' | 'create';
+
 export type DockItemButtonProps = {
 	label: string;
 	ariaLabel: string;
 	icon: ReactNode;
 	isActive?: boolean;
-	isPrimary?: boolean;
+	variant?: DockItemButtonVariant;
 	hasSeparator?: boolean;
 	hasNotification?: boolean;
 	notificationAriaSuffix?: string;
@@ -18,8 +20,8 @@ export type DockItemButtonProps = {
 };
 
 /**
- * A reusable two-line dock tool button: icon above label, optional primary
- * treatment, optional group divider, and optional notification dot.
+ * A reusable two-line Dock control: icon above label, semantic product role,
+ * optional group divider, and optional notification dot.
  */
 export const DockItemButton = forwardRef<
 	HTMLButtonElement,
@@ -30,7 +32,7 @@ export const DockItemButton = forwardRef<
 		ariaLabel,
 		icon,
 		isActive = false,
-		isPrimary = false,
+		variant = 'destination',
 		hasSeparator = false,
 		hasNotification = false,
 		notificationAriaSuffix = 'notification available',
@@ -54,7 +56,7 @@ export const DockItemButton = forwardRef<
 				type="button"
 				ref={ref}
 				className={classNames(css.dockItem, {
-					[css.dockItemPrimary]: isPrimary,
+					[css.dockItemCreate]: variant === 'create',
 					[css.dockItemActive]: isActive,
 				})}
 				aria-label={buttonAriaLabel}
