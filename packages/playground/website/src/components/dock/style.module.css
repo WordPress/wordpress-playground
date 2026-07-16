@@ -193,6 +193,7 @@
    overriding WordPress' teal admin color (#007cba) and any muted per-panel
    accent (the site-info panel remaps the WP accent to gray). */
 .pane :global(.components-checkbox-control__input[type='checkbox']) {
+	border-color: var(--line-control);
 	border-radius: 4px;
 }
 .pane :global(.components-checkbox-control__input[type='checkbox']:checked),
@@ -813,6 +814,7 @@
 		background: var(--paper-2);
 		border-bottom: 1px solid var(--line-subtle);
 		flex: none;
+		gap: var(--space-3);
 		padding: 0 var(--space-3) 0 var(--space-6);
 	}
 
@@ -833,24 +835,43 @@
 		min-width: 0;
 	}
 
-	/* A 320px title row cannot hold Blueprint, two labelled actions, and the
-	   close target. Keep the actions together on a deliberate second row. */
-	@media (max-width: 375px) {
+	/* Narrow phones cannot hold the Blueprint title, Help, two labelled actions,
+	   and the close target. Keep title/Help/X together and move the file actions
+	   as one group to the shared content inset below. */
+	@media (max-width: 440px) {
 		.pane-editor-header:has([data-dock-pane-header-actions]) {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: auto minmax(0, 1fr) auto;
 			grid-template-rows: 64px auto;
 			padding-bottom: var(--space-3);
 		}
 
 		.pane-editor-header:has([data-dock-pane-header-actions])
 			.pane-editor-header-slot {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-actions] {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-help] {
+			grid-column: 2;
+			grid-row: 1;
+			justify-self: start;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-utilities] {
 			grid-column: 1 / -1;
 			grid-row: 2;
+			justify-self: start;
 		}
 
 		.pane-editor-header:has([data-dock-pane-header-actions]) .pane-close {
-			grid-column: 2;
+			grid-column: 3;
 			grid-row: 1;
 		}
 	}

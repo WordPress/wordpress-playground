@@ -806,14 +806,42 @@ export const BlueprintBundleEditor = forwardRef<
 			)}
 		/>
 	);
+	const dockDocsLink = (
+		<WpTooltip
+			text="See Blueprints documentation"
+			delay={0}
+			placement="top"
+		>
+			<a
+				className={styles.editorDocsLink}
+				href="https://wordpress.github.io/wordpress-playground/blueprints"
+				target="_blank"
+				rel="noreferrer"
+				aria-label="See Blueprints documentation"
+			>
+				<Icon icon={help} size={24} />
+			</a>
+		</WpTooltip>
+	);
 	const mobileHeaderActions = mobileHeaderTarget
 		? createPortal(
 				<div
 					className={styles.editorHeaderSlotActions}
 					data-dock-pane-header-actions
 				>
-					{mobileExplorerToggle}
-					{dockExportDropdown}
+					<div
+						className={styles.editorHeaderHelp}
+						data-dock-pane-header-help
+					>
+						{dockDocsLink}
+					</div>
+					<div
+						className={styles.editorHeaderFileActions}
+						data-dock-pane-header-utilities
+					>
+						{mobileExplorerToggle}
+						{dockExportDropdown}
+					</div>
 				</div>,
 				mobileHeaderTarget
 			)
@@ -890,27 +918,12 @@ export const BlueprintBundleEditor = forwardRef<
 									!mobileHeaderTarget &&
 									mobileExplorerToggle}
 								{dockPresentation ? (
-									<>
-										<WpTooltip
-											text="See Blueprints documentation"
-											delay={0}
-											placement="top"
-										>
-											<a
-												className={
-													styles.editorDocsLink
-												}
-												href="https://wordpress.github.io/wordpress-playground/blueprints"
-												target="_blank"
-												rel="noreferrer"
-												aria-label="See Blueprints documentation"
-											>
-												<Icon icon={help} size={24} />
-											</a>
-										</WpTooltip>
-										{!mobileHeaderTarget &&
-											dockExportDropdown}
-									</>
+									!mobileHeaderTarget && (
+										<>
+											{dockDocsLink}
+											{dockExportDropdown}
+										</>
+									)
 								) : (
 									<>
 										<Button

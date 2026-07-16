@@ -171,9 +171,20 @@
 }
 
 .editorHeaderSlotActions {
+	align-items: center;
 	display: flex;
 	gap: 8px;
 	min-width: 0;
+}
+
+.editorHeaderHelp,
+.editorHeaderFileActions {
+	align-items: center;
+	display: flex;
+}
+
+.editorHeaderFileActions {
+	gap: 8px;
 }
 
 .editorExportToggle svg {
@@ -413,21 +424,13 @@
 	}
 
 	.dockPresentation .editorHeaderActionsWithPortaledUtilities {
-		grid-template-columns: 32px minmax(0, 1fr);
-	}
-
-	.dockPresentation
-		.editorHeaderActionsWithPortaledUtilities
-		.editorDocsLink {
-		grid-column: 1;
-		grid-row: 1;
-		justify-self: start;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.dockPresentation
 		.editorHeaderActionsWithPortaledUtilities
 		> .editorToolbarButton:last-child {
-		grid-column: 2;
+		grid-column: 1;
 		grid-row: 1;
 		width: 100%;
 	}

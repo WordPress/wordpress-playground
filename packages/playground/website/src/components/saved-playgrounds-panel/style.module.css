@@ -1086,11 +1086,10 @@
 	   widening the whole list (the flex/grid default min-width:auto otherwise lets
 	   the longest name push the list — and the pane — into horizontal overflow). */
 	min-width: 0;
-	/* Bleed the rows' hover/active highlight into the pane gutter so the row
-	   CONTENT (avatar, name) lines up with the section eyebrows and title, while
-	   the rounded highlight still has breathing room on both sides. */
-	margin-left: calc(-1 * var(--space-2));
-	margin-right: calc(-1 * var(--space-2));
+	/* Keep section eyebrows and row surfaces on the shared 24px pane inset. Row
+	   content has its own 8px inset, like any other surface with inner content. */
+	margin-left: 0;
+	margin-right: 0;
 }
 
 .playgrounds-pane .siteRow {
@@ -1384,12 +1383,6 @@
 .playgrounds-pane .showMoreButton:hover {
 	background: rgba(33, 30, 25, 0.045);
 	color: #21201d;
-}
-
-@media (max-width: 640px) {
-	.playgrounds-pane {
-		padding: 0 20px 24px;
-	}
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand {
