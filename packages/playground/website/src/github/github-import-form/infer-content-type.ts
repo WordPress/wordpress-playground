@@ -3,7 +3,11 @@ import type { ContentType } from '../import-from-github';
 export function inferContentType(
 	files: Array<{ name: string }>
 ): ContentType | undefined {
-	if (files.some(({ name }) => ['theme.json', 'style.css'].includes(name))) {
+	const names = new Set(files.map(({ name }) => name));
+	if (
+		names.has('theme.json') ||
+		(names.has('style.css') && names.has('functions.php'))
+	) {
 		return 'theme';
 	}
 	if (

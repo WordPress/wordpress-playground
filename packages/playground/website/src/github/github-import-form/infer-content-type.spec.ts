@@ -1,14 +1,21 @@
 import { inferContentType } from './infer-content-type';
 
 describe('inferContentType', () => {
-	it.each(['theme.json', 'style.css'])(
-		'recognizes a theme from %s',
-		(name) => {
-			expect(
-				inferContentType([{ name }, { name: 'functions.php' }])
-			).toBe('theme');
-		}
-	);
+	it('recognizes a theme from theme.json', () => {
+		expect(inferContentType([{ name: 'theme.json' }])).toBe('theme');
+	});
+
+	it('recognizes a classic theme from style.css and functions.php', () => {
+		expect(
+			inferContentType([{ name: 'style.css' }, { name: 'functions.php' }])
+		).toBe('theme');
+	});
+
+	it('does not mistake a plugin stylesheet for a theme', () => {
+		expect(
+			inferContentType([{ name: 'style.css' }, { name: 'plugin.php' }])
+		).toBe('plugin');
+	});
 
 	it('recognizes a wp-content directory before its index.php file', () => {
 		expect(
