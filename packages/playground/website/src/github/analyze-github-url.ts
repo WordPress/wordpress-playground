@@ -22,6 +22,17 @@ type GitHubBranchClient = {
 };
 
 /**
+ * Expands GitHub's owner/repository shorthand into a repository URL.
+ */
+export function normalizeGitHubRepositoryInput(input: string): string {
+	const trimmed = input.trim();
+	if (/^[a-z\d_.-]+\/[a-z\d_.-]+$/i.test(trimmed)) {
+		return `https://github.com/${trimmed}`;
+	}
+	return trimmed;
+}
+
+/**
  * Parses supported GitHub URLs without making network requests.
  */
 export function staticAnalyzeGitHubURL(url: string): GitHubURLInformation {

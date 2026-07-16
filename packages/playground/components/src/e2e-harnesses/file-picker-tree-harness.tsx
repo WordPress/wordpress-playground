@@ -268,6 +268,9 @@ export const createFilesystem = () =>
 
 export function FilePickerTreeHarness() {
 	const filesystem = useMemo(() => createFilesystem(), []);
+	const directoriesOnly = new URLSearchParams(window.location.search).has(
+		'directories-only'
+	);
 	const [lastSelectedPath, setLastSelectedPath] = React.useState<
 		string | null
 	>(null);
@@ -299,6 +302,7 @@ export function FilePickerTreeHarness() {
 				<FilePickerTree
 					filesystem={filesystem}
 					root="/"
+					directoriesOnly={directoriesOnly}
 					initialSelectedPath={DEFAULT_SELECTED_PATH}
 					onSelect={(path) => {
 						setLastSelectedPath(path);

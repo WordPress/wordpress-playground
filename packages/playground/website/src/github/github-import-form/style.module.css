@@ -13,21 +13,19 @@
 	margin-top: 5px;
 }
 
-.notice {
-	margin: 20px 0 !important;
+.field-hint {
+	color: #646970;
+	font-size: 13px;
+	margin: 5px 0 0;
 }
 
-.examples-dl {
+.field-label {
+	margin-bottom: 5px;
+}
+
+.path-status {
 	display: flex;
-	flex-direction: column;
-	margin: 0;
-}
-
-.examples-dl dt {
-	font-weight: 500;
-	margin-bottom: 2px;
-}
-
-.examples-dl dd {
-	margin-bottom: 10px;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
 }

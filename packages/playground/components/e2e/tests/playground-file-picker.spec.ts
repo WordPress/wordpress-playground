@@ -156,6 +156,33 @@ test('expands a folder on click to reveal its children', async ({ page }) => {
 	await expect(nodeButton(page, 'wordpress/wp-content')).toBeVisible();
 });
 
+test('directory-only mode keeps files visible without selecting them', async ({
+	page,
+}) => {
+	await page.goto('/playwright-file-picker.html?directories-only');
+	await page.waitForFunction(() => Boolean(window.__filePickerHarness));
+	await expandToPath(page, 'wordpress/workspace');
+
+	const directoryPath = 'wordpress/workspace/subdir';
+	await nodeButton(page, directoryPath).click();
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		canonicalPath(directoryPath)
+	);
+	const keyboardDirectoryPath = 'wordpress/workspace/New Folder';
+	await nodeButton(page, keyboardDirectoryPath).focus();
+	await nodeButton(page, keyboardDirectoryPath).press('Enter');
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		canonicalPath(keyboardDirectoryPath)
+	);
+
+	const filePath = 'wordpress/workspace/index.php';
+	await nodeButton(page, filePath).click();
+	await expectFocused(page, filePath);
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		canonicalPath(keyboardDirectoryPath)
+	);
+});
+
 test('collapses a folder when it is toggled again', async ({ page }) => {
 	await collapseNode(page, 'wordpress');
 	await expandNode(page, 'wordpress');

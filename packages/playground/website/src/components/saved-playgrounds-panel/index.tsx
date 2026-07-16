@@ -213,7 +213,7 @@ export function SavedPlaygroundsPanel({
 				isGitHubImportDetailsOpen
 				? {
 						title: 'Import from GitHub',
-						backLabel: 'Back to the GitHub repository URL',
+						backLabel: 'Back to the GitHub repository',
 						backButtonRef: creationBackButtonRef,
 						focusBackButton:
 							creationFocusTargetRef.current === 'back',

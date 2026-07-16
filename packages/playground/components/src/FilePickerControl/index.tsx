@@ -9,20 +9,29 @@ export function FilePickerControl({
 	value = '',
 	onChange,
 	filesystem,
+	root,
+	readOnly = false,
+	directoriesOnly = false,
 }: {
 	value?: string;
 	onChange: (selectedPath: string) => void;
 	filesystem: AsyncWritableFilesystem;
+	root?: string;
+	readOnly?: boolean;
+	directoriesOnly?: boolean;
 }) {
 	const [isOpen, setOpen] = useState(false);
-	const openModal = () => setOpen(true);
-	const closeModal = () => setOpen(false);
-
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		value || null
 	);
+	const openModal = () => {
+		setLastSelectedPath(value || null);
+		setOpen(true);
+	};
+	const closeModal = () => setOpen(false);
 	function handleSubmit(event?: React.FormEvent<HTMLFormElement>) {
 		event?.preventDefault();
+		event?.stopPropagation();
 		onChange(lastSelectedPath || '');
 		closeModal();
 	}
@@ -30,6 +39,7 @@ export function FilePickerControl({
 	return (
 		<>
 			<Button
+				type="button"
 				variant="tertiary"
 				className={css['control']}
 				onClick={openModal}
@@ -39,18 +49,25 @@ export function FilePickerControl({
 			</Button>
 			{isOpen && (
 				<Modal
-					title="Select a path "
+					title="Select a path"
 					onRequestClose={closeModal}
 					className={css['modal']}
 				>
 					<form onSubmit={handleSubmit}>
 						<FilePickerTree
 							filesystem={filesystem}
+							root={root}
+							readOnly={readOnly}
+							directoriesOnly={directoriesOnly}
 							initialSelectedPath={value}
 							onSelect={setLastSelectedPath}
 						/>
 						<div className={css['modalFooter']}>
-							<Button type="submit" variant="primary">
+							<Button
+								type="submit"
+								variant="primary"
+								disabled={!lastSelectedPath}
+							>
 								Select Path
 							</Button>
 						</div>
