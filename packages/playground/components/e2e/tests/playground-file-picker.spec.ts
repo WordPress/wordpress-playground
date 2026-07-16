@@ -183,6 +183,38 @@ test('directory-only mode keeps files visible without selecting them', async ({
 	);
 });
 
+test('directory-only control does not submit an initial file path', async ({
+	page,
+}) => {
+	const initialFilePath = '/wordpress/workspace/index.php';
+	await page.goto(
+		`/playwright-file-picker.html?control&directories-only&value=${encodeURIComponent(
+			initialFilePath
+		)}`
+	);
+	await page.waitForFunction(() => Boolean(window.__filePickerHarness));
+	await page
+		.getByRole('button', {
+			name: `Choose path. Current path: ${initialFilePath}`,
+		})
+		.click();
+
+	const pathPicker = page.getByRole('dialog', { name: 'Select a path' });
+	const selectPath = pathPicker.getByRole('button', { name: 'Select path' });
+	await expect(
+		pathPicker.getByRole('button', { name: 'index.php', exact: true })
+	).toBeVisible();
+	await expect(selectPath).toBeDisabled();
+	await pathPicker
+		.getByRole('button', { name: 'subdir', exact: true })
+		.click();
+	await expect(selectPath).toBeEnabled();
+	await selectPath.click();
+	await expect(getLastSelectedPath(page)).resolves.toBe(
+		'/wordpress/workspace/subdir'
+	);
+});
+
 test('collapses a folder when it is toggled again', async ({ page }) => {
 	await collapseNode(page, 'wordpress');
 	await expandNode(page, 'wordpress');

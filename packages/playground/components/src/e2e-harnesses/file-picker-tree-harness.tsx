@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { FilePickerControl } from '../FilePickerControl';
 import { FilePickerTree } from '../FilePickerTree';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { normalizePath } from '@php-wasm/util';
@@ -268,9 +269,10 @@ export const createFilesystem = () =>
 
 export function FilePickerTreeHarness() {
 	const filesystem = useMemo(() => createFilesystem(), []);
-	const directoriesOnly = new URLSearchParams(window.location.search).has(
-		'directories-only'
-	);
+	const searchParams = new URLSearchParams(window.location.search);
+	const directoriesOnly = searchParams.has('directories-only');
+	const useControl = searchParams.has('control');
+	const controlValue = searchParams.get('value') ?? '';
 	const [lastSelectedPath, setLastSelectedPath] = React.useState<
 		string | null
 	>(null);
@@ -299,18 +301,28 @@ export function FilePickerTreeHarness() {
 			}}
 		>
 			<div style={{ maxWidth: 320 }} data-testid="file-picker-tree">
-				<FilePickerTree
-					filesystem={filesystem}
-					root="/"
-					directoriesOnly={directoriesOnly}
-					initialSelectedPath={DEFAULT_SELECTED_PATH}
-					onSelect={(path) => {
-						setLastSelectedPath(path);
-					}}
-					onDoubleClickFile={(path) => {
-						setLastDoubleClickedPath(path);
-					}}
-				/>
+				{useControl ? (
+					<FilePickerControl
+						value={controlValue}
+						filesystem={filesystem}
+						root="/"
+						directoriesOnly={directoriesOnly}
+						onChange={setLastSelectedPath}
+					/>
+				) : (
+					<FilePickerTree
+						filesystem={filesystem}
+						root="/"
+						directoriesOnly={directoriesOnly}
+						initialSelectedPath={DEFAULT_SELECTED_PATH}
+						onSelect={(path) => {
+							setLastSelectedPath(path);
+						}}
+						onDoubleClickFile={(path) => {
+							setLastDoubleClickedPath(path);
+						}}
+					/>
+				)}
 			</div>
 		</div>
 	);

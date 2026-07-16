@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Icon, Modal } from '@wordpress/components';
 import { chevronRight } from '@wordpress/icons';
 import { PathPreview } from './PathPreview';
@@ -28,15 +28,51 @@ export function FilePickerControl({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		value || null
 	);
+	const [verifiedDirectoryPath, setVerifiedDirectoryPath] = useState<
+		string | null
+	>(null);
+	const canSubmit = Boolean(
+		lastSelectedPath &&
+		(!directoriesOnly || verifiedDirectoryPath === lastSelectedPath)
+	);
 	const openModal = () => {
 		setLastSelectedPath(value || null);
+		setVerifiedDirectoryPath(null);
 		setOpen(true);
 	};
 	const closeModal = () => setOpen(false);
+
+	useEffect(() => {
+		if (!isOpen || !directoriesOnly || !lastSelectedPath) {
+			return;
+		}
+		let cancelled = false;
+		filesystem
+			.isDir(lastSelectedPath)
+			.then((isDirectory) => {
+				if (!cancelled) {
+					setVerifiedDirectoryPath(
+						isDirectory ? lastSelectedPath : null
+					);
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setVerifiedDirectoryPath(null);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [directoriesOnly, filesystem, isOpen, lastSelectedPath]);
+
 	function handleSubmit(event?: React.FormEvent<HTMLFormElement>) {
 		event?.preventDefault();
 		event?.stopPropagation();
-		onChange(lastSelectedPath || '');
+		if (!canSubmit || !lastSelectedPath) {
+			return;
+		}
+		onChange(lastSelectedPath);
 		closeModal();
 	}
 
@@ -73,14 +109,14 @@ export function FilePickerControl({
 							root={root}
 							readOnly={readOnly}
 							directoriesOnly={directoriesOnly}
-							initialSelectedPath={value}
+							initialSelectedPath={value || undefined}
 							onSelect={setLastSelectedPath}
 						/>
 						<div className={css['modalFooter']}>
 							<Button
 								type="submit"
 								variant="primary"
-								disabled={!lastSelectedPath}
+								disabled={!canSubmit}
 							>
 								Select path
 							</Button>
