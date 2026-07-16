@@ -1267,6 +1267,12 @@
 		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
 	}
 
+	/* Give the tool buttons more separation from the preview without making the
+	   collapsed address row taller. */
+	.dock:not(.dock-collapsed) .dock-body {
+		padding-top: 16px;
+	}
+
 	/* On mobile the address row stays docked while the arrow removes the tools
 	   row from layout. This lets the measured Dock height follow what is visible. */
 	.dock-collapsed .dock-tools {
