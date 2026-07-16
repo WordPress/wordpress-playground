@@ -318,32 +318,32 @@
 	}
 
 	.dockPresentation .editorHeader {
-		flex-wrap: wrap;
+		display: grid;
 		gap: 8px;
+		grid-template-columns: auto minmax(0, 1fr) auto;
 		background: var(--paper-2, #ffffff);
 		padding-top: 12px;
 	}
 
 	.dockPresentation .editorPath {
-		flex: 1 0 100%;
-		order: 3;
+		order: initial;
 		overflow: hidden;
 		padding-block: 4px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		width: auto;
 		word-break: normal;
 	}
 
 	.dockPresentation .editorHeader .mobileToggle {
 		display: inline-flex;
-		order: 1;
+		order: initial;
 	}
 
 	.dockPresentation .editorHeaderActions {
 		margin-left: auto;
-		/* Keep actions clear of the dock pane's close button. */
-		margin-right: 56px;
-		order: 2;
+		margin-right: 0;
+		order: initial;
 	}
 
 	.dockPresentation .content {

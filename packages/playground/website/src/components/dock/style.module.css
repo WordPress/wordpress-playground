@@ -340,6 +340,10 @@
 	min-width: 0;
 }
 
+.pane-editor-header {
+	display: none;
+}
+
 .pane-back {
 	align-items: center;
 	background: transparent;
@@ -747,8 +751,8 @@
 		max-height: none;
 		transform: none;
 		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-		/* Flex column so the close bar is the first row and the body fills and
-		   scrolls beneath it. */
+		/* Flex column so the title row stays above the independently scrolling
+		   panel body. */
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
@@ -791,7 +795,38 @@
 	}
 
 	.pane-header {
-		padding: var(--space-6) var(--space-6) var(--space-4);
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: 0 var(--space-3) var(--space-4) var(--space-6);
+	}
+
+	.pane-title-row,
+	.pane-editor-header {
+		align-items: center;
+		display: flex;
+		gap: var(--space-2);
+		min-height: 56px;
+		width: 100%;
+	}
+
+	.pane-editor-header {
+		background: var(--paper-2);
+		border-bottom: 1px solid var(--line-subtle);
+		flex: none;
+		padding: 0 var(--space-3) 0 var(--space-6);
+	}
+
+	.pane-editor-header h2 {
+		color: var(--ink);
+		font-size: 20px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+		line-height: 1.2;
+		margin: 0;
+	}
+
+	.pane-back {
+		margin-top: 14px;
 	}
 
 	/* The dock's bottom bar already carries a "New" tool, so the in-pane
@@ -801,11 +836,9 @@
 		display: none;
 	}
 
-	/* The close X overlays the first content row's top-right corner rather than
-	   taking a row of its own (no wasted line). It's an absolute child of the
-	   fixed pane — NOT inside the scrolling body — so it stays pinned while the
-	   body scrolls. Calm ghost icon button matching the app's other icon controls
-	   (e.g. the rename pencil), aligned to the content gutter. */
+	/* Keep the close control in the title row instead of floating over pane
+	   content. The 44px target stays pinned with the title while panel bodies
+	   scroll, and editor actions can use the full row below it. */
 	.pane-close {
 		align-items: center;
 		background: transparent;
@@ -814,14 +847,12 @@
 		color: var(--ink-faint);
 		cursor: pointer;
 		display: flex;
-		height: 36px;
+		flex: none;
+		height: 44px;
 		justify-content: center;
+		margin-left: auto;
 		padding: 0;
-		position: absolute;
-		right: var(--space-6);
-		top: var(--space-3);
-		width: 36px;
-		z-index: 6;
+		width: 44px;
 	}
 
 	.pane-close:hover {

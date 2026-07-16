@@ -70,6 +70,21 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 			: description;
 		const closeDescription =
 			closeTitle && closeTitle !== 'Close' ? closeTitle : undefined;
+		const closeButton = onClose ? (
+			<button
+				type="button"
+				className={css.paneClose}
+				aria-label="Close"
+				aria-describedby={
+					closeDescription ? closeDescriptionId : undefined
+				}
+				title={closeTitle ?? 'Close'}
+				disabled={closeDisabled}
+				onClick={onClose}
+			>
+				<Icon icon={close} size={24} />
+			</button>
+		) : null;
 
 		useEffect(() => {
 			if (headerOverride?.focusBackButton) {
@@ -94,32 +109,13 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				tabIndex={-1}
 				aria-label={ariaLabel ?? `${displayedTitle} pane`}
 			>
-				{onClose && (
-					<>
-						<button
-							type="button"
-							className={css.paneClose}
-							aria-label="Close"
-							aria-describedby={
-								closeDescription
-									? closeDescriptionId
-									: undefined
-							}
-							title={closeTitle ?? 'Close'}
-							disabled={closeDisabled}
-							onClick={onClose}
-						>
-							<Icon icon={close} size={24} />
-						</button>
-						{closeDescription && (
-							<span
-								id={closeDescriptionId}
-								className={css.visuallyHidden}
-							>
-								{closeDescription}
-							</span>
-						)}
-					</>
+				{closeButton && closeDescription && (
+					<span
+						id={closeDescriptionId}
+						className={css.visuallyHidden}
+					>
+						{closeDescription}
+					</span>
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>
@@ -135,7 +131,10 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 							</button>
 						)}
 						<div className={css.paneHeaderMain}>
-							<h2>{displayedTitle}</h2>
+							<div className={css.paneTitleRow}>
+								<h2>{displayedTitle}</h2>
+								{closeButton}
+							</div>
 							{!headerOverride && headerSubtitle !== undefined ? (
 								<div className={css.paneDescription}>
 									{headerSubtitle}
@@ -149,6 +148,12 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 							)}
 						</div>
 						{headerAction}
+					</div>
+				)}
+				{!showHeader && closeButton && (
+					<div className={css.paneEditorHeader}>
+						<h2>{displayedTitle}</h2>
+						{closeButton}
 					</div>
 				)}
 				<div className={css.paneBody}>{children}</div>
