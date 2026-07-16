@@ -324,10 +324,12 @@
 	}
 
 	.dockPresentation .editorPath {
-		width: 100%;
-		order: 2;
-		/* Keep long paths clear of the dock pane's close button. */
-		margin-right: 48px;
+		flex: 1 0 100%;
+		order: 3;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		word-break: normal;
 	}
 
 	.dockPresentation .editorHeader .mobileToggle {
@@ -336,7 +338,10 @@
 	}
 
 	.dockPresentation .editorHeaderActions {
-		order: 3;
+		margin-left: auto;
+		/* Keep actions clear of the dock pane's close button. */
+		margin-right: 56px;
+		order: 2;
 	}
 
 	.dockPresentation .content {

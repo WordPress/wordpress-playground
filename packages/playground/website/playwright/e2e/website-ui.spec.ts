@@ -730,6 +730,38 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Wait for CodeMirror editor to load
 	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const saveButton = filesPane.getByRole('button', {
+		name: /^(Save|Saved|Saving…)$/,
+	});
+
+	const desktopViewport = website.page.viewportSize();
+	await website.page.setViewportSize({ width: 375, height: 812 });
+	const browseButton = filesPane.getByRole('button', {
+		name: 'Browse files',
+	});
+	const closeButton = filesPane.getByRole('button', {
+		name: 'Close',
+		exact: true,
+	});
+	await expect(browseButton).toBeVisible();
+	await expect(closeButton).toBeVisible();
+	const editorPath = filesPane.locator('[class*="editorPath"]').first();
+	const [browseBox, saveBox, closeBox, pathBox] = await Promise.all([
+		browseButton.boundingBox(),
+		saveButton.boundingBox(),
+		closeButton.boundingBox(),
+		editorPath.boundingBox(),
+	]);
+	if (!browseBox || !saveBox || !closeBox || !pathBox) {
+		throw new Error('The responsive file editor controls must be visible.');
+	}
+	expect(saveBox.x + saveBox.width).toBeLessThan(closeBox.x);
+	expect(pathBox.y).toBeGreaterThanOrEqual(
+		Math.max(browseBox.y + browseBox.height, saveBox.y + saveBox.height)
+	);
+	if (desktopViewport) {
+		await website.page.setViewportSize(desktopViewport);
+	}
 
 	// Click on the editor to focus it
 	await website.page.waitForTimeout(50);
@@ -749,9 +781,6 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Type the new content with a delay between keystrokes
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
-	const saveButton = filesPane.getByRole('button', {
-		name: /^(Save|Saved|Saving…)$/,
-	});
 	await expect(saveButton).toBeEnabled();
 
 	// Save immediately instead of waiting for the autosave debounce.

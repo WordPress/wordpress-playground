@@ -567,6 +567,7 @@ export function PlaygroundFileEditor({
 								[styles['editorPathPlaceholder']]:
 									!currentPath?.length,
 							})}
+							title={currentPath ?? undefined}
 						>
 							{currentPath?.length
 								? currentPath
