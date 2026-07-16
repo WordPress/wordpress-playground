@@ -6,9 +6,22 @@ description: Learn the various methods for loading and running Blueprints, inclu
 
 # How to load and run Blueprints
 
+## Playground Dock
+
+The easiest way to run a Blueprint from the website is through the Dock:
+
+- Open **New → Blueprint gallery** to choose an example.
+- Open **New → Blueprint URL** to run a public Blueprint JSON or ZIP bundle URL.
+- Open **New → Write a Blueprint** to write a Blueprint in the browser.
+- Open **Blueprint** to inspect or edit the current Playground's Blueprint.
+
+See [Using Blueprints](/blueprints/using-blueprints) for the full list of UI paths.
+
+![The New Playground pane with the Blueprint gallery selected](/img/dock/new-playground-blueprint-gallery.webp)
+
 ## URL fragment
 
-The fastest way to run Blueprints is to paste one into the URL "fragment" of a WordPress Playground website. Just add a `#` after the `.net/`.
+For links and automation, you can paste a Blueprint into the URL "fragment" of a WordPress Playground website. Just add a `#` after the `.net/`.
 
 Let's say you want to create a Playground with specific versions of WordPress and PHP using the following Blueprint:
 
