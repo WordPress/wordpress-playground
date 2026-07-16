@@ -2361,20 +2361,38 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await expect(
 			githubImportPane.getByRole('combobox', {
-				name: 'Import selected path as',
+				name: 'Import as',
 			})
 		).toBeVisible();
+		await expect(
+			githubImportPane.getByText('playground-test/import-source', {
+				exact: true,
+			})
+		).toBeVisible();
+		await githubImportPane
+			.getByRole('button', { name: 'Change', exact: true })
+			.click();
+		const resolvedRepositoryInput = newPane.getByRole('textbox', {
+			name: 'GitHub repository',
+		});
+		await expect(resolvedRepositoryInput).toHaveValue(
+			'https://github.com/playground-test/import-source'
+		);
+		await expect(resolvedRepositoryInput).toBeFocused();
+		await newPane
+			.getByRole('button', { name: 'Continue', exact: true })
+			.click();
 		const creationBackButton = githubImportPane.getByRole('button', {
 			name: 'Back to the GitHub repository',
 		});
-		await expect(creationBackButton).toBeFocused();
+		await expect(creationBackButton).toBeVisible();
 		await creationBackButton.click();
 		await expect(githubUrlInput).toHaveValue(
 			'https://github.com/playground-test/import-source'
 		);
 		await expect(
 			newPane.getByRole('combobox', {
-				name: 'Import selected path as',
+				name: 'Import as',
 			})
 		).toHaveCount(0);
 		await expect(
@@ -2420,7 +2438,10 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(importButton).toBeDisabled();
 		await githubImportPane
-			.getByRole('button', { name: /^Browse / })
+			.getByRole('button', {
+				name: 'Choose path. Current path: /',
+				exact: true,
+			})
 			.click();
 
 		const pathPicker = website.page.getByRole('dialog', {
@@ -2430,25 +2451,47 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: 'plugin', exact: true })
 			.click();
 		await pathPicker
-			.getByRole('button', { name: 'Select Path', exact: true })
+			.getByRole('button', { name: 'Select path', exact: true })
 			.click();
 
 		const importType = githubImportPane.getByRole('combobox', {
-			name: 'Import selected path as',
+			name: 'Import as',
 		});
 		await expect(importType).toHaveValue('plugin');
+		await expect(
+			githubImportPane.getByText('Detected automatically', {
+				exact: true,
+			})
+		).toBeVisible();
 		await importType.selectOption('theme');
 		await expect(importType).toHaveValue('theme');
+		await expect(
+			githubImportPane.getByText('Detected automatically', {
+				exact: true,
+			})
+		).toHaveCount(0);
+		await expect(
+			githubImportPane.getByRole('button', {
+				name: 'Import theme',
+				exact: true,
+			})
+		).toBeEnabled();
 		await importType.selectOption('plugin');
-		await expect(importButton).toBeEnabled();
+		const importPluginButton = githubImportPane.getByRole('button', {
+			name: 'Import plugin',
+			exact: true,
+		});
+		await expect(importPluginButton).toBeEnabled();
 
-		const importFinished = website.page.waitForEvent('dialog');
-		await importButton.click();
-		const dialog = await importFinished;
-		expect(dialog.message()).toBe(
-			'Import finished! Your Playground has been updated.'
+		await importPluginButton.click();
+		const successNotice = website.page.getByRole('group', {
+			name: 'Operation succeeded',
+		});
+		await expect(successNotice).toContainText(
+			'plugin imported as a plugin',
+			{ timeout: 120000 }
 		);
-		await dialog.accept();
+		await expect(githubImportPane).toHaveCount(0);
 		await expect
 			.poll(
 				() =>

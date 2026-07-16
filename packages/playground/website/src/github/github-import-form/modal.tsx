@@ -1,7 +1,10 @@
 import type { GitHubImportFormProps } from './form';
 import GitHubImportForm from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	setActiveModal,
+	setDockOperationNotice,
+} from '../../lib/state/redux/slice-ui';
 import { selectTemporarySite } from '../../lib/state/redux/slice-sites';
 import {
 	type PlaygroundDispatch,
@@ -10,6 +13,7 @@ import {
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { useDispatch } from 'react-redux';
 import { Modal } from '../../components/modal';
+import { getGitHubImportSuccessTitle } from './import-labels';
 
 interface GithubImportModalProps {
 	defaultOpen?: boolean;
@@ -57,12 +61,17 @@ export function GithubImportModal({
 				}
 				onClose={closeModal}
 				onImported={(details) => {
-					// eslint-disable-next-line no-alert
-					alert(
-						'Import finished! Your Playground site has been updated.'
-					);
 					onImported?.(details);
 					closeModal();
+					dispatch(
+						setDockOperationNotice({
+							status: 'success',
+							title: getGitHubImportSuccessTitle(
+								details.pluginOrThemeName,
+								details.contentType
+							),
+						})
+					);
 				}}
 			/>
 		</Modal>

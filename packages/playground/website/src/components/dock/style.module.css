@@ -1143,7 +1143,7 @@
 	padding: 8px;
 }
 
-/* Operation failures outlive individual panes, so this surface stays outside
+/* Operation notices outlive individual panes, so this surface stays outside
    both pane and Dock layout. Its inline position follows whichever Dock surface
    is visible without shifting the preview, pane, or Dock when it appears. */
 .dock-operation-toast {
@@ -1171,6 +1171,12 @@
 	z-index: 60;
 }
 
+.dock-operation-toast-success {
+	background: #244936;
+	border-color: #527662;
+	box-shadow: 0 15px 36px rgba(13, 55, 34, 0.28);
+}
+
 .dock-operation-toast-content {
 	flex: 1;
 	min-width: 0;
@@ -1187,6 +1193,10 @@
 	margin-top: 2px;
 }
 
+.dock-operation-toast-success .dock-operation-toast-message {
+	color: #d8eadf;
+}
+
 .dock-operation-toast button {
 	align-items: center;
 	background: transparent;
@@ -1200,6 +1210,10 @@
 	justify-content: center;
 	padding: 0;
 	width: 28px;
+}
+
+.dock-operation-toast-success button {
+	color: #e4f2e9;
 }
 
 .dock-operation-toast button:hover {

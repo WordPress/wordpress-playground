@@ -181,6 +181,7 @@ export interface UIState {
 	/** Playground slug from which the current authoring draft was seeded. */
 	writeOwnSeededSlug?: string;
 	dockOperationNotice?: {
+		status?: 'error' | 'success';
 		title: string;
 		message?: string;
 	};

@@ -20,6 +20,7 @@ import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import PreviewPRForm from '../../github/preview-pr/form';
 import GitHubImportForm from '../../github/github-import-form/form';
+import { getGitHubImportSuccessTitle } from '../../github/github-import-form/import-labels';
 import { useGitHubExportSession } from '../../github/github-export-session';
 import vanillaScreenshot from './vanilla-wordpress.jpeg';
 import { isValidBlueprintDraft } from './is-valid-blueprint-draft';
@@ -1525,17 +1526,25 @@ export function SavedPlaygroundsPanel({
 								creationFocusTargetRef.current = 'back';
 								setIsGitHubImportDetailsOpen(true);
 							}}
+							onRepositoryChange={() =>
+								setIsGitHubImportDetailsOpen(false)
+							}
 							getPlaygroundBeforeImport={
 								createSiteForGitHubImport
 							}
 							onClose={() => setActiveCreationTab('gallery')}
 							onImported={(details) => {
 								githubExportSession.recordImport(details);
-								// eslint-disable-next-line no-alert
-								alert(
-									'Import finished! Your Playground has been updated.'
-								);
 								onClose();
+								dispatch(
+									setDockOperationNotice({
+										status: 'success',
+										title: getGitHubImportSuccessTitle(
+											details.pluginOrThemeName,
+											details.contentType
+										),
+									})
+								);
 							}}
 						/>
 					</div>

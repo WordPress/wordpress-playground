@@ -2,10 +2,10 @@ import React from 'react';
 import { useMemo, useRef, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { FilePickerControl } from '@wp-playground/components';
+import { Button as WordPressButton } from '@wordpress/components';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
-import Button from '../../components/button';
 import type { GitHubURLInformation } from '../analyze-github-url';
 import {
 	normalizeGitHubRepositoryInput,
@@ -30,11 +30,13 @@ import { basename, ensureAbsolutePath } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { GitHubRepositoryFilesystem } from './github-repository-filesystem';
 import { inferContentType } from './infer-content-type';
+import { getImportTargetLabel } from './import-labels';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
 	getPlaygroundBeforeImport?: () => Promise<PlaygroundClient>;
 	onRepositoryResolved?: () => void;
+	onRepositoryChange?: () => void;
 	showRepositoryDetails?: boolean;
 	onImported: (details: {
 		url: string;
@@ -48,17 +50,25 @@ export interface GitHubImportFormProps {
 	onClose: () => void;
 }
 
+type ContentTypeSelection = {
+	contentType: ContentType;
+	source: 'inferred' | 'manual';
+};
+
 export default function GitHubImportForm({
 	playground,
 	getPlaygroundBeforeImport,
 	onRepositoryResolved,
+	onRepositoryChange,
 	showRepositoryDetails = true,
 	onImported,
 }: GitHubImportFormProps) {
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isInspectingPath, setIsInspectingPath] = useState<boolean>(false);
-	const [isImporting, setIsImporting] = useState<boolean>(false);
+	const [importPhase, setImportPhase] = useState<
+		'idle' | 'downloading' | 'applying'
+	>('idle');
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
@@ -70,11 +80,14 @@ export default function GitHubImportForm({
 	const [urlInformation, setUrlInformation] = useState<
 		GitHubURLInformation | undefined
 	>();
-	const [contentType, setContentType] = useState<ContentType | undefined>(
-		undefined
-	);
+	const [contentTypeSelection, setContentTypeSelection] = useState<
+		ContentTypeSelection | undefined
+	>();
 	const [path, setPath] = useState<string>('');
 	const [branch, setBranch] = useState<string>('');
+	const contentType = contentTypeSelection?.contentType;
+	const isContentTypeInferred = contentTypeSelection?.source === 'inferred';
+	const isImporting = importPhase !== 'idle';
 	const repositoryFilesystem = useMemo(() => {
 		if (
 			!urlInformation?.owner ||
@@ -143,7 +156,14 @@ export default function GitHubImportForm({
 				setUrlInformation(importSource);
 				setPath(importSource.path ?? '');
 				setBranch(importSource.ref ?? '');
-				setContentType(guessedContentType);
+				setContentTypeSelection(
+					guessedContentType
+						? {
+								contentType: guessedContentType,
+								source: 'inferred',
+							}
+						: undefined
+				);
 				onRepositoryResolved?.();
 				return;
 			} catch (e: any) {
@@ -186,7 +206,7 @@ export default function GitHubImportForm({
 			});
 			return;
 		}
-		setIsImporting(true);
+		setImportPhase('downloading');
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
@@ -209,6 +229,7 @@ export default function GitHubImportForm({
 						setImportProgress({ ...progress }),
 				}
 			);
+			setImportPhase('applying');
 			const targetPlayground = getPlaygroundBeforeImport
 				? await getPlaygroundBeforeImport()
 				: playground;
@@ -242,7 +263,7 @@ export default function GitHubImportForm({
 			});
 			return;
 		} finally {
-			setIsImporting(false);
+			setImportPhase('idle');
 		}
 	}
 
@@ -256,7 +277,7 @@ export default function GitHubImportForm({
 		);
 		const inspectionRun = ++pathInspectionRunRef.current;
 		setPath(relativePath);
-		setContentType(undefined);
+		setContentTypeSelection(undefined);
 		setErrors({});
 		setIsInspectingPath(true);
 		try {
@@ -267,7 +288,14 @@ export default function GitHubImportForm({
 			if (pathInspectionRunRef.current !== inspectionRun) {
 				return;
 			}
-			setContentType(guessedContentType);
+			setContentTypeSelection(
+				guessedContentType
+					? {
+							contentType: guessedContentType,
+							source: 'inferred',
+						}
+					: undefined
+			);
 		} catch (error) {
 			if (pathInspectionRunRef.current !== inspectionRun) {
 				return;
@@ -291,43 +319,101 @@ export default function GitHubImportForm({
 		}
 	}
 
+	function handleChangeRepository() {
+		analysisRunRef.current++;
+		pathInspectionRunRef.current++;
+		setIsAnalyzing(false);
+		setIsInspectingPath(false);
+		setUrlInformation(undefined);
+		setContentTypeSelection(undefined);
+		setPath('');
+		setBranch('');
+		setErrors({});
+		onRepositoryChange?.();
+	}
+
+	const importTargetLabel = contentType
+		? getImportTargetLabel(contentType)
+		: undefined;
+	const showRepositorySummary = Boolean(
+		urlInformation && showRepositoryDetails
+	);
+
 	return (
 		<GitHubOAuthGuard>
-			<form id="import-playground-form" onSubmit={handleSubmit}>
-				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
-					<label>
-						GitHub repository
-						<input
-							type="text"
-							value={url}
-							className={css.repoInput}
-							onChange={(
-								event: React.ChangeEvent<HTMLInputElement>
-							) => {
-								const nextUrl = event.target.value;
-								latestUrlRef.current = nextUrl;
-								analysisRunRef.current++;
-								pathInspectionRunRef.current++;
-								setUrl(nextUrl);
-								setIsAnalyzing(false);
-								setIsInspectingPath(false);
-								setUrlInformation(undefined);
-								setContentType(undefined);
-								setPath('');
-								setBranch('');
-								setErrors({});
-							}}
-							placeholder="owner/repository"
-							autoFocus
-						/>
-					</label>
-					<p className={css.fieldHint}>
-						Enter owner/repository or a GitHub URL.
-					</p>
-					{'url' in errors ? (
-						<div className={forms.error}>{errors.url}</div>
-					) : null}
-				</div>
+			<form
+				id="import-playground-form"
+				className={css.importForm}
+				onSubmit={handleSubmit}
+			>
+				{showRepositorySummary ? (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast} ${css.repositorySummary}`}
+					>
+						<div className={css.repositoryIdentity}>
+							<span className={css.repositoryLabel}>
+								GitHub repository
+							</span>
+							<strong className={css.repositoryName}>
+								{urlInformation?.owner}/{urlInformation?.repo}
+							</strong>
+						</div>
+						<WordPressButton
+							type="button"
+							variant="tertiary"
+							className={css.changeRepository}
+							disabled={isImporting}
+							onClick={handleChangeRepository}
+						>
+							Change
+						</WordPressButton>
+						{'url' in errors ? (
+							<div
+								className={`${forms.error} ${css.repositoryError}`}
+							>
+								{errors.url}
+							</div>
+						) : null}
+					</div>
+				) : (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							GitHub repository
+							<input
+								type="text"
+								name="repository"
+								value={url}
+								className={css.repoInput}
+								onChange={(
+									event: React.ChangeEvent<HTMLInputElement>
+								) => {
+									const nextUrl = event.target.value;
+									latestUrlRef.current = nextUrl;
+									analysisRunRef.current++;
+									pathInspectionRunRef.current++;
+									setUrl(nextUrl);
+									setIsAnalyzing(false);
+									setIsInspectingPath(false);
+									setUrlInformation(undefined);
+									setContentTypeSelection(undefined);
+									setPath('');
+									setBranch('');
+									setErrors({});
+								}}
+								placeholder="owner/repository"
+								autoFocus={!urlInformation}
+							/>
+						</label>
+						<p className={css.fieldHint}>
+							Enter owner/repository or a GitHub URL.
+						</p>
+						{'url' in errors ? (
+							<div className={forms.error}>{errors.url}</div>
+						) : null}
+					</div>
+				)}
 				{urlInformation &&
 				showRepositoryDetails &&
 				!isAnalyzing &&
@@ -346,6 +432,7 @@ export default function GitHubImportForm({
 								root="/"
 								readOnly
 								directoriesOnly
+								disabled={isImporting}
 								onChange={handlePathChange}
 							/>
 							{isInspectingPath ? (
@@ -362,16 +449,28 @@ export default function GitHubImportForm({
 							className={`${forms.formGroup} ${forms.formGroupLast}`}
 						>
 							<label>
-								Import selected path as
+								<span className={css.fieldHeading}>
+									<span>Import as</span>
+									{isContentTypeInferred ? (
+										<span className={css.inferredStatus}>
+											Detected automatically
+										</span>
+									) : null}
+								</span>
 								<select
+									name="contentType"
 									value={contentType ?? ''}
 									className={css.repoInput}
-									disabled={isInspectingPath}
+									disabled={isInspectingPath || isImporting}
 									onChange={(event) => {
-										setContentType(
+										setContentTypeSelection(
 											event.target.value
-												? (event.target
-														.value as ContentType)
+												? {
+														contentType: event
+															.target
+															.value as ContentType,
+														source: 'manual',
+													}
 												: undefined
 										);
 										setErrors((current) => {
@@ -398,7 +497,8 @@ export default function GitHubImportForm({
 					</>
 				) : null}
 				<div className={forms.submitRow}>
-					<Button
+					<WordPressButton
+						className={css.submitButton}
 						disabled={
 							!url ||
 							isAnalyzing ||
@@ -409,7 +509,6 @@ export default function GitHubImportForm({
 						}
 						type="submit"
 						variant="primary"
-						size="large"
 					>
 						{isAnalyzing ? (
 							<>
@@ -424,14 +523,24 @@ export default function GitHubImportForm({
 						) : isImporting ? (
 							<>
 								<Spinner size={20} />
-								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+								{importPhase === 'downloading'
+									? `Downloading files…${
+											importProgress.foundFiles
+												? ` ${importProgress.downloadedFiles} of ${importProgress.foundFiles}`
+												: ''
+										}`
+									: `Importing ${importTargetLabel}…`}
 							</>
 						) : urlInformation && showRepositoryDetails ? (
-							'Import'
+							importTargetLabel ? (
+								`Import ${importTargetLabel}`
+							) : (
+								'Import'
+							)
 						) : (
 							'Continue'
 						)}
-					</Button>
+					</WordPressButton>
 				</div>
 			</form>
 		</GitHubOAuthGuard>
