@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import {
 	useActiveSite,
 	useAppDispatch,
@@ -38,7 +38,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		const dispatch = useAppDispatch();
 		const activeSite = useActiveSite();
 		const activeSection = useAppSelector(
-			(state) => state.ui.siteManagerSection
+			(state) => state.ui.dockPaneSection
 		);
 		const selectedSiteTab: SiteInfoTabName | null =
 			activeSection === 'settings' ||
@@ -58,7 +58,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			useState<'new' | 'playgrounds'>('playgrounds');
 		const [sharePanelMounted, setSharePanelMounted] = useState(false);
 		const closeSavePane = useCallback(
-			() => dispatch(setSiteManagerOpen(false)),
+			() => dispatch(setDockPaneOpen(false)),
 			[dispatch]
 		);
 
@@ -117,7 +117,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 									? activeSection
 									: lastSavedPlaygroundsPanel
 							}
-							onClose={() => dispatch(setSiteManagerOpen(false))}
+							onClose={() => dispatch(setDockPaneOpen(false))}
 							onCloseBlockedChange={onPaneCloseBlockedChange}
 							onPaneHeaderChange={onNewPlaygroundHeaderChange}
 						/>

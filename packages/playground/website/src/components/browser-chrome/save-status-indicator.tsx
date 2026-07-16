@@ -8,8 +8,8 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import {
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { Icon, Tooltip, Dropdown, Button } from '@wordpress/components';
@@ -113,8 +113,8 @@ export function SaveStatusIndicator({
 		// The status always acts on the active Playground, not an inactive site
 		// that may have opened the standalone save modal earlier.
 		dispatch(setSiteSlugToSave(undefined));
-		dispatch(setSiteManagerSection('save'));
-		dispatch(setSiteManagerOpen(true));
+		dispatch(setDockPaneSection('save'));
+		dispatch(setDockPaneOpen(true));
 	};
 
 	// Re-reads the linked local directory into the running Playground so edits

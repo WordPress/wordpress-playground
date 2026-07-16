@@ -56,8 +56,8 @@ import {
 	modalSlugs,
 	setActiveModal,
 	setDockOperationNotice,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setSiteSlugToDelete,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
@@ -770,7 +770,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				query: {
@@ -789,7 +789,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
 		redirectTo(PlaygroundRoute.newSite());
@@ -826,7 +826,7 @@ export function SavedPlaygroundsPanel({
 		if (!trimmed) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({ query: { 'blueprint-url': trimmed } })
 		);
@@ -844,7 +844,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip || !isWriteOwnValid) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
 				hash: encodeURIComponent(writeOwnDraft),
@@ -886,7 +886,7 @@ export function SavedPlaygroundsPanel({
 				// Blueprint rather than blocking the handoff.
 			}
 		}
-		dispatch(setSiteManagerSection('blueprint'));
+		dispatch(setDockPaneSection('blueprint'));
 	};
 
 	/**

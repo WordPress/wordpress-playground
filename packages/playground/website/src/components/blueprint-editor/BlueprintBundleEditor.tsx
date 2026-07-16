@@ -65,7 +65,7 @@ import {
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
 import { setActiveSite, useAppDispatch } from '../../lib/state/redux/store';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -459,7 +459,7 @@ export const BlueprintBundleEditor = forwardRef<
 						error
 					);
 				}
-				dispatch(setSiteManagerOpen(false));
+				dispatch(setDockPaneOpen(false));
 				dispatch(setActiveSite(newSite.slug));
 				return;
 			}

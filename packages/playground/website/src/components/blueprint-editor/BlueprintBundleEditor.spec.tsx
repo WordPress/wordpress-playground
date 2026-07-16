@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 	pruneAutosavedSites: vi.fn(),
 	resolveRuntimeConfiguration: vi.fn(),
 	setActiveSite: vi.fn(),
-	setSiteManagerOpen: vi.fn(),
+	setDockPaneOpen: vi.fn(),
 	updateSite: vi.fn(),
 }));
 
@@ -69,7 +69,7 @@ vi.mock('../../lib/state/redux/slice-sites', async (importOriginal) => ({
 
 vi.mock('../../lib/state/redux/slice-ui', async (importOriginal) => ({
 	...(await importOriginal<typeof SliceUiModule>()),
-	setSiteManagerOpen: mocks.setSiteManagerOpen,
+	setDockPaneOpen: mocks.setDockPaneOpen,
 }));
 
 describe('BlueprintBundleEditor Run barrier', () => {
@@ -119,8 +119,8 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			type: 'set-active-site',
 			payload: slug,
 		}));
-		mocks.setSiteManagerOpen.mockReset();
-		mocks.setSiteManagerOpen.mockImplementation((open) => ({
+		mocks.setDockPaneOpen.mockReset();
+		mocks.setDockPaneOpen.mockImplementation((open) => ({
 			type: 'set-site-manager-open',
 			payload: open,
 		}));
@@ -193,7 +193,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
 			excludeSlugs: [sourceSite.slug, newSite.slug],
 		});
-		expect(mocks.setSiteManagerOpen).toHaveBeenCalledWith(false);
+		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
 		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
 		expect(mocks.resolveRuntimeConfiguration).not.toHaveBeenCalled();
 	});

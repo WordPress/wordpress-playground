@@ -19,7 +19,7 @@ export type SiteError =
 	| 'network-firewall-interference'
 	| 'resource-download-failed';
 
-export type SiteManagerSection =
+export type DockPaneSection =
 	| 'new'
 	| 'playgrounds'
 	| 'blueprint'
@@ -171,8 +171,8 @@ export interface UIState {
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	shareExportOpen: boolean;
-	siteManagerIsOpen: boolean;
-	siteManagerSection: SiteManagerSection;
+	dockPaneIsOpen: boolean;
+	dockPaneSection: DockPaneSection;
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.
@@ -189,7 +189,7 @@ export interface UIState {
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
 
-const shouldOpenSiteManagerByDefault = false;
+const shouldOpenDockPaneByDefault = false;
 
 const initialState: UIState = {
 	/**
@@ -212,22 +212,22 @@ const initialState: UIState = {
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
 	shareExportOpen: false,
-	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
-	// even if they seem redundant. We may experiment which toggling the manager
-	// to be open by default or closed by default, and we do not want to lose
-	// specific reasons for the manager to be closed.
-	siteManagerIsOpen:
-		// The site manager should not be shown at all in seamless mode.
+	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
+	// even if they seem redundant. We may experiment with toggling the Dock
+	// pane to be open by default or closed by default, and we do not want to
+	// lose specific reasons for the Dock pane to be closed.
+	dockPaneIsOpen:
+		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
 		(query.get('overlay') !== null ||
-			(shouldOpenSiteManagerByDefault &&
+			(shouldOpenDockPaneByDefault &&
 				// We do not expect to render the Playground app UI in an iframe.
 				!isEmbeddedInAnIframe &&
-				// Don't default to the site manager on small screens (mobile/tablet),
+				// Don't default to the Dock pane on small screens (mobile/tablet),
 				// as that would mean seeing something that's not Playground filling
 				// your entire screen – quite a confusing experience.
 				window.innerWidth >= BREAKPOINTS.tablet)),
-	siteManagerSection:
+	dockPaneSection:
 		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
 			? 'new'
 			: query.get('overlay') !== null
@@ -294,17 +294,14 @@ const uiSlice = createSlice({
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
-		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
-			state.siteManagerIsOpen = action.payload;
+		setDockPaneOpen: (state, action: PayloadAction<boolean>) => {
+			state.dockPaneIsOpen = action.payload;
 		},
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
 		},
-		setSiteManagerSection: (
-			state,
-			action: PayloadAction<SiteManagerSection>
-		) => {
-			state.siteManagerSection = action.payload;
+		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
+			state.dockPaneSection = action.payload;
 		},
 		setWriteOwnBlueprintDraft: (
 			state,
@@ -385,8 +382,8 @@ export const {
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setShareExportOpen,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 	setDockOperationNotice,
