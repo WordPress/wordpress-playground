@@ -29,6 +29,19 @@ export interface NativeCLIErrorDetails {
 	signal?: string;
 }
 
+/**
+ * A user-facing argv validation failure. Library entrypoints convert this
+ * error into a structured CLIExitResult instead of terminating the process.
+ */
+export class CLIArgsValidationError extends Error {
+	exitCode: number;
+
+	constructor(exitCode: number, message?: string) {
+		super(message);
+		this.exitCode = exitCode;
+	}
+}
+
 export class NativeCLIError extends Error {
 	readonly code: NativeCLIErrorCode;
 	readonly details?: Readonly<NativeCLIErrorDetails>;

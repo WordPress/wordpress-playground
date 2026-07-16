@@ -388,9 +388,13 @@ async function main() {
 
 		await writeFile(
 			join(consumerRoot, 'module-smoke.mjs'),
-			"import { resolveWorkerCount, mergeDefinedConstants } from '@wp-playground/cli-native';\n" +
+			"import { CLIArgsValidationError, parseOptionsAndRunCLI, resolveWorkerCount, mergeDefinedConstants } from '@wp-playground/cli-native';\n" +
 				"if (resolveWorkerCount(2) !== 2) throw new Error('bad ESM helper');\n" +
-				"if (mergeDefinedConstants({define:{A:'b'}}).A !== 'b') throw new Error('bad merge');\n"
+				"if (mergeDefinedConstants({define:{A:'b'}}).A !== 'b') throw new Error('bad merge');\n" +
+				"const validation = new CLIArgsValidationError(3, 'invalid');\n" +
+				"if (validation.exitCode !== 3) throw new Error('bad validation error');\n" +
+				"const parsed = await parseOptionsAndRunCLI(['run-blueprint', '--definitely-unknown']);\n" +
+				"if (!('exitCode' in parsed) || parsed.exitCode !== 1) throw new Error('bad installed argv probe');\n"
 		);
 		await writeFile(
 			join(consumerRoot, 'module-smoke.cjs'),
@@ -400,12 +404,17 @@ async function main() {
 		);
 		await writeFile(
 			join(consumerRoot, 'module-smoke.ts'),
-			"import { runCLI, type RunCLIServer } from '@wp-playground/cli-native';\n" +
+			"import { parseOptionsAndRunCLI, runCLI, type ParseCLIResult, type RunCLIServer } from '@wp-playground/cli-native';\n" +
 				"const running: Promise<RunCLIServer> = runCLI({ command: 'start', port: 0 });\n" +
-				'void running;\n'
+				"const parsed: Promise<ParseCLIResult> = parseOptionsAndRunCLI(['--version']);\n" +
+				'void running; void parsed;\n'
 		);
 		await run(process.execPath, ['module-smoke.mjs'], {
 			cwd: consumerRoot,
+			env: {
+				...runtimeEnvironment,
+				WP_PLAYGROUND_NATIVE_HOST_BASE_URL: 'http://127.0.0.1:1/',
+			},
 		});
 		await run(process.execPath, ['module-smoke.cjs'], {
 			cwd: consumerRoot,

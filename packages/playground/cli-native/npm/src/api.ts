@@ -11,7 +11,11 @@ import { request as httpsRequest } from 'node:https';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { NativeCLIError, NativeCLIErrorCode } from './errors.js';
+import {
+	CLIArgsValidationError,
+	NativeCLIError,
+	NativeCLIErrorCode,
+} from './errors.js';
 import {
 	assertSupportedArgv,
 	commandCompatibility,
@@ -24,7 +28,7 @@ import {
 	NativeControlClient,
 	waitForControlHandshake,
 } from './control.js';
-import { runNativeCLI } from './process.js';
+import { parseNativeCLIArgs, runNativeCLI } from './process.js';
 
 export const LogVerbosity = {
 	Quiet: { name: 'quiet', severity: 5 },
@@ -264,6 +268,17 @@ export interface RunCLIServer extends AsyncDisposable {
 	[internalsKeyForTesting]: { workerThreadCount: number };
 }
 
+export interface CLIExitResult {
+	exitCode: number;
+}
+
+export interface CLIServerResult extends AsyncDisposable {
+	[Symbol.asyncDispose](): Promise<void>;
+	[internalsKeyForTesting]: { cliServer: RunCLIServer };
+}
+
+export type ParseCLIResult = CLIExitResult | CLIServerResult;
+
 export function resolveWorkerCount(value: number | 'auto' | undefined): number {
 	const cpusMinusOne = Math.min(
 		MAX_NATIVE_WORKERS,
@@ -299,11 +314,39 @@ export function mergeDefinedConstants(args: {
 
 export async function parseOptionsAndRunCLI(
 	argsToParse: string[]
-): Promise<void> {
-	const argv = assertSupportedArgv(argsToParse);
+): Promise<ParseCLIResult> {
+	let argv: string[];
+	try {
+		argv = assertSupportedArgv(argsToParse);
+	} catch (cause) {
+		if (cause instanceof CLIArgsValidationError) {
+			console.error(cause.message);
+			return { exitCode: cause.exitCode };
+		}
+		throw cause;
+	}
+	const cwd = process.cwd();
+	if (!isImmediateCLIInvocation(argv)) {
+		const parsed = await parseNativeCLIArgs(argv, { cwd });
+		if (parsed.status === 'invalid') {
+			console.error(parsed.message);
+			return { exitCode: parsed.exitCode };
+		}
+		if (parsed.command === 'start' || parsed.command === 'server') {
+			const cliServer = await startControlledServerFromArgv(
+				argv,
+				parsed,
+				cwd
+			);
+			return {
+				[internalsKeyForTesting]: { cliServer },
+				[Symbol.asyncDispose]: () => cliServer[Symbol.asyncDispose](),
+			};
+		}
+	}
 	let result: Awaited<ReturnType<typeof runNativeCLI>>;
 	try {
-		result = await runNativeCLI({ argv });
+		result = await runNativeCLI({ argv, cwd });
 	} catch (cause) {
 		throw nativeSpawnError(cause);
 	}
@@ -319,6 +362,16 @@ export async function parseOptionsAndRunCLI(
 			`Native CLI exited with status ${result.code}.`,
 			{ details: { exitCode: result.code ?? undefined } }
 		);
+	return { exitCode: 0 };
+}
+
+function isImmediateCLIInvocation(argv: string[]): boolean {
+	return (
+		argv[0] === 'runtime' ||
+		(argv.length === 1 &&
+			['--help', '-h', '--version', '-V'].includes(argv[0]!)) ||
+		argv.slice(1).some((argument) => ['--help', '-h'].includes(argument))
+	);
 }
 
 export async function runCLI(
@@ -381,6 +434,60 @@ async function startControlledServer(
 	args: RunCLIArgs,
 	blueprintJSON?: string
 ): Promise<RunCLIServer> {
+	const cwd = process.cwd();
+	return await startControlledServerWithLaunch({
+		command: args.command as 'start' | 'server',
+		explicitPort: args.port,
+		startupTimeout: args.startupTimeoutMs,
+		cwd,
+		prepare: async (proxyUrl) => {
+			const nativeSiteUrl = args['site-url'] ?? proxyUrl;
+			return await serializeRunCLIArgs(
+				{
+					...args,
+					port: 0,
+					'site-url': nativeSiteUrl,
+				},
+				blueprintJSON
+			);
+		},
+	});
+}
+
+async function startControlledServerFromArgv(
+	argv: string[],
+	parsed: {
+		command: 'start' | 'server';
+		port: number | null;
+		siteUrl: string | null;
+	},
+	cwd: string
+): Promise<RunCLIServer> {
+	return await startControlledServerWithLaunch({
+		command: parsed.command,
+		explicitPort: parsed.port ?? undefined,
+		cwd,
+		prepare: async (proxyUrl) => ({
+			argv: controlledServerArgv(
+				argv,
+				parsed.siteUrl === null ? proxyUrl : undefined
+			),
+			cleanup: async () => {},
+		}),
+	});
+}
+
+interface ControlledServerLaunch {
+	command: 'start' | 'server';
+	explicitPort?: number;
+	startupTimeout?: number;
+	cwd: string;
+	prepare(proxyUrl: string): Promise<SerializedArgs>;
+}
+
+async function startControlledServerWithLaunch(
+	launch: ControlledServerLaunch
+): Promise<RunCLIServer> {
 	let nativeServerUrl: URL | undefined;
 	const proxyServer = createServer((request, response) => {
 		if (!nativeServerUrl) {
@@ -393,7 +500,7 @@ async function startControlledServer(
 		}
 		proxyHttpRequest(request, response, nativeServerUrl);
 	});
-	await listenForCommand(proxyServer, args.command, args.port);
+	await listenForCommand(proxyServer, launch.command, launch.explicitPort);
 	let serialized: SerializedArgs | undefined;
 	let child: ChildProcess | undefined;
 	let client: NativeControlClient | undefined;
@@ -405,25 +512,17 @@ async function startControlledServer(
 		if (!address || typeof address === 'string')
 			throw new Error('Could not inspect native CLI proxy address.');
 		const proxyUrl = `http://127.0.0.1:${address.port}`;
-		const nativeSiteUrl = args['site-url'] ?? proxyUrl;
 		const credentials = await createControlCredentials();
 		controlToken = credentials.token;
 		handshakeDirectory = credentials.handshakeDirectory;
-		serialized = await serializeRunCLIArgs(
-			{
-				...args,
-				port: 0,
-				'site-url': nativeSiteUrl,
-			},
-			blueprintJSON
-		);
+		serialized = await launch.prepare(proxyUrl);
 		serialized.argv.push(
 			'--experimental-control-handshake',
 			credentials.handshakePath
 		);
 		const installation = await ensureNativeHost();
 		child = spawn(installation.executablePath, serialized.argv, {
-			cwd: process.cwd(),
+			cwd: launch.cwd,
 			env: {
 				...process.env,
 				WP_PLAYGROUND_NATIVE_ASSET_ROOT: installation.assetRoot,
@@ -440,7 +539,7 @@ async function startControlledServer(
 		const handshake = await waitForControlHandshake(
 			child,
 			credentials.handshakePath,
-			startupTimeoutMs(args.startupTimeoutMs)
+			startupTimeoutMs(launch.startupTimeout)
 		);
 		await rm(credentials.handshakeDirectory, {
 			recursive: true,
@@ -494,6 +593,28 @@ async function startControlledServer(
 		}
 		throw cause;
 	}
+}
+
+function controlledServerArgv(
+	argv: readonly string[],
+	defaultSiteUrl: string | undefined
+): string[] {
+	const controlled: string[] = [];
+	for (let index = 0; index < argv.length; index++) {
+		const argument = argv[index]!;
+		if (argument === '--port') {
+			if (index + 1 >= argv.length)
+				invalidRequest('Native CLI --port requires a value.');
+			index++;
+			continue;
+		}
+		if (argument.startsWith('--port=')) continue;
+		controlled.push(argument);
+	}
+	controlled.push('--port', '0');
+	if (defaultSiteUrl !== undefined)
+		controlled.push('--site-url', defaultSiteUrl);
+	return controlled;
 }
 
 function redactSecret(message: string, secret: string | undefined): string {

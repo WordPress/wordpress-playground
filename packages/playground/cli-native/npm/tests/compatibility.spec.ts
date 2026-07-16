@@ -148,6 +148,7 @@ describe('compatibility schema v2', () => {
 	it('exports only the documented runtime API', () => {
 		expect(Object.keys(publicAPI).sort()).toEqual(
 			[
+				'CLIArgsValidationError',
 				'LogVerbosity',
 				'NativeCLIError',
 				'NativeCLIErrorCode',

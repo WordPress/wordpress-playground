@@ -1,14 +1,47 @@
 use std::{path::PathBuf, process::ExitCode};
 
+use serde::Serialize;
 use wp_playground_native::{
-    args::parse_cli_args,
+    args::{parse_cli_args, CommandName},
     commands::{prepare_native_runtime, run_with_control},
     terminal::TerminalStyle,
     CliError, Result,
 };
 
+const ARGV_PROBE_FLAG: &str = "--experimental-parse-argv-json";
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ArgvProbeOutput {
+    Valid {
+        #[serde(rename = "schemaVersion")]
+        schema_version: u8,
+        status: &'static str,
+        command: &'static str,
+        port: Option<u16>,
+        #[serde(rename = "siteUrl")]
+        site_url: Option<String>,
+    },
+    Invalid {
+        #[serde(rename = "schemaVersion")]
+        schema_version: u8,
+        status: &'static str,
+        #[serde(rename = "exitCode")]
+        exit_code: u8,
+        message: String,
+    },
+}
+
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1).collect::<Vec<_>>();
+    match extract_argv_probe(&args) {
+        Ok(Some(probe_args)) => {
+            println!("{}", argv_probe_output(probe_args.to_vec()));
+            return ExitCode::SUCCESS;
+        }
+        Ok(None) => {}
+        Err(error) => return exit_with_error(error),
+    }
     if let Some(output) = immediate_output(&args, TerminalStyle::stdout().enabled()) {
         println!("{output}");
         return ExitCode::SUCCESS;
@@ -29,6 +62,48 @@ fn main() -> ExitCode {
     match parse_cli_args(args).and_then(|options| run_with_control(options, handshake)) {
         Ok(code) => ExitCode::from(code),
         Err(error) => exit_with_error(error),
+    }
+}
+
+fn extract_argv_probe(args: &[String]) -> Result<Option<&[String]>> {
+    if let Some((first, rest)) = args.split_first() {
+        if first == ARGV_PROBE_FLAG {
+            return Ok(Some(rest));
+        }
+    }
+    if args.iter().any(|arg| arg == ARGV_PROBE_FLAG) {
+        return Err(CliError::new(format!(
+            "{ARGV_PROBE_FLAG} must be the first argument"
+        )));
+    }
+    Ok(None)
+}
+
+fn argv_probe_output(args: Vec<String>) -> String {
+    let output = match parse_cli_args(args) {
+        Ok(options) => ArgvProbeOutput::Valid {
+            schema_version: 1,
+            status: "valid",
+            command: command_name(&options.command),
+            port: options.port,
+            site_url: options.site_url,
+        },
+        Err(error) => ArgvProbeOutput::Invalid {
+            schema_version: 1,
+            status: "invalid",
+            exit_code: 1,
+            message: error.to_string(),
+        },
+    };
+    serde_json::to_string(&output).expect("argv probe output is always serializable")
+}
+
+fn command_name(command: &CommandName) -> &'static str {
+    match command {
+        CommandName::Start => "start",
+        CommandName::Server => "server",
+        CommandName::RunBlueprint => "run-blueprint",
+        CommandName::BuildSnapshot => "build-snapshot",
     }
 }
 
@@ -264,7 +339,10 @@ fn help_text(command: Option<&str>) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_control_handshake, format_help, immediate_output, version_text};
+    use super::{
+        argv_probe_output, extract_argv_probe, extract_control_handshake, format_help,
+        immediate_output, version_text, ARGV_PROBE_FLAG,
+    };
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
@@ -317,5 +395,54 @@ mod tests {
         let path = extract_control_handshake(&mut values).unwrap().unwrap();
         assert_eq!(path, std::path::PathBuf::from("/tmp/handshake.json"));
         assert_eq!(values, args(&["start", "--port", "9400"]));
+    }
+
+    #[test]
+    fn argv_probe_reports_valid_server_metadata() {
+        assert_eq!(
+            argv_probe_output(args(&[
+                "server",
+                "--port",
+                "9501",
+                "--site-url",
+                "https://playground.test",
+            ])),
+            r#"{"schemaVersion":1,"status":"valid","command":"server","port":9501,"siteUrl":"https://playground.test"}"#
+        );
+    }
+
+    #[test]
+    fn argv_probe_reports_unknown_arguments_as_invalid_json() {
+        let output = argv_probe_output(args(&["server", "--definitely-unknown"]));
+        let output: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(output["schemaVersion"], 1);
+        assert_eq!(output["status"], "invalid");
+        assert_eq!(output["exitCode"], 1);
+        assert!(output["message"]
+            .as_str()
+            .unwrap()
+            .contains("Unknown option `--definitely-unknown`"));
+    }
+
+    #[test]
+    fn argv_probe_is_dispatched_before_runtime_asset_startup() {
+        let invocation = args(&[ARGV_PROBE_FLAG, "runtime", "install"]);
+        let probe_args = extract_argv_probe(&invocation).unwrap().unwrap();
+        let output: serde_json::Value =
+            serde_json::from_str(&argv_probe_output(probe_args.to_vec())).unwrap();
+        assert_eq!(output["status"], "invalid");
+        assert!(output["message"]
+            .as_str()
+            .unwrap()
+            .contains("Unknown command `runtime`"));
+    }
+
+    #[test]
+    fn argv_probe_flag_is_rejected_when_it_is_not_first() {
+        let error = extract_argv_probe(&args(&["server", ARGV_PROBE_FLAG])).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "--experimental-parse-argv-json must be the first argument"
+        );
     }
 }

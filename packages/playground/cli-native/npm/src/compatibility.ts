@@ -1,5 +1,9 @@
 import compatibilitySchema from '../../compatibility.json' with { type: 'json' };
-import { NativeCLIError, NativeCLIErrorCode } from './errors.js';
+import {
+	CLIArgsValidationError,
+	NativeCLIError,
+	NativeCLIErrorCode,
+} from './errors.js';
 
 type CompatibilityStatus =
 	| 'supported'
@@ -46,10 +50,13 @@ const programmaticOptions = new Map(
  */
 export function assertSupportedArgv(value: unknown): string[] {
 	const argv = snapshotArgv(value);
+	if (argv.length === 0)
+		validationError(
+			'Please specify a command: start, server, run-blueprint, or build-snapshot.'
+		);
 	if (
-		argv.length === 0 ||
-		(argv.length === 1 &&
-			['--help', '-h', '--version', '-V'].includes(argv[0]!))
+		argv.length === 1 &&
+		['--help', '-h', '--version', '-V'].includes(argv[0]!)
 	)
 		return argv;
 	if (argv[0] === 'runtime') {
@@ -58,14 +65,14 @@ export function assertSupportedArgv(value: unknown): string[] {
 			(argv.length === 2 && ['--help', '-h'].includes(argv[1]!))
 		)
 			return argv;
-		invalidArgv(
+		validationError(
 			'Native CLI runtime accepts only `runtime install` or `runtime --help`.'
 		);
 	}
 
 	const command = commands.get(argv[0] ?? '');
 	if (!command)
-		invalidArgv(`Unknown native CLI command \`${argv[0] ?? ''}\`.`);
+		validationError(`Unknown native CLI command \`${argv[0] ?? ''}\`.`);
 	if (command.status === 'unsupported-by-design')
 		throw new NativeCLIError(
 			NativeCLIErrorCode.Unsupported,
@@ -81,7 +88,7 @@ export function assertSupportedArgv(value: unknown): string[] {
 		}
 		if (argument === '--help' || argument === '-h') continue;
 		if (argument === '--version' || argument === '-V')
-			invalidArgv(
+			validationError(
 				'Native CLI version flags must be used without a command.'
 			);
 		if (!argument.startsWith('--')) continue;
@@ -105,12 +112,12 @@ export function assertSupportedArgv(value: unknown): string[] {
 				`The native CLI does not support ${option.errorContains ?? option.name}.`
 			);
 		if (!option.commands.includes(command.name))
-			invalidArgv(
+			validationError(
 				`${option.name} is not supported by the ${command.name} command.`
 			);
 	}
 	if (sawDelimiter)
-		invalidArgv(
+		validationError(
 			'The native CLI does not support the positional `--` delimiter.'
 		);
 	return argv;
@@ -184,6 +191,10 @@ function snapshotArgv(value: unknown): string[] {
 
 function invalidArgv(message: string): never {
 	throw new NativeCLIError(NativeCLIErrorCode.InvalidRequest, message);
+}
+
+function validationError(message: string): never {
+	throw new CLIArgsValidationError(1, message);
 }
 
 export function programmaticOptionCompatibility(

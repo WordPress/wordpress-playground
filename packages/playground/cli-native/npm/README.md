@@ -26,7 +26,11 @@ same `compatibility.json` preflight before host acquisition, including
 `--flag=value` and yargs-generated `--no-*` and camel-case aliases. Supported
 flag value parsing remains native. Mixed camel/negation forms are normalized
 only far enough to reject the known option family; they are not accepted or
-enumerated. Programmatic calls synchronously snapshot and validate
+enumerated. `parseOptionsAndRunCLI()` uses the native host's no-runtime,
+schema-v1 argv probe and returns a `CLIExitResult` for validation and one-shot
+commands or an async-disposable `CLIServerResult` for `start` and `server`;
+library calls never terminate the Node process. Programmatic calls
+synchronously snapshot and validate
 plain-object, dense-array, Blueprint, mount, constant, enum, numeric,
 command-scope, NUL, 256-worker, and Blueprint-size/depth constraints before
 acquisition. See `compatibility.json` for the CLI contract.

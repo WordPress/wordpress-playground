@@ -55,7 +55,11 @@ every yargs-generated `--no-*` and camel-case spelling. It snapshots a dense
 ordinary argv array, rejects malformed commands and declared command-scope
 mismatches, and never treats `--` as a way around compatibility checks. Full
 value and arity parsing for supported flags remains the Rust parser's
-responsibility. Non-exact mixed camel/negation spellings are family-normalized
+responsibility. The library calls a private schema-v1 argv probe in the native
+host before execution. That probe loads no runtime assets and returns only a
+bounded, exact-key JSON validation result containing the command, port, and
+site URL needed by the Node server wrapper; it does not reproduce yargs in
+JavaScript. Non-exact mixed camel/negation spellings are family-normalized
 only for preflight rejection; they are not separately enumerated or accepted,
 and `--noFoo` is not reinterpreted as `--no-foo`. The compatibility test
 derives root exports, externally
@@ -76,9 +80,9 @@ The npm package mirrors the public JavaScript surface of
 
 - `runCLI` and `parseOptionsAndRunCLI`;
 - `LogVerbosity`, `resolveWorkerCount`, and `mergeDefinedConstants`;
-- `internalsKeyForTesting`; and
-- the `RunCLIArgs`, `RunCLIServer`, `PlaygroundCliWorker`, and `WorkerType`
-  types.
+- `internalsKeyForTesting` and `CLIArgsValidationError`; and
+- the `RunCLIArgs`, `RunCLIServer`, `CLIExitResult`, `CLIServerResult`,
+  `ParseCLIResult`, `PlaygroundCliWorker`, and `WorkerType` types.
 
 `spawnWorkerThread` and `SpawnedWorker` are intentionally excluded because
 they expose the Emscripten implementation rather than the CLI contract.
@@ -91,7 +95,11 @@ For `start` and `server`, `runCLI()` returns a real Node `http.Server`, its URL,
 an authenticated native Playground RPC proxy, the native worker count, and an
 idempotent asynchronous disposer. The Node server proxies the public port to
 the native server's private loopback listener. Direct command-line execution
-does not use this proxy.
+does not use this proxy. `parseOptionsAndRunCLI()` returns `{ exitCode }` for
+validation, help, version, and successful one-shot commands; for `start` and
+`server` it returns an async-disposable `CLIServerResult` whose testing
+internals contain that real `RunCLIServer`. It never calls `process.exit()` or
+installs persistent signal policy.
 
 The native control listener is loopback-only and requires a random bearer
 token. Its temporary handshake contains protocol version, control and site
@@ -112,10 +120,11 @@ stderr stream cannot deadlock completion or cause unbounded RAM growth. See
 
 ## Method inventory
 
-The root module exports `runCLI`, `parseOptionsAndRunCLI`, `LogVerbosity`,
-`resolveWorkerCount`, `mergeDefinedConstants`, `internalsKeyForTesting`, and
-the native error types. Host acquisition, manifest parsing, process spawning,
-and raw control clients are package internals.
+The root module exports `runCLI`, `parseOptionsAndRunCLI`,
+`CLIArgsValidationError`, `LogVerbosity`, `resolveWorkerCount`,
+`mergeDefinedConstants`, `internalsKeyForTesting`, the structured parse-result
+types, and the native error types. Host acquisition, manifest parsing, process
+spawning, the argv probe, and raw control clients are package internals.
 
 `RunCLIServer` exposes the real Node `server`, its public `serverUrl`, the
 `playground` API, the native worker count under `internalsKeyForTesting`, and
@@ -179,7 +188,10 @@ permissions, token, and loopback URLs; authenticated control headers and body
 limits; public proxy request targets; VFS and symlink boundaries; streamed
 frame/header size, sequence, and backpressure; private overflow-spool ownership
 and cleanup; temporary PHP script ownership; and process-local WAL resource
-limits. The publication verifier separately rejects publish metadata,
+limits. Native argv-probe stdout and stderr are independently bounded, and its
+schema version, exact keys, status, command, port, site URL, exit code, and
+message types are checked before the result crosses into the library API. The
+publication verifier separately rejects publish metadata,
 lifecycle downloads, public URLs, native payloads, `.cwasm`, release assets,
 and native CI uploads.
 
@@ -190,6 +202,14 @@ into generic protocol failures: configuration, unsupported behavior, download,
 integrity, cache, spawn, startup, authentication, invalid request, request too
 large, busy, protocol, I/O, runtime, aborted, and process exit. PHP nonzero
 execution retains its structured `PHPExecutionFailureError` response.
+
+Expected argv validation returns `CLIExitResult` with exit code 1; successful
+help, version, and supported one-shot execution return exit code 0. Server
+startup returns `CLIServerResult`. Unsupported native-v1 capabilities and
+genuine acquisition, spawn, signal, startup, protocol, and runtime failures
+reject with their structured error family instead of being flattened into a
+CLI exit. Only the executable entry point translates child exit and signal
+state into process behavior.
 
 Download aborts remove partial files and release locks. Startup failure closes
 the proxy, kills the child, and removes the handshake directory. Stream cancel,
@@ -217,6 +237,7 @@ appear in errors or logs.
 | Cache behavior       | Concurrent first launches perform one download; valid offline reuse works; corrupt files are repaired.                                                                                                                                                                                                           | Eight-way unit concurrency plus two-process clean-install concurrency and offline restart.                                                                                        |
 | PHP preparation      | The npm payload contains raw Wasm only; `runtime install` prewarms both Wasmtime profiles and workers share the engine caches.                                                                                                                                                                                   | Package boundary plus installed `runtime install` and native worker-pool smokes.                                                                                                  |
 | CLI mechanics        | argv, cwd, environment, stdio, signals, exit codes, supported parsing, and explicit unsupported diagnostics are preserved; unsupported commands, direct flags, `--flag=value`, and yargs `--no-*`/camel-case/mixed aliases reject before host acquisition.                                                       | Schema-driven preflight tests, native argument/compatibility tests, lifecycle-disabled installed-bin preflight with no host URL/cache creation, and existing Node CLI regression. |
+| Library results      | Rust remains the authoritative argv parser; expected validation and successful one-shot calls return `CLIExitResult`, servers return a real disposable `CLIServerResult`, and genuine process/runtime failures reject without process termination or persistent signal listeners.                                | Native argv-probe tests, exact-schema/bounded-output process tests, result narrowing, server-wrapper disposal, failure propagation, and listener-cleanup tests.                   |
 | Module mechanics     | ESM import, CommonJS require, declarations, helpers, and the bin work from a lifecycle-disabled tarball install.                                                                                                                                                                                                 | Vite declaration rollup, TypeScript, `npm install --ignore-scripts`, and installed ESM/CJS/bin smokes.                                                                            |
 | One-shot commands    | Blueprint and snapshot commands finish after native completion; `php` remains an explicit native-v1 incompatibility.                                                                                                                                                                                             | Packaged Blueprint/snapshot smokes and compatibility parser tests.                                                                                                                |
 | Server API           | `RunCLIServer` returns the real Node server and proxy URL, RPC worker, native count, and idempotent disposer; start/server port semantics match Node.                                                                                                                                                            | Server API lifecycle/port tests plus a live installed two-worker proxy smoke.                                                                                                     |
@@ -244,7 +265,8 @@ The aggregate verification target executes:
 9. AST/checker drift checks against the upstream root exports, public common
    server/worker surfaces, option objects, command scopes, and every yargs
    boolean-negation and camel-case alias; descriptor/prototype/NUL/limit and
-   pre-await caller-mutation bypass tests; and
+   pre-await caller-mutation bypass tests; native argv-probe schema, output
+   bounds, validation/result, server disposal, and listener-cleanup tests; and
 10. the existing `playground-cli:test-playground-cli` regression target.
 
 ## Verification commands

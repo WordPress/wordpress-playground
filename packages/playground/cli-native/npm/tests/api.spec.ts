@@ -10,13 +10,35 @@ vi.mock('node:os', async () => {
 	};
 });
 
-import { mergeDefinedConstants, resolveWorkerCount } from '../src/api.js';
+import {
+	internalsKeyForTesting,
+	mergeDefinedConstants,
+	resolveWorkerCount,
+	type ParseCLIResult,
+} from '../src/api.js';
+import { CLIArgsValidationError } from '../src/errors.js';
+
+function classifyParseResult(result: ParseCLIResult): number {
+	if ('exitCode' in result) return result.exitCode;
+	return result[internalsKeyForTesting].cliServer.server.listening ? 0 : 1;
+}
 
 beforeEach(() => {
 	mocks.cpuCount = 8;
 });
 
 describe('public helpers', () => {
+	it('exposes structured CLI validation errors and parse-result narrowing', () => {
+		const error = new CLIArgsValidationError(3, 'invalid arguments');
+		expect(error).toBeInstanceOf(Error);
+		expect(error.name).toBe('Error');
+		expect(error.message).toBe('invalid arguments');
+		expect(error.exitCode).toBe(3);
+		error.exitCode = 4;
+		expect(error.exitCode).toBe(4);
+		expect(classifyParseResult({ exitCode: 7 })).toBe(7);
+	});
+
 	it('merges typed definitions', () => {
 		expect(
 			mergeDefinedConstants({

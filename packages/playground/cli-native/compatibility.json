@@ -691,6 +691,11 @@
 			"kind": "value",
 			"status": "supported"
 		},
+		{
+			"name": "CLIArgsValidationError",
+			"kind": "value",
+			"status": "supported"
+		},
 		{ "name": "LogVerbosity", "kind": "value", "status": "supported" },
 		{
 			"name": "resolveWorkerCount",
@@ -714,6 +719,9 @@
 			"status": "native-only"
 		},
 		{ "name": "RunCLIArgs", "kind": "type", "status": "supported" },
+		{ "name": "CLIExitResult", "kind": "type", "status": "supported" },
+		{ "name": "CLIServerResult", "kind": "type", "status": "supported" },
+		{ "name": "ParseCLIResult", "kind": "type", "status": "supported" },
 		{ "name": "Mount", "kind": "type", "status": "native-only" },
 		{ "name": "RunCLIServer", "kind": "type", "status": "supported" },
 		{

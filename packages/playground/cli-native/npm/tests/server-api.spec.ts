@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	ensureNativeHost: vi.fn(),
+	parseNativeCLIArgs: vi.fn(),
 	spawn: vi.fn(),
 	writeHandshake: true,
 	nativeServerUrl: 'http://127.0.0.1:65534',
@@ -17,6 +18,14 @@ vi.mock('../src/host.js', () => ({
 	ensureNativeHost: mocks.ensureNativeHost,
 }));
 
+vi.mock('../src/process.js', async () => {
+	const actual =
+		await vi.importActual<typeof import('../src/process.js')>(
+			'../src/process.js'
+		);
+	return { ...actual, parseNativeCLIArgs: mocks.parseNativeCLIArgs };
+});
+
 vi.mock('node:child_process', async () => {
 	const actual =
 		await vi.importActual<typeof import('node:child_process')>(
@@ -25,7 +34,13 @@ vi.mock('node:child_process', async () => {
 	return { ...actual, spawn: mocks.spawn };
 });
 
-import { runCLI, type RunCLIArgs, type RunCLIServer } from '../src/api.js';
+import {
+	internalsKeyForTesting,
+	parseOptionsAndRunCLI,
+	runCLI,
+	type RunCLIArgs,
+	type RunCLIServer,
+} from '../src/api.js';
 
 class FakeChild extends EventEmitter {
 	stderr = new PassThrough();
@@ -50,6 +65,12 @@ beforeEach(() => {
 	mocks.writeHandshake = true;
 	mocks.nativeServerUrl = 'http://127.0.0.1:65534';
 	mocks.handshakeOverrides = {};
+	mocks.parseNativeCLIArgs.mockReset().mockResolvedValue({
+		status: 'valid',
+		command: 'server',
+		port: 0,
+		siteUrl: null,
+	});
 	mocks.ensureNativeHost.mockReset().mockResolvedValue({
 		executablePath: '/fixture/wp-playground-native',
 		assetRoot: '/fixture/assets',
@@ -104,6 +125,38 @@ afterEach(async () => {
 });
 
 describe.sequential('programmatic native server lifecycle', () => {
+	it('returns a structured disposable server result from argv', async () => {
+		const result = await parseOptionsAndRunCLI([
+			'server',
+			'--port=0',
+			'--wp',
+			'latest',
+		]);
+		if ('exitCode' in result)
+			throw new Error(`unexpected CLI exit ${result.exitCode}`);
+		const cliServer = result[internalsKeyForTesting].cliServer;
+		expect(cliServer.server.listening).toBe(true);
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(mocks.parseNativeCLIArgs).toHaveBeenCalledWith(
+			['server', '--port=0', '--wp', 'latest'],
+			{ cwd: process.cwd() }
+		);
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv).not.toContain('--port=0');
+		expect(
+			argv.slice(argv.indexOf('--port'), argv.indexOf('--port') + 2)
+		).toEqual(['--port', '0']);
+		expect(
+			argv.slice(
+				argv.indexOf('--site-url'),
+				argv.indexOf('--site-url') + 2
+			)
+		).toEqual(['--site-url', cliServer.serverUrl]);
+		await result[Symbol.asyncDispose]();
+		await result[Symbol.asyncDispose]();
+		expect(cliServer.server.listening).toBe(false);
+	});
+
 	it('validates supported argument values before acquisition', async () => {
 		const circular: Record<string, unknown> = {};
 		circular['self'] = circular;
