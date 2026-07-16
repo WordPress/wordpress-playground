@@ -84,7 +84,7 @@ export default function GitHubImportForm({
 		ContentTypeSelection | undefined
 	>();
 	const [path, setPath] = useState<string>('');
-	const [branch, setBranch] = useState<string>('');
+	const branch = urlInformation?.ref ?? '';
 	const contentType = contentTypeSelection?.contentType;
 	const isContentTypeInferred = contentTypeSelection?.source === 'inferred';
 	const isImporting = importPhase !== 'idle';
@@ -155,7 +155,6 @@ export default function GitHubImportForm({
 				}
 				setUrlInformation(importSource);
 				setPath(importSource.path ?? '');
-				setBranch(importSource.ref ?? '');
 				setContentTypeSelection(
 					guessedContentType
 						? {
@@ -327,7 +326,6 @@ export default function GitHubImportForm({
 		setUrlInformation(undefined);
 		setContentTypeSelection(undefined);
 		setPath('');
-		setBranch('');
 		setErrors({});
 		onRepositoryChange?.();
 	}
@@ -399,7 +397,6 @@ export default function GitHubImportForm({
 									setUrlInformation(undefined);
 									setContentTypeSelection(undefined);
 									setPath('');
-									setBranch('');
 									setErrors({});
 								}}
 								placeholder="owner/repository"
