@@ -970,9 +970,9 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		await expect(pane.getByRole('button', { name: 'Close' })).toBeVisible();
 	}
 
-	await expect(dock.getByRole('button', { name: 'Hide tools' })).toHaveCount(
-		0
-	);
+	await expect(
+		dock.getByRole('button', { name: 'Hide tools' })
+	).toBeVisible();
 	await expect(dock.getByRole('button', { name: 'Full width' })).toHaveCount(
 		0
 	);
@@ -987,6 +987,19 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	await expect(exportPane).not.toBeVisible();
 	await expect(preview).not.toHaveAttribute('inert', /.*/);
 	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
+
+	await dock.getByRole('button', { name: 'Hide tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'Show tools' })
+	).toBeVisible();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).not.toBeVisible();
+	await expect(dock.getByRole('combobox')).toBeVisible();
+	await dock.getByRole('button', { name: 'Show tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).toBeVisible();
 
 	await website.page.setViewportSize({ width: 320, height: 700 });
 	await website.openDockPane('Site Settings');
