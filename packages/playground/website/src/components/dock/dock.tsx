@@ -16,7 +16,7 @@ import { CSSTransition } from 'react-transition-group';
 import { Icon } from '@wordpress/components';
 import {
 	close,
-	download,
+	external,
 	grid,
 	list,
 	page,
@@ -128,7 +128,7 @@ const DOCK_ITEMS: DockItem[] = [
 		section: 'share',
 		label: 'Export',
 		ariaLabel: 'Export',
-		icon: <Icon icon={download} size={24} />,
+		icon: <Icon icon={external} size={24} />,
 	},
 ];
 
