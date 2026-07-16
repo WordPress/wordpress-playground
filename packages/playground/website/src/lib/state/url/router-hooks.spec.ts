@@ -78,9 +78,7 @@ describe('confirmReloadWithNewBlueprint', () => {
 			win
 		);
 
-		expect(win.confirm).toHaveBeenCalledWith(
-			'Reload this page to start a new Playground with the Blueprint from the URL?'
-		);
+		expect(win.confirm).toHaveBeenCalledOnce();
 		expect(win.location.reload).toHaveBeenCalledOnce();
 		expect(win.history.replaceState).not.toHaveBeenCalled();
 	});

@@ -149,7 +149,9 @@ if (
 	typeof window.addEventListener !== 'undefined' &&
 	typeof window[hashChangeConfirmPatchKey as any] === 'undefined'
 ) {
-	window.addEventListener(eventHashchange, confirmReloadWithNewBlueprint);
+	window.addEventListener(eventHashchange, confirmReloadWithNewBlueprint, {
+		capture: true,
+	});
 	Object.defineProperty(window, hashChangeConfirmPatchKey, { value: true });
 }
 
