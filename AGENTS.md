@@ -204,6 +204,8 @@ Do not test:
 
 - literal JSX or static configuration;
 - copy, CSS classes, visual variants, element counts, or ordering;
+- exact pixel dimensions, spacing values, or other CSS outcomes copied into
+  unit-test fixtures;
 - presentation-only visibility controlled by an adjacent conditional;
 - behavior that would change only when someone intentionally reverses the
   product decision.
@@ -215,6 +217,9 @@ Before adding a test, name all three:
 3. The independent code path that could cause that regression.
 
 If you cannot name all three concretely, do not add the test.
+
+A test is not independent when its expected value must be edited whenever
+adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
 
 Use screenshots and manual interaction for visual-only changes. Tests are not
 required for every PR. Never add tests simply to make a PR appear complete.

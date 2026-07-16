@@ -395,10 +395,7 @@ test('should keep the selected New method and its draft across Dock destinations
 	const newPane = website.page.getByRole('dialog', {
 		name: 'New Playground pane',
 	});
-	const blueprintUrlTab = newPane.getByRole('tab', {
-		name: 'Blueprint URL',
-		exact: true,
-	});
+	const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
 	await blueprintUrlTab.click();
 	const blueprintUrl = newPane.getByRole('textbox', {
 		name: 'Blueprint URL',
@@ -1009,9 +1006,9 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		await expect(pane.getByRole('button', { name: 'Close' })).toBeVisible();
 	}
 
-	await expect(dock.getByRole('button', { name: 'Hide tools' })).toHaveCount(
-		0
-	);
+	await expect(
+		dock.getByRole('button', { name: 'Hide tools' })
+	).toBeVisible();
 	await expect(dock.getByRole('button', { name: 'Full width' })).toHaveCount(
 		0
 	);
@@ -1026,6 +1023,19 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	await expect(exportPane).not.toBeVisible();
 	await expect(preview).not.toHaveAttribute('inert', /.*/);
 	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
+
+	await dock.getByRole('button', { name: 'Hide tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'Show tools' })
+	).toBeVisible();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).not.toBeVisible();
+	await expect(dock.getByRole('combobox')).toBeVisible();
+	await dock.getByRole('button', { name: 'Show tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).toBeVisible();
 
 	await website.page.setViewportSize({ width: 320, height: 700 });
 	await website.openDockPane('Site Settings');
@@ -2199,18 +2209,6 @@ test.describe('Default Playground storage', () => {
 		const newPane = website.page.getByRole('dialog', {
 			name: 'New Playground pane',
 		});
-		for (const tabName of [
-			'Blueprint gallery',
-			'Blueprint URL',
-			'Write a Blueprint',
-			'Pull request',
-			'GitHub',
-			'Import zip',
-		]) {
-			await expect(
-				newPane.getByRole('tab', { name: tabName, exact: true })
-			).toBeVisible();
-		}
 		await expect(
 			newPane.getByRole('button', {
 				name: 'Vanilla WordPress - New Playground',
@@ -2218,9 +2216,7 @@ test.describe('Default Playground storage', () => {
 			})
 		).toBeVisible();
 
-		await newPane
-			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
-			.click();
+		await newPane.locator('#creation-tab-write-own').click();
 		expect(
 			await newPane
 				.getByRole('tablist', {
@@ -2248,35 +2244,18 @@ test.describe('Default Playground storage', () => {
 
 		await website.openDockPane('Database');
 		await website.openDockPane('New Playground');
-		await newPane
-			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
-			.click();
+		await newPane.locator('#creation-tab-write-own').click();
 		await expect(newPane.locator('.cm-content')).toContainText(
 			'draft-kept'
 		);
 
 		await website.page.keyboard.press('Escape');
 		await website.openDockPane('New Playground');
-		const galleryTab = newPane.getByRole('tab', {
-			name: 'Blueprint gallery',
-			exact: true,
-		});
-		const blueprintUrlTab = newPane.getByRole('tab', {
-			name: 'Blueprint URL',
-			exact: true,
-		});
-		const writeTab = newPane.getByRole('tab', {
-			name: 'Write a Blueprint',
-			exact: true,
-		});
-		const pullRequestTab = newPane.getByRole('tab', {
-			name: 'Pull request',
-			exact: true,
-		});
-		const githubTab = newPane.getByRole('tab', {
-			name: 'GitHub',
-			exact: true,
-		});
+		const galleryTab = newPane.locator('#creation-tab-gallery');
+		const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
+		const writeTab = newPane.locator('#creation-tab-write-own');
+		const pullRequestTab = newPane.locator('#creation-tab-pull-request');
+		const githubTab = newPane.locator('#creation-tab-github');
 		await galleryTab.click();
 		await galleryTab.focus();
 		await galleryTab.press('ArrowRight');
@@ -2418,7 +2397,9 @@ test.describe('Default Playground storage', () => {
 		const newPane = website.page.getByRole('dialog', {
 			name: 'New Playground pane',
 		});
-		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		await newPane
+			.getByRole('tab', { name: 'From GitHub', exact: true })
+			.click();
 		await newPane
 			.getByRole('link', { name: 'Connect your GitHub account' })
 			.click();
@@ -2530,7 +2511,7 @@ test.describe('Default Playground storage', () => {
 		const newPane = website.page.getByRole('dialog', {
 			name: 'New Playground pane',
 		});
-		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		await newPane.locator('#creation-tab-github').click();
 		await website.page
 			.getByRole('link', { name: 'Connect your GitHub account' })
 			.click();
@@ -2634,6 +2615,67 @@ test.describe('Default Playground storage', () => {
 			})
 		).toBeVisible();
 	});
+
+	for (const { name, width } of [
+		{ name: 'desktop', width: 1280 },
+		{ name: 'mobile', width: 320 },
+	]) {
+		test(`should scroll the dedicated GitHub import form on ${name}`, async ({
+			website,
+			browserName,
+		}) => {
+			await website.page.setViewportSize({ width, height: 600 });
+			await mockGitHubOAuth(website.page, browserName);
+			await mockGitHubRepositoryAnalysis(website.page);
+			await website.goto('./?storage=temp');
+			await website.openDockPane('New Playground');
+			const newPane = website.page.getByRole('dialog', {
+				name: 'New Playground pane',
+			});
+			const githubTab = newPane.locator('#creation-tab-github');
+			await githubTab.click();
+			await newPane
+				.getByRole('link', { name: 'Connect your GitHub account' })
+				.click();
+			await newPane
+				.getByRole('textbox', { name: 'GitHub repository' })
+				.fill('https://github.com/playground-test/import-source');
+			await newPane
+				.getByRole('button', { name: 'Continue', exact: true })
+				.click();
+			const githubImportPane = website.page.getByRole('dialog', {
+				name: 'Import from GitHub pane',
+			});
+			const formPanel = githubImportPane.getByRole('region', {
+				name: 'Import from GitHub',
+			});
+			await website.page.setViewportSize({ width, height: 300 });
+			await expect
+				.poll(() =>
+					formPanel.evaluate(
+						(element) => element.scrollHeight > element.clientHeight
+					)
+				)
+				.toBe(true);
+			await formPanel.hover();
+			await website.page.mouse.wheel(0, 1000);
+			await expect
+				.poll(() => formPanel.evaluate((element) => element.scrollTop))
+				.toBeGreaterThan(0);
+
+			await githubImportPane
+				.getByRole('button', {
+					name: 'Back to the GitHub repository',
+				})
+				.click();
+			await expect(
+				newPane.getByRole('tablist', {
+					name: 'Ways to start a new Playground',
+				})
+			).toBeVisible();
+			await expect(newPane.locator('#creation-tab-github')).toBeFocused();
+		});
+	}
 
 	test('should rename an inactive autosaved Playground without keeping it', async ({
 		website,

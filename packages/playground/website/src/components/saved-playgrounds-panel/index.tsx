@@ -912,7 +912,7 @@ export function SavedPlaygroundsPanel({
 		},
 		{
 			id: 'blueprint-url',
-			label: 'Blueprint URL',
+			label: 'From a URL',
 			panelTitle: 'Blueprint from a URL',
 			icon: <Icon icon={link} size={20} />,
 			disabled: offline,
@@ -926,14 +926,14 @@ export function SavedPlaygroundsPanel({
 		},
 		{
 			id: 'pull-request',
-			label: 'Pull request',
+			label: 'Preview a PR',
 			panelTitle: 'Preview a pull request',
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'github',
-			label: 'GitHub',
+			label: 'From GitHub',
 			panelTitle: 'Import from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
