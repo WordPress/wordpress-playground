@@ -991,35 +991,6 @@
 	color: var(--color-alert-red, #cc1818);
 }
 
-/* The pane's one filled primary: bring the GitHub connect CTA into the accent
-   button language (it ships as a foreign full-width #000 bar from the modal). */
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account']) {
-	align-self: flex-start;
-	background: var(--accent, #3858e9);
-	border-radius: var(--radius-control, 6px);
-	color: #ffffff;
-	font-size: 14px;
-	font-weight: 600;
-	gap: 8px;
-	padding: 10px 16px;
-	transition: background 0.12s ease;
-}
-
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account']:hover) {
-	background: var(--accent-hover, #2f4ad1);
-}
-
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account'] svg) {
-	height: 18px;
-	width: 18px;
-}
-
 .playgrounds-pane .inlineForm :global(h3) {
 	color: var(--ink, #21201d);
 	font-size: 14px;
