@@ -1506,11 +1506,8 @@ mod tests {
     #[test]
     fn compatibility_supported_command_invocations_parse() {
         let cwd = temp_dir("compat-supported");
-        let mount = cwd.join("mount");
         let before = cwd.join("before");
-        fs::create_dir_all(&mount).unwrap();
         fs::create_dir_all(&before).unwrap();
-        let start_mount = format!("{}:/wordpress/wp-content/plugins/mount", mount.display());
 
         let start = parse_cli_args_from(
             args(&[
@@ -1521,7 +1518,7 @@ mod tests {
                 "--port=9444",
                 "--site-url=http://127.0.0.1:9444",
                 "--mount",
-                &start_mount,
+                ".:/wordpress/wp-content/plugins/mount",
                 "--auto-mount",
                 ".",
                 "--reset",

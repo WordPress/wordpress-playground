@@ -585,6 +585,11 @@ fn control_accept_loop(
 }
 
 fn handle_control_stream(mut stream: TcpStream, token: &str, state: &ControlState) -> Result<()> {
+    stream.set_nonblocking(false).map_err(|error| {
+        CliError::new(format!(
+            "Failed to configure native control connection for blocking I/O: {error}"
+        ))
+    })?;
     let _ = stream.set_read_timeout(Some(CONTROL_IO_TIMEOUT));
     let _ = stream.set_write_timeout(Some(CONTROL_IO_TIMEOUT));
     let mut reader = BufReader::new(&mut stream);
@@ -784,6 +789,13 @@ fn run_stream_request(
             let mut unexpected = [0u8; 1];
             loop {
                 match disconnect_stream.read(&mut unexpected) {
+                    // EOF only closes the peer's request-writing half. HTTP
+                    // clients may legally half-close after sending the full
+                    // Content-Length while continuing to read our response.
+                    // Explicit /rpc/cancel requests cover supported-client
+                    // cancellation, while later response writes detect readers
+                    // which have closed their half of the connection.
+                    Ok(0) => return,
                     Ok(_) => {
                         if !watcher_shutdown.load(Ordering::Acquire) {
                             watcher_cancellation.store(true, Ordering::Release);
@@ -1989,6 +2001,50 @@ mod tests {
     }
 
     #[test]
+    fn accepted_nonblocking_connection_is_normalized_before_request_reads() {
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-blocking-connection-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut client = TcpStream::connect(address).unwrap();
+        let (server_stream, _) = listener.accept().unwrap();
+        server_stream.set_nonblocking(true).unwrap();
+        let token = "a".repeat(64);
+        let handler_token = token.clone();
+        let handler_root = root.clone();
+        let handler = thread::spawn(move || {
+            handle_control_stream(server_stream, &handler_token, &state(handler_root))
+        });
+
+        thread::sleep(Duration::from_millis(25));
+        assert!(
+            !handler.is_finished(),
+            "the control handler treated a temporarily unreadable socket as a disconnect"
+        );
+        let body = r#"{"protocolVersion":2,"id":54,"method":"request","params":{"path":"/"}}"#;
+        write!(
+            client,
+            "POST /rpc HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+        .unwrap();
+        client.flush().unwrap();
+        let mut response = String::new();
+        client.read_to_string(&mut response).unwrap();
+        handler.join().unwrap().unwrap();
+        assert!(response.contains("\"id\":54"), "{response}");
+        assert!(response.contains("\"result\""), "{response}");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn rejects_foreign_request_origins() {
         assert_eq!(
             request_path("http://127.0.0.1:9400/wp-admin/", "http://127.0.0.1:9400").unwrap(),
@@ -2624,6 +2680,71 @@ mod tests {
         assert!(observed_receiver
             .recv_timeout(Duration::from_secs(1))
             .unwrap());
+        drop(server);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn request_write_half_close_does_not_cancel_the_stream_response() {
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-half-close-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let handshake_path = root.join("handshake.json");
+        let token = "e".repeat(64);
+        let mut backend = backend(root.clone());
+        backend.stream = Arc::new(move |_, emitter, cancellation| {
+            emitter(ControlStreamEvent::Headers {
+                status: 200,
+                headers: Vec::new(),
+            })?;
+            thread::sleep(Duration::from_millis(50));
+            if cancellation.load(Ordering::Acquire) {
+                return Err(CliError::new("a request half-close cancelled the response"));
+            }
+            emitter(ControlStreamEvent::Output {
+                channel: ControlStreamChannel::Stdout,
+                bytes: b"still-reading".to_vec(),
+            })?;
+            Ok(ControlStreamResponse { exit_code: 0 })
+        });
+        let server = ControlServer::start(
+            ControlOptions {
+                handshake_path: handshake_path.clone(),
+                token: token.clone(),
+            },
+            backend,
+        )
+        .unwrap();
+        let handshake: Value = serde_json::from_slice(&fs::read(&handshake_path).unwrap()).unwrap();
+        let endpoint = handshake["controlUrl"]
+            .as_str()
+            .unwrap()
+            .strip_prefix("http://")
+            .unwrap();
+        let (address, _) = endpoint.split_once('/').unwrap();
+        let body =
+            r#"{"protocolVersion":2,"id":53,"method":"requestStreamed","params":{"path":"/"}}"#;
+        let mut stream = TcpStream::connect(address).unwrap();
+        write!(
+            stream,
+            "POST /rpc/stream HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+        .unwrap();
+        stream.flush().unwrap();
+        stream.shutdown(Shutdown::Write).unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        assert!(response.contains("\"type\":\"headers\""), "{response}");
+        assert!(response.contains("c3RpbGwtcmVhZGluZw=="), "{response}");
+        assert!(response.contains("\"type\":\"complete\""), "{response}");
+        assert!(!response.contains("ERR_WP_PLAYGROUND_NATIVE_ABORTED"));
         drop(server);
         let _ = fs::remove_dir_all(root);
     }
