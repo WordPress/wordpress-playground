@@ -17,7 +17,7 @@ You can use Blueprints in one of the following ways:
 - Use Blueprint bundles (ZIP files or directories).
 - Use the JavaScript API.
 
-![The New Playground pane with the Blueprint gallery selected](/img/dock/new-playground-blueprint-gallery.webp)
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/new-playground-blueprint-gallery.webp)
 
 ## URL Fragment
 

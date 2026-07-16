@@ -17,7 +17,7 @@ The easiest way to run a Blueprint from the website is through the Dock:
 
 See [Using Blueprints](/blueprints/using-blueprints) for the full list of UI paths.
 
-![The New Playground pane with the Blueprint gallery selected](/img/dock/new-playground-blueprint-gallery.webp)
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/new-playground-blueprint-gallery.webp)
 
 ## URL fragment
 

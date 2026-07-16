@@ -21,7 +21,7 @@ Open [playground.wordpress.net](https://playground.wordpress.net), wait for Word
 ```javascript
 await playgroundSites.isReady();
 
-await playgroundSites.list();
+playgroundSites.list();
 // → [{ slug: 'calm-sunny-park', name: 'Calm Sunny Park', storage: 'opfs', persistence: 'autosave', isActive: true }]
 
 await playgroundSites.keep(undefined, 'My demo site');
@@ -187,7 +187,7 @@ saveInBrowser(
 
 ### `saveToLocalFileSystem(name?, localFsHandle?)`
 
-Persists the active temporary or autosaved site to a local directory. Prompts the user to pick a directory when `localFsHandle` is omitted. Requires the File System Access API.
+Persists the active temporary or autosaved site to a local directory. Prompts the user to pick a directory when `localFsHandle` is omitted. Requires the File System Access API, so availability depends on the browser and platform.
 
 ```typescript
 saveToLocalFileSystem(
