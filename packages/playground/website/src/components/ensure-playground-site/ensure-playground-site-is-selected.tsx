@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { Button, Popover } from '@wordpress/components';
+import { Button, Icon, Popover } from '@wordpress/components';
+import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
@@ -363,9 +365,6 @@ export function EnsurePlaygroundSiteIsSelected({
 							setIsAutosaveNudgeActionPending(false);
 						}
 					}}
-					onKeepNew={async () => {
-						await keepNewPlayground();
-					}}
 					onDismiss={async () => {
 						await keepNewPlayground();
 					}}
@@ -384,16 +383,16 @@ export function EnsurePlaygroundSiteIsSelected({
 /**
  * Shows the restore choice for a recent autosave matching the current setup URL.
  *
- * The choice concerns saved Playgrounds, so the card sits above the Dock with
- * a caret pointing at the Playgrounds button. When that button is off screen
- * (collapsed or cornered Dock), the card floats in the top-right corner.
+ * The choice concerns saved Playgrounds, so the card is anchored right above
+ * the Playgrounds Dock button with a caret pointing at it. When that button is
+ * off screen (collapsed or cornered Dock), the card floats in the top-right
+ * corner instead.
  */
 function YouHaveAutosaveNudge({
 	site,
 	error,
 	isBusy,
 	onRestore,
-	onKeepNew,
 	onDismiss,
 	onDisableNotifications,
 }: {
@@ -401,13 +400,12 @@ function YouHaveAutosaveNudge({
 	error?: string;
 	isBusy: boolean;
 	onRestore: () => Promise<void>;
-	onKeepNew: () => Promise<void>;
 	onDismiss: () => Promise<void>;
 	onDisableNotifications: () => Promise<void>;
 }) {
 	const nudgeRef = useRef<HTMLElement>(null);
 	const anchorButton = useRecentAutosaveNudgeAnchor();
-	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
+	const autosavedAt = new Date(getSiteRecencyTimestamp(site) || Date.now());
 
 	useEffect(() => {
 		const dismissOnOutsidePointer = (event: PointerEvent) => {
@@ -419,90 +417,72 @@ function YouHaveAutosaveNudge({
 		return listenForPointerDownAcrossIframes(dismissOnOutsidePointer);
 	}, [isBusy, onDismiss]);
 
-	// On desktop the Playgrounds button sits below the Dock's address row, so
-	// anchoring to the button's horizontal position combined with the Dock's
-	// top edge keeps the card above the whole Dock while the caret still
-	// points down at the button.
-	const popoverAnchor = useMemo(() => {
-		if (!anchorButton) {
-			return null;
-		}
-		const dock = anchorButton.closest('nav');
-		return {
-			getBoundingClientRect() {
-				const buttonRect = anchorButton.getBoundingClientRect();
-				const dockTop =
-					dock?.getBoundingClientRect().top ?? buttonRect.top;
-				return new window.DOMRect(
-					buttonRect.x,
-					dockTop,
-					buttonRect.width,
-					Math.max(buttonRect.bottom - dockTop, 0)
-				);
-			},
-		};
-	}, [anchorButton]);
-
 	const card = (
 		<aside
 			ref={nudgeRef}
 			className={classNames(css.nudge, {
-				[css.nudgeFloating]: !popoverAnchor,
+				[css.nudgeFloating]: !anchorButton,
 			})}
 			aria-label="Recent autosaved Playground"
 		>
-			<div className={css.copy}>
-				<div className={css.title}>Recent autosave available</div>
-				<div className={css.description}>
-					Another Playground was created {getRelativeDate(createdAt)}{' '}
-					from the same URL.
-				</div>
-				{error && (
-					<div className={css.error} role="alert">
-						{error}
+			<div className={css.header}>
+				<div className={css.eyebrow}>Recent autosave</div>
+				<Button
+					className={css.dismiss}
+					icon={close}
+					label="Dismiss and keep this Playground"
+					onClick={onDismiss}
+					disabled={isBusy}
+				/>
+			</div>
+			<div className={css.site}>
+				<span className={css.siteAvatar} aria-hidden="true">
+					<Icon icon={wordpress} size={28} />
+				</span>
+				<div className={css.siteCopy}>
+					<div className={css.siteName}>{site.metadata.name}</div>
+					<div className={css.siteMeta}>
+						Autosaved {getRelativeDate(autosavedAt)}
 					</div>
-				)}
-			</div>
-			<div className={css.actions}>
-				<div className={css.decisionActions}>
-					<Button
-						variant="primary"
-						onClick={onRestore}
-						disabled={isBusy}
-					>
-						Restore Autosave
-					</Button>
-					<Button
-						variant="tertiary"
-						onClick={onKeepNew}
-						disabled={isBusy}
-					>
-						Keep this Playground
-					</Button>
-				</div>
-				<div className={css.preferenceAction}>
-					<Button
-						variant="link"
-						className={css.disableNotifications}
-						onClick={onDisableNotifications}
-						disabled={isBusy}
-					>
-						Stop showing autosave prompts
-					</Button>
 				</div>
 			</div>
+			{error && (
+				<div className={css.error} role="alert">
+					{error}
+				</div>
+			)}
+			<Button
+				variant="primary"
+				className={css.restore}
+				onClick={onRestore}
+				disabled={isBusy}
+			>
+				Restore autosave
+			</Button>
+			<p className={css.hint}>
+				Kept in this browser as a periodic snapshot — not every change
+				is saved.
+			</p>
+			<Button
+				variant="link"
+				className={css.disableNotifications}
+				onClick={onDisableNotifications}
+				disabled={isBusy}
+			>
+				Don’t notify me about autosaves
+			</Button>
 		</aside>
 	);
 
-	if (!popoverAnchor) {
+	if (!anchorButton) {
 		return card;
 	}
 	return (
 		<Popover
 			className={css.nudgePopover}
-			anchor={popoverAnchor}
+			anchor={anchorButton}
 			placement="top"
-			offset={16}
+			offset={18}
 			shift
 			noArrow={false}
 			focusOnMount={false}

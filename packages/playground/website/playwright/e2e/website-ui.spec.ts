@@ -2878,7 +2878,7 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page
 				.getByLabel('Recent autosaved Playground')
-				.getByText('Recent autosave available', { exact: true })
+				.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -2926,7 +2926,7 @@ echo get_option('blogname');
 		const nudge = website.page.getByLabel('Recent autosaved Playground');
 		await expect(nudge).toBeVisible();
 		await nudge
-			.getByRole('button', { name: 'Stop showing autosave prompts' })
+			.getByRole('button', { name: 'Don’t notify me about autosaves' })
 			.click();
 		await expect(nudge).toHaveCount(0);
 		await expect(
