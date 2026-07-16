@@ -327,6 +327,7 @@
 		flex: 1 0 100%;
 		order: 3;
 		overflow: hidden;
+		padding-block: 4px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		word-break: normal;
