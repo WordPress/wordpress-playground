@@ -19,7 +19,7 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { DeleteSiteModal } from '../delete-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
-import { modalSlugs, setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
@@ -61,9 +61,7 @@ function getDisplayModeFromQuery(): DisplayMode {
 }
 
 export function Layout() {
-	const siteManagerIsOpen = useAppSelector(
-		(state) => state.ui.siteManagerIsOpen
-	);
+	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const dispatch = useAppDispatch();
 	const [paneCloseBlocked, setPaneCloseBlocked] = useState(false);
 	const siteViewContentRef = useRef<HTMLDivElement>(null);
@@ -76,17 +74,17 @@ export function Layout() {
 		if (!siteViewContent) {
 			return;
 		}
-		if (showDock && siteManagerIsOpen) {
+		if (showDock && dockPaneIsOpen) {
 			siteViewContent.setAttribute('inert', '');
 		} else {
 			siteViewContent.removeAttribute('inert');
 		}
-	}, [showDock, siteManagerIsOpen]);
+	}, [showDock, dockPaneIsOpen]);
 
 	/** Closes the active pane unless its current operation owns the surface. */
 	const closeDockPane = () => {
 		if (!paneCloseBlocked) {
-			dispatch(setSiteManagerOpen(false));
+			dispatch(setDockPaneOpen(false));
 		}
 	};
 
@@ -94,7 +92,7 @@ export function Layout() {
 		<GitHubExportSessionProvider>
 			<div
 				className={classNames(css.layout, {
-					[css.hasDockPane]: showDock && siteManagerIsOpen,
+					[css.hasDockPane]: showDock && dockPaneIsOpen,
 				})}
 			>
 				<Modals />
@@ -103,7 +101,7 @@ export function Layout() {
 						ref={siteViewContentRef}
 						className={classNames(css.siteViewContent, {
 							[css.siteViewContentBlurred]:
-								showDock && siteManagerIsOpen,
+								showDock && dockPaneIsOpen,
 						})}
 					>
 						<PlaygroundViewport displayMode={displayMode} />
@@ -112,11 +110,11 @@ export function Layout() {
 						<button
 							type="button"
 							className={classNames(css.previewDismiss, {
-								[css.previewDismissVisible]: siteManagerIsOpen,
+								[css.previewDismissVisible]: dockPaneIsOpen,
 							})}
 							aria-label="Close Playground tools"
-							aria-hidden={siteManagerIsOpen ? undefined : true}
-							tabIndex={siteManagerIsOpen ? 0 : -1}
+							aria-hidden={dockPaneIsOpen ? undefined : true}
+							tabIndex={dockPaneIsOpen ? 0 : -1}
 							disabled={paneCloseBlocked}
 							onClick={closeDockPane}
 						/>

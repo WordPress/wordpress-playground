@@ -24,12 +24,12 @@ import {
 	plus,
 	wordpress,
 } from '@wordpress/icons';
-import type { SiteManagerSection } from '../../lib/state/redux/slice-ui';
+import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
 	setShareExportOpen,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setDockPaneOpen,
+	setDockPaneSection,
 } from '../../lib/state/redux/slice-ui';
 import {
 	readDockFullWidth,
@@ -64,7 +64,7 @@ import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
 import css from './style.module.css';
 
 type DockItem = {
-	section: SiteManagerSection;
+	section: DockPaneSection;
 	label: string;
 	ariaLabel: string;
 	icon: JSX.Element;
@@ -133,7 +133,7 @@ const DOCK_ITEMS: DockItem[] = [
 ];
 
 const PANE_COPY: Record<
-	SiteManagerSection,
+	DockPaneSection,
 	{ title: string; description: string }
 > = {
 	new: {
@@ -186,11 +186,9 @@ export function Dock({
 	onPaneCloseBlockedChange,
 }: DockProps) {
 	const dispatch = useAppDispatch();
-	const siteManagerIsOpen = useAppSelector(
-		(state) => state.ui.siteManagerIsOpen
-	);
+	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
-	const section = useAppSelector((state) => state.ui.siteManagerSection);
+	const section = useAppSelector((state) => state.ui.dockPaneSection);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
 		useState<DockPaneHeaderOverride>();
@@ -208,7 +206,7 @@ export function Dock({
 	const isFixedHeightSection =
 		section === 'new' || (section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
-	const siteDetailsVisible = siteManagerIsOpen && section === 'settings';
+	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
@@ -276,11 +274,10 @@ export function Dock({
 	const [isFolding, setIsFolding] = useState(false);
 	const [isUnfolding, setIsUnfolding] = useState(false);
 	const [isMaximizing, setIsMaximizing] = useState(false);
-	const [paneExitComplete, setPaneExitComplete] =
-		useState(!siteManagerIsOpen);
+	const [paneExitComplete, setPaneExitComplete] = useState(!dockPaneIsOpen);
 	// Retain the full pane body until its exit motion finishes. Hiding it when
 	// close starts would collapse the surface to its header before it can leave.
-	const paneContentVisible = siteManagerIsOpen || !paneExitComplete;
+	const paneContentVisible = dockPaneIsOpen || !paneExitComplete;
 
 	useEffect(() => {
 		if (typeof ResizeObserver === 'undefined') {
@@ -325,7 +322,7 @@ export function Dock({
 
 	useLayoutEffect(() => {
 		const pane = paneRef.current;
-		if (!siteManagerIsOpen || !pane) {
+		if (!dockPaneIsOpen || !pane) {
 			setPaneHeight(0);
 			return;
 		}
@@ -339,7 +336,7 @@ export function Dock({
 		const observer = new ResizeObserver(updatePaneHeight);
 		observer.observe(pane);
 		return () => observer.disconnect();
-	}, [section, siteManagerIsOpen]);
+	}, [section, dockPaneIsOpen]);
 
 	useLayoutEffect(() => {
 		const toast = operationToastRef.current;
@@ -396,7 +393,7 @@ export function Dock({
 	useEffect(() => {
 		// Opening Store permanently from the visible status must not unfold a
 		// collapsed Dock. Tool buttons unfold explicitly in openSection().
-		if (!siteManagerIsOpen || section === 'save') {
+		if (!dockPaneIsOpen || section === 'save') {
 			return;
 		}
 		setIsCollapsed(false);
@@ -404,13 +401,13 @@ export function Dock({
 		setCornerSide(null);
 		setIsFolding(false);
 		setIsMaximizing(false);
-	}, [section, siteManagerIsOpen]);
+	}, [section, dockPaneIsOpen]);
 
 	// The overlay query parameter only describes New and Playgrounds. Remove it
 	// when that requested pane closes or another Dock destination replaces it.
 	useEffect(() => {
 		if (
-			siteManagerIsOpen &&
+			dockPaneIsOpen &&
 			(section === 'new' || section === 'playgrounds')
 		) {
 			return;
@@ -421,7 +418,7 @@ export function Dock({
 		}
 		url.searchParams.delete('overlay');
 		window.history.replaceState(window.history.state, '', url);
-	}, [section, siteManagerIsOpen]);
+	}, [section, dockPaneIsOpen]);
 
 	useEffect(() => {
 		if (!isMobile) {
@@ -459,14 +456,14 @@ export function Dock({
 		if (!pane) {
 			return;
 		}
-		if (siteManagerIsOpen) {
+		if (dockPaneIsOpen) {
 			pane.removeAttribute('aria-hidden');
 			pane.removeAttribute('inert');
 		} else {
 			pane.setAttribute('aria-hidden', 'true');
 			pane.setAttribute('inert', '');
 		}
-	}, [siteManagerIsOpen]);
+	}, [dockPaneIsOpen]);
 
 	useEffect(() => {
 		/** Lets the active modal or popover consume Escape before the Dock does. */
@@ -474,7 +471,7 @@ export function Dock({
 			if (
 				event.key !== 'Escape' ||
 				activeModal ||
-				!siteManagerIsOpen ||
+				!dockPaneIsOpen ||
 				paneCloseBlocked
 			) {
 				return;
@@ -486,15 +483,15 @@ export function Dock({
 			) {
 				return;
 			}
-			dispatch(setSiteManagerOpen(false));
+			dispatch(setDockPaneOpen(false));
 		};
 		document.addEventListener('keydown', closeOnEscape, true);
 		return () =>
 			document.removeEventListener('keydown', closeOnEscape, true);
-	}, [activeModal, dispatch, paneCloseBlocked, siteManagerIsOpen]);
+	}, [activeModal, dispatch, paneCloseBlocked, dockPaneIsOpen]);
 
 	useEffect(() => {
-		if (siteManagerIsOpen) {
+		if (dockPaneIsOpen) {
 			hasOpenedPaneRef.current = true;
 			if (!focusBeforePaneRef.current) {
 				focusBeforePaneRef.current =
@@ -521,29 +518,29 @@ export function Dock({
 		if (document.activeElement === document.body) {
 			collapseButtonRef.current?.focus();
 		}
-	}, [section, siteManagerIsOpen]);
+	}, [section, dockPaneIsOpen]);
 
 	/** Opens one tool, or closes it when its already-active button is pressed. */
 	const openSection = useCallback(
-		(nextSection: SiteManagerSection) => {
+		(nextSection: DockPaneSection) => {
 			if (paneCloseBlocked) {
 				return;
 			}
-			if (siteManagerIsOpen && section === nextSection) {
-				dispatch(setSiteManagerOpen(false));
+			if (dockPaneIsOpen && section === nextSection) {
+				dispatch(setDockPaneOpen(false));
 				return;
 			}
-			if (siteManagerIsOpen) {
+			if (dockPaneIsOpen) {
 				focusBeforePaneRef.current =
 					document.activeElement as HTMLElement | null;
 			}
 			setIsCollapsed(false);
 			dragSideRef.current = null;
 			setCornerSide(null);
-			dispatch(setSiteManagerSection(nextSection));
-			dispatch(setSiteManagerOpen(true));
+			dispatch(setDockPaneSection(nextSection));
+			dispatch(setDockPaneOpen(true));
 		},
-		[dispatch, paneCloseBlocked, section, siteManagerIsOpen]
+		[dispatch, paneCloseBlocked, section, dockPaneIsOpen]
 	);
 
 	// The Dock can move only while it floats. Full-width and mobile modes are
@@ -700,7 +697,7 @@ export function Dock({
 				setDockSheen(0);
 			}
 
-			if (dragSideRef.current !== null && siteManagerIsOpen) {
+			if (dragSideRef.current !== null && dockPaneIsOpen) {
 				// An open pane owns the expanded Dock. Refuse a fold that would hide
 				// both the tool in use and its launcher.
 				dragSideRef.current = null;
@@ -832,8 +829,8 @@ export function Dock({
 		if (paneCloseBlocked) {
 			return;
 		}
-		if (siteManagerIsOpen) {
-			dispatch(setSiteManagerOpen(false));
+		if (dockPaneIsOpen) {
+			dispatch(setDockPaneOpen(false));
 		}
 		setIsCollapsed((collapsed) => !collapsed);
 	};
@@ -976,7 +973,7 @@ export function Dock({
 		viewportSize,
 		paneHeight,
 		toastHeight: operationToastHeight,
-		paneOpen: siteManagerIsOpen,
+		paneOpen: dockPaneIsOpen,
 		isEditorSection,
 	});
 
@@ -1017,7 +1014,7 @@ export function Dock({
 			)}
 			<CSSTransition
 				nodeRef={paneRef}
-				in={siteManagerIsOpen}
+				in={dockPaneIsOpen}
 				timeout={240}
 				mountOnEnter
 				onEnter={() => setPaneExitComplete(false)}
@@ -1092,7 +1089,7 @@ export function Dock({
 					headerOverride={paneHeaderOverride}
 					className={classNames({
 						[css.hostPaneHidden]:
-							!siteManagerIsOpen && paneExitComplete,
+							!dockPaneIsOpen && paneExitComplete,
 						[css.paneSave]: section === 'save',
 					})}
 					style={paneStyle}
@@ -1112,7 +1109,7 @@ export function Dock({
 					}
 					onClose={() => {
 						if (!paneCloseBlocked) {
-							dispatch(setSiteManagerOpen(false));
+							dispatch(setDockPaneOpen(false));
 						}
 					}}
 				>
@@ -1202,12 +1199,12 @@ export function Dock({
 								<span
 									className={css.dockSiteName}
 									aria-label={
-										siteDetailsVisible
+										siteSettingsVisible
 											? undefined
 											: 'Playground title'
 									}
 									aria-hidden={
-										siteDetailsVisible || undefined
+										siteSettingsVisible || undefined
 									}
 									title={playgroundTitle}
 								>
@@ -1240,8 +1237,7 @@ export function Dock({
 								icon={item.icon}
 								isPrimary={item.isPrimary}
 								isActive={
-									siteManagerIsOpen &&
-									section === item.section
+									dockPaneIsOpen && section === item.section
 								}
 								disabled={paneCloseBlocked}
 								hasNotification={

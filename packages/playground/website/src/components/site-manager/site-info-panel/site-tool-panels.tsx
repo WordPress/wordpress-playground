@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
+import { setDockPaneOpen } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
@@ -96,7 +96,7 @@ export function SiteToolPanels({
 					) : null}
 
 					<ActiveSiteSettingsForm
-						onSubmit={() => dispatch(setSiteManagerOpen(false))}
+						onSubmit={() => dispatch(setDockPaneOpen(false))}
 					/>
 				</div>
 			)}
