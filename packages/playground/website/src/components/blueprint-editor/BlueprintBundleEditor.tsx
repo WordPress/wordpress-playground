@@ -16,7 +16,7 @@ import {
 	Notice,
 	Tooltip as WpTooltip,
 } from '@wordpress/components';
-import { chevronDown, download, help, link } from '@wordpress/icons';
+import { chevronDown, download, help, link, warning } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -1096,19 +1096,22 @@ export const BlueprintBundleEditor = forwardRef<
 						(opfsSyncStatus === 'syncing' ||
 							!siteIsUnfinishedBlueprintRun) ? (
 							<p className={styles.runHint}>
-								{isWaitingToRun ? (
-									'Run will wait for this Playground to finish saving.'
-								) : (
-									<>
-										Running this Blueprint creates a fresh
-										autosaved Playground. “
-										{site?.metadata.name}” stays in{' '}
-										{isAutosaved
-											? 'Recent autosaves'
-											: 'Saved Playgrounds'}
-										.
-									</>
-								)}
+								<Icon icon={warning} size={18} />
+								<span>
+									{isWaitingToRun ? (
+										'Run will wait for this Playground to finish saving.'
+									) : (
+										<>
+											Running this Blueprint creates a fresh
+											autosaved Playground. “
+											{site?.metadata.name}” stays in{' '}
+											{isAutosaved
+												? 'Recent autosaves'
+												: 'Saved Playgrounds'}
+											.
+										</>
+									)}
+								</span>
 							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
