@@ -435,3 +435,19 @@
 		width: 100%;
 	}
 }
+
+/* The complete Blueprint title toolbar fits at the user's 390px reference
+   width. Preserve normal tablet button spacing; compact only the narrow range
+   between the one-row and deliberate two-row layouts. */
+@media (min-width: 389px) and (max-width: 440px) {
+	.editorHeaderSlotActions,
+	.editorHeaderFileActions {
+		gap: 4px;
+	}
+
+	.editorHeaderSlotActions .mobileToggle,
+	.editorHeaderSlotActions .editorExportToggle {
+		padding-left: 6px;
+		padding-right: 6px;
+	}
+}

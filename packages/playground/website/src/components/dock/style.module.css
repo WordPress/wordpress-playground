@@ -798,24 +798,46 @@
 	.pane-header {
 		align-items: flex-start;
 		gap: var(--space-2);
-		padding: 0 var(--space-3) var(--space-4) var(--space-6);
+		padding: 20px var(--space-3) 20px var(--space-6);
+		position: relative;
 	}
 
-	.pane-title-row,
-	.pane-editor-header {
+	/* The X shares the title's center without making the title row taller. This
+	   keeps title and subtitle as the same compact text block used before the
+	   mobile close control was added. */
+	.pane-title-row {
 		align-items: center;
 		display: flex;
 		gap: var(--space-2);
-		min-height: 64px;
+		padding-right: 44px;
 		width: 100%;
 	}
 
+	.pane-header:has(.settings-identity),
+	.pane-header:has(.pane-description) {
+		padding-bottom: var(--space-3);
+	}
+
+	.pane-title-row .pane-close {
+		position: absolute;
+		right: var(--space-3);
+		top: 10px;
+	}
+
 	.pane-editor-header {
+		align-items: center;
 		background: var(--paper-2);
 		border-bottom: 1px solid var(--line-subtle);
+		display: flex;
 		flex: none;
-		gap: var(--space-3);
+		gap: var(--space-2);
+		min-height: 64px;
 		padding: 0 var(--space-3) 0 var(--space-6);
+		width: 100%;
+	}
+
+	.pane-editor-header:has([data-dock-pane-header-actions]) > h2 {
+		margin-right: var(--space-1);
 	}
 
 	.pane-editor-header h2 {
@@ -835,10 +857,9 @@
 		min-width: 0;
 	}
 
-	/* Narrow phones cannot hold the Blueprint title, Help, two labelled actions,
-	   and the close target. Keep title/Help/X together and move the file actions
-	   as one group to the shared content inset below. */
-	@media (max-width: 440px) {
+	/* Below 389px, even compact labelled actions cannot share the title line.
+	   Keep title/Help/X together and move both file actions as one group. */
+	@media (max-width: 388px) {
 		.pane-editor-header:has([data-dock-pane-header-actions]) {
 			display: grid;
 			grid-template-columns: auto minmax(0, 1fr) auto;
@@ -877,7 +898,7 @@
 	}
 
 	.pane-back {
-		margin-top: 14px;
+		margin-top: -2px;
 	}
 
 	/* The dock's bottom bar already carries a "New" tool, so the in-pane
@@ -887,9 +908,9 @@
 		display: none;
 	}
 
-	/* Keep the close control in the title row instead of floating over pane
-	   content. The 44px target stays pinned with the title while panel bodies
-	   scroll, and editor actions can use the full row below it. */
+	/* The 44px target stays pinned in the non-scrolling header. Standard panes
+	   position it against the title without expanding the text block; editor
+	   panes keep it as the final flex item in their 64px toolbar. */
 	.pane-close {
 		align-items: center;
 		background: transparent;
