@@ -55,9 +55,9 @@ Open **Export** from the Dock to download or share the current Playground state:
 
 ![Export options in the Dock](/img/dock/dock-export-playground.webp)
 
-### Blueprint Editor
+### Blueprint pane
 
-![Blueprint editor in the Dock](/img/dock/dock-current-blueprint.webp)
+![Blueprint pane in the Dock](/img/dock/dock-current-blueprint.webp)
 
 The **Blueprint** pane lets you edit, export, and run the Blueprint for the current Playground.
 

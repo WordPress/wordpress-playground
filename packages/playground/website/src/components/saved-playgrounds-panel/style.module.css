@@ -702,10 +702,12 @@
 }
 
 .playgrounds-pane {
+	box-sizing: border-box;
 	height: auto;
 	overflow: visible;
 	padding: 0 24px 24px;
 	color: #21201d;
+	width: 100%;
 }
 
 .playgrounds-pane .playgroundsSection {
@@ -1091,6 +1093,7 @@
 	   the rounded highlight still has breathing room on both sides. */
 	margin-left: calc(-1 * var(--space-2));
 	margin-right: calc(-1 * var(--space-2));
+	width: calc(100% + var(--space-2) + var(--space-2));
 }
 
 .playgrounds-pane .siteRow {
@@ -1101,6 +1104,7 @@
 	border-radius: 0;
 	/* Let the row shrink to the list width so its name truncates. */
 	min-width: 0;
+	width: 100%;
 }
 
 /* A single hairline between adjacent rows. It stays put on hover/active so the

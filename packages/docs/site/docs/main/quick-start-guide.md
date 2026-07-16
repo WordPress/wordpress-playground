@@ -71,9 +71,9 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 
 ## Restore a saved site
 
-You can restore the saved site from the Dock's **New** tool:
+You can restore the saved site from the Dock's **New** pane:
 
-1. Open **New** from the Dock.
+1. Open the **New** pane from the Dock.
 2. Select **Import zip**.
 3. Choose the `.zip` file you exported earlier.
 
