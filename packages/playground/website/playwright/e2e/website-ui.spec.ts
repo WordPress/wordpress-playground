@@ -750,13 +750,13 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
 	const saveButton = filesPane.getByRole('button', {
-		name: 'Save',
-		exact: true,
+		name: /^(Save|Saved|Saving…)$/,
 	});
 	await expect(saveButton).toBeEnabled();
 
 	// Save immediately instead of waiting for the autosave debounce.
 	await saveButton.click();
+	await expect(saveButton).toHaveText('Saved');
 	await expect(filesPane.getByRole('status')).toHaveText(
 		'All changes saved.'
 	);

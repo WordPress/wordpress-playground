@@ -192,10 +192,9 @@
 	opacity: 0.6;
 }
 
-.dockSavingStatus {
-	color: var(--ink-faint, #787c82);
-	font-size: 11px;
-	white-space: nowrap;
+.dockSaveButton {
+	width: 80px;
+	justify-content: center;
 }
 
 .dockPresentation .editor,

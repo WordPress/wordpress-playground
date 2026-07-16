@@ -113,7 +113,7 @@ describe('PlaygroundFileEditor presentation', () => {
 		).toBe(true);
 	});
 
-	it('keeps the dirty indicator beside the stable Dock Save button', async () => {
+	it('reports a slow manual save without moving the Dock button', async () => {
 		vi.useFakeTimers();
 		let finishWrite: () => void = () => {};
 		const writePromise = new Promise<void>((resolve) => {
@@ -166,30 +166,34 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
 		expect(findSaveStatus().textContent).toBe('Saving changes…');
 		expect(findDirtyIndicator()).toBe(dirtyIndicator);
-		expect(findSavingStatus()).toBeNull();
+		expect(saveButton.textContent).toBe('Save');
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(699);
 		});
-		expect(findSavingStatus()).toBeNull();
+		expect(saveButton.textContent).toBe('Save');
 
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(1);
 		});
-		expect(findSavingStatus()?.textContent).toBe('Saving…');
+		expect(saveButton.textContent).toBe('Saving…');
 		expect(saveButton.querySelector('svg')).toBeNull();
 
 		await act(async () => {
 			finishWrite();
 			await writePromise;
 		});
-		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.textContent).toBe('Saved');
 		expect(findSaveStatus().textContent).toBe('All changes saved.');
 		expect(findDirtyIndicator()).toBeNull();
-		expect(findSavingStatus()).toBeNull();
 
 		await act(async () => {
-			await vi.advanceTimersByTimeAsync(2000);
+			await vi.advanceTimersByTimeAsync(999);
+		});
+		expect(saveButton.textContent).toBe('Saved');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
 		});
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.textContent).toBe('Save');
@@ -197,8 +201,12 @@ describe('PlaygroundFileEditor presentation', () => {
 
 	it('autosaves after the debounce without changing the Dock button', async () => {
 		vi.useFakeTimers();
+		let finishWrite: () => void = () => {};
+		const writePromise = new Promise<void>((resolve) => {
+			finishWrite = resolve;
+		});
 		const filesystem = Object.assign(new EventTarget(), {
-			writeFile: vi.fn(() => Promise.resolve()),
+			writeFile: vi.fn(() => writePromise),
 		}) as unknown as AsyncWritableFilesystem;
 
 		await act(async () => {
@@ -230,7 +238,56 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(findButton('Save')).toBe(saveButton);
 		expect(saveButton.textContent).toBe('Save');
 		expect(saveButton.querySelector('svg')).toBeNull();
+		expect(findDirtyIndicator()).not.toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(700);
+		});
+		expect(saveButton.textContent).toBe('Save');
+
+		await act(async () => {
+			finishWrite();
+			await writePromise;
+		});
 		expect(findDirtyIndicator()).toBeNull();
+		expect(saveButton.textContent).toBe('Save');
+	});
+
+	it('shows Saved after a fast manual save without flashing Saving', async () => {
+		vi.useFakeTimers();
+		const filesystem = Object.assign(new EventTarget(), {
+			writeFile: vi.fn(() => Promise.resolve()),
+		}) as unknown as AsyncWritableFilesystem;
+
+		await act(async () => {
+			root.render(
+				<PlaygroundFileEditor
+					filesystem={filesystem}
+					documentRoot="/wordpress"
+					dockPresentation
+				/>
+			);
+		});
+
+		await clickButton('Open test file');
+		await clickButton('Edit test file');
+		const saveButton = findButton('Save');
+		await clickButton('Save');
+		await act(async () => Promise.resolve());
+
+		expect(filesystem.writeFile).toHaveBeenCalledOnce();
+		expect(saveButton.textContent).toBe('Saved');
+		expect(findDirtyIndicator()).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(999);
+		});
+		expect(saveButton.textContent).toBe('Saved');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(saveButton.textContent).toBe('Save');
 	});
 
 	async function clickButton(label: string) {
@@ -257,9 +314,5 @@ describe('PlaygroundFileEditor presentation', () => {
 
 	function findDirtyIndicator() {
 		return container.querySelector(`.${styles['dockDirtyIndicator']}`);
-	}
-
-	function findSavingStatus() {
-		return container.querySelector(`.${styles['dockSavingStatus']}`);
 	}
 });

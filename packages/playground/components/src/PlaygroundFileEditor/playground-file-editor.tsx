@@ -8,7 +8,8 @@ import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
-const SAVING_STATUS_DELAY_MS = 700;
+const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
+const MANUAL_SAVED_FEEDBACK_DURATION_MS = 1000;
 
 const SaveState = {
 	IDLE: 'idle',
@@ -56,7 +57,9 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [showSavingStatus, setShowSavingStatus] = useState(false);
+	const [manualSaveFeedback, setManualSaveFeedback] = useState<
+		'idle' | 'waiting' | 'saving' | 'saved'
+	>('idle');
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -71,6 +74,7 @@ export function PlaygroundFileEditor({
 		filesystem
 	);
 	const pendingSaveRef = useRef<PendingSave | null>(null);
+	const manualSaveRef = useRef<PendingSave | null>(null);
 	const lastWriteByFilesystemRef = useRef(
 		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
 	);
@@ -90,6 +94,7 @@ export function PlaygroundFileEditor({
 	 */
 	const saveFile = useCallback(async (pendingSave: PendingSave) => {
 		const { filesystem, path, content } = pendingSave;
+		const isManualSave = manualSaveRef.current === pendingSave;
 		const writes = lastWriteByFilesystemRef.current;
 		const previousWrite = writes.get(filesystem);
 		// A failed write reports its own error, but must not poison later writes.
@@ -119,11 +124,17 @@ export function PlaygroundFileEditor({
 		if (writes.get(filesystem) === writePromise) {
 			writes.delete(filesystem);
 		}
+		if (manualSaveRef.current === pendingSave) {
+			manualSaveRef.current = null;
+		}
 		if (ownsVisibleBuffer) {
 			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
 			setSaveError(
 				writeFailed ? 'Could not save changes. Try again.' : null
 			);
+			if (isManualSave) {
+				setManualSaveFeedback(writeFailed ? 'idle' : 'saved');
+			}
 		}
 	}, []);
 
@@ -278,19 +289,43 @@ export function PlaygroundFileEditor({
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
-	// Fast filesystem writes should not flash a saving status. Only surface
-	// progress when the write lasts long enough to be useful.
+	// A new edit or file selection cancels feedback from an older manual save.
 	useEffect(() => {
-		if (saveState !== SaveState.SAVING) {
-			setShowSavingStatus(false);
+		if (
+			manualSaveFeedback === 'idle' ||
+			saveState === SaveState.SAVING ||
+			saveState === SaveState.SAVED
+		) {
+			return;
+		}
+		setManualSaveFeedback('idle');
+	}, [manualSaveFeedback, saveState]);
+
+	useEffect(() => {
+		if (manualSaveFeedback !== 'saved') {
 			return;
 		}
 		const timeout = window.setTimeout(
-			() => setShowSavingStatus(true),
-			SAVING_STATUS_DELAY_MS
+			() => setManualSaveFeedback('idle'),
+			MANUAL_SAVED_FEEDBACK_DURATION_MS
 		);
 		return () => window.clearTimeout(timeout);
-	}, [saveState]);
+	}, [manualSaveFeedback]);
+
+	// Fast manual writes go straight to "Saved" instead of flashing "Saving…".
+	useEffect(() => {
+		if (manualSaveFeedback !== 'waiting') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() =>
+				setManualSaveFeedback((feedback) =>
+					feedback === 'waiting' ? 'saving' : feedback
+				),
+			MANUAL_SAVING_FEEDBACK_DELAY_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
 
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
@@ -425,6 +460,8 @@ export function PlaygroundFileEditor({
 		if (!pendingSaveRef.current) {
 			return;
 		}
+		manualSaveRef.current = pendingSaveRef.current;
+		setManualSaveFeedback('waiting');
 		setSaveState(SaveState.SAVING);
 		flushPendingSave();
 	}, [flushPendingSave]);
@@ -452,6 +489,20 @@ export function PlaygroundFileEditor({
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
 	const dockSaveTooltip = getDockSaveTooltip(saveState);
+	let dockSaveButtonLabel = 'Save';
+	if (saveState === SaveState.ERROR) {
+		dockSaveButtonLabel = 'Retry';
+	} else if (
+		saveState === SaveState.SAVED &&
+		manualSaveFeedback === 'saved'
+	) {
+		dockSaveButtonLabel = 'Saved';
+	} else if (
+		saveState === SaveState.SAVING &&
+		manualSaveFeedback === 'saving'
+	) {
+		dockSaveButtonLabel = 'Saving…';
+	}
 	const dockHasUnsavedChanges =
 		saveState === SaveState.PENDING ||
 		saveState === SaveState.SAVING ||
@@ -523,13 +574,6 @@ export function PlaygroundFileEditor({
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
 							<div className={styles['editorHeaderActions']}>
-								{showSavingStatus ? (
-									<span
-										className={styles['dockSavingStatus']}
-									>
-										Saving…
-									</span>
-								) : null}
 								{dockHasUnsavedChanges ? (
 									<span
 										className={styles['dockDirtyIndicator']}
@@ -545,7 +589,7 @@ export function PlaygroundFileEditor({
 										}
 										onClick={handleDockManualSave}
 									>
-										Save
+										{dockSaveButtonLabel}
 									</Button>
 								</Tooltip>
 							</div>
