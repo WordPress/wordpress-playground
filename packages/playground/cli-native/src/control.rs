@@ -17,7 +17,10 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::{php_runtime_files::PhpConstantValue, vfs::normalize_vfs_path, CliError, Result};
+use crate::{
+    atomic_file::atomic_replace_file, php_runtime_files::PhpConstantValue,
+    vfs::normalize_vfs_path, CliError, Result,
+};
 
 pub const CONTROL_TOKEN_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_CONTROL_TOKEN";
 pub const CONTROL_PROTOCOL_VERSION: u32 = 2;
@@ -1373,7 +1376,7 @@ fn dispatch_write_file(
     let params: WriteFileParams = parse_params(params)?;
     let path = resolve_vfs_path(&params.path, state)?;
     let host = (state.backend.resolve_path)(&path).map_err(RpcError::io)?;
-    fs::write(host, params.data.decode()?).map_err(RpcError::io)?;
+    atomic_replace_file(&host, &params.data.decode()?).map_err(RpcError::io)?;
     Ok(Value::Null)
 }
 

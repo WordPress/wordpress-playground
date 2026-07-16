@@ -1,5 +1,6 @@
 pub mod args;
 pub mod assets;
+mod atomic_file;
 pub mod automount;
 pub mod commands;
 pub mod control;
