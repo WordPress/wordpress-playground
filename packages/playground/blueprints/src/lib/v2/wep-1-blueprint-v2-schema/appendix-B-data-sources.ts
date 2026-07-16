@@ -16,6 +16,8 @@ export namespace DataSources {
 	 * optionally contain usernames and passwords if needed.
 	 *
 	 * @see https://url.spec.whatwg.org/
+	 * @asType string
+	 * @pattern ^[Hh][Tt][Tt][Pp][Ss]?://[^/?#]+
 	 */
 	export type URLReference = `http://${string}` | `https://${string}`;
 
@@ -32,6 +34,9 @@ export namespace DataSources {
 	 *   still the directory where blueprint.json is located.
 	 *
 	 * It is not possible to escape the Blueprint Execution Context via "../" sequences.
+	 *
+	 * @asType string
+	 * @pattern ^(?!.*(?:^|/)\.\.(?:/|$))(?:\./|/).*$
 	 */
 	export type ExecutionContextPath = `/${string}` | `./${string}`;
 
@@ -48,6 +53,7 @@ export namespace DataSources {
 	 * ```
 	 */
 	export type InlineFile = {
+		/** @pattern ^(?!(?:\.|\.\.)$)[^/]+$ */
 		filename: string;
 		content: InlineFileContent;
 	};
@@ -73,7 +79,9 @@ export namespace DataSources {
 	 * ```
 	 */
 	export type InlineDirectory = {
+		/** @pattern ^(?!(?:\.|\.\.)$)[^/]+$ */
 		directoryName: string;
+		/** @propertyNames { "pattern": "^(?!(?:\\.|\\.\\.)$)[^/]+$" } */
 		files: Record<string, InlineFileContent | NestedInlineDirectory>;
 	};
 
@@ -83,6 +91,7 @@ export namespace DataSources {
 	 * Its directory name comes from the parent `files` record key.
 	 */
 	export type NestedInlineDirectory = {
+		/** @propertyNames { "pattern": "^(?!(?:\\.|\\.\\.)$)[^/]+$" } */
 		files: Record<string, InlineFileContent | NestedInlineDirectory>;
 	};
 
@@ -106,6 +115,8 @@ export namespace DataSources {
 		 * A path inside the git repository this data reference points to.
 		 *
 		 * Defaults to the root of the repository.
+		 *
+		 * @pattern ^(?!.*(?:^|/)\.\.(?:/|$)).*$
 		 */
 		pathInRepository?: string;
 	};
@@ -148,23 +159,43 @@ export namespace DataSources {
 	 * directory conventions common today.
 	 */
 	export type Slug = string;
+	/**
+	 * @asType string
+	 * @pattern ^(?:latest|\d+\.\d+(?:\.\d+)?)$
+	 */
 	export type SimpleVersionExpression =
 		| 'latest'
 		| `${number}.${number}`
 		| `${number}.${number}.${number}`;
 	export type VersionNumberComponent = `${bigint}`;
+	/**
+	 * @asType string
+	 * @pattern ^\d+\.\d+(?:\.\d+)?$
+	 */
 	export type ComparableVersionExpression =
 		| `${VersionNumberComponent}.${VersionNumberComponent}`
 		| `${VersionNumberComponent}.${VersionNumberComponent}.${VersionNumberComponent}`;
 	export type WordPressVersionSuffix =
 		| `beta${VersionNumberComponent}`
 		| `rc${VersionNumberComponent}`;
+	/**
+	 * @asType string
+	 * @pattern ^\d+\.\d+(?:\.\d+)?(?:-(?:beta\d+|[Rr][Cc]\d+))?$
+	 */
 	export type WordPressVersionConstraintVersion =
 		| ComparableVersionExpression
 		| `${ComparableVersionExpression}-${WordPressVersionSuffix}`;
+	/**
+	 * @asType string
+	 * @pattern ^(?:latest|\d+\.\d+(?:\.\d+)?(?:-(?:beta\d+|[Rr][Cc]\d+))?)$
+	 */
 	export type WordPressVersionPreferredVersion =
 		| 'latest'
 		| WordPressVersionConstraintVersion;
+	/**
+	 * @asType string
+	 * @pattern ^(?:latest|\d+\.\d+(?:\.\d+)?)$
+	 */
 	export type PHPVersionConstraintVersion = SimpleVersionExpression;
 	/** }}} Helper types */
 
@@ -211,6 +242,9 @@ export namespace DataSources {
 	 *
 	 * The WordPressVersion type is only meaningful in the top-level
 	 * `wordpressVersion` property.
+	 *
+	 * @asType string
+	 * @pattern ^(?:latest|beta|trunk|nightly|\d+\.\d+(?:\.\d+)?(?:-(?:beta\d+|[Rr][Cc]\d+))?)$
 	 */
 	export type WordPressVersion =
 		| 'beta'
@@ -228,6 +262,9 @@ export namespace DataSources {
 	 *
 	 * The PHPVersion type is only meaningful in the top-level
 	 * `phpVersion` property.
+	 *
+	 * @asType string
+	 * @pattern ^(?:latest|next|\d+\.\d+(?:\.\d+)?)$
 	 */
 	export type PHPVersion = SimpleVersionExpression | 'next';
 
@@ -237,6 +274,9 @@ export namespace DataSources {
 	 *
 	 * This type is only meaningful in imperative Blueprint steps for operations
 	 * such as creating new files or moving files and directories.
+	 *
+	 * @asType string
+	 * @pattern ^site:(?!\/*$)(?!\.\.(?:/|$))(?!.*\/\.\.(?:/|$)).+$
 	 */
 	export type TargetSitePath = `site:${string}`;
 
