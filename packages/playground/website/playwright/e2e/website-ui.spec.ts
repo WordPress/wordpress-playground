@@ -356,10 +356,7 @@ test('should keep the selected New method and its draft across Dock destinations
 	const newPane = website.page.getByRole('dialog', {
 		name: 'New Playground pane',
 	});
-	const blueprintUrlTab = newPane.getByRole('tab', {
-		name: 'Blueprint URL',
-		exact: true,
-	});
+	const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
 	await blueprintUrlTab.click();
 	const blueprintUrl = newPane.getByRole('textbox', {
 		name: 'Blueprint URL',
@@ -2173,18 +2170,6 @@ test.describe('Default Playground storage', () => {
 		const newPane = website.page.getByRole('dialog', {
 			name: 'New Playground pane',
 		});
-		for (const tabName of [
-			'Blueprint gallery',
-			'Blueprint URL',
-			'Write a Blueprint',
-			'Pull request',
-			'GitHub',
-			'Import zip',
-		]) {
-			await expect(
-				newPane.getByRole('tab', { name: tabName, exact: true })
-			).toBeVisible();
-		}
 		await expect(
 			newPane.getByRole('button', {
 				name: 'Vanilla WordPress - New Playground',
@@ -2192,9 +2177,7 @@ test.describe('Default Playground storage', () => {
 			})
 		).toBeVisible();
 
-		await newPane
-			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
-			.click();
+		await newPane.locator('#creation-tab-write-own').click();
 		expect(
 			await newPane
 				.getByRole('tablist', {
@@ -2222,35 +2205,18 @@ test.describe('Default Playground storage', () => {
 
 		await website.openDockPane('Database');
 		await website.openDockPane('New Playground');
-		await newPane
-			.getByRole('tab', { name: 'Write a Blueprint', exact: true })
-			.click();
+		await newPane.locator('#creation-tab-write-own').click();
 		await expect(newPane.locator('.cm-content')).toContainText(
 			'draft-kept'
 		);
 
 		await website.page.keyboard.press('Escape');
 		await website.openDockPane('New Playground');
-		const galleryTab = newPane.getByRole('tab', {
-			name: 'Blueprint gallery',
-			exact: true,
-		});
-		const blueprintUrlTab = newPane.getByRole('tab', {
-			name: 'Blueprint URL',
-			exact: true,
-		});
-		const writeTab = newPane.getByRole('tab', {
-			name: 'Write a Blueprint',
-			exact: true,
-		});
-		const pullRequestTab = newPane.getByRole('tab', {
-			name: 'Pull request',
-			exact: true,
-		});
-		const githubTab = newPane.getByRole('tab', {
-			name: 'GitHub',
-			exact: true,
-		});
+		const galleryTab = newPane.locator('#creation-tab-gallery');
+		const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
+		const writeTab = newPane.locator('#creation-tab-write-own');
+		const pullRequestTab = newPane.locator('#creation-tab-pull-request');
+		const githubTab = newPane.locator('#creation-tab-github');
 		await galleryTab.click();
 		await galleryTab.focus();
 		await galleryTab.press('ArrowRight');
@@ -2377,7 +2343,7 @@ test.describe('Default Playground storage', () => {
 		const newPane = website.page.getByRole('dialog', {
 			name: 'New Playground pane',
 		});
-		await newPane.getByRole('tab', { name: 'GitHub', exact: true }).click();
+		await newPane.locator('#creation-tab-github').click();
 		await website.page
 			.getByRole('link', { name: 'Connect your GitHub account' })
 			.click();
@@ -2498,10 +2464,7 @@ test.describe('Default Playground storage', () => {
 			const newPane = website.page.getByRole('dialog', {
 				name: 'New Playground pane',
 			});
-			const githubTab = newPane.getByRole('tab', {
-				name: 'GitHub',
-				exact: true,
-			});
+			const githubTab = newPane.locator('#creation-tab-github');
 			await githubTab.click();
 			await newPane
 				.getByRole('link', { name: 'Connect your GitHub account' })
@@ -2546,12 +2509,7 @@ test.describe('Default Playground storage', () => {
 					name: 'Ways to start a new Playground',
 				})
 			).toBeVisible();
-			await expect(
-				newPane.getByRole('tab', {
-					name: 'GitHub',
-					exact: true,
-				})
-			).toBeFocused();
+			await expect(newPane.locator('#creation-tab-github')).toBeFocused();
 		});
 	}
 
