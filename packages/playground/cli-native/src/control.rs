@@ -31,6 +31,7 @@ pub const MAX_STREAM_FRAME_BYTES: usize = 64 * 1024;
 const MAX_STREAM_HEADER_BYTES: usize = 64 * 1024;
 const MAX_STREAM_HEADER_COUNT: usize = 1024;
 const STREAM_QUEUE_CAPACITY: usize = 8;
+const STREAM_QUEUE_RETRY_INTERVAL: Duration = Duration::from_millis(2);
 const EVENT_QUEUE_CAPACITY: usize = 64;
 const CONTROL_IO_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -834,8 +835,10 @@ fn run_stream_request(
         })?;
     let (sender, receiver) = sync_channel::<StreamMessage>(STREAM_QUEUE_CAPACITY);
     let emitter_sender = sender.clone();
-    let emitter: ControlStreamEmitter =
-        Arc::new(move |event| send_bounded_stream_event(&emitter_sender, event));
+    let emitter_cancellation = Arc::clone(&cancellation);
+    let emitter: ControlStreamEmitter = Arc::new(move |event| {
+        send_bounded_stream_event(&emitter_sender, event, &emitter_cancellation)
+    });
     let task_cancellation = Arc::clone(&cancellation);
     let task = thread::Builder::new()
         .name("wp-playground-control-stream".to_string())
@@ -981,16 +984,19 @@ fn run_stream_request(
 fn send_bounded_stream_event(
     sender: &SyncSender<StreamMessage>,
     event: ControlStreamEvent,
+    cancellation: &AtomicBool,
 ) -> Result<()> {
     match event {
         ControlStreamEvent::Output { channel, bytes } => {
             for chunk in bytes.chunks(MAX_STREAM_FRAME_BYTES) {
-                sender
-                    .send(StreamMessage::Event(ControlStreamEvent::Output {
+                send_stream_message(
+                    sender,
+                    StreamMessage::Event(ControlStreamEvent::Output {
                         channel,
                         bytes: chunk.to_vec(),
-                    }))
-                    .map_err(|_| CliError::new("Native stream consumer disconnected"))?;
+                    }),
+                    cancellation,
+                )?;
             }
         }
         ControlStreamEvent::Headers { status, headers } => {
@@ -1015,15 +1021,36 @@ fn send_bounded_stream_event(
                     MAX_STREAM_HEADER_BYTES / 1024
                 )));
             }
-            sender
-                .send(StreamMessage::Event(ControlStreamEvent::Headers {
-                    status,
-                    headers,
-                }))
-                .map_err(|_| CliError::new("Native stream consumer disconnected"))?;
+            send_stream_message(
+                sender,
+                StreamMessage::Event(ControlStreamEvent::Headers { status, headers }),
+                cancellation,
+            )?;
         }
     }
     Ok(())
+}
+
+fn send_stream_message(
+    sender: &SyncSender<StreamMessage>,
+    mut message: StreamMessage,
+    cancellation: &AtomicBool,
+) -> Result<()> {
+    loop {
+        if cancellation.load(Ordering::Acquire) {
+            return Err(CliError::new("Native stream was cancelled"));
+        }
+        match sender.try_send(message) {
+            Ok(()) => return Ok(()),
+            Err(TrySendError::Full(returned_message)) => {
+                message = returned_message;
+                thread::sleep(STREAM_QUEUE_RETRY_INTERVAL);
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                return Err(CliError::new("Native stream consumer disconnected"));
+            }
+        }
+    }
 }
 
 fn handle_cancel_request(stream: &mut TcpStream, body: &[u8], state: &ControlState) -> Result<()> {
@@ -2234,6 +2261,7 @@ mod tests {
 
     #[test]
     fn streamed_response_header_metadata_is_bounded_before_enqueue() {
+        let cancellation = AtomicBool::new(false);
         let (sender, receiver) = sync_channel(1);
         let error = send_bounded_stream_event(
             &sender,
@@ -2244,6 +2272,7 @@ mod tests {
                     "x".repeat(MAX_STREAM_HEADER_BYTES),
                 )],
             },
+            &cancellation,
         )
         .unwrap_err();
         assert!(error.to_string().contains("headers exceed 64 KiB"));
@@ -2261,6 +2290,7 @@ mod tests {
                     .map(|index| (format!("X-{index}"), "x".to_string()))
                     .collect(),
             },
+            &cancellation,
         )
         .unwrap_err();
         assert!(error.to_string().contains("more than 1024 headers"));
@@ -2268,6 +2298,73 @@ mod tests {
             receiver.try_recv(),
             Err(mpsc::TryRecvError::Empty)
         ));
+    }
+
+    #[test]
+    fn bounded_stream_send_stops_promptly_when_cancelled_while_queue_is_full() {
+        let (sender, receiver) = sync_channel(1);
+        assert!(sender
+            .try_send(StreamMessage::Event(ControlStreamEvent::Output {
+                channel: ControlStreamChannel::Stdout,
+                bytes: b"first".to_vec(),
+            }))
+            .is_ok());
+
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let producer_cancellation = Arc::clone(&cancellation);
+        let producer_sender = sender.clone();
+        let (completed_sender, completed_receiver) = mpsc::channel();
+        let producer = thread::spawn(move || {
+            let result = send_bounded_stream_event(
+                &producer_sender,
+                ControlStreamEvent::Output {
+                    channel: ControlStreamChannel::Stdout,
+                    bytes: b"second".to_vec(),
+                },
+                &producer_cancellation,
+            )
+            .map_err(|error| error.to_string());
+            let _ = completed_sender.send(result);
+        });
+
+        assert!(matches!(
+            completed_receiver.recv_timeout(Duration::from_millis(20)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        cancellation.store(true, Ordering::Release);
+        let result = completed_receiver
+            .recv_timeout(Duration::from_millis(250))
+            .expect("the blocked producer should observe cancellation");
+        assert!(result.unwrap_err().contains("cancelled"));
+        producer.join().unwrap();
+
+        assert!(matches!(
+            receiver.try_recv(),
+            Ok(StreamMessage::Event(ControlStreamEvent::Output { bytes, .. }))
+                if bytes == b"first"
+        ));
+        assert!(matches!(
+            receiver.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+    }
+
+    #[test]
+    fn bounded_stream_send_reports_a_disconnected_consumer() {
+        let (sender, receiver) = sync_channel(1);
+        drop(receiver);
+
+        let error = send_bounded_stream_event(
+            &sender,
+            ControlStreamEvent::Output {
+                channel: ControlStreamChannel::Stderr,
+                bytes: b"unobserved".to_vec(),
+            },
+            &AtomicBool::new(false),
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("consumer disconnected"));
     }
 
     #[test]
