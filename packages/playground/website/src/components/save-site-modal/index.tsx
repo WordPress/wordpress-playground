@@ -492,7 +492,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					areDisabled={saveDisabled}
 					cancelDisabled={asPane ? isSubmitting : undefined}
 					areBusy={false}
-					style={{ marginTop: 0 }}
+					style={{ columnGap: 'var(--space-3)', marginTop: 0 }}
 				/>
 			</form>
 		</SaveSurface>

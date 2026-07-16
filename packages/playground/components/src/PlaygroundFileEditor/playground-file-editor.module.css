@@ -47,6 +47,7 @@
 }
 
 .editorPath {
+	display: flex;
 	flex: 1;
 	min-width: 0;
 	font-family:
@@ -55,6 +56,18 @@
 	font-size: 12px;
 	color: var(--color-gray-700);
 	word-break: break-all;
+}
+
+.editorPathDirectory {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorPathFilename {
+	flex: none;
+	white-space: nowrap;
 }
 
 .editorPathPlaceholder {
@@ -320,27 +333,30 @@
 	.dockPresentation .editorHeader {
 		display: grid;
 		gap: 8px;
-		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-columns: minmax(0, 1fr) auto;
 		background: var(--paper-2, #ffffff);
-		padding-top: 12px;
+		padding: 8px 16px 12px 24px;
 	}
 
 	.dockPresentation .editorPath {
+		grid-column: 1 / -1;
+		grid-row: 1;
 		order: initial;
-		overflow: hidden;
-		padding-block: 4px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		width: auto;
+		width: 100%;
 		word-break: normal;
 	}
 
 	.dockPresentation .editorHeader .mobileToggle {
 		display: inline-flex;
+		grid-column: 1;
+		grid-row: 2;
+		justify-self: start;
 		order: initial;
 	}
 
 	.dockPresentation .editorHeaderActions {
+		grid-column: 2;
+		grid-row: 2;
 		margin-left: auto;
 		margin-right: 0;
 		order: initial;

@@ -6,6 +6,7 @@ import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
+import { basename, dirname } from '@php-wasm/util';
 
 const SAVE_DEBOUNCE_MS = 1500;
 const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
@@ -519,6 +520,8 @@ export function PlaygroundFileEditor({
 			</div>
 		);
 	}
+	const currentDirectory = currentPath ? dirname(currentPath) : null;
+	const currentFilename = currentPath ? basename(currentPath) : null;
 
 	return (
 		<div
@@ -569,9 +572,26 @@ export function PlaygroundFileEditor({
 							})}
 							title={currentPath ?? undefined}
 						>
-							{currentPath?.length
-								? currentPath
-								: `Browse files under ${documentRoot}`}
+							{currentDirectory && currentFilename ? (
+								<>
+									<span
+										className={
+											styles['editorPathDirectory']
+										}
+									>
+										{currentDirectory === '/'
+											? ''
+											: currentDirectory}
+									</span>
+									<span
+										className={styles['editorPathFilename']}
+									>
+										/{currentFilename}
+									</span>
+								</>
+							) : (
+								`Browse files under ${documentRoot}`
+							)}
 						</div>
 						{dockPresentation && !readOnly && currentPath ? (
 							<div className={styles['editorHeaderActions']}>

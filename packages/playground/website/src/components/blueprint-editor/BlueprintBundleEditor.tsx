@@ -725,6 +725,15 @@ export const BlueprintBundleEditor = forwardRef<
 	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const isStored = site ? isStoredSite(site) : false;
 	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
+	const mobileExplorerToggle = (
+		<Button
+			className={styles.mobileToggle}
+			variant="secondary"
+			onClick={() => setShowExplorerOnMobile((previous) => !previous)}
+		>
+			{showExplorerOnMobile ? 'Hide files' : 'Browse files'}
+		</Button>
+	);
 	return (
 		<>
 			<div
@@ -769,19 +778,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</aside>
 					<section className={styles.editorWrapper}>
 						<div className={styles.editorHeader}>
-							<Button
-								className={styles.mobileToggle}
-								variant="secondary"
-								onClick={() =>
-									setShowExplorerOnMobile(
-										(previous) => !previous
-									)
-								}
-							>
-								{showExplorerOnMobile
-									? 'Hide files'
-									: 'Browse files'}
-							</Button>
+							{!dockPresentation && mobileExplorerToggle}
 							{!dockPresentation && (
 								<div
 									className={classNames(styles.editorPath, {
@@ -796,6 +793,7 @@ export const BlueprintBundleEditor = forwardRef<
 							)}
 
 							<div className={styles.editorHeaderActions}>
+								{dockPresentation && mobileExplorerToggle}
 								{dockPresentation ? (
 									<>
 										<WpTooltip
