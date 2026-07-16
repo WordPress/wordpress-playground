@@ -709,6 +709,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	await website.goto('./?storage=temp');
 
 	await website.openDockPane('Files');
+	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -729,6 +730,40 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Wait for CodeMirror editor to load
 	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const saveButton = filesPane.getByRole('button', {
+		name: /^(Save|Saved|Saving…)$/,
+	});
+
+	const desktopViewport = website.page.viewportSize();
+	await website.page.setViewportSize({ width: 375, height: 812 });
+	const browseButton = filesPane.getByRole('button', {
+		name: 'Browse files',
+	});
+	const closeButton = filesPane.getByRole('button', {
+		name: 'Close',
+		exact: true,
+	});
+	await expect(browseButton).toBeVisible();
+	await expect(closeButton).toBeVisible();
+	const editorPath = filesPane.locator('[class*="editorPath"]').first();
+	const [browseBox, saveBox, closeBox, pathBox] = await Promise.all([
+		browseButton.boundingBox(),
+		saveButton.boundingBox(),
+		closeButton.boundingBox(),
+		editorPath.boundingBox(),
+	]);
+	if (!browseBox || !saveBox || !closeBox || !pathBox) {
+		throw new Error('The responsive file editor controls must be visible.');
+	}
+	expect(browseBox.y).toBe(closeBox.y);
+	expect(saveBox.y).toBe(closeBox.y);
+	expect(saveBox.x + saveBox.width).toBeLessThan(closeBox.x);
+	expect(pathBox.y).toBeGreaterThanOrEqual(
+		Math.max(browseBox.y + browseBox.height, saveBox.y + saveBox.height)
+	);
+	if (desktopViewport) {
+		await website.page.setViewportSize(desktopViewport);
+	}
 
 	// Click on the editor to focus it
 	await website.page.waitForTimeout(50);
@@ -748,16 +783,16 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Type the new content with a delay between keystrokes
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
-	// Wait a moment for the change to be processed
-	await website.page.waitForTimeout(500);
+	await expect(saveButton).toBeEnabled();
 
-	// Save the file (Cmd+S or Ctrl+S)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
+	// Save immediately instead of waiting for the autosave debounce.
+	await saveButton.click();
+	await expect(saveButton).toHaveText('Saved');
+	await expect(filesPane.getByRole('status')).toHaveText(
+		'All changes saved.'
 	);
-
-	// Wait for save to complete (look for save indicator if there is one)
-	await website.page.waitForTimeout(1000);
+	await expect(saveButton).toBeEnabled();
+	await expect(saveButton).toHaveText('Save');
 
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();

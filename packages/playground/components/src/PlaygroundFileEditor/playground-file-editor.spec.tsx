@@ -80,6 +80,7 @@ describe('PlaygroundFileEditor presentation', () => {
 	afterEach(() => {
 		act(() => root.unmount());
 		container.remove();
+		vi.useRealTimers();
 	});
 
 	it('keeps the existing presentation unless Dock presentation is requested', () => {
@@ -112,7 +113,8 @@ describe('PlaygroundFileEditor presentation', () => {
 		).toBe(true);
 	});
 
-	it('enables Dock save for a pending edit and disables it while saving', async () => {
+	it('reports a slow manual save without moving the Dock button', async () => {
+		vi.useFakeTimers();
 		let finishWrite: () => void = () => {};
 		const writePromise = new Promise<void>((resolve) => {
 			finishWrite = resolve;
@@ -132,23 +134,160 @@ describe('PlaygroundFileEditor presentation', () => {
 		});
 
 		await clickButton('Open test file');
-		expect(findButton('File saved').disabled).toBe(true);
+		const saveButton = findButton('Save');
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
+		expect(findSaveStatus().textContent).toBe('All changes saved.');
+		expect(saveButton.classList.contains('is-secondary')).toBe(true);
+		expect(saveButton.querySelector('svg')).toBeNull();
+		expect(findDirtyIndicator()).toBeNull();
 
 		await clickButton('Edit test file');
-		expect(findButton('Save file').disabled).toBe(false);
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
+		expect(findSaveStatus().textContent).toBe(
+			'Unsaved changes. Click to save now.'
+		);
+		expect(saveButton.classList.contains('is-secondary')).toBe(true);
+		expect(saveButton.querySelector('svg')).toBeNull();
+		const dirtyIndicator = findDirtyIndicator();
+		expect(dirtyIndicator).not.toBeNull();
+		expect(dirtyIndicator?.parentElement).toBe(saveButton.parentElement);
+		expect(dirtyIndicator?.nextElementSibling).toBe(saveButton);
 
-		await clickButton('Save file');
+		await clickButton('Edit test file');
+		expect(findDirtyIndicator()).toBe(dirtyIndicator);
+
+		await clickButton('Save');
 		expect(filesystem.writeFile).toHaveBeenCalledWith(
 			'/wordpress/test.php',
-			'initial!'
+			'initial!!'
 		);
-		expect(findButton('Saving…').disabled).toBe(true);
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.getAttribute('aria-disabled')).toBeNull();
+		expect(findSaveStatus().textContent).toBe('Saving changes…');
+		expect(findDirtyIndicator()).toBe(dirtyIndicator);
+		expect(saveButton.textContent).toBe('Save');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(699);
+		});
+		expect(saveButton.textContent).toBe('Save');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(saveButton.textContent).toBe('Saving…');
+		expect(saveButton.querySelector('svg')).toBeNull();
 
 		await act(async () => {
 			finishWrite();
 			await writePromise;
 		});
-		expect(findButton('File saved').disabled).toBe(true);
+		expect(saveButton.textContent).toBe('Saved');
+		expect(findSaveStatus().textContent).toBe('All changes saved.');
+		expect(findDirtyIndicator()).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(999);
+		});
+		expect(saveButton.textContent).toBe('Saved');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.textContent).toBe('Save');
+	});
+
+	it('autosaves after the debounce without changing the Dock button', async () => {
+		vi.useFakeTimers();
+		let finishWrite: () => void = () => {};
+		const writePromise = new Promise<void>((resolve) => {
+			finishWrite = resolve;
+		});
+		const filesystem = Object.assign(new EventTarget(), {
+			writeFile: vi.fn(() => writePromise),
+		}) as unknown as AsyncWritableFilesystem;
+
+		await act(async () => {
+			root.render(
+				<PlaygroundFileEditor
+					filesystem={filesystem}
+					documentRoot="/wordpress"
+					dockPresentation
+				/>
+			);
+		});
+
+		await clickButton('Open test file');
+		const saveButton = findButton('Save');
+		await clickButton('Edit test file');
+		expect(findButton('Save')).toBe(saveButton);
+		expect(findDirtyIndicator()).not.toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1499);
+		});
+		expect(filesystem.writeFile).not.toHaveBeenCalled();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+
+		expect(filesystem.writeFile).toHaveBeenCalledOnce();
+		expect(findButton('Save')).toBe(saveButton);
+		expect(saveButton.textContent).toBe('Save');
+		expect(saveButton.querySelector('svg')).toBeNull();
+		expect(findDirtyIndicator()).not.toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(700);
+		});
+		expect(saveButton.textContent).toBe('Save');
+
+		await act(async () => {
+			finishWrite();
+			await writePromise;
+		});
+		expect(findDirtyIndicator()).toBeNull();
+		expect(saveButton.textContent).toBe('Save');
+	});
+
+	it('shows Saved after a fast manual save without flashing Saving', async () => {
+		vi.useFakeTimers();
+		const filesystem = Object.assign(new EventTarget(), {
+			writeFile: vi.fn(() => Promise.resolve()),
+		}) as unknown as AsyncWritableFilesystem;
+
+		await act(async () => {
+			root.render(
+				<PlaygroundFileEditor
+					filesystem={filesystem}
+					documentRoot="/wordpress"
+					dockPresentation
+				/>
+			);
+		});
+
+		await clickButton('Open test file');
+		await clickButton('Edit test file');
+		const saveButton = findButton('Save');
+		await clickButton('Save');
+		await act(async () => Promise.resolve());
+
+		expect(filesystem.writeFile).toHaveBeenCalledOnce();
+		expect(saveButton.textContent).toBe('Saved');
+		expect(findDirtyIndicator()).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(999);
+		});
+		expect(saveButton.textContent).toBe('Saved');
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(saveButton.textContent).toBe('Save');
 	});
 
 	async function clickButton(label: string) {
@@ -163,5 +302,17 @@ describe('PlaygroundFileEditor presentation', () => {
 			throw new Error(`Could not find button “${label}”.`);
 		}
 		return button;
+	}
+
+	function findSaveStatus() {
+		const status = container.querySelector('[role="status"]');
+		if (!status) {
+			throw new Error('Could not find save status.');
+		}
+		return status;
+	}
+
+	function findDirtyIndicator() {
+		return container.querySelector(`.${styles['dockDirtyIndicator']}`);
 	}
 });
