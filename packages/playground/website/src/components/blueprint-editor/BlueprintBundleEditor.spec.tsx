@@ -96,7 +96,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		vi.unstubAllGlobals();
 	});
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		container = document.createElement('div');
 		document.body.append(container);
 		root = createRoot(container);
@@ -120,10 +120,13 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			payload: slug,
 		}));
 		mocks.setDockPaneOpen.mockReset();
-		mocks.setDockPaneOpen.mockImplementation((open) => ({
-			type: 'set-site-manager-open',
-			payload: open,
-		}));
+		mocks.setDockPaneOpen.mockImplementation(
+			(
+				await vi.importActual<typeof SliceUiModule>(
+					'../../lib/state/redux/slice-ui'
+				)
+			).setDockPaneOpen
+		);
 		mocks.updateSite.mockReset();
 	});
 

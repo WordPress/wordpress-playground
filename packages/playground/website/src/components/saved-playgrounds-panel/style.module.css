@@ -702,10 +702,12 @@
 }
 
 .playgrounds-pane {
+	box-sizing: border-box;
 	height: auto;
 	overflow: visible;
 	padding: 0 24px 24px;
 	color: #21201d;
+	width: 100%;
 }
 
 .playgrounds-pane .playgroundsSection {
@@ -1086,10 +1088,22 @@
 	   widening the whole list (the flex/grid default min-width:auto otherwise lets
 	   the longest name push the list — and the pane — into horizontal overflow). */
 	min-width: 0;
-	/* Keep section eyebrows and row surfaces on the shared 24px pane inset. Row
-	   content has its own 8px inset, like any other surface with inner content. */
-	margin-left: 0;
-	margin-right: 0;
+	/* Bleed the rows' hover/active highlight into the pane gutter so the row
+	   CONTENT (avatar, name) lines up with the section eyebrows and title, while
+	   the rounded highlight still has breathing room on both sides. */
+	margin-left: calc(-1 * var(--space-2));
+	margin-right: calc(-1 * var(--space-2));
+	width: calc(100% + var(--space-2) + var(--space-2));
+}
+
+@media (max-width: 1024px) {
+	.playgrounds-pane .sitesList {
+		/* Mobile panes use one visible 24px edge for the section label and row
+		   surface. The row content keeps its own 8px inner padding. */
+		margin-left: 0;
+		margin-right: 0;
+		width: 100%;
+	}
 }
 
 .playgrounds-pane .siteRow {
@@ -1100,6 +1114,7 @@
 	border-radius: 0;
 	/* Let the row shrink to the list width so its name truncates. */
 	min-width: 0;
+	width: 100%;
 }
 
 /* A single hairline between adjacent rows. It stays put on hover/active so the
