@@ -283,6 +283,7 @@
 	}
 
 	.sub-option {
+		margin-top: var(--space-3);
 		padding-left: 0;
 	}
 }

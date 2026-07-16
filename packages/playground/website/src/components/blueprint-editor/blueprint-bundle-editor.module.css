@@ -170,6 +170,12 @@
 	display: inline-flex;
 }
 
+.editorHeaderSlotActions {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
 .editorExportToggle svg {
 	margin-left: 4px;
 	margin-right: -2px;
@@ -254,6 +260,10 @@
 
 .mobileToggle {
 	display: none;
+}
+
+.editorHeaderSlotActions .mobileToggle {
+	display: inline-flex;
 }
 
 .mobileOverlay {
@@ -394,5 +404,31 @@
 		grid-column: 4;
 		grid-row: 1;
 		width: auto;
+	}
+}
+
+@media (max-width: 1024px) {
+	.editorHeaderSlotActions .mobileToggle {
+		order: initial;
+	}
+
+	.dockPresentation .editorHeaderActionsWithPortaledUtilities {
+		grid-template-columns: 32px minmax(0, 1fr);
+	}
+
+	.dockPresentation
+		.editorHeaderActionsWithPortaledUtilities
+		.editorDocsLink {
+		grid-column: 1;
+		grid-row: 1;
+		justify-self: start;
+	}
+
+	.dockPresentation
+		.editorHeaderActionsWithPortaledUtilities
+		> .editorToolbarButton:last-child {
+		grid-column: 2;
+		grid-row: 1;
+		width: 100%;
 	}
 }

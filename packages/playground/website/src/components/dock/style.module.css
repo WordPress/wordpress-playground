@@ -805,7 +805,7 @@
 		align-items: center;
 		display: flex;
 		gap: var(--space-2);
-		min-height: 56px;
+		min-height: 64px;
 		width: 100%;
 	}
 
@@ -823,6 +823,36 @@
 		letter-spacing: -0.01em;
 		line-height: 1.2;
 		margin: 0;
+	}
+
+	.pane-editor-header-slot {
+		align-items: center;
+		display: flex;
+		flex: 1;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	/* A 320px title row cannot hold Blueprint, two labelled actions, and the
+	   close target. Keep the actions together on a deliberate second row. */
+	@media (max-width: 375px) {
+		.pane-editor-header:has([data-dock-pane-header-actions]) {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-rows: 64px auto;
+			padding-bottom: var(--space-3);
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			.pane-editor-header-slot {
+			grid-column: 1 / -1;
+			grid-row: 2;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions]) .pane-close {
+			grid-column: 2;
+			grid-row: 1;
+		}
 	}
 
 	.pane-back {

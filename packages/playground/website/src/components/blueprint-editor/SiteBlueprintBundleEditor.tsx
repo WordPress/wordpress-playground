@@ -223,6 +223,7 @@ type SiteBlueprintBundleEditorProps = {
 	className?: string;
 	site: SiteInfo;
 	dockPresentation?: boolean;
+	mobileHeaderTarget?: Element | null;
 };
 
 /**
@@ -233,7 +234,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorHandle,
 	SiteBlueprintBundleEditorProps
 >(function SiteBlueprintBundleEditor(
-	{ className, site, dockPresentation = false },
+	{ className, site, dockPresentation = false, mobileHeaderTarget = null },
 	ref
 ) {
 	const dispatch = useAppDispatch();
@@ -341,6 +342,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					site={site}
 					className={className}
 					dockPresentation={dockPresentation}
+					mobileHeaderTarget={mobileHeaderTarget}
 				/>
 			)}
 		</div>

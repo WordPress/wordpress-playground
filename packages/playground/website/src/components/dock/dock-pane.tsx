@@ -1,5 +1,12 @@
 import classNames from 'classnames';
-import { forwardRef, useEffect, useId } from 'react';
+import {
+	createContext,
+	forwardRef,
+	useContext,
+	useEffect,
+	useId,
+	useState,
+} from 'react';
 import type {
 	CSSProperties,
 	MouseEventHandler,
@@ -37,6 +44,8 @@ export type DockPaneProps = {
 	onClose?: MouseEventHandler<HTMLButtonElement>;
 };
 
+const DockPaneEditorHeaderSlotContext = createContext<HTMLElement | null>(null);
+
 /**
  * Shared shell for floating dock panes. It owns the dialog semantics, optional
  * mobile close control, common header, and body slot without choosing content.
@@ -64,6 +73,8 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		ref
 	) {
 		const closeDescriptionId = useId();
+		const [editorHeaderSlot, setEditorHeaderSlot] =
+			useState<HTMLDivElement | null>(null);
 		const displayedTitle = headerOverride?.title ?? title;
 		const displayedDescription = headerOverride
 			? headerOverride.description
@@ -153,11 +164,24 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				{!showHeader && closeButton && (
 					<div className={css.paneEditorHeader}>
 						<h2>{displayedTitle}</h2>
+						<div
+							ref={setEditorHeaderSlot}
+							className={css.paneEditorHeaderSlot}
+						/>
 						{closeButton}
 					</div>
 				)}
-				<div className={css.paneBody}>{children}</div>
+				<DockPaneEditorHeaderSlotContext.Provider
+					value={editorHeaderSlot}
+				>
+					<div className={css.paneBody}>{children}</div>
+				</DockPaneEditorHeaderSlotContext.Provider>
 			</section>
 		);
 	}
 );
+
+/** Returns the mobile title-row slot exposed by editor Dock panes. */
+export function useDockPaneEditorHeaderSlot() {
+	return useContext(DockPaneEditorHeaderSlotContext);
+}

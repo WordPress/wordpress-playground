@@ -13,6 +13,7 @@ export function SiteInfoPanel({
 	className,
 	site,
 	activeTabName,
+	mobileUi,
 }: {
 	className: string;
 	site: SiteInfo;
@@ -50,6 +51,7 @@ export function SiteInfoPanel({
 						site={site}
 						playground={playground}
 						activeTabName={activeTabName}
+						mobileUi={mobileUi}
 					/>
 				</FlexItem>
 			</Flex>

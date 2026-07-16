@@ -362,6 +362,15 @@
 		order: initial;
 	}
 
+	.dockPresentation .editorHeaderPathPortaled {
+		padding: 12px 16px;
+	}
+
+	.dockPresentation .editorHeaderPathPortaled .mobileToggle,
+	.dockPresentation .editorHeaderPathPortaled .editorHeaderActions {
+		grid-row: 1;
+	}
+
 	.dockPresentation .content {
 		flex-direction: column;
 	}
