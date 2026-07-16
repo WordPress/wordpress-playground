@@ -94,28 +94,81 @@
 	display: inline;
 }
 
-/* Local-directory "Saved" pill opens a small menu carrying the one disk action
-   ("Reload files from disk"), so the dock no longer needs a separate, unclear
-   "Sync local files" button next to the status. The popover renders on the
-   default light surface, so its text is dark. */
+/* The local-directory "Saved" pill keeps storage-specific actions in one menu,
+   so the Dock does not need a separate, unclear "Sync local files" control.
+   The viewport-bounded surface and rows follow the other Dock action menus. */
+.saved-menu-popover :global(.components-popover__content) {
+	box-sizing: border-box;
+	width: min(320px, calc(100vw - 24px));
+	/* Margins count toward collision detection and keep both mobile edges clear. */
+	margin-inline: 12px;
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid #d6d6d9;
+	border-radius: 10px;
+	box-shadow: 0 16px 38px rgb(0 0 0 / 20%);
+}
+
 .saved-menu-content {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 12px;
-	max-width: 260px;
+	color: #21201d;
+}
+
+.saved-menu-intro {
+	padding: 16px 20px 14px;
+	border-bottom: 1px solid rgba(33, 32, 29, 0.08);
+	background: #faf8f5;
+}
+
+.saved-menu-title {
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.4;
 }
 
 .saved-menu-hint {
-	margin: 0;
+	margin: 3px 0 0;
 	font-size: 12px;
 	line-height: 1.5;
 	color: #5f5b54;
 }
 
+.saved-menu-actions {
+	margin: 0;
+	padding: 4px;
+}
+
 .saved-menu-action.saved-menu-action {
-	justify-content: flex-start;
+	height: auto;
+	min-height: 44px;
+	padding: 8px 12px;
+	border-radius: 6px;
+	color: #21201d;
 	width: 100%;
+	white-space: normal;
+}
+
+.saved-menu-action.saved-menu-action:hover:not(:disabled) {
+	background: #f2f0ec;
+	color: #21201d;
+}
+
+.saved-menu-action.saved-menu-action:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+.saved-menu-action.saved-menu-action:focus:not(:disabled) {
+	box-shadow: none;
+}
+
+.saved-menu-action.saved-menu-action:focus-visible:not(:disabled) {
+	outline: none;
+	box-shadow: inset 0 0 0 2px #3858e9;
+}
+
+.saved-menu-action :global(.components-menu-item__item) {
+	min-width: 0;
+	white-space: normal;
 }
 
 .progress-ring {

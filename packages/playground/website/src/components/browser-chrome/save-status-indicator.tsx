@@ -12,7 +12,13 @@ import {
 	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Tooltip, Dropdown, Button } from '@wordpress/components';
+import {
+	Dropdown,
+	Icon,
+	MenuItem,
+	NavigableMenu,
+	Tooltip,
+} from '@wordpress/components';
 import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
 import {
 	isAutosavedSite,
@@ -170,7 +176,11 @@ export function SaveStatusIndicator({
 		if (isLocalFs) {
 			return withStatusAnnouncement(
 				<Dropdown
-					popoverProps={{ placement: 'top' }}
+					popoverProps={{
+						placement: 'top-end',
+						shift: true,
+						className: css.savedMenuPopover,
+					}}
 					renderToggle={({ isOpen, onToggle }) => (
 						<button
 							type="button"
@@ -182,6 +192,7 @@ export function SaveStatusIndicator({
 							onClick={onToggle}
 							disabled={disabled}
 							aria-expanded={isOpen}
+							aria-haspopup="menu"
 							title="Saved to a folder on this computer."
 						>
 							<Icon icon={check} size={18} />
@@ -191,24 +202,33 @@ export function SaveStatusIndicator({
 					)}
 					renderContent={({ onClose }) => (
 						<div className={css.savedMenuContent}>
-							<p className={css.savedMenuHint}>
-								This Playground is saved to a folder on your
-								computer. Changes you make here are written to
-								those files.
-							</p>
-							<Button
-								className={css.savedMenuAction}
-								icon={update}
-								disabled={disabled || isReloadingFromDisk}
-								onClick={async () => {
-									await reloadFilesFromDisk();
-									onClose();
-								}}
+							<div className={css.savedMenuIntro}>
+								<div className={css.savedMenuTitle}>
+									Saved to a local directory
+								</div>
+								<p className={css.savedMenuHint}>
+									Changes you make in this Playground are
+									written directly to the linked folder.
+								</p>
+							</div>
+							<NavigableMenu
+								className={css.savedMenuActions}
+								aria-label="Local directory actions"
 							>
-								{isReloadingFromDisk
-									? 'Reloading…'
-									: 'Reload files from disk'}
-							</Button>
+								<MenuItem
+									className={css.savedMenuAction}
+									icon={update}
+									disabled={disabled || isReloadingFromDisk}
+									onClick={async () => {
+										await reloadFilesFromDisk();
+										onClose();
+									}}
+								>
+									{isReloadingFromDisk
+										? 'Reloading…'
+										: 'Reload files from disk'}
+								</MenuItem>
+							</NavigableMenu>
 						</div>
 					)}
 				/>
