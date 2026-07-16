@@ -96,10 +96,15 @@
 
 /* The local-directory "Saved" pill keeps storage-specific actions in one menu,
    so the Dock does not need a separate, unclear "Sync local files" control.
-   The viewport-bounded surface and rows follow the other Dock action menus. */
-.saved-menu-popover :global(.components-popover__content) {
+   The frame and rows mirror the site-settings action menu
+   (site-manager/site-settings-form/style.module.css), plus a paper-2 intro
+   header that explains what "Saved" means here. */
+/* The doubled class outranks the Dropdown's own
+   `.components-dropdown__content .components-popover__content` padding rule
+   regardless of stylesheet injection order. */
+.saved-menu-popover.saved-menu-popover :global(.components-popover__content) {
 	box-sizing: border-box;
-	width: min(320px, calc(100vw - 24px));
+	width: min(330px, calc(100vw - 24px));
 	/* Margins count toward collision detection and keep both mobile edges clear. */
 	margin-inline: 12px;
 	overflow: hidden;
@@ -109,66 +114,81 @@
 	box-shadow: 0 16px 38px rgb(0 0 0 / 20%);
 }
 
-.saved-menu-content {
+.saved-menu {
 	color: #21201d;
 }
 
 .saved-menu-intro {
-	padding: 16px 20px 14px;
-	border-bottom: 1px solid rgba(33, 32, 29, 0.08);
+	padding: 16px 20px;
+	border-bottom: 1px solid #d6d6d9;
 	background: #faf8f5;
 }
 
 .saved-menu-title {
-	font-size: 14px;
 	font-weight: 500;
 	line-height: 1.4;
 }
 
 .saved-menu-hint {
-	margin: 3px 0 0;
-	font-size: 12px;
-	line-height: 1.5;
+	margin: 2px 0 0;
 	color: #5f5b54;
+	font-size: 12px;
+	line-height: 1.4;
 }
 
-.saved-menu-actions {
-	margin: 0;
-	padding: 4px;
-}
-
-.saved-menu-action.saved-menu-action {
-	height: auto;
-	min-height: 44px;
-	padding: 8px 12px;
-	border-radius: 6px;
-	color: #21201d;
+.saved-menu-action {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	box-sizing: border-box;
 	width: 100%;
+	padding: 16px 20px;
+	border: 0;
+	border-radius: 0 0 9px 9px;
+	background: #fff;
+	color: #21201d;
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
 	white-space: normal;
 }
 
-.saved-menu-action.saved-menu-action:hover:not(:disabled) {
-	background: #f2f0ec;
-	color: #21201d;
-}
-
-.saved-menu-action.saved-menu-action:disabled {
-	cursor: default;
-	opacity: 0.5;
-}
-
-.saved-menu-action.saved-menu-action:focus:not(:disabled) {
-	box-shadow: none;
-}
-
-.saved-menu-action.saved-menu-action:focus-visible:not(:disabled) {
+.saved-menu-action:focus-visible {
 	outline: none;
 	box-shadow: inset 0 0 0 2px #3858e9;
 }
 
-.saved-menu-action :global(.components-menu-item__item) {
-	min-width: 0;
+.saved-menu-action:disabled {
+	color: #757575;
+	cursor: not-allowed;
+}
+
+.saved-menu-action:disabled .saved-menu-action-description {
+	color: inherit;
+}
+
+.saved-menu-action-title {
+	display: block;
+	font-weight: 500;
+	line-height: 1.4;
 	white-space: normal;
+}
+
+.saved-menu-action-description {
+	display: block;
+	margin-top: 2px;
+	color: #5f5b54;
+	font-size: 12px;
+	line-height: 1.4;
+	white-space: normal;
+}
+
+@media (forced-colors: active) {
+	.saved-menu-action:focus-visible {
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+		box-shadow: none;
+	}
 }
 
 .progress-ring {

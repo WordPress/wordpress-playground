@@ -12,14 +12,8 @@ import {
 	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import {
-	Dropdown,
-	Icon,
-	MenuItem,
-	NavigableMenu,
-	Tooltip,
-} from '@wordpress/components';
-import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
+import { Dropdown, Icon, Tooltip } from '@wordpress/components';
+import { check, cautionFilled, chevronDown } from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -193,7 +187,7 @@ export function SaveStatusIndicator({
 							disabled={disabled}
 							aria-expanded={isOpen}
 							aria-haspopup="menu"
-							title="Saved to a folder on this computer."
+							title="Saved to a local directory."
 						>
 							<Icon icon={check} size={18} />
 							<span className={css.label}>Saved</span>
@@ -201,7 +195,7 @@ export function SaveStatusIndicator({
 						</button>
 					)}
 					renderContent={({ onClose }) => (
-						<div className={css.savedMenuContent}>
+						<div className={css.savedMenu}>
 							<div className={css.savedMenuIntro}>
 								<div className={css.savedMenuTitle}>
 									Saved to a local directory
@@ -211,24 +205,35 @@ export function SaveStatusIndicator({
 									written directly to the linked folder.
 								</p>
 							</div>
-							<NavigableMenu
-								className={css.savedMenuActions}
+							<div
+								role="menu"
 								aria-label="Local directory actions"
 							>
-								<MenuItem
+								<button
+									type="button"
+									role="menuitem"
 									className={css.savedMenuAction}
-									icon={update}
 									disabled={disabled || isReloadingFromDisk}
 									onClick={async () => {
 										await reloadFilesFromDisk();
 										onClose();
 									}}
 								>
-									{isReloadingFromDisk
-										? 'Reloading…'
-										: 'Reload files from disk'}
-								</MenuItem>
-							</NavigableMenu>
+									<span className={css.savedMenuActionTitle}>
+										{isReloadingFromDisk
+											? 'Reloading…'
+											: 'Reload files from disk'}
+									</span>
+									<span
+										className={
+											css.savedMenuActionDescription
+										}
+									>
+										Pick up changes made to the folder
+										outside of Playground.
+									</span>
+								</button>
+							</div>
 						</div>
 					)}
 				/>
