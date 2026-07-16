@@ -100,6 +100,23 @@ describe('Dock positioning', () => {
 		).toEqual({ bottom: '504px', left: '308px' });
 	});
 
+	it('uses the measured mobile height after the tools are hidden', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: true,
+				dockSize: { width: 390, height: 66 },
+				toolsHeight: 66,
+				isCollapsed: true,
+				dockCenter: null,
+				viewportSize: { width: 390, height: 844 },
+				paneHeight: 0,
+				toastHeight: 62,
+				paneOpen: false,
+				isEditorSection: false,
+			})
+		).toEqual({ bottom: '78px', left: '195px' });
+	});
+
 	it('centers operation notices when the viewport is narrower than its gaps', () => {
 		expect(
 			getDockOperationToastStyle({

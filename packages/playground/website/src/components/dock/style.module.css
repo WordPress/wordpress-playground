@@ -689,6 +689,7 @@
 	   visual stack on mobile. */
 	.dock {
 		border-radius: 0;
+		clip-path: inset(0);
 		bottom: 0;
 		left: 0;
 		right: 0;
@@ -1247,19 +1248,26 @@
 
 @media (max-width: 1024px) {
 	.dock-collapsed {
-		transform: translateY(var(--dock-body-h, 56px));
+		transform: none;
 	}
 
-	/* The mobile bar is fixed and full-screen-panelled: no drag (so no sheen),
-	   and the width/collapse toggles don't apply. */
+	/* The mobile bar is fixed and full-screen-panelled, so it cannot be dragged
+	   or switched into the desktop full-width mode. The collapse half remains as
+	   the arrow that shows and hides the tools row. */
 	.dock-sheen,
-	.dock-toggle-pill {
+	.dock-pill-full-width {
 		display: none;
 	}
 
 	.dock-body {
 		flex-direction: column-reverse;
 		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+	}
+
+	/* On mobile the address row stays docked while the arrow removes the tools
+	   row from layout. This lets the measured Dock height follow what is visible. */
+	.dock-collapsed .dock-tools {
+		display: none;
 	}
 }
 
