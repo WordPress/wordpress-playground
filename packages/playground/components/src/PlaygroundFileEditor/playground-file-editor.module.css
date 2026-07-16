@@ -74,12 +74,6 @@
 	color: var(--color-gray-500);
 }
 
-.editorPathPortaled {
-	/* The smaller monospace glyphs sit below the heading's optical center even
-	   when their line boxes share a center. */
-	transform: translateY(-2px);
-}
-
 .editorHeaderActions {
 	display: flex;
 	align-items: center;
@@ -347,7 +341,6 @@
 	.dockPresentation .editorPath {
 		grid-column: 1 / -1;
 		grid-row: 1;
-		order: initial;
 		width: 100%;
 		word-break: normal;
 	}
@@ -357,15 +350,12 @@
 		grid-column: 1;
 		grid-row: 2;
 		justify-self: start;
-		order: initial;
 	}
 
 	.dockPresentation .editorHeaderActions {
 		grid-column: 2;
 		grid-row: 2;
-		margin-left: auto;
-		margin-right: 0;
-		order: initial;
+		justify-self: end;
 	}
 
 	.dockPresentation .editorHeaderPathPortaled {
