@@ -530,6 +530,7 @@ export function PlaygroundFileEditor({
 		<div
 			className={classNames(styles['editorPath'], {
 				[styles['editorPathPlaceholder']]: !currentPath?.length,
+				[styles['editorPathPortaled']]: mobileHeaderTarget,
 			})}
 			title={currentPath ?? undefined}
 		>

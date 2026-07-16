@@ -74,6 +74,12 @@
 	color: var(--color-gray-500);
 }
 
+.editorPathPortaled {
+	/* The smaller monospace glyphs sit below the heading's optical center even
+	   when their line boxes share a center. */
+	transform: translateY(-2px);
+}
+
 .editorHeaderActions {
 	display: flex;
 	align-items: center;

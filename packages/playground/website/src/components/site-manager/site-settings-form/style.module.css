@@ -54,6 +54,18 @@
 .form-section :global(.components-checkbox-control__label) {
 	color: var(--ink-soft);
 	font-size: 13px;
+	line-height: 1.3;
+}
+
+.form-section :global(.components-checkbox-control .components-h-stack) {
+	align-items: center;
+}
+
+/* CheckboxControl adds a legacy 8px field margin. VStack already owns the row
+   gap, so keeping both makes checkbox rows look farther apart than fields. */
+.form-section
+	:global(.components-checkbox-control .components-base-control__field) {
+	margin-bottom: 0;
 }
 
 .sub-option :global(.components-checkbox-control__label),
