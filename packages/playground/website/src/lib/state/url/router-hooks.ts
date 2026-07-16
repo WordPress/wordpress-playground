@@ -11,6 +11,8 @@ export type URLComponents = {
 
 const confirmBlueprintReloadMessage =
 	'Reload this page to start a new Playground with the Blueprint from the URL?';
+const confirmNoBlueprintReloadMessage =
+	'Reload this page to start a new Playground without a Blueprint from the URL?';
 
 export function useCurrentUrl() {
 	const [url, setUrl] = useState(window.location.href);
@@ -96,18 +98,21 @@ const events = [
 	eventHashchange,
 ];
 
-export function confirmReloadWithNewBlueprint(
+export function confirmReloadAfterBlueprintChange(
 	event: Pick<HashChangeEvent, 'oldURL' | 'newURL'> &
 		Partial<Pick<Event, 'stopImmediatePropagation'>>,
 	win: Pick<Window, 'confirm' | 'history' | 'location'> = window
 ) {
 	const oldUrl = new URL(event.oldURL);
 	const newUrl = new URL(event.newURL);
-	if (!isOnlyHashChange(oldUrl, newUrl) || !newUrl.hash) {
+	if (!isOnlyHashChange(oldUrl, newUrl)) {
 		return;
 	}
 	event.stopImmediatePropagation?.();
-	if (win.confirm(confirmBlueprintReloadMessage)) {
+	const confirmationMessage = newUrl.hash
+		? confirmBlueprintReloadMessage
+		: confirmNoBlueprintReloadMessage;
+	if (win.confirm(confirmationMessage)) {
 		win.location.reload();
 	} else {
 		win.history.replaceState(null, '', oldUrl.toString());
@@ -149,9 +154,13 @@ if (
 	typeof window.addEventListener !== 'undefined' &&
 	typeof window[hashChangeConfirmPatchKey as any] === 'undefined'
 ) {
-	window.addEventListener(eventHashchange, confirmReloadWithNewBlueprint, {
-		capture: true,
-	});
+	window.addEventListener(
+		eventHashchange,
+		confirmReloadAfterBlueprintChange,
+		{
+			capture: true,
+		}
+	);
 	Object.defineProperty(window, hashChangeConfirmPatchKey, { value: true });
 }
 

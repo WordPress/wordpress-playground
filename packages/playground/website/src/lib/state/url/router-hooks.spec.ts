@@ -1,4 +1,4 @@
-import { confirmReloadWithNewBlueprint, updateUrl } from './router-hooks';
+import { confirmReloadAfterBlueprintChange, updateUrl } from './router-hooks';
 
 const baseUrl = 'https://example.com';
 
@@ -54,7 +54,7 @@ describe('updateUrl', () => {
 	});
 });
 
-describe('confirmReloadWithNewBlueprint', () => {
+describe('confirmReloadAfterBlueprintChange', () => {
 	function createWindow(confirmResult: boolean) {
 		return {
 			confirm: vi.fn(() => confirmResult),
@@ -70,7 +70,7 @@ describe('confirmReloadWithNewBlueprint', () => {
 	it('asks before reloading when only the URL hash changes', () => {
 		const win = createWindow(true);
 
-		confirmReloadWithNewBlueprint(
+		confirmReloadAfterBlueprintChange(
 			{
 				oldURL: 'https://playground.test/website-server/#old',
 				newURL: 'https://playground.test/website-server/#new',
@@ -86,7 +86,7 @@ describe('confirmReloadWithNewBlueprint', () => {
 	it('restores the previous URL when the reload is declined', () => {
 		const win = createWindow(false);
 
-		confirmReloadWithNewBlueprint(
+		confirmReloadAfterBlueprintChange(
 			{
 				oldURL: 'https://playground.test/website-server/#old',
 				newURL: 'https://playground.test/website-server/#new',
@@ -102,10 +102,10 @@ describe('confirmReloadWithNewBlueprint', () => {
 		);
 	});
 
-	it('ignores hash removal because there is no new blueprint fragment to load', () => {
+	it('asks before reloading without a URL Blueprint when the hash is removed', () => {
 		const win = createWindow(true);
 
-		confirmReloadWithNewBlueprint(
+		confirmReloadAfterBlueprintChange(
 			{
 				oldURL: 'https://playground.test/website-server/#old',
 				newURL: 'https://playground.test/website-server/',
@@ -113,8 +113,8 @@ describe('confirmReloadWithNewBlueprint', () => {
 			win
 		);
 
-		expect(win.confirm).not.toHaveBeenCalled();
-		expect(win.location.reload).not.toHaveBeenCalled();
+		expect(win.confirm).toHaveBeenCalledOnce();
+		expect(win.location.reload).toHaveBeenCalledOnce();
 		expect(win.history.replaceState).not.toHaveBeenCalled();
 	});
 });
