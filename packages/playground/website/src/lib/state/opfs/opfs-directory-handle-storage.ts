@@ -1,4 +1,12 @@
 let db: IDBDatabase;
+
+/**
+ * Keeps picker-granted handles alive for mounts in the current page. A handle
+ * restored from IndexedDB may require permission again, but a worker cannot
+ * show that prompt. IndexedDB remains the source of truth across page loads.
+ */
+const liveDirectoryHandles = new Map<string, FileSystemDirectoryHandle>();
+
 export function getIndexedDB() {
 	return new Promise<IDBDatabase>((resolve, reject) => {
 		if (db) {
@@ -29,17 +37,22 @@ export async function saveDirectoryHandle(
 	directoryHandle: FileSystemDirectoryHandle
 ) {
 	const db = await getIndexedDB();
-	return new Promise((resolve, reject) => {
+	await new Promise<void>((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readwrite');
 		const store = tx.objectStore('fileSystemStore');
 		store.put(directoryHandle, siteSlug);
-		tx.oncomplete = resolve;
-		tx.onerror = reject;
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
 	});
+	liveDirectoryHandles.set(siteSlug, directoryHandle);
 }
 
 // Function to retrieve directory handle from IndexedDB
 export async function loadDirectoryHandle(siteSlug: string) {
+	const liveHandle = liveDirectoryHandles.get(siteSlug);
+	if (liveHandle) {
+		return liveHandle;
+	}
 	const db = await getIndexedDB();
 	return new Promise<FileSystemDirectoryHandle>((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readonly');
@@ -47,13 +60,16 @@ export async function loadDirectoryHandle(siteSlug: string) {
 		const handleDataRequest = store.get(siteSlug);
 		handleDataRequest.onsuccess = async function () {
 			// If there's data to retrieve, convert it back to a handle
-			if (!handleDataRequest.result) {
+			const directoryHandle = handleDataRequest.result;
+			if (!directoryHandle) {
 				reject(
 					'Directory handle not found in IndexedDB for site ' +
 						siteSlug
 				);
+				return;
 			}
-			resolve(handleDataRequest.result);
+			liveDirectoryHandles.set(siteSlug, directoryHandle);
+			resolve(directoryHandle);
 		};
 
 		handleDataRequest.onerror = reject;
@@ -62,11 +78,12 @@ export async function loadDirectoryHandle(siteSlug: string) {
 
 export async function deleteDirectoryHandle(siteSlug: string) {
 	const db = await getIndexedDB();
-	return new Promise<void>((resolve, reject) => {
+	await new Promise<void>((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readwrite');
 		const store = tx.objectStore('fileSystemStore');
 		store.delete(siteSlug);
 		tx.oncomplete = () => resolve();
 		tx.onerror = () => reject(tx.error);
 	});
+	liveDirectoryHandles.delete(siteSlug);
 }
