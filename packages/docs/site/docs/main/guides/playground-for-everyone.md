@@ -29,13 +29,12 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 - Change WordPress and PHP versions
 - Explore features you've never tried before
 
-By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. You can also load a vanilla WordPress version without the landing page from the Dock's **New** pane.
 
-1. Open Launch WordPress Panel
-   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
+1. Open **New** from the Dock.
+2. Select **Vanilla WordPress** from the Blueprint Gallery.
 
-2. Select to load a Vanilla WordPress version
-   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
+    ![New Playground pane in the Dock](/img/dock/dock-new-playground.webp)
 
 ## If You're Learning WordPress
 
@@ -55,17 +54,16 @@ You can inspect columns, headings, images, and buttons — and see exactly how t
 
 #### Explore the Blueprint Library
 
-At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
+Open **New** from the Dock to access the Blueprint Gallery, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground. Art Gallery, e-commerce, and web portfolio blueprints are some of the examples.
 
-1. Open the Blueprint gallery at the Playground Launch Panel
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
+1. Open **New** from the Dock.
+2. Browse the Blueprint Gallery and select the Blueprint to launch in WordPress Playground.
 
-1. Navigate and select the Blueprint to launch at WordPress Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
+    ![Blueprint Gallery in the Dock](/img/dock/dock-new-playground.webp)
 
 ### Try New Features Safely
 
-When the WordPress team releases new features, you can test them in Playground before they affect your real site. Select any WordPress version from the settings panel to explore what's new — or what's coming next.
+When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock and select any WordPress version to explore what's new — or what's coming next.
 
 ## If You Own a WordPress Site
 
