@@ -170,9 +170,30 @@
 	display: inline-flex;
 }
 
+.editorHeaderSlotActions {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+.editorHeaderHelp,
+.editorHeaderFileActions {
+	align-items: center;
+	display: flex;
+}
+
+.editorHeaderFileActions {
+	gap: 8px;
+}
+
 .editorExportToggle svg {
-	margin-left: 4px;
+	margin-left: 0;
 	margin-right: -2px;
+}
+
+.editorExportToggle {
+	gap: 4px;
 }
 
 .exportMenuItemWithHint {
@@ -225,7 +246,6 @@
 	display: inline-flex;
 	height: 32px;
 	justify-content: center;
-	margin-right: 2px;
 	width: 32px;
 }
 
@@ -254,6 +274,10 @@
 
 .mobileToggle {
 	display: none;
+}
+
+.editorHeaderSlotActions .mobileToggle {
+	display: inline-flex;
 }
 
 .mobileOverlay {
@@ -346,19 +370,106 @@
 }
 
 @media (max-width: 1024px) {
+	.dockPresentation .editorHeader {
+		padding: 12px var(--pane-inline-padding, 24px);
+	}
+
+	.dockPresentation .runHint {
+		padding-left: var(--pane-inline-padding, 24px);
+		padding-right: var(--pane-inline-padding, 24px);
+	}
+
 	.dockPresentation .editorHeaderActions {
+		display: grid;
 		gap: 8px;
-		justify-content: flex-start;
-		order: 3;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		margin-left: 0;
 		width: 100%;
 	}
 
+	.dockPresentation .editorHeader .mobileToggle {
+		grid-column: 1;
+		grid-row: 1;
+		justify-self: start;
+		order: initial;
+	}
+
 	.dockPresentation .editorDocsLink {
+		grid-column: 2;
+		grid-row: 1;
+		justify-self: end;
 		margin-right: 0;
 	}
 
-	.dockPresentation .editorHeaderActions .editorToolbarButton:last-child {
-		flex: 1 0 100%;
+	.dockPresentation .editorExport {
+		grid-column: 3;
+		grid-row: 1;
+	}
+
+	.dockPresentation .editorHeaderActions > .editorToolbarButton:last-child {
+		grid-column: 1 / -1;
+		grid-row: 2;
 		justify-content: center;
+		width: 100%;
+	}
+}
+
+@media (min-width: 601px) and (max-width: 1024px) {
+	.dockPresentation .editorHeaderActions {
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+	}
+
+	.dockPresentation .editorHeaderActions > .editorToolbarButton:last-child {
+		grid-column: 4;
+		grid-row: 1;
+		width: auto;
+	}
+}
+
+@media (max-width: 1024px) {
+	.editorHeaderSlotActions .mobileToggle {
+		order: initial;
+	}
+
+	.editorHeaderSlotActions .mobileToggle,
+	.editorHeaderSlotActions .editorExportToggle {
+		height: 40px;
+		padding-bottom: 8px;
+		padding-top: 8px;
+	}
+
+	.dockPresentation .editorHeaderActionsWithPortaledUtilities {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.dockPresentation
+		.editorHeaderActionsWithPortaledUtilities
+		> .editorToolbarButton:last-child {
+		grid-column: 1;
+		grid-row: 1;
+		width: 100%;
+	}
+}
+
+@media (min-width: 441px) and (max-width: 1024px) {
+	.editorHeaderSlotActions .mobileToggle,
+	.editorHeaderSlotActions .editorExportToggle {
+		padding: 8px 20px;
+	}
+}
+
+/* The complete Blueprint title toolbar fits at the user's 390px reference
+   width. Preserve normal tablet button spacing; compact only the narrow range
+   between the one-row and deliberate two-row layouts. */
+@media (min-width: 389px) and (max-width: 440px) {
+	.editorHeaderSlotActions,
+	.editorHeaderFileActions {
+		gap: 8px;
+	}
+
+	.editorHeaderSlotActions .mobileToggle,
+	.editorHeaderSlotActions .editorExportToggle {
+		padding-left: 8px;
+		padding-right: 8px;
 	}
 }

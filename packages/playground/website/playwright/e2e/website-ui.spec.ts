@@ -699,14 +699,16 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 });
 
-test('should edit a file in the code editor and see changes in the viewport', async ({
+test('should edit a file on mobile and see changes in the viewport', async ({
 	website,
 	wordpress,
 }) => {
 	await website.goto('./?storage=temp');
+	await website.page.setViewportSize({ width: 375, height: 812 });
 
 	await website.openDockPane('Files');
 	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
+	await filesPane.getByRole('button', { name: 'Browse files' }).click();
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -730,37 +732,6 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	const saveButton = filesPane.getByRole('button', {
 		name: /^(Save|Saved|Saving…)$/,
 	});
-
-	const desktopViewport = website.page.viewportSize();
-	await website.page.setViewportSize({ width: 375, height: 812 });
-	const browseButton = filesPane.getByRole('button', {
-		name: 'Browse files',
-	});
-	const closeButton = filesPane.getByRole('button', {
-		name: 'Close',
-		exact: true,
-	});
-	await expect(browseButton).toBeVisible();
-	await expect(closeButton).toBeVisible();
-	const editorPath = filesPane.locator('[class*="editorPath"]').first();
-	const [browseBox, saveBox, closeBox, pathBox] = await Promise.all([
-		browseButton.boundingBox(),
-		saveButton.boundingBox(),
-		closeButton.boundingBox(),
-		editorPath.boundingBox(),
-	]);
-	if (!browseBox || !saveBox || !closeBox || !pathBox) {
-		throw new Error('The responsive file editor controls must be visible.');
-	}
-	expect(browseBox.y).toBe(closeBox.y);
-	expect(saveBox.y).toBe(closeBox.y);
-	expect(saveBox.x + saveBox.width).toBeLessThan(closeBox.x);
-	expect(pathBox.y).toBeGreaterThanOrEqual(
-		Math.max(browseBox.y + browseBox.height, saveBox.y + saveBox.height)
-	);
-	if (desktopViewport) {
-		await website.page.setViewportSize(desktopViewport);
-	}
 
 	// Click on the editor to focus it
 	await website.page.waitForTimeout(50);

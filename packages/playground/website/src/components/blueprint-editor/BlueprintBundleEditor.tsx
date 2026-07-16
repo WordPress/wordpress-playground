@@ -27,6 +27,7 @@ import type {
 } from '@wp-playground/storage';
 import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 import classNames from 'classnames';
+import { createPortal } from 'react-dom';
 import {
 	forwardRef,
 	useCallback,
@@ -276,6 +277,8 @@ export type BlueprintBundleEditorProps = {
 	autoRunToken?: number;
 	readOnly?: boolean;
 	dockPresentation?: boolean;
+	/** Mobile Dock title row where Browse and Export should be rendered. */
+	mobileHeaderTarget?: Element | null;
 };
 
 export interface BlueprintBundleEditorHandle {
@@ -295,6 +298,7 @@ export const BlueprintBundleEditor = forwardRef<
 		autoRunToken,
 		readOnly,
 		dockPresentation = false,
+		mobileHeaderTarget = null,
 	},
 	ref
 ) {
@@ -725,8 +729,126 @@ export const BlueprintBundleEditor = forwardRef<
 	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const isStored = site ? isStoredSite(site) : false;
 	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
+	const mobileExplorerToggle = (
+		<Button
+			className={styles.mobileToggle}
+			variant="secondary"
+			onClick={() => setShowExplorerOnMobile((previous) => !previous)}
+		>
+			{showExplorerOnMobile ? 'Hide files' : 'Browse files'}
+		</Button>
+	);
+	const dockExportDropdown = (
+		<Dropdown
+			className={styles.editorExport}
+			popoverProps={{
+				placement: 'bottom-end',
+			}}
+			renderToggle={({ isOpen, onToggle }) => (
+				<Button
+					variant="secondary"
+					className={classNames(
+						styles.editorToolbarButton,
+						styles.editorExportToggle
+					)}
+					onClick={onToggle}
+					aria-expanded={isOpen}
+					aria-haspopup="menu"
+				>
+					Export
+					<Icon icon={chevronDown} size={16} />
+				</Button>
+			)}
+			renderContent={({ onClose }) => (
+				<MenuGroup>
+					<MenuItem
+						icon={link}
+						className={
+							!isBundleShareable
+								? styles.exportMenuItemWithHint
+								: undefined
+						}
+						aria-label="Copy Blueprint URL"
+						aria-describedby={
+							!isBundleShareable
+								? copyBlueprintUrlHintId
+								: undefined
+						}
+						disabled={!isBundleShareable}
+						onClick={() => {
+							handleShareBlueprint();
+							onClose();
+						}}
+					>
+						<span className={styles.exportMenuItemBody}>
+							<span>Copy Blueprint URL</span>
+							{!isBundleShareable && (
+								<span
+									id={copyBlueprintUrlHintId}
+									className={styles.exportMenuItemHint}
+								>
+									Multi-file Blueprints can’t be shared as a
+									URL — download a zip instead.
+								</span>
+							)}
+						</span>
+					</MenuItem>
+					<MenuItem
+						icon={download}
+						onClick={() => {
+							handleDownloadBundle();
+							onClose();
+						}}
+					>
+						Download Zip
+					</MenuItem>
+				</MenuGroup>
+			)}
+		/>
+	);
+	const dockDocsLink = (
+		<WpTooltip
+			text="See Blueprints documentation"
+			delay={0}
+			placement="top"
+		>
+			<a
+				className={styles.editorDocsLink}
+				href="https://wordpress.github.io/wordpress-playground/blueprints"
+				target="_blank"
+				rel="noreferrer"
+				aria-label="See Blueprints documentation"
+			>
+				<Icon icon={help} size={24} />
+			</a>
+		</WpTooltip>
+	);
+	const mobileHeaderActions = mobileHeaderTarget
+		? createPortal(
+				<div
+					className={styles.editorHeaderSlotActions}
+					data-dock-pane-header-actions
+				>
+					<div
+						className={styles.editorHeaderHelp}
+						data-dock-pane-header-help
+					>
+						{dockDocsLink}
+					</div>
+					<div
+						className={styles.editorHeaderFileActions}
+						data-dock-pane-header-utilities
+					>
+						{mobileExplorerToggle}
+						{dockExportDropdown}
+					</div>
+				</div>,
+				mobileHeaderTarget
+			)
+		: null;
 	return (
 		<>
+			{mobileHeaderActions}
 			<div
 				className={classNames(styles.container, className, {
 					[styles.dockPresentation]: dockPresentation,
@@ -769,19 +891,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</aside>
 					<section className={styles.editorWrapper}>
 						<div className={styles.editorHeader}>
-							<Button
-								className={styles.mobileToggle}
-								variant="secondary"
-								onClick={() =>
-									setShowExplorerOnMobile(
-										(previous) => !previous
-									)
-								}
-							>
-								{showExplorerOnMobile
-									? 'Hide files'
-									: 'Browse files'}
-							</Button>
+							{!dockPresentation && mobileExplorerToggle}
 							{!dockPresentation && (
 								<div
 									className={classNames(styles.editorPath, {
@@ -795,117 +905,25 @@ export const BlueprintBundleEditor = forwardRef<
 								</div>
 							)}
 
-							<div className={styles.editorHeaderActions}>
+							<div
+								className={classNames(
+									styles.editorHeaderActions,
+									{
+										[styles.editorHeaderActionsWithPortaledUtilities]:
+											mobileHeaderTarget,
+									}
+								)}
+							>
+								{dockPresentation &&
+									!mobileHeaderTarget &&
+									mobileExplorerToggle}
 								{dockPresentation ? (
-									<>
-										<WpTooltip
-											text="See Blueprints documentation"
-											delay={0}
-											placement="top"
-										>
-											<a
-												className={
-													styles.editorDocsLink
-												}
-												href="https://wordpress.github.io/wordpress-playground/blueprints"
-												target="_blank"
-												rel="noreferrer"
-												aria-label="See Blueprints documentation"
-											>
-												<Icon icon={help} size={24} />
-											</a>
-										</WpTooltip>
-										<Dropdown
-											className={styles.editorExport}
-											popoverProps={{
-												placement: 'bottom-end',
-											}}
-											renderToggle={({
-												isOpen,
-												onToggle,
-											}) => (
-												<Button
-													variant="secondary"
-													className={classNames(
-														styles.editorToolbarButton,
-														styles.editorExportToggle
-													)}
-													onClick={onToggle}
-													aria-expanded={isOpen}
-													aria-haspopup="menu"
-												>
-													Export
-													<Icon
-														icon={chevronDown}
-														size={20}
-													/>
-												</Button>
-											)}
-											renderContent={({ onClose }) => (
-												<MenuGroup>
-													<MenuItem
-														icon={link}
-														className={
-															!isBundleShareable
-																? styles.exportMenuItemWithHint
-																: undefined
-														}
-														aria-label="Copy Blueprint URL"
-														aria-describedby={
-															!isBundleShareable
-																? copyBlueprintUrlHintId
-																: undefined
-														}
-														disabled={
-															!isBundleShareable
-														}
-														onClick={() => {
-															handleShareBlueprint();
-															onClose();
-														}}
-													>
-														<span
-															className={
-																styles.exportMenuItemBody
-															}
-														>
-															<span>
-																Copy Blueprint
-																URL
-															</span>
-															{!isBundleShareable && (
-																<span
-																	id={
-																		copyBlueprintUrlHintId
-																	}
-																	className={
-																		styles.exportMenuItemHint
-																	}
-																>
-																	Multi-file
-																	Blueprints
-																	can’t be
-																	shared as a
-																	URL —
-																	download a
-																	zip instead.
-																</span>
-															)}
-														</span>
-													</MenuItem>
-													<MenuItem
-														icon={download}
-														onClick={() => {
-															handleDownloadBundle();
-															onClose();
-														}}
-													>
-														Download Zip
-													</MenuItem>
-												</MenuGroup>
-											)}
-										/>
-									</>
+									!mobileHeaderTarget && (
+										<>
+											{dockDocsLink}
+											{dockExportDropdown}
+										</>
+									)
 								) : (
 									<>
 										<Button

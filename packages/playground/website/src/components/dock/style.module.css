@@ -193,6 +193,7 @@
    overriding WordPress' teal admin color (#007cba) and any muted per-panel
    accent (the site-info panel remaps the WP accent to gray). */
 .pane :global(.components-checkbox-control__input[type='checkbox']) {
+	border-color: var(--line-control);
 	border-radius: 4px;
 }
 .pane :global(.components-checkbox-control__input[type='checkbox']:checked),
@@ -216,6 +217,8 @@
 	--space-6: 24px;
 	--space-8: 32px;
 	--space-12: 48px;
+	/* Child panels use the same content edge as the shared title. */
+	--pane-inline-padding: var(--space-6);
 	--paper-1: #f7f5f2; /* pane surface */
 	--paper-2: #faf8f5; /* raised */
 	--paper-3: #ece8e1; /* recessed well: notices, code chips */
@@ -331,13 +334,17 @@
 	display: flex;
 	gap: var(--space-4);
 	justify-content: space-between;
-	padding: var(--space-8) var(--space-6) var(--space-6);
+	padding: var(--space-6);
 	width: 100%;
 }
 
 .pane-header-main {
 	flex: 1;
 	min-width: 0;
+}
+
+.pane-editor-header {
+	display: none;
 }
 
 .pane-back {
@@ -753,8 +760,8 @@
 		max-height: none;
 		transform: none;
 		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-		/* Flex column so the close bar is the first row and the body fills and
-		   scrolls beneath it. */
+		/* Flex column so the title row stays above the independently scrolling
+		   panel body. */
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
@@ -797,7 +804,105 @@
 	}
 
 	.pane-header {
-		padding: var(--space-6) var(--space-6) var(--space-4);
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: 20px var(--space-3) 20px var(--pane-inline-padding);
+		position: relative;
+	}
+
+	/* The X shares the title's center without making the title row taller. This
+	   keeps title and subtitle as the same compact text block used before the
+	   mobile close control was added. */
+	.pane-title-row {
+		align-items: center;
+		display: flex;
+		gap: var(--space-2);
+		padding-right: 44px;
+		width: 100%;
+	}
+
+	.pane-header:has(.settings-identity),
+	.pane-header:has(.pane-description) {
+		padding-bottom: var(--space-3);
+	}
+
+	.pane-title-row .pane-close {
+		position: absolute;
+		right: var(--space-3);
+		top: 10px;
+	}
+
+	.pane-editor-header {
+		align-items: center;
+		background: var(--paper-2);
+		border-bottom: 1px solid var(--line-subtle);
+		display: flex;
+		flex: none;
+		gap: var(--space-2);
+		min-height: 64px;
+		padding: 0 var(--space-3) 0 var(--pane-inline-padding);
+		width: 100%;
+	}
+
+	.pane-editor-header h2 {
+		color: var(--ink);
+		font-size: 20px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+		line-height: 1.2;
+		margin: 0;
+	}
+
+	.pane-editor-header-slot {
+		align-items: center;
+		display: flex;
+		flex: 1;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	/* Below 389px, even compact labelled actions cannot share the title line.
+	   Keep title/Help/X together and move both file actions as one group. */
+	@media (max-width: 388px) {
+		.pane-editor-header:has([data-dock-pane-header-actions]) {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			grid-template-rows: 64px auto;
+			padding-bottom: var(--space-3);
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			.pane-editor-header-slot {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-actions] {
+			display: contents;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-help] {
+			grid-column: 2;
+			grid-row: 1;
+			justify-self: start;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions])
+			[data-dock-pane-header-utilities] {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			justify-self: start;
+		}
+
+		.pane-editor-header:has([data-dock-pane-header-actions]) .pane-close {
+			grid-column: 3;
+			grid-row: 1;
+		}
+	}
+
+	.pane-back {
+		margin-top: -2px;
 	}
 
 	/* The dock's bottom bar already carries a "New" tool, so the in-pane
@@ -807,11 +912,9 @@
 		display: none;
 	}
 
-	/* The close X overlays the first content row's top-right corner rather than
-	   taking a row of its own (no wasted line). It's an absolute child of the
-	   fixed pane — NOT inside the scrolling body — so it stays pinned while the
-	   body scrolls. Calm ghost icon button matching the app's other icon controls
-	   (e.g. the rename pencil), aligned to the content gutter. */
+	/* The 44px target stays pinned in the non-scrolling header. Standard panes
+	   position it against the title without expanding the text block; editor
+	   panes keep it as the final flex item in their 64px toolbar. */
 	.pane-close {
 		align-items: center;
 		background: transparent;
@@ -820,14 +923,12 @@
 		color: var(--ink-faint);
 		cursor: pointer;
 		display: flex;
-		height: 36px;
+		flex: none;
+		height: 44px;
 		justify-content: center;
+		margin-left: auto;
 		padding: 0;
-		position: absolute;
-		right: var(--space-6);
-		top: var(--space-3);
-		width: 36px;
-		z-index: 6;
+		width: 44px;
 	}
 
 	.pane-close:hover {

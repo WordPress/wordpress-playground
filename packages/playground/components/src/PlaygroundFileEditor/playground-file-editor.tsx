@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
@@ -6,6 +7,7 @@ import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
+import { basename, dirname } from '@php-wasm/util';
 
 const SAVE_DEBOUNCE_MS = 1500;
 const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
@@ -28,6 +30,8 @@ export type PlaygroundFileEditorProps = {
 	initialPath?: string | null;
 	placeholderText?: string;
 	dockPresentation?: boolean;
+	/** Mobile Dock title row where the current path should be rendered. */
+	mobileHeaderTarget?: Element | null;
 };
 
 type PendingSave = {
@@ -48,6 +52,7 @@ export function PlaygroundFileEditor({
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
 	dockPresentation = false,
+	mobileHeaderTarget = null,
 }: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
@@ -519,6 +524,30 @@ export function PlaygroundFileEditor({
 			</div>
 		);
 	}
+	const currentDirectory = currentPath ? dirname(currentPath) : null;
+	const currentFilename = currentPath ? basename(currentPath) : null;
+	const editorPath = (
+		<div
+			className={classNames(styles['editorPath'], {
+				[styles['editorPathPlaceholder']]: !currentPath?.length,
+				[styles['editorPathPortaled']]: mobileHeaderTarget,
+			})}
+			title={currentPath ?? undefined}
+		>
+			{currentDirectory && currentFilename ? (
+				<>
+					<span className={styles['editorPathDirectory']}>
+						{currentDirectory === '/' ? '' : currentDirectory}
+					</span>
+					<span className={styles['editorPathFilename']}>
+						/{currentFilename}
+					</span>
+				</>
+			) : (
+				`Browse files under ${documentRoot}`
+			)}
+		</div>
+	);
 
 	return (
 		<div
@@ -550,7 +579,12 @@ export function PlaygroundFileEditor({
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>
-					<div className={styles['editorHeader']}>
+					<div
+						className={classNames(styles['editorHeader'], {
+							[styles['editorHeaderPathPortaled']]:
+								mobileHeaderTarget,
+						})}
+					>
 						<Button
 							className={styles['mobileToggle']}
 							variant="secondary"
@@ -562,17 +596,9 @@ export function PlaygroundFileEditor({
 								? 'Hide files'
 								: 'Browse files'}
 						</Button>
-						<div
-							className={classNames(styles['editorPath'], {
-								[styles['editorPathPlaceholder']]:
-									!currentPath?.length,
-							})}
-							title={currentPath ?? undefined}
-						>
-							{currentPath?.length
-								? currentPath
-								: `Browse files under ${documentRoot}`}
-						</div>
+						{mobileHeaderTarget
+							? createPortal(editorPath, mobileHeaderTarget)
+							: editorPath}
 						{dockPresentation && !readOnly && currentPath ? (
 							<div className={styles['editorHeaderActions']}>
 								{dockHasUnsavedChanges ? (

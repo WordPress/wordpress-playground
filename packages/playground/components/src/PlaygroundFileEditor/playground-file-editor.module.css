@@ -47,6 +47,7 @@
 }
 
 .editorPath {
+	display: flex;
 	flex: 1;
 	min-width: 0;
 	font-family:
@@ -57,8 +58,26 @@
 	word-break: break-all;
 }
 
+.editorPathDirectory {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorPathFilename {
+	flex: none;
+	white-space: nowrap;
+}
+
 .editorPathPlaceholder {
 	color: var(--color-gray-500);
+}
+
+.editorPathPortaled {
+	/* Centered line boxes leave the smaller monospace glyphs visibly high
+	   against the mobile Dock heading. */
+	transform: translateY(2px);
 }
 
 .editorHeaderActions {
@@ -170,7 +189,7 @@
 
 .dockPresentation .editorHeader {
 	min-height: 56px;
-	padding: 8px 16px 8px 24px;
+	padding: 8px 16px 8px var(--pane-inline-padding, 24px);
 	border-bottom-color: var(--line-subtle, #ddd);
 	background: var(--paper-2, #ffffff);
 }
@@ -318,32 +337,40 @@
 	}
 
 	.dockPresentation .editorHeader {
-		flex-wrap: wrap;
+		display: grid;
 		gap: 8px;
+		grid-template-columns: minmax(0, 1fr) auto;
 		background: var(--paper-2, #ffffff);
-		padding-top: 12px;
+		padding: 8px 16px 12px var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .editorPath {
-		flex: 1 0 100%;
-		order: 3;
-		overflow: hidden;
-		padding-block: 4px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		grid-column: 1 / -1;
+		grid-row: 1;
+		width: 100%;
 		word-break: normal;
 	}
 
 	.dockPresentation .editorHeader .mobileToggle {
 		display: inline-flex;
-		order: 1;
+		grid-column: 1;
+		grid-row: 2;
+		justify-self: start;
 	}
 
 	.dockPresentation .editorHeaderActions {
-		margin-left: auto;
-		/* Keep actions clear of the dock pane's close button. */
-		margin-right: 56px;
-		order: 2;
+		grid-column: 2;
+		grid-row: 2;
+		justify-self: end;
+	}
+
+	.dockPresentation .editorHeaderPathPortaled {
+		padding: 12px var(--pane-inline-padding, 24px);
+	}
+
+	.dockPresentation .editorHeaderPathPortaled .mobileToggle,
+	.dockPresentation .editorHeaderPathPortaled .editorHeaderActions {
+		grid-row: 1;
 	}
 
 	.dockPresentation .content {

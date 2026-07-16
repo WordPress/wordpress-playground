@@ -1,5 +1,12 @@
 import classNames from 'classnames';
-import { forwardRef, useEffect, useId } from 'react';
+import {
+	createContext,
+	forwardRef,
+	useContext,
+	useEffect,
+	useId,
+	useState,
+} from 'react';
 import type {
 	CSSProperties,
 	MouseEventHandler,
@@ -37,6 +44,8 @@ export type DockPaneProps = {
 	onClose?: MouseEventHandler<HTMLButtonElement>;
 };
 
+const DockPaneEditorHeaderSlotContext = createContext<HTMLElement | null>(null);
+
 /**
  * Shared shell for floating dock panes. It owns the dialog semantics, optional
  * mobile close control, common header, and body slot without choosing content.
@@ -64,12 +73,29 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		ref
 	) {
 		const closeDescriptionId = useId();
+		const [editorHeaderSlot, setEditorHeaderSlot] =
+			useState<HTMLDivElement | null>(null);
 		const displayedTitle = headerOverride?.title ?? title;
 		const displayedDescription = headerOverride
 			? headerOverride.description
 			: description;
 		const closeDescription =
 			closeTitle && closeTitle !== 'Close' ? closeTitle : undefined;
+		const closeButton = onClose ? (
+			<button
+				type="button"
+				className={css.paneClose}
+				aria-label="Close"
+				aria-describedby={
+					closeDescription ? closeDescriptionId : undefined
+				}
+				title={closeTitle ?? 'Close'}
+				disabled={closeDisabled}
+				onClick={onClose}
+			>
+				<Icon icon={close} size={24} />
+			</button>
+		) : null;
 
 		useEffect(() => {
 			if (headerOverride?.focusBackButton) {
@@ -94,32 +120,13 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				tabIndex={-1}
 				aria-label={ariaLabel ?? `${displayedTitle} pane`}
 			>
-				{onClose && (
-					<>
-						<button
-							type="button"
-							className={css.paneClose}
-							aria-label="Close"
-							aria-describedby={
-								closeDescription
-									? closeDescriptionId
-									: undefined
-							}
-							title={closeTitle ?? 'Close'}
-							disabled={closeDisabled}
-							onClick={onClose}
-						>
-							<Icon icon={close} size={24} />
-						</button>
-						{closeDescription && (
-							<span
-								id={closeDescriptionId}
-								className={css.visuallyHidden}
-							>
-								{closeDescription}
-							</span>
-						)}
-					</>
+				{closeButton && closeDescription && (
+					<span
+						id={closeDescriptionId}
+						className={css.visuallyHidden}
+					>
+						{closeDescription}
+					</span>
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>
@@ -135,7 +142,10 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 							</button>
 						)}
 						<div className={css.paneHeaderMain}>
-							<h2>{displayedTitle}</h2>
+							<div className={css.paneTitleRow}>
+								<h2>{displayedTitle}</h2>
+								{closeButton}
+							</div>
 							{!headerOverride && headerSubtitle !== undefined ? (
 								<div className={css.paneDescription}>
 									{headerSubtitle}
@@ -151,8 +161,27 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 						{headerAction}
 					</div>
 				)}
-				<div className={css.paneBody}>{children}</div>
+				{!showHeader && closeButton && (
+					<div className={css.paneEditorHeader}>
+						<h2>{displayedTitle}</h2>
+						<div
+							ref={setEditorHeaderSlot}
+							className={css.paneEditorHeaderSlot}
+						/>
+						{closeButton}
+					</div>
+				)}
+				<DockPaneEditorHeaderSlotContext.Provider
+					value={editorHeaderSlot}
+				>
+					<div className={css.paneBody}>{children}</div>
+				</DockPaneEditorHeaderSlotContext.Provider>
 			</section>
 		);
 	}
 );
+
+/** Returns the mobile title-row slot exposed by editor Dock panes. */
+export function useDockPaneEditorHeaderSlot() {
+	return useContext(DockPaneEditorHeaderSlotContext);
+}

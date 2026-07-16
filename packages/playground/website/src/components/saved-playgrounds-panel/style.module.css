@@ -1096,6 +1096,16 @@
 	width: calc(100% + var(--space-2) + var(--space-2));
 }
 
+@media (max-width: 1024px) {
+	.playgrounds-pane .sitesList {
+		/* Mobile panes use one visible 24px edge for the section label and row
+		   surface. The row content keeps its own 8px inner padding. */
+		margin-left: 0;
+		margin-right: 0;
+		width: 100%;
+	}
+}
+
 .playgrounds-pane .siteRow {
 	border-bottom: 0;
 	/* No radius: a rounded row clips the inset-shadow divider into bent corners.
@@ -1388,12 +1398,6 @@
 .playgrounds-pane .showMoreButton:hover {
 	background: rgba(33, 30, 25, 0.045);
 	color: #21201d;
-}
-
-@media (max-width: 640px) {
-	.playgrounds-pane {
-		padding: 0 20px 24px;
-	}
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand {

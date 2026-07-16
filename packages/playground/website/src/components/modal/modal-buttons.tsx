@@ -27,7 +27,7 @@ export default function ModalButtons({
 	const isCancelDisabled = cancelDisabled ?? areDisabled;
 
 	return (
-		<Flex justify="end" className={css.modalButtons} style={style}>
+		<Flex gap={4} justify="end" className={css.modalButtons} style={style}>
 			<Button
 				type="button"
 				isBusy={areBusy}
