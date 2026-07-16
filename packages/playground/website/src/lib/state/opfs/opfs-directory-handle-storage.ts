@@ -59,3 +59,14 @@ export async function loadDirectoryHandle(siteSlug: string) {
 		handleDataRequest.onerror = reject;
 	});
 }
+
+export async function deleteDirectoryHandle(siteSlug: string) {
+	const db = await getIndexedDB();
+	return new Promise<void>((resolve, reject) => {
+		const tx = db.transaction(['fileSystemStore'], 'readwrite');
+		const store = tx.objectStore('fileSystemStore');
+		store.delete(siteSlug);
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+}

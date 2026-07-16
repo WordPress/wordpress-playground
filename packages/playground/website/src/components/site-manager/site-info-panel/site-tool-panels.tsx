@@ -11,6 +11,7 @@ import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
+import { isLocalDirectoryPhpApp } from '../../../lib/local-directory-site';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -47,6 +48,9 @@ export function SiteToolPanels({
 		() => (activeTabName ? [activeTabName] : [])
 	);
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	const localDirectoryBootConfiguration =
+		site.metadata.localDirectoryBootConfiguration;
+	const isPhpApp = isLocalDirectoryPhpApp(localDirectoryBootConfiguration);
 	const editorHeaderSlot = useDockPaneEditorHeaderSlot();
 	const activeMobileHeaderSlot = mobileUi ? editorHeaderSlot : null;
 	const settingsMounted =
@@ -56,7 +60,8 @@ export function SiteToolPanels({
 	const blueprintMounted =
 		activeTabName === 'blueprint' || mountedTabNames.includes('blueprint');
 	const databaseMounted =
-		activeTabName === 'database' || mountedTabNames.includes('database');
+		!isPhpApp &&
+		(activeTabName === 'database' || mountedTabNames.includes('database'));
 	const logsMounted =
 		activeTabName === 'logs' || mountedTabNames.includes('logs');
 
@@ -123,6 +128,10 @@ export function SiteToolPanels({
 								site={site}
 								isVisible={activeTabName === 'files'}
 								documentRoot={documentRoot}
+								filesystemRoot={
+									localDirectoryBootConfiguration?.mountpoint ??
+									documentRoot
+								}
 								mobileHeaderTarget={
 									activeTabName === 'files'
 										? activeMobileHeaderSlot
@@ -163,7 +172,7 @@ export function SiteToolPanels({
 					</Suspense>
 				</div>
 			)}
-			{databaseMounted && (
+			{databaseMounted && !isPhpApp && (
 				<div
 					className={classNames(
 						css.tabContents,

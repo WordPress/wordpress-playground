@@ -15,6 +15,7 @@ import {
 	pencil,
 	layout,
 	fullscreen,
+	archive,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -70,6 +71,8 @@ import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
+import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
+import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -141,6 +144,7 @@ type CreationTabId =
 	| 'write-own'
 	| 'github'
 	| 'pull-request'
+	| 'local-directory'
 	| 'zip';
 
 interface SavedPlaygroundsPanelProps {
@@ -184,6 +188,9 @@ export function SavedPlaygroundsPanel({
 		string | null
 	>(null);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [pendingLocalDirectoryHandle, setPendingLocalDirectoryHandle] =
+		useState<FileSystemDirectoryHandle | null>(null);
+	const [localDirectoryError, setLocalDirectoryError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
 	// routine re-renders, so this prevents a second concurrent import firing while
@@ -688,10 +695,20 @@ export function SavedPlaygroundsPanel({
 
 	const getRuntimeLabel = (site: SiteInfo) => {
 		const { phpVersion, wpVersion } = site.metadata.runtimeConfiguration;
+		if (
+			isLocalDirectoryPhpApp(
+				site.metadata.localDirectoryBootConfiguration
+			)
+		) {
+			return `PHP app · PHP ${phpVersion}`;
+		}
 		return `WP ${wpVersion} · PHP ${phpVersion}`;
 	};
 
 	const getSourceLabel = (site: SiteInfo) => {
+		if (site.metadata.localDirectoryBootConfiguration) {
+			return 'local directory';
+		}
 		const corePr = getOriginalSearchParam(site, 'core-pr');
 		if (corePr) {
 			return `WordPress PR #${corePr}`;
@@ -853,6 +870,45 @@ export function SavedPlaygroundsPanel({
 		onClose();
 	};
 
+	const chooseLocalDirectory = async () => {
+		setLocalDirectoryError(undefined);
+		try {
+			const directoryHandle = await (
+				window as Window & {
+					showDirectoryPicker: (options: {
+						id: string;
+						mode: 'readwrite';
+					}) => Promise<FileSystemDirectoryHandle>;
+				}
+			).showDirectoryPicker({
+				id: 'playground-open-local-directory',
+				mode: 'readwrite',
+			});
+			await requestLocalDirectoryWriteAccess(directoryHandle);
+			setPendingLocalDirectoryHandle(directoryHandle);
+		} catch (error) {
+			if ((error as DOMException | undefined)?.name !== 'AbortError') {
+				logger.error('Error opening local directory', error);
+				setLocalDirectoryError(
+					'The selected directory could not be opened.'
+				);
+			}
+		}
+	};
+
+	const openLocalDirectory = async (documentRoot: string) => {
+		if (!pendingLocalDirectoryHandle) {
+			return;
+		}
+		await sitesAPI.createNewLocalDirectorySite(
+			pendingLocalDirectoryHandle,
+			documentRoot
+		);
+		setPendingLocalDirectoryHandle(null);
+		dispatch(setDockPaneOpen(false));
+		onClose();
+	};
+
 	/**
 	 * Opens the roomier Blueprint tab with its file tree. A temporary Playground
 	 * first receives the edited draft as an in-memory declaration, without
@@ -943,6 +999,16 @@ export function SavedPlaygroundsPanel({
 			panelTitle: 'Import a .zip export',
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
+		},
+		{
+			id: 'local-directory',
+			label: 'Local directory',
+			panelTitle: 'Open a local directory',
+			icon: <Icon icon={archive} size={20} />,
+			disabled:
+				!isOpfsAvailable ||
+				typeof (window as Window & { showDirectoryPicker?: unknown })
+					.showDirectoryPicker !== 'function',
 		},
 	];
 
@@ -1358,7 +1424,9 @@ export function SavedPlaygroundsPanel({
 							disabled={method.disabled || isImportingZip}
 							title={
 								method.disabled
-									? 'Needs an internet connection — unavailable offline'
+									? method.id === 'local-directory'
+										? 'Opening local directories is not supported by this browser'
+										: 'Needs an internet connection — unavailable offline'
 									: undefined
 							}
 						>
@@ -1599,6 +1667,26 @@ export function SavedPlaygroundsPanel({
 						</div>
 					</div>
 				);
+			case 'local-directory':
+				return (
+					<div className={css.inlineForm}>
+						<p className={css.inlineFormHint}>
+							Choose a project folder, then select the folder
+							inside it that PHP should serve.
+						</p>
+						{localDirectoryError ? (
+							<p role="alert">{localDirectoryError}</p>
+						) : null}
+						<div className={css.inlineFormActions}>
+							<Button
+								variant="primary"
+								onClick={() => void chooseLocalDirectory()}
+							>
+								Choose a directory…
+							</Button>
+						</div>
+					</div>
+				);
 			default:
 				return null;
 		}
@@ -1683,22 +1771,33 @@ export function SavedPlaygroundsPanel({
 	}
 
 	return (
-		<div
-			ref={panelRootRef}
-			className={classNames(css.playgroundsPane, {
-				[css.newPane]: panel === 'new',
-			})}
-		>
-			<input
-				type="file"
-				ref={zipFileInputRef}
-				onChange={handleImportZip}
-				accept=".zip,application/zip"
-				style={{ display: 'none' }}
-			/>
-			{panel !== 'new' && renderYourPlaygroundsSection()}
-			{panel !== 'playgrounds' && renderNewPlaygroundSection()}
-		</div>
+		<>
+			<div
+				ref={panelRootRef}
+				className={classNames(css.playgroundsPane, {
+					[css.newPane]: panel === 'new',
+				})}
+			>
+				<input
+					type="file"
+					ref={zipFileInputRef}
+					onChange={handleImportZip}
+					accept=".zip,application/zip"
+					style={{ display: 'none' }}
+				/>
+				{panel !== 'new' && renderYourPlaygroundsSection()}
+				{panel !== 'playgrounds' && renderNewPlaygroundSection()}
+			</div>
+			{pendingLocalDirectoryHandle ? (
+				<LocalDirectoryDocumentRootModal
+					directoryHandle={pendingLocalDirectoryHandle}
+					initialDocumentRoot=""
+					preferPublic
+					onRequestClose={() => setPendingLocalDirectoryHandle(null)}
+					onSelect={openLocalDirectory}
+				/>
+			) : null}
+		</>
 	);
 }
 
@@ -1708,6 +1807,23 @@ function PullRequestIcon() {
 			<path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
 		</svg>
 	);
+}
+
+async function requestLocalDirectoryWriteAccess(
+	directoryHandle: FileSystemDirectoryHandle
+) {
+	if (typeof directoryHandle.requestPermission !== 'function') {
+		return;
+	}
+	const permission = await directoryHandle.requestPermission({
+		mode: 'readwrite',
+	});
+	if (permission !== 'granted') {
+		throw new DOMException(
+			'Permission to open this directory was denied.',
+			'NotAllowedError'
+		);
+	}
 }
 
 /**

@@ -41,6 +41,7 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { getLocalDirectoryDocumentRoot } from '../../local-directory-site';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -106,6 +107,11 @@ export function bootSiteClient(
 			}
 		}
 
+		const localDirectoryBootConfiguration =
+			site.metadata.localDirectoryBootConfiguration;
+		const documentRoot = localDirectoryBootConfiguration
+			? getLocalDirectoryDocumentRoot(localDirectoryBootConfiguration)
+			: undefined;
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
 			mountDescriptor = {
@@ -143,7 +149,8 @@ export function bootSiteClient(
 					type: 'local-fs',
 					handle: localDirectoryHandle,
 				},
-				mountpoint: '/wordpress',
+				mountpoint:
+					localDirectoryBootConfiguration?.mountpoint ?? '/wordpress',
 			} as const;
 		}
 
@@ -157,7 +164,20 @@ export function bootSiteClient(
 		logTrackingEvent('load');
 
 		let blueprint: Blueprint;
-		if (shouldBootFromStoredFiles) {
+		if (localDirectoryBootConfiguration?.siteMode === 'php') {
+			blueprint = {
+				preferredVersions: {
+					php: site.metadata.runtimeConfiguration.phpVersion,
+					wp: false,
+				},
+				features: {
+					intl: site.metadata.runtimeConfiguration.intl,
+					networking: site.metadata.runtimeConfiguration.networking,
+				},
+				extraLibraries: site.metadata.runtimeConfiguration
+					.extraLibraries as any[],
+			};
+		} else if (shouldBootFromStoredFiles) {
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -233,6 +253,7 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				documentRoot,
 				extensions: phpExtensions,
 				// Intercept the Playground client even if the
 				// Blueprint fails.

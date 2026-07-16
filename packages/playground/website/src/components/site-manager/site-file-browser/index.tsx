@@ -4,16 +4,20 @@ import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { PlaygroundFileEditor } from '@wp-playground/components';
+import { joinPaths } from '@php-wasm/util';
+import { isLocalDirectoryPhpApp } from '../../../lib/local-directory-site';
 
 export function SiteFileBrowser({
 	site,
 	isVisible = true,
 	documentRoot,
+	filesystemRoot,
 	mobileHeaderTarget,
 }: {
 	site: SiteInfo;
 	isVisible?: boolean;
 	documentRoot: string;
+	filesystemRoot: string;
 	mobileHeaderTarget?: Element | null;
 }) {
 	const client = usePlaygroundClient(site.slug);
@@ -22,9 +26,16 @@ export function SiteFileBrowser({
 	return (
 		<PlaygroundFileEditor
 			filesystem={filesystem}
-			documentRoot={documentRoot}
+			documentRoot={filesystemRoot}
 			isVisible={isVisible}
-			initialPath={`${documentRoot}/wp-config.php`}
+			initialPath={joinPaths(
+				documentRoot,
+				isLocalDirectoryPhpApp(
+					site.metadata.localDirectoryBootConfiguration
+				)
+					? 'index.php'
+					: 'wp-config.php'
+			)}
 			placeholderText="Start this Playground to browse and edit its files."
 			dockPresentation
 			mobileHeaderTarget={mobileHeaderTarget}

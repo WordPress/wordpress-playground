@@ -2847,6 +2847,245 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should serve a local PHP project from a selectable document root', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		const directoryName = `e2e-local-php-${Date.now()}`;
+		await website.page.addInitScript(async (name) => {
+			async function writeFile(
+				directory: FileSystemDirectoryHandle,
+				filename: string,
+				contents: string
+			) {
+				const file = await directory.getFileHandle(filename, {
+					create: true,
+				});
+				const writable = await file.createWritable();
+				await writable.write(contents);
+				await writable.close();
+			}
+
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					const storageRoot = await navigator.storage.getDirectory();
+					const project = await storageRoot.getDirectoryHandle(name, {
+						create: true,
+					});
+					const publicDirectory = await project.getDirectoryHandle(
+						'public',
+						{ create: true }
+					);
+					const vendorDirectory = await project.getDirectoryHandle(
+						'vendor',
+						{ create: true }
+					);
+					await writeFile(
+						vendorDirectory,
+						'autoload.php',
+						"<?php function app_message() { return 'symfony-public'; }"
+					);
+					await writeFile(
+						publicDirectory,
+						'index.php',
+						"<?php require dirname(__DIR__) . '/vendor/autoload.php'; echo app_message();"
+					);
+					await writeFile(
+						project,
+						'index.php',
+						"<?php echo 'root-entry';"
+					);
+					return project;
+				},
+			});
+		}, directoryName);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('local-php-app'));
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.locator('#creation-tab-local-directory').click();
+		const siteCountBeforeDeniedPermission = await website.page.evaluate(
+			() => (window as any).playgroundSites.list().length
+		);
+		await website.page.evaluate(() => {
+			(window as any).__successfulLocalDirectoryPicker = (
+				window as any
+			).showDirectoryPicker;
+			(window as any).showDirectoryPicker = async () => ({
+				name: 'denied',
+				requestPermission: async () => 'denied',
+			});
+		});
+		await newPane
+			.getByRole('button', { name: 'Choose a directory…' })
+			.click();
+		await expect(
+			newPane.getByText('The selected directory could not be opened.')
+		).toBeVisible();
+		expect(
+			await website.page.evaluate(
+				() => (window as any).playgroundSites.list().length
+			)
+		).toBe(siteCountBeforeDeniedPermission);
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = (
+				window as any
+			).__successfulLocalDirectoryPicker;
+		});
+		await newPane
+			.getByRole('button', { name: 'Choose a directory…' })
+			.click();
+		let documentRootDialog = website.page.getByRole('dialog', {
+			name: 'Choose a document root',
+		});
+		await expect(documentRootDialog).toBeVisible();
+		const siteCountBeforeCancel = await website.page.evaluate(
+			() => (window as any).playgroundSites.list().length
+		);
+		await documentRootDialog
+			.getByRole('button', { name: 'Cancel' })
+			.click();
+		await expect(documentRootDialog).not.toBeVisible();
+		expect(
+			await website.page.evaluate(
+				() => (window as any).playgroundSites.list().length
+			)
+		).toBe(siteCountBeforeCancel);
+
+		await newPane
+			.getByRole('button', { name: 'Choose a directory…' })
+			.click();
+		documentRootDialog = website.page.getByRole('dialog', {
+			name: 'Choose a document root',
+		});
+		await documentRootDialog
+			.getByRole('button', { name: 'Use this directory' })
+			.click();
+
+		const getPhpAppState = () =>
+			website.page.evaluate(async () => {
+				try {
+					const client = (window as any).playgroundSites.getClient();
+					if (!client) {
+						return undefined;
+					}
+					const responses = await Promise.all(
+						[0, 1, 2].map(() => client.request({ url: '/' }))
+					);
+					return {
+						documentRoot: await client.documentRoot,
+						responses: responses.map(
+							(response: { text: string }) => response.text
+						),
+						hasWordPress:
+							await client.fileExists('/app/wp-config.php'),
+					};
+				} catch {
+					return undefined;
+				}
+			});
+		const appBody = website.wordpress().locator('body');
+		await expect(appBody).toHaveText('symfony-public', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			hasWordPress: false,
+		});
+
+		await website.page.reload();
+		await expect(appBody).toHaveText('symfony-public', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			hasWordPress: false,
+		});
+
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		await expect(
+			dock.getByRole('button', { name: 'Database' })
+		).toHaveCount(0);
+		await website.openDockPane('Playgrounds');
+		await expect(
+			website.page.getByText(/PHP app · PHP/).first()
+		).toBeVisible();
+		await website.openDockPane('Site Settings');
+		const settingsPane = website.page.getByRole('dialog', {
+			name: 'Site Settings pane',
+		});
+		await expect(settingsPane.getByLabel(/PHP version/i)).toBeVisible();
+		await expect(
+			settingsPane.getByLabel(/WordPress version/i)
+		).not.toBeVisible();
+		await expect(settingsPane.getByLabel('Language')).not.toBeVisible();
+		await expect(
+			settingsPane.getByLabel('Create a multisite network')
+		).not.toBeVisible();
+		await website.page.keyboard.press('Escape');
+
+		await dock.getByRole('button', { name: 'Saved', exact: true }).click();
+		await website.page
+			.getByRole('button', { name: 'Change document root' })
+			.click();
+		documentRootDialog = website.page.getByRole('dialog', {
+			name: 'Choose a document root',
+		});
+		await documentRootDialog
+			.locator('.file-node-button[data-path="/"]')
+			.click();
+		await documentRootDialog
+			.getByRole('button', { name: 'Use this directory' })
+			.click();
+		await expect(appBody).toHaveText('root-entry', { timeout: 120000 });
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
+			hasWordPress: false,
+		});
+
+		await website.page.reload();
+		await expect(appBody).toHaveText('root-entry', { timeout: 120000 });
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
+			hasWordPress: false,
+		});
+
+		await website.page.evaluate(async (name) => {
+			const storageRoot = await navigator.storage.getDirectory();
+			const project = await storageRoot.getDirectoryHandle(name);
+			const index = await project.getFileHandle('index.php');
+			const writable = await index.createWritable();
+			await writable.write("<?php echo 'externally-edited';");
+			await writable.close();
+		}, directoryName);
+		await dock.getByRole('button', { name: 'Saved', exact: true }).click();
+		await website.page
+			.getByRole('button', { name: 'Reload files from disk' })
+			.click();
+		await expect(appBody).toHaveText('externally-edited', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app',
+			responses: [
+				'externally-edited',
+				'externally-edited',
+				'externally-edited',
+			],
+			hasWordPress: false,
+		});
+	});
+
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
 		browserName,

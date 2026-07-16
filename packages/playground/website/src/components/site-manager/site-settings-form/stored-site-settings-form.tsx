@@ -47,6 +47,10 @@ export function StoredSiteSettingsForm({
 	return (
 		<UnconnectedSiteSettingsForm
 			className="is-stored-site"
+			siteMode={
+				siteInfo.metadata.localDirectoryBootConfiguration?.siteMode ??
+				'wordpress'
+			}
 			onSubmit={(data) => submission.run(updateSite, data)}
 			defaultValues={defaultValues}
 			footer={(context) => (

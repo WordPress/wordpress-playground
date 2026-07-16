@@ -18,6 +18,7 @@ import {
 	isOlderWordPressVersion,
 } from './older-wordpress-versions';
 import { getWordPressVersionOptions } from './wordpress-version-options';
+import type { LocalDirectorySiteMode } from '../../../lib/local-directory-site';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -33,6 +34,7 @@ export interface SiteSettingsFormProps {
 	className?: string;
 	enabledFields?: ConfigurableFields;
 	defaultValues?: Partial<SiteFormData>;
+	siteMode?: LocalDirectorySiteMode;
 }
 
 export interface SiteFormData {
@@ -55,6 +57,7 @@ export function UnconnectedSiteSettingsForm({
 	footer,
 	className,
 	defaultValues = {},
+	siteMode = 'wordpress',
 	enabledFields = {
 		wpVersion: true,
 		language: true,
@@ -106,7 +109,10 @@ export function UnconnectedSiteSettingsForm({
 
 	const values = useWatch({ control }) as SiteFormData;
 	const currentWpVersion = values.wpVersion;
-	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
+	const forcedPhpVersion =
+		siteMode === 'wordpress'
+			? getForcedPhpVersionForWordPress(currentWpVersion)
+			: undefined;
 
 	useEffect(() => {
 		if (
@@ -189,7 +195,7 @@ export function UnconnectedSiteSettingsForm({
 					}}
 					disabled={!enabledFields.wpVersion}
 					render={({ field: { onChange, ...rest } }) => (
-						<div>
+						<div hidden={siteMode !== 'wordpress'}>
 							<SelectControl
 								size="compact"
 								__nextHasNoMarginBottom={true}
@@ -268,6 +274,8 @@ export function UnconnectedSiteSettingsForm({
 							help={errors.language?.message}
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!errors.language,
+								[css.wordpressOnlyHidden]:
+									siteMode !== 'wordpress',
 							})}
 							disabled={!enabledFields.language}
 							options={[
@@ -546,6 +554,10 @@ export function UnconnectedSiteSettingsForm({
 					disabled={!enabledFields.multisite}
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
+							className={classNames({
+								[css.wordpressOnlyHidden]:
+									siteMode !== 'wordpress',
+							})}
 							label="Create a multisite network"
 							onChange={(isChecked) => {
 								setValue('multisite', isChecked);

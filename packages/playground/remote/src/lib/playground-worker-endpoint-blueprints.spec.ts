@@ -116,27 +116,34 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
 			'http://playground.test'
 		);
-		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
-			requestHandler
-		);
+		const createRequestHandler = vi
+			.spyOn(endpoint as any, 'createRequestHandler')
+			.mockResolvedValue(requestHandler);
 		const mountOpfsIntoPhp = vi
 			.spyOn(endpoint as any, 'mountOpfsIntoPhp')
 			.mockResolvedValue(undefined);
 		const mount = {
 			device: { type: 'local-fs', handle: {} },
 			initialSyncDirection: 'opfs-to-memfs',
-			mountpoint: '/wordpress',
+			mountpoint: '/app',
 		};
 
 		await endpoint.boot({
 			scope: 'test',
 			mounts: [mount as any],
 			phpVersion: '8.3',
+			documentRoot: '/app/public',
 			wordpressInstallMode: 'do-not-attempt-installing',
 			withNetworking: false,
 		});
 
 		expect(bootWordPress).not.toHaveBeenCalled();
+		expect(createRequestHandler).toHaveBeenCalledWith(
+			expect.objectContaining({
+				documentRoot: '/app/public',
+				mounts: [mount],
+			})
+		);
 		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
 		expect(fetch).not.toHaveBeenCalled();
 	}, 10000);

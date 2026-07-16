@@ -343,6 +343,45 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('boots generic local directories as PHP apps under their selected document root', async () => {
+		const site = createSite('local-php-app', {
+			metadata: {
+				storage: 'local-fs',
+				localDirectoryBootConfiguration: {
+					mountpoint: '/app',
+					documentRoot: 'public',
+					siteMode: 'php',
+				},
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'local-php-app',
+			document.createElement('iframe'),
+			{
+				signal: new AbortController().signal,
+			}
+		)(dispatch, () => state);
+
+		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				documentRoot: '/app/public',
+				blueprint: expect.objectContaining({
+					preferredVersions: expect.objectContaining({ wp: false }),
+				}),
+				wordpressInstallMode: 'do-not-attempt-installing',
+				mounts: [
+					expect.objectContaining({
+						mountpoint: '/app',
+						initialSyncDirection: 'opfs-to-memfs',
+					}),
+				],
+			})
+		);
+	});
+
 	it('does not add client info when iframe boot finishes after abort', async () => {
 		let resolveStart = () => {};
 		const startFinished = new Promise<void>((resolve) => {

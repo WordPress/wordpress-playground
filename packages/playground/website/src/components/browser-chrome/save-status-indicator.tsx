@@ -24,6 +24,9 @@ import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { logger } from '@php-wasm/logger';
 import { Spinner } from '../spinner';
+import { loadDirectoryHandle } from '../../lib/state/opfs/opfs-directory-handle-storage';
+import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
 type SaveStatus =
 	| 'saved'
@@ -47,11 +50,14 @@ export function SaveStatusIndicator({
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const previousStatusRef = useRef<{
 		status: SaveStatus | undefined;
 		siteSlug: string | undefined;
 	}>();
 	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
+	const [documentRootDirectoryHandle, setDocumentRootDirectoryHandle] =
+		useState<FileSystemDirectoryHandle | null>(null);
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -129,11 +135,11 @@ export function SaveStatusIndicator({
 		}
 		setIsReloadingFromDisk(true);
 		try {
-			const docroot = await client.documentRoot;
-			await client.unmountOpfs(docroot);
+			const mountpoint = opfsMountDescriptor.mountpoint;
+			await client.unmountOpfs(mountpoint);
 			await client.mountOpfs({
 				device: opfsMountDescriptor.device,
-				mountpoint: docroot,
+				mountpoint,
 				initialSyncDirection: 'opfs-to-memfs',
 			});
 			await client.goTo(url);
@@ -144,6 +150,19 @@ export function SaveStatusIndicator({
 			);
 		} finally {
 			setIsReloadingFromDisk(false);
+		}
+	};
+
+	const openDocumentRootPicker = async () => {
+		if (!activeSite?.metadata.localDirectoryBootConfiguration) {
+			return;
+		}
+		try {
+			setDocumentRootDirectoryHandle(
+				await loadDirectoryHandle(activeSite.slug)
+			);
+		} catch (error) {
+			logger.error('Error loading the local directory handle.', error);
 		}
 	};
 
@@ -169,49 +188,84 @@ export function SaveStatusIndicator({
 		// a separate, unclear "Sync local files" button.
 		if (isLocalFs) {
 			return withStatusAnnouncement(
-				<Dropdown
-					popoverProps={{ placement: 'top' }}
-					renderToggle={({ isOpen, onToggle }) => (
-						<button
-							type="button"
-							className={classNames(
-								css.indicator,
-								css.saved,
-								css.actionable
-							)}
-							onClick={onToggle}
-							disabled={disabled}
-							aria-expanded={isOpen}
-							title="Saved to a folder on this computer."
-						>
-							<Icon icon={check} size={18} />
-							<span className={css.label}>Saved</span>
-							<Icon icon={chevronDown} size={16} />
-						</button>
-					)}
-					renderContent={({ onClose }) => (
-						<div className={css.savedMenuContent}>
-							<p className={css.savedMenuHint}>
-								This Playground is saved to a folder on your
-								computer. Changes you make here are written to
-								those files.
-							</p>
-							<Button
-								className={css.savedMenuAction}
-								icon={update}
-								disabled={disabled || isReloadingFromDisk}
-								onClick={async () => {
-									await reloadFilesFromDisk();
-									onClose();
-								}}
+				<>
+					<Dropdown
+						popoverProps={{ placement: 'top' }}
+						renderToggle={({ isOpen, onToggle }) => (
+							<button
+								type="button"
+								className={classNames(
+									css.indicator,
+									css.saved,
+									css.actionable
+								)}
+								onClick={onToggle}
+								disabled={disabled}
+								aria-expanded={isOpen}
+								title="Saved to a folder on this computer."
 							>
-								{isReloadingFromDisk
-									? 'Reloading…'
-									: 'Reload files from disk'}
-							</Button>
-						</div>
-					)}
-				/>
+								<Icon icon={check} size={18} />
+								<span className={css.label}>Saved</span>
+								<Icon icon={chevronDown} size={16} />
+							</button>
+						)}
+						renderContent={({ onClose }) => (
+							<div className={css.savedMenuContent}>
+								<p className={css.savedMenuHint}>
+									This Playground is saved to a folder on your
+									computer. Changes you make here are written
+									to those files.
+								</p>
+								<Button
+									className={css.savedMenuAction}
+									icon={update}
+									disabled={disabled || isReloadingFromDisk}
+									onClick={async () => {
+										await reloadFilesFromDisk();
+										onClose();
+									}}
+								>
+									{isReloadingFromDisk
+										? 'Reloading…'
+										: 'Reload files from disk'}
+								</Button>
+								{activeSite.metadata
+									.localDirectoryBootConfiguration ? (
+									<Button
+										className={css.savedMenuAction}
+										disabled={disabled}
+										onClick={async () => {
+											await openDocumentRootPicker();
+											onClose();
+										}}
+									>
+										Change document root
+									</Button>
+								) : null}
+							</div>
+						)}
+					/>
+					{documentRootDirectoryHandle &&
+					activeSite.metadata.localDirectoryBootConfiguration ? (
+						<LocalDirectoryDocumentRootModal
+							directoryHandle={documentRootDirectoryHandle}
+							initialDocumentRoot={
+								activeSite.metadata
+									.localDirectoryBootConfiguration
+									.documentRoot
+							}
+							onRequestClose={() =>
+								setDocumentRootDirectoryHandle(null)
+							}
+							onSelect={async (documentRoot) => {
+								await sitesAPI.changeLocalDirectoryDocumentRoot(
+									documentRoot
+								);
+								setDocumentRootDirectoryHandle(null);
+							}}
+						/>
+					) : null}
+				</>
 			);
 		}
 		return withStatusAnnouncement(

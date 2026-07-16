@@ -20,6 +20,7 @@ import {
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
+	createLocalDirectorySite,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
@@ -36,6 +37,20 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import {
+	deleteDirectoryHandle,
+	loadDirectoryHandle,
+	saveDirectoryHandle,
+} from '../opfs/opfs-directory-handle-storage';
+import {
+	EventedFilesystem,
+	OpfsFilesystemBackend,
+} from '@wp-playground/storage';
+import {
+	LOCAL_DIRECTORY_MOUNTPOINT,
+	detectLocalDirectorySiteMode,
+} from '../../local-directory-site';
+import { logger } from '@php-wasm/logger';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -498,6 +513,46 @@ export function createSitesAPI(
 		},
 
 		/**
+		 * Changes the directory served by the active local project. Classifying
+		 * the selected directory again keeps WordPress boot limited to compatible
+		 * SQLite-backed WordPress trees.
+		 */
+		async changeLocalDirectoryDocumentRoot(
+			documentRoot: string
+		): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (
+				!site ||
+				site.metadata.storage !== 'local-fs' ||
+				!site.metadata.localDirectoryBootConfiguration
+			) {
+				throw new Error(
+					'The active Playground was not opened from a local directory.'
+				);
+			}
+			const handle = await loadDirectoryHandle(site.slug);
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(handle)
+			);
+			const siteMode = await detectLocalDirectorySiteMode(
+				filesystem,
+				documentRoot
+			);
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						localDirectoryBootConfiguration: {
+							mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+							documentRoot,
+							siteMode,
+						},
+					},
+				})
+			);
+		},
+
+		/**
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
@@ -514,6 +569,14 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(removeSite(siteSlug));
+			if (site.metadata.storage === 'local-fs') {
+				await deleteDirectoryHandle(site.slug).catch((error) => {
+					logger.error(
+						'Error deleting the local directory handle.',
+						error
+					);
+				});
+			}
 		},
 
 		/**
@@ -645,8 +708,65 @@ export function createSitesAPI(
 			);
 			return newSiteInfo.slug;
 		},
+
+		/**
+		 * Opens a site directly from a local directory. Files are mounted in
+		 * place; only the directory handle and safe boot configuration persist.
+		 */
+		async createNewLocalDirectorySite(
+			directoryHandle: FileSystemDirectoryHandle,
+			documentRoot: string
+		): Promise<string> {
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot save local project metadata because browser storage is not available.'
+				);
+			}
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(directoryHandle)
+			);
+			const siteMode = await detectLocalDirectorySiteMode(
+				filesystem,
+				documentRoot
+			);
+			const siteName = directoryHandle.name || randomSiteName();
+			const newSiteInfo = await dispatch(
+				createLocalDirectorySite(siteName, {
+					mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+					documentRoot,
+					siteMode,
+				})
+			);
+
+			try {
+				await saveDirectoryHandle(newSiteInfo.slug, directoryHandle);
+				await api.setActiveSite(newSiteInfo.slug);
+				return newSiteInfo.slug;
+			} catch (error) {
+				await rollbackLocalDirectorySite(newSiteInfo.slug, dispatch);
+				throw error;
+			}
+		},
 	};
 	return api;
+}
+
+async function rollbackLocalDirectorySite(
+	siteSlug: string,
+	dispatch: PlaygroundDispatch
+) {
+	const cleanupResults = await Promise.allSettled([
+		deleteDirectoryHandle(siteSlug),
+		dispatch(removeSite(siteSlug)),
+	]);
+	for (const result of cleanupResults) {
+		if (result.status === 'rejected') {
+			logger.error(
+				'Error rolling back a local directory site.',
+				result.reason
+			);
+		}
+	}
 }
 
 /**

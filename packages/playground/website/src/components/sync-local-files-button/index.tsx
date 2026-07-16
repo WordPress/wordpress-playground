@@ -15,12 +15,12 @@ export function SyncLocalFilesButton() {
 			onClick={async () => {
 				setIsSyncing(true);
 				try {
-					const docroot = await client!.documentRoot;
-					await client!.unmountOpfs(docroot);
+					const mountpoint = opfsMountDescriptor!.mountpoint;
+					await client!.unmountOpfs(mountpoint);
 
 					await client!.mountOpfs({
 						device: opfsMountDescriptor!.device,
-						mountpoint: docroot,
+						mountpoint,
 						initialSyncDirection: 'opfs-to-memfs',
 					});
 					// @TODO Report error to avoid confusion on silent failure.

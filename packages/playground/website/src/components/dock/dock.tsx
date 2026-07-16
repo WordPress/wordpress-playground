@@ -62,6 +62,7 @@ import {
 } from './dock-positioning';
 import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
 import css from './style.module.css';
+import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 type DockItem = {
 	section: DockPaneSection;
@@ -198,6 +199,12 @@ export function Dock({
 		[]
 	);
 	const activeSite = useActiveSite();
+	const isPhpApp = isLocalDirectoryPhpApp(
+		activeSite?.metadata.localDirectoryBootConfiguration
+	);
+	const visibleDockItems = isPhpApp
+		? DOCK_ITEMS.filter((item) => item.section !== 'database')
+		: DOCK_ITEMS;
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneCopy = PANE_COPY[section];
 	const paneTitle = paneCopy.title;
@@ -278,6 +285,12 @@ export function Dock({
 	// Retain the full pane body until its exit motion finishes. Hiding it when
 	// close starts would collapse the surface to its header before it can leave.
 	const paneContentVisible = dockPaneIsOpen || !paneExitComplete;
+
+	useEffect(() => {
+		if (isPhpApp && section === 'database') {
+			dispatch(setDockPaneSection('settings'));
+		}
+	}, [dispatch, isPhpApp, section]);
 
 	useEffect(() => {
 		if (typeof ResizeObserver === 'undefined') {
@@ -1231,7 +1244,7 @@ export function Dock({
 						/>
 					</div>
 					<div className={css.dockTools} ref={toolsRef}>
-						{DOCK_ITEMS.map((item, index) => (
+						{visibleDockItems.map((item, index) => (
 							<DockItemButton
 								key={item.section}
 								label={item.label}

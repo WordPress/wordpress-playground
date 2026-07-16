@@ -12,8 +12,21 @@ vi.mock('../../../lib/state/redux/store', () => ({
 }));
 
 vi.mock('../site-file-browser', () => ({
-	SiteFileBrowser: ({ isVisible }: { isVisible: boolean }) => (
-		<div data-testid="files" data-visible={isVisible}>
+	SiteFileBrowser: ({
+		isVisible,
+		documentRoot,
+		filesystemRoot,
+	}: {
+		isVisible: boolean;
+		documentRoot: string;
+		filesystemRoot: string;
+	}) => (
+		<div
+			data-testid="files"
+			data-visible={isVisible}
+			data-document-root={documentRoot}
+			data-filesystem-root={filesystemRoot}
+		>
 			File browser
 		</div>
 	),
@@ -120,16 +133,43 @@ describe('SiteToolPanels', () => {
 		);
 	});
 
+	it('browses a local PHP project from its mount root', async () => {
+		const phpSite = {
+			...site,
+			metadata: {
+				...site.metadata,
+				localDirectoryBootConfiguration: {
+					mountpoint: '/app',
+					documentRoot: 'public',
+					siteMode: 'php',
+				},
+			},
+		} as SiteInfo;
+		const phpPlayground = {
+			documentRoot: Promise.resolve('/app/public'),
+		} as PlaygroundClient;
+
+		await renderPanels('files', phpPlayground, phpSite);
+
+		expect(findTool('files').getAttribute('data-document-root')).toBe(
+			'/app/public'
+		);
+		expect(findTool('files').getAttribute('data-filesystem-root')).toBe(
+			'/app'
+		);
+	});
+
 	async function renderPanels(
 		activeTabName: React.ComponentProps<
 			typeof SiteToolPanels
 		>['activeTabName'],
-		client: PlaygroundClient | undefined
+		client: PlaygroundClient | undefined,
+		selectedSite: SiteInfo = site
 	) {
 		await act(async () => {
 			root.render(
 				<SiteToolPanels
-					site={site}
+					site={selectedSite}
 					playground={client}
 					activeTabName={activeTabName}
 				/>

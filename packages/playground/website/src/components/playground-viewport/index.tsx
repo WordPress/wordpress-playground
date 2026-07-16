@@ -19,6 +19,7 @@ import {
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
+import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -167,7 +168,13 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{!hasVisibleSite && (
 				<div className={css.loadingViewport}>
-					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
+					<h1 className={css.loadingCaption}>
+						{isLocalDirectoryPhpApp(
+							activeSite?.metadata.localDirectoryBootConfiguration
+						)
+							? 'Preparing PHP app'
+							: 'Preparing WordPress'}
+					</h1>
 					<div className={css.progressWrapper}>
 						<div className={css.progressBar} />
 					</div>
@@ -205,7 +212,8 @@ export const JustViewport = function JustViewport({
 
 	const dispatch = useAppDispatch();
 	const runtimeBootFingerprint = getRuntimeBootFingerprint(
-		site.metadata.runtimeConfiguration
+		site.metadata.runtimeConfiguration,
+		site.metadata.localDirectoryBootConfiguration
 	);
 	useEffect(() => {
 		const iframe = iframeRef.current;
