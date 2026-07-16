@@ -18,11 +18,19 @@ const pythonArguments = [
 ];
 
 let pythonResult;
-for (const candidate of [
-	{ command: 'python3', prefix: [] },
-	{ command: 'python', prefix: [] },
-	{ command: 'py', prefix: ['-3'] },
-]) {
+const pythonCandidates =
+	process.platform === 'win32'
+		? [
+				{ command: 'py', prefix: ['-3'] },
+				{ command: 'python', prefix: [] },
+				{ command: 'python3', prefix: [] },
+			]
+		: [
+				{ command: 'python3', prefix: [] },
+				{ command: 'python', prefix: [] },
+				{ command: 'py', prefix: ['-3'] },
+			];
+for (const candidate of pythonCandidates) {
 	pythonResult = spawnSync(
 		candidate.command,
 		[...candidate.prefix, ...pythonArguments],
@@ -42,6 +50,7 @@ const nodeResult = spawnSync(
 	[
 		'--test',
 		resolve(scriptDirectory, 'tests/benchmark-site-editor.test.mjs'),
+		resolve(scriptDirectory, 'tests/benchmark-regression.test.mjs'),
 	],
 	{
 		cwd: repositoryRoot,

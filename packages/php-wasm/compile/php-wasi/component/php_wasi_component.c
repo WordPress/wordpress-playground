@@ -29,6 +29,7 @@ typedef struct {
 	uint8_t *body;
 	size_t content_length;
 	uint32_t request_port;
+	bool stream_response;
 	request_entry_t *server_entries;
 	size_t server_entry_count;
 	request_entry_t *env;
@@ -206,6 +207,7 @@ static bool prepare_request(
 	current_request.body = request->body.ptr;
 	current_request.content_length = request->body.len;
 	current_request.request_port = request->port;
+	current_request.stream_response = request->stream_response;
 	return true;
 
 failed:
@@ -311,6 +313,9 @@ static int component_send_headers(sapi_headers_struct *headers)
 	}
 	if (response_headers_failed) {
 		return SAPI_HEADER_SEND_FAILED;
+	}
+	if (current_request.stream_response) {
+		wordpress_php_wasi_output_headers(response_http_status, &response_headers);
 	}
 	return SAPI_HEADER_SENT_SUCCESSFULLY;
 }

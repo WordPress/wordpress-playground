@@ -2,7 +2,10 @@ use std::{
     fs,
     io::ErrorKind,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
+    },
 };
 
 use wasmtime::component::Component;
@@ -14,8 +17,11 @@ use crate::{
         self, PhpConstantValue, PhpIniOptions, PHP_CONSTANTS_VFS_PATH, PHP_INI_VFS_PATH,
         PHP_SHARED_VFS_DIR,
     },
-    runtime::{CompiledPhpArtifact, NativeRuntime},
-    wasip2::{CapabilityPreopen, Wasip2ContextBuilder, Wasip2PhpInstance, Wasip2PhpOutput},
+    runtime::{CompiledPhpArtifact, InterruptiblePhpArtifact, NativeRuntime},
+    wasip2::{
+        CapabilityPreopen, Wasip2ContextBuilder, Wasip2PhpInstance, Wasip2PhpOutput,
+        Wasip2PhpStreamSink,
+    },
     CliError, Result,
 };
 
@@ -33,8 +39,26 @@ impl PhpWorkerInstance {
         ComponentPhpInstance::instantiate(&artifact, options).map(|component| Self { component })
     }
 
+    pub(crate) fn from_interruptible_artifact_with_options(
+        artifact: InterruptiblePhpArtifact,
+        options: PhpWorkerOptions,
+    ) -> Result<Self> {
+        ComponentPhpInstance::instantiate_interruptible(&artifact.0, options)
+            .map(|component| Self { component })
+    }
+
     pub fn run_sapi_request(&mut self, request: &PhpRequest) -> Result<PhpResponse> {
         self.component.run_sapi_request(request)
+    }
+
+    pub fn run_sapi_request_streamed(
+        &mut self,
+        request: &PhpRequest,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> Result<PhpResponse> {
+        self.component
+            .run_sapi_request_streamed(request, sink, cancellation)
     }
 
     pub fn define_constants(&mut self, constants: &[(String, PhpConstantValue)]) {
@@ -72,9 +96,22 @@ pub struct ComponentPhpInstance {
 
 impl ComponentPhpInstance {
     fn instantiate(component: &Component, options: PhpWorkerOptions) -> Result<Self> {
+        Self::instantiate_with_interruption(component, options, false)
+    }
+
+    fn instantiate_interruptible(component: &Component, options: PhpWorkerOptions) -> Result<Self> {
+        Self::instantiate_with_interruption(component, options, true)
+    }
+
+    fn instantiate_with_interruption(
+        component: &Component,
+        options: PhpWorkerOptions,
+        interruptible: bool,
+    ) -> Result<Self> {
         let runtime_root = create_component_worker_root()?;
 
-        let result = Self::instantiate_in_root(component, options, runtime_root.clone());
+        let result =
+            Self::instantiate_in_root(component, options, runtime_root.clone(), interruptible);
         if result.is_err() {
             let _ = fs::remove_dir_all(&runtime_root);
         }
@@ -85,6 +122,7 @@ impl ComponentPhpInstance {
         component: &Component,
         options: PhpWorkerOptions,
         runtime_root: PathBuf,
+        interruptible: bool,
     ) -> Result<Self> {
         let ini_options = PhpIniOptions {
             entries: &options.php_ini_entries,
@@ -129,7 +167,12 @@ impl ComponentPhpInstance {
         let state = context.build().map_err(|error| {
             CliError::new(format!("Failed to build WASIp2 PHP context: {error}"))
         })?;
-        let mut php = Wasip2PhpInstance::instantiate(component, state).map_err(|error| {
+        let mut php = if interruptible {
+            Wasip2PhpInstance::instantiate_interruptible(component, state)
+        } else {
+            Wasip2PhpInstance::instantiate(component, state)
+        }
+        .map_err(|error| {
             CliError::new(format!(
                 "Failed to instantiate WASIp2 PHP component: {error}"
             ))
@@ -151,6 +194,23 @@ impl ComponentPhpInstance {
     }
 
     fn run_sapi_request(&mut self, request: &PhpRequest) -> Result<PhpResponse> {
+        self.run_sapi_request_with_stream(request, None)
+    }
+
+    fn run_sapi_request_streamed(
+        &mut self,
+        request: &PhpRequest,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> Result<PhpResponse> {
+        self.run_sapi_request_with_stream(request, Some((sink, cancellation)))
+    }
+
+    fn run_sapi_request_with_stream(
+        &mut self,
+        request: &PhpRequest,
+        stream: Option<(Wasip2PhpStreamSink, Arc<AtomicBool>)>,
+    ) -> Result<PhpResponse> {
         self.failed_stdout.clear();
         self.failed_stderr.clear();
         let mut merged_request;
@@ -163,11 +223,14 @@ impl ComponentPhpInstance {
             merged_request.env = env;
             &merged_request
         };
-        let result = self
+        let php = self
             .php
             .as_mut()
-            .expect("component PHP is present until drop")
-            .handle_request(request);
+            .expect("component PHP is present until drop");
+        let result = match stream {
+            Some((sink, cancellation)) => php.handle_request_streamed(request, sink, cancellation),
+            None => php.handle_request(request),
+        };
         match result {
             Ok(response) => {
                 let (stdout, stderr) = response.output.into_parts();
@@ -186,7 +249,9 @@ impl ComponentPhpInstance {
                     .expect("component PHP is present until drop")
                     .take_output();
                 self.remember_failed_output(output);
-                Err(CliError::new(format!("WASIp2 PHP request failed: {error}")))
+                Err(CliError::new(format!(
+                    "WASIp2 PHP request failed: {error:#}"
+                )))
             }
         }
     }
@@ -321,7 +386,7 @@ mod tests {
     use std::{
         fs,
         path::{Path, PathBuf},
-        sync::{atomic::AtomicU64, atomic::Ordering, Arc, Barrier},
+        sync::{atomic::AtomicBool, atomic::AtomicU64, atomic::Ordering, Arc, Barrier},
         thread,
         time::{Duration, Instant},
     };
@@ -400,6 +465,17 @@ mod tests {
             .unwrap();
         let worker_root = component_root(&worker);
         assert_runtime_files(&worker_root, "initial");
+
+        let error = worker
+            .run_sapi_request_streamed(
+                &packed_request("buffered-worker-stream"),
+                Arc::new(|_| Ok(())),
+                Arc::new(AtomicBool::new(false)),
+            )
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("streamed PHP execution requires an interruptible component instance"));
 
         let response = worker
             .run_sapi_request(&packed_request("request-override"))

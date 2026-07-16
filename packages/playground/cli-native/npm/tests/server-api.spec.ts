@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { createServer, request as httpRequest, type Server } from 'node:http';
-import { readdir, rename, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,7 +25,7 @@ vi.mock('node:child_process', async () => {
 	return { ...actual, spawn: mocks.spawn };
 });
 
-import { runCLI, type RunCLIServer } from '../src/api.js';
+import { runCLI, type RunCLIArgs, type RunCLIServer } from '../src/api.js';
 
 class FakeChild extends EventEmitter {
 	stderr = new PassThrough();
@@ -74,7 +74,7 @@ beforeEach(() => {
 					void writeFile(
 						temporaryPath,
 						JSON.stringify({
-							protocolVersion: 1,
+							protocolVersion: 2,
 							serverUrl: argv[argv.indexOf('--site-url') + 1],
 							nativeServerUrl: mocks.nativeServerUrl,
 							controlUrl: 'http://127.0.0.1:65534/rpc',
@@ -104,6 +104,189 @@ afterEach(async () => {
 });
 
 describe.sequential('programmatic native server lifecycle', () => {
+	it('validates supported argument values before acquisition', async () => {
+		const circular: Record<string, unknown> = {};
+		circular['self'] = circular;
+		const customMount = Object.assign(Object.create({ inherited: true }), {
+			hostPath: '/host',
+			vfsPath: '/wordpress',
+		});
+		const customDefinitions = Object.assign(
+			Object.create({ inherited: true }),
+			{
+				VALUE: 'value',
+			}
+		);
+		const sparsePositionals = new Array<string>(1);
+		class PositionalArray extends Array<string> {}
+		class ArgsWithPrototype {
+			command = 'start';
+		}
+		const deepBlueprint: Record<string, unknown> = {};
+		let deepCursor = deepBlueprint;
+		for (let depth = 0; depth <= 65; depth++) {
+			const next: Record<string, unknown> = {};
+			deepCursor['next'] = next;
+			deepCursor = next;
+		}
+		const blueprintAccessor = {};
+		Object.defineProperty(blueprintAccessor, 'steps', {
+			get: () => [],
+		});
+		const mountAccessor = [{ hostPath: '/host', vfsPath: '/wordpress' }];
+		Object.defineProperty(mountAccessor, '0', {
+			get: () => ({ hostPath: '/host', vfsPath: '/wordpress' }),
+		});
+		const argsAccessor = {};
+		Object.defineProperty(argsAccessor, 'command', { get: () => 'start' });
+		const argsSymbol = { command: 'start' };
+		Object.defineProperty(argsSymbol, Symbol('extra'), { value: true });
+		const invalidArguments: unknown[] = [
+			null,
+			[],
+			Object.create(null),
+			new ArgsWithPrototype(),
+			argsAccessor,
+			argsSymbol,
+			{ command: 'unknown' },
+			{ command: 'start', debug: 'yes' },
+			{ command: 'start', _: sparsePositionals },
+			{ command: 'start', _: new PositionalArray('start') },
+			{ command: 'start', path: 42 },
+			{ command: 'start', php: '8.3' },
+			{ command: 'start', verbosity: 'verbose' },
+			{ command: 'start', wordpressInstallMode: 'sometimes' },
+			{ command: 'start', port: -1 },
+			{ command: 'start', port: 65_536 },
+			{ command: 'start', port: 1.5 },
+			{ command: 'start', workers: 0 },
+			{ command: 'start', workers: Number.POSITIVE_INFINITY },
+			{ command: 'start', workers: 2 },
+			{ command: 'server', workers: 257 },
+			{ command: 'start', debug: true },
+			{ command: 'run-blueprint', port: 1234 },
+			{ command: 'start', startupTimeoutMs: 0 },
+			{ command: 'start', startupTimeoutMs: 2_147_483_648 },
+			{ command: 'start', autoMount: 1 },
+			{ command: 'start', blueprint: [] },
+			{ command: 'start', blueprint: new Date() },
+			{ command: 'start', blueprint: circular },
+			{ command: 'start', blueprint: { steps: [undefined] } },
+			{ command: 'start', blueprint: { value: BigInt(1) } },
+			{ command: 'start', blueprint: { value: Number.NaN } },
+			{ command: 'start', blueprint: deepBlueprint },
+			{ command: 'start', blueprint: blueprintAccessor },
+			{
+				command: 'start',
+				blueprint: { value: 'x'.repeat(16 * 1024 * 1024) },
+			},
+			{ command: 'start', mount: {} },
+			{ command: 'start', mount: [[]] },
+			{ command: 'start', mount: mountAccessor },
+			{ command: 'start', mount: [customMount] },
+			{
+				command: 'start',
+				mount: [
+					{ hostPath: '/host', vfsPath: '/wordpress', extra: true },
+				],
+			},
+			{
+				command: 'start',
+				mount: [{ hostPath: '/host', vfsPath: 1 }],
+			},
+			{ command: 'start', define: [] },
+			{ command: 'start', define: { VALUE: 1 } },
+			{ command: 'start', define: customDefinitions },
+			{ command: 'start', 'define-bool': { VALUE: 'true' } },
+			{ command: 'start', 'define-number': { VALUE: Number.NaN } },
+			{
+				command: 'start',
+				define: { VALUE: 'one' },
+				'define-number': { VALUE: 1 },
+			},
+			{ command: 'start\0' },
+			{ command: 'start', path: '/host\0path' },
+			{ command: 'start', blueprint: { value: 'bad\0value' } },
+			{
+				command: 'start',
+				mount: [{ hostPath: '/host\0path', vfsPath: '/wordpress' }],
+			},
+			{ command: 'start', define: { 'BAD\0NAME': 'value' } },
+			{ command: 'start', define: { NAME: 'bad\0value' } },
+		];
+		for (const args of invalidArguments)
+			await expect(runCLI(args as RunCLIArgs)).rejects.toMatchObject({
+				name: 'NativeCLIError',
+				code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('allows known undefined option spreads but still rejects unknown ones', async () => {
+		const result = (await runCLI({
+			command: 'start',
+			workers: undefined,
+			experimentalTrace: undefined,
+		})) as RunCLIServer;
+		await result[Symbol.asyncDispose]();
+		await expect(
+			runCLI({ command: 'start', unknownOption: undefined } as RunCLIArgs)
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+		});
+	});
+
+	it('snapshots nested arguments before the first await', async () => {
+		const blueprint = { steps: [] as Array<Record<string, unknown>> };
+		const mount = { hostPath: '/host', vfsPath: '/wordpress' };
+		const definitions = { SNAPSHOT_VALUE: 'before' };
+		const args: RunCLIArgs = {
+			command: 'start',
+			port: 0,
+			blueprint,
+			mount: [mount],
+			define: definitions,
+		};
+		const running = runCLI(args) as Promise<RunCLIServer>;
+		args.command = 'php';
+		blueprint.steps.push({ step: 'mutated' });
+		mount.hostPath = '/mutated';
+		definitions.SNAPSHOT_VALUE = 'after';
+		args.mount?.push({ hostPath: '/extra', vfsPath: '/extra' });
+
+		const result = await running;
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv[0]).toBe('start');
+		expect(argv).toContain('/host');
+		expect(argv).not.toContain('/mutated');
+		expect(argv).not.toContain('/extra');
+		expect(argv).toContain('before');
+		expect(argv).not.toContain('after');
+		const blueprintPath = argv[argv.indexOf('--blueprint') + 1];
+		if (!blueprintPath) throw new Error('missing Blueprint snapshot path');
+		expect(JSON.parse(await readFile(blueprintPath, 'utf8'))).toEqual({
+			steps: [],
+		});
+		await result[Symbol.asyncDispose]();
+	});
+
+	it('keeps unsupported keys and commands in the Unsupported category', async () => {
+		for (const args of [
+			{ command: 'php' },
+			{ command: 'start', experimentalTrace: false },
+			{ command: 'start', unknownOption: false },
+			{ command: 'start', unknownOption: undefined },
+			{ command: 'start', _: ['start', 'extra'] },
+		])
+			await expect(runCLI(args as RunCLIArgs)).rejects.toMatchObject({
+				name: 'NativeCLIError',
+				code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+			});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
 	it('uses an ephemeral start port and keeps serverUrl on the Node proxy', async () => {
 		const result = (await runCLI({
 			command: 'start',

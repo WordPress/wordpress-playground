@@ -6,6 +6,7 @@ interface output {
     stderr,
   }
 
+  headers: func(status: u16, headers: list<string>);
   write: func(destination: channel, bytes: list<u8>);
 }
 
@@ -22,6 +23,7 @@ interface handler {
     host: string,
     port: u32,
     body: list<u8>,
+    stream-response: bool,
     content-type: option<string>,
     cookies: option<string>,
     server-entries: list<entry>,

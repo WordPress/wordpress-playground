@@ -24,7 +24,6 @@ const builtPackage = join(
 	'dist/packages/playground/cli-native'
 );
 const executableSuffix = process.platform === 'win32' ? '.exe' : '';
-const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const platformTargets = new Map([
 	['linux/x64', ['x86_64-unknown-linux-gnu', 'linux-x64-gnu']],
@@ -54,7 +53,7 @@ async function run(command, args, options = {}) {
 	return await new Promise((resolvePromise, reject) => {
 		const child = spawn(command, args, {
 			cwd: options.cwd ?? repositoryRoot,
-			env: { ...process.env, ...options.env },
+			env: options.exactEnv ?? { ...process.env, ...options.env },
 			stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
 			windowsHide: true,
 		});
@@ -75,6 +74,40 @@ async function run(command, args, options = {}) {
 			);
 		});
 	});
+}
+
+async function expectFailure(command, args, expectedMessage, options = {}) {
+	try {
+		await run(command, args, { ...options, capture: true });
+	} catch (error) {
+		if (String(error).includes(expectedMessage)) return;
+		throw new Error(
+			`${command} ${args.join(' ')} failed without the expected diagnostic ${JSON.stringify(expectedMessage)}\n${error.stack ?? error.message}`
+		);
+	}
+	throw new Error(
+		`${command} ${args.join(' ')} unexpectedly accepted an unsupported compatibility entry`
+	);
+}
+
+async function assertPathDoesNotExist(path, description) {
+	try {
+		await access(path);
+	} catch (error) {
+		if (error?.code === 'ENOENT') return;
+		throw error;
+	}
+	throw new Error(`${description} unexpectedly exists at ${path}`);
+}
+
+async function runNpm(args, options = {}) {
+	const npmCliPath = process.env['npm_execpath'];
+	if (!npmCliPath) {
+		throw new Error(
+			'npm_execpath is unavailable; run this verifier through the documented npm exec Nx target'
+		);
+	}
+	return await run(process.execPath, [npmCliPath, ...args], options);
 }
 
 async function listen(server) {
@@ -192,8 +225,7 @@ async function main() {
 		]);
 
 		await mkdir(packOutput, { recursive: true });
-		const packed = await run(
-			npmExecutable,
+		const packed = await runNpm(
 			['pack', outputPackage, '--json', '--pack-destination', packOutput],
 			{ capture: true }
 		);
@@ -221,8 +253,7 @@ async function main() {
 			'{"name":"cli-native-private-verification","private":true,"type":"module"}\n'
 		);
 		const tarball = join(packOutput, report.filename);
-		await run(
-			npmExecutable,
+		await runNpm(
 			[
 				'install',
 				'--ignore-scripts',
@@ -232,6 +263,45 @@ async function main() {
 				tarball,
 			],
 			{ cwd: consumerRoot }
+		);
+		const installedPackage = join(
+			consumerRoot,
+			'node_modules/@wp-playground/cli-native'
+		);
+		const launcher = join(installedPackage, 'wp-playground.js');
+		const preflightCache = join(temporaryRoot, 'preflight-cache');
+		const preflightEnvironment = Object.fromEntries(
+			Object.entries(process.env).filter(
+				([name]) => !name.startsWith('WP_PLAYGROUND_NATIVE_')
+			)
+		);
+		preflightEnvironment.WP_PLAYGROUND_NATIVE_CACHE_DIR = preflightCache;
+		for (const [argv, diagnostic] of [
+			[['php'], 'The native CLI does not support the `php` command.'],
+			[['server', '--experimental-trace=value'], 'request tracing'],
+			[
+				['server', '--experimentalTrace=value'],
+				'yargs camel-case alias --experimentalTrace',
+			],
+			[['server', '--no-experimentalTrace=value'], 'request tracing'],
+			[
+				['server', '--no-debug=false'],
+				'yargs boolean-negation alias --no-debug',
+			],
+		]) {
+			await expectFailure(
+				process.execPath,
+				[launcher, ...argv],
+				diagnostic,
+				{
+					cwd: consumerRoot,
+					exactEnv: preflightEnvironment,
+				}
+			);
+		}
+		await assertPathDoesNotExist(
+			preflightCache,
+			'Unsupported-argv preflight cache'
 		);
 
 		let hostRequests = 0;
@@ -256,11 +326,6 @@ async function main() {
 			}
 		});
 		const baseUrl = await listen(fixtureServer);
-		const installedPackage = join(
-			consumerRoot,
-			'node_modules/@wp-playground/cli-native'
-		);
-		const launcher = join(installedPackage, 'wp-playground.js');
 		const runtimeEnvironment = {
 			WP_PLAYGROUND_NATIVE_HOST_BASE_URL: baseUrl,
 			WP_PLAYGROUND_NATIVE_CACHE_DIR: cacheRoot,
@@ -310,8 +375,7 @@ async function main() {
 				WP_PLAYGROUND_NATIVE_HOST_BASE_URL: 'http://127.0.0.1:1/',
 			},
 		});
-		await run(
-			npmExecutable,
+		await runNpm(
 			['exec', '--offline', '--', 'wp-playground-cli', '--version'],
 			{
 				cwd: consumerRoot,
@@ -332,9 +396,7 @@ async function main() {
 			join(consumerRoot, 'module-smoke.cjs'),
 			"const native = require('@wp-playground/cli-native');\n" +
 				"if (native.resolveWorkerCount(2) !== 2) throw new Error('bad CJS helper');\n" +
-				'native.ensureNativeHost().then((host) => {\n' +
-				"  if (!host.assetRoot.includes('@wp-playground')) throw new Error('bad CJS asset root: ' + host.assetRoot);\n" +
-				'}).catch((error) => { console.error(error); process.exitCode = 1; });\n'
+				"if (native.mergeDefinedConstants({define:{C:'d'}}).C !== 'd') throw new Error('bad CJS merge');\n"
 		);
 		await writeFile(
 			join(consumerRoot, 'module-smoke.ts'),
@@ -347,10 +409,6 @@ async function main() {
 		});
 		await run(process.execPath, ['module-smoke.cjs'], {
 			cwd: consumerRoot,
-			env: {
-				...runtimeEnvironment,
-				WP_PLAYGROUND_NATIVE_HOST_BASE_URL: 'http://127.0.0.1:1/',
-			},
 		});
 		await run(
 			process.execPath,
@@ -396,24 +454,28 @@ const running = await runCLI({
   skipSqliteSetup: true,
 });
 try {
-  if (!(running.server && running.server.listening)) throw new Error('Node server is not listening');
+	if (!(running.server && running.server.listening)) throw new Error('Node server is not listening');
 	if (!running.serverUrl.startsWith('http://127.0.0.1:')) throw new Error('serverUrl is not the Node proxy URL: ' + running.serverUrl);
 	if (new URL(await running.playground.absoluteUrl).origin !== new URL(running.serverUrl).origin) throw new Error('native absoluteUrl mismatch');
-	let escapingPathRejected = false;
-	try {
-		await running.playground.pathToInternalUrl('/wordpress@example.com/escape');
-	} catch {
-		escapingPathRejected = true;
-	}
-	if (!escapingPathRejected) throw new Error('pathToInternalUrl accepted a non-document-root prefix');
+	const internalUrl = await running.playground.pathToInternalUrl('/rpc-dir/data.bin');
+	if (internalUrl !== new URL('/rpc-dir/data.bin', running.serverUrl).href) throw new Error('pathToInternalUrl mismatch: ' + internalUrl);
+	const internalPath = await running.playground.internalUrlToPath(new URL('/rpc-dir/data.bin?x=1#section', running.serverUrl).href);
+	if (internalPath !== '/rpc-dir/data.bin?x=1#section') throw new Error('internalUrlToPath mismatch: ' + internalPath);
   const response = await fetch(running.serverUrl);
 	const responseText = await response.text();
 	const publicPort = new URL(running.serverUrl).port;
 	if (!responseText.includes('native-api-ok:' + publicPort + ':off')) throw new Error('proxy response/server metadata mismatch: ' + responseText);
 	const controlled = await running.playground.request({ path: '/' });
 	if (!controlled.text.includes('native-api-ok')) throw new Error('RPC request mismatch');
-	const streamed = await running.playground.requestStreamed({ path: '/' });
-	if (!(await streamed.stdoutText).includes('native-api-ok')) throw new Error('streamed RPC request mismatch');
+	await running.playground.writeFile('/wordpress/rpc-request-failure.php', '<?php error_log("request-stderr"); echo "request-body"; exit(7);');
+	const failedRequest = await running.playground.request({ path: '/rpc-request-failure.php' });
+	if (failedRequest.exitCode !== 7 || !failedRequest.errors.includes('request-stderr') || failedRequest.text !== 'request-body') throw new Error('buffered request execution metadata mismatch');
+	await running.playground.writeFile('/wordpress/rpc-stream.php', '<?php for ($i = 0; $i < 12; $i++) error_log("stream-stderr-" . $i); while (ob_get_level() > 0) ob_end_flush(); echo "stream-stdout";');
+	const streamed = await running.playground.requestStreamed({ path: '/rpc-stream.php' });
+	if (await streamed.stdoutText !== 'stream-stdout') throw new Error('streamed RPC stdout mismatch');
+	if (await streamed.exitCode !== 0) throw new Error('streamed RPC exit mismatch');
+	const streamedErrors = await streamed.stderrText;
+	if (!streamedErrors.includes('stream-stderr-0') || !streamedErrors.includes('stream-stderr-11')) throw new Error('streamed RPC late stderr mismatch');
 	await running.playground.mkdirTree('/wordpress/rpc-dir/nested');
   await running.playground.writeFile('/wordpress/control.txt', 'control-ok');
   if (await running.playground.readFileAsText('/wordpress/control.txt') !== 'control-ok') throw new Error('RPC filesystem mismatch');

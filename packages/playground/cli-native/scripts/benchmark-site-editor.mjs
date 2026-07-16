@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -41,6 +41,8 @@ Required:
   Authentication via one or more of:
   --storage-state [LABEL::]PATH Playwright storage-state JSON.
   --auth-cookie [LABEL::]HEADER Cookie header, e.g. name=value; other=value.
+  --auth-cookie-file [LABEL::]PATH
+                                Read the cookie header from a private file.
   --bootstrap [LABEL::]PATH     JS module exporting async default/bootstrap function.
   --allow-unauthenticated       Explicitly benchmark without authentication.
 
@@ -89,6 +91,7 @@ export function parseArgs(argv, environment = process.env) {
 		allowUnauthenticated: false,
 		storageStates: newScopedValues(),
 		authCookies: newScopedValues(),
+		authCookieFiles: newScopedValues(),
 		bootstraps: newScopedValues(),
 	};
 
@@ -163,6 +166,9 @@ export function parseArgs(argv, environment = process.env) {
 				break;
 			case '--auth-cookie':
 				setScopedValue(options.authCookies, value(), flag);
+				break;
+			case '--auth-cookie-file':
+				setScopedValue(options.authCookieFiles, value(), flag);
 				break;
 			case '--bootstrap':
 				setScopedValue(options.bootstraps, value(), flag);
@@ -295,6 +301,7 @@ function validateOptions(options) {
 	for (const [name, scoped] of [
 		['--storage-state', options.storageStates],
 		['--auth-cookie', options.authCookies],
+		['--auth-cookie-file', options.authCookieFiles],
 		['--bootstrap', options.bootstraps],
 	]) {
 		for (const label of scoped.labels.keys()) {
@@ -305,11 +312,22 @@ function validateOptions(options) {
 			}
 		}
 	}
+	for (const target of options.targets) {
+		if (
+			scopedValue(options.authCookies, target.label) !== undefined &&
+			scopedValue(options.authCookieFiles, target.label) !== undefined
+		) {
+			throw new Error(
+				`target ${target.label} cannot combine --auth-cookie and --auth-cookie-file`
+			);
+		}
+	}
 	if (!options.allowUnauthenticated) {
 		for (const target of options.targets) {
 			const authenticated = [
 				options.storageStates,
 				options.authCookies,
+				options.authCookieFiles,
 				options.bootstraps,
 			].some((scoped) => scopedValue(scoped, target.label) !== undefined);
 			if (!authenticated) {
@@ -378,13 +396,19 @@ export function parseCookieHeader(header) {
 		.map((part) => {
 			const equals = part.indexOf('=');
 			if (equals <= 0) {
-				throw new Error(`invalid cookie pair: ${JSON.stringify(part)}`);
+				throw new Error('invalid cookie pair in authentication data');
 			}
 			return {
 				name: part.slice(0, equals).trim(),
 				value: part.slice(equals + 1),
 			};
 		});
+}
+
+export async function readAuthCookieFile(path, label) {
+	const header = (await readFile(resolve(path), 'utf8')).trim();
+	if (!header) throw new Error(`auth cookie file for ${label} is empty`);
+	return header;
 }
 
 export function siteEditorUrl(baseUrl, siteEditorPath) {
@@ -511,10 +535,14 @@ async function createTargetSession(browser, target, options) {
 		storageState: storageState ? resolve(storageState) : undefined,
 	});
 	const cookieHeader = scopedValue(options.authCookies, target.label);
-	if (cookieHeader) {
+	const cookieFile = scopedValue(options.authCookieFiles, target.label);
+	const resolvedCookieHeader = cookieFile
+		? await readAuthCookieFile(cookieFile, target.label)
+		: cookieHeader;
+	if (resolvedCookieHeader) {
 		const cookieUrl = `${new URL(target.baseUrl).origin}/`;
 		await context.addCookies(
-			parseCookieHeader(cookieHeader).map((cookie) => ({
+			parseCookieHeader(resolvedCookieHeader).map((cookie) => ({
 				...cookie,
 				url: cookieUrl,
 			}))

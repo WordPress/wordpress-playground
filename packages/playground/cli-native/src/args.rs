@@ -14,6 +14,7 @@ use crate::{
 pub const DEFAULT_PHP_VERSION: &str = "8.2";
 pub const DEFAULT_WP_VERSION: &str = "latest";
 pub const DEFAULT_PORT: u16 = 9400;
+pub const MAX_WORKERS: usize = 256;
 pub const SUPPORTED_PHP_VERSIONS: &[&str] = &["8.2"];
 const COMMAND_NAMES: &[&str] = &["start", "server", "run-blueprint", "build-snapshot"];
 const SUPPORTED_OPTION_NAMES: &[&str] = &[
@@ -51,11 +52,84 @@ const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
     "phpmyadmin",
     "experimental-unsafe-ide-integration",
     "experimental-devtools",
-    "experimental-blueprints-v2-runner",
     "experimental-multi-worker",
     "experimental-trace",
     "internal-cookie-store",
     "mode",
+    "intl",
+    "redis",
+    "memcached",
+    "xdebug",
+    "php-extension",
+    "no-blueprint-may-read-adjacent-files",
+    "no-skip-wordpress-install",
+    "no-skip-sqlite-setup",
+    "no-quiet",
+    "no-debug",
+    "no-follow-symlinks",
+    "no-experimental-trace",
+    "no-internal-cookie-store",
+    "no-intl",
+    "no-redis",
+    "no-memcached",
+    "no-xdebug",
+    "no-experimental-devtools",
+    "no-skip-browser",
+    "no-reset",
+];
+const UNSUPPORTED_CAMEL_CASE_OPTION_ALIASES: &[(&str, &str)] = &[
+    ("siteUrl", "yargs camel-case alias --siteUrl"),
+    ("defineBool", "yargs camel-case alias --defineBool"),
+    ("defineNumber", "yargs camel-case alias --defineNumber"),
+    (
+        "mountBeforeInstall",
+        "yargs camel-case alias --mountBeforeInstall",
+    ),
+    ("mountDir", "yargs camel-case alias --mountDir"),
+    (
+        "mountDirBeforeInstall",
+        "yargs camel-case alias --mountDirBeforeInstall",
+    ),
+    (
+        "blueprintMayReadAdjacentFiles",
+        "yargs camel-case alias --blueprintMayReadAdjacentFiles",
+    ),
+    (
+        "wordpressInstallMode",
+        "yargs camel-case alias --wordpressInstallMode",
+    ),
+    (
+        "skipWordpressInstall",
+        "yargs camel-case alias --skipWordpressInstall",
+    ),
+    (
+        "skipSqliteSetup",
+        "yargs camel-case alias --skipSqliteSetup",
+    ),
+    ("autoMount", "yargs camel-case alias --autoMount"),
+    ("followSymlinks", "yargs camel-case alias --followSymlinks"),
+    (
+        "experimentalTrace",
+        "yargs camel-case alias --experimentalTrace",
+    ),
+    (
+        "internalCookieStore",
+        "yargs camel-case alias --internalCookieStore",
+    ),
+    ("phpExtension", "yargs camel-case alias --phpExtension"),
+    (
+        "experimentalUnsafeIdeIntegration",
+        "yargs camel-case alias --experimentalUnsafeIdeIntegration",
+    ),
+    (
+        "experimentalMultiWorker",
+        "yargs camel-case alias --experimentalMultiWorker",
+    ),
+    (
+        "experimentalDevtools",
+        "yargs camel-case alias --experimentalDevtools",
+    ),
+    ("skipBrowser", "yargs camel-case alias --skipBrowser"),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -685,31 +759,26 @@ fn ensure_option_allowed_for_command(flag: &str, command: &CommandName) -> Resul
 fn supported_option_command_scope(flag: &str) -> Option<&'static [&'static str]> {
     match flag {
         "path" => Some(&["start"]),
-        "wp"
-        | "php"
-        | "port"
-        | "site-url"
-        | "mount"
-        | "mount-before-install"
+        "wp" | "php" | "site-url" | "mount" | "blueprint" | "define" | "define-bool"
+        | "define-number" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
+        "port" => Some(&["start", "server"]),
+        "mount-before-install"
         | "mount-dir"
         | "mount-dir-before-install"
-        | "blueprint"
         | "blueprint-may-read-adjacent-files"
         | "wordpress-install-mode"
         | "skip-wordpress-install"
         | "skip-sqlite-setup"
+        | "verbosity"
         | "debug"
-        | "follow-symlinks"
-        | "define"
-        | "define-bool"
-        | "define-number" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
+        | "follow-symlinks" => Some(&["server", "run-blueprint", "build-snapshot"]),
         "auto-mount" | "no-auto-mount" => {
             Some(&["start", "server", "run-blueprint", "build-snapshot"])
         }
         "reset" | "skip-browser" => Some(&["start"]),
         "login" | "no-login" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
-        "workers" => Some(&["start", "server"]),
-        "verbosity" | "quiet" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
+        "workers" => Some(&["server"]),
+        "quiet" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
         "outfile" => Some(&["build-snapshot"]),
         _ => None,
     }
@@ -879,13 +948,31 @@ fn unsupported_native_v1_option(flag: &str) -> Option<&'static str> {
     match flag {
         "phpmyadmin" => Some("phpMyAdmin installation"),
         "experimental-unsafe-ide-integration" => Some("unsafe IDE integration"),
-        "experimental-devtools" => Some("browser devtools bridge"),
-        "experimental-blueprints-v2-runner" => Some("Blueprints v2 runner"),
+        "experimental-devtools" | "no-experimental-devtools" => Some("browser devtools bridge"),
         "experimental-multi-worker" => Some("deprecated Node worker option"),
-        "experimental-trace" => Some("request tracing"),
-        "internal-cookie-store" => Some("Node cookie-store mediation"),
+        "experimental-trace" | "no-experimental-trace" => Some("request tracing"),
+        "internal-cookie-store" | "no-internal-cookie-store" => Some("Node cookie-store mediation"),
         "mode" => Some("Blueprints v2 mode selection"),
-        _ => None,
+        "intl" | "no-intl" => Some("Intl extension"),
+        "redis" | "no-redis" => Some("Redis extension"),
+        "memcached" | "no-memcached" => Some("Memcached extension"),
+        "xdebug" | "no-xdebug" => Some("Xdebug"),
+        "php-extension" => Some("dynamic PHP extensions"),
+        "no-blueprint-may-read-adjacent-files" => {
+            Some("yargs boolean-negation alias --no-blueprint-may-read-adjacent-files")
+        }
+        "no-skip-wordpress-install" => {
+            Some("yargs boolean-negation alias --no-skip-wordpress-install")
+        }
+        "no-skip-sqlite-setup" => Some("yargs boolean-negation alias --no-skip-sqlite-setup"),
+        "no-quiet" => Some("yargs boolean-negation alias --no-quiet"),
+        "no-debug" => Some("yargs boolean-negation alias --no-debug"),
+        "no-follow-symlinks" => Some("yargs boolean-negation alias --no-follow-symlinks"),
+        "no-skip-browser" => Some("yargs boolean-negation alias --no-skip-browser"),
+        "no-reset" => Some("yargs boolean-negation alias --no-reset"),
+        _ => UNSUPPORTED_CAMEL_CASE_OPTION_ALIASES
+            .iter()
+            .find_map(|(alias, diagnostic)| (*alias == flag).then_some(*diagnostic)),
     }
 }
 
@@ -902,10 +989,10 @@ fn parse_workers(value: &str) -> Result<WorkerCount> {
     let workers = value
         .parse::<usize>()
         .map_err(|_| CliError::new(format!("Invalid --workers value \"{value}\"")))?;
-    if workers == 0 {
-        return Err(CliError::new(
-            "Invalid --workers value \"0\": expected a positive integer or \"auto\".",
-        ));
+    if !(1..=MAX_WORKERS).contains(&workers) {
+        return Err(CliError::new(format!(
+            "Invalid --workers value \"{value}\": expected a positive integer no greater than {MAX_WORKERS}, or \"auto\"."
+        )));
     }
     Ok(WorkerCount::Fixed(workers))
 }
@@ -1110,6 +1197,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::BTreeSet,
         env, fs,
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
@@ -1147,7 +1235,7 @@ mod tests {
     fn compatibility_matrix_is_valid() {
         let matrix = matrix();
 
-        assert_eq!(matrix["schemaVersion"], 1);
+        assert_eq!(matrix["schemaVersion"], 2);
         let commands = matrix["commands"].as_array().unwrap();
         for command in ["start", "server", "run-blueprint", "build-snapshot"] {
             assert!(
@@ -1158,58 +1246,36 @@ mod tests {
             );
         }
 
-        let options = matrix["options"].as_array().unwrap();
-        for option in [
-            "--path",
-            "--wp",
-            "--php",
-            "--port",
-            "--site-url",
-            "--mount",
-            "--mount-before-install",
-            "--mount-dir",
-            "--mount-dir-before-install",
-            "--auto-mount",
-            "--no-auto-mount",
-            "--reset",
-            "--login",
-            "--no-login",
-            "--skip-browser",
-            "--blueprint",
-            "--blueprint-may-read-adjacent-files",
-            "--wordpress-install-mode",
-            "--skip-wordpress-install",
-            "--skip-sqlite-setup",
-            "--workers",
-            "--verbosity",
-            "--quiet",
-            "--debug",
-            "--follow-symlinks",
-            "--define",
-            "--define-bool",
-            "--define-number",
-            "--phpmyadmin",
-            "--experimental-unsafe-ide-integration",
-            "--experimental-devtools",
-            "--experimental-blueprints-v2-runner",
-            "--experimental-multi-worker",
-            "--experimental-trace",
-            "--internal-cookie-store",
-            "--mode",
-            "--outfile",
-        ] {
-            assert!(
-                options
+        let options = matrix["cliOptions"].as_array().unwrap();
+        let declared_options = options
+            .iter()
+            .map(|entry| entry["name"].as_str().unwrap().to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            declared_options.len(),
+            options.len(),
+            "compatibility.json contains duplicate CLI options"
+        );
+        let parser_options = super::SUPPORTED_OPTION_NAMES
+            .iter()
+            .chain(super::UNSUPPORTED_NATIVE_V1_OPTION_NAMES)
+            .copied()
+            .chain(
+                super::UNSUPPORTED_CAMEL_CASE_OPTION_ALIASES
                     .iter()
-                    .any(|entry| entry["name"].as_str() == Some(option)),
-                "missing option {option}"
-            );
-        }
+                    .map(|(alias, _)| *alias),
+            )
+            .map(|name| format!("--{name}"))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            declared_options, parser_options,
+            "Rust parser option inventory differs from compatibility.json"
+        );
 
         for entry in commands.iter().chain(options.iter()) {
             let status = entry["status"].as_str().unwrap();
             assert!(
-                matches!(status, "supported" | "unsupported" | "pending"),
+                matches!(status, "supported" | "unsupported-by-design"),
                 "invalid compatibility status {status}"
             );
         }
@@ -1228,13 +1294,24 @@ mod tests {
         );
         fs::create_dir_all(&process_mount_dir).unwrap();
         let matrix = matrix();
-        let options = matrix["options"].as_array().unwrap();
+        let options = matrix["cliOptions"].as_array().unwrap();
 
         for entry in options {
             let name = entry["name"].as_str().unwrap();
             let status = entry["status"].as_str().unwrap();
             let commands = entry["commands"].as_array().unwrap();
-            for command in commands.iter().map(|command| command.as_str().unwrap()) {
+            let command_names = commands
+                .iter()
+                .map(|command| command.as_str().unwrap())
+                .collect::<Vec<_>>();
+            if status == "supported" {
+                assert_eq!(
+                    super::supported_option_command_scope(name.trim_start_matches("--")),
+                    Some(command_names.as_slice()),
+                    "{name} parser scope differs from compatibility.json"
+                );
+            }
+            for command in &command_names {
                 match status {
                     "supported" => {
                         let argv = compatibility_supported_argv(command, name, &process_mount_dir);
@@ -1242,7 +1319,7 @@ mod tests {
                             panic!("{command} {name} should parse from {argv:?}: {error}");
                         });
                     }
-                    "unsupported" => {
+                    "unsupported-by-design" => {
                         let argv = compatibility_unsupported_argv(command, name);
                         let error = parse_cli_args_from(argv.clone(), &cwd).unwrap_err();
                         let expected = entry["errorContains"].as_str().unwrap();
@@ -1252,8 +1329,25 @@ mod tests {
                             error.message()
                         );
                     }
-                    "pending" => {}
                     other => panic!("unexpected compatibility status {other}"),
+                }
+            }
+            for command in super::COMMAND_NAMES
+                .iter()
+                .filter(|command| !command_names.contains(command))
+            {
+                let argv = match status {
+                    "supported" => compatibility_supported_argv(command, name, &process_mount_dir),
+                    "unsupported-by-design" => compatibility_unsupported_argv(command, name),
+                    other => panic!("unexpected compatibility status {other}"),
+                };
+                let error = parse_cli_args_from(argv.clone(), &cwd).unwrap_err();
+                if status == "supported" {
+                    assert!(
+                        error.message().contains("is only supported by"),
+                        "excluded scope {command} {name} from {argv:?} should report its command scope, got {}",
+                        error.message()
+                    );
                 }
             }
         }
@@ -1311,7 +1405,7 @@ mod tests {
             }
             "--skip-wordpress-install" => argv.push("--skip-wordpress-install".to_string()),
             "--skip-sqlite-setup" => argv.push("--skip-sqlite-setup".to_string()),
-            "--workers" => argv.push("--workers=1".to_string()),
+            "--workers" => argv.push("--workers=40".to_string()),
             "--verbosity" => argv.push("--verbosity=debug".to_string()),
             "--quiet" => argv.push("--quiet".to_string()),
             "--debug" => argv.push("--debug".to_string()),
@@ -1387,12 +1481,36 @@ mod tests {
     }
 
     #[test]
+    fn worker_count_accepts_auto_and_fixed_values_through_256() {
+        let cwd = temp_dir("worker-count-boundary");
+        for (value, expected) in [
+            ("auto", WorkerCount::Auto),
+            ("40", WorkerCount::Fixed(40)),
+            ("256", WorkerCount::Fixed(256)),
+        ] {
+            let options =
+                parse_cli_args_from(args(&["server", &format!("--workers={value}")]), &cwd)
+                    .unwrap();
+            assert_eq!(options.workers, Some(expected));
+        }
+
+        for value in ["0", "257"] {
+            let error = parse_cli_args_from(args(&["server", &format!("--workers={value}")]), &cwd)
+                .unwrap_err();
+            assert!(error.message().contains("no greater than 256"));
+            assert!(error.message().contains(value));
+        }
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
     fn compatibility_supported_command_invocations_parse() {
         let cwd = temp_dir("compat-supported");
         let mount = cwd.join("mount");
         let before = cwd.join("before");
         fs::create_dir_all(&mount).unwrap();
         fs::create_dir_all(&before).unwrap();
+        let start_mount = format!("{}:/wordpress/wp-content/plugins/mount", mount.display());
 
         let start = parse_cli_args_from(
             args(&[
@@ -1402,24 +1520,14 @@ mod tests {
                 "--php=8.2",
                 "--port=9444",
                 "--site-url=http://127.0.0.1:9444",
-                "--mount-dir",
-                "mount",
-                "/wordpress/wp-content/plugins/mount",
-                "--mount-dir-before-install",
-                "before",
-                "/wordpress",
+                "--mount",
+                &start_mount,
                 "--auto-mount",
                 ".",
                 "--reset",
                 "--login",
                 "--skip-browser",
                 "--blueprint=blueprint.json",
-                "--blueprint-may-read-adjacent-files",
-                "--wordpress-install-mode=download-and-install",
-                "--workers=1",
-                "--verbosity=debug",
-                "--debug",
-                "--follow-symlinks",
                 "--define",
                 "MY_STRING",
                 "value",
@@ -1438,7 +1546,7 @@ mod tests {
         assert!(start.login);
         assert!(start.skip_browser);
         assert_eq!(start.mounts.len(), 1);
-        assert_eq!(start.mounts_before_install.len(), 1);
+        assert!(start.mounts_before_install.is_empty());
 
         let server = parse_cli_args_from(
             args(&[
@@ -1555,7 +1663,49 @@ mod tests {
         for (tokens, expected) in [
             (&["server", "--path=."][..], "the start command"),
             (&["server", "--skip-browser"], "the start command"),
-            (&["run-blueprint", "--workers=1"], "start and server"),
+            (&["run-blueprint", "--port=9400"], "start and server"),
+            (&["start", "--workers=1"], "the server command"),
+            (&["run-blueprint", "--workers=1"], "the server command"),
+            (
+                &["start", "--mount-before-install=.:/wordpress"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--mount-dir", ".", "/wordpress"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--mount-dir-before-install", ".", "/wordpress"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--blueprint-may-read-adjacent-files"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--wordpress-install-mode=download-and-install"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--skip-wordpress-install"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--skip-sqlite-setup"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--verbosity=debug"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--debug"],
+                "server, run-blueprint, and build-snapshot",
+            ),
+            (
+                &["start", "--follow-symlinks"],
+                "server, run-blueprint, and build-snapshot",
+            ),
             (&["server", "--outfile=snapshot.zip"], "build-snapshot"),
         ] {
             let error = parse_cli_args_from(args(tokens), &cwd).unwrap_err();
@@ -1718,10 +1868,6 @@ mod tests {
             ),
             ("--experimental-devtools", "browser devtools bridge"),
             (
-                "--experimental-blueprints-v2-runner",
-                "Blueprints v2 runner",
-            ),
-            (
                 "--experimental-multi-worker=2",
                 "deprecated Node worker option",
             ),
@@ -1752,6 +1898,18 @@ mod tests {
         assert!(error
             .message()
             .contains("--outfile is only supported by the build-snapshot command"));
+
+        let removed = parse_cli_args_from(
+            args(&["server", "--experimental-blueprints-v2-runner"]),
+            &cwd,
+        )
+        .unwrap_err();
+        assert!(removed
+            .message()
+            .contains("Unknown option `--experimental-blueprints-v2-runner`"));
+        assert!(!removed
+            .message()
+            .contains("native runtime has no fallback implementation"));
 
         let _ = fs::remove_dir_all(cwd);
     }

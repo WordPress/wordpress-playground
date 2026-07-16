@@ -12,14 +12,17 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NativeCLIError, NativeCLIErrorCode } from './errors.js';
+import {
+	assertSupportedArgv,
+	commandCompatibility,
+	programmaticOptionCompatibility,
+} from './compatibility.js';
 import { ensureNativeHost } from './host.js';
 import {
 	createControlCredentials,
 	createPlaygroundProxy,
 	NativeControlClient,
 	waitForControlHandshake,
-	type NativePHPResponse,
-	type NativeStreamedPHPResponse,
 } from './control.js';
 import { runNativeCLI } from './process.js';
 
@@ -39,6 +42,7 @@ export interface Mount {
 }
 
 export interface RunCLIArgs {
+	/** Positional tokens in their original order; index 0 is the command. */
 	_?: string[];
 	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	blueprint?: unknown;
@@ -54,27 +58,84 @@ export interface RunCLIArgs {
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string | boolean;
+	/** @unsupported Native v1 does not support path aliases. */
+	pathAliases?: Array<{ from: string; to: string }>;
+	/** @unsupported Native v1 does not expose Node request tracing. */
+	experimentalTrace?: boolean;
+	/** @unsupported Native v1 does not use the Node cookie store. */
+	internalCookieStore?: boolean;
+	/** @unsupported Native v1 does not accept injected Blueprint steps. */
+	'additional-blueprint-steps'?: unknown[];
+	/** @unsupported Native v1 has a fixed extension set. */
+	intl?: boolean;
+	/** @unsupported Native v1 does not install phpMyAdmin. */
+	phpmyadmin?: boolean | string;
+	/** @unsupported Native v1 has a fixed extension set. */
+	redis?: boolean;
+	/** @unsupported Native v1 has a fixed extension set. */
+	memcached?: boolean;
+	/** @unsupported Native v1 does not expose Xdebug. */
+	xdebug?: boolean | Record<string, unknown>;
+	/** @unsupported Native v1 cannot load dynamic PHP extensions. */
+	phpExtension?: string[];
+	/** @unsupported Native v1 does not expose IDE integration. */
+	experimentalUnsafeIdeIntegration?: string[];
+	/** @unsupported Native v1 does not expose the browser devtools bridge. */
+	experimentalDevtools?: boolean;
 	workers?: number | 'auto';
+	/** @unsupported Use `workers`; the deprecated Node option is not supported. */
+	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: string;
 	define?: Record<string, string>;
 	'define-bool'?: Record<string, boolean>;
 	'define-number'?: Record<string, number>;
+	defaultedDebugConstants?: string[];
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
+	/** @unsupported Native v1 does not run Blueprints v2. */
+	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+	/** @unsupported Native v1 does not run Blueprints v2. */
+	hasExplicitBlueprintsV2Mode?: boolean;
+	/** @unsupported Native v1 supports its bundled SQLite integration only. */
+	'db-engine'?: 'sqlite' | 'mysql';
+	/** @unsupported Native v1 does not expose Blueprints v2 database options. */
+	'db-host'?: string;
+	/** @unsupported Native v1 does not expose Blueprints v2 database options. */
+	'db-user'?: string;
+	/** @unsupported Native v1 does not expose Blueprints v2 database options. */
+	'db-pass'?: string;
+	/** @unsupported Native v1 does not expose Blueprints v2 database options. */
+	'db-name'?: string;
+	/** @unsupported Native v1 does not expose Blueprints v2 database options. */
+	'db-path'?: string;
+	/** @unsupported Native v1 does not run Blueprints v2. */
+	'truncate-new-site-directory'?: boolean;
+	/** @unsupported Native v1 does not expose the Blueprints v2 allow list. */
+	allow?: string;
 	path?: string;
 	skipBrowser?: boolean;
 	reset?: boolean;
+	/** Native-only startup handshake deadline in milliseconds. */
 	startupTimeoutMs?: number;
-	[key: string]: unknown;
 }
 
+export type NativeHTTPMethod =
+	| 'GET'
+	| 'POST'
+	| 'HEAD'
+	| 'OPTIONS'
+	| 'PATCH'
+	| 'PUT'
+	| 'DELETE';
+
+export type NativeMultipartBody = Record<string, string | Uint8Array | File>;
+
 export interface NativePlaygroundRequest {
-	url?: string;
-	path?: string;
-	method?: string;
-	headers?: Record<string, string | string[]>;
-	body?: string | Uint8Array;
+	url: string;
+	method?: NativeHTTPMethod;
+	headers?: Record<string, string>;
+	body?: string | Uint8Array | NativeMultipartBody;
 }
 
 export interface NativePlaygroundRunOptions {
@@ -82,12 +143,44 @@ export interface NativePlaygroundRunOptions {
 	scriptPath?: string;
 	relativeUri?: string;
 	protocol?: string;
-	method?: string;
-	headers?: Record<string, string | string[]>;
+	method?: NativeHTTPMethod;
+	headers?: Record<string, string>;
 	body?: string | Uint8Array;
 	env?: Record<string, string>;
 	server?: Record<string, string>;
 	$_SERVER?: Record<string, string>;
+}
+
+export interface NativePHPResponse {
+	readonly headers: Record<string, string[]>;
+	readonly bytes: Uint8Array;
+	readonly errors: string;
+	readonly exitCode: number;
+	readonly httpStatusCode: number;
+	readonly text: string;
+	readonly json: unknown;
+	ok(): boolean;
+	toRawData(): {
+		httpStatusCode: number;
+		headers: Record<string, string[]>;
+		bytes: Uint8Array;
+		errors: string;
+		exitCode: number;
+	};
+}
+
+export interface NativeStreamedPHPResponse {
+	readonly stdout: ReadableStream<Uint8Array>;
+	readonly stderr: ReadableStream<Uint8Array>;
+	readonly exitCode: Promise<number>;
+	readonly finished: Promise<void>;
+	readonly headers: Promise<Record<string, string[]>>;
+	readonly httpStatusCode: Promise<number>;
+	readonly stdoutBytes: Promise<Uint8Array>;
+	readonly stdoutText: Promise<string>;
+	readonly stderrText: Promise<string>;
+	getHeadersStream(): ReadableStream<Uint8Array>;
+	ok(): Promise<boolean>;
 }
 
 export interface NativePlaygroundWorker {
@@ -105,8 +198,11 @@ export interface NativePlaygroundWorker {
 	writeFile(path: string, data: string | Uint8Array): Promise<void>;
 	unlink(path: string): Promise<void>;
 	mv(fromPath: string, toPath: string): Promise<void>;
-	rmdir(path: string): Promise<void>;
-	listFiles(path: string): Promise<string[]>;
+	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+	listFiles(
+		path: string,
+		options?: { prependPath: boolean }
+	): Promise<string[]>;
 	isDir(path: string): Promise<boolean>;
 	isFile(path: string): Promise<boolean>;
 	fileExists(path: string): Promise<boolean>;
@@ -114,15 +210,48 @@ export interface NativePlaygroundWorker {
 	cwd(): Promise<string>;
 	defineConstant(
 		name: string,
-		value: string | number | boolean
+		value: string | number | boolean | null
 	): Promise<void>;
 	pathToInternalUrl(path: string): Promise<string>;
 	internalUrlToPath(url: string): Promise<string>;
-	cli(...args: unknown[]): Promise<never>;
-	addEventListener(type: string, listener: EventListener): void;
-	removeEventListener(type: string, listener: EventListener): void;
-	onMessage(listener: EventListener): void;
+	/** @unsupported Native v1 does not expose PHP CLI streaming. */
+	cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<never>;
+	addEventListener(
+		type: NativePlaygroundEventType,
+		listener: NativePlaygroundEventListener
+	): void;
+	removeEventListener(
+		type: NativePlaygroundEventType,
+		listener: NativePlaygroundEventListener
+	): void;
+	/** @unsupported Native v1 does not expose PHP-to-JavaScript messages. */
+	onMessage(listener: (data: string) => unknown): never;
 }
+
+export type NativePlaygroundEventType =
+	| 'request.end'
+	| 'request.error'
+	| 'filesystem.write'
+	| 'ready'
+	| 'shutdown';
+
+export type NativePlaygroundEvent =
+	| { type: 'request.end'; data?: unknown }
+	| {
+			type: 'request.error';
+			error: Error;
+			source?: 'request' | 'php-wasm';
+			data?: unknown;
+	  }
+	| { type: 'filesystem.write'; data?: unknown }
+	| { type: 'ready' | 'shutdown'; data: unknown };
+
+export type NativePlaygroundEventListener = (
+	event: NativePlaygroundEvent
+) => void;
 
 export type PlaygroundCliWorker = NativePlaygroundWorker;
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
@@ -136,7 +265,10 @@ export interface RunCLIServer extends AsyncDisposable {
 }
 
 export function resolveWorkerCount(value: number | 'auto' | undefined): number {
-	const cpusMinusOne = Math.max(1, cpus().length - 1);
+	const cpusMinusOne = Math.min(
+		MAX_NATIVE_WORKERS,
+		Math.max(1, cpus().length - 1)
+	);
 	if (value === undefined) return Math.min(6, cpusMinusOne);
 	if (value === 'auto') return cpusMinusOne;
 	return value;
@@ -168,11 +300,25 @@ export function mergeDefinedConstants(args: {
 export async function parseOptionsAndRunCLI(
 	argsToParse: string[]
 ): Promise<void> {
-	const result = await runNativeCLI({ argv: argsToParse });
+	const argv = assertSupportedArgv(argsToParse);
+	let result: Awaited<ReturnType<typeof runNativeCLI>>;
+	try {
+		result = await runNativeCLI({ argv });
+	} catch (cause) {
+		throw nativeSpawnError(cause);
+	}
 	if (result.signal)
-		throw new Error(`Native CLI terminated with ${result.signal}.`);
+		throw new NativeCLIError(
+			NativeCLIErrorCode.Exit,
+			`Native CLI terminated with ${result.signal}.`,
+			{ details: { signal: result.signal } }
+		);
 	if (result.code !== 0)
-		throw new Error(`Native CLI exited with status ${result.code}.`);
+		throw new NativeCLIError(
+			NativeCLIErrorCode.Exit,
+			`Native CLI exited with status ${result.code}.`,
+			{ details: { exitCode: result.code ?? undefined } }
+		);
 }
 
 export async function runCLI(
@@ -183,26 +329,58 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	if (args.command === 'php')
-		unsupported('The native CLI does not support the `php` command.');
-	assertSupportedArgs(args);
-	if (args.command === 'start' || args.command === 'server') {
-		return await startControlledServer(args);
+	const snapshot = snapshotSupportedArgs(args);
+	const validatedArgs = snapshot.args;
+	if (
+		validatedArgs.command === 'start' ||
+		validatedArgs.command === 'server'
+	) {
+		return await startControlledServer(
+			validatedArgs,
+			snapshot.blueprintJSON
+		);
 	}
-	const serialized = await serializeRunCLIArgs(args);
+	const serialized = await serializeRunCLIArgs(
+		validatedArgs,
+		snapshot.blueprintJSON
+	);
+	let hasInitiatingFailure = false;
 	try {
-		const result = await runNativeCLI({ argv: serialized.argv });
+		let result: Awaited<ReturnType<typeof runNativeCLI>>;
+		try {
+			result = await runNativeCLI({ argv: serialized.argv });
+		} catch (cause) {
+			throw nativeSpawnError(cause, validatedArgs.command);
+		}
 		if (result.signal || result.code !== 0) {
-			throw new Error(
-				`Native CLI ${args.command} failed with ${result.signal ?? `exit status ${result.code}`}.`
+			throw new NativeCLIError(
+				NativeCLIErrorCode.Exit,
+				`Native CLI ${validatedArgs.command} failed with ${result.signal ?? `exit status ${result.code}`}.`,
+				{
+					details: {
+						command: validatedArgs.command,
+						exitCode: result.code ?? undefined,
+						signal: result.signal ?? undefined,
+					},
+				}
 			);
 		}
+	} catch (cause) {
+		hasInitiatingFailure = true;
+		throw cause;
 	} finally {
-		await serialized.cleanup();
+		try {
+			await serialized.cleanup();
+		} catch (cleanupFailure) {
+			if (!hasInitiatingFailure) throw cleanupFailure;
+		}
 	}
 }
 
-async function startControlledServer(args: RunCLIArgs): Promise<RunCLIServer> {
+async function startControlledServer(
+	args: RunCLIArgs,
+	blueprintJSON?: string
+): Promise<RunCLIServer> {
 	let nativeServerUrl: URL | undefined;
 	const proxyServer = createServer((request, response) => {
 		if (!nativeServerUrl) {
@@ -220,6 +398,7 @@ async function startControlledServer(args: RunCLIArgs): Promise<RunCLIServer> {
 	let child: ChildProcess | undefined;
 	let client: NativeControlClient | undefined;
 	let handshakeDirectory: string | undefined;
+	let controlToken: string | undefined;
 	let stderr = '';
 	try {
 		const address = proxyServer.address();
@@ -228,12 +407,16 @@ async function startControlledServer(args: RunCLIArgs): Promise<RunCLIServer> {
 		const proxyUrl = `http://127.0.0.1:${address.port}`;
 		const nativeSiteUrl = args['site-url'] ?? proxyUrl;
 		const credentials = await createControlCredentials();
+		controlToken = credentials.token;
 		handshakeDirectory = credentials.handshakeDirectory;
-		serialized = await serializeRunCLIArgs({
-			...args,
-			port: 0,
-			'site-url': nativeSiteUrl,
-		});
+		serialized = await serializeRunCLIArgs(
+			{
+				...args,
+				port: 0,
+				'site-url': nativeSiteUrl,
+			},
+			blueprintJSON
+		);
 		serialized.argv.push(
 			'--experimental-control-handshake',
 			credentials.handshakePath
@@ -304,13 +487,26 @@ async function startControlledServer(args: RunCLIArgs): Promise<RunCLIServer> {
 		]);
 		if (stderr) {
 			throw new NativeCLIError(
-				NativeCLIErrorCode.Protocol,
-				`Native CLI control startup failed. Native stderr:\n${stderr}`,
+				NativeCLIErrorCode.Startup,
+				`Native CLI control startup failed. Native stderr:\n${redactSecret(stderr, controlToken)}`,
 				{ cause }
 			);
 		}
 		throw cause;
 	}
+}
+
+function redactSecret(message: string, secret: string | undefined): string {
+	return secret ? message.replaceAll(secret, '[redacted]') : message;
+}
+
+function nativeSpawnError(cause: unknown, command?: string): NativeCLIError {
+	if (cause instanceof NativeCLIError) return cause;
+	return new NativeCLIError(
+		NativeCLIErrorCode.Spawn,
+		`Could not spawn the native CLI${command ? ` for ${command}` : ''}.`,
+		{ cause, details: command ? { command } : undefined }
+	);
 }
 
 async function disposeControlledServer(
@@ -357,7 +553,10 @@ interface SerializedArgs {
 	cleanup(): Promise<void>;
 }
 
-async function serializeRunCLIArgs(args: RunCLIArgs): Promise<SerializedArgs> {
+async function serializeRunCLIArgs(
+	args: RunCLIArgs,
+	blueprintJSON?: string
+): Promise<SerializedArgs> {
 	const argv: string[] = [args.command];
 	let temporaryDirectory: string | undefined;
 	const scalar = (flag: string, value: unknown) => {
@@ -411,110 +610,490 @@ async function serializeRunCLIArgs(args: RunCLIArgs): Promise<SerializedArgs> {
 		if (typeof args.blueprint === 'string')
 			scalar('blueprint', args.blueprint);
 		else {
-			temporaryDirectory = await mkdtemp(
-				join(tmpdir(), 'wp-playground-native-blueprint-')
-			);
 			try {
+				temporaryDirectory = await mkdtemp(
+					join(tmpdir(), 'wp-playground-native-blueprint-')
+				);
 				const path = join(temporaryDirectory, 'blueprint.json');
-				await writeFile(path, JSON.stringify(args.blueprint), {
+				if (blueprintJSON === undefined)
+					invalidRequest(
+						'Native CLI Blueprint serialization was not validated.'
+					);
+				await writeFile(path, blueprintJSON, {
 					mode: 0o600,
 				});
 				scalar('blueprint', path);
 			} catch (cause) {
-				await rm(temporaryDirectory, {
-					recursive: true,
-					force: true,
-				});
-				throw cause;
+				try {
+					if (temporaryDirectory)
+						await rm(temporaryDirectory, {
+							recursive: true,
+							force: true,
+						});
+				} catch {
+					// Preserve the initiating serialization failure.
+				}
+				if (cause instanceof NativeCLIError) throw cause;
+				throw new NativeCLIError(
+					NativeCLIErrorCode.IO,
+					'Could not write the validated native CLI Blueprint.',
+					{ cause }
+				);
 			}
 		}
 	}
 	return {
 		argv,
 		async cleanup() {
-			if (temporaryDirectory)
+			if (!temporaryDirectory) return;
+			try {
 				await rm(temporaryDirectory, { recursive: true, force: true });
+			} catch (cause) {
+				throw new NativeCLIError(
+					NativeCLIErrorCode.IO,
+					'Could not remove the native CLI Blueprint temporary directory.',
+					{ cause }
+				);
+			}
 		},
 	};
 }
 
-const unsupportedKeys = new Map<string, string>([
-	['pathAliases', 'path aliases'],
-	['experimentalTrace', 'request tracing'],
-	['internalCookieStore', 'Node cookie-store mediation'],
-	['intl', 'Intl extension'],
-	['phpmyadmin', 'phpMyAdmin installation'],
-	['redis', 'Redis extension'],
-	['memcached', 'Memcached extension'],
-	['xdebug', 'Xdebug'],
-	['phpExtension', 'dynamic PHP extensions'],
-	['experimentalUnsafeIdeIntegration', 'unsafe IDE integration'],
-	['experimentalDevtools', 'browser devtools bridge'],
-	['additional-blueprint-steps', 'additional Blueprint steps'],
-	['mode', 'Blueprints v2 mode selection'],
-	['db-engine', 'Blueprints v2 database options'],
-]);
+const MAX_NATIVE_WORKERS = 256;
+const MAX_BLUEPRINT_DEPTH = 64;
+const MAX_BLUEPRINT_NODES = 100_000;
+const MAX_BLUEPRINT_JSON_BYTES = 16 * 1024 * 1024;
 
-const supportedKeys = new Set([
-	'_',
-	'command',
-	'blueprint',
-	'debug',
-	'login',
-	'mount',
-	'mount-before-install',
-	'outfile',
-	'php',
-	'port',
-	'site-url',
-	'quiet',
-	'verbosity',
-	'wp',
-	'autoMount',
-	'workers',
-	'wordpressInstallMode',
-	'define',
-	'define-bool',
-	'define-number',
-	'skipSqliteSetup',
-	'followSymlinks',
-	'blueprint-may-read-adjacent-files',
-	'path',
-	'skipBrowser',
-	'reset',
-	'startupTimeoutMs',
-]);
+interface SupportedArgsSnapshot {
+	args: RunCLIArgs;
+	blueprintJSON?: string;
+}
 
-function assertSupportedArgs(args: RunCLIArgs): void {
-	for (const [key, value] of Object.entries(args)) {
-		if (value === undefined || value === false || supportedKeys.has(key))
-			continue;
-		const description =
-			unsupportedKeys.get(key) ?? `the programmatic option \`${key}\``;
-		unsupported(`The native CLI does not support ${description}.`);
+function snapshotSupportedArgs(value: unknown): SupportedArgsSnapshot {
+	try {
+		return snapshotSupportedArgsUnchecked(value);
+	} catch (cause) {
+		if (cause instanceof NativeCLIError) throw cause;
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI arguments could not be inspected safely.',
+			{ cause }
+		);
 	}
-	if (args._?.some((token) => token !== args.command)) {
+}
+
+function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
+	const args = snapshotPlainRecord(value, 'Native CLI arguments') as Record<
+		string,
+		unknown
+	> &
+		RunCLIArgs;
+	if (!Object.hasOwn(args, 'command'))
+		invalidRequest('Native CLI command must be an own property.');
+	const command = args.command;
+	if (typeof command !== 'string')
+		invalidRequest('Native CLI command must be a string.');
+	assertNoNul(command, 'Native CLI command');
+	const commandEntry = commandCompatibility(command);
+	if (!commandEntry)
+		invalidRequest(`Unknown native CLI command \`${command}\`.`);
+	if (commandEntry.status === 'unsupported-by-design')
 		unsupported(
-			'The native CLI programmatic API does not support additional positional arguments in `_`.'
+			commandEntry.diagnostic ??
+				`The native CLI does not support the \`${command}\` command.`
+		);
+
+	for (const key of Object.keys(args)) {
+		assertNoNul(key, 'Native CLI option name');
+		const propertyValue = args[key];
+		const compatibility = programmaticOptionCompatibility(key);
+		if (!compatibility)
+			unsupported(
+				`The native CLI does not support the programmatic option \`${key}\`.`
+			);
+		if (propertyValue === undefined) {
+			delete args[key];
+			continue;
+		}
+		if (compatibility.status === 'unsupported-by-design')
+			unsupported(
+				`The native CLI does not support ${compatibility.diagnostic ?? `the programmatic option \`${key}\``}.`
+			);
+		if (!compatibility.commands?.includes(command))
+			invalidRequest(
+				`Native CLI option \`${key}\` is not supported by the ${command} command.`
+			);
+	}
+
+	if (args._ !== undefined) {
+		args._ = snapshotDenseArray(
+			args._,
+			'Native CLI positional arguments in `_`'
+		).map((token) => {
+			if (typeof token !== 'string')
+				invalidRequest(
+					'Native CLI positional arguments in `_` must contain only strings.'
+				);
+			assertNoNul(token, 'Native CLI positional argument');
+			return token;
+		});
+		if (
+			args._.length > 1 ||
+			(args._.length === 1 && args._[0] !== args.command)
+		)
+			unsupported(
+				'The native CLI programmatic API does not support additional positional arguments in `_`.'
+			);
+	}
+
+	for (const key of [
+		'debug',
+		'login',
+		'quiet',
+		'skipSqliteSetup',
+		'followSymlinks',
+		'blueprint-may-read-adjacent-files',
+		'skipBrowser',
+		'reset',
+	] as const) {
+		if (args[key] !== undefined && typeof args[key] !== 'boolean')
+			invalidRequest(`Native CLI ${key} must be a boolean.`);
+	}
+	for (const key of ['outfile', 'site-url', 'wp', 'path'] as const) {
+		const propertyValue = args[key];
+		if (
+			propertyValue !== undefined &&
+			(typeof propertyValue !== 'string' || propertyValue.length === 0)
+		)
+			invalidRequest(`Native CLI ${key} must be a non-empty string.`);
+		if (propertyValue !== undefined)
+			assertNoNul(propertyValue, `Native CLI ${key}`);
+	}
+	if (args.php !== undefined) {
+		if (args.php !== '8.2')
+			invalidRequest('Native CLI php must be the supported value "8.2".');
+		assertNoNul(args.php, 'Native CLI php');
+	}
+	if (
+		args.verbosity !== undefined &&
+		!['quiet', 'normal', 'debug'].includes(args.verbosity)
+	)
+		invalidRequest('Native CLI verbosity must be quiet, normal, or debug.');
+	if (args.verbosity !== undefined)
+		assertNoNul(args.verbosity, 'Native CLI verbosity');
+	if (
+		args.wordpressInstallMode !== undefined &&
+		![
+			'download-and-install',
+			'install-from-existing-files',
+			'install-from-existing-files-if-needed',
+			'do-not-attempt-installing',
+		].includes(args.wordpressInstallMode)
+	)
+		invalidRequest('Native CLI wordpressInstallMode is invalid.');
+	if (args.wordpressInstallMode !== undefined)
+		assertNoNul(
+			args.wordpressInstallMode,
+			'Native CLI wordpressInstallMode'
+		);
+	if (
+		args.port !== undefined &&
+		(!Number.isInteger(args.port) || args.port < 0 || args.port > 65_535)
+	)
+		invalidRequest(
+			'Native CLI port must be an integer from 0 through 65535.'
+		);
+	if (
+		args.workers !== undefined &&
+		args.workers !== 'auto' &&
+		(!Number.isSafeInteger(args.workers) ||
+			args.workers < 1 ||
+			args.workers > MAX_NATIVE_WORKERS)
+	)
+		invalidRequest(
+			`Native CLI workers must be an integer from 1 through ${MAX_NATIVE_WORKERS}, or "auto".`
+		);
+	if (
+		args.startupTimeoutMs !== undefined &&
+		(!Number.isSafeInteger(args.startupTimeoutMs) ||
+			args.startupTimeoutMs < 1 ||
+			args.startupTimeoutMs > 2_147_483_647)
+	)
+		invalidRequest(
+			'Native CLI startupTimeoutMs must be an integer from 1 through 2147483647.'
+		);
+	if (
+		args.autoMount !== undefined &&
+		typeof args.autoMount !== 'boolean' &&
+		(typeof args.autoMount !== 'string' || args.autoMount.length === 0)
+	)
+		invalidRequest(
+			'Native CLI autoMount must be a boolean or non-empty string.'
+		);
+	if (typeof args.autoMount === 'string')
+		assertNoNul(args.autoMount, 'Native CLI autoMount');
+	const blueprint = snapshotBlueprint(args.blueprint);
+	args.blueprint = blueprint.value;
+
+	args.mount = snapshotMounts(args.mount, 'mount');
+	args['mount-before-install'] = snapshotMounts(
+		args['mount-before-install'],
+		'mount-before-install'
+	);
+	args.define = snapshotDefineRecord(args.define, 'define', 'string');
+	args['define-bool'] = snapshotDefineRecord(
+		args['define-bool'],
+		'define-bool',
+		'boolean'
+	);
+	args['define-number'] = snapshotDefineRecord(
+		args['define-number'],
+		'define-number',
+		'number'
+	);
+	const definedNames = new Set<string>();
+	for (const definitions of [
+		args.define,
+		args['define-bool'],
+		args['define-number'],
+	])
+		for (const name of Object.keys(definitions ?? {})) {
+			if (definedNames.has(name))
+				invalidRequest(
+					`Native CLI constant \`${name}\` is defined more than once.`
+				);
+			definedNames.add(name);
+		}
+	return {
+		args,
+		blueprintJSON: blueprint.json,
+	};
+}
+
+function snapshotPlainRecord(
+	value: unknown,
+	description: string
+): Record<string, unknown> {
+	if (typeof value !== 'object' || value === null || Array.isArray(value))
+		invalidRequest(`${description} must be a plain object.`);
+	const prototype = Object.getPrototypeOf(value);
+	if (prototype !== Object.prototype && prototype !== null)
+		invalidRequest(`${description} must be a plain object.`);
+	const snapshot = Object.create(null) as Record<string, unknown>;
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string')
+			invalidRequest(`${description} may not contain symbol keys.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor || !('value' in descriptor))
+			invalidRequest(
+				`${description} properties must be own data properties.`
+			);
+		snapshot[key] = descriptor.value;
+	}
+	return snapshot;
+}
+
+function snapshotDenseArray(value: unknown, description: string): unknown[] {
+	if (
+		!Array.isArray(value) ||
+		Object.getPrototypeOf(value) !== Array.prototype
+	)
+		invalidRequest(`${description} must be an ordinary array.`);
+	const keys = Reflect.ownKeys(value);
+	if (
+		keys.length !== value.length + 1 ||
+		!keys.includes('length') ||
+		keys.some(
+			(key) =>
+				typeof key !== 'string' ||
+				(key !== 'length' &&
+					(!/^(0|[1-9]\d*)$/.test(key) ||
+						Number(key) >= value.length))
+		)
+	)
+		invalidRequest(
+			`${description} must be dense and may not contain symbols or extra properties.`
+		);
+	const snapshot: unknown[] = [];
+	for (let index = 0; index < value.length; index++) {
+		const descriptor = Object.getOwnPropertyDescriptor(
+			value,
+			String(index)
+		);
+		if (!descriptor || !('value' in descriptor))
+			invalidRequest(
+				`${description} entries must be own data properties.`
+			);
+		snapshot.push(descriptor.value);
+	}
+	return snapshot;
+}
+
+function snapshotBlueprint(value: unknown): {
+	value: unknown;
+	json?: string;
+} {
+	if (value === undefined) return { value: undefined };
+	if (typeof value === 'string') {
+		if (value.length === 0)
+			invalidRequest('Native CLI blueprint must not be an empty string.');
+		assertNoNul(value, 'Native CLI blueprint path');
+		return { value };
+	}
+	if (typeof value !== 'object' || value === null || Array.isArray(value))
+		invalidRequest(
+			'Native CLI blueprint must be a path or plain JSON object.'
+		);
+	const budget = { nodes: 0 };
+	const snapshot = snapshotJSONValue(
+		value,
+		new WeakSet(),
+		'blueprint',
+		0,
+		budget
+	);
+	let json: string;
+	try {
+		json = JSON.stringify(snapshot);
+	} catch (cause) {
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'Native CLI blueprint could not be serialized as JSON.',
+			{ cause }
 		);
 	}
-	for (const mount of [
-		...(args.mount ?? []),
-		...(args['mount-before-install'] ?? []),
-	]) {
-		const extra = Object.keys(mount).filter(
-			(key) => !['hostPath', 'vfsPath'].includes(key)
+	if (Buffer.byteLength(json, 'utf8') > MAX_BLUEPRINT_JSON_BYTES)
+		invalidRequest(
+			`Native CLI blueprint JSON must not exceed ${MAX_BLUEPRINT_JSON_BYTES} bytes.`
 		);
-		if (extra.length > 0) {
-			unsupported(
-				`The native CLI mount API does not support: ${extra.join(', ')}.`
+	return { value: snapshot, json };
+}
+
+function snapshotJSONValue(
+	value: unknown,
+	active: WeakSet<object>,
+	path: string,
+	depth: number,
+	budget: { nodes: number }
+): unknown {
+	if (depth > MAX_BLUEPRINT_DEPTH)
+		invalidRequest(
+			`Native CLI blueprint exceeds the maximum depth of ${MAX_BLUEPRINT_DEPTH}.`
+		);
+	if (++budget.nodes > MAX_BLUEPRINT_NODES)
+		invalidRequest(
+			`Native CLI blueprint exceeds the maximum node count of ${MAX_BLUEPRINT_NODES}.`
+		);
+	if (value === null || typeof value === 'boolean') return value;
+	if (typeof value === 'string') {
+		assertNoNul(value, `Native CLI ${path}`);
+		return value;
+	}
+	if (typeof value === 'number') {
+		if (Number.isFinite(value)) return value;
+		invalidRequest(`Native CLI ${path} contains a non-finite number.`);
+	}
+	if (typeof value !== 'object')
+		invalidRequest(`Native CLI ${path} is not JSON-serializable.`);
+	const object = value as object;
+	if (active.has(object))
+		invalidRequest(`Native CLI ${path} contains a circular reference.`);
+	active.add(object);
+	let snapshot: unknown;
+	if (Array.isArray(object)) {
+		snapshot = snapshotDenseArray(object, `Native CLI ${path}`).map(
+			(item, index) =>
+				snapshotJSONValue(
+					item,
+					active,
+					`${path}[${index}]`,
+					depth + 1,
+					budget
+				)
+		);
+	} else {
+		const record = snapshotPlainRecord(object, `Native CLI ${path}`);
+		const clone = Object.create(null) as Record<string, unknown>;
+		for (const [key, item] of Object.entries(record)) {
+			assertNoNul(key, `Native CLI ${path} key`);
+			clone[key] = snapshotJSONValue(
+				item,
+				active,
+				`${path}.${key}`,
+				depth + 1,
+				budget
 			);
 		}
+		snapshot = clone;
 	}
+	active.delete(object);
+	return snapshot;
+}
+
+function snapshotMounts(
+	value: unknown,
+	flag: 'mount' | 'mount-before-install'
+): Mount[] | undefined {
+	if (value === undefined) return undefined;
+	return snapshotDenseArray(value, `Native CLI ${flag}`).map((item) => {
+		const mount = snapshotPlainRecord(item, `Native CLI ${flag} entry`);
+		const keys = Object.keys(mount).sort();
+		if (
+			keys.length !== 2 ||
+			keys[0] !== 'hostPath' ||
+			keys[1] !== 'vfsPath'
+		)
+			invalidRequest(
+				'Every native CLI mount must contain only hostPath and vfsPath.'
+			);
+		if (
+			typeof mount.hostPath !== 'string' ||
+			mount.hostPath.length === 0 ||
+			typeof mount.vfsPath !== 'string' ||
+			mount.vfsPath.length === 0
+		)
+			invalidRequest(
+				'Every native CLI mount requires non-empty string hostPath and vfsPath values.'
+			);
+		assertNoNul(mount.hostPath, 'Native CLI mount hostPath');
+		assertNoNul(mount.vfsPath, 'Native CLI mount vfsPath');
+		return Object.assign(Object.create(null), mount) as Mount;
+	});
+}
+
+function snapshotDefineRecord(
+	value: unknown,
+	flag: 'define' | 'define-bool' | 'define-number',
+	type: 'string' | 'boolean' | 'number'
+): Record<string, never> | undefined {
+	if (value === undefined) return undefined;
+	const record = snapshotPlainRecord(value, `Native CLI ${flag}`);
+	for (const [name, definition] of Object.entries(record)) {
+		if (name.length === 0)
+			invalidRequest(`Native CLI ${flag} names must not be empty.`);
+		assertNoNul(name, `Native CLI ${flag} name`);
+		if (
+			typeof definition !== type ||
+			(type === 'number' && !Number.isFinite(definition))
+		)
+			invalidRequest(`Native CLI ${flag} contains an invalid value.`);
+		if (typeof definition === 'string')
+			assertNoNul(definition, `Native CLI ${flag} value`);
+	}
+	return record as Record<string, never>;
+}
+
+function assertNoNul(value: string, description: string): void {
+	if (value.includes('\0'))
+		invalidRequest(`${description} may not contain NUL bytes.`);
 }
 
 function unsupported(message: string): never {
 	throw new NativeCLIError(NativeCLIErrorCode.Unsupported, message);
+}
+
+function invalidRequest(message: string): never {
+	throw new NativeCLIError(NativeCLIErrorCode.InvalidRequest, message);
 }
 
 function listen(server: Server, port: number): Promise<void> {

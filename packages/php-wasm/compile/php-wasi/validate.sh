@@ -30,6 +30,7 @@ grep -Fq 'initialize: func(php-ini-path: string) -> result<_, string>;' "$resolv
 grep -Fq 'record request {' "$resolved_wit"
 grep -Fq 'script-path: string,' "$resolved_wit"
 grep -Fq 'body: list<u8>,' "$resolved_wit"
+grep -Fq 'stream-response: bool,' "$resolved_wit"
 grep -Fq 'server-entries: list<entry>,' "$resolved_wit"
 grep -Fq 'record response {' "$resolved_wit"
 grep -Fq 'http-status: u16,' "$resolved_wit"

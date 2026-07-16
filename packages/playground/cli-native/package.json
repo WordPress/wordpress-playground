@@ -29,6 +29,7 @@
 		"wp-playground.js",
 		"native-host-manifest.json",
 		"compatibility.json",
+		"CONTROL_PROTOCOL.md",
 		"share/**",
 		"README.md",
 		"LICENSE",

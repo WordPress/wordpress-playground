@@ -46,6 +46,7 @@ pub enum PhpConstantValue {
     String(String),
     Bool(bool),
     Number(String),
+    Null,
 }
 
 impl PhpConstantValue {
@@ -59,6 +60,10 @@ impl PhpConstantValue {
 
     pub fn number(value: impl Into<String>) -> Self {
         Self::Number(value.into())
+    }
+
+    pub fn null() -> Self {
+        Self::Null
     }
 }
 
@@ -93,6 +98,7 @@ pub fn constants_json(constants: &[(String, PhpConstantValue)]) -> Vec<u8> {
                 .and_then(serde_json::Number::from_f64)
                 .map(serde_json::Value::Number)
                 .unwrap_or(serde_json::Value::Null),
+            PhpConstantValue::Null => serde_json::Value::Null,
         };
         json.insert(key.clone(), value);
     }

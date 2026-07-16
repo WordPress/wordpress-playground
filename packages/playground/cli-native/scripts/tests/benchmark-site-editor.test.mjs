@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -8,9 +11,54 @@ import {
 	parseArgs,
 	parseCookieHeader,
 	percentile,
+	readAuthCookieFile,
 	scopedValue,
 	siteEditorUrl,
 } from '../benchmark-site-editor.mjs';
+
+test('cookie files keep authentication values out of argv and errors', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'site-editor-cookie-file-'));
+	try {
+		const cookieFile = join(root, 'cookie.txt');
+		await writeFile(cookieFile, 'wordpress_logged_in=private-token\n');
+		const options = parseArgs([
+			'--target=wasmtime=http://127.0.0.1:9400',
+			`--auth-cookie-file=wasmtime::${cookieFile}`,
+		]);
+		assert.equal(
+			scopedValue(options.authCookieFiles, 'wasmtime'),
+			cookieFile
+		);
+		assert.equal(
+			await readAuthCookieFile(cookieFile, 'wasmtime'),
+			'wordpress_logged_in=private-token'
+		);
+		await writeFile(cookieFile, '\n');
+		await assert.rejects(
+			() => readAuthCookieFile(cookieFile, 'wasmtime'),
+			(error) =>
+				/empty/.test(error.message) &&
+				!error.message.includes('private-token')
+		);
+		assert.throws(
+			() => parseCookieHeader('private-token-without-equals'),
+			(error) =>
+				/authentication data/.test(error.message) &&
+				!error.message.includes('private-token')
+		);
+		assert.throws(
+			() =>
+				parseArgs([
+					'--target=wasmtime=http://127.0.0.1:9400',
+					'--auth-cookie=wasmtime::name=value',
+					`--auth-cookie-file=wasmtime::${cookieFile}`,
+				]),
+			/cannot combine/
+		);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
 
 test('parseArgs accepts labelled targets and global or scoped authentication', () => {
 	const options = parseArgs(

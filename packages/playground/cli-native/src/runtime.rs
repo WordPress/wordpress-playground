@@ -41,6 +41,59 @@ pub struct NativeRuntime {
 
 pub type CompiledPhpArtifact = Component;
 
+/// A PHP component compiled with Wasmtime epoch interruption enabled.
+///
+/// Keep this distinct from [`CompiledPhpArtifact`]: epoch interruption changes
+/// generated code, so an interruptible component must never enter the normal
+/// buffered request path by accident.
+#[derive(Clone)]
+pub(crate) struct InterruptiblePhpArtifact(pub(crate) Component);
+
+/// Compiles the interruptible PHP component only when a streamed request first
+/// needs it. Ordinary HTTP and buffered control requests therefore retain one
+/// compiled component and one Store per worker.
+pub(crate) struct LazyInterruptiblePhpArtifact {
+    wasm_path: PathBuf,
+    php_version: String,
+    profile: WasmEngineProfile,
+    artifact: Mutex<Option<InterruptiblePhpArtifact>>,
+}
+
+impl LazyInterruptiblePhpArtifact {
+    pub(crate) fn get(&self) -> Result<InterruptiblePhpArtifact> {
+        let mut cached = self
+            .artifact
+            .lock()
+            .map_err(|_| CliError::new("Interruptible PHP artifact cache lock was poisoned"))?;
+        if let Some(artifact) = cached.as_ref() {
+            return Ok(artifact.clone());
+        }
+
+        // A regular precompiled artifact is not reusable here: epoch
+        // interruption is part of the Wasmtime code-generation configuration.
+        let engine = wasm_engine_for_target_with_epoch_interruption(self.profile, None, true)?;
+        let component = Component::from_file(&engine, &self.wasm_path).map_err(|error| {
+            CliError::new(format!(
+                "Failed to compile interruptible PHP {} WASIp2 component {}: {error}",
+                self.php_version,
+                self.wasm_path.display(),
+            ))
+        })?;
+        let artifact = InterruptiblePhpArtifact(component);
+        *cached = Some(artifact.clone());
+        release_unused_process_memory();
+        Ok(artifact)
+    }
+
+    #[cfg(test)]
+    fn is_loaded(&self) -> bool {
+        self.artifact
+            .lock()
+            .map(|artifact| artifact.is_some())
+            .unwrap_or(false)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WasmEngineProfile {
     FastStartup,
@@ -124,6 +177,20 @@ impl NativeRuntime {
         Ok(artifact)
     }
 
+    pub(crate) fn lazy_interruptible_php_artifact(
+        &self,
+        php_version: &str,
+    ) -> Result<LazyInterruptiblePhpArtifact> {
+        self.verify_php_asset(php_version)?;
+        let asset = self.php_asset(php_version)?;
+        Ok(LazyInterruptiblePhpArtifact {
+            wasm_path: self.repo_root.join(&asset.wasm.path),
+            php_version: php_version.to_string(),
+            profile: self.profile,
+            artifact: Mutex::new(None),
+        })
+    }
+
     fn load_php_artifact(
         &self,
         php_version: &str,
@@ -189,6 +256,14 @@ fn wasm_engine_for_target(
     profile: WasmEngineProfile,
     target_triple: Option<&str>,
 ) -> Result<Engine> {
+    wasm_engine_for_target_with_epoch_interruption(profile, target_triple, false)
+}
+
+fn wasm_engine_for_target_with_epoch_interruption(
+    profile: WasmEngineProfile,
+    target_triple: Option<&str>,
+    epoch_interruption: bool,
+) -> Result<Engine> {
     let mut config = Config::new();
     config.wasm_gc(false);
     config.wasm_component_model(true);
@@ -206,6 +281,7 @@ fn wasm_engine_for_target(
     config.cranelift_opt_level(settings.opt_level);
     config.cranelift_regalloc_algorithm(settings.regalloc_algorithm);
     config.wasm_exceptions(true);
+    config.epoch_interruption(epoch_interruption);
     config.generate_address_map(false);
     if !uses_windows_unwind_info(target_triple) {
         config.native_unwind_info(false);
@@ -542,12 +618,13 @@ mod component_tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use wasmtime::{component::Linker, Store};
+    use wasmtime::{component::Linker, Engine, Store};
 
     use super::{
         asset_root_candidates_from_exe, memory_guaranteed_dense_image_size,
         parse_wasmtime_profiling, precompile_wasm_component, uses_windows_unwind_info, wasm_engine,
-        wasm_engine_settings, NativeRuntime, WasmEngineProfile, WasmtimeProfiling,
+        wasm_engine_settings, LazyInterruptiblePhpArtifact, NativeRuntime, WasmEngineProfile,
+        WasmtimeProfiling,
     };
 
     #[test]
@@ -576,6 +653,28 @@ mod component_tests {
         let linker = Linker::<()>::new(&engine);
         let mut store = Store::new(&engine, ());
         linker.instantiate(&mut store, &component).unwrap();
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn interruptible_php_artifact_is_compiled_lazily_and_cached() {
+        let root = temp_dir("interruptible-component");
+        fs::create_dir_all(&root).unwrap();
+        let wasm_path = root.join("component.wasm");
+        fs::write(&wasm_path, b"(component)").unwrap();
+        let artifact = LazyInterruptiblePhpArtifact {
+            wasm_path,
+            php_version: "test".to_string(),
+            profile: WasmEngineProfile::FastStartup,
+            artifact: Default::default(),
+        };
+
+        assert!(!artifact.is_loaded());
+        let first = artifact.get().unwrap();
+        assert!(artifact.is_loaded());
+        let second = artifact.get().unwrap();
+        assert!(Engine::same(first.0.engine(), second.0.engine()));
 
         let _ = fs::remove_dir_all(root);
     }

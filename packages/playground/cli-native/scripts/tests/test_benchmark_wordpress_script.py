@@ -1,6 +1,7 @@
 import pathlib
 import re
 import subprocess
+import sys
 import unittest
 
 
@@ -17,10 +18,13 @@ def shell_function_body(source: str, name: str) -> str:
     return match.group(1)
 
 
-class BenchmarkWordPressScriptTests(unittest.TestCase):
+@unittest.skipIf(sys.platform == "win32", "shell syntax validation requires bash")
+class BenchmarkWordPressScriptUnixTests(unittest.TestCase):
     def test_script_has_valid_shell_syntax(self):
         subprocess.run(["bash", "-n", str(SCRIPT_PATH)], check=True)
 
+
+class BenchmarkWordPressScriptPortableTests(unittest.TestCase):
     def test_component_php_defaults_reach_bootstrap_and_measured_servers(self):
         source = SCRIPT_PATH.read_text(encoding="utf-8")
 

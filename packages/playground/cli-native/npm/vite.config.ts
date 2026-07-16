@@ -35,6 +35,10 @@ function copyPrivatePackage(): Plugin {
 					join(outputRoot, 'compatibility.json'),
 				],
 				[join(npmRoot, 'README.md'), join(outputRoot, 'README.md')],
+				[
+					join(packageRoot, 'CONTROL_PROTOCOL.md'),
+					join(outputRoot, 'CONTROL_PROTOCOL.md'),
+				],
 				[join(repositoryRoot, 'LICENSE'), join(outputRoot, 'LICENSE')],
 				[
 					join(packageRoot, 'THIRD_PARTY_NOTICES.md'),
@@ -127,7 +131,9 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'node',
-		include: [join(npmRoot, 'tests/**/*.spec.ts')],
+		// Vitest globs always use forward slashes, including on Windows. Because
+		// the Vite root is npmRoot, a root-relative glob is sufficient here.
+		include: ['tests/**/*.spec.ts'],
 		pool: 'forks',
 	},
 });

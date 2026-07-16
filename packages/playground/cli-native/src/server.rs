@@ -17,11 +17,14 @@ use serde::Deserialize;
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
-    args::{CliOptions, CommandName, RuntimeConfig, Verbosity, WorkerCount, DEFAULT_PORT},
+    args::{
+        CliOptions, CommandName, RuntimeConfig, Verbosity, WorkerCount, DEFAULT_PORT, MAX_WORKERS,
+    },
     automount::BlueprintStep,
     control::{
         ControlBackend, ControlHttpRequest, ControlHttpResponse, ControlOptions, ControlRunRequest,
-        ControlRunResponse, ControlServer,
+        ControlRunResponse, ControlServer, ControlStreamChannel, ControlStreamEmitter,
+        ControlStreamEvent, ControlStreamResponse, MAX_STREAM_FRAME_BYTES,
     },
     download::{cached_download_with_validator, download_bytes, url_cache_key},
     mount::Mount,
@@ -31,9 +34,13 @@ use crate::{
     php_protocol::{PhpRequest, PhpResponse},
     php_runtime_files::PhpConstantValue,
     route_counters::{self, Field, RequestId},
-    runtime::{release_unused_process_memory, CompiledPhpArtifact, NativeRuntime},
+    runtime::{
+        release_unused_process_memory, CompiledPhpArtifact, LazyInterruptiblePhpArtifact,
+        NativeRuntime,
+    },
     terminal::TerminalStyle,
     vfs::normalize_vfs_path,
+    wasip2::{Wasip2PhpOutputChannel, Wasip2PhpStreamEvent, Wasip2PhpStreamSink},
     wordpress::{
         defined_constants_for_host, ensure_wordpress_mount, ensure_wp_config, prepare_wordpress,
         wordpress_mount_path,
@@ -49,6 +56,7 @@ const MAX_REQUESTS_PER_WORKER_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_MAX_REQUESTS
 const WORKER_RECYCLE_IDLE_DELAY: Duration = Duration::from_millis(50);
 const WORKER_RECYCLE_IDLE_DELAY_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_WORKER_RECYCLE_IDLE_MS";
 const DEFAULT_LAZY_WORKER_IDLE_TIMEOUT: Duration = Duration::from_secs(10);
+const WORKER_ACQUIRE_CANCELLATION_POLL: Duration = Duration::from_millis(10);
 const LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_LAZY_WORKER_IDLE_TIMEOUT_MS";
 const SERVER_PHP_INI_ENTRIES: &[&str] = &["implicit_flush=0", "output_buffering=65536"];
 const AUTO_LOGIN_COOKIE_NAME: &str = "playground_auto_login_already_happened";
@@ -121,6 +129,8 @@ enum ServerHttpResponse {
 
 struct HandledHttpResponse {
     response: ServerHttpResponse,
+    exit_code: i32,
+    stderr: Vec<u8>,
     route_target: &'static str,
     worker_action: &'static str,
 }
@@ -152,6 +162,7 @@ struct WorkerPool {
     primary_worker: Arc<Mutex<PhpWorker>>,
     shared: Arc<WorkerPoolShared>,
     php_artifact: CompiledPhpArtifact,
+    interruptible_php_artifact: LazyInterruptiblePhpArtifact,
     host_options: PhpWorkerOptions,
     max_requests_per_worker: usize,
     recycle_idle_delay: Duration,
@@ -385,6 +396,7 @@ impl WorkerPool {
     fn new(
         workers: Vec<PhpInstance>,
         php_artifact: CompiledPhpArtifact,
+        interruptible_php_artifact: LazyInterruptiblePhpArtifact,
         host_options: PhpWorkerOptions,
         max_workers: usize,
         lazy: bool,
@@ -409,6 +421,7 @@ impl WorkerPool {
             primary_worker,
             shared,
             php_artifact,
+            interruptible_php_artifact,
             host_options,
             max_requests_per_worker,
             recycle_idle_delay,
@@ -424,63 +437,56 @@ impl WorkerPool {
     }
 
     fn acquire(&self) -> Result<WorkerLease> {
-        loop {
-            let selection = {
-                let mut state = self
-                    .shared
-                    .state
-                    .lock()
-                    .map_err(|_| CliError::new("PHP worker pool lock was poisoned"))?;
+        self.acquire_inner(None)?
+            .ok_or_else(|| CliError::new("PHP worker acquisition was unexpectedly cancelled"))
+    }
 
-                let selection = state.select_worker(self.lazy, self.len);
-                if matches!(selection, WorkerSelection::Wait) {
-                    state.waiting_workers = state.waiting_workers.saturating_add(1);
-                    state = self
-                        .shared
-                        .worker_available
-                        .wait(state)
-                        .map_err(|_| CliError::new("PHP worker pool lock was poisoned"))?;
-                    state.waiting_workers = state.waiting_workers.saturating_sub(1);
-                    WorkerSelection::Wait
-                } else {
-                    selection
+    fn acquire_cancellable(&self, cancellation: &AtomicBool) -> Result<Option<WorkerLease>> {
+        self.acquire_inner(Some(cancellation))
+    }
+
+    fn acquire_inner(&self, cancellation: Option<&AtomicBool>) -> Result<Option<WorkerLease>> {
+        let Some(selection) =
+            wait_for_worker_selection(&self.shared, self.lazy, self.len, cancellation)?
+        else {
+            return Ok(None);
+        };
+        let lease = match selection {
+            WorkerSelection::Primary => {
+                self.worker_lease(Arc::clone(&self.primary_worker), WorkerKind::Primary)
+            }
+            WorkerSelection::Extra(worker) => self.worker_lease(worker, WorkerKind::Extra),
+            WorkerSelection::Spawn => {
+                if cancellation.is_some_and(|token| token.load(Ordering::Acquire)) {
+                    self.shared.release_spawn_reservation();
+                    return Ok(None);
                 }
-            };
-
-            match selection {
-                WorkerSelection::Primary => {
-                    return Ok(
-                        self.worker_lease(Arc::clone(&self.primary_worker), WorkerKind::Primary)
+                let start = Instant::now();
+                let php = match PhpInstance::from_artifact_with_options(
+                    self.php_artifact.clone(),
+                    self.host_options.clone(),
+                ) {
+                    Ok(php) => php,
+                    Err(error) => {
+                        self.shared.release_spawn_reservation();
+                        return Err(error);
+                    }
+                };
+                if self.log_stats {
+                    eprintln!(
+                        "debug: worker-pool spawned lazy worker in {}ms",
+                        start.elapsed().as_millis()
                     );
                 }
-                WorkerSelection::Extra(worker) => {
-                    return Ok(self.worker_lease(worker, WorkerKind::Extra));
-                }
-                WorkerSelection::Spawn => {
-                    let start = Instant::now();
-                    let php = match PhpInstance::from_artifact_with_options(
-                        self.php_artifact.clone(),
-                        self.host_options.clone(),
-                    ) {
-                        Ok(php) => php,
-                        Err(error) => {
-                            self.shared.release_spawn_reservation();
-                            return Err(error);
-                        }
-                    };
-                    if self.log_stats {
-                        eprintln!(
-                            "debug: worker-pool spawned lazy worker in {}ms",
-                            start.elapsed().as_millis()
-                        );
-                    }
-                    return Ok(self.worker_lease(
-                        Arc::new(Mutex::new(PhpWorker::new(php))),
-                        WorkerKind::Extra,
-                    ));
-                }
-                WorkerSelection::Wait => continue,
+                self.worker_lease(Arc::new(Mutex::new(PhpWorker::new(php))), WorkerKind::Extra)
             }
+            WorkerSelection::Wait => unreachable!("worker selection waits internally"),
+        };
+        if cancellation.is_some_and(|token| token.load(Ordering::Acquire)) {
+            drop(lease);
+            Ok(None)
+        } else {
+            Ok(Some(lease))
         }
     }
 
@@ -512,6 +518,27 @@ impl WorkerPool {
         if worker.constants_revision != constants.revision {
             worker.php_mut()?.define_constants(&constants.values);
             worker.constants_revision = constants.revision;
+        }
+        Ok(recovered)
+    }
+
+    fn recover_missing_stream_php(&self, worker: &mut PhpWorker) -> Result<bool> {
+        let recovered = recover_missing_value(&mut worker.stream_php, || {
+            PhpInstance::from_interruptible_artifact_with_options(
+                self.interruptible_php_artifact.get()?,
+                self.host_options.clone(),
+            )
+        })?;
+        if recovered {
+            worker.stream_constants_revision = 0;
+        }
+        let constants = self
+            .dynamic_constants
+            .lock()
+            .map_err(|_| CliError::new("PHP dynamic constants lock was poisoned"))?;
+        if worker.stream_constants_revision != constants.revision {
+            worker.stream_php_mut()?.define_constants(&constants.values);
+            worker.stream_constants_revision = constants.revision;
         }
         Ok(recovered)
     }
@@ -568,6 +595,7 @@ impl WorkerPool {
                 }
                 let start = Instant::now();
                 drop(worker.php.take());
+                drop(worker.stream_php.take());
                 release_unused_process_memory();
                 match PhpInstance::from_artifact_with_options(
                     php_artifact.clone(),
@@ -578,6 +606,7 @@ impl WorkerPool {
                         worker.requests_handled = 0;
                         worker.recycle_scheduled = false;
                         worker.constants_revision = 0;
+                        worker.stream_constants_revision = 0;
                         drop(worker);
                         if lock_was_poisoned {
                             worker_lease.worker().clear_poison();
@@ -605,6 +634,40 @@ impl WorkerPool {
     }
 }
 
+fn wait_for_worker_selection(
+    shared: &WorkerPoolShared,
+    lazy: bool,
+    max_workers: usize,
+    cancellation: Option<&AtomicBool>,
+) -> Result<Option<WorkerSelection>> {
+    loop {
+        if cancellation.is_some_and(|token| token.load(Ordering::Acquire)) {
+            return Ok(None);
+        }
+        let mut state = shared
+            .state
+            .lock()
+            .map_err(|_| CliError::new("PHP worker pool lock was poisoned"))?;
+        if state.shutdown {
+            return Err(CliError::new("PHP worker pool is shutting down"));
+        }
+        let selection = state.select_worker(lazy, max_workers);
+        if !matches!(selection, WorkerSelection::Wait) {
+            return Ok(Some(selection));
+        }
+        state.waiting_workers = state.waiting_workers.saturating_add(1);
+        state = if cancellation.is_some() {
+            shared.wait_timeout(state, WORKER_ACQUIRE_CANCELLATION_POLL)
+        } else {
+            shared
+                .worker_available
+                .wait(state)
+                .map_err(|_| CliError::new("PHP worker pool lock was poisoned"))?
+        };
+        state.waiting_workers = state.waiting_workers.saturating_sub(1);
+    }
+}
+
 fn spawn_worker_lease_task<T: Send + 'static>(
     worker_lease: WorkerLease,
     task: impl FnOnce(&WorkerLease) -> T + Send + 'static,
@@ -618,6 +681,25 @@ fn lock_worker_for_recycle(
     match worker.lock() {
         Ok(worker) => (worker, false),
         Err(poisoned) => (poisoned.into_inner(), true),
+    }
+}
+
+fn lock_worker_for_request(worker: &Mutex<PhpWorker>) -> std::sync::MutexGuard<'_, PhpWorker> {
+    match worker.lock() {
+        Ok(worker) => worker,
+        Err(poisoned) => {
+            eprintln!("warning: rebuilding PHP worker after a host panic");
+            let mut php_worker = poisoned.into_inner();
+            drop(php_worker.php.take());
+            drop(php_worker.stream_php.take());
+            php_worker.requests_handled = 0;
+            php_worker.last_request_finished_at = Instant::now();
+            php_worker.recycle_scheduled = false;
+            php_worker.constants_revision = 0;
+            php_worker.stream_constants_revision = 0;
+            worker.clear_poison();
+            php_worker
+        }
     }
 }
 
@@ -705,20 +787,24 @@ fn lazy_worker_idle_retirement_delay(lazy: bool) -> Option<Duration> {
 
 struct PhpWorker {
     php: Option<PhpInstance>,
+    stream_php: Option<PhpInstance>,
     requests_handled: usize,
     last_request_finished_at: Instant,
     recycle_scheduled: bool,
     constants_revision: u64,
+    stream_constants_revision: u64,
 }
 
 impl PhpWorker {
     fn new(php: PhpInstance) -> Self {
         Self {
             php: Some(php),
+            stream_php: None,
             requests_handled: 0,
             last_request_finished_at: Instant::now(),
             recycle_scheduled: false,
             constants_revision: 0,
+            stream_constants_revision: 0,
         }
     }
 
@@ -726,6 +812,12 @@ impl PhpWorker {
         self.php
             .as_mut()
             .ok_or_else(|| CliError::new("PHP worker is unavailable during recycle"))
+    }
+
+    fn stream_php_mut(&mut self) -> Result<&mut PhpInstance> {
+        self.stream_php
+            .as_mut()
+            .ok_or_else(|| CliError::new("Interruptible PHP worker is unavailable"))
     }
 }
 
@@ -1211,7 +1303,7 @@ pub(crate) fn ensure_tmp_mount(mounts: &mut Vec<Mount>) -> Result<()> {
 
 fn requested_worker_count(options: &CliOptions) -> usize {
     match &options.workers {
-        Some(WorkerCount::Fixed(workers)) => *workers,
+        Some(WorkerCount::Fixed(workers)) => (*workers).min(MAX_WORKERS),
         Some(WorkerCount::Auto) => cpu_workers_minus_one(),
         None => cpu_workers_minus_one().min(6),
     }
@@ -1223,8 +1315,12 @@ fn lazy_worker_pool_enabled(options: &CliOptions) -> bool {
 
 fn cpu_workers_minus_one() -> usize {
     thread::available_parallelism()
-        .map(|parallelism| parallelism.get().saturating_sub(1).max(1))
+        .map(|parallelism| capped_cpu_workers_minus_one(parallelism.get()))
         .unwrap_or(1)
+}
+
+fn capped_cpu_workers_minus_one(parallelism: usize) -> usize {
+    parallelism.saturating_sub(1).clamp(1, MAX_WORKERS)
 }
 
 fn create_worker_pool(
@@ -1235,8 +1331,9 @@ fn create_worker_pool(
     worker_count: usize,
     lazy_workers: bool,
 ) -> Result<WorkerPool> {
-    let worker_count = worker_count.max(1);
+    let worker_count = worker_count.clamp(1, MAX_WORKERS);
     let php_artifact = runtime.php_artifact(php_version)?;
+    let interruptible_php_artifact = runtime.lazy_interruptible_php_artifact(php_version)?;
     let initial_worker_count = if lazy_workers { 1 } else { worker_count };
     let mut workers = Vec::with_capacity(initial_worker_count);
     workers.push(primary);
@@ -1247,6 +1344,7 @@ fn create_worker_pool(
     Ok(WorkerPool::new(
         workers,
         php_artifact,
+        interruptible_php_artifact,
         host_options,
         worker_count,
         lazy_workers,
@@ -1503,6 +1601,23 @@ fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
         handle_control_run(request, &run_mounts, &run_worker_pool, actual_port)
     });
 
+    let stream_mounts = Arc::clone(&mounts);
+    let stream_worker_pool = Arc::clone(&worker_pool);
+    let stream = Arc::new(move |request, emitter, cancellation| {
+        handle_control_stream_request(
+            request,
+            ControlStreamRequestConfig {
+                mounts: &stream_mounts,
+                worker_pool: &stream_worker_pool,
+                request_server_context,
+                debug,
+                follow_symlinks,
+            },
+            emitter,
+            cancellation,
+        )
+    });
+
     let resolve_mounts = Arc::clone(&mounts);
     let resolve_path = Arc::new(move |vfs_path: &str| {
         host_path_for_vfs_path_with_symlink_policy(
@@ -1528,8 +1643,205 @@ fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
         document_root: "/wordpress".to_string(),
         request,
         run,
+        stream,
         resolve_path,
         define_constant,
+    }
+}
+
+struct ControlStreamRequestConfig<'a> {
+    mounts: &'a [Mount],
+    worker_pool: &'a WorkerPool,
+    request_server_context: RequestServerContext,
+    debug: bool,
+    follow_symlinks: bool,
+}
+
+fn handle_control_stream_request(
+    request: ControlHttpRequest,
+    config: ControlStreamRequestConfig<'_>,
+    emitter: ControlStreamEmitter,
+    cancellation: Arc<AtomicBool>,
+) -> Result<ControlStreamResponse> {
+    let ControlStreamRequestConfig {
+        mounts,
+        worker_pool,
+        request_server_context,
+        debug,
+        follow_symlinks,
+    } = config;
+    let request = HttpRequest {
+        method: request.method,
+        target: request.path,
+        version: "HTTP/1.1".to_string(),
+        headers: request.headers,
+        body: request.body,
+    };
+    let route = match resolve_route_with_symlink_policy(
+        mounts,
+        &request.target,
+        symlink_policy_from_follow(follow_symlinks),
+    ) {
+        Ok(route) => route,
+        Err(_) => {
+            emit_buffered_control_stream_response(
+                &emitter,
+                http_error_response(400, "Bad Request"),
+            )?;
+            return Ok(ControlStreamResponse { exit_code: 0 });
+        }
+    };
+    match route {
+        RouteTarget::Php {
+            vfs_path,
+            path_info,
+        } => {
+            let php_request = php_request_from_http_with_counter(
+                &request,
+                &vfs_path,
+                path_info.as_deref(),
+                request_server_context,
+                None,
+            );
+            let stream_emitter = Arc::clone(&emitter);
+            let sink: Wasip2PhpStreamSink = Arc::new(move |event| {
+                let event = match event {
+                    Wasip2PhpStreamEvent::Headers {
+                        http_status,
+                        headers,
+                    } => {
+                        let response = parse_php_headers(http_status, &headers);
+                        ControlStreamEvent::Headers {
+                            status: response.status,
+                            headers: response.headers,
+                        }
+                    }
+                    Wasip2PhpStreamEvent::Output { channel, bytes } => ControlStreamEvent::Output {
+                        channel: match channel {
+                            Wasip2PhpOutputChannel::Stdout => ControlStreamChannel::Stdout,
+                            Wasip2PhpOutputChannel::Stderr => ControlStreamChannel::Stderr,
+                        },
+                        bytes,
+                    },
+                };
+                stream_emitter(event).map_err(wasmtime::Error::msg)
+            });
+            let Some(worker) = worker_pool.acquire_cancellable(&cancellation)? else {
+                return Err(CliError::new(
+                    "Native PHP stream was cancelled while waiting for a worker",
+                ));
+            };
+            let mut php_worker = lock_worker_for_request(worker.worker());
+            if cancellation.load(Ordering::Acquire) {
+                return Err(CliError::new("Native PHP stream was cancelled"));
+            }
+            worker_pool.recover_missing_stream_php(&mut php_worker)?;
+            if cancellation.load(Ordering::Acquire) {
+                return Err(CliError::new("Native PHP stream was cancelled"));
+            }
+            let response_result = php_worker.stream_php_mut()?.run_sapi_request_streamed(
+                &php_request,
+                sink,
+                Arc::clone(&cancellation),
+            );
+            let response_result = if cancellation.load(Ordering::Acquire) {
+                drop(php_worker.stream_php.take());
+                Err(CliError::new("Native PHP stream was cancelled"))
+            } else {
+                discard_instance_on_execution_error(&mut php_worker.stream_php, response_result)
+            };
+            let response = response_result?;
+            let worker_after_request = worker_pool.mark_request_finished(&mut php_worker)?;
+            if debug {
+                eprintln!(
+                    "debug: streamed PHP request {} exited {} across {} workers",
+                    request.target,
+                    response.exit_code,
+                    worker_pool.len()
+                );
+            }
+            drop(php_worker);
+            match worker_after_request {
+                WorkerAfterRequest::Keep => {}
+                WorkerAfterRequest::Recycle { delay } => {
+                    worker_pool.schedule_worker_recycle(worker, delay);
+                }
+            }
+            Ok(ControlStreamResponse {
+                exit_code: response.exit_code,
+            })
+        }
+        RouteTarget::Static { host_path } => {
+            emit_static_control_stream_response(&emitter, &host_path, &cancellation)?;
+            Ok(ControlStreamResponse { exit_code: 0 })
+        }
+        RouteTarget::NotFound => {
+            emit_buffered_control_stream_response(
+                &emitter,
+                HttpResponse {
+                    status: 404,
+                    headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
+                    body: b"Not Found\n".to_vec(),
+                },
+            )?;
+            Ok(ControlStreamResponse { exit_code: 0 })
+        }
+    }
+}
+
+fn emit_buffered_control_stream_response(
+    emitter: &ControlStreamEmitter,
+    response: HttpResponse,
+) -> Result<()> {
+    emitter(ControlStreamEvent::Headers {
+        status: response.status,
+        headers: response.headers,
+    })?;
+    if !response.body.is_empty() {
+        emitter(ControlStreamEvent::Output {
+            channel: ControlStreamChannel::Stdout,
+            bytes: response.body,
+        })?;
+    }
+    Ok(())
+}
+
+fn emit_static_control_stream_response(
+    emitter: &ControlStreamEmitter,
+    host_path: &Path,
+    cancellation: &AtomicBool,
+) -> Result<()> {
+    let mut file = fs::File::open(host_path).map_err(|error| {
+        CliError::new(format!(
+            "Failed to open controlled static response {}: {error}",
+            host_path.display()
+        ))
+    })?;
+    emitter(ControlStreamEvent::Headers {
+        status: 200,
+        headers: vec![(
+            "Content-Type".to_string(),
+            content_type_for_path(host_path).to_string(),
+        )],
+    })?;
+    let mut buffer = vec![0; MAX_STREAM_FRAME_BYTES];
+    loop {
+        if cancellation.load(Ordering::Acquire) {
+            return Err(CliError::new("Native static stream was cancelled"));
+        }
+        let read = file.read(&mut buffer).map_err(|error| {
+            CliError::new(format!(
+                "Failed to read controlled static response {}: {error}",
+                host_path.display()
+            ))
+        })?;
+        if read == 0 {
+            return Ok(());
+        }
+        emitter(ControlStreamEvent::Output {
+            channel: ControlStreamChannel::Stdout,
+            bytes: buffer[..read].to_vec(),
+        })?;
     }
 }
 
@@ -1556,11 +1868,19 @@ fn handle_control_http_request(
         symlink_policy_from_follow(follow_symlinks),
         None,
     )?;
-    match handled.response {
+    let HandledHttpResponse {
+        response,
+        exit_code,
+        stderr,
+        ..
+    } = handled;
+    match response {
         ServerHttpResponse::Buffered(response) => Ok(ControlHttpResponse {
+            exit_code,
             status: response.status,
             headers: response.headers,
             body: response.body,
+            stderr,
         }),
         ServerHttpResponse::StaticFile(path) => {
             let body = fs::read(&path).map_err(|error| {
@@ -1570,12 +1890,14 @@ fn handle_control_http_request(
                 ))
             })?;
             Ok(ControlHttpResponse {
+                exit_code: 0,
                 status: 200,
                 headers: vec![(
                     "Content-Type".to_string(),
                     content_type_for_path(&path).to_string(),
                 )],
                 body,
+                stderr: Vec::new(),
             })
         }
     }
@@ -1641,10 +1963,7 @@ fn handle_control_run(
         upsert_php_entry(&mut php_request.env, "HTTPS", https);
         upsert_php_entry(&mut php_request.server_entries, "HTTPS", https);
         let worker = worker_pool.acquire()?;
-        let mut php_worker = worker
-            .worker()
-            .lock()
-            .map_err(|_| CliError::new("PHP worker lock was poisoned"))?;
+        let mut php_worker = lock_worker_for_request(worker.worker());
         worker_pool.recover_missing_php(&mut php_worker)?;
         let response_result = php_worker.php_mut()?.run_sapi_request(&php_request);
         let response = discard_instance_on_execution_error(&mut php_worker.php, response_result)?;
@@ -2179,6 +2498,8 @@ fn handle_http_request(
         Err(_) => {
             return Ok(HandledHttpResponse {
                 response: ServerHttpResponse::Buffered(http_error_response(400, "Bad Request")),
+                exit_code: 0,
+                stderr: Vec::new(),
                 route_target: "bad_request",
                 worker_action: "none",
             })
@@ -2192,10 +2513,7 @@ fn handle_http_request(
         } => {
             let request_target = request.target.clone();
             let worker = worker_pool.acquire()?;
-            let mut php_worker = worker
-                .worker()
-                .lock()
-                .map_err(|_| CliError::new("PHP worker lock was poisoned"))?;
+            let mut php_worker = lock_worker_for_request(worker.worker());
             worker_pool.recover_missing_php(&mut php_worker)?;
             let response_result = handle_php_route_request(
                 request,
@@ -2233,12 +2551,16 @@ fn handle_http_request(
             }
             Ok(HandledHttpResponse {
                 response: ServerHttpResponse::Buffered(response.1),
+                exit_code: response.0,
+                stderr: response.2,
                 route_target,
                 worker_action,
             })
         }
         RouteTarget::Static { host_path } => Ok(HandledHttpResponse {
             response: ServerHttpResponse::StaticFile(host_path),
+            exit_code: 0,
+            stderr: Vec::new(),
             route_target,
             worker_action: "none",
         }),
@@ -2248,6 +2570,8 @@ fn handle_http_request(
                 headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
                 body: b"Not Found\n".to_vec(),
             }),
+            exit_code: 0,
+            stderr: Vec::new(),
             route_target,
             worker_action: "none",
         }),
@@ -2262,7 +2586,7 @@ fn handle_php_route_request(
     path_info: Option<&str>,
     _debug: bool,
     request_id: Option<RequestId>,
-) -> Result<(i32, HttpResponse)> {
+) -> Result<(i32, HttpResponse, Vec<u8>)> {
     let request = request.into();
     let response_counter_request =
         request_id.map(|_| (request.method.clone(), request.target.clone()));
@@ -2297,10 +2621,9 @@ fn handle_php_route_request(
         .map_or(("", ""), |(method, target)| {
             (method.as_str(), target.as_str())
         });
-    Ok((
-        exit_code,
-        http_response_from_php_with_counter(response, request_id, method, target),
-    ))
+    let (response, stderr) =
+        http_response_from_php_with_counter(response, request_id, method, target);
+    Ok((exit_code, response, stderr))
 }
 
 fn php_request_from_http(
@@ -2578,7 +2901,7 @@ fn http_response_from_php_with_counter(
     request_id: Option<RequestId>,
     method: &str,
     target: &str,
-) -> HttpResponse {
+) -> (HttpResponse, Vec<u8>) {
     let started_at = request_id.map(|_| Instant::now());
     let collect_counter_stats = request_id.is_some();
     let exit_code = response.exit_code;
@@ -2610,10 +2933,11 @@ fn http_response_from_php_with_counter(
             .headers
             .push(("Content-Type".to_string(), "text/html".to_string()));
     }
-    if !response.stderr.is_empty() {
+    let stderr = response.stderr;
+    if !stderr.is_empty() {
         parsed.headers.push((
             "X-Php-Stderr".to_string(),
-            String::from_utf8_lossy(&response.stderr).replace(['\r', '\n'], " "),
+            String::from_utf8_lossy(&stderr).replace(['\r', '\n'], " "),
         ));
     }
     parsed.body = response.stdout;
@@ -2632,7 +2956,7 @@ fn http_response_from_php_with_counter(
         stdout_body_bytes,
         stderr_bytes,
     });
-    parsed
+    (parsed, stderr)
 }
 
 fn log_server_request_error(error: &CliError) {
@@ -8369,6 +8693,7 @@ fn php_constants_json(constants: &[(String, PhpConstantValue)]) -> Result<String
                 })?;
                 serde_json::Value::Number(number)
             }
+            PhpConstantValue::Null => serde_json::Value::Null,
         };
         json.insert(name.clone(), value);
     }
@@ -9872,17 +10197,18 @@ mod tests {
 
     use super::{
         asset_folder_name_from_zip_filename, auto_login_username,
-        bind_server_listener_with_default, boot_wordpress_site, clear_auto_login_cookie_response,
-        control_run_script_name, cpu_workers_minus_one, decode_chunked_body_with_limit,
-        define_wp_config_consts_script, directory_zip_name, discard_instance_on_execution_error,
-        ensure_tmp_mount, extract_scope_path, filename_from_url, git_archive_bytes_to_file_tree,
-        git_archive_download_url, git_archive_supported_host, host_path_for_vfs_path,
-        http_response_bytes, http_response_head_bytes_with_body_len,
-        import_theme_starter_content_script, import_wordpress_files_replace_files,
-        import_wordpress_files_rewrite_scope_script, import_wxr_script,
-        inject_http_host_into_wp_config, install_asset_zip, install_downloadable_asset,
-        install_plugin_asset, is_client_disconnect_error, lazy_worker_idle_retirement_delay,
-        lazy_worker_idle_timeout_from_env, lazy_worker_pool_enabled, lock_worker_for_recycle,
+        bind_server_listener_with_default, boot_wordpress_site, capped_cpu_workers_minus_one,
+        clear_auto_login_cookie_response, control_run_script_name, cpu_workers_minus_one,
+        decode_chunked_body_with_limit, define_wp_config_consts_script, directory_zip_name,
+        discard_instance_on_execution_error, ensure_tmp_mount, extract_scope_path,
+        filename_from_url, git_archive_bytes_to_file_tree, git_archive_download_url,
+        git_archive_supported_host, host_path_for_vfs_path, http_response_bytes,
+        http_response_head_bytes_with_body_len, import_theme_starter_content_script,
+        import_wordpress_files_replace_files, import_wordpress_files_rewrite_scope_script,
+        import_wxr_script, inject_http_host_into_wp_config, install_asset_zip,
+        install_downloadable_asset, install_plugin_asset, is_client_disconnect_error,
+        lazy_worker_idle_retirement_delay, lazy_worker_idle_timeout_from_env,
+        lazy_worker_pool_enabled, lock_worker_for_recycle, lock_worker_for_request,
         looks_like_zip_file, mark_worker_request_finished, max_requests_per_worker_from_env,
         maybe_boot_wordpress_site, multisite_url_settings, normalize_git_directory_path,
         parse_http_request, parse_http_request_owned, parse_http_request_owned_with_counter,
@@ -9899,7 +10225,7 @@ mod tests {
         stage_control_run_script_with_candidate, startup_steps_from_blueprint_json,
         startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
         startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
-        validate_install_asset_zip, wordpress_importer_install_step,
+        validate_install_asset_zip, wait_for_worker_selection, wordpress_importer_install_step,
         wordpress_translation_url_from_api_response, worker_after_request_label,
         worker_recycle_backoff, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
         wp_installation_wizard_request, write_http_response_with_counter,
@@ -11380,6 +11706,8 @@ mod tests {
             &cwd,
         )
         .unwrap();
+        let mut oversized_internal = default.clone();
+        oversized_internal.workers = Some(crate::args::WorkerCount::Fixed(usize::MAX));
 
         assert_eq!(
             requested_worker_count(&default),
@@ -11387,6 +11715,11 @@ mod tests {
         );
         assert_eq!(requested_worker_count(&fixed), 3);
         assert_eq!(requested_worker_count(&auto), cpu_workers_minus_one());
+        assert_eq!(requested_worker_count(&oversized_internal), 256);
+        assert_eq!(capped_cpu_workers_minus_one(1), 1);
+        assert_eq!(capped_cpu_workers_minus_one(41), 40);
+        assert_eq!(capped_cpu_workers_minus_one(257), 256);
+        assert_eq!(capped_cpu_workers_minus_one(usize::MAX), 256);
         assert!(lazy_worker_pool_enabled(&default));
         assert!(!lazy_worker_pool_enabled(&fixed));
         assert!(!lazy_worker_pool_enabled(&auto));
@@ -11657,6 +11990,44 @@ mod tests {
     }
 
     #[test]
+    fn cancelled_worker_wait_exits_without_consuming_or_discarding_a_worker() {
+        let shared = WorkerPoolShared::new(Vec::new(), 1, None);
+        shared.state.lock().unwrap().primary_available = false;
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let waiter_shared = Arc::clone(&shared);
+        let waiter_cancellation = Arc::clone(&cancellation);
+        let waiter = thread::spawn(move || {
+            wait_for_worker_selection(&waiter_shared, false, 1, Some(waiter_cancellation.as_ref()))
+        });
+
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            if shared.state.lock().unwrap().waiting_workers == 1 {
+                break;
+            }
+            assert!(Instant::now() < deadline, "worker waiter did not queue");
+            thread::yield_now();
+        }
+        cancellation.store(true, Ordering::Release);
+        assert!(waiter.join().unwrap().unwrap().is_none());
+        {
+            let state = shared.state.lock().unwrap();
+            assert_eq!(state.created_workers, 1);
+            assert_eq!(state.waiting_workers, 0);
+            assert!(!state.primary_available);
+            assert!(state.available_workers.is_empty());
+        }
+
+        let worker = Arc::new(Mutex::new(retained_worker(0, false)));
+        shared.release_worker(worker, WorkerKind::Primary);
+        assert!(matches!(
+            wait_for_worker_selection(&shared, false, 1, None).unwrap(),
+            Some(WorkerSelection::Primary)
+        ));
+        shared.shutdown();
+    }
+
+    #[test]
     fn released_lazy_worker_satisfies_queued_demand_before_idle_retirement() {
         let shared = WorkerPoolShared::new(Vec::new(), 2, Some(Duration::from_millis(10)));
         shared.state.lock().unwrap().primary_available = false;
@@ -11839,6 +12210,31 @@ mod tests {
     }
 
     #[test]
+    fn poisoned_request_worker_is_discarded_reset_and_unpoisoned_on_checkout() {
+        let worker = Arc::new(Mutex::new(retained_worker(400, true)));
+        worker.lock().unwrap().constants_revision = 9;
+        let poison_worker = Arc::clone(&worker);
+        assert!(thread::spawn(move || {
+            let _worker = poison_worker.lock().unwrap();
+            panic!("poison worker during a request");
+        })
+        .join()
+        .is_err());
+
+        let repaired = lock_worker_for_request(&worker);
+        assert!(repaired.php.is_none());
+        assert!(repaired.stream_php.is_none());
+        assert_eq!(repaired.requests_handled, 0);
+        assert!(!repaired.recycle_scheduled);
+        assert_eq!(repaired.constants_revision, 0);
+        assert_eq!(repaired.stream_constants_revision, 0);
+        drop(repaired);
+
+        assert!(!worker.is_poisoned());
+        assert!(worker.lock().is_ok());
+    }
+
+    #[test]
     fn worker_after_request_labels_match_counter_values() {
         assert_eq!(
             worker_after_request_label(&WorkerAfterRequest::Keep),
@@ -11889,10 +12285,12 @@ mod tests {
     fn retained_worker(requests_handled: usize, recycle_scheduled: bool) -> PhpWorker {
         PhpWorker {
             php: None,
+            stream_php: None,
             requests_handled,
             last_request_finished_at: Instant::now(),
             recycle_scheduled,
             constants_revision: 0,
+            stream_constants_revision: 0,
         }
     }
 

@@ -1,29 +1,275 @@
 {
-	"schemaVersion": 1,
-	"scope": "Native v1 Node CLI compatibility contract",
+	"schemaVersion": 2,
+	"scope": "Private native Node CLI compatibility contract",
 	"commands": [
+		{ "name": "start", "status": "supported" },
+		{ "name": "server", "status": "supported" },
+		{ "name": "run-blueprint", "status": "supported" },
+		{ "name": "build-snapshot", "status": "supported" },
 		{
-			"name": "start",
-			"status": "supported",
-			"notes": "Normalizes into the native server runtime with managed persistent storage, auto-mounting, login, reset, and browser-opening defaults."
-		},
-		{
-			"name": "server",
-			"status": "supported",
-			"notes": "Runs the native HTTP server, WordPress bootstrap, worker pool, mounts, Blueprint-on-start, and PHP SAPI routing."
-		},
-		{
-			"name": "run-blueprint",
-			"status": "supported",
-			"notes": "Runs the native one-shot WordPress bootstrap and Blueprint v1 startup-step interpreter without opening a server listener. Unsupported Blueprint steps fail explicitly."
-		},
-		{
-			"name": "build-snapshot",
-			"status": "supported",
-			"notes": "Boots the native WordPress runtime, applies startup Blueprint steps, and writes a ZIP snapshot of the visible /wordpress tree."
+			"name": "php",
+			"status": "unsupported-by-design",
+			"diagnostic": "The native CLI does not support the `php` command."
 		}
 	],
 	"options": [
+		{
+			"name": "_",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "command",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "blueprint",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "debug",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "login",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "mount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "mount-before-install",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "outfile",
+			"commands": ["build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "php",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "port",
+			"commands": ["start", "server"],
+			"status": "supported"
+		},
+		{
+			"name": "site-url",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "quiet",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "verbosity",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "wp",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "autoMount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{ "name": "workers", "commands": ["server"], "status": "supported" },
+		{
+			"name": "wordpressInstallMode",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "define",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "define-bool",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "define-number",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "skipSqliteSetup",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "followSymlinks",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{
+			"name": "blueprint-may-read-adjacent-files",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "supported"
+		},
+		{ "name": "path", "commands": ["start"], "status": "supported" },
+		{
+			"name": "skipBrowser",
+			"commands": ["start"],
+			"status": "supported"
+		},
+		{ "name": "reset", "commands": ["start"], "status": "supported" },
+		{
+			"name": "startupTimeoutMs",
+			"commands": ["start", "server"],
+			"status": "native-only"
+		},
+		{
+			"name": "pathAliases",
+			"status": "unsupported-by-design",
+			"diagnostic": "path aliases"
+		},
+		{
+			"name": "experimentalTrace",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "request tracing"
+		},
+		{
+			"name": "internalCookieStore",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Node cookie-store mediation"
+		},
+		{
+			"name": "additional-blueprint-steps",
+			"status": "unsupported-by-design",
+			"diagnostic": "additional Blueprint steps"
+		},
+		{
+			"name": "intl",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Intl extension"
+		},
+		{
+			"name": "phpmyadmin",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "phpMyAdmin installation"
+		},
+		{
+			"name": "redis",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Redis extension"
+		},
+		{
+			"name": "memcached",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Memcached extension"
+		},
+		{
+			"name": "xdebug",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Xdebug"
+		},
+		{
+			"name": "phpExtension",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "dynamic PHP extensions"
+		},
+		{
+			"name": "experimentalUnsafeIdeIntegration",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "unsafe IDE integration"
+		},
+		{
+			"name": "experimentalDevtools",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
+			"diagnostic": "browser devtools bridge"
+		},
+		{
+			"name": "experimental-multi-worker",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
+			"diagnostic": "deprecated Node worker option"
+		},
+		{
+			"name": "defaultedDebugConstants",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node default debug constants"
+		},
+		{
+			"name": "mode",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 mode selection"
+		},
+		{
+			"name": "hasExplicitBlueprintsV2Mode",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 mode selection"
+		},
+		{
+			"name": "db-engine",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "db-host",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "db-user",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "db-pass",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "db-name",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "db-path",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 database options"
+		},
+		{
+			"name": "truncate-new-site-directory",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 site truncation"
+		},
+		{
+			"name": "allow",
+			"status": "unsupported-by-design",
+			"diagnostic": "Blueprints v2 allow list"
+		}
+	],
+	"cliOptions": [
 		{ "name": "--path", "commands": ["start"], "status": "supported" },
 		{
 			"name": "--wp",
@@ -37,7 +283,7 @@
 		},
 		{
 			"name": "--port",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["start", "server"],
 			"status": "supported"
 		},
 		{
@@ -52,17 +298,17 @@
 		},
 		{
 			"name": "--mount-before-install",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--mount-dir",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--mount-dir-before-install",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
@@ -98,32 +344,32 @@
 		},
 		{
 			"name": "--blueprint-may-read-adjacent-files",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--wordpress-install-mode",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--skip-wordpress-install",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--skip-sqlite-setup",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--workers",
-			"commands": ["server", "start"],
+			"commands": ["server"],
 			"status": "supported"
 		},
 		{
 			"name": "--verbosity",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
@@ -133,12 +379,12 @@
 		},
 		{
 			"name": "--debug",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
 			"name": "--follow-symlinks",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"commands": ["server", "run-blueprint", "build-snapshot"],
 			"status": "supported"
 		},
 		{
@@ -159,55 +405,523 @@
 		{
 			"name": "--phpmyadmin",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
+			"status": "unsupported-by-design",
 			"errorContains": "phpMyAdmin installation"
 		},
 		{
 			"name": "--experimental-unsafe-ide-integration",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
+			"status": "unsupported-by-design",
 			"errorContains": "unsafe IDE integration"
 		},
 		{
 			"name": "--experimental-devtools",
-			"commands": ["start", "server"],
-			"status": "unsupported",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
 			"errorContains": "browser devtools bridge"
-		},
-		{
-			"name": "--experimental-blueprints-v2-runner",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
-			"errorContains": "Blueprints v2 runner"
 		},
 		{
 			"name": "--experimental-multi-worker",
 			"commands": ["server"],
-			"status": "unsupported",
+			"status": "unsupported-by-design",
 			"errorContains": "deprecated Node worker option"
 		},
 		{
 			"name": "--experimental-trace",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
 			"errorContains": "request tracing"
 		},
 		{
 			"name": "--internal-cookie-store",
 			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
+			"status": "unsupported-by-design",
 			"errorContains": "Node cookie-store mediation"
 		},
 		{
 			"name": "--mode",
-			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
 			"errorContains": "Blueprints v2 mode selection"
+		},
+		{
+			"name": "--intl",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Intl extension"
+		},
+		{
+			"name": "--redis",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Redis extension"
+		},
+		{
+			"name": "--memcached",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Memcached extension"
+		},
+		{
+			"name": "--xdebug",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Xdebug"
+		},
+		{
+			"name": "--php-extension",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "dynamic PHP extensions"
+		},
+		{
+			"name": "--no-blueprint-may-read-adjacent-files",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-blueprint-may-read-adjacent-files"
+		},
+		{
+			"name": "--no-skip-wordpress-install",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-skip-wordpress-install"
+		},
+		{
+			"name": "--no-skip-sqlite-setup",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-skip-sqlite-setup"
+		},
+		{
+			"name": "--no-quiet",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-quiet"
+		},
+		{
+			"name": "--no-debug",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-debug"
+		},
+		{
+			"name": "--no-follow-symlinks",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-follow-symlinks"
+		},
+		{
+			"name": "--no-experimental-trace",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "request tracing"
+		},
+		{
+			"name": "--no-internal-cookie-store",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Node cookie-store mediation"
+		},
+		{
+			"name": "--no-intl",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Intl extension"
+		},
+		{
+			"name": "--no-redis",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Redis extension"
+		},
+		{
+			"name": "--no-memcached",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Memcached extension"
+		},
+		{
+			"name": "--no-xdebug",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "Xdebug"
+		},
+		{
+			"name": "--no-experimental-devtools",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
+			"errorContains": "browser devtools bridge"
+		},
+		{
+			"name": "--no-skip-browser",
+			"commands": ["start"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-skip-browser"
+		},
+		{
+			"name": "--no-reset",
+			"commands": ["start"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs boolean-negation alias --no-reset"
+		},
+		{
+			"name": "--siteUrl",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --siteUrl"
+		},
+		{
+			"name": "--defineBool",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --defineBool"
+		},
+		{
+			"name": "--defineNumber",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --defineNumber"
+		},
+		{
+			"name": "--mountBeforeInstall",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --mountBeforeInstall"
+		},
+		{
+			"name": "--mountDir",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --mountDir"
+		},
+		{
+			"name": "--mountDirBeforeInstall",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --mountDirBeforeInstall"
+		},
+		{
+			"name": "--blueprintMayReadAdjacentFiles",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --blueprintMayReadAdjacentFiles"
+		},
+		{
+			"name": "--wordpressInstallMode",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --wordpressInstallMode"
+		},
+		{
+			"name": "--skipWordpressInstall",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --skipWordpressInstall"
+		},
+		{
+			"name": "--skipSqliteSetup",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --skipSqliteSetup"
+		},
+		{
+			"name": "--autoMount",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --autoMount"
+		},
+		{
+			"name": "--followSymlinks",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --followSymlinks"
+		},
+		{
+			"name": "--experimentalTrace",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --experimentalTrace"
+		},
+		{
+			"name": "--internalCookieStore",
+			"commands": ["server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --internalCookieStore"
+		},
+		{
+			"name": "--phpExtension",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --phpExtension"
+		},
+		{
+			"name": "--experimentalUnsafeIdeIntegration",
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --experimentalUnsafeIdeIntegration"
+		},
+		{
+			"name": "--experimentalMultiWorker",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --experimentalMultiWorker"
+		},
+		{
+			"name": "--experimentalDevtools",
+			"commands": ["server"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --experimentalDevtools"
+		},
+		{
+			"name": "--skipBrowser",
+			"commands": ["start"],
+			"status": "unsupported-by-design",
+			"errorContains": "yargs camel-case alias --skipBrowser"
 		},
 		{
 			"name": "--outfile",
 			"commands": ["build-snapshot"],
 			"status": "supported"
+		}
+	],
+	"exports": [
+		{ "name": "runCLI", "kind": "value", "status": "supported" },
+		{
+			"name": "parseOptionsAndRunCLI",
+			"kind": "value",
+			"status": "supported"
+		},
+		{ "name": "LogVerbosity", "kind": "value", "status": "supported" },
+		{
+			"name": "resolveWorkerCount",
+			"kind": "value",
+			"status": "supported"
+		},
+		{
+			"name": "mergeDefinedConstants",
+			"kind": "value",
+			"status": "supported"
+		},
+		{
+			"name": "internalsKeyForTesting",
+			"kind": "value",
+			"status": "supported"
+		},
+		{ "name": "NativeCLIError", "kind": "value", "status": "native-only" },
+		{
+			"name": "NativeCLIErrorCode",
+			"kind": "value",
+			"status": "native-only"
+		},
+		{ "name": "RunCLIArgs", "kind": "type", "status": "supported" },
+		{ "name": "Mount", "kind": "type", "status": "native-only" },
+		{ "name": "RunCLIServer", "kind": "type", "status": "supported" },
+		{
+			"name": "PlaygroundCliWorker",
+			"kind": "type",
+			"status": "supported"
+		},
+		{
+			"name": "NativePlaygroundWorker",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{ "name": "WorkerType", "kind": "type", "status": "supported" },
+		{
+			"name": "NativePlaygroundRequest",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativePlaygroundRunOptions",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativePHPResponse",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativeStreamedPHPResponse",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{ "name": "NativeHTTPMethod", "kind": "type", "status": "native-only" },
+		{
+			"name": "NativeMultipartBody",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativePlaygroundEventType",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativePlaygroundEvent",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativePlaygroundEventListener",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "NativeCLIErrorDetails",
+			"kind": "type",
+			"status": "native-only"
+		},
+		{
+			"name": "spawnWorkerThread",
+			"kind": "value",
+			"status": "unsupported-by-design",
+			"diagnostic": "not exported"
+		},
+		{
+			"name": "SpawnedWorker",
+			"kind": "type",
+			"status": "unsupported-by-design",
+			"diagnostic": "not exported"
+		}
+	],
+	"serverMembers": [
+		{ "name": "playground", "status": "supported" },
+		{ "name": "server", "status": "supported" },
+		{ "name": "serverUrl", "status": "supported" },
+		{ "name": "Symbol.asyncDispose", "status": "supported" },
+		{
+			"name": "internalsKeyForTesting.workerThreadCount",
+			"status": "supported"
+		}
+	],
+	"workerMembers": [
+		{ "name": "absoluteUrl", "status": "supported" },
+		{ "name": "documentRoot", "status": "supported" },
+		{ "name": "request", "status": "supported" },
+		{ "name": "requestStreamed", "status": "supported" },
+		{ "name": "run", "status": "supported" },
+		{ "name": "mkdir", "status": "supported" },
+		{ "name": "mkdirTree", "status": "supported" },
+		{ "name": "readFileAsText", "status": "supported" },
+		{ "name": "readFileAsBuffer", "status": "supported" },
+		{ "name": "writeFile", "status": "supported" },
+		{ "name": "unlink", "status": "supported" },
+		{ "name": "mv", "status": "supported" },
+		{ "name": "rmdir", "status": "supported" },
+		{ "name": "listFiles", "status": "supported" },
+		{ "name": "isDir", "status": "supported" },
+		{ "name": "isFile", "status": "supported" },
+		{ "name": "fileExists", "status": "supported" },
+		{ "name": "chdir", "status": "supported" },
+		{ "name": "cwd", "status": "supported" },
+		{ "name": "defineConstant", "status": "supported" },
+		{ "name": "pathToInternalUrl", "status": "supported" },
+		{ "name": "internalUrlToPath", "status": "supported" },
+		{ "name": "addEventListener", "status": "supported" },
+		{ "name": "removeEventListener", "status": "supported" },
+		{
+			"name": "cli",
+			"status": "unsupported-by-design",
+			"diagnostic": "PHP CLI streaming"
+		},
+		{
+			"name": "onMessage",
+			"status": "unsupported-by-design",
+			"diagnostic": "PHP-to-JavaScript messages"
+		},
+		{
+			"name": "Symbol.asyncDispose",
+			"status": "unsupported-by-design",
+			"diagnostic": "worker-owned asynchronous disposal"
+		},
+		{
+			"name": "__internal_setRequestHandler",
+			"status": "unsupported-by-design",
+			"diagnostic": "internal request-handler mutation"
+		},
+		{
+			"name": "bootRequestHandler",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node request-handler boot lifecycle"
+		},
+		{
+			"name": "bootWordPress",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node WordPress boot lifecycle"
+		},
+		{
+			"name": "bootedRequestHandler",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node request-handler boot state"
+		},
+		{
+			"name": "bootedWordPress",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node WordPress boot state"
+		},
+		{
+			"name": "dispose",
+			"status": "unsupported-by-design",
+			"diagnostic": "worker-owned disposal"
+		},
+		{
+			"name": "fileLockManager",
+			"status": "unsupported-by-design",
+			"diagnostic": "JavaScript file-lock manager"
+		},
+		{
+			"name": "mountAfterWordPressInstall",
+			"status": "unsupported-by-design",
+			"diagnostic": "Node post-install mount lifecycle"
+		},
+		{
+			"name": "onMessageListeners",
+			"status": "unsupported-by-design",
+			"diagnostic": "PHP-to-JavaScript listener storage"
+		},
+		{
+			"name": "setSapiName",
+			"status": "unsupported-by-design",
+			"diagnostic": "Emscripten SAPI mutation"
+		},
+		{
+			"name": "useFileLockManager",
+			"status": "unsupported-by-design",
+			"diagnostic": "JavaScript file-lock manager"
+		},
+		{
+			"name": "setPrimaryPHP",
+			"status": "unsupported-by-design",
+			"diagnostic": "runtime management"
+		},
+		{
+			"name": "onDownloadProgress",
+			"status": "unsupported-by-design",
+			"diagnostic": "Emscripten download lifecycle"
+		}
+	],
+	"events": [
+		{ "name": "request.end", "status": "supported" },
+		{ "name": "request.error", "status": "supported" },
+		{ "name": "filesystem.write", "status": "supported" },
+		{ "name": "ready", "status": "supported" },
+		{ "name": "shutdown", "status": "supported" },
+		{
+			"name": "runtime.initialized",
+			"status": "unsupported-by-design",
+			"diagnostic": "Emscripten runtime lifecycle"
+		},
+		{
+			"name": "runtime.beforeExit",
+			"status": "unsupported-by-design",
+			"diagnostic": "Emscripten runtime lifecycle"
+		},
+		{
+			"name": "message",
+			"status": "unsupported-by-design",
+			"diagnostic": "PHP-to-JavaScript messages"
 		}
 	]
 }

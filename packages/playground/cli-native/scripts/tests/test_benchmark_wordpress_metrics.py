@@ -73,20 +73,25 @@ class BenchmarkWordpressMetricsTest(unittest.TestCase):
                 metrics.parse_cookie_file(cookie_file), "plain=one; secret=two"
             )
 
-    def test_sustained_load_is_equal_mix_and_samples_process_rss(self) -> None:
+    def test_sustained_load_is_equal_mix_with_mocked_process_rss(self) -> None:
         server = ThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            result = metrics.run_load(
-                base_url=f"http://127.0.0.1:{server.server_port}",
-                cookie_header="",
-                server_pid=os.getpid(),
-                duration_seconds=0.08,
-                concurrency=4,
-                timeout_seconds=2,
-                rss_sample_interval=0.01,
-            )
+            with mock.patch.object(
+                metrics,
+                "process_tree_rss_bytes",
+                return_value=42 * 1024 * 1024,
+            ):
+                result = metrics.run_load(
+                    base_url=f"http://127.0.0.1:{server.server_port}",
+                    cookie_header="",
+                    server_pid=os.getpid(),
+                    duration_seconds=0.08,
+                    concurrency=4,
+                    timeout_seconds=2,
+                    rss_sample_interval=0.01,
+                )
         finally:
             server.shutdown()
             server.server_close()
@@ -95,7 +100,7 @@ class BenchmarkWordpressMetricsTest(unittest.TestCase):
         self.assertEqual(result.errors, 0)
         self.assertEqual(result.successes, result.requests)
         self.assertGreater(result.successful_rps, 0)
-        self.assertGreater(result.peak_tree_rss_mib, 0)
+        self.assertEqual(result.peak_tree_rss_mib, 42)
         self.assertGreater(result.requests, 0)
         self.assertEqual(len(set(result.route_requests.values())), 1)
         self.assertEqual(sum(result.route_requests.values()), result.requests)
@@ -108,15 +113,20 @@ class BenchmarkWordpressMetricsTest(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            result = metrics.run_load(
-                base_url=f"http://127.0.0.1:{server.server_port}",
-                cookie_header="",
-                server_pid=os.getpid(),
-                duration_seconds=0.04,
-                concurrency=4,
-                timeout_seconds=2,
-                rss_sample_interval=0.01,
-            )
+            with mock.patch.object(
+                metrics,
+                "process_tree_rss_bytes",
+                return_value=42 * 1024 * 1024,
+            ):
+                result = metrics.run_load(
+                    base_url=f"http://127.0.0.1:{server.server_port}",
+                    cookie_header="",
+                    server_pid=os.getpid(),
+                    duration_seconds=0.04,
+                    concurrency=4,
+                    timeout_seconds=2,
+                    rss_sample_interval=0.01,
+                )
         finally:
             server.shutdown()
             server.server_close()

@@ -85,6 +85,7 @@ record request {
   host: string,
   port: u32,
   body: list<u8>,
+  stream-response: bool,
   content-type: option<string>,
   cookies: option<string>,
   server-entries: list<entry>,
@@ -107,10 +108,16 @@ by the host's preopened directories when a worker is created.
 The component model validates and lifts the strings, lists, options, and
 records. The SAPI derives the query string from `request-uri`; `body` remains
 binary-safe, and `server-entries` and `env` are copied into each PHP request.
+`stream-response` is an internal host transport hint and is not registered as
+a PHP request variable.
 
-Binary response data is sent through `wordpress:php-wasi/output@0.1.0` on the
-`stdout` and `stderr` channels. HTTP status and headers are returned as typed
-fields on `response`, preserving duplicate headers without a private envelope.
+When `stream-response` is true, response status and headers are sent through
+`wordpress:php-wasi/output@0.1.0` before the first body byte. Binary response
+data then uses the interface's `stdout` and `stderr` channels. Buffered hosts
+set `stream-response` to false and receive status and headers only through the
+final `response` record, avoiding an otherwise redundant host callback. The
+typed response fields preserve duplicate headers in both modes without a
+private envelope.
 
 All wasi-sdk imports resolve to WASI 0.2.6. Advisory locks use the typed
 `wordpress-playground:filesystem-locks@0.1.0` import. `fcntl_bridge.c` preserves

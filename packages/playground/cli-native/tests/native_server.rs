@@ -9,6 +9,8 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+
 const SERVER_START_TIMEOUT: Duration = Duration::from_secs(300);
 const HTTP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(180);
 
@@ -101,6 +103,173 @@ fn start_native_server(
         .trim();
     let address = url.strip_prefix("http://").unwrap().to_string();
     (address, guard, stderr_thread)
+}
+
+fn start_native_control_server(
+    root: &Path,
+    workers: usize,
+) -> (
+    String,
+    String,
+    String,
+    PathBuf,
+    ChildGuard,
+    thread::JoinHandle<()>,
+) {
+    let serial_guard = SERVER_SMOKE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let handshake_root = temp_dir("control-handshake");
+    let handshake_path = handshake_root.join("handshake.json");
+    let token = "a".repeat(64);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_wp-playground-native"))
+        .args([
+            "server",
+            "--skip-wordpress-install",
+            "--skip-sqlite-setup",
+            "--port=0",
+            &format!("--workers={workers}"),
+            "--mount-dir-before-install",
+        ])
+        .arg(root)
+        .arg("/wordpress")
+        .arg("--experimental-control-handshake")
+        .arg(&handshake_path)
+        .env("WP_PLAYGROUND_NATIVE_CONTROL_TOKEN", &token)
+        .env_remove("FORCE_COLOR")
+        .env("NO_COLOR", "1")
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stderr = child.stderr.take().unwrap();
+    let stderr_thread = thread::spawn(move || {
+        for line in BufReader::new(stderr).lines() {
+            if line.is_err() {
+                break;
+            }
+        }
+    });
+    let deadline = Instant::now() + SERVER_START_TIMEOUT;
+    while !handshake_path.is_file() {
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("controlled native server exited before handshake: {status}");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "controlled native server did not publish its handshake"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+    let handshake: serde_json::Value =
+        serde_json::from_slice(&fs::read(&handshake_path).unwrap()).unwrap();
+    assert_eq!(handshake["protocolVersion"], 2);
+    let control_url = handshake["controlUrl"].as_str().unwrap().to_string();
+    let native_address = handshake["nativeServerUrl"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("http://")
+        .unwrap()
+        .to_string();
+    (
+        control_url,
+        native_address,
+        token,
+        handshake_root,
+        ChildGuard::new(child, serial_guard),
+        stderr_thread,
+    )
+}
+
+fn open_control_stream(control_url: &str, token: &str, body: &str) -> BufReader<TcpStream> {
+    let endpoint = control_url.strip_prefix("http://").unwrap();
+    let (address, _) = endpoint.split_once('/').unwrap();
+    let mut stream = TcpStream::connect(address).unwrap();
+    stream
+        .set_read_timeout(Some(HTTP_RESPONSE_TIMEOUT))
+        .unwrap();
+    stream
+        .set_write_timeout(Some(Duration::from_secs(20)))
+        .unwrap();
+    write!(
+        stream,
+        "POST /rpc/stream HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+    stream.flush().unwrap();
+    let mut reader = BufReader::new(stream);
+    let mut line = String::new();
+    reader.read_line(&mut line).unwrap();
+    assert!(line.starts_with("HTTP/1.1 200 OK"), "{line}");
+    loop {
+        line.clear();
+        reader.read_line(&mut line).unwrap();
+        if line == "\r\n" || line == "\n" {
+            break;
+        }
+    }
+    reader
+}
+
+fn read_control_stream_frame(reader: &mut impl BufRead) -> serde_json::Value {
+    let mut line = String::new();
+    reader.read_line(&mut line).unwrap();
+    assert!(!line.is_empty(), "native control stream ended unexpectedly");
+    serde_json::from_str(line.trim_end()).unwrap()
+}
+
+fn cancel_control_stream(control_url: &str, token: &str, id: u64) -> serde_json::Value {
+    let endpoint = control_url.strip_prefix("http://").unwrap();
+    let (address, _) = endpoint.split_once('/').unwrap();
+    let body = format!(r#"{{"protocolVersion":2,"id":{id}}}"#);
+    let response = send_raw_http(
+        address,
+        &format!(
+            "POST /rpc/cancel HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        ),
+    );
+    serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap()
+}
+
+fn control_rpc(control_url: &str, token: &str, body: &str) -> serde_json::Value {
+    let endpoint = control_url.strip_prefix("http://").unwrap();
+    let (address, path) = endpoint.split_once('/').unwrap();
+    let response = send_raw_http(
+        address,
+        &format!(
+            "POST /{path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        ),
+    );
+    serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap()
+}
+
+fn read_control_stream_to_terminal(reader: &mut impl BufRead) -> Vec<serde_json::Value> {
+    let mut frames = Vec::new();
+    loop {
+        let frame = read_control_stream_frame(reader);
+        let terminal = matches!(frame["type"].as_str(), Some("complete" | "error"));
+        frames.push(frame);
+        assert!(frames.len() <= 64, "native stream emitted too many frames");
+        if terminal {
+            return frames;
+        }
+    }
+}
+
+fn decoded_stream_channel(frames: &[serde_json::Value], channel: &str) -> Vec<u8> {
+    frames
+        .iter()
+        .filter(|frame| frame["type"] == channel)
+        .flat_map(|frame| {
+            assert_eq!(frame["data"]["encoding"], "base64");
+            BASE64
+                .decode(frame["data"]["data"].as_str().unwrap())
+                .unwrap()
+        })
+        .collect()
 }
 
 fn write_script(root: &Path, name: &str, content: &str) {
@@ -200,12 +369,10 @@ fn native_start_command_serves_admin_editor_page_with_auto_login() {
             "start",
             "--skip-browser",
             "--port=0",
-            "--workers=4",
             "--reset",
             "--php=8.2",
             "--wp=6.9",
             "--login",
-            "--verbosity=debug",
         ])
         .current_dir(&cwd)
         .env("HOME", &home)
@@ -431,13 +598,7 @@ fn packaged_start_command_serves_wasip2_wordpress() {
     let home = temp_dir("packaged-start-home");
     let cwd = temp_dir("packaged-start-cwd");
     let mut child = Command::new(package_root.join("bin/wp-playground-native"))
-        .args([
-            "start",
-            "--skip-browser",
-            "--port=0",
-            "--php=8.2",
-            "--workers=4",
-        ])
+        .args(["start", "--skip-browser", "--port=0", "--php=8.2"])
         .current_dir(&cwd)
         .env("HOME", &home)
         .env_remove("WP_PLAYGROUND_NATIVE_ASSET_ROOT")
@@ -1280,6 +1441,334 @@ echo json_encode([
 
     drop(guard);
     let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native control streaming execution is an explicit smoke test."]
+fn native_control_streams_incrementally_cancels_cpu_bound_php_and_recovers_worker() {
+    let root = temp_dir("control-streaming");
+    write_script(
+        &root,
+        "flush.php",
+        r#"<?php
+header('X-Native-Stream: yes');
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+echo 'first';
+flush();
+usleep(900000);
+echo 'second';
+"#,
+    );
+    write_script(
+        &root,
+        "loop.php",
+        r#"<?php
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+echo 'started';
+flush();
+while (true) {}
+"#,
+    );
+    write_script(
+        &root,
+        "hold.php",
+        r#"<?php
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+echo 'holder-started';
+flush();
+usleep(2000000);
+echo 'holder-finished';
+"#,
+    );
+    write_script(&root, "queued.php", "<?php echo 'queued';");
+    write_script(
+        &root,
+        "buffered-failure.php",
+        "<?php error_log('buffered-stderr-marker'); exit(7);",
+    );
+    write_script(
+        &root,
+        "early-errors.php",
+        r#"<?php
+error_log('early-log-marker');
+trigger_error('early-warning-marker', E_USER_WARNING);
+header('X-Early-Errors: yes');
+echo 'after-early-errors';
+"#,
+    );
+    write_script(
+        &root,
+        "fatal-before-output.php",
+        "<?php native_control_missing_function_for_fatal_test();",
+    );
+    write_script(
+        &root,
+        "oversized-headers.php",
+        r#"<?php
+for ($index = 0; $index < 400; $index++) {
+    header('X-Oversized-' . $index . ': ' . str_repeat('x', 256));
+}
+echo 'must-not-cross-the-control-boundary';
+"#,
+    );
+    write_script(&root, "recover.php", "<?php echo 'recovered';");
+    let (control_url, native_address, token, handshake_root, guard, stderr_thread) =
+        start_native_control_server(&root, 1);
+
+    let buffered = control_rpc(
+        &control_url,
+        &token,
+        r#"{"protocolVersion":2,"id":100,"method":"request","params":{"path":"/buffered-failure.php"}}"#,
+    );
+    assert_eq!(buffered["result"]["exitCode"], 7);
+    assert_eq!(buffered["result"]["httpStatusCode"], 500);
+    assert_eq!(buffered["result"]["stderr"]["encoding"], "base64");
+    let buffered_stderr = BASE64
+        .decode(buffered["result"]["stderr"]["data"].as_str().unwrap())
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&buffered_stderr).contains("buffered-stderr-marker"),
+        "{}",
+        String::from_utf8_lossy(&buffered_stderr)
+    );
+
+    let early_body = r#"{"protocolVersion":2,"id":105,"method":"requestStreamed","params":{"path":"/early-errors.php"}}"#;
+    let mut early_stream = open_control_stream(&control_url, &token, early_body);
+    let early_frames = read_control_stream_to_terminal(&mut early_stream);
+    assert_eq!(early_frames[0]["type"], "headers");
+    assert_eq!(early_frames.last().unwrap()["type"], "complete");
+    let early_stdout = decoded_stream_channel(&early_frames, "stdout");
+    assert!(
+        String::from_utf8_lossy(&early_stdout).contains("after-early-errors"),
+        "{}",
+        String::from_utf8_lossy(&early_stdout)
+    );
+    let early_stderr = decoded_stream_channel(&early_frames, "stderr");
+    let early_stderr = String::from_utf8_lossy(&early_stderr);
+    assert!(early_stderr.contains("early-log-marker"), "{early_stderr}");
+    assert!(
+        early_stderr.contains("early-warning-marker"),
+        "{early_stderr}"
+    );
+
+    let fatal_body = r#"{"protocolVersion":2,"id":106,"method":"requestStreamed","params":{"path":"/fatal-before-output.php"}}"#;
+    let mut fatal_stream = open_control_stream(&control_url, &token, fatal_body);
+    let fatal_frames = read_control_stream_to_terminal(&mut fatal_stream);
+    assert_eq!(fatal_frames[0]["type"], "headers");
+    let fatal_stderr = decoded_stream_channel(&fatal_frames, "stderr");
+    assert!(
+        String::from_utf8_lossy(&fatal_stderr)
+            .contains("native_control_missing_function_for_fatal_test"),
+        "{}",
+        String::from_utf8_lossy(&fatal_stderr)
+    );
+
+    let oversized_body = r#"{"protocolVersion":2,"id":107,"method":"requestStreamed","params":{"path":"/oversized-headers.php"}}"#;
+    let mut oversized_stream = open_control_stream(&control_url, &token, oversized_body);
+    let oversized = read_control_stream_frame(&mut oversized_stream);
+    assert_eq!(oversized["type"], "error");
+    assert_eq!(
+        oversized["error"]["code"],
+        "ERR_WP_PLAYGROUND_NATIVE_RUNTIME"
+    );
+    assert!(
+        oversized["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("64 KiB"),
+        "{oversized}"
+    );
+    let recovered_after_header_rejection = send_get(&native_address, "/recover.php");
+    assert_ok(&recovered_after_header_rejection);
+    assert_eq!(recovered_after_header_rejection.body, "recovered");
+
+    let holder_body = r#"{"protocolVersion":2,"id":108,"method":"requestStreamed","params":{"path":"/hold.php"}}"#;
+    let mut holder_stream = open_control_stream(&control_url, &token, holder_body);
+    assert_eq!(
+        read_control_stream_frame(&mut holder_stream)["type"],
+        "headers"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut holder_stream)["data"]["data"],
+        "aG9sZGVyLXN0YXJ0ZWQ="
+    );
+    let queued_body = r#"{"protocolVersion":2,"id":109,"method":"requestStreamed","params":{"path":"/queued.php"}}"#;
+    let mut queued_stream = open_control_stream(&control_url, &token, queued_body);
+    let queued_cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 109)["result"]["cancelled"],
+        true
+    );
+    let queued_error = read_control_stream_frame(&mut queued_stream);
+    assert_eq!(queued_error["type"], "error");
+    assert_eq!(
+        queued_error["error"]["code"],
+        "ERR_WP_PLAYGROUND_NATIVE_ABORTED"
+    );
+    assert!(
+        queued_cancelled_at.elapsed() < Duration::from_millis(500),
+        "a cancelled request waited for the busy PHP worker"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut holder_stream)["data"]["data"],
+        "aG9sZGVyLWZpbmlzaGVk"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut holder_stream)["type"],
+        "complete"
+    );
+
+    let flush_body = r#"{"protocolVersion":2,"id":101,"method":"requestStreamed","params":{"path":"/flush.php"}}"#;
+    let mut flush_stream = open_control_stream(&control_url, &token, flush_body);
+    let headers = read_control_stream_frame(&mut flush_stream);
+    assert_eq!(headers["type"], "headers");
+    assert_eq!(headers["httpStatusCode"], 200);
+    assert!(
+        headers["headers"].as_array().unwrap().iter().any(|header| {
+            header["name"]
+                .as_str()
+                .is_some_and(|name| name.eq_ignore_ascii_case("X-Native-Stream"))
+                && header["value"] == "yes"
+        }),
+        "the streamed headers did not include X-Native-Stream: yes"
+    );
+    let headers_received_at = Instant::now();
+    let first = read_control_stream_frame(&mut flush_stream);
+    assert_eq!(first["type"], "stdout");
+    assert_eq!(first["data"]["data"], "Zmlyc3Q=");
+    assert!(
+        headers_received_at.elapsed() < Duration::from_millis(300),
+        "the first PHP flush did not follow its headers promptly"
+    );
+    let first_received_at = Instant::now();
+    let second = read_control_stream_frame(&mut flush_stream);
+    assert_eq!(second["type"], "stdout");
+    assert_eq!(second["data"]["data"], "c2Vjb25k");
+    assert!(
+        first_received_at.elapsed() >= Duration::from_millis(650),
+        "the first and second PHP writes were buffered together"
+    );
+    let complete = read_control_stream_frame(&mut flush_stream);
+    assert_eq!(complete["type"], "complete");
+
+    let loop_body = r#"{"protocolVersion":2,"id":102,"method":"requestStreamed","params":{"path":"/loop.php"}}"#;
+    let mut loop_stream = open_control_stream(&control_url, &token, loop_body);
+    assert_eq!(
+        read_control_stream_frame(&mut loop_stream)["type"],
+        "headers"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut loop_stream)["type"],
+        "stdout"
+    );
+    let cancelled_at = Instant::now();
+    let cancel = cancel_control_stream(&control_url, &token, 102);
+    assert_eq!(cancel["result"]["cancelled"], true);
+    let error = read_control_stream_frame(&mut loop_stream);
+    assert_eq!(error["type"], "error");
+    assert_eq!(error["error"]["code"], "ERR_WP_PLAYGROUND_NATIVE_ABORTED");
+    assert!(
+        cancelled_at.elapsed() < Duration::from_secs(2),
+        "CPU-bound PHP did not observe epoch cancellation promptly"
+    );
+
+    let recovered = send_get(&native_address, "/recover.php");
+    assert_ok(&recovered);
+    assert_eq!(recovered.body, "recovered");
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(handshake_root);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native control streaming execution is an explicit smoke test."]
+fn native_control_cancellation_is_isolated_between_two_active_php_stores() {
+    let root = temp_dir("control-cancellation-isolation");
+    write_script(
+        &root,
+        "survivor.php",
+        r#"<?php
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+echo 'survivor-started';
+flush();
+$finishAt = microtime(true) + 1.5;
+while (microtime(true) < $finishAt) {}
+echo 'survivor-finished';
+"#,
+    );
+    write_script(
+        &root,
+        "cancelled.php",
+        r#"<?php
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+echo 'cancelled-started';
+flush();
+while (true) {}
+"#,
+    );
+    write_script(&root, "isolation-recover.php", "<?php echo 'recovered';");
+    let (control_url, native_address, token, handshake_root, guard, stderr_thread) =
+        start_native_control_server(&root, 2);
+
+    let survivor_body = r#"{"protocolVersion":2,"id":201,"method":"requestStreamed","params":{"path":"/survivor.php"}}"#;
+    let mut survivor = open_control_stream(&control_url, &token, survivor_body);
+    assert_eq!(read_control_stream_frame(&mut survivor)["type"], "headers");
+    assert_eq!(
+        read_control_stream_frame(&mut survivor)["data"]["data"],
+        "c3Vydml2b3Itc3RhcnRlZA=="
+    );
+
+    let cancelled_body = r#"{"protocolVersion":2,"id":202,"method":"requestStreamed","params":{"path":"/cancelled.php"}}"#;
+    let mut cancelled = open_control_stream(&control_url, &token, cancelled_body);
+    assert_eq!(read_control_stream_frame(&mut cancelled)["type"], "headers");
+    assert_eq!(
+        read_control_stream_frame(&mut cancelled)["data"]["data"],
+        "Y2FuY2VsbGVkLXN0YXJ0ZWQ="
+    );
+
+    let cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 202)["result"]["cancelled"],
+        true
+    );
+    let cancelled_terminal = read_control_stream_frame(&mut cancelled);
+    assert_eq!(cancelled_terminal["type"], "error");
+    assert_eq!(
+        cancelled_terminal["error"]["code"],
+        "ERR_WP_PLAYGROUND_NATIVE_ABORTED"
+    );
+    assert!(
+        cancelled_at.elapsed() < Duration::from_secs(2),
+        "the selected Store did not observe cancellation promptly"
+    );
+
+    let survivor_output = read_control_stream_frame(&mut survivor);
+    assert_eq!(survivor_output["type"], "stdout");
+    assert_eq!(survivor_output["data"]["data"], "c3Vydml2b3ItZmluaXNoZWQ=");
+    let survivor_terminal = read_control_stream_frame(&mut survivor);
+    assert_eq!(survivor_terminal["type"], "complete");
+    assert_eq!(survivor_terminal["exitCode"], 0);
+
+    let recovered = send_get(&native_address, "/isolation-recover.php");
+    assert_ok(&recovered);
+    assert_eq!(recovered.body, "recovered");
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(handshake_root);
     let _ = fs::remove_dir_all(root);
 }
 

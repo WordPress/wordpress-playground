@@ -90,6 +90,14 @@
 				"command": "bash packages/playground/cli-native/scripts/benchmark-wordpress.sh"
 			}
 		},
+		"benchmark-regression": {
+			"executor": "nx:run-commands",
+			"cache": false,
+			"parallelism": false,
+			"options": {
+				"command": "node packages/playground/cli-native/scripts/benchmark-regression.mjs"
+			}
+		},
 		"verify:private-boundary": {
 			"executor": "nx:run-commands",
 			"options": {

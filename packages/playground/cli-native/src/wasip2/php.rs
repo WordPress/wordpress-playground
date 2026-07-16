@@ -1,5 +1,15 @@
+use std::{
+    panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
+
 use wasmtime::component::{Component, HasSelf, Linker};
-use wasmtime::Store;
+use wasmtime::{Store, UpdateDeadline};
 
 use super::{Wasip2ComponentRuntime, Wasip2HostState};
 
@@ -18,6 +28,38 @@ mod bindings {
 use crate::php_protocol::PhpRequest;
 use bindings::exports::wordpress::php_wasi::handler;
 use bindings::wordpress::php_wasi::output;
+
+pub const PHP_STREAM_FRAME_BYTES: usize = 64 * 1024;
+const PHP_PRE_HEADER_FRAME_LIMIT: usize = 8;
+const INACTIVE_EPOCH_DEADLINE: u64 = 1 << 63;
+const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Wasip2PhpOutputChannel {
+    Stdout,
+    Stderr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Wasip2PhpStreamEvent {
+    Headers {
+        http_status: u16,
+        headers: Vec<String>,
+    },
+    Output {
+        channel: Wasip2PhpOutputChannel,
+        bytes: Vec<u8>,
+    },
+}
+
+pub type Wasip2PhpStreamSink =
+    Arc<dyn Fn(Wasip2PhpStreamEvent) -> wasmtime::Result<()> + Send + Sync>;
+
+#[derive(Debug)]
+struct PendingStreamOutput {
+    channel: Wasip2PhpOutputChannel,
+    bytes: Vec<u8>,
+}
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Wasip2PhpOutput {
@@ -39,9 +81,13 @@ impl Wasip2PhpOutput {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct PhpOutputCapture {
     output: Wasip2PhpOutput,
+    stream_sink: Option<Wasip2PhpStreamSink>,
+    cancellation: Option<Arc<AtomicBool>>,
+    stream_headers_sent: bool,
+    pending_before_headers: Vec<PendingStreamOutput>,
 }
 
 impl PhpOutputCapture {
@@ -50,27 +96,141 @@ impl PhpOutputCapture {
         self.output.stderr.clear();
     }
 
+    fn start_streaming(&mut self, sink: Wasip2PhpStreamSink, cancellation: Arc<AtomicBool>) {
+        self.reset();
+        self.stream_sink = Some(sink);
+        self.cancellation = Some(cancellation);
+        self.stream_headers_sent = false;
+        self.pending_before_headers.clear();
+    }
+
+    fn stop_streaming(&mut self) {
+        self.stream_sink = None;
+        self.cancellation = None;
+        self.stream_headers_sent = false;
+        self.pending_before_headers.clear();
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancellation
+            .as_ref()
+            .is_some_and(|cancellation| cancellation.load(Ordering::Acquire))
+    }
+
     fn take(&mut self) -> Wasip2PhpOutput {
         std::mem::take(&mut self.output)
     }
 
-    fn write_owned(&mut self, destination: output::Channel, bytes: Vec<u8>) {
-        let output = match destination {
-            output::Channel::Stdout => &mut self.output.stdout,
-            output::Channel::Stderr => &mut self.output.stderr,
-        };
-        if output.is_empty() {
-            *output = bytes;
-        } else {
-            output.extend_from_slice(&bytes);
+    fn write_owned(
+        &mut self,
+        destination: output::Channel,
+        bytes: Vec<u8>,
+    ) -> wasmtime::Result<()> {
+        if self.stream_sink.is_none() {
+            let output = match destination {
+                output::Channel::Stdout => &mut self.output.stdout,
+                output::Channel::Stderr => &mut self.output.stderr,
+            };
+            if output.is_empty() {
+                *output = bytes;
+            } else {
+                output.extend_from_slice(&bytes);
+            }
+            return Ok(());
         }
+        if self.is_cancelled() {
+            return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
+        }
+        let channel = match destination {
+            output::Channel::Stdout => Wasip2PhpOutputChannel::Stdout,
+            output::Channel::Stderr => Wasip2PhpOutputChannel::Stderr,
+        };
+        if !self.stream_headers_sent {
+            return self.buffer_before_headers(channel, bytes);
+        }
+        let sink = self
+            .stream_sink
+            .as_ref()
+            .expect("stream sink remains present while streaming")
+            .clone();
+        for chunk in bytes.chunks(PHP_STREAM_FRAME_BYTES) {
+            sink(Wasip2PhpStreamEvent::Output {
+                channel,
+                bytes: chunk.to_vec(),
+            })?;
+        }
+        Ok(())
+    }
+
+    fn buffer_before_headers(
+        &mut self,
+        channel: Wasip2PhpOutputChannel,
+        bytes: Vec<u8>,
+    ) -> wasmtime::Result<()> {
+        let mut remaining = bytes.as_slice();
+        while !remaining.is_empty() {
+            if let Some(last) = self.pending_before_headers.last_mut() {
+                if last.channel == channel && last.bytes.len() < PHP_STREAM_FRAME_BYTES {
+                    let append = remaining
+                        .len()
+                        .min(PHP_STREAM_FRAME_BYTES - last.bytes.len());
+                    last.bytes.extend_from_slice(&remaining[..append]);
+                    remaining = &remaining[append..];
+                    continue;
+                }
+            }
+            if self.pending_before_headers.len() == PHP_PRE_HEADER_FRAME_LIMIT {
+                return Err(wasmtime::Error::msg(format!(
+                    "native PHP emitted more than {} KiB before response headers",
+                    PHP_PRE_HEADER_FRAME_LIMIT * PHP_STREAM_FRAME_BYTES / 1024
+                )));
+            }
+            let take = remaining.len().min(PHP_STREAM_FRAME_BYTES);
+            self.pending_before_headers.push(PendingStreamOutput {
+                channel,
+                bytes: remaining[..take].to_vec(),
+            });
+            remaining = &remaining[take..];
+        }
+        Ok(())
+    }
+
+    fn send_headers(&mut self, http_status: u16, headers: Vec<String>) -> wasmtime::Result<()> {
+        let Some(sink) = self.stream_sink.clone() else {
+            return Err(wasmtime::Error::msg(
+                "PHP emitted streamed headers for a buffered request",
+            ));
+        };
+        if self.is_cancelled() {
+            return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
+        }
+        if self.stream_headers_sent {
+            return Err(wasmtime::Error::msg(
+                "native PHP emitted response headers more than once",
+            ));
+        }
+        sink(Wasip2PhpStreamEvent::Headers {
+            http_status,
+            headers,
+        })?;
+        self.stream_headers_sent = true;
+        for pending in std::mem::take(&mut self.pending_before_headers) {
+            sink(Wasip2PhpStreamEvent::Output {
+                channel: pending.channel,
+                bytes: pending.bytes,
+            })?;
+        }
+        Ok(())
     }
 }
 
 impl output::Host for Wasip2HostState {
+    fn headers(&mut self, status: u16, headers: Vec<String>) -> wasmtime::Result<()> {
+        self.php_output.send_headers(status, headers)
+    }
+
     fn write(&mut self, destination: output::Channel, bytes: Vec<u8>) -> wasmtime::Result<()> {
-        self.php_output.write_owned(destination, bytes);
-        Ok(())
+        self.php_output.write_owned(destination, bytes)
     }
 }
 
@@ -89,14 +249,44 @@ pub struct Wasip2PhpResponse {
 pub struct Wasip2PhpInstance {
     store: Store<Wasip2HostState>,
     bindings: bindings::Php,
+    interruptible: bool,
 }
 
 impl Wasip2PhpInstance {
     pub fn instantiate(component: &Component, state: Wasip2HostState) -> wasmtime::Result<Self> {
+        Self::instantiate_with_interruption(component, state, false)
+    }
+
+    pub(crate) fn instantiate_interruptible(
+        component: &Component,
+        state: Wasip2HostState,
+    ) -> wasmtime::Result<Self> {
+        Self::instantiate_with_interruption(component, state, true)
+    }
+
+    fn instantiate_with_interruption(
+        component: &Component,
+        state: Wasip2HostState,
+        interruptible: bool,
+    ) -> wasmtime::Result<Self> {
         let runtime = Wasip2ComponentRuntime::from_engine(component.engine().clone())?;
         let mut store = Store::new(runtime.engine(), state);
+        if interruptible {
+            store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
+            store.epoch_deadline_callback(|store| {
+                Ok(if store.data().php_output.is_cancelled() {
+                    UpdateDeadline::Interrupt
+                } else {
+                    UpdateDeadline::Continue(1)
+                })
+            });
+        }
         let bindings = bindings::Php::instantiate(&mut store, component, runtime.linker())?;
-        Ok(Self { store, bindings })
+        Ok(Self {
+            store,
+            bindings,
+            interruptible,
+        })
     }
 
     pub fn initialize(&mut self, php_ini_path: &str) -> wasmtime::Result<()> {
@@ -108,6 +298,71 @@ impl Wasip2PhpInstance {
     }
 
     pub fn handle_request(&mut self, request: &PhpRequest) -> wasmtime::Result<Wasip2PhpResponse> {
+        self.handle_request_inner(request, false)
+    }
+
+    pub fn handle_request_streamed(
+        &mut self,
+        request: &PhpRequest,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> wasmtime::Result<Wasip2PhpResponse> {
+        if !self.interruptible {
+            return Err(wasmtime::Error::msg(
+                "streamed PHP execution requires an interruptible component instance",
+            ));
+        }
+        self.store
+            .data_mut()
+            .php_output
+            .start_streaming(sink, Arc::clone(&cancellation));
+        self.store.set_epoch_deadline(1);
+        let watcher_finished = Arc::new(AtomicBool::new(false));
+        let thread_finished = Arc::clone(&watcher_finished);
+        let engine = self.store.engine().clone();
+        let watcher = thread::Builder::new()
+            .name("wp-playground-stream-cancellation".to_string())
+            .spawn(move || loop {
+                if cancellation.load(Ordering::Acquire) {
+                    engine.increment_epoch();
+                    return;
+                }
+                if thread_finished.load(Ordering::Acquire) {
+                    return;
+                }
+                thread::park_timeout(CANCELLATION_POLL_INTERVAL);
+            })
+            .map_err(|error| {
+                self.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
+                self.store.data_mut().php_output.stop_streaming();
+                wasmtime::Error::msg(format!(
+                    "failed to start native PHP cancellation watcher: {error}"
+                ))
+            })?;
+        with_unwind_safe_cleanup(
+            self,
+            |instance| instance.handle_request_inner(request, true),
+            move |instance| {
+                watcher_finished.store(true, Ordering::Release);
+                watcher.thread().unpark();
+                let watcher_result = watcher.join();
+                instance.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
+                instance.store.data_mut().php_output.stop_streaming();
+                if watcher_result.is_err() {
+                    return Err(wasmtime::Error::msg(
+                        "native PHP cancellation watcher panicked",
+                    ));
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn handle_request_inner(
+        &mut self,
+        request: &PhpRequest,
+        stream_response: bool,
+    ) -> wasmtime::Result<Wasip2PhpResponse> {
         let server_entries = component_entries(&request.server_entries);
         let env = component_entries(&request.env);
         let request = handler::Request {
@@ -117,6 +372,7 @@ impl Wasip2PhpInstance {
             host: &request.host,
             port: request.port,
             body: &request.body,
+            stream_response,
             content_type: request.content_type.as_deref(),
             cookies: request.cookies.as_deref(),
             server_entries: &server_entries,
@@ -149,6 +405,25 @@ impl Wasip2PhpInstance {
     }
 }
 
+fn with_unwind_safe_cleanup<State, Output>(
+    state: &mut State,
+    operation: impl FnOnce(&mut State) -> wasmtime::Result<Output>,
+    cleanup: impl FnOnce(&mut State) -> wasmtime::Result<()>,
+) -> wasmtime::Result<Output> {
+    let operation_result = catch_unwind(AssertUnwindSafe(|| operation(state)));
+    let cleanup_result = cleanup(state);
+    match operation_result {
+        Ok(result) => {
+            cleanup_result?;
+            result
+        }
+        Err(payload) => {
+            let _ = cleanup_result;
+            resume_unwind(payload)
+        }
+    }
+}
+
 fn component_entries(entries: &[(String, String)]) -> Vec<handler::Entry<'_>> {
     entries
         .iter()
@@ -161,37 +436,188 @@ mod tests {
     use std::{
         fs::{self, File, FileTimes, OpenOptions},
         path::PathBuf,
-        sync::atomic::{AtomicU64, Ordering},
+        sync::{
+            atomic::{AtomicBool, AtomicU64, Ordering},
+            Arc, Mutex,
+        },
         time::{Duration, UNIX_EPOCH},
     };
 
-    use super::{output, PhpOutputCapture, Wasip2PhpInstance};
+    use super::{
+        output, with_unwind_safe_cleanup, PhpOutputCapture, Wasip2PhpInstance,
+        Wasip2PhpOutputChannel, Wasip2PhpStreamEvent, Wasip2PhpStreamSink,
+        PHP_PRE_HEADER_FRAME_LIMIT, PHP_STREAM_FRAME_BYTES,
+    };
     use crate::php_protocol::PhpRequest;
     use crate::wasip2::{CapabilityPreopen, Wasip2ComponentRuntime, Wasip2ContextBuilder};
 
     static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(1);
 
     #[test]
-    fn output_capture_resets_and_takes_binary_channels_independently() {
+    fn streamed_request_cleanup_runs_before_resuming_a_host_panic() {
+        let mut cleaned = false;
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = with_unwind_safe_cleanup(
+                &mut cleaned,
+                |_| -> wasmtime::Result<()> { panic!("injected streamed request panic") },
+                |cleaned| {
+                    *cleaned = true;
+                    Ok(())
+                },
+            );
+        }));
+
+        assert!(panic.is_err());
+        assert!(cleaned);
+    }
+
+    #[test]
+    fn buffered_output_capture_skips_stream_cancellation_and_preserves_binary_channels() {
         let mut capture = PhpOutputCapture::default();
-        capture.write_owned(output::Channel::Stdout, vec![0, 255]);
-        capture.write_owned(output::Channel::Stderr, b"warning".to_vec());
+        assert!(capture.send_headers(200, Vec::new()).is_err());
+        let stale_stream_cancellation = Arc::new(AtomicBool::new(true));
+        capture.cancellation = Some(stale_stream_cancellation);
+        capture
+            .write_owned(output::Channel::Stdout, vec![0, 255])
+            .unwrap();
+        capture
+            .write_owned(output::Channel::Stderr, b"warning".to_vec())
+            .unwrap();
 
         let output = capture.take();
         assert_eq!(output.stdout(), &[0, 255]);
         assert_eq!(output.stderr(), b"warning");
         assert_eq!(capture.take(), Default::default());
 
-        capture.write_owned(output::Channel::Stderr, b"discard me".to_vec());
+        capture
+            .write_owned(output::Channel::Stderr, b"discard me".to_vec())
+            .unwrap();
         capture.reset();
         assert_eq!(capture.take(), Default::default());
 
         let owned = vec![1, 2, 3, 4];
         let owned_allocation = owned.as_ptr();
-        capture.write_owned(output::Channel::Stdout, owned);
+        capture.write_owned(output::Channel::Stdout, owned).unwrap();
         assert_eq!(capture.output.stdout.as_ptr(), owned_allocation);
-        capture.write_owned(output::Channel::Stdout, vec![5, 6]);
+        capture
+            .write_owned(output::Channel::Stdout, vec![5, 6])
+            .unwrap();
         assert_eq!(capture.take().stdout(), &[1, 2, 3, 4, 5, 6]);
+        capture.cancellation = None;
+    }
+
+    #[test]
+    fn streaming_output_emits_headers_first_bounded_binary_frames_and_cancellation() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let sink_events = Arc::clone(&events);
+        let sink: Wasip2PhpStreamSink = Arc::new(move |event| {
+            sink_events.lock().unwrap().push(event);
+            Ok(())
+        });
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let mut capture = PhpOutputCapture::default();
+        capture.start_streaming(sink, Arc::clone(&cancellation));
+        capture
+            .send_headers(202, vec!["X-Test: yes".to_string()])
+            .unwrap();
+        capture
+            .write_owned(output::Channel::Stdout, vec![9; PHP_STREAM_FRAME_BYTES + 3])
+            .unwrap();
+        capture
+            .write_owned(output::Channel::Stderr, vec![0, 255])
+            .unwrap();
+
+        let events = events.lock().unwrap();
+        assert_eq!(
+            events[0],
+            Wasip2PhpStreamEvent::Headers {
+                http_status: 202,
+                headers: vec!["X-Test: yes".to_string()],
+            }
+        );
+        assert!(matches!(
+            &events[1],
+            Wasip2PhpStreamEvent::Output {
+                channel: Wasip2PhpOutputChannel::Stdout,
+                bytes,
+            } if bytes.len() == PHP_STREAM_FRAME_BYTES
+        ));
+        assert!(matches!(
+            &events[2],
+            Wasip2PhpStreamEvent::Output {
+                channel: Wasip2PhpOutputChannel::Stdout,
+                bytes,
+            } if bytes == &[9, 9, 9]
+        ));
+        assert_eq!(
+            events[3],
+            Wasip2PhpStreamEvent::Output {
+                channel: Wasip2PhpOutputChannel::Stderr,
+                bytes: vec![0, 255],
+            }
+        );
+        drop(events);
+
+        cancellation.store(true, Ordering::Release);
+        assert!(capture
+            .write_owned(output::Channel::Stdout, b"late".to_vec())
+            .is_err());
+        capture.stop_streaming();
+    }
+
+    #[test]
+    fn streaming_buffers_early_output_until_headers_and_caps_it_at_eight_frames() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let sink_events = Arc::clone(&events);
+        let sink: Wasip2PhpStreamSink = Arc::new(move |event| {
+            sink_events.lock().unwrap().push(event);
+            Ok(())
+        });
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let mut capture = PhpOutputCapture::default();
+        capture.start_streaming(sink, cancellation);
+        capture
+            .write_owned(output::Channel::Stderr, b"early warning".to_vec())
+            .unwrap();
+        assert!(events.lock().unwrap().is_empty());
+        capture
+            .send_headers(500, vec!["Content-Type: text/html".to_string()])
+            .unwrap();
+        let captured = events.lock().unwrap();
+        assert!(matches!(
+            &captured[0],
+            Wasip2PhpStreamEvent::Headers {
+                http_status: 500,
+                ..
+            }
+        ));
+        assert_eq!(
+            captured[1],
+            Wasip2PhpStreamEvent::Output {
+                channel: Wasip2PhpOutputChannel::Stderr,
+                bytes: b"early warning".to_vec(),
+            }
+        );
+        drop(captured);
+        capture.stop_streaming();
+
+        let sink: Wasip2PhpStreamSink = Arc::new(|_| Ok(()));
+        capture.start_streaming(sink, Arc::new(AtomicBool::new(false)));
+        capture
+            .write_owned(
+                output::Channel::Stderr,
+                vec![b'x'; PHP_PRE_HEADER_FRAME_LIMIT * PHP_STREAM_FRAME_BYTES],
+            )
+            .unwrap();
+        let error = capture
+            .write_owned(output::Channel::Stderr, vec![b'y'])
+            .unwrap_err();
+        assert!(error.to_string().contains("more than 512 KiB"));
+        assert_eq!(
+            capture.pending_before_headers.len(),
+            PHP_PRE_HEADER_FRAME_LIMIT
+        );
+        capture.stop_streaming();
     }
 
     #[test]
