@@ -245,7 +245,7 @@ appear in errors or logs.
 | Failure lifecycle    | Download/integrity, acquisition lock, host startup, handshake timeout, child exit, occupied port, stream cancellation/disconnect, and repeated disposal release their resources without masking the initiating error.                                                                                            | Downloader and server lifecycle tests, Rust auth/protocol/interruption tests, and clean-install cleanup.                                                                          |
 | Native compatibility | Every command, option, root export, server member, externally accessible common worker method, and event in schema-v2 `compatibility.json` is implemented or rejected with its declared diagnostic; snapshots close accessor, prototype, alias, delimiter, NUL, and caller-mutation bypasses before acquisition. | TypeScript AST/checker inventories and bypass/TOCTOU tests plus Rust compatibility-matrix tests.                                                                                  |
 | WordPress/WAL        | WordPress HTTP/editor, Blueprint, snapshot, concurrent worker, SQLite lock, xShm/WAL flush, and WAL reopen persistence paths pass.                                                                                                                                                                               | Packager smokes plus serial ignored `native_server` process tests.                                                                                                                |
-| Benchmark tooling    | Throughput, CPU/request, warm/peak memory, and Site Editor timings can be compared against a named baseline with direction-aware thresholds; the candidate stays within 5% of `aab6ca9e`.                                                                                                                        | Python/Node metric tests plus `benchmark-regression` result comparison and its fixture tests.                                                                                     |
+| Benchmark tooling    | Throughput, CPU/request, warm/peak memory, and Site Editor timings can be compared against a named baseline with direction-aware thresholds; the candidate stays within 5% of `66c69684`.                                                                                                                        | Python/Node metric tests plus `benchmark-regression` result comparison and its fixture tests.                                                                                     |
 | Platforms            | The same complete target passes on all six native runners without uploading its fixture host or tarball.                                                                                                                                                                                                         | Native CI matrix: Linux, macOS, and Windows on x64 and arm64.                                                                                                                     |
 
 ## Required tests
@@ -283,7 +283,7 @@ candidate with the accepted baseline using:
 
 ```bash
 npm exec -- nx run playground-cli-native:benchmark-regression -- \
-  --baseline-ref=aab6ca9e --candidate-ref=HEAD --max-regression-pct=5
+  --baseline-ref=66c69684 --candidate-ref=HEAD --max-regression-pct=5
 ```
 
 The gate covers public, mixed, and admin throughput and CPU/request; warm-idle

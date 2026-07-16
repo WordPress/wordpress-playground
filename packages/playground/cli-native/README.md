@@ -179,7 +179,7 @@ baseline with a 5% direction-aware regression limit:
 
 ```bash
 npm exec -- nx run playground-cli-native:benchmark-regression -- \
-  --baseline-ref=aab6ca9e --candidate-ref=HEAD --max-regression-pct=5
+  --baseline-ref=66c69684 --candidate-ref=HEAD --max-regression-pct=5
 ```
 
 This covers public, mixed, and admin throughput and CPU/request; warm-idle PSS,
