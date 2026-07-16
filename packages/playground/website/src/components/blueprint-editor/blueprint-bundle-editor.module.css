@@ -188,8 +188,12 @@
 }
 
 .editorExportToggle svg {
-	margin-left: 4px;
+	margin-left: 0;
 	margin-right: -2px;
+}
+
+.editorExportToggle {
+	gap: 4px;
 }
 
 .exportMenuItemWithHint {
@@ -242,7 +246,6 @@
 	display: inline-flex;
 	height: 32px;
 	justify-content: center;
-	margin-right: 2px;
 	width: 32px;
 }
 
@@ -368,12 +371,12 @@
 
 @media (max-width: 1024px) {
 	.dockPresentation .editorHeader {
-		padding: 12px 24px;
+		padding: 12px var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .runHint {
-		padding-left: 24px;
-		padding-right: 24px;
+		padding-left: var(--pane-inline-padding, 24px);
+		padding-right: var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .editorHeaderActions {
@@ -451,7 +454,7 @@
 @media (min-width: 441px) and (max-width: 1024px) {
 	.editorHeaderSlotActions .mobileToggle,
 	.editorHeaderSlotActions .editorExportToggle {
-		padding: 8px 16px;
+		padding: 8px 20px;
 	}
 }
 
@@ -461,12 +464,12 @@
 @media (min-width: 389px) and (max-width: 440px) {
 	.editorHeaderSlotActions,
 	.editorHeaderFileActions {
-		gap: 4px;
+		gap: 8px;
 	}
 
 	.editorHeaderSlotActions .mobileToggle,
 	.editorHeaderSlotActions .editorExportToggle {
-		padding-left: 6px;
-		padding-right: 6px;
+		padding-left: 8px;
+		padding-right: 8px;
 	}
 }

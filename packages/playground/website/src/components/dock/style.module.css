@@ -217,6 +217,8 @@
 	--space-6: 24px;
 	--space-8: 32px;
 	--space-12: 48px;
+	/* Child panels use the same content edge as the shared title. */
+	--pane-inline-padding: var(--space-6);
 	--paper-1: #f7f5f2; /* pane surface */
 	--paper-2: #faf8f5; /* raised */
 	--paper-3: #ece8e1; /* recessed well: notices, code chips */
@@ -798,7 +800,7 @@
 	.pane-header {
 		align-items: flex-start;
 		gap: var(--space-2);
-		padding: 20px var(--space-3) 20px var(--space-6);
+		padding: 20px var(--space-3) 20px var(--pane-inline-padding);
 		position: relative;
 	}
 
@@ -832,12 +834,8 @@
 		flex: none;
 		gap: var(--space-2);
 		min-height: 64px;
-		padding: 0 var(--space-3) 0 var(--space-6);
+		padding: 0 var(--space-3) 0 var(--pane-inline-padding);
 		width: 100%;
-	}
-
-	.pane-editor-header:has([data-dock-pane-header-actions]) > h2 {
-		margin-right: var(--space-1);
 	}
 
 	.pane-editor-header h2 {

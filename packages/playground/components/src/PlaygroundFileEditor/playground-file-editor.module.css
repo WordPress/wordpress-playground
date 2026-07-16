@@ -189,7 +189,7 @@
 
 .dockPresentation .editorHeader {
 	min-height: 56px;
-	padding: 8px 16px 8px 24px;
+	padding: 8px 16px 8px var(--pane-inline-padding, 24px);
 	border-bottom-color: var(--line-subtle, #ddd);
 	background: var(--paper-2, #ffffff);
 }
@@ -341,7 +341,7 @@
 		gap: 8px;
 		grid-template-columns: minmax(0, 1fr) auto;
 		background: var(--paper-2, #ffffff);
-		padding: 8px 16px 12px 24px;
+		padding: 8px 16px 12px var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .editorPath {
@@ -369,7 +369,7 @@
 	}
 
 	.dockPresentation .editorHeaderPathPortaled {
-		padding: 12px 16px;
+		padding: 12px var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .editorHeaderPathPortaled .mobileToggle,

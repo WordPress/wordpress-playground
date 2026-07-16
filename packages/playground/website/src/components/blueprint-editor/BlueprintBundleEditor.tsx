@@ -756,7 +756,7 @@ export const BlueprintBundleEditor = forwardRef<
 					aria-haspopup="menu"
 				>
 					Export
-					<Icon icon={chevronDown} size={20} />
+					<Icon icon={chevronDown} size={16} />
 				</Button>
 			)}
 			renderContent={({ onClose }) => (
