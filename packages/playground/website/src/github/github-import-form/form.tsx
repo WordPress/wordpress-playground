@@ -185,6 +185,14 @@ export default function GitHubImportForm({
 								url: "This repo (or the resource in it) doesn't exist",
 							});
 							return;
+						case 500:
+						case 502:
+						case 503:
+						case 504:
+							setErrors({
+								url: 'GitHub is temporarily unavailable. Try again in a moment.',
+							});
+							return;
 					}
 				}
 				setErrors({ url: e.message });
@@ -368,6 +376,7 @@ export default function GitHubImportForm({
 						{'url' in errors ? (
 							<div
 								className={`${forms.error} ${css.repositoryError}`}
+								role="alert"
 							>
 								{errors.url}
 							</div>
@@ -407,7 +416,9 @@ export default function GitHubImportForm({
 							Enter owner/repository or a GitHub URL.
 						</p>
 						{'url' in errors ? (
-							<div className={forms.error}>{errors.url}</div>
+							<div className={forms.error} role="alert">
+								{errors.url}
+							</div>
 						) : null}
 					</div>
 				)}
@@ -556,6 +567,7 @@ async function resolveImportSource(
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 			pull_number: urlDetails.pr!,
+			request: { retries: 0 },
 		});
 		if (!prDetails.data.head.repo) {
 			throw new Error(
@@ -576,11 +588,13 @@ async function resolveImportSource(
 		} = await octokit.rest.repos.get({
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
+			request: { retries: 0 },
 		});
 		const { data: branch } = await octokit.rest.repos.getBranch({
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 			branch: default_branch,
+			request: { retries: 0 },
 		});
 		return {
 			...urlDetails,
@@ -600,6 +614,7 @@ async function inspectContentType(
 		repo: repo!,
 		path: path!,
 		ref: commitSha || ref,
+		request: { retries: 0 },
 	});
 	if (!Array.isArray(files)) {
 		throw new Error('Select a directory to import.');

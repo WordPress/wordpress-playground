@@ -170,10 +170,23 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 				input instanceof Request ? input.url : String(input);
 			const url = new URL(requestUrl);
 			const pathname = decodeURIComponent(url.pathname);
-			if (
-				url.origin !== 'https://api.github.com' ||
-				!pathname.startsWith('/repos/playground-test/import-source')
-			) {
+			if (url.origin !== 'https://api.github.com') {
+				return originalFetch.call(this, input, init);
+			}
+			if (pathname === '/repos/playground-test/unavailable') {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({ message: 'Service Unavailable' }),
+						{
+							status: 503,
+							headers: {
+								'Content-Type': 'application/json',
+							},
+						}
+					)
+				);
+			}
+			if (!pathname.startsWith('/repos/playground-test/import-source')) {
 				return originalFetch.call(this, input, init);
 			}
 
@@ -2378,6 +2391,37 @@ test.describe('Default Playground storage', () => {
 			newPane.getByRole('button', { name: 'Continue', exact: true })
 		).toBeVisible();
 		await expect(githubTab).toBeFocused();
+	});
+
+	test('should show an error when GitHub is unavailable during repository analysis', async ({
+		website,
+		browserName,
+	}) => {
+		await mockGitHubOAuth(website.page, browserName);
+		await mockGitHubRepositoryAnalysis(website.page);
+
+		await website.goto('./?storage=temp');
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane
+			.getByRole('tab', { name: 'From GitHub', exact: true })
+			.click();
+		await newPane
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		await newPane
+			.getByRole('textbox', { name: 'GitHub repository' })
+			.fill('playground-test/unavailable');
+		const continueButton = newPane.getByRole('button', {
+			name: 'Continue',
+			exact: true,
+		});
+		await continueButton.click();
+
+		await expect(newPane.getByRole('alert')).toBeVisible({ timeout: 5000 });
+		await expect(continueButton).toBeEnabled();
 	});
 
 	test('should browse a GitHub repository path and infer its import type', async ({

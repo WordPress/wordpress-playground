@@ -16,6 +16,7 @@ type GitHubBranchClient = {
 				owner: string;
 				repo: string;
 				branch: string;
+				request?: { retries?: number };
 			}): Promise<{ data?: { commit?: { sha?: string } } }>;
 		};
 	};
@@ -136,6 +137,7 @@ export async function resolveGitHubBranchPath(
 				owner: urlDetails.owner,
 				repo: urlDetails.repo,
 				branch: ref,
+				request: { retries: 0 },
 			});
 			return {
 				...urlDetails,
