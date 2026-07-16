@@ -360,6 +360,8 @@ export namespace V2Schema {
 		 * throw an error.
 		 *
 		 * See https://github.com/WordPress/blueprints-library/issues/32 for more context.
+		 *
+		 * @propertyNames { "pattern": "^[a-z0-9_-]{1,20}$" }
 		 */
 		postTypes?: Record<
 			PostTypeKey,
@@ -516,6 +518,8 @@ export namespace V2Schema {
 
 		/**
 		 * A mapping of base URLs to rewrite.
+		 *
+		 * @propertyNames { "$ref": "#/definitions/DataSources.URLReference" }
 		 */
 		urlsMap?: Record<DataSources.URLReference, DataSources.URLReference>;
 	};
@@ -707,6 +711,8 @@ export namespace V2Schema {
 		/**
 		 * An explicit directory name within wp-content/plugins to install the plugin at.
 		 * If not provided, it will be inferred from the plugin source.
+		 *
+		 * @pattern ^(?!(?:\.|\.\.)$)[^/]+$
 		 */
 		targetDirectoryName?: string;
 
@@ -768,6 +774,8 @@ export namespace V2Schema {
 		/**
 		 * An explicit directory name within wp-content/themes to install the theme at.
 		 * If not provided, it will be inferred from the theme source.
+		 *
+		 * @pattern ^(?!(?:\.|\.\.)$)[^/]+$
 		 */
 		targetDirectoryName?: string;
 		/**
