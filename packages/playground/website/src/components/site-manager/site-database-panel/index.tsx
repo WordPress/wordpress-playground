@@ -137,20 +137,21 @@ export function SiteDatabasePanel({
 				</p>
 			</Notice>
 
-			<PlaygroundBootNotice
-				show={!playground}
-				gap="var(--space-6)"
-				message="The Playground is still loading — database tools will be ready in a moment."
-			/>
-
-			<div className={css.buttonGroup}>
-				<AdminerButton playground={playground} />
-				<DownloadButton
-					playground={playground}
-					databasePath={databasePath}
+			{playground ? (
+				<div className={css.buttonGroup}>
+					<AdminerButton playground={playground} />
+					<PhpMyAdminButton playground={playground} />
+					<DownloadButton
+						playground={playground}
+						databasePath={databasePath}
+					/>
+				</div>
+			) : (
+				<PlaygroundBootNotice
+					show
+					message="The Playground is still loading — database tools will be ready in a moment."
 				/>
-				<PhpMyAdminButton playground={playground} />
-			</div>
+			)}
 		</div>
 	);
 }

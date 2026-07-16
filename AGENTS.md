@@ -191,6 +191,30 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **E2E tests**: Playwright and Cypress for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
 
+#### Test-value gate
+
+Tests are maintenance code. Do not add one merely because production code
+changed.
+
+Do not test:
+
+- literal JSX or static configuration;
+- copy, CSS classes, visual variants, element counts, or ordering;
+- presentation-only visibility controlled by an adjacent conditional;
+- behavior that would change only when someone intentionally reverses the
+  product decision.
+
+Before adding a test, name all three:
+
+1. The stable contract it protects.
+2. A plausible accidental regression.
+3. The independent code path that could cause that regression.
+
+If you cannot name all three concretely, do not add the test.
+
+Use screenshots and manual interaction for visual-only changes. Tests are not
+required for every PR. Never add tests simply to make a PR appear complete.
+
 ### Package Structure
 
 All published packages follow this pattern:
