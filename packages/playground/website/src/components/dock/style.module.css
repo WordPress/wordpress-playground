@@ -696,7 +696,9 @@
 		top: auto;
 		max-width: none;
 		width: auto;
-		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+		/* Keep the 16px side gutter, but let dock-body own the vertical frame and
+		   safe-area clearance so the two Dock rows do not get double padding. */
+		padding: 0 8px;
 		transform: none;
 		cursor: default;
 		box-shadow:
@@ -1261,6 +1263,7 @@
 
 	.dock-body {
 		flex-direction: column-reverse;
+		gap: 8px;
 		padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
 	}
 

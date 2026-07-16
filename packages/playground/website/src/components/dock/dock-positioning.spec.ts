@@ -104,8 +104,8 @@ describe('Dock positioning', () => {
 		expect(
 			getDockOperationToastStyle({
 				isMobile: true,
-				dockSize: { width: 390, height: 66 },
-				toolsHeight: 66,
+				dockSize: { width: 390, height: 50 },
+				toolsHeight: 50,
 				isCollapsed: true,
 				dockCenter: null,
 				viewportSize: { width: 390, height: 844 },
@@ -114,7 +114,7 @@ describe('Dock positioning', () => {
 				paneOpen: false,
 				isEditorSection: false,
 			})
-		).toEqual({ bottom: '78px', left: '195px' });
+		).toEqual({ bottom: '62px', left: '195px' });
 	});
 
 	it('centers operation notices when the viewport is narrower than its gaps', () => {
