@@ -101,8 +101,14 @@ export function EnsurePlaygroundSiteIsSelected({
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
 	);
+	// An open Dock pane owns the screen (all of it on mobile), so the nudge
+	// waits for it to close instead of covering it. This also keeps Escape
+	// working for the pane: the Dock lets any open popover consume Escape
+	// first, but the nudge popover never does.
+	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const canShowAutosaveNudge =
 		youHaveAutosaveNudgeEnabled &&
+		!dockPaneIsOpen &&
 		autosaveNudge &&
 		activeSite &&
 		activeSite.slug !== autosaveNudge.site.slug &&
