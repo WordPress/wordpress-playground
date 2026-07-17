@@ -59,7 +59,7 @@ Open **New** in the Dock to browse the Blueprint gallery. The gallery has exampl
 
 When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock to choose a WordPress or PHP version.
 
-![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/site-settings.webp)
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 ## If You Own a WordPress Site
 
@@ -116,17 +116,17 @@ If you like what you see, recreate those changes on your real site. If not, just
 
 New Playgrounds are autosaved when browser storage is available. Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
 
-![The Your Playgrounds pane with recent and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane with recent and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
 
-![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/store-permanently-browser.webp)
+![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 ### Download as a ZIP File
 
 Need to move your work elsewhere? Open **Export** and choose **Download as .zip**. The ZIP contains the current files, database, plugins, themes, uploads, and edits. You can restore it later with **New → Import zip** or host it on a server that supports PHP and SQLite.
 
-![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/export.webp)
+![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <div class="callout callout-tip">
 

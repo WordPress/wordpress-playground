@@ -94,7 +94,7 @@ Try:
 
 - Open Playground in a normal top-level browser tab, not inside a restricted iframe.
 - Reopen the site from **Your Playgrounds** in the Dock.
-- If the site was saved to a local directory, import or save the directory again.
+- If the site used a local directory, Playground cannot currently re-select the directory after its saved permission expires. The files remain on disk; use them directly or recreate the Playground from an exported ZIP or Blueprint, if available.
 - Confirm the browser supports the file or storage API being used. Chrome and Edge generally have the broadest local directory support.
 - Check whether private browsing mode, enterprise policy, or browser settings block storage access.
 
@@ -112,7 +112,7 @@ An attempt was made to write to a file or directory which could not be modified 
 
 Try:
 
-- Save a copy to a different local directory.
+- If the Playground still opens, use **Export → Download as .zip** before starting over.
 - Check that the target folder still exists and is writable.
 - Avoid system-protected folders or synced folders that temporarily lock files.
 - Start a fresh Playground with `?storage=temp` if you only need a temporary test site.
@@ -135,11 +135,11 @@ If a saved Playground cannot reload:
 
 New Playgrounds are autosaved when browser storage and saving are available. Open **Your Playgrounds** in the Dock to recover recent autosaves or saved Playgrounds. Playground keeps up to five recent autosaves.
 
-Use **Store permanently** to keep an autosave in browser storage or save it to a local directory. Use **Export** to download a portable ZIP. A browser refresh can recover a stored or autosaved Playground, but `?storage=temp` creates a temporary Playground that is discarded on refresh or tab close.
+Click the **Autosaved** or **Unsaved** status in the Dock to open the storage choices. Select **Save in browser storage**, or select **Save in a local directory** and choose an empty directory before clicking **Save**. Use **Export** to download a portable ZIP. A browser refresh can recover a stored or autosaved Playground, but `?storage=temp` creates a temporary Playground that is discarded on refresh or tab close.
 
 For longer-running local development, prefer the [Playground CLI](/developers/local-development/wp-playground-cli), which persists site files on disk.
 
-See [the Dock guide](/web-instance) for the current save states and recovery paths.
+See [the Dock guide](/web-instance) for the current Dock destinations and export workflow.
 
 ## When to start fresh
 
@@ -158,7 +158,7 @@ https://playground.wordpress.net/
 
 ## Report a Playground issue
 
-If the problem reproduces on a fresh unsaved Playground, please
+If the problem reproduces on a fresh Playground, please
 [open an issue](https://github.com/WordPress/wordpress-playground/issues) and
 include:
 

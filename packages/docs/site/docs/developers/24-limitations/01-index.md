@@ -25,7 +25,7 @@ The Playground **Refresh page** button reloads the WordPress page inside the cur
 
 Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
 
-![The Your Playgrounds pane lists the current Playground, recent autosaves, and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane lists the current Playground, recent autosaves, and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 ### Browser support
 

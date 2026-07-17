@@ -443,11 +443,11 @@ To inspect the final state, use **Files**, **Database**, and **Logs** from the D
 
 Use **Files** to confirm the Blueprint created, moved, or edited the expected files.
 
-![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/files.webp)
+![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
 
 Use **Database** to inspect tables and records changed by SQL or WordPress steps.
 
-![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/database.webp)
+![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 You can also inspect a Playground instance from the browser console through
 `window.playground`:
@@ -480,7 +480,7 @@ You can write your own messages with `error_log()` in a
 [`runPHP` step](/blueprints/steps), then check the Playground
 **Logs** panel or the browser console.
 
-![The Logs pane showing Playground messages and PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/logs.webp)
+![The Logs pane showing Playground messages and PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
