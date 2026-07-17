@@ -378,6 +378,7 @@ type SupportedMethod =
 	| 'writeFile'
 	| 'unlink'
 	| 'mv'
+	| 'cp'
 	| 'rmdir'
 	| 'listFiles'
 	| 'isDir'
@@ -401,6 +402,7 @@ const supportedMethods = new Set<SupportedMethod>([
 	'writeFile',
 	'unlink',
 	'mv',
+	'cp',
 	'rmdir',
 	'listFiles',
 	'isDir',
@@ -417,7 +419,6 @@ const unsupportedMethods = new Set([
 	'onMessage',
 	'boot',
 	'exit',
-	'cp',
 	'isReady',
 	'getRuntimeId',
 	'journalFSEvents',
@@ -669,8 +670,13 @@ async function playgroundParams(
 		assertArgumentCount(method, args, 2);
 		return { path: args[0], data: encodeBytes(args[1]) };
 	}
-	if (method === 'mv') {
+	if (method === 'mv' || method === 'cp') {
 		assertArgumentCount(method, args, 2);
+		if (typeof args[0] !== 'string' || typeof args[1] !== 'string')
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${method}() paths must be strings.`
+			);
 		return { fromPath: args[0], toPath: args[1] };
 	}
 	if (method === 'defineConstant') {

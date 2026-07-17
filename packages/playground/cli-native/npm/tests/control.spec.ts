@@ -91,6 +91,18 @@ describe('native control client', () => {
 			httpStatusCode: 500,
 		});
 		await playground.rmdir('/tmp/tree', { recursive: true });
+		await playground.cp('/tmp/source', '/tmp/copy');
+		await expect(playground.cp('/tmp/source')).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		await expect(
+			playground.cp('/tmp/source', '/tmp/copy', '/tmp/extra')
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		await expect(playground.cp('/tmp/source', 7)).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
 		expect(
 			await playground.listFiles('/tmp/tree', { prependPath: true })
 		).toEqual(['a.php', 'z.php']);
@@ -143,6 +155,9 @@ describe('native control client', () => {
 				params: { path: '/tmp/tree', options: { recursive: true } },
 			}
 		);
+		expect(received.find((rpc) => rpc['method'] === 'cp')).toMatchObject({
+			params: { fromPath: '/tmp/source', toPath: '/tmp/copy' },
+		});
 		expect(
 			received.find((rpc) => rpc['method'] === 'listFiles')
 		).toMatchObject({

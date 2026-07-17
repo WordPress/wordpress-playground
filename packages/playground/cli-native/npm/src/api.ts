@@ -203,6 +203,7 @@ export interface NativePlaygroundWorker {
 	writeFile(path: string, data: string | Uint8Array): Promise<void>;
 	unlink(path: string): Promise<void>;
 	mv(fromPath: string, toPath: string): Promise<void>;
+	cp(fromPath: string, toPath: string): Promise<void>;
 	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 	listFiles(
 		path: string,

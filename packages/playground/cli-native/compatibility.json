@@ -821,6 +821,7 @@
 		{ "name": "writeFile", "status": "supported" },
 		{ "name": "unlink", "status": "supported" },
 		{ "name": "mv", "status": "supported" },
+		{ "name": "cp", "status": "supported" },
 		{ "name": "rmdir", "status": "supported" },
 		{ "name": "listFiles", "status": "supported" },
 		{ "name": "isDir", "status": "supported" },

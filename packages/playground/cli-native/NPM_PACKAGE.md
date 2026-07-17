@@ -165,8 +165,8 @@ The native v1 `playground` API supports:
 
 - `request`, real incremental `requestStreamed`, `run`, and PHP-only `cli`;
 - `mkdir`, `mkdirTree`, `readFileAsText`, `readFileAsBuffer`, `writeFile`,
-  `unlink`, `mv`, recursive `rmdir`, `listFiles`, `isDir`, `isFile`, and
-  `fileExists`;
+  `unlink`, `mv`, recursive regular-file/directory `cp`, recursive `rmdir`,
+  `listFiles`, `isDir`, `isFile`, and `fileExists`;
 - `chdir`, `cwd`, `defineConstant`, `pathToInternalUrl`, and
   `internalUrlToPath`; and
 - supported event listeners. Asynchronous disposal belongs to the returned
@@ -274,12 +274,22 @@ including `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)` on Windows.
 
 General filesystem RPC mounts have a narrower guarantee. Paths are normalized,
 resolved against the mount table, and checked under the configured symlink
-policy, and final file replacement is atomic. Resolution and use are not held
-under a directory descriptor or `cap-std` capability, however, so a concurrent
-guest or host actor can swap a parent after validation. `followSymlinks: true` widens
-that exposure intentionally. The private, guest-read-only `/internal/shared`
-root is protected from this class of guest-controlled parent swap; general
-user mounts are not claimed to be TOCTOU-hardened.
+policy, and final `writeFile` replacement is atomic. Recursive `cp` merges
+regular-file/directory trees, rejects source and destination symlinks instead
+of recreating them, detects physical self-copy through mount aliases, and
+notifies runtime configuration tracking for every copied file. Resolution and
+use are not held under a directory descriptor or `cap-std` capability,
+however, so a concurrent guest or host actor can swap a parent after
+validation. `followSymlinks: true` widens that exposure intentionally. The
+private, guest-read-only `/internal/shared` root is protected from this class
+of guest-controlled parent swap; general user mounts are not claimed to be
+TOCTOU-hardened.
+
+Recursive `cp` is a synchronous, non-cancellable control operation. It copies
+through the resolved host tree rather than replaying more-specific nested VFS
+mount overlays, and it is not transactional: children copied before a later
+entry fails remain at the destination. A client disconnect does not roll back
+completed filesystem writes.
 
 ## Failure and interruption taxonomy
 
@@ -318,8 +328,8 @@ not mask the initiating validation error.
 
 CLI failures remain distinguishable: malformed/trapping JavaScript inputs and
 invalid Rust shapes are `INVALID_REQUEST`; non-`php` commands are
-`UNSUPPORTED`; mount/cwd and atomic-write failures are `IO`; component compile,
-instantiate, trap, or output-channel failures are `RUNTIME`; explicit cancel,
+`UNSUPPORTED`; mount/cwd, copy filesystem-state, and atomic-write failures are
+`IO`; component compile, instantiate, trap, or output-channel failures are `RUNTIME`; explicit cancel,
 disconnect, and closed full-queue completion are `ABORTED`; and PHP's own
 nonzero status is the streamed `exitCode`, not a host transport failure.
 Cancellation is checked while waiting for capacity, during output

@@ -13,6 +13,29 @@ static NEXT_ATOMIC_WRITE_ID: AtomicU64 = AtomicU64::new(1);
 /// filesystem. An unsuccessful final move leaves the old destination in place and removes the
 /// temporary on a best-effort basis.
 pub(crate) fn atomic_replace_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    atomic_write_file(path, |file| file.write_all(bytes))
+}
+
+/// Copies `source` to `path` without truncating either hard-linked aliases or exposing a partial
+/// destination. The source is fully copied into a same-directory temporary before replacement.
+pub(crate) fn atomic_copy_file(source: &Path, path: &Path) -> io::Result<()> {
+    let mut source_options = OpenOptions::new();
+    source_options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        source_options.custom_flags(libc::O_NOFOLLOW);
+    }
+    let mut source_file = source_options.open(source)?;
+    atomic_write_file(path, move |destination| {
+        io::copy(&mut source_file, destination).map(|_| ())
+    })
+}
+
+fn atomic_write_file(
+    path: &Path,
+    write_contents: impl FnOnce(&mut fs::File) -> io::Result<()>,
+) -> io::Result<()> {
     let parent = path
         .parent()
         .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "write path has no parent"))?;
@@ -37,7 +60,7 @@ pub(crate) fn atomic_replace_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
             Err(error) => return Err(error),
         };
         let result = (|| -> io::Result<()> {
-            file.write_all(bytes)?;
+            write_contents(&mut file)?;
             file.sync_all()?;
             drop(file);
             replace_same_directory(&temporary, path)
@@ -101,7 +124,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::atomic_replace_file;
+    use super::{atomic_copy_file, atomic_replace_file};
 
     static NEXT_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -130,6 +153,33 @@ mod tests {
 
         assert_eq!(fs::read(destination.join("sentinel")).unwrap(), b"old");
         assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn copying_between_hard_links_preserves_the_source() {
+        use std::os::unix::fs::MetadataExt;
+
+        let root = test_root("copy-hard-link");
+        fs::create_dir(&root).unwrap();
+        let source = root.join("source");
+        let destination = root.join("destination");
+        fs::write(&source, b"preserved").unwrap();
+        fs::hard_link(&source, &destination).unwrap();
+        assert_eq!(
+            fs::metadata(&source).unwrap().ino(),
+            fs::metadata(&destination).unwrap().ino()
+        );
+
+        atomic_copy_file(&source, &destination).unwrap();
+
+        assert_eq!(fs::read(&source).unwrap(), b"preserved");
+        assert_eq!(fs::read(&destination).unwrap(), b"preserved");
+        assert_ne!(
+            fs::metadata(&source).unwrap().ino(),
+            fs::metadata(&destination).unwrap().ino()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

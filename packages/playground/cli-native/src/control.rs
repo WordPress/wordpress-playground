@@ -18,7 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::{
-    atomic_file::atomic_replace_file, php_runtime_files::PhpConstantValue, vfs::normalize_vfs_path,
+    atomic_file::{atomic_copy_file, atomic_replace_file},
+    php_runtime_files::PhpConstantValue,
+    vfs::normalize_vfs_path,
     CliError, Result,
 };
 
@@ -1456,6 +1458,7 @@ fn dispatch_method(
         "writeFile" => dispatch_write_file(params, state),
         "unlink" => dispatch_remove_file(params, state),
         "mv" => dispatch_move(params, state),
+        "cp" => dispatch_copy(params, state),
         "rmdir" => dispatch_remove_dir(params, state),
         "listFiles" => dispatch_list_files(params, state),
         "isDir" => dispatch_is_type(params, state, true),
@@ -1500,7 +1503,7 @@ fn dispatch_method(
 fn filesystem_write_event(method: &str, params: &Value) -> Option<(String, String)> {
     let path = match method {
         "mkdir" | "mkdirTree" | "writeFile" | "unlink" | "rmdir" => params.get("path"),
-        "mv" => params.get("toPath"),
+        "mv" | "cp" => params.get("toPath"),
         _ => None,
     }?
     .as_str()?;
@@ -1609,6 +1612,168 @@ fn dispatch_move(params: Value, state: &ControlState) -> std::result::Result<Val
         .map_err(RpcError::io)?;
     fs::rename(from, to).map_err(RpcError::io)?;
     Ok(Value::Null)
+}
+
+fn dispatch_copy(params: Value, state: &ControlState) -> std::result::Result<Value, RpcError> {
+    let params: MoveParams = parse_params(params)?;
+    let from_path = resolve_vfs_path(&params.from_path, state)?;
+    let to_path = resolve_vfs_path(&params.to_path, state)?;
+    let source = (state.backend.resolve_path)(&from_path).map_err(RpcError::io)?;
+    let destination = (state.backend.resolve_path)(&to_path).map_err(RpcError::io)?;
+    let source_metadata = fs::symlink_metadata(&source).map_err(RpcError::io)?;
+    if fs::symlink_metadata(&destination).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return Err(copy_io_error(format!(
+            "Control cp does not replace symlinks: {}",
+            destination.display()
+        )));
+    }
+    let canonical_source = fs::canonicalize(&source).map_err(RpcError::io)?;
+    let projected_destination = canonical_path_projection(&destination).map_err(RpcError::io)?;
+    let same_host_path = canonical_source == projected_destination;
+
+    if source_metadata.is_dir()
+        && (from_path == to_path
+            || vfs_path_is_descendant(&to_path, &from_path)
+            || projected_destination.starts_with(&canonical_source))
+    {
+        return Err(copy_io_error("Cannot copy a directory into itself"));
+    }
+    if !same_host_path {
+        copy_control_entry(&source, &destination, &to_path, state)?;
+    } else if !source_metadata.is_file() {
+        return Err(copy_io_error(
+            "Control cp only copies regular files and directories",
+        ));
+    } else {
+        (state.backend.file_changed)(&to_path).map_err(RpcError::runtime)?;
+    }
+    Ok(Value::Null)
+}
+
+fn vfs_path_is_descendant(path: &str, parent: &str) -> bool {
+    if parent == "/" {
+        path.starts_with('/') && path != "/"
+    } else {
+        path.strip_prefix(parent)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+    }
+}
+
+fn copy_io_error(message: impl Into<String>) -> RpcError {
+    RpcError::io(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        message.into(),
+    ))
+}
+
+fn canonical_path_projection(path: &Path) -> std::io::Result<PathBuf> {
+    let mut cursor = path;
+    let mut missing = Vec::new();
+    loop {
+        match fs::canonicalize(cursor) {
+            Ok(mut canonical) => {
+                for segment in missing.iter().rev() {
+                    canonical.push(segment);
+                }
+                return Ok(canonical);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let segment = cursor.file_name().ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("No existing ancestor for {}", path.display()),
+                    )
+                })?;
+                missing.push(segment.to_os_string());
+                cursor = cursor.parent().ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("No existing ancestor for {}", path.display()),
+                    )
+                })?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn copy_control_entry(
+    source: &Path,
+    destination: &Path,
+    destination_vfs_path: &str,
+    state: &ControlState,
+) -> std::result::Result<(), RpcError> {
+    let source_metadata = fs::symlink_metadata(source).map_err(RpcError::io)?;
+    if source_metadata.file_type().is_symlink() {
+        return Err(copy_io_error(format!(
+            "Control cp does not copy symlinks: {}",
+            source.display()
+        )));
+    }
+    if source_metadata.is_file() {
+        if fs::symlink_metadata(destination).is_ok_and(|metadata| metadata.file_type().is_symlink())
+        {
+            return Err(copy_io_error(format!(
+                "Control cp does not replace symlinks: {}",
+                destination.display()
+            )));
+        }
+        atomic_copy_file(source, destination).map_err(RpcError::io)?;
+        (state.backend.file_changed)(destination_vfs_path).map_err(RpcError::runtime)?;
+        return Ok(());
+    }
+    if !source_metadata.is_dir() {
+        return Err(copy_io_error(format!(
+            "Control cp only copies regular files and directories: {}",
+            source.display()
+        )));
+    }
+
+    match fs::symlink_metadata(destination) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return Err(copy_io_error(format!(
+                "Control cp does not replace symlinks: {}",
+                destination.display()
+            )))
+        }
+        Ok(metadata) if metadata.is_dir() => {}
+        Ok(_) => {
+            return Err(RpcError::io(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!(
+                    "Copy destination is not a directory: {}",
+                    destination.display()
+                ),
+            )))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir_all(destination).map_err(RpcError::io)?;
+        }
+        Err(error) => return Err(RpcError::io(error)),
+    }
+
+    for entry in fs::read_dir(source).map_err(RpcError::io)? {
+        let entry = entry.map_err(RpcError::io)?;
+        let file_name = entry.file_name();
+        let file_name = file_name.to_str().ok_or_else(|| {
+            copy_io_error(format!(
+                "Control cp does not copy non-UTF-8 names under {}",
+                source.display()
+            ))
+        })?;
+        let child_vfs_path = format!(
+            "{}/{}",
+            destination_vfs_path.trim_end_matches('/'),
+            file_name
+        );
+        copy_control_entry(
+            &entry.path(),
+            &destination.join(file_name),
+            &child_vfs_path,
+            state,
+        )?;
+    }
+    Ok(())
 }
 
 fn dispatch_remove_dir(
@@ -2517,6 +2682,244 @@ mod tests {
     }
 
     #[test]
+    fn filesystem_cp_replaces_files_copies_directories_and_rejects_self_copy() {
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-copy-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("source/nested")).unwrap();
+        fs::write(root.join("source/a.txt"), b"new").unwrap();
+        fs::write(root.join("source/nested/b.txt"), b"nested").unwrap();
+        fs::write(root.join("destination.txt"), b"old").unwrap();
+        let mut state = state(root.clone());
+        let root_for_alias = root.clone();
+        state.backend.resolve_path = Arc::new(move |path| {
+            for (prefix, host_root) in [
+                ("/wordpress", ""),
+                ("/alias", ""),
+                ("/internal/shared", "internal-shared"),
+            ] {
+                if let Some(relative) = path.strip_prefix(prefix) {
+                    return Ok(root_for_alias
+                        .join(host_root)
+                        .join(relative.trim_start_matches('/')));
+                }
+            }
+            Err(CliError::new("outside mount"))
+        });
+        let changed = Arc::new(Mutex::new(Vec::new()));
+        let captured_changed = Arc::clone(&changed);
+        state.backend.file_changed = Arc::new(move |path| {
+            captured_changed.lock().unwrap().push(path.to_string());
+            Ok(())
+        });
+
+        dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source/a.txt",
+                "toPath":"/wordpress/destination.txt"
+            }),
+            &state,
+        )
+        .unwrap();
+        assert_eq!(fs::read(root.join("source/a.txt")).unwrap(), b"new");
+        assert_eq!(fs::read(root.join("destination.txt")).unwrap(), b"new");
+
+        dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source",
+                "toPath":"/wordpress/new-parent/copied"
+            }),
+            &state,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(root.join("new-parent/copied/nested/b.txt")).unwrap(),
+            b"nested"
+        );
+        let mut changed_paths = changed.lock().unwrap().clone();
+        changed_paths.sort();
+        assert_eq!(
+            changed_paths,
+            [
+                "/wordpress/destination.txt",
+                "/wordpress/new-parent/copied/a.txt",
+                "/wordpress/new-parent/copied/nested/b.txt"
+            ]
+        );
+
+        fs::create_dir(root.join("merge")).unwrap();
+        fs::write(root.join("merge/existing.txt"), b"existing").unwrap();
+        dispatch_method("cp", json!({"fromPath":"source","toPath":"merge"}), &state).unwrap();
+        assert_eq!(fs::read(root.join("merge/a.txt")).unwrap(), b"new");
+        assert_eq!(
+            fs::read(root.join("merge/existing.txt")).unwrap(),
+            b"existing"
+        );
+
+        dispatch_method(
+            "cp",
+            json!({"fromPath":"source/a.txt","toPath":"source/a.txt"}),
+            &state,
+        )
+        .unwrap();
+        assert_eq!(fs::read(root.join("source/a.txt")).unwrap(), b"new");
+        dispatch_method(
+            "cp",
+            json!({"fromPath":"source/a.txt","toPath":"relative-copy.txt"}),
+            &state,
+        )
+        .unwrap();
+        assert_eq!(fs::read(root.join("relative-copy.txt")).unwrap(), b"new");
+
+        fs::create_dir(root.join("source-config")).unwrap();
+        fs::write(root.join("source-config/php.ini"), b"memory_limit=512M").unwrap();
+        dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source-config",
+                "toPath":"/internal/shared"
+            }),
+            &state,
+        )
+        .unwrap();
+        assert!(changed
+            .lock()
+            .unwrap()
+            .contains(&"/internal/shared/php.ini".to_string()));
+
+        for params in [
+            json!({"fromPath":"missing.txt","toPath":"copy.txt"}),
+            json!({"fromPath":"source/a.txt","toPath":"missing-parent/copy.txt"}),
+        ] {
+            let error = dispatch_method("cp", params, &state).unwrap_err();
+            assert_eq!(error.code, "ERR_WP_PLAYGROUND_NATIVE_IO");
+        }
+        assert!(dispatch_method(
+            "cp",
+            json!({"fromPath":"source/a.txt","toPath":"copy.txt","extra":true}),
+            &state,
+        )
+        .is_err());
+
+        let error = dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source",
+                "toPath":"/wordpress/source/nested/copy"
+            }),
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "ERR_WP_PLAYGROUND_NATIVE_IO");
+        assert!(!root.join("source/nested/copy").exists());
+
+        let alias_error = dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source",
+                "toPath":"/alias/source/nested/alias-copy"
+            }),
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(alias_error.code, "ERR_WP_PLAYGROUND_NATIVE_IO");
+        assert!(!root.join("source/nested/alias-copy").exists());
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filesystem_cp_rejects_source_and_destination_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-copy-symlink-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("source.txt"), b"source").unwrap();
+        fs::write(root.join("outside.txt"), b"outside").unwrap();
+        symlink(root.join("source.txt"), root.join("source-link")).unwrap();
+        symlink(root.join("outside.txt"), root.join("destination-link")).unwrap();
+        symlink(
+            root.join("source.txt"),
+            root.join("destination-source-link"),
+        )
+        .unwrap();
+        let state = state(root.clone());
+
+        for (from_path, to_path) in [
+            ("/wordpress/source-link", "/wordpress/copy.txt"),
+            ("/wordpress/source.txt", "/wordpress/destination-link"),
+            (
+                "/wordpress/source.txt",
+                "/wordpress/destination-source-link",
+            ),
+        ] {
+            let error =
+                dispatch_method("cp", json!({"fromPath":from_path,"toPath":to_path}), &state)
+                    .unwrap_err();
+            assert_eq!(error.code, "ERR_WP_PLAYGROUND_NATIVE_IO");
+        }
+        assert_eq!(fs::read(root.join("outside.txt")).unwrap(), b"outside");
+        assert!(!root.join("copy.txt").exists());
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filesystem_cp_preserves_a_source_hard_link() {
+        use std::os::unix::fs::MetadataExt;
+
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-copy-hard-link-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("source.txt"), b"preserved").unwrap();
+        fs::hard_link(root.join("source.txt"), root.join("destination.txt")).unwrap();
+        let state = state(root.clone());
+
+        dispatch_method(
+            "cp",
+            json!({
+                "fromPath":"/wordpress/source.txt",
+                "toPath":"/wordpress/destination.txt"
+            }),
+            &state,
+        )
+        .unwrap();
+
+        assert_eq!(fs::read(root.join("source.txt")).unwrap(), b"preserved");
+        assert_eq!(
+            fs::read(root.join("destination.txt")).unwrap(),
+            b"preserved"
+        );
+        assert_ne!(
+            fs::metadata(root.join("source.txt")).unwrap().ino(),
+            fs::metadata(root.join("destination.txt")).unwrap().ino()
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn buffered_request_preserves_php_exit_code_and_binary_stderr() {
         let mut state = state(std::env::temp_dir());
         state.backend.request = Arc::new(|_| {
@@ -3285,6 +3688,31 @@ mod tests {
         assert_eq!(event.data["protocolVersion"], CONTROL_PROTOCOL_VERSION);
         assert_eq!(event.data["method"], "writeFile");
         assert_eq!(event.data["path"], "event.txt");
+
+        dispatch_method(
+            "cp",
+            json!({"fromPath":"event.txt","toPath":"event-copy.txt"}),
+            &state,
+        )
+        .unwrap();
+        let event = subscription
+            .receiver
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap();
+        assert_eq!(event.name, "filesystem.write");
+        assert_eq!(event.data["method"], "cp");
+        assert_eq!(event.data["path"], "event-copy.txt");
+
+        assert!(dispatch_method(
+            "cp",
+            json!({"fromPath":"missing.txt","toPath":"failed-copy.txt"}),
+            &state,
+        )
+        .is_err());
+        assert!(matches!(
+            subscription.receiver.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Empty)
+        ));
 
         let response = dispatch_rpc(
             RpcRequest {

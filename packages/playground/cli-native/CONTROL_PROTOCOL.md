@@ -128,8 +128,23 @@ before the Store observes cancellation. A streamed HTTP companion is discarded
 and rebuilt on demand; a transient CLI Store is dropped and its capacity
 reservation is released. Other workers remain available.
 
-Replacing `/internal/shared/php.ini` through `writeFile` uses same-directory
-atomic replacement and advances the worker configuration generation. The
+`cp` recursively merges regular files and directories, rejects source and
+destination symlinks, and reports one `filesystem.write` event for the
+requested destination. Its exact RPC envelope is:
+
+```json
+{
+	"protocolVersion": 2,
+	"id": 1,
+	"method": "cp",
+	"params": { "fromPath": "/wordpress/source", "toPath": "/wordpress/copy" }
+}
+```
+
+Replacing `/internal/shared/php.ini` through
+`writeFile`, or copying a file to that path directly or as part of a directory
+tree, advances the worker configuration generation. Direct `writeFile`
+replacement is same-directory atomic. The
 guest sees `/internal/shared` read-only; control writes operate on the private
 host directory rather than through the guest preopen. Existing
 HTTP Stores are rebuilt on their next checkout; subsequent CLI Stores load the
@@ -154,6 +169,9 @@ contract.
   object parsing.
 - Stream response size is not globally capped; per-frame and queue limits
   plus disk-backed client overflow provide bounded RAM.
+- Recursive `cp` is synchronous, non-cancellable, and non-transactional. It
+  does not roll back earlier children after a later failure or disconnect, and
+  it resolves the host tree rather than nested VFS mount overlays.
 - CLI argv and environment lists each contain at most 4,096 entries, each
   string is at most 1 MiB, and the aggregate is at most 8 MiB.
 - Protocol errors use the shared `ERR_WP_PLAYGROUND_NATIVE_*` taxonomy and
