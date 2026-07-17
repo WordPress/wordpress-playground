@@ -487,15 +487,14 @@ async function addDirectoryEntries(
 
 		if (entry.kind === 'directory') {
 			const archivePath = `${relativePath}/`;
-			if (!pathMatcher.ignores(archivePath)) {
-				await zipWriter.add(archivePath, undefined, {
-					directory: true,
-					externalFileAttributes:
-						ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
-				});
+			// Descendants cannot be re-included while their parent remains ignored.
+			if (pathMatcher.ignores(archivePath)) {
+				continue;
 			}
-			// Keep traversing excluded directories because a later negated
-			// pattern may re-include one of their descendants.
+			await zipWriter.add(archivePath, undefined, {
+				directory: true,
+				externalFileAttributes: ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
+			});
 			await addDirectoryEntries(
 				zipWriter,
 				entry,
