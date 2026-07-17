@@ -100,9 +100,20 @@ const sidebars = {
 						id: 'blueprints/v2/index',
 					},
 					items: [
-						'blueprints/v2/get-started',
-						'blueprints/v2/how-it-works',
-						'blueprints/v2/run-blueprints',
+						{
+							type: 'category',
+							label: 'Blueprints 101',
+							collapsed: false,
+							link: {
+								type: 'doc',
+								id: 'blueprints/v2/blueprints-101',
+							},
+							items: [
+								'blueprints/v2/get-started',
+								'blueprints/v2/how-it-works',
+								'blueprints/v2/run-blueprints',
+							],
+						},
 						'blueprints/v2/resources',
 						{
 							type: 'category',

@@ -222,8 +222,8 @@ downloads or license keys in a public bundle.
 
 ## Related guides
 
-- [Blueprint v2 quickstart](/blueprints/v2/get-started)
-- [How v2 applies themes, media, and content](/blueprints/v2/how-it-works)
+- [Blueprint v2 quickstart](/blueprints/v2/blueprints-101/get-started)
+- [How v2 applies themes, media, and content](/blueprints/v2/blueprints-101/how-it-works)
 - [Data sources, paths, and bundles](/blueprints/v2/resources)
 - [Blueprint v2 schema reference](/blueprints/v2/reference/schema)
 - [Troubleshooting fetch and execution failures](/blueprints/v2/troubleshooting)

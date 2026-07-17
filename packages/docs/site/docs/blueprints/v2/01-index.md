@@ -11,13 +11,13 @@ builds it. Declare the runtime, plugins, themes, options, users, and content in
 JSON. Playground validates that declaration, plans the work, and executes it on
 a supported target.
 
-Use v2 for new Blueprint work. Start with the [five-minute quickstart](/blueprints/v2/get-started),
-or choose a task:
+Use v2 for new Blueprint work. Start with the
+[Blueprints 101 crash course](/blueprints/v2/blueprints-101), or choose a task:
 
 - [Add a Preview to a WordPress.org plugin](/blueprints/v2/tutorials/plugin-preview)
 - [Build an interactive theme demo](/blueprints/v2/tutorials/theme-demo)
 - [Create a one-click bug or pull-request reproduction](/blueprints/v2/tutorials/bug-reproduction)
-- [Run a Blueprint in the browser, CLI, or JavaScript](/blueprints/v2/run)
+- [Run a Blueprint in the browser, CLI, or JavaScript](/blueprints/v2/blueprints-101/run)
 - [Migrate a v1 Blueprint](/blueprints/v2/migrate-from-v1)
 
 ## A complete v2 Blueprint
@@ -101,8 +101,8 @@ direct equivalent.
 
 ## Learn the model
 
-1. [Build and run your first v2 Blueprint](/blueprints/v2/get-started).
-2. Read [how v2 plans and executes declarations](/blueprints/v2/how-it-works).
+1. [Build and run your first v2 Blueprint](/blueprints/v2/blueprints-101/get-started).
+2. Read [how v2 plans and executes declarations](/blueprints/v2/blueprints-101/how-it-works).
 3. Learn the three [resource and path namespaces](/blueprints/v2/resources).
 4. Review [security and reproducibility](/blueprints/v2/security) before running third-party
    declarations or applying one to valuable data.

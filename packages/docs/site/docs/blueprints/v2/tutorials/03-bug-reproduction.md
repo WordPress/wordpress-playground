@@ -196,7 +196,7 @@ Recommended CI fixture rules:
 - Avoid network-dependent setup unless network behavior is itself under test.
 - Update a pin in a reviewable commit rather than silently following a branch.
 
-See [Run Blueprints v2](/blueprints/v2/run) for browser, CLI, and JavaScript
+See [Run Blueprints v2](/blueprints/v2/blueprints-101/run) for browser, CLI, and JavaScript
 entry points.
 
 ## Security and failure reporting
@@ -214,8 +214,8 @@ validate, resolve, and execute phases in order.
 
 ## Related guides
 
-- [Blueprint v2 quickstart](/blueprints/v2/get-started)
-- [Run and share Blueprints v2](/blueprints/v2/run)
+- [Blueprint v2 quickstart](/blueprints/v2/blueprints-101/get-started)
+- [Run and share Blueprints v2](/blueprints/v2/blueprints-101/run)
 - [Pin remote, Git, and bundled sources](/blueprints/v2/resources)
 - [Security and reproducibility](/blueprints/v2/security)
 - [Blueprint v2 schema reference](/blueprints/v2/reference/schema)

@@ -53,13 +53,14 @@ instead of making every setup action an ordered script.
 Use the code block's copy action to copy or save the declaration. In Playground,
 open **Dock → Blueprint** to inspect or edit it.
 
-[Build and run this site in five minutes](/blueprints/v2/get-started), then
+New to Blueprints? Take the [Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
+Or [build and run this site in five minutes](/blueprints/v2/blueprints-101/get-started), then
 choose the guide for your task:
 
 - [Add a Preview to a WordPress.org plugin](/blueprints/v2/tutorials/plugin-preview)
 - [Build an interactive WordPress theme demo](/blueprints/v2/tutorials/theme-demo)
 - [Create a one-click bug or pull-request reproduction](/blueprints/v2/tutorials/bug-reproduction)
-- [Run v2 in the browser, CLI, or JavaScript](/blueprints/v2/run)
+- [Run v2 in the browser, CLI, or JavaScript](/blueprints/v2/blueprints-101/run)
 - [Use local data and Blueprint bundles](/blueprints/v2/resources)
 - [Apply a declaration to an existing site](/blueprints/v2/apply-to-existing-site)
 

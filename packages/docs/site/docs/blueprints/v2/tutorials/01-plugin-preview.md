@@ -129,7 +129,7 @@ dependency:
 
 Site options are applied before plugin installation. Sample content is imported
 after plugins and post types in the fixed
-[v2 execution order](/blueprints/v2/how-it-works).
+[v2 execution order](/blueprints/v2/blueprints-101/how-it-works).
 
 ## 3. Validate and exercise it locally
 
@@ -211,8 +211,8 @@ third-party code or enabling network access.
 
 ## Related guides
 
-- [Blueprint v2 quickstart](/blueprints/v2/get-started)
-- [Run Blueprints in the browser and CLI](/blueprints/v2/run)
+- [Blueprint v2 quickstart](/blueprints/v2/blueprints-101/get-started)
+- [Run Blueprints in the browser and CLI](/blueprints/v2/blueprints-101/run)
 - [Data sources, pins, and bundles](/blueprints/v2/resources)
 - [Blueprint v2 schema reference](/blueprints/v2/reference/schema)
 - [Troubleshooting failed runs](/blueprints/v2/troubleshooting)

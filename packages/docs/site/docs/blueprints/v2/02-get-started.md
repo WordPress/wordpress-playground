@@ -1,10 +1,13 @@
 ---
 title: Build your first Blueprint v2
-slug: /blueprints/v2/get-started
+slug: /blueprints/v2/blueprints-101/get-started
 description: Create, validate, edit, and run a complete Blueprint v2 in the browser or Playground CLI.
 ---
 
 # Build and run your first Blueprint v2
+
+This is lesson 1 of the
+[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
 
 In five minutes, you will create a WordPress site with a theme, a plugin, a
 site title, and a published post.
@@ -108,7 +111,7 @@ hosts.
 
 ## Next steps
 
-- [Understand the v2 lifecycle and declaration order](./how-it-works)
-- [Run this file from a URL, JavaScript, or a package API](./run)
-- [Add local files or make a Blueprint bundle](./resources)
-- [Choose a plugin, theme, or reproduction tutorial](./)
+- [Understand the v2 lifecycle and declaration order](/blueprints/v2/blueprints-101/how-it-works)
+- [Run this file from a URL, JavaScript, or a package API](/blueprints/v2/blueprints-101/run)
+- [Add local files or make a Blueprint bundle](/blueprints/v2/resources)
+- [Choose a plugin, theme, or reproduction tutorial](/blueprints/v2/tutorials)

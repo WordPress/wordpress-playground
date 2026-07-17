@@ -8,7 +8,7 @@ description: Reference Blueprint v2 declarations for site settings, extensions, 
 
 Blueprint v2 declares site state in top-level fields. The runner applies those
 fields in a fixed lifecycle; moving keys in the JSON object does not reorder
-them. See [How Blueprints v2 works](/blueprints/v2/how-it-works) for the complete
+them. See [How Blueprints v2 works](/blueprints/v2/blueprints-101/how-it-works) for the complete
 execution plan.
 
 The examples below are partial `jsonc` fragments, not complete Blueprints. Put

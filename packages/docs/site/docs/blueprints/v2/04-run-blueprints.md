@@ -1,10 +1,13 @@
 ---
 title: Run Blueprints v2
-slug: /blueprints/v2/run
+slug: /blueprints/v2/blueprints-101/run
 description: Run Blueprint v2 declarations in the Playground website, CLI, JavaScript client, and blueprints package.
 ---
 
 # Run Blueprints v2
+
+This is lesson 3 of the
+[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
 
 The exact numeric `version: 2` field selects the v2 path on every supported
 Playground surface. There is no experimental v2 flag.
@@ -179,5 +182,11 @@ npx @wp-playground/cli@latest server \
 	--mount-before-install=/absolute/path/to/wordpress:/wordpress
 ```
 
-Read [apply to an existing site safely](./apply-to-existing-site) before using
-that mode. It changes the meaning of baselines and version constraints.
+Read [apply to an existing site safely](/blueprints/v2/apply-to-existing-site)
+before using that mode. It changes the meaning of baselines and version
+constraints.
+
+## Continue with a project
+
+You have completed Blueprints 101. Next, [add a plugin Preview, build a theme
+demo, or create a one-click reproduction](/blueprints/v2/tutorials).

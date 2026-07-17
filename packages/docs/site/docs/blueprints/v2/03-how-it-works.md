@@ -1,10 +1,15 @@
 ---
 title: How Blueprints v2 works
-slug: /blueprints/v2/how-it-works
+slug: /blueprints/v2/blueprints-101/how-it-works
 description: Understand Blueprint v2 desired state, execution targets, fixed declaration order, and imperative tail steps.
 ---
 
 # How Blueprints v2 works
+
+This is lesson 2 of the
+[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
+If you have not run a declaration yet, start with
+[lesson 1](/blueprints/v2/blueprints-101/get-started).
 
 V2 separates three decisions that v1 often mixed together:
 
@@ -32,7 +37,7 @@ plan is compiled. Mutations to the target still execute in plan order.
 
 A failure stops the remaining plan. There is no transactional rollback, so
 earlier changes may remain on the target. This matters most when applying a
-declaration to an [existing site](./apply-to-existing-site).
+declaration to an [existing site](/blueprints/v2/apply-to-existing-site).
 
 ## Declaration order is fixed
 
@@ -144,5 +149,10 @@ The same-looking path can name different data depending on its prefix:
 - `site:wp-content/...` reads mutable data from the target WordPress site when
   that plan item runs.
 
-See [data sources, paths, and bundles](./resources) before moving v1 resource
-objects or local files into v2.
+See [data sources, paths, and bundles](/blueprints/v2/resources) before moving
+v1 resource objects or local files into v2.
+
+## Next lesson
+
+Continue to [run and share Blueprints v2](/blueprints/v2/blueprints-101/run) in
+the website, CLI, JavaScript client, or Blueprints package.
