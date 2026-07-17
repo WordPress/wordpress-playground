@@ -38,13 +38,23 @@
 	font-weight: 600;
 }
 
-.actionable {
+/* Clickable status pills wear the same raised-tile chrome as the adjacent
+   dock toggle pill, so they read as buttons; status-only states (loading,
+   saving, unavailable unsaved) stay flat text. */
+.actionable,
+.error {
+	box-sizing: border-box;
+	height: 34px;
+	padding: 0 10px;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(255, 255, 255, 0.08);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .actionable:disabled,
@@ -55,7 +65,7 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: transparent;
+	background: rgba(255, 251, 243, 0.05);
 }
 
 .actionable:focus-visible,
@@ -78,12 +88,10 @@
 
 .error {
 	color: #fca5a5;
-	cursor: pointer;
-	transition: background 0.15s ease;
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .error svg {
@@ -94,44 +102,38 @@
 	display: inline;
 }
 
-/* Local-folder "On disk" pill opens a small menu for its available disk and
-   document-root actions, so the dock does not need storage-specific buttons
-   next to the status. The popover renders on the default light surface.
-   An explicit width is required: the popover otherwise shrink-wraps to
-   min-content and the hint text wraps one word per line. */
-.saved-menu-content {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 12px;
-	width: 280px;
-	box-sizing: border-box;
+/* The shared callout stays centered over the On disk pill. These margins count
+   toward collision detection and preserve its shadow at both mobile edges. */
+.saved-menu-popover :global(.components-popover__content) {
+	margin-inline: 16px;
 }
 
-.saved-menu-hint code {
-	font-size: 11px;
-	background: #f0eee9;
-	padding: 1px 4px;
-	border-radius: 3px;
-}
-
-.saved-menu-hint {
-	margin: 0;
+/* The served document root inside the identity meta line. */
+.saved-menu-code {
+	padding: 1px 5px;
+	background: #f0f0f0;
+	border-radius: 4px;
 	font-size: 12px;
-	line-height: 1.5;
-	color: #5f5b54;
+}
+
+/* Quiet destinations under the primary action: the document-root picker and
+   the fuller folder card in Site Settings. */
+.saved-menu-footer {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.saved-menu-footer :global(.components-button.is-link) {
+	font-size: 13px;
+	text-decoration: none;
 }
 
 .saved-menu-error {
 	margin: 0;
-	font-size: 12px;
+	font-size: 13px;
 	line-height: 1.5;
-	color: var(--color-alert-red, #cc1818);
-}
-
-.saved-menu-action.saved-menu-action {
-	justify-content: flex-start;
-	width: 100%;
+	color: #cc1818;
 }
 
 .progress-ring {

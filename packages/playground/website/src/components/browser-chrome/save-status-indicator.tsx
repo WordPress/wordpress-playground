@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
+import calloutCss from '../dock-callout.module.css';
 import classNames from 'classnames';
 import {
 	useAppSelector,
@@ -12,8 +13,15 @@ import {
 	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Tooltip, Dropdown, Button } from '@wordpress/components';
-import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
+import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
+import {
+	archive,
+	check,
+	cautionFilled,
+	chevronDown,
+	close,
+	wordpress,
+} from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -26,7 +34,10 @@ import {
 	useDocumentRootPicker,
 	useReloadFromDisk,
 } from '../../lib/hooks/use-local-folder';
-import { getLocalDirectoryPickerPath } from '../../lib/local-directory-site';
+import {
+	getLocalDirectoryPickerPath,
+	isLocalDirectoryPhpApp,
+} from '../../lib/local-directory-site';
 import { Spinner } from '../spinner';
 import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
@@ -174,7 +185,15 @@ export function SaveStatusIndicator({
 			return withStatusAnnouncement(
 				<>
 					<Dropdown
-						popoverProps={{ placement: 'top' }}
+						popoverProps={{
+							placement: 'top',
+							shift: true,
+							noArrow: false,
+							className: classNames(
+								calloutCss.popover,
+								css.savedMenuPopover
+							),
+						}}
 						renderToggle={({ isOpen, onToggle }) => (
 							<button
 								type="button"
@@ -189,7 +208,8 @@ export function SaveStatusIndicator({
 								}}
 								disabled={disabled}
 								aria-expanded={isOpen}
-								title="Saved to a folder on this computer."
+								aria-haspopup="dialog"
+								title="Saved to a local folder on this computer."
 							>
 								<Icon icon={check} size={18} />
 								<span className={css.label}>On disk</span>
@@ -197,26 +217,72 @@ export function SaveStatusIndicator({
 							</button>
 						)}
 						renderContent={({ onClose }) => (
-							<div className={css.savedMenuContent}>
-								<p className={css.savedMenuHint}>
-									This Playground is saved to a folder on your
-									computer. Changes you make here are written
-									to those files.
-								</p>
-								{bootConfiguration ? (
-									<p className={css.savedMenuHint}>
-										Document root:{' '}
-										<code>
-											{getLocalDirectoryPickerPath(
-												bootConfiguration.documentRoot
+							<aside
+								className={calloutCss.card}
+								role="dialog"
+								aria-label="Local folder status"
+							>
+								<div className={calloutCss.header}>
+									<div className={calloutCss.eyebrow}>
+										Local folder
+									</div>
+									<Button
+										className={calloutCss.dismiss}
+										icon={close}
+										label="Close local folder status"
+										onClick={onClose}
+									/>
+								</div>
+								<div className={calloutCss.identity}>
+									<span
+										className={calloutCss.avatar}
+										aria-hidden="true"
+									>
+										<Icon
+											icon={
+												isLocalDirectoryPhpApp(
+													bootConfiguration
+												)
+													? archive
+													: wordpress
+											}
+											size={28}
+										/>
+									</span>
+									<div className={calloutCss.identityCopy}>
+										<div
+											className={calloutCss.identityTitle}
+										>
+											{activeSite.metadata.name}
+										</div>
+										<div
+											className={calloutCss.identityMeta}
+										>
+											{bootConfiguration ? (
+												<>
+													Serving{' '}
+													<code
+														className={
+															css.savedMenuCode
+														}
+													>
+														{getLocalDirectoryPickerPath(
+															bootConfiguration.documentRoot
+														)}
+													</code>{' '}
+													from the linked folder
+												</>
+											) : (
+												'Saved directly to the linked folder'
 											)}
-										</code>
-									</p>
-								) : null}
+										</div>
+									</div>
+								</div>
 								<Button
-									className={css.savedMenuAction}
-									icon={update}
+									variant="primary"
+									className={calloutCss.primaryAction}
 									disabled={disabled || isReloadingFromDisk}
+									isBusy={isReloadingFromDisk}
 									onClick={async () => {
 										await reloadFromDisk();
 										onClose();
@@ -226,31 +292,37 @@ export function SaveStatusIndicator({
 										? 'Reloading…'
 										: 'Reload files from disk'}
 								</Button>
-								{bootConfiguration ? (
+								<p className={calloutCss.hint}>
+									Reload to pick up edits made to the folder
+									outside Playground.
+								</p>
+								<div className={css.savedMenuFooter}>
+									{bootConfiguration ? (
+										<Button
+											variant="link"
+											disabled={disabled}
+											onClick={async () => {
+												if (
+													await documentRootPicker.openPicker()
+												) {
+													onClose();
+												}
+											}}
+										>
+											Change document root
+										</Button>
+									) : null}
 									<Button
-										className={css.savedMenuAction}
+										variant="link"
 										disabled={disabled}
-										onClick={async () => {
-											if (
-												await documentRootPicker.openPicker()
-											) {
-												onClose();
-											}
+										onClick={() => {
+											onClose();
+											openFolderSettings();
 										}}
 									>
-										Change document root
+										Folder settings
 									</Button>
-								) : null}
-								<Button
-									className={css.savedMenuAction}
-									disabled={disabled}
-									onClick={() => {
-										onClose();
-										openFolderSettings();
-									}}
-								>
-									Folder settings…
-								</Button>
+								</div>
 								{documentRootPicker.error ? (
 									<p
 										className={css.savedMenuError}
@@ -259,7 +331,7 @@ export function SaveStatusIndicator({
 										{documentRootPicker.error}
 									</p>
 								) : null}
-							</div>
+							</aside>
 						)}
 					/>
 					{documentRootPicker.directoryHandle && bootConfiguration ? (

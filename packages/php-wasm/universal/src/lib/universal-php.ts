@@ -34,7 +34,7 @@ export interface PHPRuntimeBeforeExitEvent {
 }
 
 /**
- * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, unlink).
+ * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, cp, unlink).
  * This event is used to trigger journal flushing for persistent storage.
  */
 export interface PHPFilesystemWriteEvent {

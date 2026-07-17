@@ -48,7 +48,10 @@ import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
-import { useRecentAutosaveNudgeVisible } from '../ensure-playground-site/recent-autosave-nudge-context';
+import {
+	useRecentAutosaveNudgeVisible,
+	useSetRecentAutosaveNudgeAnchor,
+} from '../ensure-playground-site/recent-autosave-nudge-context';
 import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
@@ -223,6 +226,9 @@ export function Dock({
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
 	const recentAutosaveNudgeVisible = useRecentAutosaveNudgeVisible();
+	const setRecentAutosaveNudgeAnchor = useSetRecentAutosaveNudgeAnchor();
+	const playgroundsButtonRef = useRef<HTMLButtonElement>(null);
+	const dockStatusRef = useRef<HTMLDivElement>(null);
 	const operationNotice = useAppSelector(
 		(state) => state.ui.dockOperationNotice
 	);
@@ -420,6 +426,21 @@ export function Dock({
 		setIsFolding(false);
 		setIsMaximizing(false);
 	}, [section, dockPaneIsOpen]);
+
+	// The autosave nudge points at the Playgrounds button, or at the save
+	// status when a collapsed Dock hides the tools row. A cornered Dock shows
+	// neither, and the nudge then falls back to its free-floating position
+	// instead of pointing at nothing.
+	useEffect(() => {
+		if (cornerSide !== null) {
+			setRecentAutosaveNudgeAnchor(null);
+		} else if (isCollapsed) {
+			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
+		} else {
+			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+		}
+		return () => setRecentAutosaveNudgeAnchor(null);
+	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
 
 	// The overlay query parameter only describes New and Playgrounds. Remove it
 	// when that requested pane closes or another Dock destination replaces it.
@@ -1216,7 +1237,7 @@ export function Dock({
 								}
 							/>
 						</div>
-						<div className={css.dockStatus}>
+						<div className={css.dockStatus} ref={dockStatusRef}>
 							{playgroundTitle && (
 								<span
 									className={css.dockSiteName}
@@ -1252,6 +1273,11 @@ export function Dock({
 						{visibleDockItems.map((item, index) => (
 							<DockItemButton
 								key={item.section}
+								ref={
+									item.section === 'playgrounds'
+										? playgroundsButtonRef
+										: undefined
+								}
 								label={item.label}
 								ariaLabel={item.ariaLabel}
 								icon={item.icon}

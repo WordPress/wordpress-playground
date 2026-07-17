@@ -72,6 +72,20 @@ class EndpointWithoutRequestHandler extends TestEndpoint {
 }
 
 describe('PlaygroundWorkerEndpoint', () => {
+	test('copies files using the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const primaryPhp = {
+			...createMockPHP(),
+			cp: vi.fn(),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		await endpoint.cp('/source', '/target');
+
+		expect(primaryPhp.cp).toHaveBeenCalledOnce();
+		expect(primaryPhp.cp).toHaveBeenCalledWith('/source', '/target');
+	});
+
 	test('does not infer stream fan-out from an stdin property', () => {
 		const endpoint = new TestEndpoint();
 		const received: PhpEvent[] = [];
