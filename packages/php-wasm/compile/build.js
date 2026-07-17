@@ -106,6 +106,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with OpenSSL support',
 		},
+		WITH_SODIUM: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with Sodium support',
+		},
 		WITH_NODEFS: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -202,6 +207,7 @@ const platformDefaults = {
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
 		WITH_OPENSSL: 'yes',
+		WITH_SODIUM: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
 		WITH_IMAGICK: 'no',
@@ -336,6 +342,8 @@ await asyncSpawn(
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
 		getArg('WITH_OPENSSL'),
+		'--build-arg',
+		getArg('WITH_SODIUM'),
 		'--build-arg',
 		getArg('WITH_NODEFS'),
 		'--build-arg',

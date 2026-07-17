@@ -169,6 +169,7 @@
 				"testFiles": [
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
+					"php-sodium.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
@@ -185,6 +186,7 @@
 				"testFiles": [
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
+					"php-sodium.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",

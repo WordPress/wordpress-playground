@@ -235,6 +235,20 @@ libiconv/jspi/dist/root/lib/lib/libiconv.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/lib ./libiconv/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libiconv):/root/install/include ./libiconv/jspi/dist/root/lib
 
+libsodium_asyncify: libsodium/asyncify/dist/root/lib/lib/libsodium.a
+libsodium/asyncify/dist/root/lib/lib/libsodium.a: base-image
+	mkdir -p ./libsodium/asyncify/dist/root/lib
+	docker build -f ./libsodium/Dockerfile -t playground-php-wasm:libsodium .
+	docker cp $$(docker create playground-php-wasm:libsodium):/root/install/lib ./libsodium/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libsodium):/root/install/include ./libsodium/asyncify/dist/root/lib
+
+libsodium_jspi: libsodium/jspi/dist/root/lib/lib/libsodium.a
+libsodium/jspi/dist/root/lib/lib/libsodium.a: base-image
+	mkdir -p ./libsodium/jspi/dist/root/lib
+	docker build -f ./libsodium/Dockerfile -t playground-php-wasm:libsodium . --build-arg JSPI=1
+	docker cp $$(docker create playground-php-wasm:libsodium):/root/install/lib ./libsodium/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libsodium):/root/install/include ./libsodium/jspi/dist/root/lib
+
 # This didn't get a proper JSPI port because it wasn't actually used in the build.
 # It's kept here because we still will want PHP WASM to support interactive CLI and
 # a lot of work has been done to get the libncurses and libedit support where it is now.
@@ -311,8 +325,8 @@ libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/bin ./libImageMagick/jspi/dist/root/lib
 
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi oniguruma_jspi libcurl_jspi libImageMagick_jspi
-all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify oniguruma_asyncify libcurl_asyncify libImageMagick_asyncify
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi libsodium_jspi oniguruma_jspi libcurl_jspi libImageMagick_jspi
+all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify libsodium_asyncify oniguruma_asyncify libcurl_asyncify libImageMagick_asyncify
 
 clean:
 	rm -rf ./libz/jspi/dist
@@ -337,6 +351,8 @@ clean:
 	rm -rf ./libsqlite3/asyncify/dist
 	rm -rf ./libiconv/jspi/dist
 	rm -rf ./libiconv/asyncify/dist
+	rm -rf ./libsodium/jspi/dist
+	rm -rf ./libsodium/asyncify/dist
 	rm -rf ./oniguruma/jspi/dist
 	rm -rf ./oniguruma/asyncify/dist
 	rm -rf ./libImageMagick/jspi/dist

@@ -47,6 +47,7 @@ COPY ./compile/libavif/ /root/builds/libavif
 COPY ./compile/libsqlite3/ /root/builds/libsqlite3
 COPY ./compile/libxml2/ /root/builds/libxml2
 COPY ./compile/libz/ /root/builds/libz
+COPY ./compile/libsodium/ /root/builds/libsodium
 COPY ./compile/oniguruma/ /root/builds/oniguruma
 COPY ./compile/libImageMagick/ /root/builds/libImageMagick
 COPY ./compile/libgd/ /root/builds/libgd
@@ -121,6 +122,7 @@ ARG WITH_CLI_SAPI
 ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
+ARG WITH_SODIUM
 ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_ON_HOST
@@ -230,6 +232,14 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 		cp -r /libs/libopenssl/* /root/lib; \
 		echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libcrypto.a /root/lib/lib/libssl.a ' >> /root/.emcc-php-wasm-sources; \
+	fi;
+
+# Sodium is bundled with PHP since 7.2 and needs an external static libsodium.
+RUN if [ "$WITH_SODIUM" = "yes" ]; then \
+		echo -n ' --with-sodium=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libsodium.a ' >> /root/.emcc-php-wasm-sources; \
+	else \
+		echo -n ' --without-sodium ' >> /root/.php-configure-flags; \
 	fi;
 
 # Remove fileinfo if needed
