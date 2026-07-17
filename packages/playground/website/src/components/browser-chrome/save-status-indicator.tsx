@@ -171,8 +171,9 @@ export function SaveStatusIndicator({
 			return withStatusAnnouncement(
 				<Dropdown
 					popoverProps={{
-						placement: 'top-end',
+						placement: 'top',
 						shift: true,
+						noArrow: false,
 						className: css.savedMenuPopover,
 					}}
 					renderToggle={({ isOpen, onToggle }) => (
