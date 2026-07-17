@@ -47,6 +47,7 @@
 }
 
 .editorPath {
+	display: flex;
 	flex: 1;
 	min-width: 0;
 	font-family:
@@ -57,8 +58,26 @@
 	word-break: break-all;
 }
 
+.editorPathDirectory {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorPathFilename {
+	flex: none;
+	white-space: nowrap;
+}
+
 .editorPathPlaceholder {
 	color: var(--color-gray-500);
+}
+
+.editorPathPortaled {
+	/* Centered line boxes leave the smaller monospace glyphs visibly high
+	   against the mobile Dock heading. */
+	transform: translateY(2px);
 }
 
 .editorHeaderActions {
@@ -83,22 +102,6 @@
 .saveStatusError {
 	color: var(--color-alert-red);
 	font-weight: 500;
-}
-
-.saveButton {
-	/* Fixed width so the label swapping between Save / Saving… / Saved / Retry
-	   save doesn't jog the dock header layout. */
-	min-width: 96px;
-	justify-content: center;
-	white-space: nowrap;
-}
-
-/* In sync: a calm, confirmed "✓ Saved" (secondary button + green check/label),
-   distinct from the solid blue "Save" that appears with pending edits. */
-.saveButton.saveButtonSaved,
-.saveButton.saveButtonSaved svg {
-	color: var(--color-success, #007017);
-	fill: var(--color-success, #007017);
 }
 
 .editor {
@@ -186,7 +189,7 @@
 
 .dockPresentation .editorHeader {
 	min-height: 56px;
-	padding: 8px 16px 8px 24px;
+	padding: 8px 16px 8px var(--pane-inline-padding, 24px);
 	border-bottom-color: var(--line-subtle, #ddd);
 	background: var(--paper-2, #ffffff);
 }
@@ -197,6 +200,20 @@
 
 .dockPresentation .editorPathPlaceholder {
 	color: var(--ink-faint, #787c82);
+}
+
+.dockDirtyIndicator {
+	width: 6px;
+	height: 6px;
+	flex: 0 0 auto;
+	border-radius: 50%;
+	background: var(--ink-faint, #787c82);
+	opacity: 0.6;
+}
+
+.dockSaveButton {
+	width: 80px;
+	justify-content: center;
 }
 
 .dockPresentation .editor,
@@ -320,25 +337,40 @@
 	}
 
 	.dockPresentation .editorHeader {
-		flex-wrap: wrap;
+		display: grid;
 		gap: 8px;
+		grid-template-columns: minmax(0, 1fr) auto;
 		background: var(--paper-2, #ffffff);
+		padding: 8px 16px 12px var(--pane-inline-padding, 24px);
 	}
 
 	.dockPresentation .editorPath {
+		grid-column: 1 / -1;
+		grid-row: 1;
 		width: 100%;
-		order: 2;
-		/* Keep long paths clear of the dock pane's close button. */
-		margin-right: 48px;
+		word-break: normal;
 	}
 
 	.dockPresentation .editorHeader .mobileToggle {
 		display: inline-flex;
-		order: 1;
+		grid-column: 1;
+		grid-row: 2;
+		justify-self: start;
 	}
 
-	.dockPresentation .saveButton {
-		order: 3;
+	.dockPresentation .editorHeaderActions {
+		grid-column: 2;
+		grid-row: 2;
+		justify-self: end;
+	}
+
+	.dockPresentation .editorHeaderPathPortaled {
+		padding: 12px var(--pane-inline-padding, 24px);
+	}
+
+	.dockPresentation .editorHeaderPathPortaled .mobileToggle,
+	.dockPresentation .editorHeaderPathPortaled .editorHeaderActions {
+		grid-row: 1;
 	}
 
 	.dockPresentation .content {

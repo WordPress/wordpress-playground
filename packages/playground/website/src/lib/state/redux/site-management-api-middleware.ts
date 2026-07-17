@@ -11,7 +11,7 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo, removeClientInfo } from './slice-clients';
+import { addClientInfo } from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
@@ -20,7 +20,6 @@ import {
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
-	resetAutosavedSiteSpec,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
@@ -36,11 +35,7 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import {
-	getSetupUrlFromSite,
-	getSetupUrlFromUrl,
-} from '../playground-identity';
-import { redirectTo } from '../url/router';
+import { getSetupUrlFromUrl } from '../playground-identity';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -394,39 +389,6 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Recreates the active autosaved Playground with new setup settings.
-		 *
-		 * This public API keeps its same-site replacement behavior for existing
-		 * callers. The settings UI creates a separate Playground for setup changes
-		 * so the current site's files remain available.
-		 *
-		 * @param settings Optional site settings.
-		 * @throws When no site is selected, the active site is not autosaved, or
-		 *   browser storage cannot be reset.
-		 */
-		async recreateAutosavedSite(settings?: SiteSettings): Promise<void> {
-			const site = selectActiveSite(getState());
-			if (!site) {
-				throw new Error('No active site selected');
-			}
-			if (!isAutosavedSite(site)) {
-				throw new Error(
-					'Only autosaved Playgrounds can replace their stored files.'
-				);
-			}
-			const setupUrl = getSetupUrlForNewSite(settings, {
-				baseUrl: getSetupUrlFromSite(site, window.location.href),
-				onlySetupParams: true,
-			});
-			await selectClientBySiteSlug(getState(), site.slug)?.unmountOpfs(
-				'/wordpress'
-			);
-			dispatch(removeClientInfo(site.slug));
-			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
-			redirectTo(setupUrl.toString());
-		},
-
-		/**
 		 * Changes the PHP version for the active site and reboots it.
 		 *
 		 * @param version The PHP version to use (e.g. `"8.4"`).
@@ -712,11 +674,8 @@ async function updateSiteNameIfProvided(
  *
  * Temporary sites keep the current query string for backwards compatibility.
  * Saved sites keep only setup params so routing, UI, and lifecycle params do
- * not leak into persisted metadata. Autosaved site recreation passes the
- * stored setup URL as the base so changing one setting does not discard
- * Blueprint, plugin, theme, or other setup params that are absent from the
- * current browser route. All paths use the same `SiteSettings` mapping so new
- * settings have one query representation.
+ * not leak into persisted metadata. Both paths use the same `SiteSettings`
+ * mapping so new settings have one query representation.
  */
 function getSetupUrlForNewSite(
 	settings: SiteSettings | undefined,

@@ -42,6 +42,7 @@ import MultiplePathsInput from './multiple-paths-input';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
+	className?: string;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
 	allowZipExport?: boolean;
@@ -84,6 +85,7 @@ export interface ExportFormValues {
 
 export default function GitHubExportForm({
 	playground,
+	className,
 	onExported,
 	onClose,
 	initialValues = {},
@@ -459,7 +461,11 @@ export default function GitHubExportForm({
 
 	if (pushResult) {
 		return (
-			<form id="export-playground-form" onSubmit={handleSubmit}>
+			<form
+				id="export-playground-form"
+				className={className}
+				onSubmit={handleSubmit}
+			>
 				<h2>
 					Pull Request{' '}
 					{formValues.prAction === 'create' ? 'created' : 'updated'}!
@@ -486,8 +492,13 @@ export default function GitHubExportForm({
 				)}
 
 				<div className={forms.submitRow}>
-					<Button variant="primary" size="large" onClick={onClose}>
-						Close this modal
+					<Button
+						type="button"
+						variant="primary"
+						size="large"
+						onClick={onClose}
+					>
+						Done
 					</Button>
 				</div>
 			</form>
@@ -496,7 +507,11 @@ export default function GitHubExportForm({
 
 	return (
 		<GitHubOAuthGuard intro="Export plugins, themes, or a wp-content directory to a GitHub repository.">
-			<form id="export-playground-form" onSubmit={handleSubmit}>
+			<form
+				id="export-playground-form"
+				className={className}
+				onSubmit={handleSubmit}
+			>
 				<p>
 					You may export WordPress plugins, themes, and entire
 					wp-content directories as pull requests to any public GitHub

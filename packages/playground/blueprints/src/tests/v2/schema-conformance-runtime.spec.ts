@@ -1,7 +1,7 @@
 import type { FileTree, PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { collectBytes, encodeZip } from '@php-wasm/stream-compression';
-import { basename } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
@@ -161,6 +161,7 @@ describe('Blueprint v2 schema runtime conformance', () => {
 				expect(customWordPressArchive).toBeUndefined();
 			}
 
+			await createTargetSiteContext();
 			await compiled.run(php);
 		},
 		{ timeout: 120_000 }
@@ -206,6 +207,26 @@ describe('Blueprint v2 schema runtime conformance', () => {
 				}),
 			},
 		};
+	}
+
+	/** Creates the mutable target-site files referenced by conformance fixtures. */
+	async function createTargetSiteContext() {
+		const root = '/wordpress/wp-content/blueprint-v2-conformance';
+		await php.mkdir(root);
+		const files = {
+			fonts: ['target-site.woff2', v2SchemaConformanceFileContents.font],
+			media: ['target-site.txt', v2SchemaConformanceFileContents.media],
+			posts: ['target-site.html', v2SchemaConformanceFileContents.post],
+			sql: ['target-site.sql', v2SchemaConformanceFileContents.sql],
+			wxr: ['target-site.xml', v2SchemaConformanceFileContents.wxr],
+			php: ['target-site.php', v2SchemaConformanceFileContents.php],
+			archives: ['target-site.zip', emptyZip],
+		} as const;
+		for (const [directory, [filename, contents]] of Object.entries(files)) {
+			const directoryPath = joinPaths(root, directory);
+			await php.mkdir(directoryPath);
+			await php.writeFile(joinPaths(directoryPath, filename), contents);
+		}
 	}
 
 	/**

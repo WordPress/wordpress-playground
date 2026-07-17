@@ -7,6 +7,7 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { SiteToolPanels } from './site-tool-panels';
 
 vi.mock('../../../lib/state/redux/store', () => ({
+	useAppDispatch: () => vi.fn(),
 	useAppSelector: () => false,
 }));
 
@@ -19,8 +20,14 @@ vi.mock('../site-file-browser', () => ({
 }));
 
 vi.mock('../../blueprint-editor/SiteBlueprintBundleEditor', () => ({
-	SiteBlueprintBundleEditor: () => (
-		<div data-testid="blueprint">Blueprint editor</div>
+	SiteBlueprintBundleEditor: ({
+		dockPresentation,
+	}: {
+		dockPresentation?: boolean;
+	}) => (
+		<div data-testid="blueprint" data-dock-presentation={dockPresentation}>
+			Blueprint editor
+		</div>
 	),
 }));
 
@@ -40,10 +47,6 @@ vi.mock('../../log-modal', () => ({
 
 vi.mock('../../offline-notice', () => ({
 	OfflineNotice: () => <div>Offline</div>,
-}));
-
-vi.mock('../temporary-site-notice', () => ({
-	TemporarySiteNotice: () => <div>Temporary Playground</div>,
 }));
 
 const site = {
@@ -86,31 +89,48 @@ describe('SiteToolPanels', () => {
 		container.remove();
 	});
 
-	it('keeps every tool mounted and shows only the active tab', async () => {
-		await renderPanels('database');
+	it('mounts tools on first visit and keeps them mounted when hidden', async () => {
+		await renderPanels('database', playground);
 
 		const database = findTool('database');
 		expect(database.closest('[hidden]')).toBeNull();
 		for (const name of ['settings', 'files', 'blueprint', 'logs']) {
-			expect(findTool(name).closest('[hidden]')).not.toBeNull();
+			expect(findOptionalTool(name)).toBeNull();
 		}
 
-		await renderPanels('logs');
+		await renderPanels('logs', playground);
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
 		expect(findTool('logs').closest('[hidden]')).toBeNull();
 	});
 
+	it('enables the Blueprint editor Dock presentation', async () => {
+		await renderPanels('blueprint', playground);
+
+		expect(
+			findTool('blueprint').getAttribute('data-dock-presentation')
+		).toBe('true');
+	});
+
+	it('explains that Playground files are still loading', async () => {
+		await renderPanels('files', undefined);
+
+		expect(container.querySelector('[role="status"]')?.textContent).toBe(
+			'Playground files are still loading…'
+		);
+	});
+
 	async function renderPanels(
 		activeTabName: React.ComponentProps<
 			typeof SiteToolPanels
-		>['activeTabName']
+		>['activeTabName'],
+		client: PlaygroundClient | undefined
 	) {
 		await act(async () => {
 			root.render(
 				<SiteToolPanels
 					site={site}
-					playground={playground}
+					playground={client}
 					activeTabName={activeTabName}
 				/>
 			);
@@ -118,10 +138,14 @@ describe('SiteToolPanels', () => {
 	}
 
 	function findTool(name: string) {
-		const tool = container.querySelector(`[data-testid="${name}"]`);
+		const tool = findOptionalTool(name);
 		if (!tool) {
 			throw new Error(`Could not find ${name} tool.`);
 		}
 		return tool;
+	}
+
+	function findOptionalTool(name: string) {
+		return container.querySelector(`[data-testid="${name}"]`);
 	}
 });

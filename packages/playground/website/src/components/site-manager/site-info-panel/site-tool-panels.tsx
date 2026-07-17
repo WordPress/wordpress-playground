@@ -2,13 +2,14 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { isExplicitlySavedSite } from '../../../lib/state/redux/slice-sites';
-import { useAppSelector } from '../../../lib/state/redux/store';
+import { setDockPaneOpen } from '../../../lib/state/redux/slice-ui';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
+import { PaneLoading } from '../../pane-loading';
+import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { TemporarySiteNotice } from '../temporary-site-notice';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -33,17 +34,46 @@ export function SiteToolPanels({
 	site,
 	playground,
 	activeTabName,
+	mobileUi = false,
 }: {
 	site: SiteInfo;
 	playground: PlaygroundClient | undefined;
-	activeTabName: SiteInfoTabName;
+	activeTabName: SiteInfoTabName | null;
+	mobileUi?: boolean;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const dispatch = useAppDispatch();
+	const [mountedTabNames, setMountedTabNames] = useState<SiteInfoTabName[]>(
+		() => (activeTabName ? [activeTabName] : [])
+	);
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
-	const isTemporary = site.metadata.storage === 'none';
-	const isBlueprintReadOnly = isExplicitlySavedSite(site);
+	const editorHeaderSlot = useDockPaneEditorHeaderSlot();
+	const activeMobileHeaderSlot = mobileUi ? editorHeaderSlot : null;
+	const settingsMounted =
+		activeTabName === 'settings' || mountedTabNames.includes('settings');
+	const filesMounted =
+		activeTabName === 'files' || mountedTabNames.includes('files');
+	const blueprintMounted =
+		activeTabName === 'blueprint' || mountedTabNames.includes('blueprint');
+	const databaseMounted =
+		activeTabName === 'database' || mountedTabNames.includes('database');
+	const logsMounted =
+		activeTabName === 'logs' || mountedTabNames.includes('logs');
 
-	// Resolve documentRoot from playground client
+	// Mount each tool lazily, then retain its draft, selection, scroll position,
+	// and subscriptions while another Dock destination is visible.
+	useEffect(() => {
+		if (!activeTabName) {
+			return;
+		}
+		setMountedTabNames((tabNames) =>
+			tabNames.includes(activeTabName)
+				? tabNames
+				: [...tabNames, activeTabName]
+		);
+	}, [activeTabName]);
+
+	// Resolve documentRoot from playground client.
 	useEffect(() => {
 		if (!playground) {
 			setDocumentRoot(null);
@@ -57,88 +87,112 @@ export function SiteToolPanels({
 
 	return (
 		<>
-			<div
-				className={classNames(css.tabContents, {
-					[css.tabHidden]: activeTabName !== 'settings',
-				})}
-				hidden={activeTabName !== 'settings'}
-			>
-				{offline ? (
-					<div className={css.padded}>
-						<OfflineNotice />
-					</div>
-				) : null}
-
-				{isTemporary ? (
-					<div data-testid="temporary-site-notice">
-						<TemporarySiteNotice className={css.siteNotice} />
-					</div>
-				) : null}
-
-				<ActiveSiteSettingsForm />
-			</div>
-			<div
-				className={classNames(css.tabContents, css.fileBrowserTab, {
-					[css.tabHidden]: activeTabName !== 'files',
-				})}
-				hidden={activeTabName !== 'files'}
-			>
-				<Suspense
-					fallback={
-						<div className={css.padded}>
-							Loading file browser...
-						</div>
-					}
+			{settingsMounted && (
+				<div
+					className={classNames(css.tabContents, {
+						[css.tabHidden]: activeTabName !== 'settings',
+					})}
+					hidden={activeTabName !== 'settings'}
 				>
-					{documentRoot && (
-						<SiteFileBrowser
+					{offline ? (
+						<div className={css.padded}>
+							<OfflineNotice />
+						</div>
+					) : null}
+
+					<ActiveSiteSettingsForm
+						onSubmit={() => dispatch(setDockPaneOpen(false))}
+					/>
+				</div>
+			)}
+			{filesMounted && (
+				<div
+					className={classNames(css.tabContents, css.fileBrowserTab, {
+						[css.tabHidden]: activeTabName !== 'files',
+					})}
+					hidden={activeTabName !== 'files'}
+				>
+					<Suspense
+						fallback={
+							<PaneLoading message="Loading the file browser…" />
+						}
+					>
+						{documentRoot ? (
+							<SiteFileBrowser
+								key={site.slug}
+								site={site}
+								isVisible={activeTabName === 'files'}
+								documentRoot={documentRoot}
+								mobileHeaderTarget={
+									activeTabName === 'files'
+										? activeMobileHeaderSlot
+										: null
+								}
+							/>
+						) : (
+							// The file browser needs the booted WordPress runtime;
+							// show a clear loading state instead of a blank pane.
+							<PaneLoading message="Playground files are still loading…" />
+						)}
+					</Suspense>
+				</div>
+			)}
+			{blueprintMounted && (
+				<div
+					className={classNames(css.blueprintWrapper, {
+						[css.tabHidden]: activeTabName !== 'blueprint',
+					})}
+					hidden={activeTabName !== 'blueprint'}
+				>
+					<Suspense
+						fallback={
+							<PaneLoading message="Loading the Blueprint editor…" />
+						}
+					>
+						<SiteBlueprintBundleEditor
 							key={site.slug}
 							site={site}
-							isVisible={activeTabName === 'files'}
-							documentRoot={documentRoot}
+							className={classNames(css.blueprintEditor)}
+							dockPresentation
+							mobileHeaderTarget={
+								activeTabName === 'blueprint'
+									? activeMobileHeaderSlot
+									: null
+							}
 						/>
-					)}
-				</Suspense>
-			</div>
-			<div
-				className={classNames(css.blueprintWrapper, {
-					[css.tabHidden]: activeTabName !== 'blueprint',
-				})}
-				hidden={activeTabName !== 'blueprint'}
-			>
-				{isBlueprintReadOnly && (
-					<div className={css.blueprintNotice}>
-						This Blueprint is read-only for saved Playgrounds.
-						Create an Unsaved Playground to edit and test Blueprint
-						changes.
-					</div>
-				)}
-				<Suspense fallback={<div>Loading Blueprint editor...</div>}>
-					<SiteBlueprintBundleEditor
-						key={site.slug}
-						site={site}
-						className={classNames(css.blueprintEditor)}
-					/>
-				</Suspense>
-			</div>
-			<div
-				className={classNames(css.tabContents, css.padded, {
-					[css.tabHidden]: activeTabName !== 'database',
-				})}
-				hidden={activeTabName !== 'database'}
-			>
-				<SiteDatabasePanel playground={playground} />
-			</div>
-			<div
-				className={classNames(css.tabContents, css.padded, {
-					[css.tabHidden]: activeTabName !== 'logs',
-				})}
-				hidden={activeTabName !== 'logs'}
-			>
-				<div className={classNames(css.logsWrapper)}>
-					<SiteLogs className={css.logsSection} />
+					</Suspense>
 				</div>
-			</div>
+			)}
+			{databaseMounted && (
+				<div
+					className={classNames(
+						css.tabContents,
+						css.toolTabContents,
+						{
+							[css.tabHidden]: activeTabName !== 'database',
+						}
+					)}
+					hidden={activeTabName !== 'database'}
+				>
+					<SiteDatabasePanel playground={playground} />
+				</div>
+			)}
+			{logsMounted && (
+				<div
+					className={classNames(
+						css.tabContents,
+						css.toolTabContents,
+						{
+							[css.tabHidden]: activeTabName !== 'logs',
+						}
+					)}
+					hidden={activeTabName !== 'logs'}
+				>
+					<div className={classNames(css.logsWrapper)}>
+						<SiteLogs className={css.logsSection} />
+					</div>
+				</div>
+			)}
 		</>
 	);
 }

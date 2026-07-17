@@ -702,10 +702,12 @@
 }
 
 .playgrounds-pane {
+	box-sizing: border-box;
 	height: auto;
 	overflow: visible;
 	padding: 0 24px 24px;
 	color: #21201d;
+	width: 100%;
 }
 
 .playgrounds-pane .playgroundsSection {
@@ -743,7 +745,9 @@
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
+	min-width: 0;
 	padding: 0 24px;
+	width: 100%;
 }
 
 .playgrounds-pane.new-pane .creationSection {
@@ -752,6 +756,8 @@
 	flex-direction: column;
 	margin-bottom: 0;
 	min-height: 0;
+	min-width: 0;
+	width: 100%;
 }
 
 /* The tab strip is a recessed "segmented control": a warm well (paper-4) with a
@@ -770,6 +776,10 @@
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	margin: var(--space-1, 4px) 0 0;
 	padding: 6px;
+}
+
+.playgrounds-pane.new-pane .creationTabs[hidden] {
+	display: none;
 }
 
 .playgrounds-pane.new-pane .creationButton {
@@ -805,7 +815,7 @@
 
 .playgrounds-pane.new-pane .creationIcon {
 	align-items: center;
-	color: var(--ink-soft, #2f2d28);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex: none;
 	height: 20px;
@@ -816,12 +826,6 @@
 .playgrounds-pane.new-pane .creationIcon :global(svg) {
 	height: 20px;
 	width: 20px;
-}
-
-/* One icon language: every glyph (incl. the solid octocat) follows currentColor
-   so the tab icons read as one set. */
-.playgrounds-pane.new-pane .creationIcon :global(svg path) {
-	fill: currentColor;
 }
 
 .playgrounds-pane.new-pane .creationTitle {
@@ -855,8 +859,8 @@
 	}
 }
 
-/* Active tab: a raised white segment with a defined edge and an accent icon —
-   it reads above the resting cells by value, not by shadow alone. */
+/* Active tab: a raised white segment with a defined edge; it reads above
+   the resting cells by value, not by shadow alone. */
 .playgrounds-pane.new-pane .creationButtonActive,
 .playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
 	background: #ffffff;
@@ -873,7 +877,7 @@
 }
 
 .playgrounds-pane.new-pane .creationButtonActive .creationIcon {
-	color: var(--accent, #3858e9);
+	color: var(--action-icon, #4f4b45);
 }
 
 /* The active tab's flow scrolls within this panel; a sticky heading names it. */
@@ -888,9 +892,16 @@
 	padding-bottom: 24px;
 }
 
+.playgrounds-pane.new-pane .creationPanelDedicated {
+	margin-top: var(--space-1, 4px);
+}
+
 .playgrounds-pane.new-pane .panelHeader {
+	align-items: center;
 	background: var(--paper-1, #f7f5f2);
+	display: flex;
 	flex-shrink: 0;
+	gap: var(--space-2, 8px);
 	padding: 0 0 var(--space-3, 12px);
 	position: sticky;
 	top: 0;
@@ -980,35 +991,6 @@
 	color: var(--color-alert-red, #cc1818);
 }
 
-/* The pane's one filled primary: bring the GitHub connect CTA into the accent
-   button language (it ships as a foreign full-width #000 bar from the modal). */
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account']) {
-	align-self: flex-start;
-	background: var(--accent, #3858e9);
-	border-radius: var(--radius-control, 6px);
-	color: #ffffff;
-	font-size: 14px;
-	font-weight: 600;
-	gap: 8px;
-	padding: 10px 16px;
-	transition: background 0.12s ease;
-}
-
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account']:hover) {
-	background: var(--accent-hover, #2f4ad1);
-}
-
-.playgrounds-pane
-	.inlineForm
-	:global(a[aria-label='Connect your GitHub account'] svg) {
-	height: 18px;
-	width: 18px;
-}
-
 .playgrounds-pane .inlineForm :global(h3) {
 	color: var(--ink, #21201d);
 	font-size: 14px;
@@ -1082,6 +1064,17 @@
 	   the rounded highlight still has breathing room on both sides. */
 	margin-left: calc(-1 * var(--space-2));
 	margin-right: calc(-1 * var(--space-2));
+	width: calc(100% + var(--space-2) + var(--space-2));
+}
+
+@media (max-width: 1024px) {
+	.playgrounds-pane .sitesList {
+		/* Mobile panes use one visible 24px edge for the section label and row
+		   surface. The row content keeps its own 8px inner padding. */
+		margin-left: 0;
+		margin-right: 0;
+		width: 100%;
+	}
 }
 
 .playgrounds-pane .siteRow {
@@ -1092,6 +1085,7 @@
 	border-radius: 0;
 	/* Let the row shrink to the list width so its name truncates. */
 	min-width: 0;
+	width: 100%;
 }
 
 /* A single hairline between adjacent rows. It stays put on hover/active so the
@@ -1197,8 +1191,14 @@
 
 .playgrounds-pane .creationIcon,
 .playgrounds-pane .creationIcon :global(svg) {
-	color: #3858e9;
-	fill: #3858e9;
+	color: var(--action-icon, #4f4b45);
+	fill: currentColor;
+}
+
+/* One icon language: every glyph (incl. the solid octocat) follows currentColor
+   so the action icons read as one set. */
+.playgrounds-pane .creationIcon :global(svg [stroke]:not([stroke='none'])) {
+	stroke: currentColor;
 }
 
 /* The WordPress mark hardcodes a white path fill, which an svg-level rule can't
@@ -1369,12 +1369,6 @@
 .playgrounds-pane .showMoreButton:hover {
 	background: rgba(33, 30, 25, 0.045);
 	color: #21201d;
-}
-
-@media (max-width: 640px) {
-	.playgrounds-pane {
-		padding: 0 20px 24px;
-	}
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand {

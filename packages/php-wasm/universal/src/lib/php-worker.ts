@@ -1,4 +1,5 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { phpEventStdinTransfer } from '@php-wasm/util';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
@@ -30,6 +31,7 @@ export type LimitedPHPApi = Pick<
 	| 'writeFile'
 	| 'unlink'
 	| 'mv'
+	| 'cp'
 	| 'rmdir'
 	| 'listFiles'
 	| 'isDir'
@@ -163,6 +165,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!PHP.mv  */
 	async mv(fromPath: string, toPath: string) {
 		return _private.get(this)!.php!.mv(fromPath, toPath);
+	}
+
+	/** @inheritDoc @php-wasm/universal!PHP.cp  */
+	async cp(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.cp(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
@@ -369,24 +376,30 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		if (!listeners) {
 			return;
 		}
+		// Callbacks may mutate the Set. Dispatch the listeners that matched at entry.
 		const eventListeners = [...listeners];
-		if (eventListeners.length > 1 && hasReadableStdin(event)) {
+		const transfersStdin =
+			phpEventStdinTransfer in event &&
+			event[phpEventStdinTransfer] === true &&
+			'stdin' in event &&
+			typeof ReadableStream !== 'undefined' &&
+			event.stdin instanceof ReadableStream;
+		if (eventListeners.length > 1 && transfersStdin) {
 			/**
-			 * A ReadableStream can only be transferred through Comlink once. Give each
-			 * listener its own branch so one listener cannot lock the stream before the
-			 * remaining listeners receive the event.
+			 * Split the unassigned stream branch before each transfer, then give the
+			 * final listener what remains. Unread branches may buffer the full input
+			 * because tee() does not coordinate backpressure.
 			 */
-			const streams = teeReadableStream(
-				event.stdin,
-				eventListeners.length
-			);
-			let streamIndex = 0;
-			for (const listener of eventListeners) {
-				listener({
-					...event,
-					stdin: streams[streamIndex++],
-				} as EventType);
+			let remainingStdin = event.stdin as ReadableStream<Uint8Array>;
+			for (let index = 0; index < eventListeners.length - 1; index++) {
+				const [stdin, nextStdin] = remainingStdin.tee();
+				remainingStdin = nextStdin;
+				eventListeners[index]({ ...event, stdin } as EventType);
 			}
+			eventListeners[eventListeners.length - 1]({
+				...event,
+				stdin: remainingStdin,
+			} as EventType);
 			return;
 		}
 		for (const listener of eventListeners) {
@@ -429,35 +442,4 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 		throw new Error('PHPWorker is not connected to a request handler.');
 	}
-}
-
-function hasReadableStdin(
-	event: PHPWorkerEvent
-): event is PHPWorkerEvent & { stdin: ReadableStream<Uint8Array> } {
-	return (
-		'stdin' in event &&
-		typeof ReadableStream !== 'undefined' &&
-		event.stdin instanceof ReadableStream
-	);
-}
-
-/**
- * Creates one independently transferable stream branch per event listener.
- *
- * ReadableStream.tee() may buffer unread chunks for a slow branch. PHPWorker
- * does not coordinate backpressure between listeners.
- */
-function teeReadableStream(
-	stream: ReadableStream<Uint8Array>,
-	branches: number
-): ReadableStream<Uint8Array>[] {
-	const streams: ReadableStream<Uint8Array>[] = [];
-	let remaining = stream;
-	while (streams.length < branches - 1) {
-		const [branch, next] = remaining.tee();
-		streams.push(branch);
-		remaining = next;
-	}
-	streams.push(remaining);
-	return streams;
 }

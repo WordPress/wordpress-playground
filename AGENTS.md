@@ -167,6 +167,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
 - **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
 - **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
+- **UI consistency:** Before adding custom control styles or wrappers, inspect equivalent controls in
+  adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
+  bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
+  side by side with neighboring UI.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
@@ -190,6 +194,35 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Coverage**: Reports to `coverage/packages/<package-name>`
 - **E2E tests**: Playwright and Cypress for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
+
+#### Test-value gate
+
+Tests are maintenance code. Do not add one merely because production code
+changed.
+
+Do not test:
+
+- literal JSX or static configuration;
+- copy, CSS classes, visual variants, element counts, or ordering;
+- exact pixel dimensions, spacing values, or other CSS outcomes copied into
+  unit-test fixtures;
+- presentation-only visibility controlled by an adjacent conditional;
+- behavior that would change only when someone intentionally reverses the
+  product decision.
+
+Before adding a test, name all three:
+
+1. The stable contract it protects.
+2. A plausible accidental regression.
+3. The independent code path that could cause that regression.
+
+If you cannot name all three concretely, do not add the test.
+
+A test is not independent when its expected value must be edited whenever
+adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
+
+Use screenshots and manual interaction for visual-only changes. Tests are not
+required for every PR. Never add tests simply to make a PR appear complete.
 
 ### Package Structure
 
@@ -296,6 +329,11 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- When adding screenshots to Markdown docs, use the raw GitHub URL for the
+  committed asset, for example
+  `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.
+  Relative `/img/...` links work in Docusaurus but are not preserved by the
+  WordPress.org handbook importer.
 
 ## Important Notes
 

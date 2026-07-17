@@ -1,24 +1,39 @@
 .logs-inside-modal {
 	.log__search {
 		/* Title margin bottom + log margin top */
-		margin-bottom: 1.33rem;
-	}
-
-	.log__empty_placeholder {
-		/* text-align: center; */
-		font-size: 1.3rem;
-		padding-bottom: 20px;
+		margin-bottom: var(--space-4, 16px);
 	}
 
 	.logs-component {
-		padding: 1rem;
+		padding: var(--space-4, 16px);
 	}
 }
 
-.logs-component {
-	width: 100%;
+.log__empty_placeholder {
+	align-items: flex-start;
 	display: flex;
 	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-1) 0 var(--space-4);
+}
+
+.log-clear-search {
+	background: none;
+	border: 0;
+	color: var(--accent-link);
+	cursor: pointer;
+	font-size: 13px;
+	padding: 0;
+}
+
+.log-clear-search:hover {
+	text-decoration: underline;
+}
+
+.logs-component {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
 }
 
 .log__content-container {
@@ -26,14 +41,75 @@
 }
 
 .log__entry {
-	font-family: monospace;
-	word-wrap: break-word;
-	padding: 0.5rem 0;
-	margin: 0.5rem 0;
+	border-block-end: 1px solid var(--line-subtle);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	margin: var(--space-2) 0;
+	padding: var(--space-2) 0;
 	white-space-collapse: preserve-breaks;
-	border-block-end: 1px dashed currentcolor;
+	word-wrap: break-word;
 }
 
 .log__entry:has(mark) {
-	background-color: ivory;
+	background-color: var(--paper-3);
+}
+
+.log__entry mark {
+	background-color: var(--paper-4, #e7e2da);
+	border-radius: var(--radius-control, 6px);
+	color: var(--color-alert-red, #cc1818);
+	font-weight: 600;
+	padding: 0 var(--space-1, 4px);
+}
+
+.log-empty-state {
+	align-items: flex-start;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	max-width: 54ch;
+	padding: var(--space-1) 0 var(--space-4);
+}
+
+.log-empty-title {
+	color: var(--ink);
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0;
+}
+
+.log-empty-hint {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.log-legend {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	list-style: none;
+	margin: var(--space-3) 0 0;
+	padding: 0;
+	width: 100%;
+}
+
+.log-legend li {
+	align-items: baseline;
+	display: grid;
+	gap: var(--space-3);
+	grid-template-columns: max-content 1fr;
+}
+
+.log-legend-term {
+	color: var(--ink);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.log-legend-desc {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }

@@ -117,8 +117,91 @@ async function replaceBlueprintEditorContents(
 	});
 }
 
-function escapeRegExp(text: string) {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * Completes the real popup handshake with a same-origin test callback.
+ *
+ * Production intentionally does not restore GitHub tokens from localStorage,
+ * so tests must enter the form through the same OAuth boundary as users.
+ */
+async function mockGitHubOAuth(page: Page, browserName: string) {
+	if (browserName === 'firefox') {
+		await page.addInitScript(() => {
+			window.open = () => {
+				const iframe = document.createElement('iframe');
+				iframe.hidden = true;
+				document.body.appendChild(iframe);
+				return iframe.contentWindow;
+			};
+		});
+	}
+
+	await page.context().route('**/oauth.php?redirect=1*', async (route) => {
+		const requestUrl = new URL(route.request().url());
+		const state = requestUrl.searchParams.get('state') || '';
+		await route.fulfill({
+			contentType: 'text/html',
+			body: `<!doctype html>
+<html>
+	<body>
+		<script>
+			(window.opener || window.parent).postMessage(
+				${JSON.stringify({
+					type: 'playground-github-oauth-token',
+					state,
+					token: 'gho_e2e_token',
+				})},
+				window.location.origin
+			);
+			window.close();
+		</script>
+	</body>
+</html>`,
+		});
+	});
+}
+
+async function mockGitHubRepositoryAnalysis(page: Page) {
+	// WebKit does not intercept these cross-origin requests with context.route,
+	// so mock fetch before the application initializes.
+	await page.addInitScript(() => {
+		const originalFetch = window.fetch;
+		window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+			const requestUrl =
+				input instanceof Request ? input.url : String(input);
+			const url = new URL(requestUrl);
+			if (
+				url.origin !== 'https://api.github.com' ||
+				!url.pathname.startsWith('/repos/playground-test/import-source')
+			) {
+				return originalFetch.call(this, input, init);
+			}
+
+			let body;
+			if (url.pathname === '/repos/playground-test/import-source') {
+				body = { default_branch: 'trunk' };
+			} else if (
+				url.pathname ===
+				'/repos/playground-test/import-source/branches/trunk'
+			) {
+				body = { commit: { sha: 'test-commit-sha' } };
+			} else if (
+				url.pathname === '/repos/playground-test/import-source/contents'
+			) {
+				body = [{ name: 'plugin.php', type: 'file' }];
+			} else {
+				return Promise.reject(
+					new Error(`Unexpected GitHub API request: ${url}`)
+				);
+			}
+
+			return Promise.resolve(
+				new Response(JSON.stringify(body), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				})
+			);
+		} as typeof fetch;
+	});
 }
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
@@ -144,6 +227,335 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);
+});
+
+test('should route tools through one Dock pane', async ({ website }) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const filesTool = dock.getByRole('button', { name: 'Files' });
+	const databaseTool = dock.getByRole('button', { name: 'Database' });
+	const preview = website.page.locator('[class*="site-view-content"]');
+
+	await website.openDockPane('Files');
+	await expect(filesTool).toHaveAttribute('aria-pressed', 'true');
+	await expect(preview).toHaveAttribute('inert', '');
+	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
+	await expect(filesPane.getByRole('tabpanel')).toHaveCount(0);
+	await expect(filesPane.getByLabel('Playground title')).toHaveCount(0);
+
+	await website.openDockPane('Database');
+	await expect(filesTool).toHaveAttribute('aria-pressed', 'false');
+	await expect(databaseTool).toHaveAttribute('aria-pressed', 'true');
+	await expect(
+		website.page.getByRole('dialog', { name: 'Database pane' })
+	).toBeFocused();
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane' })
+	).not.toBeVisible();
+
+	await databaseTool.click();
+	await expect(
+		website.page.getByRole('dialog', { name: 'Database pane' })
+	).not.toBeVisible();
+	await expect(preview).not.toHaveAttribute('inert', '');
+	await expect(databaseTool).toBeFocused();
+});
+
+test('should keep the whole Dock pane visible while it closes', async ({
+	website,
+}) => {
+	await website.page.goto('./?storage=temp');
+	await website.openDockPane('Your Playgrounds');
+	const pane = website.page.locator(
+		'section[aria-label="Your Playgrounds pane"]'
+	);
+	await expect(pane).toHaveCSS('opacity', '1');
+
+	const { openHeight, closingHeight } = await pane.evaluate(
+		async (element) => {
+			const activeTool = document.querySelector<HTMLButtonElement>(
+				'nav[aria-label="Playground tools"] button[aria-pressed="true"]'
+			);
+			if (!activeTool) {
+				throw new Error('The active Dock tool was not found');
+			}
+
+			const openHeight = element.getBoundingClientRect().height;
+			// Sample when CSSTransition changes classes. On a busy CI worker, an
+			// animation frame can run after the 240ms exit timeout has elapsed.
+			const closingHeight = await new Promise<number>((resolve) => {
+				const observer = new MutationObserver(() => {
+					observer.disconnect();
+					resolve(element.getBoundingClientRect().height);
+				});
+				observer.observe(element, {
+					attributes: true,
+					attributeFilter: ['class'],
+				});
+				activeTool.click();
+			});
+			return {
+				openHeight,
+				closingHeight,
+			};
+		}
+	);
+
+	expect(Math.abs(closingHeight - openHeight)).toBeLessThanOrEqual(1);
+	await expect(pane).not.toBeVisible();
+});
+
+test('should keep a settings draft across Dock destinations and close', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.openDockPane('Site Settings');
+	const networking = website.page.getByLabel('Network access');
+	await expect(networking).toBeChecked();
+	await networking.uncheck();
+
+	await website.openDockPane('Database');
+	await expect(networking).not.toBeVisible();
+	await website.openDockPane('Site Settings');
+	await expect(networking).not.toBeChecked();
+
+	await website.page.keyboard.press('Escape');
+	await expect(networking).not.toBeVisible();
+	await website.openDockPane('Site Settings');
+	await expect(networking).not.toBeChecked();
+});
+
+test('should offer only the destructive fresh-site action for a temporary Playground', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.openDockPane('Site Settings');
+	const pane = website.page.getByRole('dialog', {
+		name: 'Site Settings pane',
+	});
+	await expect(
+		pane.getByRole('button', {
+			name: 'Discard current work & create a fresh Playground',
+		})
+	).toBeVisible();
+	await expect(
+		pane.getByRole('button', { name: 'More settings actions' })
+	).toHaveCount(0);
+	await expect(
+		pane.getByRole('button', { name: 'Apply to this Playground' })
+	).toHaveCount(0);
+});
+
+test('should keep the selected New method and its draft across Dock destinations', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.openDockPane('New Playground');
+	const newPane = website.page.getByRole('dialog', {
+		name: 'New Playground pane',
+	});
+	const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
+	await blueprintUrlTab.click();
+	const blueprintUrl = newPane.getByRole('textbox', {
+		name: 'Blueprint URL',
+	});
+	await blueprintUrl.fill('https://example.com/in-progress-blueprint.json');
+
+	await website.openDockPane('Database');
+	await expect(newPane).not.toBeVisible();
+	await website.openDockPane('New Playground');
+	await expect(blueprintUrlTab).toHaveAttribute('aria-selected', 'true');
+	await expect(blueprintUrl).toHaveValue(
+		'https://example.com/in-progress-blueprint.json'
+	);
+
+	await website.page.keyboard.press('Escape');
+	await website.openDockPane('New Playground');
+	await expect(blueprintUrlTab).toHaveAttribute('aria-selected', 'true');
+	await expect(blueprintUrl).toHaveValue(
+		'https://example.com/in-progress-blueprint.json'
+	);
+});
+
+test('should keep Export feedback across Dock destinations', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		'Firefox and WebKit do not support clipboard permissions through Playwright.'
+	);
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await website.goto('./?storage=temp');
+	await website.openDockPane('Export');
+	const exportPane = website.page.getByRole('dialog', {
+		name: 'Export pane',
+	});
+	await exportPane.getByRole('button', { name: 'Copy link' }).click();
+	await expect(
+		exportPane.getByText('Setup URL copied to the clipboard.')
+	).toBeVisible();
+
+	await website.openDockPane('Database');
+	await expect(exportPane).not.toBeVisible();
+	await website.openDockPane('Export');
+	await expect(
+		exportPane.getByRole('button', { name: 'Link copied' })
+	).toBeVisible();
+	await expect(
+		exportPane.getByText('Setup URL copied to the clipboard.')
+	).toBeVisible();
+});
+
+test('should open and clear Blueprint gallery deep links at every viewport size', async ({
+	website,
+}) => {
+	for (const width of [1280, 390]) {
+		await website.page.setViewportSize({ width, height: 844 });
+		await website.goto('./?overlay=blueprints');
+		const pane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await expect(pane).toBeVisible();
+		await expect(
+			pane.getByRole('heading', { name: 'Start from a Blueprint' })
+		).toBeVisible();
+
+		await website.page.keyboard.press('Escape');
+		await expect(pane).not.toBeVisible();
+		expect(new URL(website.page.url()).searchParams.has('overlay')).toBe(
+			false
+		);
+	}
+});
+
+test('should switch the desktop Dock between full width and collapsed states', async ({
+	website,
+	browserName,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const initialBounds = await dock.boundingBox();
+	expect(initialBounds).not.toBeNull();
+
+	await dock.getByRole('button', { name: 'Full width' }).click();
+	await expect(website.page.locator('html')).toHaveAttribute(
+		'data-dock-full-width',
+		''
+	);
+	await dock.getByRole('button', { name: 'Exit full width' }).click();
+	await expect(website.page.locator('html')).not.toHaveAttribute(
+		'data-dock-full-width',
+		''
+	);
+
+	await dock.getByRole('button', { name: 'Hide tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'Show tools' })
+	).toBeVisible();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).not.toBeVisible();
+	await expect(dock.getByRole('combobox')).toBeVisible();
+	await expect
+		.poll(async () => (await dock.boundingBox())?.y)
+		.toBeGreaterThan(initialBounds!.y);
+	if (browserName === 'chromium') {
+		await dock.getByRole('button', { name: 'Unsaved' }).click();
+		await expect(
+			website.page.locator('section[aria-label="Store permanently pane"]')
+		).toBeVisible();
+		await expect(
+			dock.getByRole('button', { name: 'Show tools' })
+		).toBeVisible();
+		await expect(
+			dock.getByRole('button', { name: 'New Playground' })
+		).not.toBeVisible();
+		await website.page
+			.locator('section[aria-label="Store permanently pane"]')
+			.getByRole('button', { name: 'Cancel' })
+			.click();
+	}
+
+	await dock.getByRole('button', { name: 'Show tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).toBeVisible();
+});
+
+test('should fold and restore the desktop Dock without hiding an open pane', async ({
+	website,
+}) => {
+	await website.page.emulateMedia({ reducedMotion: 'reduce' });
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const initialBounds = await dock.boundingBox();
+	expect(initialBounds).not.toBeNull();
+
+	await dragDockPastLeftEdge();
+	const launcher = website.page.getByRole('button', {
+		name: 'Show Playground tools',
+	});
+	await expect(launcher).toBeVisible();
+	await expect(dock).not.toBeVisible();
+
+	await launcher.click();
+	await expect(dock).toBeVisible();
+	await expect(launcher).toHaveCount(0);
+	const restoredBounds = await dock.boundingBox();
+	expect(restoredBounds).not.toBeNull();
+	expect(Math.abs(restoredBounds!.x - initialBounds!.x)).toBeLessThan(3);
+
+	await website.openDockPane('Files');
+	await dragDockPastLeftEdge();
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane' })
+	).toBeVisible();
+	await expect(dock).toBeVisible();
+	await expect(launcher).toHaveCount(0);
+
+	async function dragDockPastLeftEdge() {
+		const bounds = await dock.boundingBox();
+		expect(bounds).not.toBeNull();
+		const startX = bounds!.x + bounds!.width / 2;
+		const endX = -bounds!.width;
+		await dock.dispatchEvent('pointerdown', {
+			bubbles: true,
+			button: 0,
+			buttons: 1,
+			clientX: startX,
+			isPrimary: true,
+			pointerId: 1,
+		});
+		await website.page.evaluate((clientX) => {
+			window.dispatchEvent(
+				new PointerEvent('pointermove', {
+					bubbles: true,
+					button: 0,
+					buttons: 1,
+					clientX,
+					isPrimary: true,
+					pointerId: 1,
+				})
+			);
+			window.dispatchEvent(
+				new PointerEvent('pointerup', {
+					bubbles: true,
+					button: 0,
+					clientX,
+					isPrimary: true,
+					pointerId: 1,
+				})
+			);
+		}, endX);
+	}
 });
 
 SupportedPHPVersions.forEach(async (version) => {
@@ -186,24 +598,6 @@ Object.keys(MinifiedWordPressVersions)
 			).toHaveValue(version);
 		});
 	});
-
-test('should offer only the destructive fresh-site action for a temporary Playground', async ({
-	website,
-}) => {
-	await website.goto('./?storage=temp');
-	await website.ensureSiteManagerIsOpen();
-	await expect(
-		website.page.getByRole('button', {
-			name: 'Discard current work & create a fresh Playground',
-		})
-	).toBeVisible();
-	await expect(
-		website.page.getByRole('button', { name: 'More settings actions' })
-	).toHaveCount(0);
-	await expect(
-		website.page.getByRole('button', { name: 'Apply to this Playground' })
-	).toHaveCount(0);
-});
 
 test('should display networking as active by default', async ({ website }) => {
 	await website.goto('./?storage=temp');
@@ -305,17 +699,16 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 });
 
-test('should edit a file in the code editor and see changes in the viewport', async ({
+test('should edit a file on mobile and see changes in the viewport', async ({
 	website,
 	wordpress,
 }) => {
 	await website.goto('./?storage=temp');
+	await website.page.setViewportSize({ width: 375, height: 812 });
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to File Browser tab
-	await website.page.getByRole('tab', { name: 'File Browser' }).click();
+	await website.openDockPane('Files');
+	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
+	await filesPane.getByRole('button', { name: 'Browse files' }).click();
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -336,6 +729,9 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Wait for CodeMirror editor to load
 	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const saveButton = filesPane.getByRole('button', {
+		name: /^(Save|Saved|Saving…)$/,
+	});
 
 	// Click on the editor to focus it
 	await website.page.waitForTimeout(50);
@@ -355,16 +751,16 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Type the new content with a delay between keystrokes
 	await website.page.keyboard.type('Edited file', { delay: 50 });
 
-	// Wait a moment for the change to be processed
-	await website.page.waitForTimeout(500);
+	await expect(saveButton).toBeEnabled();
 
-	// Save the file (Cmd+S or Ctrl+S)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
+	// Save immediately instead of waiting for the autosave debounce.
+	await saveButton.click();
+	await expect(saveButton).toHaveText('Saved');
+	await expect(filesPane.getByRole('status')).toHaveText(
+		'All changes saved.'
 	);
-
-	// Wait for save to complete (look for save indicator if there is one)
-	await website.page.waitForTimeout(1000);
+	await expect(saveButton).toBeEnabled();
+	await expect(saveButton).toHaveText('Save');
 
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();
@@ -391,11 +787,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 }) => {
 	await website.goto('./?storage=temp');
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to Blueprint tab
-	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await website.openDockPane('Current Blueprint', 'Blueprint pane');
 	await expect(
 		website.page.getByRole('button', { name: 'Create new file' })
 	).toBeVisible();
@@ -436,6 +828,31 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	});
 });
 
+test('should keep the last Blueprint edit when its Dock pane closes', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.openDockPane('Current Blueprint', 'Blueprint pane');
+	await replaceBlueprintEditorContents(website.page, {
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/close-flush.txt',
+				data: 'Saved before close',
+			},
+		],
+	});
+	await website.page.keyboard.press('Escape');
+	await expect(
+		website.page.getByRole('dialog', { name: 'Blueprint pane' })
+	).not.toBeVisible();
+
+	await website.openDockPane('Current Blueprint', 'Blueprint pane');
+	await expect(
+		website.page.locator('[class*="blueprint-editor"] .cm-content')
+	).toContainText('Saved before close');
+});
+
 test('should copy blueprint link to clipboard when share button is clicked', async ({
 	website,
 	context,
@@ -451,11 +868,7 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 
 	await website.goto('./?storage=temp');
 
-	// Open site manager
-	await website.ensureSiteManagerIsOpen();
-
-	// Navigate to Blueprint tab
-	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+	await website.openDockPane('Current Blueprint', 'Blueprint pane');
 
 	// Wait for CodeMirror editor to load
 	const editor = website.page.locator(
@@ -467,12 +880,14 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	// and the share button to be ready
 	await website.page.waitForTimeout(1000);
 
-	// Click the share button (copy link to blueprint)
-	const shareButton = website.page.getByRole('button', {
-		name: 'Copy link to blueprint',
-	});
-	await expect(shareButton).toBeVisible();
-	await shareButton.click();
+	// Copy the Blueprint URL from the editor's Export menu.
+	await website.page
+		.getByRole('dialog', { name: 'Blueprint pane' })
+		.getByRole('button', { name: 'Export' })
+		.click();
+	await website.page
+		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
+		.click();
 
 	// Verify success message appears in the notice component
 	await expect(
@@ -499,51 +914,119 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	expect(Array.isArray(decodedBlueprint.steps)).toBe(true);
 });
 
-test('should make every Site Manager tab reachable on mobile', async ({
-	website,
-}) => {
+test('should make every Dock tool reachable on mobile', async ({ website }) => {
 	await website.page.setViewportSize({ width: 390, height: 844 });
 	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const destinations = [
+		['New Playground', 'New Playground pane'],
+		['Your Playgrounds', 'Your Playgrounds pane'],
+		['Current Blueprint', 'Blueprint pane'],
+		['Site Settings', 'Site Settings pane'],
+		['Database', 'Database pane'],
+		['Files', 'Files pane'],
+		['Logs', 'Logs pane'],
+		['Export', 'Export pane'],
+	] as const;
 
-	const siteManager = website.page.locator(
-		'section[class*="site-info-panel"]'
+	for (const [toolName, paneName] of destinations) {
+		await website.openDockPane(toolName, paneName);
+		const pane = website.page.getByRole('dialog', { name: paneName });
+		await expect(pane).toBeVisible();
+		await expect(pane.getByRole('button', { name: 'Close' })).toBeVisible();
+	}
+
+	await expect(
+		dock.getByRole('button', { name: 'Hide tools' })
+	).toBeVisible();
+	await expect(dock.getByRole('button', { name: 'Full width' })).toHaveCount(
+		0
 	);
-	await expect(siteManager).toBeVisible();
+	await expect(
+		website.page.getByRole('dialog', { name: 'Export pane' })
+	).toBeFocused();
+	const exportPane = website.page.getByRole('dialog', {
+		name: 'Export pane',
+	});
+	const preview = website.page.locator('[class*="site-view-content"]');
+	await exportPane.getByRole('button', { name: 'Close' }).click();
+	await expect(exportPane).not.toBeVisible();
+	await expect(preview).not.toHaveAttribute('inert', /.*/);
+	await expect(dock.getByRole('button', { name: 'Export' })).toBeFocused();
 
-	const tabList = siteManager.locator('.components-tab-panel__tabs');
-	await expect(tabList).toBeVisible();
+	await dock.getByRole('button', { name: 'Hide tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'Show tools' })
+	).toBeVisible();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).not.toBeVisible();
+	await expect(dock.getByRole('combobox')).toBeVisible();
+	await dock.getByRole('button', { name: 'Show tools' }).click();
+	await expect(
+		dock.getByRole('button', { name: 'New Playground' })
+	).toBeVisible();
 
-	const logsTab = siteManager.getByRole('tab', { name: 'Logs' });
-	await expect(logsTab).toHaveCount(1);
+	await website.page.setViewportSize({ width: 320, height: 700 });
+	await website.openDockPane('Site Settings');
+	const siteDetailsPane = website.page.getByRole('dialog', {
+		name: 'Site Settings pane',
+	});
+	const closeBounds = await siteDetailsPane
+		.getByRole('button', { name: 'Close' })
+		.boundingBox();
+	expect(closeBounds).not.toBeNull();
 
-	await tabList.evaluate((element) => {
-		const logsTab = Array.from(
-			element.querySelectorAll<HTMLElement>('[role="tab"]')
-		).find((tab) => tab.textContent?.trim() === 'Logs');
-		if (!logsTab) {
-			throw new Error('Logs tab not found');
-		}
+	const previewBounds = await preview.boundingBox();
+	const dockBounds = await dock.boundingBox();
+	expect(previewBounds).not.toBeNull();
+	expect(dockBounds).not.toBeNull();
+	expect(previewBounds!.y + previewBounds!.height).toBeLessThanOrEqual(
+		dockBounds!.y + 1
+	);
+});
 
-		logsTab.scrollIntoView({ block: 'nearest', inline: 'end' });
+test('should stat the database size without reading the database into JavaScript', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.waitForNestedIframes();
+	await website.page.waitForFunction(
+		() => Boolean((window as any).playgroundSites?.getClient()),
+		undefined,
+		{ timeout: 120000 }
+	);
+	await website.page.evaluate(() => {
+		const playground = (window as any).playgroundSites.getClient();
+		const originalRead = playground.readFileAsBuffer.bind(playground);
+		(window as any).__databaseReadCount = 0;
+		playground.readFileAsBuffer = async (path: string) => {
+			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+				(window as any).__databaseReadCount++;
+				throw new Error(
+					'Database contents must not be read to calculate size.'
+				);
+			}
+			return originalRead(path);
+		};
 	});
 
-	await expect(logsTab).toBeInViewport();
-	await logsTab.click();
-	await expect(logsTab).toHaveAttribute('aria-selected', 'true');
+	await website.openDockPane('Database');
+	const sizeValue = website.page
+		.getByText('Size:')
+		.locator('xpath=following-sibling::dd[1]');
+	await expect(sizeValue).toHaveText(/^\d+(?:\.\d+)? (?:B|KB|MB|GB)$/);
+	expect(
+		await website.page.evaluate(() => (window as any).__databaseReadCount)
+	).toBe(0);
 });
 
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
 		await website.goto('./?storage=temp');
-		await website.ensureSiteManagerIsOpen();
-
-		// Navigate to Database tab
-		await website.page.getByRole('tab', { name: 'Database' }).click();
-
-		// Verify the Database tab is active
-		const databaseTab = website.page.getByRole('tab', { name: 'Database' });
-		await expect(databaseTab).toHaveAttribute('aria-selected', 'true');
+		await website.openDockPane('Database');
 	});
 
 	test('should display database info', async ({ website }) => {
@@ -775,7 +1258,7 @@ test.describe('Default Playground storage', () => {
 						label === 'Autosaving' ||
 						label === 'Saving' ||
 						label === 'Autosaved' ||
-						label === 'Saved Playground' ||
+						label === 'Saved' ||
 						label === 'Unsaved'
 					);
 				});
@@ -816,7 +1299,9 @@ test.describe('Default Playground storage', () => {
 		});
 		await website.page.goto('./');
 		await expect(
-			website.page.getByRole('button', { name: /Site Manager/ })
+			website.page.getByRole('navigation', {
+				name: 'Playground tools',
+			})
 		).toBeVisible();
 		await website.ensureSiteManagerIsClosed();
 
@@ -903,7 +1388,7 @@ test.describe('Default Playground storage', () => {
 		).toBe(false);
 	});
 
-	test('should edit a Blueprint for an autosaved Playground and recreate the same autosave', async ({
+	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
 		website,
 		wordpress,
 		browserName,
@@ -918,18 +1403,21 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
+		await runPHPAndFlushOpfs(
+			website.page,
+			"<?php file_put_contents('/wordpress/index.php', 'Original autosaved Playground');"
+		);
 
-		await website.ensureSiteManagerIsOpen();
-		await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
 		await expect(
 			website.page
 				.getByLabel('WordPress Playground')
 				.getByText(
-					'Running this Blueprint will recreate this autosaved Playground under the same name and replace all its files.'
+					`Running this Blueprint creates a fresh autosaved Playground. “${originalSite.name}” stays in Recent autosaves.`
 				)
 		).toBeVisible();
 
-		await replaceBlueprintEditorContents(website.page, {
+		const editedBlueprint = {
 			landingPage: '/index.php',
 			steps: [
 				{
@@ -938,41 +1426,147 @@ test.describe('Default Playground storage', () => {
 					data: 'Autosaved Blueprint test',
 				},
 			],
-		});
+		} satisfies Blueprint;
+		const blueprintContents = website.page.locator(
+			'[class*="blueprint-editor"] .cm-content'
+		);
+		await blueprintContents.fill(JSON.stringify(editedBlueprint, null, 2));
+		await website.page.keyboard.press('Escape');
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).toContainText('Autosaved Blueprint test');
 
-		const runBlueprintButton = website.page.getByRole('button', {
-			name: 'Run Blueprint and reset site',
-		});
-		// Recreate failures are shown inline and leave the Run button available,
-		// so retry the action instead of waiting on an unchanged iframe.
-		await expect(async () => {
-			await expect(runBlueprintButton).toBeEnabled({
-				timeout: 5000,
-			});
-			await runBlueprintButton.click();
-			await expect(
-				website.page.getByText(
-					'Could not recreate Playground. Try again.'
-				)
-			).toHaveCount(0, { timeout: 5000 });
-			await website.waitForNestedIframes();
-			await expect(wordpress.locator('body')).toContainText(
-				'Autosaved Blueprint test',
-				{ timeout: 30000 }
-			);
-		}).toPass({ timeout: 180000 });
+		await website.page
+			.getByRole('button', { name: 'Run in a new Playground' })
+			.click();
+
+		await expect(
+			website.page.getByRole('dialog', { name: 'Blueprint pane' })
+		).not.toBeVisible({ timeout: 120000 });
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Autosaved Blueprint test',
+			{ timeout: 120000 }
+		);
+		const newSite = await getActivePlaygroundSite(website.page);
+		expect(newSite).toMatchObject({ persistence: 'autosave' });
+		expect(newSite.slug).not.toBe(originalSite.slug);
 		await expect
-			.poll(() => getActivePlaygroundSite(website.page), {
-				timeout: 120000,
-			})
-			.toMatchObject({
-				slug: originalSite.slug,
-				name: originalSite.name,
-				persistence: 'autosave',
-			});
+			.poll(
+				() =>
+					website.page.evaluate(
+						(slug) =>
+							(window as any).playgroundSites
+								.list()
+								.some((site: any) => site.slug === slug),
+						originalSite.slug
+					),
+				{ timeout: 120000 }
+			)
+			.toBe(true);
+
+		await website.page.evaluate((slug) => {
+			return (window as any).playgroundSites.setActiveSite(slug);
+		}, originalSite.slug);
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Original autosaved Playground',
+			{ timeout: 120000 }
+		);
+		await expect(wordpress.locator('body')).not.toContainText(
+			'Autosaved Blueprint test'
+		);
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).toContainText('Autosaved Blueprint test');
 	});
 
-	test('should offer full settings and keyboard-accessible actions for an autosaved Playground', async ({
+	test('should edit a Blueprint for a saved Playground and run it in a new Playground', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('saved-blueprint-edit')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.getByRole('button', { name: 'Autosaved' }).click();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await savePane.getByRole('button', { name: 'Save' }).click();
+		await expect(savePane).not.toBeVisible({ timeout: 120000 });
+		await expect(
+			website.page.getByText('Saved', { exact: true })
+		).toBeVisible();
+		const savedSite = await getActivePlaygroundSite(website.page);
+
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.getByText(/This Blueprint is read-only/)
+		).toHaveCount(0);
+		const editedBlueprint = {
+			landingPage: '/index.php',
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/index.php',
+					data: 'Saved Blueprint test',
+				},
+			],
+		} satisfies Blueprint;
+		const blueprintContents = website.page.locator(
+			'[class*="blueprint-editor"] .cm-content'
+		);
+		await expect(blueprintContents).toHaveAttribute(
+			'contenteditable',
+			'true'
+		);
+		await blueprintContents.fill(JSON.stringify(editedBlueprint, null, 2));
+		await website.page
+			.getByRole('button', { name: 'Run in a new Playground' })
+			.click();
+
+		await expect(
+			website.page.getByRole('dialog', { name: 'Blueprint pane' })
+		).not.toBeVisible({ timeout: 120000 });
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toContainText(
+			'Saved Blueprint test',
+			{ timeout: 120000 }
+		);
+		const newSite = await getActivePlaygroundSite(website.page);
+		expect(newSite).toMatchObject({ persistence: 'autosave' });
+		expect(newSite.slug).not.toBe(savedSite.slug);
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(slug) =>
+						(window as any).playgroundSites
+							.list()
+							.some((site: any) => site.slug === slug),
+					savedSite.slug
+				)
+			)
+			.toBe(true);
+
+		await website.page.evaluate((slug) => {
+			return (window as any).playgroundSites.setActiveSite(slug);
+		}, savedSite.slug);
+		await website.waitForNestedIframes();
+		await website.openDockPane('Current Blueprint', 'Blueprint pane');
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).not.toContainText('Saved Blueprint test');
+	});
+
+	test('should offer full settings for an autosaved Playground', async ({
 		website,
 		wordpress,
 		browserName,
@@ -982,17 +1576,15 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto(
-			getUniqueSavedPlaygroundSetupUrl('settings-actions')
-		);
+		await website.page.goto('./');
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
-		).toBeVisible({ timeout: 120000 });
+		).toBeVisible({
+			timeout: 120000,
+		});
 		const autosavedSite = await getActivePlaygroundSite(website.page);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.openDockPane('Site Settings');
 
 		await expect(
 			website.page.getByText(
@@ -1034,10 +1626,36 @@ test.describe('Default Playground storage', () => {
 		await website.page.keyboard.press('End');
 		await expect(freshMenuItem).toBeFocused();
 
-		await website.page.keyboard.press('Escape');
 		const body = wordpress.locator('body');
 		await body.evaluate((element) =>
 			element.setAttribute('data-settings-no-op-marker', 'present')
+		);
+		await freshMenuItem.click();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Create a fresh Playground',
+				exact: true,
+			})
+		).toBeEnabled();
+		await expect(body).toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
+		);
+		await website.page
+			.getByRole('button', { name: 'More settings actions' })
+			.click();
+		await website.page
+			.getByRole('menuitem', { name: /Apply to this Playground/ })
+			.click();
+		await expect(
+			website.page.getByRole('button', {
+				name: 'Apply to this Playground',
+				exact: true,
+			})
+		).toBeEnabled();
+		await expect(body).toHaveAttribute(
+			'data-settings-no-op-marker',
+			'present'
 		);
 		await website.page
 			.getByRole('button', {
@@ -1060,15 +1678,15 @@ test.describe('Default Playground storage', () => {
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
 
-		await website.goto(getUniqueSavedPlaygroundSetupUrl('settings-apply'));
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('settings-recreate')
+		);
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
 		const originalSite = await getActivePlaygroundSite(website.page);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.openDockPane('Site Settings');
 		const phpSelect = website.page.getByLabel('PHP version');
 		const currentPhpVersion = await phpSelect.inputValue();
 		const nextPhpVersion = currentPhpVersion === '8.4' ? '8.3' : '8.4';
@@ -1079,7 +1697,7 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(applySettingsButton).toBeEnabled();
 		await applySettingsButton.click();
-
+		await website.waitForNestedIframes();
 		await expect
 			.poll(() => getRunningPhpVersion(website.page), { timeout: 120000 })
 			.toBe(nextPhpVersion);
@@ -1107,9 +1725,7 @@ test.describe('Default Playground storage', () => {
 			)
 			.toBe(1);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.openDockPane('Site Settings');
 		await expect(website.page.getByLabel('PHP version')).toHaveValue(
 			nextPhpVersion
 		);
@@ -1122,10 +1738,7 @@ test.describe('Default Playground storage', () => {
 		website,
 		browserName,
 	}) => {
-		test.skip(
-			browserName !== 'chromium',
-			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
-		);
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
 
 		await website.goto(getUniqueSavedPlaygroundSetupUrl('settings-fresh'));
 		await expect(
@@ -1136,9 +1749,7 @@ test.describe('Default Playground storage', () => {
 			() => (window as any).playgroundSites.list().length
 		);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.openDockPane('Site Settings');
 		const wpSelect = website.page.getByLabel('WordPress version');
 		const currentWpVersion = await wpSelect.inputValue();
 		const nextWpVersion = Object.keys(MinifiedWordPressVersions).find(
@@ -1162,6 +1773,13 @@ test.describe('Default Playground storage', () => {
 		await expect(applyMenuItem).toContainText(
 			'Changing WordPress version requires a fresh Playground.'
 		);
+		for (const menuItem of await website.page.getByRole('menuitem').all()) {
+			expect(
+				await menuItem.evaluate(
+					(element) => element.scrollWidth <= element.clientWidth
+				)
+			).toBe(true);
+		}
 		await website.page.keyboard.press('Escape');
 
 		// Two same-task clicks exercise the gap before React can paint disabled.
@@ -1169,7 +1787,9 @@ test.describe('Default Playground storage', () => {
 			button.click();
 			button.click();
 		});
-		await expect(mainAction).toBeHidden({ timeout: 120000 });
+		await expect(
+			website.page.getByRole('dialog', { name: 'Site Settings pane' })
+		).not.toBeVisible({ timeout: 120000 });
 
 		await expect
 			.poll(
@@ -1195,36 +1815,28 @@ test.describe('Default Playground storage', () => {
 			.toBe(true);
 	});
 
-	test('should preserve an explicitly saved Playground when creating a fresh site', async ({
+	test('should offer the same full fresh-site form for an explicitly saved Playground', async ({
 		website,
 		browserName,
 	}) => {
-		test.skip(
-			browserName !== 'chromium',
-			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
-		);
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
 
 		await website.goto(getUniqueSavedPlaygroundSetupUrl('stored-settings'));
-		const statusButton = website.page.getByRole('button', {
-			name: 'Autosaved',
-		});
-		await expect(statusButton).toBeVisible({ timeout: 120000 });
-		await statusButton.click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		const saveDialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
-		await saveDialog.getByRole('button', { name: 'Save' }).click();
-		await expect
-			.poll(() => getActivePlaygroundSite(website.page))
-			.toMatchObject({ persistence: 'explicit' });
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.getByRole('button', { name: 'Autosaved' }).click();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await savePane.getByRole('button', { name: 'Save' }).click();
+		await expect(savePane).not.toBeVisible({ timeout: 120000 });
+		await expect(
+			website.page.getByText('Saved', { exact: true })
+		).toBeVisible();
 		const storedSite = await getActivePlaygroundSite(website.page);
 
-		await website.page
-			.getByRole('button', { name: 'Edit Playground settings' })
-			.click();
+		await website.openDockPane('Site Settings');
 		await expect(
 			website.page.getByLabel('WordPress version')
 		).toBeEnabled();
@@ -1248,12 +1860,11 @@ test.describe('Default Playground storage', () => {
 				exact: true,
 			})
 			.click();
-
-		await expect
-			.poll(() => getActivePlaygroundSite(website.page), {
-				timeout: 120000,
-			})
-			.not.toMatchObject({ slug: storedSite.slug });
+		await expect(
+			website.page.getByRole('dialog', { name: 'Site Settings pane' })
+		).not.toBeVisible({ timeout: 120000 });
+		const freshSite = await getActivePlaygroundSite(website.page);
+		expect(freshSite.slug).not.toBe(storedSite.slug);
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -1271,7 +1882,245 @@ test.describe('Default Playground storage', () => {
 			.toBe(true);
 	});
 
-	test('should show intent-driven creation actions in the overlay', async ({
+	test('should keep Playground management failures visible across Dock surfaces', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('operation-error'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const originalSite = await getActivePlaygroundSite(website.page);
+		const activeSite = await website.page.evaluate(async (originalSlug) => {
+			const api = (window as any).playgroundSites;
+			const slug = `operation-error-active-${Date.now().toString(36)}`;
+			await api.createNewSavedSite(slug, undefined, {
+				persistence: 'autosave',
+				updateUrl: false,
+				excludeFromPruning: [originalSlug],
+			});
+			return api.list().find((site: any) => site.slug === slug);
+		}, originalSite.slug);
+		await website.page.evaluate(() => {
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					throw new Error('Simulated directory failure');
+				},
+			});
+		});
+
+		await website.openDockPane('Playgrounds');
+		const pane = website.page.getByRole('dialog', {
+			name: 'Playgrounds pane',
+		});
+		await pane.evaluate(async (element) => {
+			await Promise.all(
+				element.getAnimations().map((animation) => animation.finished)
+			);
+		});
+		const paneBeforeFailure = await pane.boundingBox();
+		await pane
+			.getByRole('button', { name: `Actions for ${activeSite.name}` })
+			.click();
+		await website.page
+			.getByRole('menuitem', { name: 'Save in a local directory…' })
+			.click();
+		const notice = website.page
+			.getByRole('group', {
+				name: 'Operation failed',
+			})
+			.filter({
+				hasText: `Couldn’t save ${activeSite.name} locally`,
+			});
+		await expect(notice).toBeVisible();
+		await expect(notice).toContainText(
+			'The Playground in your browser is unchanged.'
+		);
+		await expect(
+			notice.getByRole('button', { name: 'Try again' })
+		).toHaveCount(0);
+		await expect(
+			website.page.locator('[role="alert"]').filter({
+				hasText: `Couldn’t save ${activeSite.name} locally`,
+			})
+		).toHaveCount(1);
+		await notice.evaluate(async (element) => {
+			await Promise.all(
+				element.getAnimations().map((animation) => animation.finished)
+			);
+		});
+		const paneAfterFailure = await pane.boundingBox();
+		const noticeBox = await notice.boundingBox();
+		expect(paneAfterFailure).not.toBeNull();
+		expect(paneBeforeFailure).not.toBeNull();
+		expect(noticeBox).not.toBeNull();
+		expect(paneAfterFailure!.x).toBeCloseTo(paneBeforeFailure!.x, 0);
+		expect(paneAfterFailure!.y).toBeCloseTo(paneBeforeFailure!.y, 0);
+		expect(paneAfterFailure!.width).toBeCloseTo(
+			paneBeforeFailure!.width,
+			0
+		);
+		expect(paneAfterFailure!.height).toBeCloseTo(
+			paneBeforeFailure!.height,
+			0
+		);
+		expect(noticeBox!.y + noticeBox!.height).toBeLessThanOrEqual(
+			paneAfterFailure!.y
+		);
+
+		await website.page.keyboard.press('Escape');
+		await expect(pane).not.toBeVisible();
+		await expect(notice).toBeVisible();
+		await notice.evaluate(async (element) => {
+			await Promise.all(
+				element.getAnimations().map((animation) => animation.finished)
+			);
+		});
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		const closedNoticeBox = await notice.boundingBox();
+		const dockBox = await dock.boundingBox();
+		expect(closedNoticeBox).not.toBeNull();
+		expect(dockBox).not.toBeNull();
+		expect(
+			closedNoticeBox!.y + closedNoticeBox!.height
+		).toBeLessThanOrEqual(dockBox!.y);
+		expect(closedNoticeBox!.x + closedNoticeBox!.width / 2).toBeCloseTo(
+			dockBox!.x + dockBox!.width / 2,
+			0
+		);
+
+		await website.openDockPane('Site Settings');
+		const settingsPane = website.page.getByRole('dialog', {
+			name: 'Site Settings pane',
+		});
+		await expect(notice).toBeVisible();
+		await notice.evaluate(async (element) => {
+			await Promise.all(
+				element.getAnimations().map((animation) => animation.finished)
+			);
+		});
+		const settingsPaneBox = await settingsPane.boundingBox();
+		const settingsNoticeBox = await notice.boundingBox();
+		expect(settingsPaneBox).not.toBeNull();
+		expect(settingsNoticeBox).not.toBeNull();
+		expect(
+			settingsNoticeBox!.y + settingsNoticeBox!.height
+		).toBeLessThanOrEqual(settingsPaneBox!.y);
+
+		await website.openDockPane('Playgrounds');
+		await pane
+			.getByRole('button', { name: `Open ${originalSite.name}` })
+			.click();
+		await expect(pane).not.toBeVisible();
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.toMatchObject({ slug: originalSite.slug });
+		await expect(notice).toBeVisible();
+
+		await website.page.setViewportSize({ width: 390, height: 844 });
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					() => window.matchMedia('(max-width: 1024px)').matches
+				)
+			)
+			.toBe(true);
+		await website.openDockPane('Playgrounds');
+		await expect
+			.poll(() => pane.boundingBox())
+			.toMatchObject({
+				x: 0,
+				width: 390,
+			});
+		await expect(notice).toBeVisible();
+		await notice.evaluate(async (element) => {
+			await Promise.all(
+				element.getAnimations().map((animation) => animation.finished)
+			);
+		});
+		const mobileNoticeBox = await notice.boundingBox();
+		const mobileDockBox = await dock.boundingBox();
+		expect(mobileNoticeBox).not.toBeNull();
+		expect(mobileDockBox).not.toBeNull();
+		expect(mobileNoticeBox!.x).toBeGreaterThanOrEqual(12);
+		expect(mobileNoticeBox!.x + mobileNoticeBox!.width).toBeLessThanOrEqual(
+			378
+		);
+		expect(
+			mobileNoticeBox!.y + mobileNoticeBox!.height
+		).toBeLessThanOrEqual(mobileDockBox!.y);
+		await notice
+			.getByRole('button', { name: 'Dismiss operation error' })
+			.click();
+		await expect(notice).toHaveCount(0);
+	});
+
+	test('should reveal a full Playground title only when it is truncated', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		const longName = `A Playground title long enough to be clipped ${'x'.repeat(28)}`;
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('long-title'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+		await website.openDockPane('Playgrounds');
+		const pane = website.page.getByRole('dialog', {
+			name: 'Playgrounds pane',
+		});
+		const shortTitle = pane
+			.locator('span[class*="siteRowName"]')
+			.filter({ hasText: activeSite.name });
+		await expect(shortTitle).toHaveAttribute('tabindex', '-1');
+		await shortTitle.hover();
+		await expect(
+			website.page.getByRole('tooltip', {
+				name: activeSite.name,
+				exact: true,
+			})
+		).toHaveCount(0);
+		await pane
+			.getByRole('button', { name: `Actions for ${activeSite.name}` })
+			.click();
+		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+		const renameInput = pane.getByRole('textbox', {
+			name: 'Rename Playground',
+		});
+		await renameInput.fill(longName);
+		await renameInput.press('Enter');
+		const title = pane
+			.locator('span[class*="siteRowName"]')
+			.filter({ hasText: longName });
+		await expect(title).toBeVisible();
+		expect(
+			await title.evaluate(
+				(element) => element.scrollWidth > element.clientWidth
+			)
+		).toBe(true);
+		await expect(title).toHaveAttribute('tabindex', '0');
+		const tooltip = website.page.getByRole('tooltip', {
+			name: longName,
+			exact: true,
+		});
+		await title.focus();
+		await expect(tooltip).toBeVisible({ timeout: 5000 });
+		await website.page.keyboard.press('Tab');
+		await expect(tooltip).not.toBeVisible({ timeout: 5000 });
+		await title.hover();
+		await expect(tooltip).toBeVisible({ timeout: 5000 });
+	});
+
+	test('should show inline creation tabs in the New pane', async ({
 		website,
 		browserName,
 	}) => {
@@ -1279,52 +2128,361 @@ test.describe('Default Playground storage', () => {
 			browserName !== 'chromium',
 			`Saved-by-default Playgrounds rely on OPFS, which is not available in Playwright's ${browserName}.`
 		);
+		await mockGitHubOAuth(website.page, browserName);
+		await mockGitHubRepositoryAnalysis(website.page);
 
 		await website.goto(
 			getUniqueSavedPlaygroundSetupUrl('creation-actions')
 		);
-		const siteSlugBeforeGitHubImport = new URL(
+		const siteSlugBeforeGitHubTab = new URL(
 			website.page.url()
 		).searchParams.get('site-slug');
-		await website.openSavedPlaygroundsOverlay();
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
 		await expect(
-			website.page.getByRole('button', { name: 'New Playground' })
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', {
-				name: 'Preview a WordPress PR',
+			newPane.getByRole('button', {
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
 			})
 		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', {
-				name: 'Preview a Gutenberg PR',
-			})
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Import from GitHub' })
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', {
-				name: 'Open a Blueprint URL',
-			})
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Import a .zip' })
-		).toBeVisible();
-		await expect(
-			website.page.getByRole('button', { name: 'Unsaved Playground' })
-		).toHaveCount(0);
 
-		await website.page
-			.getByRole('button', { name: 'Import from GitHub' })
-			.click();
-		await expect(
-			website.page.getByRole('dialog', { name: 'Import from GitHub' })
-		).toBeVisible();
-		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			siteSlugBeforeGitHubImport
+		await newPane.locator('#creation-tab-write-own').click();
+		expect(
+			await newPane
+				.getByRole('tablist', {
+					name: 'Ways to start a new Playground',
+				})
+				.evaluate((tablist) => {
+					const pane = tablist.closest('[role="dialog"]')!;
+					const tablistRect = tablist.getBoundingClientRect();
+					const paneRect = pane.getBoundingClientRect();
+					return {
+						leftInset: Math.round(tablistRect.left - paneRect.left),
+						rightInset: Math.round(
+							paneRect.right - tablistRect.right
+						),
+						overflows: tablist.scrollWidth > tablist.clientWidth,
+					};
+				})
+		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
+		const draft = newPane.locator('.cm-content');
+		await expect(draft).toBeFocused({ timeout: 5000 });
+		await draft.fill(
+			JSON.stringify({ landingPage: '/draft-kept/', steps: [] }, null, 2)
 		);
+		await expect(draft).toContainText('draft-kept');
+
+		await website.openDockPane('Database');
+		await website.openDockPane('New Playground');
+		await newPane.locator('#creation-tab-write-own').click();
+		await expect(newPane.locator('.cm-content')).toContainText(
+			'draft-kept'
+		);
+
+		await website.page.keyboard.press('Escape');
+		await website.openDockPane('New Playground');
+		const galleryTab = newPane.locator('#creation-tab-gallery');
+		const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
+		const writeTab = newPane.locator('#creation-tab-write-own');
+		const pullRequestTab = newPane.locator('#creation-tab-pull-request');
+		const githubTab = newPane.locator('#creation-tab-github');
+		await galleryTab.click();
+		await galleryTab.focus();
+		await galleryTab.press('ArrowRight');
+		await expect(blueprintUrlTab).toBeFocused();
+		await blueprintUrlTab.press('ArrowRight');
+		await expect(writeTab).toBeFocused({ timeout: 5000 });
+		await expect(newPane.locator('.cm-content')).not.toBeFocused({
+			timeout: 5000,
+		});
+		await expect(newPane.locator('.cm-content')).toContainText(
+			'draft-kept'
+		);
+		await writeTab.press('ArrowRight');
+		await expect(pullRequestTab).toBeFocused();
+		await pullRequestTab.press('ArrowRight');
+		await expect(githubTab).toBeFocused();
+		await expect(
+			newPane.getByRole('tablist', {
+				name: 'Ways to start a new Playground',
+			})
+		).toBeVisible();
+		await newPane
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		const githubUrlInput = newPane.getByRole('textbox', {
+			name: /I want to import from this GitHub URL/,
+		});
+		await expect(githubUrlInput).toBeVisible();
+
+		await pullRequestTab.click();
+		await expect(
+			newPane.getByRole('heading', { name: 'Preview a pull request' })
+		).toBeVisible();
+		await expect(
+			newPane.getByRole('textbox', {
+				name: 'Pull request URL or number',
+			})
+		).toBeVisible();
+		await expect(
+			newPane.getByRole('button', { name: 'Preview', exact: true })
+		).toBeVisible();
+
+		await githubTab.click();
+		await expect(
+			newPane.getByRole('heading', {
+				name: 'Import from GitHub',
+				level: 3,
+			})
+		).toBeVisible();
+		await expect(
+			newPane.getByRole('tablist', {
+				name: 'Ways to start a new Playground',
+			})
+		).toBeVisible();
+		await expect(githubUrlInput).toBeVisible();
+		await expect(
+			newPane.getByRole('button', { name: 'Continue', exact: true })
+		).toBeVisible();
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Import from GitHub pane',
+			})
+		).toHaveCount(0);
+		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
+			siteSlugBeforeGitHubTab
+		);
+
+		await githubUrlInput.fill(
+			'https://github.com/playground-test/import-source'
+		);
+		await newPane
+			.getByRole('button', { name: 'Continue', exact: true })
+			.click();
+		const githubImportPane = website.page.getByRole('dialog', {
+			name: 'Import from GitHub pane',
+		});
+		await expect(
+			githubImportPane.getByRole('heading', {
+				name: 'Import from GitHub',
+				level: 2,
+			})
+		).toBeVisible();
+		await expect(
+			githubImportPane.getByRole('combobox', {
+				name: 'I am importing a:',
+			})
+		).toBeVisible();
+		const creationBackButton = githubImportPane.getByRole('button', {
+			name: 'Back to the GitHub repository URL',
+		});
+		await expect(creationBackButton).toBeFocused();
+		await creationBackButton.click();
+		await expect(githubUrlInput).toHaveValue(
+			'https://github.com/playground-test/import-source'
+		);
+		await expect(
+			newPane.getByRole('combobox', {
+				name: 'I am importing a:',
+			})
+		).toHaveCount(0);
+		await expect(
+			newPane.getByRole('button', { name: 'Continue', exact: true })
+		).toBeVisible();
+		await expect(githubTab).toBeFocused();
 	});
+
+	test('should open GitHub export as a styled subpanel', async ({
+		website,
+		browserName,
+	}) => {
+		await mockGitHubOAuth(website.page, browserName);
+		await website.goto(
+			'./?storage=temp' +
+				'&ghexport-repo-url=https%3A%2F%2Fgithub.com%2Fowner%2Frepo' +
+				'&ghexport-content-type=wp-content' +
+				'&ghexport-pr-action=create' +
+				'&ghexport-repo-root=%2Fwp-content' +
+				'&ghexport-commit-message=Changes%20from%20Playground'
+		);
+
+		// Open a retained New subpanel first. Switching to Export must hide it,
+		// not stack the two retained panels in one scroll container.
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.locator('#creation-tab-github').click();
+		await website.page
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		const importIntro = website.page.getByText(
+			/You may import WordPress plugins/
+		);
+		await expect(importIntro).toBeVisible();
+
+		await website.openDockPane('Export');
+		const exportOptionsPane = website.page.getByRole('dialog', {
+			name: 'Export pane',
+		});
+		const openGitHubExport = exportOptionsPane.getByRole('button', {
+			name: 'Export to GitHub',
+			exact: true,
+		});
+		await expect(openGitHubExport).toBeEnabled({ timeout: 120000 });
+		await openGitHubExport.click();
+
+		const githubExportPane = website.page.getByRole('dialog', {
+			name: 'Export to GitHub pane',
+		});
+		const heading = githubExportPane.getByRole('heading', {
+			name: 'Export to GitHub',
+			level: 2,
+		});
+		await expect(heading).toBeVisible();
+		await expect(importIntro).not.toBeVisible();
+		const backButton = githubExportPane.getByRole('button', {
+			name: 'Back to export options',
+		});
+		await expect(backButton).toBeVisible();
+
+		const contentType = githubExportPane.getByRole('combobox', {
+			name: 'I am exporting:',
+		});
+		const repoUrl = githubExportPane.getByRole('textbox', {
+			name: /Pull Request to target this GitHub repo/,
+		});
+		const commitMessage = githubExportPane.getByRole('textbox', {
+			name: 'Commit message:',
+		});
+		await expect(contentType).toBeVisible();
+		await expect(repoUrl).toBeVisible();
+		await expect(commitMessage).toBeVisible();
+		await expect(repoUrl).toBeFocused();
+		expect(
+			await contentType.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					borderRadius: style.borderRadius,
+					fontSize: style.fontSize,
+					minHeight: style.minHeight,
+					paddingTop: style.paddingTop,
+				};
+			})
+		).toEqual({
+			borderRadius: '8px',
+			fontSize: '15px',
+			minHeight: '42px',
+			paddingTop: '10px',
+		});
+		const [commitMessageFont, repoUrlFont] = await Promise.all([
+			commitMessage.evaluate(
+				(element) => getComputedStyle(element).fontFamily
+			),
+			repoUrl.evaluate((element) => getComputedStyle(element).fontFamily),
+		]);
+		expect(commitMessageFont).toBe(repoUrlFont);
+
+		const formPanel = githubExportPane.getByRole('region', {
+			name: 'Export to GitHub form',
+		});
+		await expect
+			.poll(() =>
+				formPanel.evaluate(
+					(element) => element.scrollHeight > element.clientHeight
+				)
+			)
+			.toBe(true);
+		const headingTop = await heading.evaluate(
+			(element) => element.getBoundingClientRect().top
+		);
+		await formPanel.hover();
+		await website.page.mouse.wheel(0, 1000);
+		await expect
+			.poll(() => formPanel.evaluate((element) => element.scrollTop))
+			.toBeGreaterThan(0);
+		expect(
+			await heading.evaluate(
+				(element) => element.getBoundingClientRect().top
+			)
+		).toBe(headingTop);
+
+		await backButton.click();
+		await expect(openGitHubExport).toBeFocused();
+		await expect(
+			exportOptionsPane.getByRole('heading', {
+				name: 'Export',
+				level: 2,
+			})
+		).toBeVisible();
+	});
+
+	for (const { name, viewport } of [
+		{ name: 'desktop', viewport: { width: 1280, height: 600 } },
+		{ name: 'mobile', viewport: { width: 320, height: 600 } },
+	]) {
+		test(`should scroll the dedicated GitHub import form on ${name}`, async ({
+			website,
+			browserName,
+		}) => {
+			await website.page.setViewportSize(viewport);
+			await mockGitHubOAuth(website.page, browserName);
+			await mockGitHubRepositoryAnalysis(website.page);
+			await website.goto('./?storage=temp');
+			await website.openDockPane('New Playground');
+			const newPane = website.page.getByRole('dialog', {
+				name: 'New Playground pane',
+			});
+			const githubTab = newPane.locator('#creation-tab-github');
+			await githubTab.click();
+			await newPane
+				.getByRole('link', { name: 'Connect your GitHub account' })
+				.click();
+			await newPane
+				.getByRole('textbox', {
+					name: /I want to import from this GitHub URL/,
+				})
+				.fill('https://github.com/playground-test/import-source');
+			await newPane
+				.getByRole('button', { name: 'Continue', exact: true })
+				.click();
+			const githubImportPane = website.page.getByRole('dialog', {
+				name: 'Import from GitHub pane',
+			});
+			const formPanel = githubImportPane.getByRole('region', {
+				name: 'Import from GitHub',
+			});
+			await formPanel
+				.getByRole('button', { name: 'Need an example?' })
+				.click();
+			await expect
+				.poll(() =>
+					formPanel.evaluate(
+						(element) => element.scrollHeight > element.clientHeight
+					)
+				)
+				.toBe(true);
+			await formPanel.hover();
+			await website.page.mouse.wheel(0, 1000);
+			await expect
+				.poll(() => formPanel.evaluate((element) => element.scrollTop))
+				.toBeGreaterThan(0);
+
+			await githubImportPane
+				.getByRole('button', {
+					name: 'Back to the GitHub repository URL',
+				})
+				.click();
+			await expect(
+				newPane.getByRole('tablist', {
+					name: 'Ways to start a new Playground',
+				})
+			).toBeVisible();
+			await expect(newPane.locator('#creation-tab-github')).toBeFocused();
+		});
+	}
 
 	test('should rename an inactive autosaved Playground without keeping it', async ({
 		website,
@@ -1362,24 +2520,35 @@ test.describe('Default Playground storage', () => {
 			};
 		});
 
-		await website.openSavedPlaygroundsOverlay();
-		const targetRow = website.page
-			.locator('[class*="siteRow"]')
-			.filter({ hasText: setup.targetName })
-			.first();
-		await targetRow.getByRole('button', { name: 'Site actions' }).click();
+		await website.openPlaygroundsPane();
+		const targetRow = website.page.locator(
+			`[data-playground-row="${setup.targetSlug}"]`
+		);
+		await targetRow
+			.getByRole('button', { name: `Actions for ${setup.targetName}` })
+			.click();
 		await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
-		const dialog = website.page.getByRole('dialog', {
+		const nameInput = targetRow.getByRole('textbox', {
 			name: 'Rename Playground',
 		});
 		const newName = `Renamed Recovery ${Date.now()}`;
-		await expect(
-			dialog.getByRole('textbox', { name: /name/i })
-		).toHaveValue(setup.targetName);
-		await dialog.getByRole('textbox', { name: /name/i }).fill(newName);
-		await dialog.getByRole('button', { name: 'Rename' }).click();
-		await expect(dialog).not.toBeVisible();
+		await expect(nameInput).toHaveValue(setup.targetName);
+		await nameInput.fill(newName);
+		await nameInput.press('Enter');
+		await expect(nameInput).not.toBeVisible();
+		await expect
+			.poll(() =>
+				website.page.evaluate(
+					(targetSlug) =>
+						(window as any).playgroundSites
+							.list()
+							.find((site: any) => site.slug === targetSlug)
+							?.name,
+					setup.targetSlug
+				)
+			)
+			.toBe(newName);
 
 		const sitesAfterRename = await website.page.evaluate(
 			({ targetSlug, activeSlug }) => {
@@ -1421,14 +2590,17 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 		const firstSite = await getActivePlaygroundSite(website.page);
 
-		await website.openSavedPlaygroundsOverlay();
+		await website.openDockPane('New Playground');
 		await website.page
-			.getByRole('button', { name: 'New Playground' })
+			.getByRole('button', {
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
+			})
 			.click();
-		const overlay = website.page
-			.locator('[class*="overlay"]')
-			.filter({ hasText: 'Playground' });
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await expect(newPane).not.toBeVisible({ timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -1439,24 +2611,27 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({ timeout: 120000 });
 		const firstBlankSite = await getActivePlaygroundSite(website.page);
 
-		await website.openSavedPlaygroundsOverlay();
+		await website.openDockPane('New Playground');
 		await website.page
-			.getByRole('button', { name: 'New Playground' })
+			.getByRole('button', {
+				name: 'Vanilla WordPress - New Playground',
+				exact: true,
+			})
 			.click();
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect(newPane).not.toBeVisible({ timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
 			})
 			.not.toMatchObject({ slug: firstBlankSite.slug });
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByLabel('Recent autosaved Playground')
 		).toHaveCount(0);
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
 
-		await website.openSavedPlaygroundsOverlay();
+		await website.openPlaygroundsPane();
 		await website.page.evaluate(() => {
 			(window as any).__siteSwitchStatusSamples = [];
 			const sampleStatus = () => {
@@ -1471,7 +2646,7 @@ test.describe('Default Playground storage', () => {
 							'Autosaving',
 							'Saving',
 							'Autosaved',
-							'Saved Playground',
+							'Saved',
 							'Unsaved',
 						].includes(text)
 					);
@@ -1495,10 +2670,15 @@ test.describe('Default Playground storage', () => {
 		});
 		await website.page
 			.getByRole('button', {
-				name: new RegExp(`^${escapeRegExp(firstSite.name)}`),
+				name: `Open ${firstSite.name}`,
+				exact: true,
 			})
 			.click();
-		await expect(overlay).not.toBeVisible({ timeout: 1000 });
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Your Playgrounds pane',
+			})
+		).not.toBeVisible({ timeout: 1000 });
 		await expect
 			.poll(() => getActivePlaygroundSite(website.page), {
 				timeout: 120000,
@@ -1517,7 +2697,7 @@ test.describe('Default Playground storage', () => {
 		).toHaveCount(0);
 	});
 
-	test('should show autosave browser storage details in the Site Manager by default', async ({
+	test('should show autosaved status without an unsaved Site Settings warning', async ({
 		website,
 		browserName,
 	}) => {
@@ -1530,18 +2710,7 @@ test.describe('Default Playground storage', () => {
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(
-			website.page.getByText('Autosaved in this browser')
-		).toBeVisible();
-		await expect(
-			website.page.getByText(
-				'Removed after 5 newer autosaves unless saved.'
-			)
-		).toBeVisible();
-		const siteInfoPanel = website.page.locator(
-			'section[class*="site-info-panel"]'
-		);
-		await expect(
-			siteInfoPanel.getByRole('button', { name: 'Store permanently' })
+			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible();
 		await expect(
 			website.page.getByText(
@@ -1566,18 +2735,18 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(statusButton).toBeVisible({ timeout: 120000 });
 		await statusButton.click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		const dialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
-		await expect(dialog).toBeVisible();
-		await expect(dialog.getByText('Save in this browser')).toBeVisible();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await expect(savePane).toBeVisible();
 		await expect(
-			dialog.getByText('Save to a local directory')
+			savePane.getByText('Save in browser storage')
 		).toBeVisible();
-		await dialog.getByRole('button', { name: 'Save' }).click();
+		await expect(
+			savePane.getByText('Save in a local directory')
+		).toBeVisible();
+		await savePane.getByRole('button', { name: 'Save' }).click();
+		await expect(savePane).not.toBeVisible({ timeout: 120000 });
 
 		await expect
 			.poll(() =>
@@ -1592,7 +2761,9 @@ test.describe('Default Playground storage', () => {
 			website.page.getByText(/Autosaved|Finalizing autosave/)
 		).toHaveCount(0);
 		await expect(
-			website.page.getByText(/Saved Playground|Saving|Finalizing save/)
+			website.page
+				.getByRole('navigation', { name: 'Playground tools' })
+				.getByText('Saved', { exact: true })
 		).toBeVisible();
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -1631,23 +2802,20 @@ test.describe('Default Playground storage', () => {
 		await expect(statusButton).toBeVisible({ timeout: 120000 });
 
 		await statusButton.click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-		const dialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
-		await expect(dialog).toBeVisible();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await expect(savePane).toBeVisible();
 		await expect(
-			dialog.getByText('Save to a local directory (not available)')
+			savePane.getByText('Save in a local directory (not available)')
 		).toHaveCount(0, { timeout: 30000 });
-		await dialog
-			.getByRole('radio', { name: /Save to a local directory/ })
-			.check({ force: true });
-		await dialog.getByRole('button', { name: 'Choose...' }).click();
-		await dialog.getByRole('button', { name: 'Save' }).click();
+		await savePane
+			.getByRole('radio', { name: /Save in a local directory/ })
+			.check();
+		await savePane.getByRole('button', { name: 'Choose...' }).click();
+		await savePane.getByRole('button', { name: 'Save' }).click();
 
-		await expect(dialog).not.toBeVisible({ timeout: 90000 });
+		await expect(savePane).not.toBeVisible({ timeout: 90000 });
 		await expect
 			.poll(() =>
 				website.page.evaluate(() => {
@@ -1660,7 +2828,11 @@ test.describe('Default Playground storage', () => {
 				})
 			)
 			.toEqual({ storage: 'local-fs', persistence: 'explicit' });
-		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect(
+			website.page
+				.getByRole('navigation', { name: 'Playground tools' })
+				.getByRole('button', { name: 'Saved', exact: true })
+		).toBeVisible();
 		expect(
 			await website.page.evaluate(async () => {
 				const directory = (window as any)
@@ -1701,19 +2873,19 @@ test.describe('Default Playground storage', () => {
 
 		await website.page.reload();
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByLabel('Recent autosaved Playground')
 		).toBeVisible();
 		await expect(
-			website.page.getByText(
-				/Another Playground was created .* from the same URL\./
-			)
+			website.page
+				.getByLabel('Recent autosaved Playground')
+				.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
 			website.page.getByRole('button', { name: 'Unsaved' })
 		).toBeVisible();
 		await website.page
-			.getByRole('button', { name: 'Restore Autosave' })
+			.getByRole('button', { name: 'Restore autosave' })
 			.click();
 		await website.waitForNestedIframes();
 		await expect
@@ -1754,7 +2926,7 @@ echo get_option('blogname');
 		const nudge = website.page.getByLabel('Recent autosaved Playground');
 		await expect(nudge).toBeVisible();
 		await nudge
-			.getByRole('button', { name: 'Stop showing autosave prompts' })
+			.getByRole('button', { name: 'Don’t notify me about autosaves' })
 			.click();
 		await expect(nudge).toHaveCount(0);
 		await expect(
@@ -1808,6 +2980,61 @@ echo get_option('blogname');
 			.toMatchObject({ storage: 'opfs', persistence: 'autosave' });
 	});
 
+	test('should keep the mobile restore card inside the viewport and mark Playgrounds', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		await website.page.setViewportSize({ width: 390, height: 844 });
+		const setupUrl = getUniqueSavedPlaygroundSetupUrl('mobile-restore');
+		await website.goto(setupUrl);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+
+		await website.page.goto(setupUrl);
+		const nudge = website.page.getByLabel('Recent autosaved Playground');
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		const playgroundsButton = dock.getByRole('button', {
+			name: /Playgrounds/,
+		});
+		await expect(nudge).toBeVisible();
+		await expect(playgroundsButton).toHaveAccessibleName(
+			'Your Playgrounds — recent autosave available'
+		);
+		await assertRestoreCardGeometry();
+
+		await website.page.setViewportSize({ width: 320, height: 600 });
+		await assertRestoreCardGeometry();
+
+		async function assertRestoreCardGeometry() {
+			const geometry = await website.page.evaluate(() => {
+				const card = document.querySelector<HTMLElement>(
+					'[aria-label="Recent autosaved Playground"]'
+				)!;
+				const cardRect = card.getBoundingClientRect();
+				return {
+					cardTop: cardRect.top,
+					cardLeft: cardRect.left,
+					cardRight: cardRect.right,
+					cardBottom: cardRect.bottom,
+					viewportWidth: window.innerWidth,
+					viewportHeight: window.innerHeight,
+				};
+			});
+			expect(geometry.cardTop).toBeGreaterThanOrEqual(0);
+			expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
+			expect(geometry.cardRight).toBeLessThanOrEqual(
+				geometry.viewportWidth
+			);
+			expect(geometry.cardBottom).toBeLessThanOrEqual(
+				geometry.viewportHeight
+			);
+		}
+	});
+
 	test('should start fresh from a setup URL when an autosave exists', async ({
 		website,
 		browserName,
@@ -1833,7 +3060,7 @@ echo get_option('blogname');
 
 		await website.page.goto(`./?php=8.3&name=${setupName}&cb=cache-buster`);
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByLabel('Recent autosaved Playground')
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -1891,7 +3118,7 @@ echo get_option('blogname');
 							'Autosaving',
 							'Saving',
 							'Autosaved',
-							'Saved Playground',
+							'Saved',
 							'Unsaved',
 						].includes(text)
 					);
@@ -1974,12 +3201,15 @@ echo get_option('blogname');
 		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
 			null
 		);
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		await expect(dock.getByText('Unsaved', { exact: true })).toBeVisible();
+		await expect(dock.getByRole('button', { name: 'Unsaved' })).toHaveCount(
+			0
+		);
 		await expect(
-			website.page.getByRole('button', { name: 'Unsaved' })
-		).toBeVisible();
-		await website.page.getByRole('button', { name: 'Unsaved' }).click();
-		await expect(
-			website.page.getByRole('button', { name: 'Store permanently' })
+			website.page.locator('section[aria-label="Store permanently pane"]')
 		).toHaveCount(0);
 	});
 
@@ -1989,23 +3219,10 @@ echo get_option('blogname');
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsClosed();
 
-		const indicator = website.page.getByRole('button', {
-			name: 'Unsaved',
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
 		});
-		await expect(indicator).toBeVisible();
-		await expect(indicator).toHaveCount(1);
-		await indicator.click();
-		const popoverDescription = website.page.getByText(
-			'This Playground is not stored anywhere. Changes are lost when this page is refreshed or closed.'
-		);
-		await expect(popoverDescription).toBeVisible();
-		await indicator.click();
-		await expect(popoverDescription).toHaveCount(0);
-		await indicator.click();
-		await expect(popoverDescription).toBeVisible();
-		const storePermanentlyButton = website.page.getByRole('button', {
-			name: 'Store permanently',
-		});
+		await expect(dock.getByText('Unsaved', { exact: true })).toBeVisible();
 		const canStorePermanently = await website.page.evaluate(async () => {
 			try {
 				await navigator.storage.getDirectory();
@@ -2014,31 +3231,35 @@ echo get_option('blogname');
 				return Boolean((window as any).showDirectoryPicker);
 			}
 		});
+		const indicator = dock.getByRole('button', { name: 'Unsaved' });
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
 		if (canStorePermanently) {
-			await storePermanentlyButton.click();
-			await expect(
-				website.page.getByRole('dialog', { name: 'Save Playground' })
-			).toBeVisible();
+			await expect(indicator).toBeVisible();
+			await indicator.click();
+			await expect(savePane).toBeVisible();
 		} else {
-			await expect(storePermanentlyButton).toHaveCount(0);
+			await expect(indicator).toHaveCount(0);
+			await expect(savePane).toHaveCount(0);
 		}
 		expect(new URL(website.page.url()).searchParams.get('storage')).toBe(
 			'temp'
 		);
 	});
 
-	test('should see save playground message in the Site Manager for storage=temp Playgrounds', async ({
+	test('should not duplicate the unsaved warning in Site Settings', async ({
 		website,
 	}) => {
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
 
-		const indicator = website.page.getByText(
-			'This is an Unsaved Playground. Your changes will be lost on page refresh.'
-		);
-
-		await expect(indicator).toBeVisible();
-		await expect(indicator).toHaveCount(1);
+		await expect(website.page.getByLabel('PHP version')).toBeVisible();
+		await expect(
+			website.page.getByText(
+				'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+			)
+		).toHaveCount(0);
 	});
 
 	test('should not show "Unsaved" status when "can-save=no" is set', async ({
@@ -2051,6 +3272,11 @@ echo get_option('blogname');
 			name: 'Unsaved',
 		});
 		await expect(indicator).toHaveCount(0);
+		await expect(
+			website.page
+				.getByRole('navigation', { name: 'Playground tools' })
+				.getByText('Unsaved', { exact: true })
+		).toHaveCount(0);
 	});
 
 	test('should not see save playground message in the Site Manager when "can-save=no" is set', async ({
@@ -2096,7 +3322,9 @@ echo get_option('blogname');
 			'iframe[title="Embedded Playground test"]'
 		);
 		await expect(
-			playgroundFrame.getByRole('button', { name: /Site Manager/ })
+			playgroundFrame.getByRole('navigation', {
+				name: 'Playground tools',
+			})
 		).toBeVisible();
 
 		await expect(
@@ -2129,22 +3357,18 @@ echo get_option('blogname');
 
 		await website.goto(setupUrl);
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByLabel('Recent autosaved Playground')
 		).toBeVisible();
 
 		// Regression: saving the temporary Playground before answering the
 		// restore nudge must not be undone when the nudge is dismissed.
 		await website.page.getByRole('button', { name: 'Unsaved' }).click();
-		await website.page
-			.getByRole('button', { name: 'Store permanently' })
-			.click();
-
-		const saveDialog = website.page.getByRole('dialog', {
-			name: 'Save Playground',
-		});
-		await expect(saveDialog).toBeVisible();
-		await saveDialog.getByRole('button', { name: 'Save' }).click();
-		await expect(saveDialog).not.toBeVisible({ timeout: 120000 });
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await expect(savePane).toBeVisible();
+		await savePane.getByRole('button', { name: 'Save' }).click();
+		await expect(savePane).not.toBeVisible({ timeout: 120000 });
 		await website.page.waitForFunction(() => {
 			const api = (window as any).playgroundSites;
 			const activeSite = api?.list().find((site: any) => site.isActive);
@@ -2163,9 +3387,13 @@ echo get_option('blogname');
 			await keepNewButton.click();
 		}
 		await expect(
-			website.page.getByText('Recent autosave available')
+			website.page.getByLabel('Recent autosaved Playground')
 		).toHaveCount(0);
-		await expect(website.page.getByText('Saved Playground')).toBeVisible();
+		await expect(
+			website.page
+				.getByRole('navigation', { name: 'Playground tools' })
+				.getByText('Saved', { exact: true })
+		).toBeVisible();
 		await website.page.waitForFunction(() => {
 			const api = (window as any).playgroundSites;
 			const activeSite = api?.list().find((site: any) => site.isActive);

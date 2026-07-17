@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
+import calloutCss from '../dock-callout.module.css';
 import classNames from 'classnames';
 import {
 	useAppSelector,
@@ -8,12 +9,18 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import {
-	modalSlugs,
-	setActiveModal,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Popover } from '@wordpress/components';
-import { backup, check, cautionFilled } from '@wordpress/icons';
+import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
+import {
+	check,
+	cautionFilled,
+	chevronDown,
+	close,
+	wordpress,
+} from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -22,21 +29,36 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
+import { logger } from '@php-wasm/logger';
+import { Spinner } from '../spinner';
 
-type SaveStatus = 'saved' | 'autosaved' | 'unsaved' | 'saving' | 'error';
+type SaveStatus =
+	| 'saved'
+	| 'autosaved'
+	| 'unsaved'
+	| 'saving'
+	| 'loading'
+	| 'error';
 type SyncOperation = 'save' | 'autosave';
 
-export function SaveStatusIndicator() {
+/**
+ * Compact persistence status for the Dock. The actionable states (autosaved,
+ * unsaved, error) open the save surface directly on click, with the explanation
+ * carried by a hover/focus tooltip rather than an extra explain-then-act popover.
+ */
+export function SaveStatusIndicator({
+	disabled = false,
+}: {
+	disabled?: boolean;
+}) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const statusButtonRef = useRef<HTMLButtonElement>(null);
-	const suppressNextTriggerClickRef = useRef(false);
 	const previousStatusRef = useRef<{
 		status: SaveStatus | undefined;
 		siteSlug: string | undefined;
 	}>();
-	const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -46,6 +68,7 @@ export function SaveStatusIndicator() {
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
+	const isLocalFs = activeSite?.metadata.storage === 'local-fs';
 
 	useEffect(() => {
 		const previousStatus = previousStatusRef.current;
@@ -90,93 +113,184 @@ export function SaveStatusIndicator() {
 		</>
 	);
 
-	const openSaveModal = () => {
-		setIsPopoverOpen(false);
-		dispatch(setSiteSlugToSave(activeSite?.slug));
-		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
-	};
-
-	const handleTriggerMouseDown = (
-		event: React.MouseEvent<HTMLButtonElement>
-	) => {
-		if (!isPopoverOpen) {
+	const openStorePermanently = () => {
+		if (disabled) {
 			return;
 		}
-		// Closing on mousedown keeps the popover from immediately reopening
-		// on the same click event that follows.
-		event.preventDefault();
-		event.stopPropagation();
-		suppressNextTriggerClickRef.current = true;
-		setIsPopoverOpen(false);
+		// The status always acts on the active Playground, not an inactive site
+		// that may have opened the standalone save modal earlier.
+		dispatch(setSiteSlugToSave(undefined));
+		dispatch(setDockPaneSection('save'));
+		dispatch(setDockPaneOpen(true));
 	};
 
-	const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-		event.stopPropagation();
-		if (suppressNextTriggerClickRef.current) {
-			suppressNextTriggerClickRef.current = false;
+	// Re-reads the linked local directory into the running Playground so edits
+	// made to the files on disk (outside Playground) show up. Re-mounts OPFS with
+	// an opfs-to-memfs sync, then reloads the page to reflect the new files.
+	const reloadFilesFromDisk = async () => {
+		const client = clientInfo?.client;
+		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
+		const url = clientInfo?.url;
+		if (!client || !opfsMountDescriptor || !url) {
 			return;
 		}
-		setIsPopoverOpen((isOpen) => !isOpen);
+		setIsReloadingFromDisk(true);
+		try {
+			const docroot = await client.documentRoot;
+			await client.unmountOpfs(docroot);
+			await client.mountOpfs({
+				device: opfsMountDescriptor.device,
+				mountpoint: docroot,
+				initialSyncDirection: 'opfs-to-memfs',
+			});
+			await client.goTo(url);
+		} catch (error) {
+			logger.error(
+				'Error reloading files from the local directory.',
+				error
+			);
+		} finally {
+			setIsReloadingFromDisk(false);
+		}
 	};
 
 	if (!status) {
 		return null;
 	}
 
-	if (status === 'saved') {
+	if (status === 'loading') {
+		// The runtime hasn't connected yet — a calm spinner instead of a
+		// premature "Autosaved"/"Saved" claim. Not actionable while loading.
 		return withStatusAnnouncement(
-			<div className={classNames(css.indicator, css.saved)}>
+			<div className={classNames(css.indicator, css.loading)}>
+				<Spinner size={16} />
+				<span className={css.label}>Loading…</span>
+			</div>
+		);
+	}
+
+	if (status === 'saved') {
+		// Local-directory Playgrounds fold their one extra action — re-reading
+		// files edited on disk outside Playground — into the status itself, so
+		// the dock shows a single "Saved" control instead of a status chip plus
+		// a separate, unclear "Sync local files" button.
+		if (isLocalFs) {
+			return withStatusAnnouncement(
+				<Dropdown
+					popoverProps={{
+						placement: 'top',
+						shift: true,
+						noArrow: false,
+						className: classNames(
+							calloutCss.popover,
+							css.savedMenuPopover
+						),
+					}}
+					renderToggle={({ isOpen, onToggle }) => (
+						<button
+							type="button"
+							className={classNames(
+								css.indicator,
+								css.saved,
+								css.actionable
+							)}
+							onClick={onToggle}
+							disabled={disabled}
+							aria-expanded={isOpen}
+							aria-haspopup="dialog"
+							title="Saved to a local directory."
+						>
+							<Icon icon={check} size={18} />
+							<span className={css.label}>Saved</span>
+							<Icon icon={chevronDown} size={16} />
+						</button>
+					)}
+					renderContent={({ onClose }) => (
+						<aside
+							className={calloutCss.card}
+							role="dialog"
+							aria-label="Local directory save status"
+						>
+							<div className={calloutCss.header}>
+								<div className={calloutCss.eyebrow}>
+									Local directory
+								</div>
+								<Button
+									className={calloutCss.dismiss}
+									icon={close}
+									label="Close local directory status"
+									onClick={onClose}
+								/>
+							</div>
+							<div className={calloutCss.identity}>
+								<span
+									className={calloutCss.avatar}
+									aria-hidden="true"
+								>
+									<Icon icon={wordpress} size={28} />
+								</span>
+								<div className={calloutCss.identityCopy}>
+									<div className={calloutCss.identityTitle}>
+										{activeSite?.metadata.name}
+									</div>
+									<div className={calloutCss.identityMeta}>
+										Saved directly to the linked folder
+									</div>
+								</div>
+							</div>
+							<Button
+								variant="primary"
+								className={calloutCss.primaryAction}
+								disabled={disabled || isReloadingFromDisk}
+								isBusy={isReloadingFromDisk}
+								onClick={async () => {
+									await reloadFilesFromDisk();
+									onClose();
+								}}
+							>
+								{isReloadingFromDisk
+									? 'Reloading…'
+									: 'Reload files from disk'}
+							</Button>
+							<p className={calloutCss.hint}>
+								Reload to pick up edits made to the folder
+								outside Playground.
+							</p>
+						</aside>
+					)}
+				/>
+			);
+		}
+		return withStatusAnnouncement(
+			<div
+				className={classNames(css.indicator, css.saved)}
+				title="Stored permanently in this browser."
+			>
 				<Icon icon={check} size={18} />
-				<span className={css.label}>Saved Playground</span>
+				<span className={css.label}>Saved</span>
 			</div>
 		);
 	}
 
 	if (status === 'autosaved') {
 		return withStatusAnnouncement(
-			<>
+			<Tooltip
+				text={`Recent autosave — deleted after ${MAX_AUTOSAVED_SITES} newer autosaves. Click to store it permanently.`}
+				placement="top"
+			>
 				<button
-					ref={statusButtonRef}
 					className={classNames(
 						css.indicator,
 						css.autosaved,
 						css.actionable
 					)}
-					onMouseDown={handleTriggerMouseDown}
-					onClick={handleTriggerClick}
-					aria-expanded={isPopoverOpen}
+					onClick={openStorePermanently}
 					type="button"
+					disabled={disabled}
 				>
-					<Icon icon={backup} size={18} />
 					<span className={css.label}>Autosaved</span>
 				</button>
-				{isPopoverOpen && (
-					<Popover
-						placement="bottom-end"
-						onClose={() => setIsPopoverOpen(false)}
-						anchor={statusButtonRef.current}
-						focusOnMount="firstElement"
-						className={css.popover}
-					>
-						<div className={css.popoverContent}>
-							<div className={css.popoverTitle}>Autosaved</div>
-							<p className={css.popoverDescription}>
-								This Playground is saved in this browser with
-								your recent autosaves. It will be deleted after{' '}
-								{MAX_AUTOSAVED_SITES} newer autosaves unless you
-								store it in this browser or a local directory.
-							</p>
-							<button
-								className={css.primaryAction}
-								onClick={openSaveModal}
-								type="button"
-							>
-								Store permanently
-							</button>
-						</div>
-					</Popover>
-				)}
-			</>
+			</Tooltip>
 		);
 	}
 
@@ -216,63 +330,55 @@ export function SaveStatusIndicator() {
 
 	if (status === 'error') {
 		return withStatusAnnouncement(
-			<button
-				className={classNames(css.indicator, css.error)}
-				onClick={openSaveModal}
-				type="button"
+			<Tooltip text="Saving failed. Click to try again." placement="top">
+				<button
+					className={classNames(css.indicator, css.error)}
+					onClick={openStorePermanently}
+					type="button"
+					disabled={disabled}
+				>
+					<Icon icon={cautionFilled} size={18} />
+					<span className={css.label}>
+						{getFailedSyncLabel(syncOperation)}
+					</span>
+				</button>
+			</Tooltip>
+		);
+	}
+
+	// Unsaved. When permanent storage is available, clicking stores it; when it
+	// isn't, there is no action to offer, so it reads as plain status text.
+	if (canStorePermanently) {
+		return withStatusAnnouncement(
+			<Tooltip
+				text="Temporary Playground — everything is lost on refresh. Click to store it permanently."
+				placement="top"
 			>
-				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>
-					{getFailedSyncLabel(syncOperation)}
-				</span>
-			</button>
+				<button
+					className={classNames(
+						css.indicator,
+						css.unsaved,
+						css.actionable
+					)}
+					onClick={openStorePermanently}
+					type="button"
+					disabled={disabled}
+				>
+					<Icon icon={cautionFilled} size={18} />
+					<span className={css.label}>Unsaved</span>
+				</button>
+			</Tooltip>
 		);
 	}
 
 	return withStatusAnnouncement(
-		<>
-			<button
-				ref={statusButtonRef}
-				className={classNames(
-					css.indicator,
-					css.unsaved,
-					css.actionable
-				)}
-				onMouseDown={handleTriggerMouseDown}
-				onClick={handleTriggerClick}
-				aria-expanded={isPopoverOpen}
-				type="button"
-			>
-				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>Unsaved</span>
-			</button>
-			{isPopoverOpen && (
-				<Popover
-					placement="bottom-end"
-					onClose={() => setIsPopoverOpen(false)}
-					anchor={statusButtonRef.current}
-					focusOnMount="firstElement"
-					className={css.popover}
-				>
-					<div className={css.popoverContent}>
-						<div className={css.popoverTitle}>Unsaved</div>
-						<p className={css.popoverDescription}>
-							This Playground is not stored anywhere. Changes are
-							lost when this page is refreshed or closed.
-						</p>
-						{canStorePermanently && (
-							<button
-								className={css.primaryAction}
-								onClick={openSaveModal}
-								type="button"
-							>
-								Store permanently
-							</button>
-						)}
-					</div>
-				</Popover>
-			)}
-		</>
+		<div
+			className={classNames(css.indicator, css.unsaved)}
+			title="Temporary Playground — lost on refresh. Saving is unavailable in this browser."
+		>
+			<Icon icon={cautionFilled} size={18} />
+			<span className={css.label}>Unsaved</span>
+		</div>
 	);
 }
 
@@ -323,8 +429,10 @@ function getStatusAnnouncement({
 /**
  * Collapses site storage and OPFS sync state into one browser-chrome status.
  *
- * A newly-created OPFS site has saved metadata before its iframe client exists,
- * so `initialOpfsSyncPending` must still render as an in-progress save.
+ * A stored Playground whose iframe client hasn't connected yet is still loading,
+ * so it reads as 'loading' rather than claiming a settled "Saved"/"Autosaved" —
+ * the runtime isn't up and nothing is being persisted yet. 'saving' is reserved
+ * for an actual OPFS sync in progress (which only happens once connected).
  */
 function getSaveStatus(
 	site: SiteInfo | undefined,
@@ -338,15 +446,17 @@ function getSaveStatus(
 	if (opfsSync?.status === 'error') {
 		return 'error';
 	}
-	if (
-		opfsSync?.status === 'syncing' ||
-		(!clientInfo && site.metadata.initialOpfsSyncPending)
-	) {
+	if (opfsSync?.status === 'syncing') {
 		return 'saving';
 	}
 	const storage = site?.metadata.storage;
 	if (storage === 'none' || !storage) {
 		return 'unsaved';
+	}
+	// A stored Playground whose runtime hasn't connected yet is still loading —
+	// don't claim it's "Saved"/"Autosaved" until it's actually up.
+	if (!clientInfo) {
+		return 'loading';
 	}
 	if (isAutosaved) {
 		return 'autosaved';
@@ -355,8 +465,6 @@ function getSaveStatus(
 }
 
 /**
- * Uses the sync operation when it is known, then falls back to site lifecycle.
- *
  * `initialOpfsSyncPending` alone is not enough to mean "autosaving": explicit
  * browser saves also do their first MEMFS-to-OPFS sync after boot. Known
  * autosaved Playgrounds keep the completed-state label while the pending OPFS
@@ -399,9 +507,7 @@ function getFailedSyncLabel(syncOperation: SyncOperation) {
 	return syncOperation === 'autosave' ? 'Autosave failed' : 'Save failed';
 }
 
-/**
- * Turns OPFS file-count progress into the bounded percentage used by the ring.
- */
+/** Turns OPFS file-count progress into the bounded percentage used by the ring. */
 function getProgressPercent(
 	progress: Extract<OpfsSync, { status: 'syncing' }>['progress']
 ) {

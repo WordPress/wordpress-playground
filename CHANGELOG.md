@@ -4,6 +4,170 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.45] (2026-07-16) 
+
+### Enhancements
+
+- [Website] Add a file editor end-to-end test harness. ([#3978](https://github.com/WordPress/wordpress-playground/pull/3978))
+
+### Blueprints
+
+- Add compiler support for more v2 data declarations. ([#3967](https://github.com/WordPress/wordpress-playground/pull/3967))
+- Add runtime coverage for supported v2 declarations. ([#3968](https://github.com/WordPress/wordpress-playground/pull/3968))
+- Add runtime tests for v2 post imports and post types. ([#3982](https://github.com/WordPress/wordpress-playground/pull/3982))
+- Align Blueprint v2 schema types. ([#3932](https://github.com/WordPress/wordpress-playground/pull/3932))
+- Compile Blueprint v2 declarations from raw JSON. ([#3933](https://github.com/WordPress/wordpress-playground/pull/3933))
+- Execute every v2 schema variant in CI. ([#4014](https://github.com/WordPress/wordpress-playground/pull/4014))
+- Ignore credential rewrites in git resource test. ([#3941](https://github.com/WordPress/wordpress-playground/pull/3941))
+- Import nested WordPress file ZIPs. ([#3986](https://github.com/WordPress/wordpress-playground/pull/3986))
+- Lower Blueprint v2 mysql-dump content to runSql. ([#3944](https://github.com/WordPress/wordpress-playground/pull/3944))
+- Lower more Blueprint v2 declarations to v1 steps. ([#3949](https://github.com/WordPress/wordpress-playground/pull/3949))
+- Point unsupported v2 execution errors at declaration fields. ([#3940](https://github.com/WordPress/wordpress-playground/pull/3940))
+- Reject malformed v2 declarations before runtime setup. ([#3998](https://github.com/WordPress/wordpress-playground/pull/3998))
+- Report progress for v2 compiler steps. ([#3970](https://github.com/WordPress/wordpress-playground/pull/3970))
+- Support Blueprint v2 runSQL steps. ([#3943](https://github.com/WordPress/wordpress-playground/pull/3943))
+- Support v2 WXR URL maps. ([#3974](https://github.com/WordPress/wordpress-playground/pull/3974))
+- Support v2 WXR author options. ([#3975](https://github.com/WordPress/wordpress-playground/pull/3975))
+- Test v2 login, language, mu-plugins, fonts, SQL, and PHP. ([#4002](https://github.com/WordPress/wordpress-playground/pull/4002))
+
+### Tools
+
+
+#### Website
+
+- [Website] Reuse FilePickerTree imports in the shared explorer. ([#3973](https://github.com/WordPress/wordpress-playground/pull/3973))
+
+### Documentation
+
+- [docs] Adding manifest.json for handbook structure. ([#3267](https://github.com/WordPress/wordpress-playground/pull/3267))
+
+### PHP WebAssembly
+
+- [CLI] Accept Blueprint v2 modes without an experimental flag. ([#3993](https://github.com/WordPress/wordpress-playground/pull/3993))
+- Wire SMTP sink into PHP runtimes. ([#3955](https://github.com/WordPress/wordpress-playground/pull/3955))
+- [CLI] Remove process.exit() from library APIs. ([#3478](https://github.com/WordPress/wordpress-playground/pull/3478))
+- [PHP-WASM] Add per-command spawn handlers. ([#3995](https://github.com/WordPress/wordpress-playground/pull/3995))
+- [PHP-WASM] Close child stdin when proc_open omits descriptor 0. ([#4055](https://github.com/WordPress/wordpress-playground/pull/4055))
+- [PHP-WASM] Expose sendmail stdin as a live event stream. ([#3996](https://github.com/WordPress/wordpress-playground/pull/3996))
+- [PHP-WASM] Route PHP popen through wasm wrappers. ([#3951](https://github.com/WordPress/wordpress-playground/pull/3951))
+- [PHP-WASM] Transfer event stdin streams across workers. ([#4060](https://github.com/WordPress/wordpress-playground/pull/4060))
+- [PHP-WASM] Transfer marked event stdin streams to every listener. ([#4064](https://github.com/WordPress/wordpress-playground/pull/4064))
+- [PHP] Harden file writes and directory mounts. ([#3917](https://github.com/WordPress/wordpress-playground/pull/3917))
+- [PHP] Keep OPFS mounts attached when final journal flushes fail. ([#4003](https://github.com/WordPress/wordpress-playground/pull/4003))
+- [PHP] Normalize ZIP entries in unzipFile(). ([#3923](https://github.com/WordPress/wordpress-playground/pull/3923))
+
+#### Blueprints
+
+- [Blueprints] Add native Blueprint v2 CLI flow. ([#3915](https://github.com/WordPress/wordpress-playground/pull/3915))
+- [Blueprints] Default v2 network access to disabled. ([#3983](https://github.com/WordPress/wordpress-playground/pull/3983))
+- [Blueprints] Expand v2 with WP-less installs, baseline content policy, site resources, and multisite. ([#4026](https://github.com/WordPress/wordpress-playground/pull/4026))
+- [Blueprints] Load v2 WordPress data-reference sources. ([#4005](https://github.com/WordPress/wordpress-playground/pull/4005))
+- [Blueprints] Resolve v2 runtime WordPress versions. ([#3987](https://github.com/WordPress/wordpress-playground/pull/3987))
+- [Blueprints] Stop shipping the PHP v2 runner. ([#4011](https://github.com/WordPress/wordpress-playground/pull/4011))
+- [Blueprints] Stop using v2 WordPress max bounds as archive names. ([#3992](https://github.com/WordPress/wordpress-playground/pull/3992))
+- [Blueprints] Test v2 runtime entry points. ([#3985](https://github.com/WordPress/wordpress-playground/pull/3985))
+
+#### Website
+
+- [Blueprints] Remove v2 experimental compatibility aliases. ([#4007](https://github.com/WordPress/wordpress-playground/pull/4007))
+- [CLI] Add concurrent SQLite publish regression test. ([#3920](https://github.com/WordPress/wordpress-playground/pull/3920))
+- [PHP] Add streaming tar.zst WordPress bundle extraction. ([#3925](https://github.com/WordPress/wordpress-playground/pull/3925))
+
+### Website
+
+- Hide database tools until Playground is ready. ([#4076](https://github.com/WordPress/wordpress-playground/pull/4076))
+- API for exporting saved OPFS Playground files as ZIP. ([#3959](https://github.com/WordPress/wordpress-playground/pull/3959))
+- Add Blueprint bundle resource path helper. ([#3966](https://github.com/WordPress/wordpress-playground/pull/3966))
+- Add an inert state and listbox navigation to the address bar. ([#4058](https://github.com/WordPress/wordpress-playground/pull/4058))
+- Add reusable Playground export panel. ([#4041](https://github.com/WordPress/wordpress-playground/pull/4041))
+- Add reusable Playground management and creation panels. ([#4040](https://github.com/WordPress/wordpress-playground/pull/4040))
+- Add reusable dock pane primitives. ([#3961](https://github.com/WordPress/wordpress-playground/pull/3961))
+- Animate the entire Dock pane when closing. ([#4066](https://github.com/WordPress/wordpress-playground/pull/4066))
+- Autosave after dismissing restore prompts. ([#4035](https://github.com/WordPress/wordpress-playground/pull/4035))
+- Center the Playground file-loading message. ([#4072](https://github.com/WordPress/wordpress-playground/pull/4072))
+- Center the modal loading spinner over the page. ([#4050](https://github.com/WordPress/wordpress-playground/pull/4050))
+- Create blueprint.json for editable Blueprints that have none. ([#4052](https://github.com/WordPress/wordpress-playground/pull/4052))
+- Create stored Playgrounds from URLs or bundles. ([#4025](https://github.com/WordPress/wordpress-playground/pull/4025))
+- Define Dock pane and notice positioning. ([#4056](https://github.com/WordPress/wordpress-playground/pull/4056))
+- Define mysqli stub before custom db.php guard. ([#3592](https://github.com/WordPress/wordpress-playground/pull/3592))
+- Delay autosave nudge until dismissal can save the new Playground. ([#3823](https://github.com/WordPress/wordpress-playground/pull/3823))
+- Detect incomplete OPFS saves before boot. ([#3962](https://github.com/WordPress/wordpress-playground/pull/3962))
+- Extract saved Playground state helpers. ([#3989](https://github.com/WordPress/wordpress-playground/pull/3989))
+- Keep Adminer and phpMyAdmin checks on their related Playground and show download errors. ([#4049](https://github.com/WordPress/wordpress-playground/pull/4049))
+- Keep autosave progress out of live announcements. ([#3817](https://github.com/WordPress/wordpress-playground/pull/3817))
+- Keep pending file edits with their filesystem owner. ([#4008](https://github.com/WordPress/wordpress-playground/pull/4008))
+- Keep the Dock corner launcher clickable after dragging. ([#4059](https://github.com/WordPress/wordpress-playground/pull/4059))
+- Keep the current WordPress version in the settings dropdown. ([#4051](https://github.com/WordPress/wordpress-playground/pull/4051))
+- Let Dock buttons be disabled and pane subtitles contain links. ([#4054](https://github.com/WordPress/wordpress-playground/pull/4054))
+- Let the Blueprint editor show Dock controls. ([#4053](https://github.com/WordPress/wordpress-playground/pull/4053))
+- Let the Playground save form render inside a Dock pane. ([#4043](https://github.com/WordPress/wordpress-playground/pull/4043))
+- Mark Playground as persisted in the Redux store only after it is actually persisted. ([#3960](https://github.com/WordPress/wordpress-playground/pull/3960))
+- Match the Blueprint URL export item height. ([#4074](https://github.com/WordPress/wordpress-playground/pull/4074))
+- Move Playground tools into the bottom Dock. ([#4009](https://github.com/WordPress/wordpress-playground/pull/4009))
+- Parse GitHub inputs before import, export, and preview. ([#3945](https://github.com/WordPress/wordpress-playground/pull/3945))
+- Persist the Dock full-width preference. ([#4046](https://github.com/WordPress/wordpress-playground/pull/4046))
+- Preserve stored boot settings when modifying settings of an autosaved Playground. ([#3772](https://github.com/WordPress/wordpress-playground/pull/3772))
+- Push GitHub export updates to pull request head branches. ([#3948](https://github.com/WordPress/wordpress-playground/pull/3948))
+- Put the Blueprint URL export hint inside the disabled item. ([#4070](https://github.com/WordPress/wordpress-playground/pull/4070))
+- Read SQLite size without copying its contents. ([#4033](https://github.com/WordPress/wordpress-playground/pull/4033))
+- Refine PWA launches on iOS. ([#3742](https://github.com/WordPress/wordpress-playground/pull/3742))
+- Remove obsolete Site Manager UI scaffolding. ([#4078](https://github.com/WordPress/wordpress-playground/pull/4078))
+- Remove same-site autosave recreation API. ([#4069](https://github.com/WordPress/wordpress-playground/pull/4069))
+- Rename Site Settings and defer settings action choices. ([#4071](https://github.com/WordPress/wordpress-playground/pull/4071))
+- Render Playground logs as escaped text. ([#4031](https://github.com/WordPress/wordpress-playground/pull/4031))
+- Reuse GitHub import details in the export form. ([#4045](https://github.com/WordPress/wordpress-playground/pull/4045))
+- Run edited Blueprints in fresh Playgrounds. ([#4067](https://github.com/WordPress/wordpress-playground/pull/4067))
+- Save pending Blueprint edits before Run. ([#4022](https://github.com/WordPress/wordpress-playground/pull/4022))
+- Separate Site Manager tool panels from its header. ([#4057](https://github.com/WordPress/wordpress-playground/pull/4057))
+- Separate in-place and fresh-site settings actions. ([#4034](https://github.com/WordPress/wordpress-playground/pull/4034))
+- Show Playground names in the startup progress bar. ([#4029](https://github.com/WordPress/wordpress-playground/pull/4029))
+- Show export text in the GitHub login prompt. ([#4048](https://github.com/WordPress/wordpress-playground/pull/4048))
+- Show the current boot stage in startup progress. ([#4062](https://github.com/WordPress/wordpress-playground/pull/4062))
+- Stop booting interrupted browser-stored Playground saves. ([#3787](https://github.com/WordPress/wordpress-playground/pull/3787))
+- Stop default WordPress tests from checking version classes. ([#3984](https://github.com/WordPress/wordpress-playground/pull/3984))
+- Store setup params in OPFS site metadata. ([#3958](https://github.com/WordPress/wordpress-playground/pull/3958))
+- Use graphite icons for dock pane actions. ([#4068](https://github.com/WordPress/wordpress-playground/pull/4068))
+- Use the shared file explorer in the Blueprint editor. ([#3990](https://github.com/WordPress/wordpress-playground/pull/3990))
+- Wrap YouHaveAutosaveNudge with RecentAutosaveNudge context for Dock. ([#4047](https://github.com/WordPress/wordpress-playground/pull/4047))
+- [Blueprints] Support v2 in the browser without ?experimental-blueprints-v2-runner=yes. ([#3997](https://github.com/WordPress/wordpress-playground/pull/3997))
+- [Dock UI] Add dock tabs and pane state primitives. ([#3988](https://github.com/WordPress/wordpress-playground/pull/3988))
+- [PHP] Add streaming tar parser for WordPress bundles. ([#3926](https://github.com/WordPress/wordpress-playground/pull/3926))
+- [PHP] Add zstd decoder stream for tar bundles. ([#3927](https://github.com/WordPress/wordpress-playground/pull/3927))
+- [PHP] Preserve empty directories in tar.zst core bundles. ([#3972](https://github.com/WordPress/wordpress-playground/pull/3972))
+- [PHP] Remove redundant static ZIP from core bundles. ([#3916](https://github.com/WordPress/wordpress-playground/pull/3916))
+- [PHP] Replace WordPress core bundles with tar.zst. ([#3919](https://github.com/WordPress/wordpress-playground/pull/3919))
+- [Web] Capture sendmail stdin in remote Playground instances. ([#4063](https://github.com/WordPress/wordpress-playground/pull/4063))
+
+#### Blueprints
+
+- Keep ZIP imports running during overlay close attempts. ([#3979](https://github.com/WordPress/wordpress-playground/pull/3979))
+- Report Blueprint v2 analytics events. ([#4006](https://github.com/WordPress/wordpress-playground/pull/4006))
+- [Blueprints] Publish v2 in the Blueprint schema. ([#3999](https://github.com/WordPress/wordpress-playground/pull/3999))
+
+### Internal
+
+- [CI] Disable unrelated Microsoft apt feeds before runner dependency installs. ([#3931](https://github.com/WordPress/wordpress-playground/pull/3931))
+- [CI] Schedule asset refreshes before weekly deploy. ([#4065](https://github.com/WordPress/wordpress-playground/pull/4065))
+- [PHP] Add path containment resolver. ([#3921](https://github.com/WordPress/wordpress-playground/pull/3921))
+
+### Bug Fixes
+
+- [CI] Fix NPM package publishing error. ([#4079](https://github.com/WordPress/wordpress-playground/pull/4079))
+
+### Various
+
+- [PHP] Expose more metadata about each WordPress zip bundle. ([#3924](https://github.com/WordPress/wordpress-playground/pull/3924))
+- [Web] Harden remote access relay signals. ([#3922](https://github.com/WordPress/wordpress-playground/pull/3922))
+- [Website] Add an opt-in Dock presentation to the file editor. ([#4042](https://github.com/WordPress/wordpress-playground/pull/4042))
+- [Website] Bound file editor inline reads. ([#3980](https://github.com/WordPress/wordpress-playground/pull/3980))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @bgrgicak @brandonpayton @fellyph @gcsecsey
+
+
 ## [v3.1.44] (2026-07-06) 
 
 ### Blueprints
