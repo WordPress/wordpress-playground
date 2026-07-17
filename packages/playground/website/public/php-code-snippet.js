@@ -1067,7 +1067,14 @@ function readScriptPayload(script) {
 		return dedentLeading(payload);
 	}
 
-	const decoded = JSON.parse(payload);
+	let decoded;
+	try {
+		decoded = JSON.parse(payload);
+	} catch (err) {
+		throw new SyntaxError(
+			`<script type="${script.type}"> contains invalid JSON: ${err.message}`
+		);
+	}
 	if (typeof decoded !== 'string') {
 		throw new TypeError(
 			`<script type="${script.type}"> JSON payload must decode to a string.`
