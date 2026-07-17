@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@wordpress/components';
+import classNames from 'classnames';
+import { Button, Icon, Popover } from '@wordpress/components';
+import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
@@ -34,7 +37,10 @@ import {
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
 import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
-import { RecentAutosaveNudgeProvider } from './recent-autosave-nudge-context';
+import {
+	RecentAutosaveNudgeProvider,
+	useRecentAutosaveNudgeAnchor,
+} from './recent-autosave-nudge-context';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -95,8 +101,14 @@ export function EnsurePlaygroundSiteIsSelected({
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
 	);
+	// An open Dock pane owns the screen (all of it on mobile), so the nudge
+	// waits for it to close instead of covering it. This also keeps Escape
+	// working for the pane: the Dock lets any open popover consume Escape
+	// first, but the nudge popover never does.
+	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const canShowAutosaveNudge =
 		youHaveAutosaveNudgeEnabled &&
+		!dockPaneIsOpen &&
 		autosaveNudge &&
 		activeSite &&
 		activeSite.slug !== autosaveNudge.site.slug &&
@@ -359,9 +371,6 @@ export function EnsurePlaygroundSiteIsSelected({
 							setIsAutosaveNudgeActionPending(false);
 						}
 					}}
-					onKeepNew={async () => {
-						await keepNewPlayground();
-					}}
 					onDismiss={async () => {
 						await keepNewPlayground();
 					}}
@@ -379,13 +388,17 @@ export function EnsurePlaygroundSiteIsSelected({
 
 /**
  * Shows the restore choice for a recent autosave matching the current setup URL.
+ *
+ * The choice concerns saved Playgrounds, so the card is anchored right above
+ * the Playgrounds Dock button with a caret pointing at it. A collapsed Dock
+ * hides that button and the caret points at the save status instead; a
+ * cornered Dock shows neither and the card floats in the top-right corner.
  */
 function YouHaveAutosaveNudge({
 	site,
 	error,
 	isBusy,
 	onRestore,
-	onKeepNew,
 	onDismiss,
 	onDisableNotifications,
 }: {
@@ -393,12 +406,12 @@ function YouHaveAutosaveNudge({
 	error?: string;
 	isBusy: boolean;
 	onRestore: () => Promise<void>;
-	onKeepNew: () => Promise<void>;
 	onDismiss: () => Promise<void>;
 	onDisableNotifications: () => Promise<void>;
 }) {
 	const nudgeRef = useRef<HTMLElement>(null);
-	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
+	const anchorButton = useRecentAutosaveNudgeAnchor();
+	const autosavedAt = new Date(getSiteRecencyTimestamp(site) || Date.now());
 
 	useEffect(() => {
 		const dismissOnOutsidePointer = (event: PointerEvent) => {
@@ -410,52 +423,81 @@ function YouHaveAutosaveNudge({
 		return listenForPointerDownAcrossIframes(dismissOnOutsidePointer);
 	}, [isBusy, onDismiss]);
 
-	return (
+	const card = (
 		<aside
 			ref={nudgeRef}
-			className={css.nudge}
+			className={classNames(css.nudge, {
+				[css.nudgeFloating]: !anchorButton,
+			})}
 			aria-label="Recent autosaved Playground"
 		>
-			<div className={css.copy}>
-				<div className={css.title}>Recent autosave available</div>
-				<div className={css.description}>
-					Another Playground was created {getRelativeDate(createdAt)}{' '}
-					from the same URL.
-				</div>
-				{error && (
-					<div className={css.error} role="alert">
-						{error}
+			<div className={css.header}>
+				<div className={css.eyebrow}>Recent autosave</div>
+				<Button
+					className={css.dismiss}
+					icon={close}
+					label="Dismiss and keep this Playground"
+					onClick={onDismiss}
+					disabled={isBusy}
+				/>
+			</div>
+			<div className={css.site}>
+				<span className={css.siteAvatar} aria-hidden="true">
+					<Icon icon={wordpress} size={28} />
+				</span>
+				<div className={css.siteCopy}>
+					<div className={css.siteName}>{site.metadata.name}</div>
+					<div className={css.siteMeta}>
+						Autosaved {getRelativeDate(autosavedAt)}
 					</div>
-				)}
-			</div>
-			<div className={css.actions}>
-				<div className={css.decisionActions}>
-					<Button
-						variant="primary"
-						onClick={onRestore}
-						disabled={isBusy}
-					>
-						Restore Autosave
-					</Button>
-					<Button
-						variant="tertiary"
-						onClick={onKeepNew}
-						disabled={isBusy}
-					>
-						Keep this Playground
-					</Button>
-				</div>
-				<div className={css.preferenceAction}>
-					<Button
-						variant="link"
-						className={css.disableNotifications}
-						onClick={onDisableNotifications}
-						disabled={isBusy}
-					>
-						Stop showing autosave prompts
-					</Button>
 				</div>
 			</div>
+			{error && (
+				<div className={css.error} role="alert">
+					{error}
+				</div>
+			)}
+			<Button
+				variant="primary"
+				className={css.restore}
+				onClick={onRestore}
+				disabled={isBusy}
+			>
+				Restore autosave
+			</Button>
+			<p className={css.hint}>
+				Kept in this browser as a periodic snapshot — not every change
+				is saved.
+			</p>
+			<Button
+				variant="link"
+				className={css.disableNotifications}
+				onClick={onDisableNotifications}
+				disabled={isBusy}
+			>
+				Don’t notify me about autosaves
+			</Button>
 		</aside>
+	);
+
+	return (
+		<>
+			<div className={css.scrim} aria-hidden="true" />
+			{anchorButton ? (
+				<Popover
+					className={css.nudgePopover}
+					anchor={anchorButton}
+					placement="top"
+					offset={18}
+					shift
+					noArrow={false}
+					focusOnMount={false}
+				>
+					{card}
+				</Popover>
+			) : (
+				card
+			)}
+		</>
 	);
 }
