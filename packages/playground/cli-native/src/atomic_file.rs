@@ -124,7 +124,9 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{atomic_copy_file, atomic_replace_file};
+    #[cfg(unix)]
+    use super::atomic_copy_file;
+    use super::atomic_replace_file;
 
     static NEXT_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
