@@ -1865,8 +1865,6 @@ fn run_listener(
                 let follow_symlinks = config.options.follow_symlinks;
                 thread::spawn(move || {
                     let mut stream = stream;
-                    let _ = stream.set_read_timeout(Some(HTTP_READ_TIMEOUT));
-                    let _ = stream.set_write_timeout(Some(HTTP_WRITE_TIMEOUT));
                     let result = handle_stream(
                         &mut stream,
                         &mounts,
@@ -2497,6 +2495,7 @@ fn handle_stream(
     follow_symlinks: bool,
     first_request: &AtomicBool,
 ) -> Result<()> {
+    configure_http_connection(stream)?;
     let request_id = route_counters::next_request_id();
     let request_started_at = request_id.map(|_| Instant::now());
     let request = match read_http_request_with_counter(stream, request_id) {
@@ -2604,6 +2603,21 @@ fn handle_stream(
         });
         write_result
     }
+}
+
+fn configure_http_connection(stream: &TcpStream) -> Result<()> {
+    // Winsock accepts a connection with the listener's nonblocking mode. Controlled servers use
+    // a nonblocking listener so they can observe the control shutdown flag, but each request is
+    // handled with blocking reads and bounded timeouts on every platform.
+    stream.set_nonblocking(false).map_err(|error| {
+        CliError::from_io_context(
+            "Failed to configure HTTP connection for blocking I/O",
+            error,
+        )
+    })?;
+    let _ = stream.set_read_timeout(Some(HTTP_READ_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(HTTP_WRITE_TIMEOUT));
+    Ok(())
 }
 
 fn should_clear_auto_login_cookie(first_request: &AtomicBool, request: &HttpRequest) -> bool {
@@ -11096,6 +11110,35 @@ mod tests {
         assert!(request_path_from_target("/bad/%GG").is_err());
         assert!(request_path_from_target("/bad/%FF").is_err());
         assert!(request_path_from_target("/bad/%00").is_err());
+    }
+
+    #[test]
+    fn accepted_nonblocking_connection_is_normalized_before_http_request_reads() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut client = TcpStream::connect(address).unwrap();
+        let (mut server_stream, _) = listener.accept().unwrap();
+        server_stream.set_nonblocking(true).unwrap();
+        let handler = thread::spawn(move || {
+            super::configure_http_connection(&server_stream).unwrap();
+            read_http_request(&mut server_stream)
+        });
+
+        thread::sleep(Duration::from_millis(25));
+        assert!(
+            !handler.is_finished(),
+            "the HTTP handler treated a temporarily unreadable socket as a timeout"
+        );
+        write!(
+            client,
+            "GET /delayed HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+        client.flush().unwrap();
+
+        let request = handler.join().unwrap().unwrap();
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.target, "/delayed");
     }
 
     #[test]
