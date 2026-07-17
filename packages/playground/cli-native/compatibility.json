@@ -61,6 +61,7 @@
 		{
 			"name": "port",
 			"commands": ["start", "server"],
+			"acceptedNoopCommands": ["run-blueprint"],
 			"status": "supported"
 		},
 		{
@@ -915,16 +916,9 @@
 		{ "name": "filesystem.write", "status": "supported" },
 		{ "name": "ready", "status": "supported" },
 		{ "name": "shutdown", "status": "supported" },
-		{
-			"name": "runtime.initialized",
-			"status": "unsupported-by-design",
-			"diagnostic": "Emscripten runtime lifecycle"
-		},
-		{
-			"name": "runtime.beforeExit",
-			"status": "unsupported-by-design",
-			"diagnostic": "Emscripten runtime lifecycle"
-		},
+		{ "name": "runtime.initialized", "status": "supported" },
+		{ "name": "runtime.beforeExit", "status": "supported" },
+		{ "name": "*", "status": "supported" },
 		{
 			"name": "message",
 			"status": "unsupported-by-design",

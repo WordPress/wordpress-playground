@@ -138,8 +138,12 @@ new file directly, without a global request lock.
 ## Event stream
 
 Supported SSE event names are `ready`, `shutdown`, `request.end`,
-`request.error`, and `filesystem.write`. `onMessage()` and PHP-to-JavaScript
-message events are intentionally outside the native v1 contract.
+`request.error`, and `filesystem.write`. The npm bridge maps `ready` and
+`shutdown` to one `runtime.initialized` and `runtime.beforeExit` notification
+per logical proxy and dispatches the upstream `*` listener locally; those
+synthetic names never arrive on this wire. `onMessage()` and
+PHP-to-JavaScript message events are intentionally outside the native v1
+contract.
 
 ## Limits and failures
 

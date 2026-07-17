@@ -1239,6 +1239,7 @@ mod tests {
         commands: Option<Vec<String>>,
         status: String,
         allow_false: Option<bool>,
+        accepted_noop_commands: Option<Vec<String>>,
         diagnostic: Option<String>,
     }
 
@@ -1294,6 +1295,7 @@ mod tests {
         let programmatic_options: Vec<ProgrammaticOptionCompatibility> =
             serde_json::from_value(matrix["options"].clone()).unwrap();
         let mut allow_false_options = BTreeSet::new();
+        let mut accepted_noop_options = BTreeSet::new();
         for entry in programmatic_options {
             assert!(
                 matches!(
@@ -1322,6 +1324,33 @@ mod tests {
                     entry.name
                 );
                 allow_false_options.insert(entry.name);
+                continue;
+            }
+            if let Some(commands) = entry.accepted_noop_commands {
+                assert_eq!(entry.status, "supported");
+                assert!(!commands.is_empty(), "{} no-op scope is empty", entry.name);
+                assert_eq!(
+                    commands.iter().collect::<BTreeSet<_>>().len(),
+                    commands.len(),
+                    "{} has duplicate no-op commands",
+                    entry.name
+                );
+                assert!(
+                    commands.iter().all(|command| matches!(
+                        command.as_str(),
+                        "start" | "server" | "run-blueprint" | "build-snapshot"
+                    )),
+                    "{} has an unknown no-op command",
+                    entry.name
+                );
+                assert!(
+                    entry.commands.as_ref().is_none_or(|supported| commands
+                        .iter()
+                        .all(|command| !supported.contains(command))),
+                    "{} no-op commands overlap supported commands",
+                    entry.name
+                );
+                accepted_noop_options.insert((entry.name, commands));
             }
         }
         assert_eq!(
@@ -1329,6 +1358,12 @@ mod tests {
             ["internalCookieStore", "memcached", "redis"]
                 .into_iter()
                 .map(str::to_string)
+                .collect()
+        );
+        assert_eq!(
+            accepted_noop_options,
+            [("port".to_string(), vec!["run-blueprint".to_string()])]
+                .into_iter()
                 .collect()
         );
     }

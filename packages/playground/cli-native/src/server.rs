@@ -1412,6 +1412,7 @@ fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
     Ok(mounts)
 }
 
+#[derive(Debug)]
 pub(crate) struct ManagedRuntimeDirectories {
     paths: Vec<PathBuf>,
 }
@@ -1426,16 +1427,9 @@ impl Drop for ManagedRuntimeDirectories {
 
 fn ensure_runtime_managed_mounts(mounts: &mut Vec<Mount>) -> Result<ManagedRuntimeDirectories> {
     for reserved in ["/tmp", "/internal/shared"] {
-        if mounts.iter().any(|mount| {
-            mount.vfs_path == reserved
-                || (mount.host_path.is_dir()
-                    && mount
-                        .vfs_path
-                        .strip_prefix(reserved)
-                        .is_some_and(|relative| relative.starts_with('/')))
-        }) {
+        if mounts.iter().any(|mount| mount.vfs_path == reserved) {
             return Err(CliError::new(format!(
-                "{reserved} is reserved for the native PHP runtime; only file mounts below it are allowed"
+                "{reserved} is reserved for the native PHP runtime; mount files or directories below it instead"
             )));
         }
     }
@@ -1482,19 +1476,17 @@ pub(crate) fn prepare_managed_runtime_mounts(
     mounts: &mut Vec<Mount>,
 ) -> Result<ManagedRuntimeDirectories> {
     let managed_directories = ensure_runtime_managed_mounts(mounts)?;
-    stage_managed_file_mounts(mounts, &managed_directories)?;
+    stage_managed_mounts(mounts, &managed_directories)?;
     Ok(managed_directories)
 }
 
-fn stage_managed_file_mounts(
+fn stage_managed_mounts(
     mounts: &mut Vec<Mount>,
     managed_directories: &ManagedRuntimeDirectories,
 ) -> Result<()> {
     let mut staged = Vec::new();
     for (index, mount) in mounts.iter().enumerate() {
-        if !mount.host_path.is_file()
-            || !(mount.vfs_path.starts_with("/tmp/")
-                || mount.vfs_path.starts_with("/internal/shared/"))
+        if !(mount.vfs_path.starts_with("/tmp/") || mount.vfs_path.starts_with("/internal/shared/"))
         {
             continue;
         }
@@ -1521,7 +1513,7 @@ fn stage_managed_file_mounts(
             })
             .ok_or_else(|| {
                 CliError::new(format!(
-                    "File mount {} has no managed parent directory mount",
+                    "Mount {} has no managed parent directory mount",
                     mount.vfs_path
                 ))
             })?;
@@ -1532,26 +1524,95 @@ fn stage_managed_file_mounts(
                 .parent()
                 .ok_or_else(|| CliError::new("Managed file mount has no parent"))?,
         )?;
-        let mut source = fs::File::open(&mount.host_path)?;
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut destination = options.open(&parent.1).map_err(|error| {
+        let source = mount
+            .canonical_host_path
+            .as_deref()
+            .unwrap_or(&mount.host_path);
+        let metadata = fs::symlink_metadata(source).map_err(|error| {
             CliError::new(format!(
-                "Failed to stage file mount {} at {}: {error}",
-                mount.host_path.display(),
-                mount.vfs_path
+                "Failed to inspect managed mount {}: {error}",
+                mount.host_path.display()
             ))
         })?;
-        io::copy(&mut source, &mut destination)?;
+        if metadata.is_file() {
+            copy_managed_mount_file(source, &parent.1, mount)?;
+        } else if metadata.is_dir() {
+            copy_managed_mount_directory(source, &parent.1, mount)?;
+        } else {
+            return Err(CliError::new(format!(
+                "Managed mount {} must be a regular file or directory",
+                mount.host_path.display()
+            )));
+        }
         staged.push(index);
     }
     for index in staged.into_iter().rev() {
         mounts.remove(index);
+    }
+    Ok(())
+}
+
+fn copy_managed_mount_file(source: &Path, destination: &Path, mount: &Mount) -> Result<()> {
+    let mut source_file = fs::File::open(source)?;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut destination_file = options.open(destination).map_err(|error| {
+        CliError::new(format!(
+            "Failed to stage file mount {} at {}: {error}",
+            mount.host_path.display(),
+            mount.vfs_path
+        ))
+    })?;
+    io::copy(&mut source_file, &mut destination_file)?;
+    Ok(())
+}
+
+fn copy_managed_mount_directory(source: &Path, destination: &Path, mount: &Mount) -> Result<()> {
+    match fs::symlink_metadata(destination) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return Err(CliError::new(format!(
+                "Refusing to stage directory mount through symlink {}",
+                destination.display()
+            )))
+        }
+        Ok(metadata) if metadata.is_dir() => {}
+        Ok(_) => {
+            return Err(CliError::new(format!(
+                "Managed directory mount destination {} is not a directory",
+                destination.display()
+            )))
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => fs::create_dir(destination)?,
+        Err(error) => return Err(error.into()),
+    }
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        let file_type = entry.file_type()?;
+        if file_type.is_symlink() {
+            return Err(CliError::new(format!(
+                "Managed directory mount {} contains unsupported symlink {}",
+                mount.host_path.display(),
+                source_path.display()
+            )));
+        }
+        if file_type.is_dir() {
+            copy_managed_mount_directory(&source_path, &destination_path, mount)?;
+        } else if file_type.is_file() {
+            copy_managed_mount_file(&source_path, &destination_path, mount)?;
+        } else {
+            return Err(CliError::new(format!(
+                "Managed directory mount {} contains unsupported filesystem entry {}",
+                mount.host_path.display(),
+                source_path.display()
+            )));
+        }
     }
     Ok(())
 }
@@ -10570,12 +10631,12 @@ mod tests {
         parse_http_request, parse_http_request_owned, parse_http_request_owned_with_counter,
         parse_php_headers, php_failure_detail, php_request_from_http,
         php_request_from_http_with_counter, php_request_from_run_options, php_response_status,
-        php_single_quoted_string, read_http_request, ready_message, reason_phrase,
-        remove_wp_allow_multisite_define, request_error_total_counter, request_path_from_target,
-        request_server_context, request_total_fields, requested_worker_count, reset_data_script,
-        resolve_git_directory_resource, resolve_route, route_target_label, run_git,
-        run_native_startup_step, run_sql_script, run_startup_step, run_startup_steps,
-        server_banner_and_config, server_mounts, server_php_ini_entries,
+        php_single_quoted_string, prepare_managed_runtime_mounts, read_http_request, ready_message,
+        reason_phrase, remove_wp_allow_multisite_define, request_error_total_counter,
+        request_path_from_target, request_server_context, request_total_fields,
+        requested_worker_count, reset_data_script, resolve_git_directory_resource, resolve_route,
+        route_target_label, run_git, run_native_startup_step, run_sql_script, run_startup_step,
+        run_startup_steps, server_banner_and_config, server_mounts, server_php_ini_entries,
         server_response_counter_stats, set_site_language_metadata_script,
         should_clear_auto_login_cookie, spawn_worker_lease_task, split_shell_command,
         stage_control_run_script_with_candidate, startup_steps_from_blueprint_json,
@@ -12347,6 +12408,57 @@ mod tests {
 
         drop(detached_task_owner);
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn managed_runtime_mounts_stage_nested_directories_privately() {
+        let source = temp_dir("managed-directory-source");
+        fs::create_dir_all(source.join("nested")).unwrap();
+        fs::write(source.join("nested/command.php"), b"source").unwrap();
+        let mut mounts = vec![Mount::new(&source, "/tmp/sqlite-command").unwrap()];
+
+        let managed = prepare_managed_runtime_mounts(&mut mounts).unwrap();
+        assert!(!mounts
+            .iter()
+            .any(|mount| mount.vfs_path == "/tmp/sqlite-command"));
+        let managed_tmp = mounts
+            .iter()
+            .find(|mount| mount.vfs_path == "/tmp")
+            .unwrap()
+            .host_path
+            .clone();
+        let staged_file = managed_tmp.join("sqlite-command/nested/command.php");
+        assert_eq!(fs::read(&staged_file).unwrap(), b"source");
+
+        fs::write(&staged_file, b"guest-private").unwrap();
+        assert_eq!(
+            fs::read(source.join("nested/command.php")).unwrap(),
+            b"source"
+        );
+        fs::write(source.join("nested/command.php"), b"host-update").unwrap();
+        assert_eq!(fs::read(&staged_file).unwrap(), b"guest-private");
+
+        drop(managed);
+        assert!(!managed_tmp.exists());
+        fs::remove_dir_all(source).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_runtime_directory_mounts_reject_nested_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let source = temp_dir("managed-directory-symlink");
+        let outside = temp_dir("managed-directory-outside");
+        fs::write(outside.join("secret"), b"outside").unwrap();
+        symlink(outside.join("secret"), source.join("linked-secret")).unwrap();
+        let mut mounts = vec![Mount::new(&source, "/tmp/sqlite-command").unwrap()];
+
+        let error = prepare_managed_runtime_mounts(&mut mounts).unwrap_err();
+        assert!(error.to_string().contains("unsupported symlink"));
+
+        fs::remove_dir_all(source).unwrap();
+        fs::remove_dir_all(outside).unwrap();
     }
 
     #[test]

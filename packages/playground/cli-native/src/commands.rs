@@ -364,8 +364,8 @@ mod tests {
     }
 
     #[test]
-    fn one_shot_php_mounts_reject_nested_directories_in_private_roots_without_mutating_them() {
-        let cwd = temp_dir("reject-managed-nested-directory");
+    fn one_shot_php_mounts_stage_nested_directories_without_mutating_the_source() {
+        let cwd = temp_dir("stage-managed-nested-directory");
         let wordpress = cwd.join("wordpress");
         let user_mu_plugins = cwd.join("user-mu-plugins");
         fs::create_dir_all(&wordpress).unwrap();
@@ -380,19 +380,29 @@ mod tests {
             .mounts
             .push(Mount::new(&user_mu_plugins, "/internal/shared/mu-plugins").unwrap());
 
-        let error = match php_mounts(&options) {
-            Ok(_) => panic!("nested managed-root directory mount should be rejected"),
-            Err(error) => error,
-        };
-        assert!(error
-            .to_string()
-            .contains("only file mounts below it are allowed"));
+        let prepared = php_mounts(&options).unwrap();
+        assert!(!prepared
+            .mounts
+            .iter()
+            .any(|mount| mount.vfs_path == "/internal/shared/mu-plugins"));
+        let shared_root = prepared
+            .mounts
+            .iter()
+            .find(|mount| mount.vfs_path == "/internal/shared")
+            .unwrap()
+            .host_path
+            .clone();
+        let staged = shared_root.join("mu-plugins/sentinel.php");
+        assert_eq!(fs::read(&staged).unwrap(), b"unchanged");
+        fs::write(&staged, b"guest-private").unwrap();
         assert_eq!(
             fs::read(user_mu_plugins.join("sentinel.php")).unwrap(),
             b"unchanged"
         );
         assert_eq!(fs::read_dir(&user_mu_plugins).unwrap().count(), 1);
 
+        drop(prepared);
+        assert!(!shared_root.exists());
         let _ = fs::remove_dir_all(cwd);
     }
 

@@ -447,11 +447,13 @@ export function createPlaygroundProxy(
 					return (type: string, listener: NativeEventListener) => {
 						assertSupportedEventType(type);
 						eventBridge.add(type, listener);
+						return Promise.resolve();
 					};
 				if (property === 'removeEventListener')
 					return (type: string, listener: NativeEventListener) => {
 						assertSupportedEventType(type);
 						eventBridge.remove(type, listener);
+						return Promise.resolve();
 					};
 				if (property === 'onMessage')
 					return () => unsupportedMethod(property);
@@ -470,12 +472,19 @@ export function createPlaygroundProxy(
 	);
 }
 
-const supportedEventTypes = new Set([
+const nativeWireEventTypes = new Set([
 	'request.end',
 	'request.error',
 	'filesystem.write',
 	'ready',
 	'shutdown',
+]);
+
+const supportedEventTypes = new Set([
+	...nativeWireEventTypes,
+	'runtime.initialized',
+	'runtime.beforeExit',
+	'*',
 ]);
 
 function assertSupportedEventType(type: string): void {
@@ -2138,6 +2147,8 @@ class NativeEventBridge {
 	#loop?: Promise<void>;
 	#closed = false;
 	#shutdownReceived = false;
+	#runtimeInitializedDispatched = false;
+	#runtimeBeforeExitDispatched = false;
 
 	constructor(client: NativeControlClient) {
 		this.#client = client;
@@ -2241,7 +2252,7 @@ class NativeEventBridge {
 				dataLines.push(normalized.slice(5).trimStart());
 		}
 		const data = dataLines.join('\n');
-		if (!supportedEventTypes.has(type) || !data) return false;
+		if (!nativeWireEventTypes.has(type) || !data) return false;
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(data);
@@ -2286,15 +2297,51 @@ class NativeEventBridge {
 		} else if (type === 'request.end' || type === 'filesystem.write')
 			event = { type, data: parsed };
 		else event = new MessageEvent(type, { data: parsed });
-		if (type === 'shutdown') this.#shutdownReceived = true;
-		for (const listener of [...(this.#listeners.get(type) ?? [])]) {
+		if (type === 'ready') {
+			this.#emit(type, event);
+			this.#emitRuntimeInitialized();
+		} else if (type === 'shutdown') {
+			this.#emitRuntimeBeforeExit();
+			this.#emit(type, event);
+			this.#shutdownReceived = true;
+		} else {
+			this.#emit(type, event, true);
+		}
+		return true;
+	}
+
+	#emit(
+		type: string,
+		event: NativeDispatchedEvent,
+		includeWildcard = false
+	): void {
+		const listeners = new Set(this.#listeners.get(type));
+		if (includeWildcard)
+			for (const listener of this.#listeners.get('*') ?? [])
+				listeners.add(listener);
+		for (const listener of listeners) {
 			try {
 				listener(event);
 			} catch {
 				// One consumer must not disconnect the shared event stream.
 			}
 		}
-		return true;
+	}
+
+	#emitRuntimeInitialized(): void {
+		if (this.#runtimeInitializedDispatched) return;
+		this.#runtimeInitializedDispatched = true;
+		this.#emit(
+			'runtime.initialized',
+			{ type: 'runtime.initialized' },
+			true
+		);
+	}
+
+	#emitRuntimeBeforeExit(): void {
+		if (this.#runtimeBeforeExitDispatched) return;
+		this.#runtimeBeforeExitDispatched = true;
+		this.#emit('runtime.beforeExit', { type: 'runtime.beforeExit' }, true);
 	}
 
 	#hasListeners(): boolean {
@@ -2306,6 +2353,7 @@ class NativeEventBridge {
 	#close(): void {
 		if (this.#closed) return;
 		this.#closed = true;
+		this.#emitRuntimeBeforeExit();
 		this.#listeners.clear();
 		this.#controller?.abort();
 	}
@@ -2319,6 +2367,7 @@ function assertEventMessageSize(message: string): void {
 type NativeDispatchedEvent =
 	| MessageEvent<unknown>
 	| { type: 'request.end' | 'filesystem.write'; data: unknown }
+	| { type: 'runtime.initialized' | 'runtime.beforeExit' }
 	| {
 			type: 'request.error';
 			error: Error;

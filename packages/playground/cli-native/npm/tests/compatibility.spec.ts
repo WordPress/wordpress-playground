@@ -125,6 +125,19 @@ describe('compatibility schema v2', () => {
 			(
 				inventory['options'] as Array<{
 					name: string;
+					acceptedNoopCommands?: string[];
+				}>
+			)
+				.filter(({ acceptedNoopCommands }) => acceptedNoopCommands)
+				.map(({ name, acceptedNoopCommands }) => ({
+					name,
+					acceptedNoopCommands,
+				}))
+		).toEqual([{ name: 'port', acceptedNoopCommands: ['run-blueprint'] }]);
+		expect(
+			(
+				inventory['options'] as Array<{
+					name: string;
 					allowFalse?: boolean;
 				}>
 			)

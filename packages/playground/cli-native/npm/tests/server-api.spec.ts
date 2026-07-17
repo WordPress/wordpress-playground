@@ -263,12 +263,14 @@ describe.sequential('programmatic native server lifecycle', () => {
 			{ command: 'start', port: -1 },
 			{ command: 'start', port: 65_536 },
 			{ command: 'start', port: 1.5 },
+			{ command: 'run-blueprint', port: '1234' },
+			{ command: 'run-blueprint', port: Number.NaN },
+			{ command: 'run-blueprint', port: Symbol('port') },
 			{ command: 'start', workers: 0 },
 			{ command: 'start', workers: Number.POSITIVE_INFINITY },
 			{ command: 'start', workers: 2 },
 			{ command: 'server', workers: 257 },
 			{ command: 'start', debug: true },
-			{ command: 'run-blueprint', port: 1234 },
 			{ command: 'start', startupTimeoutMs: 0 },
 			{ command: 'start', startupTimeoutMs: 2_147_483_648 },
 			{ command: 'start', autoMount: 1 },
@@ -325,6 +327,16 @@ describe.sequential('programmatic native server lifecycle', () => {
 			});
 		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
 		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('accepts Studio run-blueprint port as an explicit no-op', async () => {
+		mocks.ensureNativeHost.mockRejectedValueOnce(
+			new Error('host acquisition reached')
+		);
+		await expect(
+			runCLI({ command: 'run-blueprint', port: 1234 })
+		).rejects.toThrow('Could not spawn the native CLI for run-blueprint');
+		expect(mocks.ensureNativeHost).toHaveBeenCalledOnce();
 	});
 
 	it('allows known undefined option spreads but still rejects unknown ones', async () => {

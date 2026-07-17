@@ -885,6 +885,63 @@ describe('native control client', () => {
 		client.close();
 	});
 
+	it('provides upstream lifecycle aliases and wildcard events', async () => {
+		const { client } = await rawControlServer(async (request, response) => {
+			if (request.url !== '/events') return false;
+			response.writeHead(200, { 'content-type': 'text/event-stream' });
+			response.end(
+				'event: ready\ndata: {"protocolVersion":2}\n\n' +
+					'event: request.end\ndata: {"protocolVersion":2}\n\n' +
+					'event: shutdown\ndata: {"protocolVersion":2}\n\n'
+			);
+			return true;
+		});
+		const playground = createPlaygroundProxy(client) as any;
+		const wildcardEvents: string[] = [];
+		let resolveInitialized!: () => void;
+		let resolveBeforeExit!: () => void;
+		let resolveShutdown!: () => void;
+		const initialized = new Promise<void>(
+			(resolve) => (resolveInitialized = resolve)
+		);
+		const beforeExit = new Promise<void>(
+			(resolve) => (resolveBeforeExit = resolve)
+		);
+		const shutdown = new Promise<void>(
+			(resolve) => (resolveShutdown = resolve)
+		);
+		const registrations = [
+			playground.addEventListener(
+				'runtime.initialized',
+				(event: { type: string }) => {
+					expect(event.type).toBe('runtime.initialized');
+					resolveInitialized();
+				}
+			),
+			playground.addEventListener(
+				'runtime.beforeExit',
+				(event: { type: string }) => {
+					expect(event.type).toBe('runtime.beforeExit');
+					resolveBeforeExit();
+				}
+			),
+			playground.addEventListener('*', (event: { type: string }) =>
+				wildcardEvents.push(event.type)
+			),
+			playground.addEventListener('shutdown', () => resolveShutdown()),
+		];
+		for (const registration of registrations)
+			expect(registration).toBeInstanceOf(Promise);
+		await Promise.all(registrations);
+		await Promise.all([initialized, beforeExit, shutdown]);
+		expect(wildcardEvents).toEqual([
+			'runtime.initialized',
+			'request.end',
+			'runtime.beforeExit',
+		]);
+		client.close();
+	});
+
 	it('decodes Unicode split across event-stream chunks', async () => {
 		const { client } = await rawControlServer(async (request, response) => {
 			if (request.url !== '/events') return false;
@@ -949,18 +1006,40 @@ describe('native control client', () => {
 			response.end(
 				connections === 1
 					? 'event: ready\ndata: {"protocolVersion":2}\n\n'
-					: 'event: shutdown\ndata: {"protocolVersion":2}\n\n'
+					: 'event: ready\ndata: {"protocolVersion":2}\n\n' +
+							'event: shutdown\ndata: {"protocolVersion":2}\n\n'
 			);
 			return true;
 		});
 		const playground = createPlaygroundProxy(client) as any;
+		const initialized = vi.fn();
+		playground.addEventListener('runtime.initialized', initialized);
 		await new Promise<void>((resolve) =>
 			playground.addEventListener('shutdown', () => resolve())
 		);
 		expect(connections).toBe(2);
+		expect(initialized).toHaveBeenCalledOnce();
 		await new Promise((resolve) => setTimeout(resolve, 75));
 		expect(connections).toBe(2);
 		client.close();
+	});
+
+	it('emits runtime.beforeExit once when the control client closes', async () => {
+		const { client } = await rawControlServer(async () => false);
+		const playground = createPlaygroundProxy(client) as any;
+		const beforeExit = vi.fn();
+		const wildcard = vi.fn();
+		await playground.addEventListener('runtime.beforeExit', beforeExit);
+		await playground.addEventListener('*', wildcard);
+
+		client.close();
+		client.close();
+
+		expect(beforeExit).toHaveBeenCalledOnce();
+		expect(wildcard).toHaveBeenCalledOnce();
+		expect(wildcard.mock.calls.at(0)?.[0]).toEqual({
+			type: 'runtime.beforeExit',
+		});
 	});
 
 	it('isolates event listener exceptions from sibling listeners', async () => {

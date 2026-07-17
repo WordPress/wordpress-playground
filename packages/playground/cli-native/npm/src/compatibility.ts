@@ -26,6 +26,7 @@ interface CLIOptionCompatibility {
 export interface ProgrammaticOptionCompatibility {
 	name: string;
 	commands?: string[];
+	acceptedNoopCommands?: string[];
 	status: CompatibilityStatus;
 	allowFalse?: boolean;
 	diagnostic?: string;

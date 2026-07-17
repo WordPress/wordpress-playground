@@ -224,25 +224,40 @@ export interface NativePlaygroundWorker {
 		options?: { env?: Record<string, string>; cwd?: string }
 	): Promise<NativeStreamedPHPResponse>;
 	addEventListener(
-		type: NativePlaygroundEventType,
+		type: NativePHPEventType | '*',
+		listener: NativePHPEventListener
+	): Promise<void>;
+	addEventListener(
+		type: NativeLifecycleEventType,
 		listener: NativePlaygroundEventListener
-	): void;
+	): Promise<void>;
 	removeEventListener(
-		type: NativePlaygroundEventType,
+		type: NativePHPEventType | '*',
+		listener: NativePHPEventListener
+	): Promise<void>;
+	removeEventListener(
+		type: NativeLifecycleEventType,
 		listener: NativePlaygroundEventListener
-	): void;
+	): Promise<void>;
 	/** @unsupported Native v1 does not expose PHP-to-JavaScript messages. */
 	onMessage(listener: (data: string) => unknown): never;
 }
 
-export type NativePlaygroundEventType =
+export type NativePHPEventType =
 	| 'request.end'
 	| 'request.error'
 	| 'filesystem.write'
-	| 'ready'
-	| 'shutdown';
+	| 'runtime.initialized'
+	| 'runtime.beforeExit';
 
-export type NativePlaygroundEvent =
+export type NativeLifecycleEventType = 'ready' | 'shutdown';
+
+export type NativePlaygroundEventType =
+	| NativePHPEventType
+	| NativeLifecycleEventType
+	| '*';
+
+export type NativePHPEvent =
 	| { type: 'request.end'; data?: unknown }
 	| {
 			type: 'request.error';
@@ -251,7 +266,13 @@ export type NativePlaygroundEvent =
 			data?: unknown;
 	  }
 	| { type: 'filesystem.write'; data?: unknown }
+	| { type: 'runtime.initialized' | 'runtime.beforeExit' };
+
+export type NativePlaygroundEvent =
+	| NativePHPEvent
 	| { type: 'ready' | 'shutdown'; data: unknown };
+
+export type NativePHPEventListener = (event: NativePHPEvent) => void;
 
 export type NativePlaygroundEventListener = (
 	event: NativePlaygroundEvent
@@ -947,6 +968,7 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 				`The native CLI does not support the \`${command}\` command.`
 		);
 
+	const acceptedNoopKeys = new Set<string>();
 	for (const key of Object.keys(args)) {
 		assertNoNul(key, 'Native CLI option name');
 		const propertyValue = args[key];
@@ -957,6 +979,10 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 			);
 		if (propertyValue === undefined) {
 			delete args[key];
+			continue;
+		}
+		if (compatibility.acceptedNoopCommands?.includes(command)) {
+			acceptedNoopKeys.add(key);
 			continue;
 		}
 		if (
@@ -1119,6 +1145,7 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 		}
 	const blueprint = snapshotBlueprint(args.blueprint);
 	args.blueprint = blueprint.value;
+	for (const key of acceptedNoopKeys) delete args[key];
 	return {
 		args,
 		blueprintJSON: blueprint.json,

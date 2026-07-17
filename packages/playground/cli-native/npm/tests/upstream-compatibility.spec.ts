@@ -6,8 +6,13 @@ import ts from 'typescript';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const repositoryRoot = resolve(packageRoot, '../../..');
+const universalPHPPath = join(
+	repositoryRoot,
+	'packages/php-wasm/universal/src/lib/universal-php.ts'
+);
 const upstreamIndexPath = join(packageRoot, '..', 'cli', 'src', 'index.ts');
 const upstreamRunCLIPath = join(packageRoot, '..', 'cli', 'src', 'run-cli.ts');
+const nativeApiPath = join(packageRoot, 'npm', 'src', 'api.ts');
 
 interface InventoryEntry {
 	name: string;
@@ -18,6 +23,21 @@ interface InventoryEntry {
 }
 
 describe('upstream-derived compatibility inventory', () => {
+	it('keeps the native worker assignable to UniversalPHP', () => {
+		const { checker, nativeApiSource, universalPHPSource } =
+			createUpstreamProgram();
+		expect(
+			checker.isTypeAssignableTo(
+				exportedType(
+					checker,
+					nativeApiSource,
+					'NativePlaygroundWorker'
+				),
+				exportedType(checker, universalPHPSource, 'UniversalPHP')
+			)
+		).toBe(true);
+	});
+
 	it('classifies root exports, programmatic options, and nested API members', async () => {
 		const inventory = await readInventory();
 		const { checker, indexSource, runCLISource } = createUpstreamProgram();
@@ -198,6 +218,8 @@ function createUpstreamProgram(): {
 	checker: ts.TypeChecker;
 	indexSource: ts.SourceFile;
 	runCLISource: ts.SourceFile;
+	nativeApiSource: ts.SourceFile;
+	universalPHPSource: ts.SourceFile;
 } {
 	const configPath = join(repositoryRoot, 'tsconfig.base.json');
 	const config = ts.readConfigFile(configPath, ts.sys.readFile);
@@ -210,16 +232,37 @@ function createUpstreamProgram(): {
 		ts.sys,
 		repositoryRoot
 	);
-	const program = ts.createProgram([upstreamIndexPath, upstreamRunCLIPath], {
-		...parsed.options,
-		noEmit: true,
-		skipLibCheck: true,
-	});
+	const program = ts.createProgram(
+		[
+			upstreamIndexPath,
+			upstreamRunCLIPath,
+			nativeApiPath,
+			universalPHPPath,
+		],
+		{
+			...parsed.options,
+			noEmit: true,
+			skipLibCheck: true,
+		}
+	);
 	const indexSource = program.getSourceFile(upstreamIndexPath);
 	const runCLISource = program.getSourceFile(upstreamRunCLIPath);
-	if (!indexSource || !runCLISource)
+	const nativeApiSource = program.getSourceFile(nativeApiPath);
+	const universalPHPSource = program.getSourceFile(universalPHPPath);
+	if (
+		!indexSource ||
+		!runCLISource ||
+		!nativeApiSource ||
+		!universalPHPSource
+	)
 		throw new Error('Could not load upstream CLI sources.');
-	return { checker: program.getTypeChecker(), indexSource, runCLISource };
+	return {
+		checker: program.getTypeChecker(),
+		indexSource,
+		runCLISource,
+		nativeApiSource,
+		universalPHPSource,
+	};
 }
 
 function moduleExports(
