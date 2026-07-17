@@ -142,7 +142,7 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 					{isReloading ? 'Reloading…' : 'Reload files from disk'}
 				</Button>
 				<Button
-					variant="secondary"
+					variant="tertiary"
 					size="compact"
 					isBusy={isReconnecting}
 					disabled={isReconnecting}
@@ -151,6 +151,7 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 					Reconnect
 				</Button>
 				<Button
+					className={css.removeAction}
 					variant="tertiary"
 					size="compact"
 					isDestructive

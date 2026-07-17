@@ -26,11 +26,13 @@
 	opacity: 0.45;
 }
 
+/* The modal renders outside the Dock pane, so paper tokens are unavailable;
+   #f0f0f0 matches the code chips in the Dock callouts. */
 .description code {
 	font-size: 0.9em;
-	background: var(--surface-sunken, #f0eee9);
-	padding: 1px 4px;
-	border-radius: 3px;
+	background: #f0f0f0;
+	padding: 1px 5px;
+	border-radius: 4px;
 }
 
 .loading {

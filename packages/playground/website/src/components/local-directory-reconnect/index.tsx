@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Button, Icon } from '@wordpress/components';
 import { archive } from '@wordpress/icons';
 import { logger } from '@php-wasm/logger';
+import classNames from 'classnames';
 import css from './style.module.css';
+import calloutCss from '../dock-callout.module.css';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { LocalDirectoryReconnectState } from '../../lib/state/redux/slice-ui';
 import {
@@ -22,7 +24,8 @@ import {
  * Shown instead of booting when a local-folder Playground cannot use its
  * stored directory handle. Repairs the handle in place — re-granting the
  * browser permission or picking the folder again — and then resumes the same
- * boot rather than surfacing a crash.
+ * boot rather than surfacing a crash. Wears the shared Dock-callout anatomy so
+ * it reads as kin to the On disk and autosave callouts.
  */
 export function LocalDirectoryReconnectOverlay({
 	site,
@@ -141,18 +144,39 @@ export function LocalDirectoryReconnectOverlay({
 		}
 	};
 
-	const lead = getReconnectLead(site, reconnect);
+	const lead = getReconnectLead(reconnect);
 
 	return (
 		<div className={css.overlay}>
-			<div
-				className={css.card}
+			<aside
+				className={classNames(calloutCss.surface, calloutCss.card)}
 				role="alertdialog"
 				aria-label={lead.title}
 			>
-				<Icon icon={archive} size={36} className={css.icon} />
-				<h2 className={css.title}>{lead.title}</h2>
-				<p className={css.lead}>{lead.body}</p>
+				<div className={calloutCss.header}>
+					<div className={calloutCss.eyebrow}>Local folder</div>
+				</div>
+				<div className={calloutCss.identity}>
+					<span className={calloutCss.avatar} aria-hidden="true">
+						<Icon icon={archive} size={28} />
+					</span>
+					<div className={calloutCss.identityCopy}>
+						<div className={calloutCss.identityTitle}>
+							{site.metadata.name}
+						</div>
+						<div className={calloutCss.identityMeta}>
+							{lead.statusLabel}
+						</div>
+					</div>
+				</div>
+				{handleAwaitingConfirmation ? (
+					<p className={css.lead}>
+						You picked “{handleAwaitingConfirmation.name}”, but this
+						Playground was linked to “{reconnect.folderName}”.
+					</p>
+				) : (
+					<p className={css.lead}>{lead.body}</p>
+				)}
 				{error ? (
 					<p className={css.error} role="alert">
 						{error}
@@ -160,26 +184,20 @@ export function LocalDirectoryReconnectOverlay({
 				) : null}
 				{handleAwaitingConfirmation ? (
 					<>
-						<p className={css.lead}>
-							You picked “{handleAwaitingConfirmation.name}”, but
-							this Playground was linked to “
-							{reconnect.folderName}”.
-						</p>
-						<div className={css.actions}>
+						<Button
+							variant="primary"
+							className={calloutCss.primaryAction}
+							isBusy={isBusy}
+							disabled={isBusy}
+							onClick={() =>
+								void relinkFolder(handleAwaitingConfirmation)
+							}
+						>
+							Use “{handleAwaitingConfirmation.name}” anyway
+						</Button>
+						<div className={css.secondaryAction}>
 							<Button
-								variant="primary"
-								isBusy={isBusy}
-								disabled={isBusy}
-								onClick={() =>
-									void relinkFolder(
-										handleAwaitingConfirmation
-									)
-								}
-							>
-								Use “{handleAwaitingConfirmation.name}” anyway
-							</Button>
-							<Button
-								variant="tertiary"
+								variant="link"
 								disabled={isBusy}
 								onClick={() =>
 									setHandleAwaitingConfirmation(null)
@@ -190,10 +208,11 @@ export function LocalDirectoryReconnectOverlay({
 						</div>
 					</>
 				) : (
-					<div className={css.actions}>
+					<>
 						{canReuseStoredHandle ? (
 							<Button
 								variant="primary"
+								className={calloutCss.primaryAction}
 								isBusy={isBusy}
 								disabled={isBusy || !storedHandle}
 								onClick={() => void reconnectStoredFolder()}
@@ -203,6 +222,7 @@ export function LocalDirectoryReconnectOverlay({
 						) : (
 							<Button
 								variant="primary"
+								className={calloutCss.primaryAction}
 								isBusy={isBusy}
 								disabled={isBusy}
 								onClick={() => void chooseFolder()}
@@ -211,51 +231,56 @@ export function LocalDirectoryReconnectOverlay({
 							</Button>
 						)}
 						{canReuseStoredHandle ? (
-							<Button
-								variant="tertiary"
-								disabled={isBusy}
-								onClick={() => void chooseFolder()}
-							>
-								Choose a different folder…
-							</Button>
+							<div className={css.secondaryAction}>
+								<Button
+									variant="link"
+									disabled={isBusy}
+									onClick={() => void chooseFolder()}
+								>
+									Choose a different folder…
+								</Button>
+							</div>
 						) : null}
-					</div>
+					</>
 				)}
-				<p className={css.reassurance}>
+				<p className={calloutCss.hint}>
 					Your files stay on this computer. Playground reads and
 					writes them directly.
 				</p>
-			</div>
+			</aside>
 		</div>
 	);
 }
 
-function getReconnectLead(
-	site: SiteInfo,
-	reconnect: LocalDirectoryReconnectState
-): { title: string; body: string } {
-	const siteName = site.metadata.name;
+function getReconnectLead(reconnect: LocalDirectoryReconnectState): {
+	title: string;
+	statusLabel: string;
+	body: string;
+} {
 	const folderName = reconnect.folderName;
 	switch (reconnect.reason) {
 		case 'needs-permission':
 			return {
 				title: 'Reconnect the local folder',
-				body: `${siteName} runs from ${
-					folderName ? `the folder “${folderName}”` : 'a folder'
-				} on this computer. Your browser needs a quick confirmation before Playground can use it again.`,
+				statusLabel: 'Waiting for browser permission',
+				body: `Your browser needs a quick confirmation before Playground can use ${
+					folderName ? `“${folderName}”` : 'the linked folder'
+				} again.`,
 			};
 		case 'missing-directory':
 			return {
 				title: 'The local folder is missing',
+				statusLabel: 'Folder not found',
 				body: `The folder ${
 					folderName ? `“${folderName}” ` : ''
-				}can't be found. It may have been moved, renamed, or deleted. Choose it again to continue.`,
+				}may have been moved, renamed, or deleted. Choose it again to continue.`,
 			};
 		case 'missing-handle':
 		default:
 			return {
 				title: 'Choose the local folder again',
-				body: `${siteName} runs from a folder on this computer, but your browser no longer remembers which one. Choose the folder to continue.`,
+				statusLabel: 'Folder link lost',
+				body: 'Your browser no longer remembers which folder this Playground runs from. Choose the folder to continue.',
 			};
 	}
 }

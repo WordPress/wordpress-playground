@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@wordpress/components';
-import { close } from '@wordpress/icons';
+import { Button, Icon } from '@wordpress/components';
+import { close, page } from '@wordpress/icons';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import classNames from 'classnames';
 import css from './style.module.css';
+import calloutCss from '../dock-callout.module.css';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
 import {
@@ -30,6 +32,8 @@ const dismissedNotices = new Set<string>();
  * First-run help for a PHP-mode local folder whose document root has no
  * index.php. A bare 404 tells a user who just opened an empty folder nothing;
  * this offers the three ways forward, each of which already exists elsewhere.
+ * Wears the shared Dock-callout anatomy so it reads as kin to the On disk and
+ * autosave callouts.
  */
 export function LocalFolderStarterNotice({ site }: { site: SiteInfo }) {
 	const dispatch = useAppDispatch();
@@ -119,24 +123,34 @@ export function LocalFolderStarterNotice({ site }: { site: SiteInfo }) {
 
 	return (
 		<div className={css.overlay}>
-			<div
-				className={css.card}
+			<aside
+				className={classNames(calloutCss.surface, calloutCss.card)}
 				role="status"
-				aria-label="This folder has no index.php yet"
+				aria-label="No index.php yet"
 			>
-				<Button
-					className={css.dismiss}
-					icon={close}
-					size="small"
-					label="Dismiss"
-					onClick={dismiss}
-				/>
-				<h2 className={css.title}>This folder has no index.php yet</h2>
-				<p className={css.body}>
-					PHP is serving <code>{servedPath}</code>, but there is no{' '}
-					<code>index.php</code> in it to run. Create one, edit the
-					files, or serve a different folder.
-				</p>
+				<div className={calloutCss.header}>
+					<div className={calloutCss.eyebrow}>Local folder</div>
+					<Button
+						className={calloutCss.dismiss}
+						icon={close}
+						label="Dismiss"
+						onClick={dismiss}
+					/>
+				</div>
+				<div className={calloutCss.identity}>
+					<span className={calloutCss.avatar} aria-hidden="true">
+						<Icon icon={page} size={28} />
+					</span>
+					<div className={calloutCss.identityCopy}>
+						<div className={calloutCss.identityTitle}>
+							No index.php yet
+						</div>
+						<div className={calloutCss.identityMeta}>
+							PHP is serving{' '}
+							<code className={css.code}>{servedPath}</code>
+						</div>
+					</div>
+				</div>
 				{error ? (
 					<p className={css.error} role="alert">
 						{error}
@@ -147,32 +161,27 @@ export function LocalFolderStarterNotice({ site }: { site: SiteInfo }) {
 						{documentRootPicker.error}
 					</p>
 				) : null}
-				<div className={css.actions}>
-					<Button
-						variant="primary"
-						size="compact"
-						isBusy={isCreating}
-						disabled={isCreating}
-						onClick={() => void createIndexPhp()}
-					>
-						Create index.php
-					</Button>
-					<Button
-						variant="secondary"
-						size="compact"
-						onClick={openFileEditor}
-					>
+				<Button
+					variant="primary"
+					className={calloutCss.primaryAction}
+					isBusy={isCreating}
+					disabled={isCreating}
+					onClick={() => void createIndexPhp()}
+				>
+					Create index.php
+				</Button>
+				<div className={css.footerActions}>
+					<Button variant="link" onClick={openFileEditor}>
 						Open the file editor
 					</Button>
 					<Button
-						variant="tertiary"
-						size="compact"
+						variant="link"
 						onClick={() => void documentRootPicker.openPicker()}
 					>
 						Change document root
 					</Button>
 				</div>
-			</div>
+			</aside>
 			{documentRootPicker.directoryHandle ? (
 				<LocalDirectoryDocumentRootModal
 					directoryHandle={documentRootPicker.directoryHandle}
