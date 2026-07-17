@@ -19,8 +19,8 @@ import { LocalDirectoryDocumentRootModal } from '../../local-directory-document-
 
 /**
  * The linked folder as two ordinary settings rows, sharing the form's
- * side-label geometry. Deleting the link lives in the Playgrounds pane, not
- * here.
+ * side-label geometry. A repair action appears only when the browser's folder
+ * access is actually broken; deleting the link lives in the Playgrounds pane.
  */
 export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 	const siteInfo = useAppSelector((state) =>
@@ -30,62 +30,75 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 	const { reloadFromDisk, isReloading } = useReloadFromDisk();
 	const documentRootPicker = useDocumentRootPicker();
 	const [folderName, setFolderName] = useState<string | null>(null);
-	const [isReconnecting, setIsReconnecting] = useState(false);
-	const [feedback, setFeedback] = useState<{
-		type: 'success' | 'error';
-		message: string;
-	} | null>(null);
-
-	const bootConfiguration = siteInfo.metadata.localDirectoryBootConfiguration;
+	const [folderAccess, setFolderAccess] = useState<
+		'checking' | 'ok' | 'broken'
+	>('checking');
+	const [isRepairing, setIsRepairing] = useState(false);
+	const [refreshFailed, setRefreshFailed] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
 		loadDirectoryHandle(siteSlug)
-			.then((handle) => {
+			.then(async (handle) => {
+				const readiness = await probeDirectoryHandle(handle);
 				if (!cancelled) {
 					setFolderName(handle.name);
+					setFolderAccess(readiness === 'ready' ? 'ok' : 'broken');
 				}
 			})
 			.catch(() => {
-				// The handle may be gone; the boot flow offers the recovery UI.
+				if (!cancelled) {
+					setFolderAccess('broken');
+				}
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, [siteSlug]);
 
-	const reconnectFolder = async () => {
-		setFeedback(null);
-		setIsReconnecting(true);
+	const refreshFromFolder = async () => {
+		setRefreshFailed(false);
+		if (await reloadFromDisk()) {
+			return;
+		}
+		// A failed refresh either means the browser lost folder access or a
+		// transient runtime problem; probing tells the two apart.
+		try {
+			const handle = await loadDirectoryHandle(siteSlug);
+			if ((await probeDirectoryHandle(handle)) !== 'ready') {
+				setFolderAccess('broken');
+				return;
+			}
+		} catch {
+			setFolderAccess('broken');
+			return;
+		}
+		setRefreshFailed(true);
+	};
+
+	// Re-requests the browser permission; must run inside the click gesture.
+	const allowAccess = async () => {
+		setIsRepairing(true);
 		try {
 			const handle = await loadDirectoryHandle(siteSlug);
 			const permission = await requestDirectoryHandlePermission(handle);
 			if (
-				permission !== 'granted' ||
-				(await probeDirectoryHandle(handle)) !== 'ready'
+				permission === 'granted' &&
+				(await probeDirectoryHandle(handle)) === 'ready'
 			) {
-				setFeedback({
-					type: 'error',
-					message:
-						'The folder could not be accessed. Reopen it from the Playgrounds pane.',
-				});
-				return;
+				setFolderAccess('ok');
+				// Finish what the user came for: show the folder's current
+				// files now that access is back.
+				await reloadFromDisk();
 			}
-			setFeedback({
-				type: 'success',
-				message: 'Folder access confirmed.',
-			});
 		} catch (cause) {
-			logger.error('Error reconnecting the local folder.', cause);
-			setFeedback({
-				type: 'error',
-				message:
-					'The folder could not be accessed. Reopen it from the Playgrounds pane.',
-			});
+			logger.error('Error restoring local folder access.', cause);
 		} finally {
-			setIsReconnecting(false);
+			setIsRepairing(false);
 		}
 	};
+
+	const bootConfiguration = siteInfo.metadata.localDirectoryBootConfiguration;
 
 	return (
 		<div className={css.rows}>
@@ -95,24 +108,30 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 					<span className={css.folderName}>
 						{folderName ?? siteInfo.metadata.name}
 					</span>
-					{/* The action pair wraps as one unit so a narrow pane
-					    never strands a lone link on its own line. */}
-					<span className={css.actionPair}>
+					{folderAccess === 'broken' ? (
+						<>
+							<span className={css.feedbackError}>
+								Playground lost access to this folder.
+							</span>
+							<Button
+								variant="link"
+								disabled={isRepairing}
+								onClick={() => void allowAccess()}
+							>
+								{isRepairing ? 'Waiting…' : 'Allow access'}
+							</Button>
+						</>
+					) : (
 						<Button
 							variant="link"
-							disabled={isReloading}
-							onClick={() => void reloadFromDisk()}
+							disabled={isReloading || folderAccess !== 'ok'}
+							onClick={() => void refreshFromFolder()}
 						>
-							{isReloading ? 'Reloading…' : 'Reload from disk'}
+							{isReloading
+								? 'Refreshing…'
+								: 'Refresh from folder'}
 						</Button>
-						<Button
-							variant="link"
-							disabled={isReconnecting}
-							onClick={() => void reconnectFolder()}
-						>
-							{isReconnecting ? 'Reconnecting…' : 'Reconnect'}
-						</Button>
-					</span>
+					)}
 				</span>
 			</div>
 			{bootConfiguration ? (
@@ -133,7 +152,7 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 					</span>
 				</div>
 			) : null}
-			{documentRootPicker.error || feedback ? (
+			{documentRootPicker.error || refreshFailed ? (
 				<div className={css.row}>
 					<span aria-hidden="true" />
 					<span className={css.value}>
@@ -142,20 +161,9 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 								{documentRootPicker.error}
 							</p>
 						) : null}
-						{feedback ? (
-							<p
-								className={
-									feedback.type === 'error'
-										? css.feedbackError
-										: css.feedbackSuccess
-								}
-								role={
-									feedback.type === 'error'
-										? 'alert'
-										: 'status'
-								}
-							>
-								{feedback.message}
+						{refreshFailed ? (
+							<p className={css.feedbackError} role="alert">
+								Couldn’t refresh the files. Try again.
 							</p>
 						) : null}
 					</span>

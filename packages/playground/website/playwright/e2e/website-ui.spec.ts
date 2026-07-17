@@ -3068,7 +3068,7 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: 'On disk', exact: true })
 			.click();
 		await website.page
-			.getByRole('button', { name: 'Reload files from disk' })
+			.getByRole('button', { name: 'Refresh from folder' })
 			.click();
 		await expect(appBody).toHaveText('externally-edited', {
 			timeout: 120000,
@@ -3147,7 +3147,9 @@ test.describe('Default Playground storage', () => {
 				.getByRole('navigation', { name: 'Playground tools' })
 				.getByText('Reconnect needed')
 		).toBeVisible();
-		await overlay.getByRole('button', { name: 'Reconnect folder' }).click();
+		await overlay
+			.getByRole('button', { name: 'Allow folder access' })
+			.click();
 		await expect(overlay).not.toBeVisible({ timeout: 120000 });
 		await expect(appBody).toHaveText('reconnect-entry', {
 			timeout: 120000,

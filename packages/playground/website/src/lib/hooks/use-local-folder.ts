@@ -11,17 +11,20 @@ import { loadDirectoryHandle } from '../state/opfs/opfs-directory-handle-storage
  * Re-reads the linked local folder into the running Playground so edits made
  * to the files on disk (outside Playground) show up. Re-mounts the local
  * project root, then reloads the page to reflect the new files.
+ *
+ * Returns whether the refresh succeeded so callers can tell a broken folder
+ * link apart from a completed refresh.
  */
 export function useReloadFromDisk() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const [isReloading, setIsReloading] = useState(false);
 
-	const reloadFromDisk = async () => {
+	const reloadFromDisk = async (): Promise<boolean> => {
 		const client = clientInfo?.client;
 		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
 		const url = clientInfo?.url;
 		if (!client || !opfsMountDescriptor || !url) {
-			return;
+			return false;
 		}
 		setIsReloading(true);
 		try {
@@ -33,8 +36,10 @@ export function useReloadFromDisk() {
 				initialSyncDirection: 'opfs-to-memfs',
 			});
 			await client.goTo(url);
+			return true;
 		} catch (error) {
 			logger.error('Error reloading files from the local folder.', error);
+			return false;
 		} finally {
 			setIsReloading(false);
 		}

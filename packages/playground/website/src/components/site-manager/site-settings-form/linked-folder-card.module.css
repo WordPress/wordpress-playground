@@ -42,13 +42,6 @@
 	white-space: nowrap;
 }
 
-.actionPair {
-	display: inline-flex;
-	align-items: center;
-	gap: 12px;
-	white-space: nowrap;
-}
-
 .value :global(.components-button.is-link) {
 	font-size: 13px;
 	text-decoration: none;

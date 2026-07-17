@@ -217,7 +217,7 @@ export function LocalDirectoryReconnectOverlay({
 								disabled={isBusy || !storedHandle}
 								onClick={() => void reconnectStoredFolder()}
 							>
-								Reconnect folder
+								Allow folder access
 							</Button>
 						) : (
 							<Button

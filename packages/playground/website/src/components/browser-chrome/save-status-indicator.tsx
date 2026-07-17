@@ -289,11 +289,11 @@ export function SaveStatusIndicator({
 									}}
 								>
 									{isReloadingFromDisk
-										? 'Reloading…'
-										: 'Reload files from disk'}
+										? 'Refreshing…'
+										: 'Refresh from folder'}
 								</Button>
 								<p className={calloutCss.hint}>
-									Reload to pick up edits made to the folder
+									Picks up edits you made to the folder
 									outside Playground.
 								</p>
 								<div className={css.savedMenuFooter}>
