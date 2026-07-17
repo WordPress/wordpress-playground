@@ -1139,7 +1139,9 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	);
 	expect(importedSite?.slug).toBeTruthy();
 	const importedSiteSlug = importedSite.slug;
-	await website.waitForNestedIframes();
+	// Fresh-boot the imported site before making a request in its current
+	// runtime. Import success should mean its files are already durable.
+	await website.goto(`./?site-slug=${importedSiteSlug}`);
 
 	await expect(website.page.getByText('Save failed')).toHaveCount(0);
 	await expect(website.page.getByText('Site failed')).toHaveCount(0);
