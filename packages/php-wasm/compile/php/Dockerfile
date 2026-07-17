@@ -2188,6 +2188,26 @@ COPY ./compile/php/exported-functions.list /root/exported-functions.list
 COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
+# External phpize extensions are not available while this main module is linked.
+# Export the complete public symbol surface of the matching libphp archive so
+# MAIN_MODULE=2 can retain only the PHP extension ABI instead of every symbol.
+RUN set -eux; \
+	/root/emsdk/upstream/bin/llvm-nm \
+		--defined-only \
+		--extern-only \
+		--format=just-symbols \
+		/root/lib/libphp.a \
+		| grep -v '^[[:space:]]*$' \
+		| sed 's/^/_/' \
+		>> /root/.JS_ABI_EXPORTS; \
+	/root/emsdk/upstream/bin/llvm-nm \
+		--defined-only \
+		--extern-only \
+		--format=just-symbols \
+		/root/lib/libphp.a \
+		| grep -v '^[[:space:]]*$' \
+		>> /root/.WASM_ABI_EXPORTS
+
 RUN set -eux; \
 	if [ "$WITH_JSPI" != "yes" ]; then \
 		exit 0; \

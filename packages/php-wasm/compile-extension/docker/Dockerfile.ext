@@ -48,6 +48,13 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
 	emmake make install
 
+# PHP optimizes constant-size emalloc() calls into a build-specific family of
+# _emalloc_<size>() symbols. External side modules must use the stable
+# _emalloc() entry point exported by every matching PHP.wasm main module.
+RUN /root/replace.sh \
+	's/#include "zend_alloc_sizes.h"/#include "zend_alloc_sizes.h"\n#undef HAVE_BUILTIN_CONSTANT_P/' \
+	/usr/local/include/php/Zend/zend_alloc.h
+
 RUN mkdir -p /usr/local/include/php/ext/standard && \
 	if [ -f /root/php-src/ext/standard/php_smart_string.h ]; then \
 		cp /root/php-src/ext/standard/*.h /usr/local/include/php/ext/standard/; \

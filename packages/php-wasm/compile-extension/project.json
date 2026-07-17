@@ -88,6 +88,12 @@
 				"command": "packages/php-wasm/compile-extension/tests/run-integration-tests.sh"
 			}
 		},
+		"test-external-extension-abi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "packages/php-wasm/compile-extension/tests/test-external-extension-abi.sh"
+			}
+		},
 		"test-lazy-docker-asset-fetch": {
 			"executor": "nx:run-commands",
 			"options": {
