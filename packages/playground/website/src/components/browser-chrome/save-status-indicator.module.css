@@ -94,15 +94,25 @@
 	display: inline;
 }
 
-/* Local-directory "Saved" pill opens a small menu for its available disk and
+/* Local-folder "On disk" pill opens a small menu for its available disk and
    document-root actions, so the dock does not need storage-specific buttons
-   next to the status. The popover renders on the default light surface. */
+   next to the status. The popover renders on the default light surface.
+   An explicit width is required: the popover otherwise shrink-wraps to
+   min-content and the hint text wraps one word per line. */
 .saved-menu-content {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
 	padding: 12px;
-	max-width: 260px;
+	width: 280px;
+	box-sizing: border-box;
+}
+
+.saved-menu-hint code {
+	font-size: 11px;
+	background: #f0eee9;
+	padding: 1px 4px;
+	border-radius: 3px;
 }
 
 .saved-menu-hint {

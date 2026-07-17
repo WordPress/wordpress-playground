@@ -1,0 +1,60 @@
+.overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: #f7f5f2;
+	z-index: 10;
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-width: 440px;
+	text-align: center;
+	align-items: center;
+}
+
+.icon {
+	color: #757575;
+}
+
+.title {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 600;
+	color: #1e1e1e;
+}
+
+.lead {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #3c3a36;
+}
+
+.reassurance {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #757575;
+}
+
+.error {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #cc1818;
+}
+
+.actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}

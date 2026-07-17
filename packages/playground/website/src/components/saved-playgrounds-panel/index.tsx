@@ -60,9 +60,16 @@ import {
 	setDockPaneOpen,
 	setDockPaneSection,
 	setSiteSlugToDelete,
+	setSiteSlugToSave,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 } from '../../lib/state/redux/slice-ui';
+import {
+	directoryHandleHasEntries,
+	requestDirectoryHandlePermission,
+	showLocalFolderPicker,
+} from '../../lib/local-directory-handle';
+import { setPendingPickedFolder } from '../save-site-modal/pending-picked-folder';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
@@ -637,7 +644,9 @@ export function SavedPlaygroundsPanel({
 	// reads the running Playground, so a non-active one is switched to first —
 	// but the OS directory picker MUST open inside this click gesture, before the
 	// async switch/boot, or the browser blocks it. So we pick the folder first,
-	// then switch and write into it.
+	// then switch and write into it. A folder that already contains files is
+	// never written to from this one click: it hands off to the save pane,
+	// which asks for an explicit confirmation first.
 	const handleSaveToLocalDirectory = async (
 		site: SiteInfo,
 		closeMenu: () => void
@@ -647,23 +656,28 @@ export function SavedPlaygroundsPanel({
 		}
 		try {
 			dispatch(setDockOperationNotice(undefined));
-			if (site.slug === activeSite?.slug) {
-				closeMenu();
-				await sitesAPI.saveToLocalFileSystem();
+			// Close the menu before the picker so a failure or cancellation
+			// does not leave it open, capturing Escape and focus. The state
+			// update is synchronous and does not consume the click gesture
+			// the picker needs.
+			closeMenu();
+			const directoryHandle = await showLocalFolderPicker();
+			if (site.slug !== activeSite?.slug) {
+				await sitesAPI.setActiveSite(site.slug);
+			}
+			if (await directoryHandleHasEntries(directoryHandle)) {
+				setPendingPickedFolder(directoryHandle);
+				dispatch(setSiteSlugToSave(site.slug));
+				dispatch(setDockPaneSection('save'));
+				dispatch(setDockPaneOpen(true));
 				return;
 			}
-			const directoryHandle = await (window as any).showDirectoryPicker({
-				id: 'playground-local-fs',
-				mode: 'readwrite',
-			});
-			closeMenu();
-			await sitesAPI.setActiveSite(site.slug);
 			await sitesAPI.saveToLocalFileSystem(undefined, directoryHandle);
 		} catch (error) {
 			if ((error as Error)?.name === 'AbortError') {
 				return; // The user dismissed the directory picker.
 			}
-			logger.error('Error saving Playground to a local directory', error);
+			logger.error('Error saving Playground to a local folder', error);
 			dispatch(
 				setDockOperationNotice({
 					title: `Couldn’t save ${site.metadata.name} locally`,
@@ -680,7 +694,7 @@ export function SavedPlaygroundsPanel({
 			return 'Not saved to browser storage';
 		}
 		if (site.metadata.storage === 'local-fs') {
-			return 'Local directory';
+			return 'Local folder';
 		}
 		return formatSiteCreatedDate(site) ?? '';
 	};
@@ -688,6 +702,13 @@ export function SavedPlaygroundsPanel({
 	const getCurrentSiteDetails = (site: SiteInfo) => {
 		return [
 			getRuntimeLabel(site),
+			// A site saved to disk after its creation would otherwise read as a
+			// browser-storage site — its row is where users look for "where does
+			// this live".
+			...(site.metadata.storage === 'local-fs' &&
+			!site.metadata.localDirectoryBootConfiguration
+				? ['Saved to a local folder']
+				: []),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
 	};
@@ -706,7 +727,7 @@ export function SavedPlaygroundsPanel({
 
 	const getSourceLabel = (site: SiteInfo) => {
 		if (site.metadata.localDirectoryBootConfiguration) {
-			return 'local directory';
+			return 'local folder';
 		}
 		const corePr = getOriginalSearchParam(site, 'core-pr');
 		if (corePr) {
@@ -873,26 +894,16 @@ export function SavedPlaygroundsPanel({
 		setLocalDirectoryError(undefined);
 		setIsOpeningLocalDirectory(true);
 		try {
-			const directoryHandle = await (
-				window as Window & {
-					showDirectoryPicker: (options: {
-						id: string;
-						mode: 'readwrite';
-					}) => Promise<FileSystemDirectoryHandle>;
-				}
-			).showDirectoryPicker({
-				id: 'playground-open-local-directory',
-				mode: 'readwrite',
-			});
+			const directoryHandle = await showLocalFolderPicker();
 			await requestLocalDirectoryWriteAccess(directoryHandle);
 			await sitesAPI.createNewLocalDirectorySite(directoryHandle);
 			dispatch(setDockPaneOpen(false));
 			onClose();
 		} catch (error) {
 			if ((error as DOMException | undefined)?.name !== 'AbortError') {
-				logger.error('Error opening local directory', error);
+				logger.error('Error opening local folder', error);
 				setLocalDirectoryError(
-					'The selected directory could not be opened.'
+					'The selected folder could not be opened.'
 				);
 			}
 		} finally {
@@ -993,8 +1004,8 @@ export function SavedPlaygroundsPanel({
 		},
 		{
 			id: 'local-directory',
-			label: 'Local directory',
-			panelTitle: 'Open a local directory',
+			label: 'Local folder',
+			panelTitle: 'Open a local folder',
 			icon: <Icon icon={archive} size={20} />,
 			disabled:
 				!isOpfsAvailable ||
@@ -1144,7 +1155,7 @@ export function SavedPlaygroundsPanel({
 												)
 											}
 										>
-											Save in a local directory…
+											Save a copy to a local folder…
 										</MenuItem>
 									)}
 								</MenuGroup>
@@ -1416,7 +1427,7 @@ export function SavedPlaygroundsPanel({
 							title={
 								method.disabled
 									? method.id === 'local-directory'
-										? 'Opening local directories is not supported by this browser'
+										? 'Opening local folders is not supported by this browser'
 										: 'Needs an internet connection — unavailable offline'
 									: undefined
 							}
@@ -1662,8 +1673,12 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<p className={css.inlineFormHint}>
-							Choose a project folder. PHP serves its root by
-							default; you can change the document root later.
+							Run a PHP or WordPress project straight from a
+							folder on this computer. Playground reads and writes
+							the real files, so the folder keeps working with
+							your editor and version control. PHP serves the
+							folder itself; you can change the served document
+							root later.
 						</p>
 						{localDirectoryError ? (
 							<p role="alert">{localDirectoryError}</p>
@@ -1677,7 +1692,7 @@ export function SavedPlaygroundsPanel({
 							>
 								{isOpeningLocalDirectory
 									? 'Opening…'
-									: 'Choose a directory…'}
+									: 'Choose a folder…'}
 							</Button>
 						</div>
 					</div>
@@ -1800,15 +1815,10 @@ function PullRequestIcon() {
 async function requestLocalDirectoryWriteAccess(
 	directoryHandle: FileSystemDirectoryHandle
 ) {
-	if (typeof directoryHandle.requestPermission !== 'function') {
-		return;
-	}
-	const permission = await directoryHandle.requestPermission({
-		mode: 'readwrite',
-	});
+	const permission = await requestDirectoryHandlePermission(directoryHandle);
 	if (permission !== 'granted') {
 		throw new DOMException(
-			'Permission to open this directory was denied.',
+			'Permission to open this folder was denied.',
 			'NotAllowedError'
 		);
 	}

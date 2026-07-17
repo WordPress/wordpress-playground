@@ -27,6 +27,8 @@ export type PlaygroundFileEditorProps = {
 	filesystem: AsyncWritableFilesystem | null;
 	isVisible?: boolean;
 	documentRoot: string;
+	/** Display-only label for the tree's root row instead of the mount path. */
+	rootLabel?: string;
 	initialPath?: string | null;
 	placeholderText?: string;
 	dockPresentation?: boolean;
@@ -49,6 +51,7 @@ export function PlaygroundFileEditor({
 	filesystem,
 	isVisible = true,
 	documentRoot,
+	rootLabel,
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
 	dockPresentation = false,
@@ -574,6 +577,7 @@ export function PlaygroundFileEditor({
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot={documentRoot}
+						rootLabel={rootLabel}
 						dockPresentation={dockPresentation}
 						useWordPressTooltips={dockPresentation}
 					/>

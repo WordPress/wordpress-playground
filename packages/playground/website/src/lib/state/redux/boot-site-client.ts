@@ -21,6 +21,7 @@ import {
 	setActiveModal,
 	setActiveSiteError,
 	setGitHubAuthRepoUrl,
+	setLocalDirectoryReconnect,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
@@ -42,6 +43,7 @@ import {
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import { getLocalDirectoryDocumentRoot } from '../../local-directory-site';
+import { probeDirectoryHandle } from '../../local-directory-handle';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -137,9 +139,25 @@ export function bootSiteClient(
 				}
 				logger.error(e);
 				dispatch(
-					setActiveSiteError({
-						error: 'directory-handle-not-found-in-indexeddb',
-						details: e,
+					setLocalDirectoryReconnect({ reason: 'missing-handle' })
+				);
+				return;
+			}
+			// A restored handle can outlive its permission grant or its folder.
+			// Boot pauses behind a reconnect prompt instead of crashing because
+			// re-requesting the permission requires a user gesture.
+			const readiness = await probeDirectoryHandle(localDirectoryHandle);
+			if (signal.aborted) {
+				return;
+			}
+			if (readiness !== 'ready') {
+				dispatch(
+					setLocalDirectoryReconnect({
+						reason:
+							readiness === 'missing-directory'
+								? 'missing-directory'
+								: 'needs-permission',
+						folderName: localDirectoryHandle.name,
 					})
 				);
 				return;

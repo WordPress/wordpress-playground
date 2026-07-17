@@ -10,7 +10,7 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError } from './slice-ui';
+import { setActiveSiteError, setLocalDirectoryReconnect } from './slice-ui';
 import { addClientInfo } from './slice-clients';
 import {
 	selectAllSites,
@@ -163,6 +163,9 @@ export function createSitesAPI(
 				if (selectActiveSiteError(state)) {
 					return true;
 				}
+				if (state.ui.activeSite?.localDirectoryReconnect) {
+					return true;
+				}
 				return Boolean(selectClientBySiteSlug(state, site.slug));
 			};
 
@@ -189,6 +192,11 @@ export function createSitesAPI(
 						error,
 						selectActiveSiteErrorDetails(settledState)
 					)
+				);
+			}
+			if (settledState.ui.activeSite?.localDirectoryReconnect) {
+				throw new Error(
+					'The local folder must be reconnected before this Playground can boot.'
 				);
 			}
 			const site = selectActiveSite(settledState)!;
@@ -553,6 +561,70 @@ export function createSitesAPI(
 		},
 
 		/**
+		 * Replaces the directory handle backing a local-folder site.
+		 *
+		 * Recovers a site whose stored handle lost its permission or whose
+		 * folder was moved or deleted. The new folder is re-classified: a
+		 * document root that no longer exists falls back to the folder root
+		 * rather than serving a path the folder does not contain.
+		 *
+		 * @param siteSlug The slug of the local-folder site.
+		 * @param directoryHandle A picker-granted handle to link instead.
+		 * @throws When the site is not backed by a local folder.
+		 */
+		async relinkLocalDirectory(
+			siteSlug: string,
+			directoryHandle: FileSystemDirectoryHandle
+		): Promise<void> {
+			const site = selectSiteBySlug(getState(), siteSlug);
+			if (!site || site.metadata.storage !== 'local-fs') {
+				throw new Error(
+					'Only Playgrounds opened from a local folder can be relinked.'
+				);
+			}
+			await saveDirectoryHandle(siteSlug, directoryHandle);
+			const bootConfiguration =
+				site.metadata.localDirectoryBootConfiguration;
+			if (!bootConfiguration) {
+				return;
+			}
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(directoryHandle)
+			);
+			let documentRoot = bootConfiguration.documentRoot;
+			let siteMode;
+			try {
+				siteMode = await detectLocalDirectorySiteMode(
+					filesystem,
+					documentRoot
+				);
+			} catch {
+				documentRoot = '';
+				siteMode = await detectLocalDirectorySiteMode(
+					filesystem,
+					documentRoot
+				);
+			}
+			if (
+				documentRoot !== bootConfiguration.documentRoot ||
+				siteMode !== bootConfiguration.siteMode
+			) {
+				await dispatch(
+					updateSiteMetadata({
+						slug: siteSlug,
+						changes: {
+							localDirectoryBootConfiguration: {
+								mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+								documentRoot,
+								siteMode,
+							},
+						},
+					})
+				);
+			}
+		},
+
+		/**
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
@@ -607,7 +679,8 @@ export function createSitesAPI(
 					predicate: (action) =>
 						(addClientInfo.match(action) &&
 							action.payload.siteSlug === siteSlug) ||
-						setActiveSiteError.match(action),
+						setActiveSiteError.match(action) ||
+						setLocalDirectoryReconnect.match(action),
 					effect: (action) => {
 						unsubscribe();
 						if (setActiveSiteError.match(action)) {
@@ -620,6 +693,8 @@ export function createSitesAPI(
 								)
 							);
 						} else {
+							// A reconnect prompt settles the switch: the site
+							// is active and boot awaits a user gesture.
 							resolve();
 						}
 					},

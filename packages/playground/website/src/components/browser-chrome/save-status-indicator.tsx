@@ -22,9 +22,12 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
-import { logger } from '@php-wasm/logger';
+import {
+	useDocumentRootPicker,
+	useReloadFromDisk,
+} from '../../lib/hooks/use-local-folder';
+import { getLocalDirectoryPickerPath } from '../../lib/local-directory-site';
 import { Spinner } from '../spinner';
-import { loadDirectoryHandle } from '../../lib/state/opfs/opfs-directory-handle-storage';
 import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
@@ -55,10 +58,9 @@ export function SaveStatusIndicator({
 		status: SaveStatus | undefined;
 		siteSlug: string | undefined;
 	}>();
-	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
-	const [documentRootDirectoryHandle, setDocumentRootDirectoryHandle] =
-		useState<FileSystemDirectoryHandle | null>(null);
-	const [documentRootPickerError, setDocumentRootPickerError] = useState('');
+	const { reloadFromDisk, isReloading: isReloadingFromDisk } =
+		useReloadFromDisk();
+	const documentRootPicker = useDocumentRootPicker();
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -69,6 +71,9 @@ export function SaveStatusIndicator({
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
 	const isLocalFs = activeSite?.metadata.storage === 'local-fs';
+	const reconnect = useAppSelector(
+		(state) => state.ui.activeSite?.localDirectoryReconnect
+	);
 
 	useEffect(() => {
 		const previousStatus = previousStatusRef.current;
@@ -124,58 +129,28 @@ export function SaveStatusIndicator({
 		dispatch(setDockPaneOpen(true));
 	};
 
-	// Re-reads the linked local directory into the running Playground so edits
-	// made to the files on disk (outside Playground) show up. Re-mounts the local
-	// project root, then reloads the page to reflect the new files.
-	const reloadFilesFromDisk = async () => {
-		const client = clientInfo?.client;
-		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
-		const url = clientInfo?.url;
-		if (!client || !opfsMountDescriptor || !url) {
-			return;
-		}
-		setIsReloadingFromDisk(true);
-		try {
-			const mountpoint = opfsMountDescriptor.mountpoint;
-			await client.unmountOpfs(mountpoint);
-			await client.mountOpfs({
-				device: opfsMountDescriptor.device,
-				mountpoint,
-				initialSyncDirection: 'opfs-to-memfs',
-			});
-			await client.goTo(url);
-		} catch (error) {
-			logger.error(
-				'Error reloading files from the local directory.',
-				error
-			);
-		} finally {
-			setIsReloadingFromDisk(false);
-		}
-	};
-
-	/** Returns whether the picker opened so the actions menu stays open on failure. */
-	const openDocumentRootPicker = async () => {
-		if (!activeSite?.metadata.localDirectoryBootConfiguration) {
-			return false;
-		}
-		setDocumentRootPickerError('');
-		try {
-			setDocumentRootDirectoryHandle(
-				await loadDirectoryHandle(activeSite.slug)
-			);
-			return true;
-		} catch (error) {
-			logger.error('Error loading the local directory handle.', error);
-			setDocumentRootPickerError(
-				"Couldn't open the linked directory. Try again, or reopen the project folder from Playgrounds."
-			);
-			return false;
-		}
+	const openFolderSettings = () => {
+		dispatch(setDockPaneSection('settings'));
+		dispatch(setDockPaneOpen(true));
 	};
 
 	if (!status) {
 		return null;
+	}
+
+	// The runtime never connects while boot waits for the user to reconnect
+	// the local folder, so the chip mirrors the viewport prompt instead of
+	// showing an indefinite "Loading…" spinner.
+	if (isLocalFs && reconnect) {
+		return withStatusAnnouncement(
+			<div
+				className={classNames(css.indicator, css.unsaved)}
+				title="This Playground's local folder needs to be reconnected."
+			>
+				<Icon icon={cautionFilled} size={18} />
+				<span className={css.label}>Reconnect needed</span>
+			</div>
+		);
 	}
 
 	if (status === 'loading') {
@@ -190,10 +165,12 @@ export function SaveStatusIndicator({
 	}
 
 	if (status === 'saved') {
-		// Local-directory Playgrounds fold their available disk reload and
+		// Local-folder Playgrounds fold their available disk reload and
 		// document-root actions into the status itself, so the dock keeps one
-		// "Saved" control instead of adding storage-specific buttons beside it.
+		// "On disk" control instead of adding storage-specific buttons beside it.
 		if (isLocalFs) {
+			const bootConfiguration =
+				activeSite.metadata.localDirectoryBootConfiguration;
 			return withStatusAnnouncement(
 				<>
 					<Dropdown
@@ -207,7 +184,7 @@ export function SaveStatusIndicator({
 									css.actionable
 								)}
 								onClick={() => {
-									setDocumentRootPickerError('');
+									documentRootPicker.clearError();
 									onToggle();
 								}}
 								disabled={disabled}
@@ -215,7 +192,7 @@ export function SaveStatusIndicator({
 								title="Saved to a folder on this computer."
 							>
 								<Icon icon={check} size={18} />
-								<span className={css.label}>Saved</span>
+								<span className={css.label}>On disk</span>
 								<Icon icon={chevronDown} size={16} />
 							</button>
 						)}
@@ -226,12 +203,22 @@ export function SaveStatusIndicator({
 									computer. Changes you make here are written
 									to those files.
 								</p>
+								{bootConfiguration ? (
+									<p className={css.savedMenuHint}>
+										Document root:{' '}
+										<code>
+											{getLocalDirectoryPickerPath(
+												bootConfiguration.documentRoot
+											)}
+										</code>
+									</p>
+								) : null}
 								<Button
 									className={css.savedMenuAction}
 									icon={update}
 									disabled={disabled || isReloadingFromDisk}
 									onClick={async () => {
-										await reloadFilesFromDisk();
+										await reloadFromDisk();
 										onClose();
 									}}
 								>
@@ -239,14 +226,13 @@ export function SaveStatusIndicator({
 										? 'Reloading…'
 										: 'Reload files from disk'}
 								</Button>
-								{activeSite.metadata
-									.localDirectoryBootConfiguration ? (
+								{bootConfiguration ? (
 									<Button
 										className={css.savedMenuAction}
 										disabled={disabled}
 										onClick={async () => {
 											if (
-												await openDocumentRootPicker()
+												await documentRootPicker.openPicker()
 											) {
 												onClose();
 											}
@@ -255,34 +241,37 @@ export function SaveStatusIndicator({
 										Change document root
 									</Button>
 								) : null}
-								{documentRootPickerError ? (
+								<Button
+									className={css.savedMenuAction}
+									disabled={disabled}
+									onClick={() => {
+										onClose();
+										openFolderSettings();
+									}}
+								>
+									Folder settings…
+								</Button>
+								{documentRootPicker.error ? (
 									<p
 										className={css.savedMenuError}
 										role="alert"
 									>
-										{documentRootPickerError}
+										{documentRootPicker.error}
 									</p>
 								) : null}
 							</div>
 						)}
 					/>
-					{documentRootDirectoryHandle &&
-					activeSite.metadata.localDirectoryBootConfiguration ? (
+					{documentRootPicker.directoryHandle && bootConfiguration ? (
 						<LocalDirectoryDocumentRootModal
-							directoryHandle={documentRootDirectoryHandle}
-							initialDocumentRoot={
-								activeSite.metadata
-									.localDirectoryBootConfiguration
-									.documentRoot
-							}
-							onRequestClose={() =>
-								setDocumentRootDirectoryHandle(null)
-							}
+							directoryHandle={documentRootPicker.directoryHandle}
+							initialDocumentRoot={bootConfiguration.documentRoot}
+							onRequestClose={documentRootPicker.closePicker}
 							onSelect={async (documentRoot) => {
 								await sitesAPI.changeLocalDirectoryDocumentRoot(
 									documentRoot
 								);
-								setDocumentRootDirectoryHandle(null);
+								documentRootPicker.closePicker();
 							}}
 						/>
 					) : null}

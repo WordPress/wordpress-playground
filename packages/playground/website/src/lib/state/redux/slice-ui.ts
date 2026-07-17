@@ -4,10 +4,6 @@ import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
 export type SiteError =
-	| 'directory-handle-not-found-in-indexeddb'
-	| 'directory-handle-permission-denied'
-	| 'directory-handle-directory-does-not-exist'
-	| 'directory-handle-unknown-error'
 	| 'browser-storage-cleanup-failed'
 	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
@@ -29,6 +25,18 @@ export type DockPaneSection =
 	| 'logs'
 	| 'share'
 	| 'save';
+
+/**
+ * Why a local-folder Playground paused its boot to wait for the user.
+ *
+ * `needs-permission` keeps the stored handle and only needs a re-grant;
+ * the `missing-*` reasons require picking the folder again.
+ */
+export interface LocalDirectoryReconnectState {
+	reason: 'needs-permission' | 'missing-handle' | 'missing-directory';
+	/** Folder name from the stored handle, when it could still be loaded. */
+	folderName?: string;
+}
 
 export const modalSlugs = {
 	LOG: 'log',
@@ -160,7 +168,17 @@ export interface UIState {
 		slug: string;
 		error?: SiteError;
 		errorDetails?: SerializedSiteErrorDetails;
+		/**
+		 * Set when boot paused because the site's local folder is not usable
+		 * yet. Rendered as a reconnect prompt instead of an error.
+		 */
+		localDirectoryReconnect?: LocalDirectoryReconnectState;
 	};
+	/**
+	 * Per-site boot retry counters. Incrementing one re-runs `bootSiteClient()`
+	 * for that site's viewport, e.g. after the user re-granted folder access.
+	 */
+	bootAttempts: Record<string, number>;
 	activeModal: string | null;
 	siteSlugToRename?: string;
 	siteSlugToDelete?: string;
@@ -210,6 +228,7 @@ const initialState: UIState = {
 		query.get('modal') === 'rename-site'
 			? null
 			: query.get('modal') || null,
+	bootAttempts: {},
 	offline: !navigator.onLine,
 	shareExportOpen: false,
 	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
@@ -273,6 +292,23 @@ const uiSlice = createSlice({
 				state.activeSite.error = undefined;
 				state.activeSite.errorDetails = undefined;
 			}
+		},
+		setLocalDirectoryReconnect: (
+			state,
+			action: PayloadAction<LocalDirectoryReconnectState>
+		) => {
+			if (state.activeSite) {
+				state.activeSite.localDirectoryReconnect = action.payload;
+			}
+		},
+		clearLocalDirectoryReconnect: (state) => {
+			if (state.activeSite) {
+				state.activeSite.localDirectoryReconnect = undefined;
+			}
+		},
+		retrySiteBoot: (state, action: PayloadAction<string>) => {
+			state.bootAttempts[action.payload] =
+				(state.bootAttempts[action.payload] ?? 0) + 1;
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			const url = new URL(window.location.href);
@@ -379,6 +415,9 @@ export const {
 	setActiveModal,
 	setActiveSiteError,
 	clearActiveSiteError,
+	setLocalDirectoryReconnect,
+	clearLocalDirectoryReconnect,
+	retrySiteBoot,
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setShareExportOpen,

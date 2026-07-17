@@ -84,6 +84,11 @@ export type FilePickerTreeProps = {
 	readOnly?: boolean;
 	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
+	/**
+	 * Display-only label for the root row. Paths and selection keep using the
+	 * `root` path; use this when the mount path would read as internal jargon.
+	 */
+	rootLabel?: string;
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
 	onDoubleClickFile?: (path: string) => void;
@@ -151,6 +156,7 @@ export const FilePickerTree = forwardRef<
 		readOnly = false,
 		filesystem,
 		root = '/wordpress',
+		rootLabel,
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
@@ -1342,6 +1348,7 @@ export const FilePickerTree = forwardRef<
 						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
 						onDoubleClickFile={onDoubleClickFile}
+						displayName={rootLabel}
 					/>
 				))}
 			</TreeGrid>
@@ -1485,6 +1492,8 @@ const NodeRow: React.FC<{
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
 	onDoubleClickFile?: (path: string) => void;
+	/** Display-only label override; not inherited by child rows. */
+	displayName?: string;
 }> = ({
 	node,
 	level,
@@ -1512,6 +1521,7 @@ const NodeRow: React.FC<{
 	onDrop,
 	rootPath,
 	onDoubleClickFile,
+	displayName,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1784,6 +1794,7 @@ const NodeRow: React.FC<{
 										}
 									)}
 									data-path={path}
+									data-node-type={node.type}
 									data-expanded={
 										isExpanded ? 'true' : 'false'
 									}
@@ -1794,6 +1805,7 @@ const NodeRow: React.FC<{
 											node.type === 'folder' && isExpanded
 										}
 										level={level}
+										displayName={displayName}
 									/>
 								</Button>
 							)}
@@ -1843,7 +1855,8 @@ const FileName: React.FC<{
 	level: number;
 	isOpen?: boolean;
 	hideName?: boolean;
-}> = ({ node, level, isOpen, hideName = false }) => {
+	displayName?: string;
+}> = ({ node, level, isOpen, hideName = false, displayName }) => {
 	const indent: string[] = [];
 	for (let i = 0; i < level; i++) {
 		indent.push('&nbsp;&nbsp;&nbsp;&nbsp;');
@@ -1860,7 +1873,11 @@ const FileName: React.FC<{
 				<div style={{ width: 16 }}>&nbsp;</div>
 			)}
 			<Icon width={16} icon={node.type === 'folder' ? folder : file} />
-			{!hideName && <span className={css['fileName']}>{node.name}</span>}
+			{!hideName && (
+				<span className={css['fileName']}>
+					{displayName ?? node.name}
+				</span>
+			)}
 		</>
 	);
 };

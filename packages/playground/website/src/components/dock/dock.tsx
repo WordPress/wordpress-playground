@@ -42,6 +42,7 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
+import { getDisplayedSitePath } from '../../lib/state/url/displayed-site-path';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
@@ -1201,7 +1202,11 @@ export function Dock({
 					<div className={css.dockTopRow}>
 						<div className={css.dockAddress}>
 							<AddressBar
-								url={clientInfo?.url}
+								url={
+									clientInfo?.url
+										? getDisplayedSitePath(clientInfo.url)
+										: clientInfo?.url
+								}
 								disabled={!clientInfo}
 								onUpdate={
 									clientInfo

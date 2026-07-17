@@ -1,0 +1,75 @@
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-bottom: 16px;
+	padding: 12px;
+	border: 1px solid #e0ddd7;
+	border-radius: 6px;
+	background: #faf9f7;
+}
+
+.title {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #757575;
+}
+
+.folderRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.folderName {
+	font-weight: 600;
+	color: #1e1e1e;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.hint {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #5f5b54;
+}
+
+.documentRootRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #3c3a36;
+}
+
+.documentRootRow code {
+	font-size: 12px;
+	background: #f0eee9;
+	padding: 1px 5px;
+	border-radius: 3px;
+}
+
+.actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.feedbackError {
+	margin: 0;
+	font-size: 12px;
+	color: #cc1818;
+}
+
+.feedbackSuccess {
+	margin: 0;
+	font-size: 12px;
+	color: #1a7a3c;
+}

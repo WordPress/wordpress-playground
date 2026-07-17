@@ -43,6 +43,8 @@ export type FileExplorerSidebarProps = {
 		message: string | JSX.Element
 	) => Promise<void> | void;
 	documentRoot: string;
+	/** Display-only label for the tree's root row instead of the mount path. */
+	rootLabel?: string;
 	readOnly?: boolean;
 	title?: string;
 	showBinaryPreviewHeader?: boolean;
@@ -62,6 +64,7 @@ export function FileExplorerSidebar({
 	onSelectionCleared,
 	onShowMessage,
 	documentRoot,
+	rootLabel,
 	readOnly = false,
 	title = 'Files',
 	showBinaryPreviewHeader = true,
@@ -390,6 +393,7 @@ export function FileExplorerSidebar({
 					readOnly={readOnly}
 					filesystem={filesystem}
 					root={documentRoot}
+					rootLabel={rootLabel}
 					initialSelectedPath={treeInitialPath}
 					onSelect={async (path) => {
 						if (!path) {

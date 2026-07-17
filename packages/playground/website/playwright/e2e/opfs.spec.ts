@@ -300,7 +300,7 @@ async function saveSiteViaDockPane(
 			.check();
 	} else {
 		await pane
-			.getByRole('radio', { name: /Save in a local directory/ })
+			.getByRole('radio', { name: /Save a copy to a local folder/ })
 			.check();
 	}
 
@@ -575,8 +575,12 @@ test('should show the Store permanently pane with the save controls', async ({
 
 	// Verify storage location radio buttons exist
 	await expect(pane.getByText('Storage location')).toBeVisible();
-	await expect(pane.getByText('Save in browser storage')).toBeVisible();
-	await expect(pane.getByText('Save in a local directory')).toBeVisible();
+	await expect(
+		pane.getByRole('radio', { name: 'Save in browser storage' })
+	).toBeVisible();
+	await expect(
+		pane.getByRole('radio', { name: /Save a copy to a local folder/ })
+	).toBeVisible();
 
 	// Verify action buttons exist
 	await expect(pane.getByRole('button', { name: 'Save' })).toBeVisible();

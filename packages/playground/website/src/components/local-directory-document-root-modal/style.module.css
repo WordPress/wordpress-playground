@@ -20,6 +20,19 @@
 	padding: 8px;
 }
 
+/* Only directories can become the document root. Files stay visible for
+   orientation but read as non-choices. */
+.tree [data-node-type='file'] {
+	opacity: 0.45;
+}
+
+.description code {
+	font-size: 0.9em;
+	background: var(--surface-sunken, #f0eee9);
+	padding: 1px 4px;
+	border-radius: 3px;
+}
+
 .loading {
 	align-items: center;
 	display: flex;

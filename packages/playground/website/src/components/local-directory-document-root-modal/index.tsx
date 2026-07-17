@@ -135,7 +135,11 @@ export function LocalDirectoryDocumentRootModal({
 			<form className={css.form} onSubmit={handleSubmit}>
 				<p className={css.description}>
 					Choose the folder served by PHP. Files outside it remain
-					available to the application.
+					available to the application. Currently serving{' '}
+					<code>
+						{getLocalDirectoryPickerPath(initialDocumentRoot)}
+					</code>
+					.
 				</p>
 				{error ? <p role="alert">{error}</p> : null}
 				{filesystem ? (
