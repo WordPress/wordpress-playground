@@ -244,6 +244,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					'sendmail',
 					sendmailSpawnHandler(php)
 				);
+				php.addEventListener('sendmail.spawned', (event) =>
+					this.dispatchEvent(event)
+				);
 
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [

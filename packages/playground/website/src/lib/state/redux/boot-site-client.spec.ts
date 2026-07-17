@@ -487,6 +487,7 @@ function createSite(
 
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
+		addEventListener: vi.fn(async () => undefined),
 		mountOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,

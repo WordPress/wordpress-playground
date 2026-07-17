@@ -4,7 +4,11 @@ import {
 	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
-import { addClientInfo, updateClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	addClientEmail,
+	updateClientInfo,
+} from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
@@ -41,6 +45,8 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
+import PostalMime from 'postal-mime';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -354,6 +360,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				url: '/',
 				client: connectedPlayground,
+				emails: [],
 				opfsMountDescriptor: mountDescriptor,
 				opfsSync: mountDescriptorForInitialOpfsSync
 					? {
@@ -362,6 +369,32 @@ export function bootSiteClient(
 						}
 					: undefined,
 			})
+		);
+		void connectedPlayground.addEventListener(
+			'sendmail.spawned',
+			async (event) => {
+				const { stdin } = event as PHPSendmailSpawnedEvent;
+				if (signal.aborted) {
+					void stdin.cancel();
+					return;
+				}
+				let email;
+				try {
+					email = await PostalMime.parse(stdin);
+				} catch (error) {
+					logger.error('Failed to parse captured email', error);
+					return;
+				}
+				if (signal.aborted) {
+					return;
+				}
+				dispatch(
+					addClientEmail({
+						siteSlug,
+						email,
+					})
+				);
+			}
 		);
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise

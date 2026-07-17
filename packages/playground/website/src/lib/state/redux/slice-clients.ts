@@ -3,6 +3,7 @@ import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
 import type { SyncProgress } from '@php-wasm/web';
 import type { MountDevice } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
+import type { Email } from 'postal-mime';
 
 export type OpfsSync =
 	| {
@@ -19,6 +20,7 @@ export interface ClientInfo {
 	client: PlaygroundClient;
 	siteSlug: string;
 	url: string;
+	emails: Email[];
 	opfsMountDescriptor?: {
 		device: MountDevice;
 		mountpoint: string;
@@ -53,13 +55,28 @@ const clientsSlice = createSlice({
 				...action.payload.changes,
 			};
 		},
+		addClientEmail: (
+			state,
+			action: PayloadAction<{
+				siteSlug: string;
+				email: Email;
+			}>
+		) => {
+			state.entities[action.payload.siteSlug]?.emails.unshift(
+				action.payload.email
+			);
+		},
 		removeClientInfo: clientsAdapter.removeOne,
 	},
 });
 
 // Export actions
-export const { addClientInfo, updateClientInfo, removeClientInfo } =
-	clientsSlice.actions;
+export const {
+	addClientInfo,
+	updateClientInfo,
+	addClientEmail,
+	removeClientInfo,
+} = clientsSlice.actions;
 
 export default clientsSlice.reducer;
 
