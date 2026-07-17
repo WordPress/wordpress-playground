@@ -1,0 +1,208 @@
+.mail-panel {
+	display: grid;
+	grid-template-columns: minmax(220px, 32%) minmax(0, 1fr);
+	height: 100%;
+	min-height: 0;
+}
+
+.mail-list {
+	min-width: 0;
+	overflow-y: auto;
+	border-right: 1px solid var(--color-gray-200);
+}
+
+.mail-list-header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding: 12px 16px;
+	background: #ffffff;
+	border-bottom: 1px solid var(--color-gray-200);
+}
+
+.mail-list-item[aria-pressed='true'] {
+	background: var(--wp-components-color-gray-100, #f0f0f0);
+}
+
+.mail-preview {
+	flex: 1 1 0;
+	min-width: 0;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 24px;
+}
+
+.mail-preview > * {
+	flex-shrink: 0;
+}
+
+.mail-metadata {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) max-content;
+	gap: 8px 32px;
+}
+
+.mail-metadata > * {
+	min-width: 0;
+}
+
+.empty-state {
+	padding: 24px;
+}
+
+.site-notice {
+	padding: 24px;
+	background-color: #f3f6fd;
+}
+
+.text-body {
+	margin: 0;
+	font: inherit;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.html-preview {
+	display: block;
+	flex: 1 0 auto;
+	height: 300px;
+	min-height: 0;
+	width: 100%;
+	border: 0;
+}
+
+.html-preview-with-attachments {
+	flex-grow: 0;
+}
+
+.attachments {
+	min-width: 0;
+}
+
+.attachment-list {
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 2px 2px 8px;
+	list-style: none;
+}
+
+.attachment-item {
+	min-width: 0;
+}
+
+.attachment-card {
+	height: 100%;
+}
+
+.attachment-media {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 80px;
+	overflow: hidden;
+	background: var(--wp-components-color-gray-100, #f0f0f0);
+}
+
+.attachment-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.attachment-actions {
+	position: absolute;
+	inset: 0;
+	align-items: center;
+	padding: 8px;
+	opacity: 0;
+	pointer-events: none;
+	background: var(--wp-components-color-gray-100, #f0f0f0);
+}
+
+.attachment-card:hover .attachment-preview,
+.attachment-card:focus-within .attachment-preview {
+	opacity: 0;
+}
+
+.attachment-card:hover .attachment-actions,
+.attachment-card:focus-within .attachment-actions {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.attachment-preview,
+	.attachment-actions {
+		transition: opacity 120ms ease-out;
+	}
+}
+
+.attachment-image,
+.attachment-video {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.attachment-audio {
+	display: block;
+	width: calc(100% - 24px);
+}
+
+.attachment-details {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.attachment-download {
+	gap: 4px;
+	min-width: 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 16px;
+	pointer-events: auto;
+}
+
+.attachment-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--wp-components-color-gray-700, #757575);
+}
+
+@container (max-width: 600px) {
+	.mail-panel {
+		display: flex;
+		flex-direction: column;
+		background: var(--wp-components-color-gray-100, #f0f0f0);
+	}
+
+	.mail-list {
+		flex: 0 1 auto;
+		max-height: 34%;
+		border-right: 0;
+		border-bottom: 0;
+		background: #ffffff;
+	}
+
+	.mail-preview {
+		margin: 12px;
+		padding: 16px;
+		background: #ffffff;
+		border: 1px solid var(--color-gray-300, #dddddd);
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		box-sizing: border-box;
+		overflow-x: hidden;
+		overflow-y: auto;
+	}
+
+	.mail-metadata {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

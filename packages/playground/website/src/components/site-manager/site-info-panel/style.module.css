@@ -48,6 +48,11 @@
 	overflow: hidden;
 }
 
+.mail-tab {
+	container-type: inline-size;
+	overflow: hidden;
+}
+
 /**
  * A workaround for scrolling overflowing content within
  * a flex container. TODO: find a way to avoid using

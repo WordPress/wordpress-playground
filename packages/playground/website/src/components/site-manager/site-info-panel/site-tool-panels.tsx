@@ -9,6 +9,7 @@ import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
 import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
 import { SiteDatabasePanel } from '../site-database-panel';
+import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
 
@@ -27,7 +28,8 @@ export type SiteInfoTabName =
 	| 'files'
 	| 'blueprint'
 	| 'database'
-	| 'logs';
+	| 'logs'
+	| 'mail';
 
 /** Renders the tool surfaces selected by the site information tabs. */
 export function SiteToolPanels({
@@ -59,6 +61,8 @@ export function SiteToolPanels({
 		activeTabName === 'database' || mountedTabNames.includes('database');
 	const logsMounted =
 		activeTabName === 'logs' || mountedTabNames.includes('logs');
+	const mailMounted =
+		activeTabName === 'mail' || mountedTabNames.includes('mail');
 
 	// Mount each tool lazily, then retain its draft, selection, scroll position,
 	// and subscriptions while another Dock destination is visible.
@@ -191,6 +195,16 @@ export function SiteToolPanels({
 					<div className={classNames(css.logsWrapper)}>
 						<SiteLogs className={css.logsSection} />
 					</div>
+				</div>
+			)}
+			{mailMounted && (
+				<div
+					className={classNames(css.tabContents, css.mailTab, {
+						[css.tabHidden]: activeTabName !== 'mail',
+					})}
+					hidden={activeTabName !== 'mail'}
+				>
+					<SiteMailPanel />
 				</div>
 			)}
 		</>
