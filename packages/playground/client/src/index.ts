@@ -145,10 +145,10 @@ export interface StartPlaygroundWebOptions extends Omit<
 
 export interface ExportSavedSiteAsZipOptions {
 	/**
-	 * Gitignore-style patterns applied to paths relative to the saved site root.
-	 * Matching paths are excluded and patterns starting with `!` re-include paths.
+	 * Gitignore-style exclusion patterns applied relative to the saved site root.
+	 * Patterns starting with `!` re-include paths.
 	 */
-	patterns?: readonly string[];
+	excludePatterns?: readonly string[];
 }
 
 export interface PlaygroundAPIClient {

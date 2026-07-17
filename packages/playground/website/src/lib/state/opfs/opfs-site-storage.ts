@@ -28,6 +28,7 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+// 0o40755 = 0o40000 | 0o755; ZIP stores it in externalFileAttributes' upper 16 bits.
 const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
@@ -161,7 +162,7 @@ class OpfsSiteStorage {
 		if (!siteDirectory) {
 			return undefined;
 		}
-		return await zipDirectory(siteDirectory, options.patterns);
+		return await zipDirectory(siteDirectory, options.excludePatterns);
 	}
 
 	/**
@@ -453,10 +454,10 @@ function isMissingOpfsEntry(error: unknown) {
  */
 async function zipDirectory(
 	directory: FileSystemDirectoryHandle,
-	patterns: readonly string[] = []
+	excludePatterns: readonly string[] = []
 ) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
-	const pathMatcher = ignore().add(patterns);
+	const pathMatcher = ignore().add(excludePatterns);
 	try {
 		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
 		return await zipWriter.close();

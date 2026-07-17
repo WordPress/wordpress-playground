@@ -175,7 +175,7 @@ describe('opfsSiteStorage', () => {
 		expect(archive.directories.get('wp-content/empty-cache/')).toBe(0o755);
 	});
 
-	it('applies ordered patterns when exporting saved site files', async () => {
+	it('applies ordered exclusion patterns when exporting saved site files', async () => {
 		const sitesRoot = await getSitesRoot(opfsRoot);
 		const siteDirectory = await writeSiteMetadata(
 			sitesRoot,
@@ -199,7 +199,7 @@ describe('opfsSiteStorage', () => {
 		cache.setFile('cached.html', 'exclude cache');
 
 		const zipFile = await storage.exportSavedSiteAsZip('patterns', {
-			patterns: [
+			excludePatterns: [
 				'/*',
 				'!/wp-content/',
 				'!/wp-content/**',

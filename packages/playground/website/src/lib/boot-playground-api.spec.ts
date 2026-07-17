@@ -31,12 +31,12 @@ describe('bootPlaygroundAPI', () => {
 		const methods = mocks.exposeAPI.mock.calls[0][0];
 		await expect(
 			methods.exportSavedSiteAsZip('my-site', {
-				patterns: ['/*', '!/wp-content/**'],
+				excludePatterns: ['/*', '!/wp-content/**'],
 			})
 		).resolves.toBe(zip);
 
 		expect(mocks.exportSavedSiteAsZip).toHaveBeenCalledWith('my-site', {
-			patterns: ['/*', '!/wp-content/**'],
+			excludePatterns: ['/*', '!/wp-content/**'],
 		});
 		expect(mocks.setAPIReady).toHaveBeenCalledTimes(1);
 	});

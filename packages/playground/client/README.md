@@ -42,11 +42,11 @@ const api = await startPlaygroundAPI({
 	apiUrl: 'https://playground.wordpress.net/api.html',
 });
 const zip = await api.exportSavedSiteAsZip('my-site', {
-	patterns: ['/*', '!/wp-content/', '!/wp-content/**'],
+	excludePatterns: ['/*', '!/wp-content/', '!/wp-content/**'],
 });
 ```
 
-The optional `patterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `patterns` is omitted, the ZIP contains the complete saved site.
+The optional `excludePatterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `excludePatterns` is omitted, the ZIP contains the complete saved site.
 
 ## npm package
 
