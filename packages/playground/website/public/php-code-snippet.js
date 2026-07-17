@@ -820,10 +820,10 @@ class PhpSnippet extends HTMLElement {
 
 	_readExpectedOutput() {
 		const script = this.querySelector(
-			'script[type="text/expected-output"]'
+			'script[type="text/expected-output"], script[type="text/expected-output+json"]'
 		);
 		if (script) {
-			return dedentLeading(script.textContent || '');
+			return readScriptPayload(script);
 		}
 		if (this.hasAttribute('expected-output')) {
 			return this.getAttribute('expected-output');
@@ -843,9 +843,9 @@ class PhpSnippet extends HTMLElement {
 			return await res.text();
 		}
 		const script = this.querySelector(
-			'script[type="application/x-php"], script[type="text/x-php"], script[type="text/php"]'
+			'script[type="application/x-php"], script[type="application/x-php+json"], script[type="text/x-php"], script[type="text/php"]'
 		);
-		if (script) return dedentLeading(script.textContent || '');
+		if (script) return readScriptPayload(script);
 		return dedentLeading(this.textContent || '');
 	}
 
@@ -1059,6 +1059,45 @@ class PhpSnippet extends HTMLElement {
 		};
 		outputBody.addEventListener('animationend', clear);
 	}
+}
+
+/**
+ * Reads PHP source or expected output from a child `<script>` element.
+ *
+ * Plain-text script types are dedented so authors can indent their payloads
+ * with the surrounding HTML. Script types ending in `+json` are parsed as
+ * JSON instead. JSON encoding lets authors escape `<` as `\u003C`, preventing
+ * the HTML parser from treating a payload's `</script>` sequence as the end
+ * of the child element before this function can read it.
+ *
+ * A JSON payload must decode to a string because PHP source and expected
+ * output are both text. Other JSON values are rejected rather than coerced.
+ *
+ * @param {HTMLScriptElement} script The child script containing the payload.
+ * @return {string} The dedented plain-text payload or decoded JSON string.
+ * @throws {SyntaxError} If a JSON-encoded payload contains invalid JSON.
+ * @throws {TypeError} If a JSON-encoded payload does not decode to a string.
+ */
+function readScriptPayload(script) {
+	const payload = script.textContent || '';
+	if (!script.type.endsWith('+json')) {
+		return dedentLeading(payload);
+	}
+
+	let decoded;
+	try {
+		decoded = JSON.parse(payload);
+	} catch (err) {
+		throw new SyntaxError(
+			`<script type="${script.type}"> contains invalid JSON: ${err.message}`
+		);
+	}
+	if (typeof decoded !== 'string') {
+		throw new TypeError(
+			`<script type="${script.type}"> JSON payload must decode to a string.`
+		);
+	}
+	return decoded;
 }
 
 function isRunShortcut(event) {
