@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
+import calloutCss from '../dock-callout.module.css';
 import classNames from 'classnames';
 import {
 	useAppSelector,
@@ -13,7 +14,13 @@ import {
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
 import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
-import { check, cautionFilled, chevronDown } from '@wordpress/icons';
+import {
+	check,
+	cautionFilled,
+	chevronDown,
+	close,
+	wordpress,
+} from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -174,7 +181,10 @@ export function SaveStatusIndicator({
 						placement: 'top',
 						shift: true,
 						noArrow: false,
-						className: css.savedMenuPopover,
+						className: classNames(
+							calloutCss.popover,
+							css.savedMenuPopover
+						),
 					}}
 					renderToggle={({ isOpen, onToggle }) => (
 						<button
@@ -187,6 +197,7 @@ export function SaveStatusIndicator({
 							onClick={onToggle}
 							disabled={disabled}
 							aria-expanded={isOpen}
+							aria-haspopup="dialog"
 							title="Saved to a local directory."
 						>
 							<Icon icon={check} size={18} />
@@ -195,19 +206,41 @@ export function SaveStatusIndicator({
 						</button>
 					)}
 					renderContent={({ onClose }) => (
-						<div className={css.savedMenu}>
-							<div className={css.savedMenuTitle}>
-								Saved to a local directory
+						<aside
+							className={calloutCss.card}
+							role="dialog"
+							aria-label="Local directory save status"
+						>
+							<div className={calloutCss.header}>
+								<div className={calloutCss.eyebrow}>
+									Local directory
+								</div>
+								<Button
+									className={calloutCss.dismiss}
+									icon={close}
+									label="Close local directory status"
+									onClick={onClose}
+								/>
 							</div>
-							<p className={css.savedMenuHint}>
-								Changes you make in this Playground are written
-								directly to the linked folder. Reloading picks
-								up edits made to the folder outside of
-								Playground.
-							</p>
+							<div className={calloutCss.identity}>
+								<span
+									className={calloutCss.avatar}
+									aria-hidden="true"
+								>
+									<Icon icon={wordpress} size={28} />
+								</span>
+								<div className={calloutCss.identityCopy}>
+									<div className={calloutCss.identityTitle}>
+										{activeSite?.metadata.name}
+									</div>
+									<div className={calloutCss.identityMeta}>
+										Saved directly to the linked folder
+									</div>
+								</div>
+							</div>
 							<Button
 								variant="primary"
-								className={css.savedMenuAction}
+								className={calloutCss.primaryAction}
 								disabled={disabled || isReloadingFromDisk}
 								isBusy={isReloadingFromDisk}
 								onClick={async () => {
@@ -219,7 +252,11 @@ export function SaveStatusIndicator({
 									? 'Reloading…'
 									: 'Reload files from disk'}
 							</Button>
-						</div>
+							<p className={calloutCss.hint}>
+								Reload to pick up edits made to the folder
+								outside Playground.
+							</p>
+						</aside>
 					)}
 				/>
 			);

@@ -102,63 +102,10 @@
 	display: inline;
 }
 
-/* The local-directory "Saved" pill keeps its one storage-specific action in
-   this popover, so the Dock does not need a separate, unclear "Sync local
-   files" control. The card and caret match the restore-autosave callout
-   (ensure-playground-site/restore-autosave-nudge.module.css): a borderless
-   white card with a ring shadow, and the content is a description plus a
-   single button — not a menu, so nothing here masquerades as a second option. */
-/* The doubled class outranks the Dropdown's own
-   `.components-dropdown__content .components-popover__content` padding rule
-   regardless of stylesheet injection order. */
-.saved-menu-popover.saved-menu-popover :global(.components-popover__content) {
-	box-sizing: border-box;
-	width: min(330px, calc(100vw - 32px));
-	/* Margins count toward collision detection and keep both mobile edges clear. */
+/* The shared callout stays centered over the Saved pill. These margins count
+   toward collision detection and preserve its shadow at both mobile edges. */
+.saved-menu-popover :global(.components-popover__content) {
 	margin-inline: 16px;
-	padding: 0;
-	background: #fff;
-	border-radius: 12px;
-	box-shadow:
-		0 0 0 1px rgb(0 0 0 / 6%),
-		0 8px 20px rgb(0 0 0 / 18%),
-		0 24px 64px rgb(0 0 0 / 28%);
-}
-
-/* The stock caret is 14px square. The triangle path only fills the top half
-   of its box, so a 32px box draws a 32×16 caret pointing at the pill. */
-.saved-menu-popover :global(.components-popover__arrow) {
-	width: 32px;
-	height: 32px;
-}
-
-.saved-menu-popover :global(.components-popover__arrow.is-top) {
-	bottom: -32px !important;
-}
-
-.saved-menu-popover :global(.components-popover__triangle-border) {
-	stroke: transparent;
-}
-
-.saved-menu {
-	padding: 16px 20px 18px;
-	color: #21201d;
-}
-
-.saved-menu-title {
-	font-weight: 600;
-	line-height: 1.4;
-}
-
-.saved-menu-hint {
-	margin: 4px 0 0;
-	color: #5f5b54;
-	font-size: 12px;
-	line-height: 1.5;
-}
-
-.saved-menu-action.saved-menu-action {
-	margin-top: 16px;
 }
 
 .progress-ring {
