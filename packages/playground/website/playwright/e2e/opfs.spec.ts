@@ -1139,14 +1139,14 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	);
 	expect(importedSite?.slug).toBeTruthy();
 	const importedSiteSlug = importedSite.slug;
-	// Fresh-boot the imported site before making a request in its current
-	// runtime. Import success should mean its files are already durable.
+	// Discard the import runtime before requesting the marker. The fresh runtime
+	// must load the imported file from persisted OPFS state.
 	await website.goto(`./?site-slug=${importedSiteSlug}`);
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
 	await expect(website.page.getByText('Save failed')).toHaveCount(0);
 	await expect(website.page.getByText('Site failed')).toHaveCount(0);
-	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
-	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
 	await setActivePlaygroundSite(website.page, savedSiteSlug);
 	await website.waitForNestedIframes();
