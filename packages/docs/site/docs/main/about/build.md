@@ -29,7 +29,7 @@ Some more examples of this workflow:
 
 ## Synchronize your Playground with a local folder and create GitHub Pull Requests
 
-Open **Store permanently** from the Dock and choose **Save in a local directory**. You can select an empty directory to save the current Playground, or select an existing Playground directory to load it and start syncing.
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save in a local directory**, and click **Save**. You can select an empty directory to save the current Playground, or select an existing Playground directory to load it and start syncing.
 
 ![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/docs/dock-guide-workflows/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
