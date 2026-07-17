@@ -1,44 +1,49 @@
 ---
 title: 'Blueprints 101: a v2 crash course'
 slug: /blueprints/v2/blueprints-101
-description: Learn how to create, understand, run, and share a Blueprint v2 declaration.
+description: Build, understand, run, and share your first v2 Blueprint.
 ---
 
 # Blueprints 101: a v2 crash course
 
-This short course teaches the complete Blueprint v2 workflow. You will run a
-working site, understand how Playground turns a declaration into that site,
-and learn how to use the same Blueprint in the website, CLI, and JavaScript.
+In this browser-first course, you will launch a ready-made WordPress site,
+change it, understand how its JSON is applied, and run the same Blueprint in
+the place that suits your work.
 
-No local WordPress installation is required. You can complete the first two
-lessons in a browser; the CLI and JavaScript sections in lesson 3 are optional.
+You only need a browser for the first two lessons. The command-line and
+JavaScript paths in lesson 3 are optional.
 
-## What is a Blueprint v2 declaration?
+## What you will build
 
-A Blueprint v2 declaration is a JSON description of the WordPress site you
-need. It can choose WordPress and PHP versions, install plugins and themes, set
-options, and create users and content. The exact numeric field `"version": 2`
-selects the v2 schema and runtime.
+The course uses one Blueprint from start to finish. It creates a temporary
+WordPress site with:
 
-Unlike v1's ordered setup script, v2 describes site state first. Playground
-validates the declaration, builds an execution plan, and applies that plan in a
-fixed lifecycle. An imperative tail remains available for work that cannot be
-expressed declaratively.
+- the Twenty Twenty-Five theme;
+- the Hello Dolly plugin;
+- a custom site title and permalink structure; and
+- a published post named **Welcome**.
+
+[Start lesson 1](/blueprints/v2/blueprints-101/get-started) to launch the site,
+inspect the JSON that created it, and make your first change.
 
 ## Take the course
 
-1. [Build and run your first Blueprint v2](/blueprints/v2/blueprints-101/get-started).
-   Start with a working site, make one change, and learn the core fields.
-2. [Understand how Blueprints v2 work](/blueprints/v2/blueprints-101/how-it-works).
-   Learn the declaration lifecycle, execution order, site modes, and imperative tail.
-3. [Run and share Blueprints v2](/blueprints/v2/blueprints-101/run). Use the
-   website, CLI, JavaScript client, or Blueprints package.
+| Lesson                                                                             | What you will do                                          | Result                                                |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
+| [1. Build your first v2 Blueprint](/blueprints/v2/blueprints-101/get-started)      | Run the site, inspect its JSON, and change its title      | A working Blueprint you have personalized             |
+| [2. Understand how v2 Blueprints work](/blueprints/v2/blueprints-101/how-it-works) | Follow the setup lifecycle and learn three ordering rules | A clear mental model for editing larger Blueprints    |
+| [3. Run and share your Blueprint](/blueprints/v2/blueprints-101/run)               | Choose the website, CLI, or JavaScript path               | A usable link, local workflow, or embedded Playground |
 
-After the course, choose a complete project:
+The core idea is simple: a v2 Blueprint describes the site you want, and
+Playground decides which setup steps are needed.
+
+## When you need help
+
+If the Blueprint does not validate or the site does not match what you
+expected, use the [troubleshooting guide](/blueprints/v2/troubleshooting).
+
+After the course, apply what you learned to a complete project:
 
 - [Add a Preview to a WordPress.org plugin](/blueprints/v2/tutorials/plugin-preview)
 - [Build an interactive WordPress theme demo](/blueprints/v2/tutorials/theme-demo)
 - [Create a one-click bug or pull-request reproduction](/blueprints/v2/tutorials/bug-reproduction)
-
-If a declaration does not validate or run as expected, use the
-[phase-oriented troubleshooting guide](/blueprints/v2/troubleshooting).

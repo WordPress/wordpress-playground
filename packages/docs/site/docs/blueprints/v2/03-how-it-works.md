@@ -1,48 +1,93 @@
 ---
-title: How Blueprints v2 works
+title: How v2 Blueprints work
 slug: /blueprints/v2/blueprints-101/how-it-works
-description: Understand Blueprint v2 desired state, execution targets, fixed declaration order, and imperative tail steps.
+description: Learn how Playground turns desired site state into five setup phases and which ordering rules matter.
 ---
 
-# How Blueprints v2 works
+# How v2 Blueprints work
 
-This is lesson 2 of the
-[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
-If you have not run a declaration yet, start with
-[lesson 1](/blueprints/v2/blueprints-101/get-started).
+**Lesson 2 of 3 · Browser only**
 
-V2 separates three decisions that v1 often mixed together:
+In lesson 1, you changed a site without writing an installation script. That is
+the central v2 idea: describe the result you need, and let Playground work out
+the setup commands.
 
-1. **Site and runtime declaration** — the JSON describes WordPress, PHP,
-   plugins, themes, options, users, and content.
-2. **Execution target and site mode** — the website, CLI, or JavaScript host
-   decides where to run it and whether to create or modify a site.
-3. **Imperative tail** — `additionalStepsAfterExecution` handles the operations
-   that cannot be expressed as desired state.
+## Follow your Blueprint through setup
 
-## From JSON to a running site
+Playground checks the Blueprint, resolves the requested WordPress and PHP
+runtimes, and turns its fields into an ordered plan. You can understand that
+plan as five groups:
 
-Playground processes a v2 declaration in phases:
+| Phase | What Playground does                   | Fields from this course or larger Blueprints                  |
+| ----- | -------------------------------------- | ------------------------------------------------------------- |
+| 1     | Prepares the starting site and runtime | `wordpressVersion`, `phpVersion`, content and user baselines  |
+| 2     | Applies configuration                  | `constants`, `siteOptions`                                    |
+| 3     | Installs site assets                   | Must-use plugins, themes, plugins, fonts, media, and language |
+| 4     | Creates WordPress data                 | Roles, users, post types, and `content`                       |
+| 5     | Runs final setup steps                 | `additionalStepsAfterExecution`                               |
 
-1. Parse the JSON and select v2 from exact numeric `version: 2`.
-2. Validate the schema and cross-field invariants.
-3. Resolve compatible WordPress and PHP runtime versions.
-4. Compile the declaration into an ordered execution plan.
-5. Resolve remote, bundled, inline, and target-site resources.
-6. Execute each plan item sequentially.
-7. Apply Playground-only actions such as final navigation.
+The course Blueprint therefore selects PHP and WordPress, changes the site
+options, installs and activates the theme and plugin, and then creates the
+Welcome post. Its login runs before these phases, and Playground opens the
+WordPress dashboard after them.
 
-A runner may prefetch independent resource downloads concurrently after the
-plan is compiled. Mutations to the target still execute in plan order.
+### Quick check
 
-A failure stops the remaining plan. There is no transactional rollback, so
-earlier changes may remain on the target. This matters most when applying a
-declaration to an [existing site](/blueprints/v2/apply-to-existing-site).
+In the course JSON, `activeTheme` and `plugins` appear before `siteOptions`.
+Which one runs first? `siteOptions` does, because the fixed lifecycle—not JSON
+property order—controls the phases. The next rule explains why.
 
-## Declaration order is fixed
+## Remember three ordering rules
 
-JSON object-property order does not control execution. Playground emits the
-following plan:
+### 1. Moving top-level fields does not change setup order
+
+JSON property order is for readability. Moving `plugins` above `siteOptions`
+does not make plugin installation happen first; Playground still follows its
+fixed lifecycle.
+
+### 2. Items in an array keep their order
+
+If `plugins` contains several entries, Playground installs them from first to
+last. The same rule applies to other arrays, including `content` and
+final setup steps.
+
+### 3. Final setup steps always run last
+
+Use a top-level v2 field whenever one describes the result you need. Use
+`additionalStepsAfterExecution` only when the task needs an explicit command or
+must happen after Playground applies all top-level fields. Final setup steps
+cannot change the order of the earlier phases.
+
+See the [final setup steps reference](/blueprints/v2/reference/additional-steps)
+for supported commands and their v2 shapes.
+
+## If setup fails partway through
+
+A failure stops the remaining work. Playground does not undo changes it has
+already made. That is easy to recover from on the disposable browser site used
+in this course, but it matters when you
+[apply a Blueprint to an existing site](/blueprints/v2/apply-to-existing-site).
+
+## When you move beyond the course
+
+- **Existing sites:** the host reuses mounted or saved WordPress files. Rules
+  for clearing a new site's default content and users are skipped, and an
+  object-shaped WordPress version constraint can reject an incompatible site.
+- **PHP without WordPress:** set `"wordpressVersion": "none"` and limit the
+  Blueprint to PHP and filesystem work. Some invalid WordPress-dependent
+  combinations are only rejected during execution.
+- **Files and bundles:** `https://...` downloads a remote file,
+  `./assets/file.zip` and `/assets/file.zip` read beside the Blueprint, and
+  `site:wp-content/...` reads from the target WordPress site when that phase
+  runs. Learn the full model in
+  [files, data sources, and bundles](/blueprints/v2/resources).
+
+<details>
+
+<summary>Reference: exact field execution order</summary>
+
+Playground considers fields in this order. Fields that require no work are
+omitted from the final plan:
 
 1. `contentBaseline`
 2. `usersBaseline`
@@ -61,98 +106,10 @@ following plan:
 15. `content`
 16. `additionalStepsAfterExecution`
 
-Items within an array retain their declared order. For example, plugins are
-installed in array order. Moving `plugins` above `siteOptions` in the JSON does
-not make plugin installation happen first.
-
-Playground prepares an application login before this plan and navigates to the
-declared landing page after it. Treat those as host actions, not declaration
-stages.
-
-## Prefer declaration over ordered steps
-
-This expresses a plugin and site option as desired state:
-
-```json blueprint-v2
-{
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"version": 2,
-	"applicationOptions": {
-		"wordpress-playground": {
-			"landingPage": "/wp-admin/",
-			"login": true
-		}
-	},
-	"phpVersion": "8.3",
-	"plugins": ["query-monitor"],
-	"siteOptions": {
-		"blogname": "Debug site"
-	}
-}
-```
-
-Use `additionalStepsAfterExecution` only when exact ordering or an imperative
-operation is essential:
-
-```json blueprint-v2
-{
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"version": 2,
-	"applicationOptions": {
-		"wordpress-playground": {
-			"landingPage": "/",
-			"login": false
-		}
-	},
-	"phpVersion": "8.3",
-	"additionalStepsAfterExecution": [
-		{
-			"step": "runPHP",
-			"code": {
-				"filename": "after.php",
-				"content": "<?php require '/wordpress/wp-load.php'; update_option('setup_complete', true);"
-			}
-		}
-	]
-}
-```
-
-V2 tail steps use v2 shapes. A `runPHP` program is a file reference such as the
-inline `{ filename, content }` object above; it is not a raw string as it was in
-v1.
-
-## New site, existing site, and PHP-only modes
-
-The host chooses the site mode:
-
-- **Create a new site** installs WordPress and may apply `contentBaseline` and
-  `usersBaseline` to the vanilla installation.
-- **Apply to an existing site** uses mounted or saved WordPress files. Baselines
-  are skipped so they cannot erase the site's existing content or users.
-- **PHP without WordPress** is selected in the declaration with
-  `"wordpressVersion": "none"`. Keep these declarations to PHP and filesystem
-  operations; not every WordPress-dependent combination is rejected before
-  execution yet.
-
-Use an object WordPress constraint such as `{ "min": "6.8", "max": "6.9" }`
-when an existing site must be rejected outside a compatibility range. A string
-WordPress version selects a new-site version but does not constrain an existing
-site.
-
-## Resources are resolved in context
-
-The same-looking path can name different data depending on its prefix:
-
-- `https://...` downloads remote data.
-- `./assets/file.zip` and `/assets/file.zip` read from the Blueprint execution
-  context rooted beside `blueprint.json`.
-- `site:wp-content/...` reads mutable data from the target WordPress site when
-  that plan item runs.
-
-See [data sources, paths, and bundles](/blueprints/v2/resources) before moving
-v1 resource objects or local files into v2.
+</details>
 
 ## Next lesson
 
-Continue to [run and share Blueprints v2](/blueprints/v2/blueprints-101/run) in
-the website, CLI, JavaScript client, or Blueprints package.
+Continue to
+[run and share this Blueprint](/blueprints/v2/blueprints-101/run) with the
+Playground website, CLI, or JavaScript client.

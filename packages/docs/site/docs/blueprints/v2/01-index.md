@@ -1,110 +1,86 @@
 ---
 title: Blueprints v2
 slug: /blueprints/v2
-description: Declare a WordPress site with Blueprint v2 and run it in the Playground website, CLI, or JavaScript client.
+description: Describe a WordPress site with Blueprint v2 and run it in the Playground website, CLI, or JavaScript client.
 ---
 
-# Blueprints v2: declare the site you need
+# Blueprints v2: describe the site you need
 
-Blueprints v2 describe the WordPress site you want, not the setup script that
-builds it. Declare the runtime, plugins, themes, options, users, and content in
-JSON. Playground validates that declaration, plans the work, and executes it on
-a supported target.
+A v2 Blueprint is a JSON file that describes the Playground site you want: its
+WordPress and PHP versions, theme, plugins, settings, users, and content.
+Playground checks the file, works out the setup order, and sets up the site.
 
-Use v2 for new Blueprint work. Start with the
-[Blueprints 101 crash course](/blueprints/v2/blueprints-101), or choose a task:
+Use v2 for new Blueprint work.
 
-- [Add a Preview to a WordPress.org plugin](/blueprints/v2/tutorials/plugin-preview)
-- [Build an interactive theme demo](/blueprints/v2/tutorials/theme-demo)
-- [Create a one-click bug or pull-request reproduction](/blueprints/v2/tutorials/bug-reproduction)
-- [Run a Blueprint in the browser, CLI, or JavaScript](/blueprints/v2/blueprints-101/run)
-- [Migrate a v1 Blueprint](/blueprints/v2/migrate-from-v1)
+## Start with a working site
 
-## A complete v2 Blueprint
+[Run the course Blueprint in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json).
+It opens the WordPress dashboard with a theme, a plugin, a custom site title,
+and a published post. Nothing is installed on your computer.
 
-Every v2 declaration has the exact numeric field `"version": 2`. It uses the
-same public JSON Schema URL as v1. This complete starter is validated during
-the documentation build:
+Ready to make it your own? Take the
+[Blueprints 101 crash course](/blueprints/v2/blueprints-101).
 
-```json blueprint-v2 fixture=quickstart
-{
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"version": 2,
-	"applicationOptions": {
-		"wordpress-playground": {
-			"landingPage": "/wp-admin/",
-			"login": true
-		}
-	},
-	"phpVersion": "8.3",
-	"wordpressVersion": "latest",
-	"activeTheme": "twentytwentyfive",
-	"plugins": ["hello-dolly"],
-	"siteOptions": {
-		"blogname": "My Blueprint v2 site",
-		"permalink_structure": "/%postname%/"
-	},
-	"content": [
-		{
-			"type": "posts",
-			"source": {
-				"post_title": "Welcome",
-				"post_status": "publish",
-				"post_content": "<!-- wp:paragraph --><p>Created by Blueprint v2.</p><!-- /wp:paragraph -->"
-			}
-		}
-	]
-}
-```
+## Choose your path
 
-[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json)
+| If you want to…                          | Start here                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| Learn v2 from the beginning              | [Blueprints 101](/blueprints/v2/blueprints-101)                    |
+| Add a plugin Preview on WordPress.org    | [Plugin Preview tutorial](/blueprints/v2/tutorials/plugin-preview) |
+| Build an interactive theme demo          | [Theme demo tutorial](/blueprints/v2/tutorials/theme-demo)         |
+| Share a bug or pull-request reproduction | [Reproduction tutorial](/blueprints/v2/tutorials/bug-reproduction) |
+| Update an existing v1 Blueprint          | [Migration guide](/blueprints/v2/migrate-from-v1)                  |
+| Look up an exact field                   | [Schema reference](/blueprints/v2/reference/schema)                |
 
-Use the code block's copy action to copy or save the declaration. In Playground,
-open **Dock → Blueprint** to inspect or edit it.
+## Why v2 is different
 
-V2 moves Playground-only behavior such as login and the landing page under
-`applicationOptions`. Site state is expressed directly instead of as an
-ordered list of installation steps. When an operation cannot be declared,
-`additionalStepsAfterExecution` provides a deliberately last-running escape
-hatch.
+V2 describes the result instead of asking you to write every setup command.
+For example, declare a plugin in `plugins`, a theme in `activeTheme`, or posts
+in `content`; Playground puts that work in the correct order.
 
-## Current support
+Every v2 Blueprint includes `"version": 2`. Use the number `2`, not the string
+`"2"`. The same public `$schema` URL supports editor completion and validation
+for both Blueprint versions.
 
-The current Playground implementation detects `version: 2` without an
-experimental flag on these surfaces:
+Playground-only behavior, such as automatic login and the page shown after
+setup, belongs under `applicationOptions`. If a task cannot be described with
+the top-level v2 fields, `additionalStepsAfterExecution` provides final setup
+steps that always run last.
 
-| Surface                                 | V2 support                  | Notes                                                     |
-| --------------------------------------- | --------------------------- | --------------------------------------------------------- |
-| Playground website and Blueprint editor | Supported                   | Inline declarations, remote JSON, and ZIP bundles         |
-| `@wp-playground/cli`                    | Supported                   | New site, existing-site, headless, and snapshot commands  |
-| `@wp-playground/client`                 | Supported                   | `startPlaygroundWeb()` routes v2 automatically            |
-| `@wp-playground/blueprints`             | Supported                   | Use the version-aware validation and compilation APIs     |
-| PHP without WordPress                   | Supported subset            | Select with `wordpressVersion: "none"`                    |
-| WordPress Studio and PersonalWP         | Not documented as supported | Do not assume parity without target-specific confirmation |
+## Where v2 runs {#current-support}
 
-This documentation is intentionally precise about implemented Playground
-targets. It does not claim that every WordPress host can execute v2.
-The recommendation applies to current Playground builds on the listed
-surfaces; schema caveats and unsettled defaults remain documented in the
-reference. No v1 removal release or end-of-support date has been announced.
+Current Playground builds detect `version: 2` without an experimental flag on
+these surfaces:
 
-## V2 and legacy v1
+| Surface                                 | V2 support                  | Notes                                                    |
+| --------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| Playground website and Blueprint editor | Supported                   | Inline Blueprints, remote JSON, and ZIP bundles          |
+| `@wp-playground/cli`                    | Supported                   | New sites, existing sites, headless runs, and snapshots  |
+| `@wp-playground/client`                 | Supported                   | `startPlaygroundWeb()` selects v2 automatically          |
+| `@wp-playground/blueprints`             | Supported                   | Version-aware validation and compilation APIs            |
+| PHP without WordPress                   | Supported subset            | Select with `wordpressVersion: "none"`                   |
+| WordPress Studio and PersonalWP         | Not documented as supported | Confirm support with the target before relying on parity |
 
-V1 declarations have no `version` field and current Playground runners still
-accept them. The [v1 documentation](/blueprints/v1) remains available for existing
-projects, but it is legacy material. New work should use v2.
+These docs cover the listed Playground surfaces; they do not claim that every
+WordPress host can run v2. The
+[schema reference](/blueprints/v2/reference/schema) documents current fields,
+defaults, and implementation limits.
 
-Migration is manual: there is no automatic converter. The
-[migration guide](/blueprints/v2/migrate-from-v1) covers renamed fields, resource syntax,
-the networking-default change, lifecycle differences, and operations with no
-direct equivalent.
+## Coming from v1
 
-## Learn the model
+V1 Blueprints have no `version` field, and current Playground runners still
+accept them. The [v1 documentation](/blueprints/v1) remains available for
+existing projects, but new work should use v2. No v1 removal release or
+end-of-support date has been announced.
 
-1. [Build and run your first v2 Blueprint](/blueprints/v2/blueprints-101/get-started).
-2. Read [how v2 plans and executes declarations](/blueprints/v2/blueprints-101/how-it-works).
-3. Learn the three [resource and path namespaces](/blueprints/v2/resources).
-4. Review [security and reproducibility](/blueprints/v2/security) before running third-party
-   declarations or applying one to valuable data.
-5. Use the [schema reference](/blueprints/v2/reference/schema) for exact fields and the
-   [troubleshooting guide](/blueprints/v2/troubleshooting) when a run fails.
+Migration is manual. The
+[migration guide](/blueprints/v2/migrate-from-v1) covers renamed fields,
+resource syntax, the networking-default change, lifecycle differences, and
+operations with no direct equivalent.
+
+## After the basics
+
+Learn how v2 finds [files and bundles](/blueprints/v2/resources), then review
+[security and repeatability](/blueprints/v2/security) before running a
+third-party Blueprint or applying one to valuable data. If a run fails, start
+with the [troubleshooting guide](/blueprints/v2/troubleshooting).

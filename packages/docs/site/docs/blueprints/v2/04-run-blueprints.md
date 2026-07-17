@@ -1,81 +1,109 @@
 ---
-title: Run Blueprints v2
+title: Run and share v2 Blueprints
 slug: /blueprints/v2/blueprints-101/run
-description: Run Blueprint v2 declarations in the Playground website, CLI, JavaScript client, and blueprints package.
+description: Share and run the same v2 Blueprint with the Playground website, CLI, or JavaScript client.
 ---
 
-# Run Blueprints v2
+# Run and share v2 Blueprints
 
-This is lesson 3 of the
-[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
+**Lesson 3 of 3 · Choose the path you need**
 
-The exact numeric `version: 2` field selects the v2 path on every supported
-Playground surface. There is no experimental v2 flag.
+You will use the edited Blueprint from lesson 1. If you are unsure where to
+start, use the Playground website: it gives you a working site and a link to
+share without installing anything. Save the JSON as `blueprint.json` only if
+you choose the CLI or JavaScript path.
 
-## Choose a surface
+## Choose where to run it
 
-| Need                               | Surface                     | Input                                         |
-| ---------------------------------- | --------------------------- | --------------------------------------------- |
-| Share a temporary interactive site | Playground website          | Inline URL fragment or `blueprint-url`        |
-| Author with schema feedback        | Playground website          | **New → Write a Blueprint**                   |
-| Develop or test locally            | Playground CLI              | JSON, directory bundle, ZIP, or URL           |
-| Run in CI                          | Playground CLI              | `run-blueprint` or `build-snapshot`           |
-| Embed Playground                   | `@wp-playground/client`     | Declaration object or bundle                  |
-| Build a custom runner/tool         | `@wp-playground/blueprints` | Version-aware validation and compilation APIs |
+| I want to…                         | Use                         | Blueprint input                                  |
+| ---------------------------------- | --------------------------- | ------------------------------------------------ |
+| Share a temporary interactive site | Playground website          | Public URL, ZIP bundle, or inline JSON           |
+| Develop or test locally            | Playground CLI              | Local JSON, directory bundle, ZIP, or public URL |
+| Run in CI or build a snapshot      | Playground CLI              | Local JSON or bundle                             |
+| Embed Playground in an application | `@wp-playground/client`     | Blueprint object or bundle                       |
+| Build a custom runner              | `@wp-playground/blueprints` | Version-aware validation and compilation APIs    |
 
-## Playground website
+Every supported Playground surface recognizes the v2 Blueprint automatically.
+No experimental flag is required.
 
-For a hosted JSON file, encode its URL in the `blueprint-url` query parameter:
+## Share it from the Playground website
+
+The quickest option is built into the editor. Open **Dock → Blueprint**, choose
+**Export → Copy Blueprint URL**, and send the copied link. Opening it creates a
+new temporary site from the current Blueprint. Test the copied link in a new
+tab and confirm that it opens the personalized site from lesson 1.
+
+### Build a link from hosted JSON
+
+For documentation, automation, or a stable file in a repository, put the
+public JSON URL in the `blueprint-url` query parameter. This example uses the
+course example:
 
 ```js
-const blueprintUrl = 'https://example.com/blueprint.json';
-const playgroundUrl = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+const blueprintUrl = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json';
+
+const playgroundUrl = new URL('https://playground.wordpress.net/');
+playgroundUrl.searchParams.set('blueprint-url', blueprintUrl);
+
+console.log(playgroundUrl.href);
 ```
 
-The hosted JSON and all remote adjacent files need normal browser fetch and
-CORS access. A remote ZIP bundle works through the same parameter.
+Open the printed URL or share it. Replace `blueprintUrl` with the public HTTPS
+location of your own `blueprint.json`. A remote ZIP bundle works through the
+same parameter.
 
-For a small inline declaration, put encoded JSON in the URL fragment:
+Browser v2 runs currently fetch declared remote files directly. Serve the
+Blueprint and its adjacent files with browser CORS access; do not rely on a
+host's proxy fallback for these inputs. The CLI does not have this browser
+restriction.
+
+### Put a small Blueprint in the URL
+
+For a short-lived link, encode the JSON in the URL fragment. This snippet loads
+the same course example and prints an inline link:
 
 ```js
-const blueprint = {
-	$schema: 'https://playground.wordpress.net/blueprint-schema.json',
-	version: 2,
-	applicationOptions: {
-		'wordpress-playground': {
-			landingPage: '/wp-admin/',
-			login: true,
-		},
-	},
-	phpVersion: '8.3',
-};
+const blueprintResponse = await fetch('https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json');
+if (!blueprintResponse.ok) {
+	throw new Error(`Could not load Blueprint: ${blueprintResponse.status}`);
+}
+const blueprint = await blueprintResponse.json();
 
-const url = new URL('https://playground.wordpress.net/');
-url.hash = encodeURIComponent(JSON.stringify(blueprint));
+const inlineUrl = new URL('https://playground.wordpress.net/');
+inlineUrl.hash = encodeURIComponent(JSON.stringify(blueprint));
+
+console.log(inlineUrl.href);
 ```
 
-Use hosted JSON or a bundle for larger declarations. URL fragments have
-practical length limits and are awkward to review.
+Use hosted JSON or a bundle for larger Blueprints. URL fragments have practical
+length limits and are awkward to review. Website query overrides such as
+`?php=` and `?wp=` do not override v2 Blueprints loaded through
+`blueprint-url`; put runtime requirements in the JSON.
 
-Website query overrides such as `?php=` and `?wp=` apply to v1-generated
-declarations, not v2 declarations loaded through `blueprint-url`. Put runtime
-requirements in the v2 JSON.
+## Run it with the Playground CLI
 
-## Playground CLI
-
-Start a local server:
+The CLI is best for local development, repeatable checks, and CI. From the
+directory containing the `blueprint.json` saved in lesson 1, start a local
+server:
 
 ```bash
 npx @wp-playground/cli@latest server --blueprint=./blueprint.json
 ```
 
-Execute headlessly:
+`npx` downloads the CLI if needed and runs it without a global installation.
+When setup finishes, open the local URL shown by the CLI and confirm that the
+dashboard has the personalized title, theme, plugin, and Welcome post.
+
+To execute the Blueprint without keeping a web server open:
 
 ```bash
 npx @wp-playground/cli@latest run-blueprint --blueprint=./blueprint.json
 ```
 
-Build a distributable site snapshot:
+The headless check succeeds when the command applies the Blueprint and exits
+with status 0.
+
+To build a distributable site snapshot:
 
 ```bash
 npx @wp-playground/cli@latest build-snapshot \
@@ -83,8 +111,12 @@ npx @wp-playground/cli@latest build-snapshot \
 	--outfile=wordpress.zip
 ```
 
-Run a directory or ZIP bundle by passing it to `--blueprint`. When a standalone
-local JSON file references `./assets/...`, grant access to adjacent files:
+After it succeeds, confirm that `wordpress.zip` exists.
+
+Pass a directory or ZIP bundle to `--blueprint` in the same way. When a local
+JSON file reads `./assets/...`, allow it to read adjacent files explicitly. A
+directory input is shorthand for its `blueprint.json`, so it needs the same
+flag when the Blueprint reads sibling files; a ZIP bundle does not.
 
 ```bash
 npx @wp-playground/cli@latest server \
@@ -93,18 +125,21 @@ npx @wp-playground/cli@latest server \
 ```
 
 For v2, declared `phpVersion`, `wordpressVersion`, and application login values
-win. The corresponding CLI flags only fill values missing from the
-declaration. Do not rely on the broad v1 rule that CLI flags always override a
-Blueprint.
+win. The matching CLI flags only fill values that are missing from the
+Blueprint. The CLI does not support `phpVersion: "next"`; the web runtime does.
 
-The CLI does not support `phpVersion: "next"`; the web runtime does.
+Applying a Blueprint to mounted WordPress files is an advanced mode with
+different safety and compatibility rules. Follow
+[apply to an existing site safely](/blueprints/v2/apply-to-existing-site)
+before using it.
 
-## JavaScript client
+## Embed the same Blueprint with JavaScript
 
-`startPlaygroundWeb()` accepts the unified Blueprint type and routes v2
-automatically:
+`@wp-playground/client` is best when Playground is part of a web application.
+Serve the course file as `/blueprint.json`, add an `<iframe>` to the page, and
+load that same JSON into `startPlaygroundWeb()`:
 
-```ts
+```js
 import { startPlaygroundWeb } from '@wp-playground/client';
 
 const iframe = document.querySelector('iframe');
@@ -112,81 +147,59 @@ if (!iframe) {
 	throw new Error('Missing Playground iframe');
 }
 
+const response = await fetch('/blueprint.json');
+if (!response.ok) {
+	throw new Error(`Could not load Blueprint: ${response.status}`);
+}
+
+const blueprint = await response.json();
 const playground = await startPlaygroundWeb({
 	iframe,
 	remoteUrl: 'https://playground.wordpress.net/remote.html',
-	blueprint: {
-		version: 2,
-		applicationOptions: {
-			'wordpress-playground': {
-				landingPage: '/wp-admin/',
-				login: true,
-			},
-		},
-		phpVersion: '8.3',
-		plugins: ['query-monitor'],
-	},
+	blueprint,
 });
 ```
 
-See the [JavaScript API guide](/developers/apis/javascript-api/playground-api-client)
-for iframe lifecycle and client methods.
+The integration is ready when the promise resolves and the iframe shows the
+personalized WordPress dashboard.
 
-## Blueprints package
+`startPlaygroundWeb()` recognizes `version: 2` and uses the v2 runner. See the
+[JavaScript API guide](/developers/apis/javascript-api/playground-api-client)
+for iframe lifecycle, client methods, and production integration details.
 
-Use the async, cross-version validator. The older synchronous
-`validateBlueprint()` export is v1-only.
+## Advanced: validate or build a custom runner
 
-```ts
-import { validateBlueprintDeclaration, type BlueprintV2Declaration } from '@wp-playground/blueprints';
+Most browser integrations should stop at `startPlaygroundWeb()`. If you are
+building a runner or developer tool, `@wp-playground/blueprints` also provides:
 
-const blueprint = {
-	version: 2,
-	applicationOptions: {
-		'wordpress-playground': {
-			landingPage: '/wp-admin/',
-		},
-	},
-	phpVersion: '8.3',
-} satisfies BlueprintV2Declaration;
+- `validateBlueprintDeclaration()`, the async validator for both versions;
+- `compileBlueprintForExecution()`, the version-aware compiler.
 
-const result = await validateBlueprintDeclaration(blueprint);
-if (!result.valid) {
-	throw new Error(JSON.stringify(result.errors));
+The older synchronous `validateBlueprint()` and legacy `compileBlueprint()`
+exports remain v1-only. A compiled Blueprint still needs a booted
+`UniversalPHP` implementation:
+
+```js
+import { compileBlueprintForExecution, validateBlueprintDeclaration } from '@wp-playground/blueprints';
+
+export async function runBlueprint(blueprint, playground) {
+	const result = await validateBlueprintDeclaration(blueprint);
+	if (!result.valid) {
+		throw new Error(JSON.stringify(result.errors));
+	}
+
+	const compiled = await compileBlueprintForExecution(blueprint);
+	await compiled.run(playground);
 }
 ```
 
-Custom runners should use `compileBlueprintForExecution()`. The legacy
-`compileBlueprint()` export intentionally remains v1-only:
+Your custom runner supplies the Blueprint object and the booted runtime.
 
-```ts
-import { compileBlueprintForExecution } from '@wp-playground/blueprints';
+## Course complete
 
-const compiled = await compileBlueprintForExecution(blueprint);
-await compiled.run(playground);
-```
+You can now run, read, edit, and share a v2 Blueprint. Continue with a complete
+project: [add a plugin Preview, build a theme demo, or create a one-click
+reproduction](/blueprints/v2/tutorials).
 
-The `playground` value is a booted `UniversalPHP` implementation. Most browser
-integrations should use `startPlaygroundWeb()` rather than assembling this
-lower-level pipeline.
-
-## Site modes
-
-New-site creation is the default. To apply with the CLI to mounted existing
-WordPress files:
-
-```bash
-npx @wp-playground/cli@latest server \
-	--blueprint=./blueprint.json \
-	--mode=apply-to-existing-site \
-	--mount-before-install=/absolute/path/to/wordpress:/wordpress
-```
-
-Read [apply to an existing site safely](/blueprints/v2/apply-to-existing-site)
-before using that mode. It changes the meaning of baselines and version
-constraints.
-
-## Continue with a project
-
-You have completed Blueprints 101. Next, [add a plugin Preview, build a theme
-demo, or create a one-click reproduction](/blueprints/v2/tutorials).
+Need to revisit the model? Return to
+[lesson 2: how v2 Blueprints work](/blueprints/v2/blueprints-101/how-it-works).

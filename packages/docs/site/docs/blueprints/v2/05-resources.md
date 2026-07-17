@@ -1,55 +1,55 @@
 ---
-title: Data sources, paths, and bundles
+title: Use files, URLs, and bundles
 slug: /blueprints/v2/resources
-description: Reference remote, bundled, inline, Git, WordPress.org, and target-site data safely from Blueprint v2.
+description: Bring remote, bundled, inline, Git, WordPress.org, and target-site data into a Blueprint v2 safely.
 ---
 
-# Data sources, paths, and bundles
+# Use files, URLs, and bundles
 
-Blueprint v2 uses values that identify where data comes from. It does not use
-v1 objects such as `{ "resource": "url" }` or
-`{ "resource": "bundled" }`.
+A Blueprint can install plugins and themes, import content, add media, and run
+code. The source syntax depends on where that data lives.
 
-## The three path namespaces
+## Where does the file live?
 
-| Namespace                   | Example                                       | Meaning                                                             |
-| --------------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| Remote                      | `https://example.com/plugin.zip`              | Download a remote file or directory source                          |
-| Blueprint execution context | `./assets/plugin.zip` or `/assets/plugin.zip` | Read data rooted beside `blueprint.json`                            |
-| Target site                 | `site:wp-content/plugins/example/data.xml`    | Read mutable data under the target WordPress root at execution time |
+Start with its location:
 
-The field decides how to interpret a path:
+| Location                                       | Use                                 | Example                                          |
+| ---------------------------------------------- | ----------------------------------- | ------------------------------------------------ |
+| On the web                                     | Its HTTP or HTTPS URL               | `https://example.com/plugin.zip`                 |
+| Beside `blueprint.json`                        | A path beginning with `./` or `/`   | `./assets/plugin.zip`                            |
+| Already inside WordPress                       | A path beginning with `site:`       | `site:wp-content/uploads/data.xml`               |
+| In the WordPress.org plugin or theme directory | Its slug, optionally with a version | `query-monitor@3.17.2`                           |
+| In a Git repository                            | A Git source object                 | `{ "gitRepository": "..." }`                     |
+| Short text you want to keep in the JSON        | An inline file or directory         | `{ "filename": "notice.php", "content": "..." }` |
 
-| Field kind             | Examples                                                             | Path meaning                                                                          |
-| ---------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| File data reference    | Content, media, and font sources; `runPHP.code`; `runSQL.source`     | `./` and `/` read Blueprint inputs; `site:` reads the target site                     |
-| General data reference | Plugin, theme, and mu-plugin sources; `writeFiles` values            | `./` and `/` read Blueprint inputs; `site:` is not accepted                           |
-| Tail-step target path  | `path`, `fromPath`, `toPath`, `extractToPath`, and `writeFiles` keys | Resolves under the target `/wordpress` filesystem; `site:` makes that intent explicit |
+The folder, ZIP, or remote location containing `blueprint.json` is the
+**Blueprint execution context**. Paths beginning with `./` and `/` stay inside
+that context. They do not point into WordPress.
 
-For example, the `writeFiles` key is a destination in WordPress while its value
-is input data:
+<div class="callout callout-info">
+
+**Migrating from v1?**
+
+V2 uses direct values instead of v1 objects such as
+`{ "resource": "url" }` and `{ "resource": "bundled" }`. See the
+[resource migration map](./migrate-from-v1#resource-map) for each replacement.
+
+</div>
+
+## Paths beside your Blueprint
+
+Both of these paths read the same file from the Blueprint execution context:
 
 ```jsonc
-"additionalStepsAfterExecution": [
-	{
-		"step": "writeFiles",
-		"files": {
-			"site:wp-content/mu-plugins/preview.php": {
-				"filename": "preview.php",
-				"content": "<?php // Runs as a must-use plugin."
-			}
-		}
-	}
-]
+"./assets/plugin.zip"
+"/assets/plugin.zip"
 ```
 
-The leading `/` in an execution-context path does **not** mean the WordPress
-filesystem. Both `/assets/plugin.zip` and `./assets/plugin.zip` are confined to
-the Blueprint input context.
+The leading `/` does **not** mean the WordPress filesystem. Use `site:` when a
+file is already inside the WordPress site.
 
-Use `site:` only when an earlier declaration or step creates the source inside
-WordPress. For example, this imports sample data supplied by an installed
-plugin:
+For example, WooCommerce installs a sample WXR file inside its plugin
+directory. This Blueprint installs WooCommerce, then imports that file:
 
 ```json blueprint-v2
 {
@@ -79,8 +79,38 @@ plugin:
 }
 ```
 
-`networkAccess: true` lets the WordPress importer fetch the remote attachments
-named by the WXR file. It is not needed merely to read the `site:` source.
+Focus on the `source` line: the file exists only after the plugin is installed,
+so it uses `site:`. Here, `networkAccess: true` lets the WordPress importer fetch
+the remote attachments named by the WXR file. It is not needed merely to read
+the `site:` source.
+
+### Which fields accept each path?
+
+Most readers can choose a source from the first table and let schema completion
+guide them. Use this matrix when a path validates in one field but not another:
+
+| Field kind             | Examples                                                             | Accepted paths                                                                     |
+| ---------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| File source            | Content, media, and font sources; `runPHP.code`; `runSQL.source`     | URLs, `./`, `/`, inline files, and `site:`                                         |
+| General source         | Plugin, theme, and mu-plugin sources; `writeFiles` values            | URLs, `./`, `/`, inline data, and Git; not `site:`                                 |
+| Post-setup destination | `path`, `fromPath`, `toPath`, `extractToPath`, and `writeFiles` keys | Paths under the target `/wordpress` filesystem; `site:` makes that intent explicit |
+
+In `writeFiles`, the key is the destination inside WordPress and the value is
+the source data:
+
+```jsonc
+"additionalStepsAfterExecution": [
+	{
+		"step": "writeFiles",
+		"files": {
+			"site:wp-content/mu-plugins/preview.php": {
+				"filename": "preview.php",
+				"content": "<?php // Runs as a must-use plugin."
+			}
+		}
+	}
+]
+```
 
 ## Remote URLs
 
@@ -92,18 +122,21 @@ Use an HTTP or HTTPS string directly:
 ]
 ```
 
-In a browser, the server must allow cross-origin fetches. A CLI run is not
-subject to browser CORS, but it still needs network access and a stable URL.
+A browser v2 run currently needs the remote server to permit the resource fetch
+through CORS. Do not rely on a Playground host's proxy support for ordinary v2
+declared resources. The CLI is not subject to browser CORS, but every surface
+still needs a reachable URL that returns the intended file.
 
 `applicationOptions.wordpress-playground.networkAccess` controls outbound HTTP
-from the resulting WordPress site. It is separate from the runner downloading
-declared resources. Enable it only when the installed site itself needs the
-WordPress HTTP API or other outbound access.
+from the resulting WordPress site. It is separate from the website, CLI, or
+JavaScript runner downloading declared resources. Enable it only when installed
+WordPress code needs outbound access.
 
 ## WordPress.org plugins and themes
 
-In `plugins`, `themes`, and `activeTheme`, a plain string is a WordPress.org
-slug. Add `@version` to pin an available release:
+In `plugins`, `themes`, and `activeTheme`, a string that is not a URL or a
+`./` or `/` path is treated as a WordPress.org slug. Add `@version` to pin an
+available release:
 
 ```jsonc
 "plugins": [
@@ -117,12 +150,12 @@ slug. Add `@version` to pin an available release:
 "activeTheme": "twentytwentyfive@1.2"
 ```
 
-`@latest` is convenient but mutable. Pin a tested version when repeatability
-matters.
+An omitted version and `@latest` both follow the latest available release. Pin
+a tested version when the same inputs should produce the same result later.
 
 ## Git directories
 
-Use a Git source when the runnable plugin or theme files are already committed:
+Use a Git source when runnable plugin or theme files are already committed:
 
 ```jsonc
 "plugins": [
@@ -138,13 +171,14 @@ Use a Git source when the runnable plugin or theme files are already committed:
 ]
 ```
 
-`ref` may name a branch, tag, or commit. Use an immutable commit for a
-reproduction. Git sources do not run Composer, npm, or other build steps. If the
-project needs a build, publish the built ZIP or place it in a bundle.
+A branch such as `trunk` follows ongoing development. For a stable reproduction,
+replace it with a full commit SHA. Git sources fetch committed files; they do
+not run Composer, npm, or other build steps. If the project needs a build,
+publish the built ZIP or include it in a bundle.
 
 ## Inline text files and directories
 
-Small UTF-8 files can live in the declaration:
+Small UTF-8 files can live directly in the Blueprint:
 
 ```jsonc
 "muPlugins": [
@@ -155,19 +189,20 @@ Small UTF-8 files can live in the declaration:
 ]
 ```
 
-An inline directory uses `directoryName` and nested `files` records:
+An inline directory uses `directoryName` and nested `files` records. This is a
+valid JSON source object, not a complete Blueprint:
 
-```jsonc
+```json
 {
 	"directoryName": "example-plugin",
 	"files": {
 		"example-plugin.php": "<?php /* Plugin Name: Example */",
 		"includes": {
 			"files": {
-				"setup.php": "<?php // Setup code",
-			},
-		},
-	},
+				"setup.php": "<?php // Setup code"
+			}
+		}
+	}
 }
 ```
 
@@ -176,7 +211,7 @@ in a bundle or at a URL.
 
 ## Blueprint bundles
 
-A bundle packages `blueprint.json` with its inputs:
+A bundle keeps `blueprint.json` and its inputs together:
 
 ```text
 theme-demo/
@@ -189,7 +224,7 @@ theme-demo/
     └── hero.jpg
 ```
 
-The declaration refers to those paths directly:
+The bundle's `blueprint.json` refers to those paths directly:
 
 ```json blueprint-v2
 {
@@ -220,19 +255,23 @@ The declaration refers to those paths directly:
 }
 ```
 
-Distribute the directory as-is or ZIP it. A ZIP may contain `blueprint.json` at
-its root or inside one top-level directory. Do not add another unrelated
-top-level tree.
+Distribute the directory as-is or ZIP it. In a ZIP, put `blueprint.json` at the
+root or place the entire bundle inside one top-level directory.
 
-Run a directory or ZIP with the CLI:
+Run either form with the CLI. A directory input is shorthand for its local
+`blueprint.json`, so allow sibling-file reads when the bundle uses them. A ZIP
+already provides a self-contained execution context and does not need the
+flag:
 
 ```bash
-npx @wp-playground/cli@latest server --blueprint=./theme-demo
+npx @wp-playground/cli@latest server \
+	--blueprint=./theme-demo \
+	--blueprint-may-read-adjacent-files
 npx @wp-playground/cli@latest server --blueprint=./theme-demo.zip
 ```
 
-For a standalone local JSON file that reads sibling files, explicit consent is
-required:
+For a standalone local JSON file that reads sibling files, grant the same
+access explicitly:
 
 ```bash
 npx @wp-playground/cli@latest server \
@@ -240,20 +279,21 @@ npx @wp-playground/cli@latest server \
 	--blueprint-may-read-adjacent-files
 ```
 
-## Remote JSON and adjacent resources
+### Hosted JSON with adjacent files
 
 When a hosted `blueprint.json` refers to `./assets/plugin.zip`, Playground
-resolves the path relative to the JSON URL. The JSON and adjacent resource both
-need to be publicly fetchable with suitable CORS headers in the browser.
+resolves the path relative to the JSON URL. Both files must be publicly
+fetchable. Browser runs also need suitable CORS headers on both responses.
 
-## Path safety
+## Keep resource boundaries clear
 
-- Execution-context paths cannot escape their root with `..` segments.
-- `site:` paths stay under the target WordPress root; they never name an
-  arbitrary host path.
-- A bundle is input, not a safe-code boundary. Installed plugins, themes, PHP,
-  SQL, and WP-CLI may execute code.
-- Do not put secrets in Blueprint JSON, public URLs, repositories, or bundles.
+- `..` segments cannot leave the Blueprint execution context or target
+  WordPress root.
+- Local files and archives may contain symlinks or executable code; path
+  validation is not a content review.
+- A bundle is input, not a trust boundary. Plugins, themes, PHP, SQL, and WP-CLI
+  commands may execute code.
+- Keep secrets out of Blueprint JSON, public URLs, repositories, and bundles.
 
-See [security and reproducibility](./security) for the full trust model and
-[troubleshooting](./troubleshooting) for fetch, CORS, and path errors.
+Next, read [security and reproducibility](./security) before sharing a bundle or
+[troubleshooting](./troubleshooting) when a URL or path cannot be resolved.

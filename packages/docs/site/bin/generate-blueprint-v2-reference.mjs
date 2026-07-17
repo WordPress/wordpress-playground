@@ -94,7 +94,9 @@ function generateTopLevelReference(schema) {
 	const rows = Object.entries(schema.properties ?? {}).map(
 		([propertyName, propertySchema]) =>
 			formatTableRow([
-				formatCode(propertyName),
+				`<a id="blueprint-v2-property-${slugify(
+					propertyName
+				)}"></a>${formatCode(propertyName)}`,
 				requiredProperties.has(propertyName) ? 'Yes' : 'No',
 				formatCode(describeShape(propertySchema)),
 				formatDefault(propertySchema),
@@ -124,14 +126,16 @@ function generateAdditionalStepsReference(schema) {
 						requiredProperties.has(propertyName) ? 'Yes' : 'No',
 						formatCode(describeShape(propertySchema)),
 						formatDefault(propertySchema),
-						describeSchema(propertySchema),
+						describeStepField(
+							stepName,
+							propertyName,
+							propertySchema
+						),
 					])
 			);
 
 			return [
-				`<a id="blueprint-v2-step-${slugify(stepName)}"></a>`,
-				'',
-				`### \`${stepName}\``,
+				`### \`${stepName}\` {#blueprint-v2-step-${slugify(stepName)}}`,
 				'',
 				describeStep(variant, stepName),
 				'',
@@ -252,7 +256,10 @@ function describeShape(schema, depth = 0) {
 						requiredProperties.has(propertyName) ? '' : '?'
 					}: ${describeShape(propertySchema, depth + 1)}`
 			);
-		if (Object.keys(schema.properties).length > propertyShapes.length) {
+		if (
+			Object.keys(schema.properties).length > propertyShapes.length ||
+			schema.additionalProperties
+		) {
 			propertyShapes.push('…');
 		}
 		return `{ ${propertyShapes.join('; ')} }`;
@@ -310,16 +317,98 @@ function normalizeDefault(value, schema) {
 
 function describeTopLevelProperty(propertyName, schema) {
 	const fallbacks = {
+		version:
+			'Selects Blueprint v2. Use the number `2`, not the string `"2"`.',
+		$schema: 'Points editors and other tools to the Blueprint JSON Schema.',
 		blueprintMeta: 'Metadata describing the Blueprint and its authors.',
 		applicationOptions:
-			'Application-specific options. In v2, Playground landing and login options live here.',
+			'Playground options for the landing page, login, network access, and optional PHP extensions.',
+		contentBaseline:
+			'Controls which starter posts, pages, and comments are kept before declared content is added.',
+		usersBaseline:
+			'Controls whether the starter administrator is kept before declared users are created.',
+		siteLanguage:
+			'Sets the WordPress locale and downloads available translations.',
+		siteOptions: 'WordPress option names mapped to JSON-compatible values.',
+		constants:
+			'WordPress constant names mapped to string, number, or boolean values.',
+		wordpressVersion:
+			'Selects WordPress for a new site or sets compatibility bounds for an existing site.',
+		phpVersion: 'Selects or constrains the PHP runtime.',
+		activeTheme: 'Installs and activates one theme.',
+		themes: 'Themes to install without activating them.',
+		plugins: 'Plugins to install. Entries activate by default.',
+		muPlugins: 'Must-use plugins to install.',
+		postTypes: 'Custom post types to register.',
+		fonts: 'Fonts or font collections to add to the WordPress Font Library.',
+		media: 'Files to add to the WordPress Media Library.',
 		content: 'Content imports to apply to the site.',
-		users: 'Users to create, including their role and string-valued metadata.',
-		roles: 'Roles to create and their string-valued capability map.',
+		users: 'Users to create or update by username.',
+		roles: 'Roles to create or update with string-valued capabilities.',
 		additionalStepsAfterExecution:
-			'Imperative steps to run after the declarative site setup finishes.',
+			'Final setup steps to run in order after all top-level site fields.',
 	};
 	return fallbacks[propertyName] ?? describeSchema(schema);
+}
+
+function describeStepField(stepName, propertyName, schema) {
+	const schemaDescription = describeSchema(schema);
+	if (schemaDescription !== '—') {
+		return schemaDescription;
+	}
+
+	const stepFields = {
+		cp: {
+			fromPath: 'Path to copy from inside WordPress.',
+			toPath: 'Path to copy to inside WordPress.',
+		},
+		defineConstants: {
+			constants: 'Constant names mapped to their values.',
+		},
+		importContent: {
+			content: 'Content entries to import.',
+		},
+		importMedia: {
+			media: 'Media sources and metadata to import.',
+		},
+		installPlugin: {
+			source: 'Plugin source to install.',
+		},
+		installTheme: {
+			source: 'Theme source to install.',
+		},
+		mkdir: {
+			path: 'Directory path to create inside WordPress.',
+		},
+		mv: {
+			fromPath: 'Path to move from inside WordPress.',
+			toPath: 'Path to move to inside WordPress.',
+		},
+		rm: {
+			path: 'File path to remove inside WordPress.',
+		},
+		rmdir: {
+			path: 'Directory path to remove inside WordPress.',
+		},
+		runSQL: {
+			source: 'SQL file to execute.',
+		},
+		setSiteOptions: {
+			options: 'WordPress option names mapped to their new values.',
+		},
+		'wp-cli': {
+			command: 'WP-CLI command, including the leading `wp`.',
+			wpCliPath: 'Optional path to the WP-CLI executable.',
+		},
+		writeFiles: {
+			files: 'Target paths mapped to source data.',
+		},
+	};
+
+	if (propertyName === 'step') {
+		return `Selects the \`${stepName}\` step.`;
+	}
+	return stepFields[stepName]?.[propertyName] ?? '—';
 }
 
 function describeStep(variant, stepName) {

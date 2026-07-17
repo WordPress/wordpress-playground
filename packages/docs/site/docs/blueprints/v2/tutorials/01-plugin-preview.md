@@ -6,9 +6,12 @@ description: Commit a Blueprint v2 file that gives a WordPress.org plugin a test
 
 # Add a Preview to a WordPress.org plugin
 
-This tutorial adds a repeatable Playground environment to a plugin's
-WordPress.org page. Its Blueprint installs the plugin and declares the runtime,
-dependencies, options, sample content, login, and landing page around it.
+Give visitors a **Preview** button beside your plugin's download action. The
+button opens a fresh Playground site with your published plugin active and a
+useful example already on screen.
+
+You will start from a working Blueprint, replace its plugin and demo state, run
+it locally, and move it through WordPress.org's private and public checks.
 
 ## What you will ship
 
@@ -28,8 +31,13 @@ dependencies, options, sample content, login, and landing page around it.
 
 ## Run the finished Blueprint
 
-This checked fixture is the complete Blueprint used in the tutorial. Run it to
-inspect the environment it owns.
+[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/plugin-preview.json)
+
+The example opens **Pages** in the WordPress dashboard, installs and activates Query Monitor, sets a demo option, and creates **Plugin preview sample**. After it opens, use **Dock → Blueprint** to inspect or edit the JSON.
+
+<details>
+
+<summary>View and copy the complete Blueprint</summary>
 
 ```json blueprint-v2 fixture=plugin-preview
 {
@@ -48,7 +56,6 @@ inspect the environment it owns.
 			"networkAccess": false
 		}
 	},
-	"contentBaseline": "empty",
 	"phpVersion": "8.3",
 	"wordpressVersion": "latest",
 	"plugins": ["query-monitor"],
@@ -72,13 +79,19 @@ inspect the environment it owns.
 }
 ```
 
-[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/plugin-preview.json)
+</details>
 
-Use the code block's copy action to copy or save the declaration. In Playground,
-open **Dock → Blueprint** to inspect or edit it.
+## Customize the example
 
-The run opens **Pages** in wp-admin, installs and activates Query Monitor as the
-example plugin, sets a demo option, and creates **Plugin preview sample**.
+Make these replacements before you publish it:
+
+| Example field                                         | Replace it with                                       | Check after a clean run                                      |
+| ----------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| `plugins`                                             | Dependencies first, then your plugin's directory slug | Every required plugin is installed and your plugin is active |
+| `siteOptions`                                         | Real options your plugin reads                        | The plugin starts in a useful demo state                     |
+| `content`                                             | The smallest post, page, or custom content it needs   | A visitor can see the feature without creating content       |
+| `applicationOptions.wordpress-playground.landingPage` | The first useful admin or front-end screen            | Playground opens directly on the feature                     |
+| `phpVersion` and `wordpressVersion`                   | Versions you support and have tested                  | The run completes without compatibility errors               |
 
 ## 1. Add the file at the exact SVN path
 
@@ -102,11 +115,11 @@ The two systems have different responsibilities:
 | `blueprint.json`               | The plugin, runtime, dependencies, theme, options, content, login, and final page |
 
 Add the plugin's own WordPress.org slug to `plugins`. The website does not merge
-the Plugin Directory's `plugin` query parameter into a v2 declaration.
+the Plugin Directory's `plugin` query parameter into a v2 Blueprint.
 
 ## 2. Replace the example state with the plugin's demo
 
-Keep the exact numeric `"version": 2`, then customize the fixture:
+Keep the exact numeric `"version": 2`, then customize the example:
 
 - Set `phpVersion` explicitly to a version the plugin supports.
 - Decide deliberately whether `wordpressVersion` should track `latest` or a
@@ -120,12 +133,16 @@ Keep the exact numeric `"version": 2`, then customize the fixture:
   feature.
 - Point `landingPage` directly at the first screen the visitor should inspect.
 
-The first entry is the plugin being previewed; the second is a pinned example
-dependency:
+Install dependencies before the plugin that needs them. Array position does not
+mark any entry as the "main" plugin; it only controls installation order:
 
 ```jsonc
-"plugins": ["your-plugin-slug", "required-plugin@1.2.3"]
+"plugins": ["required-plugin@1.2.3", "your-plugin-slug"]
 ```
+
+Leave your own slug unpinned when the Preview should follow the latest
+published WordPress.org release. Pin a dependency when changing it could alter
+the demo.
 
 Site options are applied before plugin installation. Sample content is imported
 after plugins and post types in the fixed
@@ -134,7 +151,7 @@ after plugins and post types in the fixed
 ## 3. Validate and exercise it locally
 
 Keep `$schema` in the file so JSON Schema-aware editors report invalid fields.
-Then run the complete declaration headlessly:
+Then run the complete Blueprint headlessly:
 
 ```bash
 npx @wp-playground/cli@latest run-blueprint \
@@ -148,9 +165,16 @@ npx @wp-playground/cli@latest server \
 	--blueprint=./assets/blueprints/blueprint.json
 ```
 
-These commands validate the Blueprint-owned environment. The directory's **Test
-Preview** remains the final check that the current published plugin is present
-and active on WordPress.org.
+These commands validate the site created by your Blueprint. The directory's
+**Test Preview** remains the final check that the current published plugin is
+present and active on WordPress.org.
+
+Before moving on, check that a fresh local run:
+
+1. finishes without a validation or download error;
+2. activates the plugin and every dependency;
+3. creates the intended options and sample content; and
+4. opens the declared landing page without another setup click.
 
 ## 4. Commit and test the private preview
 
@@ -172,13 +196,15 @@ to plugin committers only. Use it to verify all of the following:
 5. A fresh preview works without manual cleanup or clicks.
 
 The [Plugin Handbook preview guide](https://developer.wordpress.org/plugins/wordpress-org/previews-and-blueprints/)
-documents the directory-side workflow.
+documents the directory-side workflow. Its Blueprint examples currently use
+the v1 format. Follow its WordPress.org and SVN instructions, but keep the v2
+JSON from this tutorial.
 
-**Current localization limitation (July 2026):** use the default English
-Preview while testing v2. The
+**Current localization limitation:** use the default English Preview while
+testing v2. The
 [Plugin Directory Preview endpoint](https://meta.svn.wordpress.org/sites/trunk/wordpress.org/public_html/wp-content/plugins/plugin-directory/api/routes/class-plugin-blueprint.php)
 appends a v1 `steps` entry for a non-English `lang` request, which makes the
-resulting v2 declaration invalid.
+resulting v2 Blueprint invalid.
 
 ## 5. Opt in to the public Preview button
 
@@ -189,8 +215,18 @@ committer has tested it:
 2. Change the plugin preview setting to **Public**.
 3. Open the public plugin page while signed out and test **Preview** once more.
 
-This two-stage workflow keeps an unreviewed or broken environment private while
+This two-stage workflow keeps an unreviewed or broken Preview private while
 committers iterate.
+
+## You are done when
+
+- A local run completes from the committed JSON.
+- **Test Preview** installs the current published release and reaches the right
+  screen.
+- The public **Preview** works while you are signed out.
+- A visitor can understand the feature without changing settings or creating
+  content first.
+- The Blueprint contains no secrets or private download URLs.
 
 ## Security and reproducibility
 

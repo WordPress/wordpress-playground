@@ -245,28 +245,28 @@
 		"order": 10
 	},
 	"blueprints/v2/blueprints-101/get-started": {
-		"title": "Build your first Blueprint v2",
+		"title": "Build your first v2 Blueprint",
 		"slug": "get-started",
 		"markdown_source": "docs/blueprints/v2/02-get-started.md",
 		"parent": "blueprints/v2/blueprints-101",
 		"order": 10
 	},
 	"blueprints/v2/blueprints-101/how-it-works": {
-		"title": "How Blueprints v2 works",
+		"title": "How v2 Blueprints work",
 		"slug": "how-it-works",
 		"markdown_source": "docs/blueprints/v2/03-how-it-works.md",
 		"parent": "blueprints/v2/blueprints-101",
 		"order": 20
 	},
 	"blueprints/v2/blueprints-101/run": {
-		"title": "Run Blueprints v2",
+		"title": "Run and share v2 Blueprints",
 		"slug": "run",
 		"markdown_source": "docs/blueprints/v2/04-run-blueprints.md",
 		"parent": "blueprints/v2/blueprints-101",
 		"order": 30
 	},
 	"blueprints/v2/resources": {
-		"title": "Data sources, paths, and bundles",
+		"title": "Use files, URLs, and bundles",
 		"slug": "resources",
 		"markdown_source": "docs/blueprints/v2/05-resources.md",
 		"parent": "blueprints/v2",
@@ -301,7 +301,7 @@
 		"order": 30
 	},
 	"blueprints/v2/apply-to-existing-site": {
-		"title": "Apply a Blueprint v2 to an existing site",
+		"title": "Apply a Blueprint to an existing site",
 		"slug": "apply-to-existing-site",
 		"markdown_source": "docs/blueprints/v2/06-apply-existing-site.md",
 		"parent": "blueprints/v2",
@@ -315,7 +315,7 @@
 		"order": 50
 	},
 	"blueprints/v2/security": {
-		"title": "Security and reproducibility",
+		"title": "Run and share Blueprints safely",
 		"slug": "security",
 		"markdown_source": "docs/blueprints/v2/07-security.md",
 		"parent": "blueprints/v2",
@@ -343,7 +343,7 @@
 		"order": 20
 	},
 	"blueprints/v2/reference/additional-steps": {
-		"title": "Additional steps after execution",
+		"title": "Run final setup steps",
 		"slug": "additional-steps",
 		"markdown_source": "docs/blueprints/v2/reference/02-additional-steps.md",
 		"parent": "blueprints/v2/reference",

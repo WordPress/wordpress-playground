@@ -14,7 +14,6 @@
 			"networkAccess": false
 		}
 	},
-	"contentBaseline": "empty",
 	"phpVersion": "8.3",
 	"wordpressVersion": "6.8.3",
 	"constants": {
@@ -32,7 +31,7 @@
 	"muPlugins": [
 		{
 			"filename": "reproduction-environment.php",
-			"content": "<?php\n/**\n * Plugin Name: Reproduction environment\n */\nadd_shortcode( 'repro_environment', function () {\n\treturn '<dl><dt>WordPress</dt><dd>' . esc_html( get_bloginfo( 'version' ) ) . '</dd><dt>PHP</dt><dd>' . esc_html( PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION ) . '</dd></dl>';\n} );\n"
+			"content": "<?php\n/**\n * Plugin Name: Reproduction environment\n */\nadd_shortcode( 'repro_environment', function () {\n\t$hello_dolly = get_file_data(\n\t\tWP_PLUGIN_DIR . '/hello-dolly/hello.php',\n\t\tarray( 'Version' => 'Version' )\n\t);\n\t$hello_dolly_status = in_array(\n\t\t'hello-dolly/hello.php',\n\t\t(array) get_option( 'active_plugins', array() ),\n\t\ttrue\n\t) ? 'active' : 'inactive';\n\n\treturn '<dl><dt>WordPress</dt><dd>' . esc_html( get_bloginfo( 'version' ) ) . '</dd><dt>PHP</dt><dd>' . esc_html( PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION ) . '</dd><dt>Hello Dolly</dt><dd>' . esc_html( $hello_dolly['Version'] . ' (' . $hello_dolly_status . ')' ) . '</dd></dl>';\n} );\n"
 		}
 	],
 	"siteOptions": {
@@ -47,7 +46,7 @@
 				"post_name": "bug-reproduction",
 				"post_type": "page",
 				"post_status": "publish",
-				"post_content": "<!-- wp:heading {\"level\":1} --><h1 class=\"wp-block-heading\">Bug reproduction</h1><!-- /wp:heading --><!-- wp:shortcode -->[repro_environment]<!-- /wp:shortcode --><!-- wp:columns --><div class=\"wp-block-columns\"><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Expected</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Replace this text with one observable expected result.</p><!-- /wp:paragraph --></div><!-- /wp:column --><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Actual</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Replace this text with what actually happens.</p><!-- /wp:paragraph --></div><!-- /wp:column --></div><!-- /wp:columns -->"
+				"post_content": "<!-- wp:heading {\"level\":1} --><h1 class=\"wp-block-heading\">Bug reproduction</h1><!-- /wp:heading --><!-- wp:shortcode -->[repro_environment]<!-- /wp:shortcode --><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Steps to reproduce</h2><!-- /wp:heading --><!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Read the WordPress, PHP, and Hello Dolly versions shown above.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Confirm Hello Dolly is active and compare all three values with the Expected section.</li><!-- /wp:list-item --></ol><!-- /wp:list --><!-- wp:columns --><div class=\"wp-block-columns\"><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Expected</h2><!-- /wp:heading --><!-- wp:paragraph --><p>The page reports WordPress 6.8.3, PHP 8.3, and Hello Dolly 1.7.2 (active).</p><!-- /wp:paragraph --></div><!-- /wp:column --><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Actual</h2><!-- /wp:heading --><!-- wp:paragraph --><p>The environment table above shows the versions and plugin state loaded by this run.</p><!-- /wp:paragraph --></div><!-- /wp:column --></div><!-- /wp:columns -->"
 			}
 		}
 	]

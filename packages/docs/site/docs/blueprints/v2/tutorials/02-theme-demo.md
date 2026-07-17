@@ -6,9 +6,9 @@ description: Launch a WordPress theme with repeatable content, media, and a fron
 
 # Build an interactive WordPress theme demo
 
-A useful theme preview opens on designed content, not on an empty installation.
-This tutorial declares the active theme, a landing page, representative blocks,
-and media as one runnable Blueprint v2 fixture.
+A useful theme demo opens on designed content, not an empty installation. In
+this tutorial, you will publish a link that opens your theme on a representative
+page with an image, responsive columns, and no setup clicks.
 
 ## What you will build
 
@@ -16,18 +16,23 @@ and media as one runnable Blueprint v2 fixture.
 - A published page with headings, body text, an image, and responsive columns.
 - An imported Media Library item with useful metadata.
 - A front-end URL that opens as soon as the Blueprint finishes.
-- A fixture that can later move with its assets as a Blueprint bundle.
+- An example that can later move with its assets as a Blueprint bundle.
 
 ## Prerequisites
 
 - A WordPress.org theme slug, built theme ZIP, or committed theme directory.
 - Demo copy and media you are allowed to redistribute.
-- Node.js if you want to run the fixture with the Playground CLI.
+- Node.js if you want to run the example with the Playground CLI.
 
 ## Run the finished demo
 
-The complete fixture opens the published `/theme-demo/` page with Twenty
-Twenty-Five 1.4 active.
+[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/theme-demo.json)
+
+The example opens `/theme-demo/` with Twenty Twenty-Five 1.4 active. You will see a page titled **A complete theme demo**, a large introduction, a block-editor image, and two responsive columns. The same image appears in the Media Library with a title, alt text, and caption. After it opens, use **Dock → Blueprint** to inspect or edit the JSON.
+
+<details>
+
+<summary>View and copy the complete Blueprint</summary>
 
 ```json blueprint-v2 fixture=theme-demo
 {
@@ -46,7 +51,6 @@ Twenty-Five 1.4 active.
 			"networkAccess": false
 		}
 	},
-	"contentBaseline": "empty",
 	"phpVersion": "8.3",
 	"wordpressVersion": "latest",
 	"activeTheme": "twentytwentyfive@1.4",
@@ -77,15 +81,22 @@ Twenty-Five 1.4 active.
 }
 ```
 
-[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/theme-demo.json)
+</details>
 
-Use the code block's copy action to copy or save the declaration. In Playground,
-open **Dock → Blueprint** to inspect or edit it.
+## Customize the example
 
-The expected result is a front-end page titled **A complete theme demo**, with
-a large introduction, a block-editor image, and two responsive columns. The
-same image is also imported into the Media Library with title, alt text, and a
-caption. Default posts and pages are removed first.
+| Example field                                         | Replace it with                                | Check after a clean run                                             |
+| ----------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| `activeTheme`                                         | Your released theme, built ZIP, or directory   | The intended theme is active                                        |
+| `content[].source`                                    | A small set of representative pages and blocks | Typography, spacing, templates, and responsive behavior are visible |
+| `media`                                               | Assets you may redistribute                    | Each asset appears in the Media Library with useful metadata        |
+| `siteOptions.permalink_structure`                     | The URL structure used by your landing page    | The landing URL does not redirect or return a 404                   |
+| `applicationOptions.wordpress-playground.landingPage` | The best first page for a visitor              | The demo opens on the result, not a setup screen                    |
+| `wordpressVersion` and `phpVersion`                   | Versions you want to track or pin              | The runtime matches your support policy                             |
+
+The example pins the theme but deliberately follows the latest WordPress
+release. Pin `wordpressVersion` too when you need the entire demo to stay
+unchanged between reviews.
 
 ## 1. Select the theme explicitly
 
@@ -96,7 +107,9 @@ available version:
 "activeTheme": "your-theme@1.2.0"
 ```
 
-For a built ZIP stored beside the Blueprint, use an execution-context path:
+For a built ZIP stored beside the Blueprint, use a path that starts with `./`.
+This is called an execution-context path because it resolves from the files
+packaged with `blueprint.json`:
 
 ```jsonc
 "activeTheme": "./themes/your-theme.zip"
@@ -109,8 +122,8 @@ instead; a Blueprint does not build source code for you.
 
 ## 2. Give the theme representative content
 
-The fixture sets `contentBaseline: "empty"`, then declares one published page
-under `content`. Its block markup covers several common design decisions:
+The example declares one published page under `content`. Its block markup covers
+several common design decisions:
 
 - heading scale and reading width;
 - large paragraph typography;
@@ -121,11 +134,18 @@ Replace this with the smallest content set that represents the theme. Keep
 stable `post_name` values so final URLs do not change, and keep
 `permalink_structure` explicit when the landing page uses a pretty permalink.
 
-The fixture's media source is a raw GitHub URL containing a full commit SHA.
+The example's media source is a raw GitHub URL containing a full commit SHA.
 That makes the Run action independent of a moving branch. The `media` entry
 imports the file into WordPress; the page also uses the same immutable URL in
 its image block so the visual result does not depend on a generated attachment
 ID or uploads path.
+
+Choose one asset strategy for your own demo:
+
+| Strategy         | Use it when                                            | Tradeoff                                                      |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| Immutable URLs   | You want one JSON file and can host public assets      | The demo still depends on those hosts remaining available     |
+| Blueprint bundle | You want the JSON, theme, and media to travel together | You must distribute the directory or ZIP instead of only JSON |
 
 ## 3. Choose the page visitors see first
 
@@ -170,15 +190,19 @@ npx @wp-playground/cli@latest server \
 	--blueprint-may-read-adjacent-files
 ```
 
-A directory or ZIP bundle does not need that adjacent-file flag. See
+A directory input is shorthand for `./theme-demo/blueprint.json`, so it needs
+the same adjacent-file flag when it reads sibling files. A ZIP bundle does not
+need the flag. See
 [Blueprint bundles](/blueprints/v2/resources#blueprint-bundles) for supported
 layouts and browser delivery.
 
-## Optional: replace inline content with WXR
+## Optional: use a WXR export for a larger demo
 
-An export can be useful for a larger demo, but make its import policy explicit:
+Keep inline posts for a small, readable demo. Use a WXR export when recreating
+the representative content by hand would be harder to review or maintain, and
+make its import policy explicit:
 
-```jsonc
+```json
 {
 	"type": "wxr",
 	"source": "./content/starter.wxr",
@@ -187,25 +211,33 @@ An export can be useful for a larger demo, but make its import policy explicit:
 	"importUsers": false,
 	"importComments": false,
 	"urlsMode": "rewrite",
-	"staticAssets": "fetch",
+	"staticAssets": "fetch"
 }
 ```
 
 These controls make author handling, user and comment creation, URL rewriting,
 and asset fetching reviewable instead of relying on import defaults. Before
-using `"fetch"`, change the fixture's Playground `networkAccess` option to
+using `"fetch"`, change the example's Playground `networkAccess` option to
 `true` so WordPress can download remote attachments. Keep network access false
 and use `"hotlink"` when the imported content should retain remote asset URLs.
-Bundle the WXR and any local media with the declaration.
+Bundle the WXR and any local media with the Blueprint.
 
-## Validate the result
+## Check the finished demo
 
-Exercise both headless execution and the front-end experience:
+If you followed the directory layout above, exercise the complete bundle both
+headlessly and in a browser:
 
 ```bash
-npx @wp-playground/cli@latest run-blueprint --blueprint=./theme-demo.json
-npx @wp-playground/cli@latest server --blueprint=./theme-demo.json
+npx @wp-playground/cli@latest run-blueprint \
+	--blueprint=./theme-demo \
+	--blueprint-may-read-adjacent-files
+npx @wp-playground/cli@latest server \
+	--blueprint=./theme-demo \
+	--blueprint-may-read-adjacent-files
 ```
+
+For a ZIP bundle, pass `--blueprint=./theme-demo.zip` without the permission
+flag.
 
 In a fresh run, verify:
 

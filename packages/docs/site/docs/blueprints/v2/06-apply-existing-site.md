@@ -1,19 +1,71 @@
 ---
-title: Apply a Blueprint v2 to an existing site
+title: Apply a Blueprint to an existing site
 slug: /blueprints/v2/apply-to-existing-site
-description: Protect existing WordPress data with compatibility bounds, collision policies, backups, and explicit Blueprint v2 site mode.
+description: Safely apply Blueprint v2 to a local WordPress directory with the CLI, compatibility bounds, and collision policies.
 ---
 
-# Apply a Blueprint v2 to an existing site safely
+# Apply a Blueprint to an existing site
 
-An existing-site run changes real files and database records. It is not a dry
-run, a transaction, or a general-purpose state reconciler. Back up valuable
-data and test the declaration on a copy first.
+Use this mode when you want the Playground CLI to update a
+Playground-compatible WordPress directory on your computer. It mounts that
+directory at `/wordpress` and changes its files and Playground SQLite database
+in place. It does not connect to a live site's URL or external MySQL database.
 
-## Declare compatibility bounds
+Copying files from a conventional hosted site does not copy that site's MySQL
+data. First make a local Playground-compatible copy with the content and
+database state you intend to test, or import that data into a disposable
+Playground site. Then follow this workflow on the copy.
 
-Use object constraints when the target must run a supported WordPress or PHP
-version:
+The Playground website runs a Blueprint in a new Playground; it does not apply
+one incrementally to the saved site you are viewing. Use the CLI workflow on
+this page for an existing directory.
+
+<div class="callout callout-warning">
+
+**Work on a copy first**
+
+Existing-site mode is not a dry run or a transaction, and it has no automatic
+rollback. Keep a backup outside the mounted directory and test the Blueprint on
+a disposable copy before using the intended directory.
+
+</div>
+
+## Safe workflow
+
+1. Copy, export, or snapshot the site and keep the backup outside the mount.
+2. Review every plugin, theme, URL, Git ref, PHP program, SQL file, and WP-CLI
+   command in the Blueprint.
+3. Validate the JSON in **New → Write a Blueprint** on the
+   [Playground website](https://playground.wordpress.net/).
+4. Run the Blueprint against a disposable copy with the same WordPress and PHP
+   versions as the intended site.
+5. Compare the result, including files, options, active plugins and themes,
+   users, and content.
+6. Only then run it against the intended local directory.
+
+## Run it against a local directory
+
+Mount the WordPress root at `/wordpress` and select existing-site mode:
+
+```bash
+npx @wp-playground/cli@latest server \
+	--blueprint=./blueprint.json \
+	--mode=apply-to-existing-site \
+	--mount-before-install=/absolute/path/to/wordpress:/wordpress
+```
+
+This command directly modifies `/absolute/path/to/wordpress`. Replace that
+placeholder with the Playground-compatible WordPress root on your computer—the
+directory containing `wp-admin`, `wp-content`, `wp-includes`, and the local site
+state you intend to change.
+
+The explicit `--mode` cannot be combined with the older install-mode shortcuts
+`--auto-mount`, `--wordpress-install-mode`, or `--skip-sqlite-setup`.
+
+## Reject incompatible versions before making changes
+
+Use version bounds when a site must run within a supported WordPress or PHP
+range:
 
 ```json blueprint-v2
 {
@@ -41,87 +93,77 @@ version:
 			"active": true,
 			"ifAlreadyInstalled": "skip"
 		}
-	],
-	"siteOptions": {
-		"blogdescription": "Prepared for compatibility testing"
-	}
+	]
 }
 ```
 
-For an existing site, the object form enforces the WordPress bounds. A string
-such as `"wordpressVersion": "6.9"` is a new-site selection hint and does not
-reject a different installed version. `preferred` influences new-site
-selection but does not narrow compatibility.
+For an existing site:
 
-## Baselines are skipped
+- `wordpressVersion.min` and `max` are checked against the installed WordPress
+  version.
+- `wordpressVersion.preferred` helps choose a release for a new site; it does
+  not narrow the existing-site range.
+- `phpVersion.min` and `max` limit the PHP runtimes Playground may use.
+- `phpVersion.recommended` chooses the preferred runtime within those bounds.
 
-`contentBaseline` and `usersBaseline` only clean up a newly created vanilla
-WordPress installation. Existing-site mode deliberately skips both fields.
-They cannot be used to erase existing posts or users.
+A string such as `"wordpressVersion": "6.9"` selects a release when creating a
+site. It does not reject a different version already installed in an existing
+directory. Use the object form when compatibility matters.
 
-If an existing site needs an explicit destructive operation, make it visible in
-`additionalStepsAfterExecution`, document it, and test it on a disposable copy.
-Do not hide deletion inside an otherwise reusable declaration.
+## Know what is preserved
 
-## Choose collision behavior
+`contentBaseline` and `usersBaseline` apply only when Playground creates a new,
+vanilla WordPress site. Existing-site mode skips both fields, so they cannot be
+used to remove the site's existing posts or users.
 
-Theme definitions and file- or ZIP-backed plugin definitions can state what
-happens when a target directory already exists:
+If the site needs an intentional destructive operation, put it visibly in
+`additionalStepsAfterExecution`, document it, and test it on the disposable
+copy. Do not hide deletion inside an otherwise reusable Blueprint.
 
-- `"overwrite"` replaces it and is the current default.
-- `"skip"` leaves the installed copy in place.
-- `"error"` stops rather than choosing implicitly.
+## Choose what happens to installed plugins and themes
 
-Pick a policy for every dependency where the existing version matters. A repeat
-run is not automatically idempotent: installation, activation hooks, imported
-content, PHP, SQL, and WP-CLI can all produce different results or duplicates.
+Set `ifAlreadyInstalled` on every dependency whose installed version matters:
 
-Directory-backed plugin sources, including Git directories and inline
-directories, currently overwrite the target and do not honor `"skip"` or
-`"error"`. Do not use those sources when preserving an existing plugin is a
-requirement.
+- `"overwrite"` replaces the installed copy and is the current default.
+- `"skip"` keeps the installed copy.
+- `"error"` stops before replacing it.
 
-## Run against mounted files with the CLI
+Current collision handling depends on the source:
 
-Create a backup, then mount the WordPress root at `/wordpress`:
+| Install source                                                 | Honors `overwrite`, `skip`, and `error`?       |
+| -------------------------------------------------------------- | ---------------------------------------------- |
+| Themes, including ZIP and directory sources                    | Yes                                            |
+| ZIP-backed plugins, including WordPress.org downloads          | Yes                                            |
+| Directory-backed plugins, including Git and inline directories | No; they currently overwrite                   |
+| Single-file `.php` plugins                                     | No; they currently write or overwrite the file |
 
-```bash
-npx @wp-playground/cli@latest server \
-	--blueprint=./blueprint.json \
-	--mode=apply-to-existing-site \
-	--mount-before-install=/absolute/path/to/wordpress:/wordpress
-```
+When preserving an installed plugin is a requirement, use a ZIP-backed source
+and set the policy explicitly.
 
-The explicit `--mode` cannot be combined with the older install-mode shortcuts
-`--auto-mount`, `--wordpress-install-mode`, or `--skip-sqlite-setup`.
+Running the same Blueprint twice may still rerun activation hooks or create
+duplicate content. Plugin installation policy does not make content imports,
+PHP, SQL, or WP-CLI commands safe to repeat.
 
-The Playground website does not apply a Blueprint incrementally to a saved site.
-Running from the Blueprint editor recreates a temporary/autosaved Playground or
-opens a stored site's declaration in a new Playground. Use the explicit CLI
-mode above for in-place application to mounted files.
+## Expect partial changes when a run fails
 
-## Understand partial failure
+Playground executes the plan in order. If plugin activation fails after an
+option was written, that option remains written and later work does not run.
 
-Playground executes the plan sequentially. If plugin activation fails after an
-option was written, the option remains written and later plan items do not run.
-There is no automatic rollback.
+After a failure:
 
-Before applying:
+1. Keep the complete error and identify the first failing plan item or step.
+2. Inspect the test copy before retrying; earlier changes may already be there.
+3. Prefer restoring the copy and rerunning from known state over repairing it
+   by hand.
+4. Check whether another run would duplicate posts, media, or plugin-created
+   records. Declared users are updated by username instead of inserted again.
 
-1. Export or snapshot the target and keep the backup outside the mount.
-2. Validate the declaration in the Blueprint editor.
-3. Run it against a disposable copy with the same WordPress and PHP versions.
-4. Review every remote URL, Git ref, plugin, theme, PHP program, SQL file, and
-   WP-CLI command.
-5. Choose collision policies and identify operations that create duplicate
-   content on repeat runs.
-6. Record the exact failure and inspect the target before retrying.
+## Paths still keep their original meaning
 
-## Paths in existing-site mode
+An input such as `./content/site.wxr` still points beside `blueprint.json`. A
+source such as `site:wp-content/...` points inside the mounted WordPress site at
+the moment it is read. Neither syntax is a trust boundary: plugins, PHP, SQL,
+and WP-CLI may still change the mounted site.
 
-An execution-context path such as `./content/site.wxr` still points beside the
-Blueprint. A `site:wp-content/...` path points inside the mounted existing site
-at the time it is consumed. Neither form grants access outside its own root.
-
-Continue with [security and reproducibility](./security) and the
-[phase-oriented troubleshooting guide](./troubleshooting).
+Before using the intended directory, review [security and reproducibility](./security).
+If a test run fails, use the [phase-oriented troubleshooting guide](./troubleshooting).

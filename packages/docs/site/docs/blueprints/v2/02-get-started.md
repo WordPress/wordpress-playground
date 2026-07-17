@@ -1,21 +1,36 @@
 ---
-title: Build your first Blueprint v2
+title: Build your first v2 Blueprint
 slug: /blueprints/v2/blueprints-101/get-started
-description: Create, validate, edit, and run a complete Blueprint v2 in the browser or Playground CLI.
+description: Run, inspect, personalize, and save your first working v2 Blueprint in the browser.
 ---
 
-# Build and run your first Blueprint v2
+# Build and run your first v2 Blueprint
 
-This is lesson 1 of the
-[Blueprints 101 v2 crash course](/blueprints/v2/blueprints-101).
+**Lesson 1 of 3 · Browser only**
 
-In five minutes, you will create a WordPress site with a theme, a plugin, a
-site title, and a published post.
+You will open a complete WordPress site, change its title, and save the v2
+Blueprint that created it. Nothing is installed on your computer.
 
-## Run the finished site
+## 1. Open the site
 
-The example below is the same checked fixture used by this page and the docs
-build. Run it in Playground or copy it into a file named `blueprint.json`.
+[Run the course Blueprint in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json).
+
+When setup finishes, check that:
+
+- Playground opens the WordPress dashboard (`wp-admin`);
+- **My Blueprint v2 site** appears as the site title;
+- Twenty Twenty-Five is the active theme;
+- Hello Dolly is an active plugin; and
+- **Welcome** appears under **Posts**.
+
+These visible results are a quick way to confirm that the whole Blueprint ran.
+If setup stops early, open the
+[troubleshooting guide](/blueprints/v2/troubleshooting) before continuing.
+
+## 2. Inspect the Blueprint
+
+Open **Dock → Blueprint** in the Playground you just created. The editor shows
+the JSON that produced the site:
 
 ```json blueprint-v2 fixture=quickstart
 {
@@ -48,40 +63,11 @@ build. Run it in Playground or copy it into a file named `blueprint.json`.
 }
 ```
 
-[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json)
+This is the working course example. You will personalize it in the next step.
 
-Use the code block's copy action to copy or save the declaration. In Playground,
-open **Dock → Blueprint** to inspect or edit it.
+## 3. Make it yours
 
-When the run finishes, Playground opens wp-admin. The site title is **My
-Blueprint v2 site**, Twenty Twenty-Five is active, Hello Dolly is active, and a
-published post named **Welcome** appears under **Posts**.
-
-## Run it with the CLI
-
-Save the JSON above as `blueprint.json`, then run:
-
-```bash
-npx @wp-playground/cli@latest server --blueprint=./blueprint.json
-```
-
-No v2 flag is required. Playground selects v2 from the exact numeric
-`"version": 2` field.
-
-To execute the declaration without keeping a web server open:
-
-```bash
-npx @wp-playground/cli@latest run-blueprint --blueprint=./blueprint.json
-```
-
-## Edit and validate it
-
-Open [Playground](https://playground.wordpress.net/), choose **New → Write a
-Blueprint**, and paste the same JSON. The editor uses `$schema` for completion
-and validation. You can also keep `$schema` in a committed file for editor
-feedback in VS Code and other JSON Schema-aware tools.
-
-Change the site title:
+In the Blueprint editor, find `siteOptions` and change the title:
 
 ```jsonc
 "siteOptions": {
@@ -90,28 +76,39 @@ Change the site title:
 }
 ```
 
-Run the declaration again and confirm the new title in wp-admin.
+Choose **Discard current Playground & run Blueprint**. This discards only the
+temporary course site and creates a fresh one from the edited JSON. On a saved
+site, the corresponding action is **Run in a new Playground**. Check that **My
+plugin test site** now appears as the site title and that the theme, plugin, and
+Welcome post are still present.
 
-## What each part does
+Leave the editor open if you plan to use the browser path in lesson 3. To try
+the CLI or JavaScript paths, copy the edited JSON and save it as
+`blueprint.json`.
 
-| Field                                     | Result                                                            |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| `$schema`                                 | Enables validation and completion for both Blueprint versions     |
-| `version`                                 | Selects the v2 schema and runtime path; it must be the number `2` |
-| `applicationOptions.wordpress-playground` | Logs in and chooses the page shown after execution                |
-| `phpVersion` and `wordpressVersion`       | Select the runtime for this new site                              |
-| `activeTheme`                             | Installs and activates a WordPress.org theme                      |
-| `plugins`                                 | Installs and activates WordPress.org plugins by default           |
-| `siteOptions`                             | Writes WordPress options with `update_option()`                   |
-| `content`                                 | Creates the declared post after the site is configured            |
+## 4. Read the JSON by purpose
 
-The example sets its PHP version and landing page explicitly. Do the same in
-portable examples instead of depending on defaults that may differ between
-hosts.
+You do not need to memorize every field. Start with four groups:
 
-## Next steps
+- **Select the format:** `$schema` enables editor help, while `version` selects
+  v2. The value must be the number `2`.
+- **Choose the runtime:** `phpVersion` and `wordpressVersion` select PHP and
+  WordPress for this new site.
+- **Control the Playground experience:**
+  `applicationOptions.wordpress-playground` logs you in and opens the chosen
+  page after setup.
+- **Describe the WordPress site:** in this example, `activeTheme` and `plugins`
+  install and activate packages from WordPress.org, `siteOptions` changes
+  settings, and `content` creates the Welcome post.
 
-- [Understand the v2 lifecycle and declaration order](/blueprints/v2/blueprints-101/how-it-works)
-- [Run this file from a URL, JavaScript, or a package API](/blueprints/v2/blueprints-101/run)
-- [Add local files or make a Blueprint bundle](/blueprints/v2/resources)
-- [Choose a plugin, theme, or reproduction tutorial](/blueprints/v2/tutorials)
+The example chooses its PHP version and landing page explicitly instead of
+depending on host defaults. It requests the latest WordPress release, which is
+convenient for learning but can change over time. Pin versions when a test or
+reproduction must stay repeatable.
+
+## Next lesson
+
+Continue to
+[understand how v2 Blueprints work](/blueprints/v2/blueprints-101/how-it-works).
+You will follow this same Blueprint through setup and learn the three ordering
+rules that matter when you edit it.
