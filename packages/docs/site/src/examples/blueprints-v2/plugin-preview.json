@@ -1,0 +1,38 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"version": 2,
+	"blueprintMeta": {
+		"name": "WordPress.org plugin preview",
+		"description": "A repeatable preview environment for a WordPress.org plugin.",
+		"authors": ["WordPress Playground"],
+		"tags": ["plugin", "preview"]
+	},
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/wp-admin/edit.php?post_type=page",
+			"login": true,
+			"networkAccess": false
+		}
+	},
+	"contentBaseline": "empty",
+	"phpVersion": "8.3",
+	"wordpressVersion": "latest",
+	"plugins": ["query-monitor"],
+	"siteOptions": {
+		"blogname": "Plugin preview",
+		"permalink_structure": "/%postname%/",
+		"example_plugin_demo_mode": "guided"
+	},
+	"content": [
+		{
+			"type": "posts",
+			"source": {
+				"post_title": "Plugin preview sample",
+				"post_name": "plugin-preview-sample",
+				"post_type": "page",
+				"post_status": "publish",
+				"post_content": "<!-- wp:heading {\"level\":1} --><h1 class=\"wp-block-heading\">Plugin preview sample</h1><!-- /wp:heading --><!-- wp:paragraph --><p>Replace this page and the example option with the smallest state that demonstrates your plugin.</p><!-- /wp:paragraph -->"
+			}
+		}
+	]
+}

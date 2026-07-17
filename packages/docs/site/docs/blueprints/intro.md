@@ -1,47 +1,92 @@
 ---
-title: Introduction
+title: WordPress Playground Blueprints
 slug: /blueprints
 id: introduction
-description: The main introduction to the Blueprints documentation. Discover the structure of the docs and find key sections.
+description: Choose Blueprint v2 for new WordPress Playground setups or find the legacy v1 documentation and migration guide.
 ---
 
-import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
+# WordPress Playground Blueprints
 
-# Blueprints Docs
+Blueprints are JSON declarations that create configured WordPress Playground
+sites. They can select WordPress and PHP, install plugins and themes, add site
+content, and prepare a repeatable demo, preview, reproduction, or development
+environment.
 
-<div class="callout callout-tip">
+## Start with Blueprint v2
 
-Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+V2 is the recommended format for new work. It describes the site you need
+instead of making every setup action an ordered script.
 
-</div>
+```json blueprint-v2 fixture=quickstart
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"version": 2,
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/wp-admin/",
+			"login": true
+		}
+	},
+	"phpVersion": "8.3",
+	"wordpressVersion": "latest",
+	"activeTheme": "twentytwentyfive",
+	"plugins": ["hello-dolly"],
+	"siteOptions": {
+		"blogname": "My Blueprint v2 site",
+		"permalink_structure": "/%postname%/"
+	},
+	"content": [
+		{
+			"type": "posts",
+			"source": {
+				"post_title": "Welcome",
+				"post_status": "publish",
+				"post_content": "<!-- wp:paragraph --><p>Created by Blueprint v2.</p><!-- /wp:paragraph -->"
+			}
+		}
+	]
+}
+```
 
-Hi! Welcome to WordPress Playground Blueprints documentation.
+[Run in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/src/examples/blueprints-v2/quickstart.json)
 
-Blueprints are JSON files for setting up your very own WordPress Playground instance. This subsite (Blueprints Docs) is where you will find all the information you need to use Blueprints.
+Use the code block's copy action to copy or save the declaration. In Playground,
+open **Dock → Blueprint** to inspect or edit it.
 
-<p class="docs-hubs">The WordPress Playground documentation is distributed across four separate hubs (subsites):</p>
+[Build and run this site in five minutes](/blueprints/v2/get-started), then
+choose the guide for your task:
 
-- [**Documentation**](/) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
-- 👉 [**Blueprints**](/blueprints) (you're here) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from this Blueprints docs hub.
-- [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
-- [**API Reference**](/api) – All the APIs exposed by WordPress Playground
+- [Add a Preview to a WordPress.org plugin](/blueprints/v2/tutorials/plugin-preview)
+- [Build an interactive WordPress theme demo](/blueprints/v2/tutorials/theme-demo)
+- [Create a one-click bug or pull-request reproduction](/blueprints/v2/tutorials/bug-reproduction)
+- [Run v2 in the browser, CLI, or JavaScript](/blueprints/v2/run)
+- [Use local data and Blueprint bundles](/blueprints/v2/resources)
+- [Apply a declaration to an existing site](/blueprints/v2/apply-to-existing-site)
 
-## Navigating the Blueprints documentation hub
+See the [Blueprint v2 overview](/blueprints/v2) for the support matrix, mental
+model, and complete learning path.
 
-This docs hub is focused on Blueprints info and is divided into the following major sections:
+## Choose a version
 
-- [Getting started with Blueprints](/blueprints/getting-started): Quick Start Guide to setting up a WordPress Playground instance using Blueprint JSON files.
+|                 | Blueprint v2                                            | Blueprint v1                                   |
+| --------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| Version marker  | Exact numeric `"version": 2`                            | No `version` field                             |
+| Authoring model | Declarative site state with an optional imperative tail | Ordered steps plus top-level shorthands        |
+| Recommendation  | Use for new work                                        | Maintain existing declarations while migrating |
+| Documentation   | [V2 overview](/blueprints/v2)                           | [V1 legacy guide](/blueprints/v1)              |
 
-- [Tutorial - Blueprints 101](/blueprints/tutorial) - Blueprints API crash course. The tutorial will guide you through the complete process of creating a blueprint that loads a theme and plugin (among other things).
+Current Playground runners still accept v1. Its existing deep documentation
+URLs remain available and are clearly marked as legacy. Do not add `version: 2`
+to an unchanged v1 file; use the [manual migration guide](/blueprints/v2/migrate-from-v1).
 
-- [Blueprint data Format](/blueprints/data-format): Blueprint JSON files define your Playground instance with various properties. This section highlights the key properties you need to know.
+## Reference and help
 
-- [Using Blueprints](/blueprints/using-blueprints): Learn in this section different ways to use Blueprints.
+- [V2 schema reference](/blueprints/v2/reference/schema)
+- [V2 additional steps](/blueprints/v2/reference/additional-steps)
+- [V2 content and site data](/blueprints/v2/reference/content-and-site-data)
+- [V2 troubleshooting](/blueprints/v2/troubleshooting)
+- [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
 
-- [Steps](/blueprints/steps): API Reference of all the available steps that can be set in a blueprint to run tasks such as login, plugin/theme activation, file operations, and more.
-
-- [Blueprint Bundles](/blueprints/bundles): Learn how to create and use Blueprint bundles - self-contained packages that include a Blueprint and all its resources.
-
-- [Examples](/blueprints/examples): Compilation of Blueprint examples for various WordPress Playground setups, including installing themes/plugins, running PHP code, enabling features, and loading specific WordPress versions.
-
-- [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug): Tips and tools for troubleshooting and debugging Blueprints.
+The documentation only claims support on tested Playground surfaces. Check the
+[V2 support matrix](/blueprints/v2#current-support) before assuming another
+WordPress product or host executes the same declaration.

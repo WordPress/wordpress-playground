@@ -1,10 +1,20 @@
 ---
-title: Troubleshoot and debug
+title: Troubleshoot and debug (v1 legacy)
 slug: /blueprints/troubleshoot-and-debug
-description: A searchable guide to common Blueprint errors, including fetch failures, validation errors, PHP failures, and plugin activation issues.
+description: Legacy Blueprint v1 documentation. A searchable guide to common Blueprint errors, including fetch failures, validation errors, PHP failures, and plugin activation issues.
 ---
 
 # Troubleshoot and debug Blueprints
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Blueprint errors usually point to one of three places:
 

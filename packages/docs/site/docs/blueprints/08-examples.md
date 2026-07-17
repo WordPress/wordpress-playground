@@ -1,13 +1,23 @@
 ---
 sidebar_position: 8
-title: Examples
+title: Examples (v1 legacy)
 slug: /blueprints/examples
-description: A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features.
+description: Legacy Blueprint v1 documentation. A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 # Blueprints Examples
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 <div class="callout callout-tip">
 

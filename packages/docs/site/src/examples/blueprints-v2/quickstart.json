@@ -1,0 +1,28 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"version": 2,
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/wp-admin/",
+			"login": true
+		}
+	},
+	"phpVersion": "8.3",
+	"wordpressVersion": "latest",
+	"activeTheme": "twentytwentyfive",
+	"plugins": ["hello-dolly"],
+	"siteOptions": {
+		"blogname": "My Blueprint v2 site",
+		"permalink_structure": "/%postname%/"
+	},
+	"content": [
+		{
+			"type": "posts",
+			"source": {
+				"post_title": "Welcome",
+				"post_status": "publish",
+				"post_content": "<!-- wp:paragraph --><p>Created by Blueprint v2.</p><!-- /wp:paragraph -->"
+			}
+		}
+	]
+}

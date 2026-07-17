@@ -1,10 +1,21 @@
 ---
+title: Steps (v1 legacy)
 sidebar_position: 3
 slug: /blueprints/steps
-description: The main API reference for the steps property. Discover all available step types you can use in a Blueprint.
+description: Legacy Blueprint v1 documentation. The main API reference for the steps property. Discover all available step types you can use in a Blueprint.
 ---
 
 # Steps
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 The `steps` property of a Blueprint is an array of steps to run. For example this Blueprint logs the user in as an admin:
 

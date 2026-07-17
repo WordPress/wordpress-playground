@@ -1,8 +1,18 @@
 ---
-title: Build your first Blueprint
+title: Build your first Blueprint (v1 legacy)
 slug: /blueprints/tutorial/build-your-first-blueprint
-description: A step-by-step tutorial to build your first Blueprint. Learn to install themes, plugins, and import site content.
+description: Legacy Blueprint v1 documentation. A step-by-step tutorial to build your first Blueprint. Learn to install themes, plugins, and import site content.
 ---
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Let's build an elementary Blueprint that
 

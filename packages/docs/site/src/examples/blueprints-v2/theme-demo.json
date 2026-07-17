@@ -1,0 +1,45 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"version": 2,
+	"blueprintMeta": {
+		"name": "Interactive theme demo",
+		"description": "A front-end theme demo with deterministic content and media.",
+		"authors": ["WordPress Playground"],
+		"tags": ["theme", "demo"]
+	},
+	"applicationOptions": {
+		"wordpress-playground": {
+			"landingPage": "/theme-demo/",
+			"login": false,
+			"networkAccess": false
+		}
+	},
+	"contentBaseline": "empty",
+	"phpVersion": "8.3",
+	"wordpressVersion": "latest",
+	"activeTheme": "twentytwentyfive@1.4",
+	"siteOptions": {
+		"blogname": "Blueprint theme demo",
+		"permalink_structure": "/%postname%/"
+	},
+	"media": [
+		{
+			"source": "https://raw.githubusercontent.com/WordPress/wordpress-playground/1a238312cdc474b846b6cf41e26193e90cb59ed3/packages/playground/blueprints/src/tests/fixtures/demo.png",
+			"title": "WordPress block editor",
+			"alt": "The WordPress block editor displaying a Playground demo",
+			"caption": "Imported by the theme demo Blueprint."
+		}
+	],
+	"content": [
+		{
+			"type": "posts",
+			"source": {
+				"post_title": "Theme demo",
+				"post_name": "theme-demo",
+				"post_type": "page",
+				"post_status": "publish",
+				"post_content": "<!-- wp:group {\"layout\":{\"type\":\"constrained\"}} --><div class=\"wp-block-group\"><!-- wp:heading {\"level\":1} --><h1 class=\"wp-block-heading\">A complete theme demo</h1><!-- /wp:heading --><!-- wp:paragraph {\"fontSize\":\"large\"} --><p class=\"has-large-font-size\">This page gives the active theme a repeatable mix of headings, text, and media.</p><!-- /wp:paragraph --><!-- wp:image {\"sizeSlug\":\"large\"} --><figure class=\"wp-block-image size-large\"><img src=\"https://raw.githubusercontent.com/WordPress/wordpress-playground/1a238312cdc474b846b6cf41e26193e90cb59ed3/packages/playground/blueprints/src/tests/fixtures/demo.png\" alt=\"The WordPress block editor displaying a Playground demo\"/></figure><!-- /wp:image --><!-- wp:columns --><div class=\"wp-block-columns\"><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Typography</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Check the theme's type scale and reading width.</p><!-- /wp:paragraph --></div><!-- /wp:column --><!-- wp:column --><div class=\"wp-block-column\"><!-- wp:heading {\"level\":2} --><h2 class=\"wp-block-heading\">Layout</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Resize the preview to inspect responsive columns and spacing.</p><!-- /wp:paragraph --></div><!-- /wp:column --></div><!-- /wp:columns --></div><!-- /wp:group -->"
+			}
+		}
+	]
+}

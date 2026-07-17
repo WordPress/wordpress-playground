@@ -230,19 +230,145 @@
 		"parent": null,
 		"order": 20
 	},
-	"blueprints/getting-started": {
-		"title": "Getting started",
-		"slug": "getting-started",
-		"markdown_source": "docs/blueprints/01-index.md",
+	"blueprints/v2": {
+		"title": "Blueprints v2",
+		"slug": "v2",
+		"markdown_source": "docs/blueprints/v2/01-index.md",
 		"parent": "blueprints",
 		"order": 10
 	},
+	"blueprints/v2/get-started": {
+		"title": "Build your first Blueprint v2",
+		"slug": "get-started",
+		"markdown_source": "docs/blueprints/v2/02-get-started.md",
+		"parent": "blueprints/v2",
+		"order": 10
+	},
+	"blueprints/v2/how-it-works": {
+		"title": "How Blueprints v2 works",
+		"slug": "how-it-works",
+		"markdown_source": "docs/blueprints/v2/03-how-it-works.md",
+		"parent": "blueprints/v2",
+		"order": 20
+	},
+	"blueprints/v2/run": {
+		"title": "Run Blueprints v2",
+		"slug": "run",
+		"markdown_source": "docs/blueprints/v2/04-run-blueprints.md",
+		"parent": "blueprints/v2",
+		"order": 30
+	},
+	"blueprints/v2/resources": {
+		"title": "Data sources, paths, and bundles",
+		"slug": "resources",
+		"markdown_source": "docs/blueprints/v2/05-resources.md",
+		"parent": "blueprints/v2",
+		"order": 40
+	},
+	"blueprints/v2/tutorials": {
+		"title": "Blueprint v2 tutorials",
+		"slug": "tutorials",
+		"markdown_source": "docs/blueprints/v2/tutorials/index.md",
+		"parent": "blueprints/v2",
+		"order": 50
+	},
+	"blueprints/v2/tutorials/plugin-preview": {
+		"title": "Add a Preview to a WordPress.org plugin",
+		"slug": "plugin-preview",
+		"markdown_source": "docs/blueprints/v2/tutorials/01-plugin-preview.md",
+		"parent": "blueprints/v2/tutorials",
+		"order": 10
+	},
+	"blueprints/v2/tutorials/theme-demo": {
+		"title": "Build an interactive WordPress theme demo",
+		"slug": "theme-demo",
+		"markdown_source": "docs/blueprints/v2/tutorials/02-theme-demo.md",
+		"parent": "blueprints/v2/tutorials",
+		"order": 20
+	},
+	"blueprints/v2/tutorials/bug-reproduction": {
+		"title": "Create a one-click bug or pull-request reproduction",
+		"slug": "bug-reproduction",
+		"markdown_source": "docs/blueprints/v2/tutorials/03-bug-reproduction.md",
+		"parent": "blueprints/v2/tutorials",
+		"order": 30
+	},
+	"blueprints/v2/apply-to-existing-site": {
+		"title": "Apply a Blueprint v2 to an existing site",
+		"slug": "apply-to-existing-site",
+		"markdown_source": "docs/blueprints/v2/06-apply-existing-site.md",
+		"parent": "blueprints/v2",
+		"order": 60
+	},
+	"blueprints/v2/migrate-from-v1": {
+		"title": "Migrate a Blueprint from v1 to v2",
+		"slug": "migrate-from-v1",
+		"markdown_source": "docs/blueprints/v2/08-migrate-from-v1.md",
+		"parent": "blueprints/v2",
+		"order": 70
+	},
+	"blueprints/v2/security": {
+		"title": "Security and reproducibility",
+		"slug": "security",
+		"markdown_source": "docs/blueprints/v2/07-security.md",
+		"parent": "blueprints/v2",
+		"order": 80
+	},
+	"blueprints/v2/reference": {
+		"title": "Blueprint v2 reference",
+		"slug": "reference",
+		"markdown_source": "docs/blueprints/v2/reference/index.md",
+		"parent": "blueprints/v2",
+		"order": 90
+	},
+	"blueprints/v2/reference/schema": {
+		"title": "Blueprint v2 schema reference",
+		"slug": "schema",
+		"markdown_source": "docs/blueprints/v2/reference/01-schema.md",
+		"parent": "blueprints/v2/reference",
+		"order": 10
+	},
+	"blueprints/v2/reference/content-and-site-data": {
+		"title": "Content and site data",
+		"slug": "content-and-site-data",
+		"markdown_source": "docs/blueprints/v2/reference/03-content-and-site-data.md",
+		"parent": "blueprints/v2/reference",
+		"order": 20
+	},
+	"blueprints/v2/reference/additional-steps": {
+		"title": "Additional steps after execution",
+		"slug": "additional-steps",
+		"markdown_source": "docs/blueprints/v2/reference/02-additional-steps.md",
+		"parent": "blueprints/v2/reference",
+		"order": 30
+	},
+	"blueprints/v2/troubleshooting": {
+		"title": "Troubleshoot Blueprints v2",
+		"slug": "troubleshooting",
+		"markdown_source": "docs/blueprints/v2/09-troubleshooting.md",
+		"parent": "blueprints/v2",
+		"order": 100
+	},
+	"blueprints/v1": {
+		"title": "Blueprint v1",
+		"slug": "v1",
+		"markdown_source": "docs/blueprints/v1.md",
+		"parent": "blueprints",
+		"order": 20
+	},
+	"blueprints/getting-started": {
+		"title": "Getting started (v1 legacy)",
+		"slug": "getting-started",
+		"markdown_source": "docs/blueprints/01-index.md",
+		"parent": "blueprints",
+		"order": 30
+	},
 	"blueprints/tutorial": {
-		"title": "Blueprints 101",
+		"title": "Blueprints 101 (v1 legacy)",
 		"slug": "tutorial",
 		"markdown_source": "docs/blueprints/tutorial/index.md",
 		"parent": "blueprints",
-		"order": 20
+		"order": 40
 	},
 	"blueprints/tutorial/what-are-blueprints": {
 		"title": "What are Blueprints?",
@@ -265,26 +391,26 @@
 		"parent": "blueprints/tutorial",
 		"order": 30
 	},
-	"blueprints/using-blueprints": {
-		"title": "Using Blueprints",
-		"slug": "using-blueprints",
-		"markdown_source": "docs/blueprints/02-using-blueprints.md",
-		"parent": "blueprints",
-		"order": 30
-	},
 	"blueprints/data-format": {
-		"title": "Blueprint data format",
+		"title": "Blueprint data format (v1 legacy)",
 		"slug": "data-format",
 		"markdown_source": "docs/blueprints/03-data-format.md",
 		"parent": "blueprints",
-		"order": 40
+		"order": 50
+	},
+	"blueprints/using-blueprints": {
+		"title": "Using Blueprints (v1 legacy)",
+		"slug": "using-blueprints",
+		"markdown_source": "docs/blueprints/02-using-blueprints.md",
+		"parent": "blueprints",
+		"order": 60
 	},
 	"blueprints/steps": {
-		"title": "Steps",
+		"title": "Steps (v1 legacy)",
 		"slug": "steps",
 		"markdown_source": "docs/blueprints/05-steps.md",
 		"parent": "blueprints",
-		"order": 50
+		"order": 70
 	},
 	"blueprints/steps/resources": {
 		"title": "Resources References",
@@ -308,25 +434,25 @@
 		"order": 30
 	},
 	"blueprints/bundles": {
-		"title": "Blueprint Bundles",
+		"title": "Blueprint Bundles (v1 legacy)",
 		"slug": "bundles",
 		"markdown_source": "docs/blueprints/06-bundles.md",
 		"parent": "blueprints",
-		"order": 60
+		"order": 80
 	},
 	"blueprints/examples": {
-		"title": "Examples",
+		"title": "Examples (v1 legacy)",
 		"slug": "examples",
 		"markdown_source": "docs/blueprints/08-examples.md",
 		"parent": "blueprints",
-		"order": 70
+		"order": 90
 	},
 	"blueprints/troubleshoot-and-debug": {
-		"title": "Troubleshoot and debug",
+		"title": "Troubleshoot and debug (v1 legacy)",
 		"slug": "troubleshoot-and-debug",
 		"markdown_source": "docs/blueprints/09-troubleshoot-and-debug-blueprints.md",
 		"parent": "blueprints",
-		"order": 80
+		"order": 100
 	},
 	"developers": {
 		"title": "WordPress Playground Developers Docs",

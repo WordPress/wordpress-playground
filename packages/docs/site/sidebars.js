@@ -91,40 +91,94 @@ const sidebars = {
 				id: 'blueprints/introduction',
 			},
 			items: [
-				'blueprints/index',
 				{
 					type: 'category',
-					label: 'Tutorial',
+					label: 'Blueprints v2',
+					collapsed: false,
 					link: {
 						type: 'doc',
-						id: 'blueprints/tutorial/index',
+						id: 'blueprints/v2/index',
 					},
-
 					items: [
-						'blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them',
-						'blueprints/tutorial/how-to-load-run-blueprints',
-						'blueprints/tutorial/build-your-first-blueprint',
+						'blueprints/v2/get-started',
+						'blueprints/v2/how-it-works',
+						'blueprints/v2/run-blueprints',
+						'blueprints/v2/resources',
+						{
+							type: 'category',
+							label: 'Tutorials',
+							link: {
+								type: 'doc',
+								id: 'blueprints/v2/tutorials/index',
+							},
+							items: [
+								'blueprints/v2/tutorials/plugin-preview',
+								'blueprints/v2/tutorials/theme-demo',
+								'blueprints/v2/tutorials/bug-reproduction',
+							],
+						},
+						'blueprints/v2/apply-existing-site',
+						'blueprints/v2/migrate-from-v1',
+						'blueprints/v2/security',
+						{
+							type: 'category',
+							label: 'Reference',
+							link: {
+								type: 'doc',
+								id: 'blueprints/v2/reference/index',
+							},
+							items: [
+								'blueprints/v2/reference/schema',
+								'blueprints/v2/reference/content-and-site-data',
+								'blueprints/v2/reference/additional-steps',
+							],
+						},
+						'blueprints/v2/troubleshooting',
 					],
 				},
-				'blueprints/data-format',
-				'blueprints/using-blueprints',
 				{
 					type: 'category',
-					label: 'Steps',
+					label: 'Blueprints v1 (legacy)',
+					collapsed: true,
 					link: {
 						type: 'doc',
-						id: 'blueprints/steps',
+						id: 'blueprints/v1',
 					},
-
 					items: [
-						'blueprints/resources',
-						'blueprints/steps-shorthands',
-						'blueprints/json-api-and-function-api',
+						'blueprints/index',
+						{
+							type: 'category',
+							label: 'Tutorial',
+							link: {
+								type: 'doc',
+								id: 'blueprints/tutorial/index',
+							},
+							items: [
+								'blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them',
+								'blueprints/tutorial/how-to-load-run-blueprints',
+								'blueprints/tutorial/build-your-first-blueprint',
+							],
+						},
+						'blueprints/data-format',
+						'blueprints/using-blueprints',
+						{
+							type: 'category',
+							label: 'Steps',
+							link: {
+								type: 'doc',
+								id: 'blueprints/steps',
+							},
+							items: [
+								'blueprints/resources',
+								'blueprints/steps-shorthands',
+								'blueprints/json-api-and-function-api',
+							],
+						},
+						'blueprints/bundles',
+						'blueprints/examples',
+						'blueprints/troubleshoot-and-debug-blueprints',
 					],
 				},
-				'blueprints/bundles',
-				'blueprints/examples',
-				'blueprints/troubleshoot-and-debug-blueprints',
 			],
 		},
 	],
