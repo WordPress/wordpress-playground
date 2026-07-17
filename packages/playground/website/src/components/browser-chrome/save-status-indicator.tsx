@@ -12,7 +12,7 @@ import {
 	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import { Dropdown, Icon, Tooltip } from '@wordpress/components';
+import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
 import { check, cautionFilled, chevronDown } from '@wordpress/icons';
 import {
 	isAutosavedSite,
@@ -186,7 +186,6 @@ export function SaveStatusIndicator({
 							onClick={onToggle}
 							disabled={disabled}
 							aria-expanded={isOpen}
-							aria-haspopup="menu"
 							title="Saved to a local directory."
 						>
 							<Icon icon={check} size={18} />
@@ -196,44 +195,29 @@ export function SaveStatusIndicator({
 					)}
 					renderContent={({ onClose }) => (
 						<div className={css.savedMenu}>
-							<div className={css.savedMenuIntro}>
-								<div className={css.savedMenuTitle}>
-									Saved to a local directory
-								</div>
-								<p className={css.savedMenuHint}>
-									Changes you make in this Playground are
-									written directly to the linked folder.
-								</p>
+							<div className={css.savedMenuTitle}>
+								Saved to a local directory
 							</div>
-							<div
-								role="menu"
-								aria-label="Local directory actions"
+							<p className={css.savedMenuHint}>
+								Changes you make in this Playground are written
+								directly to the linked folder. Reloading picks
+								up edits made to the folder outside of
+								Playground.
+							</p>
+							<Button
+								variant="primary"
+								className={css.savedMenuAction}
+								disabled={disabled || isReloadingFromDisk}
+								isBusy={isReloadingFromDisk}
+								onClick={async () => {
+									await reloadFilesFromDisk();
+									onClose();
+								}}
 							>
-								<button
-									type="button"
-									role="menuitem"
-									className={css.savedMenuAction}
-									disabled={disabled || isReloadingFromDisk}
-									onClick={async () => {
-										await reloadFilesFromDisk();
-										onClose();
-									}}
-								>
-									<span className={css.savedMenuActionTitle}>
-										{isReloadingFromDisk
-											? 'Reloading…'
-											: 'Reload files from disk'}
-									</span>
-									<span
-										className={
-											css.savedMenuActionDescription
-										}
-									>
-										Pick up changes made to the folder
-										outside of Playground.
-									</span>
-								</button>
-							</div>
+								{isReloadingFromDisk
+									? 'Reloading…'
+									: 'Reload files from disk'}
+							</Button>
 						</div>
 					)}
 				/>

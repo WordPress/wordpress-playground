@@ -38,13 +38,23 @@
 	font-weight: 600;
 }
 
-.actionable {
+/* Clickable status pills wear the same raised-tile chrome as the adjacent
+   dock toggle pill, so they read as buttons; status-only states (loading,
+   saving, unavailable unsaved) stay flat text. */
+.actionable,
+.error {
+	box-sizing: border-box;
+	height: 34px;
+	padding: 0 10px;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(255, 255, 255, 0.08);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .actionable:disabled,
@@ -55,7 +65,7 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: transparent;
+	background: rgba(255, 251, 243, 0.05);
 }
 
 .actionable:focus-visible,
@@ -78,12 +88,10 @@
 
 .error {
 	color: #fca5a5;
-	cursor: pointer;
-	transition: background 0.15s ease;
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .error svg {
@@ -94,11 +102,11 @@
 	display: inline;
 }
 
-/* The local-directory "Saved" pill keeps storage-specific actions in one menu,
-   so the Dock does not need a separate, unclear "Sync local files" control.
-   The frame and rows mirror the site-settings action menu
-   (site-manager/site-settings-form/style.module.css), plus a paper-2 intro
-   header that explains what "Saved" means here. */
+/* The local-directory "Saved" pill keeps its one storage-specific action in
+   this popover, so the Dock does not need a separate, unclear "Sync local
+   files" control. The frame mirrors the site-settings action menu; the content
+   is a description plus a single button, like the restore-autosave nudge —
+   not a menu, so nothing here masquerades as a second option. */
 /* The doubled class outranks the Dropdown's own
    `.components-dropdown__content .components-popover__content` padding rule
    regardless of stylesheet injection order. */
@@ -115,80 +123,24 @@
 }
 
 .saved-menu {
+	padding: 16px 20px 18px;
 	color: #21201d;
 }
 
-.saved-menu-intro {
-	padding: 16px 20px;
-	border-bottom: 1px solid #d6d6d9;
-	background: #faf8f5;
-}
-
 .saved-menu-title {
-	font-weight: 500;
+	font-weight: 600;
 	line-height: 1.4;
 }
 
 .saved-menu-hint {
-	margin: 2px 0 0;
+	margin: 4px 0 0;
 	color: #5f5b54;
 	font-size: 12px;
-	line-height: 1.4;
+	line-height: 1.5;
 }
 
-.saved-menu-action {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	box-sizing: border-box;
-	width: 100%;
-	padding: 16px 20px;
-	border: 0;
-	border-radius: 0 0 9px 9px;
-	background: #fff;
-	color: #21201d;
-	cursor: pointer;
-	font: inherit;
-	text-align: left;
-	white-space: normal;
-}
-
-.saved-menu-action:focus-visible {
-	outline: none;
-	box-shadow: inset 0 0 0 2px #3858e9;
-}
-
-.saved-menu-action:disabled {
-	color: #757575;
-	cursor: not-allowed;
-}
-
-.saved-menu-action:disabled .saved-menu-action-description {
-	color: inherit;
-}
-
-.saved-menu-action-title {
-	display: block;
-	font-weight: 500;
-	line-height: 1.4;
-	white-space: normal;
-}
-
-.saved-menu-action-description {
-	display: block;
-	margin-top: 2px;
-	color: #5f5b54;
-	font-size: 12px;
-	line-height: 1.4;
-	white-space: normal;
-}
-
-@media (forced-colors: active) {
-	.saved-menu-action:focus-visible {
-		outline: 2px solid CanvasText;
-		outline-offset: -2px;
-		box-shadow: none;
-	}
+.saved-menu-action.saved-menu-action {
+	margin-top: 16px;
 }
 
 .progress-ring {
