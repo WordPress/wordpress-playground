@@ -390,9 +390,9 @@ export function EnsurePlaygroundSiteIsSelected({
  * Shows the restore choice for a recent autosave matching the current setup URL.
  *
  * The choice concerns saved Playgrounds, so the card is anchored right above
- * the Playgrounds Dock button with a caret pointing at it. When that button is
- * off screen (collapsed or cornered Dock), the card floats in the top-right
- * corner instead.
+ * the Playgrounds Dock button with a caret pointing at it. A collapsed Dock
+ * hides that button and the caret points at the save status instead; a
+ * cornered Dock shows neither and the card floats in the top-right corner.
  */
 function YouHaveAutosaveNudge({
 	site,

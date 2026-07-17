@@ -220,6 +220,7 @@ export function Dock({
 	const recentAutosaveNudgeVisible = useRecentAutosaveNudgeVisible();
 	const setRecentAutosaveNudgeAnchor = useSetRecentAutosaveNudgeAnchor();
 	const playgroundsButtonRef = useRef<HTMLButtonElement>(null);
+	const dockStatusRef = useRef<HTMLDivElement>(null);
 	const operationNotice = useAppSelector(
 		(state) => state.ui.dockOperationNotice
 	);
@@ -412,15 +413,18 @@ export function Dock({
 		setIsMaximizing(false);
 	}, [section, dockPaneIsOpen]);
 
-	// The autosave nudge points at the Playgrounds button, so only offer that
-	// button as an anchor while it is actually on screen. A collapsed or
-	// cornered Dock hides the tools row, and the nudge then falls back to its
-	// free-floating position instead of pointing at nothing.
+	// The autosave nudge points at the Playgrounds button, or at the save
+	// status when a collapsed Dock hides the tools row. A cornered Dock shows
+	// neither, and the nudge then falls back to its free-floating position
+	// instead of pointing at nothing.
 	useEffect(() => {
-		const playgroundsButtonVisible = !isCollapsed && cornerSide === null;
-		setRecentAutosaveNudgeAnchor(
-			playgroundsButtonVisible ? playgroundsButtonRef.current : null
-		);
+		if (cornerSide !== null) {
+			setRecentAutosaveNudgeAnchor(null);
+		} else if (isCollapsed) {
+			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
+		} else {
+			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+		}
 		return () => setRecentAutosaveNudgeAnchor(null);
 	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
 
@@ -1215,7 +1219,7 @@ export function Dock({
 								}
 							/>
 						</div>
-						<div className={css.dockStatus}>
+						<div className={css.dockStatus} ref={dockStatusRef}>
 							{playgroundTitle && (
 								<span
 									className={css.dockSiteName}
