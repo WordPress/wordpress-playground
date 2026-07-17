@@ -226,6 +226,7 @@ class OpfsSiteStorage {
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
+				// Load Blueprint bundle support only when reading a Blueprint-backed site's metadata.
 				const {
 					loadPersistedBlueprintBundle,
 					loadPersistedBlueprintBundleFromPath,
@@ -286,6 +287,7 @@ class OpfsSiteStorage {
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
+		// Load even this constant lazily because only site reset needs Blueprint bundle support.
 		const { BUNDLE_DIR_NAME } =
 			await import('./opfs-blueprint-bundle-storage');
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
@@ -346,6 +348,7 @@ async function metadataToStoredFormat(
 	metadata: SiteMetadata,
 	originalUrlParams?: OriginalUrlParams
 ): Promise<string> {
+	// Keep getBlueprintDeclaration and the broader Blueprints dependency out of the API chunk.
 	const { metadataToStoredFormat: serializeMetadata } =
 		await import('./opfs-site-metadata');
 	return await serializeMetadata(slug, metadata, originalUrlParams);
