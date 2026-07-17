@@ -24,11 +24,13 @@ Package without deploying:
 npm exec -- wrangler deploy --dry-run --config packages/playground/cloudflare-worker/wrangler.jsonc
 ```
 
-Deploy a temporary preview without credentials (Wrangler 4.111.0):
+Upload an authenticated preview version without routing production traffic:
 
 ```sh
-npm exec -- wrangler deploy --preview-alias playground-php-wasm-memory-gate --config packages/playground/cloudflare-worker/wrangler.jsonc
+npm exec -- wrangler versions upload --preview-alias memory-gate --config packages/playground/cloudflare-worker/wrangler.jsonc
 ```
+
+Wrangler prints the versioned and aliased preview URLs after the upload. The Worker must already exist, and Cloudflare authentication plus a paid Workers plan are required because this bundle exceeds the free plan's compressed Worker size limit.
 
 For a normal account deployment, authenticate separately and run:
 
