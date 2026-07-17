@@ -104,22 +104,40 @@
 
 /* The local-directory "Saved" pill keeps its one storage-specific action in
    this popover, so the Dock does not need a separate, unclear "Sync local
-   files" control. The frame mirrors the site-settings action menu; the content
-   is a description plus a single button, like the restore-autosave nudge —
-   not a menu, so nothing here masquerades as a second option. */
+   files" control. The card and caret match the restore-autosave callout
+   (ensure-playground-site/restore-autosave-nudge.module.css): a borderless
+   white card with a ring shadow, and the content is a description plus a
+   single button — not a menu, so nothing here masquerades as a second option. */
 /* The doubled class outranks the Dropdown's own
    `.components-dropdown__content .components-popover__content` padding rule
    regardless of stylesheet injection order. */
 .saved-menu-popover.saved-menu-popover :global(.components-popover__content) {
 	box-sizing: border-box;
-	width: min(330px, calc(100vw - 24px));
+	width: min(330px, calc(100vw - 32px));
 	/* Margins count toward collision detection and keep both mobile edges clear. */
-	margin-inline: 12px;
-	overflow: hidden;
+	margin-inline: 16px;
 	padding: 0;
-	border: 1px solid #d6d6d9;
-	border-radius: 10px;
-	box-shadow: 0 16px 38px rgb(0 0 0 / 20%);
+	background: #fff;
+	border-radius: 12px;
+	box-shadow:
+		0 0 0 1px rgb(0 0 0 / 6%),
+		0 8px 20px rgb(0 0 0 / 18%),
+		0 24px 64px rgb(0 0 0 / 28%);
+}
+
+/* The stock caret is 14px square. The triangle path only fills the top half
+   of its box, so a 32px box draws a 32×16 caret pointing at the pill. */
+.saved-menu-popover :global(.components-popover__arrow) {
+	width: 32px;
+	height: 32px;
+}
+
+.saved-menu-popover :global(.components-popover__arrow.is-top) {
+	bottom: -32px !important;
+}
+
+.saved-menu-popover :global(.components-popover__triangle-border) {
+	stroke: transparent;
 }
 
 .saved-menu {
