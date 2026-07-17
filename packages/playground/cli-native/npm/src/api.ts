@@ -219,11 +219,10 @@ export interface NativePlaygroundWorker {
 	): Promise<void>;
 	pathToInternalUrl(path: string): Promise<string>;
 	internalUrlToPath(url: string): Promise<string>;
-	/** @unsupported Native v1 does not expose PHP CLI streaming. */
 	cli(
 		argv: string[],
-		options?: { env?: Record<string, string> }
-	): Promise<never>;
+		options?: { env?: Record<string, string>; cwd?: string }
+	): Promise<NativeStreamedPHPResponse>;
 	addEventListener(
 		type: NativePlaygroundEventType,
 		listener: NativePlaygroundEventListener

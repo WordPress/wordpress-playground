@@ -110,7 +110,7 @@ describe('native control client', () => {
 			})
 		);
 		await expect(playground.cli([])).rejects.toMatchObject({
-			code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
 		});
 		const ioFailure = playground.isFile('/wordpress/index.php');
 		await expect(ioFailure).rejects.toMatchObject({
@@ -168,6 +168,109 @@ describe('native control client', () => {
 		expect(received.some((rpc) => rpc['method'] === 'unknownMethod')).toBe(
 			false
 		);
+		client.close();
+	});
+
+	it('streams cli with strict snapshotted argv, env, and cwd inputs', async () => {
+		let received: Record<string, unknown> | undefined;
+		const { client } = await rawControlServer(async (request, response) => {
+			if (request.url !== '/rpc/stream') return false;
+			const rpc = await readJson(request);
+			received = rpc;
+			response.writeHead(200, {
+				'content-type': 'application/x-ndjson',
+			});
+			response.write(
+				frame(rpc.id, 'headers', {
+					httpStatusCode: 200,
+					headers: [],
+				})
+			);
+			response.write(
+				frame(rpc.id, 'stdout', {
+					sequence: 0,
+					data: tagged('cli output'),
+				})
+			);
+			response.end(frame(rpc.id, 'complete', { exitCode: 7 }));
+			return true;
+		});
+		const playground = createPlaygroundProxy(client) as any;
+		const argv = ['php', '-r', 'echo getenv("CLI_TEST");', ''];
+		const env = { CLI_TEST: 'before' };
+		const streamedPromise = playground.cli(argv, {
+			env,
+			cwd: '/wordpress',
+		});
+		argv[2] = 'mutated';
+		env.CLI_TEST = 'after';
+		const streamed = await streamedPromise;
+		expect(await streamed.stdoutText).toBe('cli output');
+		expect(await streamed.stderrText).toBe('');
+		expect(await streamed.exitCode).toBe(7);
+		expect(received).toMatchObject({
+			protocolVersion: 2,
+			method: 'cli',
+			params: {
+				argv: ['php', '-r', 'echo getenv("CLI_TEST");', ''],
+				env: { CLI_TEST: 'before' },
+				cwd: '/wordpress',
+			},
+		});
+
+		const sparse = ['php', 'script.php'];
+		delete sparse[1];
+		await expect(playground.cli(sparse)).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		await expect(
+			playground.cli(['node', 'script.js'])
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+		});
+		await expect(
+			playground.cli(['php', 'script.php'], {
+				env: { INVALID: 1 },
+			})
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		await expect(
+			playground.cli(['php', 'script.php'], {
+				cwd: '/wordpress\0escape',
+			})
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		const accessorOptions = {};
+		Object.defineProperty(accessorOptions, 'env', {
+			get: () => ({ SECRET: 'read' }),
+		});
+		await expect(
+			playground.cli(['php', 'script.php'], accessorOptions)
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+		});
+		const revokedArgv = Proxy.revocable(['php', 'script.php'], {});
+		revokedArgv.revoke();
+		await expect(playground.cli(revokedArgv.proxy)).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			message: 'cli inputs could not be inspected safely.',
+		});
+		const hostileOptions = new Proxy(
+			{},
+			{
+				ownKeys: () => {
+					throw new Error('secret proxy trap');
+				},
+			}
+		);
+		await expect(
+			playground.cli(['php', 'script.php'], hostileOptions)
+		).rejects.toMatchObject({
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			message: 'cli inputs could not be inspected safely.',
+		});
 		client.close();
 	});
 

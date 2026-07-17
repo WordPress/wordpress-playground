@@ -30,7 +30,12 @@ The native-specific boundary is intentionally small:
 - Each PHP worker owns an independent fast Wasmtime Store and persistent PHP
   instance around one shared compiled component. A streamed control request
   lazily adds an epoch-enabled companion Store to that logical worker so
-  CPU-bound cancellation does not instrument ordinary HTTP or buffered RPC.
+  guest-code and WASI-poll cancellation do not instrument ordinary HTTP or
+  buffered RPC. Poll waits include PHP `sleep`; an arbitrary synchronous host
+  operation may still finish before the Store observes cancellation.
+  A `playground.cli()` call reserves one pool slot and creates a fresh
+  interruptible CLI-mode Store, preserving PHP's real argv, exit, and PHAR
+  behavior without mixing persistent HTTP and one-shot CLI lifecycles.
   Poisoning and recycling discard both Stores; only the fast Store is rebuilt
   eagerly.
 
@@ -98,16 +103,18 @@ The component path supports:
 - binary request bodies and response bodies;
 - protocol-v2 incremental response streaming with bounded backpressure,
   cancellation, and worker recovery;
+- real PHP-only `playground.cli()` execution with argv, environment, working
+  directory, stdout/stderr streaming, exit codes, PHAR/WP-CLI, cancellation,
+  and capacity bounded by the configured worker pool;
 - concurrent SQLite access using real host file locks.
 
 Current component constraints are explicit:
 
 - PHP 8.2 is the only native component build.
 - Intl, Redis, Memcached, Xdebug, and dynamic PHP side modules are not included.
-- OPcache is not included in the current component build.
-- The standalone native `php` command is deferred until the component exposes
-  a real CLI-session ABI. SAPI execution is not used to imitate `php -r`,
-  stdin, PHAR, or PHP's argument parser.
+- The component includes the CLI SAPI and OPcache. The private control API
+  exposes PHP CLI execution, but the top-level `wp-playground-native php`
+  command remains outside the native-v1 command matrix.
 - PHP-initiated outbound networking is not enabled yet. Host-side WordPress and
   Blueprint downloads continue to use the Rust downloader.
 - The v1 interpreter rejects unsupported behavioral top-level Blueprint fields

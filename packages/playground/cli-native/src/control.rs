@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::{
-    atomic_file::atomic_replace_file, php_runtime_files::PhpConstantValue,
-    vfs::normalize_vfs_path, CliError, Result,
+    atomic_file::atomic_replace_file, php_runtime_files::PhpConstantValue, vfs::normalize_vfs_path,
+    CliError, Result,
 };
 
 pub const CONTROL_TOKEN_ENV_VAR: &str = "WP_PLAYGROUND_NATIVE_CONTROL_TOKEN";
@@ -34,6 +34,10 @@ const STREAM_QUEUE_CAPACITY: usize = 8;
 const STREAM_QUEUE_RETRY_INTERVAL: Duration = Duration::from_millis(2);
 const EVENT_QUEUE_CAPACITY: usize = 64;
 const CONTROL_IO_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_CLI_ARG_COUNT: usize = 4_096;
+const MAX_CLI_ENV_COUNT: usize = 4_096;
+const MAX_CLI_ENTRY_BYTES: usize = 1024 * 1024;
+const MAX_CLI_TOTAL_BYTES: usize = 8 * 1024 * 1024;
 
 pub type RequestHandler =
     Arc<dyn Fn(ControlHttpRequest) -> Result<ControlHttpResponse> + Send + Sync>;
@@ -47,8 +51,18 @@ pub type StreamHandler = Arc<
         + Send
         + Sync,
 >;
+pub type CliHandler = Arc<
+    dyn Fn(
+            ControlCliRequest,
+            ControlStreamEmitter,
+            Arc<AtomicBool>,
+        ) -> Result<ControlStreamResponse>
+        + Send
+        + Sync,
+>;
 pub type PathResolver = Arc<dyn Fn(&str) -> Result<PathBuf> + Send + Sync>;
 pub type DefineConstantHandler = Arc<dyn Fn(String, PhpConstantValue) -> Result<()> + Send + Sync>;
+pub type FileChangedHandler = Arc<dyn Fn(&str) -> Result<()> + Send + Sync>;
 
 #[derive(Clone)]
 pub struct ControlBackend {
@@ -59,8 +73,10 @@ pub struct ControlBackend {
     pub request: RequestHandler,
     pub run: RunHandler,
     pub stream: StreamHandler,
+    pub cli: CliHandler,
     pub resolve_path: PathResolver,
     pub define_constant: DefineConstantHandler,
+    pub file_changed: FileChangedHandler,
 }
 
 #[derive(Debug, Clone)]
@@ -212,6 +228,13 @@ pub struct ControlRunResponse {
     pub stderr: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ControlCliRequest {
+    pub argv: Vec<String>,
+    pub env: Vec<(String, String)>,
+    pub cwd: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlStreamChannel {
     Stdout,
@@ -338,6 +361,16 @@ struct RunParams {
     env: BTreeMap<String, String>,
     #[serde(default, rename = "$_SERVER")]
     server_entries: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CliParams {
+    argv: Vec<String>,
+    #[serde(default)]
+    env: BTreeMap<String, String>,
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -668,6 +701,9 @@ enum StreamMessage {
     Finished(Result<ControlStreamResponse>),
 }
 
+type StreamTask =
+    Box<dyn FnOnce(ControlStreamEmitter, Arc<AtomicBool>) -> Result<ControlStreamResponse> + Send>;
+
 fn handle_stream_request(stream: &mut TcpStream, body: &[u8], state: &ControlState) -> Result<()> {
     let request = match serde_json::from_slice::<RpcRequest>(body) {
         Ok(request) => request,
@@ -687,23 +723,52 @@ fn handle_stream_request(stream: &mut TcpStream, body: &[u8], state: &ControlSta
             return write_single_stream_error(stream, id, error.code, &error.message);
         }
     };
-    let params: RequestParams = match parse_params(request.params) {
-        Ok(params) => params,
-        Err(error) => {
-            return write_single_stream_error(stream, id, error.code, &error.message);
+    let task: StreamTask = match request.method.as_str() {
+        "requestStreamed" => {
+            let params: RequestParams = match parse_params(request.params) {
+                Ok(params) => params,
+                Err(error) => {
+                    return write_single_stream_error(stream, id, error.code, &error.message);
+                }
+            };
+            let path = match request_path(&params.path, &state.backend.server_url) {
+                Ok(path) => path,
+                Err(error) => {
+                    return write_single_stream_error(stream, id, error.code, &error.message);
+                }
+            };
+            let body = match decode_optional_bytes(params.body) {
+                Ok(body) => body,
+                Err(error) => {
+                    return write_single_stream_error(stream, id, error.code, &error.message);
+                }
+            };
+            let handler = Arc::clone(&state.backend.stream);
+            let request = ControlHttpRequest {
+                method: params.method,
+                path,
+                headers: header_pairs(params.headers),
+                body,
+            };
+            Box::new(move |emitter, cancellation| handler(request, emitter, cancellation))
         }
-    };
-    let path = match request_path(&params.path, &state.backend.server_url) {
-        Ok(path) => path,
-        Err(error) => {
-            return write_single_stream_error(stream, id, error.code, &error.message);
+        "cli" => {
+            let params: CliParams = match parse_params(request.params) {
+                Ok(params) => params,
+                Err(error) => {
+                    return write_single_stream_error(stream, id, error.code, &error.message);
+                }
+            };
+            let cli_request = match control_cli_request(params, state) {
+                Ok(request) => request,
+                Err(error) => {
+                    return write_single_stream_error(stream, id, error.code, &error.message);
+                }
+            };
+            let handler = Arc::clone(&state.backend.cli);
+            Box::new(move |emitter, cancellation| handler(cli_request, emitter, cancellation))
         }
-    };
-    let body = match decode_optional_bytes(params.body) {
-        Ok(body) => body,
-        Err(error) => {
-            return write_single_stream_error(stream, id, error.code, &error.message);
-        }
+        _ => unreachable!("stream method was validated before dispatch"),
     };
     let cancellation = Arc::new(AtomicBool::new(false));
     {
@@ -725,14 +790,8 @@ fn handle_stream_request(stream: &mut TcpStream, body: &[u8], state: &ControlSta
     let result = run_stream_request(
         stream,
         id,
-        ControlHttpRequest {
-            method: params.method,
-            path,
-            headers: header_pairs(params.headers),
-            body,
-        },
         Arc::clone(&cancellation),
-        Arc::clone(&state.backend.stream),
+        task,
         Arc::clone(&state.events),
     );
     cancellation.store(true, Ordering::Release);
@@ -751,7 +810,7 @@ fn validate_stream_envelope(request: &RpcRequest) -> std::result::Result<u64, Rp
             request.protocol_version
         )));
     }
-    if request.method != "requestStreamed" {
+    if request.method != "requestStreamed" && request.method != "cli" {
         return Err(RpcError::unsupported(&request.method));
     }
     request
@@ -760,12 +819,109 @@ fn validate_stream_envelope(request: &RpcRequest) -> std::result::Result<u64, Rp
         .ok_or_else(|| RpcError::invalid("Streaming request IDs must be unsigned integers"))
 }
 
+fn control_cli_request(
+    params: CliParams,
+    state: &ControlState,
+) -> std::result::Result<ControlCliRequest, RpcError> {
+    if params.argv.is_empty() {
+        return Err(RpcError::invalid("cli argv must not be empty"));
+    }
+    if params.argv.len() > MAX_CLI_ARG_COUNT {
+        return Err(RpcError::invalid(format!(
+            "cli argv must not contain more than {MAX_CLI_ARG_COUNT} entries"
+        )));
+    }
+    if params.env.len() > MAX_CLI_ENV_COUNT {
+        return Err(RpcError::invalid(format!(
+            "cli env must not contain more than {MAX_CLI_ENV_COUNT} entries"
+        )));
+    }
+    let command = params.argv[0]
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default();
+    if command != "php" {
+        return Err(RpcError::unsupported("cli commands other than php"));
+    }
+
+    let mut total_bytes = 0usize;
+    for (index, argument) in params.argv.iter().enumerate() {
+        validate_cli_string(argument, "cli argv entry", index != 0, &mut total_bytes)?;
+    }
+    let mut env = Vec::with_capacity(params.env.len());
+    for (name, value) in params.env {
+        validate_cli_string(&name, "cli environment name", false, &mut total_bytes)?;
+        if name.is_empty() || name.contains('=') {
+            return Err(RpcError::invalid(
+                "cli environment names must be non-empty and must not contain '='",
+            ));
+        }
+        validate_cli_string(&value, "cli environment value", true, &mut total_bytes)?;
+        env.push((name, value));
+    }
+    let requested_cwd = params.cwd.unwrap_or(current_cwd(state)?);
+    validate_cli_string(&requested_cwd, "cli cwd", false, &mut total_bytes)?;
+    if requested_cwd.is_empty() {
+        return Err(RpcError::invalid("cli cwd must not be empty"));
+    }
+    let cwd = resolve_vfs_path(&requested_cwd, state)?;
+    let host_cwd = (state.backend.resolve_path)(&cwd).map_err(RpcError::io)?;
+    let metadata = fs::metadata(&host_cwd).map_err(|error| {
+        RpcError::io(format!(
+            "Failed to inspect cli cwd {}: {error}",
+            host_cwd.display()
+        ))
+    })?;
+    if !metadata.is_dir() {
+        return Err(RpcError::io(format!(
+            "cli cwd is not a directory: {}",
+            host_cwd.display()
+        )));
+    }
+    Ok(ControlCliRequest {
+        argv: params.argv,
+        env,
+        cwd,
+    })
+}
+
+fn validate_cli_string(
+    value: &str,
+    description: &str,
+    allow_empty: bool,
+    total_bytes: &mut usize,
+) -> std::result::Result<(), RpcError> {
+    if !allow_empty && value.is_empty() {
+        return Err(RpcError::invalid(format!(
+            "{description} must not be empty"
+        )));
+    }
+    if value.contains('\0') {
+        return Err(RpcError::invalid(format!(
+            "{description} must not contain NUL bytes"
+        )));
+    }
+    if value.len() > MAX_CLI_ENTRY_BYTES {
+        return Err(RpcError::invalid(format!(
+            "{description} must not exceed {MAX_CLI_ENTRY_BYTES} bytes"
+        )));
+    }
+    *total_bytes = total_bytes
+        .checked_add(value.len())
+        .ok_or_else(|| RpcError::invalid("cli request is too large"))?;
+    if *total_bytes > MAX_CLI_TOTAL_BYTES {
+        return Err(RpcError::invalid(format!(
+            "cli argv, env, and cwd must not exceed {MAX_CLI_TOTAL_BYTES} bytes in total"
+        )));
+    }
+    Ok(())
+}
+
 fn run_stream_request(
     stream: &mut TcpStream,
     id: Value,
-    request: ControlHttpRequest,
     cancellation: Arc<AtomicBool>,
-    handler: StreamHandler,
+    task: StreamTask,
     events: Arc<EventHub>,
 ) -> Result<()> {
     write_stream_http_head(stream)?;
@@ -840,10 +996,9 @@ fn run_stream_request(
         send_bounded_stream_event(&emitter_sender, event, &emitter_cancellation)
     });
     let task_cancellation = Arc::clone(&cancellation);
-    let stream_task = move |emitter, cancellation| handler(request, emitter, cancellation);
     let task = thread::Builder::new()
         .name("wp-playground-control-stream".to_string())
-        .spawn(move || run_stream_task(stream_task, emitter, sender, task_cancellation));
+        .spawn(move || run_stream_task(task, emitter, sender, task_cancellation));
     let task = match task {
         Ok(task) => task,
         Err(error) => {
@@ -1434,6 +1589,7 @@ fn dispatch_write_file(
     let path = resolve_vfs_path(&params.path, state)?;
     let host = (state.backend.resolve_path)(&path).map_err(RpcError::io)?;
     atomic_replace_file(&host, &params.data.decode()?).map_err(RpcError::io)?;
+    (state.backend.file_changed)(&path).map_err(RpcError::runtime)?;
     Ok(Value::Null)
 }
 
@@ -1998,6 +2154,17 @@ mod tests {
                 }
                 Ok(ControlStreamResponse { exit_code: 0 })
             }),
+            cli: Arc::new(|request, emitter, _| {
+                emitter(ControlStreamEvent::Headers {
+                    status: 200,
+                    headers: Vec::new(),
+                })?;
+                emitter(ControlStreamEvent::Output {
+                    channel: ControlStreamChannel::Stdout,
+                    bytes: request.argv.join(" ").into_bytes(),
+                })?;
+                Ok(ControlStreamResponse { exit_code: 0 })
+            }),
             resolve_path: Arc::new(move |path| {
                 let relative = path
                     .strip_prefix("/wordpress")
@@ -2005,6 +2172,7 @@ mod tests {
                 Ok(root_for_resolver.join(relative.trim_start_matches('/')))
             }),
             define_constant: Arc::new(|_, _| Ok(())),
+            file_changed: Arc::new(|_| Ok(())),
         }
     }
 
@@ -2016,6 +2184,90 @@ mod tests {
             active_streams: Mutex::new(HashMap::new()),
             events: Arc::new(EventHub::default()),
         }
+    }
+
+    #[test]
+    fn cli_trust_boundary_validates_command_shapes_and_preserves_empty_arguments() {
+        let root = std::env::temp_dir().join(format!(
+            "wp-playground-control-cli-cwd-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("subdirectory")).unwrap();
+        fs::write(root.join("file.php"), b"<?php").unwrap();
+        let state = state(root.clone());
+        let mut env = BTreeMap::new();
+        env.insert("CLI_TEST".to_string(), "value".to_string());
+        let request = control_cli_request(
+            CliParams {
+                argv: vec![
+                    "/usr/local/bin/php".to_string(),
+                    "-r".to_string(),
+                    String::new(),
+                ],
+                env,
+                cwd: Some("/wordpress/subdirectory".to_string()),
+            },
+            &state,
+        )
+        .unwrap();
+        assert_eq!(request.argv[2], "");
+        assert_eq!(
+            request.env,
+            vec![("CLI_TEST".to_string(), "value".to_string())]
+        );
+        assert_eq!(request.cwd, "/wordpress/subdirectory");
+
+        for invalid_cwd in ["/wordpress/missing", "/wordpress/file.php"] {
+            let error = control_cli_request(
+                CliParams {
+                    argv: vec!["php".to_string(), "-v".to_string()],
+                    env: BTreeMap::new(),
+                    cwd: Some(invalid_cwd.to_string()),
+                },
+                &state,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "ERR_WP_PLAYGROUND_NATIVE_IO");
+        }
+
+        let empty = control_cli_request(
+            CliParams {
+                argv: Vec::new(),
+                env: BTreeMap::new(),
+                cwd: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(empty.code, "ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST");
+
+        let unsupported = control_cli_request(
+            CliParams {
+                argv: vec!["node".to_string()],
+                env: BTreeMap::new(),
+                cwd: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(unsupported.code, "ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED");
+
+        let nul = control_cli_request(
+            CliParams {
+                argv: vec!["php".to_string(), "bad\0argument".to_string()],
+                env: BTreeMap::new(),
+                cwd: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(nul.code, "ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST");
+
+        let _ = fs::remove_dir_all(root);
     }
 
     fn rpc_http_request(control_url: &str, token: Option<&str>, body: &str) -> String {

@@ -8,7 +8,8 @@ use loopback HTTP and every request requires the per-process bearer token.
 ## Version 2 endpoints
 
 - `POST /rpc` returns one buffered JSON response.
-- `POST /rpc/stream` returns an NDJSON response for `requestStreamed`.
+- `POST /rpc/stream` returns an NDJSON response for `requestStreamed` or
+  one-shot PHP `cli` execution.
 - `POST /rpc/cancel` cancels one active streamed request.
 - `GET /events` exposes supported lifecycle and worker events as SSE.
 
@@ -82,6 +83,29 @@ Stderr produced before PHP commits its headers is held in the same bounded
 host budget, then emitted immediately after the single headers frame. The
 headers frame is limited to 1,024 fields and 64 KiB of raw names and values.
 
+The `cli` stream uses the same frame sequence and cancellation endpoint:
+
+```json
+{
+	"protocolVersion": 2,
+	"id": 42,
+	"method": "cli",
+	"params": {
+		"argv": ["php", "/tmp/wp-cli.phar", "--version"],
+		"env": { "WP_CLI_ALLOW_ROOT": "1" },
+		"cwd": "/wordpress"
+	}
+}
+```
+
+Only a command whose basename is exactly `php` is accepted. The host inserts
+the managed `/internal/shared/php.ini`, invokes PHP's real CLI SAPI in a fresh
+component, and streams stdout/stderr plus the real exit code. Empty non-command
+arguments are preserved. Arrays must be dense; argv, environment, each entry,
+and aggregate bytes are bounded and reject NUL. A CLI component reserves one
+configured worker slot, including a capacity-only lazy reservation that does
+not instantiate an unused HTTP component.
+
 The Node client also keeps at most eight frames per channel in memory. If a
 caller leaves one channel unread, overflow is written losslessly to private
 temporary spool files and can be read later; this lets the parser reach the
@@ -97,8 +121,19 @@ The response is a normal RPC envelope whose result is
 `{ "cancelled": true | false }`.
 
 Cancelling either public output stream cancels the entire request. Cancellation,
-client disconnect, or an output-channel failure interrupts the Wasmtime Store,
-recycles that PHP worker, and leaves other workers available.
+client disconnect, or an output-channel failure interrupts the selected
+Wasmtime Store. Guest execution and `wasi:io/poll` waits such as PHP `sleep`
+are cancellation-aware; an arbitrary synchronous host operation may finish
+before the Store observes cancellation. A streamed HTTP companion is discarded
+and rebuilt on demand; a transient CLI Store is dropped and its capacity
+reservation is released. Other workers remain available.
+
+Replacing `/internal/shared/php.ini` through `writeFile` uses same-directory
+atomic replacement and advances the worker configuration generation. The
+guest sees `/internal/shared` read-only; control writes operate on the private
+host directory rather than through the guest preopen. Existing
+HTTP Stores are rebuilt on their next checkout; subsequent CLI Stores load the
+new file directly, without a global request lock.
 
 ## Event stream
 
@@ -115,5 +150,7 @@ message events are intentionally outside the native v1 contract.
   object parsing.
 - Stream response size is not globally capped; per-frame and queue limits
   plus disk-backed client overflow provide bounded RAM.
+- CLI argv and environment lists each contain at most 4,096 entries, each
+  string is at most 1 MiB, and the aggregate is at most 8 MiB.
 - Protocol errors use the shared `ERR_WP_PLAYGROUND_NATIVE_*` taxonomy and
   never include the bearer token, authorization header, or child environment.

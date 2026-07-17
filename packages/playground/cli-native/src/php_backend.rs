@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::ErrorKind,
+    io::{ErrorKind, Write},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -11,6 +11,7 @@ use std::{
 use wasmtime::component::Component;
 
 use crate::{
+    atomic_file::atomic_replace_file,
     php_config::PhpWorkerOptions,
     php_protocol::{PhpRequest, PhpResponse},
     php_runtime_files::{
@@ -47,6 +48,14 @@ impl PhpWorkerInstance {
             .map(|component| Self { component })
     }
 
+    pub(crate) fn from_cli_artifact_with_options(
+        artifact: InterruptiblePhpArtifact,
+        options: PhpWorkerOptions,
+    ) -> Result<Self> {
+        ComponentPhpInstance::instantiate_cli_interruptible(&artifact.0, options)
+            .map(|component| Self { component })
+    }
+
     pub fn run_sapi_request(&mut self, request: &PhpRequest) -> Result<PhpResponse> {
         self.component.run_sapi_request(request)
     }
@@ -59,6 +68,18 @@ impl PhpWorkerInstance {
     ) -> Result<PhpResponse> {
         self.component
             .run_sapi_request_streamed(request, sink, cancellation)
+    }
+
+    pub fn run_cli_streamed(
+        &mut self,
+        argv: &[String],
+        env: &[(String, String)],
+        cwd: Option<&str>,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> Result<i32> {
+        self.component
+            .run_cli_streamed(argv, env, cwd, sink, cancellation)
     }
 
     pub fn define_constants(&mut self, constants: &[(String, PhpConstantValue)]) {
@@ -88,6 +109,7 @@ impl NativeRuntime {
 pub struct ComponentPhpInstance {
     php: Option<Wasip2PhpInstance>,
     runtime_root: PathBuf,
+    runtime_shared_root: PathBuf,
     constants: Vec<(String, PhpConstantValue)>,
     env_entries: Vec<(String, String)>,
     failed_stdout: Vec<u8>,
@@ -103,15 +125,36 @@ impl ComponentPhpInstance {
         Self::instantiate_with_interruption(component, options, true)
     }
 
+    fn instantiate_cli_interruptible(
+        component: &Component,
+        options: PhpWorkerOptions,
+    ) -> Result<Self> {
+        Self::instantiate_with_mode(component, options, true, false)
+    }
+
     fn instantiate_with_interruption(
         component: &Component,
         options: PhpWorkerOptions,
         interruptible: bool,
     ) -> Result<Self> {
+        Self::instantiate_with_mode(component, options, interruptible, true)
+    }
+
+    fn instantiate_with_mode(
+        component: &Component,
+        options: PhpWorkerOptions,
+        interruptible: bool,
+        initialize_http_sapi: bool,
+    ) -> Result<Self> {
         let runtime_root = create_component_worker_root()?;
 
-        let result =
-            Self::instantiate_in_root(component, options, runtime_root.clone(), interruptible);
+        let result = Self::instantiate_in_root(
+            component,
+            options,
+            runtime_root.clone(),
+            interruptible,
+            initialize_http_sapi,
+        );
         if result.is_err() {
             let _ = fs::remove_dir_all(&runtime_root);
         }
@@ -123,6 +166,7 @@ impl ComponentPhpInstance {
         options: PhpWorkerOptions,
         runtime_root: PathBuf,
         interruptible: bool,
+        initialize_http_sapi: bool,
     ) -> Result<Self> {
         let ini_options = PhpIniOptions {
             entries: &options.php_ini_entries,
@@ -134,24 +178,44 @@ impl ComponentPhpInstance {
         for (path, bytes) in &options.internal_files {
             runtime_files.insert(path.clone(), bytes.clone());
         }
+        let shared_mount = options
+            .mounts
+            .iter()
+            .find(|mount| mount.vfs_path == PHP_SHARED_VFS_DIR);
+        let runtime_shared_root = shared_mount
+            .map(|mount| mount.host_path.clone())
+            .unwrap_or_else(|| {
+                runtime_root.join(
+                    vfs_relative_path(PHP_SHARED_VFS_DIR)
+                        .expect("the internal shared VFS path is absolute"),
+                )
+            });
         for (vfs_path, bytes) in runtime_files {
-            write_staged_file(&runtime_root, &vfs_path, bytes.as_ref())?;
+            let relative = vfs_path
+                .strip_prefix(PHP_SHARED_VFS_DIR)
+                .and_then(|path| path.strip_prefix('/'))
+                .ok_or_else(|| {
+                    CliError::new(format!(
+                        "WASIp2 PHP runtime file is outside {PHP_SHARED_VFS_DIR}: {vfs_path}"
+                    ))
+                })?;
+            write_staged_path(
+                &runtime_shared_root.join(relative),
+                bytes.as_ref(),
+                shared_mount.is_some(),
+            )?;
         }
 
-        let mut context = Wasip2ContextBuilder::new().preopen(CapabilityPreopen::read_write(
-            runtime_root.join(vfs_relative_path(PHP_SHARED_VFS_DIR)?),
-            PHP_SHARED_VFS_DIR,
-        ));
-        let shared_vfs_path = vfs_relative_path(PHP_SHARED_VFS_DIR)?;
+        let mut context = Wasip2ContextBuilder::new();
+        if shared_mount.is_none() {
+            context = context.preopen(CapabilityPreopen::read_only(
+                &runtime_shared_root,
+                PHP_SHARED_VFS_DIR,
+            ));
+        }
         let mut mounted_vfs_paths = Vec::with_capacity(options.mounts.len());
         for mount in &options.mounts {
             let mount_vfs_path = vfs_relative_path(&mount.vfs_path)?;
-            if mount_vfs_path == shared_vfs_path {
-                return Err(CliError::new(format!(
-                    "WASIp2 PHP mount {} conflicts with the managed runtime directory {PHP_SHARED_VFS_DIR}",
-                    mount.vfs_path
-                )));
-            }
             if mounted_vfs_paths.contains(&mount_vfs_path) {
                 return Err(CliError::new(format!(
                     "Duplicate WASIp2 PHP mount path: {}",
@@ -159,10 +223,12 @@ impl ComponentPhpInstance {
                 )));
             }
             mounted_vfs_paths.push(mount_vfs_path);
-            context = context.preopen(CapabilityPreopen::read_write(
-                &mount.host_path,
-                mount.vfs_path.clone(),
-            ));
+            let preopen = if mount.vfs_path == PHP_SHARED_VFS_DIR {
+                CapabilityPreopen::read_only(&mount.host_path, mount.vfs_path.clone())
+            } else {
+                CapabilityPreopen::read_write(&mount.host_path, mount.vfs_path.clone())
+            };
+            context = context.preopen(preopen);
         }
         let state = context.build().map_err(|error| {
             CliError::new(format!("Failed to build WASIp2 PHP context: {error}"))
@@ -177,15 +243,18 @@ impl ComponentPhpInstance {
                 "Failed to instantiate WASIp2 PHP component: {error}"
             ))
         })?;
-        php.initialize(PHP_INI_VFS_PATH).map_err(|error| {
-            CliError::new(format!(
-                "Failed to initialize WASIp2 PHP component: {error}"
-            ))
-        })?;
+        if initialize_http_sapi {
+            php.initialize(PHP_INI_VFS_PATH).map_err(|error| {
+                CliError::new(format!(
+                    "Failed to initialize WASIp2 PHP component: {error}"
+                ))
+            })?;
+        }
 
         Ok(Self {
             php: Some(php),
             runtime_root,
+            runtime_shared_root,
             constants,
             env_entries: canonical_entries(&options.env_entries),
             failed_stdout: Vec::new(),
@@ -204,6 +273,41 @@ impl ComponentPhpInstance {
         cancellation: Arc<AtomicBool>,
     ) -> Result<PhpResponse> {
         self.run_sapi_request_with_stream(request, Some((sink, cancellation)))
+    }
+
+    fn run_cli_streamed(
+        &mut self,
+        argv: &[String],
+        env: &[(String, String)],
+        cwd: Option<&str>,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> Result<i32> {
+        self.failed_stdout.clear();
+        self.failed_stderr.clear();
+        let mut merged_env = self.env_entries.clone();
+        merge_entries(&mut merged_env, env);
+        let mut effective_argv = Vec::with_capacity(argv.len() + 2);
+        effective_argv.push(argv[0].clone());
+        effective_argv.push("-c".to_string());
+        effective_argv.push(PHP_INI_VFS_PATH.to_string());
+        effective_argv.extend(argv[1..].iter().cloned());
+        let php = self
+            .php
+            .as_mut()
+            .expect("component PHP is present until drop");
+        match php.run_cli_streamed(&effective_argv, &merged_env, cwd, sink, cancellation) {
+            Ok(response) => Ok(response.exit_status),
+            Err(error) => {
+                let output = self
+                    .php
+                    .as_mut()
+                    .expect("component PHP is present until drop")
+                    .take_output();
+                self.remember_failed_output(output);
+                Err(CliError::new(format!("WASIp2 PHP CLI failed: {error:#}")))
+            }
+        }
     }
 
     fn run_sapi_request_with_stream(
@@ -258,10 +362,17 @@ impl ComponentPhpInstance {
 
     fn define_constants(&mut self, constants: &[(String, PhpConstantValue)]) {
         merge_constants(&mut self.constants, constants);
-        let path = self
-            .runtime_root
-            .join(vfs_relative_path(PHP_CONSTANTS_VFS_PATH).expect("constant path is absolute"));
-        if let Err(error) = fs::write(&path, php_runtime_files::constants_json(&self.constants)) {
+        let path = self.runtime_shared_root.join(
+            PHP_CONSTANTS_VFS_PATH
+                .strip_prefix(PHP_SHARED_VFS_DIR)
+                .and_then(|path| path.strip_prefix('/'))
+                .expect("the constants file is inside the shared runtime directory"),
+        );
+        if let Err(error) = write_runtime_file(
+            &path,
+            &php_runtime_files::constants_json(&self.constants),
+            false,
+        ) {
             eprintln!(
                 "warning: failed to update WASIp2 PHP constants file {}: {error}",
                 path.display()
@@ -314,17 +425,50 @@ fn create_component_worker_root() -> Result<PathBuf> {
     ))
 }
 
-fn write_staged_file(root: &Path, vfs_path: &str, bytes: &[u8]) -> Result<()> {
-    let path = root.join(vfs_relative_path(vfs_path)?);
+fn write_staged_path(path: &Path, bytes: &[u8], preserve_existing: bool) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(&path, bytes).map_err(|error| {
+    if preserve_existing {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(CliError::new(format!(
+                    "Refusing to preserve WASIp2 PHP runtime file through symlink {}",
+                    path.display()
+                )))
+            }
+            Ok(metadata) if metadata.is_file() => return Ok(()),
+            Ok(_) => {
+                return Err(CliError::new(format!(
+                    "WASIp2 PHP runtime path is not a file: {}",
+                    path.display()
+                )))
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    write_runtime_file(path, bytes, true).map_err(|error| {
         CliError::new(format!(
             "Failed to stage WASIp2 PHP runtime file {}: {error}",
             path.display()
         ))
     })
+}
+
+fn write_runtime_file(path: &Path, bytes: &[u8], create_new: bool) -> std::io::Result<()> {
+    if !create_new {
+        return atomic_replace_file(path, bytes);
+    }
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW).mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    file.write_all(bytes)
 }
 
 fn vfs_relative_path(path: &str) -> Result<PathBuf> {

@@ -485,6 +485,13 @@ try {
 	if (await streamed.exitCode !== 0) throw new Error('streamed RPC exit mismatch');
 	const streamedErrors = await streamed.stderrText;
 	if (!streamedErrors.includes('stream-stderr-0') || !streamedErrors.includes('stream-stderr-11')) throw new Error('streamed RPC late stderr mismatch');
+	const cli = await running.playground.cli(
+		['php', '-r', 'fwrite(STDERR, getenv("RPC_CLI_ENV")); echo getcwd();'],
+		{ env: { RPC_CLI_ENV: 'cli-stderr-ok' }, cwd: '/wordpress' }
+	);
+	if (await cli.stdoutText !== '/wordpress') throw new Error('real PHP CLI cwd/stdout mismatch');
+	if (await cli.stderrText !== 'cli-stderr-ok') throw new Error('real PHP CLI env/stderr mismatch');
+	if (await cli.exitCode !== 0) throw new Error('real PHP CLI exit mismatch');
 	await running.playground.mkdirTree('/wordpress/rpc-dir/nested');
   await running.playground.writeFile('/wordpress/control.txt', 'control-ok');
   if (await running.playground.readFileAsText('/wordpress/control.txt') !== 'control-ok') throw new Error('RPC filesystem mismatch');

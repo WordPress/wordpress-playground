@@ -832,11 +832,7 @@
 		{ "name": "internalUrlToPath", "status": "supported" },
 		{ "name": "addEventListener", "status": "supported" },
 		{ "name": "removeEventListener", "status": "supported" },
-		{
-			"name": "cli",
-			"status": "unsupported-by-design",
-			"diagnostic": "PHP CLI streaming"
-		},
+		{ "name": "cli", "status": "supported" },
 		{
 			"name": "onMessage",
 			"status": "unsupported-by-design",

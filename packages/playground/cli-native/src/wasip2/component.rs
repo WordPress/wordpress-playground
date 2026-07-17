@@ -1,9 +1,19 @@
-use std::path::Path;
+use std::{
+    future::Future,
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
-use wasmtime::component::{Component, HasSelf, Linker, Resource};
+use wasmtime::component::{Component, HasSelf, Linker, Resource, ResourceTable};
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::filesystem::{Descriptor, File};
+use wasmtime_wasi::p2::bindings::sync::io::poll as sync_poll;
 use wasmtime_wasi::WasiView;
+use wasmtime_wasi_io::{bindings::wasi::io::poll as async_poll, poll::DynPollable};
 
 use super::context::Wasip2HostState;
 use super::locks::{self, ByteRange, LockKind, LockMode, LockState};
@@ -46,6 +56,9 @@ impl Wasip2ComponentRuntime {
     pub fn from_engine(engine: Engine) -> wasmtime::Result<Self> {
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
+        linker.allow_shadowing(true);
+        sync_poll::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
+        linker.allow_shadowing(false);
         wit_locks::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
         wit_shm::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
         super::php::add_to_linker(&mut linker)?;
@@ -63,6 +76,64 @@ impl Wasip2ComponentRuntime {
 
     pub fn load_component(&self, path: impl AsRef<Path>) -> wasmtime::Result<Component> {
         Component::from_file(&self.engine, path)
+    }
+}
+
+const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+async fn cancellation_aware<T>(
+    cancellation: Option<Arc<AtomicBool>>,
+    operation: impl Future<Output = wasmtime::Result<T>>,
+) -> wasmtime::Result<T> {
+    let Some(cancellation) = cancellation else {
+        return operation.await;
+    };
+    tokio::select! {
+        result = operation => result,
+        () = wait_for_cancellation(cancellation) => {
+            Err(wasmtime::Error::msg("native PHP stream was cancelled"))
+        }
+    }
+}
+
+async fn wait_for_cancellation(cancellation: Arc<AtomicBool>) {
+    while !cancellation.load(Ordering::Acquire) {
+        tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
+    }
+}
+
+impl sync_poll::Host for Wasip2HostState {
+    fn poll(&mut self, pollables: Vec<Resource<DynPollable>>) -> wasmtime::Result<Vec<u32>> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware(
+            cancellation,
+            <ResourceTable as async_poll::Host>::poll(table, pollables),
+        ))
+    }
+}
+
+impl sync_poll::HostPollable for Wasip2HostState {
+    fn ready(&mut self, pollable: Resource<DynPollable>) -> wasmtime::Result<bool> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware(
+            cancellation,
+            <ResourceTable as async_poll::HostPollable>::ready(table, pollable),
+        ))
+    }
+
+    fn block(&mut self, pollable: Resource<DynPollable>) -> wasmtime::Result<()> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware(
+            cancellation,
+            <ResourceTable as async_poll::HostPollable>::block(table, pollable),
+        ))
+    }
+
+    fn drop(&mut self, pollable: Resource<DynPollable>) -> wasmtime::Result<()> {
+        <ResourceTable as async_poll::HostPollable>::drop(WasiView::ctx(self).table, pollable)
     }
 }
 

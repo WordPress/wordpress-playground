@@ -3,6 +3,28 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
+
+/*
+ * WASI has no process user/group identity or process umask. PHP only uses
+ * these calls to select POSIX permission bits and defaults for archive
+ * extraction. Give every component the same deterministic synthetic identity
+ * and an empty umask instead of disabling Phar's normal permission checks.
+ */
+#if defined(__wasi__)
+#ifndef getuid
+#define getuid() 1
+#endif
+#ifndef getgid
+#define getgid() 1
+#endif
+#ifndef getgroups
+#define getgroups(size, list) 0
+#endif
+#ifndef umask
+#define umask(mask) ((mode_t) 0)
+#endif
+#endif
 
 /* wasi-libc implements fcntl but hides the unsupported record-lock commands. */
 #ifndef SQLITE_DEFAULT_UNIX_VFS

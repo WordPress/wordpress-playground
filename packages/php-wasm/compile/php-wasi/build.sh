@@ -225,7 +225,7 @@ PHP_BUILD_SYSTEM="$PHP_UNAME"
 		--srcdir="$PHP_SOURCE" --host=wasm32-wasi --target=wasm32-wasi \
 		--disable-all --enable-filter --enable-pdo --with-pdo-sqlite --with-sqlite3 \
 		--without-libxml --without-iconv --without-pear --without-openssl \
-		--disable-phar --enable-opcache --disable-opcache-jit --disable-huge-code-pages \
+		--enable-phar --enable-opcache --disable-opcache-jit --disable-huge-code-pages \
 		--disable-zend-signals --without-pcre-jit \
 		--disable-fiber-asm --disable-cgi
 )
@@ -235,6 +235,10 @@ PHP_BUILD_SYSTEM="$PHP_UNAME"
 sed -i -e "s|$BUILD_DIR|/build|g" -e "s|$ROOT|/src|g" \
 	"$PHP_BUILD/main/build-defs.h"
 run_logged "$LOG_DIR/php-build.log" make -C "$PHP_BUILD" -j"$JOBS" libphp.la
+run_logged "$LOG_DIR/php-cli-objects.log" make -C "$PHP_BUILD" -j"$JOBS" \
+	EXTRA_CFLAGS=-DPHP_WASI_COMPONENT_CLI \
+	sapi/cli/php_cli.lo sapi/cli/php_http_parser.lo sapi/cli/ps_title.lo \
+	sapi/cli/php_cli_process_title.lo
 
 run_logged "$LOG_DIR/wit-php.log" \
 	wit-bindgen c --world php --out-dir "$GENERATED_DIR/php" "$ROOT/wit/php"
@@ -260,6 +264,10 @@ run_logged "$LOG_DIR/component-link.log" "$CC" "$OPTIMIZATION_FLAG" -mexec-model
 	"$GENERATED_DIR/fcntl_bridge.o" \
 	"$GENERATED_DIR/php/php.o" "$GENERATED_DIR/php/php_component_type.o" \
 	"$GENERATED_DIR/locks/bridge.o" "$GENERATED_DIR/locks/bridge_component_type.o" \
+	"$PHP_BUILD/sapi/cli/php_cli.o" \
+	"$PHP_BUILD/sapi/cli/php_http_parser.o" \
+	"$PHP_BUILD/sapi/cli/ps_title.o" \
+	"$PHP_BUILD/sapi/cli/php_cli_process_title.o" \
 	"$PHP_BUILD/.libs/libphp.a" -L"$PREFIX/lib" -lsqlite3 \
 	"${EMULATION_LIBS[@]}" -o "$DIST_DIR/php-wasi-component.wasm"
 

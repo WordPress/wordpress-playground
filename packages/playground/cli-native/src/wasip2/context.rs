@@ -1,9 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{atomic::AtomicBool, Arc, Mutex},
+};
 
 use wasmtime::component::ResourceTable;
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
-use super::php::PhpOutputCapture;
+use super::php::{PhpOutputCapture, PhpWasiOutputStream, Wasip2PhpOutputChannel};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapabilityPreopen {
@@ -79,6 +82,15 @@ impl Wasip2ContextBuilder {
         // threads. Keep blocking filesystem calls on those threads instead of
         // bouncing every operation through Tokio's blocking pool and awaiting it.
         builder.allow_blocking_current_thread(true);
+        let cli_output = Arc::new(Mutex::new(PhpOutputCapture::default()));
+        builder.stdout(PhpWasiOutputStream::new(
+            Arc::clone(&cli_output),
+            Wasip2PhpOutputChannel::Stdout,
+        ));
+        builder.stderr(PhpWasiOutputStream::new(
+            Arc::clone(&cli_output),
+            Wasip2PhpOutputChannel::Stderr,
+        ));
         for preopen in self.preopens {
             builder.preopened_dir(
                 preopen.host_path,
@@ -91,6 +103,8 @@ impl Wasip2ContextBuilder {
             table: ResourceTable::new(),
             wasi: builder.build(),
             php_output: PhpOutputCapture::default(),
+            cli_output,
+            active_cancellation: None,
         })
     }
 }
@@ -99,6 +113,8 @@ pub struct Wasip2HostState {
     table: ResourceTable,
     wasi: WasiCtx,
     pub(crate) php_output: PhpOutputCapture,
+    pub(crate) cli_output: Arc<Mutex<PhpOutputCapture>>,
+    pub(crate) active_cancellation: Option<Arc<AtomicBool>>,
 }
 
 impl WasiView for Wasip2HostState {

@@ -38,6 +38,13 @@ FastStartup and Optimized Wasmtime caches. Ordinary commands do the same work
 lazily. Compilation is per engine-profile cache miss, not per worker or
 request.
 
+For a running server, `playground.cli(argv, { env, cwd })` is a real PHP CLI
+session, not an HTTP-SAPI emulation. It reserves one configured worker slot,
+creates a fresh interruptible component, streams stdout and stderr live, and
+returns PHP's exit code. The PHP 8.2 component includes Phar and executes the
+bundled WP-CLI archive. No npm package, host binary, or Wasm artifact is
+published by this work.
+
 ## Compatibility boundary
 
 `compatibility.json` is authoritative for native commands, programmatic
@@ -118,8 +125,9 @@ Control requests are authenticated before body allocation, limited to 64
 concurrent connections, and capped at 128 MiB of encoded JSON. Base64 leaves
 roughly 96 MiB for one binary `writeFile()` or request payload. Protocol v2
 streams response headers, stdout, and stderr as NDJSON frames of at most 64 KiB
-through a bounded eight-frame queue. Cancellation interrupts and recycles only
-the active PHP worker. The Node client keeps eight frames per output channel in
+through a bounded eight-frame queue. Cancellation discards an active streamed
+HTTP companion or drops a fresh CLI Store and releases its capacity slot. The
+Node client keeps eight frames per output channel in
 memory and lazily spools overflow to private temporary files, so an unread
 stderr stream cannot deadlock completion or cause unbounded RAM growth. See
 [`CONTROL_PROTOCOL.md`](./CONTROL_PROTOCOL.md) for the complete wire contract.
@@ -145,7 +153,7 @@ v1.
 
 The native v1 `playground` API supports:
 
-- `request`, real incremental `requestStreamed`, and `run`;
+- `request`, real incremental `requestStreamed`, `run`, and PHP-only `cli`;
 - `mkdir`, `mkdirTree`, `readFileAsText`, `readFileAsBuffer`, `writeFile`,
   `unlink`, `mv`, recursive `rmdir`, `listFiles`, `isDir`, `isFile`, and
   `fileExists`;
@@ -155,14 +163,32 @@ The native v1 `playground` API supports:
 
 ## Non-goals
 
-`cli`, `onMessage`, runtime hot-swapping, Emscripten worker construction,
-dynamic PHP extensions, guest networking, Blueprint v2, and cross-process WAL
-coordination are explicit non-goals for native v1.
+The top-level `wp-playground-native php` command, non-PHP `playground.cli()`
+commands, stdin injection beyond PHP's inherited empty input, `onMessage`,
+runtime hot-swapping, Emscripten worker construction, dynamic PHP extensions,
+guest networking, Blueprint v2, Blueprint-adjacent resource resolution, and
+cross-process WAL coordination are explicit non-goals for native v1.
+
+Studio selection is also deliberately gated: only PHP 8.2 with the exact
+supported Studio filesystem layout and without phpMyAdmin, Redis, or
+Memcached/JSPI is native-compatible. Other configurations retain the Node
+Playground implementation.
 
 ## Array-shape documentation inventory
 
 - `RunCLIArgs._` preserves positional token order; index zero is normally the
   command. It must be a dense, ordinary array of strings with no extra keys.
+- `playground.cli()` argv is a separately snapshotted dense ordinary
+  `string[]`. It must contain 1–4,096 own data-property entries, preserve empty
+  non-command arguments, contain no symbols/accessors/extra keys/NUL, and have
+  basename-exact `php` at index zero. Each UTF-8 entry is at most 1 MiB and
+  argv plus env plus cwd is at most 8 MiB.
+- CLI options are an exact plain `{ env?, cwd? }` record. `env` is an exact
+  plain `Record<string, string>` with at most 4,096 own data properties;
+  names are non-empty, contain neither `=` nor NUL, and values may be empty but
+  not contain NUL. `cwd` is an optional non-empty VFS string resolved inside a
+  mounted preopen. JavaScript snapshots records before the RPC; Rust decodes
+  and validates the shape again before component allocation.
 - Mount arrays contain ordered `{ hostPath, vfsPath }` records. Before-install
   mounts execute before ordinary mounts. Records must be plain objects with
   exactly those two non-empty string fields.
@@ -219,6 +245,30 @@ in the validated argument object. Stream bytes, UTF-8, parsed JSON, translated
 preferred versions/constants, and the translated serialized size are all
 validated before host acquisition.
 
+CLI crosses three explicit trust boundaries. The npm boundary uses descriptor
+inspection only, invokes no getters, rejects proxies whose inspection traps,
+and snapshots argv/options/env before its first await. The Rust control
+boundary independently enforces command basename, counts, UTF-8 byte budgets,
+NUL/environment-name rules, exact fields, and mounted cwd resolution. The C
+component boundary copies all strings into owned NUL-terminated buffers,
+rejects invalid lists and environment names, applies cwd only after validation,
+and permits CLI only once on a fresh instance. For servers, `run-blueprint`,
+and `build-snapshot`, `/tmp` and `/internal/shared` are private host-owned 0700
+roots; `/tmp` remains guest-writable while `/internal/shared` is guest-read-only.
+Nested file mounts are staged with create-new semantics and symlink-resistant
+parents, while nested directory mounts are rejected. Runtime and
+control writes use one shared same-directory atomic-replacement helper,
+including `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)` on Windows.
+
+General filesystem RPC mounts have a narrower guarantee. Paths are normalized,
+resolved against the mount table, and checked under the configured symlink
+policy, and final file replacement is atomic. Resolution and use are not held
+under a directory descriptor or `cap-std` capability, however, so a concurrent
+guest or host actor can swap a parent after validation. `followSymlinks: true` widens
+that exposure intentionally. The private, guest-read-only `/internal/shared`
+root is protected from this class of guest-controlled parent swap; general
+user mounts are not claimed to be TOCTOU-hardened.
+
 ## Failure and interruption taxonomy
 
 JavaScript and Rust preserve these error families instead of collapsing them
@@ -254,28 +304,43 @@ requests and occur before acquisition. A failed or oversized active Blueprint
 stream is cancelled and its reader lock is released; cancellation failure does
 not mask the initiating validation error.
 
+CLI failures remain distinguishable: malformed/trapping JavaScript inputs and
+invalid Rust shapes are `INVALID_REQUEST`; non-`php` commands are
+`UNSUPPORTED`; mount/cwd and atomic-write failures are `IO`; component compile,
+instantiate, trap, or output-channel failures are `RUNTIME`; explicit cancel,
+disconnect, and closed full-queue completion are `ABORTED`; and PHP's own
+nonzero status is the streamed `exitCode`, not a host transport failure.
+Cancellation is checked while waiting for capacity, during output
+backpressure, through Wasmtime epoch interruption, and while blocked in
+`wasi:io/poll` (including PHP `sleep`). An arbitrary synchronous host operation
+may still finish before the Store observes cancellation. A cancelled transient
+CLI Store is never reused; its capacity-only or withheld-worker lease is
+released, and the next CLI call receives a fresh Store. Queue closure after a
+cancel synthesizes exactly one aborted terminal frame, so a client that keeps
+reading cannot hang waiting for completion.
+
 ## Completion matrix
 
-| Area                 | Completion criterion                                                                                                                                                                                                                                                                                                                                                                                                                                       | Automated proof                                                                                                                                                                   |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publication          | No npm/GitHub release configuration, native release asset, or native CI artifact upload exists.                                                                                                                                                                                                                                                                                                                                                            | `verify:private-boundary` inspects package/project metadata and both workflows.                                                                                                   |
-| Package metadata     | The package is private, exposes the `wp-playground-cli` bin plus ESM/CJS/types, and has no lifecycle or publish scripts.                                                                                                                                                                                                                                                                                                                                   | Vite build, package tests, boundary verification, and clean `npm pack`/install.                                                                                                   |
-| Package contents     | Raw PHP and SQLite/WAL assets are present; host executable, `.cwasm`, source, and Cargo output are absent.                                                                                                                                                                                                                                                                                                                                                 | Build-time source hashes, recursive boundary checks, and tarball packlist checks.                                                                                                 |
-| Target selection     | Linux x64/arm64 glibc, macOS x64/arm64, and Windows x64/arm64 map exactly; musl and unknown targets reject before download.                                                                                                                                                                                                                                                                                                                                | Manifest unit tests plus the six-runner CI matrix.                                                                                                                                |
-| Acquisition          | The fixture host is size-bounded, double-hashed, decompressed, permissioned, and atomically installed; redirects cannot downgrade to non-loopback HTTP.                                                                                                                                                                                                                                                                                                    | Downloader integrity, redirect, truncation, oversize, and malformed-lock tests.                                                                                                   |
-| Cache behavior       | Concurrent first launches perform one download; valid offline reuse works; corrupt files are repaired.                                                                                                                                                                                                                                                                                                                                                     | Eight-way unit concurrency plus two-process clean-install concurrency and offline restart.                                                                                        |
-| PHP preparation      | The npm payload contains raw Wasm only; `runtime install` prewarms both Wasmtime profiles and workers share the engine caches.                                                                                                                                                                                                                                                                                                                             | Package boundary plus installed `runtime install` and native worker-pool smokes.                                                                                                  |
-| CLI mechanics        | argv, cwd, environment, stdio, signals, exit codes, supported parsing, and explicit unsupported diagnostics are preserved; unsupported commands, direct flags, `--flag=value`, and yargs `--no-*`/camel-case/mixed aliases reject before host acquisition.                                                                                                                                                                                                 | Schema-driven preflight tests, native argument/compatibility tests, lifecycle-disabled installed-bin preflight with no host URL/cache creation, and existing Node CLI regression. |
-| Library results      | Rust remains the authoritative argv parser; expected validation and successful one-shot calls return `CLIExitResult`, servers return a real disposable `CLIServerResult`, and genuine process/runtime failures reject without process termination or persistent signal listeners.                                                                                                                                                                          | Native argv-probe tests, exact-schema/bounded-output process tests, result narrowing, server-wrapper disposal, failure propagation, and listener-cleanup tests.                   |
-| Module mechanics     | ESM import, CommonJS require, declarations, helpers, and the bin work from a lifecycle-disabled tarball install.                                                                                                                                                                                                                                                                                                                                           | Vite declaration rollup, TypeScript, `npm install --ignore-scripts`, and installed ESM/CJS/bin smokes.                                                                            |
-| One-shot commands    | Blueprint and snapshot commands finish after native completion; `php` remains an explicit native-v1 incompatibility.                                                                                                                                                                                                                                                                                                                                       | Packaged Blueprint/snapshot smokes and compatibility parser tests.                                                                                                                |
-| Server API           | `RunCLIServer` returns the real Node server and proxy URL, RPC worker, native count, and idempotent disposer; start/server port semantics match Node.                                                                                                                                                                                                                                                                                                      | Server API lifecycle/port tests plus a live installed two-worker proxy smoke.                                                                                                     |
-| Playground API       | Request, genuinely incremental streamed request, run, multipart and binary values, filesystem methods, properties, lifecycle events, and structured PHP failures map across protocol v2; message events reject explicitly.                                                                                                                                                                                                                                 | Control-client and API-contract tests, Rust control tests, cancellation tests, and the live installed RPC smoke.                                                                  |
-| Failure lifecycle    | Download/integrity, acquisition lock, host startup, handshake timeout, child exit, occupied port, stream cancellation/disconnect, and repeated disposal release their resources without masking the initiating error.                                                                                                                                                                                                                                      | Downloader and server lifecycle tests, Rust auth/protocol/interruption tests, and clean-install cleanup.                                                                          |
-| Native compatibility | Every command, option, root export, server member, externally accessible common worker method, and event in schema-v2 `compatibility.json` is implemented or rejected with its declared diagnostic; schema-declared disabled booleans and Studio Blueprint bundles preserve the no-capability shape while snapshots close accessor, Proxy, prototype, alias, delimiter, NUL, stream-limit, invalid-UTF-8, and caller-mutation bypasses before acquisition. | TypeScript AST/checker inventories and bypass/TOCTOU tests plus Rust compatibility-matrix tests.                                                                                  |
-| WordPress/WAL        | WordPress HTTP/editor, Blueprint, snapshot, concurrent worker, SQLite lock, xShm/WAL flush, and WAL reopen persistence paths pass.                                                                                                                                                                                                                                                                                                                         | Packager smokes plus serial ignored `native_server` process tests.                                                                                                                |
-| Benchmark tooling    | Throughput, CPU/request, warm/peak memory, and Site Editor timings can be compared against a named baseline with direction-aware thresholds; the candidate stays within 5% of `66c69684`.                                                                                                                                                                                                                                                                  | Python/Node metric tests plus `benchmark-regression` result comparison and its fixture tests.                                                                                     |
-| Platforms            | The same complete target passes on all six native runners without uploading its fixture host or tarball.                                                                                                                                                                                                                                                                                                                                                   | Native CI matrix: Linux, macOS, and Windows on x64 and arm64.                                                                                                                     |
+| Area                  | Completion criterion                                                                                                                                                               | Proof                                                                                                                    | Status                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Publication           | No npm/GitHub release path, native release asset, or native CI artifact upload exists.                                                                                             | `verify:private-boundary` inspects package/project metadata and workflows.                                               | Implemented                      |
+| Package metadata      | The private package exposes the bin, ESM/CJS, and types, with no lifecycle or publish scripts.                                                                                     | Package build/tests, boundary verification, and clean `npm pack`/install.                                                | Implemented                      |
+| Package contents      | Raw PHP and SQLite/WAL assets are present; host binaries, `.cwasm`, source, and Cargo output are absent.                                                                           | Source-hash, recursive boundary, and tarball packlist checks.                                                            | Implemented                      |
+| Target selection      | Six supported glibc/macOS/Windows architecture targets map exactly; musl and unknown targets reject before download.                                                               | Manifest unit tests and six-runner CI matrix.                                                                            | Implemented; CI proof pending    |
+| Acquisition/cache     | Downloads are bounded, verified, atomically installed, concurrency-safe, reusable offline, and repairable.                                                                         | Downloader fault tests plus two-process acquisition/restart tests.                                                       | Implemented                      |
+| PHP preparation       | npm carries raw Wasm; `runtime install` prewarms both profiles and workers share engine caches.                                                                                    | Package boundary, installed prewarm, and worker-pool smokes.                                                             | Implemented                      |
+| CLI mechanics         | argv/cwd/env/stdio/signals/exits are preserved and unsupported syntax rejects before acquisition.                                                                                  | Schema preflight, argv-probe, compatibility, installed-bin, and Node CLI regression tests.                               | Implemented                      |
+| Library/module        | Result types, disposal, ESM/CJS/declarations/helpers, and bin behavior survive lifecycle-disabled tarball installation.                                                            | Type/declaration consumer, lifecycle, failure, listener, and installed package smokes.                                   | Implemented                      |
+| One-shot commands     | Blueprint/snapshot complete natively; nested Studio files are staged in private roots for the command lifetime; the top-level native `php` command remains explicitly unsupported. | Packaged command smokes, managed-root regressions, and compatibility tests.                                              | Implemented                      |
+| Server/Playground API | Server lifecycle plus protocol-v2 request/stream/run/CLI/filesystem/property/event behavior maps without silently accepting message events.                                        | API/control tests, live installed proxy smoke, real CLI/HTTP cancellation tests.                                         | Implemented                      |
+| PHP CLI ABI           | Fresh components run real PHP CLI with exact argv/env/cwd, bounded live output, exits, Phar/WP-CLI, capacity parity, cancellation, and SAPI isolation.                             | ABI validator, two byte-identical clean builds, and real-process `-r`/help/error/PHAR/php.ini/concurrency/CPU-loop/sleep-cancel/recovery smoke. | Verified locally                 |
+| Studio boundary       | Native compatibility is limited to PHP 8.2, the supported mount layout, and no phpMyAdmin/Redis/Memcached-JSPI; callers retain Node fallback outside that boundary.                 | In-repo native boundary tests; external Studio tarball declaration typecheck and runtime WP-CLI harness, run separately. | External verification pending    |
+| Trust boundaries      | Managed roots resist symlink staging and keep `/internal/shared` guest-read-only; general mount RPCs state their parent-swap limitation.                                           | Managed-root/no-mutation and real guest-write/symlink tests; filesystem protocol tests.                                  | Implemented                      |
+| Failure lifecycle     | Acquisition/startup/child/port/cancel/disconnect/disposal failures release resources without hiding the initiating error.                                                          | Downloader/server lifecycle, auth/protocol/interruption, and clean-install tests.                                        | Implemented                      |
+| Native compatibility  | Schema-v2 methods/options/exports/events are implemented or rejected as declared; disabled booleans and Studio Blueprint bundles preserve their no-capability shape while descriptor/Proxy/prototype/alias/NUL/stream/mutation bypasses reject. | AST/checker inventories, bypass tests, and Rust compatibility matrix. | Implemented |
+| WordPress/WAL         | HTTP/editor, Blueprint/snapshot, concurrency, SQLite locks, xShm/WAL flush, and WAL reopen persistence work.                                                                       | Packager smokes and serial ignored native process suite.                                                                 | Implemented                      |
+| Benchmark tooling     | Throughput, CPU/request, memory, and Site Editor timings compare to a named baseline with directional thresholds.                                                                  | Python/Node metric tests and `benchmark-regression`.                                                                     | Implemented                      |
+| Platforms             | The complete target passes on six native runners without uploading fixture hosts or tarballs.                                                                                      | Linux/macOS/Windows x64/arm64 CI matrix.                                                                                 | CI verification pending          |
 
 ## Required tests
 
@@ -284,13 +349,18 @@ The aggregate verification target executes:
 1. `fmt:check`, `lint`, and `typecheck`;
 2. default Rust tests and npm unit/integration tests;
 3. the serial ignored `native_server` WordPress, concurrency, lock, and WAL
-   process suite;
+   process suite, including real CLI SAPI/Phar/WP-CLI, help/invalid-option
+   flushing, old/new php.ini generations across three eager workers, CLI
+   CPU-loop and WASI-sleep cancellation, guest-read-only runtime files, and
+   post-cancel recovery;
 4. Python metric tests and Node Site Editor benchmark tests;
 5. private metadata, workflow, build-output, and tarball boundary checks;
 6. a release native host build and package WordPress/Blueprint/snapshot smokes;
 7. installation of the local tarball with lifecycle scripts disabled;
 8. concurrent first acquisition, offline restart, both-profile runtime prewarm,
-   installed ESM/CJS/bin checks, and a live Node proxy/control smoke; and
+   installed ESM/CJS/bin checks, and a live Node proxy/control smoke that calls
+   `playground.cli()` and verifies argv environment, cwd, both output channels,
+   and exit code; and
 9. AST/checker drift checks against the upstream root exports, public common
    server/worker surfaces, option objects, command scopes, and every yargs
    boolean-negation and camel-case alias; descriptor/prototype/NUL/limit and
@@ -298,13 +368,59 @@ The aggregate verification target executes:
    bounds, validation/result, server disposal, and listener-cleanup tests; and
 10. the existing `playground-cli:test-playground-cli` regression target.
 
+The repository gate validates the resolved
+`wordpress:php-wasi/cli@0.1.0` export and exact argv/env/cwd/run field types,
+plus the checked-in artifact and manifest hash. Applying every PHP patch to a
+clean pinned source archive and comparing two clean build hashes is a separate
+manual artifact-acceptance proof; it is not part of the Nx verification target.
+For this revision, both clean O2/GOTO builds produced the byte-identical
+SHA-256 `9f2d54913a0cf4990ce27a26ceeaf7ccbfdfd315c4e22b1cd9a37d8a8ab928b5`.
+The external Studio tarball declaration typecheck and runtime WP-CLI harness are
+also separate and must not be reported green until they have been run.
+
 ## Verification commands
 
 Run the complete current-platform gate from the repository root:
 
 ```bash
 npm exec -- nx run playground-cli-native:verify --output-style=stream
+npm exec -- nx run playground-cli-native:verify:installed-package --output-style=stream
 ```
+
+During PHP CLI development, the focused evidence is:
+
+```bash
+packages/php-wasm/compile/php-wasi/validate.sh \
+  packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm
+cargo test --manifest-path packages/playground/cli-native/Cargo.toml \
+  control::tests -- --test-threads=1
+cargo test --manifest-path packages/playground/cli-native/Cargo.toml \
+  --test native_server native_control_runs_real_php_cli_sapi_with_phar_loaded \
+  -- --ignored --exact --nocapture
+npm exec -- vitest run --config packages/playground/cli-native/npm/vite.config.ts \
+  packages/playground/cli-native/npm/tests/control.spec.ts \
+  packages/playground/cli-native/npm/tests/compatibility.spec.ts
+npm exec -- tsc -p packages/playground/cli-native/npm/tsconfig.json --noEmit
+npm exec -- nx run playground-cli-native:verify:installed-package --output-style=stream
+```
+
+Before accepting a component hash, provision the pinned WASI SDK, PHP 8.2 host
+tool, `wit-bindgen`, `wasm-tools`, autoconf, bison, re2c, and pkg-config, then
+run the independent manual proof:
+
+```bash
+for run in a b; do
+  BUILD_DIR="/tmp/php-wasi-clean-$run" \
+  DIST_DIR="/tmp/php-wasi-dist-$run" \
+  packages/php-wasm/compile/php-wasi/build.sh
+done
+sha256sum /tmp/php-wasi-dist-{a,b}/php-wasi-component.wasm
+cmp /tmp/php-wasi-dist-a/php-wasi-component.wasm \
+  /tmp/php-wasi-dist-b/php-wasi-component.wasm
+```
+
+Only after `cmp` succeeds should `assets/php-assets.json` be updated and the Nx
+gates rerun. None of these commands publish or upload anything.
 
 The six-platform CI matrix runs this exact target. Performance benchmarks are
 intentionally separate from the deterministic correctness gate. Compare a

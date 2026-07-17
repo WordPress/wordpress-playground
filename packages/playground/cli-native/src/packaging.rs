@@ -494,9 +494,7 @@ pub fn run_packaged_run_blueprint_smoke(
 
     let root = unique_temp_dir("wp-playground-native-packaged-blueprint")?;
     let site_root = root.join("wordpress");
-    let tmp_root = root.join("tmp");
     fs::create_dir_all(&site_root)?;
-    fs::create_dir_all(&tmp_root)?;
     let blueprint_path = root.join("blueprint.json");
     fs::write(
         &blueprint_path,
@@ -504,7 +502,7 @@ pub fn run_packaged_run_blueprint_smoke(
             "steps": [
                 {
                     "step": "runPHP",
-                    "code": "<?php require_once '/wordpress/wp-load.php'; $user_id = wp_create_user('packaged-smoke-user', 'packaged-smoke-password', 'packaged-smoke@example.com'); if (is_wp_error($user_id)) { throw new RuntimeException($user_id->get_error_message()); } $user = get_userdata($user_id); if (!$user || !wp_check_password('packaged-smoke-password', $user->user_pass, $user_id)) { throw new RuntimeException('WordPress password hash verification failed'); } update_option('packaged_run_blueprint', 'ok'); file_put_contents('/tmp/run-blueprint-smoke.txt', get_option('packaged_run_blueprint'));"
+                    "code": "<?php require_once '/wordpress/wp-load.php'; $user_id = wp_create_user('packaged-smoke-user', 'packaged-smoke-password', 'packaged-smoke@example.com'); if (is_wp_error($user_id)) { throw new RuntimeException($user_id->get_error_message()); } $user = get_userdata($user_id); if (!$user || !wp_check_password('packaged-smoke-password', $user->user_pass, $user_id)) { throw new RuntimeException('WordPress password hash verification failed'); } update_option('packaged_run_blueprint', 'ok'); file_put_contents('/wordpress/run-blueprint-smoke.txt', get_option('packaged_run_blueprint'));"
                 }
             ]
         }"#,
@@ -519,9 +517,6 @@ pub fn run_packaged_run_blueprint_smoke(
         .arg("--mount-dir-before-install")
         .arg(&site_root)
         .arg("/wordpress")
-        .arg("--mount-dir-before-install")
-        .arg(&tmp_root)
-        .arg("/tmp")
         .arg("--quiet")
         .env_remove(ASSET_ROOT_ENV_VAR)
         .env_remove("FORCE_COLOR")
@@ -543,7 +538,7 @@ pub fn run_packaged_run_blueprint_smoke(
         )));
     }
 
-    let result_path = tmp_root.join("run-blueprint-smoke.txt");
+    let result_path = site_root.join("run-blueprint-smoke.txt");
     let result = fs::read_to_string(&result_path).map_err(|error| {
         CliError::new(format!(
             "Packaged run-blueprint smoke did not write {}: {error}",

@@ -272,6 +272,27 @@ fn decoded_stream_channel(frames: &[serde_json::Value], channel: &str) -> Vec<u8
         .collect()
 }
 
+fn run_control_cli(
+    control_url: &str,
+    token: &str,
+    id: u64,
+    argv: &[&str],
+) -> Vec<serde_json::Value> {
+    let body = serde_json::json!({
+        "protocolVersion": 2,
+        "id": id,
+        "method": "cli",
+        "params": {
+            "argv": argv,
+            "env": {},
+            "cwd": "/wordpress"
+        }
+    })
+    .to_string();
+    let mut stream = open_control_stream(control_url, token, &body);
+    read_control_stream_to_terminal(&mut stream)
+}
+
 fn write_script(root: &Path, name: &str, content: &str) {
     fs::write(root.join(name), content).unwrap();
 }
@@ -354,6 +375,240 @@ fn response_json(response: &HttpResponse) -> serde_json::Value {
             response.body, response.headers
         )
     })
+}
+
+#[test]
+#[ignore = "Real native PHP CLI component execution is an explicit smoke test."]
+fn native_control_runs_real_php_cli_sapi_with_phar_loaded() {
+    let root = temp_dir("control-real-cli");
+    write_script(
+        &root,
+        "index.php",
+        "<?php usleep(100000); echo ini_get('precision');",
+    );
+    write_script(
+        &root,
+        "runtime-guard.php",
+        r#"<?php
+$write = @file_put_contents('/internal/shared/php.ini', "precision=99\n");
+$link = function_exists('symlink')
+    ? @symlink('/wordpress', '/internal/shared/guest-link')
+    : false;
+$contents = @file_get_contents('/internal/shared/php.ini');
+echo json_encode([
+    'write' => $write,
+    'link' => $link,
+    'linkExists' => file_exists('/internal/shared/guest-link'),
+    'unchanged' => $contents !== false && !str_contains($contents, 'precision=99'),
+]);"#,
+    );
+    let (control_url, _address, token, handshake_root, guard, stderr_thread) =
+        start_native_control_server(&root, 3);
+    let native_address = _address;
+    let mut old_ini_requests = Vec::new();
+    for _ in 0..3 {
+        let address = native_address.clone();
+        old_ini_requests.push(thread::spawn(move || send_get(&address, "/")));
+    }
+    for request in old_ini_requests {
+        let response = request.join().unwrap();
+        assert_ok(&response);
+        assert_eq!(response.body, "14");
+    }
+    let runtime_guard = response_json(&send_get(&native_address, "/runtime-guard.php"));
+    assert_eq!(runtime_guard["write"], false, "{runtime_guard:?}");
+    assert_eq!(runtime_guard["link"], false, "{runtime_guard:?}");
+    assert_eq!(runtime_guard["linkExists"], false, "{runtime_guard:?}");
+    assert_eq!(runtime_guard["unchanged"], true, "{runtime_guard:?}");
+    let frames = run_control_cli(
+        &control_url,
+        &token,
+        301,
+        &[
+            "php",
+            "-r",
+            "echo PHP_SAPI, '|', ini_get('precision'), '|', extension_loaded('Phar') ? '1' : '0';",
+        ],
+    );
+    assert_eq!(frames.last().unwrap()["type"], "complete", "{frames:?}");
+    assert_eq!(frames.last().unwrap()["exitCode"], 0, "{frames:?}");
+    let stdout = String::from_utf8(decoded_stream_channel(&frames, "stdout")).unwrap();
+    let parts = stdout.split('|').collect::<Vec<_>>();
+    assert_eq!(parts.first().copied(), Some("cli"), "{frames:?}");
+    assert_eq!(parts.last().copied(), Some("1"), "{frames:?}");
+
+    let help = run_control_cli(&control_url, &token, 302, &["php", "--help"]);
+    assert_eq!(help.last().unwrap()["type"], "complete", "{help:?}");
+    assert_eq!(help.last().unwrap()["exitCode"], 0, "{help:?}");
+    let help_stdout = String::from_utf8(decoded_stream_channel(&help, "stdout")).unwrap();
+    assert!(help_stdout.contains("Usage:"), "{help:?}");
+
+    let invalid = run_control_cli(
+        &control_url,
+        &token,
+        303,
+        &["php", "--definitely-invalid-option"],
+    );
+    assert_eq!(invalid.last().unwrap()["type"], "complete", "{invalid:?}");
+    assert_eq!(invalid.last().unwrap()["exitCode"], 1, "{invalid:?}");
+    let invalid_stdout = String::from_utf8(decoded_stream_channel(&invalid, "stdout")).unwrap();
+    assert!(invalid_stdout.contains("Usage:"), "{invalid:?}");
+
+    let wp_cli_fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../cli/tests/fixtures/wp-cli.phar");
+    let wp_cli_data = BASE64.encode(fs::read(&wp_cli_fixture).unwrap());
+    let write_wp_cli = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 304,
+        "method": "writeFile",
+        "params": {
+            "path": "/tmp/wp-cli.phar",
+            "data": { "encoding": "base64", "data": wp_cli_data }
+        }
+    })
+    .to_string();
+    let write_result = control_rpc(&control_url, &token, &write_wp_cli);
+    assert!(write_result.get("error").is_none(), "{write_result:?}");
+
+    let wp_cli = run_control_cli(
+        &control_url,
+        &token,
+        305,
+        &["php", "/tmp/wp-cli.phar", "--version", "--allow-root"],
+    );
+    assert_eq!(wp_cli.last().unwrap()["type"], "complete", "{wp_cli:?}");
+    assert_eq!(wp_cli.last().unwrap()["exitCode"], 0, "{wp_cli:?}");
+    let wp_cli_stdout = String::from_utf8(decoded_stream_channel(&wp_cli, "stdout")).unwrap();
+    assert!(wp_cli_stdout.contains("WP-CLI "), "{wp_cli:?}");
+
+    let replacement_ini = BASE64.encode(b"precision=17\n");
+    let write_ini = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 306,
+        "method": "writeFile",
+        "params": {
+            "path": "/internal/shared/php.ini",
+            "data": { "encoding": "base64", "data": replacement_ini }
+        }
+    })
+    .to_string();
+    let write_result = control_rpc(&control_url, &token, &write_ini);
+    assert!(write_result.get("error").is_none(), "{write_result:?}");
+
+    let mut fresh_ini_requests = Vec::new();
+    for _ in 0..6 {
+        let address = native_address.clone();
+        fresh_ini_requests.push(thread::spawn(move || send_get(&address, "/")));
+    }
+    for request in fresh_ini_requests {
+        let response = request.join().unwrap();
+        assert_ok(&response);
+        assert_eq!(response.body, "17");
+    }
+    let fresh_cli = run_control_cli(
+        &control_url,
+        &token,
+        307,
+        &["php", "-r", "echo ini_get('precision');"],
+    );
+    assert_eq!(
+        fresh_cli.last().unwrap()["type"],
+        "complete",
+        "{fresh_cli:?}"
+    );
+    assert_eq!(fresh_cli.last().unwrap()["exitCode"], 0, "{fresh_cli:?}");
+    assert_eq!(decoded_stream_channel(&fresh_cli, "stdout"), b"17");
+
+    let cancellation_body = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 308,
+        "method": "cli",
+        "params": {
+            "argv": ["php", "-r", "echo 'cli-started'; while (true) {}"],
+            "env": {},
+            "cwd": "/wordpress"
+        }
+    })
+    .to_string();
+    let mut cancelled_cli = open_control_stream(&control_url, &token, &cancellation_body);
+    assert_eq!(
+        read_control_stream_frame(&mut cancelled_cli)["type"],
+        "headers"
+    );
+    let started = read_control_stream_frame(&mut cancelled_cli);
+    assert_eq!(started["type"], "stdout", "{started:?}");
+    assert_eq!(started["data"]["data"], BASE64.encode(b"cli-started"));
+    let cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 308)["result"]["cancelled"],
+        true
+    );
+    let terminal = read_control_stream_frame(&mut cancelled_cli);
+    assert_eq!(terminal["type"], "error", "{terminal:?}");
+    assert!(
+        cancelled_at.elapsed() < Duration::from_secs(2),
+        "CPU-bound CLI cancellation was not prompt"
+    );
+
+    let sleep_cancellation_body = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 309,
+        "method": "cli",
+        "params": {
+            "argv": ["php", "-r", "echo 'sleep-started'; sleep(30); echo 'sleep-finished';"],
+            "env": {},
+            "cwd": "/wordpress"
+        }
+    })
+    .to_string();
+    let mut sleeping_cli = open_control_stream(&control_url, &token, &sleep_cancellation_body);
+    assert_eq!(
+        read_control_stream_frame(&mut sleeping_cli)["type"],
+        "headers"
+    );
+    let sleep_started = read_control_stream_frame(&mut sleeping_cli);
+    assert_eq!(sleep_started["type"], "stdout", "{sleep_started:?}");
+    assert_eq!(
+        sleep_started["data"]["data"],
+        BASE64.encode(b"sleep-started")
+    );
+    sleeping_cli
+        .get_mut()
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let sleep_cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 309)["result"]["cancelled"],
+        true
+    );
+    let sleep_terminal = read_control_stream_frame(&mut sleeping_cli);
+    assert_eq!(sleep_terminal["type"], "error", "{sleep_terminal:?}");
+    assert!(
+        sleep_cancelled_at.elapsed() < Duration::from_secs(2),
+        "WASI sleep cancellation was not prompt"
+    );
+
+    let recovered_cli = run_control_cli(
+        &control_url,
+        &token,
+        310,
+        &["php", "-r", "echo 'cli-recovered';"],
+    );
+    assert_eq!(
+        recovered_cli.last().unwrap()["type"],
+        "complete",
+        "{recovered_cli:?}"
+    );
+    assert_eq!(recovered_cli.last().unwrap()["exitCode"], 0);
+    assert_eq!(
+        decoded_stream_channel(&recovered_cli, "stdout"),
+        b"cli-recovered"
+    );
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(handshake_root);
+    let _ = fs::remove_dir_all(root);
 }
 
 #[test]

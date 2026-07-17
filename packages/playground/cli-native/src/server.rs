@@ -10,7 +10,7 @@ use std::{
         Arc, Condvar, Mutex, TryLockError,
     },
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use serde::Deserialize;
@@ -22,9 +22,9 @@ use crate::{
     },
     automount::BlueprintStep,
     control::{
-        ControlBackend, ControlHttpRequest, ControlHttpResponse, ControlOptions, ControlRunRequest,
-        ControlRunResponse, ControlServer, ControlStreamChannel, ControlStreamEmitter,
-        ControlStreamEvent, ControlStreamResponse, MAX_STREAM_FRAME_BYTES,
+        ControlBackend, ControlCliRequest, ControlHttpRequest, ControlHttpResponse, ControlOptions,
+        ControlRunRequest, ControlRunResponse, ControlServer, ControlStreamChannel,
+        ControlStreamEmitter, ControlStreamEvent, ControlStreamResponse, MAX_STREAM_FRAME_BYTES,
     },
     download::{cached_download_with_validator, download_bytes, url_cache_key},
     mount::Mount,
@@ -32,7 +32,7 @@ use crate::{
     php_backend::PhpWorkerInstance as PhpInstance,
     php_config::PhpWorkerOptions,
     php_protocol::{PhpRequest, PhpResponse},
-    php_runtime_files::PhpConstantValue,
+    php_runtime_files::{PhpConstantValue, PHP_INI_VFS_PATH},
     route_counters::{self, Field, RequestId},
     runtime::{
         release_unused_process_memory, CompiledPhpArtifact, LazyInterruptiblePhpArtifact,
@@ -170,6 +170,7 @@ struct WorkerPool {
     lazy: bool,
     log_stats: bool,
     dynamic_constants: Mutex<DynamicConstants>,
+    runtime_revision: Arc<AtomicU64>,
 }
 
 #[derive(Default)]
@@ -181,6 +182,9 @@ struct DynamicConstants {
 struct WorkerPoolShared {
     state: Mutex<WorkerPoolState>,
     worker_available: Condvar,
+    // Kept after `state` so PHP workers are dropped before their private preopen roots. Detached
+    // request, recycle, and reaper tasks all retain this shared allocation.
+    managed_directories: Mutex<Option<ManagedRuntimeDirectories>>,
 }
 
 struct WorkerPoolState {
@@ -207,6 +211,24 @@ enum WorkerSelection {
     Extra(Arc<Mutex<PhpWorker>>),
     Spawn,
     Wait,
+}
+
+enum WorkerCapacityLease {
+    Worker(WorkerLease),
+    SpawnReservation(Arc<WorkerPoolShared>),
+}
+
+impl Drop for WorkerCapacityLease {
+    fn drop(&mut self) {
+        match self {
+            Self::Worker(lease) => {
+                // Reading the retained lease makes the ownership role explicit; its own Drop
+                // implementation returns the withheld worker immediately afterward.
+                let _ = lease.worker();
+            }
+            Self::SpawnReservation(shared) => shared.release_spawn_reservation(),
+        }
+    }
 }
 
 enum WorkerAfterRequest {
@@ -256,6 +278,7 @@ impl WorkerPoolShared {
         let shared = Arc::new(Self {
             state: Mutex::new(WorkerPoolState::new(available_workers, created_workers)),
             worker_available: Condvar::new(),
+            managed_directories: Mutex::new(None),
         });
         if let Some(delay) = idle_retirement_delay {
             Self::start_idle_extra_reaper(&shared, delay);
@@ -400,12 +423,13 @@ impl WorkerPool {
         host_options: PhpWorkerOptions,
         max_workers: usize,
         lazy: bool,
+        managed_directories: Option<ManagedRuntimeDirectories>,
     ) -> Self {
         let created_workers = workers.len();
         let len = max_workers.max(created_workers).max(1);
         let mut workers = workers
             .into_iter()
-            .map(|php| Arc::new(Mutex::new(PhpWorker::new(php))));
+            .map(|php| Arc::new(Mutex::new(PhpWorker::new(php, 1))));
         let primary_worker = workers
             .next()
             .expect("worker pool is created with a primary PHP worker");
@@ -417,6 +441,10 @@ impl WorkerPool {
             created_workers,
             lazy_worker_idle_retirement_delay(lazy),
         );
+        *shared
+            .managed_directories
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = managed_directories;
         Self {
             primary_worker,
             shared,
@@ -429,6 +457,7 @@ impl WorkerPool {
             lazy,
             log_stats: env_flag("WP_PLAYGROUND_NATIVE_WORKER_STATS"),
             dynamic_constants: Mutex::new(DynamicConstants::default()),
+            runtime_revision: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -443,6 +472,24 @@ impl WorkerPool {
 
     fn acquire_cancellable(&self, cancellation: &AtomicBool) -> Result<Option<WorkerLease>> {
         self.acquire_inner(Some(cancellation))
+    }
+
+    fn acquire_capacity_cancellable(
+        &self,
+        cancellation: &AtomicBool,
+    ) -> Result<Option<WorkerCapacityLease>> {
+        let Some(selection) =
+            wait_for_worker_selection(&self.shared, self.lazy, self.len, Some(cancellation))?
+        else {
+            return Ok(None);
+        };
+        let lease = capacity_lease_from_selection(&self.shared, &self.primary_worker, selection);
+        if cancellation.load(Ordering::Acquire) {
+            drop(lease);
+            Ok(None)
+        } else {
+            Ok(Some(lease))
+        }
     }
 
     fn acquire_inner(&self, cancellation: Option<&AtomicBool>) -> Result<Option<WorkerLease>> {
@@ -462,6 +509,9 @@ impl WorkerPool {
                     return Ok(None);
                 }
                 let start = Instant::now();
+                // The revision must describe the configuration that existed when construction
+                // began. A concurrent php.ini update then makes checkout discard this instance.
+                let revision = current_runtime_revision(&self.runtime_revision);
                 let php = match PhpInstance::from_artifact_with_options(
                     self.php_artifact.clone(),
                     self.host_options.clone(),
@@ -478,7 +528,10 @@ impl WorkerPool {
                         start.elapsed().as_millis()
                     );
                 }
-                self.worker_lease(Arc::new(Mutex::new(PhpWorker::new(php))), WorkerKind::Extra)
+                self.worker_lease(
+                    Arc::new(Mutex::new(PhpWorker::new(php, revision))),
+                    WorkerKind::Extra,
+                )
             }
             WorkerSelection::Wait => unreachable!("worker selection waits internally"),
         };
@@ -499,6 +552,17 @@ impl WorkerPool {
     }
 
     fn recover_missing_php(&self, worker: &mut PhpWorker) -> Result<bool> {
+        let runtime_revision = current_runtime_revision(&self.runtime_revision);
+        if worker.runtime_revision != runtime_revision {
+            drop(worker.php.take());
+            drop(worker.stream_php.take());
+            worker.requests_handled = 0;
+            worker.recycle_scheduled = false;
+            worker.constants_revision = 0;
+            worker.stream_constants_revision = 0;
+            worker.runtime_revision = runtime_revision;
+            worker.stream_runtime_revision = runtime_revision;
+        }
         let recovered = recover_missing_value(&mut worker.php, || {
             PhpInstance::from_artifact_with_options(
                 self.php_artifact.clone(),
@@ -523,6 +587,12 @@ impl WorkerPool {
     }
 
     fn recover_missing_stream_php(&self, worker: &mut PhpWorker) -> Result<bool> {
+        let runtime_revision = current_runtime_revision(&self.runtime_revision);
+        if worker.stream_runtime_revision != runtime_revision {
+            drop(worker.stream_php.take());
+            worker.stream_constants_revision = 0;
+            worker.stream_runtime_revision = runtime_revision;
+        }
         let recovered = recover_missing_value(&mut worker.stream_php, || {
             PhpInstance::from_interruptible_artifact_with_options(
                 self.interruptible_php_artifact.get()?,
@@ -561,6 +631,23 @@ impl WorkerPool {
         Ok(())
     }
 
+    fn instantiate_cli(&self) -> Result<PhpInstance> {
+        let mut php = PhpInstance::from_cli_artifact_with_options(
+            self.interruptible_php_artifact.get()?,
+            self.host_options.clone(),
+        )?;
+        let constants = self
+            .dynamic_constants
+            .lock()
+            .map_err(|_| CliError::new("PHP dynamic constants lock was poisoned"))?;
+        php.define_constants(&constants.values);
+        Ok(php)
+    }
+
+    fn invalidate_runtime_configuration(&self) {
+        invalidate_runtime_revision(&self.runtime_revision);
+    }
+
     fn mark_request_finished(&self, worker: &mut PhpWorker) -> Result<WorkerAfterRequest> {
         mark_worker_request_finished(
             worker,
@@ -574,6 +661,7 @@ impl WorkerPool {
         let host_options = self.host_options.clone();
         let max_requests_per_worker = self.max_requests_per_worker;
         let log_stats = self.log_stats;
+        let runtime_revision = Arc::clone(&self.runtime_revision);
         let _ = spawn_worker_lease_task(worker_lease, move |worker_lease| {
             let mut sleep_for = worker_recycle_backoff(Duration::ZERO, recycle_idle_delay);
             loop {
@@ -594,6 +682,8 @@ impl WorkerPool {
                     return;
                 }
                 let start = Instant::now();
+                // Capture before construction for the same reason as lazy worker spawning.
+                let revision = current_runtime_revision(&runtime_revision);
                 drop(worker.php.take());
                 drop(worker.stream_php.take());
                 release_unused_process_memory();
@@ -607,6 +697,8 @@ impl WorkerPool {
                         worker.recycle_scheduled = false;
                         worker.constants_revision = 0;
                         worker.stream_constants_revision = 0;
+                        worker.runtime_revision = revision;
+                        worker.stream_runtime_revision = revision;
                         drop(worker);
                         if lock_was_poisoned {
                             worker_lease.worker().clear_poison();
@@ -631,6 +723,37 @@ impl WorkerPool {
                 return;
             }
         });
+    }
+}
+
+fn current_runtime_revision(revision: &AtomicU64) -> u64 {
+    revision.load(Ordering::Acquire)
+}
+
+fn invalidate_runtime_revision(revision: &AtomicU64) {
+    revision.fetch_add(1, Ordering::AcqRel);
+}
+
+fn capacity_lease_from_selection(
+    shared: &Arc<WorkerPoolShared>,
+    primary_worker: &Arc<Mutex<PhpWorker>>,
+    selection: WorkerSelection,
+) -> WorkerCapacityLease {
+    let worker_lease = |worker, kind| {
+        WorkerCapacityLease::Worker(WorkerLease {
+            worker: Some(worker),
+            shared: Arc::clone(shared),
+            kind,
+        })
+    };
+    match selection {
+        WorkerSelection::Primary => worker_lease(Arc::clone(primary_worker), WorkerKind::Primary),
+        WorkerSelection::Extra(worker) => worker_lease(worker, WorkerKind::Extra),
+        // Lazy capacity is already reserved by `select_worker`. CLI needs a fresh CLI-mode
+        // component, so constructing an unused HTTP-mode component here would only double startup
+        // work and memory.
+        WorkerSelection::Spawn => WorkerCapacityLease::SpawnReservation(Arc::clone(shared)),
+        WorkerSelection::Wait => unreachable!("worker selection waits internally"),
     }
 }
 
@@ -793,10 +916,12 @@ struct PhpWorker {
     recycle_scheduled: bool,
     constants_revision: u64,
     stream_constants_revision: u64,
+    runtime_revision: u64,
+    stream_runtime_revision: u64,
 }
 
 impl PhpWorker {
-    fn new(php: PhpInstance) -> Self {
+    fn new(php: PhpInstance, runtime_revision: u64) -> Self {
         Self {
             php: Some(php),
             stream_php: None,
@@ -805,6 +930,8 @@ impl PhpWorker {
             recycle_scheduled: false,
             constants_revision: 0,
             stream_constants_revision: 0,
+            runtime_revision,
+            stream_runtime_revision: runtime_revision,
         }
     }
 
@@ -1154,7 +1281,7 @@ pub fn run_native_server_with_control(
     progress(&config.options, "Preparing mounts");
     let mut mounts = server_mounts(config)?;
     let _document_root = ensure_wordpress_mount(&mut mounts)?;
-    ensure_tmp_mount(&mut mounts)?;
+    let managed_directories = prepare_managed_runtime_mounts(&mut mounts)?;
     progress(&config.options, "Preparing WordPress files");
     let prepared = prepare_wordpress(runtime.repo_root(), &config.options, &mounts)?;
     if !prepared.installed_files_available
@@ -1183,7 +1310,14 @@ pub fn run_native_server_with_control(
         mounts: mounts.to_vec(),
         ..PhpWorkerOptions::default()
     };
-    run_listener(config, &mounts, runtime, host_options, control)
+    run_listener(
+        config,
+        &mounts,
+        runtime,
+        host_options,
+        control,
+        managed_directories,
+    )
 }
 
 fn progress(options: &CliOptions, message: impl AsRef<str>) {
@@ -1278,26 +1412,184 @@ fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
     Ok(mounts)
 }
 
-pub(crate) fn ensure_tmp_mount(mounts: &mut Vec<Mount>) -> Result<()> {
-    if let Some(mount) = mounts.iter().find(|mount| mount.vfs_path == "/tmp") {
-        fs::create_dir_all(&mount.host_path).map_err(|error| {
+pub(crate) struct ManagedRuntimeDirectories {
+    paths: Vec<PathBuf>,
+}
+
+impl Drop for ManagedRuntimeDirectories {
+    fn drop(&mut self) {
+        for path in self.paths.iter().rev() {
+            let _ = fs::remove_dir_all(path);
+        }
+    }
+}
+
+fn ensure_runtime_managed_mounts(mounts: &mut Vec<Mount>) -> Result<ManagedRuntimeDirectories> {
+    for reserved in ["/tmp", "/internal/shared"] {
+        if mounts.iter().any(|mount| {
+            mount.vfs_path == reserved
+                || (mount.host_path.is_dir()
+                    && mount
+                        .vfs_path
+                        .strip_prefix(reserved)
+                        .is_some_and(|relative| relative.starts_with('/')))
+        }) {
+            return Err(CliError::new(format!(
+                "{reserved} is reserved for the native PHP runtime; only file mounts below it are allowed"
+            )));
+        }
+    }
+    let mut managed = ManagedRuntimeDirectories { paths: Vec::new() };
+    for (label, vfs_path) in [("tmp", "/tmp"), ("internal-shared", "/internal/shared")] {
+        let host_path = create_private_server_directory(label)?;
+        let mount = Mount::new(host_path, vfs_path)?;
+        managed.paths.push(mount.host_path.clone());
+        mounts.push(mount);
+    }
+    Ok(managed)
+}
+
+fn create_private_server_directory(label: &str) -> Result<PathBuf> {
+    for attempt in 0..128u64 {
+        let host_path = std::env::temp_dir().join(format!(
+            "wp-playground-native-{label}-{}-{}-{attempt}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        let builder = {
+            use std::os::unix::fs::DirBuilderExt;
+            let mut builder = builder;
+            builder.mode(0o700);
+            builder
+        };
+        match builder.create(&host_path) {
+            Ok(()) => return Ok(host_path),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(CliError::new(format!(
+        "Failed to allocate a private {label} directory"
+    )))
+}
+
+pub(crate) fn prepare_managed_runtime_mounts(
+    mounts: &mut Vec<Mount>,
+) -> Result<ManagedRuntimeDirectories> {
+    let managed_directories = ensure_runtime_managed_mounts(mounts)?;
+    stage_managed_file_mounts(mounts, &managed_directories)?;
+    Ok(managed_directories)
+}
+
+fn stage_managed_file_mounts(
+    mounts: &mut Vec<Mount>,
+    managed_directories: &ManagedRuntimeDirectories,
+) -> Result<()> {
+    let mut staged = Vec::new();
+    for (index, mount) in mounts.iter().enumerate() {
+        if !mount.host_path.is_file()
+            || !(mount.vfs_path.starts_with("/tmp/")
+                || mount.vfs_path.starts_with("/internal/shared/"))
+        {
+            continue;
+        }
+        let managed_vfs_root = if mount.vfs_path.starts_with("/tmp/") {
+            "/tmp"
+        } else {
+            "/internal/shared"
+        };
+        let parent = mounts
+            .iter()
+            .find(|candidate| {
+                candidate.vfs_path == managed_vfs_root
+                    && managed_directories.paths.contains(&candidate.host_path)
+            })
+            .and_then(|candidate| {
+                let relative = mount
+                    .vfs_path
+                    .strip_prefix(candidate.vfs_path.as_str())?
+                    .strip_prefix('/')?;
+                Some((
+                    candidate.host_path.clone(),
+                    candidate.host_path.join(relative),
+                ))
+            })
+            .ok_or_else(|| {
+                CliError::new(format!(
+                    "File mount {} has no managed parent directory mount",
+                    mount.vfs_path
+                ))
+            })?;
+        create_staging_parents_no_symlinks(
+            &parent.0,
+            parent
+                .1
+                .parent()
+                .ok_or_else(|| CliError::new("Managed file mount has no parent"))?,
+        )?;
+        let mut source = fs::File::open(&mount.host_path)?;
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut destination = options.open(&parent.1).map_err(|error| {
             CliError::new(format!(
-                "Failed to create temporary mount directory {}: {error}",
-                mount.host_path.display()
+                "Failed to stage file mount {} at {}: {error}",
+                mount.host_path.display(),
+                mount.vfs_path
             ))
         })?;
-        return Ok(());
+        io::copy(&mut source, &mut destination)?;
+        staged.push(index);
     }
+    for index in staged.into_iter().rev() {
+        mounts.remove(index);
+    }
+    Ok(())
+}
 
-    let path = std::env::temp_dir().join(format!(
-        "wp-playground-native-tmp-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    fs::create_dir_all(&path)?;
-    mounts.push(Mount::new(path, "/tmp")?);
+fn create_staging_parents_no_symlinks(root: &Path, parent: &Path) -> Result<()> {
+    let relative = parent.strip_prefix(root).map_err(|_| {
+        CliError::new(format!(
+            "Managed file mount destination {} escapes {}",
+            parent.display(),
+            root.display()
+        ))
+    })?;
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        let std::path::Component::Normal(segment) = component else {
+            return Err(CliError::new("Managed file mount path is unsafe"));
+        };
+        current.push(segment);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(CliError::new(format!(
+                    "Refusing to stage a file mount through symlink {}",
+                    current.display()
+                )))
+            }
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => {
+                return Err(CliError::new(format!(
+                    "Managed file mount parent {} is not a directory",
+                    current.display()
+                )))
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                fs::create_dir(&current)?;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
     Ok(())
 }
 
@@ -1330,6 +1622,7 @@ fn create_worker_pool(
     primary: PhpInstance,
     worker_count: usize,
     lazy_workers: bool,
+    managed_directories: ManagedRuntimeDirectories,
 ) -> Result<WorkerPool> {
     let worker_count = worker_count.clamp(1, MAX_WORKERS);
     let php_artifact = runtime.php_artifact(php_version)?;
@@ -1348,6 +1641,7 @@ fn create_worker_pool(
         host_options,
         worker_count,
         lazy_workers,
+        Some(managed_directories),
     ))
 }
 
@@ -1357,6 +1651,7 @@ fn run_listener(
     runtime: &NativeRuntime,
     mut host_options: PhpWorkerOptions,
     control_options: Option<ControlOptions>,
+    managed_directories: ManagedRuntimeDirectories,
 ) -> Result<u8> {
     progress(&config.options, "Binding HTTP server");
     let listener = bind_server_listener(config.options.port)?;
@@ -1441,6 +1736,7 @@ fn run_listener(
         php,
         worker_count,
         lazy_workers,
+        managed_directories,
     )?);
     release_unused_process_memory();
     let mounts = Arc::new(mounts.to_vec());
@@ -1618,6 +1914,11 @@ fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
         )
     });
 
+    let cli_worker_pool = Arc::clone(&worker_pool);
+    let cli = Arc::new(move |request, emitter, cancellation| {
+        handle_control_cli_request(request, &cli_worker_pool, emitter, cancellation)
+    });
+
     let resolve_mounts = Arc::clone(&mounts);
     let resolve_path = Arc::new(move |vfs_path: &str| {
         host_path_for_vfs_path_with_symlink_policy(
@@ -1635,6 +1936,13 @@ fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
     let constant_worker_pool = Arc::clone(&worker_pool);
     let define_constant =
         Arc::new(move |name, value| constant_worker_pool.define_constant(name, value));
+    let file_change_worker_pool = Arc::clone(&worker_pool);
+    let file_changed = Arc::new(move |path: &str| {
+        if path == PHP_INI_VFS_PATH {
+            file_change_worker_pool.invalidate_runtime_configuration();
+        }
+        Ok(())
+    });
 
     ControlBackend {
         server_url: server_url.to_string(),
@@ -1644,9 +1952,56 @@ fn control_backend(config: ControlBackendConfig<'_>) -> ControlBackend {
         request,
         run,
         stream,
+        cli,
         resolve_path,
         define_constant,
+        file_changed,
     }
+}
+
+fn handle_control_cli_request(
+    request: ControlCliRequest,
+    worker_pool: &WorkerPool,
+    emitter: ControlStreamEmitter,
+    cancellation: Arc<AtomicBool>,
+) -> Result<ControlStreamResponse> {
+    let Some(_worker_slot) = worker_pool.acquire_capacity_cancellable(&cancellation)? else {
+        return Err(CliError::new(
+            "Native PHP CLI was cancelled while waiting for a worker slot",
+        ));
+    };
+    if cancellation.load(Ordering::Acquire) {
+        return Err(CliError::new("Native PHP CLI was cancelled"));
+    }
+    let mut php = worker_pool.instantiate_cli()?;
+    let stream_emitter = Arc::clone(&emitter);
+    let sink: Wasip2PhpStreamSink = Arc::new(move |event| {
+        let event = match event {
+            Wasip2PhpStreamEvent::Headers {
+                http_status,
+                headers,
+            } => ControlStreamEvent::Headers {
+                status: http_status,
+                headers: parse_php_headers(http_status, &headers).headers,
+            },
+            Wasip2PhpStreamEvent::Output { channel, bytes } => ControlStreamEvent::Output {
+                channel: match channel {
+                    Wasip2PhpOutputChannel::Stdout => ControlStreamChannel::Stdout,
+                    Wasip2PhpOutputChannel::Stderr => ControlStreamChannel::Stderr,
+                },
+                bytes,
+            },
+        };
+        stream_emitter(event).map_err(wasmtime::Error::msg)
+    });
+    let exit_code = php.run_cli_streamed(
+        &request.argv,
+        &request.env,
+        Some(&request.cwd),
+        sink,
+        cancellation,
+    )?;
+    Ok(ControlStreamResponse { exit_code })
 }
 
 struct ControlStreamRequestConfig<'a> {
@@ -10188,7 +10543,7 @@ mod tests {
         net::{TcpListener, TcpStream},
         path::{Path, PathBuf},
         sync::{
-            atomic::{AtomicBool, Ordering},
+            atomic::{AtomicBool, AtomicU64, Ordering},
             mpsc, Arc, Mutex,
         },
         thread::{self, JoinHandle},
@@ -10197,16 +10552,17 @@ mod tests {
 
     use super::{
         asset_folder_name_from_zip_filename, auto_login_username,
-        bind_server_listener_with_default, boot_wordpress_site, capped_cpu_workers_minus_one,
-        clear_auto_login_cookie_response, control_run_script_name, cpu_workers_minus_one,
+        bind_server_listener_with_default, boot_wordpress_site, capacity_lease_from_selection,
+        capped_cpu_workers_minus_one, clear_auto_login_cookie_response, control_run_script_name,
+        cpu_workers_minus_one, create_private_server_directory, current_runtime_revision,
         decode_chunked_body_with_limit, define_wp_config_consts_script, directory_zip_name,
-        discard_instance_on_execution_error, ensure_tmp_mount, extract_scope_path,
-        filename_from_url, git_archive_bytes_to_file_tree, git_archive_download_url,
-        git_archive_supported_host, host_path_for_vfs_path, http_response_bytes,
-        http_response_head_bytes_with_body_len, import_theme_starter_content_script,
-        import_wordpress_files_replace_files, import_wordpress_files_rewrite_scope_script,
-        import_wxr_script, inject_http_host_into_wp_config, install_asset_zip,
-        install_downloadable_asset, install_plugin_asset, is_client_disconnect_error,
+        discard_instance_on_execution_error, extract_scope_path, filename_from_url,
+        git_archive_bytes_to_file_tree, git_archive_download_url, git_archive_supported_host,
+        host_path_for_vfs_path, http_response_bytes, http_response_head_bytes_with_body_len,
+        import_theme_starter_content_script, import_wordpress_files_replace_files,
+        import_wordpress_files_rewrite_scope_script, import_wxr_script,
+        inject_http_host_into_wp_config, install_asset_zip, install_downloadable_asset,
+        install_plugin_asset, invalidate_runtime_revision, is_client_disconnect_error,
         lazy_worker_idle_retirement_delay, lazy_worker_idle_timeout_from_env,
         lazy_worker_pool_enabled, lock_worker_for_recycle, lock_worker_for_request,
         looks_like_zip_file, mark_worker_request_finished, max_requests_per_worker_from_env,
@@ -10232,14 +10588,14 @@ mod tests {
         write_server_http_response_with_counter, write_static_file_response,
         write_wordpress_snapshot_zip, zip_path_to_string, DefineWpConfigMethod, DownloadableAsset,
         FileContentSource, FileTreeEntry, FileTreeSource, GitDirectoryResource, HttpRequest,
-        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep, PhpConstantValue,
-        PhpRunOptions, PhpRunScript, PhpWorker, RequestServerContext, RequestTotalRequest,
-        RouteTarget, ServerHttpResponse, StartupHttpRequest, StartupStep, WorkerAfterRequest,
-        WorkerKind, WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection,
-        AUTO_LOGIN_COOKIE_NAME, CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT,
-        DEFAULT_MAX_REQUESTS_PER_WORKER, DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR,
-        MAX_REQUESTS_PER_WORKER_ENV_VAR, WORKER_RECYCLE_IDLE_DELAY,
-        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        HttpResponse, IfAlreadyInstalled, InstallAssetSource, InstallAssetStep,
+        ManagedRuntimeDirectories, PhpConstantValue, PhpRunOptions, PhpRunScript, PhpWorker,
+        RequestServerContext, RequestTotalRequest, RouteTarget, ServerHttpResponse,
+        StartupHttpRequest, StartupStep, WorkerAfterRequest, WorkerCapacityLease, WorkerKind,
+        WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection, AUTO_LOGIN_COOKIE_NAME,
+        CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT, DEFAULT_MAX_REQUESTS_PER_WORKER,
+        DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR, MAX_REQUESTS_PER_WORKER_ENV_VAR,
+        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -11679,22 +12035,6 @@ mod tests {
     }
 
     #[test]
-    fn adds_writable_tmp_mount_when_missing() {
-        let mut mounts = Vec::new();
-
-        ensure_tmp_mount(&mut mounts).unwrap();
-
-        let tmp = mounts
-            .iter()
-            .find(|mount| mount.vfs_path == "/tmp")
-            .unwrap()
-            .host_path
-            .clone();
-        assert!(tmp.is_dir());
-        let _ = fs::remove_dir_all(tmp);
-    }
-
-    #[test]
     fn resolves_requested_worker_count() {
         let cwd = temp_dir("workers");
         let default = parse_cli_args_from(vec!["server".to_string()], &cwd).unwrap();
@@ -11972,6 +12312,44 @@ mod tests {
     }
 
     #[test]
+    fn runtime_revision_invalidates_pre_update_leases_without_serializing_requests() {
+        let revision = AtomicU64::new(1);
+        let lease_before_update = current_runtime_revision(&revision);
+
+        invalidate_runtime_revision(&revision);
+
+        let lease_after_update = current_runtime_revision(&revision);
+        assert_ne!(lease_before_update, lease_after_update);
+        assert_eq!(lease_after_update, 2);
+
+        let mut stale_worker = retained_worker(0, false);
+        stale_worker.runtime_revision = lease_before_update;
+        stale_worker.stream_runtime_revision = lease_before_update;
+        assert_ne!(stale_worker.runtime_revision, lease_after_update);
+        assert_ne!(stale_worker.stream_runtime_revision, lease_after_update);
+
+        let fresh_construction_revision = current_runtime_revision(&revision);
+        assert_eq!(fresh_construction_revision, lease_after_update);
+    }
+
+    #[test]
+    fn managed_server_directories_live_until_the_last_shared_worker_task_drops() {
+        let path = create_private_server_directory("lifetime-test").unwrap();
+        let shared = WorkerPoolShared::new(Vec::new(), 1, None);
+        *shared.managed_directories.lock().unwrap() = Some(ManagedRuntimeDirectories {
+            paths: vec![path.clone()],
+        });
+        let detached_task_owner = Arc::clone(&shared);
+
+        shared.shutdown();
+        drop(shared);
+        assert!(path.is_dir());
+
+        drop(detached_task_owner);
+        assert!(!path.exists());
+    }
+
+    #[test]
     fn concurrent_requests_select_distinct_workers_without_authentication_reservation() {
         let extra_worker = Arc::new(Mutex::new(retained_worker(0, false)));
         let mut state = WorkerPoolState::new(vec![Arc::clone(&extra_worker)], 2);
@@ -11987,6 +12365,62 @@ mod tests {
             }
             _ => panic!("a concurrent request should use the available extra worker"),
         }
+    }
+
+    #[test]
+    fn lazy_cli_capacity_reserves_without_spawning_an_http_worker_and_cancels_waiters() {
+        let shared = WorkerPoolShared::new(Vec::new(), 1, None);
+        let primary = Arc::new(Mutex::new(retained_worker(0, false)));
+
+        let first = capacity_lease_from_selection(
+            &shared,
+            &primary,
+            wait_for_worker_selection(&shared, true, 2, None)
+                .unwrap()
+                .unwrap(),
+        );
+        assert!(matches!(first, WorkerCapacityLease::Worker(_)));
+
+        let second = capacity_lease_from_selection(
+            &shared,
+            &primary,
+            wait_for_worker_selection(&shared, true, 2, None)
+                .unwrap()
+                .unwrap(),
+        );
+        assert!(matches!(second, WorkerCapacityLease::SpawnReservation(_)));
+        {
+            let state = shared.state.lock().unwrap();
+            assert_eq!(state.created_workers, 2);
+            assert!(state.available_workers.is_empty());
+            assert!(!state.primary_available);
+        }
+
+        let cancellation = Arc::new(AtomicBool::new(false));
+        let waiter_shared = Arc::clone(&shared);
+        let waiter_cancellation = Arc::clone(&cancellation);
+        let waiter = thread::spawn(move || {
+            wait_for_worker_selection(&waiter_shared, true, 2, Some(waiter_cancellation.as_ref()))
+        });
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            if shared.state.lock().unwrap().waiting_workers == 1 {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "CLI capacity waiter did not queue"
+            );
+            thread::yield_now();
+        }
+        cancellation.store(true, Ordering::Release);
+        assert!(waiter.join().unwrap().unwrap().is_none());
+
+        drop(second);
+        assert_eq!(shared.state.lock().unwrap().created_workers, 1);
+        drop(first);
+        assert!(shared.state.lock().unwrap().primary_available);
+        shared.shutdown();
     }
 
     #[test]
@@ -12291,6 +12725,8 @@ mod tests {
             recycle_scheduled,
             constants_revision: 0,
             stream_constants_revision: 0,
+            runtime_revision: 1,
+            stream_runtime_revision: 1,
         }
     }
 

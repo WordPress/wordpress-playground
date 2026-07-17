@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WordPress Playground <playground@wordpress.org>
+Date: Fri, 17 Jul 2026 00:00:00 +0000
+Subject: [PATCH] Expose the real CLI SAPI to the component
+
+The component invokes PHP's CLI entry point as a library function. Keep the
+normal standalone executable behavior unchanged while giving the component a
+named entry point which returns its exit status instead of terminating the
+WASI instance.
+---
+ sapi/cli/php_cli.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/sapi/cli/php_cli.c b/sapi/cli/php_cli.c
+--- a/sapi/cli/php_cli.c
++++ b/sapi/cli/php_cli.c
+@@ -1154,11 +1154,15 @@
+ /* }}} */
+ 
+ /* {{{ main */
++#ifdef PHP_WASI_COMPONENT_CLI
++int wordpress_php_wasi_cli_main(int argc, char *argv[])
++#else
+ #ifdef PHP_CLI_WIN32_NO_CONSOLE
+ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+ #else
+ int main(int argc, char *argv[])
+ #endif
++#endif
+ {
+ #if defined(PHP_WIN32)
+ # ifdef PHP_CLI_WIN32_NO_CONSOLE
+@@ -1367,6 +1371,13 @@
+ 	 * exiting.
+ 	 */
+ 	cleanup_ps_args(argv);
++#ifdef PHP_WASI_COMPONENT_CLI
++	if (fflush(NULL) == EOF && exit_status == SUCCESS) {
++		exit_status = 1;
++	}
++	return exit_status;
++#else
+ 	exit(exit_status);
++#endif
+ }
+ /* }}} */
+-- 
+2.39.5

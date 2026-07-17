@@ -22,6 +22,10 @@ const MAX_STREAM_LINE_BYTES = 96 * 1024;
 const STREAM_MEMORY_FRAME_LIMIT = 8;
 const STREAM_FILE_READ_SIZE = 64 * 1024;
 const STREAM_SPOOL_PREFIX = 'wp-playground-native-stream-';
+const MAX_CLI_ARG_COUNT = 4_096;
+const MAX_CLI_ENV_COUNT = 4_096;
+const MAX_CLI_ENTRY_BYTES = 1024 * 1024;
+const MAX_CLI_TOTAL_BYTES = 8 * 1024 * 1024;
 
 const activeSpoolDirectories = new Set<string>();
 process.once('exit', () => {
@@ -228,6 +232,17 @@ export class NativeControlClient {
 	}
 
 	async requestStream(params: unknown): Promise<NativeStreamedPHPResponse> {
+		return this.#stream('requestStreamed', params);
+	}
+
+	async cli(params: unknown): Promise<NativeStreamedPHPResponse> {
+		return this.#stream('cli', params);
+	}
+
+	async #stream(
+		method: 'requestStreamed' | 'cli',
+		params: unknown
+	): Promise<NativeStreamedPHPResponse> {
 		this.#assertOpen();
 		const id = this.#nextId++;
 		const controller = new AbortController();
@@ -240,7 +255,7 @@ export class NativeControlClient {
 				body: JSON.stringify({
 					protocolVersion: CONTROL_PROTOCOL_VERSION,
 					id,
-					method: 'requestStreamed',
+					method,
 					params: encodeBinary(params),
 				}),
 				signal: controller.signal,
@@ -253,18 +268,18 @@ export class NativeControlClient {
 					: NativeCLIErrorCode.Protocol,
 				controller.signal.aborted
 					? 'Native streamed request was aborted.'
-					: 'Native streamed request failed.',
-				{ cause, details: { rpcMethod: 'requestStreamed' } }
+					: `Native ${method} stream failed.`,
+				{ cause, details: { rpcMethod: method } }
 			);
 		}
 		if (!response.ok) {
 			this.#streamControllers.delete(id);
-			throw await responseError(response, 'requestStreamed', this.#token);
+			throw await responseError(response, method, this.#token);
 		}
 		if (!response.body) {
 			this.#streamControllers.delete(id);
 			throw protocolError('Native streamed response has no body.', {
-				rpcMethod: 'requestStreamed',
+				rpcMethod: method,
 			});
 		}
 		const contentType = response.headers.get('content-type') ?? '';
@@ -272,7 +287,7 @@ export class NativeControlClient {
 			controller.abort();
 			this.#streamControllers.delete(id);
 			throw protocolError('Native streamed response is not NDJSON.', {
-				rpcMethod: 'requestStreamed',
+				rpcMethod: method,
 			});
 		}
 		const cancel = async () => {
@@ -285,7 +300,8 @@ export class NativeControlClient {
 			id,
 			cancel,
 			() => this.#streamControllers.delete(id),
-			(message) => sanitizeMessage(message, this.#token)
+			(message) => sanitizeMessage(message, this.#token),
+			method
 		);
 	}
 
@@ -353,6 +369,7 @@ export class NativeControlClient {
 type SupportedMethod =
 	| 'request'
 	| 'requestStreamed'
+	| 'cli'
 	| 'run'
 	| 'mkdir'
 	| 'mkdirTree'
@@ -375,6 +392,7 @@ type SupportedMethod =
 const supportedMethods = new Set<SupportedMethod>([
 	'request',
 	'requestStreamed',
+	'cli',
 	'run',
 	'mkdir',
 	'mkdirTree',
@@ -396,7 +414,6 @@ const supportedMethods = new Set<SupportedMethod>([
 ]);
 
 const unsupportedMethods = new Set([
-	'cli',
 	'onMessage',
 	'boot',
 	'exit',
@@ -483,6 +500,7 @@ async function callPlaygroundMethod(
 ): Promise<unknown> {
 	const params = await playgroundParams(client, method, args);
 	if (method === 'requestStreamed') return client.requestStream(params);
+	if (method === 'cli') return client.cli(params);
 	const result = await client.call(method, params);
 	if (method === 'request')
 		return NativePHPResponse.fromRequestResult(result);
@@ -518,6 +536,7 @@ async function playgroundParams(
 	method: SupportedMethod,
 	args: unknown[]
 ): Promise<unknown> {
+	if (method === 'cli') return cliParams(args);
 	if (method === 'request' || method === 'requestStreamed') {
 		assertArgumentCount(method, args, 1);
 		const params = asRecord(args[0]);
@@ -666,6 +685,197 @@ async function playgroundParams(
 	}
 	assertArgumentCount(method, args, 0);
 	return {};
+}
+
+function cliParams(args: unknown[]): {
+	argv: string[];
+	env: Record<string, string>;
+	cwd?: string;
+} {
+	try {
+		return snapshotCliParams(args);
+	} catch (cause) {
+		if (cause instanceof NativeCLIError) throw cause;
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'cli inputs could not be inspected safely.',
+			{ cause }
+		);
+	}
+}
+
+function snapshotCliParams(args: unknown[]): {
+	argv: string[];
+	env: Record<string, string>;
+	cwd?: string;
+} {
+	assertArgumentRange('cli', args, 1, 2);
+	const argv = snapshotCliStringArray(args[0], 'cli argv');
+	if (argv.length === 0)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'cli argv must not be empty.'
+		);
+	if (argv.length > MAX_CLI_ARG_COUNT)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`cli argv must not contain more than ${MAX_CLI_ARG_COUNT} entries.`
+		);
+	if ((argv[0]!.split(/[\\/]/).pop() ?? '') !== 'php')
+		throw new NativeCLIError(
+			NativeCLIErrorCode.Unsupported,
+			'The native cli() implementation supports the php command only.'
+		);
+
+	const options =
+		args[1] === undefined
+			? Object.create(null)
+			: snapshotCliRecord(args[1], 'cli options', ['env', 'cwd']);
+	const env: Record<string, string> =
+		options['env'] === undefined
+			? Object.create(null)
+			: snapshotCliEnvironment(options['env']);
+	const cwd = options['cwd'];
+	if (cwd !== undefined && (typeof cwd !== 'string' || cwd.length === 0))
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			'cli cwd must be a non-empty string.'
+		);
+
+	let totalBytes = 0;
+	const account = (value: string, description: string) => {
+		if (value.includes('\0'))
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${description} must not contain NUL bytes.`
+			);
+		const bytes = Buffer.byteLength(value, 'utf8');
+		if (bytes > MAX_CLI_ENTRY_BYTES)
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${description} must not exceed ${MAX_CLI_ENTRY_BYTES} bytes.`
+			);
+		totalBytes += bytes;
+		if (totalBytes > MAX_CLI_TOTAL_BYTES)
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`cli argv, env, and cwd must not exceed ${MAX_CLI_TOTAL_BYTES} bytes in total.`
+			);
+	};
+	for (const argument of argv) account(argument, 'cli argv entry');
+	for (const [name, value] of Object.entries(env)) {
+		account(name, 'cli environment name');
+		account(value, 'cli environment value');
+	}
+	if (typeof cwd === 'string') account(cwd, 'cli cwd');
+	return { argv, env, ...(typeof cwd === 'string' ? { cwd } : {}) };
+}
+
+function snapshotCliStringArray(value: unknown, description: string): string[] {
+	if (
+		!Array.isArray(value) ||
+		Object.getPrototypeOf(value) !== Array.prototype
+	)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`${description} must be an ordinary dense array.`
+		);
+	const keys = Reflect.ownKeys(value);
+	if (
+		keys.length !== value.length + 1 ||
+		!keys.includes('length') ||
+		keys.some(
+			(key) =>
+				typeof key !== 'string' ||
+				(key !== 'length' &&
+					(!/^(0|[1-9]\d*)$/.test(key) ||
+						Number(key) >= value.length))
+		)
+	)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`${description} must be dense and must not contain extra properties.`
+		);
+	const result: string[] = [];
+	for (let index = 0; index < value.length; index++) {
+		const descriptor = Object.getOwnPropertyDescriptor(
+			value,
+			String(index)
+		);
+		if (
+			!descriptor ||
+			!('value' in descriptor) ||
+			typeof descriptor.value !== 'string'
+		)
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${description} entries must be own string data properties.`
+			);
+		result.push(descriptor.value);
+	}
+	return result;
+}
+
+function snapshotCliRecord(
+	value: unknown,
+	description: string,
+	allowed: readonly string[] | null
+): Record<string, unknown> {
+	if (typeof value !== 'object' || value === null || Array.isArray(value))
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`${description} must be a plain object.`
+		);
+	const prototype = Object.getPrototypeOf(value);
+	if (prototype !== Object.prototype && prototype !== null)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`${description} must be a plain object.`
+		);
+	const result = Object.create(null) as Record<string, unknown>;
+	for (const key of Reflect.ownKeys(value)) {
+		if (
+			typeof key !== 'string' ||
+			(allowed !== null && !allowed.includes(key))
+		)
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${description} contains an unsupported property.`
+			);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor || !('value' in descriptor))
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				`${description} properties must be own data properties.`
+			);
+		result[key] = descriptor.value;
+	}
+	return result;
+}
+
+function snapshotCliEnvironment(value: unknown): Record<string, string> {
+	const source = snapshotCliRecord(value, 'cli env', null);
+	const entries = Object.entries(source);
+	if (entries.length > MAX_CLI_ENV_COUNT)
+		throw new NativeCLIError(
+			NativeCLIErrorCode.InvalidRequest,
+			`cli env must not contain more than ${MAX_CLI_ENV_COUNT} entries.`
+		);
+	const env = Object.create(null) as Record<string, string>;
+	for (const [name, value] of entries) {
+		if (name.length === 0 || name.includes('='))
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				"cli environment names must be non-empty and must not contain '='."
+			);
+		if (typeof value !== 'string')
+			throw new NativeCLIError(
+				NativeCLIErrorCode.InvalidRequest,
+				'cli environment values must be strings.'
+			);
+		env[name] = value;
+	}
+	return env;
 }
 
 async function normalizeRequestPath(
@@ -1471,7 +1681,8 @@ export class NativeStreamedPHPResponse {
 		id: number,
 		cancel: () => Promise<void>,
 		onFinished: () => void,
-		redact: (message: string) => string
+		redact: (message: string) => string,
+		rpcMethod: 'requestStreamed' | 'cli' = 'requestStreamed'
 	): NativeStreamedPHPResponse {
 		const headerResult = deferred<{
 			headers: Record<string, string[]>;
@@ -1513,7 +1724,8 @@ export class NativeStreamedPHPResponse {
 			stderr,
 			headerResult,
 			exitResult,
-			redact
+			redact,
+			rpcMethod
 		)
 			.then(() => {
 				active = false;
@@ -1604,7 +1816,8 @@ async function pumpStreamFrames(
 		httpStatusCode: number;
 	}>,
 	exitCode: Deferred<number>,
-	redact: (message: string) => string
+	redact: (message: string) => string,
+	rpcMethod: 'requestStreamed' | 'cli'
 ): Promise<void> {
 	let sawHeaders = false;
 	let sawTerminal = false;
@@ -1622,7 +1835,7 @@ async function pumpStreamFrames(
 			terminalError = new NativeCLIError(
 				asNativeCLIErrorCode(frame.error.code),
 				redact(frame.error.message),
-				{ details: { rpcMethod: 'requestStreamed' } }
+				{ details: { rpcMethod } }
 			);
 			continue;
 		}

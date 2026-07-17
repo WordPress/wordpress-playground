@@ -12,9 +12,9 @@ use crate::{
     php_runtime_files::PhpConstantValue,
     runtime::{NativeRuntime, WasmEngineProfile},
     server::{
-        ensure_tmp_mount, maybe_boot_wordpress_site, run_native_server_with_control,
+        maybe_boot_wordpress_site, prepare_managed_runtime_mounts, run_native_server_with_control,
         run_startup_steps, startup_steps_from_options,
-        write_wordpress_snapshot_zip_with_symlink_policy, SymlinkPolicy,
+        write_wordpress_snapshot_zip_with_symlink_policy, ManagedRuntimeDirectories, SymlinkPolicy,
     },
     terminal::TerminalStyle,
     wordpress::{
@@ -84,9 +84,10 @@ fn progress(options: &CliOptions, message: impl AsRef<str>) {
 }
 
 fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Result<u8> {
-    let mounts = php_mounts(options)?;
+    let managed_mounts = php_mounts(options)?;
+    let mounts = &managed_mounts.mounts;
     progress(options, "Preparing WordPress files");
-    let prepared = prepare_wordpress(runtime.repo_root(), options, &mounts)?;
+    let prepared = prepare_wordpress(runtime.repo_root(), options, mounts)?;
     if !prepared.installed_files_available {
         return Err(CliError::new(format!(
             "WordPress files are not available in {}",
@@ -103,7 +104,7 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
-    let mut worker_options = php_worker_options_for_mounts(options, &mounts, &site_url);
+    let mut worker_options = php_worker_options_for_mounts(options, mounts, &site_url);
 
     let startup_steps = startup_steps_from_options(options)?;
     progress(options, format!("Loading PHP {} runtime", options.php));
@@ -111,7 +112,7 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
         runtime.instantiate_php_worker_with_options(&options.php, worker_options.clone())?;
     if should_boot_wordpress_for_php(options) {
         progress(options, "Preparing WordPress database");
-        maybe_boot_wordpress_site(&mounts, &mut php, port, options)?;
+        maybe_boot_wordpress_site(mounts, &mut php, port, options)?;
         progress(options, "WordPress database ready");
     }
     if !startup_steps.is_empty() {
@@ -122,7 +123,7 @@ fn run_blueprint_command(runtime: &NativeRuntime, options: &CliOptions) -> Resul
     }
     run_startup_steps(
         &startup_steps,
-        &mounts,
+        mounts,
         &mut php,
         port,
         &mut worker_options,
@@ -139,9 +140,10 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
         .outfile
         .as_ref()
         .ok_or_else(|| CliError::new("The build-snapshot command requires --outfile"))?;
-    let mounts = php_mounts(options)?;
+    let managed_mounts = php_mounts(options)?;
+    let mounts = &managed_mounts.mounts;
     progress(options, "Preparing WordPress files");
-    let prepared = prepare_wordpress(runtime.repo_root(), options, &mounts)?;
+    let prepared = prepare_wordpress(runtime.repo_root(), options, mounts)?;
     if !prepared.installed_files_available {
         return Err(CliError::new(format!(
             "WordPress files are not available in {}",
@@ -158,7 +160,7 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
 
     let site_url = php_site_url(options);
     let port = options.port.unwrap_or(DEFAULT_PORT);
-    let mut worker_options = php_worker_options_for_mounts(options, &mounts, &site_url);
+    let mut worker_options = php_worker_options_for_mounts(options, mounts, &site_url);
 
     let startup_steps = startup_steps_from_options(options)?;
     progress(options, format!("Loading PHP {} runtime", options.php));
@@ -166,7 +168,7 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
         runtime.instantiate_php_worker_with_options(&options.php, worker_options.clone())?;
     if should_boot_wordpress_for_php(options) {
         progress(options, "Preparing WordPress database");
-        maybe_boot_wordpress_site(&mounts, &mut php, port, options)?;
+        maybe_boot_wordpress_site(mounts, &mut php, port, options)?;
         progress(options, "WordPress database ready");
     }
     if !startup_steps.is_empty() {
@@ -178,26 +180,34 @@ fn run_build_snapshot_command(runtime: &NativeRuntime, options: &CliOptions) -> 
     let symlink_policy = symlink_policy(options);
     run_startup_steps(
         &startup_steps,
-        &mounts,
+        mounts,
         &mut php,
         port,
         &mut worker_options,
         symlink_policy,
     )?;
-    write_wordpress_snapshot_zip_with_symlink_policy(&mounts, outfile, symlink_policy)?;
+    write_wordpress_snapshot_zip_with_symlink_policy(mounts, outfile, symlink_policy)?;
     if !matches!(options.verbosity, Verbosity::Quiet) {
         println!("Exported to {}", outfile.display());
     }
     Ok(0)
 }
 
-fn php_mounts(options: &CliOptions) -> Result<Vec<Mount>> {
+struct PreparedPhpMounts {
+    mounts: Vec<Mount>,
+    _managed_directories: ManagedRuntimeDirectories,
+}
+
+fn php_mounts(options: &CliOptions) -> Result<PreparedPhpMounts> {
     let mut mounts = Vec::new();
     mounts.extend(options.mounts_before_install.clone());
     mounts.extend(options.mounts.clone());
     ensure_wordpress_mount(&mut mounts)?;
-    ensure_tmp_mount(&mut mounts)?;
-    Ok(mounts)
+    let managed_directories = prepare_managed_runtime_mounts(&mut mounts)?;
+    Ok(PreparedPhpMounts {
+        mounts,
+        _managed_directories: managed_directories,
+    })
 }
 
 fn php_worker_options_for_mounts(
@@ -275,7 +285,8 @@ mod tests {
 
     use crate::{
         args::parse_cli_args_from,
-        commands::{run_blueprint_command, run_build_snapshot_command},
+        commands::{php_mounts, run_blueprint_command, run_build_snapshot_command},
+        mount::Mount,
         runtime::{repo_root_from_manifest_dir, NativeRuntime},
     };
 
@@ -288,15 +299,110 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         dir
     }
+
+    #[test]
+    fn one_shot_php_mounts_stage_studio_files_in_managed_roots_for_the_command_lifetime() {
+        let cwd = temp_dir("managed-studio-files");
+        let wordpress = cwd.join("wordpress");
+        let wp_cli = cwd.join("wp-cli.phar");
+        let studio_loader = cwd.join("99-studio-loader.php");
+        fs::create_dir_all(&wordpress).unwrap();
+        fs::write(&wp_cli, b"wp-cli fixture").unwrap();
+        fs::write(&studio_loader, b"<?php // Studio loader").unwrap();
+
+        let mut options = parse_cli_args_from(vec!["run-blueprint".to_string()], &cwd).unwrap();
+        options
+            .mounts_before_install
+            .push(Mount::new(&wordpress, "/wordpress").unwrap());
+        options
+            .mounts
+            .push(Mount::new(&wp_cli, "/tmp/wp-cli.phar").unwrap());
+        options.mounts.push(
+            Mount::new(
+                &studio_loader,
+                "/internal/shared/mu-plugins/99-studio-loader.php",
+            )
+            .unwrap(),
+        );
+
+        let prepared = php_mounts(&options).unwrap();
+        assert!(!prepared
+            .mounts
+            .iter()
+            .any(|mount| mount.vfs_path == "/tmp/wp-cli.phar"));
+        assert!(!prepared
+            .mounts
+            .iter()
+            .any(|mount| { mount.vfs_path == "/internal/shared/mu-plugins/99-studio-loader.php" }));
+        let tmp_root = prepared
+            .mounts
+            .iter()
+            .find(|mount| mount.vfs_path == "/tmp")
+            .unwrap()
+            .host_path
+            .clone();
+        let shared_root = prepared
+            .mounts
+            .iter()
+            .find(|mount| mount.vfs_path == "/internal/shared")
+            .unwrap()
+            .host_path
+            .clone();
+        assert_eq!(
+            fs::read(tmp_root.join("wp-cli.phar")).unwrap(),
+            b"wp-cli fixture"
+        );
+        assert_eq!(
+            fs::read(shared_root.join("mu-plugins/99-studio-loader.php")).unwrap(),
+            b"<?php // Studio loader"
+        );
+
+        drop(prepared);
+        assert!(!tmp_root.exists());
+        assert!(!shared_root.exists());
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn one_shot_php_mounts_reject_nested_directories_in_private_roots_without_mutating_them() {
+        let cwd = temp_dir("reject-managed-nested-directory");
+        let wordpress = cwd.join("wordpress");
+        let user_mu_plugins = cwd.join("user-mu-plugins");
+        fs::create_dir_all(&wordpress).unwrap();
+        fs::create_dir_all(&user_mu_plugins).unwrap();
+        fs::write(user_mu_plugins.join("sentinel.php"), b"unchanged").unwrap();
+
+        let mut options = parse_cli_args_from(vec!["build-snapshot".to_string()], &cwd).unwrap();
+        options
+            .mounts_before_install
+            .push(Mount::new(&wordpress, "/wordpress").unwrap());
+        options
+            .mounts
+            .push(Mount::new(&user_mu_plugins, "/internal/shared/mu-plugins").unwrap());
+
+        let error = match php_mounts(&options) {
+            Ok(_) => panic!("nested managed-root directory mount should be rejected"),
+            Err(error) => error,
+        };
+        assert!(error
+            .to_string()
+            .contains("only file mounts below it are allowed"));
+        assert_eq!(
+            fs::read(user_mu_plugins.join("sentinel.php")).unwrap(),
+            b"unchanged"
+        );
+        assert_eq!(fs::read_dir(&user_mu_plugins).unwrap().count(), 1);
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
     #[test]
     #[ignore = "Full WordPress + PHP wasm Blueprint execution is an explicit smoke test."]
     fn real_run_blueprint_command_boots_wordpress_and_applies_blueprint() {
         let runtime = NativeRuntime::from_repo_root(repo_root_from_manifest_dir()).unwrap();
         let cwd = temp_dir("run-blueprint-wp-cwd");
         let wordpress = cwd.join("wordpress");
-        let tmp = cwd.join("tmp");
         fs::create_dir_all(&wordpress).unwrap();
-        fs::create_dir_all(&tmp).unwrap();
         let blueprint = cwd.join("blueprint.json");
         fs::write(
             &blueprint,
@@ -304,7 +410,7 @@ mod tests {
                 "steps": [
                     {
                         "step": "runPHP",
-                        "code": "<?php require_once '/wordpress/wp-load.php'; update_option('native_run_blueprint', 'ok'); file_put_contents('/tmp/run-blueprint-result.txt', get_option('native_run_blueprint'));"
+                        "code": "<?php require_once '/wordpress/wp-load.php'; update_option('native_run_blueprint', 'ok'); file_put_contents('/wordpress/run-blueprint-result.txt', get_option('native_run_blueprint'));"
                     }
                 ]
             }"#,
@@ -320,9 +426,6 @@ mod tests {
                 "--mount-dir-before-install".to_string(),
                 wordpress.to_string_lossy().to_string(),
                 "/wordpress".to_string(),
-                "--mount-dir-before-install".to_string(),
-                tmp.to_string_lossy().to_string(),
-                "/tmp".to_string(),
                 "--quiet".to_string(),
             ],
             &cwd,
@@ -333,7 +436,7 @@ mod tests {
 
         assert_eq!(exit_code, 0);
         assert_eq!(
-            fs::read_to_string(tmp.join("run-blueprint-result.txt")).unwrap(),
+            fs::read_to_string(wordpress.join("run-blueprint-result.txt")).unwrap(),
             "ok"
         );
 

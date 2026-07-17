@@ -1,15 +1,25 @@
 use std::{
+    io,
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
+    pin::Pin,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
+    task::{Context, Poll},
     thread,
     time::Duration,
 };
 
+use tokio::io::AsyncWrite;
 use wasmtime::component::{Component, HasSelf, Linker};
 use wasmtime::{Store, UpdateDeadline};
+use wasmtime_wasi::cli::{IsTerminal, StdoutStream};
+use wasmtime_wasi_io::{
+    bytes::Bytes,
+    poll::Pollable,
+    streams::{OutputStream, StreamError},
+};
 
 use super::{Wasip2ComponentRuntime, Wasip2HostState};
 
@@ -26,7 +36,7 @@ mod bindings {
 }
 
 use crate::php_protocol::PhpRequest;
-use bindings::exports::wordpress::php_wasi::handler;
+use bindings::exports::wordpress::php_wasi::{cli, handler};
 use bindings::wordpress::php_wasi::output;
 
 pub const PHP_STREAM_FRAME_BYTES: usize = 64 * 1024;
@@ -90,6 +100,94 @@ pub(crate) struct PhpOutputCapture {
     pending_before_headers: Vec<PendingStreamOutput>,
 }
 
+#[derive(Clone)]
+pub(crate) struct PhpWasiOutputStream {
+    capture: Arc<Mutex<PhpOutputCapture>>,
+    channel: Wasip2PhpOutputChannel,
+}
+
+impl PhpWasiOutputStream {
+    pub(crate) fn new(
+        capture: Arc<Mutex<PhpOutputCapture>>,
+        channel: Wasip2PhpOutputChannel,
+    ) -> Self {
+        Self { capture, channel }
+    }
+
+    fn write_bytes(&self, bytes: Vec<u8>) -> wasmtime::Result<()> {
+        self.capture
+            .lock()
+            .map_err(|_| wasmtime::Error::msg("native PHP output lock was poisoned"))?
+            .write_channel(self.channel, bytes)
+    }
+}
+
+impl IsTerminal for PhpWasiOutputStream {
+    fn is_terminal(&self) -> bool {
+        false
+    }
+}
+
+impl StdoutStream for PhpWasiOutputStream {
+    fn async_stream(&self) -> Box<dyn AsyncWrite + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn p2_stream(&self) -> Box<dyn OutputStream> {
+        Box::new(self.clone())
+    }
+}
+
+impl AsyncWrite for PhpWasiOutputStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        bytes: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let len = bytes.len().min(PHP_STREAM_FRAME_BYTES);
+        match self.write_bytes(bytes[..len].to_vec()) {
+            Ok(()) => Poll::Ready(Ok(len)),
+            Err(error) => Poll::Ready(Err(io::Error::other(error.to_string()))),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[wasmtime_wasi_io::async_trait]
+impl Pollable for PhpWasiOutputStream {
+    async fn ready(&mut self) {}
+}
+
+#[wasmtime_wasi_io::async_trait]
+impl OutputStream for PhpWasiOutputStream {
+    fn write(&mut self, bytes: Bytes) -> Result<(), StreamError> {
+        self.write_bytes(bytes.to_vec()).map_err(StreamError::Trap)
+    }
+
+    fn flush(&mut self) -> Result<(), StreamError> {
+        Ok(())
+    }
+
+    fn check_write(&mut self) -> Result<usize, StreamError> {
+        if self
+            .capture
+            .lock()
+            .map_err(|_| StreamError::trap("native PHP output lock was poisoned"))?
+            .is_cancelled()
+        {
+            return Err(StreamError::trap("native PHP stream was cancelled"));
+        }
+        Ok(PHP_STREAM_FRAME_BYTES)
+    }
+}
+
 impl PhpOutputCapture {
     fn reset(&mut self) {
         self.output.stdout.clear();
@@ -126,10 +224,22 @@ impl PhpOutputCapture {
         destination: output::Channel,
         bytes: Vec<u8>,
     ) -> wasmtime::Result<()> {
+        let channel = match destination {
+            output::Channel::Stdout => Wasip2PhpOutputChannel::Stdout,
+            output::Channel::Stderr => Wasip2PhpOutputChannel::Stderr,
+        };
+        self.write_channel(channel, bytes)
+    }
+
+    fn write_channel(
+        &mut self,
+        channel: Wasip2PhpOutputChannel,
+        bytes: Vec<u8>,
+    ) -> wasmtime::Result<()> {
         if self.stream_sink.is_none() {
-            let output = match destination {
-                output::Channel::Stdout => &mut self.output.stdout,
-                output::Channel::Stderr => &mut self.output.stderr,
+            let output = match channel {
+                Wasip2PhpOutputChannel::Stdout => &mut self.output.stdout,
+                Wasip2PhpOutputChannel::Stderr => &mut self.output.stderr,
             };
             if output.is_empty() {
                 *output = bytes;
@@ -141,10 +251,6 @@ impl PhpOutputCapture {
         if self.is_cancelled() {
             return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
         }
-        let channel = match destination {
-            output::Channel::Stdout => Wasip2PhpOutputChannel::Stdout,
-            output::Channel::Stderr => Wasip2PhpOutputChannel::Stderr,
-        };
         if !self.stream_headers_sent {
             return self.buffer_before_headers(channel, bytes);
         }
@@ -246,6 +352,12 @@ pub struct Wasip2PhpResponse {
     pub output: Wasip2PhpOutput,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct Wasip2PhpCliResponse {
+    pub exit_status: i32,
+    pub output: Wasip2PhpOutput,
+}
+
 pub struct Wasip2PhpInstance {
     store: Store<Wasip2HostState>,
     bindings: bindings::Php,
@@ -274,7 +386,12 @@ impl Wasip2PhpInstance {
         if interruptible {
             store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
             store.epoch_deadline_callback(|store| {
-                Ok(if store.data().php_output.is_cancelled() {
+                let state = store.data();
+                let cancelled = state
+                    .active_cancellation
+                    .as_ref()
+                    .is_some_and(|cancellation| cancellation.load(Ordering::Acquire));
+                Ok(if cancelled {
                     UpdateDeadline::Interrupt
                 } else {
                     UpdateDeadline::Continue(1)
@@ -316,6 +433,7 @@ impl Wasip2PhpInstance {
             .data_mut()
             .php_output
             .start_streaming(sink, Arc::clone(&cancellation));
+        self.store.data_mut().active_cancellation = Some(Arc::clone(&cancellation));
         self.store.set_epoch_deadline(1);
         let watcher_finished = Arc::new(AtomicBool::new(false));
         let thread_finished = Arc::clone(&watcher_finished);
@@ -335,6 +453,7 @@ impl Wasip2PhpInstance {
             .map_err(|error| {
                 self.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
                 self.store.data_mut().php_output.stop_streaming();
+                self.store.data_mut().active_cancellation = None;
                 wasmtime::Error::msg(format!(
                     "failed to start native PHP cancellation watcher: {error}"
                 ))
@@ -348,6 +467,7 @@ impl Wasip2PhpInstance {
                 let watcher_result = watcher.join();
                 instance.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
                 instance.store.data_mut().php_output.stop_streaming();
+                instance.store.data_mut().active_cancellation = None;
                 if watcher_result.is_err() {
                     return Err(wasmtime::Error::msg(
                         "native PHP cancellation watcher panicked",
@@ -356,6 +476,109 @@ impl Wasip2PhpInstance {
                 Ok(())
             },
         )
+    }
+
+    pub fn run_cli_streamed(
+        &mut self,
+        argv: &[String],
+        env: &[(String, String)],
+        cwd: Option<&str>,
+        sink: Wasip2PhpStreamSink,
+        cancellation: Arc<AtomicBool>,
+    ) -> wasmtime::Result<Wasip2PhpCliResponse> {
+        if !self.interruptible {
+            return Err(wasmtime::Error::msg(
+                "streamed PHP CLI execution requires an interruptible component instance",
+            ));
+        }
+        {
+            let mut output = self
+                .store
+                .data()
+                .cli_output
+                .lock()
+                .map_err(|_| wasmtime::Error::msg("native PHP CLI output lock was poisoned"))?;
+            output.start_streaming(sink, Arc::clone(&cancellation));
+            output.send_headers(200, Vec::new())?;
+        }
+        self.store.data_mut().active_cancellation = Some(Arc::clone(&cancellation));
+        self.store.set_epoch_deadline(1);
+        let watcher_finished = Arc::new(AtomicBool::new(false));
+        let thread_finished = Arc::clone(&watcher_finished);
+        let engine = self.store.engine().clone();
+        let watcher = thread::Builder::new()
+            .name("wp-playground-cli-cancellation".to_string())
+            .spawn(move || loop {
+                if cancellation.load(Ordering::Acquire) {
+                    engine.increment_epoch();
+                    return;
+                }
+                if thread_finished.load(Ordering::Acquire) {
+                    return;
+                }
+                thread::park_timeout(CANCELLATION_POLL_INTERVAL);
+            })
+            .map_err(|error| {
+                self.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
+                self.store
+                    .data()
+                    .cli_output
+                    .lock()
+                    .expect("native PHP CLI output lock remains usable")
+                    .stop_streaming();
+                self.store.data_mut().active_cancellation = None;
+                wasmtime::Error::msg(format!(
+                    "failed to start native PHP CLI cancellation watcher: {error}"
+                ))
+            })?;
+        with_unwind_safe_cleanup(
+            self,
+            |instance| instance.run_cli_inner(argv, env, cwd),
+            move |instance| {
+                watcher_finished.store(true, Ordering::Release);
+                watcher.thread().unpark();
+                let watcher_result = watcher.join();
+                instance.store.set_epoch_deadline(INACTIVE_EPOCH_DEADLINE);
+                instance
+                    .store
+                    .data()
+                    .cli_output
+                    .lock()
+                    .map_err(|_| wasmtime::Error::msg("native PHP CLI output lock was poisoned"))?
+                    .stop_streaming();
+                instance.store.data_mut().active_cancellation = None;
+                if watcher_result.is_err() {
+                    return Err(wasmtime::Error::msg(
+                        "native PHP CLI cancellation watcher panicked",
+                    ));
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn run_cli_inner(
+        &mut self,
+        argv: &[String],
+        env: &[(String, String)],
+        cwd: Option<&str>,
+    ) -> wasmtime::Result<Wasip2PhpCliResponse> {
+        let argv = argv.iter().map(String::as_str).collect::<Vec<_>>();
+        let env = component_cli_entries(env);
+        let request = cli::Request {
+            argv: &argv,
+            env: &env,
+            cwd,
+        };
+        let exit_status = self
+            .bindings
+            .wordpress_php_wasi_cli()
+            .call_run(&mut self.store, request)?
+            .map_err(wasmtime::Error::msg)?;
+        Ok(Wasip2PhpCliResponse {
+            exit_status,
+            output: self.take_cli_output()?,
+        })
     }
 
     fn handle_request_inner(
@@ -400,6 +623,15 @@ impl Wasip2PhpInstance {
         self.store.data_mut().php_output.take()
     }
 
+    fn take_cli_output(&mut self) -> wasmtime::Result<Wasip2PhpOutput> {
+        self.store
+            .data()
+            .cli_output
+            .lock()
+            .map_err(|_| wasmtime::Error::msg("native PHP CLI output lock was poisoned"))
+            .map(|mut output| output.take())
+    }
+
     pub fn store_mut(&mut self) -> &mut Store<Wasip2HostState> {
         &mut self.store
     }
@@ -428,6 +660,13 @@ fn component_entries(entries: &[(String, String)]) -> Vec<handler::Entry<'_>> {
     entries
         .iter()
         .map(|(key, value)| handler::Entry { key, value })
+        .collect()
+}
+
+fn component_cli_entries(entries: &[(String, String)]) -> Vec<cli::Entry<'_>> {
+    entries
+        .iter()
+        .map(|(key, value)| cli::Entry { key, value })
         .collect()
 }
 

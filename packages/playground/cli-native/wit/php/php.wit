@@ -40,7 +40,23 @@ interface handler {
   handle-request: func(request: request) -> result<response, string>;
 }
 
+interface cli {
+  record entry {
+    key: string,
+    value: string,
+  }
+
+  record request {
+    argv: list<string>,
+    env: list<entry>,
+    cwd: option<string>,
+  }
+
+  run: func(request: request) -> result<s32, string>;
+}
+
 world php {
   import output;
   export handler;
+  export cli;
 }

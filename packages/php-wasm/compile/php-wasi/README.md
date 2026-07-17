@@ -1,10 +1,11 @@
 # PHP WASI Preview 2 component
 
 This directory builds PHP 8.2.32 as a persistent WASI Preview 2 component. Each
-component instance is one long-lived PHP worker: PHP module startup runs once,
-while request startup and shutdown run around every `handle-request` call. A
-host can create as many isolated instances as it needs, matching the worker
-model used by PHP-FPM without sharing unsafe Zend globals between requests.
+component instance has one mode. An HTTP instance is a long-lived PHP worker:
+module startup runs once, while request startup and shutdown run around every
+`handle-request` call. A fresh CLI instance instead runs PHP's real CLI SAPI
+exactly once. A host can create as many isolated instances as it needs,
+matching the worker model used by PHP-FPM without sharing unsafe Zend globals.
 
 The build deliberately keeps the implementation in PHP and wasi-libc. It does
 not recreate PHP's filesystem, stream, or request runtime in a host language.
@@ -59,8 +60,8 @@ The build uses `make -j$JOBS` for both SQLite and PHP and produces:
 - `dist/libphp.a`
 - `dist/libsqlite3.a`
 
-The WordPress profile statically enables `filter`, OPcache, PDO, `pdo_sqlite`,
-and `sqlite3`. Each persistent component owns a process-local OPcache arena;
+The WordPress profile statically enables `filter`, Phar, OPcache, PDO,
+`pdo_sqlite`, and `sqlite3`. Each persistent component owns a process-local OPcache arena;
 there is no cross-worker shared memory. WASI validation retains nanosecond file
 timestamps so same-second edits are visible immediately, while OPcache's
 default file-update protection avoids caching a file during a write. SQLite is
@@ -73,33 +74,39 @@ Its WASI VFS can mirror WAL shared-memory regions through a host-provided
 The component exports:
 
 ```wit
-record entry {
-  key: string,
-  value: string,
+interface handler {
+  record entry { key: string, value: string }
+  record request {
+    script-path: string,
+    request-uri: string,
+    method: string,
+    host: string,
+    port: u32,
+    body: list<u8>,
+    stream-response: bool,
+    content-type: option<string>,
+    cookies: option<string>,
+    server-entries: list<entry>,
+    env: list<entry>,
+  }
+  record response {
+    exit-status: s32,
+    http-status: u16,
+    headers: list<string>,
+  }
+  initialize: func(php-ini-path: string) -> result<_, string>;
+  handle-request: func(request: request) -> result<response, string>;
 }
 
-record request {
-  script-path: string,
-  request-uri: string,
-  method: string,
-  host: string,
-  port: u32,
-  body: list<u8>,
-  stream-response: bool,
-  content-type: option<string>,
-  cookies: option<string>,
-  server-entries: list<entry>,
-  env: list<entry>,
+interface cli {
+  record entry { key: string, value: string }
+  record request {
+    argv: list<string>,
+    env: list<entry>,
+    cwd: option<string>,
+  }
+  run: func(request: request) -> result<s32, string>;
 }
-
-record response {
-  exit-status: s32,
-  http-status: u16,
-  headers: list<string>,
-}
-
-initialize: func(php-ini-path: string) -> result<_, string>;
-handle-request: func(request: request) -> result<response, string>;
 ```
 
 Filesystem roots are not passed through this API. They are capabilities fixed
@@ -110,6 +117,13 @@ records. The SAPI derives the query string from `request-uri`; `body` remains
 binary-safe, and `server-entries` and `env` are copied into each PHP request.
 `stream-response` is an internal host transport hint and is not registered as
 a PHP request variable.
+
+The CLI export copies argv and environment entries, optionally changes to the
+requested preopened working directory, and invokes the upstream PHP 8.2 CLI
+entry point. PHP performs its normal option parsing, php.ini loading, PHAR
+startup, stdout/stderr writes, shutdown, and exit-status selection. HTTP
+initialization and CLI execution are mutually exclusive on an instance; hosts
+must use a fresh component for each CLI call.
 
 When `stream-response` is true, response status and headers are sent through
 `wordpress:php-wasi/output@0.1.0` before the first body byte. Binary response
@@ -149,7 +163,7 @@ packages/php-wasm/compile/php-wasi/validate.sh \
 
 This runs full-feature WebAssembly validation (which catches pathological
 functions exceeding Wasmtime's local limit) and verifies the resolved WASI
-0.2.6, request/output, lock, and SQLite WAL shared-memory interfaces. The
+0.2.6, HTTP handler, CLI, output, lock, and SQLite WAL shared-memory interfaces. The
 scripts in `tests/smoke` cover
 normal output and temp files, header-only redirects and cookies, a fatal
 bailout, recovery on the same worker, WASI-backed cryptographic randomness,
@@ -157,6 +171,9 @@ filter validation and password hashing, and transactional/concurrent PDO
 SQLite writes. The native component tests additionally verify that OPcache is
 loaded, repeated requests hit the same instance-local cache, mounted script
 edits revalidate, and a manual cache reset leaves the worker usable.
+The native process smoke also runs `php -r`, help and invalid-option paths,
+executes the bundled WP-CLI PHAR, checks php.ini generation invalidation across
+concurrent workers and CLI, and cancels then recovers a CPU-bound CLI Store.
 
 With the native server running against this directory at `/site` and
 `/wordpress`, execute the HTTP suite with:

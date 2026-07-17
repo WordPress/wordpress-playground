@@ -1,7 +1,9 @@
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "php/php.h"
 #include "SAPI.h"
@@ -41,7 +43,10 @@ static php_list_string_t response_headers;
 static size_t response_headers_capacity;
 static uint16_t response_http_status;
 static bool php_initialized;
+static bool cli_invoked;
 static bool response_headers_failed;
+
+extern int wordpress_php_wasi_cli_main(int argc, char *argv[]);
 
 static void emit(wordpress_php_wasi_output_channel_t destination,
 		const void *bytes, size_t len)
@@ -371,7 +376,7 @@ static sapi_module_struct component_sapi = {
 bool exports_wordpress_php_wasi_handler_initialize(php_string_t *php_ini_path,
 		php_string_t *err)
 {
-	if (php_initialized) {
+	if (php_initialized || cli_invoked) {
 		php_string_dup(err, "PHP is already initialized in this worker");
 		return false;
 	}
@@ -395,6 +400,110 @@ bool exports_wordpress_php_wasi_handler_initialize(php_string_t *php_ini_path,
 		return false;
 	}
 	php_initialized = true;
+	return true;
+}
+
+static void free_cli_argv(char **argv, size_t argc)
+{
+	if (!argv) {
+		return;
+	}
+	for (size_t i = 0; i < argc; i++) {
+		free(argv[i]);
+	}
+	free(argv);
+}
+
+static bool apply_cli_environment(
+		const exports_wordpress_php_wasi_cli_list_entry_t *env,
+		const char **error)
+{
+	if (env->len && !env->ptr) {
+		*error = "CLI environment list is invalid";
+		return false;
+	}
+	for (size_t i = 0; i < env->len; i++) {
+		char *key = NULL;
+		char *value = NULL;
+		if (!copy_string(&env->ptr[i].key, &key, error) ||
+			!copy_string(&env->ptr[i].value, &value, error)) {
+			free(key);
+			free(value);
+			return false;
+		}
+		if (!key[0] || strchr(key, '=')) {
+			free(key);
+			free(value);
+			*error = "CLI environment names must be non-empty and must not contain '='";
+			return false;
+		}
+		if (setenv(key, value, 1) != 0) {
+			free(key);
+			free(value);
+			*error = "failed to set a CLI environment variable";
+			return false;
+		}
+		free(key);
+		free(value);
+	}
+	return true;
+}
+
+bool exports_wordpress_php_wasi_cli_run(
+		exports_wordpress_php_wasi_cli_request_t *request,
+		int32_t *ret, php_string_t *err)
+{
+	if (php_initialized || cli_invoked) {
+		php_string_dup(err, "CLI may only run once in a fresh component instance");
+		return false;
+	}
+	cli_invoked = true;
+	if (!request->argv.len || !request->argv.ptr ||
+		request->argv.len > INT32_MAX) {
+		php_string_dup(err, "CLI argv must contain at least one entry");
+		return false;
+	}
+
+	const char *error = NULL;
+	char **argv = calloc(request->argv.len + 1, sizeof(char *));
+	if (!argv) {
+		php_string_dup(err, "out of memory while copying CLI argv");
+		return false;
+	}
+	for (size_t i = 0; i < request->argv.len; i++) {
+		if (!copy_string(&request->argv.ptr[i], &argv[i], &error)) {
+			free_cli_argv(argv, request->argv.len);
+			php_string_dup(err, error);
+			return false;
+		}
+	}
+	if (!apply_cli_environment(&request->env, &error)) {
+		free_cli_argv(argv, request->argv.len);
+		php_string_dup(err, error);
+		return false;
+	}
+	if (request->cwd.is_some) {
+		char *cwd = NULL;
+		if (!copy_string(&request->cwd.val, &cwd, &error)) {
+			free_cli_argv(argv, request->argv.len);
+			php_string_dup(err, error);
+			return false;
+		}
+		if (chdir(cwd) != 0) {
+			char message[512];
+			snprintf(message, sizeof(message),
+				"failed to change CLI working directory to %s: %s",
+				cwd, strerror(errno));
+			free(cwd);
+			free_cli_argv(argv, request->argv.len);
+			php_string_dup(err, message);
+			return false;
+		}
+		free(cwd);
+	}
+
+	*ret = wordpress_php_wasi_cli_main((int) request->argv.len, argv);
+	free_cli_argv(argv, request->argv.len);
 	return true;
 }
 
