@@ -3,6 +3,7 @@ import classNames from 'classnames';
 import { Button, Icon, Popover } from '@wordpress/components';
 import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
+import calloutCss from '../dock-callout.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
@@ -426,28 +427,31 @@ function YouHaveAutosaveNudge({
 	const card = (
 		<aside
 			ref={nudgeRef}
-			className={classNames(css.nudge, {
+			className={classNames(calloutCss.card, css.nudge, {
 				[css.nudgeFloating]: !anchorButton,
+				[calloutCss.surface]: !anchorButton,
 			})}
 			aria-label="Recent autosaved Playground"
 		>
-			<div className={css.header}>
-				<div className={css.eyebrow}>Recent autosave</div>
+			<div className={calloutCss.header}>
+				<div className={calloutCss.eyebrow}>Recent autosave</div>
 				<Button
-					className={css.dismiss}
+					className={calloutCss.dismiss}
 					icon={close}
 					label="Dismiss and keep this Playground"
 					onClick={onDismiss}
 					disabled={isBusy}
 				/>
 			</div>
-			<div className={css.site}>
-				<span className={css.siteAvatar} aria-hidden="true">
+			<div className={calloutCss.identity}>
+				<span className={calloutCss.avatar} aria-hidden="true">
 					<Icon icon={wordpress} size={28} />
 				</span>
-				<div className={css.siteCopy}>
-					<div className={css.siteName}>{site.metadata.name}</div>
-					<div className={css.siteMeta}>
+				<div className={calloutCss.identityCopy}>
+					<div className={calloutCss.identityTitle}>
+						{site.metadata.name}
+					</div>
+					<div className={calloutCss.identityMeta}>
 						Autosaved {getRelativeDate(autosavedAt)}
 					</div>
 				</div>
@@ -459,13 +463,13 @@ function YouHaveAutosaveNudge({
 			)}
 			<Button
 				variant="primary"
-				className={css.restore}
+				className={calloutCss.primaryAction}
 				onClick={onRestore}
 				disabled={isBusy}
 			>
 				Restore autosave
 			</Button>
-			<p className={css.hint}>
+			<p className={calloutCss.hint}>
 				Kept in this browser as a periodic snapshot — not every change
 				is saved.
 			</p>
@@ -485,7 +489,7 @@ function YouHaveAutosaveNudge({
 			<div className={css.scrim} aria-hidden="true" />
 			{anchorButton ? (
 				<Popover
-					className={css.nudgePopover}
+					className={classNames(calloutCss.popover, css.nudgePopover)}
 					anchor={anchorButton}
 					placement="top"
 					offset={18}

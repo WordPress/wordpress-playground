@@ -38,13 +38,23 @@
 	font-weight: 600;
 }
 
-.actionable {
+/* Clickable status pills wear the same raised-tile chrome as the adjacent
+   dock toggle pill, so they read as buttons; status-only states (loading,
+   saving, unavailable unsaved) stay flat text. */
+.actionable,
+.error {
+	box-sizing: border-box;
+	height: 34px;
+	padding: 0 10px;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(255, 255, 255, 0.08);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .actionable:disabled,
@@ -55,7 +65,7 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: transparent;
+	background: rgba(255, 251, 243, 0.05);
 }
 
 .actionable:focus-visible,
@@ -78,12 +88,10 @@
 
 .error {
 	color: #fca5a5;
-	cursor: pointer;
-	transition: background 0.15s ease;
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .error svg {
@@ -94,28 +102,10 @@
 	display: inline;
 }
 
-/* Local-directory "Saved" pill opens a small menu carrying the one disk action
-   ("Reload files from disk"), so the dock no longer needs a separate, unclear
-   "Sync local files" button next to the status. The popover renders on the
-   default light surface, so its text is dark. */
-.saved-menu-content {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 12px;
-	max-width: 260px;
-}
-
-.saved-menu-hint {
-	margin: 0;
-	font-size: 12px;
-	line-height: 1.5;
-	color: #5f5b54;
-}
-
-.saved-menu-action.saved-menu-action {
-	justify-content: flex-start;
-	width: 100%;
+/* The shared callout stays centered over the Saved pill. These margins count
+   toward collision detection and preserve its shadow at both mobile edges. */
+.saved-menu-popover :global(.components-popover__content) {
+	margin-inline: 16px;
 }
 
 .progress-ring {
