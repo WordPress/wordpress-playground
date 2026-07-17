@@ -1061,6 +1061,23 @@ class PhpSnippet extends HTMLElement {
 	}
 }
 
+/**
+ * Reads PHP source or expected output from a child `<script>` element.
+ *
+ * Plain-text script types are dedented so authors can indent their payloads
+ * with the surrounding HTML. Script types ending in `+json` are parsed as
+ * JSON instead. JSON encoding lets authors escape `<` as `\u003C`, preventing
+ * the HTML parser from treating a payload's `</script>` sequence as the end
+ * of the child element before this function can read it.
+ *
+ * A JSON payload must decode to a string because PHP source and expected
+ * output are both text. Other JSON values are rejected rather than coerced.
+ *
+ * @param {HTMLScriptElement} script The child script containing the payload.
+ * @return {string} The dedented plain-text payload or decoded JSON string.
+ * @throws {SyntaxError} If a JSON-encoded payload contains invalid JSON.
+ * @throws {TypeError} If a JSON-encoded payload does not decode to a string.
+ */
 function readScriptPayload(script) {
 	const payload = script.textContent || '';
 	if (!script.type.endsWith('+json')) {
