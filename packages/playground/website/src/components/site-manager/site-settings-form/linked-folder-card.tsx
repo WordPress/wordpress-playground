@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button, Icon } from '@wordpress/components';
-import { archive } from '@wordpress/icons';
+import { Button } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
 import css from './linked-folder-card.module.css';
-import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
-import {
-	modalSlugs,
-	setActiveModal,
-	setSiteSlugToDelete,
-} from '../../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 import {
 	useDocumentRootPicker,
@@ -24,15 +18,14 @@ import { getLocalDirectoryPickerPath } from '../../../lib/local-directory-site';
 import { LocalDirectoryDocumentRootModal } from '../../local-directory-document-root-modal';
 
 /**
- * The one place that shows everything about a Playground's linked local
- * folder: which folder it is, what PHP serves from it, and the actions that
- * operate on the link itself.
+ * The linked folder as two ordinary settings rows, sharing the form's
+ * side-label geometry. Deleting the link lives in the Playgrounds pane, not
+ * here.
  */
 export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
-	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const { reloadFromDisk, isReloading } = useReloadFromDisk();
 	const documentRootPicker = useDocumentRootPicker();
@@ -94,88 +87,79 @@ export function LinkedFolderCard({ siteSlug }: { siteSlug: string }) {
 		}
 	};
 
-	const removeFromPlayground = () => {
-		dispatch(setSiteSlugToDelete(siteSlug));
-		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
-	};
-
 	return (
-		<div className={css.card}>
-			<h4 className={css.title}>Local folder</h4>
-			<div className={css.folderRow}>
-				<Icon icon={archive} size={20} />
-				<span className={css.folderName}>
-					{folderName ?? siteInfo.metadata.name}
+		<div className={css.rows}>
+			<div className={css.row}>
+				<span className={css.label}>Local folder</span>
+				<span className={css.value}>
+					<span className={css.folderName}>
+						{folderName ?? siteInfo.metadata.name}
+					</span>
+					{/* The action pair wraps as one unit so a narrow pane
+					    never strands a lone link on its own line. */}
+					<span className={css.actionPair}>
+						<Button
+							variant="link"
+							disabled={isReloading}
+							onClick={() => void reloadFromDisk()}
+						>
+							{isReloading ? 'Reloading…' : 'Reload from disk'}
+						</Button>
+						<Button
+							variant="link"
+							disabled={isReconnecting}
+							onClick={() => void reconnectFolder()}
+						>
+							{isReconnecting ? 'Reconnecting…' : 'Reconnect'}
+						</Button>
+					</span>
 				</span>
 			</div>
-			<p className={css.hint}>
-				Playground reads and writes the files in this folder. Changes
-				made here appear on disk, and you can keep editing the files
-				with any other tool.
-			</p>
 			{bootConfiguration ? (
-				<div className={css.documentRootRow}>
-					<span>
-						Document root:{' '}
+				<div className={css.row}>
+					<span className={css.label}>Document root</span>
+					<span className={css.value}>
 						<code>
 							{getLocalDirectoryPickerPath(
 								bootConfiguration.documentRoot
 							)}
 						</code>
+						<Button
+							variant="link"
+							onClick={() => void documentRootPicker.openPicker()}
+						>
+							Change
+						</Button>
 					</span>
-					<Button
-						variant="link"
-						onClick={() => void documentRootPicker.openPicker()}
-					>
-						Change
-					</Button>
 				</div>
 			) : null}
-			<div className={css.actions}>
-				<Button
-					variant="secondary"
-					size="compact"
-					isBusy={isReloading}
-					disabled={isReloading}
-					onClick={() => void reloadFromDisk()}
-				>
-					{isReloading ? 'Reloading…' : 'Reload files from disk'}
-				</Button>
-				<Button
-					variant="tertiary"
-					size="compact"
-					isBusy={isReconnecting}
-					disabled={isReconnecting}
-					onClick={() => void reconnectFolder()}
-				>
-					Reconnect
-				</Button>
-				<Button
-					className={css.removeAction}
-					variant="tertiary"
-					size="compact"
-					isDestructive
-					onClick={removeFromPlayground}
-				>
-					Remove from Playground…
-				</Button>
-			</div>
-			{documentRootPicker.error ? (
-				<p className={css.feedbackError} role="alert">
-					{documentRootPicker.error}
-				</p>
-			) : null}
-			{feedback ? (
-				<p
-					className={
-						feedback.type === 'error'
-							? css.feedbackError
-							: css.feedbackSuccess
-					}
-					role={feedback.type === 'error' ? 'alert' : 'status'}
-				>
-					{feedback.message}
-				</p>
+			{documentRootPicker.error || feedback ? (
+				<div className={css.row}>
+					<span aria-hidden="true" />
+					<span className={css.value}>
+						{documentRootPicker.error ? (
+							<p className={css.feedbackError} role="alert">
+								{documentRootPicker.error}
+							</p>
+						) : null}
+						{feedback ? (
+							<p
+								className={
+									feedback.type === 'error'
+										? css.feedbackError
+										: css.feedbackSuccess
+								}
+								role={
+									feedback.type === 'error'
+										? 'alert'
+										: 'status'
+								}
+							>
+								{feedback.message}
+							</p>
+						) : null}
+					</span>
+				</div>
 			) : null}
 			{documentRootPicker.directoryHandle && bootConfiguration ? (
 				<LocalDirectoryDocumentRootModal

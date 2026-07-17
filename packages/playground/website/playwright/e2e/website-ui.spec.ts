@@ -2186,7 +2186,6 @@ test.describe('Default Playground storage', () => {
 		const galleryTab = newPane.locator('#creation-tab-gallery');
 		const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
 		const writeTab = newPane.locator('#creation-tab-write-own');
-		const pullRequestTab = newPane.locator('#creation-tab-pull-request');
 		const githubTab = newPane.locator('#creation-tab-github');
 		await galleryTab.click();
 		await galleryTab.focus();
@@ -2201,8 +2200,6 @@ test.describe('Default Playground storage', () => {
 			'draft-kept'
 		);
 		await writeTab.press('ArrowRight');
-		await expect(pullRequestTab).toBeFocused();
-		await pullRequestTab.press('ArrowRight');
 		await expect(githubTab).toBeFocused();
 		await expect(
 			newPane.getByRole('tablist', {
@@ -2217,10 +2214,10 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(githubUrlInput).toBeVisible();
 
-		await pullRequestTab.click();
-		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
+		// Pull-request previews live inside the GitHub tab as a visible mode.
+		await newPane
+			.getByRole('radio', { name: 'Pull request', exact: true })
+			.click();
 		await expect(
 			newPane.getByRole('textbox', {
 				name: 'Pull request URL or number',
@@ -2230,10 +2227,12 @@ test.describe('Default Playground storage', () => {
 			newPane.getByRole('button', { name: 'Preview', exact: true })
 		).toBeVisible();
 
-		await githubTab.click();
+		await newPane
+			.getByRole('radio', { name: 'Repository', exact: true })
+			.click();
 		await expect(
 			newPane.getByRole('heading', {
-				name: 'Import from GitHub',
+				name: 'Start from GitHub',
 				level: 3,
 			})
 		).toBeVisible();
