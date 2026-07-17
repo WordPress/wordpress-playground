@@ -1,0 +1,19 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"paths": {
+			"@php-wasm/web-8-5/asyncify/php_8_5": [
+				"packages/php-wasm/web-builds/8-5/asyncify/php_8_5.js"
+			],
+			"@php-wasm/universal/load-php-runtime": [
+				"packages/playground/cloudflare-worker/src/php-wasm-universal.d.ts"
+			],
+			"@php-wasm/universal/php": [
+				"packages/playground/cloudflare-worker/src/php-wasm-universal.d.ts"
+			],
+			"@wp-playground/cloudflare-worker-memory-gate/runtime": [
+				"packages/playground/cloudflare-worker/src/runtime.ts"
+			]
+		}
+	}
+}

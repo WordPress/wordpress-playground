@@ -1,0 +1,23 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"paths": {
+			"@php-wasm/web-8-5/asyncify/php_8_5": [
+				"packages/php-wasm/web-builds/8-5/asyncify/php_8_5.js"
+			],
+			"@php-wasm/universal/load-php-runtime": [
+				"packages/php-wasm/universal/src/lib/load-php-runtime.ts"
+			],
+			"@php-wasm/universal/php": [
+				"packages/php-wasm/universal/src/lib/php.ts"
+			],
+			"@wp-playground/cloudflare-worker-memory-gate/runtime": [
+				"packages/playground/cloudflare-worker/src/runtime.ts"
+			]
+		},
+		"types": ["vitest/globals"]
+	},
+	"include": ["src/**/*.ts", "src/**/*.d.ts"]
+}
