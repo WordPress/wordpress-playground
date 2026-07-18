@@ -42,6 +42,7 @@ import {
 	RecentAutosaveNudgeProvider,
 	useRecentAutosaveNudgeAnchor,
 } from './recent-autosave-nudge-context';
+import { getOpenerBlueprintReceiver } from '../../lib/opener-blueprint-protocol';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -70,6 +71,8 @@ export function EnsurePlaygroundSiteIsSelected({
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
 	const isSavingDisabled = isSiteSavingDisabled(url);
+	const expectsOpenerBlueprint =
+		url.searchParams.get('blueprint-source') === 'opener';
 	const shouldUseTemporarySite =
 		url.searchParams.get('storage') === 'temp' ||
 		isSavingDisabled ||
@@ -168,9 +171,11 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 
 					if (shouldUseTemporarySite) {
-						await sitesAPI.createNewTemporarySite(
-							requestedSiteSlug
-						);
+						const siteCreated =
+							await tryCreateTemporarySite(requestedSiteSlug);
+						if (!siteCreated) {
+							return;
+						}
 						if (!isSavingDisabled) {
 							setNeedMissingSitePromptForSlug(requestedSiteSlug);
 						}
@@ -184,10 +189,13 @@ export function EnsurePlaygroundSiteIsSelected({
 								'Error creating saved site. Falling back to a temporary site.',
 								error
 							);
-							await sitesAPI.createNewTemporarySite(
-								requestedSiteSlug
-							);
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+							const siteCreated =
+								await tryCreateTemporarySite(requestedSiteSlug);
+							if (siteCreated) {
+								setNeedMissingSitePromptForSlug(
+									requestedSiteSlug
+								);
+							}
 						}
 					}
 					return;
@@ -210,7 +218,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			}
 
 			if (shouldUseTemporarySite) {
-				await sitesAPI.createNewTemporarySite();
+				await tryCreateTemporarySite();
 			} else {
 				// A matching autosave may already be waiting for its first OPFS
 				// sync. Keep it selected instead of creating a duplicate for the
@@ -219,6 +227,13 @@ export function EnsurePlaygroundSiteIsSelected({
 					activeSite &&
 					isAutosavedSite(activeSite) &&
 					activeSite.metadata.initialOpfsSyncPending &&
+					(!expectsOpenerBlueprint ||
+						(activeSite.metadata.originalBlueprintSource.type ===
+							'opener' &&
+							getOpenerBlueprintReceiver()?.getAcceptedRun(
+								activeSite.metadata.originalBlueprintSource
+									.runId
+							))) &&
 					getAutosaveFingerprintFromSite(activeSite) ===
 						currentSetupUrlFingerprint
 				) {
@@ -228,13 +243,17 @@ export function EnsurePlaygroundSiteIsSelected({
 				// Offer restore only when the autosave came from the same
 				// setup URL. A different setup URL should create a fresh
 				// Playground even if another autosave exists.
-				const matchingAutosave = sortedSites
-					.filter(isAutosavedSite)
-					.find(
-						(site) =>
-							getAutosaveFingerprintFromSite(site) ===
-							currentSetupUrlFingerprint
-					);
+				// An opener URL does not contain the transferred Blueprint, so it
+				// cannot identify a compatible autosave from an earlier run.
+				const matchingAutosave = expectsOpenerBlueprint
+					? undefined
+					: sortedSites
+							.filter(isAutosavedSite)
+							.find(
+								(site) =>
+									getAutosaveFingerprintFromSite(site) ===
+									currentSetupUrlFingerprint
+							);
 				if (
 					matchingAutosave &&
 					isInitialPageLoadUrl &&
@@ -248,7 +267,7 @@ export function EnsurePlaygroundSiteIsSelected({
 						site: matchingAutosave,
 						setupUrlFingerprint: currentSetupUrlFingerprint,
 					});
-					await sitesAPI.createNewTemporarySite();
+					await tryCreateTemporarySite();
 					return;
 				}
 
@@ -258,12 +277,35 @@ export function EnsurePlaygroundSiteIsSelected({
 						updateUrl: false,
 					});
 				} catch (error) {
+					if (
+						expectsOpenerBlueprint &&
+						getOpenerBlueprintReceiver()?.state === 'error'
+					) {
+						await tryCreateTemporarySite();
+						return;
+					}
 					logger.error(
 						'Error creating saved site. Falling back to a temporary site.',
 						error
 					);
-					await sitesAPI.createNewTemporarySite();
+					await tryCreateTemporarySite();
 				}
+			}
+		}
+
+		async function tryCreateTemporarySite(siteSlug?: string) {
+			try {
+				await sitesAPI.createNewTemporarySite(siteSlug);
+				return true;
+			} catch (error) {
+				if (
+					expectsOpenerBlueprint &&
+					getOpenerBlueprintReceiver()?.state === 'error'
+				) {
+					// The mock site exposes the error UI before its activation rejects.
+					return false;
+				}
+				throw error;
 			}
 		}
 

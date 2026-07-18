@@ -323,6 +323,12 @@ export default defineConfig(({ command, mode }) => {
 					'peer.html': fileURLToPath(
 						new URL('./demos/peer.html', import.meta.url)
 					),
+					'opener-handshake.html': fileURLToPath(
+						new URL(
+							'./demos/opener-handshake.html',
+							import.meta.url
+						)
+					),
 					'time-traveling.html': fileURLToPath(
 						new URL('./demos/time-traveling.html', import.meta.url)
 					),

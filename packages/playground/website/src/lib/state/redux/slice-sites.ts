@@ -21,6 +21,7 @@ import {
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import { getOpenerBlueprintReceiver } from '../../opener-blueprint-protocol';
 import {
 	deleteBlueprintBundle,
 	isTraversableFilesystemBackend,
@@ -541,6 +542,7 @@ export function setTemporarySiteSpec(
 			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
 			return newSiteInfo;
 		} catch (e) {
+			reportOpenerBlueprintError(resolvedBlueprint?.source, e);
 			logger.error(
 				'Error preparing the Blueprint after it was downloaded.',
 				e
@@ -599,8 +601,13 @@ export function createStoredSite(
 			blueprint = source;
 			originalBlueprintSource = { type: 'opfs-site' };
 		}
-		const runtimeConfiguration =
-			await resolveRuntimeConfiguration(blueprint);
+		let runtimeConfiguration: RuntimeConfiguration;
+		try {
+			runtimeConfiguration = await resolveRuntimeConfiguration(blueprint);
+		} catch (error) {
+			reportOpenerBlueprintError(originalBlueprintSource, error);
+			throw error;
+		}
 		const now = Date.now();
 		const sites = selectAllSites(getState());
 		let displayName = siteName;
@@ -697,16 +704,34 @@ async function prepareResolvedBlueprint(
 	resolvedBlueprint: ResolvedBlueprint,
 	playgroundUrlWithQueryApiArgs: URL
 ) {
-	const reflection = await BlueprintReflection.create(
-		resolvedBlueprint.blueprint
-	);
-	if (reflection.getVersion() === 1) {
-		resolvedBlueprint.blueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint as any,
-			playgroundUrlWithQueryApiArgs.searchParams
+	try {
+		const reflection = await BlueprintReflection.create(
+			resolvedBlueprint.blueprint
 		);
+		if (reflection.getVersion() === 1) {
+			resolvedBlueprint.blueprint = await applyQueryOverrides(
+				resolvedBlueprint.blueprint as any,
+				playgroundUrlWithQueryApiArgs.searchParams
+			);
+		}
+		return resolvedBlueprint;
+	} catch (error) {
+		reportOpenerBlueprintError(resolvedBlueprint.source, error);
+		throw error;
 	}
-	return resolvedBlueprint;
+}
+
+function reportOpenerBlueprintError(
+	source: BlueprintSource | undefined,
+	error: unknown
+) {
+	if (source?.type !== 'opener') {
+		return;
+	}
+	const receiver = getOpenerBlueprintReceiver();
+	if (receiver?.getAcceptedRun(source.runId)) {
+		receiver.reportError(error);
+	}
 }
 
 /**

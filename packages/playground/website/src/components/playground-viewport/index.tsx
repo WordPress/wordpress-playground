@@ -19,6 +19,7 @@ import {
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
+import { getOpenerBlueprintReceiver } from '../../lib/opener-blueprint-protocol';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -56,6 +57,17 @@ export const PlaygroundViewport = ({
  * as there's no risk of data loss
  */
 export const KeepAliveTemporarySitesViewport = () => {
+	const waitingForOpener = getOpenerBlueprintReceiver()?.state === 'waiting';
+	const [showOpenerHint, setShowOpenerHint] = useState(false);
+	useEffect(() => {
+		if (!waitingForOpener) {
+			setShowOpenerHint(false);
+			return;
+		}
+		const timeout = setTimeout(() => setShowOpenerHint(true), 30_000);
+		return () => clearTimeout(timeout);
+	}, [waitingForOpener]);
+
 	const temporarySites = useAppSelector(selectTemporarySites);
 	const activeSite = useActiveSite();
 	// Check if a site slug is set (even if the entity doesn't exist yet).
@@ -137,7 +149,17 @@ export const KeepAliveTemporarySitesViewport = () => {
 	if (!sitesFinishedLoading) {
 		return (
 			<div className={css.loadingViewport}>
-				<h1 className={css.loadingCaption}>Loading Playgrounds</h1>
+				<h1 className={css.loadingCaption}>
+					{waitingForOpener
+						? 'Waiting for the opener to send a Blueprint…'
+						: 'Loading Playgrounds'}
+				</h1>
+				{waitingForOpener && showOpenerHint ? (
+					<p className={css.loadingHint}>
+						Keep the opener page open and try sending the Blueprint
+						again.
+					</p>
+				) : null}
 				<div className={css.progressWrapper}>
 					<div className={css.progressBar} />
 				</div>

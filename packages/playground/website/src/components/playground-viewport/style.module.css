@@ -43,6 +43,15 @@
 	text-align: center;
 }
 
+.loading-hint {
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+	margin: 12px 0 0;
+	max-width: 520px;
+	text-align: center;
+}
+
 .progress-wrapper {
 	position: relative;
 	width: calc(100% - 48px);
@@ -77,6 +86,10 @@
 	}
 
 	.loading-caption {
+		color: #fff;
+	}
+
+	.loading-hint {
 		color: #fff;
 	}
 

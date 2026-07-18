@@ -26,6 +26,7 @@ export interface QueryAPIParams {
 	'import-content'?: string;
 	url?: string;
 	'blueprint-url'?: string;
+	'blueprint-source'?: 'opener';
 	'page-title'?: string;
 }
 

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Playground opener Blueprint handshake</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 860px;
+				padding: 32px 20px;
+			}
+			label,
+			legend {
+				font-weight: 600;
+			}
+			input[type='text'],
+			textarea {
+				display: block;
+				font: inherit;
+				margin: 6px 0 18px;
+				padding: 8px;
+				width: 100%;
+			}
+			textarea {
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				min-height: 190px;
+			}
+			fieldset {
+				border: 1px solid #c3c4c7;
+				margin: 18px 0;
+				padding: 14px;
+			}
+			.actions {
+				display: flex;
+				gap: 8px;
+				margin: 18px 0;
+			}
+			button {
+				font: inherit;
+				padding: 8px 14px;
+			}
+			pre {
+				background: #1e1e1e;
+				color: #f0f0f0;
+				min-height: 180px;
+				overflow: auto;
+				padding: 14px;
+				white-space: pre-wrap;
+			}
+			.hint {
+				color: #50575e;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Playground opener Blueprint handshake</h1>
+		<p class="hint">
+			This page must keep the <code>window.open()</code> handle. Do not
+			add <code>noopener</code>, because the receiver requires
+			<code>window.opener</code>.
+		</p>
+
+		<label for="playground-url">Playground URL</label>
+		<input id="playground-url" type="text" />
+
+		<label for="blueprint">Blueprint JSON</label>
+		<textarea id="blueprint" spellcheck="false">
+{
+  "landingPage": "/wp-admin/",
+  "login": true,
+  "plugins": ["hello-dolly"]
+}</textarea
+		>
+
+		<label for="file">Optional local file</label>
+		<input id="file" type="file" />
+
+		<fieldset>
+			<legend>File destination</legend>
+			<label>
+				<input type="radio" name="destination" value="vfs" checked />
+				Virtual filesystem
+			</label>
+			<label>
+				<input type="radio" name="destination" value="media-library" />
+				Media Library
+			</label>
+		</fieldset>
+
+		<label for="vfs-path">VFS path</label>
+		<input
+			id="vfs-path"
+			type="text"
+			value="/wordpress/wp-content/note.txt"
+		/>
+
+		<div class="actions">
+			<button id="open" type="button">Open in Playground</button>
+			<button id="send-again" type="button" disabled>
+				Send run again
+			</button>
+		</div>
+
+		<h2>Protocol log</h2>
+		<pre id="log" aria-live="polite"></pre>
+
+		<script>
+			const PROTOCOL_VERSION = 1;
+			const playgroundUrlInput =
+				document.getElementById('playground-url');
+			const blueprintInput = document.getElementById('blueprint');
+			const fileInput = document.getElementById('file');
+			const pathInput = document.getElementById('vfs-path');
+			const openButton = document.getElementById('open');
+			const sendAgainButton = document.getElementById('send-again');
+			const logOutput = document.getElementById('log');
+
+			playgroundUrlInput.value =
+				window.location.protocol === 'file:'
+					? 'http://127.0.0.1:5400/website-server/'
+					: new URL('../', window.location.href).href;
+
+			let receiverWindow;
+			let runPayloadPromise;
+			let lastRunPayload;
+			let receiverOrigin = '*';
+			let sendingRun = false;
+			let helloInterval;
+
+			document
+				.querySelectorAll('input[name="destination"]')
+				.forEach((input) =>
+					input.addEventListener('change', () => {
+						pathInput.disabled = selectedDestination() !== 'vfs';
+					})
+				);
+
+			openButton.addEventListener('click', () => {
+				let targetUrl;
+				try {
+					targetUrl = new URL(playgroundUrlInput.value);
+					targetUrl.searchParams.set('blueprint-source', 'opener');
+				} catch (error) {
+					appendLog(`Invalid Playground URL: ${error.message}`);
+					return;
+				}
+
+				// Open synchronously so browsers treat this as a user-initiated popup.
+				receiverWindow = window.open(targetUrl.href);
+				if (!receiverWindow) {
+					appendLog('The browser blocked the Playground popup.');
+					return;
+				}
+
+				sendingRun = false;
+				lastRunPayload = undefined;
+				receiverOrigin = '*';
+				sendAgainButton.disabled = true;
+				runPayloadPromise = createRunPayload();
+				appendLog(`Opened ${targetUrl.href}`);
+				clearInterval(helloInterval);
+				helloInterval = setInterval(sendHello, 1_000);
+			});
+
+			sendAgainButton.addEventListener('click', () => {
+				if (!receiverWindow || !lastRunPayload) {
+					return;
+				}
+				receiverWindow.postMessage(lastRunPayload, receiverOrigin);
+				appendLog('sent playground-blueprint:run again');
+			});
+
+			window.addEventListener('message', (event) => {
+				if (
+					event.source !== receiverWindow ||
+					!event.data ||
+					typeof event.data.type !== 'string' ||
+					event.data.protocolVersion !== PROTOCOL_VERSION
+				) {
+					return;
+				}
+				appendLog(`received ${JSON.stringify(event.data)}`);
+				if (event.data.type === 'playground-blueprint:ready') {
+					receiverOrigin =
+						event.origin === 'null' ? '*' : event.origin;
+					void sendRun();
+				}
+			});
+
+			async function sendRun() {
+				if (sendingRun || !receiverWindow || !runPayloadPromise) {
+					return;
+				}
+				sendingRun = true;
+				try {
+					lastRunPayload = await runPayloadPromise;
+					receiverWindow.postMessage(lastRunPayload, receiverOrigin);
+					appendLog('sent playground-blueprint:run');
+					sendAgainButton.disabled = false;
+					clearInterval(helloInterval);
+				} catch (error) {
+					appendLog(`Could not create run payload: ${error.message}`);
+					sendingRun = false;
+				}
+			}
+
+			function sendHello() {
+				if (!receiverWindow || receiverWindow.closed || sendingRun) {
+					clearInterval(helloInterval);
+					return;
+				}
+				receiverWindow.postMessage(
+					{
+						type: 'playground-blueprint:hello',
+						protocolVersion: PROTOCOL_VERSION,
+					},
+					'*'
+				);
+			}
+
+			async function createRunPayload() {
+				const blueprint = JSON.parse(blueprintInput.value);
+				const selectedFile = fileInput.files[0];
+				const files = [];
+				if (selectedFile) {
+					const destination = selectedDestination();
+					if (
+						destination === 'vfs' &&
+						!pathInput.value.startsWith('/')
+					) {
+						throw new Error('The VFS path must be absolute.');
+					}
+					files.push({
+						name: selectedFile.name,
+						bytes: await selectedFile.arrayBuffer(),
+						mimeType: selectedFile.type || undefined,
+						destination,
+						...(destination === 'vfs'
+							? { path: pathInput.value }
+							: {}),
+					});
+				}
+				return {
+					type: 'playground-blueprint:run',
+					protocolVersion: PROTOCOL_VERSION,
+					blueprint,
+					files,
+				};
+			}
+
+			function selectedDestination() {
+				return document.querySelector(
+					'input[name="destination"]:checked'
+				).value;
+			}
+
+			function appendLog(message) {
+				const timestamp = new Date().toLocaleTimeString();
+				logOutput.textContent += `[${timestamp}] ${message}\n`;
+				logOutput.scrollTop = logOutput.scrollHeight;
+			}
+		</script>
+	</body>
+</html>

@@ -41,6 +41,9 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { ProgressTracker, type ProgressTrackerEvent } from '@php-wasm/progress';
+import { getOpenerBlueprintReceiver } from '../../opener-blueprint-protocol';
+import { applyOpenerBlueprintFiles } from '../../apply-opener-blueprint-files';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -59,10 +62,36 @@ export function bootSiteClient(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		let site = selectSiteBySlug(getState(), siteSlug);
+		const openerSource = site?.metadata.originalBlueprintSource;
+		const openerReceiver =
+			openerSource?.type === 'opener'
+				? getOpenerBlueprintReceiver()
+				: undefined;
+		const openerRun =
+			openerReceiver?.state === 'booting' &&
+			openerSource?.type === 'opener'
+				? openerReceiver.getAcceptedRun(openerSource.runId)
+				: undefined;
+		const reportOpenerBootCancelled = () => {
+			if (
+				openerSource?.type === 'opener' &&
+				openerReceiver?.getAcceptedRun(openerSource.runId)
+			) {
+				openerReceiver.reportError(
+					new Error('The Playground boot was cancelled.')
+				);
+			}
+		};
 		if (signal.aborted) {
+			reportOpenerBootCancelled();
 			return;
 		}
-		let site = selectSiteBySlug(getState(), siteSlug);
+		if (openerRun) {
+			signal.addEventListener('abort', reportOpenerBootCancelled, {
+				once: true,
+			});
+		}
 		if (!site) {
 			dispatch(
 				setActiveSiteError({
@@ -222,17 +251,38 @@ export function bootSiteClient(
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
+		let openerProgressTracker: ProgressTracker | undefined;
+		let bootProgressTracker: ProgressTracker | undefined;
+		let fileProgressTracker: ProgressTracker | undefined;
+		if (openerRun && openerReceiver) {
+			openerProgressTracker = new ProgressTracker();
+			openerProgressTracker.addEventListener(
+				'progress',
+				(event: ProgressTrackerEvent) => {
+					openerReceiver.reportProgress(
+						event.detail.progress,
+						event.detail.caption
+					);
+				}
+			);
+			if (openerRun.files.length) {
+				bootProgressTracker = openerProgressTracker.stage(0.9);
+			} else {
+				bootProgressTracker = openerProgressTracker.stage(1);
+			}
+		}
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
 				site.originalUrlParams?.searchParams?.['php-extension'],
 				document.location.href
 			);
 
-			await startPlaygroundWeb({
+			const startedPlayground = await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				progressTracker: bootProgressTracker,
 				extensions: phpExtensions,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
@@ -256,9 +306,42 @@ export function bootSiteClient(
 					},
 				],
 			});
-		} catch (e) {
+
 			if (signal.aborted) {
 				return;
+			}
+			if (openerRun && openerReceiver) {
+				if (openerRun.files.length) {
+					fileProgressTracker = openerProgressTracker?.stage(
+						0.1,
+						'Applying transferred files'
+					);
+					fileProgressTracker?.set(0);
+				}
+				await applyOpenerBlueprintFiles(
+					startedPlayground,
+					openerRun.files,
+					signal,
+					(completedFiles) => {
+						fileProgressTracker?.set(
+							(completedFiles / openerRun.files.length) * 100
+						);
+					}
+				);
+				openerReceiver.reportBooted(
+					await startedPlayground.getCurrentURL()
+				);
+				signal.removeEventListener('abort', reportOpenerBootCancelled);
+			}
+		} catch (e) {
+			if (openerRun) {
+				signal.removeEventListener('abort', reportOpenerBootCancelled);
+			}
+			if (signal.aborted) {
+				return;
+			}
+			if (openerRun) {
+				openerReceiver?.reportError(e);
 			}
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });

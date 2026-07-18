@@ -729,6 +729,9 @@ export function SavedPlaygroundsPanel({
 		if (source.type === 'inline-string') {
 			return 'inline Blueprint';
 		}
+		if (source.type === 'opener') {
+			return 'opener Blueprint';
+		}
 		if (source.type === 'opfs-site') {
 			return 'saved Playground files';
 		}
