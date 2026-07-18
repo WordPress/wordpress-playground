@@ -25,10 +25,11 @@ A full node-graph canvas (n8n/Make style) was **considered and rejected**: both 
 
 ---
 
-## The six designs
+## The seven designs
 
 | # | Direction | Audience | Foregrounds | Backed by |
 |---|-----------|----------|-------------|-----------|
+| **7** | [**Site Card**](./mockups/08-site-card.html) | newest — evolves #6 | **the site is the control**: identity (title, theme, environment, landing page, users) edited directly on a mini-site — theme = the screenshot (click → installed-themes gallery), landing page = the address bar, environment = the click-to-change spec line, users = the avatar stack; category rows remain only for true collections (Plugins, Content) | direct manipulation · macOS/Slack profile cards · #6's manifest |
 | **6** | [**Bill of Materials · minimal**](./mockups/07-bom-minimal.html) | **★ recommended primary** | whole site as a one-line-per-category manifest; open one line to drill in, the rest stay as summaries (focus accordion); two-level drill-down; list + ＋ per category; Materials⇄JSON. *(Fuller "everything expanded" variant: [06](./mockups/06-bill-of-materials.html).)* | package manifests · settings apps · Figma layers · v2 declarative schema |
 | **1** | [**Recipe Cards**](./mockups/01-recipe-cards.html) | alternative: steps = blocks | inline-edited plain-language step cards; Advanced reveal; escape hatch; status dots | Gutenberg · Alex Kirk Step Library |
 | **2** | [**Form ⇄ Code split**](./mockups/02-form-code-split.html) | developer round-trip | round-trip sync; jump-to-node; lenient validation; merged "full config" lens — *its form half is superseded by #6; the code round-trip lives on as #6's JSON toggle* | Stoplight · GitLab CI · Ryan Welcher's WP Director |
