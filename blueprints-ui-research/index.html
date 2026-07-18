@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blueprints UI Editor — research &amp; 6 design directions</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#5f5f5f; --faint:#949494;
+  --line:#e3e3e3; --line-2:#dcdcde; --green:#00844a; --amber:#996800; --purple:#7b3fe4;
+  --radius:14px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 3px 12px rgba(0,0,0,.06);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--wp-blue-600)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+
+/* hero */
+.hero{background:radial-gradient(1200px 400px at 20% -10%,#eef1ff,transparent),linear-gradient(180deg,#fff,#fbfbfc);border-bottom:1px solid var(--line)}
+.hero .wrap{padding:46px 22px 40px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--wp-blue-600);text-transform:uppercase;letter-spacing:.06em;background:var(--wp-blue-050);border:1px solid #dbe1ff;padding:5px 11px;border-radius:20px}
+h1{font-size:38px;letter-spacing:-.02em;margin:16px 0 10px;max-width:18ch}
+.lede{font-size:17.5px;color:var(--muted);max-width:64ch;margin:0}
+.hero .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:inline-grid;place-items:center;color:#fff;font-weight:800}
+
+/* section */
+section{padding:38px 0}
+h2{font-size:23px;letter-spacing:-.01em;margin:0 0 6px}
+.section-sub{color:var(--muted);margin:0 0 22px;max-width:70ch}
+
+/* recommendation banner */
+.rec{background:#0f1220;color:#e7ebf5;border-radius:var(--radius);padding:24px 26px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
+.rec::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#3858e9aa,transparent 70%)}
+.rec h2{color:#fff}
+.rec p{color:#c2c9db;margin:8px 0 0;max-width:74ch;position:relative}
+.rec .combo{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;position:relative}
+.rec .combo .c{background:#1a1f33;border:1px solid #2b3350;border-radius:10px;padding:10px 13px;font-size:13.5px}
+.rec .combo .c b{color:#fff}
+.rec .combo .c span{color:#9aa4c4;display:block;font-size:12px}
+.rec .plus{align-self:center;color:#6b7699;font-weight:700}
+
+/* design cards */
+.grid5{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.dcard{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:.14s}
+.dcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:#c7cdf5}
+.dcard .thumb{height:132px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);background:#fbfbfc}
+.dnum{position:absolute;top:12px;left:12px;width:28px;height:28px;border-radius:8px;background:#111;color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;z-index:2}
+.tagpos{position:absolute;top:14px;right:14px;font-size:11px;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 9px;z-index:2;color:var(--muted)}
+.dcard .body{padding:15px 16px 17px}
+.dcard h3{margin:0 0 5px;font-size:16.5px}
+.dcard p{margin:0;color:var(--muted);font-size:13.5px}
+.dcard .foot{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.mini{font-size:11px;background:#f2f2f3;border-radius:20px;padding:2px 9px;color:#4a4a4a}
+.open{margin-top:13px;font-size:13px;font-weight:700;color:var(--wp-blue-600)}
+
+/* thumb motifs (pure CSS mini-illustrations) */
+.tm{position:absolute;inset:0;padding:16px 14px;display:flex;gap:7px}
+.tm .col{display:flex;flex-direction:column;gap:6px;flex:1}
+.tm .bar{height:9px;border-radius:4px;background:#e6e8f5}
+.tm .card{background:#fff;border:1px solid #e6e6ee;border-radius:7px;height:26px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;align-items:center;gap:6px;padding:0 8px}
+.tm .card::before{content:"";width:14px;height:14px;border-radius:4px;background:#dfe4ff}
+.tm .codeblk{background:#1d1f24;border-radius:7px;flex:1}
+.tm .chat{background:#eef1ff;border-radius:10px 10px 10px 3px;height:20px}
+.tm .chat.r{background:#3858e9;align-self:flex-end;width:60%;border-radius:10px 10px 3px 10px}
+.tm.paper{background:#fff;flex-direction:column}
+.tm.paper .h{height:12px;width:55%;border-radius:4px;background:#e2e2dd}
+.tm.paper .p{height:7px;border-radius:4px;background:#eee}
+.tm.wiz{flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.tm.wiz .g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
+.tm.wiz .g div{height:24px;border-radius:6px;background:#fff;border:1px solid #e6e6ee}
+
+/* spectrum */
+.spectrum{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow)}
+.axis{position:relative;height:3px;background:linear-gradient(90deg,#00a32a,#3858e9,#7b3fe4);border-radius:3px;margin:34px 8px 10px}
+.axis .end{position:absolute;top:-26px;font-size:12px;font-weight:600;color:var(--muted)}
+.axis .end.l{left:0}.axis .end.r{right:0}
+.pin{position:absolute;top:-9px;transform:translateX(-50%);text-align:center}
+.pin .dot{width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--wp-blue);margin:0 auto}
+.pin .lb{font-size:11.5px;font-weight:700;margin-top:6px;white-space:nowrap;background:#fff;padding:1px 4px}
+
+/* findings columns */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.finding{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+.finding h3{margin:0 0 10px;font-size:16px;display:flex;align-items:center;gap:8px}
+.finding ul{margin:0;padding-left:18px;color:#3a3a3a}
+.finding li{margin-bottom:7px;font-size:13.6px}
+.finding .q{font-style:italic;color:var(--muted);border-left:3px solid var(--line-2);padding-left:11px;margin:11px 0 0;font-size:13px}
+.pillrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.pill{font-size:12px;background:#f2f2f3;border:1px solid var(--line);border-radius:20px;padding:3px 10px;color:#444}
+
+.callout{background:var(--wp-blue-050);border:1px solid #dbe1ff;border-radius:12px;padding:16px 18px;font-size:14px;color:#2a2f4a;margin-top:18px}
+.callout b{color:#1a1f3a}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:13px}
+.filelist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.filelist a{font-size:12.5px;font-family:var(--mono);background:#fff;border:1px solid var(--line-2);border-radius:7px;padding:5px 10px;text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="hero"><div class="wrap">
+  <span class="eyebrow"><span class="logo" style="width:18px;height:18px;font-size:10px">B</span> Playground · design research</span>
+  <h1>A visual Blueprints editor — and 6 ways it could look</h1>
+  <p class="lede">Research into everything the team has said about a Blueprint UI, a survey of how comparable products handle “config-as-code that also needs a friendly face,” the progressive-disclosure patterns that make users happy without capping developers — and six clickable design directions to react to, led by a “bill of materials.”</p>
+</div></div>
+
+<div class="wrap">
+
+  <!-- Recommendation -->
+  <section>
+    <div class="rec">
+      <h2>The short version</h2>
+      <p>Model the Blueprint the way a user pictures their site — a <b>bill of materials</b>: “these plugins, this theme, this content, these people.” Each category is a <b>list with a ＋</b> — not one card per item, and never a label that echoes the schema. Keep a <b>Custom code</b> category as the escape hatch, let power users flip the whole thing to <b>synced raw JSON</b>, and build it <b>correct-by-construction</b> (the UI can only emit valid Blueprints) with <b>lenient</b> validation. Two research passes plus the team's own history point here; v2's declarative shape makes it click.</p>
+      <div class="combo">
+        <div class="c"><b>Design 6 · Bill of Materials ★</b><span>the primary editing surface</span></div>
+        <span class="plus">+</span>
+        <div class="c"><b>Materials ⇄ JSON</b><span>the developer round-trip</span></div>
+        <span class="plus">+</span>
+        <div class="c"><b>Design 3 · Guided Start</b><span>the non-dev on-ramp</span></div>
+      </div>
+      <p style="margin-top:16px;font-size:13.5px">Design 1 (Recipe Cards) is the alternative “steps = Gutenberg blocks” model; Designs 4 (AI) and 5 (Notebook) are <b>layers on top</b> — an entry mode and a sharing/teaching format — not competing editors.</p>
+    </div>
+  </section>
+
+  <!-- The 5 designs -->
+  <section>
+    <h2>Six design directions</h2>
+    <p class="section-sub">Each is a self-contained, clickable HTML mockup with an “about this design” panel at the bottom explaining the pattern and the research behind it. Open them side by side.</p>
+
+    <a class="dcard" href="mockups/07-bom-minimal.html" style="flex-direction:row;margin-bottom:16px;border-color:#bfe6cd;box-shadow:0 0 0 3px #e7f6ee, var(--shadow)">
+      <div class="thumb" style="width:290px;flex:none;height:auto;border-bottom:0;border-right:1px solid var(--line);background:#fbfbfc">
+        <span class="dnum" style="background:#00844a">6</span><span class="tagpos" style="color:#00844a;border-color:#bfe6cd">★ recommended</span>
+        <div class="tm" style="flex-direction:column;gap:7px;padding:16px 14px;justify-content:center">
+          <div class="bar" style="width:42%;background:#cbe8d5;height:8px"></div>
+          <div class="card"></div><div class="card"></div>
+          <div style="border:1px dashed #b7d9c4;border-radius:7px;height:22px;background:#f3fbf6;display:flex;align-items:center;padding:0 8px;color:#00844a;font-size:11px;font-weight:700">＋</div>
+        </div>
+      </div>
+      <div class="body" style="flex:1;padding:18px 20px">
+        <h3>6 · Bill of Materials <span style="font-size:12px;color:#00844a;font-weight:700">★ recommended primary</span></h3>
+        <p>The whole site as a <b>one-line-per-category manifest</b> — Plugins, Themes, Content, Users, Settings, Custom code — readable at a glance. <b>Open one line to drill in</b>; the rest stay as summaries, so you never lose the map. Each category is a list with a <b>＋</b>, in the user's words, never the schema's. Flips to raw <b>v2 JSON</b>.</p>
+        <div class="foot"><span class="mini">overview at a glance</span><span class="mini">drill down, keep context</span><span class="mini">list + ＋ per category</span><span class="mini">v2 JSON toggle</span></div>
+        <div class="open">Open the minimal version →&nbsp;&nbsp;<span style="color:var(--faint);font-weight:500">(full expanded view: file 06)</span></div>
+      </div>
+    </a>
+
+    <div class="grid5">
+
+      <a class="dcard" href="mockups/01-recipe-cards.html">
+        <div class="thumb"><span class="dnum">1</span><span class="tagpos">steps = blocks · alt</span>
+          <div class="tm"><div class="col" style="max-width:34px"><div class="bar"></div><div class="bar"></div><div class="bar" style="background:#dfe4ff"></div></div><div class="col"><div class="card"></div><div class="card"></div><div class="card"></div></div></div>
+        </div>
+        <div class="body"><h3>Recipe Cards</h3><p>Plain-language steps you edit right in the card. “Steps = blocks” — the Gutenberg model everyone already knows, correct by construction.</p>
+          <div class="foot"><span class="mini">inline editing</span><span class="mini">Advanced reveal</span><span class="mini">status dots</span></div>
+          <div class="open">Open mockup →</div>
+        </div>
+      </a>
+
+      <a class="dcard" href="mockups/02-form-code-split.html">
+        <div class="thumb"><span class="dnum">2</span><span class="tagpos">developer</span>
+          <div class="tm"><div class="col"><div class="card"></div><div class="card"></div><div class="card"></div></div><div class="col"><div class="codeblk"></div></div></div>
+        </div>
+        <div class="body"><h3>Form ⇄ Code split</h3><p>One document, two skill levels. Form left, live JSON right, round-tripped; click a field, the JSON jumps &amp; highlights. Lenient validation.</p>
+          <div class="foot"><span class="mini">round-trip sync</span><span class="mini">jump-to-node</span><span class="mini">merged lens</span></div>
+          <div class="open">Open mockup →</div>
+        </div>
+      </a>
+
+      <a class="dcard" href="mockups/03-guided-start.html">
+        <div class="thumb"><span class="dnum">3</span><span class="tagpos">non-dev on-ramp</span>
+          <div class="tm wiz"><div class="g"><div></div><div style="border-color:#c7cdf5;background:#eef1ff"></div><div></div></div><div class="bar" style="width:60%;height:8px"></div></div>
+        </div>
+        <div class="body"><h3>Guided Start</h3><p>“What are you building?” → a detected-and-prefilled starter → drop into the editor. Preferred/Custom runtime fork. Never a blank page.</p>
+          <div class="foot"><span class="mini">templates</span><span class="mini">Preferred/Custom</span><span class="mini">record-from-site</span></div>
+          <div class="open">Open mockup →</div>
+        </div>
+      </a>
+
+      <a class="dcard" href="mockups/04-ai-builder.html">
+        <div class="thumb"><span class="dnum">4</span><span class="tagpos">entry layer</span>
+          <div class="tm"><div class="col"><div class="chat"></div><div class="chat r"></div><div class="chat"></div></div><div class="col" style="max-width:40px"><div class="card"></div><div class="card"></div></div></div>
+        </div>
+        <div class="body"><h3>AI Conversational Builder</h3><p>Describe it in plain English → steps materialize as editable cards. “Explain” each one; “what's missing?”; escape to cards or JSON anytime.</p>
+          <div class="foot"><span class="mini">describe → cards</span><span class="mini">explain</span><span class="mini">completeness critic</span></div>
+          <div class="open">Open mockup →</div>
+        </div>
+      </a>
+
+      <a class="dcard" href="mockups/05-notebook.html">
+        <div class="thumb"><span class="dnum">5</span><span class="tagpos">share &amp; teach</span>
+          <div class="tm paper"><div class="h"></div><div class="p"></div><div class="p" style="width:80%"></div><div class="card" style="margin-top:4px"></div><div class="codeblk" style="height:22px;flex:none"></div></div>
+        </div>
+        <div class="body"><h3>Notebook Blueprint</h3><p>A runnable document — prose, step capsules, and first-class code cells interleaved. Blueprints double as tutorials, docs and bug repros.</p>
+          <div class="foot"><span class="mini">prose + code</span><span class="mini">show-code toggle</span><span class="mini">“WordPress Recipes”</span></div>
+          <div class="open">Open mockup →</div>
+        </div>
+      </a>
+
+      <div class="dcard" style="cursor:default;background:#fbfbfc;border-style:dashed">
+        <div class="body" style="display:flex;flex-direction:column;justify-content:center;height:100%">
+          <h3 style="font-size:15px">Also considered: Node/flow canvas</h3>
+          <p>An n8n/Make-style graph. Both research passes flagged it as <b>overkill for a linear step sequence</b> — it earns its keep only if Blueprints gain real branching. Its best idea (per-field <i>value ⇄ expression</i> escape hatch) is folded into designs 1, 2 &amp; 4 instead.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Spectrum -->
+  <section>
+    <h2>How they map</h2>
+    <p class="section-sub">The five aren't mutually exclusive — they sit at different points on the “speaks-the-user's-language ↔ full-developer-power” axis and can compose.</p>
+    <div class="spectrum">
+      <div class="axis">
+        <span class="end l">🙂 Speaks the user's language</span>
+        <span class="end r">⚙️ Full developer power</span>
+        <span class="pin" style="left:11%"><span class="dot" style="border-color:#00a32a"></span><span class="lb">3 · Guided</span></span>
+        <span class="pin" style="left:28%"><span class="dot" style="border-color:#00a32a"></span><span class="lb">4 · AI</span></span>
+        <span class="pin" style="left:46%"><span class="dot" style="border-color:#00844a;width:24px;height:24px;box-shadow:0 0 0 4px #e7f6ee"></span><span class="lb" style="color:#00844a">6 · BOM ★</span></span>
+        <span class="pin" style="left:63%"><span class="dot"></span><span class="lb">1 · Cards</span></span>
+        <span class="pin" style="left:78%"><span class="dot" style="border-color:#7b3fe4"></span><span class="lb">5 · Notebook</span></span>
+        <span class="pin" style="left:92%"><span class="dot" style="border-color:#7b3fe4"></span><span class="lb">2 · Form⇄Code</span></span>
+      </div>
+      <div class="callout" style="margin-top:34px"><b>The move that satisfies both ends at once:</b> a per-field / per-card <b>escape hatch</b> — friendly value 90% of the time, raw PHP / wp-config / expression the other 10% — plus a global <b>Simple / Advanced</b> mode. That's how one editor serves a first-timer and a core contributor without either feeling out of place.</div>
+    </div>
+  </section>
+
+  <!-- Findings -->
+  <section>
+    <h2>What the research turned up</h2>
+    <p class="section-sub">Full detail (with every link and quote) is in <a href="README.md">README.md</a>. The headlines:</p>
+    <div class="cols">
+      <div class="finding">
+        <h3>🏛️ This has a 3-year history — and 8+ builders</h3>
+        <ul>
+          <li>Adam's 2023 <b>Coordination Thread</b> exists precisely to avoid re-building the same thing; that fear largely came true.</li>
+          <li>Prior art: <b>Alex Kirk's Step Library</b> (65+ macro steps that compile to primitives), <b>lubusIN's block-based builder</b>, <b>Sean Morris / Sejas builder.html</b>, <b>jdevalk's site→Blueprint exporter</b>, plus AI-generation work across wpcom / Studio / Big Sky.</li>
+          <li>A real editor is <b>shipping right now</b> in the 2026 Dock UI — this branch. A visual layer slots in <b>over the same <code>blueprint.json</code></b>.</li>
+        </ul>
+        <p class="q">“The step library makes perfect sense in Gutenberg. Custom steps would be just custom blocks… predefined sites with customizable parts are just partially-synced patterns.” — Adam</p>
+      </div>
+
+      <div class="finding">
+        <h3>🧭 The team already agrees on the shape</h3>
+        <ul>
+          <li><b>Two-tier UX</b>: friendly visual layer + raw-JSON escape hatch (“simple / advanced mode”). Near-universal.</li>
+          <li><b>Correct-by-construction</b>: the UI should only produce valid Blueprints (Dennis Snell).</li>
+          <li><b>Lenient</b> validation like a browser: run valid steps, warn on the rest (Francesco Bigiarini).</li>
+          <li><b>Inline editing in the canvas</b>, not a detached inspector — Adam: moving inputs away is “friction.”</li>
+          <li>Open debates: <b>AI-first</b> vs manual, and <b>where it lives</b> (Add-Site form vs Settings vs companion).</li>
+        </ul>
+      </div>
+
+      <div class="finding">
+        <h3>🔭 What comparable products do</h3>
+        <ul>
+          <li><b>Gutenberg</b> — list view + inspector + “Edit as HTML” over an ordered list of typed items. Almost literally a Blueprint.</li>
+          <li><b>Stoplight / GitLab CI</b> — form ⇄ code with jump-to-node + a “merged/full config” lens.</li>
+          <li><b>n8n</b> — per-field <i>value ⇄ expression</i> toggle with a live preview; the single most transferable control.</li>
+          <li><b>Local / Vercel / Shopify</b> — Preferred-vs-Custom fork, detect-and-prefill, setup checklist.</li>
+        </ul>
+        <div class="pillrow"><span class="pill">Docker</span><span class="pill">GitHub Actions</span><span class="pill">CloudFormation</span><span class="pill">Retool</span><span class="pill">Zapier</span><span class="pill">Webflow</span><span class="pill">Observable</span></div>
+      </div>
+
+      <div class="finding">
+        <h3>🪆 Progressive-disclosure patterns that fit</h3>
+        <ul>
+          <li><b>Layered “Advanced” reveal</b> — sensible defaults hidden until needed (NN/g: never exceed 2 levels).</li>
+          <li><b>Semantic macro steps</b> — outcome-named steps that compile to primitives (Alex Kirk), with “expand to primitives” as the door out of a leaky abstraction.</li>
+          <li><b>Escape hatch</b> — a <code>runPHP</code> cell in the same list; devs never hit a wall.</li>
+          <li><b>Status dots</b> on collapsed cards so nothing important hides silently.</li>
+        </ul>
+        <p class="q">Anti-patterns to dodge: destructive mode-switch, formatting churn, “Advanced” junk-drawer, escape-hatch overuse.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>Files in this bundle</b>
+    <div class="filelist">
+      <a href="README.md">README.md — full writeup</a>
+      <a href="mockups/07-bom-minimal.html">07-bom-minimal.html ★ recommended</a>
+      <a href="mockups/06-bill-of-materials.html">06-bill-of-materials.html (full/expanded)</a>
+      <a href="mockups/01-recipe-cards.html">01-recipe-cards.html</a>
+      <a href="mockups/02-form-code-split.html">02-form-code-split.html</a>
+      <a href="mockups/03-guided-start.html">03-guided-start.html</a>
+      <a href="mockups/04-ai-builder.html">04-ai-builder.html</a>
+      <a href="mockups/05-notebook.html">05-notebook.html</a>
+    </div>
+    <p style="margin-top:18px">Sample Blueprint used throughout: a WooCommerce demo store (<code>plugins</code> · <code>activeTheme</code> · <code>content</code> WXR · a <code>runPHP</code> tweak). Schema &amp; field names are the real Blueprint v2 format. Design research, July 2026.</p>
+  </footer>
+
+</div>
+</body>
+</html>

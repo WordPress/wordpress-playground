@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>4 · AI Builder — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e3e3e3; --line-2:#dcdcde; --green:#00844a; --amber:#996800; --purple:#7b3fe4;
+  --radius:12px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.docname{color:var(--muted);font-weight:500;display:flex;gap:7px;align-items:center}
+.docname .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;gap:7px;align-items:center}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+.seg{display:inline-flex;background:#f0f0f1;border:1px solid var(--line-2);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:6px;font-size:12.5px;color:var(--muted);font-weight:500}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+
+.split{display:grid;grid-template-columns:1fr 400px;height:calc(100vh - 56px)}
+
+/* chat */
+.chat{display:flex;flex-direction:column;background:#fbfbfc;border-right:1px solid var(--line)}
+.msgs{flex:1;overflow:auto;padding:22px 26px}
+.msg{max-width:640px;margin:0 auto 18px}
+.msg .who{font-size:11.5px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.msg.user .bubble{background:var(--wp-blue);color:#fff;border-radius:14px 14px 4px 14px;padding:11px 15px;font-size:14px;margin-left:auto;max-width:80%;width:fit-content}
+.msg.user .who{justify-content:flex-end}
+.ava{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:10px;color:#fff}
+.ava.ai{background:linear-gradient(135deg,#3858e9,#7b3fe4)}
+.ai .bubble{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);font-size:13.8px;line-height:1.55}
+.ai .bubble p{margin:0 0 10px}.ai .bubble p:last-child{margin:0}
+
+/* the generated plan inside an AI bubble */
+.planblock{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:6px 0 12px}
+.pb-head{background:#f5f6ff;padding:8px 12px;font-size:12px;font-weight:700;color:var(--wp-blue-600);display:flex;align-items:center;gap:7px;border-bottom:1px solid #e6e9ff}
+.pbstep{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;background:#fff}
+.pbstep:first-of-type{border-top:0}
+.pbstep .i{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:13px;flex:none}
+.i.plugin{background:#eef1ff;color:#3858e9}.i.theme{background:#f0ecff;color:#7b3fe4}.i.content{background:#e7f6ee;color:#00844a}.i.site{background:#fff4e0;color:#996800}.i.code{background:#1e1e1e;color:#8fd3ff}
+.pbstep .explain{margin-left:auto;font-size:11px;color:var(--faint);border:1px solid var(--line-2);border-radius:20px;padding:2px 8px;background:#fff}
+.pbstep .explain:hover{border-color:#c7cdf5;color:var(--wp-blue-600)}
+.suggest{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.suggest button{border:1px dashed #c7cdf5;background:#fbfcff;color:var(--wp-blue-600);border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:500}
+.suggest button:hover{background:var(--wp-blue-050)}
+
+.composer{border-top:1px solid var(--line);background:#fff;padding:14px 26px 18px}
+.composer .box{max-width:640px;margin:0 auto;border:1.5px solid var(--line-2);border-radius:14px;padding:10px 12px;display:flex;gap:10px;align-items:flex-end;box-shadow:var(--shadow)}
+.composer .box:focus-within{border-color:var(--wp-blue)}
+.composer textarea{flex:1;border:0;resize:none;font-family:inherit;font-size:14px;outline:none;max-height:120px}
+.composer .send{width:34px;height:34px;border-radius:9px;background:var(--wp-blue);color:#fff;border:0;font-size:15px;flex:none}
+.starters{max-width:640px;margin:10px auto 0;display:flex;gap:8px;flex-wrap:wrap}
+.starters button{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:6px 12px;font-size:12.5px;color:var(--muted)}
+
+/* right: live blueprint preview */
+.preview{display:flex;flex-direction:column;background:#fff}
+.pv-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.pv-head b{font-size:13px}
+.pv-head .valid{margin-left:auto;font-size:11.5px;color:var(--green);font-weight:600}
+.pv-body{flex:1;overflow:auto;padding:14px}
+.pcard{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);animation:pop .3s ease}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+.pcard .i{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+.pcard b{font-size:13px;display:block}.pcard span{color:var(--faint);font-size:11.5px}
+.pcard .edit{margin-left:auto;color:var(--wp-blue-600);font-size:12px;font-weight:600}
+.pv-foot{border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:8px}
+.pv-foot .btn{flex:1;justify-content:center}
+.aiflag{font-size:11px;color:var(--purple);background:#f4efff;border:1px solid #e2d5ff;border-radius:20px;padding:1px 8px;font-weight:600}
+
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:var(--purple);color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}.designnote .pill{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint</div>
+  <div class="docname"><span class="dot"></span> Adam's Demo Store</div>
+  <div class="spacer"></div>
+  <div class="seg"><button class="on">Chat</button><button>Cards</button><button>Code</button></div>
+  <button class="btn primary">▶ Run</button>
+</div>
+
+<div class="split">
+  <!-- CHAT -->
+  <div class="chat">
+    <div class="msgs" id="msgs">
+      <div class="msg ai">
+        <div class="who"><span class="ava ai">✦</span> Blueprint assistant</div>
+        <div class="bubble">
+          <p>Tell me what you want to set up and I'll build the Blueprint. You stay in control — every step becomes an editable card on the right.</p>
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="who">You</div>
+        <div class="bubble">A WooCommerce demo store with the Storefront theme and some sample products, logged in as admin</div>
+      </div>
+
+      <div class="msg ai">
+        <div class="who"><span class="ava ai">✦</span> Blueprint assistant</div>
+        <div class="bubble">
+          <p>Here's a Blueprint for a WooCommerce demo store. I added everything to the preview →</p>
+          <div class="planblock">
+            <div class="pb-head">✦ Generated · 4 steps</div>
+            <div class="pbstep"><span class="i site">⚙️</span> Boot WordPress latest, PHP 8.3, log in as admin <button class="explain" onclick="explain(this)">explain</button></div>
+            <div class="pbstep"><span class="i plugin">🧩</span> Install &amp; activate WooCommerce <button class="explain" onclick="explain(this)">explain</button></div>
+            <div class="pbstep"><span class="i theme">🎨</span> Install &amp; activate Storefront <button class="explain" onclick="explain(this)">explain</button></div>
+            <div class="pbstep"><span class="i content">📦</span> Import 12 sample products <button class="explain" onclick="explain(this)">explain</button></div>
+          </div>
+          <p style="font-size:12.5px;color:var(--muted)" id="explainOut">Tap <b>explain</b> on any step to see the exact Blueprint step it maps to.</p>
+          <p style="margin-top:10px">Want any of these too?</p>
+          <div class="suggest">
+            <button onclick="addSuggest(this,'Skip WooCommerce setup wizard','code','‹∕›')">Skip the setup wizard</button>
+            <button onclick="addSuggest(this,'Set store city → Warsaw (PHP)','code','‹∕›')">Set the store location</button>
+            <button onclick="addSuggest(this,'Add a Shop landing page','content','📝')">Land on the Shop page</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="box">
+        <textarea rows="1" placeholder="Describe a change — “pin PHP to 8.2”, “add Yoast”, “import my WXR”…"></textarea>
+        <button class="send">↑</button>
+      </div>
+      <div class="starters">
+        <button>Explain this whole Blueprint</button>
+        <button>What's missing?</button>
+        <button>Make it a multisite</button>
+        <button>Turn into raw JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE PREVIEW -->
+  <div class="preview">
+    <div class="pv-head"><b>Live Blueprint</b> <span class="aiflag">✦ AI-built</span> <span class="valid">✓ valid</span></div>
+    <div class="pv-body" id="pv">
+      <div class="pcard"><span class="i site">⚙️</span><div><b>Site setup</b><span>WP latest · PHP 8.3 · admin</span></div><span class="edit">Edit</span></div>
+      <div class="pcard"><span class="i plugin">🧩</span><div><b>Install &amp; activate WooCommerce</b><span>wordpress.org</span></div><span class="edit">Edit</span></div>
+      <div class="pcard"><span class="i theme">🎨</span><div><b>Storefront theme</b><span>activated</span></div><span class="edit">Edit</span></div>
+      <div class="pcard"><span class="i content">📦</span><div><b>Import 12 sample products</b><span>demo data</span></div><span class="edit">Edit</span></div>
+    </div>
+    <div class="pv-foot">
+      <button class="btn">Edit as cards</button>
+      <button class="btn primary">▶ Run</button>
+    </div>
+  </div>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 4</span> <b>AI Conversational Builder</b> — describe it, get editable step cards. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p>The most direct expression of “speak the user's language.” Realizes the <b>AI-first thread</b> (Matías Ventura: <i>“build with AI in mind from day one”</i>; Artur Piszek's GPT prototypes; Alex Kirk's “Generate AI instructions”; Playground's <code>PLAYGRD-610</code> Blueprint tool). Describe an outcome → the assistant emits a real Blueprint that <b>materializes as editable cards on the right</b>. The chat is a <i>generator</i>, not the source of truth — the cards/JSON are, so you never lose the ability to hand-edit.</p>
+    <p><b>Anti-black-box guardrails:</b> every generated step has an <b>“explain”</b> affordance that reveals the exact underlying Blueprint step (the bridge that lets a curious non-dev graduate to a dev), a <b>“What's missing?”</b> completeness critic, and one-click escape to <b>Cards</b> or raw <b>JSON</b>. Matías's other point — using the AI to <i>discover what Blueprint syntax can't yet express</i> — falls out naturally.</p>
+    <span class="pill">Pattern: Plain-language → primitives</span><span class="pill">Pattern: Explain / detail-on-demand</span><span class="pill">Pattern: Escape to cards/JSON</span><span class="pill">AI-first (M. Ventura, A. Piszek)</span><span class="pill">Backs: Alex Kirk “AI instructions” · PLAYGRD-610</span>
+    <p style="margin:8px 0 0"><b>Caveat to weigh:</b> best as an <i>entry mode layered over</i> concepts 1–2, not a replacement — an AI that emits an unrunnable Blueprint is worse than a blank card. Pair generation with the same lenient live-validation.</p>
+    <p style="margin-bottom:0"><b>Try it:</b> click <b>explain</b> on a generated step · click a <b>suggestion</b> chip to add a step to the live preview.</p>
+  </div>
+</div>
+
+<script>
+var explanations = {
+  0:'→ <code>wordpressVersion</code>, <code>phpVersion</code>, and <code>applicationOptions["wordpress-playground"].login: true</code> at the top level.',
+  1:'→ <code>"plugins": [ "woocommerce" ]</code> — a slug string; activates by default.',
+  2:'→ <code>"activeTheme": "storefront"</code>.',
+  3:'→ <code>"content": [ { "type": "wxr", "source": "…/sample-products.wxr" } ]</code>.'
+};
+function explain(btn){
+  var steps=[...document.querySelectorAll('.pbstep')];
+  var i=steps.indexOf(btn.closest('.pbstep'));
+  document.getElementById('explainOut').innerHTML = explanations[i] || '';
+}
+function addSuggest(btn,label,cls,icon){
+  var pv=document.getElementById('pv');
+  var d=document.createElement('div');
+  d.className='pcard';
+  d.innerHTML='<span class="i '+cls+'">'+icon+'</span><div><b>'+label+'</b><span>added from suggestion</span></div><span class="edit">Edit</span>';
+  pv.appendChild(d);
+  d.scrollIntoView({block:'nearest',behavior:'smooth'});
+  btn.disabled=true; btn.style.opacity=.4; btn.textContent='✓ added';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>1 · Recipe Cards — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e3e3e3; --line-2:#dcdcde;
+  --green:#00844a; --amber:#996800; --amber-bg:#fcf3d8; --red:#b32d2e; --purple:#7b3fe4;
+  --radius:10px; --radius-sm:7px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.06);
+  --shadow-pop:0 12px 34px rgba(0,0,0,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+
+/* ---------- App chrome (shared language across all 5 mockups) ---------- */
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.brand .sep{color:var(--line-2)}
+.docname{display:flex;align-items:center;gap:7px;color:var(--muted);font-weight:500}
+.docname .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.spacer{flex:1}
+.seg{display:inline-flex;background:#f0f0f1;border:1px solid var(--line-2);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:13px;color:var(--muted);font-weight:500}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{background:#f0f0f1}
+
+/* ---------- Layout ---------- */
+.stage{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - 56px)}
+.rail{border-right:1px solid var(--line);background:#fbfbfc;padding:16px 12px;position:sticky;top:56px;height:calc(100vh - 56px);overflow:auto}
+.rail h4{margin:2px 6px 10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.outline{list-style:none;margin:0;padding:0}
+.outline li{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;color:#3c3c3c;font-size:13px;cursor:pointer}
+.outline li:hover{background:#f0f0f1}
+.outline li.on{background:var(--wp-blue-050);color:var(--wp-blue-600);font-weight:600}
+.outline .oi{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:12px;background:#fff;border:1px solid var(--line)}
+.outline li.on .oi{border-color:#c3ccff;background:#fff}
+.outline .odot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--amber)}
+.rail .addmini{margin-top:10px;width:100%;justify-content:center;color:var(--wp-blue-600);border-style:dashed}
+
+.canvas-wrap{overflow:auto}
+.canvas{max-width:760px;margin:0 auto;padding:26px 20px 80px}
+.flow-note{font-size:12.5px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:18px;display:flex;gap:9px;align-items:center}
+.flow-note b{color:var(--ink);font-weight:600}
+
+/* ---------- Cards ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;position:relative;transition:border-color .12s,box-shadow .12s}
+.card.sel{border-color:#b9c4ff;box-shadow:0 0 0 3px var(--wp-blue-050)}
+.card .head{display:flex;align-items:center;gap:12px;padding:14px 15px}
+.grip{color:#c4c4c4;cursor:grab;font-size:15px;letter-spacing:-2px}
+.icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex:none}
+.icon.plugin{background:#eef1ff;color:#3858e9}
+.icon.theme{background:#f0ecff;color:#7b3fe4}
+.icon.content{background:#e7f6ee;color:#00844a}
+.icon.code{background:#1e1e1e;color:#8fd3ff}
+.icon.site{background:#fff4e0;color:#996800}
+.icon.login{background:#e6f4ff;color:#0a6cbf}
+.titles{flex:1;min-width:0}
+.titles .t{font-weight:600;font-size:14.5px}
+.titles .s{color:var(--muted);font-size:12.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statusdot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:none}
+.head .tools{display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .12s}
+.card:hover .head .tools{opacity:1}
+.itool{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;font-size:14px}
+.itool:hover{background:#f0f0f1;color:var(--ink)}
+.chev{transition:transform .15s;color:var(--faint)}
+.card.open .chev{transform:rotate(90deg)}
+
+/* switch */
+.switch{--w:36px;width:var(--w);height:20px;border-radius:20px;background:#c9c9cf;border:0;position:relative;flex:none}
+.switch.on{background:var(--wp-blue)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch.on::after{transform:translateX(16px)}
+
+/* body */
+.body{display:none;border-top:1px solid var(--line);padding:15px}
+.card.open .body{display:block}
+.field{margin-bottom:13px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:12.5px;font-weight:600;color:#3c3c3c;margin-bottom:5px}
+.field .hint{font-weight:400;color:var(--faint);margin-left:6px}
+.control{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:8px 11px;font-size:13.5px;background:#fff;color:var(--ink)}
+.control:focus{outline:2px solid var(--wp-blue);outline-offset:-1px;border-color:var(--wp-blue)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.pluginpick{display:flex;align-items:center;gap:10px;border:1px solid var(--line-2);border-radius:8px;padding:8px 11px;background:#fff}
+.pluginpick img{width:26px;height:26px;border-radius:6px}
+.pluginpick .meta{flex:1}
+.pluginpick .meta b{font-size:13.5px}
+.pluginpick .meta span{display:block;color:var(--faint);font-size:12px}
+.pluginpick .verified{color:var(--green);font-size:12px;font-weight:600}
+
+.advanced{margin-top:6px;border-top:1px dashed var(--line-2);padding-top:12px}
+.adv-toggle{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--wp-blue-600);font-weight:600;background:none;border:0;padding:2px 0}
+.adv-body{display:none;margin-top:12px}
+.advanced.open .adv-body{display:block}
+.advanced.open .adv-toggle .chev{transform:rotate(90deg)}
+
+.codecell{border:1px solid #2a2a2a;border-radius:9px;overflow:hidden;background:#1d1f24}
+.codecell .cc-top{display:flex;align-items:center;gap:8px;padding:7px 11px;background:#16181d;color:#9aa4b2;font-size:11.5px;border-bottom:1px solid #2a2a2a}
+.codecell .cc-top .lang{margin-left:auto;background:#2a2d34;color:#c9d4e3;padding:1px 7px;border-radius:5px;font-size:10.5px}
+.codecell pre{margin:0;padding:12px 13px;color:#e6e6e6;font-family:var(--mono);font-size:12.5px;line-height:1.6;overflow:auto}
+.tok-php{color:#ff8fb3}.tok-fn{color:#8fd3ff}.tok-str{color:#b5e8a0}.tok-cm{color:#6b7280}
+
+.escape{display:flex;align-items:center;gap:8px;margin-top:12px;padding:9px 11px;border:1px dashed var(--line-2);border-radius:8px;background:#fafafb;color:var(--muted);font-size:12.5px}
+.escape .lk{color:var(--wp-blue-600);font-weight:600;cursor:pointer}
+
+/* add step inserter */
+.adder{margin-top:6px}
+.addbtn{width:100%;border:1px dashed #c7cdf5;background:#fbfcff;color:var(--wp-blue-600);border-radius:var(--radius);padding:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.addbtn:hover{background:var(--wp-blue-050)}
+.inserter{display:none;margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-pop);overflow:hidden}
+.inserter.show{display:block}
+.inserter .search{padding:11px 12px;border-bottom:1px solid var(--line)}
+.inserter .search input{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:8px 11px;font-size:13px}
+.cats{display:flex;gap:6px;padding:9px 12px;flex-wrap:wrap;border-bottom:1px solid var(--line);background:#fbfbfc}
+.cats button{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:4px 11px;font-size:12px;color:var(--muted)}
+.cats button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.gtile{display:flex;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:9px}
+.gtile:hover{border-color:#b9c4ff;background:var(--wp-blue-050)}
+.gtile .gi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;flex:none}
+.gtile b{font-size:13px;display:block}
+.gtile span{font-size:11.5px;color:var(--faint)}
+.pattern-note{grid-column:1/-1;font-size:11.5px;color:var(--faint);border-top:1px dashed var(--line);padding-top:9px;margin-top:2px}
+
+/* code view (Cards|Code toggle) */
+.codeview{display:none;max-width:820px;margin:0 auto;padding:26px 20px 80px}
+.codeview.show{display:block}
+.codeview .filebar{display:flex;align-items:center;gap:9px;background:#16181d;color:#9aa4b2;padding:9px 13px;border-radius:9px 9px 0 0;font-size:12px}
+.codeview pre{margin:0;background:#1d1f24;color:#e6e6e6;padding:16px;border-radius:0 0 9px 9px;font-family:var(--mono);font-size:12.6px;line-height:1.65;overflow:auto}
+.tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}
+
+/* design note footer */
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:var(--wp-blue);color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px 16px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}
+.designnote .pill{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+kbd{background:#20242e;border:1px solid #333;border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint <span class="sep">/</span></div>
+  <div class="docname"><span class="dot"></span> Adam's Demo Store</div>
+  <div class="spacer"></div>
+  <div class="seg" title="Simple hides advanced fields; Advanced reveals code & every knob">
+    <button class="on" id="mSimple" onclick="setMode('simple')">Simple</button>
+    <button id="mAdv" onclick="setMode('advanced')">Advanced</button>
+  </div>
+  <div class="seg">
+    <button class="on" id="vCards" onclick="setView('cards')">Cards</button>
+    <button id="vCode" onclick="setView('code')">Code</button>
+  </div>
+  <button class="btn">Share</button>
+  <button class="btn primary">▶ Run</button>
+</div>
+
+<div class="stage">
+  <!-- Left: List View (navigation only — editing happens inline in the canvas) -->
+  <aside class="rail">
+    <h4>Blueprint outline</h4>
+    <ul class="outline">
+      <li class="on"><span class="oi">⚙️</span> Site setup</li>
+      <li><span class="oi">🧩</span> Install WooCommerce <span class="odot" title="has advanced settings"></span></li>
+      <li><span class="oi">🎨</span> Storefront theme</li>
+      <li><span class="oi">📦</span> Import sample products</li>
+      <li><span class="oi">〈∕〉</span> Run custom PHP <span class="odot"></span></li>
+    </ul>
+    <button class="btn addmini">+ Add step</button>
+    <h4 style="margin-top:22px">Start from a pattern</h4>
+    <ul class="outline">
+      <li><span class="oi">🛍️</span> WooCommerce store</li>
+      <li><span class="oi">📝</span> Blog with demo posts</li>
+      <li><span class="oi">🧱</span> Block theme dev</li>
+    </ul>
+  </aside>
+
+  <!-- Right: the canvas of plain-language, inline-editable step cards -->
+  <div class="canvas-wrap">
+    <div class="canvas" id="cardsCanvas">
+      <div class="flow-note">🧭 <span><b>Reads top to bottom.</b> Each card is one step and only produces a valid Blueprint (<b>correct by construction</b>). Edit right here in the card — nothing hides in a separate panel.</span></div>
+
+      <!-- Hero: site setup = top-level blueprint keys -->
+      <div class="card open sel" data-adv>
+        <div class="head" onclick="toggleCard(this)">
+          <span class="grip">⣿</span>
+          <span class="icon site">⚙️</span>
+          <span class="titles"><span class="t">Site setup</span><span class="s">WordPress latest · PHP 8.3 · logged in as admin</span></span>
+          <span class="chev">▶</span>
+        </div>
+        <div class="body">
+          <div class="field">
+            <label>Site name</label>
+            <input class="control" value="Adam's Demo Store" />
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>WordPress version</label>
+              <select class="control"><option>Latest (6.8)</option><option>6.7</option><option>Nightly</option><option>PHP only (no WordPress)</option></select>
+            </div>
+            <div class="field">
+              <label>PHP version</label>
+              <select class="control"><option>8.3</option><option selected>8.3</option><option>8.2</option><option>7.4</option></select>
+            </div>
+          </div>
+          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin:0">Log me in as admin <span class="hint">skips the login screen</span></label>
+            <button class="switch on" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="advanced" data-adv-block>
+            <button class="adv-toggle" onclick="toggleAdv(this)"><span class="chev">▶</span> Advanced runtime</button>
+            <div class="adv-body">
+              <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+                <label style="margin:0">Allow network requests <span class="hint">applicationOptions → networkAccess</span></label>
+                <button class="switch on" onclick="this.classList.toggle('on')"></button>
+              </div>
+              <div class="field"><label>Landing page <span class="hint">where the site opens</span></label><input class="control mono" value="/wp-admin/" /></div>
+              <div class="field"><label>wp-config constants <span class="hint">key → value</span></label>
+                <input class="control mono" value="WP_DEBUG = true" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Install plugin -->
+      <div class="card" data-adv>
+        <div class="head" onclick="toggleCard(this)">
+          <span class="grip">⣿</span>
+          <span class="icon plugin">🧩</span>
+          <span class="titles"><span class="t">Install &amp; activate WooCommerce</span><span class="s">from WordPress.org · pinned to v9.4</span></span>
+          <span class="statusdot" title="has advanced settings (version pin)"></span>
+          <div class="tools"><button class="itool" title="Duplicate">⧉</button><button class="itool" title="Disable">◐</button><button class="itool" title="Delete">🗑</button></div>
+          <span class="chev">▶</span>
+        </div>
+        <div class="body">
+          <div class="field">
+            <label>Plugin</label>
+            <div class="pluginpick">
+              <img src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'&gt;&lt;rect width='26' height='26' rx='6' fill='%237f54b3'/&gt;&lt;text x='13' y='18' font-size='13' fill='white' text-anchor='middle' font-family='sans-serif'&gt;W&lt;/text&gt;&lt;/svg&gt;" />
+              <span class="meta"><b>WooCommerce</b><span>wordpress.org/plugins · 6M+ active installs</span></span>
+              <span class="verified">✓ found</span>
+            </div>
+          </div>
+          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin:0">Activate after install</label>
+            <button class="switch on" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="advanced" data-adv-block>
+            <button class="adv-toggle" onclick="toggleAdv(this)"><span class="chev">▶</span> Advanced</button>
+            <div class="adv-body">
+              <div class="row2">
+                <div class="field"><label>Version <span class="hint">blank = latest</span></label><input class="control mono" value="9.4" /></div>
+                <div class="field"><label>Source</label><select class="control"><option>WordPress.org</option><option>ZIP from URL</option><option>GitHub release</option><option>Upload .zip</option></select></div>
+              </div>
+              <div class="field"><label>If already installed</label><select class="control"><option>Overwrite</option><option>Skip</option><option>Error</option></select></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="card">
+        <div class="head" onclick="toggleCard(this)">
+          <span class="grip">⣿</span>
+          <span class="icon theme">🎨</span>
+          <span class="titles"><span class="t">Use the Storefront theme</span><span class="s">from WordPress.org · activated</span></span>
+          <div class="tools"><button class="itool">⧉</button><button class="itool">◐</button><button class="itool">🗑</button></div>
+          <span class="chev">▶</span>
+        </div>
+        <div class="body">
+          <div class="field"><label>Theme</label>
+            <div class="pluginpick"><img src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'&gt;&lt;rect width='26' height='26' rx='6' fill='%237b3fe4'/&gt;&lt;text x='13' y='18' font-size='12' fill='white' text-anchor='middle' font-family='sans-serif'&gt;S&lt;/text&gt;&lt;/svg&gt;" /><span class="meta"><b>Storefront</b><span>wordpress.org/themes</span></span><span class="verified">✓ found</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import products (content) -->
+      <div class="card">
+        <div class="head" onclick="toggleCard(this)">
+          <span class="grip">⣿</span>
+          <span class="icon content">📦</span>
+          <span class="titles"><span class="t">Import sample products</span><span class="s">WXR file from a URL</span></span>
+          <div class="tools"><button class="itool">⧉</button><button class="itool">◐</button><button class="itool">🗑</button></div>
+          <span class="chev">▶</span>
+        </div>
+        <div class="body">
+          <div class="field"><label>Content file (WXR / WordPress export)</label><input class="control mono" value="https://example.com/sample-products.xml" /></div>
+        </div>
+      </div>
+
+      <!-- Run PHP (the escape hatch, only prominent in Advanced mode) -->
+      <div class="card advanced-only" data-adv>
+        <div class="head" onclick="toggleCard(this)">
+          <span class="grip">⣿</span>
+          <span class="icon code">‹∕›</span>
+          <span class="titles"><span class="t">Run custom PHP</span><span class="s">developer escape hatch — a tweak no field covers</span></span>
+          <span class="statusdot"></span>
+          <div class="tools"><button class="itool">⧉</button><button class="itool">◐</button><button class="itool">🗑</button></div>
+          <span class="chev">▶</span>
+        </div>
+        <div class="body">
+          <div class="codecell">
+            <div class="cc-top">additionalStepsAfterExecution › runPHP<span class="lang">PHP</span></div>
+            <pre><span class="tok-php">&lt;?php</span>
+<span class="tok-fn">require</span> <span class="tok-str">'/wordpress/wp-load.php'</span>;
+<span class="tok-cm">// a custom tweak no declarative field covers</span>
+<span class="tok-fn">update_option</span>( <span class="tok-str">'woocommerce_task_list_hidden'</span>, <span class="tok-str">'yes'</span> );</pre>
+          </div>
+          <div class="escape">💡 This card runs raw PHP. Non-devs never need it — but it's here in the same list so power users are never blocked. <span class="lk">Convert to friendly step ↺</span></div>
+        </div>
+      </div>
+
+      <!-- Add step -->
+      <div class="adder">
+        <button class="addbtn" onclick="document.getElementById('ins').classList.toggle('show')">＋ Add a step</button>
+        <div class="inserter" id="ins">
+          <div class="search"><input placeholder="Search steps — “add page”, “login”, “run sql”…" /></div>
+          <div class="cats">
+            <button class="on">All</button><button>Content</button><button>Plugins &amp; Themes</button><button>Users &amp; Settings</button><button>Code &amp; Scripting</button><button>Import / Export</button><button>Advanced</button>
+          </div>
+          <div class="grid">
+            <div class="gtile"><span class="gi plugin">🧩</span><div><b>Install plugin</b><span>from w.org, ZIP, GitHub</span></div></div>
+            <div class="gtile"><span class="gi content">📝</span><div><b>Add a page</b><span>title + content</span></div></div>
+            <div class="gtile"><span class="gi login">👤</span><div><b>Create user</b><span>role, username</span></div></div>
+            <div class="gtile"><span class="gi site">🏷️</span><div><b>Set site title</b><span>&amp; tagline</span></div></div>
+            <div class="gtile"><span class="gi content">🛒</span><div><b>Sample products</b><span>WooCommerce demo</span></div></div>
+            <div class="gtile"><span class="gi code">‹∕›</span><div><b>Run PHP / SQL / WP-CLI</b><span>escape hatch</span></div></div>
+            <div class="pattern-note">Custom &amp; higher-level steps compile down to native steps — the “steps = blocks, presets = patterns” model.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Code view -->
+    <div class="codeview" id="codeCanvas">
+      <div class="filebar">📄 blueprint.json <span style="margin-left:auto;color:#6ee7a8">✓ valid</span></div>
+      <pre><span class="tok-punc">{</span>
+  <span class="tok-key">"$schema"</span><span class="tok-punc">:</span> <span class="tok-val">"https://playground.wordpress.net/blueprint-schema.json"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"version"</span><span class="tok-punc">:</span> <span class="tok-num">2</span><span class="tok-punc">,</span>
+  <span class="tok-key">"blueprintMeta"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"name"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span><span class="tok-punc">,</span> <span class="tok-key">"tags"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span> <span class="tok-punc">]</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"wordpressVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"latest"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"phpVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"8.3"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"applicationOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span>
+    <span class="tok-key">"wordpress-playground"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"landingPage"</span><span class="tok-punc">:</span> <span class="tok-val">"/wp-admin/"</span><span class="tok-punc">,</span> <span class="tok-key">"login"</span><span class="tok-punc">:</span> <span class="tok-num">true</span><span class="tok-punc">,</span> <span class="tok-key">"networkAccess"</span><span class="tok-punc">:</span> <span class="tok-num">true</span> <span class="tok-punc">}</span>
+  <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"siteOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"blogname"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"plugins"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"activeTheme"</span><span class="tok-punc">:</span> <span class="tok-val">"storefront"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"content"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span>
+    <span class="tok-punc">{</span> <span class="tok-key">"type"</span><span class="tok-punc">:</span> <span class="tok-val">"wxr"</span><span class="tok-punc">,</span> <span class="tok-key">"source"</span><span class="tok-punc">:</span> <span class="tok-val">"https://example.com/sample-products.wxr"</span> <span class="tok-punc">}</span>
+  <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"additionalStepsAfterExecution"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span>
+    <span class="tok-punc">{</span> <span class="tok-key">"step"</span><span class="tok-punc">:</span> <span class="tok-val">"runPHP"</span><span class="tok-punc">,</span> <span class="tok-key">"code"</span><span class="tok-punc">:</span> <span class="tok-val">"&lt;?php require '/wordpress/wp-load.php'; update_option('woocommerce_task_list_hidden','yes');"</span> <span class="tok-punc">}</span>
+  <span class="tok-punc">]</span>
+<span class="tok-punc">}</span></pre>
+      <p style="color:var(--muted);font-size:12.5px;margin-top:12px">Same document, flipped to raw JSON. Cards ⇄ Code stay in sync — see concept 2 for the round-trip design.</p>
+    </div>
+  </div>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 1</span> <b>Recipe Cards</b> — plain-language, inline-editable steps. Friendly-first, correct-by-construction. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p>A Blueprint <i>is</i> an ordered list of typed steps — the exact mental model of Gutenberg blocks, which this whole audience already knows. Realizes Adam's stated vision: <i>“the step library makes perfect sense in Gutenberg — custom steps would be just custom blocks, predefined sites with customizable parts are just partially-synced patterns.”</i> Editing happens <b>inline in the card</b> (not a detached inspector) per his note that “moving inputs away from the canvas is friction.”</p>
+    <p><b>Progressive disclosure layered here:</b> collapsed card = plain-language outcome → expand for Basic fields → <b>Advanced</b> reveal for power knobs (2 levels max, per NN/g) → a <kbd>Run PHP</kbd> escape hatch card lives in the same list so devs are never blocked. <b>Status dots</b> mark cards carrying non-default/advanced settings so nothing important hides silently (Webflow idiom). The <b>Simple / Advanced</b> mode switch (top-right) hides or reveals the code-heavy surface (Francesco Bigiarini's “simple mode / advanced mode”).</p>
+    <span class="pill">Pattern: List + inline edit</span><span class="pill">Pattern: Staged “Advanced” reveal</span><span class="pill">Pattern: Escape hatch</span><span class="pill">Correct-by-construction (D. Snell)</span><span class="pill">Backs: Gutenberg · Alex Kirk Step Library</span>
+    <p style="margin-bottom:0"><b>Try it:</b> click any card to expand · toggle a card's <b>Advanced</b> · flip <b>Simple/Advanced</b> and <b>Cards/Code</b> up top · click <b>＋ Add a step</b>.</p>
+  </div>
+</div>
+
+<script>
+function toggleCard(head){ head.parentElement.classList.toggle('open'); }
+function toggleAdv(btn){ btn.parentElement.classList.toggle('open'); }
+function setView(v){
+  document.getElementById('vCards').classList.toggle('on', v==='cards');
+  document.getElementById('vCode').classList.toggle('on', v==='code');
+  document.getElementById('cardsCanvas').style.display = v==='cards' ? '' : 'none';
+  document.getElementById('codeCanvas').classList.toggle('show', v==='code');
+}
+function setMode(m){
+  document.getElementById('mSimple').classList.toggle('on', m==='simple');
+  document.getElementById('mAdv').classList.toggle('on', m==='advanced');
+  document.body.classList.toggle('mode-simple', m==='simple');
+  // In simple mode, de-emphasise the raw-PHP card
+  document.querySelectorAll('.advanced-only').forEach(el=>{
+    el.style.opacity = m==='simple' ? '.5' : '1';
+  });
+}
+setMode('simple');
+</script>
+</body>
+</html>

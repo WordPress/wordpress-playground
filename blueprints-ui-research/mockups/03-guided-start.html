@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>3 · Guided Start — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e3e3e3; --line-2:#dcdcde; --green:#00844a; --amber:#996800;
+  --radius:12px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.06);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.spacer{flex:1}
+.stepper{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--faint)}
+.stepper .s{display:flex;align-items:center;gap:7px}
+.stepper .num{width:20px;height:20px;border-radius:50%;background:#e9e9ec;color:var(--muted);display:grid;place-items:center;font-size:11px;font-weight:700}
+.stepper .s.on .num{background:var(--wp-blue);color:#fff}
+.stepper .s.done .num{background:var(--green);color:#fff}
+.stepper .s.on{color:var(--ink);font-weight:600}
+.stepper .line{width:22px;height:2px;background:#e3e3e3;border-radius:2px}
+
+.wrap{max-width:920px;margin:0 auto;padding:40px 20px 120px}
+.screen{display:none}
+.screen.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:15px;margin:0 0 26px}
+
+/* goal grid */
+.goals{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.goal{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:20px;text-align:left;transition:.12s;box-shadow:var(--shadow)}
+.goal:hover{border-color:#b9c4ff;transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.goal .em{font-size:26px}
+.goal b{display:block;margin-top:12px;font-size:15px}
+.goal span{display:block;color:var(--faint);font-size:12.8px;margin-top:3px}
+.goal.wide{grid-column:span 3;display:flex;align-items:center;gap:16px;padding:16px 20px}
+.goal.wide .em{font-size:22px}
+.goal.wide b{margin:0}
+.altrow{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.chip{border:1px solid var(--line-2);background:#fff;border-radius:22px;padding:8px 14px;font-size:13px;color:#3c3c3c;display:inline-flex;gap:8px;align-items:center}
+.chip:hover{background:#f6f7f7;border-color:#c7cdf5}
+
+/* step 2: template + runtime fork */
+.two{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:start}
+.panelcard{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.pc-head{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:600;display:flex;align-items:center;gap:9px}
+.pc-body{padding:16px}
+.detected{display:flex;align-items:center;gap:9px;background:#e7f6ee;border:1px solid #b7e3c7;color:#0a5c34;border-radius:9px;padding:9px 12px;font-size:12.8px;margin-bottom:14px}
+.inc{list-style:none;margin:0;padding:0}
+.inc li{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--line)}
+.inc li:first-child{border-top:0}
+.inc .i{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+.i.plugin{background:#eef1ff;color:#3858e9}.i.theme{background:#f0ecff;color:#7b3fe4}.i.content{background:#e7f6ee;color:#00844a}.i.site{background:#fff4e0;color:#996800}
+.inc b{font-size:13.5px}.inc span{display:block;color:var(--faint);font-size:12px}
+.inc .rm{margin-left:auto;color:var(--faint);border:0;background:none;font-size:15px;opacity:.5}
+.inc li:hover .rm{opacity:1}
+
+/* preferred/custom fork (Local by Flywheel) */
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px}
+.forkopt{border:1.5px solid var(--line);border-radius:10px;padding:13px;cursor:pointer}
+.forkopt.on{border-color:var(--wp-blue);background:var(--wp-blue-050)}
+.forkopt .rc{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px}
+.forkopt .rc .radio{width:16px;height:16px;border-radius:50%;border:2px solid #c4c4c4}
+.forkopt.on .rc .radio{border-color:var(--wp-blue);box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 6px var(--wp-blue)}
+.forkopt p{margin:8px 0 0;color:var(--muted);font-size:12px}
+.customfields{display:none;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line-2)}
+.customfields.show{display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#3c3c3c}
+.control{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;font-size:13px}
+
+.actions{display:flex;gap:10px;margin-top:22px;align-items:center}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:10px 16px;border-radius:9px;font-size:14px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.back{color:var(--muted);background:none;border:0;font-size:13.5px;margin-bottom:18px;display:inline-flex;gap:6px;align-items:center}
+
+/* step 3: prefilled editor preview + checklist */
+.three{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.minieditor{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.minieditor .met{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:#fbfbfc}
+.minieditor .met .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.stepcard{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.stepcard .i{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px}
+.stepcard b{font-size:13.5px}.stepcard span{display:block;color:var(--faint);font-size:12px}
+.stepcard .edit{margin-left:auto;color:var(--wp-blue-600);font-size:12.5px;font-weight:600}
+.checklist{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;position:sticky;top:76px}
+.checklist h4{margin:0 0 4px;font-size:14px}
+.checklist .prog{height:6px;background:#eee;border-radius:6px;overflow:hidden;margin:10px 0 14px}
+.checklist .prog i{display:block;height:100%;width:80%;background:var(--green);border-radius:6px}
+.checklist ul{list-style:none;margin:0;padding:0;font-size:13px}
+.checklist li{display:flex;gap:9px;padding:6px 0;color:#3c3c3c}
+.checklist li .ck{color:var(--green)}
+.checklist li.todo{color:var(--muted)}
+.checklist li.todo .ck{color:var(--line-2)}
+
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:var(--wp-blue);color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}.designnote .pill{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> New Blueprint</div>
+  <div class="spacer"></div>
+  <div class="stepper">
+    <span class="s on" id="st1"><span class="num">1</span> Goal</span><span class="line"></span>
+    <span class="s" id="st2"><span class="num">2</span> Starter</span><span class="line"></span>
+    <span class="s" id="st3"><span class="num">3</span> Customize &amp; launch</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- SCREEN 1: goal -->
+  <section class="screen on" id="s1">
+    <h1>What are you building?</h1>
+    <p class="sub">Pick a starting point. You'll get a working Blueprint you can launch immediately — never a blank page.</p>
+    <div class="goals">
+      <button class="goal" onclick="go(2)"><span class="em">🛍️</span><b>An online store</b><span>WooCommerce + demo products</span></button>
+      <button class="goal" onclick="go(2)"><span class="em">📝</span><b>A blog</b><span>Theme + sample posts</span></button>
+      <button class="goal" onclick="go(2)"><span class="em">🧩</span><b>Demo my plugin / theme</b><span>Preinstalled &amp; activated</span></button>
+      <button class="goal" onclick="go(2)"><span class="em">🧱</span><b>Block theme dev env</b><span>Gutenberg + tools</span></button>
+      <button class="goal" onclick="go(2)"><span class="em">🌐</span><b>Multisite network</b><span>Subdomains or subdirectories</span></button>
+      <button class="goal" onclick="go(2)"><span class="em">⚡</span><b>Blank WordPress</b><span>Latest, logged in</span></button>
+      <button class="goal wide" onclick="go(2)"><span class="em">🎬</span><div><b>Record from my running site</b> — capture plugins, themes &amp; settings into a Blueprint <span style="display:inline;margin-left:8px;color:var(--amber);font-weight:600">80/20 “Blueprint valet”</span></div></button>
+    </div>
+    <div class="altrow">
+      <span style="color:var(--faint);font-size:13px;align-self:center">Already have one?</span>
+      <button class="chip" onclick="go(2)">🍴 Fork an existing Blueprint</button>
+      <button class="chip" onclick="go(2)">🔗 Paste a Blueprint URL</button>
+      <button class="chip" onclick="go(2)">📂 Open blueprint.json</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 2: starter + runtime fork -->
+  <section class="screen" id="s2">
+    <button class="back" onclick="go(1)">← Back</button>
+    <h1>Online store starter</h1>
+    <p class="sub">We prefilled the usual steps. Toggle anything off, then choose how much control you want over the runtime.</p>
+    <div class="two">
+      <div class="panelcard">
+        <div class="pc-head">📦 What's included</div>
+        <div class="pc-body">
+          <div class="detected">✨ Detected &amp; prefilled — edit or remove any step. Nothing is locked in.</div>
+          <ul class="inc">
+            <li><span class="i plugin">🧩</span><div><b>Install &amp; activate WooCommerce</b><span>wordpress.org</span></div><button class="rm">✕</button></li>
+            <li><span class="i theme">🎨</span><div><b>Storefront theme</b><span>wordpress.org · activated</span></div><button class="rm">✕</button></li>
+            <li><span class="i content">📦</span><div><b>Import 12 sample products</b><span>WooCommerce demo data</span></div><button class="rm">✕</button></li>
+            <li><span class="i site">🏷️</span><div><b>Name the store</b><span>“My Store” — click to change</span></div><button class="rm">✕</button></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panelcard">
+        <div class="pc-head">⚙️ Runtime</div>
+        <div class="pc-body">
+          <div class="fork">
+            <div class="forkopt on" onclick="setFork(this,false)"><div class="rc"><span class="radio"></span> Preferred</div><p>Latest WordPress &amp; PHP. Recommended.</p></div>
+            <div class="forkopt" onclick="setFork(this,true)"><div class="rc"><span class="radio"></span> Custom</div><p>Pick versions &amp; extensions.</p></div>
+          </div>
+          <div class="customfields" id="cf">
+            <div class="row2">
+              <div class="field"><label>WordPress</label><select class="control"><option>latest</option><option>6.7</option><option>Nightly</option></select></div>
+              <div class="field"><label>PHP</label><select class="control"><option>8.3</option><option>8.2</option><option>7.4</option></select></div>
+            </div>
+            <div class="field" style="margin-top:10px"><label>Extras</label><select class="control"><option>Networking on</option><option>+ WP-CLI</option><option>+ Intl</option></select></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" onclick="go(3)">Continue →</button>
+      <button class="btn ghost" onclick="go(3)">Skip &amp; launch now ▶</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 3: prefilled editor + checklist -->
+  <section class="screen" id="s3">
+    <button class="back" onclick="go(2)">← Back</button>
+    <h1>Ready — customize or launch</h1>
+    <p class="sub">This drops you straight into the full editor (concept 1), pre-populated. The guided flow was just the on-ramp.</p>
+    <div class="three">
+      <div class="minieditor">
+        <div class="met"><span class="dot"></span> <b>My Store</b> <span style="color:var(--faint);font-weight:400;margin-left:auto;font-size:12px">blueprint.json · valid</span></div>
+        <div class="stepcard"><span class="i site">⚙️</span><div><b>Site setup</b><span>WordPress latest · PHP 8.3 · admin</span></div><span class="edit">Edit</span></div>
+        <div class="stepcard"><span class="i plugin">🧩</span><div><b>Install &amp; activate WooCommerce</b><span>wordpress.org</span></div><span class="edit">Edit</span></div>
+        <div class="stepcard"><span class="i theme">🎨</span><div><b>Storefront theme</b><span>activated</span></div><span class="edit">Edit</span></div>
+        <div class="stepcard"><span class="i content">📦</span><div><b>Import 12 sample products</b><span>demo data</span></div><span class="edit">Edit</span></div>
+        <div class="stepcard" style="border-bottom:0;color:var(--wp-blue-600);font-weight:600">＋ Add a step</div>
+      </div>
+      <aside class="checklist">
+        <h4>Setup checklist</h4>
+        <div style="font-size:12px;color:var(--faint)">4 of 5 done</div>
+        <div class="prog"><i></i></div>
+        <ul>
+          <li><span class="ck">✓</span> Chose a goal</li>
+          <li><span class="ck">✓</span> Added plugins &amp; theme</li>
+          <li><span class="ck">✓</span> Added demo content</li>
+          <li><span class="ck">✓</span> Set the runtime</li>
+          <li class="todo"><span class="ck">○</span> Name your store</li>
+        </ul>
+        <div class="actions" style="margin-top:16px;flex-direction:column;align-items:stretch">
+          <button class="btn primary" style="justify-content:center">▶ Launch in Playground</button>
+          <button class="btn" style="justify-content:center">Open full editor</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 3</span> <b>Guided Start</b> — the on-ramp for non-devs. Goal → prefilled starter → editor. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p>The blank-page antidote and the answer to Adam's <b>“Add Site form”</b> use case. Three short, linear steps (staged disclosure — appropriate <i>only</i> for first-run, never for editing): pick a goal → review a <b>detected-and-prefilled</b> starter (Vercel's “never a blank form”) → drop into the full editor pre-populated. The runtime uses <b>Local by Flywheel's Preferred / Custom fork</b> — your exact non-dev-vs-dev split expressed as one radio choice.</p>
+    <p>Entry points cover Adam's other two use cases too: <b>Fork an existing Blueprint</b> (pre-populated, iterate) and <b>Record from my running site</b> (the 80/20 “Blueprint valet” — jdevalk / Draganescu). A persistent <b>Shopify-style checklist</b> gives momentum without trapping anyone. Crucially, “Customize” lands in the <i>real</i> editor, not a read-only dead end.</p>
+    <span class="pill">Pattern: Templates → customize</span><span class="pill">Pattern: Staged disclosure (first-run only)</span><span class="pill">Pattern: Detect &amp; prefill</span><span class="pill">Preferred/Custom fork</span><span class="pill">Backs: Shopify · Vercel · Local · GitHub starter workflows</span>
+    <p style="margin-bottom:0"><b>Try it:</b> pick a goal · switch runtime to <b>Custom</b> · walk Back/Continue through all 3 steps.</p>
+  </div>
+</div>
+
+<script>
+function go(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById('s'+i).classList.toggle('on', i===n);
+    var st=document.getElementById('st'+i);
+    st.classList.toggle('on', i===n);
+    st.classList.toggle('done', i<n);
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setFork(el,custom){
+  document.querySelectorAll('.forkopt').forEach(o=>o.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('cf').classList.toggle('show',custom);
+}
+</script>
+</body>
+</html>

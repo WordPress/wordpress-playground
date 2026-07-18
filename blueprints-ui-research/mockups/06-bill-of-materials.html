@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>6 · Bill of Materials — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e5e5e5; --line-2:#dcdcde;
+  --green:#00844a; --green-bg:#e7f6ee; --amber:#996800; --red:#b32d2e; --purple:#7b3fe4;
+  --radius:12px; --radius-sm:8px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.05);
+  --shadow-pop:0 14px 40px rgba(0,0,0,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.brand .sep{color:var(--line-2)}
+.docname{display:flex;align-items:center;gap:7px;color:var(--muted);font-weight:500}
+.docname .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.spacer{flex:1}
+.seg{display:inline-flex;background:#f0f0f1;border:1px solid var(--line-2);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:13px;color:var(--muted);font-weight:500}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+
+.layout{display:grid;grid-template-columns:1fr 312px;gap:26px;max-width:1080px;margin:0 auto;padding:26px 22px 90px;align-items:start}
+
+/* doc header */
+.dochead{margin-bottom:20px}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--wp-blue-600)}
+.dochead h1{font-size:25px;margin:7px 0 4px;letter-spacing:-.01em}
+.dochead p{margin:0;color:var(--muted);font-size:14.5px}
+
+/* section */
+.bom{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.bomhead{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.bomhead .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex:none}
+.ic.site{background:#fff4e0;color:#996800}.ic.plugin{background:#eef1ff;color:#3858e9}.ic.theme{background:#f0ecff;color:#7b3fe4}
+.ic.content{background:#e7f6ee;color:#00844a}.ic.user{background:#e6f4ff;color:#0a6cbf}.ic.settings{background:#f1f1f3;color:#555}.ic.code{background:#1e1e1e;color:#8fd3ff}
+.bomhead .htext{flex:1;min-width:0}
+.bomhead .htext .t{font-weight:650;font-size:15px;display:flex;align-items:center;gap:9px}
+.count{background:#eef0f4;color:#5a5a5a;border-radius:20px;font-size:11.5px;font-weight:700;padding:1px 9px;min-width:20px;text-align:center}
+.bomhead .htext .h{color:var(--faint);font-size:12.5px;margin-top:1px}
+
+.mat-list{border-top:1px solid var(--line)}
+.mat-row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f0f0f0}
+.mat-row:last-child{border-bottom:0}
+.mat-row .grip{color:#cfcfcf;cursor:grab;font-size:13px;letter-spacing:-2px;flex:none}
+.mat-row .mi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none;background:#f4f5f7}
+.mat-row .mi img{width:30px;height:30px;border-radius:8px}
+.mmeta{flex:1;min-width:0}
+.mmeta b{font-size:14px;font-weight:600}
+.mmeta .sub{color:var(--faint);font-size:12.2px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.src{background:#f2f3f5;border:1px solid #e6e7ea;border-radius:5px;padding:0 6px;font-size:11px;color:#5a5a5a}
+.ver{color:#8a8a8a;font-size:11.5px}
+.controls{display:flex;align-items:center;gap:8px;flex:none}
+.pill{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:3px 10px;font-size:11.5px;color:var(--muted);font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.pill.toggle{cursor:pointer}
+.pill.toggle .d{width:7px;height:7px;border-radius:50%;background:#c4c4c4}
+.pill.toggle.on{color:var(--green);border-color:#bfe6cd;background:var(--green-bg)}
+.pill.toggle.on .d{background:var(--green)}
+.pill.active{color:var(--purple);border-color:#e0d4fb;background:#f4efff}
+.rm{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:var(--faint);font-size:14px;display:grid;place-items:center;opacity:0}
+.mat-row:hover .rm{opacity:1}
+.rm:hover{background:#fdecec;color:var(--red)}
+.edit{color:var(--wp-blue-600);font-size:12.5px;font-weight:600;background:none;border:0}
+
+/* site fields block */
+.fields{padding:6px 16px 14px}
+.frow{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #f2f2f2}
+.frow:last-child{border-bottom:0}
+.frow label{width:150px;font-size:13px;color:#3c3c3c;font-weight:600;flex:none}
+.frow .fval{flex:1}
+.control{border:1px solid var(--line-2);border-radius:8px;padding:7px 11px;font-size:13.5px;background:#fff;width:100%}
+.control:focus{outline:2px solid var(--wp-blue);outline-offset:-1px}
+.inlinepick{display:flex;gap:8px;align-items:center}
+.inlinepick select{border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
+.switch{width:36px;height:20px;border-radius:20px;background:#c9c9cf;border:0;position:relative;flex:none}
+.switch.on{background:var(--wp-blue)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch.on::after{transform:translateX(16px)}
+.morelink{font-size:12.5px;color:var(--wp-blue-600);font-weight:600;background:none;border:0;padding:6px 0 0}
+
+/* add row + inline search */
+.add-wrap{padding:10px 16px 14px}
+.addbtn{border:1px dashed #c7cdf5;background:#fbfcff;color:var(--wp-blue-600);border-radius:9px;padding:9px 13px;font-weight:600;font-size:13px;width:100%;text-align:left;display:flex;align-items:center;gap:8px}
+.addbtn:hover{background:var(--wp-blue-050)}
+.addpanel{display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-pop);overflow:hidden}
+.addpanel.show{display:block}
+.addpanel .srcbar{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line);background:#fbfbfc}
+.addpanel .srcbar button{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:3px 10px;font-size:11.5px;color:var(--muted)}
+.addpanel .srcbar button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.addpanel .searchrow{padding:11px 12px}
+.addpanel .searchrow input{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:8px 11px;font-size:13px}
+.sugs{display:flex;flex-wrap:wrap;gap:7px;padding:0 12px 12px}
+.sugs button{border:1px solid var(--line-2);background:#fff;border-radius:8px;padding:6px 11px;font-size:12.5px;color:#3c3c3c;display:inline-flex;gap:7px;align-items:center}
+.sugs button:hover{border-color:#b9c4ff;background:var(--wp-blue-050)}
+.sugs button:disabled{opacity:.45}
+
+/* add-more categories */
+.addmore{margin-top:2px}
+.addmore .addbtn{border-color:var(--line-2);background:#fff;color:#3c3c3c;justify-content:center}
+.addmore-panel{display:none;flex-wrap:wrap;gap:8px;margin-top:10px}
+.addmore-panel.show{display:flex}
+.catchip{border:1px solid var(--line-2);background:#fff;border-radius:9px;padding:9px 12px;font-size:13px;color:#3c3c3c;display:inline-flex;gap:9px;align-items:center}
+.catchip:hover{border-color:#b9c4ff;background:var(--wp-blue-050)}
+.catchip .ce{font-size:15px}
+
+/* right rail: the manifest summary */
+.summary{position:sticky;top:76px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.summary h3{margin:0;padding:15px 16px 12px;font-size:14px;border-bottom:1px solid var(--line)}
+.sumlist{padding:6px 16px 8px}
+.sumrow{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px;border-bottom:1px solid #f2f2f2}
+.sumrow:last-child{border-bottom:0}
+.sumrow .se{width:22px;text-align:center}
+.sumrow b{font-variant-numeric:tabular-nums}
+.sumrow .lab{color:var(--muted)}
+.sumfoot{padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);background:#fbfbfc}
+.sumfoot .btn{justify-content:center}
+.runtimechip{font-size:12px;color:var(--muted);text-align:center;padding-bottom:2px}
+
+/* json view */
+.jsonview{display:none;max-width:840px;margin:0 auto;padding:26px 22px 90px}
+.jsonview.show{display:block}
+.jsonview .filebar{display:flex;align-items:center;gap:9px;background:#16181d;color:#9aa4b2;padding:9px 14px;border-radius:10px 10px 0 0;font-size:12px}
+.jsonview pre{margin:0;background:#1d1f24;color:#e6e6e6;padding:16px;border-radius:0 0 10px 10px;font-family:var(--mono);font-size:12.6px;line-height:1.65;overflow:auto}
+.tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}
+
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:#00844a;color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}.designnote .pill2{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint <span class="sep">/</span></div>
+  <div class="docname"><span class="dot"></span> Adam's Demo Store</div>
+  <div class="spacer"></div>
+  <div class="seg">
+    <button class="on" id="vMat" onclick="setView('mat')">Materials</button>
+    <button id="vJson" onclick="setView('json')">JSON</button>
+  </div>
+  <button class="btn">Share</button>
+  <button class="btn primary">▶ Run</button>
+</div>
+
+<div class="layout" id="matView">
+  <!-- LEFT: the bill of materials -->
+  <div class="doc">
+    <div class="dochead">
+      <div class="eyebrow">Bill of materials</div>
+      <h1>Everything that goes into this site</h1>
+      <p>A parts list for your WordPress site. Add what you need to each list — Playground assembles it in the right order for you.</p>
+    </div>
+
+    <!-- SITE BASICS -->
+    <div class="bom">
+      <div class="bomhead"><span class="ic site">🌐</span><div class="htext"><div class="t">Site</div><div class="h">Name, what it runs on, and how you start.</div></div></div>
+      <div class="fields">
+        <div class="frow"><label>Site name</label><div class="fval"><input class="control" value="Adam's Demo Store" /></div></div>
+        <div class="frow"><label>Runs on</label><div class="fval inlinepick"><select><option>WordPress latest</option><option>WordPress 6.7</option><option>Nightly</option><option>No WordPress (PHP only)</option></select><select><option>PHP 8.3</option><option>PHP 8.2</option><option>PHP 7.4</option></select></div></div>
+        <div class="frow"><label>Start logged in as admin</label><div class="fval" style="display:flex"><button class="switch on" onclick="this.classList.toggle('on')"></button></div></div>
+        <div class="frow" style="border:0;padding-bottom:0"><label></label><div class="fval"><button class="morelink" onclick="this.textContent = this.textContent[0]==='+' ? '– Hide homepage, language, networking' : '+ Homepage, language, networking, timezone'">+ Homepage, language, networking, timezone</button></div></div>
+      </div>
+    </div>
+
+    <!-- PLUGINS -->
+    <div class="bom" id="sec-plugins">
+      <div class="bomhead"><span class="ic plugin">🧩</span><div class="htext"><div class="t">Plugins <span class="count" id="cnt-plugins">2</span></div><div class="h">Installed and activated when the site boots.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi"><img src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'&gt;&lt;rect width='30' height='30' rx='8' fill='%237f54b3'/&gt;&lt;text x='15' y='20' font-size='14' fill='white' text-anchor='middle' font-family='sans-serif'&gt;W&lt;/text&gt;&lt;/svg&gt;" /></span>
+          <div class="mmeta"><b>WooCommerce</b><span class="sub"><span class="src">wordpress.org</span> <span class="ver">v9.4</span> · 6M+ installs</span></div>
+          <div class="controls"><button class="pill toggle on" onclick="this.classList.toggle('on')"><span class="d"></span> Active</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi"><img src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'&gt;&lt;rect width='30' height='30' rx='8' fill='%23a4286a'/&gt;&lt;text x='15' y='20' font-size='13' fill='white' text-anchor='middle' font-family='sans-serif'&gt;Y&lt;/text&gt;&lt;/svg&gt;" /></span>
+          <div class="mmeta"><b>Yoast SEO</b><span class="sub"><span class="src">wordpress.org</span> · 10M+ installs</span></div>
+          <div class="controls"><button class="pill toggle on" onclick="this.classList.toggle('on')"><span class="d"></span> Active</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('plugins')">＋ Add a plugin</button>
+        <div class="addpanel" id="add-plugins">
+          <div class="srcbar"><button class="on">WordPress.org</button><button>ZIP from URL</button><button>GitHub</button><button>Upload .zip</button></div>
+          <div class="searchrow"><input placeholder="Search the plugin directory — “contact form”, “jetpack”…" /></div>
+          <div class="sugs">
+            <button onclick="addItem('plugins','Jetpack','wordpress.org','🧩','plugin',true,this)">＋ Jetpack</button>
+            <button onclick="addItem('plugins','Contact Form 7','wordpress.org','🧩','plugin',true,this)">＋ Contact Form 7</button>
+            <button onclick="addItem('plugins','Akismet','wordpress.org','🧩','plugin',true,this)">＋ Akismet</button>
+            <button onclick="addItem('plugins','Query Monitor','wordpress.org','🧩','plugin',true,this)">＋ Query Monitor</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THEMES -->
+    <div class="bom" id="sec-themes">
+      <div class="bomhead"><span class="ic theme">🎨</span><div class="htext"><div class="t">Themes <span class="count" id="cnt-themes">1</span></div><div class="h">One is the active theme; others are installed and ready to switch.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi theme">🎨</span>
+          <div class="mmeta"><b>Storefront</b><span class="sub"><span class="src">wordpress.org</span> · WooCommerce's companion theme</span></div>
+          <div class="controls"><button class="pill active">● Active</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('themes')">＋ Add a theme</button>
+        <div class="addpanel" id="add-themes">
+          <div class="srcbar"><button class="on">WordPress.org</button><button>ZIP from URL</button><button>GitHub</button><button>Upload .zip</button></div>
+          <div class="searchrow"><input placeholder="Search the theme directory — “twenty twenty”, “astra”…" /></div>
+          <div class="sugs">
+            <button onclick="addItem('themes','Twenty Twenty-Five','wordpress.org','🎨','theme',false,this)">＋ Twenty Twenty-Five</button>
+            <button onclick="addItem('themes','Astra','wordpress.org','🎨','theme',false,this)">＋ Astra</button>
+            <button onclick="addItem('themes','Blocksy','wordpress.org','🎨','theme',false,this)">＋ Blocksy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="bom" id="sec-content">
+      <div class="bomhead"><span class="ic content">📦</span><div class="htext"><div class="t">Content <span class="count" id="cnt-content">1</span></div><div class="h">Posts, products, and pages that exist on the fresh site.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi content">📦</span>
+          <div class="mmeta"><b>Sample products</b><span class="sub"><span class="src">WXR file</span> · example.com/sample-products.wxr · ~12 items</span></div>
+          <div class="controls"><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('content')">＋ Add content</button>
+        <div class="addpanel" id="add-content">
+          <div class="sugs" style="padding-top:12px">
+            <button onclick="addItem('content','WordPress export (WXR)','file or URL','📦','content',false,this)">＋ Import a WXR file</button>
+            <button onclick="addItem('content','A page','title + content','📄','content',false,this)">＋ Add a page</button>
+            <button onclick="addItem('content','A post','title + content','📝','content',false,this)">＋ Add a post</button>
+            <button onclick="addItem('content','Database dump','.sql','🗄️','content',false,this)">＋ Import a database dump</button>
+            <button onclick="addItem('content','Theme starter content','from active theme','🎨','content',false,this)">＋ Theme starter content</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="bom" id="sec-users">
+      <div class="bomhead"><span class="ic user">👤</span><div class="htext"><div class="t">Users <span class="count" id="cnt-users">1</span></div><div class="h">Accounts that exist on the new site.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi user">👤</span>
+          <div class="mmeta"><b>admin</b><span class="sub">Administrator · you'll be logged in as this user</span></div>
+          <div class="controls"><button class="edit">Edit</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('users')">＋ Add a user</button>
+        <div class="addpanel" id="add-users">
+          <div class="sugs" style="padding-top:12px">
+            <button onclick="addItem('users','editor','Editor','👤','user',false,this)">＋ An Editor</button>
+            <button onclick="addItem('users','author','Author','👤','user',false,this)">＋ An Author</button>
+            <button onclick="addItem('users','customer','Customer','👤','user',false,this)">＋ A Customer</button>
+            <button onclick="addItem('users','subscriber','Subscriber','👤','user',false,this)">＋ Custom user…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="bom" id="sec-settings">
+      <div class="bomhead"><span class="ic settings">⚙️</span><div class="htext"><div class="t">Settings <span class="count" id="cnt-settings">2</span></div><div class="h">WordPress options applied to the new site.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi settings">🏷️</span><div class="mmeta"><b>Site title</b><span class="sub">Adam's Demo Store</span></div><div class="controls"><button class="edit">Edit</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi settings">🔗</span><div class="mmeta"><b>Permalinks</b><span class="sub">Post name — <span class="mono">/%postname%/</span></span></div><div class="controls"><button class="edit">Edit</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('settings')">＋ Add a setting</button>
+        <div class="addpanel" id="add-settings">
+          <div class="sugs" style="padding-top:12px">
+            <button onclick="addItem('settings','Tagline','blogdescription','🏷️','settings',false,this)">＋ Tagline</button>
+            <button onclick="addItem('settings','Timezone','timezone_string','🕑','settings',false,this)">＋ Timezone</button>
+            <button onclick="addItem('settings','Date format','date_format','📅','settings',false,this)">＋ Date format</button>
+            <button onclick="addItem('settings','Any option…','key → value','⚙️','settings',false,this)">＋ Any option…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOM CODE (escape hatch) -->
+    <div class="bom" id="sec-code">
+      <div class="bomhead"><span class="ic code">‹∕›</span><div class="htext"><div class="t">Custom code <span class="count" id="cnt-code">1</span></div><div class="h">For anything the lists above can't express. Runs after everything else.</div></div></div>
+      <div class="mat-list">
+        <div class="mat-row"><span class="grip">⠿</span><span class="mi" style="background:#1e1e1e;color:#8fd3ff">‹∕›</span>
+          <div class="mmeta"><b>Run PHP</b><span class="sub">Hide the WooCommerce setup task list</span></div>
+          <div class="controls"><button class="edit">Edit code</button><button class="rm" onclick="rmRow(this)">✕</button></div></div>
+      </div>
+      <div class="add-wrap">
+        <button class="addbtn" onclick="toggleAdd('code')">＋ Add custom code</button>
+        <div class="addpanel" id="add-code">
+          <div class="sugs" style="padding-top:12px">
+            <button onclick="addItem('code','Run PHP','runs a PHP snippet','‹∕›','code',false,this)">＋ Run PHP</button>
+            <button onclick="addItem('code','Run SQL','runs a SQL query','‹∕›','code',false,this)">＋ Run SQL</button>
+            <button onclick="addItem('code','WP-CLI command','wp …','‹∕›','code',false,this)">＋ WP-CLI command</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD MORE CATEGORIES -->
+    <div class="addmore">
+      <button class="addbtn" onclick="document.getElementById('moreCats').classList.toggle('show')">＋ Add more to your site</button>
+      <div class="addmore-panel" id="moreCats">
+        <button class="catchip"><span class="ce">🖼️</span> Media library</button>
+        <button class="catchip"><span class="ce">🔤</span> Fonts</button>
+        <button class="catchip"><span class="ce">🧱</span> Custom post types</button>
+        <button class="catchip"><span class="ce">🛡️</span> Roles &amp; capabilities</button>
+        <button class="catchip"><span class="ce">🌍</span> Site language</button>
+        <button class="catchip"><span class="ce">🕸️</span> Multisite network</button>
+        <button class="catchip"><span class="ce">⚙️</span> Developer constants</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: the manifest summary (like a cart) -->
+  <aside class="summary">
+    <h3>Your site includes</h3>
+    <div class="sumlist">
+      <div class="sumrow"><span class="se">🧩</span><b id="sum-plugins">2</b><span class="lab">plugins</span></div>
+      <div class="sumrow"><span class="se">🎨</span><b id="sum-themes">1</b><span class="lab">theme · Storefront active</span></div>
+      <div class="sumrow"><span class="se">📦</span><b id="sum-content">1</b><span class="lab">content import</span></div>
+      <div class="sumrow"><span class="se">👤</span><b id="sum-users">1</b><span class="lab">user · admin</span></div>
+      <div class="sumrow"><span class="se">⚙️</span><b id="sum-settings">2</b><span class="lab">settings</span></div>
+      <div class="sumrow"><span class="se">‹∕›</span><b id="sum-code">1</b><span class="lab">custom script</span></div>
+    </div>
+    <div class="sumfoot">
+      <div class="runtimechip">WordPress latest · PHP 8.3 · auto-login</div>
+      <button class="btn primary">▶ Launch site</button>
+      <button class="btn" onclick="setView('json')">{ } View JSON</button>
+    </div>
+  </aside>
+</div>
+
+<!-- JSON VIEW -->
+<div class="jsonview" id="jsonView">
+  <div class="filebar">📄 blueprint.json <span style="margin-left:auto;color:#6ee7a8">✓ valid Blueprint v2</span></div>
+  <pre><span class="tok-punc">{</span>
+  <span class="tok-key">"$schema"</span><span class="tok-punc">:</span> <span class="tok-val">"https://playground.wordpress.net/blueprint-schema.json"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"version"</span><span class="tok-punc">:</span> <span class="tok-num">2</span><span class="tok-punc">,</span>
+  <span class="tok-key">"blueprintMeta"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"name"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span><span class="tok-punc">,</span> <span class="tok-key">"tags"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span> <span class="tok-punc">]</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"wordpressVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"latest"</span><span class="tok-punc">,</span> <span class="tok-key">"phpVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"8.3"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"applicationOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"wordpress-playground"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"landingPage"</span><span class="tok-punc">:</span> <span class="tok-val">"/wp-admin/"</span><span class="tok-punc">,</span> <span class="tok-key">"login"</span><span class="tok-punc">:</span> <span class="tok-num">true</span> <span class="tok-punc">}</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"siteOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"blogname"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span><span class="tok-punc">,</span> <span class="tok-key">"permalink_structure"</span><span class="tok-punc">:</span> <span class="tok-val">"/%postname%/"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"plugins"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span><span class="tok-punc">,</span> <span class="tok-val">"wordpress-seo"</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"activeTheme"</span><span class="tok-punc">:</span> <span class="tok-val">"storefront"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"content"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-punc">{</span> <span class="tok-key">"type"</span><span class="tok-punc">:</span> <span class="tok-val">"wxr"</span><span class="tok-punc">,</span> <span class="tok-key">"source"</span><span class="tok-punc">:</span> <span class="tok-val">"https://example.com/sample-products.wxr"</span> <span class="tok-punc">}</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"users"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-punc">{</span> <span class="tok-key">"username"</span><span class="tok-punc">:</span> <span class="tok-val">"admin"</span><span class="tok-punc">,</span> <span class="tok-key">"role"</span><span class="tok-punc">:</span> <span class="tok-val">"administrator"</span> <span class="tok-punc">}</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"additionalStepsAfterExecution"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span>
+    <span class="tok-punc">{</span> <span class="tok-key">"step"</span><span class="tok-punc">:</span> <span class="tok-val">"runPHP"</span><span class="tok-punc">,</span> <span class="tok-key">"code"</span><span class="tok-punc">:</span> <span class="tok-val">"&lt;?php require '/wordpress/wp-load.php'; update_option('woocommerce_task_list_hidden','yes');"</span> <span class="tok-punc">}</span>
+  <span class="tok-punc">]</span>
+<span class="tok-punc">}</span></pre>
+  <p style="color:var(--muted);font-size:12.5px;margin-top:12px">Every list on the Materials tab maps to a top-level v2 field — but you never had to know that. The lists speak “plugins, themes, content, users”; the JSON is here whenever a developer wants it, fully round-tripped.</p>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 6 ★</span> <b>Bill of Materials</b> — the site as a parts list, grouped by what users know. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p><b>This replaces the per-step form.</b> A user doesn't think in <code>installPlugin</code> steps — they think <i>“my site needs these plugins, this theme, this content, these people.”</i> So the editor is a <b>manifest aggregated by category</b>: one <b>Plugins</b> list with a <code>＋</code>, one <b>Themes</b> list, one <b>Content</b> list, and so on — never one card per item, never a label that echoes the schema. Playground works out the execution order; you just declare what goes in. (This is why <b>v2's declarative shape</b> matters: <code>plugins: []</code>, <code>activeTheme</code>, <code>content: []</code>, <code>users: []</code> map cleanly to human categories.)</p>
+    <p><b>The categories are the user's vocabulary, not the schema's:</b> Site · Plugins · Themes · Content · Users · Settings · Custom code — plus a “＋ Add more” drawer for the long tail (media, fonts, post types, roles, language, multisite, constants) so people <i>discover</i> what a site can contain without being buried in it. The right rail is a live <b>manifest/receipt</b> (“your site includes: 2 plugins, 1 theme, 1 user…”). <b>Custom code</b> is its own category at the end — the escape hatch, clearly labeled, for the 10% no field covers. And the whole thing still round-trips to <code>blueprint.json</code> via the Materials/JSON toggle.</p>
+    <span class="pill2">Aggregate by category, not by step</span><span class="pill2">User vocabulary, not schema</span><span class="pill2">List + ＋ Add per category</span><span class="pill2">Live manifest / receipt</span><span class="pill2">Escape hatch as its own category</span>
+    <p style="margin-bottom:0"><b>Try it:</b> click <b>＋ Add a plugin</b> and pick one — watch the list and the right-rail count grow · remove a row (hover → ✕) · open <b>＋ Add more to your site</b> · flip to <b>JSON</b> up top.</p>
+  </div>
+</div>
+
+<script>
+function setView(v){
+  document.getElementById('vMat').classList.toggle('on', v==='mat');
+  document.getElementById('vJson').classList.toggle('on', v==='json');
+  document.getElementById('matView').style.display = v==='mat' ? '' : 'none';
+  document.getElementById('jsonView').classList.toggle('show', v==='json');
+}
+function toggleAdd(key){
+  var p = document.getElementById('add-'+key);
+  document.querySelectorAll('.addpanel').forEach(function(el){ if(el!==p) el.classList.remove('show'); });
+  p.classList.toggle('show');
+}
+function addItem(key,name,meta,icon,cls,toggle,chip){
+  var list = document.querySelector('#sec-'+key+' .mat-list');
+  var row = document.createElement('div');
+  row.className = 'mat-row';
+  var isImgless = true;
+  var controls = toggle
+    ? '<button class="pill toggle on" onclick="this.classList.toggle(\'on\')"><span class="d"></span> Active</button>'
+    : '';
+  var mibg = cls==='code' ? ' style="background:#1e1e1e;color:#8fd3ff"' : '';
+  row.innerHTML =
+    '<span class="grip">⠿</span>'+
+    '<span class="mi '+cls+'"'+mibg+'>'+icon+'</span>'+
+    '<div class="mmeta"><b>'+name+'</b><span class="sub">'+meta+'</span></div>'+
+    '<div class="controls">'+controls+'<button class="rm" onclick="rmRow(this)">✕</button></div>';
+  list.appendChild(row);
+  if(chip){ chip.disabled = true; chip.textContent = '✓ added'; }
+  recount();
+}
+function rmRow(btn){ btn.closest('.mat-row').remove(); recount(); }
+function recount(){
+  ['plugins','themes','content','users','settings','code'].forEach(function(k){
+    var n = document.querySelectorAll('#sec-'+k+' .mat-row').length;
+    var c = document.getElementById('cnt-'+k); if(c) c.textContent = n;
+    var s = document.getElementById('sum-'+k); if(s) s.textContent = n;
+  });
+}
+</script>
+</body>
+</html>

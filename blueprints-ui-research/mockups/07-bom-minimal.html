@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bill of Materials · minimal — Blueprint editor concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#eff1f5; --paper:#fff; --ink:#17171b; --muted:#5f5f68; --faint:#8a8a94; --icon:#8f8f99;
+  --line:#ececef; --line-2:#dfdfe4;
+  --accent:#3858e9; --accent-600:#2145d6; --accent-050:#eef1ff; --green:#00844a;
+  --radius:12px;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --shadow:0 1px 2px rgba(24,28,64,.05),0 6px 20px rgba(24,28,64,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  background:var(--desk);
+  background-image:radial-gradient(rgba(56,88,233,.07) 1px,transparent 1px);
+  background-size:24px 24px}
+button{font-family:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+svg{display:block}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 20px;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid rgba(23,23,27,.07);position:sticky;top:0;z-index:40}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:13.5px;color:var(--muted);letter-spacing:.01em}
+.brand .logo{width:25px;height:25px;border-radius:7px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;font-family:var(--serif)}
+.spacer{flex:1}
+.seg{display:inline-flex;background:rgba(23,23,27,.06);border-radius:9px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 13px;border-radius:7px;font-size:12.5px;color:var(--muted);font-weight:500}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;box-shadow:0 1px 2px rgba(33,69,214,.35)}
+.btn.primary:hover{background:var(--accent-600)}
+
+.sheet{max-width:720px;margin:36px auto 130px;padding:52px 56px 36px;background:var(--paper);border:1px solid rgba(23,23,27,.08);border-radius:18px;box-shadow:0 1px 2px rgba(24,28,64,.04),0 28px 70px -24px rgba(24,28,64,.16)}
+/* title block — the spec sheet's identity */
+.eyebrow{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.titlein{border:0;background:transparent;font-family:var(--serif);font-size:40px;font-weight:500;letter-spacing:-.01em;line-height:1.15;color:var(--ink);width:100%;padding:8px 0 2px;margin:0}
+.titlein:focus{outline:none}
+.titlein:hover:not(:focus){text-decoration:underline dashed;text-decoration-color:#cfd1da;text-decoration-thickness:1px;text-underline-offset:7px}
+/* environment folded into the header */
+.envline{display:inline-flex;align-items:center;gap:9px;border:0;background:transparent;color:var(--muted);font-family:var(--mono);font-size:12.5px;padding:6px 0 0;margin-bottom:30px;cursor:pointer}
+.envline:hover{color:var(--ink)}
+.envline .edit{font-size:12px;color:var(--faint);opacity:.65;transition:opacity .15s}
+.envline:hover .edit{opacity:1}
+.envpanel{display:none;margin:-20px 0 28px;padding:14px 16px;background:#fafafc;border:1px solid var(--line);border-radius:12px}
+.envpanel.show{display:block}
+/* site identity card — the active theme anchors the spec sheet */
+.titleblock{display:flex;gap:26px;align-items:flex-start}
+.tb-main{flex:1;min-width:0}
+.tb-site{flex:none;width:152px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;box-shadow:var(--shadow);margin-top:6px}
+.tb-site img{width:100%;height:96px;object-fit:cover;object-position:top;display:block;background:#f0f0f2}
+.tb-site .tb-cap{display:block;font-size:11px;color:var(--muted);padding:5px 10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-site.none{display:none}
+@media (max-width:780px){ .tb-site{display:none} }
+
+/* icons — quiet, monochrome, uniform */
+.ic{width:18px;height:18px;color:var(--icon);flex:none}
+.ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* grouped, low-chrome list */
+.group{margin-bottom:24px}
+.group-label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:0 6px 6px}
+.cat-row{display:flex;align-items:center;gap:14px;padding:13px 6px;cursor:pointer;position:relative;border-radius:9px}
+.cat-row:hover{background:#f5f6f9}
+.group .cat + .cat{border-top:1px solid #f2f2f5}
+.cat.open>.cat-row::before{content:"";position:absolute;left:-20px;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--accent)}
+.cat.open>.cat-row .ic{color:var(--ink)}
+.cat-name{font-weight:600;font-size:14.5px;flex:none;letter-spacing:-.005em}
+.cat-count{font-family:var(--mono);font-size:11.5px;color:var(--faint);min-width:14px}
+.cat-preview{flex:1;min-width:0;color:#74747e;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px}
+.cat.open .cat-preview{opacity:0}
+/* the manifest is visual — real artwork carries the preview */
+.pvi{display:inline-flex;align-items:center;flex:none}
+img.pv-ic{width:20px;height:20px;border-radius:5px;border:1px solid var(--line);background:#fff;object-fit:cover;display:inline-block}
+img.pv-ic + img.pv-ic,.uav + .uav{margin-left:-6px}
+img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);object-fit:cover;object-position:top;display:inline-block}
+.pv-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.uav{width:20px;height:20px;border-radius:50%;background:var(--accent-050);color:var(--accent-600);font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dfe4fb;flex:none}
+.pico{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);object-fit:cover;flex:none;background:#fff}
+.pico.lt{display:grid;place-items:center;background:#f1f2f6;color:var(--muted);font-size:11px;font-weight:700}
+/* add — pinned to the category row, always in the same place */
+.cat-add{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;padding:4px 9px;border-radius:7px;flex:none;opacity:0;transition:opacity .15s}
+.cat-row:hover .cat-add,.cat.open .cat-add,.cat-add:focus-visible{opacity:1}
+.cat-add:hover{background:var(--accent-050);color:var(--accent-600)}
+.cat-add.active{background:var(--accent-050);color:var(--accent-600)}
+.cat-add svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.cat-chev{color:var(--faint);flex:none;opacity:.55;transition:opacity .15s,transform .18s ease}
+.cat-row:hover .cat-chev,.cat.open .cat-chev{opacity:1}
+.cat-chev svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cat.open .cat-chev{transform:rotate(90deg)}
+/* setup group recedes — name only, lighter */
+.group.setup .cat-name{font-weight:500;color:#55555e}
+.group.setup .ic{opacity:.6}
+.group.setup .cat-count{display:none}
+.group.setup .cat-preview{color:#9a9aa3}
+
+.cat-detail{display:none;padding:2px 4px 18px 38px}
+.cat.open .cat-detail{display:block;animation:drop .22s cubic-bezier(.2,.7,.3,1)}
+@keyframes drop{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@keyframes itemflash{from{background:var(--accent-050)}to{background:transparent}}
+.item.flash{animation:itemflash 1.4s ease-out}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* items — icon-less, calm */
+.items{margin-bottom:4px}
+.item{border-top:1px solid #f3f3f4}
+.item:first-child{border-top:0}
+.item-head{display:flex;align-items:center;gap:12px;padding:11px 0}
+.item-head[onclick]{cursor:pointer}
+.iname{font-weight:600;font-size:13.8px;flex:none}
+.imeta{color:#7c7c86;font-size:12.3px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ictl{display:flex;align-items:center;gap:9px;flex:none}
+.mini-toggle{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:2px 10px;font-size:11px;color:var(--muted);font-weight:600}
+.mini-toggle.on{color:var(--green);border-color:#c3e6d1;background:#f0f8f3}
+.badge-active{color:var(--green);font-size:11px;font-weight:700;background:#f0f8f3;border:1px solid #c3e6d1;border-radius:20px;padding:2px 9px}
+.item .thumb{width:74px;height:47px;border-radius:6px;object-fit:cover;object-position:top;background:#eeeef0;flex:none;border:1px solid var(--line)}
+.item.theme-item .item-head{gap:13px}
+/* plugin inspector — package-card style */
+.pg-head{display:flex;gap:13px;align-items:flex-start;padding:2px 0 13px;border-bottom:1px solid #f1f1f3;margin-bottom:13px}
+.pg-icon{width:46px;height:46px;border-radius:10px;flex:none;object-fit:cover;background:#f0f0f2;border:1px solid var(--line)}
+.pg-head-body{flex:1;min-width:0}
+.pg-desc{font-size:12.8px;color:var(--ink);line-height:1.5;margin-bottom:6px}
+.pg-stats{display:flex;gap:12px;align-items:center;font-size:11.5px;color:var(--faint);flex-wrap:wrap}
+.pg-rating{color:#996800;font-weight:600}
+.pg-link{color:var(--accent-600);font-weight:600;text-decoration:none;margin-left:auto}
+.pg-link:hover{text-decoration:underline}
+.pg-version{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;font-family:inherit;background:#fff;min-width:160px}
+.kv-wrap{flex:1;min-width:0}
+.f.pg-actf{align-items:flex-start}
+.f.pg-actf>label{padding-top:6px}
+.kv{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.kv input{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;font-family:var(--mono)}
+.kv .kv-k{width:140px}.kv .kv-v{flex:1;min-width:70px}
+.kv .kv-eq{color:var(--faint)}
+.kv .kv-x{border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:12px;padding:2px}
+.kv .kv-x:hover{color:#b32d2e}
+.kvadd{border:0;background:transparent;color:var(--accent-600);font-weight:600;font-size:12px;padding:2px 0;cursor:pointer}
+.pg-advtoggle{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:12px;padding:8px 0 2px;cursor:pointer}
+.pg-advtoggle::before{content:'▸ ';color:var(--faint)}
+.pg-advtoggle.open{color:var(--ink)}
+.pg-advtoggle.open::before{content:'▾ '}
+.pg-adv{display:none;padding-top:8px}
+.pg-adv.show{display:block}
+.pg-adv select{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;background:#fff;font-family:inherit}
+.link{color:var(--accent-600);font-size:12px;font-weight:600;background:none;border:0}
+.item .x{width:26px;height:26px;border-radius:6px;border:0;background:transparent;color:var(--faint);font-size:12px;opacity:0}
+.item:hover .x,.item .x:focus-visible{opacity:1}
+.item .x:hover{background:#fdecec;color:#b32d2e}
+.item-open{color:var(--faint);font-size:11.5px;padding:4px 2px}
+.item.exp .item-open{color:var(--accent-600)}
+.item-more{display:none;padding:0 0 12px 2px}
+.item.exp .item-more{display:block}
+
+/* source picker — one control, every resource */
+.f{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.f label{width:74px;font-size:12px;color:var(--muted);flex:none}
+.f input,.f select{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;font-family:inherit;background:#fff}
+.f input.mono{font-family:var(--mono)}
+.srcseg{display:inline-flex;flex-wrap:wrap;gap:4px}
+.srcseg button{border:1px solid var(--line-2);background:#fff;border-radius:7px;padding:3px 9px;font-size:11.5px;color:var(--muted)}
+.srcseg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.srchint{font-size:11.5px;color:var(--faint);padding-left:2px;margin:-2px 0 4px}
+/* consolidated "Add" combobox + dropzone */
+.combo{position:relative;border:1.5px solid var(--line-2);border-radius:10px;background:#fff;transition:border-color .12s}
+.combo:focus-within{border-color:var(--accent)}
+.combo.dragging{border-color:var(--accent);border-style:dashed;background:var(--accent-050)}
+.cinput{width:100%;border:0;background:transparent;padding:10px 12px;font-size:13px;font-family:inherit;outline:none}
+.cbox{max-height:280px;overflow:auto}
+.cbox:not(:empty){border-top:1px solid var(--line);padding:5px}
+.option{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:8px;cursor:pointer}
+.option:hover,.option.active{background:var(--accent-050)}
+.option.active{box-shadow:inset 0 0 0 1px #c7cdf5}
+.option img,.option .noimg{width:30px;height:30px;border-radius:6px;object-fit:cover;background:#f0f0f2;flex:none;display:grid;place-items:center;color:var(--icon)}
+#lb-themes .option img{width:60px;height:38px;border-radius:5px;object-position:top;border:1px solid var(--line)}
+.option .noimg svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7}
+.option .rmeta{flex:1;min-width:0}
+.option .rmeta b{font-size:13px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.option .rmeta span{color:var(--faint);font-size:11.5px}
+.option .radd{color:var(--accent-600);font-weight:600;font-size:12px;flex:none}
+.option.added{opacity:.5;pointer-events:none}
+.cbox .hint{color:var(--faint);font-size:12px;padding:8px 6px}
+.dzhint{display:none;position:absolute;inset:0;border-radius:9px;color:var(--accent-600);font-weight:600;font-size:13px;align-items:center;justify-content:center;pointer-events:none}
+.combo.dragging .dzhint{display:flex}
+.combo.dragging .cbox,.combo.dragging .cinput{opacity:0}
+.addactions{display:flex;flex-wrap:wrap;gap:16px;margin-top:9px;padding-left:2px}
+.linkact{border:0;background:transparent;color:var(--accent-600);font-weight:600;font-size:12.5px;padding:2px 0}
+.linkact:hover{text-decoration:underline}
+.linkact.dim{color:var(--muted);font-weight:500}
+/* write-code modal (CodeMirror 6) */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,22,30,.5);z-index:60;align-items:center;justify-content:center;padding:24px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:14px;width:min(760px,94vw);height:min(560px,86vh);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.modal-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.modal-head .fname{border:1px solid var(--line-2);border-radius:7px;padding:6px 10px;font-family:var(--mono);font-size:12.5px;width:220px}
+.modal-head .mtitle{font-size:12px;color:var(--faint);font-weight:600}
+.modal-head .spacer{flex:1}
+.modal-head .btn{border:1px solid var(--line-2);background:#fff;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:500}
+.modal-head .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.modal-body{flex:1;min-height:0;display:flex;flex-direction:column;background:#fff}
+.modal-body .cm-editor{flex:1;min-height:0;font-size:13px}
+.modal-body .cm-editor .cm-scroller{overflow:auto}
+.cm-fallback{flex:1;width:100%;border:0;padding:14px;font-family:var(--mono);font-size:13px;outline:none;resize:none}
+/* self-contained block editor (no Playground) */
+.be-modal{width:min(1280px,97vw);height:min(880px,94vh)}
+.be-badge{width:26px;height:26px;border-radius:7px;background:var(--accent-050);color:var(--accent-600);display:grid;place-items:center;font-size:14px}
+.be-count{color:var(--faint);font-size:12px}
+.be-body{flex:1;min-height:0;position:relative;background:#f0f0f1}
+.be-body iframe{width:100%;height:100%;border:0;display:block}
+.be-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:14px;background:#fbfbfc;z-index:2}
+.be-loading .spin{width:18px;height:18px;border:2px solid #d5d5da;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.be-canvas{max-width:680px;margin:0 auto;padding:44px 24px 140px}
+.be-title{font-size:2.1rem;font-weight:800;letter-spacing:-.02em;border:0;outline:none;width:100%;padding:2px 0;margin-bottom:6px;color:var(--ink);font-family:inherit}
+.be-title::placeholder{color:#c7c7cc}
+.be-block{outline:none;padding:6px 0;font-size:1.05rem;line-height:1.75;color:#1e1e1e;position:relative}
+.be-block.be-paragraph:empty:before{content:attr(data-ph);color:#b4b4b8;pointer-events:none}
+.be-block.be-heading{font-size:1.7rem;font-weight:700;line-height:1.3}
+.be-block.be-quote{border-left:4px solid #d5d5da;padding-left:16px;font-style:italic;color:#4a4a4a}
+.be-block.be-code{font-family:var(--mono);font-size:.9rem;background:#f6f7f7;border-radius:8px;padding:14px 16px;white-space:pre-wrap;line-height:1.6}
+.be-block.be-list,.be-block.be-numbered{padding-left:26px}
+.be-block.be-list li,.be-block.be-numbered li{line-height:1.8}
+.be-block.be-preformatted{font-family:var(--mono);font-size:.92rem;background:#f6f7f7;border-radius:8px;padding:14px 16px;white-space:pre-wrap;line-height:1.6}
+.be-block.be-separator{padding:16px 0}
+.be-block.be-separator hr{border:0;border-top:2px solid #e2e2e5;margin:0;width:96px}
+.be-slash-empty{padding:10px 12px;color:var(--faint);font-size:12.5px}
+/* placeholder / media / dynamic / container blocks + table */
+.be-block.be-ph{display:flex;gap:13px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:13px 14px;background:#fafafb}
+.be-ph-ic{width:36px;height:36px;border-radius:8px;background:#eef0f4;display:grid;place-items:center;font-size:16px;color:#555;flex:none}
+.be-ph-body{flex:1;min-width:0}
+.be-ph-body b{font-size:14px;display:block}
+.be-ph-url{margin-top:6px;width:100%;max-width:440px;border:1px solid var(--line-2);border-radius:7px;padding:6px 10px;font-size:12.5px;font-family:inherit}
+.be-ph-hint{color:var(--faint);font-size:12px}
+.be-block{position:relative}
+.be-del{position:absolute;top:7px;right:7px;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--faint);font-size:12px;opacity:0;cursor:pointer;z-index:2}
+.be-block:hover>.be-del{opacity:1}
+.be-del:hover{background:#fdecec;color:#b32d2e}
+.be-block.be-table{border-collapse:collapse;width:100%;max-width:540px;margin:8px 0}
+.be-block.be-table td{border:1px solid var(--line-2);padding:8px 10px;min-width:90px;outline:none;font-size:.95rem}
+.be-block.be-spacer .be-spacer{height:42px;border-radius:6px;background:repeating-linear-gradient(45deg,#f1f1f4,#f1f1f4 7px,#fbfbfc 7px,#fbfbfc 14px)}
+.be-block.be-more .be-more{color:var(--faint);text-align:center;font-size:12px;letter-spacing:.06em;border-top:1px dashed var(--line-2);padding-top:10px}
+.be-addblock{margin-top:16px;border:1px dashed var(--line-2);background:#fff;border-radius:8px;padding:8px 13px;color:var(--muted);font-size:13px;font-weight:500}
+.be-addblock:hover{border-color:#c7cdf5;color:var(--accent-600)}
+.be-slash{position:fixed;z-index:70;display:none;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:5px;min-width:238px;max-height:344px;overflow:auto}
+.be-category{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);padding:9px 11px 3px}
+.be-category:first-child{padding-top:4px}
+.be-slash.show{display:block}
+.be-slash-item{display:flex;width:100%;justify-content:flex-start;text-align:left;border:0;background:transparent;padding:8px 11px;border-radius:7px;font-size:13px;gap:11px;align-items:center;color:var(--ink);cursor:pointer}
+.be-slash-item:hover,.be-slash-item.active{background:var(--accent-050)}
+.be-slash-item .k{width:24px;height:24px;border-radius:6px;background:#f1f1f3;display:grid;place-items:center;font-size:13px;flex:none;font-weight:700;color:#555}
+.be-slash-item b{font-weight:600}
+.be-slash-item b ~ span{color:var(--faint);font-size:11.5px;margin-left:auto}
+.codeline{font-family:var(--mono);font-size:11.5px;color:var(--muted);background:#fafafc;border:1px solid var(--line);border-radius:7px;padding:8px 10px;margin-top:2px;overflow:auto;white-space:pre}
+
+/* env / settings fields */
+.frow{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #f3f3f4}
+.frow:first-child{border-top:0}
+.frow label{width:140px;font-size:13px;color:var(--muted);flex:none}
+.frow .control{border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
+.frow select.control{min-width:150px}
+.switch{width:34px;height:20px;border-radius:20px;background:#d0d0d4;border:0;position:relative;flex:none}
+.switch.on{background:var(--accent)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch.on::after{transform:translateX(14px)}
+
+/* add — panel sits at the TOP of the open category, right under its row */
+.additem{margin:2px 0 6px}
+.addpanel{display:none;margin-bottom:10px;background:#fafafc;border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.addpanel.show{display:block;animation:drop .18s cubic-bezier(.2,.7,.3,1)}
+.addpanel .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+.addpanel input.search{width:100%;border:1px solid var(--line-2);border-radius:7px;padding:7px 10px;font-size:12.5px;margin:9px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line-2);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--ink)}
+.chips button:hover{border-color:#b9c4ff;background:var(--accent-050)}
+.chips button:disabled{opacity:.45}
+.chips .recipe{border-style:dashed;color:var(--accent-600)}
+.chips .browse{margin-left:auto;color:var(--muted);border-color:transparent;background:transparent;text-decoration:underline}
+
+.addmore-note{color:var(--faint);font-size:12.5px;padding:16px 6px 2px}
+/* inline mini-forms (custom user, custom option) */
+.inlineform{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.inlineform input,.inlineform select{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;font-family:inherit;background:#fff}
+.inlineform input.mono{font-family:var(--mono)}
+.inlineform .go{border:1px solid var(--line-2);background:#fff;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:600;color:var(--accent-600)}
+.inlineform .go:hover{background:var(--accent-050);border-color:#b9c4ff}
+.imeta-edit{border:1px solid var(--line-2);border-radius:7px;padding:3px 8px;font-size:12.3px;font-family:inherit;flex:1;min-width:0}
+
+.foot{display:flex;align-items:center;gap:14px;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.foot .meta{flex:1;color:var(--faint);font-size:12.5px}
+.foot .meta .mono{font-size:11.5px}
+.foot .lk{color:var(--muted);font-size:12.5px;background:none;border:0}
+.foot .lk:hover{color:var(--ink)}
+
+.jsonview{display:none;max-width:760px;margin:36px auto 130px;padding:18px;background:var(--paper);border:1px solid rgba(23,23,27,.08);border-radius:18px;box-shadow:0 1px 2px rgba(24,28,64,.04),0 28px 70px -24px rgba(24,28,64,.16)}
+.jsonview.show{display:block}
+.jsonview pre{margin:0;background:#1b1d26;color:#e6e6e6;padding:18px;border-radius:12px;font-family:var(--mono);font-size:12.4px;line-height:1.7;overflow:auto}
+.jsonview p{padding:0 6px}
+
+@media (max-width:780px){
+  body{background-image:none}
+  .sheet,.jsonview{margin:0;border-radius:0;border-left:0;border-right:0;box-shadow:none;padding-left:20px;padding-right:20px;padding-top:34px}
+  .cat.open>.cat-row::before{left:-10px}
+  .cat-detail{padding-left:22px}
+  .titlein{font-size:32px}
+}
+/* no hover on touch — show the otherwise hover-revealed controls */
+@media (hover:none){
+  .cat-add,.item .x,.envline .edit{opacity:1}
+}
+.tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}
+
+/* design-note: a quiet corner pill at rest, full bar when opened */
+.designnote{position:fixed;bottom:14px;right:14px;left:auto;background:#111319;color:#cfd6e4;font-size:12.5px;border:1px solid #2a2d34;border-radius:999px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.28);max-width:calc(100vw - 28px)}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 7px;cursor:pointer;white-space:nowrap}
+.designnote .dn-title,.designnote .dn-desc{display:none}
+.designnote .badge{background:#00844a;color:#fff;font-weight:700;border-radius:20px;padding:2px 9px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open{left:0;right:0;bottom:0;border-radius:0;border:0;border-top:1px solid #2a2d34;box-shadow:none}
+.designnote.open .dn-head{padding:9px 16px;white-space:normal}
+.designnote.open .dn-title{display:inline}
+.designnote.open .dn-desc{display:inline}
+.designnote.open .badge{border-radius:6px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}.designnote .pill2{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint</div>
+  <div class="spacer"></div>
+  <div class="seg"><button class="on" id="vMat" onclick="setView('mat')">Materials</button><button id="vJson" onclick="setView('json')">JSON</button></div>
+  <button class="btn primary" onclick="runBlueprint()" title="Launch this Blueprint on playground.wordpress.net">▶ Run</button>
+</div>
+
+<main class="sheet" id="matView">
+  <div class="titleblock">
+    <div class="tb-main">
+      <div class="eyebrow">Bill of materials</div>
+      <input class="titlein" value="Adam's Demo Store" title="Site title — click to rename" oninput="syncTitleFromHeader(this.value)" />
+      <button class="envline" onclick="document.getElementById('envPanel').classList.toggle('show')">WordPress latest · PHP 8.3 · logged in as admin <span class="edit">✎ edit</span></button>
+    </div>
+    <div class="tb-site" id="tbSite" title="Active theme">
+      <img id="tbShot" src="https://ts.w.org/wp-content/themes/storefront/screenshot.png" alt="" onerror="this.closest('.tb-site').classList.add('none')">
+      <span class="tb-cap" id="tbCap">Storefront</span>
+    </div>
+  </div>
+  <div class="envpanel" id="envPanel">
+    <div class="frow"><label>WordPress</label><select class="control"><option>latest</option><option>6.7</option><option>Nightly</option><option>None (PHP only)</option></select></div>
+    <div class="frow"><label>PHP</label><select class="control"><option>8.3</option><option>8.2</option><option>7.4</option></select></div>
+    <div class="frow"><label>Log in as admin</label><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+    <div class="frow"><label>Opens at</label><input class="control mono" value="/wp-admin/" /></div>
+    <div class="frow"><label>Network access</label><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+  </div>
+
+  <div class="manifest" id="manifest">
+    <div class="group">
+      <div class="group-label">Contents</div>
+
+    <!-- PLUGINS -->
+    <div class="cat" id="cat-plugins">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></span>
+        <span class="cat-name">Plugins</span><span class="cat-count">2</span>
+        <span class="cat-preview">WooCommerce · Yoast SEO</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('plugins')" aria-label="Add a plugin"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-plugins">
+            <div class="combo" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'plugins',this)">
+              <input class="cinput" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="lb-plugins" aria-label="Add a plugin by name, URL, or file"
+                oninput="onCombo(this,'plugins')" onkeydown="comboKey(event,'plugins')"
+                placeholder="Search plugins, paste a GitHub / ZIP URL, or drop a .zip…">
+              <div class="cbox" id="lb-plugins" role="listbox" aria-label="Plugin results"></div>
+              <div class="dzhint">Drop a .zip to bundle it</div>
+            </div>
+            <div class="addactions">
+              <button class="linkact" onclick="openCodeModal('plugins')">✎ Write code…</button>
+              <button class="linkact" onclick="document.getElementById('file-plugins').click()">⬆ Upload a file</button>
+              <input type="file" id="file-plugins" accept=".zip" hidden onchange="onUpload(this,'plugins')">
+            </div>
+          </div>
+        </div>
+        <div class="items"></div>
+      </div>
+    </div>
+
+    <!-- THEMES -->
+    <div class="cat" id="cat-themes">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 100 17c1.1 0 1.8-.9 1.8-1.8 0-.9-.7-1.3-.7-2.1 0-.8.6-1.4 1.5-1.4H16a4.5 4.5 0 004.5-4.6C20.4 6.3 16.6 3.5 12 3.5z"/><circle cx="8.2" cy="10.3" r=".9"/><circle cx="12" cy="8" r=".9"/><circle cx="15.6" cy="10.3" r=".9"/></svg></span>
+        <span class="cat-name">Themes</span><span class="cat-count">1</span>
+        <span class="cat-preview">Storefront (active)</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('themes')" aria-label="Add a theme"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-themes">
+            <div class="combo" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'themes',this)">
+              <input class="cinput" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="lb-themes" aria-label="Add a theme by name, URL, or file"
+                oninput="onCombo(this,'themes')" onkeydown="comboKey(event,'themes')"
+                placeholder="Search themes, paste a GitHub / ZIP URL, or drop a .zip…">
+              <div class="cbox" id="lb-themes" role="listbox" aria-label="Theme results"></div>
+              <div class="dzhint">Drop a .zip to bundle it</div>
+            </div>
+            <div class="addactions">
+              <button class="linkact" onclick="openCodeModal('themes')">✎ Write code…</button>
+              <button class="linkact" onclick="document.getElementById('file-themes').click()">⬆ Upload a file</button>
+              <input type="file" id="file-themes" accept=".zip" hidden onchange="onUpload(this,'themes')">
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item theme-item"><div class="item-head"><img class="thumb" src="https://ts.w.org/wp-content/themes/storefront/screenshot.png" alt="" onerror="this.style.visibility='hidden'"><span class="iname">Storefront</span><span class="imeta">from WordPress.org</span><span class="ictl"><span class="badge-active">● Active</span><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="cat" id="cat-content">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg></span>
+        <span class="cat-name">Content</span><span class="cat-count">1</span>
+        <span class="cat-preview">12 sample products (WXR)</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('content')" aria-label="Add content"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-content">
+            <div class="combo" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'content',this)">
+              <input class="cinput" role="combobox" aria-expanded="false" aria-controls="lb-content" aria-label="Import content by URL or file"
+                oninput="onCombo(this,'content')" onkeydown="comboKey(event,'content')"
+                placeholder="Paste a WXR / XML / .sql URL, or drop a file to import…">
+              <div class="cbox" id="lb-content" role="listbox" aria-label="Content import"></div>
+              <div class="dzhint">Drop a .xml · .wxr · .sql to import</div>
+            </div>
+            <div class="addactions">
+              <button class="linkact" onclick="openBlockEditor('page')">✍ Write a page</button>
+              <button class="linkact" onclick="openBlockEditor('post')">✍ Write a post</button>
+              <button class="linkact" onclick="addItem('content','More sample products','recipe',false)">✦ Sample products</button>
+              <button class="linkact" onclick="addItem('content','Block examples','recipe',false)">✦ Block examples</button>
+              <button class="linkact dim" onclick="openCatAdd('recipes')">Browse recipes…</button>
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><div class="item-head"><span class="iname">Sample products</span><span class="imeta">WXR · from example.com</span><span class="ictl"><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="cat" id="cat-users">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5.5 19.5c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/></svg></span>
+        <span class="cat-name">Users</span><span class="cat-count">1</span>
+        <span class="cat-preview">admin (Administrator)</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('users')" aria-label="Add a user"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-users">
+            <div class="chips">
+              <button onclick="addItem('users','editor','Editor',false,this)">＋ Editor</button>
+              <button onclick="addItem('users','author','Author',false,this)">＋ Author</button>
+              <button class="recipe" onclick="addItem('users','customer','Customer · recipe',false,this)">✦ A Customer</button>
+            </div>
+            <div class="inlineform">
+              <input id="uf-name" placeholder="username" style="width:130px" onkeydown="if(event.key==='Enter')addCustomUser()">
+              <select id="uf-role"><option>Administrator</option><option selected>Editor</option><option>Author</option><option>Contributor</option><option>Subscriber</option></select>
+              <button class="go" onclick="addCustomUser()">Add user</button>
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item"><div class="item-head"><span class="uav">A</span><span class="iname">admin</span><span class="imeta">Administrator · you log in as this</span><span class="ictl"><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /Contents -->
+
+    <div class="group setup">
+      <div class="group-label">Setup</div>
+
+    <!-- RECIPES (the step library, reframed) -->
+    <div class="cat" id="cat-recipes">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/></svg></span>
+        <span class="cat-name">Recipes</span><span class="cat-count">1</span>
+        <span class="cat-preview">Disable welcome guides</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('recipes')" aria-label="Add a recipe"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div style="font-size:12.5px;color:var(--muted);margin:2px 0 8px">Named building blocks from the recipe library — a friendly layer over custom code. Each shows the code it compiles to.</div>
+        <div class="additem">
+          <div class="addpanel" id="add-recipes">
+            <div class="lbl">Recipe library</div>
+            <input class="search" placeholder="Search recipes — “notice”, “sample”, “disable”…" />
+            <div class="chips">
+              <button onclick="addItem('recipes','Remove dashboard widgets','recipe',false,this)">✦ Remove dashboard widgets</button>
+              <button onclick="addItem('recipes','Show an admin notice','recipe',false,this)">✦ Show an admin notice</button>
+              <button onclick="addItem('recipes','Skip WooCommerce wizard','recipe',false,this)">✦ Skip WooCommerce wizard</button>
+              <button onclick="addItem('recipes','Register a post type','recipe',false,this)">✦ Register a post type</button>
+              <button onclick="addItem('recipes','phpLiteAdmin','recipe',false,this)">✦ Database browser</button>
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item">
+            <div class="item-head" onclick="toggleItem(this)">
+              <span class="iname">Disable welcome guides</span><span class="imeta">tidies wp-admin on first load</span>
+              <span class="ictl"><span class="item-open">show code ›</span><button class="x" onclick="event.stopPropagation();rmItem(this)">✕</button></span>
+            </div>
+            <div class="item-more">
+              <div class="codeline">// compiles to a mu-plugin (writeFiles) that runs:
+remove_action( 'load-index.php', 'wp_welcome_panel' );
+update_user_meta( $id, 'show_welcome_panel', 0 );</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="cat" id="cat-settings">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2.4" fill="#fbfbfc"/><circle cx="15" cy="16" r="2.4" fill="#fbfbfc"/></svg></span>
+        <span class="cat-name">Settings</span><span class="cat-count">2</span>
+        <span class="cat-preview">Site title · Permalinks</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('settings')" aria-label="Add a setting"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-settings">
+            <div class="chips">
+              <button onclick="addSettingChip(this,'Tagline','blogdescription')">＋ Tagline</button>
+              <button onclick="addSettingChip(this,'Timezone','timezone_string')">＋ Timezone</button>
+            </div>
+            <div class="inlineform">
+              <input id="sf-key" class="mono" placeholder="option_name" style="width:150px" onkeydown="if(event.key==='Enter')addCustomSetting()">
+              <span style="color:var(--faint)">=</span>
+              <input id="sf-val" class="mono" placeholder="value" style="flex:1;min-width:90px" onkeydown="if(event.key==='Enter')addCustomSetting()">
+              <button class="go" onclick="addCustomSetting()">Add option</button>
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item" data-opt="blogname"><div class="item-head"><span class="iname">Site title</span><span class="imeta">Adam's Demo Store</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+          <div class="item" data-opt="permalink_structure"><div class="item-head"><span class="iname">Permalinks</span><span class="imeta mono">/%postname%/</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOM CODE -->
+    <div class="cat" id="cat-code">
+      <div class="cat-row" onclick="toggleCat(this)">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></span>
+        <span class="cat-name">Custom code</span><span class="cat-count">1</span>
+        <span class="cat-preview">Run PHP · hide setup task list</span>
+        <button class="cat-add" onclick="event.stopPropagation();openAdd('code')" aria-label="Add custom code"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="cat-detail">
+        <div class="additem">
+          <div class="addpanel" id="add-code">
+            <div class="srchint" style="margin:0 0 8px">The lowest level — for anything a Recipe or a field can't express.</div>
+            <div class="chips">
+              <button onclick="openCodeModal('code','php')">＋ Run PHP</button>
+              <button onclick="openCodeModal('code','sql')">＋ Run SQL</button>
+              <button onclick="openCodeModal('code','cli')">＋ WP-CLI</button>
+            </div>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item" data-fname="hide-wc-tasklist.php" data-code="<?php
+// Hide the WooCommerce setup task list
+add_filter( 'woocommerce_admin_features', function ( $features ) {
+	return array_diff( $features, array( 'onboarding-tasks' ) );
+} );
+"><div class="item-head"><span class="iname">Run PHP</span><span class="imeta">hide-wc-tasklist.php · Hide the WooCommerce setup task list</span><span class="ictl"><button class="link" onclick="editCodeItem(this)">Edit code</button><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /Setup -->
+
+    <div class="addmore-note">Coming to this concept: files &amp; uploads, media, fonts, roles, language, multisite…</div>
+  </div>
+
+  <div class="foot">
+    <span class="meta">Everything above ships as one <span class="mono">blueprint.json</span> — press <b>Run</b> to launch it.</span>
+  </div>
+</main>
+
+<!-- JSON -->
+<div class="jsonview" id="jsonView">
+  <pre><span class="tok-punc">{</span>
+  <span class="tok-key">"version"</span><span class="tok-punc">:</span> <span class="tok-num">2</span><span class="tok-punc">,</span>
+  <span class="tok-key">"blueprintMeta"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"name"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"wordpressVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"latest"</span><span class="tok-punc">,</span> <span class="tok-key">"phpVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"8.3"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"applicationOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"wordpress-playground"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"landingPage"</span><span class="tok-punc">:</span> <span class="tok-val">"/wp-admin/"</span><span class="tok-punc">,</span> <span class="tok-key">"login"</span><span class="tok-punc">:</span> <span class="tok-num">true</span> <span class="tok-punc">}</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"siteOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"blogname"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span><span class="tok-punc">,</span> <span class="tok-key">"permalink_structure"</span><span class="tok-punc">:</span> <span class="tok-val">"/%postname%/"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+  <span class="tok-key">"plugins"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span><span class="tok-punc">,</span> <span class="tok-val">"wordpress-seo"</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"activeTheme"</span><span class="tok-punc">:</span> <span class="tok-val">"storefront"</span><span class="tok-punc">,</span>
+  <span class="tok-key">"content"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-punc">{</span> <span class="tok-key">"type"</span><span class="tok-punc">:</span> <span class="tok-val">"wxr"</span><span class="tok-punc">,</span> <span class="tok-key">"source"</span><span class="tok-punc">:</span> <span class="tok-val">"https://example.com/sample-products.wxr"</span> <span class="tok-punc">}</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span class="tok-key">"users"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-punc">{</span> <span class="tok-key">"username"</span><span class="tok-punc">:</span> <span class="tok-val">"admin"</span><span class="tok-punc">,</span> <span class="tok-key">"role"</span><span class="tok-punc">:</span> <span class="tok-val">"administrator"</span> <span class="tok-punc">}</span> <span class="tok-punc">]</span><span class="tok-punc">,</span>
+  <span style="color:#5b6472">// “Recipes” + “Custom code” both compile into these ↓</span>
+  <span class="tok-key">"additionalStepsAfterExecution"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span>
+    <span class="tok-punc">{</span> <span class="tok-key">"step"</span><span class="tok-punc">:</span> <span class="tok-val">"writeFiles"</span><span class="tok-punc">,</span> <span class="tok-key">"writeToPath"</span><span class="tok-punc">:</span> <span class="tok-val">"/wordpress/wp-content/mu-plugins"</span><span class="tok-punc">,</span> <span class="tok-key">"filesTree"</span><span class="tok-punc">:</span> <span class="tok-val">"…"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span>
+    <span class="tok-punc">{</span> <span class="tok-key">"step"</span><span class="tok-punc">:</span> <span class="tok-val">"runPHP"</span><span class="tok-punc">,</span> <span class="tok-key">"code"</span><span class="tok-punc">:</span> <span class="tok-val">"&lt;?php …"</span> <span class="tok-punc">}</span>
+  <span class="tok-punc">]</span>
+<span class="tok-punc">}</span></pre>
+  <p style="color:var(--muted);font-size:12.5px;margin-top:12px">Materials map to top-level fields; Recipes and Custom code compile into <span class="mono">additionalStepsAfterExecution</span>. Flip back with the toggle up top.</p>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 6 ▸ minimal ★</span> <b class="dn-title">Bill of Materials, minimal</b><span class="dn-desc"> — one accessible input everywhere; the <b>real block editor</b> for content, loaded once &amp; reused.</span> <span class="dn-arrow" style="color:#8a94a6">ⓘ about</span>
+  </div>
+  <div class="dn-body">
+    <p><b>Calmer, with hierarchy.</b> Monochrome line icons; icon-less item rows. <b>Environment folds into the header</b> (it's context you set once, not a thing you manage). The list splits into <b>Contents</b> (Plugins, Themes, Content, Users — what you curate, with previews) and a recessive <b>Setup</b> group (Settings, Recipes, Custom code — name only). Counts and chevrons hide until a row is hovered or open, so the eye lands on the few things that matter.</p>
+    <p><b>Data resources → one smart input.</b> v2 has many ways to point at bytes (a WordPress.org slug, a URL, a Git repo, an uploaded file, inline content). Rather than expose that zoo as tabs, <b>one field</b> covers it: type a name to search, paste a <b>GitHub/ZIP URL</b>, or <b>drop a .zip</b> — it detects the source. Uploaded/dropped/written bytes become <b>bundled Files</b>, referenceable by many items.</p>
+    <p><b>Step library → “Recipes”, distributed.</b> We're not editing steps, so the library is reframed as <b>Recipes</b> — named outcomes. Two homes: a recipe that makes a <i>thing</i> shows up as an <b>Add option inside that category</b> (open <b>Content → Add</b> to see “✦ Sample products / Block examples”; a GitHub plugin is just a plugin with a Git source); a recipe that's a <i>behavior</i> lives in the <b>Recipes</b> lane (“Disable welcome guides”), one tier above raw <b>Custom code</b> — and each can “show code” to reveal what it compiles to. So the whole model is three tiers: <b>Materials (nouns) → Recipes (named outcomes) → Custom code (raw)</b>. The word “step” never appears.</p>
+    <span class="pill2">Monochrome, item icons dropped</span><span class="pill2">One Source = every resource</span><span class="pill2">Uploads → Files</span><span class="pill2">Steps → Recipes, distributed</span><span class="pill2">Materials → Recipes → Custom code</span>
+    <p><b>One input, fully working &amp; accessible:</b> type a name for <b>live WordPress.org autocomplete</b> (a proper ARIA combobox — <b>↑/↓</b> to move, <b>↵</b> to add, <b>Esc</b> to clear); paste a <b>GitHub or ZIP URL</b> and it detects the source; <b>drop a .zip</b> to bundle it; or <b>✎ Write code</b> → a real <b>CodeMirror</b> editor (same family as Playground) to author an inline file.</p>
+    <p><b>Content works the same way</b> — one input (paste a WXR/XML/.sql URL or drop a file), plus <b>✍ Write a page / post</b> → the <b>real WordPress block editor</b> (every block), embedded via <b>Playground booted just once</b>. Reopening navigates that same warm instance (~½ s), it never re-boots. On <b>Add to Blueprint</b> the authored title + block markup are pulled back out of Playground into the Content list.</p>
+    <p style="margin-bottom:0"><b>Try it:</b> <b>＋ Add</b> sits on every category row (hover a closed row to reveal it — one click opens the category with the input focused) · type “woo”, then <b>↓ ↓ ↵</b> to add by keyboard · <b>Content → ＋ Add → ✍ Write a page</b> for the real editor.</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="codeModal" onclick="if(event.target===this) closeCodeModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Write code">
+    <div class="modal-head">
+      <input class="fname" id="cm-fname" value="my-plugin.php" aria-label="File name" spellcheck="false">
+      <span class="mtitle">bundled into the Blueprint</span>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeCodeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveCodeModal()">Save file</button>
+    </div>
+    <div class="modal-body" id="cm-host"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="beModal">
+  <div class="modal be-modal" role="dialog" aria-modal="true" aria-label="WordPress block editor">
+    <div class="modal-head">
+      <span class="be-badge" aria-hidden="true">✎</span>
+      <span class="mtitle" id="be-type">New page · WordPress block editor</span>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeBlockEditor()">Cancel</button>
+      <button class="btn primary" onclick="saveBlockEditor()">Add to Blueprint</button>
+    </div>
+    <div class="be-body">
+      <div class="be-loading" id="be-loading"><span class="spin"></span> <span id="be-loading-txt">Booting WordPress &amp; the block editor — just once…</span></div>
+      <iframe id="pg-frame" title="WordPress block editor" allow="clipboard-write; clipboard-read"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleCat(row){
+  var cat = row.parentElement, open = cat.classList.contains('open');
+  document.querySelectorAll('#manifest .cat.open').forEach(function(c){ c.classList.remove('open'); refreshPreview(c); });
+  if(!open){ cat.classList.add('open'); if(!cat.querySelector('.items .item')) showAddPanel(cat); }
+}
+function openCat(key){
+  var cat = document.getElementById('cat-'+key);
+  document.querySelectorAll('#manifest .cat.open').forEach(function(c){ if(c!==cat){ c.classList.remove('open'); refreshPreview(c);} });
+  cat.classList.add('open'); cat.scrollIntoView({block:'center',behavior:'smooth'});
+}
+function openAdd(key){
+  var cat = document.getElementById('cat-'+key);
+  if(!cat.classList.contains('open')){
+    document.querySelectorAll('#manifest .cat.open').forEach(function(c){ c.classList.remove('open'); refreshPreview(c); });
+    cat.classList.add('open');
+    showAddPanel(cat);
+  } else {
+    var p = document.getElementById('add-'+key);
+    if(p.classList.contains('show')){ p.classList.remove('show'); syncAddState(cat); }
+    else showAddPanel(cat);
+  }
+}
+function openCatAdd(key){ openCat(key); showAddPanel(document.getElementById('cat-'+key)); }
+function showAddPanel(cat){
+  var p = cat.querySelector('.addpanel'); if(!p) return;
+  document.querySelectorAll('.addpanel').forEach(function(el){ if(el!==p && el.classList.contains('show')){ el.classList.remove('show'); syncAddState(el.closest('.cat')); } });
+  p.classList.add('show'); syncAddState(cat);
+  if(cat.id==='cat-content') ensurePlayground('page').catch(function(){});   // pre-warm the editor
+  var inp = p.querySelector('.cinput') || p.querySelector('input.search');
+  if(inp) setTimeout(function(){ inp.focus(); }, 30);
+}
+function syncAddState(cat){
+  var p = cat.querySelector('.addpanel'), b = cat.querySelector('.cat-add');
+  if(b) b.classList.toggle('active', !!(p && p.classList.contains('show')));
+}
+function toggleItem(head){
+  var item=head.parentElement; item.classList.toggle('exp');
+  if(item.classList.contains('exp') && item.dataset.slug && !item.dataset.pgLoaded) pgLoadDetails(item);
+}
+function insertNewItem(list, row){
+  list.insertBefore(row, list.firstChild);
+  row.classList.add('flash');
+  row.addEventListener('animationend', function(){ row.classList.remove('flash'); }, {once:true});
+}
+function addItem(key,name,meta,toggle,chip){
+  var cat = document.getElementById('cat-'+key);
+  var list = cat.querySelector('.items');
+  var row = document.createElement('div'); row.className='item';
+  var ctl = (toggle?'<button class="mini-toggle on" onclick="togglePluginActive(this)">Active</button>':'')+'<button class="x" onclick="rmItem(this)">✕</button>';
+  var av = key==='users' ? '<span class="uav">'+escHtml(((name||'?')[0]||'?').toUpperCase())+'</span>' : '';
+  row.innerHTML = '<div class="item-head">'+av+'<span class="iname">'+name+'</span><span class="imeta">'+meta+'</span><span class="ictl">'+ctl+'</span></div>';
+  insertNewItem(list, row);
+  chipDone(chip);
+  refreshPreview(cat);
+}
+function rmItem(btn){
+  var cat = btn.closest('.cat'); btn.closest('.item').remove(); refreshPreview(cat);
+  if(cat.classList.contains('open') && !cat.querySelector('.items .item')) showAddPanel(cat);
+}
+function refreshPreview(cat){
+  var items = [].slice.call(cat.querySelectorAll('.items .item'));
+  var names = items.map(function(it){ return it.querySelector('.iname').textContent; });
+  var cnt = cat.querySelector('.cat-count'); if(cnt && cnt.textContent!=='') cnt.textContent = names.length;
+  var prev = cat.querySelector('.cat-preview'); if(!prev) return;
+  if(!names.length){ prev.textContent = 'Nothing yet — tap to add'; if(cat.id==='cat-themes') updateSiteCard(); return; }
+  var txt = names.slice(0,3).join(' · ') + (names.length>3?' +'+(names.length-3):'');
+  var art = '';
+  if(cat.id==='cat-plugins'){
+    items.slice(0,4).forEach(function(it){
+      var ic=it.dataset.icon;
+      if(ic) art+='<img class="pv-ic" src="'+escAttr(ic)+'" onerror="this.remove()">';
+    });
+  } else if(cat.id==='cat-themes'){
+    var act=cat.querySelector('.badge-active'), row=act?act.closest('.item'):items[0];
+    var img=row && row.querySelector('img.thumb');
+    if(img && img.src) art='<img class="pv-th" src="'+escAttr(img.src)+'" onerror="this.remove()">';
+    txt = items.map(function(it){ return it.querySelector('.iname').textContent + (it.querySelector('.badge-active')?' (active)':''); }).slice(0,3).join(' · ') + (items.length>3?' +'+(items.length-3):'');
+    updateSiteCard();
+  } else if(cat.id==='cat-users'){
+    items.slice(0,4).forEach(function(it){
+      var n=it.querySelector('.iname').textContent.trim();
+      art+='<span class="uav">'+escHtml((n[0]||'?').toUpperCase())+'</span>';
+    });
+  }
+  prev.innerHTML = (art?'<span class="pvi">'+art+'</span>':'') + '<span class="pv-txt">'+escHtml(txt)+'</span>';
+}
+function updateSiteCard(){
+  var card=document.getElementById('tbSite'); if(!card) return;
+  var act=document.querySelector('#cat-themes .items .badge-active');
+  var row=act ? act.closest('.item') : document.querySelector('#cat-themes .items .item');
+  var img=row && row.querySelector('img.thumb');
+  if(!row || !img || !img.src){ card.classList.add('none'); return; }
+  card.classList.remove('none');
+  document.getElementById('tbShot').src=img.src;
+  document.getElementById('tbCap').textContent=row.querySelector('.iname').textContent;
+}
+function setView(v){
+  document.getElementById('vMat').classList.toggle('on', v==='mat');
+  document.getElementById('vJson').classList.toggle('on', v==='json');
+  document.getElementById('matView').style.display = v==='mat' ? '' : 'none';
+  document.getElementById('jsonView').classList.toggle('show', v==='json');
+}
+
+/* ---- Run: assemble the launchable parts of the manifest and open Playground ---- */
+function buildBlueprint(){
+  var bp={};
+  var name=(document.querySelector('.titlein').value||'').trim();
+  var env=document.getElementById('envPanel');
+  var sels=env.querySelectorAll('select.control');
+  var wp=(sels[0]&&sels[0].value)||'latest', php=(sels[1]&&sels[1].value)||'8.3';
+  var switches=env.querySelectorAll('.switch');
+  bp.landingPage=(env.querySelector('input.control')||{value:'/wp-admin/'}).value||'/wp-admin/';
+  if(switches[0]&&switches[0].classList.contains('on')) bp.login=true;
+  bp.preferredVersions={ php: php, wp: wp==='Nightly'?'nightly':(wp==='None (PHP only)'?'latest':wp) };
+  bp.features={ networking: !!(switches[1]&&switches[1].classList.contains('on')) };
+  if(name) bp.siteOptions={ blogname: name };
+  var plugins=[];
+  document.querySelectorAll('#cat-plugins .items .item').forEach(function(it){
+    var slug=it.dataset.slug, tog=it.querySelector('.mini-toggle');
+    if(slug && (!tog || tog.classList.contains('on'))) plugins.push(slug);
+  });
+  if(plugins.length) bp.plugins=plugins;
+  var act=document.querySelector('#cat-themes .items .badge-active');
+  if(act){
+    var row=act.closest('.item'), tslug=row.dataset.slug || slugify(row.querySelector('.iname').textContent);
+    if(tslug) bp.steps=[{ step:'installTheme', themeData:{ resource:'wordpress.org/themes', slug:tslug } }];
+  }
+  return bp;
+}
+function runBlueprint(){
+  window.open('https://playground.wordpress.net/#'+encodeURIComponent(JSON.stringify(buildBlueprint())), '_blank');
+}
+
+/* the header title IS the site title — keep Settings in sync both ways */
+function syncTitleFromHeader(v){
+  var row=document.querySelector('#cat-settings .item[data-opt="blogname"]'); if(!row) return;
+  var m=row.querySelector('.imeta'); if(m) m.textContent=v;
+}
+function editSetting(btn){
+  var head=btn.closest('.item-head'), meta=head.querySelector('.imeta'); if(!meta) return;
+  var cur=meta.textContent, cls=meta.className;
+  var inp=document.createElement('input'); inp.className='imeta-edit'+(cls.indexOf('mono')!==-1?' mono':''); inp.value=cur;
+  meta.replaceWith(inp); inp.focus(); inp.select();
+  var done=false;
+  function commit(){
+    if(done) return; done=true;
+    var m=document.createElement('span'); m.className=cls; m.textContent=inp.value;
+    inp.replaceWith(m);
+    var row=head.closest('.item');
+    if(row && row.dataset.opt==='blogname'){ var t=document.querySelector('.titlein'); if(t && t.value!==inp.value) t.value=inp.value; }
+  }
+  inp.addEventListener('keydown', function(e){
+    if(e.key==='Enter') commit();
+    else if(e.key==='Escape'){ e.stopPropagation(); inp.value=cur; commit(); }
+  });
+  inp.addEventListener('blur', commit);
+}
+function addSettingItem(name, value, opt, chip){
+  var cat=document.getElementById('cat-settings'), list=cat.querySelector('.items');
+  var row=document.createElement('div'); row.className='item'; if(opt) row.dataset.opt=opt;
+  var mono=(opt && opt!=='blogname') ? ' mono' : '';
+  row.innerHTML='<div class="item-head"><span class="iname">'+escHtml(name)+'</span><span class="imeta'+mono+'">'+escHtml(value||'')+'</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  insertNewItem(list, row); refreshPreview(cat);
+  chipDone(chip);
+  return row;
+}
+function addSettingChip(chip, name, opt){
+  var row=addSettingItem(name, '', opt, chip);
+  editSetting(row.querySelector('.link'));
+}
+function addCustomSetting(){
+  var k=document.getElementById('sf-key'), v=document.getElementById('sf-val');
+  var key=(k.value||'').trim(); if(!key){ k.focus(); return; }
+  addSettingItem(key, (v.value||'').trim(), key);
+  k.value=''; v.value=''; k.focus();
+}
+function addCustomUser(){
+  var n=document.getElementById('uf-name'), r=document.getElementById('uf-role');
+  var name=(n.value||'').trim(); if(!name){ n.focus(); return; }
+  addItem('users', name, r.value, false);
+  n.value=''; n.focus();
+}
+function chipDone(chip){
+  if(!chip) return;
+  var orig=chip.textContent;
+  chip.disabled=true; chip.textContent='✓ added';
+  setTimeout(function(){ chip.disabled=false; chip.textContent=orig; }, 1400);
+}
+function togglePluginActive(btn){
+  var on=btn.classList.toggle('on');
+  btn.textContent = on ? 'Active' : 'Inactive';
+}
+
+/* ---- one consolidated "Add" input: search · URL · GitHub · drop · write-code ---- */
+var _searchTimers = {}, _activeIdx = {}, _popular = { plugins:null, themes:null }, _loadingPopular = { plugins:null, themes:null };
+/* wp.org search is whole-word only (no prefix). We build a large cached index of
+   the most-popular plugins/themes (paged in the background — up to ~3000) and
+   prefix-match it instantly as the user types, then merge the live directory
+   search for the long tail. (The full 63k directory is too big to hold client-side.) */
+function loadPopular(kind){
+  if(_popular[kind]) return Promise.resolve(_popular[kind]);
+  if(_loadingPopular[kind]) return _loadingPopular[kind];
+  var key = kind==='plugins' ? 'plugins' : 'themes';
+  var base = kind==='plugins'
+    ? 'https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[browse]=popular&request[per_page]=250&request[fields][icons]=1&request[fields][active_installs]=1'
+    : 'https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[browse]=popular&request[per_page]=250';
+  _loadingPopular[kind] = fetch(base+'&request[page]=1').then(function(r){ return r.json(); }).then(function(j){
+    _popular[kind] = (j[key]||[]).slice();
+    var pages = Math.min((j.info && j.info.pages) || 1, 12);   // ~3000 most popular
+    for(var p=2;p<=pages;p++){ (function(pg){
+      fetch(base+'&request[page]='+pg).then(function(r){ return r.json(); }).then(function(jj){ var arr=jj[key]||[]; if(arr.length) _popular[kind]=(_popular[kind]||[]).concat(arr); }).catch(function(){});
+    })(p); }
+    return _popular[kind];
+  }).catch(function(){ _popular[kind] = []; return []; });
+  return _loadingPopular[kind];
+}
+function onCombo(input, kind){
+  clearTimeout(_searchTimers[kind]);
+  var v = input.value.trim(), box = document.getElementById('lb-'+kind);
+  _activeIdx[kind] = -1;
+  if(!v){ box.innerHTML=''; setExpanded(input,false); return; }
+  if(isURL(v)){ box.innerHTML = urlOptionHTML(v, kind); setExpanded(input,true); return; }
+  if(kind==='content'){ box.innerHTML = '<div class="hint">Paste a WXR / XML / .sql URL — or use the buttons below.</div>'; setExpanded(input,true); return; }
+  setExpanded(input,true);
+  runSearch(input, kind, v, box);
+}
+function localMatches(kind, q){
+  var list = _popular[kind] || []; q = q.toLowerCase();
+  var pref=[], sub=[];
+  for(var i=0;i<list.length;i++){
+    var it=list[i], nm=decodeEnt(it.name).toLowerCase(), sl=(it.slug||'').toLowerCase();
+    if(nm.indexOf(q)===0 || sl.indexOf(q)===0) pref.push(it);
+    else if(nm.indexOf(q)!==-1 || sl.indexOf(q)!==-1) sub.push(it);
+  }
+  return pref.concat(sub).slice(0,8);
+}
+function renderOptions(box, items, kind){ box.innerHTML = items.length ? items.map(function(it,i){ return resultHTML(it, kind, i); }).join('') : ''; }
+function runSearch(input, kind, v, box){
+  var local = localMatches(kind, v);
+  if(local.length) renderOptions(box, local, kind);
+  else box.innerHTML = '<div class="hint">Searching WordPress.org…</div>';
+  if(!_popular[kind]) loadPopular(kind).then(function(){ if(input.value.trim()===v) runSearch(input, kind, v, box); });
+  clearTimeout(_searchTimers[kind]);
+  _searchTimers[kind] = setTimeout(function(){ apiSearch(v, kind, local, box, input); }, 260);
+}
+function apiSearch(v, kind, local, box, input){
+  var url = kind==='plugins'
+    ? 'https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[per_page]=8&request[fields][icons]=1&request[fields][active_installs]=1&request[fields][short_description]=1&request[search]='+encodeURIComponent(v)
+    : 'https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[per_page]=8&request[search]='+encodeURIComponent(v);
+  fetch(url).then(function(r){ return r.json(); }).then(function(j){
+    if(input.value.trim()!==v) return;
+    var items = kind==='plugins' ? (j.plugins||[]) : (j.themes||[]);
+    var seen={}, merged=[];
+    local.forEach(function(it){ if(!seen[it.slug]){ seen[it.slug]=1; merged.push(it); } });
+    items.forEach(function(it){ if(!seen[it.slug]){ seen[it.slug]=1; merged.push(it); } });
+    if(!merged.length){ box.innerHTML = '<div class="hint">No matches on WordPress.org.</div>'; return; }
+    renderOptions(box, merged.slice(0,10), kind);
+  }).catch(function(){ if(input.value.trim()===v && !local.length) box.innerHTML = '<div class="hint">Couldn’t reach WordPress.org.</div>'; });
+}
+function isURL(v){ return /^https?:\/\//i.test(v) || /github\.com/i.test(v) || /\.zip(\?|#|$)/i.test(v) || /^[\w.-]+\/[\w.-]+$/.test(v); }
+function isGithub(v){ return /github\.com/i.test(v) || /^[\w.-]+\/[\w.-]+$/.test(v); }
+function urlOptionHTML(v, kind){
+  var gh = isGithub(v), name, src;
+  if(gh){ name = v.replace(/^https?:\/\//i,'').replace(/^github\.com\//i,'').split('/').slice(0,2).join('/').replace(/\.git$/,'') || v; src='GitHub'; }
+  else { name = decodeURIComponent((v.split('?')[0].split('/').pop())||'') || v; src='URL'; }
+  var verb = kind==='content' ? 'Import' : 'Add';
+  return '<div class="option" id="opt-'+kind+'-0" role="option" data-add="link" data-name="'+escAttr(name)+'" data-src="'+src+'" onclick="selectOption(\''+kind+'\',0)">'+
+    '<span class="noimg"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l2.6-2.6a4 4 0 00-5.7-5.7L11 7"/><path d="M14 10a4 4 0 00-5.7 0L5.7 12.6a4 4 0 005.7 5.7L13 17"/></svg></span>'+
+    '<span class="rmeta"><b>'+verb+' “'+escHtml(name)+'”</b><span>from '+src+' · press ↵ Enter</span></span><span class="radd">＋ '+verb+'</span></div>';
+}
+function resultHTML(it, kind, i){
+  var name = decodeEnt(it.name), ver = it.version || '', img, sub;
+  if(kind==='plugins'){
+    img = (it.icons && (it.icons['1x'] || it.icons['2x'] || it.icons['default'])) || '';
+    sub = it.active_installs ? fmtInstalls(it.active_installs)+' active installs' : (it.slug||'');
+  } else {
+    var s = it.screenshot_url || ''; img = s ? (s.indexOf('//')===0 ? 'https:'+s : s) : ''; sub = it.slug || '';
+  }
+  return '<div class="option" id="opt-'+kind+'-'+i+'" role="option" data-add="wporg" data-name="'+escAttr(name)+'" data-ver="'+escAttr(ver)+'" data-slug="'+escAttr(it.slug||'')+'" data-img="'+escAttr(img||'')+'" data-installs="'+(it.active_installs||'')+'" data-desc="'+escAttr((it.short_description||'').replace(/<[^>]+>/g,'').slice(0,140))+'" onclick="selectOption(\''+kind+'\','+i+')">'+
+    (img ? '<img src="'+img+'" onerror="this.className=\'noimg\';this.removeAttribute(\'src\')">' : '<span class="noimg"></span>')+
+    '<span class="rmeta"><b>'+escHtml(name)+'</b><span>'+escHtml(sub)+'</span></span><span class="radd">＋ Add</span></div>';
+}
+function selectOption(kind, i){
+  var el = document.getElementById('opt-'+kind+'-'+i); if(!el) return;
+  var nm = el.getAttribute('data-name'), wporg = el.getAttribute('data-add')==='wporg';
+  var meta = wporg
+    ? 'from WordPress.org'+(el.getAttribute('data-ver')?' · v'+el.getAttribute('data-ver'):'')
+    : 'from '+el.getAttribute('data-src');
+  if(kind==='themes') addThemeItem(nm, meta, el.getAttribute('data-img')||'');
+  else if(kind==='plugins'){
+    if(wporg) addPluginItem(nm, { slug: el.getAttribute('data-slug')||slugify(nm), ver: el.getAttribute('data-ver')||'', icon: el.getAttribute('data-img')||'', installs: parseInt(el.getAttribute('data-installs')||'0',10), desc: el.getAttribute('data-desc')||'', source:'WordPress.org' });
+    else addPluginItem(nm, { slug: slugify(nm), source: el.getAttribute('data-src')||'URL' });
+  }
+  else addItem(kind, nm, meta, false);
+  var input = document.querySelector('#add-'+kind+' .cinput');
+  input.value=''; document.getElementById('lb-'+kind).innerHTML=''; setExpanded(input,false); _activeIdx[kind]=-1; input.focus();
+}
+function addThemeItem(name, meta, img){
+  var cat=document.getElementById('cat-themes'), list=cat.querySelector('.items');
+  var row=document.createElement('div'); row.className='item theme-item';
+  var thumb = img ? '<img class="thumb" src="'+img+'" alt="" onerror="this.style.visibility=\'hidden\'">' : '<span class="thumb"></span>';
+  row.innerHTML='<div class="item-head">'+thumb+'<span class="iname">'+escHtml(name)+'</span><span class="imeta">'+escHtml(meta)+'</span><span class="ictl"><button class="link" onclick="setActiveTheme(this)">Set active</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  insertNewItem(list, row); refreshPreview(cat);
+}
+function setActiveTheme(btn){
+  var cat=document.getElementById('cat-themes'), target=btn.closest('.item');
+  cat.querySelectorAll('.item.theme-item').forEach(function(it){
+    var ctl=it.querySelector('.ictl'), rm='<button class="x" onclick="rmItem(this)">✕</button>';
+    ctl.innerHTML = (it===target) ? '<span class="badge-active">● Active</span>'+rm : '<button class="link" onclick="setActiveTheme(this)">Set active</button>'+rm;
+  });
+  refreshPreview(cat);
+}
+function slugify(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function addPluginItem(name, opts){
+  opts = opts || {};
+  var cat=document.getElementById('cat-plugins'), list=cat.querySelector('.items');
+  var slug = opts.slug || slugify(name), ver = opts.ver || '', src = opts.source || 'WordPress.org';
+  var wporg = (src === 'WordPress.org');
+  var installsTxt = opts.installs ? fmtInstalls(opts.installs)+' installs' : '';
+  var meta = wporg ? ('WordPress.org'+(installsTxt?' · '+installsTxt:'')+' · '+(ver?'v'+ver:'latest')) : ('from '+src);
+  var activeSeg = /github/i.test(src)?'GitHub' : /url/i.test(src)?'URL' : /paste/i.test(src)?'Paste' : /load|drop/i.test(src)?'Upload' : 'WordPress.org';
+  var srcseg = ['WordPress.org','URL','GitHub','Upload','Paste'].map(function(s){ return '<button'+(s===activeSeg?' class="on"':'')+'>'+s+'</button>'; }).join('');
+  var kvHtml = (opts.activationOptions||[]).map(function(p){ return kvRowHTML(p[0],p[1]); }).join('');
+  var row=document.createElement('div'); row.className='item'; row.dataset.slug = wporg ? slug : ''; row.dataset.icon = opts.icon || '';
+  var rowIcon = opts.icon
+    ? '<img class="pico" src="'+escAttr(opts.icon)+'" alt="" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="pico lt">'+escHtml((name[0]||'?').toUpperCase())+'</span>';
+  row.innerHTML =
+    '<div class="item-head" onclick="toggleItem(this)">'+
+      rowIcon+
+      '<span class="iname">'+escHtml(name)+'</span><span class="imeta">'+escHtml(meta)+'</span>'+
+      '<span class="ictl"><button class="mini-toggle on" onclick="event.stopPropagation();togglePluginActive(this)">Active</button><span class="item-open">edit ›</span><button class="x" onclick="event.stopPropagation();rmItem(this)">✕</button></span>'+
+    '</div>'+
+    '<div class="item-more pg-more">'+
+      '<div class="pg-head">'+
+        (opts.icon ? '<img class="pg-icon" src="'+escAttr(opts.icon)+'" alt="" onerror="this.style.visibility=\'hidden\'">' : '<span class="pg-icon"></span>')+
+        '<div class="pg-head-body">'+
+          '<div class="pg-desc">'+(opts.desc?escHtml(opts.desc):(wporg?'':'Bundled from '+escHtml(src)+'.'))+'</div>'+
+          '<div class="pg-stats"><span class="pg-rating"></span><span class="pg-installs">'+(installsTxt?escHtml(installsTxt.replace('installs','active installs')):'')+'</span>'+
+            (wporg?'<a class="pg-link" href="https://wordpress.org/plugins/'+escAttr(slug)+'/" target="_blank" rel="noopener">wordpress.org ↗</a>':'')+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="f"><label>Version</label><select class="pg-version" data-ver="'+escAttr(ver)+'"><option value=""'+(ver?'':' selected')+'>Latest</option>'+(ver?'<option value="'+escAttr(ver)+'" selected>'+escHtml(ver)+'</option>':'')+'</select></div>'+
+      '<div class="f"><label>Source</label><span class="srcseg">'+srcseg+'</span></div>'+
+      '<div class="f"><label>Slug</label><input class="mono" value="'+escAttr(slug)+'" style="width:190px"></div>'+
+      '<div class="f pg-actf"><label>On activate</label><div class="kv-wrap"><div class="kv-rows">'+kvHtml+'</div><button class="kvadd" onclick="addKv(this)">＋ Add activation option</button></div></div>'+
+      '<button class="pg-advtoggle" onclick="this.nextElementSibling.classList.toggle(\'show\');this.classList.toggle(\'open\')">Advanced</button>'+
+      '<div class="pg-adv">'+
+        '<div class="f"><label>If installed</label><select><option>Overwrite</option><option>Skip</option><option>Error</option></select></div>'+
+        '<div class="f"><label>On error</label><select><option>Fail the Blueprint</option><option>Skip this plugin</option></select></div>'+
+      '</div>'+
+    '</div>';
+  insertNewItem(list, row); refreshPreview(cat);
+}
+function kvRowHTML(k,v){ return '<div class="kv"><input class="kv-k" placeholder="key" value="'+escAttr(k||'')+'"><span class="kv-eq">=</span><input class="kv-v" placeholder="value" value="'+escAttr(v||'')+'"><button class="kv-x" onclick="this.closest(\'.kv\').remove()">✕</button></div>'; }
+function addKv(btn){ btn.parentElement.querySelector('.kv-rows').insertAdjacentHTML('beforeend', kvRowHTML('','')); }
+function pgVerCmp(a,b){ var pa=a.split('.').map(Number), pb=b.split('.').map(Number); for(var i=0;i<Math.max(pa.length,pb.length);i++){ var x=pa[i]||0,y=pb[i]||0; if(x!==y) return x-y; } return 0; }
+function pgLoadDetails(item){
+  var slug=item.dataset.slug; if(!slug) return; item.dataset.pgLoaded='1';
+  fetch('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]='+encodeURIComponent(slug)+'&request[fields][versions]=1&request[fields][short_description]=1')
+    .then(function(r){ return r.json(); }).then(function(j){
+    if(!j || j.error) return;
+    var sel=item.querySelector('.pg-version');
+    if(sel && j.versions){
+      var vers=Object.keys(j.versions).filter(function(v){ return /^[0-9]+(\.[0-9]+)*$/.test(v); }).sort(pgVerCmp);
+      var recent=vers.slice(-16).reverse(), cur=sel.getAttribute('data-ver')||'', opts=recent.slice();
+      if(cur && opts.indexOf(cur)===-1) opts.unshift(cur);
+      sel.innerHTML='<option value=""'+(cur?'':' selected')+'>Latest'+(recent[0]?' ('+recent[0]+')':'')+'</option>'+
+        opts.map(function(v){ return '<option value="'+escAttr(v)+'"'+(v===cur?' selected':'')+'>'+escHtml(v)+'</option>'; }).join('');
+    }
+    var d=item.querySelector('.pg-desc'); if(d && !d.textContent && j.short_description) d.textContent=decodeEnt(j.short_description).replace(/<[^>]+>/g,'').trim();
+    var rt=item.querySelector('.pg-rating'); if(rt && j.rating) rt.textContent='★ '+(j.rating/20).toFixed(1)+(j.num_ratings?' ('+fmtInstalls(j.num_ratings)+')':'');
+    var ins=item.querySelector('.pg-installs'); if(ins && !ins.textContent && j.active_installs) ins.textContent=fmtInstalls(j.active_installs)+' active installs';
+  }).catch(function(){});
+}
+function addResource(kind, name, meta){
+  if(kind==='plugins') addPluginItem(name, { slug: slugify(name), source: (/github/i.test(meta)?'GitHub':/url/i.test(meta)?'URL':'Upload') });
+  else if(kind==='themes') addThemeItem(name, meta, '');
+  else addItem(kind, name, meta, false);
+}
+function comboKey(e, kind){
+  var box = document.getElementById('lb-'+kind), opts = box.querySelectorAll('.option'), input = e.target;
+  if(e.key==='ArrowDown'){ e.preventDefault(); if(!opts.length) return; _activeIdx[kind]=Math.min(_activeIdx[kind]+1, opts.length-1); hi(kind,opts,input); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); if(!opts.length) return; _activeIdx[kind]=Math.max(_activeIdx[kind]-1, 0); hi(kind,opts,input); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(_activeIdx[kind]>=0 && opts[_activeIdx[kind]]) selectOption(kind,_activeIdx[kind]); else if(opts.length) selectOption(kind, _activeIdx[kind]<0?0:_activeIdx[kind]); }
+  else if(e.key==='Escape'){
+    if(input.value){ e.stopPropagation(); input.value=''; box.innerHTML=''; setExpanded(input,false); _activeIdx[kind]=-1; }
+    /* empty input → let Esc bubble to the document handler, which closes the panel */
+  }
+}
+function hi(kind, opts, input){
+  opts.forEach(function(o,i){ var on=(i===_activeIdx[kind]); o.classList.toggle('active',on); if(on){ input.setAttribute('aria-activedescendant',o.id); o.scrollIntoView({block:'nearest'}); } });
+}
+function setExpanded(input,b){ input.setAttribute('aria-expanded', b?'true':'false'); if(!b) input.removeAttribute('aria-activedescendant'); }
+/* dropzone */
+function dzOver(e, el){ e.preventDefault(); el.classList.add('dragging'); }
+function dzLeave(el){ el.classList.remove('dragging'); }
+function dzDrop(e, kind, el){ e.preventDefault(); el.classList.remove('dragging'); var fs=e.dataTransfer.files; for(var i=0;i<fs.length;i++){ addResource(kind, fs[i].name, 'dropped · '+fmtSize(fs[i].size)+' · bundled'); } }
+function onUpload(input, kind){ var f=input.files && input.files[0]; if(!f) return; addResource(kind, f.name, 'uploaded · '+fmtSize(f.size)+' · bundled'); input.value=''; }
+/* write-code modal (CodeMirror 6, same editor family as Playground) */
+var _cmView=null, _cmKind=null, _cmLang='php', _cmEditRow=null;
+var CODE_STARTERS={
+  php:{ fname:'snippet.php',  label:'Run PHP', code:"<?php\n// Runs after WordPress is installed\n" },
+  sql:{ fname:'query.sql',    label:'Run SQL', code:"-- Runs against the WordPress database\n" },
+  cli:{ fname:'commands.sh',  label:'WP-CLI',  code:"# One WP-CLI command per line\nwp option get blogname\n" }
+};
+function openCodeModal(kind, lang){
+  _cmKind=kind; _cmEditRow=null;
+  var starter, fname;
+  if(kind==='code'){
+    _cmLang=lang||'php'; var s=CODE_STARTERS[_cmLang];
+    starter=s.code; fname=s.fname;
+  } else {
+    starter = kind==='plugins'
+      ? "<?php\n/**\n * Plugin Name: My Plugin\n */\n\nadd_action( 'init', function () {\n\t// your code here\n} );\n"
+      : "<?php\n// functions.php\n";
+    fname = kind==='plugins' ? 'my-plugin.php' : 'functions.php';
+  }
+  document.getElementById('cm-fname').value=fname;
+  mountCodeEditor(starter);
+}
+function editCodeItem(btn){
+  var row=btn.closest('.item');
+  _cmKind='code'; _cmEditRow=row;
+  document.getElementById('cm-fname').value=row.dataset.fname||'snippet.php';
+  mountCodeEditor(row.dataset.code||'');
+}
+function mountCodeEditor(code){
+  var host=document.getElementById('cm-host'); host.innerHTML='';
+  document.getElementById('codeModal').classList.add('show');
+  if(window.__mkEditor){ _cmView=window.__mkEditor(host, code); setTimeout(function(){ if(_cmView) _cmView.focus(); }, 30); }
+  else { host.innerHTML='<textarea id="cm-fallback" class="cm-fallback" spellcheck="false">'+escHtml(code)+'</textarea>'; }
+}
+function closeCodeModal(){ document.getElementById('codeModal').classList.remove('show'); if(_cmView){ _cmView.destroy(); _cmView=null; } }
+function saveCodeModal(){
+  var name=(document.getElementById('cm-fname').value||'file').trim();
+  var code=_cmView ? _cmView.state.doc.toString() : (document.getElementById('cm-fallback')?document.getElementById('cm-fallback').value:'');
+  var lines=code.split('\n').length;
+  if(_cmEditRow){
+    _cmEditRow.dataset.code=code; _cmEditRow.dataset.fname=name;
+    var m=_cmEditRow.querySelector('.imeta'); if(m) m.textContent=name+' · '+lines+' lines';
+  } else if(_cmKind==='code'){
+    addCodeItem((CODE_STARTERS[_cmLang]||{}).label||'Custom code', name, code);
+  } else {
+    addItem(_cmKind, name, 'written · '+lines+' lines', _cmKind==='plugins');
+  }
+  closeCodeModal();
+}
+function addCodeItem(label, fname, code){
+  var cat=document.getElementById('cat-code'), list=cat.querySelector('.items');
+  var row=document.createElement('div'); row.className='item'; row.dataset.fname=fname; row.dataset.code=code;
+  row.innerHTML='<div class="item-head"><span class="iname">'+escHtml(label)+'</span><span class="imeta">'+escHtml(fname)+' · '+code.split('\n').length+' lines</span><span class="ictl"><button class="link" onclick="editCodeItem(this)">Edit code</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  insertNewItem(list, row); refreshPreview(cat);
+}
+/* content: a self-contained block editor (no Playground) — outputs WordPress block markup */
+var _beType='page', _beActive=null, _beSlashTarget=null, _beSlashIdx=-1;
+var BE_TYPES = [
+  // Text
+  {t:'paragraph',    k:'¶',  label:'Paragraph', cat:'Text', kind:'text'},
+  {t:'heading',      k:'H',  label:'Heading', hint:'H2', cat:'Text', kind:'text'},
+  {t:'list',         k:'•',  label:'Bulleted list', cat:'Text', kind:'list', alias:'ul bullet unordered'},
+  {t:'numbered',     k:'№',  label:'Numbered list', cat:'Text', kind:'list', alias:'ol ordered number'},
+  {t:'quote',        k:'❝',  label:'Quote', cat:'Text', kind:'text', alias:'blockquote'},
+  {t:'pullquote',    k:'❠',  label:'Pullquote', cat:'Text', kind:'text'},
+  {t:'code',         k:'‹›', label:'Code', cat:'Text', kind:'code'},
+  {t:'preformatted', k:'⌗',  label:'Preformatted', cat:'Text', kind:'code', alias:'pre'},
+  {t:'verse',        k:'✒',  label:'Verse', cat:'Text', kind:'text', alias:'poem poetry'},
+  {t:'table',        k:'▦',  label:'Table', cat:'Text', kind:'table', alias:'grid'},
+  // Media
+  {t:'image',        k:'▤',  label:'Image', cat:'Media', kind:'media', alias:'img photo picture'},
+  {t:'gallery',      k:'▨',  label:'Gallery', cat:'Media', kind:'media', alias:'images photos'},
+  {t:'cover',        k:'◧',  label:'Cover', cat:'Media', kind:'media', alias:'hero banner'},
+  {t:'audio',        k:'♫',  label:'Audio', cat:'Media', kind:'media', alias:'sound music mp3'},
+  {t:'video',        k:'▷',  label:'Video', cat:'Media', kind:'media', alias:'movie mp4'},
+  {t:'file',         k:'⬇',  label:'File', cat:'Media', kind:'media', alias:'download pdf attachment'},
+  // Design
+  {t:'buttons',      k:'▭',  label:'Buttons', cat:'Design', kind:'container', alias:'button cta link'},
+  {t:'columns',      k:'▥',  label:'Columns', cat:'Design', kind:'container', alias:'grid layout col'},
+  {t:'group',        k:'◻',  label:'Group', cat:'Design', kind:'container', alias:'wrapper'},
+  {t:'row',          k:'⬌',  label:'Row', cat:'Design', kind:'container', alias:'flex horizontal'},
+  {t:'stack',        k:'⬍',  label:'Stack', cat:'Design', kind:'container', alias:'vertical'},
+  {t:'separator',    k:'—',  label:'Separator', cat:'Design', kind:'rule', alias:'hr divider rule'},
+  {t:'spacer',       k:'␣',  label:'Spacer', cat:'Design', kind:'rule', alias:'gap space'},
+  {t:'more',         k:'…',  label:'More', cat:'Design', kind:'rule', alias:'read more'},
+  // Widgets
+  {t:'custom-html',  k:'⟨⟩', label:'Custom HTML', cat:'Widgets', kind:'code', alias:'html embed raw'},
+  {t:'shortcode',    k:'⟦⟧', label:'Shortcode', cat:'Widgets', kind:'code', alias:'sc'},
+  {t:'latest-posts', k:'≣',  label:'Latest Posts', cat:'Widgets', kind:'dynamic', alias:'recent blog'},
+  {t:'categories',   k:'⊟',  label:'Categories', cat:'Widgets', kind:'dynamic', alias:'cats terms'},
+  {t:'search',       k:'⌕',  label:'Search', cat:'Widgets', kind:'dynamic', alias:'find'},
+  {t:'social-icons', k:'◈',  label:'Social Icons', cat:'Widgets', kind:'dynamic', alias:'social links'},
+  // Embeds
+  {t:'embed',        k:'⧉',  label:'Embed', cat:'Embeds', kind:'embed', alias:'iframe url oembed'},
+  {t:'youtube',      k:'▶',  label:'YouTube', cat:'Embeds', kind:'embed', alias:'video yt'},
+  {t:'twitter',      k:'𝕏',  label:'X (Twitter)', cat:'Embeds', kind:'embed', alias:'tweet x'},
+  {t:'vimeo',        k:'▷',  label:'Vimeo', cat:'Embeds', kind:'embed', alias:'video'},
+  // Theme
+  {t:'site-title',   k:'⌂',  label:'Site Title', cat:'Theme', kind:'dynamic', alias:'blog name'},
+  {t:'site-logo',    k:'◐',  label:'Site Logo', cat:'Theme', kind:'dynamic', alias:'brand'},
+  {t:'post-title',   k:'T',  label:'Post Title', cat:'Theme', kind:'dynamic'},
+  {t:'query',        k:'⟳',  label:'Query Loop', cat:'Theme', kind:'dynamic', alias:'posts loop'},
+  {t:'navigation',   k:'☰',  label:'Navigation', cat:'Theme', kind:'dynamic', alias:'menu nav'}
+];
+var BE = {}; BE_TYPES.forEach(function(o){ BE[o.t]=o; });
+/* one Playground instance, booted once and reused for every page/post */
+var _pgClient=null, _pgBooting=false;
+var BE_ADMIN_CHROME = `<?php
+add_action( 'admin_head', function () {
+?>
+<style>
+.edit-post-fullscreen-mode-close,
+.editor-header a[href*="/wp-admin/edit.php"],
+.editor-post-save-draft,
+.editor-header button[aria-label="Save draft"],
+.editor-header__settings > :first-child,
+.editor-post-publish-button,
+.editor-post-publish-panel__toggle,
+.interface-interface-skeleton__sidebar,
+.editor-header button[aria-label="Settings"] {
+  display: none !important;
+}
+</style>
+<?php
+} );
+`;
+function bePath(type){ return type==='page' ? '/wp-admin/post-new.php?post_type=page' : '/wp-admin/post-new.php'; }
+/* boot once; pre-warm when the Content panel opens; never silently discard a draft */
+var _pgBootPromise=null, _pgBootType='page', _beUnsaved=false, _bootStageTimer=null;
+var BOOT_STAGES=['Downloading WordPress…','Starting PHP & SQLite…','Opening the block editor…'];
+function bootStageText(){
+  var txt=document.getElementById('be-loading-txt'), i=0;
+  txt.textContent=BOOT_STAGES[0];
+  clearInterval(_bootStageTimer);
+  _bootStageTimer=setInterval(function(){ i++; if(i>=BOOT_STAGES.length-1){ i=BOOT_STAGES.length-1; clearInterval(_bootStageTimer); } txt.textContent=BOOT_STAGES[i]; }, 4000);
+}
+function ensurePlayground(type){
+  if(_pgClient) return Promise.resolve(_pgClient);
+  if(_pgBootPromise) return _pgBootPromise;
+  _pgBooting=true; _pgBootType=type||'page';
+  _pgBootPromise = import('https://playground.wordpress.net/client/index.js').then(function(mod){
+    return mod.startPlaygroundWeb({
+      iframe: document.getElementById('pg-frame'),
+      remoteUrl: 'https://playground.wordpress.net/remote.html',
+      blueprint: {
+        login: true,
+        landingPage: bePath(_pgBootType),
+        steps: [{
+          step: 'writeFile',
+          path: '/wordpress/wp-content/mu-plugins/blueprint-editor.php',
+          data: BE_ADMIN_CHROME
+        }]
+      }
+    });
+  }).then(function(client){
+    return client.isReady().then(function(){ _pgClient=client; _pgBooting=false; return client; });
+  }).catch(function(e){ _pgBooting=false; _pgBootPromise=null; throw e; });
+  return _pgBootPromise;
+}
+async function openBlockEditor(type){
+  var loading=document.getElementById('be-loading'), txt=document.getElementById('be-loading-txt'), header=document.getElementById('be-type');
+  document.getElementById('beModal').classList.add('show');
+  if(_pgClient){
+    if(_beUnsaved){                                // never discard silently — resume where they left off
+      header.textContent='Resuming your unsaved '+_beType+' · WordPress block editor';
+      loading.style.display='none'; return;
+    }
+    _beType=type; header.textContent='New '+type+' · WordPress block editor';
+    loading.style.display='flex'; clearInterval(_bootStageTimer); txt.textContent='Opening a fresh '+type+'…';
+    try{ await _pgClient.goTo(bePath(type)); }catch(e){}
+    loading.style.display='none'; _beUnsaved=true; return;
+  }
+  _beType=type; header.textContent='New '+type+' · WordPress block editor';
+  loading.style.display='flex'; bootStageText();
+  try{
+    await ensurePlayground(type);
+    if(type!==_pgBootType){ try{ await _pgClient.goTo(bePath(type)); }catch(e){} }
+    loading.style.display='none'; _beUnsaved=true;
+  }catch(e){ clearInterval(_bootStageTimer); txt.textContent='Couldn’t load the editor: '+String(e); }
+}
+function closeBlockEditor(){ document.getElementById('beModal').classList.remove('show'); }  /* keep the instance warm; the draft survives for next open */
+function bePlaceholder(type){ return type==='paragraph' ? 'Type “/” to choose a block, or just write…' : ''; }
+function beMakeBlock(type){
+  var d = BE[type] || {kind:'text', label:type, k:'▪'};
+  // non-editable "rule" blocks
+  if(d.kind==='rule'){
+    var r=document.createElement('div'); r.className='be-block be-'+type; r.dataset.type=type; r.contentEditable='false';
+    r.innerHTML = type==='spacer' ? '<div class="be-spacer"></div>' : (type==='more' ? '<div class="be-more">Read more ↴</div>' : '<hr>');
+    r.appendChild(beDel()); return r;
+  }
+  // media / embed / container / dynamic → a block placeholder (like the editor shows for these)
+  if(d.kind==='media' || d.kind==='embed' || d.kind==='container' || d.kind==='dynamic'){
+    return bePh(d, type);
+  }
+  // table
+  if(d.kind==='table'){
+    var t=document.createElement('table'); t.className='be-block be-table'; t.dataset.type=type;
+    t.innerHTML='<tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody>';
+    [].forEach.call(t.querySelectorAll('td'), function(td){ td.contentEditable='true'; });
+    t.addEventListener('focusin', function(){ _beActive=t; }); t.appendChild(beDel()); return t;
+  }
+  // editable text / list / code
+  var el;
+  if(type==='list'){ el=document.createElement('ul'); el.innerHTML='<li></li>'; }
+  else if(type==='numbered'){ el=document.createElement('ol'); el.innerHTML='<li></li>'; }
+  else { el=document.createElement('div'); }
+  el.className='be-block be-'+type; el.dataset.type=type; el.contentEditable='true';
+  if(d.kind!=='list') el.setAttribute('data-ph', bePlaceholder(type));
+  el.addEventListener('keydown', beKey);
+  el.addEventListener('input', function(){ beCount(); if(document.getElementById('beSlash').classList.contains('show')) beFilterSlash(el); });
+  el.addEventListener('focus', function(){ _beActive=el; });
+  return el;
+}
+function bePh(d, type){
+  var el=document.createElement('div'); el.className='be-block be-ph be-'+type; el.dataset.type=type; el.contentEditable='false';
+  var body = (d.kind==='media' || d.kind==='embed')
+    ? '<input class="be-ph-url" placeholder="Paste a '+d.label+' URL…">'
+    : '<span class="be-ph-hint">'+(d.kind==='container' ? 'Container — add blocks inside' : 'Dynamic — renders on the live site')+'</span>';
+  el.innerHTML='<span class="be-ph-ic">'+d.k+'</span><div class="be-ph-body"><b>'+d.label+'</b>'+body+'</div>';
+  el.appendChild(beDel()); return el;
+}
+function beDel(){ var b=document.createElement('button'); b.className='be-del'; b.textContent='✕'; b.title='Remove block'; b.onclick=function(){ var blk=b.closest('.be-block'); if(blk){ blk.remove(); beCount(); } }; return b; }
+function beAddBlock(type, focus, after){
+  var el=beMakeBlock(type), blocks=document.getElementById('be-blocks');
+  if(after && after.parentNode===blocks) after.after(el); else blocks.appendChild(el);
+  if(focus){ el.focus(); placeCaretEnd(el); }
+  beCount(); return el;
+}
+function beKey(e){
+  var el=e.currentTarget, type=el.dataset.type, kind=(BE[type]||{}).kind, slashOpen=document.getElementById('beSlash').classList.contains('show');
+  if(slashOpen && e.key==='ArrowDown'){ e.preventDefault(); beMoveSlash(1); return; }
+  if(slashOpen && e.key==='ArrowUp'){ e.preventDefault(); beMoveSlash(-1); return; }
+  if(slashOpen && e.key==='Enter'){ e.preventDefault(); beChooseSlash(); return; }
+  if(e.key==='Escape'){ beHideSlash(); return; }
+  if(e.key==='/' && el.textContent.trim()===''){ setTimeout(function(){ beShowSlash(el); }, 0); return; }
+  if(e.key==='Enter' && !e.shiftKey){
+    if(kind==='code' || kind==='list') return;
+    e.preventDefault(); beAddBlock('paragraph', true, el);
+  }
+  if(e.key==='Backspace' && el.textContent==='' && kind!=='list'){
+    var prev=el.previousElementSibling;
+    if(prev){ e.preventDefault(); el.remove(); prev.focus(); placeCaretEnd(prev); beCount(); }
+  }
+}
+function beShowSlash(el){ _beSlashTarget=el; beRenderSlash(''); bePositionSlash(el); }
+function beRenderSlash(q){
+  q=(q||'').toLowerCase().trim();
+  var items = BE_TYPES.filter(function(o){ return !q || o.label.toLowerCase().indexOf(q)!==-1 || o.t.indexOf(q)!==-1 || (o.alias && o.alias.indexOf(q)!==-1); });
+  var m=document.getElementById('beSlash');
+  if(!items.length){ m.innerHTML='<div class="be-slash-empty">No blocks match “'+escHtml(q)+'”</div>'; _beSlashIdx=-1; m.classList.add('show'); return; }
+  _beSlashIdx=0;
+  var html='', lastCat=null, idx=0;
+  items.forEach(function(o){
+    if(o.cat!==lastCat){ html+='<div class="be-category">'+o.cat+'</div>'; lastCat=o.cat; }
+    html+='<div class="be-slash-item'+(idx===0?' active':'')+'" role="option" tabindex="-1" data-t="'+o.t+'" onclick="beSetType(_beSlashTarget,\''+o.t+'\')"><span class="k">'+o.k+'</span><b>'+o.label+'</b>'+(o.hint?'<span>'+o.hint+'</span>':'')+'</div>'; idx++;
+  });
+  m.innerHTML=html; m.scrollTop=0; m.classList.add('show');
+}
+function bePositionSlash(el){ var m=document.getElementById('beSlash'), r=el.getBoundingClientRect(); m.style.left=Math.round(r.left)+'px'; m.style.top=Math.round(r.bottom+6)+'px'; }
+function beHideSlash(){ document.getElementById('beSlash').classList.remove('show'); _beSlashTarget=null; _beSlashIdx=-1; }
+function beFilterSlash(el){ var t=el.textContent; if(t.indexOf('/')!==0){ beHideSlash(); return; } beRenderSlash(t.slice(1)); bePositionSlash(el); }
+function beMoveSlash(d){ var items=document.querySelectorAll('#beSlash .be-slash-item'); if(!items.length) return; _beSlashIdx=Math.max(0,Math.min(items.length-1,_beSlashIdx+d)); items.forEach(function(it,i){ var on=(i===_beSlashIdx); it.classList.toggle('active', on); if(on) it.scrollIntoView({block:'nearest'}); }); }
+function beChooseSlash(){ var items=document.querySelectorAll('#beSlash .be-slash-item'); if(items[_beSlashIdx]) beSetType(_beSlashTarget, items[_beSlashIdx].dataset.t); }
+function beSetType(el, type){
+  if(!el) return; beHideSlash();
+  var nb=beMakeBlock(type); el.replaceWith(nb);
+  var url = nb.querySelector && nb.querySelector('.be-ph-url');
+  var td  = nb.querySelector && nb.querySelector('td[contenteditable]');
+  if(url){ url.focus(); }
+  else if(td){ td.focus(); }
+  else if(nb.getAttribute('contenteditable')==='false'){ var p=beMakeBlock('paragraph'); nb.after(p); p.focus(); placeCaretEnd(p); }
+  else { nb.focus(); placeCaretEnd(nb); }
+  beCount();
+}
+function beCount(){ var n=document.querySelectorAll('#be-blocks .be-block').length; var c=document.getElementById('be-count'); if(c) c.textContent=n+' block'+(n!==1?'s':''); }
+function placeCaretEnd(el){ try{ var r=document.createRange(); r.selectNodeContents(el); r.collapse(false); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }catch(e){} }
+async function saveBlockEditor(){
+  var title='', words=0;
+  if(_pgClient){                                   // pull the authored post out of Playground
+    try{
+      var php = "<?php require '/wordpress/wp-load.php'; $p=get_posts(array('post_type'=>array('post','page'),'post_status'=>array('auto-draft','draft','pending','publish','private'),'numberposts'=>1,'orderby'=>'ID','order'=>'DESC')); if($p){ echo json_encode(array('t'=>$p[0]->post_title,'c'=>$p[0]->post_content)); }";
+      var r = await _pgClient.run({ code: php });
+      var data = JSON.parse(((r && r.text) || '').trim());
+      if(data){ title=(data.t||'').trim(); words=(data.c||'').replace(/<!--[^>]*-->/g,' ').replace(/<[^>]+>/g,' ').split(/\s+/).filter(Boolean).length; }
+    }catch(e){}
+  }
+  addItem('content', title || ('New '+_beType), _beType+' · block editor'+(words?' · ~'+words+' words':''), false);
+  _beUnsaved=false;
+  closeBlockEditor();
+}
+function beSerialize(){
+  var out=[];
+  document.querySelectorAll('#be-blocks .be-block').forEach(function(b){
+    var t=b.dataset.type, d=BE[t]||{kind:'text'};
+    if(t==='separator'){ out.push('<!-- wp:separator --><hr class="wp-block-separator"/><!-- /wp:separator -->'); return; }
+    if(t==='spacer'){ out.push('<!-- wp:spacer --><div style="height:40px" class="wp-block-spacer"></div><!-- /wp:spacer -->'); return; }
+    if(t==='more'){ out.push('<!-- wp:more --><!--more--><!-- /wp:more -->'); return; }
+    if(d.kind==='media' || d.kind==='embed'){ var u=((b.querySelector('.be-ph-url')||{}).value||'').trim(); out.push(u ? '<!-- wp:'+t+' {"url":"'+escHtml(u)+'"} /-->' : '<!-- wp:'+t+' /-->'); return; }
+    if(d.kind==='container' || d.kind==='dynamic'){ out.push('<!-- wp:'+t+' /-->'); return; }
+    if(d.kind==='table'){ var rows=[].map.call(b.querySelectorAll('tr'),function(tr){ return '<tr>'+[].map.call(tr.querySelectorAll('td'),function(td){return '<td>'+escHtml(td.textContent.trim())+'</td>';}).join('')+'</tr>'; }).join(''); out.push('<!-- wp:table --><figure class="wp-block-table"><table><tbody>'+rows+'</tbody></table></figure><!-- /wp:table -->'); return; }
+    if(t==='list' || t==='numbered'){ var tag=t==='numbered'?'ol':'ul', attr=t==='numbered'?' {"ordered":true}':''; var lis=[].map.call(b.querySelectorAll('li'),function(li){return li.textContent.trim();}).filter(Boolean); if(lis.length) out.push('<!-- wp:list'+attr+' --><'+tag+'>'+lis.map(function(x){return '<li>'+escHtml(x)+'</li>';}).join('')+'</'+tag+'><!-- /wp:list -->'); return; }
+    var txt=(b.textContent||'').trim(); if(!txt) return;
+    if(t==='paragraph') out.push('<!-- wp:paragraph --><p>'+escHtml(txt)+'</p><!-- /wp:paragraph -->');
+    else if(t==='heading') out.push('<!-- wp:heading --><h2>'+escHtml(txt)+'</h2><!-- /wp:heading -->');
+    else if(t==='quote') out.push('<!-- wp:quote --><blockquote class="wp-block-quote"><p>'+escHtml(txt)+'</p></blockquote><!-- /wp:quote -->');
+    else if(t==='pullquote') out.push('<!-- wp:pullquote --><figure class="wp-block-pullquote"><blockquote><p>'+escHtml(txt)+'</p></blockquote></figure><!-- /wp:pullquote -->');
+    else if(t==='verse') out.push('<!-- wp:verse --><pre class="wp-block-verse">'+escHtml(txt)+'</pre><!-- /wp:verse -->');
+    else if(t==='code') out.push('<!-- wp:code --><pre class="wp-block-code"><code>'+escHtml(txt)+'</code></pre><!-- /wp:code -->');
+    else if(t==='preformatted') out.push('<!-- wp:preformatted --><pre class="wp-block-preformatted">'+escHtml(txt)+'</pre><!-- /wp:preformatted -->');
+    else if(t==='custom-html') out.push('<!-- wp:html -->'+txt+'<!-- /wp:html -->');
+    else if(t==='shortcode') out.push('<!-- wp:shortcode -->'+escHtml(txt)+'<!-- /wp:shortcode -->');
+    else out.push('<!-- wp:'+t+' --><p>'+escHtml(txt)+'</p><!-- /wp:'+t+' -->');
+  });
+  return out.join('\n\n');
+}
+document.addEventListener('mousedown', function(e){ var m=document.getElementById('beSlash'); if(m && m.classList.contains('show') && !m.contains(e.target)) beHideSlash(); });
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape') return;
+  if(document.getElementById('codeModal').classList.contains('show')){ closeCodeModal(); return; }
+  if(document.getElementById('beModal').classList.contains('show')){ closeBlockEditor(); return; }
+  var p=document.querySelector('.addpanel.show');                     // Esc walks up: panel → category
+  if(p){ var cat=p.closest('.cat'); p.classList.remove('show'); syncAddState(cat); var b=cat.querySelector('.cat-add'); if(b) b.focus(); return; }
+  var oc=document.querySelector('#manifest .cat.open');
+  if(oc){ oc.classList.remove('open'); refreshPreview(oc); var r=oc.querySelector('.cat-row'); if(r) r.focus(); }
+});
+/* helpers */
+function decodeEnt(s){ var t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return escHtml(s).replace(/"/g,'&quot;'); }
+function fmtInstalls(n){ if(n>=1e6) return Math.round(n/1e6)+'M+'; if(n>=1e3) return Math.round(n/1e3)+'k+'; return String(n); }
+function fmtSize(b){ if(b>=1e6) return (b/1e6).toFixed(1)+' MB'; if(b>=1e3) return Math.round(b/1e3)+' KB'; return b+' B'; }
+loadPopular('plugins'); loadPopular('themes');
+/* category rows are div-based; make them keyboard-operable */
+document.querySelectorAll('.cat-row').forEach(function(row){
+  row.setAttribute('tabindex','0'); row.setAttribute('role','button');
+  row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleCat(row); } });
+});
+/* seed the sample store's plugins through the same renderer everything else uses
+   (new items prepend, so seed in reverse display order; strip the new-item flash) */
+addPluginItem('Yoast SEO', {slug:'wordpress-seo', ver:'', installs:10000000, icon:'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', desc:'Improve your WordPress SEO — write better content and have a fully optimized site.', source:'WordPress.org'});
+addPluginItem('WooCommerce', {slug:'woocommerce', ver:'9.4', installs:7000000, icon:'https://ps.w.org/woocommerce/assets/icon.svg', desc:'The customizable, open-source ecommerce platform for WordPress.', source:'WordPress.org', activationOptions:[['storeCity','Warsaw']]});
+document.querySelectorAll('#cat-plugins .item.flash').forEach(function(el){ el.classList.remove('flash'); });
+/* build the visual previews (plugin icons · theme thumb + site card · user avatars) */
+refreshPreview(document.getElementById('cat-themes'));
+refreshPreview(document.getElementById('cat-users'));
+</script>
+<script type="module">
+  import { EditorView, basicSetup } from "https://esm.sh/codemirror@6.0.1";
+  import { php } from "https://esm.sh/@codemirror/lang-php@6.0.1";
+  window.__mkEditor = function(parent, doc){
+    return new EditorView({ doc: doc, extensions: [ basicSetup, php() ], parent: parent });
+  };
+</script>
+</body>
+</html>

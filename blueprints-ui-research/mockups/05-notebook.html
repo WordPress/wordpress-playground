@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>5 · Notebook — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f2f2f0; --paper:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e6e6e3; --line-2:#dcdcd8; --green:#00844a; --amber:#996800; --purple:#7b3fe4;
+  --radius:10px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 3px 12px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.spacer{flex:1}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;gap:7px;align-items:center}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+.runstate{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+.runstate .d{width:8px;height:8px;border-radius:50%;background:var(--green)}
+
+.sheet{max-width:760px;margin:26px auto 120px;background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.doc-head{padding:30px 40px 22px;border-bottom:1px solid var(--line)}
+.doc-head h1{font-family:var(--serif);font-size:30px;margin:0 0 8px;letter-spacing:-.01em}
+.byline{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.byline .who{display:flex;align-items:center;gap:7px}
+.byline .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#3858e9,#7b3fe4)}
+.byline .tag{background:#f0ecff;color:var(--purple);border-radius:20px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.doc-head .lede{font-family:var(--serif);font-size:16.5px;line-height:1.55;color:#3a3a3a;margin:16px 0 0}
+
+.cells{padding:12px 0}
+.cell{position:relative;padding:6px 40px 6px 40px}
+.cell .gutter{position:absolute;left:8px;top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;width:24px}
+.cell .runbadge{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:#eef7f0;color:var(--green);border:1px solid #cbe8d5}
+.cell .runbadge.md{background:#f4f4f2;color:var(--faint);border-color:var(--line-2)}
+.cell .grip{color:#cfcfca;font-size:12px;letter-spacing:-2px;cursor:grab}
+
+/* markdown/prose cell */
+.md-cell .prose{font-family:var(--serif);font-size:15.5px;line-height:1.6;color:#2c2c2c}
+.md-cell h2{font-family:var(--serif);font-size:19px;margin:14px 0 6px}
+.md-cell .prose code{font-family:var(--mono);font-size:13px;background:#f2f2f0;padding:1px 5px;border-radius:4px}
+
+/* semantic step cell */
+.step-cell .capsule{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+.step-cell .cap-main{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.step-cell .i{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex:none}
+.i.plugin{background:#eef1ff;color:#3858e9}.i.theme{background:#f0ecff;color:#7b3fe4}.i.content{background:#e7f6ee;color:#00844a}.i.site{background:#fff4e0;color:#996800}.i.code{background:#1e1e1e;color:#8fd3ff}
+.step-cell .t{font-weight:600;font-size:14.5px}
+.step-cell .s{color:var(--muted);font-size:12.5px}
+.step-cell .showcode{margin-left:auto;font-size:12px;color:var(--wp-blue-600);font-weight:600;background:none;border:0;display:flex;align-items:center;gap:5px}
+.step-cell .chev{transition:transform .15s}
+.step-cell .capsule.open .chev{transform:rotate(90deg)}
+.codereveal{display:none;border-top:1px solid var(--line);background:#1d1f24}
+.capsule.open .codereveal{display:block}
+.codereveal pre{margin:0;padding:12px 14px;color:#e6e6e6;font-family:var(--mono);font-size:12.3px;line-height:1.6;overflow:auto}
+.tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}
+
+/* raw code cell (runPHP) — first-class, not hidden */
+.code-cell .capsule{border:1px solid #2a2a2a;border-radius:11px;overflow:hidden;background:#1d1f24}
+.code-cell .cc-top{display:flex;align-items:center;gap:9px;padding:9px 13px;background:#16181d;color:#9aa4b2;font-size:12px;border-bottom:1px solid #2a2a2a}
+.code-cell .cc-top .i{width:24px;height:24px;border-radius:6px;background:#242832;color:#8fd3ff;display:grid;place-items:center;font-size:12px}
+.code-cell .cc-top .lang{margin-left:auto;background:#2a2d34;color:#c9d4e3;padding:1px 8px;border-radius:5px;font-size:10.5px}
+.code-cell pre{margin:0;padding:14px;color:#e6e6e6;font-family:var(--mono);font-size:12.6px;line-height:1.65}
+.tok-php{color:#ff8fb3}.tok-fn{color:#8fd3ff}.tok-str{color:#b5e8a0}.tok-cm{color:#6b7280}
+.code-cell .why{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:13.5px;margin:8px 0 0;padding-left:2px}
+
+/* add cell */
+.addcell{padding:6px 40px}
+.addcell .bar{display:flex;align-items:center;gap:8px;justify-content:center;border-top:1px dashed var(--line-2);padding-top:14px;color:var(--faint);font-size:12.5px}
+.addcell button{border:1px solid var(--line-2);background:#fff;border-radius:20px;padding:5px 12px;font-size:12.5px;color:#3c3c3c;display:inline-flex;gap:6px;align-items:center}
+.addcell button:hover{border-color:#c7cdf5;color:var(--wp-blue-600)}
+
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:#00844a;color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}.designnote .pill{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint notebook</div>
+  <div class="spacer"></div>
+  <div class="runstate"><span class="d"></span> 5 cells · valid</div>
+  <button class="btn">Share</button>
+  <button class="btn primary">▶ Run all</button>
+</div>
+
+<div class="sheet">
+  <div class="doc-head">
+    <h1>Adam's Demo Store</h1>
+    <div class="byline">
+      <span class="who"><span class="av"></span> Adam Zieliński</span>
+      <span class="tag">WooCommerce</span>
+      <span class="tag">tutorial</span>
+    </div>
+    <p class="lede">A runnable walkthrough that spins up a WooCommerce store with demo products — and explains <i>why</i> each step is here. Read it top to bottom, or hit “Run all”.</p>
+  </div>
+
+  <div class="cells">
+    <!-- runtime config cell -->
+    <div class="cell step-cell">
+      <div class="gutter"><span class="runbadge">1</span><span class="grip">⣿</span></div>
+      <div class="capsule">
+        <div class="cap-main">
+          <span class="i site">⚙️</span>
+          <div><div class="t">Boot WordPress latest on PHP 8.3</div><div class="s">logged in as admin · networking on</div></div>
+          <button class="showcode" onclick="toggleCode(this)"><span class="chev">▶</span> show config</button>
+        </div>
+        <div class="codereveal"><pre><span class="tok-key">"wordpressVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"latest"</span><span class="tok-punc">,</span> <span class="tok-key">"phpVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"8.3"</span><span class="tok-punc">,</span>
+<span class="tok-key">"applicationOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"wordpress-playground"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"login"</span><span class="tok-punc">:</span> <span class="tok-num">true</span><span class="tok-punc">,</span> <span class="tok-key">"networkAccess"</span><span class="tok-punc">:</span> <span class="tok-num">true</span> <span class="tok-punc">}</span> <span class="tok-punc">}</span></pre></div>
+      </div>
+    </div>
+
+    <!-- prose cell -->
+    <div class="cell md-cell">
+      <div class="gutter"><span class="runbadge md">¶</span><span class="grip">⣿</span></div>
+      <div class="prose">
+        <h2>1 · The commerce engine</h2>
+        <p>Every store needs <b>WooCommerce</b>. We install it from the WordPress.org directory and activate it immediately so the later product import has somewhere to go.</p>
+      </div>
+    </div>
+
+    <!-- semantic step cell -->
+    <div class="cell step-cell">
+      <div class="gutter"><span class="runbadge">2</span><span class="grip">⣿</span></div>
+      <div class="capsule">
+        <div class="cap-main">
+          <span class="i plugin">🧩</span>
+          <div><div class="t">Install &amp; activate WooCommerce</div><div class="s">from wordpress.org</div></div>
+          <button class="showcode" onclick="toggleCode(this)"><span class="chev">▶</span> show code</button>
+        </div>
+        <div class="codereveal"><pre><span class="tok-key">"plugins"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span> <span class="tok-punc">]</span>
+<span class="tok-cm">// a slug string — activated by default</span></pre></div>
+      </div>
+    </div>
+
+    <!-- semantic step cell -->
+    <div class="cell step-cell">
+      <div class="gutter"><span class="runbadge">3</span><span class="grip">⣿</span></div>
+      <div class="capsule">
+        <div class="cap-main">
+          <span class="i theme">🎨</span>
+          <div><div class="t">Use the Storefront theme</div><div class="s">WooCommerce's companion theme</div></div>
+          <button class="showcode" onclick="toggleCode(this)"><span class="chev">▶</span> show code</button>
+        </div>
+        <div class="codereveal"><pre><span class="tok-key">"activeTheme"</span><span class="tok-punc">:</span> <span class="tok-val">"storefront"</span></pre></div>
+      </div>
+    </div>
+
+    <!-- prose cell -->
+    <div class="cell md-cell">
+      <div class="gutter"><span class="runbadge md">¶</span><span class="grip">⣿</span></div>
+      <div class="prose">
+        <h2>2 · Products &amp; the finishing touch</h2>
+        <p>Import demo products, then drop to raw PHP for the one thing no field covers — a one-off option tweak. This is the <i>escape hatch</i>: a first-class code cell, right here in the flow.</p>
+      </div>
+    </div>
+
+    <!-- content + raw code cell -->
+    <div class="cell step-cell">
+      <div class="gutter"><span class="runbadge">4</span><span class="grip">⣿</span></div>
+      <div class="capsule">
+        <div class="cap-main">
+          <span class="i content">📦</span>
+          <div><div class="t">Import 12 sample products</div><div class="s">WXR from a URL</div></div>
+          <button class="showcode" onclick="toggleCode(this)"><span class="chev">▶</span> show code</button>
+        </div>
+        <div class="codereveal"><pre><span class="tok-key">"content"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span>
+  <span class="tok-punc">{</span> <span class="tok-key">"type"</span><span class="tok-punc">:</span> <span class="tok-val">"wxr"</span><span class="tok-punc">,</span> <span class="tok-key">"source"</span><span class="tok-punc">:</span> <span class="tok-val">"https://example.com/sample-products.wxr"</span> <span class="tok-punc">}</span>
+<span class="tok-punc">]</span></pre></div>
+      </div>
+    </div>
+
+    <div class="cell code-cell">
+      <div class="gutter"><span class="runbadge">5</span><span class="grip">⣿</span></div>
+      <div class="capsule">
+        <div class="cc-top"><span class="i">‹∕›</span> Run PHP <span class="lang">runPHP · PHP</span></div>
+        <pre><span class="tok-php">&lt;?php</span>
+<span class="tok-fn">require</span> <span class="tok-str">'/wordpress/wp-load.php'</span>;
+<span class="tok-cm">// the one thing no declarative field covers (yet)</span>
+<span class="tok-fn">update_option</span>( <span class="tok-str">'woocommerce_task_list_hidden'</span>, <span class="tok-str">'yes'</span> );</pre>
+      </div>
+      <p class="why">Why raw PHP? This tweak isn't exposed as a field — the notebook lets code and prose sit side by side, so the “why” never gets lost.</p>
+    </div>
+
+    <div class="addcell">
+      <div class="bar">
+        <button onclick="void 0">＋ Step</button>
+        <button>＋ Text</button>
+        <button>＋ Code</button>
+        <span>— or press <b>/</b> to insert</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 5</span> <b>Notebook Blueprint</b> — prose + steps + code, interleaved. For teaching &amp; sharing. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p>A Blueprint as a <b>runnable document</b> (Observable / Jupyter). Cells interleave <b>plain-language step capsules</b>, <b>prose that explains the “why”</b>, and <b>first-class raw-code cells</b>. Each semantic cell has a <b>“show code”</b> toggle — the cleanest realization of layered disclosure: friendly by default, exact Blueprint step one tap away. The escape hatch (<code>runPHP</code>) isn't buried in an “advanced” drawer; it's a legible code cell sitting right next to the sentence that motivates it.</p>
+    <p>This is the format's <b>super-power for the ecosystem</b>: Blueprints double as <b>tutorials, docs, and demos</b> (contributor-day recipes, “here's how to reproduce my bug”, plugin READMEs). It leans into Adam's <i>“Playground Blueprints of today → WordPress Recipes of tomorrow.”</i> Weakness: less efficient for <i>editing</i> a big config than the list/inspector — best for blueprints meant to be <i>read</i>, not just run.</p>
+    <span class="pill">Pattern: Interleaved prose + code</span><span class="pill">Pattern: Per-cell show-code</span><span class="pill">Pattern: First-class escape hatch</span><span class="pill">“WordPress Recipes”</span><span class="pill">Backs: Observable · Jupyter</span>
+    <p style="margin-bottom:0"><b>Try it:</b> click <b>show code</b> on any capsule to reveal the exact Blueprint step underneath.</p>
+  </div>
+</div>
+
+<script>
+function toggleCode(btn){ btn.closest('.capsule').classList.toggle('open'); }
+</script>
+</body>
+</html>

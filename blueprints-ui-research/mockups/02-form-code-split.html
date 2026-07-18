@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2 · Form ⇄ Code — Blueprint editor concept</title>
+<style>
+:root{
+  --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
+  --bg:#f6f7f7; --panel:#fff; --ink:#1e1e1e; --muted:#6a6a6a; --faint:#949494;
+  --line:#e3e3e3; --line-2:#dcdcde; --green:#00844a; --amber:#996800; --amber-bg:#fdf6e3; --red:#b32d2e;
+  --radius:10px; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+
+.topbar{display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#7b3fe4);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+.brand .sep{color:var(--line-2)}
+.docname{color:var(--muted);font-weight:500;display:flex;gap:7px;align-items:center}
+.docname .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;gap:7px;align-items:center}
+.btn:hover{background:#f6f7f7}
+.btn.primary{background:var(--wp-blue);border-color:var(--wp-blue);color:#fff}
+.btn.primary:hover{background:var(--wp-blue-600)}
+
+/* GitLab-style tab strip */
+.tabs{display:flex;gap:2px;align-items:center;background:#fff;border-bottom:1px solid var(--line);padding:0 16px}
+.tabs button{border:0;background:transparent;padding:12px 15px;font-size:13.5px;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--wp-blue);font-weight:600}
+.tabs .valid{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--green);font-weight:600}
+.tabs .valid .warn{color:var(--amber)}
+
+.split{display:grid;grid-template-columns:1fr 6px 1fr;height:calc(100vh - 56px - 46px)}
+.pane{overflow:auto}
+.pane.left{background:#fbfbfc}
+.divider{background:var(--line);cursor:col-resize}
+.panehead{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--line);padding:9px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:700;z-index:5;display:flex;align-items:center;gap:8px}
+.pane.right .panehead{background:#16181d;color:#9aa4b2;border-bottom-color:#2a2d34}
+.sync-badge{margin-left:auto;background:#e7f6ee;color:var(--green);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:700;text-transform:none;letter-spacing:0}
+.pane.right .sync-badge{background:#123222;color:#6ee7a8}
+
+/* left: form */
+.form{padding:16px}
+.grp{background:#fff;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:13px;box-shadow:var(--shadow);overflow:hidden}
+.grp>summary,.grp .ghead{list-style:none;display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;font-weight:600}
+.grp .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px}
+.ic.site{background:#fff4e0;color:#996800}.ic.plugin{background:#eef1ff;color:#3858e9}.ic.theme{background:#f0ecff;color:#7b3fe4}.ic.content{background:#e7f6ee;color:#00844a}.ic.code{background:#1e1e1e;color:#8fd3ff}
+.grp .gsub{font-weight:400;color:var(--faint);font-size:12.5px;margin-left:2px}
+.grp.active{border-color:#b9c4ff;box-shadow:0 0 0 3px var(--wp-blue-050)}
+.gbody{padding:0 14px 14px;border-top:1px solid var(--line)}
+.field{margin-top:12px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:#3c3c3c;margin-bottom:5px}
+.field .hint{font-weight:400;color:var(--faint)}
+.control{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:8px 11px;font-size:13.5px;background:#fff;font-family:inherit}
+.control.mono{font-family:var(--mono);font-size:12.5px}
+.control:focus{outline:2px solid var(--wp-blue);outline-offset:-1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.switchrow{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.switch{width:36px;height:20px;border-radius:20px;background:#c9c9cf;border:0;position:relative}
+.switch.on{background:var(--wp-blue)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch.on::after{transform:translateX(16px)}
+
+/* warning (lenient validation) */
+.warnrow{margin:12px 14px 0;background:var(--amber-bg);border:1px solid #e6d08a;border-left:3px solid var(--amber);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#6b4e00}
+.warnrow b{color:#5a4200}
+
+/* right: code */
+.code{background:#1d1f24;min-height:100%}
+.code pre{margin:0;padding:14px 16px;color:#e6e6e6;font-family:var(--mono);font-size:12.7px;line-height:1.7}
+.ln{display:block;padding:0 6px;border-left:3px solid transparent}
+.ln.hl{background:#242a3a;border-left-color:var(--wp-blue)}
+.ln.warn{background:#2c2717;border-left-color:var(--amber)}
+.tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}.tok-warn{color:#f5c07a;text-decoration:wavy underline #d1a53a}
+
+/* full config merged lens */
+.merged{display:none;padding:18px;max-width:760px}
+.merged.show{display:block}
+.mergecard{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.mergecard h3{margin:0 0 4px;font-size:15px}
+.mergecard p{color:var(--muted);font-size:13px;margin:0 0 14px}
+.plan{list-style:none;margin:0;padding:0;counter-reset:s}
+.plan li{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.plan li:first-child{border-top:0}
+.plan .n{width:24px;height:24px;border-radius:50%;background:var(--wp-blue-050);color:var(--wp-blue-600);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.plan .exp{margin-left:auto;font-size:11px;color:var(--faint);background:#f2f2f3;border-radius:20px;padding:2px 8px}
+
+.designnote{position:fixed;bottom:0;left:0;right:0;background:#111319;color:#cfd6e4;font-size:12.5px;border-top:1px solid #2a2d34;z-index:50}
+.designnote .dn-head{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer}
+.designnote .badge{background:var(--wp-blue);color:#fff;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px}
+.designnote .dn-body{display:none;padding:0 16px 14px;line-height:1.6;max-width:1000px}
+.designnote.open .dn-body{display:block}
+.designnote a{color:#8fb4ff}
+.designnote .pill{display:inline-block;background:#20242e;border:1px solid #2f3542;border-radius:20px;padding:2px 9px;margin:3px 4px 0 0;font-size:11px;color:#aeb8c9}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">B</span> Blueprint <span class="sep">/</span></div>
+  <div class="docname"><span class="dot"></span> Adam's Demo Store</div>
+  <div class="spacer"></div>
+  <button class="btn">Share</button>
+  <button class="btn primary">▶ Run</button>
+</div>
+
+<div class="tabs">
+  <button class="on" onclick="setTab('edit',this)">Edit</button>
+  <button onclick="setTab('merged',this)">Full configuration</button>
+  <button onclick="setTab('edit',this)">Validate</button>
+  <div class="valid" id="validchip">✓ Valid &nbsp;·&nbsp; <span class="warn">▲ 1 warning</span></div>
+</div>
+
+<!-- EDIT: split form ⇄ code -->
+<div class="split" id="editView">
+  <div class="pane left">
+    <div class="panehead">Form <span class="sync-badge">round-trips ⇄</span></div>
+    <div class="form">
+      <details class="grp" open id="g-site" onclick="focusNode('site')">
+        <summary class="ghead"><span class="ic site">⚙️</span> Site setup <span class="gsub">runtime + login</span></summary>
+        <div class="gbody">
+          <div class="field"><label>Site name</label><input class="control" value="Adam's Demo Store" /></div>
+          <div class="row2">
+            <div class="field"><label>WordPress</label><select class="control"><option>latest</option></select></div>
+            <div class="field"><label>PHP</label><select class="control"><option>8.3</option></select></div>
+          </div>
+          <div class="switchrow"><label style="font-size:12.5px;font-weight:600">Log in as admin</label><button class="switch on" onclick="event.stopPropagation();this.classList.toggle('on')"></button></div>
+        </div>
+      </details>
+
+      <details class="grp active" open id="g-plugin" onclick="focusNode('plugin')">
+        <summary class="ghead"><span class="ic plugin">🧩</span> Install WooCommerce <span class="gsub">plugin</span></summary>
+        <div class="gbody">
+          <div class="field"><label>Plugin slug <span class="hint">wordpress.org</span></label><input class="control mono" value="woocommerce" /></div>
+          <div class="switchrow"><label style="font-size:12.5px;font-weight:600">Activate after install</label><button class="switch on" onclick="event.stopPropagation();this.classList.toggle('on')"></button></div>
+        </div>
+      </details>
+
+      <details class="grp" open id="g-theme" onclick="focusNode('theme')">
+        <summary class="ghead"><span class="ic theme">🎨</span> Storefront theme <span class="gsub">theme</span></summary>
+        <div class="gbody"><div class="field"><label>Theme slug</label><input class="control mono" value="storefront" /></div></div>
+      </details>
+
+      <details class="grp" open id="g-content" onclick="focusNode('content')">
+        <summary class="ghead"><span class="ic content">📦</span> Import sample products <span class="gsub">WXR</span></summary>
+        <div class="gbody"><div class="field"><label>File URL</label><input class="control mono" value="https://example.com/sample-products.xml" /></div></div>
+      </details>
+
+      <details class="grp" open id="g-code" onclick="focusNode('code')">
+        <summary class="ghead"><span class="ic code">‹∕›</span> Run custom PHP <span class="gsub">escape hatch</span></summary>
+        <div class="gbody">
+          <div class="field"><label>PHP code</label><textarea class="control mono" rows="3">&lt;?php require '/wordpress/wp-load.php';
+update_option('woocommerce_task_list_hidden','yes');</textarea></div>
+        </div>
+        <div class="warnrow">▲ <b>Heads up:</b> this step references <code>wp-load.php</code> before WordPress is guaranteed installed. Playground will still run it — Blueprints are <b>lenient</b> (run valid steps, warn on the rest). <a href="#" style="color:#6b4e00;font-weight:600">Learn more</a></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="pane right">
+    <div class="panehead">blueprint.json <span class="sync-badge">jumps to node ↕</span></div>
+    <div class="code">
+      <pre id="jsoncode"><span class="ln" data-node="head"><span class="tok-punc">{</span></span><span class="ln" data-node="head">  <span class="tok-key">"$schema"</span><span class="tok-punc">:</span> <span class="tok-val">"…/blueprint-schema.json"</span><span class="tok-punc">,</span></span><span class="ln" data-node="head">  <span class="tok-key">"version"</span><span class="tok-punc">:</span> <span class="tok-num">2</span><span class="tok-punc">,</span></span><span class="ln" data-node="site">  <span class="tok-key">"wordpressVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"latest"</span><span class="tok-punc">,</span></span><span class="ln" data-node="site">  <span class="tok-key">"phpVersion"</span><span class="tok-punc">:</span> <span class="tok-val">"8.3"</span><span class="tok-punc">,</span></span><span class="ln" data-node="site">  <span class="tok-key">"applicationOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"wordpress-playground"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"landingPage"</span><span class="tok-punc">:</span> <span class="tok-val">"/wp-admin/"</span><span class="tok-punc">,</span> <span class="tok-key">"login"</span><span class="tok-punc">:</span> <span class="tok-num">true</span> <span class="tok-punc">}</span> <span class="tok-punc">}</span><span class="tok-punc">,</span></span><span class="ln" data-node="site">  <span class="tok-key">"siteOptions"</span><span class="tok-punc">:</span> <span class="tok-punc">{</span> <span class="tok-key">"blogname"</span><span class="tok-punc">:</span> <span class="tok-val">"Adam's Demo Store"</span> <span class="tok-punc">}</span><span class="tok-punc">,</span></span><span class="ln" data-node="plugin">  <span class="tok-key">"plugins"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-val">"woocommerce"</span> <span class="tok-punc">]</span><span class="tok-punc">,</span></span><span class="ln" data-node="theme">  <span class="tok-key">"activeTheme"</span><span class="tok-punc">:</span> <span class="tok-val">"storefront"</span><span class="tok-punc">,</span></span><span class="ln" data-node="content">  <span class="tok-key">"content"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span> <span class="tok-punc">{</span> <span class="tok-key">"type"</span><span class="tok-punc">:</span> <span class="tok-val">"wxr"</span><span class="tok-punc">,</span> <span class="tok-key">"source"</span><span class="tok-punc">:</span> <span class="tok-val">"https://example.com/sample-products.wxr"</span> <span class="tok-punc">}</span> <span class="tok-punc">]</span><span class="tok-punc">,</span></span><span class="ln" data-node="code">  <span class="tok-key">"additionalStepsAfterExecution"</span><span class="tok-punc">:</span> <span class="tok-punc">[</span></span><span class="ln warn" data-node="code">    <span class="tok-punc">{</span> <span class="tok-key">"step"</span><span class="tok-punc">:</span> <span class="tok-val">"runPHP"</span><span class="tok-punc">,</span> <span class="tok-key">"code"</span><span class="tok-punc">:</span> <span class="tok-warn">"&lt;?php require 'wp-load.php'; …"</span> <span class="tok-punc">}</span></span><span class="ln" data-node="code">  <span class="tok-punc">]</span></span><span class="ln" data-node="head"><span class="tok-punc">}</span></span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- MERGED / FULL CONFIGURATION lens -->
+<div class="merged" id="mergedView">
+  <div class="mergecard">
+    <h3>Full configuration — resolved execution plan</h3>
+    <p>What actually runs after templates, higher-level “macro” steps, and imports are expanded to primitives. Read-only. Borrowed from GitLab CI's “merged YAML” lens — the single best idea for a <i>composable</i> config format.</p>
+    <ol class="plan">
+      <li><span class="n">1</span><div><b>Boot runtime</b> — WordPress latest, PHP 8.3, networking on, auto-login as <code>admin</code>.</div></li>
+      <li><span class="n">2</span><div><b>plugins: <code>["woocommerce"]</code></b> — download from wordpress.org, unzip to <code>/wp-content/plugins</code>, activate. <span class="exp">declares → 3 primitives</span></div></li>
+      <li><span class="n">3</span><div><b>activeTheme: <code>"storefront"</code></b> — download &amp; activate.</div></li>
+      <li><span class="n">4</span><div><b>content <code>(wxr)</code></b> — fetch the WXR, run the WordPress importer. <span class="exp">declares → import</span></div></li>
+      <li><span class="n">5</span><div><b>additionalStepsAfterExecution › runPHP</b> — hide the WooCommerce setup task list.</div></li>
+    </ol>
+  </div>
+</div>
+
+<div class="designnote" id="dn">
+  <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
+    <span class="badge">DESIGN 2</span> <b>Form ⇄ Code split</b> — one document, two skill levels, round-tripped. Developer-first. <span style="margin-left:auto;color:#8a94a6">about this ▲</span>
+  </div>
+  <div class="dn-body">
+    <p>The whole editor is a <b>projection of one <code>blueprint.json</code></b>. Form on the left, live JSON on the right; edit either and the other updates. Clicking a form group <b>jumps to and highlights the matching JSON node</b> (Stoplight Studio's signature move). Devs are never blocked — the JSON is right there and canonical; non-devs never have to look right. The repo already auto-generates the Blueprint JSON Schema from the TypeScript step types, so live validation + autocomplete come nearly for free.</p>
+    <p><b>Lenient validation</b> (Francesco Bigiarini's HTML-browser analogy): the amber row is a <i>warning, not a blocker</i> — Playground runs the valid steps and flags the rest. The <b>Full configuration</b> tab is a read-only “merged” lens showing the resolved plan after macros/imports expand (GitLab CI).</p>
+    <p><b>The traps this design must avoid</b> (from the survey): destructive mode-switch (JSON is source of truth — preserve unmodeled keys), formatting/key-order churn (format-preserving serialization), and invalid-code lockout (keep the last-good form, never crash).</p>
+    <span class="pill">Pattern: Dual-mode round-trip</span><span class="pill">Pattern: Jump-to-node</span><span class="pill">Pattern: Merged lens</span><span class="pill">Lenient validation (F. Bigiarini)</span><span class="pill">Backs: Stoplight · GitLab CI · Ryan Welcher WP Director</span>
+    <p style="margin-bottom:0"><b>Try it:</b> click a form group on the left → watch the JSON highlight on the right · open the <b>Full configuration</b> tab.</p>
+  </div>
+</div>
+
+<script>
+function focusNode(node){
+  document.querySelectorAll('.grp').forEach(g=>g.classList.remove('active'));
+  var g=document.getElementById('g-'+node); if(g) g.classList.add('active');
+  document.querySelectorAll('#jsoncode .ln').forEach(l=>l.classList.toggle('hl', l.dataset.node===node && !l.classList.contains('warn')));
+  var first=document.querySelector('#jsoncode .ln[data-node="'+node+'"]');
+  if(first) first.scrollIntoView({block:'center',behavior:'smooth'});
+}
+function setTab(t,btn){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('editView').style.display = t==='edit' ? '' : 'none';
+  document.getElementById('mergedView').classList.toggle('show', t==='merged');
+}
+focusNode('plugin');
+</script>
+</body>
+</html>
