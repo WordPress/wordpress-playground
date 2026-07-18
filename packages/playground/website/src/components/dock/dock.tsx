@@ -983,6 +983,8 @@ export function Dock({
 	const paneStyle = getDockPaneStyle({
 		isMobile,
 		dockSize,
+		toolsHeight,
+		isCollapsed,
 		dockCenter,
 		viewportSize,
 		isEditorSection,
