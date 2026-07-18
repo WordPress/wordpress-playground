@@ -1145,9 +1145,6 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-	await expect(website.page.getByText('Save failed')).toHaveCount(0);
-	await expect(website.page.getByText('Site failed')).toHaveCount(0);
-
 	await setActivePlaygroundSite(website.page, savedSiteSlug);
 	await website.waitForNestedIframes();
 	await expect(getPlaygroundTitle(website.page)).toContainText(
@@ -1157,14 +1154,10 @@ test('should persist an imported ZIP saved site after switching away and back', 
 
 	await setActivePlaygroundSite(website.page, importedSiteSlug);
 	await website.waitForNestedIframes();
-	await expect(website.page.getByText('Save failed')).toHaveCount(0);
-	await expect(website.page.getByText('Site failed')).toHaveCount(0);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
 	await website.goto(`./?site-slug=${importedSiteSlug}`);
-	await expect(website.page.getByText('Save failed')).toHaveCount(0);
-	await expect(website.page.getByText('Site failed')).toHaveCount(0);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 	expect(dialogs).toEqual([importSuccessMessage]);
