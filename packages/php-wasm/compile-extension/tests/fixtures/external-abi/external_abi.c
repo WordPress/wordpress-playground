@@ -1,9 +1,13 @@
 #include "php.h"
 #include "ext/standard/php_password.h"
+#include <stdio.h>
+#include <string.h>
 
 PHP_FUNCTION(external_abi_probe)
 {
 	zval value;
+	char cleared[4] = {1, 1, 1, 1};
+	int parsed = 0;
 	void *first = emalloc(160);
 	void *second = emalloc(448);
 	zend_string *algorithm = zend_string_init("bcrypt", sizeof("bcrypt") - 1, 0);
@@ -12,10 +16,12 @@ PHP_FUNCTION(external_abi_probe)
 	convert_to_null(&value);
 	php_password_algo_find(algorithm);
 	php_password_algo_register("external_abi", &php_password_algo_bcrypt);
+	explicit_bzero(cleared, sizeof(cleared));
+	sscanf("42", "%d", &parsed);
 	zend_string_release(algorithm);
 	efree(first);
 	efree(second);
-	RETURN_TRUE;
+	RETURN_BOOL(cleared[0] == 0 && parsed == 42);
 }
 
 static const zend_function_entry external_abi_functions[] = {
