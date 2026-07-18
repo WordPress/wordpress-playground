@@ -101,6 +101,39 @@ svg{display:block}
 .tcard:hover .trm{opacity:1}
 .tcard .trm:hover{background:#fdecec;color:#b32d2e}
 @media (max-width:780px){ .hero{flex-direction:column-reverse;gap:18px} .hero-site{width:100%} }
+/* ============ plugin shelf — always on the sheet, no accordion ============ */
+.pshelf{margin:0 0 26px}
+.pshelf .group-label{display:flex;align-items:center;gap:8px;padding:0 2px 8px}
+.pshelf .items{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:flex-start;margin:0}
+.pshelf .item{display:contents}
+.ptile{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:12px 4px 10px;border:1px solid transparent;border-radius:12px;background:transparent;cursor:pointer;text-align:center;order:0}
+.ptile:hover{background:#f5f6f9}
+.item.exp .ptile{background:var(--accent-050);border-color:#dfe4fb}
+.ptile .pico{width:44px;height:44px;border-radius:11px;font-size:15px}
+.ptile .pname{font-size:11.5px;font-weight:600;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:100%}
+.item.off .ptile{opacity:.5}
+.ptile .px{position:absolute;top:3px;right:3px;width:20px;height:20px;border:0;border-radius:6px;background:#fff;box-shadow:var(--shadow);color:var(--faint);font-size:10px;opacity:0;cursor:pointer;display:grid;place-items:center}
+.ptile:hover .px,.ptile .px:focus-visible{opacity:1}
+.ptile .px:hover{background:#fdecec;color:#b32d2e}
+.ptile-add{order:50}
+.ptile-add .pico{border:1px dashed var(--line-2);background:#fff;color:var(--muted);display:grid;place-items:center;font-size:18px;font-weight:400}
+.ptile-add .pname{color:var(--muted);font-weight:500}
+.ptile-add:hover .pico{border-color:var(--accent);color:var(--accent-600)}
+.ptile-add.active .pico{border-color:var(--accent);color:var(--accent-600);border-style:solid;background:var(--accent-050)}
+/* the tapped tile's inspector opens full-width under the shelf — the shelf never moves */
+.pdetail{order:99;width:100%;background:#fafafc;border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-top:8px;display:none}
+.item.exp .pdetail{display:block;animation:drop .18s cubic-bezier(.2,.7,.3,1)}
+.pdetail-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.pdetail-head b{font-size:13.8px}
+.pdetail-head .pd-meta{color:#7c7c86;font-size:12.3px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.flash .ptile{animation:itemflash 1.4s ease-out}
+/* ============ undo — toast + ⌘Z ============ */
+.undo-toast{position:fixed;left:14px;bottom:14px;z-index:70;display:none;align-items:center;gap:12px;background:#17171b;color:#fff;border-radius:12px;padding:9px 10px 9px 15px;font-size:12.5px;box-shadow:0 12px 34px rgba(0,0,0,.3);max-width:min(420px,calc(100vw - 28px))}
+.undo-toast.show{display:flex;animation:drop .16s ease}
+.undo-toast .umsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.undo-toast .ubtn{border:0;background:rgba(255,255,255,.14);color:#fff;font-weight:600;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;flex:none}
+.undo-toast .ubtn:hover{background:rgba(255,255,255,.24)}
+.undo-toast .ukey{color:#9aa0b0;font-size:11px;flex:none}
 
 /* icons — quiet, monochrome, uniform */
 .ic{width:18px;height:18px;color:var(--icon);flex:none}
@@ -353,7 +386,7 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
 }
 /* no hover on touch — show the otherwise hover-revealed controls */
 @media (hover:none){
-  .cat-add,.item .x,.envline .edit{opacity:1}
+  .cat-add,.item .x,.ptile .px{opacity:1}
 }
 .tok-key{color:#8fd3ff}.tok-val{color:#b5e8a0}.tok-num{color:#f5c07a}.tok-punc{color:#8a94a6}
 
@@ -440,39 +473,37 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
 
   <div class="specmenu" id="specMenu" role="menu"></div>
 
+  <!-- PLUGINS SHELF — always visible, like a dock of installed apps -->
+  <section class="pshelf" id="cat-plugins">
+    <div class="group-label">Plugins <span class="cat-count">2</span></div>
+    <div class="items">
+      <div class="ptile ptile-add" id="pluginAddTile" role="button" tabindex="0" aria-label="Add a plugin"
+        onclick="togglePluginAdd()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePluginAdd();}">
+        <span class="pico">＋</span><span class="pname">Add</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="drawer" id="drawer-plugins">
+    <div id="add-plugins">
+      <div class="combo" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'plugins',this)">
+        <input class="cinput" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="lb-plugins" aria-label="Add a plugin by name, URL, or file"
+          oninput="onCombo(this,'plugins')" onkeydown="comboKey(event,'plugins')"
+          placeholder="Search plugins, paste a GitHub / ZIP URL, or drop a .zip…">
+        <div class="cbox" id="lb-plugins" role="listbox" aria-label="Plugin results"></div>
+        <div class="dzhint">Drop a .zip to bundle it</div>
+      </div>
+      <div class="addactions">
+        <button class="linkact" onclick="openCodeModal('plugins')">✎ Write code…</button>
+        <button class="linkact" onclick="document.getElementById('file-plugins').click()">⬆ Upload a file</button>
+        <input type="file" id="file-plugins" accept=".zip" hidden onchange="onUpload(this,'plugins')">
+      </div>
+    </div>
+  </div>
+
   <div class="manifest" id="manifest">
     <div class="group">
       <div class="group-label">Contents</div>
-
-    <!-- PLUGINS -->
-    <div class="cat" id="cat-plugins">
-      <div class="cat-row" onclick="toggleCat(this)">
-        <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></span>
-        <span class="cat-name">Plugins</span><span class="cat-count">2</span>
-        <span class="cat-preview">WooCommerce · Yoast SEO</span>
-        <button class="cat-add" onclick="event.stopPropagation();openAdd('plugins')" aria-label="Add a plugin"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
-        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-      </div>
-      <div class="cat-detail">
-        <div class="additem">
-          <div class="addpanel" id="add-plugins">
-            <div class="combo" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dzDrop(event,'plugins',this)">
-              <input class="cinput" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="lb-plugins" aria-label="Add a plugin by name, URL, or file"
-                oninput="onCombo(this,'plugins')" onkeydown="comboKey(event,'plugins')"
-                placeholder="Search plugins, paste a GitHub / ZIP URL, or drop a .zip…">
-              <div class="cbox" id="lb-plugins" role="listbox" aria-label="Plugin results"></div>
-              <div class="dzhint">Drop a .zip to bundle it</div>
-            </div>
-            <div class="addactions">
-              <button class="linkact" onclick="openCodeModal('plugins')">✎ Write code…</button>
-              <button class="linkact" onclick="document.getElementById('file-plugins').click()">⬆ Upload a file</button>
-              <input type="file" id="file-plugins" accept=".zip" hidden onchange="onUpload(this,'plugins')">
-            </div>
-          </div>
-        </div>
-        <div class="items"></div>
-      </div>
-    </div>
 
     <!-- CONTENT -->
     <div class="cat" id="cat-content">
@@ -644,13 +675,20 @@ add_filter( 'woocommerce_admin_features', function ( $features ) {
   <p style="color:var(--muted);font-size:12.5px;margin-top:12px">Materials map to top-level fields; Recipes and Custom code compile into <span class="mono">additionalStepsAfterExecution</span>. Flip back with the toggle up top.</p>
 </div>
 
+<div class="undo-toast" id="undoToast" role="status">
+  <span class="umsg" id="undoMsg"></span>
+  <button class="ubtn" onclick="undoLast()">Undo</button>
+  <span class="ukey">⌘Z</span>
+</div>
+
 <div class="designnote" id="dn">
   <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
     <span class="badge" style="background:#7b3fe4">DESIGN 7 ▸ site card</span> <b class="dn-title">The site is the control</b><span class="dn-desc"> — identity edited directly on a mini-site; category rows only for true collections.</span> <span class="dn-arrow" style="color:#8a94a6">ⓘ about</span>
   </div>
   <div class="dn-body">
     <p><b>Direct manipulation, taken further (evolves design 6).</b> A blueprint holds two kinds of things. <b>Identity</b> — the site's title, theme, environment, people — is singular: you don't “manage a list of site titles.” So identity lives on a <b>site card</b> and is edited in place, no category rows: the <b>theme IS the screenshot</b> (click it → a gallery drawer: click a card to activate, search/drop to install more — every installed theme ships), the <b>title IS the headline</b> (the big serif input is the canonical site title — Site options no longer duplicates it), the <b>landing page IS the address bar</b> of the mini browser, the <b>environment IS the spec line</b> (each segment — WordPress · PHP · login · network — is its own click-to-change control), and the <b>users ARE the avatar stack</b> (click → the people drawer; “log in as” any of them, which also drives the spec line).</p>
-    <p><b>Collections keep the bill-of-materials rows</b> — Plugins and Content up top, Recipes / Site options / Custom code in Setup — because lists are what rows are good at: previews with real artwork, ＋ Add pinned to the row, one smart input everywhere.</p>
+    <p><b>Plugins are a shelf, not an accordion</b> — always on the sheet as a dock of app tiles (real icons). Click a tile → its full inspector (description, rating, version history, source, slug, activation options, Advanced) opens <i>below the shelf</i>, so the shelf never moves; ＋ opens the same smart add input (search / URL / drop / upload / write code). Inactive plugins dim. The remaining rows — Content, Recipes / Site options / Custom code — stay minimal lines.</p>
+    <p><b>Every removal is undoable</b> — plugins, themes, users, content, recipes, options, code. A quiet toast offers <b>Undo</b>, and <b>⌘Z / Ctrl+Z</b> walks back up to 30 removals.</p>
     <p><b>Everything still runs:</b> ▶ Run assembles the real blueprint from the card + rows (versions, login, landing page, networking, blogname, plugin slugs, an installTheme step per installed theme with only the active one activating) and launches playground.wordpress.net. Content still opens the <b>real block editor</b> (Playground booted once, pre-warmed, drafts never silently lost).</p>
     <span class="pill2">Identity → edited on the site card</span><span class="pill2">Collections → BOM rows</span><span class="pill2">Theme = the screenshot</span><span class="pill2">Landing page = the address bar</span><span class="pill2">Environment = the spec line</span><span class="pill2">Users = the avatar stack</span>
     <p style="margin-bottom:0"><b>Try it:</b> click the <b>screenshot</b> → pick or search a theme · click <b>PHP 8.3</b> or <b>logged in as admin</b> in the spec line · click the <b>avatars</b> → add an Editor · edit the <b>address bar</b> · then <b>▶ Run</b>.</p>
@@ -726,6 +764,42 @@ function toggleItem(head){
   var item=head.parentElement; item.classList.toggle('exp');
   if(item.classList.contains('exp') && item.dataset.slug && !item.dataset.pgLoaded) pgLoadDetails(item);
 }
+/* plugin shelf: one inspector open at a time; the shelf itself never moves */
+function togglePluginTile(tile){
+  var item=tile.closest('.item'), wasOpen=item.classList.contains('exp');
+  document.querySelectorAll('.pshelf .item.exp').forEach(function(it){ it.classList.remove('exp'); var t=it.querySelector('.ptile'); if(t) t.setAttribute('aria-expanded','false'); });
+  if(!wasOpen){
+    item.classList.add('exp'); tile.setAttribute('aria-expanded','true');
+    if(item.dataset.slug && !item.dataset.pgLoaded) pgLoadDetails(item);
+  }
+}
+function togglePluginAdd(){
+  toggleDrawer('plugins');
+  document.getElementById('pluginAddTile').classList.toggle('active', document.getElementById('drawer-plugins').classList.contains('show'));
+}
+/* ============ undo — every removal is recoverable (toast + ⌘Z) ============ */
+var UNDO=[], _undoTimer=null;
+function pushUndo(label, restore){
+  UNDO.push({ label:label, restore:restore }); if(UNDO.length>30) UNDO.shift();
+  var t=document.getElementById('undoToast');
+  document.getElementById('undoMsg').textContent=label;
+  t.classList.add('show');
+  clearTimeout(_undoTimer); _undoTimer=setTimeout(function(){ t.classList.remove('show'); }, 6000);
+}
+function undoLast(){
+  var u=UNDO.pop(); if(!u) return;
+  u.restore();
+  var t=document.getElementById('undoToast');
+  if(UNDO.length){ document.getElementById('undoMsg').textContent=UNDO[UNDO.length-1].label; clearTimeout(_undoTimer); _undoTimer=setTimeout(function(){ t.classList.remove('show'); }, 6000); }
+  else t.classList.remove('show');
+}
+document.addEventListener('keydown', function(e){
+  if(!(e.metaKey||e.ctrlKey) || e.shiftKey || (e.key!=='z' && e.key!=='Z')) return;
+  var el=e.target;
+  if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.isContentEditable)) return;
+  if(document.querySelector('.modal-overlay.show')) return;
+  if(UNDO.length){ e.preventDefault(); undoLast(); }
+});
 function insertNewItem(list, row){
   list.insertBefore(row, list.firstChild);
   row.classList.add('flash');
@@ -743,8 +817,17 @@ function addItem(key,name,meta,toggle,chip){
   refreshPreview(cat);
 }
 function rmItem(btn){
-  var cat = btn.closest('.cat'); btn.closest('.item').remove(); refreshPreview(cat);
-  if(cat.classList.contains('open') && !cat.querySelector('.items .item')) showAddPanel(cat);
+  var row=btn.closest('.item'), cat=btn.closest('.cat'), shelf=btn.closest('.pshelf');
+  var name=(row.querySelector('.iname')||{textContent:'item'}).textContent;
+  var parent=row.parentNode, next=row.nextElementSibling;
+  row.remove();
+  if(cat){ refreshPreview(cat); if(cat.classList.contains('open') && !cat.querySelector('.items .item')) showAddPanel(cat); }
+  if(shelf) refreshPreview(shelf);
+  pushUndo('Removed '+name, function(){
+    if(next && next.parentNode===parent) parent.insertBefore(row,next); else parent.appendChild(row);
+    if(cat) refreshPreview(cat);
+    if(shelf) refreshPreview(shelf);
+  });
 }
 function refreshPreview(cat){
   var items = [].slice.call(cat.querySelectorAll('.items .item'));
@@ -782,9 +865,11 @@ function toggleDrawer(key){
   closeSpecMenu();
   if(!open){
     d.classList.add('show');
-    var inp = key==='theme' ? d.querySelector('.cinput') : document.getElementById('uf-name');
+    var inp = d.querySelector('.cinput') || document.getElementById('uf-name');
     if(inp) setTimeout(function(){ inp.focus(); }, 30);
   }
+  var at=document.getElementById('pluginAddTile');
+  if(at) at.classList.toggle('active', document.getElementById('drawer-plugins').classList.contains('show'));
 }
 function openSpecMenu(btn,key){
   var m=document.getElementById('specMenu');
@@ -835,9 +920,12 @@ function addTheme(name, slug, img){
   ACTIVE_THEME=slug; renderThemes();
 }
 function removeTheme(slug){
-  THEMES=THEMES.filter(function(t){ return t.slug!==slug; });
+  var snapThemes=THEMES.slice(), snapActive=ACTIVE_THEME;
+  var t=THEMES.find(function(x){ return x.slug===slug; });
+  THEMES=THEMES.filter(function(x){ return x.slug!==slug; });
   if(ACTIVE_THEME===slug && THEMES.length) ACTIVE_THEME=THEMES[0].slug;
   renderThemes();
+  pushUndo('Removed theme '+(t?t.name:slug), function(){ THEMES=snapThemes; ACTIVE_THEME=snapActive; renderThemes(); });
 }
 
 /* users: the avatar stack is the control */
@@ -859,9 +947,11 @@ function addUser(name, role, chip){
   chipDone(chip); renderUsers();
 }
 function rmUser(i){
+  var snapUsers=USERS.slice(), snapLogin=LOGIN;
   var u=USERS[i]; USERS.splice(i,1);
   if(u && LOGIN===u.name){ LOGIN=USERS.length?USERS[0].name:'out'; syncLoginLabel(); }
   renderUsers();
+  pushUndo('Removed user '+(u?u.name:''), function(){ USERS=snapUsers; LOGIN=snapLogin; syncLoginLabel(); renderUsers(); });
 }
 
 /* ---- Run: assemble the launchable parts of the manifest and open Playground ---- */
@@ -943,6 +1033,7 @@ function chipDone(chip){
 function togglePluginActive(btn){
   var on=btn.classList.toggle('on');
   btn.textContent = on ? 'Active' : 'Inactive';
+  var row=btn.closest('.item'); if(row) row.classList.toggle('off', !on);
 }
 
 /* ---- one consolidated "Add" input: search · URL · GitHub · drop · write-code ---- */
@@ -1065,12 +1156,13 @@ function addPluginItem(name, opts){
     ? '<img class="pico" src="'+escAttr(opts.icon)+'" alt="" onerror="this.style.visibility=\'hidden\'">'
     : '<span class="pico lt">'+escHtml((name[0]||'?').toUpperCase())+'</span>';
   row.innerHTML =
-    '<div class="item-head" onclick="toggleItem(this)">'+
+    '<div class="ptile" role="button" tabindex="0" aria-expanded="false" onclick="togglePluginTile(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();togglePluginTile(this);}">'+
       rowIcon+
-      '<span class="iname">'+escHtml(name)+'</span><span class="imeta">'+escHtml(meta)+'</span>'+
-      '<span class="ictl"><button class="mini-toggle on" onclick="event.stopPropagation();togglePluginActive(this)">Active</button><span class="item-open">edit ›</span><button class="x" onclick="event.stopPropagation();rmItem(this)">✕</button></span>'+
+      '<span class="pname iname">'+escHtml(name)+'</span>'+
+      '<button class="px" aria-label="Remove '+escAttr(name)+'" onclick="event.stopPropagation();rmItem(this)">✕</button>'+
     '</div>'+
-    '<div class="item-more pg-more">'+
+    '<div class="pdetail pg-more">'+
+      '<div class="pdetail-head"><b>'+escHtml(name)+'</b><span class="pd-meta imeta">'+escHtml(meta)+'</span><button class="mini-toggle on" onclick="togglePluginActive(this)">Active</button></div>'+
       '<div class="pg-head">'+
         (opts.icon ? '<img class="pg-icon" src="'+escAttr(opts.icon)+'" alt="" onerror="this.style.visibility=\'hidden\'">' : '<span class="pg-icon"></span>')+
         '<div class="pg-head-body">'+
@@ -1457,8 +1549,10 @@ document.addEventListener('keydown', function(e){
   if(document.getElementById('codeModal').classList.contains('show')){ closeCodeModal(); return; }
   if(document.getElementById('beModal').classList.contains('show')){ closeBlockEditor(); return; }
   if(document.getElementById('specMenu').classList.contains('show')){ closeSpecMenu(); return; }
-  var dr=document.querySelector('.drawer.show');                      // Esc walks up: drawer → panel → category
-  if(dr){ dr.classList.remove('show'); return; }
+  var pd=document.querySelector('.pshelf .item.exp');                 // Esc walks up: inspector → drawer → panel → category
+  if(pd){ pd.classList.remove('exp'); var pt=pd.querySelector('.ptile'); if(pt){ pt.setAttribute('aria-expanded','false'); pt.focus(); } return; }
+  var dr=document.querySelector('.drawer.show');
+  if(dr){ dr.classList.remove('show'); document.getElementById('pluginAddTile').classList.remove('active'); return; }
   var p=document.querySelector('.addpanel.show');
   if(p){ var cat=p.closest('.cat'); p.classList.remove('show'); syncAddState(cat); var b=cat.querySelector('.cat-add'); if(b) b.focus(); return; }
   var oc=document.querySelector('#manifest .cat.open');
