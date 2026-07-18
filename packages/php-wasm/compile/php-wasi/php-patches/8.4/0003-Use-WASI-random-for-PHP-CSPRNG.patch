@@ -1,0 +1,57 @@
+From 1ebbd00e69676ec63d160abf342e846fa358742d Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:30 +0200
+Subject: [PATCH 03/12] Use WASI random source for PHP CSPRNG
+
+---
+ ext/random/csprng.c | 8 +++++---
+ ext/random/random.c | 2 +-
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/ext/random/csprng.c b/ext/random/csprng.c
+index 8b38985c..54c76e7f 100644
+--- a/ext/random/csprng.c
++++ b/ext/random/csprng.c
+@@ -62,13 +62,15 @@
+ # include <sanitizer/msan_interface.h>
+ #endif
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ static zend_atomic_int random_fd = ZEND_ATOMIC_INT_INITIALIZER(-1);
+ #endif
+ 
+ ZEND_ATTRIBUTE_NONNULL PHPAPI zend_result php_random_bytes_ex(void *bytes, size_t size, char *errstr, size_t errstr_size)
+ {
+-#ifdef PHP_WIN32
++#ifdef PHP_WASI
++	arc4random_buf(bytes, size);
++#elif defined(PHP_WIN32)
+ 	/* Defer to CryptGenRandom on Windows */
+ 	if (php_win32_get_random_bytes(bytes, size) == FAILURE) {
+ 		snprintf(errstr, errstr_size, "Failed to retrieve randomness from the operating system (BCryptGenRandom)");
+@@ -266,7 +268,7 @@ ZEND_ATTRIBUTE_NONNULL PHPAPI zend_result php_random_int(zend_long min, zend_lon
+ 
+ PHPAPI void php_random_csprng_shutdown(void)
+ {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 	int fd = zend_atomic_int_exchange(&random_fd, -1);
+ 	if (fd != -1) {
+ 		close(fd);
+diff --git a/ext/random/random.c b/ext/random/random.c
+index 46a6c4fd..f0dd9633 100644
+--- a/ext/random/random.c
++++ b/ext/random/random.c
+@@ -666,7 +666,7 @@ PHPAPI uint64_t php_random_generate_fallback_seed_ex(php_random_fallback_seed_st
+ 		/* Various PIDs. */
+ 		pid = getpid();
+ 		fallback_seed_add(&c, &pid, sizeof(pid));
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 		pid = getppid();
+ 		fallback_seed_add(&c, &pid, sizeof(pid));
+ #endif
+-- 
+2.50.1
+

@@ -1,13 +1,9 @@
 use std::{env, path::PathBuf};
 
 use crate::{
-    args::{
-        normalize_for_runtime, CliOptions, RuntimeCommand, Verbosity, DEFAULT_PORT,
-        SUPPORTED_PHP_VERSIONS,
-    },
+    args::{normalize_for_runtime, CliOptions, RuntimeCommand, Verbosity, DEFAULT_PORT},
     control::ControlOptions,
     mount::Mount,
-    paths::WordPressInstallMode,
     php_config::PhpWorkerOptions,
     php_runtime_files::PhpConstantValue,
     runtime::{NativeRuntime, WasmEngineProfile},
@@ -54,10 +50,14 @@ pub fn run_with_control(options: CliOptions, handshake_path: Option<PathBuf>) ->
     );
     progress(&config.options, "Loading native runtime assets");
     let runtime = NativeRuntime::from_default_asset_root_with_engine_profile(engine_profile)?;
-    runtime.verify_php_asset(&config.options.php)?;
+    let component_variant = config.options.extensions.component_variant();
+    runtime.verify_php_asset_for_variant(&config.options.php, component_variant)?;
     progress(
         &config.options,
-        format!("Verified packaged PHP {} wasm asset", config.options.php),
+        format!(
+            "Verified packaged PHP {} {} wasm asset",
+            config.options.php, component_variant
+        ),
     );
 
     match config.command {
@@ -70,8 +70,14 @@ pub fn run_with_control(options: CliOptions, handshake_path: Option<PathBuf>) ->
 pub fn prepare_native_runtime() -> Result<()> {
     for profile in [WasmEngineProfile::FastStartup, WasmEngineProfile::Optimized] {
         let runtime = NativeRuntime::from_default_asset_root_with_engine_profile(profile)?;
-        for php_version in SUPPORTED_PHP_VERSIONS {
-            runtime.php_artifact(php_version)?;
+        for php_asset in &runtime.manifest().php {
+            let variants = php_asset
+                .declared_components()
+                .map(|(variant, _)| variant)
+                .collect::<Vec<_>>();
+            for variant in variants {
+                runtime.php_artifact_for_variant(&php_asset.version, variant)?;
+            }
         }
     }
     Ok(())
@@ -230,10 +236,16 @@ fn php_worker_options_for_mounts(
         &options.defined_constants,
         wordpress_root.as_deref(),
     ));
+    let mut php_ini_entries = Vec::new();
+    options
+        .extensions
+        .append_php_ini_defaults(&mut php_ini_entries);
 
     PhpWorkerOptions {
         mounts: mounts.to_vec(),
         constants,
+        php_ini_entries,
+        extensions: options.extensions,
         ..PhpWorkerOptions::default()
     }
 }
@@ -246,10 +258,7 @@ fn php_site_url(options: &CliOptions) -> String {
 }
 
 fn should_boot_wordpress_for_php(options: &CliOptions) -> bool {
-    !matches!(
-        options.wordpress_install_mode,
-        WordPressInstallMode::DoNotAttemptInstalling
-    ) && !options.skip_sqlite_setup
+    options.wordpress_install_mode.should_attempt_installing()
 }
 
 fn symlink_policy(options: &CliOptions) -> SymlinkPolicy {
@@ -285,7 +294,10 @@ mod tests {
 
     use crate::{
         args::parse_cli_args_from,
-        commands::{php_mounts, run_blueprint_command, run_build_snapshot_command},
+        commands::{
+            php_mounts, php_worker_options_for_mounts, run_blueprint_command,
+            run_build_snapshot_command, should_boot_wordpress_for_php,
+        },
         mount::Mount,
         runtime::{repo_root_from_manifest_dir, NativeRuntime},
     };
@@ -298,6 +310,37 @@ mod tests {
         let dir = env::temp_dir().join(format!("wp-playground-native-command-{name}-{unique}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn one_shot_worker_options_preserve_php_extension_selection() {
+        let cwd = temp_dir("extension-selection");
+        let options = parse_cli_args_from(
+            vec![
+                "run-blueprint".to_string(),
+                "--redis".to_string(),
+                "--memcached".to_string(),
+                "--xdebug".to_string(),
+            ],
+            &cwd,
+        )
+        .unwrap();
+        let mounts = vec![Mount::new(&cwd, "/wordpress").unwrap()];
+        let worker_options =
+            php_worker_options_for_mounts(&options, &mounts, "http://localhost:9400");
+
+        assert_eq!(worker_options.extensions, options.extensions);
+        assert_eq!(
+            worker_options.php_ini_entries,
+            vec![
+                "xdebug.mode=debug,develop",
+                "xdebug.start_with_request=yes",
+                "xdebug.idekey=PHPWASMCLI",
+                "xdebug.client_host=127.0.0.1",
+                "xdebug.client_port=9003",
+            ]
+        );
+        let _ = fs::remove_dir_all(cwd);
     }
 
     #[test]
@@ -360,6 +403,24 @@ mod tests {
         drop(prepared);
         assert!(!tmp_root.exists());
         assert!(!shared_root.exists());
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn one_shot_skip_sqlite_setup_still_boots_wordpress() {
+        let cwd = temp_dir("skip-sqlite-still-boots");
+        let options = parse_cli_args_from(
+            vec![
+                "run-blueprint".to_string(),
+                "--skip-sqlite-setup".to_string(),
+                "--wordpress-install-mode=install-from-existing-files-if-needed".to_string(),
+            ],
+            &cwd,
+        )
+        .unwrap();
+
+        assert!(options.skip_sqlite_setup);
+        assert!(should_boot_wordpress_for_php(&options));
         let _ = fs::remove_dir_all(cwd);
     }
 

@@ -239,16 +239,16 @@ index edba099350..7c0e5f3896 100644
  if test "$ac_cv_func_dlopen" = "yes"; then
    AC_DEFINE(HAVE_LIBDL, 1, [ ])
  fi
-@@ -1705,7 +1714,7 @@ PHP_ADD_SOURCES(main, main.c snprintf.c spprintf.c \
+@@ -1705,7 +1710,7 @@ PHP_ADD_SOURCES(main, main.c snprintf.c spprintf.c \
         output.c getopt.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  
  if test "$WASI" = "yes"; then
--	 PHP_ADD_SOURCES(main, fastcgi_wasi.c network_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c,)
-+	 PHP_ADD_SOURCES(main, network_wasi.c unistd_wasi.c,)
+-	 PHP_ADD_SOURCES(main, fastcgi_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c,)
++	 PHP_ADD_SOURCES(main, unistd_wasi.c,)
  else
- 	 PHP_ADD_SOURCES(main, php_syslog.c network.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ 	 PHP_ADD_SOURCES(main, php_syslog.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  	 PHP_ADD_SOURCES_X(main, fastcgi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, PHP_FASTCGI_OBJS, no)
-@@ -1761,7 +1770,7 @@ PHP_ADD_SOURCES(Zend, \
+@@ -1761,7 +1766,7 @@ PHP_ADD_SOURCES(Zend, \
      , -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  
  if test "$WASI" = "yes"; then
@@ -333,7 +333,7 @@ diff --git a/ext/standard/file_wasi.c b/ext/standard/file_wasi.c
 index 961d47e77e..9cb7392388 100644
 --- a/ext/standard/file_wasi.c
 +++ b/ext/standard/file_wasi.c
-@@ -16,12 +16,14 @@
+@@ -16,12 +16,15 @@
  
  PHPAPI void php_popen(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
  {
@@ -345,8 +345,9 @@ index 961d47e77e..9cb7392388 100644
  PHPAPI void php_umask(INTERNAL_FUNCTION_PARAMETERS)  /* {{{ */
  {
 -	RETURN_LONG(0);
-+	php_error_docref(NULL, E_WARNING, "umask() is not supported by WASI capability filesystems");
-+	RETURN_FALSE;
++	/* WASI capability filesystems have no process umask. Report the deterministic
++	 * effective mask instead of violating umask()'s declared integer return type. */
++	RETURN_LONG(0);
  }
  /* }}} */
 diff --git a/ext/standard/filestat_wasi.c b/ext/standard/filestat_wasi.c
@@ -508,23 +509,6 @@ index 5c424fa9a8..69f7446aae 100644
  
  #ifdef PHP_WIN32
  	if (pipe_requested && stream && context) {
-diff --git a/main/network_wasi.c b/main/network_wasi.c
-index 4fc6a45bc6..8dbbd1127b 100644
---- a/main/network_wasi.c
-+++ b/main/network_wasi.c
-@@ -26,7 +26,11 @@ PHPAPI int php_set_sock_blocking(int socketd, int block)
- 
- PHPAPI char *php_socket_strerror(long err, char *buf, size_t bufsize)
- {
--	return NULL;
-+	if (bufsize == 0) {
-+		return buf;
-+	}
-+	snprintf(buf, bufsize, "WASI socket operation failed (error %ld)", err);
-+	return buf;
- }
- 
- PHPAPI void _php_emit_fd_setsize_warning(int max_fd)
 diff --git a/main/php_open_temporary_file.c b/main/php_open_temporary_file.c
 index 3b73f41489..b45158b344 100644
 --- a/main/php_open_temporary_file.c
@@ -632,4 +616,3 @@ index 793c254401..ecef0274e0 100644
 + */
 -- 
 2.50.1
-

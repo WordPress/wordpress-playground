@@ -27,10 +27,10 @@ use crate::{
         ControlStreamEmitter, ControlStreamEvent, ControlStreamResponse, MAX_STREAM_FRAME_BYTES,
     },
     download::{cached_download_with_validator, download_bytes, url_cache_key},
-    mount::Mount,
+    mount::{get_mount_for_vfs_path, Mount},
     paths::{SiteStorage, WordPressInstallMode},
     php_backend::PhpWorkerInstance as PhpInstance,
-    php_config::PhpWorkerOptions,
+    php_config::{PhpExtensionSelection, PhpWorkerOptions},
     php_protocol::{PhpRequest, PhpResponse},
     php_runtime_files::{PhpConstantValue, PHP_INI_VFS_PATH},
     route_counters::{self, Field, RequestId},
@@ -981,11 +981,13 @@ fn env_flag(name: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn server_php_ini_entries() -> Vec<String> {
-    SERVER_PHP_INI_ENTRIES
+fn server_php_ini_entries(extensions: PhpExtensionSelection) -> Vec<String> {
+    let mut entries = SERVER_PHP_INI_ENTRIES
         .iter()
         .map(|entry| (*entry).to_string())
-        .collect()
+        .collect::<Vec<_>>();
+    extensions.append_php_ini_defaults(&mut entries);
+    entries
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1233,6 +1235,9 @@ enum RouteTarget {
     Static {
         host_path: PathBuf,
     },
+    Redirect {
+        location: String,
+    },
     NotFound,
 }
 
@@ -1281,6 +1286,7 @@ pub fn run_native_server_with_control(
     progress(&config.options, "Preparing mounts");
     let mut mounts = server_mounts(config)?;
     let _document_root = ensure_wordpress_mount(&mut mounts)?;
+    add_phpmyadmin_alias_mount(&mut mounts, &config.options)?;
     let managed_directories = prepare_managed_runtime_mounts(&mut mounts)?;
     progress(&config.options, "Preparing WordPress files");
     let prepared = prepare_wordpress(runtime.repo_root(), &config.options, &mounts)?;
@@ -1304,10 +1310,13 @@ pub fn run_native_server_with_control(
             ),
         );
     }
+    stage_phpmyadmin_wp_env(&mounts, &config.options)?;
 
+    let php_ini_entries = server_php_ini_entries(config.options.extensions);
     let host_options = PhpWorkerOptions {
-        php_ini_entries: server_php_ini_entries(),
+        php_ini_entries,
         mounts: mounts.to_vec(),
+        extensions: config.options.extensions,
         ..PhpWorkerOptions::default()
     };
     run_listener(
@@ -1410,6 +1419,73 @@ fn server_mounts(config: &RuntimeConfig) -> Result<Vec<Mount>> {
     }
 
     Ok(mounts)
+}
+
+const PHPMYADMIN_VFS_ROOT: &str = "/tools/phpmyadmin";
+const PHPMYADMIN_WP_ENV_VFS_PATH: &str = "/internal/shared/wp-env.php";
+const PHPMYADMIN_SQLITE_DATABASE_VFS_PATH: &str = "/wordpress/wp-content/database/.ht.sqlite";
+const STUDIO_SQLITE_DRIVER_VFS_PATH: &str =
+    "/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-includes/database/load.php";
+const NATIVE_SQLITE_DRIVER_VFS_PATH: &str =
+    "/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/database/load.php";
+
+fn add_phpmyadmin_alias_mount(mounts: &mut Vec<Mount>, options: &CliOptions) -> Result<()> {
+    let Some(url_prefix) = options.phpmyadmin_path.as_deref() else {
+        return Ok(());
+    };
+    let source = get_mount_for_vfs_path(mounts, PHPMYADMIN_VFS_ROOT).ok_or_else(|| {
+        CliError::new(format!(
+            "phpMyAdmin requires a mounted bundle at {PHPMYADMIN_VFS_ROOT}"
+        ))
+    })?;
+    host_path_for_vfs_path(mounts, &format!("{PHPMYADMIN_VFS_ROOT}/index.php"))
+        .filter(|path| path.is_file())
+        .ok_or_else(|| {
+            CliError::new(format!(
+                "phpMyAdmin requires {PHPMYADMIN_VFS_ROOT}/index.php in the mounted bundle"
+            ))
+        })?;
+    let alias_vfs_path = format!("/wordpress{url_prefix}");
+    let mut alias = Mount::auto(&source.host_path, &alias_vfs_path)?;
+    alias.canonical_host_path = source.canonical_host_path.clone();
+    mounts.push(alias);
+    Ok(())
+}
+
+fn stage_phpmyadmin_wp_env(mounts: &[Mount], options: &CliOptions) -> Result<()> {
+    if options.phpmyadmin_path.is_none() {
+        return Ok(());
+    }
+    let driver_path = [STUDIO_SQLITE_DRIVER_VFS_PATH, NATIVE_SQLITE_DRIVER_VFS_PATH]
+        .into_iter()
+        .find(|path| {
+            host_path_for_vfs_path(mounts, path).is_some_and(|host_path| host_path.is_file())
+        })
+        .ok_or_else(|| {
+            CliError::new(
+                "phpMyAdmin requires the Studio or native SQLite database integration driver",
+            )
+        })?;
+    let destination = host_path_for_vfs_path(mounts, PHPMYADMIN_WP_ENV_VFS_PATH)
+        .ok_or_else(|| CliError::new("Native phpMyAdmin environment mount is unavailable"))?;
+    let contents = format!(
+        "<?php return array (\n  'db' => array (\n    'type' => 'sqlite',\n    'path' => '{PHPMYADMIN_SQLITE_DATABASE_VFS_PATH}',\n    'driver_path' => '{driver_path}',\n  ),\n);\n"
+    );
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(&destination).map_err(|error| {
+        CliError::new(format!(
+            "Failed to stage trusted phpMyAdmin environment {}: {error}",
+            destination.display()
+        ))
+    })?;
+    file.write_all(contents.as_bytes())?;
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -1686,8 +1762,13 @@ fn create_worker_pool(
     managed_directories: ManagedRuntimeDirectories,
 ) -> Result<WorkerPool> {
     let worker_count = worker_count.clamp(1, MAX_WORKERS);
-    let php_artifact = runtime.php_artifact(php_version)?;
-    let interruptible_php_artifact = runtime.lazy_interruptible_php_artifact(php_version)?;
+    let component_variant = host_options.extensions.component_variant();
+    // The pool retains these variant-specific artifacts. Eager and lazy HTTP
+    // workers, recovered and recycled workers, streamed workers, and CLI
+    // workers all clone or lazily compile from this same selected pair.
+    let php_artifact = runtime.php_artifact_for_variant(php_version, component_variant)?;
+    let interruptible_php_artifact =
+        runtime.lazy_interruptible_php_artifact(php_version, component_variant)?;
     let initial_worker_count = if lazy_workers { 1 } else { worker_count };
     let mut workers = Vec::with_capacity(initial_worker_count);
     workers.push(primary);
@@ -2189,6 +2270,10 @@ fn handle_control_stream_request(
             emit_static_control_stream_response(&emitter, &host_path, &cancellation)?;
             Ok(ControlStreamResponse { exit_code: 0 })
         }
+        RouteTarget::Redirect { location } => {
+            emit_buffered_control_stream_response(&emitter, redirect_response(&location))?;
+            Ok(ControlStreamResponse { exit_code: 0 })
+        }
         RouteTarget::NotFound => {
             emit_buffered_control_stream_response(
                 &emitter,
@@ -2647,6 +2732,17 @@ fn clear_auto_login_cookie_response(request: &HttpRequest) -> HttpResponse {
     }
 }
 
+fn redirect_response(location: &str) -> HttpResponse {
+    HttpResponse {
+        status: 301,
+        headers: vec![
+            ("Content-Type".to_string(), "text/plain".to_string()),
+            ("Location".to_string(), location.to_string()),
+        ],
+        body: Vec::new(),
+    }
+}
+
 fn http_error_response(status: u16, message: &str) -> HttpResponse {
     HttpResponse {
         status,
@@ -2989,6 +3085,13 @@ fn handle_http_request(
         }
         RouteTarget::Static { host_path } => Ok(HandledHttpResponse {
             response: ServerHttpResponse::StaticFile(host_path),
+            exit_code: 0,
+            stderr: Vec::new(),
+            route_target,
+            worker_action: "none",
+        }),
+        RouteTarget::Redirect { location } => Ok(HandledHttpResponse {
+            response: ServerHttpResponse::Buffered(redirect_response(&location)),
             exit_code: 0,
             stderr: Vec::new(),
             route_target,
@@ -3453,10 +3556,7 @@ fn php_failure_detail(stdout: &[u8], stderr: &[u8]) -> String {
 }
 
 fn should_boot_wordpress_for_options(options: &CliOptions) -> bool {
-    !matches!(
-        options.wordpress_install_mode,
-        WordPressInstallMode::DoNotAttemptInstalling
-    ) && !options.skip_sqlite_setup
+    options.wordpress_install_mode.should_attempt_installing()
 }
 
 pub(crate) fn maybe_boot_wordpress_site(
@@ -3477,7 +3577,11 @@ pub(crate) fn maybe_boot_wordpress_site(
         return Ok(());
     }
 
-    boot_wordpress_site(mounts, php, port)
+    if options.skip_sqlite_setup {
+        install_wordpress_with_api(mounts, php, port, "password", false)
+    } else {
+        boot_wordpress_site(mounts, php, port)
+    }
 }
 
 fn wordpress_is_installed(mounts: &[Mount], php: &mut PhpInstance, port: u16) -> Result<bool> {
@@ -3514,7 +3618,7 @@ pub(crate) fn boot_wordpress_site(
     php: &mut PhpInstance,
     port: u16,
 ) -> Result<()> {
-    install_wordpress_with_api(mounts, php, port, "password")
+    install_wordpress_with_api(mounts, php, port, "password", true)
 }
 
 fn install_wordpress_with_api(
@@ -3522,6 +3626,7 @@ fn install_wordpress_with_api(
     php: &mut PhpInstance,
     port: u16,
     admin_password: &str,
+    require_sqlite_database: bool,
 ) -> Result<()> {
     let install_script = format!(
         r#"<?php
@@ -3568,7 +3673,7 @@ ob_end_flush();
     }
 
     let database = host_path_for_vfs_path(mounts, "/wordpress/wp-content/database/.ht.sqlite");
-    if database.as_ref().is_some_and(|path| path.is_file()) {
+    if !require_sqlite_database || database.as_ref().is_some_and(|path| path.is_file()) {
         Ok(())
     } else {
         Err(CliError::new(format!(
@@ -7177,6 +7282,7 @@ fn run_startup_step_with_symlink_policy(
                 php,
                 port,
                 admin_password.as_deref().unwrap_or("password"),
+                true,
             );
         }
         StartupStep::EnableMultisite { .. } => {
@@ -7341,6 +7447,7 @@ fn handle_startup_http_request(
                 body,
             })
         }
+        RouteTarget::Redirect { location } => Ok(redirect_response(&location)),
         RouteTarget::NotFound => Ok(HttpResponse {
             status: 404,
             headers: vec![("Content-Type".to_string(), "text/plain".to_string())],
@@ -9406,6 +9513,24 @@ fn resolve_route_with_symlink_policy_with_counters(
     _counter: Option<RouteCounterContext<'_>>,
 ) -> Result<RouteTarget> {
     let request_path = request_path_from_target(target)?;
+    let phpmyadmin_prefix = phpmyadmin_alias_url_prefix(mounts);
+    let raw_request_path = target.split_once('?').map_or(target, |(path, _)| path);
+    if !raw_request_path.ends_with('/')
+        && phpmyadmin_prefix.is_some_and(|prefix| request_path == prefix)
+    {
+        let query = target.split_once('?').map(|(_, query)| query);
+        let mut location = format!("{}/", phpmyadmin_prefix.unwrap());
+        if let Some(query) = query {
+            location.push('?');
+            location.push_str(query);
+        }
+        return Ok(RouteTarget::Redirect { location });
+    }
+    let is_phpmyadmin_request = phpmyadmin_prefix.is_some_and(|prefix| {
+        request_path
+            .strip_prefix(prefix)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+    });
     let vfs_path = if request_path == "/" {
         "/wordpress".to_string()
     } else {
@@ -9438,6 +9563,10 @@ fn resolve_route_with_symlink_policy_with_counters(
         });
     }
 
+    if is_phpmyadmin_request {
+        return Ok(RouteTarget::NotFound);
+    }
+
     if is_missing_static_wordpress_asset(&vfs_path) {
         return Ok(RouteTarget::NotFound);
     }
@@ -9454,6 +9583,18 @@ fn resolve_route_with_symlink_policy_with_counters(
     }
 
     Ok(RouteTarget::NotFound)
+}
+
+fn phpmyadmin_alias_url_prefix(mounts: &[Mount]) -> Option<&str> {
+    let source = get_mount_for_vfs_path(mounts, PHPMYADMIN_VFS_ROOT)?;
+    mounts
+        .iter()
+        .find(|mount| {
+            mount.auto_mounted
+                && mount.host_path == source.host_path
+                && mount.vfs_path.starts_with("/wordpress/")
+        })
+        .and_then(|mount| mount.vfs_path.strip_prefix("/wordpress"))
 }
 
 fn route_candidates(vfs_path: &str) -> Vec<String> {
@@ -9609,6 +9750,9 @@ fn emit_route_resolve_total(
         Ok(RouteTarget::Static { host_path }) => {
             fields.push(Field::new("host_path", host_path.display()));
         }
+        Ok(RouteTarget::Redirect { location }) => {
+            fields.push(Field::new("location", location));
+        }
         Ok(RouteTarget::NotFound) => {}
         Err(error) => fields.push(Field::new("error", error)),
     }
@@ -9619,6 +9763,7 @@ fn route_target_label(route_target: &RouteTarget) -> &'static str {
     match route_target {
         RouteTarget::Php { .. } => "php",
         RouteTarget::Static { .. } => "static",
+        RouteTarget::Redirect { .. } => "redirect",
         RouteTarget::NotFound => "not_found",
     }
 }
@@ -10626,7 +10771,7 @@ mod tests {
     };
 
     use super::{
-        asset_folder_name_from_zip_filename, auto_login_username,
+        add_phpmyadmin_alias_mount, asset_folder_name_from_zip_filename, auto_login_username,
         bind_server_listener_with_default, boot_wordpress_site, capacity_lease_from_selection,
         capped_cpu_workers_minus_one, clear_auto_login_cookie_response, control_run_script_name,
         cpu_workers_minus_one, create_private_server_directory, current_runtime_revision,
@@ -10652,11 +10797,12 @@ mod tests {
         route_target_label, run_git, run_native_startup_step, run_sql_script, run_startup_step,
         run_startup_steps, server_banner_and_config, server_mounts, server_php_ini_entries,
         server_response_counter_stats, set_site_language_metadata_script,
-        should_clear_auto_login_cookie, spawn_worker_lease_task, split_shell_command,
-        stage_control_run_script_with_candidate, startup_steps_from_blueprint_json,
-        startup_steps_from_blueprint_source, startup_steps_from_blueprint_zip,
-        startup_steps_from_remote_blueprint_bytes, unzip_bytes_to_dir, update_user_meta_script,
-        validate_install_asset_zip, wait_for_worker_selection, wordpress_importer_install_step,
+        should_boot_wordpress_for_options, should_clear_auto_login_cookie, spawn_worker_lease_task,
+        split_shell_command, stage_control_run_script_with_candidate, stage_phpmyadmin_wp_env,
+        startup_steps_from_blueprint_json, startup_steps_from_blueprint_source,
+        startup_steps_from_blueprint_zip, startup_steps_from_remote_blueprint_bytes,
+        unzip_bytes_to_dir, update_user_meta_script, validate_install_asset_zip,
+        wait_for_worker_selection, wordpress_importer_install_step,
         wordpress_translation_url_from_api_response, worker_after_request_label,
         worker_recycle_backoff, worker_recycle_idle_delay_from_env, wp_cli_runner_script,
         wp_installation_wizard_request, write_http_response_with_counter,
@@ -10670,7 +10816,9 @@ mod tests {
         WorkerLease, WorkerPoolShared, WorkerPoolState, WorkerSelection, AUTO_LOGIN_COOKIE_NAME,
         CLEAR_AUTO_LOGIN_COOKIE, DEFAULT_LAZY_WORKER_IDLE_TIMEOUT, DEFAULT_MAX_REQUESTS_PER_WORKER,
         DEFAULT_WP_CLI_PATH, LAZY_WORKER_IDLE_TIMEOUT_ENV_VAR, MAX_REQUESTS_PER_WORKER_ENV_VAR,
-        WORKER_RECYCLE_IDLE_DELAY, WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
+        NATIVE_SQLITE_DRIVER_VFS_PATH, PHPMYADMIN_VFS_ROOT, PHPMYADMIN_WP_ENV_VFS_PATH,
+        STUDIO_SQLITE_DRIVER_VFS_PATH, WORKER_RECYCLE_IDLE_DELAY,
+        WORKER_RECYCLE_IDLE_DELAY_ENV_VAR,
     };
     #[cfg(unix)]
     use super::{
@@ -10680,7 +10828,7 @@ mod tests {
     };
     use crate::download::url_cache_key;
     use crate::paths::{SiteStorage, WordPressInstallMode};
-    use crate::php_config::PhpWorkerOptions;
+    use crate::php_config::{PhpExtensionSelection, PhpWorkerOptions};
     use crate::php_protocol::PhpResponse;
     use crate::route_counters;
     use crate::runtime::{repo_root_from_manifest_dir, NativeRuntime};
@@ -10790,6 +10938,24 @@ mod tests {
 
         let error = CliError::new("Failed to write HTTP response: Broken pipe (os error 32)");
         assert!(!is_client_disconnect_error(&error));
+    }
+
+    #[test]
+    fn skip_sqlite_setup_does_not_skip_wordpress_database_installation() {
+        let root = temp_dir("skip-sqlite-still-installs");
+        let options = parse_cli_args_from(
+            vec![
+                "server".to_string(),
+                "--skip-sqlite-setup".to_string(),
+                "--wordpress-install-mode=install-from-existing-files-if-needed".to_string(),
+            ],
+            &root,
+        )
+        .unwrap();
+
+        assert!(options.skip_sqlite_setup);
+        assert!(should_boot_wordpress_for_options(&options));
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
@@ -11858,6 +12024,123 @@ mod tests {
     }
 
     #[test]
+    fn routes_phpmyadmin_alias_without_falling_back_to_wordpress() {
+        let wordpress = temp_dir("phpmyadmin-wordpress");
+        let phpmyadmin = temp_dir("phpmyadmin-tools");
+        fs::write(wordpress.join("index.php"), b"<?php echo 'wordpress';").unwrap();
+        fs::create_dir_all(phpmyadmin.join("themes/original")).unwrap();
+        fs::write(phpmyadmin.join("index.php"), b"<?php echo 'phpmyadmin';").unwrap();
+        fs::write(phpmyadmin.join("api.php"), b"<?php echo 'api';").unwrap();
+        fs::write(phpmyadmin.join("themes/original/theme.css"), b"body{}").unwrap();
+        let mounts = vec![
+            Mount::new(&wordpress, "/wordpress").unwrap(),
+            Mount::new(&phpmyadmin, PHPMYADMIN_VFS_ROOT).unwrap(),
+            Mount::auto(&phpmyadmin, "/wordpress/phpmyadmin").unwrap(),
+        ];
+
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadmin?route=/database").unwrap(),
+            RouteTarget::Redirect {
+                location: "/phpmyadmin/?route=/database".to_string(),
+            }
+        );
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadmin/").unwrap(),
+            RouteTarget::Php {
+                vfs_path: "/wordpress/phpmyadmin/index.php".to_string(),
+                path_info: None,
+            }
+        );
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadmin/api.php/v1?x=1").unwrap(),
+            RouteTarget::Php {
+                vfs_path: "/wordpress/phpmyadmin/api.php".to_string(),
+                path_info: Some("/v1".to_string()),
+            }
+        );
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadmin/themes/original/theme.css").unwrap(),
+            RouteTarget::Static {
+                host_path: phpmyadmin.join("themes/original/theme.css"),
+            }
+        );
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadmin/missing-route").unwrap(),
+            RouteTarget::NotFound
+        );
+        assert_eq!(
+            resolve_route(&mounts, "/phpmyadministrator").unwrap(),
+            RouteTarget::Php {
+                vfs_path: "/wordpress/index.php".to_string(),
+                path_info: None,
+            }
+        );
+
+        let _ = fs::remove_dir_all(wordpress);
+        let _ = fs::remove_dir_all(phpmyadmin);
+    }
+
+    #[test]
+    fn stages_trusted_phpmyadmin_environment_for_studio_and_native_sqlite_layouts() {
+        for (name, driver_path) in [
+            ("studio", STUDIO_SQLITE_DRIVER_VFS_PATH),
+            ("native", NATIVE_SQLITE_DRIVER_VFS_PATH),
+        ] {
+            let root = temp_dir(&format!("phpmyadmin-env-{name}"));
+            let wordpress = root.join("wordpress");
+            let phpmyadmin = root.join("phpmyadmin");
+            fs::create_dir_all(&wordpress).unwrap();
+            fs::create_dir_all(&phpmyadmin).unwrap();
+            fs::write(phpmyadmin.join("index.php"), b"<?php").unwrap();
+            let driver_host_path = wordpress.join(driver_path.trim_start_matches("/wordpress/"));
+            fs::create_dir_all(driver_host_path.parent().unwrap()).unwrap();
+            fs::write(&driver_host_path, b"<?php").unwrap();
+
+            let mut options = parse_cli_args_from(
+                vec!["server".to_string(), "--phpmyadmin".to_string()],
+                &root,
+            )
+            .unwrap();
+            options.mounts_before_install = vec![
+                Mount::new(&wordpress, "/wordpress").unwrap(),
+                Mount::new(&phpmyadmin, PHPMYADMIN_VFS_ROOT).unwrap(),
+            ];
+            let mut mounts = options.mounts_before_install.clone();
+            add_phpmyadmin_alias_mount(&mut mounts, &options).unwrap();
+            let managed = prepare_managed_runtime_mounts(&mut mounts).unwrap();
+            stage_phpmyadmin_wp_env(&mounts, &options).unwrap();
+
+            let wp_env = host_path_for_vfs_path(&mounts, PHPMYADMIN_WP_ENV_VFS_PATH).unwrap();
+            let contents = fs::read_to_string(&wp_env).unwrap();
+            assert!(contents.contains("'type' => 'sqlite'"));
+            assert!(contents.contains(driver_path));
+            assert!(contents.contains("/wordpress/wp-content/database/.ht.sqlite"));
+
+            drop(managed);
+            assert!(!wp_env.exists());
+            let _ = fs::remove_dir_all(root);
+        }
+    }
+
+    #[test]
+    fn phpmyadmin_requires_the_mounted_studio_bundle() {
+        let root = temp_dir("phpmyadmin-missing-bundle");
+        let options = parse_cli_args_from(
+            vec!["server".to_string(), "--phpmyadmin".to_string()],
+            &root,
+        )
+        .unwrap();
+        let mut mounts = vec![Mount::new(&root, "/wordpress").unwrap()];
+
+        let error = add_phpmyadmin_alias_mount(&mut mounts, &options).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("requires a mounted bundle at /tools/phpmyadmin"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn resolves_static_file_from_longest_mount() {
         let root = temp_dir("static-root");
         let plugin = temp_dir("static-plugin");
@@ -12408,10 +12691,27 @@ mod tests {
     #[test]
     fn native_server_php_ini_entries_override_base_buffering_defaults() {
         assert_eq!(
-            server_php_ini_entries(),
+            server_php_ini_entries(PhpExtensionSelection::default()),
             ["implicit_flush=0", "output_buffering=65536"]
                 .map(str::to_string)
                 .to_vec()
+        );
+        assert_eq!(
+            server_php_ini_entries(PhpExtensionSelection {
+                xdebug: true,
+                ..Default::default()
+            }),
+            [
+                "implicit_flush=0",
+                "output_buffering=65536",
+                "xdebug.mode=debug,develop",
+                "xdebug.start_with_request=yes",
+                "xdebug.idekey=PHPWASMCLI",
+                "xdebug.client_host=127.0.0.1",
+                "xdebug.client_port=9003",
+            ]
+            .map(str::to_string)
+            .to_vec()
         );
     }
 

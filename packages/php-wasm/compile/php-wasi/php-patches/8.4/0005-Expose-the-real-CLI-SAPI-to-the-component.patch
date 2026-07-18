@@ -1,0 +1,46 @@
+From 07b2c678cef9bdb293fae82a3cab90185375b304 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:30 +0200
+Subject: [PATCH 05/12] Expose the real CLI SAPI to the component
+
+---
+ sapi/cli/php_cli.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/sapi/cli/php_cli.c b/sapi/cli/php_cli.c
+index aabd92db..6b71b297 100644
+--- a/sapi/cli/php_cli.c
++++ b/sapi/cli/php_cli.c
+@@ -1142,11 +1142,15 @@ static int do_cli(int argc, char **argv) /* {{{ */
+ /* }}} */
+ 
+ /* {{{ main */
++#ifdef PHP_WASI_COMPONENT_CLI
++int wordpress_php_wasi_cli_main(int argc, char *argv[])
++#else
+ #ifdef PHP_CLI_WIN32_NO_CONSOLE
+ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+ #else
+ int main(int argc, char *argv[])
+ #endif
++#endif
+ {
+ #if defined(PHP_WIN32)
+ # ifdef PHP_CLI_WIN32_NO_CONSOLE
+@@ -1355,6 +1359,13 @@ int main(int argc, char *argv[])
+ 	 * exiting.
+ 	 */
+ 	cleanup_ps_args(argv);
++#ifdef PHP_WASI_COMPONENT_CLI
++	if (fflush(NULL) == EOF && exit_status == SUCCESS) {
++		exit_status = 1;
++	}
++	return exit_status;
++#else
+ 	exit(exit_status);
++#endif
+ }
+ /* }}} */
+-- 
+2.50.1
+

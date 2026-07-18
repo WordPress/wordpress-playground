@@ -1,0 +1,41 @@
+From 8764675b07214fe0e9da4e5f733da7e1a6785e86 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:30 +0200
+Subject: [PATCH 06/12] Keep phpinfo constants in the generated registration
+
+---
+ ext/standard/basic_functions.stub.php  |   6 +++++-
+ ext/standard/basic_functions_arginfo.h | Bin 175832 -> 175832 bytes
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ext/standard/basic_functions.stub.php b/ext/standard/basic_functions.stub.php
+index a02696de..5abc967f 100644
+--- a/ext/standard/basic_functions.stub.php
++++ b/ext/standard/basic_functions.stub.php
+@@ -657,7 +657,11 @@
+  */
+ const IMAGETYPE_COUNT = UNKNOWN;
+ 
+-/* info.c */
++/* info.c
++ *
++ * INFO_* and CREDITS_* constants are registered from this generated symbol
++ * table in PHP 8.4 and later; there is no separate MINIT registration.
++ */
+ 
+ /**
+  * @var int
+diff --git a/ext/standard/basic_functions_arginfo.h b/ext/standard/basic_functions_arginfo.h
+index ed12e811..fcda2b37 100644
+--- a/ext/standard/basic_functions_arginfo.h
++++ b/ext/standard/basic_functions_arginfo.h
+@@ -1,5 +1,5 @@
+ /* This is a generated file, edit the .stub.php file instead.
+- * Stub hash: b315e549f74f577c2f9d05d4847f416f05126eaa */
++ * Stub hash: cf9e108607cab95204f5203440b9048a9906014e */
+ 
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_set_time_limit, 0, 1, _IS_BOOL, 0)
+ 	ZEND_ARG_TYPE_INFO(0, seconds, IS_LONG, 0)
+-- 
+2.50.1
+

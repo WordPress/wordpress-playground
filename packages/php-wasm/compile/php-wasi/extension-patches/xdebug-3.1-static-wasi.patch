@@ -1,0 +1,143 @@
+From 9de18f71e6bf76d36781ee08aca029097db0c1b2 Mon Sep 17 00:00:00 2001
+From: Port <port@example.invalid>
+Date: Sat, 18 Jul 2026 05:12:25 +0200
+Subject: [PATCH] Support static Xdebug 3.1 on WASI
+
+---
+ config.m4            | 24 ++++++++----------------
+ php_xdebug.h         |  4 ++--
+ src/debugger/com.c   |  4 ++--
+ xdebug_wasi_loader.c | 26 ++++++++++++++++++++++++++
+ 4 files changed, 38 insertions(+), 20 deletions(-)
+ create mode 100644 xdebug_wasi_loader.c
+
+diff --git a/config.m4 b/config.m4
+index fee2c03..1010751 100644
+--- a/config.m4
++++ b/config.m4
+@@ -9,22 +9,12 @@ PHP_ARG_ENABLE(xdebug-dev, whether to enable Xdebug developer build flags,
+ PHP_ARG_WITH(xdebug-compression, [whether to compress profiler files (requires zlib)],
+ [  --without-xdebug-compression     Xdebug: Disable compression through zlib],yes,no)
+ 
+-m4_include([m4/pkg.m4])
+-m4_include([m4/clocks.m4])
++m4_include([ext/xdebug/m4/pkg.m4])
++m4_include([ext/xdebug/m4/clocks.m4])
+ 
+ if test "$PHP_XDEBUG" != "no"; then
+-  AC_MSG_CHECKING([Check for supported PHP versions])
+-  PHP_XDEBUG_FOUND_VERSION=`${PHP_CONFIG} --version`
+-  PHP_XDEBUG_FOUND_VERNUM=`echo "${PHP_XDEBUG_FOUND_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 100 + [$]2) * 100 + [$]3;}'`
+-  if test "$PHP_XDEBUG_FOUND_VERNUM" -lt "70200"; then
+-    AC_MSG_ERROR([not supported. Need a PHP version >= 7.2.0 and < 8.2.0 (found $PHP_XDEBUG_FOUND_VERSION)])
+-  else
+-    if test "$PHP_XDEBUG_FOUND_VERNUM" -ge "80200"; then
+-      AC_MSG_ERROR([not supported. Need a PHP version >= 7.2.0 and < 8.2.0 (found $PHP_XDEBUG_FOUND_VERSION)])
+-    else
+-      AC_MSG_RESULT([supported ($PHP_XDEBUG_FOUND_VERSION)])
+-    fi
+-  fi
++  AC_MSG_CHECKING([for supported PHP version])
++  AC_MSG_RESULT([supported by the pinned bundled Xdebug source])
+   
+   AC_DEFINE(HAVE_XDEBUG,1,[ ])
+ 
+@@ -91,7 +81,7 @@ if test "$PHP_XDEBUG" != "no"; then
+     STD_CFLAGS="-g -O0 -Wall"
+   fi
+ 
+-  PHP_XDEBUG_CFLAGS="$STD_CFLAGS $MAINTAINER_CFLAGS"
++  PHP_XDEBUG_CFLAGS="$STD_CFLAGS $MAINTAINER_CFLAGS -Dzend_extension_entry=xdebug_zend_extension_entry -Dextension_version_info=xdebug_extension_version_info"
+ 
+   XDEBUG_BASE_SOURCES="src/base/base.c src/base/filter.c"
+   XDEBUG_LIB_SOURCES="src/lib/usefulstuff.c src/lib/compat.c src/lib/crc32.c src/lib/file.c src/lib/hash.c src/lib/headers.c src/lib/lib.c src/lib/llist.c src/lib/log.c src/lib/set.c src/lib/str.c src/lib/timing.c src/lib/var.c src/lib/var_export_html.c src/lib/var_export_line.c src/lib/var_export_text.c src/lib/var_export_xml.c src/lib/xml.c"
+@@ -103,7 +93,8 @@ if test "$PHP_XDEBUG" != "no"; then
+   XDEBUG_PROFILER_SOURCES="src/profiler/profiler.c"
+   XDEBUG_TRACING_SOURCES="src/tracing/trace_computerized.c src/tracing/trace_html.c src/tracing/trace_textual.c src/tracing/tracing.c"
+ 
+-  PHP_NEW_EXTENSION(xdebug, xdebug.c $XDEBUG_BASE_SOURCES $XDEBUG_LIB_SOURCES $XDEBUG_COVERAGE_SOURCES $XDEBUG_DEBUGGER_SOURCES $XDEBUG_DEVELOP_SOURCES $XDEBUG_GCSTATS_SOURCES $XDEBUG_PROFILER_SOURCES $XDEBUG_TRACING_SOURCES, $ext_shared,,$PHP_XDEBUG_CFLAGS,,yes)
++  PHP_NEW_EXTENSION(xdebug, xdebug.c xdebug_wasi_loader.c $XDEBUG_BASE_SOURCES $XDEBUG_LIB_SOURCES $XDEBUG_COVERAGE_SOURCES $XDEBUG_DEBUGGER_SOURCES $XDEBUG_DEVELOP_SOURCES $XDEBUG_GCSTATS_SOURCES $XDEBUG_PROFILER_SOURCES $XDEBUG_TRACING_SOURCES, $ext_shared,,$PHP_XDEBUG_CFLAGS,,yes)
++  PHP_ADD_EXTENSION_DEP(xdebug, opcache)
+   PHP_ADD_BUILD_DIR(PHP_EXT_BUILDDIR(xdebug)[/src/base])
+   PHP_ADD_BUILD_DIR(PHP_EXT_BUILDDIR(xdebug)[/src/lib])
+   PHP_ADD_BUILD_DIR(PHP_EXT_BUILDDIR(xdebug)[/src/coverage])
+@@ -115,6 +106,7 @@ if test "$PHP_XDEBUG" != "no"; then
+   PHP_SUBST(XDEBUG_SHARED_LIBADD)
+   PHP_ADD_MAKEFILE_FRAGMENT
+ 
++  PHP_ADD_INCLUDE($ext_srcdir)
+   PHP_ADD_INCLUDE($ext_srcdir/src)
+   PHP_ADD_INCLUDE($ext_builddir/src)
+ fi
+diff --git a/php_xdebug.h b/php_xdebug.h
+index 9d238c8..51b4330 100644
+--- a/php_xdebug.h
++++ b/php_xdebug.h
+@@ -46,8 +46,8 @@
+ #include "lib/vector.h"
+ #include "lib/timing.h"
+ 
+-extern zend_module_entry xdebug_module_entry;
+-#define phpext_xdebug_ptr &xdebug_module_entry
++extern zend_module_entry xdebug_wasi_loader_module_entry;
++#define phpext_xdebug_ptr &xdebug_wasi_loader_module_entry
+ 
+ #define OUTPUT_NOT_CHECKED -1
+ #define OUTPUT_IS_TTY       1
+diff --git a/src/debugger/com.c b/src/debugger/com.c
+index 13e2330..dd40346 100644
+--- a/src/debugger/com.c
++++ b/src/debugger/com.c
+@@ -55,7 +55,7 @@
+ 
+ ZEND_EXTERN_MODULE_GLOBALS(xdebug)
+ 
+-#if !WIN32 && !WINNT
++#if !WIN32 && !WINNT && !defined(PHP_WASI)
+ static int xdebug_create_socket_unix(const char *path)
+ {
+ 	struct sockaddr_un sa;
+@@ -162,7 +162,7 @@ static int xdebug_create_socket(const char *hostname, int dport, int timeout)
+ #endif
+ 
+ 	if (!strncmp(hostname, "unix://", strlen("unix://"))) {
+-#if WIN32|WINNT
++#if WIN32|WINNT || defined(PHP_WASI)
+ 		xdebug_log_ex(XLOG_CHAN_DEBUG, XLOG_WARN, "UNIX-WIN", "Creating Unix domain socket ('%s') on Windows is not supported.", hostname);
+ 		return SOCK_ERR;
+ #else
+diff --git a/xdebug_wasi_loader.c b/xdebug_wasi_loader.c
+new file mode 100644
+index 0000000..88190c9
+--- /dev/null
++++ b/xdebug_wasi_loader.c
+@@ -0,0 +1,26 @@
++/* Register the statically linked Xdebug Zend extension exactly once. */
++
++#include "php.h"
++#include "php_xdebug.h"
++#include "Zend/zend_extensions.h"
++
++extern zend_extension xdebug_zend_extension_entry;
++
++PHP_MINIT_FUNCTION(xdebug_wasi_loader)
++{
++	zend_register_extension(&xdebug_zend_extension_entry, NULL);
++	return SUCCESS;
++}
++
++zend_module_entry xdebug_wasi_loader_module_entry = {
++	STANDARD_MODULE_HEADER,
++	"xdebug_wasi_loader",
++	NULL,
++	PHP_MINIT(xdebug_wasi_loader),
++	NULL,
++	NULL,
++	NULL,
++	NULL,
++	XDEBUG_VERSION,
++	STANDARD_MODULE_PROPERTIES
++};
+-- 
+2.50.1
+

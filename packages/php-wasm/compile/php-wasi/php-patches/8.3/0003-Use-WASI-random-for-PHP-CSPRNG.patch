@@ -1,0 +1,27 @@
+From 257c88eba33a8885003ad3d8fe449e55a2660253 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 03:55:23 +0200
+Subject: [PATCH 03/10] Use WASI random for PHP's CSPRNG
+
+---
+ ext/random/csprng.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ext/random/csprng.c b/ext/random/csprng.c
+index bbf12f56..58c02b80 100644
+--- a/ext/random/csprng.c
++++ b/ext/random/csprng.c
+@@ -62,7 +62,9 @@
+ 
+ PHPAPI zend_result php_random_bytes(void *bytes, size_t size, bool should_throw)
+ {
+-#ifdef PHP_WIN32
++#ifdef PHP_WASI
++	arc4random_buf(bytes, size);
++#elif defined(PHP_WIN32)
+ 	/* Defer to CryptGenRandom on Windows */
+ 	if (php_win32_get_random_bytes(bytes, size) == FAILURE) {
+ 		if (should_throw) {
+-- 
+2.50.1
+

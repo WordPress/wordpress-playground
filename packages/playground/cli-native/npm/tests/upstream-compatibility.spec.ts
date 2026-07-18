@@ -19,6 +19,7 @@ interface InventoryEntry {
 	status: 'supported' | 'native-only' | 'unsupported-by-design';
 	kind?: 'value' | 'type';
 	commands?: string[];
+	additionalNativeCommands?: string[];
 	allowFalse?: boolean;
 }
 
@@ -542,12 +543,26 @@ function assertCommands(
 	spelling: string
 ): void {
 	expect(entry, `${spelling} must be classified`).toBeDefined();
+	const additionalNativeCommands = entry?.additionalNativeCommands ?? [];
+	for (const command of additionalNativeCommands) {
+		expect(
+			entry?.commands?.includes(command),
+			`${spelling} additional native command ${command} must be supported`
+		).toBe(true);
+		expect(
+			upstreamCommands.has(command),
+			`${spelling} additional native command ${command} must extend upstream scope`
+		).toBe(false);
+	}
 	expect(
 		[...(entry?.commands ?? [])].sort(),
 		`${spelling} command applicability`
 	).toEqual(
-		[...upstreamCommands]
-			.filter((command) => supportedCommands.has(command))
-			.sort()
+		[
+			...[...upstreamCommands].filter((command) =>
+				supportedCommands.has(command)
+			),
+			...additionalNativeCommands,
+		].sort()
 	);
 }

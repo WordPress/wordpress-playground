@@ -4,6 +4,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { verifyPortablePhpAssets } from './portable-php-assets.mjs';
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '..');
 const repositoryRoot = resolve(projectRoot, '../../..');
@@ -102,12 +104,22 @@ async function main() {
 			'index.cjs',
 			'index.d.ts',
 			'native-host-manifest.json',
+			'share/licenses/php-wasi/zlib.txt',
+			'share/licenses/php-wasi-extended/libmemcached-awesome-BSD-3-Clause.txt',
+			'share/licenses/php-wasi-extended/php-memcached-PHP-3.01.txt',
+			'share/licenses/php-wasi-extended/phpredis-PHP-3.01.txt',
+			'share/licenses/php-wasi-extended/xdebug-1.03.txt',
 		];
 		for (const path of required) {
 			if (!files.includes(path)) fail(`built package is missing ${path}`);
 		}
-		if (!files.some((path) => path.endsWith('php-wasi-component.wasm'))) {
-			fail('built package is missing the portable PHP component');
+		try {
+			await verifyPortablePhpAssets(
+				join(packageDirectory, 'share', 'wp-playground-native'),
+				{ forbidWasmtime: true }
+			);
+		} catch (error) {
+			fail(error.message);
 		}
 		if (
 			!files.some((path) =>

@@ -5,12 +5,11 @@ use std::{
 };
 
 use wp_playground_native::{
-    args::DEFAULT_WP_VERSION,
+    args::{DEFAULT_PHP_VERSION, DEFAULT_WP_VERSION},
     packaging::{
         default_package_name, default_release_binary_path, package_native_cli,
         run_packaged_build_snapshot_smoke, run_packaged_run_blueprint_smoke,
         run_packaged_wordpress_server_smoke, validate_package_name, PackageOptions,
-        PACKAGED_PHP_VERSION,
     },
     runtime::asset_root_from_manifest_dir,
     CliError, Result,
@@ -97,7 +96,7 @@ fn run() -> Result<()> {
 }
 
 fn println_smoke_result(smoke_name: &str, wordpress_version: &str) {
-    println!("smoke: {smoke_name} php {PACKAGED_PHP_VERSION} wp {wordpress_version} ok");
+    println!("smoke: {smoke_name} php {DEFAULT_PHP_VERSION} wp {wordpress_version} ok");
 }
 
 #[derive(Debug)]
@@ -259,7 +258,7 @@ fn print_help() {
     println!(
         concat!(
             "Usage: package-native-cli [options]\n\n",
-            "Builds a redistributable wp-playground-native package with the PHP 8.2 WASIp2 component and no bundled WordPress core archives.\n\n",
+            "Builds a redistributable wp-playground-native package with every PHP WASIp2 component declared by the asset manifest and no bundled WordPress core archives.\n\n",
             "Options:\n",
             "  --binary <path>              Release wp-playground-native binary to package\n",
             "  --asset-root <path>          Source asset root, defaults to repository root\n",
@@ -271,7 +270,7 @@ fn print_help() {
             "  --include-wordpress-assets   Copy bundled WordPress core archives for offline startup\n",
             "  --skip-wordpress-assets      Do not copy bundled WordPress core archives (default)\n",
             "  --skip-archive               Create package directory only\n",
-            "  --smoke-wordpress-server     Boot the exact packaged PHP 8.2 WordPress+SQLite server\n",
+            "  --smoke-wordpress-server     Boot the default packaged PHP WordPress+SQLite server\n",
             "  --smoke-run-blueprint        Run a Blueprint with the exact packaged runtime\n",
             "  --smoke-build-snapshot       Build a snapshot with the exact packaged runtime\n",
             "  --smoke-wordpress-version <wp>\n",

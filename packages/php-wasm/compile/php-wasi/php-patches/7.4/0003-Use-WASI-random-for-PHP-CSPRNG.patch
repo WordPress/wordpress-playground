@@ -1,0 +1,27 @@
+From 65d6708d6338e4161c323de94481a9da6d5afed5 Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:41:44 +0200
+Subject: [PATCH 03/11] Port PHP 7.4 WASI patch 0003
+
+---
+ ext/standard/random.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ext/standard/random.c b/ext/standard/random.c
+index 2ab0e8ed..63c29eaf 100644
+--- a/ext/standard/random.c
++++ b/ext/standard/random.c
+@@ -88,7 +88,9 @@ PHP_MSHUTDOWN_FUNCTION(random)
+ /* {{{ php_random_bytes */
+ PHPAPI int php_random_bytes(void *bytes, size_t size, zend_bool should_throw)
+ {
+-#ifdef PHP_WIN32
++#ifdef PHP_WASI
++	arc4random_buf(bytes, size);
++#elif defined(PHP_WIN32)
+ 	/* Defer to CryptGenRandom on Windows */
+ 	if (php_win32_get_random_bytes(bytes, size) == FAILURE) {
+ 		if (should_throw) {
+-- 
+2.50.1
+

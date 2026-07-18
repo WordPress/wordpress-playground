@@ -42,6 +42,20 @@ import {
 	type RunCLIServer,
 } from '../src/api.js';
 
+const nativeWebAssembly = WebAssembly;
+
+function setCurrentRuntimeJspi(enabled: boolean): void {
+	vi.stubGlobal(
+		'WebAssembly',
+		new Proxy(nativeWebAssembly, {
+			has(target, property) {
+				if (property === 'Suspending') return enabled;
+				return Reflect.has(target, property);
+			},
+		})
+	);
+}
+
 class FakeChild extends EventEmitter {
 	stderr = new PassThrough();
 	exitCode: number | null = null;
@@ -113,6 +127,7 @@ function streamedBlueprintBundle(
 }
 
 beforeEach(() => {
+	setCurrentRuntimeJspi(false);
 	mocks.writeHandshake = true;
 	mocks.nativeServerUrl = 'http://127.0.0.1:65534';
 	mocks.handshakeOverrides = {};
@@ -163,6 +178,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+	vi.unstubAllGlobals();
 	delete process.env['WP_PLAYGROUND_NATIVE_STARTUP_TIMEOUT_MS'];
 	await Promise.all(
 		openServers.splice(0).map(
@@ -206,6 +222,34 @@ describe.sequential('programmatic native server lifecycle', () => {
 		await result[Symbol.asyncDispose]();
 		await result[Symbol.asyncDispose]();
 		expect(cliServer.server.listening).toBe(false);
+	});
+
+	it('shares parent lifecycle hooks and removes them after disposal', async () => {
+		const baseline = parentLifecycleListenerCounts();
+		const first = (await runCLI({ command: 'start' })) as RunCLIServer;
+		expect(parentLifecycleListenerCounts()).toEqual(
+			incrementParentLifecycleListenerCounts(baseline)
+		);
+		const second = (await runCLI({ command: 'server' })) as RunCLIServer;
+		expect(parentLifecycleListenerCounts()).toEqual(
+			incrementParentLifecycleListenerCounts(baseline)
+		);
+
+		await first[Symbol.asyncDispose]();
+		expect(parentLifecycleListenerCounts()).toEqual(
+			incrementParentLifecycleListenerCounts(baseline)
+		);
+		await second[Symbol.asyncDispose]();
+		expect(parentLifecycleListenerCounts()).toEqual(baseline);
+
+		const recovered = (await runCLI({
+			command: 'start',
+		})) as RunCLIServer;
+		expect(parentLifecycleListenerCounts()).toEqual(
+			incrementParentLifecycleListenerCounts(baseline)
+		);
+		await recovered[Symbol.asyncDispose]();
+		expect(parentLifecycleListenerCounts()).toEqual(baseline);
 	});
 
 	it('validates supported argument values before acquisition', async () => {
@@ -257,7 +301,8 @@ describe.sequential('programmatic native server lifecycle', () => {
 			{ command: 'start', _: sparsePositionals },
 			{ command: 'start', _: new PositionalArray('start') },
 			{ command: 'start', path: 42 },
-			{ command: 'start', php: '8.3' },
+			{ command: 'start', php: 8.2 },
+			{ command: 'start', php: '8.6' },
 			{ command: 'start', verbosity: 'verbose' },
 			{ command: 'start', wordpressInstallMode: 'sometimes' },
 			{ command: 'start', port: -1 },
@@ -274,6 +319,17 @@ describe.sequential('programmatic native server lifecycle', () => {
 			{ command: 'start', startupTimeoutMs: 0 },
 			{ command: 'start', startupTimeoutMs: 2_147_483_648 },
 			{ command: 'start', autoMount: 1 },
+			{ command: 'start', phpmyadmin: 1 },
+			{ command: 'start', phpmyadmin: '' },
+			{ command: 'start', phpmyadmin: 'phpmyadmin' },
+			{ command: 'start', phpmyadmin: '/' },
+			{ command: 'start', phpmyadmin: '//phpmyadmin' },
+			{ command: 'start', phpmyadmin: '/phpmyadmin/' },
+			{ command: 'start', phpmyadmin: '/tools/../phpmyadmin' },
+			{ command: 'start', phpmyadmin: '/php%6dyadmin' },
+			{ command: 'start', phpmyadmin: '/phpmyadmin?route=/' },
+			{ command: 'start', phpmyadmin: '/phpmyadmin#fragment' },
+			{ command: 'start', phpmyadmin: '/phpmyadmin\\nested' },
 			{ command: 'start', blueprint: [] },
 			{ command: 'start', blueprint: new Date() },
 			{ command: 'start', blueprint: circular },
@@ -312,6 +368,7 @@ describe.sequential('programmatic native server lifecycle', () => {
 			},
 			{ command: 'start\0' },
 			{ command: 'start', path: '/host\0path' },
+			{ command: 'start', phpmyadmin: '/phpmyadmin\0nested' },
 			{ command: 'start', blueprint: { value: 'bad\0value' } },
 			{
 				command: 'start',
@@ -327,6 +384,42 @@ describe.sequential('programmatic native server lifecycle', () => {
 			});
 		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
 		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('normalizes and serializes mounted phpMyAdmin aliases', async () => {
+		for (const [value, expected] of [
+			[true, '/phpmyadmin'],
+			['/database-admin', '/database-admin'],
+		] as const) {
+			const result = (await runCLI({
+				command: 'server',
+				phpmyadmin: value,
+				'mount-before-install': [
+					{
+						hostPath: '/studio/phpmyadmin',
+						vfsPath: '/tools/phpmyadmin',
+					},
+				],
+			})) as RunCLIServer;
+			const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+			expect(
+				argv.slice(
+					argv.indexOf('--phpmyadmin'),
+					argv.indexOf('--phpmyadmin') + 2
+				)
+			).toEqual(['--phpmyadmin', expected]);
+			await result[Symbol.asyncDispose]();
+		}
+
+		for (const value of [undefined, false] as const) {
+			const result = (await runCLI({
+				command: 'server',
+				phpmyadmin: value,
+			})) as RunCLIServer;
+			const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+			expect(argv).not.toContain('--phpmyadmin');
+			await result[Symbol.asyncDispose]();
+		}
 	});
 
 	it('accepts Studio run-blueprint port as an explicit no-op', async () => {
@@ -401,8 +494,8 @@ describe.sequential('programmatic native server lifecycle', () => {
 			argv.slice(argv.indexOf('--wp'), argv.indexOf('--wp') + 2)
 		).toEqual(['--wp', '6.8']);
 		expect(argv).not.toContain('--internal-cookie-store');
-		expect(argv).not.toContain('--redis');
-		expect(argv).not.toContain('--memcached');
+		expect(argv).toContain('--no-redis');
+		expect(argv).toContain('--no-memcached');
 		const blueprintPath = argv[argv.indexOf('--blueprint') + 1];
 		if (!blueprintPath) throw new Error('missing Studio Blueprint path');
 		expect(JSON.parse(await readFile(blueprintPath, 'utf8'))).toEqual({
@@ -417,18 +510,113 @@ describe.sequential('programmatic native server lifecycle', () => {
 		await result[Symbol.asyncDispose]();
 	});
 
-	it('rejects enabled Studio-only integrations before acquisition', async () => {
-		for (const name of [
-			'internalCookieStore',
-			'redis',
-			'memcached',
-		] as const)
-			await expect(
-				runCLI({ command: 'server', [name]: true })
-			).rejects.toMatchObject({
-				name: 'NativeCLIError',
-				code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+	it('accepts and forwards every native PHP component version', async () => {
+		for (const php of ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']) {
+			const result = (await runCLI({
+				command: 'start',
+				php,
+			})) as RunCLIServer;
+			const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+			expect(
+				argv.slice(argv.indexOf('--php'), argv.indexOf('--php') + 2)
+			).toEqual(['--php', php]);
+			await result[Symbol.asyncDispose]();
+		}
+	});
+
+	it('accepts every native PHP version selected by a Studio Blueprint bundle', async () => {
+		for (const php of ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']) {
+			const bundle = new StudioBlueprintBundle(
+				JSON.stringify({
+					preferredVersions: { php, wp: 'latest' },
+					steps: [],
+				})
+			);
+			const result = (await runCLI({
+				command: 'server',
+				blueprint: bundle,
+			})) as RunCLIServer;
+			const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+			expect(
+				argv.slice(argv.indexOf('--php'), argv.indexOf('--php') + 2)
+			).toEqual(['--php', php]);
+			const blueprintPath = argv[argv.indexOf('--blueprint') + 1];
+			if (!blueprintPath)
+				throw new Error('missing Studio Blueprint path');
+			expect(JSON.parse(await readFile(blueprintPath, 'utf8'))).toEqual({
+				steps: [],
 			});
+			await result[Symbol.asyncDispose]();
+		}
+	});
+
+	it('rejects enabled Studio-only integrations before acquisition', async () => {
+		await expect(
+			runCLI({ command: 'server', internalCookieStore: true })
+		).rejects.toMatchObject({
+			name: 'NativeCLIError',
+			code: 'ERR_WP_PLAYGROUND_NATIVE_UNSUPPORTED',
+		});
+		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
+		expect(mocks.spawn).not.toHaveBeenCalled();
+	});
+
+	it('serializes explicit PHP extension selection, including false', async () => {
+		const result = (await runCLI({
+			command: 'server',
+			redis: true,
+			memcached: false,
+			xdebug: true,
+		})) as RunCLIServer;
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv).toContain('--redis');
+		expect(argv).toContain('--no-memcached');
+		expect(argv).toContain('--xdebug');
+		expect(argv).not.toContain('--no-redis');
+		expect(argv).not.toContain('--memcached');
+		expect(argv).not.toContain('--no-xdebug');
+		await result[Symbol.asyncDispose]();
+	});
+
+	it('defaults omitted extensions with current JSPI and preserves start overrides', async () => {
+		setCurrentRuntimeJspi(true);
+		const defaulted = (await runCLI({ command: 'start' })) as RunCLIServer;
+		let argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv).toContain('--redis');
+		expect(argv).toContain('--memcached');
+		await defaulted[Symbol.asyncDispose]();
+
+		const overridden = (await runCLI({
+			command: 'start',
+			redis: false,
+		})) as RunCLIServer;
+		argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv).toContain('--no-redis');
+		expect(argv).toContain('--memcached');
+		expect(argv).not.toContain('--redis');
+		expect(argv).not.toContain('--no-memcached');
+		await overridden[Symbol.asyncDispose]();
+	});
+
+	it('keeps omitted extensions disabled without current JSPI', async () => {
+		const result = (await runCLI({ command: 'server' })) as RunCLIServer;
+		const argv = mocks.spawn.mock.calls.at(-1)?.[1] as string[];
+		expect(argv).not.toContain('--redis');
+		expect(argv).not.toContain('--no-redis');
+		expect(argv).not.toContain('--memcached');
+		expect(argv).not.toContain('--no-memcached');
+		await result[Symbol.asyncDispose]();
+	});
+
+	it('rejects xdebug configuration objects before acquisition', async () => {
+		await expect(
+			runCLI({ command: 'server', xdebug: { mode: 'debug' } })
+		).rejects.toMatchObject({
+			name: 'NativeCLIError',
+			code: 'ERR_WP_PLAYGROUND_NATIVE_INVALID_REQUEST',
+			message:
+				'Native CLI xdebug configuration objects are not supported; use true or false.',
+		});
 		expect(mocks.ensureNativeHost).not.toHaveBeenCalled();
 		expect(mocks.spawn).not.toHaveBeenCalled();
 	});
@@ -499,7 +687,7 @@ describe.sequential('programmatic native server lifecycle', () => {
 		for (const blueprint of [
 			new StudioBlueprintBundle(
 				JSON.stringify({
-					preferredVersions: { php: '8.3', wp: 'latest' },
+					preferredVersions: { php: '8.6', wp: 'latest' },
 				})
 			),
 			new StudioBlueprintBundle(
@@ -789,4 +977,27 @@ async function blueprintTempDirectories(): Promise<string[]> {
 	return (await readdir(tmpdir()))
 		.filter((name) => name.startsWith('wp-playground-native-blueprint-'))
 		.sort();
+}
+
+type ParentLifecycleListenerCounts = Record<
+	'exit' | 'SIGINT' | 'SIGTERM',
+	number
+>;
+
+function parentLifecycleListenerCounts(): ParentLifecycleListenerCounts {
+	return {
+		exit: process.listenerCount('exit'),
+		SIGINT: process.listenerCount('SIGINT'),
+		SIGTERM: process.listenerCount('SIGTERM'),
+	};
+}
+
+function incrementParentLifecycleListenerCounts(
+	counts: ParentLifecycleListenerCounts
+): ParentLifecycleListenerCounts {
+	return {
+		exit: counts.exit + 1,
+		SIGINT: counts.SIGINT + 1,
+		SIGTERM: counts.SIGTERM + 1,
+	};
 }

@@ -260,6 +260,8 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  --login / --no-login           Enable or disable auto-login\n",
             "  --no-auto-mount                Disable project auto-detection\n",
             "  --blueprint <path|url>         Run a Blueprint on startup\n",
+            "  --phpmyadmin[=<url-prefix>]    Enable phpMyAdmin, default /phpmyadmin\n",
+            "  --xdebug / --no-xdebug         Enable or disable Xdebug\n",
             "  --workers <n|auto>             Prewarm and retain a PHP worker pool\n",
             "  --follow-symlinks              Allow mounted symlink targets\n\n",
             "Examples:\n",
@@ -276,6 +278,10 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  --wordpress-install-mode <mode>\n",
             "  --skip-wordpress-install       Deprecated alias for do-not-attempt-installing\n",
             "  --skip-sqlite-setup            Do not install the SQLite integration\n",
+            "  --phpmyadmin[=<url-prefix>]    Enable phpMyAdmin, default /phpmyadmin\n",
+            "  --redis / --no-redis           Enable or disable the Redis extension\n",
+            "  --memcached / --no-memcached   Enable or disable the Memcached extension\n",
+            "  --xdebug / --no-xdebug         Enable or disable Xdebug\n",
             "  --login / --no-login           Enable or disable auto-login\n",
             "  --workers <n|auto>             Prewarm and retain a PHP worker pool\n",
             "  --quiet | --verbosity <level>  Output verbosity\n\n",
@@ -292,6 +298,10 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  --auto-mount [path]            Auto-detect project mounts\n",
             "  --wp <version|url>\n",
             "  --php <version>\n",
+            "  --phpmyadmin[=<url-prefix>]\n",
+            "  --redis / --no-redis\n",
+            "  --memcached / --no-memcached\n",
+            "  --xdebug / --no-xdebug\n",
             "  --site-url <url>\n",
             "  --quiet | --verbosity <level>\n\n",
             "Examples:\n",
@@ -307,6 +317,10 @@ fn help_text(command: Option<&str>) -> &'static str {
             "  --auto-mount [path]            Auto-detect project mounts\n",
             "  --wp <version|url>\n",
             "  --php <version>\n",
+            "  --phpmyadmin[=<url-prefix>]\n",
+            "  --redis / --no-redis\n",
+            "  --memcached / --no-memcached\n",
+            "  --xdebug / --no-xdebug\n",
             "  --follow-symlinks              Include followed symlink targets\n",
             "  --quiet | --verbosity <level>\n\n",
             "Examples:\n",
@@ -373,6 +387,32 @@ mod tests {
         );
         assert!(immediate_output(&args(&["unknown", "--help"]), false).is_none());
         assert!(immediate_output(&args(&["php", "--", "--help"]), false).is_none());
+    }
+
+    #[test]
+    fn supported_command_help_documents_phpmyadmin() {
+        for command in ["start", "server", "run-blueprint", "build-snapshot"] {
+            let output = immediate_output(&args(&[command, "--help"]), false).unwrap();
+            assert!(output.contains("--phpmyadmin"), "{command}: {output}");
+        }
+    }
+
+    #[test]
+    fn supported_command_help_documents_php_extension_selection() {
+        for command in ["server", "run-blueprint", "build-snapshot"] {
+            let output = immediate_output(&args(&[command, "--help"]), false).unwrap();
+            for option in ["--redis", "--no-redis", "--memcached", "--no-memcached"] {
+                assert!(
+                    output.contains(option),
+                    "{command} missing {option}: {output}"
+                );
+            }
+        }
+        for command in ["start", "server", "run-blueprint", "build-snapshot"] {
+            let output = immediate_output(&args(&[command, "--help"]), false).unwrap();
+            assert!(output.contains("--xdebug"), "{command}: {output}");
+            assert!(output.contains("--no-xdebug"), "{command}: {output}");
+        }
     }
 
     #[test]

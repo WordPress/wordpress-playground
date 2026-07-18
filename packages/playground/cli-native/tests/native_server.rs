@@ -1,7 +1,7 @@
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
-    net::TcpStream,
+    net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{mpsc, Mutex, MutexGuard},
@@ -67,6 +67,7 @@ fn start_native_server(
         .arg(root)
         .arg("/wordpress")
         .env_remove("FORCE_COLOR")
+        .env_remove("WP_PLAYGROUND_NATIVE_LAZY_WORKERS")
         .env("NO_COLOR", "1")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -295,6 +296,23 @@ fn run_control_cli(
 
 fn write_script(root: &Path, name: &str, content: &str) {
     fs::write(root.join(name), content).unwrap();
+}
+
+fn spawn_stalled_tcp_peer(
+    listener: TcpListener,
+) -> (mpsc::Receiver<()>, mpsc::Sender<()>, thread::JoinHandle<()>) {
+    let (accepted_sender, accepted_receiver) = mpsc::channel();
+    let (release_sender, release_receiver) = mpsc::channel();
+    let peer = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        accepted_sender.send(()).unwrap();
+        // The timeout bounds a regression in which PHP cancellation cannot
+        // interrupt its synchronous host wait. Dropping the peer then releases
+        // the test process even though the latency assertion will fail.
+        let _ = release_receiver.recv_timeout(Duration::from_secs(5));
+        drop(stream);
+    });
+    (accepted_receiver, release_sender, peer)
 }
 
 struct HttpResponse {
@@ -957,6 +975,97 @@ echo "body=" . file_get_contents('php://input') . "\n";
     assert!(get_response.contains("cookie=\n"), "{get_response}");
     assert!(get_response.contains("body=\n"), "{get_response}");
     assert!(!get_response.contains("first"), "{get_response}");
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native file-backed PHP session execution is an explicit smoke test."]
+fn native_server_default_temp_sessions_survive_worker_handoffs_and_keep_pool_usable() {
+    let root = temp_dir("server-file-sessions");
+    write_script(
+        &root,
+        "session.php",
+        r#"<?php
+header('Content-Type: text/plain');
+$session_dir = sys_get_temp_dir() . '/phpmyadmin-sessions';
+if (!is_dir($session_dir)) {
+    mkdir($session_dir, 0700, true);
+}
+session_save_path($session_dir);
+session_name('NATIVEPOOLSESSID');
+if (!session_start()) {
+    http_response_code(500);
+    echo "session-start-failed\n";
+    exit;
+}
+$_SESSION['counter'] = ($_SESSION['counter'] ?? 0) + 1;
+$counter = $_SESSION['counter'];
+session_write_close();
+echo "temp=" . sys_get_temp_dir() . "\n";
+echo "counter={$counter}\n";
+"#,
+    );
+    write_script(
+        &root,
+        "hold.php",
+        r#"<?php
+header('Content-Type: text/plain');
+$started = '/wordpress/hold-started';
+$release = '/wordpress/hold-release';
+file_put_contents($started, 'started');
+$deadline = microtime(true) + 30;
+while (!file_exists($release)) {
+    if (microtime(true) >= $deadline) {
+        http_response_code(500);
+        echo "hold-timeout\n";
+        exit;
+    }
+    usleep(10000);
+}
+echo "hold-released\n";
+"#,
+    );
+
+    let (address, guard, stderr_thread) = start_native_server(&root, 2);
+
+    let first = send_get(&address, "/session.php");
+    assert_ok(&first);
+    assert_eq!(first.body, "temp=/tmp\ncounter=1\n");
+    let cookie = response_set_cookie_header(&first);
+    assert!(cookie.starts_with("NATIVEPOOLSESSID="), "{cookie}");
+
+    // Fixed pools always choose the primary worker first. Holding it after the first session
+    // request forces the next session request onto the second worker without overlapping the
+    // session mutations themselves.
+    let hold_address = address.clone();
+    let hold_thread = thread::spawn(move || send_get(&hold_address, "/hold.php"));
+    let started_path = root.join("hold-started");
+    let started_deadline = Instant::now() + Duration::from_secs(30);
+    while !started_path.is_file() {
+        assert!(
+            Instant::now() < started_deadline,
+            "primary worker did not enter the hold request"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    let second = send_get_with_cookie_header(&address, "/session.php", Some(&cookie));
+    assert_ok(&second);
+    assert_eq!(second.body, "temp=/tmp\ncounter=2\n");
+
+    fs::write(root.join("hold-release"), b"release").unwrap();
+    let hold = hold_thread.join().unwrap();
+    assert_ok(&hold);
+    assert_eq!(hold.body, "hold-released\n");
+
+    // The primary is available again and must be able to read the session file last written by
+    // the second worker. This also proves the pool did not lose capacity during the handoff.
+    let third = send_get_with_cookie_header(&address, "/session.php", Some(&cookie));
+    assert_ok(&third);
+    assert_eq!(third.body, "temp=/tmp\ncounter=3\n");
 
     drop(guard);
     let _ = stderr_thread.join();
@@ -1935,6 +2044,153 @@ echo 'must-not-cross-the-control-boundary';
     );
 
     let recovered = send_get(&native_address, "/recover.php");
+    assert_ok(&recovered);
+    assert_eq!(recovered.body, "recovered");
+
+    drop(guard);
+    let _ = stderr_thread.join();
+    let _ = fs::remove_dir_all(handshake_root);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "Full native stalled TCP cancellation is an explicit smoke test."]
+fn native_control_cancels_stalled_tcp_reads_and_writes_and_recovers_worker() {
+    let root = temp_dir("control-stalled-tcp-cancellation");
+    let read_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let read_port = read_listener.local_addr().unwrap().port();
+    let write_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let write_port = write_listener.local_addr().unwrap().port();
+
+    write_script(
+        &root,
+        "stalled-read.php",
+        &format!(
+            r#"<?php
+$socket = fsockopen('127.0.0.1', {read_port}, $errno, $error, 10);
+if (!$socket) {{
+    http_response_code(500);
+    echo "connect-failed:$errno:$error";
+    exit;
+}}
+while (ob_get_level() > 0) {{
+    ob_end_flush();
+}}
+echo 'read-started';
+flush();
+fread($socket, 1);
+echo 'read-unexpectedly-finished';
+"#
+        ),
+    );
+    write_script(
+        &root,
+        "stalled-write.php",
+        &format!(
+            r#"<?php
+$socket = fsockopen('127.0.0.1', {write_port}, $errno, $error, 10);
+if (!$socket) {{
+    http_response_code(500);
+    echo "connect-failed:$errno:$error";
+    exit;
+}}
+while (ob_get_level() > 0) {{
+    ob_end_flush();
+}}
+echo 'write-started';
+flush();
+$chunk = str_repeat('x', 1024 * 1024);
+while (true) {{
+    if (fwrite($socket, $chunk) === false) {{
+        exit(2);
+    }}
+}}
+"#
+        ),
+    );
+    write_script(&root, "stalled-recover.php", "<?php echo 'recovered';");
+
+    let (control_url, native_address, token, handshake_root, guard, stderr_thread) =
+        start_native_control_server(&root, 1);
+
+    let (read_accepted, release_read, read_peer) = spawn_stalled_tcp_peer(read_listener);
+    let read_body = r#"{"protocolVersion":2,"id":401,"method":"requestStreamed","params":{"path":"/stalled-read.php"}}"#;
+    let mut read_stream = open_control_stream(&control_url, &token, read_body);
+    read_stream
+        .get_mut()
+        .set_read_timeout(Some(Duration::from_secs(7)))
+        .unwrap();
+    assert_eq!(
+        read_control_stream_frame(&mut read_stream)["type"],
+        "headers"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut read_stream)["data"]["data"],
+        BASE64.encode(b"read-started")
+    );
+    read_accepted
+        .recv_timeout(Duration::from_secs(2))
+        .expect("PHP did not connect to the stalled read peer");
+    let read_cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 401)["result"]["cancelled"],
+        true
+    );
+    let read_terminal = read_control_stream_frame(&mut read_stream);
+    let read_cancel_latency = read_cancelled_at.elapsed();
+    assert_eq!(read_terminal["type"], "error", "{read_terminal:?}");
+    assert_eq!(
+        read_terminal["error"]["code"],
+        "ERR_WP_PLAYGROUND_NATIVE_ABORTED"
+    );
+    assert!(
+        read_cancel_latency < Duration::from_secs(2),
+        "stalled TCP read cancellation took {read_cancel_latency:?}"
+    );
+    let _ = release_read.send(());
+    read_peer.join().unwrap();
+
+    let (write_accepted, release_write, write_peer) = spawn_stalled_tcp_peer(write_listener);
+    let write_body = r#"{"protocolVersion":2,"id":402,"method":"requestStreamed","params":{"path":"/stalled-write.php"}}"#;
+    let mut write_stream = open_control_stream(&control_url, &token, write_body);
+    write_stream
+        .get_mut()
+        .set_read_timeout(Some(Duration::from_secs(7)))
+        .unwrap();
+    assert_eq!(
+        read_control_stream_frame(&mut write_stream)["type"],
+        "headers"
+    );
+    assert_eq!(
+        read_control_stream_frame(&mut write_stream)["data"]["data"],
+        BASE64.encode(b"write-started")
+    );
+    write_accepted
+        .recv_timeout(Duration::from_secs(2))
+        .expect("PHP did not connect to the stalled write peer");
+    // Give the blocking writer enough time to fill the native send buffer and
+    // enter output-stream.blocking-flush rather than cancelling in guest code.
+    thread::sleep(Duration::from_millis(250));
+    let write_cancelled_at = Instant::now();
+    assert_eq!(
+        cancel_control_stream(&control_url, &token, 402)["result"]["cancelled"],
+        true
+    );
+    let write_terminal = read_control_stream_frame(&mut write_stream);
+    let write_cancel_latency = write_cancelled_at.elapsed();
+    assert_eq!(write_terminal["type"], "error", "{write_terminal:?}");
+    assert_eq!(
+        write_terminal["error"]["code"],
+        "ERR_WP_PLAYGROUND_NATIVE_ABORTED"
+    );
+    assert!(
+        write_cancel_latency < Duration::from_secs(2),
+        "backpressured TCP write cancellation took {write_cancel_latency:?}"
+    );
+    let _ = release_write.send(());
+    write_peer.join().unwrap();
+
+    let recovered = send_get(&native_address, "/stalled-recover.php");
     assert_ok(&recovered);
     assert_eq!(recovered.body, "recovered");
 

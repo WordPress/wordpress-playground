@@ -1,4 +1,7 @@
 .build/
 dist/*
 !dist/php-wasi-component.wasm
+!dist/php-wasi-extended-component.wasm
+!dist/php-*-wasi-component.wasm
+!dist/php-*-wasi-extended-component.wasm
 tests/smoke/*.sqlite*

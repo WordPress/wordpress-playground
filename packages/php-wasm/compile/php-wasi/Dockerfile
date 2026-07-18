@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	bison \
 	build-essential \
 	ca-certificates \
+	cmake \
 	curl \
+	flex \
 	libtinfo6 \
 	m4 \
 	patch \

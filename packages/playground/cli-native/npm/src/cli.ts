@@ -1,9 +1,12 @@
 import { ensureNativeHost } from './host.js';
 import { runNativeCLI } from './process.js';
 import { assertSupportedArgv } from './compatibility.js';
+import { defaultNetworkExtensionsForExecutable } from './extension-defaults.js';
 
 async function main(): Promise<void> {
-	const argv = assertSupportedArgv(process.argv.slice(2));
+	const argv = defaultNetworkExtensionsForExecutable(
+		assertSupportedArgv(process.argv.slice(2))
+	);
 	const runtimeInstall = argv[0] === 'runtime' && argv[1] === 'install';
 	if (runtimeInstall && argv.length !== 2) {
 		throw new Error('Usage: wp-playground-cli runtime install');

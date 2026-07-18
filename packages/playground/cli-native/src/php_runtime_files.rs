@@ -33,6 +33,7 @@ const DEFAULT_PHP_INI_BASE: &str = concat!(
     "output_buffering=0\n",
     "max_execution_time=0\n",
     "max_input_time=-1\n",
+    "sys_temp_dir=/tmp\n",
     "opcache.enable=1\n",
     "opcache.memory_consumption=32\n",
     "opcache.interned_strings_buffer=4\n",
@@ -345,6 +346,7 @@ mod tests {
 
         assert!(ini.contains("auto_prepend_file=/internal/shared/auto_prepend_file.php"));
         assert!(ini.contains("opcache.enable=1\n"));
+        assert!(ini.contains("sys_temp_dir=/tmp\n"));
         assert!(ini.contains("opcache.memory_consumption=32\n"));
         assert!(ini.contains("opcache.validate_timestamps=1\n"));
         assert!(!ini.contains("opcache.file_update_protection="));

@@ -641,36 +641,31 @@ index 7c8b24f34b..edba099350 100644
  fi
  
  LIBZEND_BASIC_CHECKS
-@@ -1691,15 +1701,24 @@ PHP_ADD_SOURCES(main, main.c snprintf.c spprintf.c \
+@@ -1691,15 +1701,20 @@ PHP_ADD_SOURCES(main, main.c snprintf.c spprintf.c \
         php_ini_builder.c \
         php_ini.c SAPI.c rfc1867.c php_content_types.c strlcpy.c \
         strlcat.c explicit_bzero.c reentrancy.c php_variables.c php_ticks.c \
 -       network.c php_open_temporary_file.c php_odbc_utils.c safe_bcmp.c \
 -       output.c getopt.c php_syslog.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
-+       php_open_temporary_file.c php_odbc_utils.c safe_bcmp.c \
++       network.c php_open_temporary_file.c php_odbc_utils.c safe_bcmp.c \
 +       output.c getopt.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  
 -PHP_ADD_SOURCES_X(main, fastcgi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, PHP_FASTCGI_OBJS, no)
 +if test "$WASI" = "yes"; then
-+	 PHP_ADD_SOURCES(main, fastcgi_wasi.c network_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c,)
++	 PHP_ADD_SOURCES(main, fastcgi_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c,)
 +else
-+	 PHP_ADD_SOURCES(main, php_syslog.c network.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
++	 PHP_ADD_SOURCES(main, php_syslog.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 +	 PHP_ADD_SOURCES_X(main, fastcgi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, PHP_FASTCGI_OBJS, no)
 +fi
  
  PHP_ADD_SOURCES(main/streams, streams.c cast.c memory.c filter.c \
--       plain_wrapper.c userspace.c transports.c xp_socket.c mmap.c \
-+       plain_wrapper.c userspace.c transports.c mmap.c \
+        plain_wrapper.c userspace.c transports.c xp_socket.c mmap.c \
         glob_wrapper.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  
-+if test "$WASI" != "yes"; then
-+   PHP_ADD_SOURCES(main/streams, xp_socket.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
-+fi
-+
  PHP_ADD_SOURCES(/main, internal_functions.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, sapi)
  PHP_ADD_SOURCES_X(/main, internal_functions_cli.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, PHP_BINARY_OBJS)
  
-@@ -1741,6 +1760,10 @@ PHP_ADD_SOURCES(Zend, \
+@@ -1741,6 +1756,10 @@ PHP_ADD_SOURCES(Zend, \
  	Optimizer/zend_dump.c \
      , -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
  
@@ -1801,46 +1796,6 @@ index b38ef8d2ec..6531260c48 100644
  	}
  }
  /* }}} */
-diff --git a/main/network_wasi.c b/main/network_wasi.c
-new file mode 100644
-index 0000000000..4fc6a45bc6
---- /dev/null
-+++ b/main/network_wasi.c
-@@ -0,0 +1,34 @@
-+/*
-+   +----------------------------------------------------------------------+
-+   | Copyright (c) The PHP Group                                          |
-+   +----------------------------------------------------------------------+
-+   | This source file is subject to version 3.01 of the PHP license,      |
-+   | that is bundled with this package in the file LICENSE, and is        |
-+   | available through the world-wide-web at the following url:           |
-+   | https://www.php.net/license/3_01.txt                                 |
-+   | If you did not receive a copy of the PHP license and are unable to   |
-+   | obtain it through the world-wide-web, please send a note to          |
-+   | license@php.net so we can mail you a copy immediately.               |
-+   +----------------------------------------------------------------------+
-+ */
-+
-+#include "php.h"
-+
-+PHPAPI int php_network_parse_network_address_with_port(const char *addr, zend_long addrlen, struct sockaddr *sa, socklen_t *sl)
-+{
-+	return FAILURE;
-+}
-+
-+PHPAPI int php_set_sock_blocking(int socketd, int block)
-+{
-+	return FAILURE;
-+}
-+
-+PHPAPI char *php_socket_strerror(long err, char *buf, size_t bufsize)
-+{
-+	return NULL;
-+}
-+
-+PHPAPI void _php_emit_fd_setsize_warning(int max_fd)
-+{
-+}
 diff --git a/main/php.h b/main/php.h
 index 9fe362593d..aa9443a63f 100644
 --- a/main/php.h
@@ -2025,28 +1980,6 @@ index c92b76d196..125c7ac3b5 100644
  		default:
  			zend_value_error("Unknown option %d for stream_metadata", option);
  			return 0;
-diff --git a/main/streams/streams.c b/main/streams/streams.c
-index 06117a521f..0432c4b3b6 100644
---- a/main/streams/streams.c
-+++ b/main/streams/streams.c
-@@ -1829,6 +1829,9 @@ int php_init_stream_wrappers(int module_number)
- 	zend_hash_init(php_get_stream_filters_hash_global(), 8, NULL, NULL, 1);
- 	zend_hash_init(php_stream_xport_get_hash(), 8, NULL, NULL, 1);
- 
-+#ifdef PHP_WASI
-+	return SUCCESS;
-+#else
- 	return (php_stream_xport_register("tcp", php_stream_generic_socket_factory) == SUCCESS
- 			&&
- 			php_stream_xport_register("udp", php_stream_generic_socket_factory) == SUCCESS
-@@ -1839,6 +1842,7 @@ int php_init_stream_wrappers(int module_number)
- 			php_stream_xport_register("udg", php_stream_generic_socket_factory) == SUCCESS
- #endif
- 		) ? SUCCESS : FAILURE;
-+#endif // PHP_WASI
- }
- 
- void php_shutdown_stream_wrappers(int module_number)
 diff --git a/main/unistd_wasi.c b/main/unistd_wasi.c
 new file mode 100644
 index 0000000000..dab39c0bee
@@ -2233,4 +2166,3 @@ index 0000000000..39768a093b
 +#endif // SYSLOG_H
 -- 
 2.50.1
-

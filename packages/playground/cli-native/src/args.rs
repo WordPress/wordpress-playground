@@ -7,6 +7,7 @@ use crate::{
     automount::{expand_auto_mounts, AutoMountInput, BlueprintStep},
     mount::{parse_mount_dir_arguments, parse_mount_with_delimiter_arguments, Mount},
     paths::{resolve_site_storage, SiteStorage, WordPressInstallMode},
+    php_config::PhpExtensionSelection,
     php_runtime_files::PhpConstantValue,
     CliError, Result,
 };
@@ -15,7 +16,7 @@ pub const DEFAULT_PHP_VERSION: &str = "8.2";
 pub const DEFAULT_WP_VERSION: &str = "latest";
 pub const DEFAULT_PORT: u16 = 9400;
 pub const MAX_WORKERS: usize = 256;
-pub const SUPPORTED_PHP_VERSIONS: &[&str] = &["8.2"];
+pub const SUPPORTED_PHP_VERSIONS: &[&str] = crate::assets::NATIVE_COMPONENT_PHP_VERSIONS;
 const COMMAND_NAMES: &[&str] = &["start", "server", "run-blueprint", "build-snapshot"];
 const SUPPORTED_OPTION_NAMES: &[&str] = &[
     "path",
@@ -47,9 +48,15 @@ const SUPPORTED_OPTION_NAMES: &[&str] = &[
     "quiet",
     "debug",
     "follow-symlinks",
+    "phpmyadmin",
+    "redis",
+    "no-redis",
+    "memcached",
+    "no-memcached",
+    "xdebug",
+    "no-xdebug",
 ];
 const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
-    "phpmyadmin",
     "experimental-unsafe-ide-integration",
     "experimental-devtools",
     "experimental-multi-worker",
@@ -57,9 +64,6 @@ const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
     "internal-cookie-store",
     "mode",
     "intl",
-    "redis",
-    "memcached",
-    "xdebug",
     "php-extension",
     "no-blueprint-may-read-adjacent-files",
     "no-skip-wordpress-install",
@@ -70,9 +74,6 @@ const UNSUPPORTED_NATIVE_V1_OPTION_NAMES: &[&str] = &[
     "no-experimental-trace",
     "no-internal-cookie-store",
     "no-intl",
-    "no-redis",
-    "no-memcached",
-    "no-xdebug",
     "no-experimental-devtools",
     "no-skip-browser",
     "no-reset",
@@ -212,6 +213,8 @@ pub struct CliOptions {
     pub verbosity: Verbosity,
     pub debug: bool,
     pub follow_symlinks: bool,
+    pub phpmyadmin_path: Option<String>,
+    pub extensions: PhpExtensionSelection,
     pub defined_constants: Vec<DefinedConstant>,
     pub mode: Option<String>,
     pub outfile: Option<PathBuf>,
@@ -440,6 +443,33 @@ pub fn parse_cli_args_from(args: Vec<String>, cwd: &Path) -> Result<CliOptions> 
             "follow-symlinks" => {
                 reject_value(flag, inline_value)?;
                 options.follow_symlinks = true;
+            }
+            "phpmyadmin" => {
+                options.phpmyadmin_path = Some(parse_phpmyadmin_path(&mut parser, inline_value)?);
+            }
+            "redis" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.redis = true;
+            }
+            "no-redis" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.redis = false;
+            }
+            "memcached" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.memcached = true;
+            }
+            "no-memcached" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.memcached = false;
+            }
+            "xdebug" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.xdebug = true;
+            }
+            "no-xdebug" => {
+                reject_value(flag, inline_value)?;
+                options.extensions.xdebug = false;
             }
             unsupported => {
                 if let Some(feature) = unsupported_native_v1_option(unsupported) {
@@ -682,6 +712,8 @@ fn default_options(command: CommandName, cwd: &Path) -> CliOptions {
         verbosity: Verbosity::Normal,
         debug: false,
         follow_symlinks: false,
+        phpmyadmin_path: None,
+        extensions: PhpExtensionSelection::default(),
         defined_constants: Vec::new(),
         mode: None,
         outfile: is_build_snapshot.then(|| cwd.join("wordpress.zip")),
@@ -760,7 +792,12 @@ fn supported_option_command_scope(flag: &str) -> Option<&'static [&'static str]>
     match flag {
         "path" => Some(&["start"]),
         "wp" | "php" | "site-url" | "mount" | "blueprint" | "define" | "define-bool"
-        | "define-number" => Some(&["start", "server", "run-blueprint", "build-snapshot"]),
+        | "define-number" | "phpmyadmin" => {
+            Some(&["start", "server", "run-blueprint", "build-snapshot"])
+        }
+        "redis" | "no-redis" | "memcached" | "no-memcached" | "xdebug" | "no-xdebug" => {
+            Some(&["start", "server", "run-blueprint", "build-snapshot"])
+        }
         "port" => Some(&["start", "server"]),
         "mount-before-install"
         | "mount-dir"
@@ -946,7 +983,6 @@ fn reject_value(flag: &str, value: Option<&str>) -> Result<()> {
 
 fn unsupported_native_v1_option(flag: &str) -> Option<&'static str> {
     match flag {
-        "phpmyadmin" => Some("phpMyAdmin installation"),
         "experimental-unsafe-ide-integration" => Some("unsafe IDE integration"),
         "experimental-devtools" | "no-experimental-devtools" => Some("browser devtools bridge"),
         "experimental-multi-worker" => Some("deprecated Node worker option"),
@@ -954,9 +990,6 @@ fn unsupported_native_v1_option(flag: &str) -> Option<&'static str> {
         "internal-cookie-store" | "no-internal-cookie-store" => Some("Node cookie-store mediation"),
         "mode" => Some("Blueprints v2 mode selection"),
         "intl" | "no-intl" => Some("Intl extension"),
-        "redis" | "no-redis" => Some("Redis extension"),
-        "memcached" | "no-memcached" => Some("Memcached extension"),
-        "xdebug" | "no-xdebug" => Some("Xdebug"),
         "php-extension" => Some("dynamic PHP extensions"),
         "no-blueprint-may-read-adjacent-files" => {
             Some("yargs boolean-negation alias --no-blueprint-may-read-adjacent-files")
@@ -980,6 +1013,42 @@ fn parse_port(value: &str) -> Result<u16> {
     value
         .parse::<u16>()
         .map_err(|_| CliError::new(format!("Invalid --port value \"{value}\"")))
+}
+
+fn parse_phpmyadmin_path(parser: &mut Parser, inline_value: Option<&str>) -> Result<String> {
+    let value = match inline_value {
+        Some(value) => value.to_string(),
+        None if parser.peek_is_value() => parser.required_value("phpmyadmin")?,
+        None => String::new(),
+    };
+    normalize_phpmyadmin_path(&value)
+}
+
+fn normalize_phpmyadmin_path(value: &str) -> Result<String> {
+    let value = if value.is_empty() {
+        "/phpmyadmin"
+    } else {
+        value
+    };
+    let normalized = value.trim_end_matches('/');
+    let invalid = !value.starts_with('/')
+        || value.starts_with("//")
+        || normalized.is_empty()
+        || normalized[1..].split('/').any(|segment| {
+            segment.is_empty()
+                || matches!(segment, "." | "..")
+                || segment.chars().any(|character| {
+                    character.is_control()
+                        || character.is_whitespace()
+                        || matches!(character, '?' | '#' | '\\' | '%')
+                })
+        });
+    if invalid {
+        return Err(CliError::new(format!(
+            "Invalid --phpmyadmin URL prefix \"{value}\". Provide a safe absolute URL path such as /phpmyadmin."
+        )));
+    }
+    Ok(normalized.to_string())
 }
 
 fn parse_workers(value: &str) -> Result<WorkerCount> {
@@ -1207,10 +1276,11 @@ mod tests {
     use crate::{
         args::{
             normalize_for_runtime, parse_cli_args_from, AutoMountSetting, CommandName,
-            DefinedConstantKind, RuntimeCommand, Verbosity, WorkerCount,
+            DefinedConstantKind, RuntimeCommand, Verbosity, WorkerCount, SUPPORTED_PHP_VERSIONS,
         },
         paths::persistent_site_path,
         paths::{SiteStorage, WordPressInstallMode},
+        php_config::PhpExtensionSelection,
         php_runtime_files::PhpConstantValue,
     };
 
@@ -1237,6 +1307,7 @@ mod tests {
     struct ProgrammaticOptionCompatibility {
         name: String,
         commands: Option<Vec<String>>,
+        additional_native_commands: Option<Vec<String>>,
         status: String,
         allow_false: Option<bool>,
         accepted_noop_commands: Option<Vec<String>>,
@@ -1305,6 +1376,24 @@ mod tests {
                 "invalid compatibility status {}",
                 entry.status
             );
+            if let Some(additional_commands) = entry.additional_native_commands.as_ref() {
+                assert_eq!(entry.status, "supported");
+                assert!(!additional_commands.is_empty());
+                assert_eq!(
+                    additional_commands.iter().collect::<BTreeSet<_>>().len(),
+                    additional_commands.len(),
+                    "{} has duplicate additional native commands",
+                    entry.name
+                );
+                assert!(
+                    additional_commands.iter().all(|command| entry
+                        .commands
+                        .as_ref()
+                        .is_some_and(|commands| commands.contains(command))),
+                    "{} additional native commands must be in its command scope",
+                    entry.name
+                );
+            }
             if entry.status == "unsupported-by-design" {
                 assert!(
                     entry.diagnostic.is_some(),
@@ -1355,7 +1444,7 @@ mod tests {
         }
         assert_eq!(
             allow_false_options,
-            ["internalCookieStore", "memcached", "redis"]
+            ["internalCookieStore"]
                 .into_iter()
                 .map(str::to_string)
                 .collect()
@@ -1497,6 +1586,13 @@ mod tests {
             "--quiet" => argv.push("--quiet".to_string()),
             "--debug" => argv.push("--debug".to_string()),
             "--follow-symlinks" => argv.push("--follow-symlinks".to_string()),
+            "--phpmyadmin" => argv.push("--phpmyadmin=/phpmyadmin".to_string()),
+            "--redis" => argv.push("--redis".to_string()),
+            "--no-redis" => argv.push("--no-redis".to_string()),
+            "--memcached" => argv.push("--memcached".to_string()),
+            "--no-memcached" => argv.push("--no-memcached".to_string()),
+            "--xdebug" => argv.push("--xdebug".to_string()),
+            "--no-xdebug" => argv.push("--no-xdebug".to_string()),
             "--define" => argv.extend([
                 "--define".to_string(),
                 "MATRIX_STRING".to_string(),
@@ -1945,7 +2041,6 @@ mod tests {
     fn compatibility_intentionally_unsupported_options_have_stable_errors() {
         let cwd = temp_dir("compat-unsupported-options");
         for (flag, expected) in [
-            ("--phpmyadmin", "phpMyAdmin installation"),
             (
                 "--experimental-unsafe-ide-integration=vscode",
                 "unsafe IDE integration",
@@ -1994,6 +2089,117 @@ mod tests {
         assert!(!removed
             .message()
             .contains("native runtime has no fallback implementation"));
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn parses_and_normalizes_phpmyadmin_url_prefixes() {
+        let cwd = temp_dir("phpmyadmin-path");
+
+        for command in ["start", "server", "run-blueprint", "build-snapshot"] {
+            let options = parse_cli_args_from(args(&[command, "--phpmyadmin"]), &cwd).unwrap();
+            assert_eq!(options.phpmyadmin_path.as_deref(), Some("/phpmyadmin"));
+        }
+
+        let inline =
+            parse_cli_args_from(args(&["server", "--phpmyadmin=/database-admin/"]), &cwd).unwrap();
+        assert_eq!(inline.phpmyadmin_path.as_deref(), Some("/database-admin"));
+
+        let separate = parse_cli_args_from(
+            args(&["server", "--phpmyadmin", "/database-admin///"]),
+            &cwd,
+        )
+        .unwrap();
+        assert_eq!(separate.phpmyadmin_path.as_deref(), Some("/database-admin"));
+
+        let default = parse_cli_args_from(args(&["server"]), &cwd).unwrap();
+        assert_eq!(default.phpmyadmin_path, None);
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn parses_explicit_php_extension_selection() {
+        let cwd = temp_dir("php-extension-selection");
+
+        let defaults = parse_cli_args_from(args(&["server"]), &cwd).unwrap();
+        assert_eq!(defaults.extensions, PhpExtensionSelection::default());
+
+        let enabled = parse_cli_args_from(
+            args(&["server", "--redis", "--memcached", "--xdebug"]),
+            &cwd,
+        )
+        .unwrap();
+        assert_eq!(
+            enabled.extensions,
+            PhpExtensionSelection {
+                redis: true,
+                memcached: true,
+                xdebug: true,
+            }
+        );
+
+        let disabled = parse_cli_args_from(
+            args(&[
+                "server",
+                "--redis",
+                "--no-redis",
+                "--memcached",
+                "--no-memcached",
+                "--xdebug",
+                "--no-xdebug",
+            ]),
+            &cwd,
+        )
+        .unwrap();
+        assert_eq!(disabled.extensions, PhpExtensionSelection::default());
+
+        let reenabled =
+            parse_cli_args_from(args(&["server", "--no-redis", "--redis"]), &cwd).unwrap();
+        assert!(reenabled.extensions.redis);
+
+        let value_error = parse_cli_args_from(args(&["server", "--redis=true"]), &cwd).unwrap_err();
+        assert!(value_error
+            .message()
+            .contains("--redis does not accept a value"));
+
+        let start =
+            parse_cli_args_from(args(&["start", "--redis", "--memcached", "--xdebug"]), &cwd)
+                .unwrap();
+        assert_eq!(start.extensions, enabled.extensions);
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn rejects_unsafe_phpmyadmin_url_prefixes() {
+        let cwd = temp_dir("phpmyadmin-invalid-path");
+
+        for value in [
+            "/",
+            "relative",
+            "//example.com/admin",
+            "/admin//nested",
+            "/admin/../nested",
+            "/admin/./nested",
+            "/admin?route=table",
+            "/admin#fragment",
+            "/admin\\nested",
+            "/admin%2fnested",
+            "/admin path",
+        ] {
+            let error = parse_cli_args_from(
+                vec!["server".to_string(), format!("--phpmyadmin={value}")],
+                &cwd,
+            )
+            .unwrap_err();
+            assert!(
+                error.message().contains("safe absolute URL path"),
+                "{value}: {}",
+                error.message()
+            );
+        }
 
         let _ = fs::remove_dir_all(cwd);
     }
@@ -2100,7 +2306,24 @@ mod tests {
             .to_string();
 
         assert!(error.contains("Unsupported PHP version \"5.2\""), "{error}");
-        assert!(error.contains("Supported versions: 8.2"), "{error}");
+        assert!(
+            error.contains("Supported versions: 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5"),
+            "{error}"
+        );
+
+        let _ = fs::remove_dir_all(cwd);
+    }
+
+    #[test]
+    fn accepts_every_packaged_php_version() {
+        let cwd = temp_dir("php-supported-versions");
+
+        for version in SUPPORTED_PHP_VERSIONS {
+            let options =
+                parse_cli_args_from(vec!["server".to_string(), format!("--php={version}")], &cwd)
+                    .unwrap_or_else(|error| panic!("PHP {version} should be accepted: {error}"));
+            assert_eq!(options.php, *version);
+        }
 
         let _ = fs::remove_dir_all(cwd);
     }

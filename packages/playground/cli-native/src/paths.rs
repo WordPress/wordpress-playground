@@ -35,6 +35,10 @@ impl WordPressInstallMode {
             Self::DoNotAttemptInstalling => "do-not-attempt-installing",
         }
     }
+
+    pub fn should_attempt_installing(&self) -> bool {
+        !matches!(self, Self::DoNotAttemptInstalling)
+    }
 }
 
 pub fn persistent_site_path(home_dir: &Path, site_identity_path: &Path) -> PathBuf {
@@ -95,5 +99,19 @@ mod tests {
             &[mount],
         );
         assert_eq!(storage, SiteStorage::ExplicitMount(PathBuf::from("/site")));
+    }
+
+    #[test]
+    fn only_do_not_attempt_installing_skips_database_installation() {
+        use crate::paths::WordPressInstallMode;
+
+        for mode in [
+            WordPressInstallMode::DownloadAndInstall,
+            WordPressInstallMode::InstallFromExistingFiles,
+            WordPressInstallMode::InstallFromExistingFilesIfNeeded,
+        ] {
+            assert!(mode.should_attempt_installing(), "{mode:?}");
+        }
+        assert!(!WordPressInstallMode::DoNotAttemptInstalling.should_attempt_installing());
     }
 }

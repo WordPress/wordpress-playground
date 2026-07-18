@@ -1,0 +1,44 @@
+From a2328c19780a64f8d59e6803b0d909a5c7b7cebe Mon Sep 17 00:00:00 2001
+From: WordPress Playground <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 14:15:00 +0200
+Subject: [PATCH] Retry transient WASI socket reads
+
+WASI stream readiness is advisory, so recv() may return EWOULDBLOCK after
+poll() reports a readable blocking socket. Retry through PHP's normal
+poll/read loop when the caller intended to wait. Preserve prompt returns for
+nonblocking sockets and the exact zero-timeout case.
+---
+ main/streams/xp_socket.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index 900978b28b..b7cdbcb434 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -160,6 +160,9 @@ static ssize_t php_sockop_read(php_stream *stream, char *buf, size_t count)
+ 		return -1;
+ 	}
+ 
++#ifdef PHP_WASI
++retry:
++#endif
+ 	if (sock->is_blocked) {
+ 		php_sock_stream_wait_for_data(stream, sock);
+ 		if (sock->timeout_event)
+@@ -171,6 +174,14 @@ static ssize_t php_sockop_read(php_stream *stream, char *buf, size_t count)
+ 
+ 	if (nr_bytes < 0) {
+ 		if (PHP_IS_TRANSIENT_ERROR(err)) {
++#ifdef PHP_WASI
++			/* WASI readiness is advisory. Retry only reads that were intended
++			 * to block; nonblocking and zero-timeout reads must return promptly. */
++			if (sock->is_blocked &&
++					(sock->timeout.tv_sec != 0 || sock->timeout.tv_usec != 0)) {
++				goto retry;
++			}
++#endif
+ 			nr_bytes = 0;
+ 		} else {
+ 			stream->eof = 1;
+-- 
+2.51.0

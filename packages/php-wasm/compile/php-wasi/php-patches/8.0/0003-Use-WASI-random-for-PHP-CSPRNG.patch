@@ -1,0 +1,27 @@
+From 88f8c4e205665f97ad656d31ed0857c83089ca5e Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:32:43 +0200
+Subject: [PATCH 03/11] Use WASI randomness for PHP CSPRNG
+
+---
+ ext/standard/random.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ext/standard/random.c b/ext/standard/random.c
+index 64fd63de..38cb6e5a 100644
+--- a/ext/standard/random.c
++++ b/ext/standard/random.c
+@@ -90,7 +90,9 @@ PHP_MSHUTDOWN_FUNCTION(random)
+ /* {{{ php_random_bytes */
+ PHPAPI int php_random_bytes(void *bytes, size_t size, zend_bool should_throw)
+ {
+-#ifdef PHP_WIN32
++#ifdef PHP_WASI
++	arc4random_buf(bytes, size);
++#elif defined(PHP_WIN32)
+ 	/* Defer to CryptGenRandom on Windows */
+ 	if (php_win32_get_random_bytes(bytes, size) == FAILURE) {
+ 		if (should_throw) {
+-- 
+2.50.1
+

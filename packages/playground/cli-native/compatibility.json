@@ -169,28 +169,24 @@
 		{
 			"name": "phpmyadmin",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"diagnostic": "phpMyAdmin installation"
+			"status": "supported"
 		},
 		{
 			"name": "redis",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"allowFalse": true,
-			"diagnostic": "Redis extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "memcached",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"allowFalse": true,
-			"diagnostic": "Memcached extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "xdebug",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"diagnostic": "Xdebug"
+			"status": "supported"
 		},
 		{
 			"name": "phpExtension",
@@ -409,8 +405,7 @@
 		{
 			"name": "--phpmyadmin",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "phpMyAdmin installation"
+			"status": "supported"
 		},
 		{
 			"name": "--experimental-unsafe-ide-integration",
@@ -456,21 +451,20 @@
 		},
 		{
 			"name": "--redis",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Redis extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "--memcached",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Memcached extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "--xdebug",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Xdebug"
+			"status": "supported"
 		},
 		{
 			"name": "--php-extension",
@@ -534,21 +528,20 @@
 		},
 		{
 			"name": "--no-redis",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Redis extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "--no-memcached",
-			"commands": ["server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Memcached extension"
+			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
+			"additionalNativeCommands": ["start"],
+			"status": "supported"
 		},
 		{
 			"name": "--no-xdebug",
 			"commands": ["start", "server", "run-blueprint", "build-snapshot"],
-			"status": "unsupported-by-design",
-			"errorContains": "Xdebug"
+			"status": "supported"
 		},
 		{
 			"name": "--no-experimental-devtools",

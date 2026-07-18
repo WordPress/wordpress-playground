@@ -229,7 +229,11 @@ static void register_entries(zval *array, const request_entry_t *entries,
 	}
 }
 
+#if PHP_VERSION_ID < 80000
+static char *component_getenv(char *name, size_t name_len)
+#else
 static char *component_getenv(const char *name, size_t name_len)
+#endif
 {
 	for (size_t i = 0; i < current_request.env_count; i++) {
 		request_entry_t *entry = &current_request.env[i];
@@ -325,7 +329,11 @@ static int component_send_headers(sapi_headers_struct *headers)
 	return SAPI_HEADER_SENT_SUCCESSFULLY;
 }
 
+#if PHP_VERSION_ID < 80000
+static void component_log(char *message, int syslog_type)
+#else
 static void component_log(const char *message, int syslog_type)
+#endif
 {
 	(void) syslog_type;
 	emit(WORDPRESS_PHP_WASI_OUTPUT_CHANNEL_STDERR, message, strlen(message));
@@ -334,7 +342,11 @@ static void component_log(const char *message, int syslog_type)
 
 static int component_startup(sapi_module_struct *module)
 {
+#if PHP_VERSION_ID < 80200
+	return php_module_startup(module, NULL, 0);
+#else
 	return php_module_startup(module, NULL);
+#endif
 }
 
 static int component_shutdown(sapi_module_struct *module)
@@ -563,21 +575,12 @@ bool exports_wordpress_php_wasi_handler_handle_request(
 		exit_status = 255;
 	} zend_end_try();
 
-	/* Header-only responses (notably WordPress redirects followed by exit)
-	 * never reach component_write(), so flush their status and cookies before
-	 * request shutdown tears down the SAPI header list. */
-	if (request_started && !SG(headers_sent)) {
-		zend_first_try {
-			if (sapi_send_headers() == FAILURE) {
-				exit_status = 255;
-			}
-		} zend_catch {
-			bailed_out = true;
-			exit_status = 255;
-		} zend_end_try();
-	}
-
 	if (request_started) {
+		/* php_request_shutdown() first runs user shutdown callbacks and then
+		 * deactivates the output layer, which sends even header-only responses.
+		 * Sending here would commit the response before callbacks (including
+		 * phpMyAdmin's renderer) have had their standard opportunity to add
+		 * headers. */
 		zend_first_try {
 			php_request_shutdown(NULL);
 		} zend_catch {

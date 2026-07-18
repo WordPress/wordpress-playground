@@ -42,6 +42,9 @@ grep -Fiqx 'X-Header-Only: yes' "$TMP/header-only-headers-normalized"
 
 [[ "$(curl -sS "$BASE_URL/random.php")" == '513:in-range:valid:email-valid' ]]
 
+[[ "$(curl -sS -c "$TMP/session-cookies" -b "$TMP/session-cookies" "$BASE_URL/extensions.php")" == 'ctype:session:1' ]]
+[[ "$(curl -sS -c "$TMP/session-cookies" -b "$TMP/session-cookies" "$BASE_URL/extensions.php")" == 'ctype:session:2' ]]
+
 [[ "$(curl -sS "$BASE_URL/sqlite-lock.php")" == 1 ]]
 for worker in 1 2; do
 	(
@@ -54,4 +57,4 @@ wait
 counts=$(printf '%s\n%s\n' "$(<"$TMP/lock-1-body")" "$(<"$TMP/lock-2-body")" | sort -n | tr '\n' ' ')
 [[ "$counts" == '2 3 ' ]]
 
-echo 'PHP WASI smoke tests passed: persistent bailout recovery, redirects/header-only responses, temp files, CSPRNG/password hashing, PDO SQLite, and concurrent locks'
+echo 'PHP WASI smoke tests passed: persistent bailout recovery, redirects/header-only responses, temp files, ctype/sessions, CSPRNG/password hashing, PDO SQLite, and concurrent locks'

@@ -1,0 +1,36 @@
+From 77b201c969513a086fd221c737887b751de5418a Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:29:33 +0200
+Subject: [PATCH 10/11] Port WASI compatibility patch 0011
+
+---
+ main/network.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/main/network.c b/main/network.c
+index af509dbb..e9231572 100644
+--- a/main/network.c
++++ b/main/network.c
+@@ -1251,7 +1251,7 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+ }
+ #endif
+ 
+-#if defined(HAVE_GETHOSTBYNAME_R)
++#if defined(HAVE_GETHOSTBYNAME_R) && !defined(PHP_WASI)
+ #ifdef HAVE_FUNC_GETHOSTBYNAME_R_6
+ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char **tmphstbuf,size_t *hstbuflen)
+ {
+@@ -1323,7 +1323,9 @@ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char *
+ #endif
+ 
+ PHPAPI struct hostent*	php_network_gethostbyname(const char *name) {
+-#if !defined(HAVE_GETHOSTBYNAME_R)
++#if defined(PHP_WASI)
++	return NULL;
++#elif !defined(HAVE_GETHOSTBYNAME_R)
+ 	return gethostbyname(name);
+ #else
+ 	if (FG(tmp_host_buf)) {
+-- 
+2.50.1
+

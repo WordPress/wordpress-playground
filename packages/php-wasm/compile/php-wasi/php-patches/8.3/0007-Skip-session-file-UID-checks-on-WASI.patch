@@ -1,0 +1,25 @@
+From 3c813cb38415d9f14b192922ae3e8324857c452e Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 03:57:58 +0200
+Subject: [PATCH 07/10] Skip session file UID checks on WASI
+
+---
+ ext/session/mod_files.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ext/session/mod_files.c b/ext/session/mod_files.c
+index 74e77973..2773250c 100644
+--- a/ext/session/mod_files.c
++++ b/ext/session/mod_files.c
+@@ -190,7 +190,7 @@ static void ps_files_open(ps_files *data, /* const */ zend_string *key)
+ #endif
+ 
+ 		if (data->fd != -1) {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 			/* check that this session file was created by us or root – we
+ 			   don't want to end up accepting the sessions of another webapp
+ 
+-- 
+2.50.1
+

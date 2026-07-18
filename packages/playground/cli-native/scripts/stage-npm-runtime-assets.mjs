@@ -3,6 +3,8 @@
 import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
+import { verifyPortablePhpAssets } from './portable-php-assets.mjs';
+
 function parseArguments(argv) {
 	const values = new Map();
 	for (let index = 0; index < argv.length; index += 2) {
@@ -64,11 +66,9 @@ async function main() {
 			`npm runtime assets unexpectedly contain .cwasm: ${forbidden.join(', ')}`
 		);
 	}
-	if (!files.some((path) => path.endsWith('php-wasi-component.wasm'))) {
-		throw new Error(
-			'npm runtime assets do not contain the PHP WASIp2 component'
-		);
-	}
+	const phpAssets = await verifyPortablePhpAssets(destinationAssets, {
+		forbidWasmtime: true,
+	});
 	if (
 		!files.some((path) =>
 			path.endsWith('sqlite-database-integration-trunk.zip')
@@ -79,7 +79,7 @@ async function main() {
 		);
 	}
 	process.stdout.write(
-		`${JSON.stringify({ assetRoot: destinationAssets, files })}\n`
+		`${JSON.stringify({ assetRoot: destinationAssets, files, phpVersions: phpAssets.versions })}\n`
 	);
 }
 

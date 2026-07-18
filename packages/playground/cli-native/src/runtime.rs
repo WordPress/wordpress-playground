@@ -12,8 +12,9 @@ use wasmtime::{
 
 use crate::{
     assets::{
-        find_php_assets_manifest, load_php_assets_manifest, select_php_asset, verify_file_asset,
-        AssetManifest, PhpAsset,
+        find_php_assets_manifest, load_php_assets_manifest, select_php_asset,
+        select_php_component_asset, verify_file_asset, AssetManifest, PhpAsset, PhpComponentAsset,
+        PhpComponentVariant,
     },
     CliError, Result,
 };
@@ -36,7 +37,13 @@ pub struct NativeRuntime {
     manifest: AssetManifest,
     engine: Engine,
     profile: WasmEngineProfile,
-    artifact_cache: Mutex<HashMap<String, CompiledPhpArtifact>>,
+    artifact_cache: Mutex<HashMap<PhpArtifactCacheKey, CompiledPhpArtifact>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct PhpArtifactCacheKey {
+    php_version: String,
+    variant: PhpComponentVariant,
 }
 
 pub type CompiledPhpArtifact = Component;
@@ -55,6 +62,7 @@ pub(crate) struct InterruptiblePhpArtifact(pub(crate) Component);
 pub(crate) struct LazyInterruptiblePhpArtifact {
     wasm_path: PathBuf,
     php_version: String,
+    variant: PhpComponentVariant,
     profile: WasmEngineProfile,
     artifact: Mutex<Option<InterruptiblePhpArtifact>>,
 }
@@ -74,8 +82,9 @@ impl LazyInterruptiblePhpArtifact {
         let engine = wasm_engine_for_target_with_epoch_interruption(self.profile, None, true)?;
         let component = Component::from_file(&engine, &self.wasm_path).map_err(|error| {
             CliError::new(format!(
-                "Failed to compile interruptible PHP {} WASIp2 component {}: {error}",
+                "Failed to compile interruptible PHP {} {} WASIp2 component {}: {error}",
                 self.php_version,
+                self.variant,
                 self.wasm_path.display(),
             ))
         })?;
@@ -156,23 +165,35 @@ impl NativeRuntime {
     }
 
     pub fn php_artifact(&self, php_version: &str) -> Result<CompiledPhpArtifact> {
+        self.php_artifact_for_variant(php_version, PhpComponentVariant::Base)
+    }
+
+    pub fn php_artifact_for_variant(
+        &self,
+        php_version: &str,
+        variant: PhpComponentVariant,
+    ) -> Result<CompiledPhpArtifact> {
+        let cache_key = PhpArtifactCacheKey {
+            php_version: php_version.to_string(),
+            variant,
+        };
         if let Some(artifact) = self
             .artifact_cache
             .lock()
             .map_err(|_| CliError::new("PHP artifact cache lock was poisoned"))?
-            .get(php_version)
+            .get(&cache_key)
             .cloned()
         {
             return Ok(artifact);
         }
 
-        self.verify_php_asset(php_version)?;
-        let asset = self.php_asset(php_version)?;
-        let artifact = self.load_php_artifact(php_version, asset)?;
+        self.verify_php_asset_for_variant(php_version, variant)?;
+        let asset = self.php_component_asset(php_version, variant)?;
+        let artifact = self.load_php_artifact(php_version, variant, asset)?;
         self.artifact_cache
             .lock()
             .map_err(|_| CliError::new("PHP artifact cache lock was poisoned"))?
-            .insert(php_version.to_string(), artifact.clone());
+            .insert(cache_key, artifact.clone());
         release_unused_process_memory();
         Ok(artifact)
     }
@@ -180,12 +201,14 @@ impl NativeRuntime {
     pub(crate) fn lazy_interruptible_php_artifact(
         &self,
         php_version: &str,
+        variant: PhpComponentVariant,
     ) -> Result<LazyInterruptiblePhpArtifact> {
-        self.verify_php_asset(php_version)?;
-        let asset = self.php_asset(php_version)?;
+        self.verify_php_asset_for_variant(php_version, variant)?;
+        let asset = self.php_component_asset(php_version, variant)?;
         Ok(LazyInterruptiblePhpArtifact {
             wasm_path: self.repo_root.join(&asset.wasm.path),
             php_version: php_version.to_string(),
+            variant,
             profile: self.profile,
             artifact: Mutex::new(None),
         })
@@ -194,7 +217,8 @@ impl NativeRuntime {
     fn load_php_artifact(
         &self,
         php_version: &str,
-        asset: &PhpAsset,
+        variant: PhpComponentVariant,
+        asset: &PhpComponentAsset,
     ) -> Result<CompiledPhpArtifact> {
         if self.profile == WasmEngineProfile::Optimized {
             if let Some(wasmtime) = &asset.wasmtime {
@@ -203,7 +227,7 @@ impl NativeRuntime {
                     Ok(artifact) => return Ok(artifact),
                     Err(error) => {
                         eprintln!(
-                            "warning: failed to load precompiled PHP {php_version} Wasmtime artifact {}; falling back to wasm compilation: {error}",
+                            "warning: failed to load precompiled PHP {php_version} {variant} Wasmtime artifact {}; falling back to wasm compilation: {error}",
                             wasmtime_path.display()
                         );
                     }
@@ -211,7 +235,7 @@ impl NativeRuntime {
             }
         }
 
-        self.compile_php_component(php_version, asset)
+        self.compile_php_component(php_version, variant, asset)
     }
 
     fn deserialize_php_artifact(&self, path: &Path) -> Result<CompiledPhpArtifact> {
@@ -222,12 +246,13 @@ impl NativeRuntime {
     fn compile_php_component(
         &self,
         php_version: &str,
-        asset: &PhpAsset,
+        variant: PhpComponentVariant,
+        asset: &PhpComponentAsset,
     ) -> Result<CompiledPhpArtifact> {
         let wasm_path = self.repo_root.join(&asset.wasm.path);
         Component::from_file(&self.engine, &wasm_path).map_err(|error| {
             CliError::new(format!(
-                "Failed to compile PHP {php_version} WASIp2 component {}: {error}",
+                "Failed to compile PHP {php_version} {variant} WASIp2 component {}: {error}",
                 wasm_path.display(),
             ))
         })
@@ -237,8 +262,24 @@ impl NativeRuntime {
         select_php_asset(&self.manifest, php_version)
     }
 
+    pub fn php_component_asset(
+        &self,
+        php_version: &str,
+        variant: PhpComponentVariant,
+    ) -> Result<&PhpComponentAsset> {
+        select_php_component_asset(&self.manifest, php_version, variant)
+    }
+
     pub fn verify_php_asset(&self, php_version: &str) -> Result<()> {
-        let asset = self.php_asset(php_version)?;
+        self.verify_php_asset_for_variant(php_version, PhpComponentVariant::Base)
+    }
+
+    pub fn verify_php_asset_for_variant(
+        &self,
+        php_version: &str,
+        variant: PhpComponentVariant,
+    ) -> Result<()> {
+        let asset = self.php_component_asset(php_version, variant)?;
         verify_file_asset(&self.repo_root, &asset.wasm)?;
         if let Some(wasmtime) = &asset.wasmtime {
             verify_file_asset(&self.repo_root, wasmtime)?;
@@ -620,6 +661,8 @@ mod component_tests {
 
     use wasmtime::{component::Linker, Engine, Store};
 
+    use crate::assets::{sha256_file, PhpComponentVariant, NATIVE_COMPONENT_PHP_VERSIONS};
+
     use super::{
         asset_root_candidates_from_exe, memory_guaranteed_dense_image_size,
         parse_wasmtime_profiling, precompile_wasm_component, uses_windows_unwind_info, wasm_engine,
@@ -628,11 +671,18 @@ mod component_tests {
     };
 
     #[test]
-    fn checked_in_runtime_selects_only_the_php_82_component() {
+    fn checked_in_runtime_selects_every_supported_php_component() {
         let runtime = NativeRuntime::from_repo_root(super::asset_root_from_manifest_dir()).unwrap();
-        assert_eq!(runtime.manifest().php.len(), 1);
-        assert_eq!(runtime.php_asset("8.2").unwrap().version, "8.2");
-        assert!(runtime.php_asset("8.3").is_err());
+        assert_eq!(
+            runtime.manifest().php.len(),
+            NATIVE_COMPONENT_PHP_VERSIONS.len()
+        );
+        for version in NATIVE_COMPONENT_PHP_VERSIONS {
+            let asset = runtime.php_asset(version).unwrap();
+            assert_eq!(asset.version, *version);
+            assert!(asset.extended.is_some());
+        }
+        assert!(runtime.php_asset("8.6").is_err());
     }
 
     #[test]
@@ -666,6 +716,7 @@ mod component_tests {
         let artifact = LazyInterruptiblePhpArtifact {
             wasm_path,
             php_version: "test".to_string(),
+            variant: PhpComponentVariant::Base,
             profile: WasmEngineProfile::FastStartup,
             artifact: Default::default(),
         };
@@ -677,6 +728,57 @@ mod component_tests {
         assert!(Engine::same(first.0.engine(), second.0.engine()));
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn base_and_extended_components_have_distinct_cache_entries() {
+        let root = temp_dir("variant-cache");
+        let manifest_dir = root.join("assets");
+        fs::create_dir_all(&manifest_dir).unwrap();
+        let base_path = root.join("base.wasm");
+        let extended_path = root.join("extended.wasm");
+        fs::write(&base_path, b"(component)").unwrap();
+        fs::write(&extended_path, b"(component)").unwrap();
+        fs::write(
+            manifest_dir.join("php-assets.json"),
+            format!(
+                r#"{{
+                    "schemaVersion": 2,
+                    "runtime": "wasip2-component",
+                    "php": {{
+                        "8.2": {{
+                            "wasm": {{ "path": "base.wasm", "sha256": "{}" }},
+                            "variants": {{
+                                "extended": {{
+                                    "wasm": {{ "path": "extended.wasm", "sha256": "{}" }}
+                                }}
+                            }}
+                        }}
+                    }}
+                }}"#,
+                sha256_file(&base_path).unwrap(),
+                sha256_file(&extended_path).unwrap(),
+            ),
+        )
+        .unwrap();
+
+        let runtime = NativeRuntime::from_asset_root(&root).unwrap();
+        runtime.php_artifact("8.2").unwrap();
+        runtime
+            .php_artifact_for_variant("8.2", PhpComponentVariant::Extended)
+            .unwrap();
+        let cached_variants = runtime
+            .artifact_cache
+            .lock()
+            .unwrap()
+            .keys()
+            .map(|key| key.variant)
+            .collect::<Vec<_>>();
+        assert_eq!(cached_variants.len(), 2);
+        assert!(cached_variants.contains(&PhpComponentVariant::Base));
+        assert!(cached_variants.contains(&PhpComponentVariant::Extended));
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

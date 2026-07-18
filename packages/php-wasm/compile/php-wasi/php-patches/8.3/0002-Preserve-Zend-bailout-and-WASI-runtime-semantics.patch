@@ -1,0 +1,611 @@
+From 42db2a5158eb5a785a3186deba2db17508c84081 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 03:54:56 +0200
+Subject: [PATCH 02/10] Preserve Zend bailout and WASI runtime semantics
+
+---
+ Zend/zend.c                         |  4 ----
+ Zend/zend.h                         | 12 ----------
+ Zend/zend_fibers.c                  |  6 -----
+ Zend/zend_fibers_wasi.c             |  1 +
+ Zend/zend_globals.h                 |  4 ----
+ Zend/zend_virtual_cwd_wasi.c        |  4 ++++
+ Zend/zend_wasi.c                    | 15 ++++--------
+ configure.ac                        | 17 +++++++++----
+ ext/standard/basic_functions.c      |  4 +++-
+ ext/standard/basic_functions_wasi.c |  4 +++-
+ ext/standard/config.m4              |  2 +-
+ ext/standard/exec_wasi.c            |  2 ++
+ ext/standard/file_wasi.c            |  3 +++
+ ext/standard/filestat_wasi.c        |  3 +++
+ ext/standard/flock_wasi.c           |  2 ++
+ ext/standard/mail_wasi.c            |  1 +
+ ext/standard/php_fopen_wrapper.c    | 37 +++++++++++++++++++++++++++++
+ main/php_open_temporary_file.c      | 30 ++++++++++++++++++-----
+ main/php_open_temporary_file_wasi.c | 16 ++++---------
+ 19 files changed, 107 insertions(+), 60 deletions(-)
+
+diff --git a/Zend/zend.c b/Zend/zend.c
+index 3c3b4810..e10df10c 100644
+--- a/Zend/zend.c
++++ b/Zend/zend.c
+@@ -802,9 +802,7 @@ static void executor_globals_ctor(zend_executor_globals *executor_globals) /* {{
+ #endif
+ 	executor_globals->saved_fpu_cw_ptr = NULL;
+ 	executor_globals->active = 0;
+-#ifndef PHP_WASI
+ 	executor_globals->bailout = NULL;
+-#endif // PHP_WASI
+ 	executor_globals->error_handling  = EH_NORMAL;
+ 	executor_globals->exception_class = NULL;
+ 	executor_globals->exception = NULL;
+@@ -1200,7 +1198,6 @@ ZEND_COLD void zenderror(const char *error) /* {{{ */
+ }
+ /* }}} */
+ 
+-#ifndef PHP_WASI
+ ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename, uint32_t lineno) /* {{{ */
+ {
+ 
+@@ -1217,7 +1214,6 @@ ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename, uint32
+ 	LONGJMP(*EG(bailout), FAILURE);
+ }
+ /* }}} */
+-#endif // PHP_WASI
+ 
+ ZEND_API size_t zend_get_page_size(void)
+ {
+diff --git a/Zend/zend.h b/Zend/zend.h
+index 5ee90b44..a1f5610c 100644
+--- a/Zend/zend.h
++++ b/Zend/zend.h
+@@ -262,7 +262,6 @@ typedef size_t (*zend_write_func_t)(const char *str, size_t str_length);
+ 
+ #define zend_bailout()		_zend_bailout(__FILE__, __LINE__)
+ 
+-#ifndef PHP_WASI
+ #define zend_try												\
+ 	{															\
+ 		JMP_BUF *__orig_bailout = EG(bailout);					\
+@@ -279,17 +278,6 @@ typedef size_t (*zend_write_func_t)(const char *str, size_t str_length);
+ 	}
+ #define zend_first_try		EG(bailout)=NULL;	zend_try
+ 
+-#else // PHP_WASI
+-#define zend_try												\
+-	{															\
+-		if (1) {
+-#define zend_catch												\
+-		} else {
+-#define zend_end_try()											\
+-		}														\
+-	}
+-#define zend_first_try		zend_try
+-#endif // PHP_WASI
+ 
+ 
+ BEGIN_EXTERN_C()
+diff --git a/Zend/zend_fibers.c b/Zend/zend_fibers.c
+index a9861f3f..407f506f 100644
+--- a/Zend/zend_fibers.c
++++ b/Zend/zend_fibers.c
+@@ -111,9 +111,7 @@ typedef struct _zend_fiber_vm_state {
+ 	zend_execute_data *current_execute_data;
+ 	int error_reporting;
+ 	uint32_t jit_trace_num;
+-#ifndef PHP_WASI
+ 	JMP_BUF *bailout;
+-#endif // PHP_WASI
+ 	zend_fiber *active_fiber;
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	void *stack_base;
+@@ -130,9 +128,7 @@ static zend_always_inline void zend_fiber_capture_vm_state(zend_fiber_vm_state *
+ 	state->current_execute_data = EG(current_execute_data);
+ 	state->error_reporting = EG(error_reporting);
+ 	state->jit_trace_num = EG(jit_trace_num);
+-#ifndef PHP_WASI
+ 	state->bailout = EG(bailout);
+-#endif // PHP_WASI
+ 	state->active_fiber = EG(active_fiber);
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	state->stack_base = EG(stack_base);
+@@ -149,9 +145,7 @@ static zend_always_inline void zend_fiber_restore_vm_state(zend_fiber_vm_state *
+ 	EG(current_execute_data) = state->current_execute_data;
+ 	EG(error_reporting) = state->error_reporting;
+ 	EG(jit_trace_num) = state->jit_trace_num;
+-#ifndef PHP_WASI
+ 	EG(bailout) = state->bailout;
+-#endif // PHP_WASI
+ 	EG(active_fiber) = state->active_fiber;
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	EG(stack_base) = state->stack_base;
+diff --git a/Zend/zend_fibers_wasi.c b/Zend/zend_fibers_wasi.c
+index bbfb4654..f50ff81c 100644
+--- a/Zend/zend_fibers_wasi.c
++++ b/Zend/zend_fibers_wasi.c
+@@ -15,6 +15,7 @@
+ */
+ 
+ #include "zend.h"
++#include "zend_exceptions.h"
+ #include "zend_fibers.h"
+ 
+ ZEND_API zend_result zend_fiber_init_context(zend_fiber_context *context, void *kind, zend_fiber_coroutine coroutine, size_t stack_size)
+diff --git a/Zend/zend_globals.h b/Zend/zend_globals.h
+index e6c2c96d..8900a5f4 100644
+--- a/Zend/zend_globals.h
++++ b/Zend/zend_globals.h
+@@ -21,9 +21,7 @@
+ #define ZEND_GLOBALS_H
+ 
+ 
+-#ifndef PHP_WASI
+ #include <setjmp.h>
+-#endif
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+@@ -176,9 +174,7 @@ struct _zend_executor_globals {
+ 
+ 	HashTable included_files;	/* files already included */
+ 
+-#ifndef PHP_WASI
+ 	JMP_BUF *bailout;
+-#endif
+ 
+ 	int error_reporting;
+ 	int exit_status;
+diff --git a/Zend/zend_virtual_cwd_wasi.c b/Zend/zend_virtual_cwd_wasi.c
+index 576b9aad..3684a8cb 100644
+--- a/Zend/zend_virtual_cwd_wasi.c
++++ b/Zend/zend_virtual_cwd_wasi.c
+@@ -14,21 +14,25 @@
+ 
+ #include "zend.h"
+ #include "zend_virtual_cwd.h"
++#include <errno.h>
+ 
+ CWD_API int virtual_chmod(const char *filename, mode_t mode) /* {{{ */
+ {
++	errno = ENOTSUP;
+   return -1;
+ }
+ /* }}} */
+ 
+ CWD_API int virtual_chown(const char *filename, uid_t owner, gid_t group, int link) /* {{{ */
+ {
++	errno = ENOTSUP;
+   return -1;
+ }
+ /* }}} */
+ 
+ CWD_API FILE *virtual_popen(const char *command, const char *type) /* {{{ */
+ {
++	errno = ENOTSUP;
+   return NULL;
+ }
+ /* }}} */
+diff --git a/Zend/zend_wasi.c b/Zend/zend_wasi.c
+index ec5c6f90..ff8cfb62 100644
+--- a/Zend/zend_wasi.c
++++ b/Zend/zend_wasi.c
+@@ -14,13 +14,8 @@
+    +----------------------------------------------------------------------+
+ */
+ 
+-#include "zend.h"
+-
+-ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename,
+-                                                    uint32_t lineno) /* {{{ */
+-{
+-  // Not implemented yet, as WebAssembly has no stack switching
+-  // feature implementation at this point.
+-	zend_throw_exception(NULL, "Exception bailout is not supported yet on this platform (wasm32-wasi)", 0);
+-}
+-/* }}} */
++/*
++ * Zend bailout is implemented by the regular Zend/zend.c code. The build
++ * enables LLVM's WebAssembly SJLJ lowering, so this target preserves the same
++ * non-local control flow contract as native PHP.
++ */
+diff --git a/configure.ac b/configure.ac
+index a1432d92..70c0f50d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -377,8 +377,17 @@ PHP_CHECK_FUNC(socketpair, socket, network)
+ PHP_CHECK_FUNC(htonl, socket, network)
+ PHP_CHECK_FUNC(gethostname, nsl, network)
+ PHP_CHECK_FUNC(gethostbyaddr, nsl, network)
+-PHP_CHECK_FUNC(dlopen, dl, root)
+-PHP_CHECK_FUNC(dlsym, dl, root)
++case $host_alias in
++  wasm32*-wasi*)
++    dnl WASI components are statically linked and cannot load native DSOs.
++    ac_cv_func_dlopen=no
++    ac_cv_func_dlsym=no
++    ;;
++  *)
++    PHP_CHECK_FUNC(dlopen, dl, root)
++    PHP_CHECK_FUNC(dlsym, dl, root)
++    ;;
++esac
+ if test "$ac_cv_func_dlopen" = "yes"; then
+   AC_DEFINE(HAVE_LIBDL, 1, [ ])
+ fi
+@@ -1744,7 +1753,7 @@ PHP_ADD_SOURCES(main, main.c snprintf.c spprintf.c \
+        output.c getopt.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ 
+ if test "$WASI" = "yes"; then
+-	 PHP_ADD_SOURCES(main, fastcgi_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c,)
++	 PHP_ADD_SOURCES(main, unistd_wasi.c,)
+ else
+ 	 PHP_ADD_SOURCES(main, php_syslog.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ 	 PHP_ADD_SOURCES_X(main, fastcgi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, PHP_FASTCGI_OBJS, no)
+@@ -1797,7 +1806,7 @@ PHP_ADD_SOURCES(Zend, \
+     , -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ 
+ if test "$WASI" = "yes"; then
+-  PHP_ADD_SOURCES(Zend, zend_wasi.c zend_fibers_wasi.c zend_virtual_cwd_wasi.c,)
++  PHP_ADD_SOURCES(Zend, zend_fibers_wasi.c zend_virtual_cwd_wasi.c,)
+ fi
+ 
+ PHP_ADD_BUILD_DIR(main main/streams)
+diff --git a/ext/standard/basic_functions.c b/ext/standard/basic_functions.c
+index 8bf79fbc..9e61f6a3 100644
+--- a/ext/standard/basic_functions.c
++++ b/ext/standard/basic_functions.c
+@@ -435,9 +435,11 @@ PHP_RSHUTDOWN_FUNCTION(basic) /* {{{ */
+ 	tsrm_env_unlock();
+ #endif
+ 
++#ifndef PHP_WASI
+ 	if (BG(umask) != -1) {
+ 		umask(BG(umask));
+ 	}
++#endif
+ 
+ 	/* Check if locale was changed and change it back
+ 	 * to the value in startup environment */
+@@ -2378,7 +2380,7 @@ PHP_FUNCTION(move_uploaded_file)
+ 	size_t path_len, new_path_len;
+ 	bool successful = 0;
+ 
+-#if !defined(PHP_WIN32)
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 	int oldmask; int ret;
+ #endif
+ 
+diff --git a/ext/standard/basic_functions_wasi.c b/ext/standard/basic_functions_wasi.c
+index e8bf6523..74008281 100644
+--- a/ext/standard/basic_functions_wasi.c
++++ b/ext/standard/basic_functions_wasi.c
+@@ -13,7 +13,9 @@
+  */
+ 
+ #include <sys/types.h>
++#include <errno.h>
+ 
+ mode_t umask(mode_t mask) {
+-	return 0;
++	errno = ENOTSUP;
++	return (mode_t) -1;
+ }
+diff --git a/ext/standard/config.m4 b/ext/standard/config.m4
+index 1f9f0e9a..99bd495c 100644
+--- a/ext/standard/config.m4
++++ b/ext/standard/config.m4
+@@ -463,7 +463,7 @@ PHP_NEW_EXTENSION(standard, array.c base64.c basic_functions.c browscap.c crc32.
+ PHP_ADD_BUILD_DIR($ext_builddir/libavifinfo)
+ 
+ if test "$WASI" = "yes"; then
+-   PHP_ADD_SOURCES(ext/standard, basic_functions_wasi.c exec_wasi.c file_wasi.c filestat_wasi.c flock_wasi.c mail_wasi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
++   PHP_ADD_SOURCES(ext/standard, exec_wasi.c file_wasi.c filestat_wasi.c flock_wasi.c mail_wasi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ else
+    PHP_ADD_SOURCES(ext/standard, dns.c flock_compat.c ftp_fopen_wrapper.c http_fopen_wrapper.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+ fi
+diff --git a/ext/standard/exec_wasi.c b/ext/standard/exec_wasi.c
+index ac3c0a5c..419ca1a8 100644
+--- a/ext/standard/exec_wasi.c
++++ b/ext/standard/exec_wasi.c
+@@ -16,12 +16,14 @@
+ 
+ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Process execution is not supported by this WASI component");
+ 	return -1;
+ }
+ /* }}} */
+ 
+ PHPAPI void php_shell_exec_ex(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Shell execution is not supported by this WASI component");
+ 	RETURN_FALSE;
+ }
+ /* }}} */
+diff --git a/ext/standard/file_wasi.c b/ext/standard/file_wasi.c
+index 961d47e7..5ee87890 100644
+--- a/ext/standard/file_wasi.c
++++ b/ext/standard/file_wasi.c
+@@ -16,12 +16,15 @@
+ 
+ PHPAPI void php_popen(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Process pipes are not supported by this WASI component");
+ 	RETURN_FALSE;
+ }
+ /* }}} */
+ 
+ PHPAPI void php_umask(INTERNAL_FUNCTION_PARAMETERS)  /* {{{ */
+ {
++	/* WASI capability filesystems have no process umask. Report the deterministic
++	 * effective mask instead of violating umask()'s declared integer return type. */
+ 	RETURN_LONG(0);
+ }
+ /* }}} */
+diff --git a/ext/standard/filestat_wasi.c b/ext/standard/filestat_wasi.c
+index 6dda5778..b16a822e 100644
+--- a/ext/standard/filestat_wasi.c
++++ b/ext/standard/filestat_wasi.c
+@@ -16,18 +16,21 @@
+ 
+ PHPAPI void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Changing file ownership is not supported by WASI capability filesystems");
+ 	RETURN_FALSE;
+ }
+ /* }}} */
+ 
+ PHPAPI void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Changing file ownership is not supported by WASI capability filesystems");
+ 	RETURN_FALSE;
+ }
+ /* }}} */
+ 
+ PHPAPI void php_do_chmod(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
++	php_error_docref(NULL, E_WARNING, "Changing file modes is not supported by WASI capability filesystems");
+ 	RETURN_FALSE;
+ }
+ /* }}} */
+diff --git a/ext/standard/flock_wasi.c b/ext/standard/flock_wasi.c
+index 49df6d22..7705bc02 100644
+--- a/ext/standard/flock_wasi.c
++++ b/ext/standard/flock_wasi.c
+@@ -15,8 +15,10 @@
+ */
+ 
+ #include "php.h"
++#include <errno.h>
+ 
+ PHPAPI int flock(int fd, int operation)
+ {
++	errno = ENOTSUP;
+ 	return -1;
+ }
+diff --git a/ext/standard/mail_wasi.c b/ext/standard/mail_wasi.c
+index 1da5d64a..08e466cb 100644
+--- a/ext/standard/mail_wasi.c
++++ b/ext/standard/mail_wasi.c
+@@ -18,5 +18,6 @@
+ 
+ PHPAPI int php_mail(const char *to, const char *subject, const char *message, const char *headers, const char *extra_cmd)
+ {
++	php_error_docref(NULL, E_WARNING, "mail transport is not configured for this WASI component");
+ 	return 0;
+ }
+diff --git a/ext/standard/php_fopen_wrapper.c b/ext/standard/php_fopen_wrapper.c
+index 5c424fa9..69f7446a 100644
+--- a/ext/standard/php_fopen_wrapper.c
++++ b/ext/standard/php_fopen_wrapper.c
+@@ -246,13 +246,21 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 			static int cli_in = 0;
+ 			fd = STDIN_FILENO;
+ 			if (cli_in) {
++#ifdef PHP_WASI
++				fd = STDIN_FILENO;
++#else
+ 				fd = dup(fd);
++#endif
+ 			} else {
+ 				cli_in = 1;
+ 				file = stdin;
+ 			}
+ 		} else {
++#ifdef PHP_WASI
++			fd = STDIN_FILENO;
++#else
+ 			fd = dup(STDIN_FILENO);
++#endif
+ 		}
+ #ifdef PHP_WIN32
+ 		pipe_requested = 1;
+@@ -262,13 +270,21 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 			static int cli_out = 0;
+ 			fd = STDOUT_FILENO;
+ 			if (cli_out++) {
++#ifdef PHP_WASI
++				fd = STDOUT_FILENO;
++#else
+ 				fd = dup(fd);
++#endif
+ 			} else {
+ 				cli_out = 1;
+ 				file = stdout;
+ 			}
+ 		} else {
++#ifdef PHP_WASI
++			fd = STDOUT_FILENO;
++#else
+ 			fd = dup(STDOUT_FILENO);
++#endif
+ 		}
+ #ifdef PHP_WIN32
+ 		pipe_requested = 1;
+@@ -278,13 +294,21 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 			static int cli_err = 0;
+ 			fd = STDERR_FILENO;
+ 			if (cli_err++) {
++#ifdef PHP_WASI
++				fd = STDERR_FILENO;
++#else
+ 				fd = dup(fd);
++#endif
+ 			} else {
+ 				cli_err = 1;
+ 				file = stderr;
+ 			}
+ 		} else {
++#ifdef PHP_WASI
++			fd = STDERR_FILENO;
++#else
+ 			fd = dup(STDERR_FILENO);
++#endif
+ 		}
+ #ifdef PHP_WIN32
+ 		pipe_requested = 1;
+@@ -329,6 +353,11 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 			return NULL;
+ 		}
+ 
++#ifdef PHP_WASI
++		php_stream_wrapper_log_error(wrapper, options,
++			"php://fd is unavailable because WASI does not support descriptor duplication");
++		return NULL;
++#else
+ 		fd = dup((int)fildes_ori);
+ 		if (fd == -1) {
+ 			php_stream_wrapper_log_error(wrapper, options,
+@@ -336,6 +365,7 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 				"[%d]: %s", fildes_ori, errno, strerror(errno));
+ 			return NULL;
+ 		}
++#endif
+ 	} else if (!strncasecmp(path, "filter/", 7)) {
+ 		/* Save time/memory when chain isn't specified */
+ 		if (strchr(mode, 'r') || strchr(mode, '+')) {
+@@ -409,9 +439,16 @@ php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const char *pa
+ 	} else {
+ 		stream = php_stream_fopen_from_fd(fd, mode, NULL);
+ 		if (stream == NULL) {
++#ifndef PHP_WASI
+ 			close(fd);
++#endif
+ 		}
+ 	}
++#ifdef PHP_WASI
++	if (stream && (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO)) {
++		stream->flags |= PHP_STREAM_FLAG_NO_CLOSE;
++	}
++#endif
+ 
+ #ifdef PHP_WIN32
+ 	if (pipe_requested && stream && context) {
+diff --git a/main/php_open_temporary_file.c b/main/php_open_temporary_file.c
+index fcbd608d..8a8400f2 100644
+--- a/main/php_open_temporary_file.c
++++ b/main/php_open_temporary_file.c
+@@ -18,6 +18,8 @@
+ #include "php_open_temporary_file.h"
+ 
+ #include <errno.h>
++#include <stdlib.h>
++#include <unistd.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+@@ -86,7 +88,6 @@
+  * SUCH DAMAGE.
+  */
+ 
+-#ifndef PHP_WASI
+ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_string **opened_path_p)
+ {
+ #ifdef PHP_WIN32
+@@ -100,7 +101,7 @@ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_st
+ 	char cwd[MAXPATHLEN];
+ 	cwd_state new_state;
+ 	int fd = -1;
+-#ifndef HAVE_MKSTEMP
++#if !defined(HAVE_MKSTEMP) && !defined(PHP_WASI)
+ 	int open_flags = O_CREAT | O_TRUNC | O_RDWR
+ #ifdef PHP_WIN32
+ 		| _O_BINARY
+@@ -179,6 +180,27 @@ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_st
+ 
+ 	free(cwdw);
+ 	free(pfxw);
++#elif defined(PHP_WASI)
++	{
++		static const char alphabet[] =
++			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
++		unsigned char random_bytes[6];
++		char *suffix = opened_path + strlen(opened_path) - sizeof(random_bytes);
++		int attempt;
++
++		for (attempt = 0; attempt < 128; attempt++) {
++			if (getentropy(random_bytes, sizeof(random_bytes)) != 0) {
++				break;
++			}
++			for (size_t i = 0; i < sizeof(random_bytes); i++) {
++				suffix[i] = alphabet[random_bytes[i] % (sizeof(alphabet) - 1)];
++			}
++			fd = VCWD_OPEN_MODE(opened_path, O_CREAT | O_EXCL | O_RDWR, 0600);
++			if (fd != -1 || errno != EEXIST) {
++				break;
++			}
++		}
++	}
+ #elif defined(HAVE_MKSTEMP)
+ 	fd = mkstemp(opened_path);
+ #else
+@@ -200,13 +222,11 @@ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_st
+ 	efree(new_state.cwd);
+ 	return fd;
+ }
+-#endif // PHP_WASI
+ /* }}} */
+ 
+ /*
+  *  Determine where to place temporary files.
+  */
+-#ifndef PHP_WASI
+ PHPAPI const char* php_get_temporary_directory(void)
+ {
+ 	/* Did we determine the temporary directory already? */
+@@ -281,8 +301,6 @@ PHPAPI const char* php_get_temporary_directory(void)
+ 	return PG(php_sys_temp_dir);
+ #endif
+ }
+-#endif // PHP_WASI
+-
+ /* {{{ php_open_temporary_file
+  *
+  * Unlike tempnam(), the supplied dir argument takes precedence
+diff --git a/main/php_open_temporary_file_wasi.c b/main/php_open_temporary_file_wasi.c
+index 793c2544..ecef0274 100644
+--- a/main/php_open_temporary_file_wasi.c
++++ b/main/php_open_temporary_file_wasi.c
+@@ -12,14 +12,8 @@
+    +----------------------------------------------------------------------+
+  */
+ 
+-#include "php.h"
+-
+-PHPAPI const char* php_get_temporary_directory(void)
+-{
+-  return NULL;
+-}
+-
+-PHPAPI int php_do_open_temporary_file(const char *path, const char *pfx, zend_string **opened_path_p)
+-{
+-  return -1;
+-}
++/*
++ * Temporary files use the regular implementation in
++ * php_open_temporary_file.c. WASI preopens provide the required filesystem
++ * capability, and wasi-libc implements mkstemp() on top of them.
++ */
+-- 
+2.50.1
+

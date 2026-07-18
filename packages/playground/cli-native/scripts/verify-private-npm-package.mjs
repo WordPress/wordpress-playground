@@ -15,6 +15,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { verifyPortablePhpAssets } from './portable-php-assets.mjs';
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '..');
 const repositoryRoot = resolve(projectRoot, '../../..');
@@ -223,6 +225,10 @@ async function main() {
 			'--package-dir',
 			outputPackage,
 		]);
+		const packagedPhpAssets = await verifyPortablePhpAssets(
+			join(outputPackage, 'share', 'wp-playground-native'),
+			{ forbidWasmtime: true }
+		);
 
 		await mkdir(packOutput, { recursive: true });
 		const packed = await runNpm(
@@ -244,6 +250,26 @@ async function main() {
 				throw new Error(
 					`npm tarball contains forbidden native payload ${file.path}`
 				);
+			}
+		}
+		const packedPaths = new Set(report.files.map((file) => file.path));
+		for (const component of packagedPhpAssets.components) {
+			const expectedPath = `share/wp-playground-native/${component.path}`;
+			if (!packedPaths.has(expectedPath)) {
+				throw new Error(
+					`npm tarball is missing the PHP ${component.version} component ${expectedPath}`
+				);
+			}
+		}
+		for (const licensePath of [
+			'share/licenses/php-wasi/zlib.txt',
+			'share/licenses/php-wasi-extended/libmemcached-awesome-BSD-3-Clause.txt',
+			'share/licenses/php-wasi-extended/php-memcached-PHP-3.01.txt',
+			'share/licenses/php-wasi-extended/phpredis-PHP-3.01.txt',
+			'share/licenses/php-wasi-extended/xdebug-1.03.txt',
+		]) {
+			if (!packedPaths.has(licensePath)) {
+				throw new Error(`npm tarball is missing ${licensePath}`);
 			}
 		}
 
@@ -268,6 +294,18 @@ async function main() {
 			consumerRoot,
 			'node_modules/@wp-playground/cli-native'
 		);
+		const installedPhpAssets = await verifyPortablePhpAssets(
+			join(installedPackage, 'share', 'wp-playground-native'),
+			{ forbidWasmtime: true }
+		);
+		if (
+			JSON.stringify(installedPhpAssets.versions) !==
+			JSON.stringify(packagedPhpAssets.versions)
+		) {
+			throw new Error(
+				`Installed PHP asset versions ${installedPhpAssets.versions.join(', ')} do not match the packed versions ${packagedPhpAssets.versions.join(', ')}`
+			);
+		}
 		const launcher = join(installedPackage, 'wp-playground.js');
 		const preflightCache = join(temporaryRoot, 'preflight-cache');
 		const preflightEnvironment = Object.fromEntries(

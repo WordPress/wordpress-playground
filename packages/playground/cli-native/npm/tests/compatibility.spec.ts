@@ -144,7 +144,7 @@ describe('compatibility schema v2', () => {
 				.filter(({ allowFalse }) => allowFalse === true)
 				.map(({ name }) => name)
 				.sort()
-		).toEqual(['internalCookieStore', 'memcached', 'redis']);
+		).toEqual(['internalCookieStore']);
 		const cliOptions = inventory['cliOptions'] as Array<{
 			name: string;
 			commands: string[];

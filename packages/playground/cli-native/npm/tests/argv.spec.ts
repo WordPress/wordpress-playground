@@ -13,7 +13,22 @@ vi.mock('../src/process.js', () => ({
 
 import { parseOptionsAndRunCLI } from '../src/api.js';
 
+const nativeWebAssembly = WebAssembly;
+
+function setCurrentRuntimeJspi(enabled: boolean): void {
+	vi.stubGlobal(
+		'WebAssembly',
+		new Proxy(nativeWebAssembly, {
+			has(target, property) {
+				if (property === 'Suspending') return enabled;
+				return Reflect.has(target, property);
+			},
+		})
+	);
+}
+
 beforeEach(() => {
+	setCurrentRuntimeJspi(false);
 	mocks.parseNativeCLIArgs.mockReset().mockResolvedValue({
 		status: 'valid',
 		command: 'run-blueprint',
@@ -23,7 +38,10 @@ beforeEach(() => {
 	mocks.runNativeCLI.mockReset().mockResolvedValue({ code: 0, signal: null });
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+});
 
 describe('argv compatibility preflight', () => {
 	it('rejects php and every unsupported CLI option before acquisition', async () => {
@@ -81,6 +99,54 @@ describe('argv compatibility preflight', () => {
 			{ cwd: process.cwd() }
 		);
 		expect(mocks.runNativeCLI).not.toHaveBeenCalled();
+	});
+
+	it('allows phpMyAdmin argv through to the native parser', async () => {
+		await expect(
+			parseOptionsAndRunCLI(['run-blueprint', '--phpmyadmin=/database'])
+		).resolves.toEqual({ exitCode: 0 });
+		expect(mocks.parseNativeCLIArgs).toHaveBeenCalledWith(
+			['run-blueprint', '--phpmyadmin=/database'],
+			{ cwd: process.cwd() }
+		);
+		expect(mocks.runNativeCLI).toHaveBeenCalledWith({
+			argv: ['run-blueprint', '--phpmyadmin=/database'],
+			cwd: process.cwd(),
+		});
+	});
+
+	it('allows PHP extension selection argv through to the native parser', async () => {
+		const argv = [
+			'server',
+			'--redis',
+			'--no-memcached',
+			'--xdebug',
+		] as const;
+		await expect(parseOptionsAndRunCLI([...argv])).resolves.toEqual({
+			exitCode: 0,
+		});
+		expect(mocks.parseNativeCLIArgs).toHaveBeenCalledWith([...argv], {
+			cwd: process.cwd(),
+		});
+		expect(mocks.runNativeCLI).toHaveBeenCalledWith({
+			argv: [...argv],
+			cwd: process.cwd(),
+		});
+	});
+
+	it('defaults only omitted extensions when current JSPI is available', async () => {
+		setCurrentRuntimeJspi(true);
+		await expect(
+			parseOptionsAndRunCLI(['run-blueprint', '--no-redis'])
+		).resolves.toEqual({ exitCode: 0 });
+		const expected = ['run-blueprint', '--no-redis', '--memcached'];
+		expect(mocks.parseNativeCLIArgs).toHaveBeenCalledWith(expected, {
+			cwd: process.cwd(),
+		});
+		expect(mocks.runNativeCLI).toHaveBeenCalledWith({
+			argv: expected,
+			cwd: process.cwd(),
+		});
 	});
 
 	it('returns Rust parser validation as a structured exit', async () => {

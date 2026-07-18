@@ -1,0 +1,46 @@
+From 9d1c20ae33bf367773d5300eff9e693f7a5752a9 Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:43:19 +0200
+Subject: [PATCH 05/11] Expose the real CLI SAPI to the component
+
+---
+ sapi/cli/php_cli.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/sapi/cli/php_cli.c b/sapi/cli/php_cli.c
+index 4c8b5f75..30561fcb 100644
+--- a/sapi/cli/php_cli.c
++++ b/sapi/cli/php_cli.c
+@@ -1149,11 +1149,15 @@ err:
+ 
+ /* {{{ main
+  */
++#ifdef PHP_WASI_COMPONENT_CLI
++int wordpress_php_wasi_cli_main(int argc, char *argv[])
++#else
+ #ifdef PHP_CLI_WIN32_NO_CONSOLE
+ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+ #else
+ int main(int argc, char *argv[])
+ #endif
++#endif
+ {
+ #if defined(PHP_WIN32)
+ # ifdef PHP_CLI_WIN32_NO_CONSOLE
+@@ -1395,6 +1399,13 @@ out:
+ 	 * exiting.
+ 	 */
+ 	cleanup_ps_args(argv);
++#ifdef PHP_WASI_COMPONENT_CLI
++	if (fflush(NULL) == EOF && exit_status == SUCCESS) {
++		exit_status = 1;
++	}
++	return exit_status;
++#else
+ 	exit(exit_status);
++#endif
+ }
+ /* }}} */
+-- 
+2.50.1
+

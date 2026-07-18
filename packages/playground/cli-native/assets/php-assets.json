@@ -2,10 +2,102 @@
 	"schemaVersion": 2,
 	"runtime": "wasip2-component",
 	"php": {
+		"7.4": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-7.4-wasi-component.wasm",
+				"sha256": "4f220d8dd4d0c3afaaff191889c5735e56ca8676b97fe486306430d333faa8ee"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-7.4-wasi-extended-component.wasm",
+						"sha256": "93fa11f785df1e1f27c28a7bcff26ad150f20f0cd956d99012dfd23cd5221ca0"
+					}
+				}
+			}
+		},
+		"8.0": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-8.0-wasi-component.wasm",
+				"sha256": "837362d6cc0260fb264652b88fe40166c21e33b0536a28000a186cbcd93d31be"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-8.0-wasi-extended-component.wasm",
+						"sha256": "6afecf661f780ed807b75ef28361d418045f28399e5e078939d66ac4a097389f"
+					}
+				}
+			}
+		},
+		"8.1": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-8.1-wasi-component.wasm",
+				"sha256": "3814d72eb33d38f5338e18a3af957a2d1bfd5ecfdfec21cc292051f9f8f5b6ae"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-8.1-wasi-extended-component.wasm",
+						"sha256": "ecb45872d1ce7b10aa8eb9b0bd36a60d92324d3aea282aa6ba94e0d1977af62a"
+					}
+				}
+			}
+		},
 		"8.2": {
 			"wasm": {
 				"path": "packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm",
-				"sha256": "9f2d54913a0cf4990ce27a26ceeaf7ccbfdfd315c4e22b1cd9a37d8a8ab928b5"
+				"sha256": "0027eecfa84ab9c46b66e3a3e3e5ac0715a24bd004ec511fb77cdc9ff756a20f"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-wasi-extended-component.wasm",
+						"sha256": "e9f4e4148067f0e80a5650feeaa316084efdee80852fbcb98e955a9106ec20b7"
+					}
+				}
+			}
+		},
+		"8.3": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-8.3-wasi-component.wasm",
+				"sha256": "d14d74b38f7735ec2d27ec19aef2f5499cd251a5be6bce2047f77df00d5f6aa5"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-8.3-wasi-extended-component.wasm",
+						"sha256": "cafcccccf30ecc5ef2ef3d68265c66cf59d8d35f10cbeecc6e8c1fbbd0cf24e2"
+					}
+				}
+			}
+		},
+		"8.4": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-8.4-wasi-component.wasm",
+				"sha256": "5e6c14b2867d71ab46cf940f0726876189e5df7dbd233c321a0a3eadfe12380b"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-8.4-wasi-extended-component.wasm",
+						"sha256": "8a2dd446dbe1caaf7d92fd5545b40c0b6da3d3b999ca85fa6432d5f985e1b8a4"
+					}
+				}
+			}
+		},
+		"8.5": {
+			"wasm": {
+				"path": "packages/php-wasm/compile/php-wasi/dist/php-8.5-wasi-component.wasm",
+				"sha256": "891d76cf01a99f40f692b119885ba0fb900554f1ba72153e256554f0244918a9"
+			},
+			"variants": {
+				"extended": {
+					"wasm": {
+						"path": "packages/php-wasm/compile/php-wasi/dist/php-8.5-wasi-extended-component.wasm",
+						"sha256": "b5498acc99d0cea5a4cd364a6e1d15655c012f9d83b76a4dc83cd36b4094c16b"
+					}
+				}
 			}
 		}
 	}

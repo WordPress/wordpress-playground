@@ -1,21 +1,17 @@
-use std::{
-    future::Future,
-    path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{future::Future, path::Path, sync::Arc, time::Duration};
 
 use wasmtime::component::{Component, HasSelf, Linker, Resource, ResourceTable};
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::filesystem::{Descriptor, File};
-use wasmtime_wasi::p2::bindings::sync::io::poll as sync_poll;
+use wasmtime_wasi::p2::bindings::sync::io::{poll as sync_poll, streams as sync_streams};
+use wasmtime_wasi::p2::{StreamError, StreamResult};
 use wasmtime_wasi::WasiView;
-use wasmtime_wasi_io::{bindings::wasi::io::poll as async_poll, poll::DynPollable};
+use wasmtime_wasi_io::{
+    bindings::wasi::io::{poll as async_poll, streams as async_streams},
+    poll::DynPollable,
+};
 
-use super::context::Wasip2HostState;
+use super::context::{ActiveCancellation, Wasip2HostState};
 use super::locks::{self, ByteRange, LockKind, LockMode, LockState};
 
 pub(crate) mod bindings {
@@ -33,6 +29,8 @@ pub(crate) mod bindings {
 
 use bindings::wordpress_playground::filesystem_locks::filesystem_locks as wit_locks;
 use bindings::wordpress_playground::filesystem_locks::sqlite_wal_shm as wit_shm;
+
+const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(10);
 
 /// A synchronous WASIp2 component runtime with capability-based WASI and the
 /// Playground file-lock extension registered in one linker.
@@ -58,6 +56,7 @@ impl Wasip2ComponentRuntime {
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
         linker.allow_shadowing(true);
         sync_poll::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
+        sync_streams::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
         linker.allow_shadowing(false);
         wit_locks::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
         wit_shm::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
@@ -79,27 +78,86 @@ impl Wasip2ComponentRuntime {
     }
 }
 
-const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(10);
-
 async fn cancellation_aware<T>(
-    cancellation: Option<Arc<AtomicBool>>,
+    cancellation: Option<Arc<ActiveCancellation>>,
     operation: impl Future<Output = wasmtime::Result<T>>,
 ) -> wasmtime::Result<T> {
     let Some(cancellation) = cancellation else {
         return operation.await;
     };
     tokio::select! {
-        result = operation => result,
-        () = wait_for_cancellation(cancellation) => {
+        biased;
+        () = cancellation.cancelled() => {
             Err(wasmtime::Error::msg("native PHP stream was cancelled"))
         }
+        result = operation => result,
     }
 }
 
-async fn wait_for_cancellation(cancellation: Arc<AtomicBool>) {
-    while !cancellation.load(Ordering::Acquire) {
-        tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
+async fn cancellation_aware_stream<T>(
+    cancellation: Option<Arc<ActiveCancellation>>,
+    operation: impl Future<Output = StreamResult<T>>,
+) -> StreamResult<T> {
+    let Some(cancellation) = cancellation else {
+        return operation.await;
+    };
+    tokio::select! {
+        biased;
+        () = cancellation.cancelled() => {
+            Err(StreamError::Trap(wasmtime::Error::msg(
+                "native PHP stream was cancelled",
+            )))
+        }
+        result = operation => result,
     }
+}
+
+fn cancellation_aware_lock(
+    cancellation: Option<Arc<ActiveCancellation>>,
+    mode: LockMode,
+    mut attempt: impl FnMut(LockMode) -> Result<(), locks::LockError>,
+    mut rollback: impl FnMut() -> Result<(), locks::LockError>,
+) -> wasmtime::Result<Result<(), wit_locks::LockError>> {
+    let Some(cancellation) = cancellation else {
+        return Ok(attempt(mode).map_err(Into::into));
+    };
+    if mode == LockMode::NonBlocking {
+        return Ok(attempt(mode).map_err(Into::into));
+    }
+
+    wasmtime_wasi::runtime::in_tokio(async move {
+        loop {
+            if cancellation.is_requested() {
+                return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
+            }
+
+            match attempt(LockMode::NonBlocking) {
+                Ok(()) if cancellation.is_requested() => {
+                    // Cancellation won while the native acquisition was in
+                    // flight. Release the acquired extent before trapping; the
+                    // failed streamed worker is then discarded, so a lock
+                    // conversion does not need to restore its prior mode.
+                    rollback().map_err(|error| {
+                        wasmtime::Error::msg(format!(
+                            "native PHP stream was cancelled and its acquired file lock could not be released: {error}"
+                        ))
+                    })?;
+                    return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
+                }
+                Ok(()) => return Ok(Ok(())),
+                Err(locks::LockError::WouldBlock) => {}
+                Err(error) => return Ok(Err(error.into())),
+            }
+
+            tokio::select! {
+                biased;
+                () = cancellation.cancelled() => {
+                    return Err(wasmtime::Error::msg("native PHP stream was cancelled"));
+                }
+                () = tokio::time::sleep(LOCK_RETRY_INTERVAL) => {}
+            }
+        }
+    })
 }
 
 impl sync_poll::Host for Wasip2HostState {
@@ -137,6 +195,207 @@ impl sync_poll::HostPollable for Wasip2HostState {
     }
 }
 
+impl sync_streams::Host for Wasip2HostState {
+    fn convert_stream_error(
+        &mut self,
+        error: StreamError,
+    ) -> wasmtime::Result<sync_streams::StreamError> {
+        <ResourceTable as sync_streams::Host>::convert_stream_error(
+            WasiView::ctx(self).table,
+            error,
+        )
+    }
+}
+
+impl sync_streams::HostOutputStream for Wasip2HostState {
+    fn drop(&mut self, stream: Resource<sync_streams::OutputStream>) -> wasmtime::Result<()> {
+        // Resource cleanup is itself the cancellation path for background
+        // stream work. It must run to completion even when request cancellation
+        // is already active, otherwise the ResourceTable entry survives in a
+        // Store that a low-level caller may reuse.
+        <ResourceTable as sync_streams::HostOutputStream>::drop(WasiView::ctx(self).table, stream)
+    }
+
+    fn check_write(&mut self, stream: Resource<sync_streams::OutputStream>) -> StreamResult<u64> {
+        <ResourceTable as sync_streams::HostOutputStream>::check_write(
+            WasiView::ctx(self).table,
+            stream,
+        )
+    }
+
+    fn write(
+        &mut self,
+        stream: Resource<sync_streams::OutputStream>,
+        bytes: Vec<u8>,
+    ) -> StreamResult<()> {
+        <ResourceTable as sync_streams::HostOutputStream>::write(
+            WasiView::ctx(self).table,
+            stream,
+            bytes,
+        )
+    }
+
+    fn blocking_write_and_flush(
+        &mut self,
+        stream: Resource<sync_streams::OutputStream>,
+        bytes: Vec<u8>,
+    ) -> StreamResult<()> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostOutputStream>::blocking_write_and_flush(
+                table, stream, bytes,
+            ),
+        ))
+    }
+
+    fn blocking_write_zeroes_and_flush(
+        &mut self,
+        stream: Resource<sync_streams::OutputStream>,
+        len: u64,
+    ) -> StreamResult<()> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostOutputStream>::blocking_write_zeroes_and_flush(
+                table, stream, len,
+            ),
+        ))
+    }
+
+    fn subscribe(
+        &mut self,
+        stream: Resource<sync_streams::OutputStream>,
+    ) -> wasmtime::Result<Resource<sync_poll::Pollable>> {
+        <ResourceTable as sync_streams::HostOutputStream>::subscribe(
+            WasiView::ctx(self).table,
+            stream,
+        )
+    }
+
+    fn write_zeroes(
+        &mut self,
+        stream: Resource<sync_streams::OutputStream>,
+        len: u64,
+    ) -> StreamResult<()> {
+        <ResourceTable as sync_streams::HostOutputStream>::write_zeroes(
+            WasiView::ctx(self).table,
+            stream,
+            len,
+        )
+    }
+
+    fn flush(&mut self, stream: Resource<sync_streams::OutputStream>) -> StreamResult<()> {
+        <ResourceTable as sync_streams::HostOutputStream>::flush(WasiView::ctx(self).table, stream)
+    }
+
+    fn blocking_flush(&mut self, stream: Resource<sync_streams::OutputStream>) -> StreamResult<()> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostOutputStream>::blocking_flush(table, stream),
+        ))
+    }
+
+    fn splice(
+        &mut self,
+        destination: Resource<sync_streams::OutputStream>,
+        source: Resource<sync_streams::InputStream>,
+        len: u64,
+    ) -> StreamResult<u64> {
+        <ResourceTable as sync_streams::HostOutputStream>::splice(
+            WasiView::ctx(self).table,
+            destination,
+            source,
+            len,
+        )
+    }
+
+    fn blocking_splice(
+        &mut self,
+        destination: Resource<sync_streams::OutputStream>,
+        source: Resource<sync_streams::InputStream>,
+        len: u64,
+    ) -> StreamResult<u64> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostOutputStream>::blocking_splice(
+                table,
+                destination,
+                source,
+                len,
+            ),
+        ))
+    }
+}
+
+impl sync_streams::HostInputStream for Wasip2HostState {
+    fn drop(&mut self, stream: Resource<sync_streams::InputStream>) -> wasmtime::Result<()> {
+        <ResourceTable as sync_streams::HostInputStream>::drop(WasiView::ctx(self).table, stream)
+    }
+
+    fn read(
+        &mut self,
+        stream: Resource<sync_streams::InputStream>,
+        len: u64,
+    ) -> StreamResult<Vec<u8>> {
+        <ResourceTable as sync_streams::HostInputStream>::read(
+            WasiView::ctx(self).table,
+            stream,
+            len,
+        )
+    }
+
+    fn blocking_read(
+        &mut self,
+        stream: Resource<sync_streams::InputStream>,
+        len: u64,
+    ) -> StreamResult<Vec<u8>> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostInputStream>::blocking_read(table, stream, len),
+        ))
+    }
+
+    fn skip(&mut self, stream: Resource<sync_streams::InputStream>, len: u64) -> StreamResult<u64> {
+        <ResourceTable as sync_streams::HostInputStream>::skip(
+            WasiView::ctx(self).table,
+            stream,
+            len,
+        )
+    }
+
+    fn blocking_skip(
+        &mut self,
+        stream: Resource<sync_streams::InputStream>,
+        len: u64,
+    ) -> StreamResult<u64> {
+        let cancellation = self.active_cancellation.clone();
+        let table = WasiView::ctx(self).table;
+        wasmtime_wasi::runtime::in_tokio(cancellation_aware_stream(
+            cancellation,
+            <ResourceTable as async_streams::HostInputStream>::blocking_skip(table, stream, len),
+        ))
+    }
+
+    fn subscribe(
+        &mut self,
+        stream: Resource<sync_streams::InputStream>,
+    ) -> wasmtime::Result<Resource<sync_poll::Pollable>> {
+        <ResourceTable as sync_streams::HostInputStream>::subscribe(
+            WasiView::ctx(self).table,
+            stream,
+        )
+    }
+}
+
 impl Wasip2HostState {
     fn lockable_file(&mut self, resource: Resource<Descriptor>) -> Result<File, locks::LockError> {
         let view = WasiView::ctx(self);
@@ -162,7 +421,14 @@ impl wit_locks::Host for Wasip2HostState {
             Ok(file) => file,
             Err(error) => return Ok(Err(error.into())),
         };
-        Ok(locks::lock_whole(file.file.as_ref(), kind.into(), mode.into()).map_err(Into::into))
+        let cancellation = self.active_cancellation.clone();
+        let kind = kind.into();
+        cancellation_aware_lock(
+            cancellation,
+            mode.into(),
+            |mode| locks::lock_whole(file.file.as_ref(), kind, mode),
+            || locks::unlock_whole(file.file.as_ref()),
+        )
     }
 
     fn unlock_whole(
@@ -187,9 +453,14 @@ impl wit_locks::Host for Wasip2HostState {
             Ok(file) => file,
             Err(error) => return Ok(Err(error.into())),
         };
-        Ok(
-            locks::lock_range(file.file.as_ref(), range.into(), kind.into(), mode.into())
-                .map_err(Into::into),
+        let cancellation = self.active_cancellation.clone();
+        let range = range.into();
+        let kind = kind.into();
+        cancellation_aware_lock(
+            cancellation,
+            mode.into(),
+            |mode| locks::lock_range(file.file.as_ref(), range, kind, mode),
+            || locks::unlock_range(file.file.as_ref(), range),
         )
     }
 
@@ -382,21 +653,200 @@ impl From<super::sqlite_shm::ShmError> for wit_shm::ShmError {
 mod tests {
     use std::{
         fs,
-        sync::atomic::{AtomicU64, Ordering},
+        sync::{
+            atomic::{AtomicBool, AtomicU64, Ordering},
+            Arc,
+        },
+        thread,
+        time::{Duration, Instant},
     };
 
     use wasmtime::component::Resource;
     use wasmtime_wasi::filesystem::{Descriptor, WasiFilesystemView};
     use wasmtime_wasi::p2::bindings::{filesystem::preopens, sync::filesystem::types};
+    use wasmtime_wasi::WasiView;
+    use wasmtime_wasi_io::{
+        bytes::Bytes,
+        poll::{subscribe, Pollable},
+        streams::{DynInputStream, DynOutputStream, InputStream, OutputStream, StreamError},
+    };
 
-    use super::{wit_locks, wit_shm, Wasip2ComponentRuntime};
+    use super::{
+        cancellation_aware_lock, locks, sync_poll, sync_streams, wit_locks, wit_shm,
+        Wasip2ComponentRuntime,
+    };
+    use crate::wasip2::context::ActiveCancellation;
     use crate::wasip2::{CapabilityPreopen, Wasip2ContextBuilder};
 
     static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(1);
+    const SYNTHETIC_HOST_WAIT: Duration = Duration::from_secs(2);
+    const MAX_CANCELLATION_LATENCY: Duration = Duration::from_secs(1);
+
+    struct SlowPollable;
+
+    #[wasmtime_wasi_io::async_trait]
+    impl Pollable for SlowPollable {
+        async fn ready(&mut self) {
+            tokio::time::sleep(SYNTHETIC_HOST_WAIT).await;
+        }
+    }
+
+    struct SlowOutputStream {
+        writable: bool,
+    }
+
+    struct TrackedStream {
+        dropped: Arc<AtomicU64>,
+    }
+
+    impl Drop for TrackedStream {
+        fn drop(&mut self) {
+            self.dropped.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    #[wasmtime_wasi_io::async_trait]
+    impl Pollable for TrackedStream {
+        async fn ready(&mut self) {}
+    }
+
+    #[wasmtime_wasi_io::async_trait]
+    impl InputStream for TrackedStream {
+        fn read(&mut self, _size: usize) -> Result<Bytes, StreamError> {
+            Ok(Bytes::new())
+        }
+    }
+
+    #[wasmtime_wasi_io::async_trait]
+    impl OutputStream for TrackedStream {
+        fn write(&mut self, _bytes: Bytes) -> Result<(), StreamError> {
+            Ok(())
+        }
+
+        fn flush(&mut self) -> Result<(), StreamError> {
+            Ok(())
+        }
+
+        fn check_write(&mut self) -> Result<usize, StreamError> {
+            Ok(1)
+        }
+    }
+
+    #[wasmtime_wasi_io::async_trait]
+    impl Pollable for SlowOutputStream {
+        async fn ready(&mut self) {
+            tokio::time::sleep(SYNTHETIC_HOST_WAIT).await;
+            self.writable = true;
+        }
+    }
+
+    #[wasmtime_wasi_io::async_trait]
+    impl OutputStream for SlowOutputStream {
+        fn write(&mut self, _bytes: Bytes) -> Result<(), StreamError> {
+            Ok(())
+        }
+
+        fn flush(&mut self) -> Result<(), StreamError> {
+            Ok(())
+        }
+
+        fn check_write(&mut self) -> Result<usize, StreamError> {
+            Ok(usize::from(self.writable))
+        }
+    }
 
     #[test]
     fn creates_sync_runtime_with_wasi_and_lock_imports() {
         Wasip2ComponentRuntime::new().unwrap();
+    }
+
+    #[test]
+    fn cancellation_interrupts_a_blocked_wasi_pollable() {
+        let (mut state, requested, active) = cancellable_state();
+        let pollable = {
+            let table = WasiView::ctx(&mut state).table;
+            let slow = table.push(SlowPollable).unwrap();
+            subscribe(table, slow).unwrap()
+        };
+        let cancellation = request_cancellation(requested, active);
+
+        let started = Instant::now();
+        let error = sync_poll::HostPollable::block(&mut state, pollable).unwrap_err();
+        let elapsed = started.elapsed();
+        cancellation.join().unwrap();
+
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error:#}"
+        );
+        assert!(
+            elapsed < MAX_CANCELLATION_LATENCY,
+            "blocked WASI poll cancellation took {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn cancellation_interrupts_a_blocked_output_stream_flush() {
+        let (mut state, requested, active) = cancellable_state();
+        let stream = WasiView::ctx(&mut state)
+            .table
+            .push(Box::new(SlowOutputStream { writable: false }) as DynOutputStream)
+            .unwrap();
+        let cancellation = request_cancellation(requested, active);
+
+        let started = Instant::now();
+        let error = sync_streams::HostOutputStream::blocking_flush(&mut state, stream).unwrap_err();
+        let elapsed = started.elapsed();
+        cancellation.join().unwrap();
+
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error}"
+        );
+        assert!(
+            elapsed < MAX_CANCELLATION_LATENCY,
+            "blocked output flush cancellation took {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn cancelled_stream_drops_clean_resources_before_reusing_host_state() {
+        const ITERATIONS: u64 = 128;
+
+        let mut state = Wasip2ContextBuilder::new().build().unwrap();
+        let dropped = Arc::new(AtomicU64::new(0));
+
+        for iteration in 0..ITERATIONS {
+            let requested = Arc::new(AtomicBool::new(true));
+            let active = Arc::new(ActiveCancellation::new(requested));
+            active.notify();
+            state.active_cancellation = Some(active);
+
+            let output = WasiView::ctx(&mut state)
+                .table
+                .push(Box::new(TrackedStream {
+                    dropped: Arc::clone(&dropped),
+                }) as DynOutputStream)
+                .unwrap();
+            sync_streams::HostOutputStream::drop(&mut state, output).unwrap();
+            assert_eq!(dropped.load(Ordering::Relaxed), iteration * 2 + 1);
+
+            let input = WasiView::ctx(&mut state)
+                .table
+                .push(Box::new(TrackedStream {
+                    dropped: Arc::clone(&dropped),
+                }) as DynInputStream)
+                .unwrap();
+            sync_streams::HostInputStream::drop(&mut state, input).unwrap();
+            assert_eq!(dropped.load(Ordering::Relaxed), iteration * 2 + 2);
+        }
+
+        state.active_cancellation = None;
+        assert_eq!(dropped.load(Ordering::Relaxed), ITERATIONS * 2);
     }
 
     #[test]
@@ -493,6 +943,276 @@ mod tests {
             .unwrap();
 
         drop(state);
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    fn cancellation_interrupts_a_blocked_whole_file_lock_and_allows_recovery() {
+        let host_path = temp_dir("cancel-whole-file-lock");
+        fs::write(host_path.join("lock-target"), b"lock me").unwrap();
+        let mut state = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&host_path, "/workspace"))
+            .build()
+            .unwrap();
+        let holder = open_test_file(&mut state, "lock-target");
+        let contender = open_test_file(&mut state, "lock-target");
+        let borrowed_holder = || Resource::<Descriptor>::new_borrow(holder.rep());
+        let borrowed_contender = || Resource::<Descriptor>::new_borrow(contender.rep());
+
+        wit_locks::Host::lock_whole(
+            &mut state,
+            borrowed_holder(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap();
+        let conflict = wit_locks::Host::lock_whole(
+            &mut state,
+            borrowed_contender(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap_err();
+        assert!(matches!(conflict, wit_locks::LockError::WouldBlock));
+
+        let (requested, active) = install_cancellation(&mut state);
+        let cancellation = request_cancellation(requested, active);
+        let started = Instant::now();
+        let error = wit_locks::Host::lock_whole(
+            &mut state,
+            borrowed_contender(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::Blocking,
+        )
+        .unwrap_err();
+        let elapsed = started.elapsed();
+        cancellation.join().unwrap();
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error:#}"
+        );
+        assert!(
+            elapsed < MAX_CANCELLATION_LATENCY,
+            "blocked whole-file lock cancellation took {elapsed:?}"
+        );
+
+        state.active_cancellation = None;
+        wit_locks::Host::unlock_whole(&mut state, borrowed_holder())
+            .unwrap()
+            .unwrap();
+        wit_locks::Host::lock_whole(
+            &mut state,
+            borrowed_contender(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap();
+        wit_locks::Host::unlock_whole(&mut state, borrowed_contender())
+            .unwrap()
+            .unwrap();
+
+        drop(state);
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    fn cancellation_during_whole_file_lock_acquisition_rolls_the_lock_back() {
+        let host_path = temp_dir("cancel-whole-file-lock-success-race");
+        let target = host_path.join("lock-target");
+        fs::write(&target, b"lock me").unwrap();
+        let acquired = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&target)
+            .unwrap();
+        let contender = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&target)
+            .unwrap();
+        let requested = Arc::new(AtomicBool::new(false));
+        let active = Arc::new(ActiveCancellation::new(Arc::clone(&requested)));
+        let signal_requested = Arc::clone(&requested);
+        let signal_active = Arc::clone(&active);
+
+        let error = cancellation_aware_lock(
+            Some(active),
+            locks::LockMode::Blocking,
+            |mode| {
+                locks::lock_whole(&acquired, locks::LockKind::Exclusive, mode)?;
+                signal_requested.store(true, Ordering::Release);
+                signal_active.notify();
+                Ok(())
+            },
+            || locks::unlock_whole(&acquired),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error:#}"
+        );
+
+        locks::lock_whole(
+            &contender,
+            locks::LockKind::Exclusive,
+            locks::LockMode::NonBlocking,
+        )
+        .unwrap();
+        locks::unlock_whole(&contender).unwrap();
+        drop((acquired, contender));
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_vendor = "apple",
+        windows
+    ))]
+    fn cancellation_interrupts_a_blocked_range_lock_and_allows_recovery() {
+        let host_path = temp_dir("cancel-range-lock");
+        fs::write(host_path.join("lock-target"), b"lock me").unwrap();
+        let mut state = Wasip2ContextBuilder::new()
+            .preopen(CapabilityPreopen::read_write(&host_path, "/workspace"))
+            .build()
+            .unwrap();
+        let holder = open_test_file(&mut state, "lock-target");
+        let contender = open_test_file(&mut state, "lock-target");
+        let borrowed_holder = || Resource::<Descriptor>::new_borrow(holder.rep());
+        let borrowed_contender = || Resource::<Descriptor>::new_borrow(contender.rep());
+        let range = || wit_locks::ByteRange {
+            start: 1,
+            length: Some(3),
+        };
+
+        wit_locks::Host::lock_range(
+            &mut state,
+            borrowed_holder(),
+            range(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap();
+        let conflict = wit_locks::Host::lock_range(
+            &mut state,
+            borrowed_contender(),
+            range(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap_err();
+        assert!(matches!(conflict, wit_locks::LockError::WouldBlock));
+
+        let (requested, active) = install_cancellation(&mut state);
+        let cancellation = request_cancellation(requested, active);
+        let started = Instant::now();
+        let error = wit_locks::Host::lock_range(
+            &mut state,
+            borrowed_contender(),
+            range(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::Blocking,
+        )
+        .unwrap_err();
+        let elapsed = started.elapsed();
+        cancellation.join().unwrap();
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error:#}"
+        );
+        assert!(
+            elapsed < MAX_CANCELLATION_LATENCY,
+            "blocked range lock cancellation took {elapsed:?}"
+        );
+
+        state.active_cancellation = None;
+        wit_locks::Host::unlock_range(&mut state, borrowed_holder(), range())
+            .unwrap()
+            .unwrap();
+        wit_locks::Host::lock_range(
+            &mut state,
+            borrowed_contender(),
+            range(),
+            wit_locks::LockKind::Exclusive,
+            wit_locks::LockMode::NonBlocking,
+        )
+        .unwrap()
+        .unwrap();
+        wit_locks::Host::unlock_range(&mut state, borrowed_contender(), range())
+            .unwrap()
+            .unwrap();
+
+        drop(state);
+        fs::remove_dir_all(host_path).unwrap();
+    }
+
+    #[test]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_vendor = "apple",
+        windows
+    ))]
+    fn cancellation_during_range_lock_acquisition_rolls_the_lock_back() {
+        let host_path = temp_dir("cancel-range-lock-success-race");
+        let target = host_path.join("lock-target");
+        fs::write(&target, b"lock me").unwrap();
+        let acquired = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&target)
+            .unwrap();
+        let contender = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&target)
+            .unwrap();
+        let requested = Arc::new(AtomicBool::new(false));
+        let active = Arc::new(ActiveCancellation::new(Arc::clone(&requested)));
+        let signal_requested = Arc::clone(&requested);
+        let signal_active = Arc::clone(&active);
+        let range = locks::ByteRange::new(1, Some(3));
+
+        let error = cancellation_aware_lock(
+            Some(active),
+            locks::LockMode::Blocking,
+            |mode| {
+                locks::lock_range(&acquired, range, locks::LockKind::Exclusive, mode)?;
+                signal_requested.store(true, Ordering::Release);
+                signal_active.notify();
+                Ok(())
+            },
+            || locks::unlock_range(&acquired, range),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("native PHP stream was cancelled"),
+            "{error:#}"
+        );
+
+        locks::lock_range(
+            &contender,
+            range,
+            locks::LockKind::Exclusive,
+            locks::LockMode::NonBlocking,
+        )
+        .unwrap();
+        locks::unlock_range(&contender, range).unwrap();
+        drop((acquired, contender));
         fs::remove_dir_all(host_path).unwrap();
     }
 
@@ -694,6 +1414,36 @@ mod tests {
             .unwrap()
         };
         file
+    }
+
+    fn cancellable_state() -> (
+        crate::wasip2::Wasip2HostState,
+        Arc<AtomicBool>,
+        Arc<ActiveCancellation>,
+    ) {
+        let mut state = Wasip2ContextBuilder::new().build().unwrap();
+        let (requested, active) = install_cancellation(&mut state);
+        (state, requested, active)
+    }
+
+    fn install_cancellation(
+        state: &mut crate::wasip2::Wasip2HostState,
+    ) -> (Arc<AtomicBool>, Arc<ActiveCancellation>) {
+        let requested = Arc::new(AtomicBool::new(false));
+        let active = Arc::new(ActiveCancellation::new(Arc::clone(&requested)));
+        state.active_cancellation = Some(Arc::clone(&active));
+        (requested, active)
+    }
+
+    fn request_cancellation(
+        requested: Arc<AtomicBool>,
+        active: Arc<ActiveCancellation>,
+    ) -> thread::JoinHandle<()> {
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            requested.store(true, Ordering::Release);
+            active.notify();
+        })
     }
 
     fn temp_dir(label: &str) -> std::path::PathBuf {

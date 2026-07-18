@@ -21,6 +21,7 @@ use wasmtime_wasi_io::{
     streams::{OutputStream, StreamError},
 };
 
+use super::context::ActiveCancellation;
 use super::{Wasip2ComponentRuntime, Wasip2HostState};
 
 mod bindings {
@@ -35,7 +36,7 @@ mod bindings {
     });
 }
 
-use crate::php_protocol::PhpRequest;
+use crate::{php_config::PHP_EXTENSIONS_ENV_NAME, php_protocol::PhpRequest};
 use bindings::exports::wordpress::php_wasi::{cli, handler};
 use bindings::wordpress::php_wasi::output;
 
@@ -376,6 +377,10 @@ impl Wasip2PhpInstance {
         Self::instantiate_with_interruption(component, state, true)
     }
 
+    pub(crate) fn is_interruptible(&self) -> bool {
+        self.interruptible
+    }
+
     fn instantiate_with_interruption(
         component: &Component,
         state: Wasip2HostState,
@@ -390,7 +395,7 @@ impl Wasip2PhpInstance {
                 let cancelled = state
                     .active_cancellation
                     .as_ref()
-                    .is_some_and(|cancellation| cancellation.load(Ordering::Acquire));
+                    .is_some_and(|cancellation| cancellation.is_requested());
                 Ok(if cancelled {
                     UpdateDeadline::Interrupt
                 } else {
@@ -433,15 +438,18 @@ impl Wasip2PhpInstance {
             .data_mut()
             .php_output
             .start_streaming(sink, Arc::clone(&cancellation));
-        self.store.data_mut().active_cancellation = Some(Arc::clone(&cancellation));
+        let active_cancellation = Arc::new(ActiveCancellation::new(cancellation));
+        self.store.data_mut().active_cancellation = Some(Arc::clone(&active_cancellation));
         self.store.set_epoch_deadline(1);
         let watcher_finished = Arc::new(AtomicBool::new(false));
         let thread_finished = Arc::clone(&watcher_finished);
         let engine = self.store.engine().clone();
+        let watcher_cancellation = Arc::clone(&active_cancellation);
         let watcher = thread::Builder::new()
             .name("wp-playground-stream-cancellation".to_string())
             .spawn(move || loop {
-                if cancellation.load(Ordering::Acquire) {
+                if watcher_cancellation.is_requested() {
+                    watcher_cancellation.notify();
                     engine.increment_epoch();
                     return;
                 }
@@ -501,15 +509,18 @@ impl Wasip2PhpInstance {
             output.start_streaming(sink, Arc::clone(&cancellation));
             output.send_headers(200, Vec::new())?;
         }
-        self.store.data_mut().active_cancellation = Some(Arc::clone(&cancellation));
+        let active_cancellation = Arc::new(ActiveCancellation::new(cancellation));
+        self.store.data_mut().active_cancellation = Some(Arc::clone(&active_cancellation));
         self.store.set_epoch_deadline(1);
         let watcher_finished = Arc::new(AtomicBool::new(false));
         let thread_finished = Arc::clone(&watcher_finished);
         let engine = self.store.engine().clone();
+        let watcher_cancellation = Arc::clone(&active_cancellation);
         let watcher = thread::Builder::new()
             .name("wp-playground-cli-cancellation".to_string())
             .spawn(move || loop {
-                if cancellation.load(Ordering::Acquire) {
+                if watcher_cancellation.is_requested() {
+                    watcher_cancellation.notify();
                     engine.increment_epoch();
                     return;
                 }
@@ -563,6 +574,7 @@ impl Wasip2PhpInstance {
         env: &[(String, String)],
         cwd: Option<&str>,
     ) -> wasmtime::Result<Wasip2PhpCliResponse> {
+        reject_reserved_environment(env)?;
         let argv = argv.iter().map(String::as_str).collect::<Vec<_>>();
         let env = component_cli_entries(env);
         let request = cli::Request {
@@ -586,6 +598,7 @@ impl Wasip2PhpInstance {
         request: &PhpRequest,
         stream_response: bool,
     ) -> wasmtime::Result<Wasip2PhpResponse> {
+        reject_reserved_environment(&request.env)?;
         let server_entries = component_entries(&request.server_entries);
         let env = component_entries(&request.env);
         let request = handler::Request {
@@ -670,6 +683,18 @@ fn component_cli_entries(entries: &[(String, String)]) -> Vec<cli::Entry<'_>> {
         .collect()
 }
 
+fn reject_reserved_environment(entries: &[(String, String)]) -> wasmtime::Result<()> {
+    if entries
+        .iter()
+        .any(|(name, _)| name == PHP_EXTENSIONS_ENV_NAME)
+    {
+        return Err(wasmtime::Error::msg(format!(
+            "caller environment may not set reserved host variable {PHP_EXTENSIONS_ENV_NAME}"
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -683,14 +708,29 @@ mod tests {
     };
 
     use super::{
-        output, with_unwind_safe_cleanup, PhpOutputCapture, Wasip2PhpInstance,
-        Wasip2PhpOutputChannel, Wasip2PhpStreamEvent, Wasip2PhpStreamSink,
+        output, reject_reserved_environment, with_unwind_safe_cleanup, PhpOutputCapture,
+        Wasip2PhpInstance, Wasip2PhpOutputChannel, Wasip2PhpStreamEvent, Wasip2PhpStreamSink,
         PHP_PRE_HEADER_FRAME_LIMIT, PHP_STREAM_FRAME_BYTES,
     };
-    use crate::php_protocol::PhpRequest;
     use crate::wasip2::{CapabilityPreopen, Wasip2ComponentRuntime, Wasip2ContextBuilder};
+    use crate::{php_config::PHP_EXTENSIONS_ENV_NAME, php_protocol::PhpRequest};
 
     static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(1);
+
+    #[test]
+    fn low_level_php_calls_reject_the_reserved_host_environment_selector() {
+        let error = reject_reserved_environment(&[(
+            PHP_EXTENSIONS_ENV_NAME.to_string(),
+            "redis".to_string(),
+        )])
+        .unwrap_err();
+        assert!(error.to_string().contains(PHP_EXTENSIONS_ENV_NAME));
+
+        assert!(
+            reject_reserved_environment(&[("USER_DEFINED".to_string(), "redis".to_string(),)])
+                .is_ok()
+        );
+    }
 
     #[test]
     fn streamed_request_cleanup_runs_before_resuming_a_host_panic() {

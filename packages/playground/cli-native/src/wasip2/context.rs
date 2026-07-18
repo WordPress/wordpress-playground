@@ -1,9 +1,15 @@
 use std::{
+    net::SocketAddr,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
+use tokio::sync::Notify;
 use wasmtime::component::ResourceTable;
+use wasmtime_wasi::sockets::SocketAddrUse;
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 use super::php::{PhpOutputCapture, PhpWasiOutputStream, Wasip2PhpOutputChannel};
@@ -64,6 +70,7 @@ impl CapabilityPreopen {
 #[derive(Clone, Debug, Default)]
 pub struct Wasip2ContextBuilder {
     preopens: Vec<CapabilityPreopen>,
+    host_environment: Vec<(String, String)>,
 }
 
 impl Wasip2ContextBuilder {
@@ -76,12 +83,60 @@ impl Wasip2ContextBuilder {
         self
     }
 
+    /// Adds a host-controlled entry to the component's initial WASI
+    /// environment.
+    ///
+    /// The component ABI requires non-empty names without `=` or NUL and
+    /// values without NUL. Replacing an existing name also prevents ambiguous
+    /// duplicate entries from reaching the guest.
+    pub(crate) fn host_environment(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+    ) -> wasmtime::Result<Self> {
+        let name = name.into();
+        let value = value.into();
+        if name.is_empty() || name.contains(['=', '\0']) {
+            return Err(wasmtime::Error::msg(
+                "WASIp2 host environment names must be non-empty and contain neither '=' nor NUL",
+            ));
+        }
+        if value.contains('\0') {
+            return Err(wasmtime::Error::msg(
+                "WASIp2 host environment values must not contain NUL",
+            ));
+        }
+        if let Some((_, existing_value)) = self
+            .host_environment
+            .iter_mut()
+            .find(|(existing_name, _)| existing_name == &name)
+        {
+            *existing_value = value;
+        } else {
+            self.host_environment.push((name, value));
+        }
+        Ok(self)
+    }
+
     pub fn build(self) -> wasmtime::Result<Wasip2HostState> {
         let mut builder = WasiCtxBuilder::new();
         // Component requests already run synchronously on dedicated native
         // threads. Keep blocking filesystem calls on those threads instead of
         // bouncing every operation through Tokio's blocking pool and awaiting it.
         builder.allow_blocking_current_thread(true);
+        // Match the Node Playground CLI's outbound PHP networking contract.
+        // The guest may resolve names and connect TCP sockets, but it may not
+        // bind a listener or use UDP. This is sufficient for PHP streams,
+        // Redis, Memcached, and Xdebug without granting an ambient server
+        // socket capability to code running inside the component.
+        builder
+            .allow_tcp(true)
+            .allow_udp(false)
+            .allow_ip_name_lookup(true);
+        builder.socket_addr_check(|address, usage| {
+            Box::pin(async move { outbound_tcp_address_allowed(address, usage) })
+        });
+        builder.envs(&self.host_environment);
         let cli_output = Arc::new(Mutex::new(PhpOutputCapture::default()));
         builder.stdout(PhpWasiOutputStream::new(
             Arc::clone(&cli_output),
@@ -109,12 +164,57 @@ impl Wasip2ContextBuilder {
     }
 }
 
+fn outbound_tcp_address_allowed(_address: SocketAddr, usage: SocketAddrUse) -> bool {
+    matches!(usage, SocketAddrUse::TcpConnect)
+}
+
+/// Request-local cancellation state shared by synchronous WASI host waits and
+/// the epoch-interruption watcher.
+///
+/// The public control boundary continues to own the atomic flag. The notifier
+/// prevents every socket poll or flush from allocating a periodic Tokio timer
+/// merely to observe that flag.
+pub(crate) struct ActiveCancellation {
+    requested: Arc<AtomicBool>,
+    notification: Notify,
+}
+
+impl ActiveCancellation {
+    pub(crate) fn new(requested: Arc<AtomicBool>) -> Self {
+        Self {
+            requested,
+            notification: Notify::new(),
+        }
+    }
+
+    pub(crate) fn is_requested(&self) -> bool {
+        self.requested.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn notify(&self) {
+        // There can be only one synchronous host call in flight for a Store.
+        // `notify_one` retains a permit if cancellation wins the race before
+        // the host future begins waiting.
+        self.notification.notify_one();
+    }
+
+    pub(crate) async fn cancelled(&self) {
+        loop {
+            let notified = self.notification.notified();
+            if self.is_requested() {
+                return;
+            }
+            notified.await;
+        }
+    }
+}
+
 pub struct Wasip2HostState {
     table: ResourceTable,
     wasi: WasiCtx,
     pub(crate) php_output: PhpOutputCapture,
     pub(crate) cli_output: Arc<Mutex<PhpOutputCapture>>,
-    pub(crate) active_cancellation: Option<Arc<AtomicBool>>,
+    pub(crate) active_cancellation: Option<Arc<ActiveCancellation>>,
 }
 
 impl WasiView for Wasip2HostState {
@@ -130,12 +230,16 @@ impl WasiView for Wasip2HostState {
 mod tests {
     use std::{
         fs,
+        net::{IpAddr, Ipv4Addr, SocketAddr},
         sync::atomic::{AtomicU64, Ordering},
     };
 
+    use wasmtime_wasi::cli::WasiCliView;
+    use wasmtime_wasi::p2::bindings::cli::environment::Host as WasiEnvironmentHost;
+    use wasmtime_wasi::sockets::SocketAddrUse;
     use wasmtime_wasi::{DirPerms, FilePerms, WasiView};
 
-    use super::{CapabilityPreopen, Wasip2ContextBuilder};
+    use super::{outbound_tcp_address_allowed, CapabilityPreopen, Wasip2ContextBuilder};
 
     static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -182,6 +286,62 @@ mod tests {
         let result = Wasip2ContextBuilder::new().preopen(preopen).build();
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn host_environment_is_validated_deduplicated_and_copied_into_state() {
+        for (name, value) in [
+            ("", "value"),
+            ("BAD=NAME", "value"),
+            ("BAD\0NAME", "value"),
+            ("NAME", "bad\0value"),
+        ] {
+            assert!(Wasip2ContextBuilder::new()
+                .host_environment(name, value)
+                .is_err());
+        }
+
+        let builder = Wasip2ContextBuilder::new()
+            .host_environment("HOST_ONLY", "first")
+            .unwrap()
+            .host_environment("HOST_ONLY", "selected")
+            .unwrap();
+        let mut first = builder.clone().build().unwrap();
+        let mut second = builder.build().unwrap();
+
+        for state in [&mut first, &mut second] {
+            let mut cli = WasiCliView::cli(state);
+            assert_eq!(
+                WasiEnvironmentHost::get_environment(&mut cli).unwrap(),
+                vec![("HOST_ONLY".to_string(), "selected".to_string())]
+            );
+        }
+    }
+
+    #[test]
+    fn network_policy_allows_only_outbound_tcp_connections() {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 6379);
+
+        assert!(outbound_tcp_address_allowed(
+            address,
+            SocketAddrUse::TcpConnect
+        ));
+        assert!(!outbound_tcp_address_allowed(
+            address,
+            SocketAddrUse::TcpBind
+        ));
+        assert!(!outbound_tcp_address_allowed(
+            address,
+            SocketAddrUse::UdpBind
+        ));
+        assert!(!outbound_tcp_address_allowed(
+            address,
+            SocketAddrUse::UdpConnect
+        ));
+        assert!(!outbound_tcp_address_allowed(
+            address,
+            SocketAddrUse::UdpOutgoingDatagram
+        ));
     }
 
     fn create_temp_dir(label: &str) -> std::path::PathBuf {

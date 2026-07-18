@@ -12,7 +12,7 @@ use wasmtime::component::Component;
 
 use crate::{
     atomic_file::atomic_replace_file,
-    php_config::PhpWorkerOptions,
+    php_config::{PhpExtensionSelection, PhpWorkerOptions, PHP_EXTENSIONS_ENV_NAME},
     php_protocol::{PhpRequest, PhpResponse},
     php_runtime_files::{
         self, PhpConstantValue, PhpIniOptions, PHP_CONSTANTS_VFS_PATH, PHP_INI_VFS_PATH,
@@ -27,6 +27,8 @@ use crate::{
 };
 
 static NEXT_COMPONENT_WORKER_ID: AtomicU64 = AtomicU64::new(1);
+const FAILED_STREAMED_EXECUTION_MESSAGE: &str =
+    "WASIp2 PHP worker cannot be reused after a failed streamed execution";
 /// A server-facing, persistent WASIp2 PHP component worker.
 pub struct PhpWorkerInstance {
     component: ComponentPhpInstance,
@@ -101,7 +103,8 @@ impl NativeRuntime {
         php_version: &str,
         options: PhpWorkerOptions,
     ) -> Result<PhpWorkerInstance> {
-        let artifact = self.php_artifact(php_version)?;
+        let artifact =
+            self.php_artifact_for_variant(php_version, options.extensions.component_variant())?;
         PhpWorkerInstance::from_artifact_with_options(artifact, options)
     }
 }
@@ -168,6 +171,7 @@ impl ComponentPhpInstance {
         interruptible: bool,
         initialize_http_sapi: bool,
     ) -> Result<Self> {
+        reject_reserved_environment(&options.env_entries, "WASIp2 PHP worker environment")?;
         let ini_options = PhpIniOptions {
             entries: &options.php_ini_entries,
         };
@@ -206,7 +210,7 @@ impl ComponentPhpInstance {
             )?;
         }
 
-        let mut context = Wasip2ContextBuilder::new();
+        let mut context = php_component_context(options.extensions)?;
         if shared_mount.is_none() {
             context = context.preopen(CapabilityPreopen::read_only(
                 &runtime_shared_root,
@@ -283,6 +287,7 @@ impl ComponentPhpInstance {
         sink: Wasip2PhpStreamSink,
         cancellation: Arc<AtomicBool>,
     ) -> Result<i32> {
+        reject_reserved_environment(env, "WASIp2 PHP CLI environment")?;
         self.failed_stdout.clear();
         self.failed_stderr.clear();
         let mut merged_env = self.env_entries.clone();
@@ -292,19 +297,26 @@ impl ComponentPhpInstance {
         effective_argv.push("-c".to_string());
         effective_argv.push(PHP_INI_VFS_PATH.to_string());
         effective_argv.extend(argv[1..].iter().cloned());
-        let php = self
-            .php
-            .as_mut()
-            .expect("component PHP is present until drop");
-        match php.run_cli_streamed(&effective_argv, &merged_env, cwd, sink, cancellation) {
+        let poison_on_error = self.active_php_mut()?.is_interruptible();
+        let result = self.active_php_mut()?.run_cli_streamed(
+            &effective_argv,
+            &merged_env,
+            cwd,
+            sink,
+            cancellation,
+        );
+        match result {
             Ok(response) => Ok(response.exit_status),
             Err(error) => {
                 let output = self
                     .php
                     .as_mut()
-                    .expect("component PHP is present until drop")
+                    .expect("component PHP was checked before streamed CLI execution")
                     .take_output();
                 self.remember_failed_output(output);
+                if poison_on_error {
+                    drop(self.php.take());
+                }
                 Err(CliError::new(format!("WASIp2 PHP CLI failed: {error:#}")))
             }
         }
@@ -315,8 +327,11 @@ impl ComponentPhpInstance {
         request: &PhpRequest,
         stream: Option<(Wasip2PhpStreamSink, Arc<AtomicBool>)>,
     ) -> Result<PhpResponse> {
+        reject_reserved_environment(&request.env, "WASIp2 PHP request environment")?;
         self.failed_stdout.clear();
         self.failed_stderr.clear();
+        let streamed = stream.is_some();
+        let poison_on_error = streamed && self.active_php_mut()?.is_interruptible();
         let mut merged_request;
         let request = if self.env_entries.is_empty() {
             request
@@ -327,13 +342,12 @@ impl ComponentPhpInstance {
             merged_request.env = env;
             &merged_request
         };
-        let php = self
-            .php
-            .as_mut()
-            .expect("component PHP is present until drop");
         let result = match stream {
-            Some((sink, cancellation)) => php.handle_request_streamed(request, sink, cancellation),
-            None => php.handle_request(request),
+            Some((sink, cancellation)) => {
+                self.active_php_mut()?
+                    .handle_request_streamed(request, sink, cancellation)
+            }
+            None => self.active_php_mut()?.handle_request(request),
         };
         match result {
             Ok(response) => {
@@ -350,9 +364,12 @@ impl ComponentPhpInstance {
                 let output = self
                     .php
                     .as_mut()
-                    .expect("component PHP is present until drop")
+                    .expect("component PHP was checked before request execution")
                     .take_output();
                 self.remember_failed_output(output);
+                if poison_on_error {
+                    drop(self.php.take());
+                }
                 Err(CliError::new(format!(
                     "WASIp2 PHP request failed: {error:#}"
                 )))
@@ -384,6 +401,12 @@ impl ComponentPhpInstance {
         let (stdout, stderr) = output.into_parts();
         self.failed_stdout = stdout;
         self.failed_stderr = stderr;
+    }
+
+    fn active_php_mut(&mut self) -> Result<&mut Wasip2PhpInstance> {
+        self.php
+            .as_mut()
+            .ok_or_else(|| CliError::new(FAILED_STREAMED_EXECUTION_MESSAGE))
     }
 }
 
@@ -509,6 +532,31 @@ fn merge_entries(entries: &mut Vec<(String, String)>, updates: &[(String, String
     }
 }
 
+fn reject_reserved_environment(entries: &[(String, String)], source: &str) -> Result<()> {
+    if entries
+        .iter()
+        .any(|(name, _)| name == PHP_EXTENSIONS_ENV_NAME)
+    {
+        return Err(CliError::new(format!(
+            "{source} may not set reserved host variable {PHP_EXTENSIONS_ENV_NAME}"
+        )));
+    }
+    Ok(())
+}
+
+fn php_component_context(extensions: PhpExtensionSelection) -> Result<Wasip2ContextBuilder> {
+    Wasip2ContextBuilder::new()
+        .host_environment(
+            PHP_EXTENSIONS_ENV_NAME,
+            extensions.as_host_environment_value(),
+        )
+        .map_err(|error| {
+            CliError::new(format!(
+                "Failed to configure WASIp2 PHP host environment: {error}"
+            ))
+        })
+}
+
 fn merge_constants(
     constants: &mut Vec<(String, PhpConstantValue)>,
     updates: &[(String, PhpConstantValue)],
@@ -529,25 +577,743 @@ fn merge_constants(
 mod tests {
     use std::{
         fs,
+        io::{Read, Write},
+        net::{TcpListener, TcpStream},
         path::{Path, PathBuf},
-        sync::{atomic::AtomicBool, atomic::AtomicU64, atomic::Ordering, Arc, Barrier},
+        process::{Child, Command, Stdio},
+        sync::{atomic::AtomicBool, atomic::AtomicU64, atomic::Ordering, Arc, Barrier, Mutex},
         thread,
         time::{Duration, Instant},
     };
 
     use serde_json::Value;
+    use wasmtime_wasi::cli::WasiCliView;
+    use wasmtime_wasi::p2::bindings::cli::environment::Host as WasiEnvironmentHost;
 
-    use super::{create_component_worker_root, vfs_relative_path, PhpWorkerInstance};
+    use super::{
+        create_component_worker_root, php_component_context, reject_reserved_environment,
+        vfs_relative_path, PhpWorkerInstance, FAILED_STREAMED_EXECUTION_MESSAGE,
+    };
     use crate::{
+        assets::PhpComponentVariant,
         mount::Mount,
-        php_config::PhpWorkerOptions,
+        php_config::{PhpExtensionSelection, PhpWorkerOptions, PHP_EXTENSIONS_ENV_NAME},
         php_protocol::{PhpRequest, PhpResponse},
         php_runtime_files::{PhpConstantValue, PHP_CONSTANTS_VFS_PATH, PHP_INI_VFS_PATH},
-        runtime::NativeRuntime,
+        runtime::{InterruptiblePhpArtifact, NativeRuntime},
         sha256::sha256_hex,
+        wasip2::{Wasip2PhpOutputChannel, Wasip2PhpStreamEvent, Wasip2PhpStreamSink},
     };
 
     static NEXT_TEST_DIR_ID: AtomicU64 = AtomicU64::new(1);
+
+    #[test]
+    fn component_context_injects_default_and_selected_extensions_once() {
+        for (selection, expected) in [
+            (PhpExtensionSelection::default(), ""),
+            (
+                PhpExtensionSelection {
+                    redis: true,
+                    memcached: true,
+                    xdebug: true,
+                },
+                "redis,memcached,xdebug",
+            ),
+        ] {
+            let mut state = php_component_context(selection).unwrap().build().unwrap();
+            let mut cli = WasiCliView::cli(&mut state);
+            let environment = WasiEnvironmentHost::get_environment(&mut cli).unwrap();
+            let selector = environment
+                .iter()
+                .filter(|(name, _)| name == PHP_EXTENSIONS_ENV_NAME)
+                .collect::<Vec<_>>();
+
+            assert_eq!(selector.len(), 1);
+            assert_eq!(selector[0].1, expected);
+        }
+    }
+
+    #[test]
+    fn worker_request_and_cli_environments_cannot_override_extension_selector() {
+        let reserved = vec![(PHP_EXTENSIONS_ENV_NAME.to_string(), "xdebug".to_string())];
+        for source in [
+            "WASIp2 PHP worker environment",
+            "WASIp2 PHP request environment",
+            "WASIp2 PHP CLI environment",
+        ] {
+            let error = reject_reserved_environment(&reserved, source).unwrap_err();
+            assert!(error.message().contains(source));
+            assert!(error.message().contains(PHP_EXTENSIONS_ENV_NAME));
+        }
+        assert!(reject_reserved_environment(
+            &[(
+                format!("{PHP_EXTENSIONS_ENV_NAME}_USER"),
+                "allowed".to_string()
+            )],
+            "caller environment"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn extension_enabled_worker_rejects_a_base_only_manifest() {
+        let asset_root = TestDir::new("base-only-component");
+        let component = b"(component)";
+        fs::create_dir_all(asset_root.path().join("assets")).unwrap();
+        fs::write(asset_root.path().join("base.wasm"), component).unwrap();
+        fs::write(
+            asset_root.path().join("assets/php-assets.json"),
+            format!(
+                r#"{{
+                    "schemaVersion": 2,
+                    "runtime": "wasip2-component",
+                    "php": {{
+                        "8.2": {{
+                            "wasm": {{
+                                "path": "base.wasm",
+                                "sha256": "{}"
+                            }}
+                        }}
+                    }}
+                }}"#,
+                sha256_hex(component)
+            ),
+        )
+        .unwrap();
+        let runtime = NativeRuntime::from_asset_root(asset_root.path()).unwrap();
+        let result = runtime.instantiate_php_worker_with_options(
+            "8.2",
+            PhpWorkerOptions {
+                extensions: PhpExtensionSelection {
+                    redis: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let error = match result {
+            Ok(_) => panic!("base-only manifest unexpectedly accepted an extension-enabled worker"),
+            Err(error) => error,
+        };
+        assert!(error.message().contains("variants.extended"), "{error}");
+    }
+
+    #[test]
+    #[ignore = "requires a locally built extended PHP WASIp2 component"]
+    fn xdebug_extended_component_completes_a_real_dbgp_handshake() {
+        let extended = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_EXTENDED_COMPONENT")
+            .map(PathBuf::from)
+            .expect(
+                "set WP_PLAYGROUND_NATIVE_TEST_PHP_EXTENDED_COMPONENT to the extended component",
+            );
+        assert!(
+            extended.is_file(),
+            "extended PHP WASIp2 component is missing: {}",
+            extended.display()
+        );
+        let base = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_COMPONENT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                crate::runtime::repo_root_from_manifest_dir()
+                    .join("packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm")
+            });
+        assert!(
+            base.is_file(),
+            "base PHP WASIp2 component is missing: {}",
+            base.display()
+        );
+        let php_version = native_test_php_version();
+        let xdebug_version = expected_xdebug_version(&php_version);
+
+        let asset_root = TestDir::new("xdebug-variant-assets");
+        write_component_variant_asset_root(asset_root.path(), &php_version, &base, &extended);
+        let site = TestDir::new("xdebug-variant-site");
+        fs::write(
+            site.path().join("xdebug.php"),
+            br#"<?php
+$zlib_path = __DIR__ . '/zlib-' . bin2hex(random_bytes(8)) . '.gz';
+$zlib_writer = gzopen($zlib_path, 'wb');
+gzwrite($zlib_writer, 'zlib-file-round-trip');
+gzclose($zlib_writer);
+$zlib_reader = gzopen($zlib_path, 'rb');
+$zlib_file_round_trip = gzread($zlib_reader, 1024);
+gzclose($zlib_reader);
+unlink($zlib_path);
+echo json_encode([
+    'php_version' => PHP_VERSION,
+    'xdebug_loaded' => extension_loaded('xdebug'),
+    'xdebug_version' => phpversion('xdebug'),
+    'xdebug_info' => function_exists('xdebug_info'),
+    'opcache_loaded' => extension_loaded('Zend OPcache'),
+	'zlib_loaded' => extension_loaded('zlib'),
+	'gzinflate' => function_exists('gzinflate'),
+	'zlib_round_trip' => gzinflate(gzdeflate('zlib-round-trip')),
+	'zlib_file_round_trip' => $zlib_file_round_trip,
+    'mode' => ini_get('xdebug.mode'),
+]);
+"#,
+        )
+        .unwrap();
+        let runtime = NativeRuntime::from_asset_root(asset_root.path()).unwrap();
+
+        let mut base_worker = runtime
+            .instantiate_php_worker_with_options(
+                &php_version,
+                PhpWorkerOptions {
+                    mounts: vec![Mount::new(site.path(), "/site").unwrap()],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let base_response = base_worker
+            .run_sapi_request(&PhpRequest::for_script("/site/xdebug.php"))
+            .unwrap();
+        assert_eq!(
+            base_response.exit_code,
+            0,
+            "{}",
+            utf8(&base_response.stderr)
+        );
+        assert!(
+            base_response.stderr.is_empty(),
+            "{}",
+            utf8(&base_response.stderr)
+        );
+        let base_status: Value = serde_json::from_slice(&base_response.stdout).unwrap();
+        assert_eq!(
+            base_status["php_version"],
+            expected_php_release(&php_version)
+        );
+        assert_eq!(base_status["xdebug_loaded"], false);
+        assert_eq!(base_status["opcache_loaded"], true);
+        assert_eq!(base_status["zlib_loaded"], true);
+        assert_eq!(base_status["gzinflate"], true);
+        assert_eq!(base_status["zlib_round_trip"], "zlib-round-trip");
+        assert_eq!(base_status["zlib_file_round_trip"], "zlib-file-round-trip");
+        drop(base_worker);
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let debugger_port = listener.local_addr().unwrap().port();
+
+        let mut worker = runtime
+            .instantiate_php_worker_with_options(
+                &php_version,
+                PhpWorkerOptions {
+                    mounts: vec![Mount::new(site.path(), "/site").unwrap()],
+                    php_ini_entries: vec![
+                        "xdebug.mode=debug".to_string(),
+                        "xdebug.start_with_request=yes".to_string(),
+                        "xdebug.client_host=127.0.0.1".to_string(),
+                        format!("xdebug.client_port={debugger_port}"),
+                        "xdebug.idekey=PHPWASMCLI".to_string(),
+                        "xdebug.connect_timeout_ms=10000".to_string(),
+                        "xdebug.log_level=0".to_string(),
+                    ],
+                    extensions: PhpExtensionSelection {
+                        xdebug: true,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let debugger = thread::spawn(move || receive_dbgp_init_and_detach(listener));
+        let response = worker
+            .run_sapi_request(&PhpRequest::for_script("/site/xdebug.php"))
+            .unwrap();
+
+        assert_eq!(response.exit_code, 0, "{}", utf8(&response.stderr));
+        assert!(response.stderr.is_empty(), "{}", utf8(&response.stderr));
+        let status: Value = serde_json::from_slice(&response.stdout).unwrap();
+        assert_eq!(status["php_version"], expected_php_release(&php_version));
+        assert_eq!(status["xdebug_loaded"], true);
+        assert_eq!(status["xdebug_version"], xdebug_version);
+        assert_eq!(status["xdebug_info"], true);
+        assert_eq!(status["opcache_loaded"], true);
+        assert_eq!(status["zlib_loaded"], true);
+        assert_eq!(status["gzinflate"], true);
+        assert_eq!(status["zlib_round_trip"], "zlib-round-trip");
+        assert_eq!(status["zlib_file_round_trip"], "zlib-file-round-trip");
+        assert_eq!(status["mode"], "debug");
+
+        let init = debugger.join().unwrap();
+        let init = String::from_utf8(init).unwrap();
+        assert!(init.contains("<init"));
+        assert!(init.contains(&format!("<engine version=\"{xdebug_version}\"")));
+        assert!(init.contains("idekey=\"PHPWASMCLI\""));
+
+        let cli_listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        cli_listener.set_nonblocking(true).unwrap();
+        let cli_debugger_port = cli_listener.local_addr().unwrap().port();
+        let cli_artifact = runtime
+            .lazy_interruptible_php_artifact(&php_version, PhpComponentVariant::Extended)
+            .unwrap()
+            .get()
+            .unwrap();
+        let cli_debugger = thread::spawn(move || receive_dbgp_init_and_detach(cli_listener));
+        let cli_response = run_php_cli(
+            &cli_artifact,
+            PhpWorkerOptions {
+                mounts: vec![Mount::new(site.path(), "/site").unwrap()],
+                php_ini_entries: vec![
+                    "xdebug.mode=debug".to_string(),
+                    "xdebug.start_with_request=yes".to_string(),
+                    "xdebug.client_host=127.0.0.1".to_string(),
+                    format!("xdebug.client_port={cli_debugger_port}"),
+                    "xdebug.idekey=PHPWASMCLI".to_string(),
+                    "xdebug.connect_timeout_ms=10000".to_string(),
+                    "xdebug.log_level=0".to_string(),
+                ],
+                extensions: PhpExtensionSelection {
+                    xdebug: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            "/site/xdebug.php",
+        );
+        assert_eq!(cli_response.exit_code, 0, "{}", utf8(&cli_response.stderr));
+        assert!(
+            cli_response.stderr.is_empty(),
+            "{}",
+            utf8(&cli_response.stderr)
+        );
+        let cli_status: Value = serde_json::from_slice(&cli_response.stdout).unwrap();
+        assert_eq!(
+            cli_status["php_version"],
+            expected_php_release(&php_version)
+        );
+        assert_eq!(cli_status["xdebug_loaded"], true);
+        assert_eq!(cli_status["xdebug_version"], xdebug_version);
+        assert_eq!(cli_status["xdebug_info"], true);
+        assert_eq!(cli_status["opcache_loaded"], true);
+        assert_eq!(cli_status["zlib_loaded"], true);
+        assert_eq!(cli_status["gzinflate"], true);
+        assert_eq!(cli_status["zlib_round_trip"], "zlib-round-trip");
+        assert_eq!(cli_status["zlib_file_round_trip"], "zlib-file-round-trip");
+        assert_eq!(cli_status["mode"], "debug");
+        let cli_init = String::from_utf8(cli_debugger.join().unwrap()).unwrap();
+        assert!(cli_init.contains("<init"));
+        assert!(cli_init.contains(&format!("<engine version=\"{xdebug_version}\"")));
+        assert!(cli_init.contains("idekey=\"PHPWASMCLI\""));
+    }
+
+    #[test]
+    #[ignore = "requires a locally built extended PHP WASIp2 component plus redis-server and memcached"]
+    fn redis_and_memcached_extensions_complete_real_tcp_round_trips() {
+        let extended = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_EXTENDED_COMPONENT")
+            .map(PathBuf::from)
+            .expect(
+                "set WP_PLAYGROUND_NATIVE_TEST_PHP_EXTENDED_COMPONENT to the extended component",
+            );
+        assert!(
+            extended.is_file(),
+            "extended PHP WASIp2 component is missing: {}",
+            extended.display()
+        );
+        let base = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_COMPONENT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                crate::runtime::repo_root_from_manifest_dir()
+                    .join("packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm")
+            });
+        assert!(
+            base.is_file(),
+            "base PHP WASIp2 component is missing: {}",
+            base.display()
+        );
+        let php_version = native_test_php_version();
+
+        let asset_root = TestDir::new("extension-protocol-assets");
+        write_component_variant_asset_root(asset_root.path(), &php_version, &base, &extended);
+        let site = TestDir::new("extension-protocol-site");
+        fs::write(site.path().join("redis.php"), redis_protocol_script()).unwrap();
+        fs::write(
+            site.path().join("memcached.php"),
+            memcached_protocol_script(),
+        )
+        .unwrap();
+        let runtime = NativeRuntime::from_asset_root(asset_root.path()).unwrap();
+        let cli_artifact = runtime
+            .lazy_interruptible_php_artifact(&php_version, PhpComponentVariant::Extended)
+            .unwrap()
+            .get()
+            .unwrap();
+
+        let (redis_server, redis_port) = start_redis_server();
+        let redis_response = run_extension_protocol_request(
+            &runtime,
+            &php_version,
+            site.path(),
+            "/site/redis.php",
+            "TEST_REDIS_PORT",
+            redis_port,
+            PhpExtensionSelection {
+                redis: true,
+                ..Default::default()
+            },
+        );
+        assert_extension_protocol_response(
+            &redis_response,
+            &php_version,
+            "redis",
+            &["memcached", "xdebug"],
+            "redis-round-trip",
+        );
+        let redis_cli_response = run_extension_protocol_cli(
+            &cli_artifact,
+            site.path(),
+            "/site/redis.php",
+            "TEST_REDIS_PORT",
+            redis_port,
+            PhpExtensionSelection {
+                redis: true,
+                ..Default::default()
+            },
+        );
+        assert_extension_protocol_response(
+            &redis_cli_response,
+            &php_version,
+            "redis",
+            &["memcached", "xdebug"],
+            "redis-round-trip",
+        );
+        drop(redis_server);
+
+        let (memcached_server, memcached_port) = start_memcached_server();
+        let memcached_response = run_extension_protocol_request(
+            &runtime,
+            &php_version,
+            site.path(),
+            "/site/memcached.php",
+            "TEST_MEMCACHED_PORT",
+            memcached_port,
+            PhpExtensionSelection {
+                memcached: true,
+                ..Default::default()
+            },
+        );
+        assert_extension_protocol_response(
+            &memcached_response,
+            &php_version,
+            "memcached",
+            &["redis", "xdebug"],
+            "memcached-round-trip",
+        );
+        let memcached_cli_response = run_extension_protocol_cli(
+            &cli_artifact,
+            site.path(),
+            "/site/memcached.php",
+            "TEST_MEMCACHED_PORT",
+            memcached_port,
+            PhpExtensionSelection {
+                memcached: true,
+                ..Default::default()
+            },
+        );
+        assert_extension_protocol_response(
+            &memcached_cli_response,
+            &php_version,
+            "memcached",
+            &["redis", "xdebug"],
+            "memcached-round-trip",
+        );
+        drop(memcached_server);
+    }
+
+    fn start_redis_server() -> (ServiceProcess, u16) {
+        let port = reserve_loopback_port();
+        let port_arg = port.to_string();
+        let mut command = Command::new("redis-server");
+        command.args([
+            "--bind",
+            "127.0.0.1",
+            "--port",
+            &port_arg,
+            "--protected-mode",
+            "yes",
+            "--save",
+            "",
+            "--appendonly",
+            "no",
+            "--loglevel",
+            "warning",
+        ]);
+        let mut server = ServiceProcess::spawn("redis-server", command);
+        wait_for_tcp_service(&mut server.child, "redis-server", port);
+        (server, port)
+    }
+
+    fn start_memcached_server() -> (ServiceProcess, u16) {
+        let port = reserve_loopback_port();
+        let port_arg = port.to_string();
+        let mut command = Command::new("memcached");
+        command.args([
+            "-l",
+            "127.0.0.1",
+            "-p",
+            &port_arg,
+            "-U",
+            "0",
+            "-m",
+            "16",
+            "-c",
+            "16",
+            "-t",
+            "1",
+        ]);
+        let mut server = ServiceProcess::spawn("memcached", command);
+        wait_for_tcp_service(&mut server.child, "memcached", port);
+        (server, port)
+    }
+
+    fn reserve_loopback_port() -> u16 {
+        TcpListener::bind(("127.0.0.1", 0))
+            .expect("failed to reserve a loopback TCP port")
+            .local_addr()
+            .unwrap()
+            .port()
+    }
+
+    fn wait_for_tcp_service(child: &mut Child, label: &str, port: u16) {
+        let address = ([127, 0, 0, 1], port).into();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if let Ok(stream) = TcpStream::connect_timeout(&address, Duration::from_millis(100)) {
+                drop(stream);
+                return;
+            }
+            if let Some(status) = child.try_wait().unwrap() {
+                panic!("{label} exited before accepting TCP connections: {status}");
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {label} on 127.0.0.1:{port}"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    fn run_extension_protocol_request(
+        runtime: &NativeRuntime,
+        php_version: &str,
+        site: &Path,
+        script: &str,
+        port_environment_name: &str,
+        port: u16,
+        extensions: PhpExtensionSelection,
+    ) -> PhpResponse {
+        let mut worker = runtime
+            .instantiate_php_worker_with_options(
+                php_version,
+                PhpWorkerOptions {
+                    mounts: vec![Mount::new(site, "/site").unwrap()],
+                    env_entries: vec![(port_environment_name.to_string(), port.to_string())],
+                    extensions,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        worker
+            .run_sapi_request(&PhpRequest::for_script(script))
+            .unwrap()
+    }
+
+    fn run_extension_protocol_cli(
+        artifact: &InterruptiblePhpArtifact,
+        site: &Path,
+        script: &str,
+        port_environment_name: &str,
+        port: u16,
+        extensions: PhpExtensionSelection,
+    ) -> PhpResponse {
+        run_php_cli(
+            artifact,
+            PhpWorkerOptions {
+                mounts: vec![Mount::new(site, "/site").unwrap()],
+                env_entries: vec![(port_environment_name.to_string(), port.to_string())],
+                extensions,
+                ..Default::default()
+            },
+            script,
+        )
+    }
+
+    fn run_php_cli(
+        artifact: &InterruptiblePhpArtifact,
+        options: PhpWorkerOptions,
+        script: &str,
+    ) -> PhpResponse {
+        let mut php =
+            PhpWorkerInstance::from_cli_artifact_with_options(artifact.clone(), options).unwrap();
+        let output = Arc::new(Mutex::new((Vec::new(), Vec::new())));
+        let sink_output = Arc::clone(&output);
+        let sink: Wasip2PhpStreamSink = Arc::new(move |event| {
+            if let Wasip2PhpStreamEvent::Output { channel, bytes } = event {
+                let mut output = sink_output.lock().unwrap();
+                match channel {
+                    Wasip2PhpOutputChannel::Stdout => output.0.extend(bytes),
+                    Wasip2PhpOutputChannel::Stderr => output.1.extend(bytes),
+                }
+            }
+            Ok(())
+        });
+        let argv = vec!["php".to_string(), script.to_string()];
+        let exit_code = php
+            .run_cli_streamed(
+                &argv,
+                &[],
+                Some("/site"),
+                sink,
+                Arc::new(AtomicBool::new(false)),
+            )
+            .unwrap();
+        let (stdout, stderr) = output.lock().unwrap().clone();
+        PhpResponse {
+            exit_code,
+            http_status: 0,
+            stdout,
+            stderr,
+            headers: Vec::new(),
+        }
+    }
+
+    fn assert_extension_protocol_response(
+        response: &PhpResponse,
+        php_version: &str,
+        selected_extension: &str,
+        absent_extensions: &[&str],
+        expected_value: &str,
+    ) {
+        assert_eq!(response.exit_code, 0, "{}", utf8(&response.stderr));
+        assert!(response.stderr.is_empty(), "{}", utf8(&response.stderr));
+        let status: Value = serde_json::from_slice(&response.stdout).unwrap_or_else(|error| {
+            panic!(
+                "invalid {selected_extension} protocol JSON ({error}): {}",
+                utf8(&response.stdout)
+            )
+        });
+        assert_eq!(status["php_version"], expected_php_release(php_version));
+        assert_eq!(status["selected"], selected_extension);
+        assert_eq!(status["selected_loaded"], true);
+        let expected_extension_version = match selected_extension {
+            "redis" => "6.3.0",
+            "memcached" => "3.4.0",
+            other => panic!("no expected extension version for {other}"),
+        };
+        assert_eq!(status["selected_version"], expected_extension_version);
+        assert_eq!(status["value"], expected_value);
+        for absent in absent_extensions {
+            assert_eq!(
+                status["extension_loaded"][*absent], false,
+                "{absent} unexpectedly loaded while only {selected_extension} was selected"
+            );
+        }
+    }
+
+    fn redis_protocol_script() -> &'static [u8] {
+        br#"<?php
+try {
+    $stage = 'load';
+    if (!extension_loaded('redis')) {
+        throw new RuntimeException('redis extension is not loaded');
+    }
+    $stage = 'connect';
+    $client = new Redis();
+    $port = filter_var(getenv('TEST_REDIS_PORT'), FILTER_VALIDATE_INT);
+    if (!$port || !$client->connect('127.0.0.1', $port, 10.0)) {
+        throw new RuntimeException('failed to connect to redis-server');
+    }
+    $client->setOption(Redis::OPT_READ_TIMEOUT, 10.0);
+    $expected = 'redis-round-trip';
+    for ($iteration = 0; $iteration < 128; $iteration++) {
+        $key = 'wp-playground-wasip2-protocol-proof-' . $iteration;
+        $stage = 'set[' . $iteration . ']';
+        if (!$client->set($key, $expected)) {
+            throw new RuntimeException('Redis::set failed');
+        }
+        $stage = 'get[' . $iteration . ']';
+        $value = $client->get($key);
+        if ($value !== $expected) {
+            throw new RuntimeException('Redis::get returned an unexpected value');
+        }
+        $stage = 'cleanup[' . $iteration . ']';
+        if ($client->del($key) !== 1) {
+            throw new RuntimeException('Redis::del returned an unexpected value');
+        }
+    }
+    $client->close();
+    echo json_encode([
+        'php_version' => PHP_VERSION,
+        'selected' => 'redis',
+        'selected_loaded' => true,
+        'selected_version' => phpversion('redis'),
+        'extension_loaded' => [
+            'memcached' => extension_loaded('memcached'),
+            'xdebug' => extension_loaded('xdebug'),
+        ],
+        'value' => $value,
+    ], JSON_THROW_ON_ERROR);
+} catch (Throwable $error) {
+    error_log($stage . ': ' . $error->getMessage());
+    exit(10);
+}
+"#
+    }
+
+    fn memcached_protocol_script() -> &'static [u8] {
+        br#"<?php
+try {
+    $stage = 'load';
+    if (!extension_loaded('memcached')) {
+        throw new RuntimeException('memcached extension is not loaded');
+    }
+    $stage = 'connect';
+    $client = new Memcached();
+    $client->setOption(Memcached::OPT_CONNECT_TIMEOUT, 10000);
+    $port = filter_var(getenv('TEST_MEMCACHED_PORT'), FILTER_VALIDATE_INT);
+    if (!$port || !$client->addServer('127.0.0.1', $port)) {
+        throw new RuntimeException('failed to configure the memcached server');
+    }
+    $key = 'wp-playground-wasip2-protocol-proof';
+    $expected = 'memcached-round-trip';
+    $stage = 'set';
+    if (!$client->set($key, $expected, 60)) {
+        throw new RuntimeException(sprintf(
+            'Memcached::set failed: result=%d %s; last=%d errno=%d %s',
+            $client->getResultCode(),
+            $client->getResultMessage(),
+            $client->getLastErrorCode(),
+            $client->getLastErrorErrno(),
+            $client->getLastErrorMessage()
+        ));
+    }
+    $stage = 'get';
+    $value = $client->get($key);
+    if ($client->getResultCode() !== Memcached::RES_SUCCESS || $value !== $expected) {
+        throw new RuntimeException('Memcached::get failed: ' . $client->getResultMessage());
+    }
+    $stage = 'cleanup';
+    $client->delete($key);
+    $client->quit();
+    echo json_encode([
+        'php_version' => PHP_VERSION,
+        'selected' => 'memcached',
+        'selected_loaded' => true,
+        'selected_version' => phpversion('memcached'),
+        'extension_loaded' => [
+            'redis' => extension_loaded('redis'),
+            'xdebug' => extension_loaded('xdebug'),
+        ],
+        'value' => $value,
+    ], JSON_THROW_ON_ERROR);
+} catch (Throwable $error) {
+    error_log($stage . ': ' . $error->getMessage());
+    exit(11);
+}
+"#
+    }
 
     #[test]
     fn staging_paths_are_absolute_and_cannot_escape() {
@@ -586,9 +1352,109 @@ mod tests {
     }
 
     #[test]
+    fn cancelled_streamed_workers_drop_the_component_and_reject_reentry() {
+        let php_version = native_test_php_version();
+        let component_name = if php_version == "8.2" {
+            "php-wasi-component.wasm".to_string()
+        } else {
+            format!("php-{php_version}-wasi-component.wasm")
+        };
+        let proof = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_COMPONENT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                crate::runtime::repo_root_from_manifest_dir()
+                    .join("packages/php-wasm/compile/php-wasi/dist")
+                    .join(component_name)
+            });
+        assert!(
+            proof.is_file(),
+            "checked-in PHP WASIp2 component is missing: {}",
+            proof.display()
+        );
+
+        let asset_root = TestDir::new("cancelled-worker-assets");
+        write_component_asset_root(asset_root.path(), &php_version, &proof);
+        let site = TestDir::new("cancelled-worker-site");
+        fs::write(site.path().join("request.php"), b"<?php echo 'done';").unwrap();
+        let runtime = NativeRuntime::from_asset_root(asset_root.path()).unwrap();
+        let artifact = runtime
+            .lazy_interruptible_php_artifact(&php_version, PhpComponentVariant::Base)
+            .unwrap()
+            .get()
+            .unwrap();
+        let options = || PhpWorkerOptions {
+            mounts: vec![Mount::new(site.path(), "/site").unwrap()],
+            ..Default::default()
+        };
+
+        let mut http_worker = PhpWorkerInstance::from_interruptible_artifact_with_options(
+            artifact.clone(),
+            options(),
+        )
+        .unwrap();
+        let error = http_worker
+            .run_sapi_request_streamed(
+                &PhpRequest::for_script("/site/request.php"),
+                Arc::new(|_| Ok(())),
+                Arc::new(AtomicBool::new(true)),
+            )
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("wasm trap: interrupt")
+                || error.to_string().contains("cancelled"),
+            "{error}"
+        );
+        assert!(http_worker.component.php.is_none());
+        let reentry = http_worker
+            .run_sapi_request(&PhpRequest::for_script("/site/request.php"))
+            .unwrap_err();
+        assert_eq!(reentry.message(), FAILED_STREAMED_EXECUTION_MESSAGE);
+
+        let mut cli_worker =
+            PhpWorkerInstance::from_cli_artifact_with_options(artifact, options()).unwrap();
+        let argv = vec!["php".to_string(), "/site/request.php".to_string()];
+        let error = cli_worker
+            .run_cli_streamed(
+                &argv,
+                &[],
+                Some("/site"),
+                Arc::new(|_| Ok(())),
+                Arc::new(AtomicBool::new(true)),
+            )
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("wasm trap: interrupt")
+                || error.to_string().contains("cancelled"),
+            "{error}"
+        );
+        assert!(cli_worker.component.php.is_none());
+        let reentry = cli_worker
+            .run_cli_streamed(
+                &argv,
+                &[],
+                Some("/site"),
+                Arc::new(|_| Ok(())),
+                Arc::new(AtomicBool::new(false)),
+            )
+            .unwrap_err();
+        assert_eq!(reentry.message(), FAILED_STREAMED_EXECUTION_MESSAGE);
+    }
+
+    #[test]
     fn component_artifact_stages_runtime_and_runs_parallel_workers() {
-        let proof = crate::runtime::repo_root_from_manifest_dir()
-            .join("packages/php-wasm/compile/php-wasi/dist/php-wasi-component.wasm");
+        let php_version = native_test_php_version();
+        let proof = std::env::var_os("WP_PLAYGROUND_NATIVE_TEST_PHP_COMPONENT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                let component_name = if php_version == "8.2" {
+                    "php-wasi-component.wasm".to_string()
+                } else {
+                    format!("php-{php_version}-wasi-component.wasm")
+                };
+                crate::runtime::repo_root_from_manifest_dir()
+                    .join("packages/php-wasm/compile/php-wasi/dist")
+                    .join(component_name)
+            });
         assert!(
             proof.is_file(),
             "checked-in PHP WASIp2 component is missing: {}",
@@ -596,14 +1462,77 @@ mod tests {
         );
 
         let asset_root = TestDir::new("component-adapter-assets");
-        write_component_asset_root(asset_root.path(), &proof);
+        write_component_asset_root(asset_root.path(), &php_version, &proof);
         let site = TestDir::new("component-adapter-site");
         fs::write(site.path().join("adapter.php"), adapter_script()).unwrap();
         let runtime = NativeRuntime::from_asset_root(asset_root.path()).unwrap();
 
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let network_port = listener.local_addr().unwrap().port();
+        fs::write(
+            site.path().join("network.php"),
+            format!(
+                "<?php if (@stream_socket_server('tcp://127.0.0.1:0') !== false) {{ error_log('tcp bind unexpectedly allowed'); exit(2); }} if (@stream_socket_client('udp://127.0.0.1:9') !== false) {{ error_log('udp unexpectedly allowed'); exit(3); }} $socket = fsockopen('localhost', {network_port}, $errno, $error, 2); if (!$socket) {{ error_log(\"$errno:$error\"); exit(1); }} fwrite($socket, 'ping'); echo fread($socket, 4); fclose($socket);"
+            ),
+        )
+        .unwrap();
+        let network_peer = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 4];
+            stream.read_exact(&mut request).unwrap();
+            assert_eq!(&request, b"ping");
+            stream.write_all(b"pong").unwrap();
+        });
+        let mut network_worker = runtime
+            .instantiate_php_worker_with_options(
+                &php_version,
+                component_worker_options(site.path(), "network", "network"),
+            )
+            .unwrap();
+        let network_response = network_worker
+            .run_sapi_request(&PhpRequest::for_script("/site/network.php"))
+            .unwrap();
+        assert_eq!(
+            network_response.exit_code,
+            0,
+            "{}",
+            utf8(&network_response.stderr)
+        );
+        assert_eq!(network_response.stdout, b"pong");
+        network_peer.join().unwrap();
+
+        // PHP 7.4 used an int-returning zend_list_free() in a void-returning
+        // destructor table. Explicit teardown exercises the typed call_indirect.
+        fs::write(
+            site.path().join("implicit-resource.php"),
+            "<?php $resource = fopen('/site/implicit-resource.php', 'rb'); if (!is_resource($resource)) { exit(1); } unset($resource); echo 'resource-released';",
+        )
+        .unwrap();
+        let mut resource_worker = runtime
+            .instantiate_php_worker_with_options(
+                &php_version,
+                component_worker_options(site.path(), "resource", "resource"),
+            )
+            .unwrap();
+        let resource_response = resource_worker
+            .run_sapi_request(&PhpRequest::for_script("/site/implicit-resource.php"))
+            .unwrap();
+        assert_eq!(
+            resource_response.exit_code,
+            0,
+            "{}",
+            utf8(&resource_response.stderr)
+        );
+        assert_eq!(resource_response.stdout, b"resource-released");
+        assert!(
+            resource_response.stderr.is_empty(),
+            "{}",
+            utf8(&resource_response.stderr)
+        );
+
         let mut worker = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "initial", "host-base"),
             )
             .unwrap();
@@ -624,7 +1553,13 @@ mod tests {
         let response = worker
             .run_sapi_request(&packed_request("request-override"))
             .unwrap();
-        assert_adapter_response(&response, "initial", "request-override", "request-only");
+        assert_adapter_response(
+            &response,
+            &php_version,
+            "initial",
+            "request-override",
+            "request-only",
+        );
 
         worker.define_constants(&[(
             "ADAPTER_CONSTANT".to_string(),
@@ -634,20 +1569,26 @@ mod tests {
         let response = worker
             .run_sapi_request(&packed_request("request-updated"))
             .unwrap();
-        assert_adapter_response(&response, "updated", "request-updated", "request-only");
+        assert_adapter_response(
+            &response,
+            &php_version,
+            "updated",
+            "request-updated",
+            "request-only",
+        );
 
         drop(worker);
         assert!(!worker_root.exists());
 
         let first = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "worker-one", "env-one"),
             )
             .unwrap();
         let second = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "worker-two", "env-two"),
             )
             .unwrap();
@@ -660,8 +1601,20 @@ mod tests {
         let second_handle = spawn_component_request(second, barrier);
         let first_response = first_handle.join().unwrap();
         let second_response = second_handle.join().unwrap();
-        assert_adapter_response(&first_response, "worker-one", "env-one", "parallel");
-        assert_adapter_response(&second_response, "worker-two", "env-two", "parallel");
+        assert_adapter_response(
+            &first_response,
+            &php_version,
+            "worker-one",
+            "env-one",
+            "parallel",
+        );
+        assert_adapter_response(
+            &second_response,
+            &php_version,
+            "worker-two",
+            "env-two",
+            "parallel",
+        );
         assert!(!first_root.exists());
         assert!(!second_root.exists());
 
@@ -669,7 +1622,7 @@ mod tests {
         fs::write(site.path().join("sqlite-lock.php"), sqlite_lock_script()).unwrap();
         let mut initializer = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "sqlite-init", "sqlite-init"),
             )
             .unwrap();
@@ -682,13 +1635,13 @@ mod tests {
 
         let first = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "sqlite-one", "sqlite-one"),
             )
             .unwrap();
         let second = runtime
             .instantiate_php_worker_with_options(
-                "8.2",
+                &php_version,
                 component_worker_options(site.path(), "sqlite-two", "sqlite-two"),
             )
             .unwrap();
@@ -742,6 +1695,7 @@ mod tests {
                 "/internal/shared/adapter.txt".to_string(),
                 Arc::<[u8]>::from(&b"staged-runtime-file"[..]),
             )],
+            extensions: Default::default(),
         }
     }
 
@@ -787,6 +1741,7 @@ mod tests {
 
     fn assert_adapter_response(
         response: &PhpResponse,
+        php_version: &str,
         constant: &str,
         host_env: &str,
         request_env: &str,
@@ -795,6 +1750,7 @@ mod tests {
         let decoded: Value = serde_json::from_slice(&response.stdout).unwrap_or_else(|error| {
             panic!("invalid adapter JSON ({error}): {}", utf8(&response.stdout))
         });
+        assert_eq!(decoded["php_version"], expected_php_release(php_version));
         assert_eq!(decoded["method"], "POST");
         assert_eq!(decoded["query"], "hello=world");
         assert_eq!(decoded["body"], "410042");
@@ -803,6 +1759,25 @@ mod tests {
         assert_eq!(decoded["request_env"], request_env);
         assert_eq!(decoded["constant"], constant);
         assert_eq!(decoded["staged"], "staged-runtime-file");
+        for extension in [
+            "ctype",
+            "filter",
+            "session",
+            "Phar",
+            "Zend OPcache",
+            "PDO",
+            "pdo_sqlite",
+            "sqlite3",
+            "zlib",
+        ] {
+            assert_eq!(
+                decoded["extensions"][extension], true,
+                "{extension} is not loaded for PHP {php_version}"
+            );
+        }
+        assert_eq!(decoded["gzinflate"], true);
+        assert_eq!(decoded["zlib_round_trip"], "zlib-round-trip");
+        assert_eq!(decoded["zlib_file_round_trip"], "zlib-file-round-trip");
         assert_eq!(response.http_status, 200);
         assert!(response
             .headers
@@ -833,8 +1808,17 @@ mod tests {
 
     fn adapter_script() -> &'static [u8] {
         br#"<?php
+$zlib_path = __DIR__ . '/zlib-' . bin2hex(random_bytes(8)) . '.gz';
+$zlib_writer = gzopen($zlib_path, 'wb');
+gzwrite($zlib_writer, 'zlib-file-round-trip');
+gzclose($zlib_writer);
+$zlib_reader = gzopen($zlib_path, 'rb');
+$zlib_file_round_trip = gzread($zlib_reader, 1024);
+gzclose($zlib_reader);
+unlink($zlib_path);
 header('X-Adapter: yes');
 echo json_encode([
+    'php_version' => PHP_VERSION,
     'method' => $_SERVER['REQUEST_METHOD'] ?? null,
     'query' => $_SERVER['QUERY_STRING'] ?? null,
     'body' => bin2hex(file_get_contents('php://input')),
@@ -843,6 +1827,20 @@ echo json_encode([
     'request_env' => getenv('REQUEST_ONLY'),
     'constant' => ADAPTER_CONSTANT,
     'staged' => file_get_contents('/internal/shared/adapter.txt'),
+    'extensions' => [
+        'ctype' => extension_loaded('ctype'),
+        'filter' => extension_loaded('filter'),
+        'session' => extension_loaded('session'),
+        'Phar' => extension_loaded('Phar'),
+        'Zend OPcache' => extension_loaded('Zend OPcache'),
+        'PDO' => extension_loaded('PDO'),
+        'pdo_sqlite' => extension_loaded('pdo_sqlite'),
+        'sqlite3' => extension_loaded('sqlite3'),
+		'zlib' => extension_loaded('zlib'),
+    ],
+	'gzinflate' => function_exists('gzinflate'),
+	'zlib_round_trip' => gzinflate(gzdeflate('zlib-round-trip')),
+	'zlib_file_round_trip' => $zlib_file_round_trip,
 ]);"#
     }
 
@@ -868,11 +1866,12 @@ echo $database->query('SELECT COUNT(*) FROM requests')->fetchColumn();
 "#
     }
 
-    fn write_component_asset_root(root: &Path, proof: &Path) {
+    fn write_component_asset_root(root: &Path, php_version: &str, proof: &Path) {
         let component = fs::read(proof).unwrap();
         fs::create_dir_all(root.join("assets")).unwrap();
         fs::create_dir_all(root.join("php")).unwrap();
-        fs::write(root.join("php/php_8_2.component.wasm"), &component).unwrap();
+        let component_path = format!("php/php_{}.component.wasm", php_version.replace('.', "_"));
+        fs::write(root.join(&component_path), &component).unwrap();
         fs::write(
             root.join("assets/php-assets.json"),
             format!(
@@ -880,22 +1879,156 @@ echo $database->query('SELECT COUNT(*) FROM requests')->fetchColumn();
                     "schemaVersion": 2,
                     "runtime": "wasip2-component",
                     "php": {{
-                        "8.2": {{
+                        "{}": {{
                             "wasm": {{
-                                "path": "php/php_8_2.component.wasm",
+                                "path": "{}",
                                 "sha256": "{}"
                             }}
                         }}
                     }}
                 }}"#,
-                sha256_hex(&component)
+                php_version,
+                component_path,
+                sha256_hex(&component),
             ),
         )
         .unwrap();
     }
 
+    fn native_test_php_version() -> String {
+        std::env::var("WP_PLAYGROUND_NATIVE_TEST_PHP_VERSION").unwrap_or_else(|_| "8.2".to_string())
+    }
+
+    fn expected_xdebug_version(php_version: &str) -> &'static str {
+        match php_version {
+            "7.4" => "3.1.6",
+            "8.5" => "3.5.3",
+            _ => "3.4.7",
+        }
+    }
+
+    fn expected_php_release(php_version: &str) -> &'static str {
+        match php_version {
+            "7.4" => "7.4.33",
+            "8.0" => "8.0.30",
+            "8.1" => "8.1.34",
+            "8.2" => "8.2.32",
+            "8.3" => "8.3.32",
+            "8.4" => "8.4.23",
+            "8.5" => "8.5.8",
+            version => panic!("unsupported native PHP test version: {version}"),
+        }
+    }
+
+    fn write_component_variant_asset_root(
+        root: &Path,
+        php_version: &str,
+        base: &Path,
+        extended: &Path,
+    ) {
+        let base_component = fs::read(base).unwrap();
+        let extended_component = fs::read(extended).unwrap();
+        let file_version = php_version.replace('.', "_");
+        fs::create_dir_all(root.join("assets")).unwrap();
+        fs::create_dir_all(root.join("php")).unwrap();
+        let base_path = format!("php/php_{file_version}.component.wasm");
+        let extended_path = format!("php/php_{file_version}.extended.component.wasm");
+        fs::write(root.join(&base_path), &base_component).unwrap();
+        fs::write(root.join(&extended_path), &extended_component).unwrap();
+        fs::write(
+            root.join("assets/php-assets.json"),
+            format!(
+                r#"{{
+                    "schemaVersion": 2,
+                    "runtime": "wasip2-component",
+                    "php": {{
+                        "{}": {{
+                            "wasm": {{
+                                "path": "{}",
+                                "sha256": "{}"
+                            }},
+                            "variants": {{
+                                "extended": {{
+                                    "wasm": {{
+                                        "path": "{}",
+                                        "sha256": "{}"
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}
+                }}"#,
+                php_version,
+                base_path,
+                sha256_hex(&base_component),
+                extended_path,
+                sha256_hex(&extended_component),
+            ),
+        )
+        .unwrap();
+    }
+
+    fn receive_dbgp_init_and_detach(listener: TcpListener) -> Vec<u8> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut stream = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    assert!(
+                        Instant::now() < deadline,
+                        "timed out waiting for Xdebug DBGp connection"
+                    );
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => panic!("failed to accept Xdebug DBGp connection: {error}"),
+            }
+        };
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        let mut init = Vec::new();
+        let mut chunk = [0u8; 4096];
+        while init.iter().filter(|byte| **byte == 0).count() < 2 {
+            let read = stream.read(&mut chunk).unwrap();
+            assert_ne!(
+                read, 0,
+                "Xdebug closed before completing its DBGp init packet"
+            );
+            init.extend_from_slice(&chunk[..read]);
+            assert!(
+                init.len() <= 128 * 1024,
+                "Xdebug DBGp init packet exceeded 128 KiB"
+            );
+        }
+        stream.write_all(b"detach -i 1\0").unwrap();
+        init
+    }
+
     fn utf8(bytes: &[u8]) -> String {
         String::from_utf8_lossy(bytes).into_owned()
+    }
+
+    struct ServiceProcess {
+        child: Child,
+    }
+
+    impl ServiceProcess {
+        fn spawn(label: &str, mut command: Command) -> Self {
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+            let child = command.spawn().unwrap_or_else(|error| {
+                panic!(
+                    "failed to start {label}: {error}; install it or run the test in a Nix shell containing redis and memcached"
+                )
+            });
+            Self { child }
+        }
+    }
+
+    impl Drop for ServiceProcess {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
     }
 
     struct TestDir(PathBuf);

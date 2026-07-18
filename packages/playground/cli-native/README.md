@@ -12,7 +12,7 @@ wp-playground-native build-snapshot [options]
 
 ## Architecture
 
-PHP 8.2 is built as a persistent WASIp2 component. The Rust host composes it
+PHP 7.4 through 8.5 are built as persistent WASIp2 components. The Rust host composes them
 with Wasmtime's synchronous WASI implementation instead of reproducing the
 Emscripten and Node.js syscall layer.
 
@@ -53,6 +53,17 @@ concurrently open the same mounted database in WAL mode.
 The component build and its inputs live in
 `packages/php-wasm/compile/php-wasi`. Its checked-in output is selected by
 `assets/php-assets.json`; no JavaScript loader is packaged by the native CLI.
+The package builder copies and verifies every component declared by that
+manifest. The checked-in manifest declares PHP 7.4, 8.0, 8.1, 8.2, 8.3, 8.4,
+and 8.5.
+Each PHP entry keeps its required base component in `wasm` with optional
+`wasmtime`. It may additionally declare exactly one
+`variants.extended` component, which contains the bundled Redis, Memcached,
+and Xdebug modules. Any enabled module selects that extended component; the
+default remains base, and selection fails explicitly when no extended variant
+is declared. Both variants are preserved and checksum-verified independently.
+Both variants include the core WordPress runtime extensions, including zlib
+and `gzinflate()`.
 
 ## Run locally
 
@@ -110,13 +121,18 @@ The component path supports:
 
 Current component constraints are explicit:
 
-- PHP 8.2 is the only native component build.
-- Intl, Redis, Memcached, Xdebug, and dynamic PHP side modules are not included.
+- PHP 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, and 8.5 have native component builds.
+- Intl and dynamic PHP side modules are not included. Through the
+  `@wp-playground/cli-native` npm adapter, omitted Redis and Memcached follow
+  the Node CLI's JSPI default; the native binary itself defaults them off.
+  Explicit positive or negative flags override either default. Bundled Xdebug
+  remains disabled by default.
 - The component includes the CLI SAPI and OPcache. The private control API
   exposes PHP CLI execution, but the top-level `wp-playground-native php`
   command remains outside the native-v1 command matrix.
-- PHP-initiated outbound networking is not enabled yet. Host-side WordPress and
-  Blueprint downloads continue to use the Rust downloader.
+- PHP-initiated TCP connect and DNS lookup are enabled for Node parity. Guest
+  TCP bind and UDP remain denied. Host-side WordPress and Blueprint downloads
+  continue to use the Rust downloader.
 - The v1 interpreter rejects unsupported behavioral top-level Blueprint fields
   (`landingPage`, `preferredVersions`, `features`, `constants`, and `plugins`)
   instead of silently ignoring them; express behavior with supported startup
@@ -139,8 +155,10 @@ packages/php-wasm/compile/php-wasi/docker.sh validate
 
 The build pins PHP, SQLite, WASI SDK, WIT tools, source checksums, the container
 base image, and `SOURCE_DATE_EPOCH`. Validation checks the component model and
-published manifest checksum. CI also rebuilds the checked-in component and
-requires a byte-for-byte match.
+published manifest checksum. The separate manual artifact-acceptance gate makes
+two clean builds of every PHP version and variant and requires byte-for-byte
+component, `libphp`, and `libsqlite3` matches. Repository CI validates the
+checked-in components and manifest, but does not rebuild PHP from source.
 
 ## Test
 

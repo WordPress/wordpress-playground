@@ -1,0 +1,2117 @@
+From a66d0a1181bcb1d3835ccee2172b5b5741d37685 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:31 +0200
+Subject: [PATCH 01/12] Add support for building PHP 8.5 to wasm32-wasi
+
+---
+ Zend/Optimizer/zend_func_infos.h       |  10 ++-
+ Zend/zend.c                            |   4 ++
+ Zend/zend.h                            |  19 ++++++
+ Zend/zend_alloc.c                      |  25 +++++++-
+ Zend/zend_fibers.c                     |  20 +++++-
+ Zend/zend_fibers_wasi.c                |  24 ++++++++
+ Zend/zend_globals.h                    |   5 ++
+ Zend/zend_virtual_cwd.c                |   6 +-
+ Zend/zend_virtual_cwd_wasi.c           |  34 +++++++++++
+ Zend/zend_wasi.c                       |  26 ++++++++
+ build/ax_check_define.m4               |  73 ++++++++++++++++++++++
+ configure.ac                           |  44 ++++++++++----
+ ext/phar/func_interceptors.c           |   2 +
+ ext/phar/phar_object.c                 |   4 +-
+ ext/standard/basic_functions.c         |  12 +++-
+ ext/standard/basic_functions.stub.php  |   6 ++
+ ext/standard/basic_functions_arginfo.h | Bin 174099 -> 174637 bytes
+ ext/standard/basic_functions_wasi.c    |  19 ++++++
+ ext/standard/config.m4                 |  10 +--
+ ext/standard/exec.c                    |  26 +++++++-
+ ext/standard/exec_wasi.c               |  27 +++++++++
+ ext/standard/file.c                    |  40 ++++++++++--
+ ext/standard/file_wasi.c               |  27 +++++++++
+ ext/standard/filestat.c                |  43 +++++++++++--
+ ext/standard/filestat_wasi.c           |  33 ++++++++++
+ ext/standard/flock_wasi.c              |  22 +++++++
+ ext/standard/mail.c                    |   4 ++
+ ext/standard/mail_wasi.c               |  22 +++++++
+ ext/standard/microtime.c               |   4 +-
+ ext/standard/net.c                     |   6 +-
+ ext/standard/pageinfo.c                |   3 +
+ ext/standard/php_fopen_wrapper.c       |   4 +-
+ main/fastcgi_wasi.c                    |  81 +++++++++++++++++++++++++
+ main/fopen_wrappers.c                  |   2 +
+ main/main.c                            |   6 +-
+ main/php.h                             |   4 ++
+ main/php_glob.c                        |  12 +++-
+ main/php_open_temporary_file.c         |   6 ++
+ main/php_open_temporary_file_wasi.c    |  25 ++++++++
+ main/php_syslog.h                      |   2 +
+ main/streams/plain_wrapper.c           |  17 ++++--
+ main/unistd_wasi.c                     |  21 +++++++
+ sapi/cgi/cgi_main.c                    |  10 +--
+ sapi/cgi/config9.m4                    |   3 +
+ sapi/cli/config.m4                     |   9 ++-
+ sapi/cli/php_cli.c                     |   6 +-
+ wasi/syslog.h                          |  27 +++++++++
+ 47 files changed, 769 insertions(+), 66 deletions(-)
+ create mode 100644 Zend/zend_fibers_wasi.c
+ create mode 100644 Zend/zend_virtual_cwd_wasi.c
+ create mode 100644 Zend/zend_wasi.c
+ create mode 100644 build/ax_check_define.m4
+ create mode 100644 ext/standard/basic_functions_wasi.c
+ create mode 100644 ext/standard/exec_wasi.c
+ create mode 100644 ext/standard/file_wasi.c
+ create mode 100644 ext/standard/filestat_wasi.c
+ create mode 100644 ext/standard/flock_wasi.c
+ create mode 100644 ext/standard/mail_wasi.c
+ create mode 100644 main/fastcgi_wasi.c
+ create mode 100644 main/php_open_temporary_file_wasi.c
+ create mode 100644 main/unistd_wasi.c
+ create mode 100644 wasi/syslog.h
+
+diff --git a/Zend/Optimizer/zend_func_infos.h b/Zend/Optimizer/zend_func_infos.h
+index b7b118c7..67a756c6 100644
+--- a/Zend/Optimizer/zend_func_infos.h
++++ b/Zend/Optimizer/zend_func_infos.h
+@@ -447,13 +447,19 @@ static const func_info_t func_infos[] = {
+ #if defined(HAVE_STRPTIME)
+ 	F1("strptime", MAY_BE_ARRAY|MAY_BE_ARRAY_KEY_STRING|MAY_BE_ARRAY_OF_LONG|MAY_BE_ARRAY_OF_STRING|MAY_BE_FALSE),
+ #endif
+-#if defined(HAVE_GETHOSTNAME)
++#if !defined(PHP_WASI) && defined(HAVE_GETHOSTNAME)
+ 	F1("gethostname", MAY_BE_STRING|MAY_BE_FALSE),
+ #endif
++#if !defined(PHP_WASI)
+ 	F1("gethostbyaddr", MAY_BE_STRING|MAY_BE_FALSE),
++#endif
++#if !defined(PHP_WASI)
+ 	F1("gethostbyname", MAY_BE_STRING),
++#endif
++#if !defined(PHP_WASI)
+ 	F1("gethostbynamel", MAY_BE_ARRAY|MAY_BE_ARRAY_KEY_LONG|MAY_BE_ARRAY_OF_STRING|MAY_BE_FALSE),
+-#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
++#endif
++#if !defined(PHP_WASI) && (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ 	F1("dns_get_record", MAY_BE_ARRAY|MAY_BE_ARRAY_KEY_LONG|MAY_BE_ARRAY_OF_ARRAY|MAY_BE_FALSE),
+ #endif
+ 	F1("md5", MAY_BE_STRING),
+diff --git a/Zend/zend.c b/Zend/zend.c
+index 59a1a1a3..4ba4cc14 100644
+--- a/Zend/zend.c
++++ b/Zend/zend.c
+@@ -819,7 +819,9 @@ static void executor_globals_ctor(zend_executor_globals *executor_globals) /* {{
+ #endif
+ 	executor_globals->saved_fpu_cw_ptr = NULL;
+ 	executor_globals->active = 0;
++#ifndef PHP_WASI
+ 	executor_globals->bailout = NULL;
++#endif // PHP_WASI
+ 	executor_globals->error_handling  = EH_NORMAL;
+ 	executor_globals->exception_class = NULL;
+ 	executor_globals->exception = NULL;
+@@ -1253,6 +1255,7 @@ ZEND_COLD void zenderror(const char *error) /* {{{ */
+ }
+ /* }}} */
+ 
++#ifndef PHP_WASI
+ ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename, uint32_t lineno) /* {{{ */
+ {
+ 
+@@ -1269,6 +1272,7 @@ ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename, uint32
+ 	LONGJMP(*EG(bailout), FAILURE);
+ }
+ /* }}} */
++#endif // PHP_WASI
+ 
+ ZEND_API size_t zend_get_page_size(void)
+ {
+diff --git a/Zend/zend.h b/Zend/zend.h
+index 4f8fdcbf..d5a87ad1 100644
+--- a/Zend/zend.h
++++ b/Zend/zend.h
+@@ -76,6 +76,11 @@ TSRMLS_MAIN_CACHE_EXTERN()
+ ZEND_TSRMLS_CACHE_EXTERN()
+ #endif
+ 
++#undef PHP_WASI
++#ifdef __wasi__
++#define PHP_WASI __wasi__
++#endif
++
+ struct _zend_serialize_data;
+ struct _zend_unserialize_data;
+ 
+@@ -267,6 +272,7 @@ typedef size_t (*zend_write_func_t)(const char *str, size_t str_length);
+ 
+ #define zend_bailout()		_zend_bailout(__FILE__, __LINE__)
+ 
++#ifndef PHP_WASI
+ #define zend_try												\
+ 	{															\
+ 		JMP_BUF *__orig_bailout = EG(bailout);					\
+@@ -285,6 +291,19 @@ typedef size_t (*zend_write_func_t)(const char *str, size_t str_length);
+ 	}
+ #define zend_first_try		EG(bailout)=NULL;	zend_try
+ 
++#else // PHP_WASI
++#define zend_try												\
++	{															\
++		if (1) {
++#define zend_catch												\
++		} else {
++#define zend_end_try()											\
++		}														\
++	}
++#define zend_first_try		zend_try
++#endif // PHP_WASI
++
++
+ BEGIN_EXTERN_C()
+ void zend_startup(zend_utility_functions *utility_functions);
+ void zend_shutdown(void);
+diff --git a/Zend/zend_alloc.c b/Zend/zend_alloc.c
+index f3dfe0f9..667f050b 100644
+--- a/Zend/zend_alloc.c
++++ b/Zend/zend_alloc.c
+@@ -87,7 +87,7 @@ typedef int pid_t;
+ # include <sanitizer/asan_interface.h>
+ #endif
+ 
+-#ifndef _WIN32
++#if !defined(_WIN32) && defined(HAVE_MMAP)
+ # include <sys/mman.h>
+ # ifndef MAP_ANON
+ #  ifdef MAP_ANONYMOUS
+@@ -468,6 +468,8 @@ static void zend_mm_munmap(void *addr, size_t size)
+ #endif
+ 		}
+ 	}
++#elif !defined(_WIN32) && !defined(HAVE_MMAP)
++  free(addr);
+ #else
+ 	if (munmap(addr, size) != 0) {
+ #if ZEND_MM_ERROR
+@@ -495,7 +497,7 @@ static void *zend_mm_mmap_fixed(void *addr, size_t size)
+ 	}
+ 	ZEND_ASSERT(ptr == addr);
+ 	return ptr;
+-#else
++#elif defined(HAVE_MMAP)
+ 	int flags = MAP_PRIVATE | MAP_ANON;
+ #if defined(MAP_EXCL)
+ 	flags |= MAP_FIXED | MAP_EXCL;
+@@ -515,6 +517,8 @@ static void *zend_mm_mmap_fixed(void *addr, size_t size)
+ 		return NULL;
+ 	}
+ 	return ptr;
++#else
++	return NULL;
+ #endif
+ }
+ #endif
+@@ -531,6 +535,10 @@ static void *zend_mm_mmap(size_t size)
+ 		return NULL;
+ 	}
+ 	return ptr;
++#elif !defined(HAVE_MMAP)
++	void* ptr = malloc(size);
++	memset(ptr, 0, size);
++	return ptr;
+ #else
+ 	void *ptr;
+ 
+@@ -740,6 +748,7 @@ static zend_always_inline void zend_mm_hugepage(void* ptr, size_t size)
+ 
+ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
+ {
++#if defined(_WIN32) || defined(HAVE_MMAP) // defined(_WIN32) || defined(HAVE_MMAP)
+ 	void *ptr = zend_mm_mmap(size);
+ 
+ 	if (ptr == NULL) {
+@@ -796,6 +805,11 @@ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
+ #endif
+ 		return ptr;
+ 	}
++#else // defined(_WIN32) || defined(HAVE_MMAP)
++	void* ptr = aligned_alloc(alignment, size);
++	memset(ptr, 0, size);
++	return ptr;
++#endif // defined(_WIN32) || defined(HAVE_MMAP)
+ }
+ 
+ static void *zend_mm_chunk_alloc(zend_mm_heap *heap, size_t size, size_t alignment)
+@@ -3329,7 +3343,12 @@ static void alloc_globals_dtor(zend_alloc_globals *alloc_globals)
+ 
+ ZEND_API void start_memory_manager(void)
+ {
+-#ifndef _WIN32
++#ifdef ZTS
++	ts_allocate_fast_id(&alloc_globals_id, &alloc_globals_offset, sizeof(zend_alloc_globals), (ts_allocate_ctor) alloc_globals_ctor, (ts_allocate_dtor) alloc_globals_dtor);
++#else
++	alloc_globals_ctor(&alloc_globals);
++#endif
++#if !defined(_WIN32) && defined(HAVE_MMAP)
+ #  if defined(_SC_PAGESIZE)
+ 	REAL_PAGE_SIZE = sysconf(_SC_PAGESIZE);
+ #  elif defined(_SC_PAGE_SIZE)
+diff --git a/Zend/zend_fibers.c b/Zend/zend_fibers.c
+index d571a622..304d9206 100644
+--- a/Zend/zend_fibers.c
++++ b/Zend/zend_fibers.c
+@@ -42,7 +42,7 @@
+ # include <ucontext.h>
+ #endif
+ 
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && defined(HAVE_MMAP)
+ # include <unistd.h>
+ # include <sys/mman.h>
+ # include <limits.h>
+@@ -112,7 +112,9 @@ typedef struct _zend_fiber_vm_state {
+ 	zend_execute_data *current_execute_data;
+ 	int error_reporting;
+ 	uint32_t jit_trace_num;
++#ifndef PHP_WASI
+ 	JMP_BUF *bailout;
++#endif // PHP_WASI
+ 	zend_fiber *active_fiber;
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	void *stack_base;
+@@ -129,7 +131,9 @@ static zend_always_inline void zend_fiber_capture_vm_state(zend_fiber_vm_state *
+ 	state->current_execute_data = EG(current_execute_data);
+ 	state->error_reporting = EG(error_reporting);
+ 	state->jit_trace_num = EG(jit_trace_num);
++#ifndef PHP_WASI
+ 	state->bailout = EG(bailout);
++#endif // PHP_WASI
+ 	state->active_fiber = EG(active_fiber);
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	state->stack_base = EG(stack_base);
+@@ -146,7 +150,9 @@ static zend_always_inline void zend_fiber_restore_vm_state(zend_fiber_vm_state *
+ 	EG(current_execute_data) = state->current_execute_data;
+ 	EG(error_reporting) = state->error_reporting;
+ 	EG(jit_trace_num) = state->jit_trace_num;
++#ifndef PHP_WASI
+ 	EG(bailout) = state->bailout;
++#endif // PHP_WASI
+ 	EG(active_fiber) = state->active_fiber;
+ #ifdef ZEND_CHECK_STACK_LIMIT
+ 	EG(stack_base) = state->stack_base;
+@@ -245,6 +251,8 @@ static zend_fiber_stack *zend_fiber_stack_allocate(size_t size)
+ 		return NULL;
+ 	}
+ # endif
++#elif defined(PHP_WASI)
++	pointer = malloc(alloc_size);
+ #else
+ 	pointer = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+ 
+@@ -323,6 +331,8 @@ static void zend_fiber_stack_free(zend_fiber_stack *stack)
+ 
+ #ifdef ZEND_WIN32
+ 	VirtualFree(pointer, 0, MEM_RELEASE);
++#elif defined(PHP_WASI)
++	free(pointer);
+ #else
+ 	munmap(pointer, stack->size + ZEND_FIBER_GUARD_PAGES * page_size);
+ #endif
+@@ -415,6 +425,7 @@ ZEND_API bool zend_fiber_switch_blocked(void)
+ 	return zend_fiber_switch_blocking;
+ }
+ 
++#ifndef PHP_WASI
+ ZEND_API zend_result zend_fiber_init_context(zend_fiber_context *context, void *kind, zend_fiber_coroutine coroutine, size_t stack_size)
+ {
+ 	context->stack = zend_fiber_stack_allocate(stack_size);
+@@ -461,6 +472,7 @@ ZEND_API zend_result zend_fiber_init_context(zend_fiber_context *context, void *
+ 
+ 	return SUCCESS;
+ }
++#endif // PHP_WASI
+ 
+ ZEND_API void zend_fiber_destroy_context(zend_fiber_context *context)
+ {
+@@ -523,16 +535,18 @@ ZEND_API void zend_fiber_switch_context(zend_fiber_transfer *transfer)
+ 
+ 	/* Copy transfer struct because it might live on the other fiber's stack that will eventually be destroyed. */
+ 	*transfer = *transfer_data;
+-#else
++#elif !defined(PHP_WASI)
+ 	boost_context_data data = jump_fcontext(to->handle, transfer);
+ 
+ 	/* Copy transfer struct because it might live on the other fiber's stack that will eventually be destroyed. */
+ 	*transfer = *data.transfer;
++#else
++	return;
+ #endif
+ 
+ 	to = transfer->context;
+ 
+-#ifndef ZEND_FIBER_UCONTEXT
++#if !defined(ZEND_FIBER_UCONTEXT) && !defined(PHP_WASI)
+ 	/* Get the context that resumed us and update its handle to allow for symmetric coroutines. */
+ 	to->handle = data.handle;
+ #endif
+diff --git a/Zend/zend_fibers_wasi.c b/Zend/zend_fibers_wasi.c
+new file mode 100644
+index 00000000..30942633
+--- /dev/null
++++ b/Zend/zend_fibers_wasi.c
+@@ -0,0 +1,24 @@
++/*
++   +----------------------------------------------------------------------+
++   | Zend Engine                                                          |
++   +----------------------------------------------------------------------+
++   | Copyright (c) Zend Technologies Ltd. (http://www.zend.com)           |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 2.00 of the Zend license,     |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | http://www.zend.com/license/2_00.txt.                                |
++   | If you did not receive a copy of the Zend license and are unable to  |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@zend.com so we can mail you a copy immediately.              |
++   +----------------------------------------------------------------------+
++*/
++
++#include "zend.h"
++#include "zend_fibers.h"
++
++ZEND_API zend_result zend_fiber_init_context(zend_fiber_context *context, void *kind, zend_fiber_coroutine coroutine, size_t stack_size)
++{
++	zend_throw_exception(NULL, "Fibers are not supported yet on this platform (wasm32-wasi)", 0);
++ 	return FAILURE;
++}
+diff --git a/Zend/zend_globals.h b/Zend/zend_globals.h
+index 48b978b5..6418d11d 100644
+--- a/Zend/zend_globals.h
++++ b/Zend/zend_globals.h
+@@ -21,7 +21,10 @@
+ #define ZEND_GLOBALS_H
+ 
+ 
++#ifndef PHP_WASI
+ #include <setjmp.h>
++#endif
++
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
+@@ -179,7 +182,9 @@ struct _zend_executor_globals {
+ 
+ 	HashTable included_files;	/* files already included */
+ 
++#ifndef PHP_WASI
+ 	JMP_BUF *bailout;
++#endif
+ 
+ 	int error_reporting;
+ 
+diff --git a/Zend/zend_virtual_cwd.c b/Zend/zend_virtual_cwd.c
+index b05acb5e..47b8b25a 100644
+--- a/Zend/zend_virtual_cwd.c
++++ b/Zend/zend_virtual_cwd.c
+@@ -1376,6 +1376,7 @@ CWD_API int virtual_utime(const char *filename, struct utimbuf *buf) /* {{{ */
+ /* }}} */
+ #endif
+ 
++#ifndef PHP_WASI
+ CWD_API int virtual_chmod(const char *filename, mode_t mode) /* {{{ */
+ {
+ 	cwd_state new_state;
+@@ -1409,8 +1410,9 @@ CWD_API int virtual_chmod(const char *filename, mode_t mode) /* {{{ */
+ 	return ret;
+ }
+ /* }}} */
++#endif
+ 
+-#if !defined(ZEND_WIN32)
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ CWD_API int virtual_chown(const char *filename, uid_t owner, gid_t group, int link) /* {{{ */
+ {
+ 	cwd_state new_state;
+@@ -1657,7 +1659,7 @@ CWD_API FILE *virtual_popen(const char *command, const char *type) /* {{{ */
+ 	return popen_ex(command, type, CWDG(cwd).cwd, NULL);
+ }
+ /* }}} */
+-#else /* Unix */
++#elif !defined(PHP_WASI) /* Unix */
+ CWD_API FILE *virtual_popen(const char *command, const char *type) /* {{{ */
+ {
+ 	size_t command_length;
+diff --git a/Zend/zend_virtual_cwd_wasi.c b/Zend/zend_virtual_cwd_wasi.c
+new file mode 100644
+index 00000000..576b9aad
+--- /dev/null
++++ b/Zend/zend_virtual_cwd_wasi.c
+@@ -0,0 +1,34 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++*/
++
++#include "zend.h"
++#include "zend_virtual_cwd.h"
++
++CWD_API int virtual_chmod(const char *filename, mode_t mode) /* {{{ */
++{
++  return -1;
++}
++/* }}} */
++
++CWD_API int virtual_chown(const char *filename, uid_t owner, gid_t group, int link) /* {{{ */
++{
++  return -1;
++}
++/* }}} */
++
++CWD_API FILE *virtual_popen(const char *command, const char *type) /* {{{ */
++{
++  return NULL;
++}
++/* }}} */
+diff --git a/Zend/zend_wasi.c b/Zend/zend_wasi.c
+new file mode 100644
+index 00000000..ec5c6f90
+--- /dev/null
++++ b/Zend/zend_wasi.c
+@@ -0,0 +1,26 @@
++/*
++   +----------------------------------------------------------------------+
++   | Zend Engine                                                          |
++   +----------------------------------------------------------------------+
++   | Copyright (c) Zend Technologies Ltd. (http://www.zend.com)           |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 2.00 of the Zend license,     |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | http://www.zend.com/license/2_00.txt.                                |
++   | If you did not receive a copy of the Zend license and are unable to  |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@zend.com so we can mail you a copy immediately.              |
++   +----------------------------------------------------------------------+
++*/
++
++#include "zend.h"
++
++ZEND_API ZEND_COLD ZEND_NORETURN void _zend_bailout(const char *filename,
++                                                    uint32_t lineno) /* {{{ */
++{
++  // Not implemented yet, as WebAssembly has no stack switching
++  // feature implementation at this point.
++	zend_throw_exception(NULL, "Exception bailout is not supported yet on this platform (wasm32-wasi)", 0);
++}
++/* }}} */
+diff --git a/build/ax_check_define.m4 b/build/ax_check_define.m4
+new file mode 100644
+index 00000000..c10d1137
+--- /dev/null
++++ b/build/ax_check_define.m4
+@@ -0,0 +1,73 @@
++# ===========================================================================
++#     https://www.gnu.org/software/autoconf-archive/ax_check_define.html
++# ===========================================================================
++#
++# SYNOPSIS
++#
++#   AC_CHECK_DEFINE([symbol], [ACTION-IF-FOUND], [ACTION-IF-NOT])
++#   AX_CHECK_DEFINE([includes],[symbol], [ACTION-IF-FOUND], [ACTION-IF-NOT])
++#
++# DESCRIPTION
++#
++#   Complements AC_CHECK_FUNC but it does not check for a function but for a
++#   define to exist. Consider a usage like:
++#
++#    AC_CHECK_DEFINE(__STRICT_ANSI__, CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500")
++#
++# LICENSE
++#
++#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
++#
++#   Copying and distribution of this file, with or without modification, are
++#   permitted in any medium without royalty provided the copyright notice
++#   and this notice are preserved.  This file is offered as-is, without any
++#   warranty.
++
++#serial 11
++
++AU_ALIAS([AC_CHECK_DEFINED], [AC_CHECK_DEFINE])
++AC_DEFUN([AC_CHECK_DEFINE],[
++AS_VAR_PUSHDEF([ac_var],[ac_cv_defined_$1])dnl
++AC_CACHE_CHECK([for $1 defined], ac_var,
++AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[
++  #ifdef $1
++  int ok;
++  (void)ok;
++  #else
++  choke me
++  #endif
++]])],[AS_VAR_SET(ac_var, yes)],[AS_VAR_SET(ac_var, no)]))
++AS_IF([test AS_VAR_GET(ac_var) != "no"], [$2], [$3])dnl
++AS_VAR_POPDEF([ac_var])dnl
++])
++
++AU_ALIAS([AX_CHECK_DEFINED], [AX_CHECK_DEFINE])
++AC_DEFUN([AX_CHECK_DEFINE],[
++AS_VAR_PUSHDEF([ac_var],[ac_cv_defined_$2_$1])dnl
++AC_CACHE_CHECK([for $2 defined in $1], ac_var,
++AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <$1>]], [[
++  #ifdef $2
++  int ok;
++  (void)ok;
++  #else
++  choke me
++  #endif
++]])],[AS_VAR_SET(ac_var, yes)],[AS_VAR_SET(ac_var, no)]))
++AS_IF([test AS_VAR_GET(ac_var) != "no"], [$3], [$4])dnl
++AS_VAR_POPDEF([ac_var])dnl
++])
++
++AC_DEFUN([AX_CHECK_FUNC],
++[AS_VAR_PUSHDEF([ac_var], [ac_cv_func_$2])dnl
++AC_CACHE_CHECK([for $2], ac_var,
++dnl AC_LANG_FUNC_LINK_TRY
++[AC_LINK_IFELSE([AC_LANG_PROGRAM([$1
++                #undef $2
++                char $2 ();],[
++                char (*f) () = $2;
++                return f != $2; ])],
++                [AS_VAR_SET(ac_var, yes)],
++                [AS_VAR_SET(ac_var, no)])])
++AS_IF([test AS_VAR_GET(ac_var) = yes], [$3], [$4])dnl
++AS_VAR_POPDEF([ac_var])dnl
++])# AC_CHECK_FUNC
+diff --git a/configure.ac b/configure.ac
+index bc5f4948..82524a08 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -4,6 +4,7 @@ dnl Include external macro definitions before the AC_INIT to also remove
+ dnl comments starting with # and empty newlines from the included files.
+ dnl ----------------------------------------------------------------------------
+ m4_include([build/ax_check_compile_flag.m4])
++m4_include([build/ax_check_define.m4])
+ m4_include([build/ax_func_which_gethostbyname_r.m4])
+ m4_include([build/ax_gcc_func_attribute.m4])
+ m4_include([build/libtool.m4])
+@@ -255,11 +256,18 @@ PHP_C_STANDARD_LIBRARY
+ AS_VAR_IF([php_cv_c_standard_library], [musl],
+   [AC_DEFINE([__MUSL__], [1], [Define to 1 when using musl libc.])])
+ 
++AC_CHECK_DEFINE([__wasi__], [WASI="yes"], [])
++
+ dnl Add _GNU_SOURCE compile definition because the php_config.h with definitions
+ dnl by AC_USE_SYSTEM_EXTENSIONS might be included after the system headers which
+ dnl require extensions to C and POSIX.
+ AS_VAR_APPEND([CPPFLAGS], [" -D_GNU_SOURCE"])
+ 
++dnl wasm32-wasip2 selects its execution model through the component wrapper.
++if test "$WASI" = "yes"; then
++  LDFLAGS="$LDFLAGS -Wl,--gc-sections"
++fi
++
+ PTHREADS_CHECK
+ PHP_HELP_SEPARATOR([SAPI modules:])
+ PHP_SHLIB_SUFFIX_NAMES
+@@ -672,7 +680,7 @@ int main(void) {
+   [php_cv_func_getaddrinfo=yes],
+   [php_cv_func_getaddrinfo=no],
+   [AS_CASE([$host_alias],
+-    [*linux*|*midipix], [php_cv_func_getaddrinfo=yes],
++    [*linux*|*midipix|*wasi*], [php_cv_func_getaddrinfo=yes],
+     [php_cv_func_getaddrinfo=no])])],
+ [php_cv_func_getaddrinfo=no])])
+ AS_VAR_IF([php_cv_func_getaddrinfo], [yes],
+@@ -1296,11 +1304,13 @@ if test "$fiber_asm" = 'yes'; then
+     [$fiber_asm_cflag])
+   AC_MSG_RESULT([$fiber_asm_file])
+ else
+-  AS_VAR_IF([fiber_os], [mac], [AC_DEFINE([_XOPEN_SOURCE], [1], [ ])])
+-  AC_CHECK_HEADER([ucontext.h],
+-    [AC_DEFINE([ZEND_FIBER_UCONTEXT], [1],
+-      [Define to 1 if Zend fiber uses ucontext instead of boost context.])],
+-    [AC_MSG_FAILURE([fibers not available on this platform])])
++  if test "$WASI" != "yes"; then
++    AS_VAR_IF([fiber_os], [mac], [AC_DEFINE([_XOPEN_SOURCE], [1], [ ])])
++    AC_CHECK_HEADER([ucontext.h],
++      [AC_DEFINE([ZEND_FIBER_UCONTEXT], [1],
++        [Define to 1 if Zend fiber uses ucontext instead of boost context.])],
++      [AC_MSG_FAILURE([fibers not available on this platform])])
++  fi
+ fi
+ 
+ ZEND_INIT
+@@ -1657,7 +1667,6 @@ PHP_ADD_SOURCES([main], m4_normalize([
+     php_odbc_utils.c
+     php_open_temporary_file.c
+     php_scandir.c
+-    php_syslog.c
+     php_ticks.c
+     php_variables.c
+     reentrancy.c
+@@ -1682,11 +1691,17 @@ $abs_srcdir/main/debug_gdb_scripts.c: $abs_srcdir/scripts/gdb/debug_gdb_scripts_
+ EOF
+ fi
+ 
+-PHP_ADD_SOURCES_X([main],
+-  [fastcgi.c],
+-  [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1],
+-  [PHP_FASTCGI_OBJS],
+-  [no])
++if test "$WASI" = "yes"; then
++  PHP_ADD_SOURCES([main],
++    [fastcgi_wasi.c php_open_temporary_file_wasi.c unistd_wasi.c])
++else
++  PHP_ADD_SOURCES([main], [php_syslog.c], [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1])
++  PHP_ADD_SOURCES_X([main],
++    [fastcgi.c],
++    [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1],
++    [PHP_FASTCGI_OBJS],
++    [no])
++fi
+ 
+ PHP_ADD_SOURCES([main/streams], m4_normalize([
+     cast.c
+@@ -1711,6 +1726,11 @@ PHP_ADD_SOURCES_X([/main],
+   [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1],
+   [PHP_BINARY_OBJS])
+ 
++if test "$WASI" = "yes"; then
++  PHP_ADD_SOURCES([Zend],
++    [zend_wasi.c zend_fibers_wasi.c zend_virtual_cwd_wasi.c])
++fi
++
+ PHP_ADD_SOURCES([Zend], m4_normalize([
+     Optimizer/block_pass.c
+     Optimizer/compact_literals.c
+diff --git a/ext/phar/func_interceptors.c b/ext/phar/func_interceptors.c
+index 9d83f740..c4f59697 100644
+--- a/ext/phar/func_interceptors.c
++++ b/ext/phar/func_interceptors.c
+@@ -339,6 +339,7 @@ static void phar_fancy_stat(zend_stat_t *stat_sb, int type, zval *return_value)
+ 		"size", "atime", "mtime", "ctime", "blksize", "blocks"
+ 	};
+ 
++#ifndef PHP_WASI
+ 	if (type >= FS_IS_W && type <= FS_IS_X) {
+ 		if(stat_sb->st_uid==getuid()) {
+ 			rmask=S_IRUSR;
+@@ -368,6 +369,7 @@ static void phar_fancy_stat(zend_stat_t *stat_sb, int type, zval *return_value)
+ 			}
+ 		}
+ 	}
++#endif
+ 
+ 	switch (type) {
+ 	case FS_PERMS:
+diff --git a/ext/phar/phar_object.c b/ext/phar/phar_object.c
+index e407cc8d..c233cc4a 100644
+--- a/ext/phar/phar_object.c
++++ b/ext/phar/phar_object.c
+@@ -1681,7 +1681,7 @@ static int phar_build(zend_object_iterator *iter, void *puser) /* {{{ */
+ 		if (php_stream_stat(fp, &ssb) != -1) {
+ 			data->internal_file->flags = ssb.sb.st_mode & PHAR_ENT_PERM_MASK ;
+ 		} else {
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(PHP_WASI)
+ 			mode_t mask;
+ 			mask = umask(0);
+ 			umask(mask);
+@@ -3700,7 +3700,7 @@ static void phar_add_file(phar_archive_data **pphar, zend_string *file_name, con
+ 		if (contents_file != NULL && php_stream_stat(contents_file, &ssb) != -1) {
+ 			data->internal_file->flags = ssb.sb.st_mode & PHAR_ENT_PERM_MASK ;
+ 		} else {
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(PHP_WASI)
+ 			mode_t mask;
+ 			mask = umask(0);
+ 			umask(mask);
+diff --git a/ext/standard/basic_functions.c b/ext/standard/basic_functions.c
+index c8f456a3..d0653dd3 100644
+--- a/ext/standard/basic_functions.c
++++ b/ext/standard/basic_functions.c
+@@ -67,7 +67,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
+ #include <sys/stat.h>
+ #endif
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ # include <netdb.h>
+ #endif
+ 
+@@ -342,8 +342,10 @@ PHP_MINIT_FUNCTION(basic) /* {{{ */
+ 	php_register_url_stream_wrapper("file", &php_plain_files_wrapper);
+ 	php_register_url_stream_wrapper("glob", &php_glob_stream_wrapper);
+ 	php_register_url_stream_wrapper("data", &php_stream_rfc2397_wrapper);
++#ifndef PHP_WASI
+ 	php_register_url_stream_wrapper("http", &php_stream_http_wrapper);
+ 	php_register_url_stream_wrapper("ftp", &php_stream_ftp_wrapper);
++#endif // PHP_WASI
+ 
+ 	return SUCCESS;
+ }
+@@ -1409,7 +1411,11 @@ PHPAPI int _php_error_log_ex(int opt_err, const char *message, size_t message_le
+ 			break;
+ 
+ 		default:
++#ifdef HAVE_SYSLOG_H
+ 			php_log_err_with_severity(message, LOG_NOTICE);
++#else
++			php_log_err_with_severity(message, 5);
++#endif
+ 			break;
+ 	}
+ 	return SUCCESS;
+@@ -2359,7 +2365,7 @@ PHP_FUNCTION(move_uploaded_file)
+ 	zend_string *path, *new_path;
+ 	bool successful = 0;
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32)
+ 	int oldmask; int ret;
+ #endif
+ 
+@@ -2382,7 +2388,7 @@ PHP_FUNCTION(move_uploaded_file)
+ 
+ 	if (VCWD_RENAME(ZSTR_VAL(path), ZSTR_VAL(new_path)) == 0) {
+ 		successful = 1;
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 		oldmask = umask(077);
+ 		umask(oldmask);
+ 
+diff --git a/ext/standard/basic_functions.stub.php b/ext/standard/basic_functions.stub.php
+index 7913ca0e..176f2ba4 100644
+--- a/ext/standard/basic_functions.stub.php
++++ b/ext/standard/basic_functions.stub.php
+@@ -726,6 +726,7 @@
+ 
+ /* error levels */
+ 
++#ifndef PHP_WASI
+ /**
+  * system unusable
+  * @var int
+@@ -920,6 +921,7 @@
+  */
+ const LOG_PERROR = UNKNOWN;
+ #endif
++#endif
+ 
+ /* string.c */
+ 
+@@ -2108,6 +2110,8 @@ function strptime(string $timestamp, string $format): array|false {}
+ 
+ /* dns.c */
+ 
++#ifndef PHP_WASI
++
+ #ifdef HAVE_GETHOSTNAME
+ /** @refcount 1 */
+ function gethostname(): string|false {}
+@@ -2153,6 +2157,8 @@ function dns_get_mx(string $hostname, &$hosts, &$weights = null): bool {}
+ function getmxrr(string $hostname, &$hosts, &$weights = null): bool {}
+ #endif
+ 
++#endif
++
+ /* net.c */
+ 
+ #if (defined(PHP_WIN32) || defined(HAVE_GETIFADDRS) || defined(__PASE__))
+diff --git a/ext/standard/basic_functions_arginfo.h b/ext/standard/basic_functions_arginfo.h
+index 668eca9a..6b13f4ac 100644
+--- a/ext/standard/basic_functions_arginfo.h
++++ b/ext/standard/basic_functions_arginfo.h
+@@ -1,5 +1,5 @@
+ /* This is a generated file, edit the .stub.php file instead.
+- * Stub hash: f6bf6cdd07080c01d3a0cb08d71409d05b1084f9 */
++ * Stub hash: b14988802767f746cbd771e5ce6d426c34f88f8c */
+ 
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_set_time_limit, 0, 1, _IS_BOOL, 0)
+ 	ZEND_ARG_TYPE_INFO(0, seconds, IS_LONG, 0)
+@@ -628,11 +628,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_strptime, 0, 2, MAY_BE_ARRAY|MAY
+ ZEND_END_ARG_INFO()
+ #endif
+ 
+-#if defined(HAVE_GETHOSTNAME)
++#if !defined(PHP_WASI) && defined(HAVE_GETHOSTNAME)
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_gethostname, 0, 0, MAY_BE_STRING|MAY_BE_FALSE)
+ ZEND_END_ARG_INFO()
+ #endif
+ 
++#if !defined(PHP_WASI)
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_gethostbyaddr, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
+ 	ZEND_ARG_TYPE_INFO(0, ip, IS_STRING, 0)
+ ZEND_END_ARG_INFO()
+@@ -644,8 +645,9 @@ ZEND_END_ARG_INFO()
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_gethostbynamel, 0, 1, MAY_BE_ARRAY|MAY_BE_FALSE)
+ 	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+ ZEND_END_ARG_INFO()
++#endif
+ 
+-#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
++#if !defined(PHP_WASI) && (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dns_check_record, 0, 1, _IS_BOOL, 0)
+ 	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+ 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_STRING, 0, "\"MX\"")
+@@ -726,9 +728,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_syslog, 0, 2, IS_TRUE, 0)
+ ZEND_END_ARG_INFO()
+ #endif
+ 
+-#define arginfo_inet_ntop arginfo_gethostbyaddr
++ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_inet_ntop, 0, 1, MAY_BE_STRING|MAY_BE_FALSE)
++	ZEND_ARG_TYPE_INFO(0, ip, IS_STRING, 0)
++ZEND_END_ARG_INFO()
+ 
+-#define arginfo_inet_pton arginfo_gethostbyaddr
++#define arginfo_inet_pton arginfo_inet_ntop
+ 
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_metaphone, 0, 1, IS_STRING, 0)
+ 	ZEND_ARG_TYPE_INFO(0, string, IS_STRING, 0)
+@@ -2466,13 +2470,15 @@ ZEND_FUNCTION(crypt);
+ #if defined(HAVE_STRPTIME)
+ ZEND_FUNCTION(strptime);
+ #endif
+-#if defined(HAVE_GETHOSTNAME)
++#if !defined(PHP_WASI) && defined(HAVE_GETHOSTNAME)
+ ZEND_FUNCTION(gethostname);
+ #endif
++#if !defined(PHP_WASI)
+ ZEND_FUNCTION(gethostbyaddr);
+ ZEND_FUNCTION(gethostbyname);
+ ZEND_FUNCTION(gethostbynamel);
+-#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
++#endif
++#if !defined(PHP_WASI) && (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ ZEND_FUNCTION(dns_check_record);
+ ZEND_FUNCTION(dns_get_record);
+ ZEND_FUNCTION(dns_get_mx);
+@@ -3062,13 +3068,15 @@ static const zend_function_entry ext_functions[] = {
+ #if defined(HAVE_STRPTIME)
+ 	ZEND_RAW_FENTRY("strptime", zif_strptime, arginfo_strptime, ZEND_ACC_DEPRECATED, NULL, NULL)
+ #endif
+-#if defined(HAVE_GETHOSTNAME)
++#if !defined(PHP_WASI) && defined(HAVE_GETHOSTNAME)
+ 	ZEND_FE(gethostname, arginfo_gethostname)
+ #endif
++#if !defined(PHP_WASI)
+ 	ZEND_FE(gethostbyaddr, arginfo_gethostbyaddr)
+ 	ZEND_FE(gethostbyname, arginfo_gethostbyname)
+ 	ZEND_FE(gethostbynamel, arginfo_gethostbynamel)
+-#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
++#endif
++#if !defined(PHP_WASI) && (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ 	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+ 	ZEND_RAW_FENTRY("checkdnsrr", zif_dns_check_record, arginfo_checkdnsrr, 0, NULL, NULL)
+ 	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+@@ -3664,6 +3672,7 @@ static void register_basic_functions_symbols(int module_number)
+ 	REGISTER_LONG_CONSTANT("CREDITS_FULLPAGE", PHP_CREDITS_FULLPAGE, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("CREDITS_QA", PHP_CREDITS_QA, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("CREDITS_ALL", PHP_CREDITS_ALL, CONST_PERSISTENT);
++#if !defined(PHP_WASI)
+ 	REGISTER_LONG_CONSTANT("LOG_EMERG", LOG_EMERG, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_ALERT", LOG_ALERT, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_CRIT", LOG_CRIT, CONST_PERSISTENT);
+@@ -3679,19 +3688,20 @@ static void register_basic_functions_symbols(int module_number)
+ 	REGISTER_LONG_CONSTANT("LOG_AUTH", LOG_AUTH, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_SYSLOG", LOG_SYSLOG, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_LPR", LOG_LPR, CONST_PERSISTENT);
+-#if defined(LOG_NEWS)
++#endif
++#if !defined(PHP_WASI) && defined(LOG_NEWS)
+ 	REGISTER_LONG_CONSTANT("LOG_NEWS", LOG_NEWS, CONST_PERSISTENT);
+ #endif
+-#if defined(LOG_UUCP)
++#if !defined(PHP_WASI) && defined(LOG_UUCP)
+ 	REGISTER_LONG_CONSTANT("LOG_UUCP", LOG_UUCP, CONST_PERSISTENT);
+ #endif
+-#if defined(LOG_CRON)
++#if !defined(PHP_WASI) && defined(LOG_CRON)
+ 	REGISTER_LONG_CONSTANT("LOG_CRON", LOG_CRON, CONST_PERSISTENT);
+ #endif
+-#if defined(LOG_AUTHPRIV)
++#if !defined(PHP_WASI) && defined(LOG_AUTHPRIV)
+ 	REGISTER_LONG_CONSTANT("LOG_AUTHPRIV", LOG_AUTHPRIV, CONST_PERSISTENT);
+ #endif
+-#if !defined(PHP_WIN32)
++#if !defined(PHP_WASI) && !defined(PHP_WIN32)
+ 	REGISTER_LONG_CONSTANT("LOG_LOCAL0", LOG_LOCAL0, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_LOCAL1", LOG_LOCAL1, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_LOCAL2", LOG_LOCAL2, CONST_PERSISTENT);
+@@ -3701,14 +3711,16 @@ static void register_basic_functions_symbols(int module_number)
+ 	REGISTER_LONG_CONSTANT("LOG_LOCAL6", LOG_LOCAL6, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_LOCAL7", LOG_LOCAL7, CONST_PERSISTENT);
+ #endif
++#if !defined(PHP_WASI)
+ 	REGISTER_LONG_CONSTANT("LOG_PID", LOG_PID, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_CONS", LOG_CONS, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_ODELAY", LOG_ODELAY, CONST_PERSISTENT);
+ 	REGISTER_LONG_CONSTANT("LOG_NDELAY", LOG_NDELAY, CONST_PERSISTENT);
+-#if defined(LOG_NOWAIT)
++#endif
++#if !defined(PHP_WASI) && defined(LOG_NOWAIT)
+ 	REGISTER_LONG_CONSTANT("LOG_NOWAIT", LOG_NOWAIT, CONST_PERSISTENT);
+ #endif
+-#if defined(LOG_PERROR)
++#if !defined(PHP_WASI) && defined(LOG_PERROR)
+ 	REGISTER_LONG_CONSTANT("LOG_PERROR", LOG_PERROR, CONST_PERSISTENT);
+ #endif
+ 	REGISTER_LONG_CONSTANT("STR_PAD_LEFT", PHP_STR_PAD_LEFT, CONST_PERSISTENT);
+diff --git a/ext/standard/basic_functions_wasi.c b/ext/standard/basic_functions_wasi.c
+new file mode 100644
+index 00000000..e8bf6523
+--- /dev/null
++++ b/ext/standard/basic_functions_wasi.c
+@@ -0,0 +1,19 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++ */
++
++#include <sys/types.h>
++
++mode_t umask(mode_t mask) {
++	return 0;
++}
+diff --git a/ext/standard/config.m4 b/ext/standard/config.m4
+index ef6b3c5a..d8157bc5 100644
+--- a/ext/standard/config.m4
++++ b/ext/standard/config.m4
+@@ -400,20 +400,16 @@ PHP_NEW_EXTENSION([standard], m4_normalize([
+     datetime.c
+     dir.c
+     dl.c
+-    dns.c
+     exec.c
+     file.c
+     filestat.c
+     filters.c
+-    flock_compat.c
+     formatted_print.c
+     fsock.c
+     ftok.c
+-    ftp_fopen_wrapper.c
+     head.c
+     hrtime.c
+     html.c
+-    http_fopen_wrapper.c
+     http.c
+     image.c
+     incomplete_class.c
+@@ -457,5 +453,11 @@ PHP_NEW_EXTENSION([standard], m4_normalize([
+ 
+ PHP_ADD_BUILD_DIR([$ext_builddir/libavifinfo])
+ 
++if test "$WASI" = "yes"; then
++   PHP_ADD_SOURCES(ext/standard, basic_functions_wasi.c exec_wasi.c file_wasi.c filestat_wasi.c flock_wasi.c mail_wasi.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
++else
++   PHP_ADD_SOURCES(ext/standard, dns.c flock_compat.c ftp_fopen_wrapper.c http_fopen_wrapper.c, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
++fi
++
+ PHP_ADD_MAKEFILE_FRAGMENT
+ PHP_INSTALL_HEADERS([ext/standard/])
+diff --git a/ext/standard/exec.c b/ext/standard/exec.c
+index c22621f1..f3f05859 100644
+--- a/ext/standard/exec.c
++++ b/ext/standard/exec.c
+@@ -102,6 +102,8 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl) {
+ 	return bufl;
+ }
+ 
++#ifndef PHP_WASI
++
+ /* {{{ php_exec
+  * If type==0, only last line of output is returned (exec)
+  * If type==1, all lines will be printed and last lined returned (system)
+@@ -197,6 +199,12 @@ PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value)
+ }
+ /* }}} */
+ 
++#else
++
++int php_exec(int type, const char *cmd, zval *array, zval *return_value);
++
++#endif // PHP_WASI
++
+ static void php_exec_ex(INTERNAL_FUNCTION_PARAMETERS, int mode) /* {{{ */
+ {
+ 	zend_string *cmd;
+@@ -494,8 +502,9 @@ PHP_FUNCTION(escapeshellarg)
+ }
+ /* }}} */
+ 
+-/* {{{ Execute command via shell and return complete output as string */
+-PHP_FUNCTION(shell_exec)
++#ifndef PHP_WASI
++
++static void php_shell_exec_ex(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
+ 	FILE *in;
+ 	char *command;
+@@ -528,6 +537,19 @@ PHP_FUNCTION(shell_exec)
+ 	if (ret && ZSTR_LEN(ret) > 0) {
+ 		RETVAL_STR(ret);
+ 	}
++ }
++/* }}} */
++
++#else
++
++void php_shell_exec_ex(INTERNAL_FUNCTION_PARAMETERS);
++
++#endif // PHP_WASI
++
++/* {{{ Execute command via shell and return complete output as string */
++PHP_FUNCTION(shell_exec) /* {{{ */
++{
++	php_shell_exec_ex(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+ }
+ /* }}} */
+ 
+diff --git a/ext/standard/exec_wasi.c b/ext/standard/exec_wasi.c
+new file mode 100644
+index 00000000..ac3c0a5c
+--- /dev/null
++++ b/ext/standard/exec_wasi.c
+@@ -0,0 +1,27 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++ */
++
++#include "php.h"
++
++PHPAPI int php_exec(int type, const char *cmd, zval *array, zval *return_value) /* {{{ */
++{
++	return -1;
++}
++/* }}} */
++
++PHPAPI void php_shell_exec_ex(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
++{
++	RETURN_FALSE;
++}
++/* }}} */
+diff --git a/ext/standard/file.c b/ext/standard/file.c
+index 1040be59..34b4e821 100644
+--- a/ext/standard/file.c
++++ b/ext/standard/file.c
+@@ -53,7 +53,9 @@
+ # endif
+ # include <sys/socket.h>
+ # include <netinet/in.h>
+-# include <netdb.h>
++# ifndef PHP_WASI
++#  include <netdb.h>
++# endif
+ # ifdef HAVE_ARPA_INET_H
+ #  include <arpa/inet.h>
+ # endif
+@@ -770,8 +772,9 @@ PHPAPI PHP_FUNCTION(fclose)
+ }
+ /* }}} */
+ 
+-/* {{{ Execute a command and open either a read or a write pipe to it */
+-PHP_FUNCTION(popen)
++#ifndef PHP_WASI
++
++static void php_popen(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
+ 	char *command, *mode;
+ 	size_t command_len, mode_len;
+@@ -825,6 +828,19 @@ PHP_FUNCTION(popen)
+ }
+ /* }}} */
+ 
++#else
++
++void php_popen(INTERNAL_FUNCTION_PARAMETERS);
++
++#endif // PHP_WASI
++
++/* {{{ Execute a command and open either a read or a write pipe to it */
++PHP_FUNCTION(popen) /* {{{ */
++{
++  php_popen(INTERNAL_FUNCTION_PARAM_PASSTHRU);
++}
++/* }}} */
++
+ /* {{{ Close a file pointer opened by popen() */
+ PHP_FUNCTION(pclose)
+ {
+@@ -1149,8 +1165,9 @@ PHP_FUNCTION(readfile)
+ }
+ /* }}} */
+ 
+-/* {{{ Return or change the umask */
+-PHP_FUNCTION(umask)
++#ifndef PHP_WASI
++
++static void php_umask(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
+ 	zend_long mask = 0;
+ 	bool mask_is_null = 1;
+@@ -1177,6 +1194,19 @@ PHP_FUNCTION(umask)
+ }
+ /* }}} */
+ 
++#else
++
++void php_umask(INTERNAL_FUNCTION_PARAMETERS);
++
++#endif // PHP_WASI
++
++/* {{{ Return or change the umask */
++PHP_FUNCTION(umask) /* {{{ */
++{
++	php_umask(INTERNAL_FUNCTION_PARAM_PASSTHRU);
++}
++/* }}} */
++
+ /* {{{ Output all remaining data from a file pointer */
+ PHPAPI PHP_FUNCTION(fpassthru)
+ {
+diff --git a/ext/standard/file_wasi.c b/ext/standard/file_wasi.c
+new file mode 100644
+index 00000000..961d47e7
+--- /dev/null
++++ b/ext/standard/file_wasi.c
+@@ -0,0 +1,27 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++*/
++
++#include "php.h"
++
++PHPAPI void php_popen(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
++{
++	RETURN_FALSE;
++}
++/* }}} */
++
++PHPAPI void php_umask(INTERNAL_FUNCTION_PARAMETERS)  /* {{{ */
++{
++	RETURN_LONG(0);
++}
++/* }}} */
+diff --git a/ext/standard/filestat.c b/ext/standard/filestat.c
+index 85c2517e..a75ade7c 100644
+--- a/ext/standard/filestat.c
++++ b/ext/standard/filestat.c
+@@ -271,7 +271,7 @@ PHP_FUNCTION(disk_free_space)
+ }
+ /* }}} */
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ PHPAPI zend_result php_get_gid_by_name(const char *name, gid_t *gid)
+ {
+ #if defined(ZTS) && defined(HAVE_GETGRNAM_R) && defined(_SC_GETGR_R_SIZE_MAX)
+@@ -315,6 +315,7 @@ PHPAPI zend_result php_get_gid_by_name(const char *name, gid_t *gid)
+ }
+ #endif
+ 
++#ifndef PHP_WASI
+ static void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
+ {
+ 	char *filename;
+@@ -395,6 +396,11 @@ static void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
+ #endif
+ }
+ /* }}} */
++#else
++
++void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp);
++
++#endif // PHP_WASI
+ 
+ /* {{{ Change file group */
+ PHP_FUNCTION(chgrp)
+@@ -412,7 +418,12 @@ PHP_FUNCTION(lchgrp)
+ #endif
+ /* }}} */
+ 
+-#ifndef PHP_WIN32
++#ifdef PHP_WASI
++PHPAPI zend_result php_get_uid_by_name(const char *name, uid_t *uid)
++{
++	return FAILURE;
++}
++#elif !defined(PHP_WIN32)
+ PHPAPI zend_result php_get_uid_by_name(const char *name, uid_t *uid)
+ {
+ #if defined(ZTS) && defined(_SC_GETPW_R_SIZE_MAX) && defined(HAVE_GETPWNAM_R)
+@@ -454,8 +465,10 @@ PHPAPI zend_result php_get_uid_by_name(const char *name, uid_t *uid)
+ #endif
+ 		return SUCCESS;
+ }
+-#endif
++/* }}} */
++#endif // PHP_WASI
+ 
++#ifndef PHP_WASI
+ static void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
+ {
+ 	char *filename;
+@@ -538,6 +551,11 @@ static void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
+ }
+ /* }}} */
+ 
++#else
++
++void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown);
++
++#endif // PHP_WASI
+ 
+ /* {{{ Change file owner */
+ PHP_FUNCTION(chown)
+@@ -556,8 +574,8 @@ PHP_FUNCTION(lchown)
+ #endif
+ /* }}} */
+ 
+-/* {{{ Change file mode */
+-PHP_FUNCTION(chmod)
++#ifndef PHP_WASI
++static void php_do_chmod(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
+ {
+ 	char *filename;
+ 	size_t filename_len;
+@@ -602,6 +620,17 @@ PHP_FUNCTION(chmod)
+ 
+ 	RETURN_TRUE;
+ }
++#else
++
++void php_do_chmod(INTERNAL_FUNCTION_PARAMETERS);
++
++#endif // PHP_WASI
++
++/* {{{ Change file mode */
++PHP_FUNCTION(chmod)
++{
++	php_do_chmod(INTERNAL_FUNCTION_PARAM_PASSTHRU);
++}
+ /* }}} */
+ 
+ #ifdef HAVE_UTIME
+@@ -862,6 +891,7 @@ PHPAPI void php_stat(zend_string *filename, int type, zval *return_value)
+ 		}
+ 	} while (0);
+ 
++#ifndef PHP_WASI
+ 	if (type >= FS_IS_W && type <= FS_IS_X) {
+ 		if(stat_sb->st_uid==getuid()) {
+ 			rmask=S_IRUSR;
+@@ -902,6 +932,7 @@ PHPAPI void php_stat(zend_string *filename, int type, zval *return_value)
+ 			}
+ 		}
+ 	}
++#endif // PHP_WASI
+ 
+ 	switch (type) {
+ 	case FS_PERMS:
+@@ -926,7 +957,9 @@ PHPAPI void php_stat(zend_string *filename, int type, zval *return_value)
+ 			RETURN_STRING("link");
+ 		}
+ 		switch(stat_sb->st_mode & S_IFMT) {
++#ifndef PHP_WASI
+ 		case S_IFIFO: RETURN_STRING("fifo");
++#endif // PHP_WASI
+ 		case S_IFCHR: RETURN_STRING("char");
+ 		case S_IFDIR: RETURN_STRING("dir");
+ 		case S_IFBLK: RETURN_STRING("block");
+diff --git a/ext/standard/filestat_wasi.c b/ext/standard/filestat_wasi.c
+new file mode 100644
+index 00000000..6dda5778
+--- /dev/null
++++ b/ext/standard/filestat_wasi.c
+@@ -0,0 +1,33 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++ */
++
++#include "php.h"
++
++PHPAPI void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
++{
++	RETURN_FALSE;
++}
++/* }}} */
++
++PHPAPI void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
++{
++	RETURN_FALSE;
++}
++/* }}} */
++
++PHPAPI void php_do_chmod(INTERNAL_FUNCTION_PARAMETERS) /* {{{ */
++{
++	RETURN_FALSE;
++}
++/* }}} */
+diff --git a/ext/standard/flock_wasi.c b/ext/standard/flock_wasi.c
+new file mode 100644
+index 00000000..49df6d22
+--- /dev/null
++++ b/ext/standard/flock_wasi.c
+@@ -0,0 +1,22 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++   | Author: Sascha Schumann <sascha@schumann.cx>                         |
++   +----------------------------------------------------------------------+
++*/
++
++#include "php.h"
++
++PHPAPI int flock(int fd, int operation)
++{
++	return -1;
++}
+diff --git a/ext/standard/mail.c b/ext/standard/mail.c
+index b631d12e..604084fd 100644
+--- a/ext/standard/mail.c
++++ b/ext/standard/mail.c
+@@ -440,6 +440,8 @@ static int php_mail_detect_multiple_crlf(const char *hdr) {
+ }
+ 
+ 
++#ifndef PHP_WASI
++
+ /* {{{ php_mail */
+ PHPAPI bool php_mail(const char *to, const char *subject, const char *message, const char *headers, const char *extra_cmd)
+ {
+@@ -705,6 +707,8 @@ PHPAPI bool php_mail(const char *to, const char *subject, const char *message, c
+ }
+ /* }}} */
+ 
++#endif // PHP_WASI
++
+ /* {{{ PHP_MINFO_FUNCTION */
+ PHP_MINFO_FUNCTION(mail)
+ {
+diff --git a/ext/standard/mail_wasi.c b/ext/standard/mail_wasi.c
+new file mode 100644
+index 00000000..1da5d64a
+--- /dev/null
++++ b/ext/standard/mail_wasi.c
+@@ -0,0 +1,22 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++   | Author: Sascha Schumann <sascha@schumann.cx>                         |
++   +----------------------------------------------------------------------+
++*/
++
++#include "php.h"
++
++PHPAPI int php_mail(const char *to, const char *subject, const char *message, const char *headers, const char *extra_cmd)
++{
++	return 0;
++}
+diff --git a/ext/standard/microtime.c b/ext/standard/microtime.c
+index ca8643eb..fad841aa 100644
+--- a/ext/standard/microtime.c
++++ b/ext/standard/microtime.c
+@@ -125,7 +125,7 @@ PHP_FUNCTION(getrusage)
+ #ifdef PHP_WIN32 /* Windows only implements a limited amount of fields from the rusage struct */
+ 	PHP_RUSAGE_PARA(ru_majflt);
+ 	PHP_RUSAGE_PARA(ru_maxrss);
+-#elif !defined(_OSD_POSIX) && !defined(__HAIKU__)
++#elif !defined(_OSD_POSIX) && !defined(__HAIKU__) && !defined(PHP_WASI)
+ 	PHP_RUSAGE_PARA(ru_oublock);
+ 	PHP_RUSAGE_PARA(ru_inblock);
+ 	PHP_RUSAGE_PARA(ru_msgsnd);
+@@ -139,7 +139,7 @@ PHP_FUNCTION(getrusage)
+ 	PHP_RUSAGE_PARA(ru_nvcsw);
+ 	PHP_RUSAGE_PARA(ru_nivcsw);
+ 	PHP_RUSAGE_PARA(ru_nswap);
+-#endif /*_OSD_POSIX*/
++#endif /* !defined(_OSD_POSIX) && !defined(__HAIKU__) && !defined(PHP_WASI) */
+ 	PHP_RUSAGE_PARA(ru_utime.tv_usec);
+ 	PHP_RUSAGE_PARA(ru_utime.tv_sec);
+ 	PHP_RUSAGE_PARA(ru_stime.tv_usec);
+diff --git a/ext/standard/net.c b/ext/standard/net.c
+index 942d804d..b97efcb0 100644
+--- a/ext/standard/net.c
++++ b/ext/standard/net.c
+@@ -43,10 +43,11 @@
+ # include <ws2ipdef.h>
+ # include <Ws2tcpip.h>
+ # include <iphlpapi.h>
+-#else
++#elif !defined(PHP_WASI)
+ # include <netdb.h>
+ #endif
+ 
++#ifndef PHP_WASI
+ PHPAPI zend_string* php_inet_ntop(const struct sockaddr *addr) {
+ 	socklen_t addrlen = sizeof(struct sockaddr_in);
+ 
+@@ -98,6 +99,7 @@ PHPAPI zend_string* php_inet_ntop(const struct sockaddr *addr) {
+ 
+ 	return NULL;
+ }
++#endif // PHP_WASI
+ 
+ #if defined(PHP_WIN32) || defined(HAVE_GETIFADDRS) || defined(__PASE__)
+ static void iface_append_unicast(zval *unicast, zend_long flags,
+@@ -148,6 +150,7 @@ array(
+   ), // etc...
+ )
+ */
++#ifndef PHP_WASI
+ PHP_FUNCTION(net_get_interfaces) {
+ #ifdef PHP_WIN32
+ # define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
+@@ -308,3 +311,4 @@ PHP_FUNCTION(net_get_interfaces) {
+ }
+ #endif
+ /* }}} */
++#endif // PHP_WASI
+diff --git a/ext/standard/pageinfo.c b/ext/standard/pageinfo.c
+index c1cbc59b..44f36329 100644
+--- a/ext/standard/pageinfo.c
++++ b/ext/standard/pageinfo.c
+@@ -35,6 +35,9 @@
+ #define getgroups(a, b) 0
+ #define getgid() 1
+ #define getuid() 1
++#elif defined(PHP_WASI)
++#define getgid() 1
++#define getuid() 1
+ #endif
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
+diff --git a/ext/standard/php_fopen_wrapper.c b/ext/standard/php_fopen_wrapper.c
+index ea33ba49..7631e307 100644
+--- a/ext/standard/php_fopen_wrapper.c
++++ b/ext/standard/php_fopen_wrapper.c
+@@ -317,7 +317,7 @@ static php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const c
+ 			return NULL;
+ 		}
+ 
+-#ifdef HAVE_UNISTD_H
++#if defined(HAVE_UNISTD_H) && !defined(PHP_WASI)
+ 		dtablesize = getdtablesize();
+ #else
+ 		dtablesize = INT_MAX;
+@@ -390,7 +390,7 @@ static php_stream * php_stream_url_wrap_php(php_stream_wrapper *wrapper, const c
+ 		return NULL;
+ 	}
+ 
+-#if defined(S_IFSOCK) && !defined(PHP_WIN32)
++#if defined(S_IFSOCK) && !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 	do {
+ 		zend_stat_t st = {0};
+ 		memset(&st, 0, sizeof(st));
+diff --git a/main/fastcgi_wasi.c b/main/fastcgi_wasi.c
+new file mode 100644
+index 00000000..0e350db3
+--- /dev/null
++++ b/main/fastcgi_wasi.c
+@@ -0,0 +1,81 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++ */
++
++#include "php.h"
++
++int fcgi_is_fastcgi(void) {
++	return 0;
++}
++
++struct _fcgi_request {};
++typedef struct _fcgi_request fcgi_request;
++
++enum _fcgi_request_type { FCGI_NONE = 1 };
++typedef enum _fcgi_request_type fcgi_request_type;
++
++typedef void (*fcgi_apply_func)(const char *var, unsigned int var_len, char *val, unsigned int val_len, void *arg);
++
++void fcgi_terminate(void) {}
++
++void fcgi_loadenv(fcgi_request *req, fcgi_apply_func func, zval *array) {}
++
++int fcgi_listen(const char *path, int backlog) {
++	return -1;
++}
++
++fcgi_request *fcgi_init_request(int listen_socket, void(*on_accept)(void), void(*on_read)(void), void(*on_close)(void)) {
++	return NULL;
++}
++
++void fcgi_set_mgmt_var(const char * name, size_t name_len, const char * value, size_t value_len) {}
++
++void fcgi_destroy_request(fcgi_request *req) {}
++
++void fcgi_shutdown(void) {}
++
++int fcgi_accept_request(fcgi_request *req) {
++	return 0;
++}
++
++int fcgi_has_env(fcgi_request *req) {
++	return 0;
++}
++
++char* fcgi_quick_getenv(fcgi_request *req, const char* var, int var_len, unsigned int hash_value) {
++	return NULL;
++}
++
++char* fcgi_quick_putenv(fcgi_request *req, char* var, int var_len, unsigned int hash_value, char* val) {
++	return NULL;
++}
++
++int fcgi_finish_request(fcgi_request *req, int force_close) {
++	return 0;
++}
++
++char* fcgi_getenv(fcgi_request *req, const char* var, int var_len) {
++	return NULL;
++}
++
++int fcgi_read(fcgi_request *req, char *str, int len) {
++	return 0;
++}
++
++int fcgi_write(fcgi_request *req, fcgi_request_type type, const char *str, int len) {
++	return 0;
++}
++
++int fcgi_flush(fcgi_request *req, int end) {
++	return 0;
++}
+diff --git a/main/fopen_wrappers.c b/main/fopen_wrappers.c
+index 54441ccf..42e76c5d 100644
+--- a/main/fopen_wrappers.c
++++ b/main/fopen_wrappers.c
+@@ -53,7 +53,9 @@
+ #include <winsock2.h>
+ #else
+ #include <netinet/in.h>
++#ifndef PHP_WASI
+ #include <netdb.h>
++#endif
+ #ifdef HAVE_ARPA_INET_H
+ #include <arpa/inet.h>
+ #endif
+diff --git a/main/main.c b/main/main.c
+index 4d1859e7..82dfff78 100644
+--- a/main/main.c
++++ b/main/main.c
+@@ -1315,7 +1315,7 @@ static void clear_last_error(void) {
+ 	}
+ }
+ 
+-#if ZEND_DEBUG
++#if ZEND_DEBUG && !defined(PHP_WASI)
+ /* {{{ report_zend_debug_error_notify_cb */
+ static void report_zend_debug_error_notify_cb(int type, zend_string *error_filename, uint32_t error_lineno, zend_string *message)
+ {
+@@ -1611,11 +1611,14 @@ PHPAPI char *php_get_current_user(void)
+ 			return "";
+ 		}
+ 		pwd = &_pw;
++#elif defined(PHP_WASI)
++    return "";
+ #else
+ 		if ((pwd=getpwuid(pstat->st_uid))==NULL) {
+ 			return "";
+ 		}
+ #endif
++#ifndef PHP_WASI
+ 		SG(request_info).current_user_length = strlen(pwd->pw_name);
+ 		SG(request_info).current_user = estrndup(pwd->pw_name, SG(request_info).current_user_length);
+ #if defined(ZTS) && defined(HAVE_GETPWUID_R) && defined(_SC_GETPW_R_SIZE_MAX)
+@@ -1623,6 +1626,7 @@ PHPAPI char *php_get_current_user(void)
+ #endif
+ 		return SG(request_info).current_user;
+ #endif
++#endif // PHP_WASI
+ 	}
+ }
+ /* }}} */
+diff --git a/main/php.h b/main/php.h
+index b298aa29..42439535 100644
+--- a/main/php.h
++++ b/main/php.h
+@@ -51,6 +51,10 @@
+ # define PHP_OS_FAMILY			"Unknown"
+ #endif
+ 
++#ifdef __wasi__
++#define PHP_WASI __wasi__
++#endif
++
+ /* PHP's DEBUG value must match Zend's ZEND_DEBUG value */
+ #undef PHP_DEBUG
+ #define PHP_DEBUG ZEND_DEBUG
+diff --git a/main/php_glob.c b/main/php_glob.c
+index 8edfb832..49a9e5ce 100644
+--- a/main/php_glob.c
++++ b/main/php_glob.c
+@@ -95,7 +95,9 @@
+ #ifndef PHP_WIN32
+ #include <sys/param.h>
+ #include <dirent.h>
++#ifndef PHP_WASI
+ #include <pwd.h>
++#endif
+ #include <unistd.h>
+ #endif
+ #include <errno.h>
+@@ -430,7 +432,7 @@ static int globexp2(const Char *ptr, const Char *pattern, php_glob_t *pglob, str
+  */
+ static const Char *globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, php_glob_t *pglob)
+ {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 	struct passwd pwstore, *pwd = NULL;
+ 	char pwbuf[_PW_BUF_LEN];
+ #endif
+@@ -455,7 +457,11 @@ static const Char *globtilde(const Char *pattern, Char *patbuf, size_t patbuf_le
+ #endif
+ 
+ 	if (((char *) patbuf)[0] == EOS) {
+-#ifndef PHP_WIN32
++#ifdef PHP_WASI
++		if ((h = getenv("HOME")) == NULL) {
++			return pattern;
++		}
++#elif !defined(PHP_WIN32)
+ 		/*
+ 		 * handle a plain ~ or ~/ by expanding $HOME
+ 		 * first and then trying the password file
+@@ -479,7 +485,7 @@ static const Char *globtilde(const Char *pattern, Char *patbuf, size_t patbuf_le
+ 		/*
+ 		 * Expand a ~user
+ 		 */
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 		getpwnam_r((char *)patbuf, &pwstore, pwbuf, sizeof(pwbuf),
+ 			&pwd);
+ 		if (pwd == NULL)
+diff --git a/main/php_open_temporary_file.c b/main/php_open_temporary_file.c
+index 3a410eb7..70ceb558 100644
+--- a/main/php_open_temporary_file.c
++++ b/main/php_open_temporary_file.c
+@@ -33,7 +33,9 @@
+ #include <sys/param.h>
+ #include <sys/socket.h>
+ #include <netinet/in.h>
++#ifndef PHP_WASI
+ #include <netdb.h>
++#endif
+ #ifdef HAVE_ARPA_INET_H
+ #include <arpa/inet.h>
+ #endif
+@@ -87,6 +89,7 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef PHP_WASI
+ static const char base32alphabet[] = "0123456789abcdefghijklmnopqrstuv";
+ 
+ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_string **opened_path_p)
+@@ -228,11 +231,13 @@ static int php_do_open_temporary_file(const char *path, const char *pfx, zend_st
+ 	efree(random_prefix);
+ 	return fd;
+ }
++#endif // PHP_WASI
+ /* }}} */
+ 
+ /*
+  *  Determine where to place temporary files.
+  */
++#ifndef PHP_WASI
+ PHPAPI const char* php_get_temporary_directory(void)
+ {
+ 	/* Did we determine the temporary directory already? */
+@@ -307,6 +312,7 @@ PHPAPI const char* php_get_temporary_directory(void)
+ 	return PG(php_sys_temp_dir);
+ #endif
+ }
++#endif // PHP_WASI
+ 
+ /* {{{ php_open_temporary_file
+  *
+diff --git a/main/php_open_temporary_file_wasi.c b/main/php_open_temporary_file_wasi.c
+new file mode 100644
+index 00000000..793c2544
+--- /dev/null
++++ b/main/php_open_temporary_file_wasi.c
+@@ -0,0 +1,25 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++ */
++
++#include "php.h"
++
++PHPAPI const char* php_get_temporary_directory(void)
++{
++  return NULL;
++}
++
++PHPAPI int php_do_open_temporary_file(const char *path, const char *pfx, zend_string **opened_path_p)
++{
++  return -1;
++}
+diff --git a/main/php_syslog.h b/main/php_syslog.h
+index f2682d74..2563786e 100644
+--- a/main/php_syslog.h
++++ b/main/php_syslog.h
+@@ -21,6 +21,8 @@
+ 
+ #ifdef PHP_WIN32
+ #include "win32/syslog.h"
++#elif defined(PHP_WASI)
++#include "wasi/syslog.h"
+ #else
+ #include <php_config.h>
+ #ifdef HAVE_SYSLOG_H
+diff --git a/main/streams/plain_wrapper.c b/main/streams/plain_wrapper.c
+index 74d8877a..7bb3af32 100644
+--- a/main/streams/plain_wrapper.c
++++ b/main/streams/plain_wrapper.c
+@@ -52,7 +52,7 @@
+ #define php_stream_fopen_from_file_int(file, mode)	_php_stream_fopen_from_file_int((file), (mode) STREAMS_CC)
+ #define php_stream_fopen_from_file_int_rel(file, mode)	 _php_stream_fopen_from_file_int((file), (mode) STREAMS_REL_CC)
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ extern int php_get_uid_by_name(const char *name, uid_t *uid);
+ extern int php_get_gid_by_name(const char *name, gid_t *gid);
+ #endif
+@@ -530,6 +530,7 @@ static int php_stdiop_close(php_stream *stream, int close_handle)
+ 
+ 	if (close_handle) {
+ 		if (data->file) {
++#ifndef PHP_WASI
+ 			if (data->is_process_pipe) {
+ 				errno = 0;
+ 				ret = pclose(data->file);
+@@ -543,6 +544,10 @@ static int php_stdiop_close(php_stream *stream, int close_handle)
+ 				ret = fclose(data->file);
+ 				data->file = NULL;
+ 			}
++#else // PHP_WASI
++      ret = fclose(data->file);
++      data->file = NULL;
++#endif // PHP_WASI
+ 		} else if (data->fd != -1) {
+ 			ret = close(data->fd);
+ 			data->fd = -1;
+@@ -1362,7 +1367,7 @@ static int php_plain_files_rename(php_stream_wrapper *wrapper, const char *url_f
+ # ifdef EXDEV
+ 		if (errno == EXDEV) {
+ 			zend_stat_t sb;
+-# if !defined(ZTS) && !defined(TSRM_WIN32)
++# if !defined(ZTS) && !defined(TSRM_WIN32) && !defined(PHP_WASI)
+ 			/* not sure what to do in ZTS case, umask is not thread-safe */
+ 			int oldmask = umask(077);
+ # endif
+@@ -1370,7 +1375,7 @@ static int php_plain_files_rename(php_stream_wrapper *wrapper, const char *url_f
+ 			if (php_copy_file(url_from, url_to) == SUCCESS) {
+ 				if (VCWD_STAT(url_from, &sb) == 0) {
+ 					success = 1;
+-#  ifndef TSRM_WIN32
++#  if !defined(TSRM_WIN32) && !defined(PHP_WASI)
+ 					/*
+ 					 * Try to set user and permission info on the target.
+ 					 * If we're not root, then some of these may fail.
+@@ -1407,7 +1412,7 @@ static int php_plain_files_rename(php_stream_wrapper *wrapper, const char *url_f
+ 				php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s",
+ 						php_socket_strerror_s(errno, errstr, sizeof(errstr)));
+ 			}
+-#  if !defined(ZTS) && !defined(TSRM_WIN32)
++#  if !defined(ZTS) && !defined(TSRM_WIN32) && !defined(PHP_WASI)
+ 			umask(oldmask);
+ #  endif
+ 			return success;
+@@ -1603,7 +1608,7 @@ static int php_plain_files_metadata(php_stream_wrapper *wrapper, const char *url
+ 
+ 			ret = VCWD_UTIME(url, newtime);
+ 			break;
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 		case PHP_STREAM_META_OWNER_NAME:
+ 		case PHP_STREAM_META_OWNER:
+ 			if(option == PHP_STREAM_META_OWNER_NAME) {
+@@ -1629,10 +1634,12 @@ static int php_plain_files_metadata(php_stream_wrapper *wrapper, const char *url
+ 			ret = VCWD_CHOWN(url, -1, gid);
+ 			break;
+ #endif
++#ifndef PHP_WASI
+ 		case PHP_STREAM_META_ACCESS:
+ 			mode = (mode_t)*(zend_long *)value;
+ 			ret = VCWD_CHMOD(url, mode);
+ 			break;
++#endif
+ 		default:
+ 			zend_value_error("Unknown option %d for stream_metadata", option);
+ 			return 0;
+diff --git a/main/unistd_wasi.c b/main/unistd_wasi.c
+new file mode 100644
+index 00000000..dab39c0b
+--- /dev/null
++++ b/main/unistd_wasi.c
+@@ -0,0 +1,21 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++*/
++
++#include <errno.h>
++
++int dup(int fildes)
++{
++  errno = ENOTSUP;
++  return -1;
++}
+diff --git a/sapi/cgi/cgi_main.c b/sapi/cgi/cgi_main.c
+index 6db96a43..847e30bf 100644
+--- a/sapi/cgi/cgi_main.c
++++ b/sapi/cgi/cgi_main.c
+@@ -98,7 +98,7 @@ int __riscosify_control = __RISCOSIFY_STRICT_UNIX_SPECS;
+ # endif
+ #endif
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ /* XXX this will need to change later when threaded fastcgi is implemented.  shane */
+ static struct sigaction act, old_term, old_quit, old_int;
+ #endif
+@@ -1451,7 +1451,7 @@ static void init_request_info(fcgi_request *request)
+ }
+ /* }}} */
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ /**
+  * Clean up child processes upon exit
+  */
+@@ -1472,7 +1472,7 @@ static void fastcgi_cleanup(int signal)
+ 		_exit(0);
+ 	}
+ }
+-#else
++#elif defined(PHP_WIN32)
+ BOOL WINAPI fastcgi_cleanup(DWORD sig)
+ {
+ 	int i = kids;
+@@ -2000,7 +2000,7 @@ consult the installation file that came with this distribution, or visit \n\
+ 			fcgi_set_mgmt_var("FCGI_MAX_REQS",  sizeof("FCGI_MAX_REQS")-1,  "1", sizeof("1")-1);
+ 		}
+ 
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 		if (children) {
+ 			int running = 0;
+ 			pid_t pid;
+@@ -2090,7 +2090,7 @@ consult the installation file that came with this distribution, or visit \n\
+ 			zend_signal_init();
+ 		}
+ 
+-#else
++#elif defined(PHP_WIN32)
+ 		if (children) {
+ 			wchar_t *cmd_line_tmp, cmd_line[PHP_WIN32_IOUTIL_MAXPATHLEN];
+ 			size_t cmd_line_len;
+diff --git a/sapi/cgi/config9.m4 b/sapi/cgi/config9.m4
+index 51524286..6aa3aa90 100644
+--- a/sapi/cgi/config9.m4
++++ b/sapi/cgi/config9.m4
+@@ -41,6 +41,9 @@ if test "$PHP_CGI" != "no"; then
+     ],
+     [*darwin*], [
+       BUILD_CGI="\$(CC) \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(NATIVE_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_FASTCGI_OBJS:.lo=.o) \$(PHP_CGI_OBJS:.lo=.o) \$(PHP_FRAMEWORKS) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CGI_PATH)"
++    ],
++    [*wasi*], [
++      BUILD_CGI="\$(LIBTOOL) --mode=link \$(CC) \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_FASTCGI_OBJS:.lo=.o) \$(PHP_CGI_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CGI_PATH)"
+     ], [
+       BUILD_CGI="\$(LIBTOOL) --tag=CC --mode=link \$(CC) -export-dynamic \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_FASTCGI_OBJS:.lo=.o) \$(PHP_CGI_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CGI_PATH)"
+     ])
+diff --git a/sapi/cli/config.m4 b/sapi/cli/config.m4
+index 76c2d64e..2db68df4 100644
+--- a/sapi/cli/config.m4
++++ b/sapi/cli/config.m4
+@@ -30,9 +30,13 @@ if test "$PHP_CLI" != "no"; then
+   SAPI_CLI_PATH=sapi/cli/php
+ 
+   dnl Select SAPI.
++  AS_IF([test "$WASI" != "yes"], [
++    cli_extra_sources="php_cli_server.c"
++  ])
++
+   PHP_SELECT_SAPI([cli],
+     [program],
+-    [php_cli.c php_http_parser.c php_cli_server.c ps_title.c php_cli_process_title.c],
++    [php_cli.c php_http_parser.c $cli_extra_sources ps_title.c php_cli_process_title.c],
+     [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1])
+ 
+   AS_CASE([$host_alias],
+@@ -45,6 +49,9 @@ if test "$PHP_CLI" != "no"; then
+     ],
+     [*darwin*], [
+       BUILD_CLI="\$(CC) \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(NATIVE_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_CLI_OBJS:.lo=.o) \$(PHP_FRAMEWORKS) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CLI_PATH)"
++    ],
++    [*wasi*], [
++      BUILD_CLI="\$(LIBTOOL) --mode=link \$(CC) \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_CLI_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CLI_PATH)"
+     ], [
+       BUILD_CLI="\$(LIBTOOL) --tag=CC --mode=link \$(CC) -export-dynamic \$(CFLAGS_CLEAN) \$(EXTRA_CFLAGS) \$(EXTRA_LDFLAGS_PROGRAM) \$(LDFLAGS) \$(PHP_RPATHS) \$(PHP_GLOBAL_OBJS:.lo=.o) \$(PHP_BINARY_OBJS:.lo=.o) \$(PHP_CLI_OBJS:.lo=.o) \$(EXTRA_LIBS) \$(ZEND_EXTRA_LIBS) -o \$(SAPI_CLI_PATH)"
+     ])
+diff --git a/sapi/cli/php_cli.c b/sapi/cli/php_cli.c
+index 92368696..fde7cf48 100644
+--- a/sapi/cli/php_cli.c
++++ b/sapi/cli/php_cli.c
+@@ -1296,7 +1296,7 @@ int main(int argc, char *argv[])
+ 				/* define ini entries on command line */
+ 				php_ini_builder_define(&ini_builder, php_optarg);
+ 				break;
+-#ifndef PHP_CLI_WIN32_NO_CONSOLE
++#if !defined(PHP_CLI_WIN32_NO_CONSOLE) && !defined(PHP_WASI)
+ 			case 'S':
+ 				sapi_module_ptr = &cli_server_sapi_module;
+ 				cli_server_sapi_module.additional_functions = server_additional_functions;
+@@ -1368,11 +1368,11 @@ int main(int argc, char *argv[])
+ 	}
+ 
+ 	zend_first_try {
+-#ifndef PHP_CLI_WIN32_NO_CONSOLE
++#if !defined(PHP_CLI_WIN32_NO_CONSOLE) && !defined(PHP_WASI)
+ 		if (sapi_module_ptr == &cli_sapi_module) {
+ #endif
+ 			exit_status = do_cli(argc, argv);
+-#ifndef PHP_CLI_WIN32_NO_CONSOLE
++#if !defined(PHP_CLI_WIN32_NO_CONSOLE) && !defined(PHP_WASI)
+ 		} else {
+ 			exit_status = do_cli_server(argc, argv);
+ 		}
+diff --git a/wasi/syslog.h b/wasi/syslog.h
+new file mode 100644
+index 00000000..39768a09
+--- /dev/null
++++ b/wasi/syslog.h
+@@ -0,0 +1,27 @@
++/*
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   | If you did not receive a copy of the PHP license and are unable to   |
++   | obtain it through the world-wide-web, please send a note to          |
++   | license@php.net so we can mail you a copy immediately.               |
++   +----------------------------------------------------------------------+
++*/
++
++#ifndef SYSLOG_H
++#define	SYSLOG_H
++
++#define LOG_EMERG   0 /* system is unusable */
++#define LOG_ALERT   1 /* action must be taken immediately */
++#define LOG_CRIT    2 /* critical conditions */
++#define LOG_ERR     3 /* error conditions */
++#define LOG_WARNING 4 /* warning conditions */
++#define LOG_NOTICE  5 /* normal but significant condition */
++#define LOG_INFO    6 /* informational */
++#define LOG_DEBUG   7 /* debug-level messages */
++
++#endif // SYSLOG_H
+-- 
+2.50.1
+

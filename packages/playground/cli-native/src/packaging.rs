@@ -14,9 +14,10 @@ use serde::Serialize;
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 use crate::{
+    args::DEFAULT_PHP_VERSION,
     assets::{
-        find_php_assets_manifest, load_php_assets_manifest, select_php_asset, sha256_file,
-        verify_file_asset, AssetManifest, FileAsset, PhpAsset,
+        find_php_assets_manifest, load_php_assets_manifest, sha256_file, verify_file_asset,
+        AssetManifest, FileAsset, PhpAsset, PhpComponentAsset, PhpComponentVariant,
         SOURCE_PHP_ASSET_MANIFEST_RELATIVE_PATH,
     },
     runtime::{
@@ -35,8 +36,6 @@ const WORDPRESS_STATIC_ZIP: &str = "wordpress-static.zip";
 const SQLITE_BUILDS_DIR: &str =
     "packages/playground/wordpress-builds/src/sqlite-database-integration";
 const SQLITE_TRUNK_ZIP: &str = "sqlite-database-integration-trunk.zip";
-pub const PACKAGED_PHP_VERSION: &str = "8.2";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageOptions {
     pub binary_path: PathBuf,
@@ -187,7 +186,7 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
         ))
     })?;
     let manifest = load_php_assets_manifest(&manifest_path)?;
-    let mut selected_manifest = packaged_php_manifest(&manifest)?;
+    let mut packaged_manifest = packaged_php_manifest(&manifest);
 
     let package_root = options.out_dir.join(&options.package_name);
     if package_root.exists() {
@@ -217,17 +216,15 @@ pub fn package_native_cli(options: &PackageOptions) -> Result<PackageSummary> {
         fs::create_dir_all(parent)?;
     }
 
-    for asset in &mut selected_manifest.php {
-        let packaged = package_php_asset(
-            &options.asset_root,
-            &package_asset_root,
-            &package_root,
-            asset,
-            options.precompile_wasmtime,
-        )?;
-        extend_unique_package_files(&mut files, packaged);
-    }
-    fs::write(&package_manifest_path, selected_manifest.to_json())?;
+    let packaged = package_php_assets(
+        &options.asset_root,
+        &package_asset_root,
+        &package_root,
+        &mut packaged_manifest,
+        options.precompile_wasmtime,
+    )?;
+    extend_unique_package_files(&mut files, packaged);
+    fs::write(&package_manifest_path, packaged_manifest.to_json())?;
     let packaged_php_manifest = load_php_assets_manifest(&package_manifest_path)?;
     verify_packaged_php_manifest_files(&package_asset_root, &packaged_php_manifest)?;
     files.push(package_file_manifest(
@@ -317,7 +314,7 @@ pub fn run_packaged_wordpress_server_smoke(
     let site_root = unique_temp_dir("wp-playground-native-packaged-server-site")?;
     let mut child = Command::new(&smoke_summary.binary_path)
         .arg("server")
-        .arg(format!("--php={PACKAGED_PHP_VERSION}"))
+        .arg(format!("--php={DEFAULT_PHP_VERSION}"))
         .arg(format!("--wp={wordpress_version}"))
         .arg("--port=0")
         .arg("--workers=4")
@@ -510,7 +507,7 @@ pub fn run_packaged_run_blueprint_smoke(
 
     let output = Command::new(&smoke_summary.binary_path)
         .arg("run-blueprint")
-        .arg(format!("--php={PACKAGED_PHP_VERSION}"))
+        .arg(format!("--php={DEFAULT_PHP_VERSION}"))
         .arg(format!("--wp={wordpress_version}"))
         .arg("--blueprint")
         .arg(&blueprint_path)
@@ -587,7 +584,7 @@ pub fn run_packaged_build_snapshot_smoke(
 
     let output = Command::new(&smoke_summary.binary_path)
         .arg("build-snapshot")
-        .arg(format!("--php={PACKAGED_PHP_VERSION}"))
+        .arg(format!("--php={DEFAULT_PHP_VERSION}"))
         .arg(format!("--wp={wordpress_version}"))
         .arg("--site-url=http://native-snapshot.test")
         .arg("--blueprint")
@@ -657,21 +654,11 @@ fn assert_packaged_php_asset_files_exist(summary: &PackageSummary) -> Result<()>
         ))
     })?;
     let manifest = load_php_assets_manifest(&manifest_path)?;
-    let asset = select_php_asset(&manifest, PACKAGED_PHP_VERSION)?;
-    let mut relative_paths = vec![&asset.wasm.path];
-    if let Some(wasmtime) = &asset.wasmtime {
-        relative_paths.push(&wasmtime.path);
-    }
-    for relative_path in relative_paths {
-        let path = summary.asset_root.join(relative_path);
-        if !path.is_file() {
-            return Err(CliError::new(format!(
-                "Packaged asset referenced by manifest is missing: {}",
-                path.display()
-            )));
-        }
-    }
-    Ok(())
+    verify_packaged_php_manifest_files(&summary.asset_root, &manifest).map_err(|error| {
+        CliError::new(format!(
+            "Packaged PHP asset manifest contains an invalid component: {error}"
+        ))
+    })
 }
 
 fn assert_packaged_sqlite_assets_exist(summary: &PackageSummary) -> Result<()> {
@@ -891,8 +878,17 @@ fn response_set_cookie_header(response: &str) -> String {
 }
 
 fn response_excerpt_text(response: &str) -> String {
-    const MAX_EXCERPT: usize = 2000;
-    response.chars().take(MAX_EXCERPT).collect()
+    const EDGE_LENGTH: usize = 2000;
+    let length = response.chars().count();
+    if length <= EDGE_LENGTH * 2 {
+        return response.to_string();
+    }
+    let head = response.chars().take(EDGE_LENGTH).collect::<String>();
+    let tail = response
+        .chars()
+        .skip(length - EDGE_LENGTH)
+        .collect::<String>();
+    format!("{head}\n... response excerpt omitted ...\n{tail}")
 }
 
 struct ChildGuard {
@@ -947,12 +943,8 @@ fn set_extracted_permissions(_path: &Path, _mode: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-fn packaged_php_manifest(manifest: &AssetManifest) -> Result<AssetManifest> {
-    let php = vec![select_php_asset(manifest, PACKAGED_PHP_VERSION)?.clone()];
-    Ok(AssetManifest {
-        schema_version: manifest.schema_version,
-        php,
-    })
+fn packaged_php_manifest(manifest: &AssetManifest) -> AssetManifest {
+    manifest.clone()
 }
 
 fn copy_verified_asset(
@@ -978,12 +970,52 @@ fn package_php_asset(
     asset: &mut PhpAsset,
     precompile_wasmtime: bool,
 ) -> Result<Vec<PackageFileManifest>> {
+    let mut files = package_php_component_asset(
+        asset_root,
+        package_asset_root,
+        package_root,
+        PhpComponentVariant::Base,
+        &mut asset.base,
+        precompile_wasmtime,
+    )?;
+    if let Some(extended) = &mut asset.extended {
+        extend_unique_package_files(
+            &mut files,
+            package_php_component_asset(
+                asset_root,
+                package_asset_root,
+                package_root,
+                PhpComponentVariant::Extended,
+                extended,
+                precompile_wasmtime,
+            )?,
+        );
+    }
+    Ok(files)
+}
+
+fn package_php_component_asset(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    variant: PhpComponentVariant,
+    asset: &mut PhpComponentAsset,
+    precompile_wasmtime: bool,
+) -> Result<Vec<PackageFileManifest>> {
+    let wasm_kind = match variant {
+        PhpComponentVariant::Base => "php-wasip2-component",
+        PhpComponentVariant::Extended => "php-wasip2-component-extended",
+    };
+    let wasmtime_kind = match variant {
+        PhpComponentVariant::Base => "php-wasmtime-component",
+        PhpComponentVariant::Extended => "php-wasmtime-component-extended",
+    };
     let mut files = vec![copy_verified_asset(
         asset_root,
         &asset.wasm,
         package_asset_root,
         package_root,
-        "php-wasip2-component",
+        wasm_kind,
     )?];
     if precompile_wasmtime {
         match precompile_packaged_component(asset_root, asset, package_asset_root)? {
@@ -991,7 +1023,7 @@ fn package_php_asset(
                 files.push(package_file_manifest(
                     package_root,
                     Path::new(PACKAGE_SHARE_DIR).join(&wasmtime.path),
-                    "php-wasmtime-component",
+                    wasmtime_kind,
                 )?);
                 asset.wasmtime = Some(wasmtime);
             }
@@ -1003,8 +1035,31 @@ fn package_php_asset(
             wasmtime,
             package_asset_root,
             package_root,
-            "php-wasmtime-component",
+            wasmtime_kind,
         )?);
+    }
+    Ok(files)
+}
+
+fn package_php_assets(
+    asset_root: &Path,
+    package_asset_root: &Path,
+    package_root: &Path,
+    manifest: &mut AssetManifest,
+    precompile_wasmtime: bool,
+) -> Result<Vec<PackageFileManifest>> {
+    let mut files = Vec::new();
+    for asset in &mut manifest.php {
+        extend_unique_package_files(
+            &mut files,
+            package_php_asset(
+                asset_root,
+                package_asset_root,
+                package_root,
+                asset,
+                precompile_wasmtime,
+            )?,
+        );
     }
     Ok(files)
 }
@@ -1029,19 +1084,21 @@ fn verify_packaged_php_manifest_files(
 
 fn verify_packaged_php_assets(package_asset_root: &Path, assets: &[PhpAsset]) -> Result<()> {
     for asset in assets {
-        verify_file_asset(package_asset_root, &asset.wasm).map_err(|error| {
-            CliError::new(format!(
-                "Packaged PHP {} WASIp2 component is invalid: {error}",
-                asset.version
-            ))
-        })?;
-        if let Some(wasmtime) = &asset.wasmtime {
-            verify_file_asset(package_asset_root, wasmtime).map_err(|error| {
+        for (variant, component) in asset.declared_components() {
+            verify_file_asset(package_asset_root, &component.wasm).map_err(|error| {
                 CliError::new(format!(
-                    "Packaged PHP {} precompiled Wasmtime component is invalid: {error}",
-                    asset.version
+                    "Packaged PHP {} {variant} WASIp2 component is invalid: {error}",
+                    asset.version,
                 ))
             })?;
+            if let Some(wasmtime) = &component.wasmtime {
+                verify_file_asset(package_asset_root, wasmtime).map_err(|error| {
+                    CliError::new(format!(
+                        "Packaged PHP {} {variant} precompiled Wasmtime component is invalid: {error}",
+                        asset.version
+                    ))
+                })?;
+            }
         }
     }
     Ok(())
@@ -1049,7 +1106,7 @@ fn verify_packaged_php_assets(package_asset_root: &Path, assets: &[PhpAsset]) ->
 
 fn precompile_packaged_component(
     asset_root: &Path,
-    asset: &mut crate::assets::PhpAsset,
+    asset: &mut PhpComponentAsset,
     package_asset_root: &Path,
 ) -> Result<Option<FileAsset>> {
     let target_triple = configured_target_triple();
@@ -1063,7 +1120,7 @@ fn precompile_packaged_component(
 
 fn precompile_packaged_component_for_target(
     asset_root: &Path,
-    asset: &mut crate::assets::PhpAsset,
+    asset: &mut PhpComponentAsset,
     package_asset_root: &Path,
     target_triple: Option<&str>,
 ) -> Result<Option<FileAsset>> {
@@ -1674,32 +1731,98 @@ mod component_tests {
     use wasmtime::{component::Linker, Store};
 
     use crate::{
-        assets::{AssetManifest, FileAsset, PhpAsset, FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH},
+        assets::{
+            AssetManifest, FileAsset, PhpAsset, PhpComponentAsset,
+            FLAT_PHP_ASSET_MANIFEST_RELATIVE_PATH,
+        },
         runtime::{NativeRuntime, WasmEngineProfile},
     };
 
     use super::{
-        package_php_asset, package_wasmtime_precompile_manifest_for_target, packaged_php_manifest,
-        precompiled_wasmtime_path, sha256_file, validate_package_name, PACKAGE_SHARE_DIR,
+        package_php_asset, package_php_assets, package_wasmtime_precompile_manifest_for_target,
+        packaged_php_manifest, precompiled_wasmtime_path, response_excerpt_text, sha256_file,
+        validate_package_name, verify_packaged_php_manifest_files, PACKAGE_SHARE_DIR,
     };
 
     #[test]
-    fn package_manifest_is_php_82_only() {
-        let manifest = component_manifest(vec![fake_asset("8.2")]);
-        let selected = packaged_php_manifest(&manifest).unwrap();
+    fn response_excerpt_preserves_both_ends_of_large_error_pages() {
+        let response = format!("START{}END", "x".repeat(5000));
+        let excerpt = response_excerpt_text(&response);
+        assert!(excerpt.starts_with("START"));
+        assert!(excerpt.contains("response excerpt omitted"));
+        assert!(excerpt.ends_with("END"));
+    }
+
+    #[test]
+    fn package_manifest_preserves_every_component_version() {
+        let manifest = component_manifest(vec![
+            fake_asset("7.4"),
+            fake_asset("8.2"),
+            fake_asset("8.5"),
+        ]);
+        let selected = packaged_php_manifest(&manifest);
         assert_eq!(
             selected
                 .php
                 .iter()
                 .map(|asset| asset.version.as_str())
                 .collect::<Vec<_>>(),
-            vec!["8.2"]
+            vec!["7.4", "8.2", "8.5"]
         );
+        assert_eq!(selected, manifest);
+    }
 
-        let error = packaged_php_manifest(&component_manifest(Vec::new()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("PHP 8.2"), "{error}");
+    #[test]
+    fn packages_and_verifies_every_manifest_component() {
+        let root = temp_dir("package-components");
+        let asset_root = root.join("source");
+        let package_root = root.join("package");
+        let package_asset_root = package_root.join(PACKAGE_SHARE_DIR);
+        let mut manifest = component_manifest(vec![fake_asset("7.4"), fake_extended_asset("8.5")]);
+        for asset in &mut manifest.php {
+            let source = asset_root.join(&asset.base.wasm.path);
+            fs::create_dir_all(source.parent().unwrap()).unwrap();
+            fs::write(
+                &source,
+                format!("(component ;; PHP {} base)", asset.version),
+            )
+            .unwrap();
+            asset.base.wasm.sha256 = sha256_file(&source).unwrap();
+            if let Some(extended) = &mut asset.extended {
+                let source = asset_root.join(&extended.wasm.path);
+                fs::create_dir_all(source.parent().unwrap()).unwrap();
+                fs::write(
+                    &source,
+                    format!("(component ;; PHP {} extended)", asset.version),
+                )
+                .unwrap();
+                extended.wasm.sha256 = sha256_file(&source).unwrap();
+            }
+        }
+
+        let files = package_php_assets(
+            &asset_root,
+            &package_asset_root,
+            &package_root,
+            &mut manifest,
+            false,
+        )
+        .unwrap();
+        assert_eq!(files.len(), 3);
+        assert_eq!(
+            files
+                .iter()
+                .map(|file| file.kind.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "php-wasip2-component",
+                "php-wasip2-component",
+                "php-wasip2-component-extended"
+            ]
+        );
+        verify_packaged_php_manifest_files(&package_asset_root, &manifest).unwrap();
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -1735,11 +1858,14 @@ mod component_tests {
 
         let mut asset = PhpAsset {
             version: "8.2".to_string(),
-            wasm: FileAsset {
-                path: relative_wasm,
-                sha256: sha256_file(&source_wasm).unwrap(),
+            base: PhpComponentAsset {
+                wasm: FileAsset {
+                    path: relative_wasm,
+                    sha256: sha256_file(&source_wasm).unwrap(),
+                },
+                wasmtime: None,
             },
-            wasmtime: None,
+            extended: None,
         };
         let files = package_php_asset(
             &asset_root,
@@ -1756,7 +1882,7 @@ mod component_tests {
                 .collect::<Vec<_>>(),
             vec!["php-wasip2-component", "php-wasmtime-component"]
         );
-        assert!(asset.wasmtime.is_some());
+        assert!(asset.base.wasmtime.is_some());
 
         fs::create_dir_all(&package_asset_root).unwrap();
         fs::write(
@@ -1787,12 +1913,27 @@ mod component_tests {
     fn fake_asset(version: &str) -> PhpAsset {
         PhpAsset {
             version: version.to_string(),
+            base: PhpComponentAsset {
+                wasm: FileAsset {
+                    path: PathBuf::from(format!("php/{version}/php.wasm")),
+                    sha256: "00".repeat(32),
+                },
+                wasmtime: None,
+            },
+            extended: None,
+        }
+    }
+
+    fn fake_extended_asset(version: &str) -> PhpAsset {
+        let mut asset = fake_asset(version);
+        asset.extended = Some(PhpComponentAsset {
             wasm: FileAsset {
-                path: PathBuf::from(format!("php/{version}/php.wasm")),
+                path: PathBuf::from(format!("php/{version}/php-extended.wasm")),
                 sha256: "00".repeat(32),
             },
             wasmtime: None,
-        }
+        });
+        asset
     }
 
     fn temp_dir(name: &str) -> PathBuf {

@@ -1,0 +1,74 @@
+From 0d3810b7db1e1004355777e8fe36c21fe453708c Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:43:20 +0200
+Subject: [PATCH 07/11] Port PHP 7.4 WASI patch 0007
+
+---
+ main/internal_functions.c.in | 50 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/main/internal_functions.c.in b/main/internal_functions.c.in
+index 59557c96..2b15cdf2 100644
+--- a/main/internal_functions.c.in
++++ b/main/internal_functions.c.in
+@@ -33,7 +33,57 @@ static zend_module_entry * const php_builtin_extensions[] = {
+ 
+ #define EXTCOUNT (sizeof(php_builtin_extensions)/sizeof(zend_module_entry *))
+ 
++#ifdef PHP_WASI
++static int php_wasi_extension_selected(const char *name)
++{
++	const char *selected = getenv("WP_PLAYGROUND_PHP_EXTENSIONS");
++	size_t name_len = strlen(name);
++
++	if (!selected || !selected[0]) {
++		return 0;
++	}
++	while (*selected) {
++		const char *end = strchr(selected, ',');
++		size_t entry_len = end ? (size_t) (end - selected) : strlen(selected);
++		if (entry_len == name_len && memcmp(selected, name, name_len) == 0) {
++			return 1;
++		}
++		if (!end) {
++			break;
++		}
++		selected = end + 1;
++	}
++	return 0;
++}
++
++static int php_wasi_optional_extension_enabled(const zend_module_entry *module)
++{
++	if (strcmp(module->name, "redis") == 0 ||
++			strcmp(module->name, "memcached") == 0) {
++		return php_wasi_extension_selected(module->name);
++	}
++	if (strcmp(module->name, "xdebug_wasi_loader") == 0) {
++		return php_wasi_extension_selected("xdebug");
++	}
++	return 1;
++}
++#endif
++
+ PHPAPI int php_register_internal_extensions(void)
+ {
++#ifdef PHP_WASI
++	zend_module_entry *enabled_extensions[EXTCOUNT];
++	int enabled_count = 0;
++	int i;
++
++	for (i = 0; i < EXTCOUNT; i++) {
++		if (php_builtin_extensions[i] &&
++				php_wasi_optional_extension_enabled(php_builtin_extensions[i])) {
++			enabled_extensions[enabled_count++] = php_builtin_extensions[i];
++		}
++	}
++	return php_register_extensions(enabled_extensions, enabled_count);
++#else
+ 	return php_register_extensions(php_builtin_extensions, EXTCOUNT);
++#endif
+ }
+-- 
+2.50.1
+

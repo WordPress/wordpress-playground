@@ -1,5 +1,11 @@
 /// <reference types="vitest" />
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+	copyFileSync,
+	cpSync,
+	mkdirSync,
+	readFileSync,
+	writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -46,6 +52,11 @@ function copyPrivatePackage(): Plugin {
 				],
 			] as const)
 				copyFileSync(source, destination);
+			cpSync(
+				join(packageRoot, 'share', 'licenses'),
+				join(outputRoot, 'share', 'licenses'),
+				{ recursive: true }
+			);
 
 			const sourceManifestPath = join(
 				packageRoot,
@@ -59,20 +70,32 @@ function copyPrivatePackage(): Plugin {
 					{
 						wasm: { path: string; sha256: string };
 						wasmtime?: unknown;
+						variants?: {
+							extended: {
+								wasm: { path: string; sha256: string };
+								wasmtime?: unknown;
+							};
+						};
 					}
 				>;
 			};
 			for (const php of Object.values(sourceManifest.php)) {
-				delete php.wasmtime;
-				const source = join(repositoryRoot, php.wasm.path);
-				if (sha256(source) !== php.wasm.sha256) {
-					throw new Error(
-						`PHP WASI asset checksum mismatch: ${php.wasm.path}`
-					);
+				const components = [
+					php,
+					...(php.variants ? [php.variants.extended] : []),
+				];
+				for (const component of components) {
+					delete component.wasmtime;
+					const source = join(repositoryRoot, component.wasm.path);
+					if (sha256(source) !== component.wasm.sha256) {
+						throw new Error(
+							`PHP WASI asset checksum mismatch: ${component.wasm.path}`
+						);
+					}
+					const destination = join(assetRoot, component.wasm.path);
+					mkdirSync(dirname(destination), { recursive: true });
+					copyFileSync(source, destination);
 				}
-				const destination = join(assetRoot, php.wasm.path);
-				mkdirSync(dirname(destination), { recursive: true });
-				copyFileSync(source, destination);
 			}
 			const packagedManifestPath = join(
 				assetRoot,

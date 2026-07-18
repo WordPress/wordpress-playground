@@ -30,6 +30,12 @@ import {
 	waitForControlHandshake,
 } from './control.js';
 import { parseNativeCLIArgs, runNativeCLI } from './process.js';
+import {
+	currentRuntimeHasJspi,
+	defaultNetworkExtensionsInArgs,
+	defaultNetworkExtensionsInArgv,
+} from './extension-defaults.js';
+import { registerControlledHost } from './controlled-host-lifecycle.js';
 
 export const LogVerbosity = {
 	Quiet: { name: 'quiet', severity: 5 },
@@ -40,6 +46,16 @@ export const LogVerbosity = {
 export type LogVerbosity =
 	(typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 export type WorkerType = 'v1' | 'v2';
+
+const SUPPORTED_NATIVE_PHP_VERSIONS = new Set([
+	'7.4',
+	'8.0',
+	'8.1',
+	'8.2',
+	'8.3',
+	'8.4',
+	'8.5',
+]);
 
 export interface Mount {
 	hostPath: string;
@@ -73,13 +89,20 @@ export interface RunCLIArgs {
 	'additional-blueprint-steps'?: unknown[];
 	/** @unsupported Native v1 has a fixed extension set. */
 	intl?: boolean;
-	/** @unsupported Native v1 does not install phpMyAdmin. */
+	/**
+	 * Serve a mounted `/tools/phpmyadmin` tree at this URL prefix. `true`
+	 * selects `/phpmyadmin`; `false` disables the alias.
+	 */
 	phpmyadmin?: boolean | string;
-	/** @unsupported Native v1 has a fixed extension set. */
+	/** Enable or disable Redis. Omitted values follow current-runtime JSPI. */
 	redis?: boolean;
-	/** @unsupported Native v1 has a fixed extension set. */
+	/** Enable or disable Memcached. Omitted values follow current-runtime JSPI. */
 	memcached?: boolean;
-	/** @unsupported Native v1 does not expose Xdebug. */
+	/**
+	 * Enable or disable bundled Xdebug. Configuration objects remain in the
+	 * drop-in type surface, but native v1 rejects them because there is no
+	 * deterministic scalar mapping for the Node CLI object's settings.
+	 */
 	xdebug?: boolean | Record<string, unknown>;
 	/** @unsupported Native v1 cannot load dynamic PHP extensions. */
 	phpExtension?: string[];
@@ -339,7 +362,10 @@ export async function parseOptionsAndRunCLI(
 ): Promise<ParseCLIResult> {
 	let argv: string[];
 	try {
-		argv = assertSupportedArgv(argsToParse);
+		argv = defaultNetworkExtensionsInArgv(
+			assertSupportedArgv(argsToParse),
+			currentRuntimeHasJspi()
+		);
 	} catch (cause) {
 		if (cause instanceof CLIArgsValidationError) {
 			console.error(cause.message);
@@ -405,7 +431,10 @@ export async function runCLI(
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const snapshot = snapshotSupportedArgs(args);
-	const validatedArgs = snapshot.args;
+	const validatedArgs = defaultNetworkExtensionsInArgs(
+		snapshot.args,
+		currentRuntimeHasJspi()
+	);
 	const blueprintJSON = await materializeBlueprintJSON(
 		snapshot.blueprintJSON,
 		validatedArgs
@@ -523,9 +552,9 @@ function translateBlueprintTopLevel(
 				'Native CLI Blueprint preferredVersions must contain only php and wp.'
 			);
 		const php = preferredVersions['php'];
-		if (php !== '8.2')
+		if (typeof php !== 'string' || !SUPPORTED_NATIVE_PHP_VERSIONS.has(php))
 			invalidRequest(
-				'Native CLI Blueprint preferredVersions.php must be the supported value "8.2".'
+				'Native CLI Blueprint preferredVersions.php must be one of 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, or 8.5.'
 			);
 		const wp = preferredVersions['wp'];
 		if (wp === false)
@@ -648,6 +677,7 @@ async function startControlledServerWithLaunch(
 	await listenForCommand(proxyServer, launch.command, launch.explicitPort);
 	let serialized: SerializedArgs | undefined;
 	let child: ChildProcess | undefined;
+	let releaseControlledHost: (() => void) | undefined;
 	let client: NativeControlClient | undefined;
 	let handshakeDirectory: string | undefined;
 	let controlToken: string | undefined;
@@ -677,6 +707,7 @@ async function startControlledServerWithLaunch(
 			stdio: ['inherit', 'inherit', 'pipe'],
 			windowsHide: true,
 		});
+		releaseControlledHost = registerControlledHost(child);
 		child.stderr?.on('data', (chunk: Buffer) => {
 			process.stderr.write(chunk);
 			stderr = `${stderr}${chunk}`.slice(-65_536);
@@ -700,13 +731,16 @@ async function startControlledServerWithLaunch(
 			client
 		) as unknown as PlaygroundCliWorker;
 		let disposePromise: Promise<void> | undefined;
+		const releaseControlledHostIfStopped = () => {
+			if (child && childHasStopped(child)) releaseControlledHost?.();
+		};
 		const dispose = () =>
 			(disposePromise ??= disposeControlledServer(
 				proxyServer,
 				child!,
 				client!,
 				serialized!
-			));
+			).finally(releaseControlledHostIfStopped));
 		child.once('exit', () => void dispose());
 		return {
 			playground,
@@ -719,16 +753,20 @@ async function startControlledServerWithLaunch(
 		};
 	} catch (cause) {
 		client?.close();
-		await Promise.allSettled([
-			closeServer(proxyServer),
-			child ? stopChild(child) : Promise.resolve(),
-		]);
-		await Promise.allSettled([
-			serialized?.cleanup() ?? Promise.resolve(),
-			handshakeDirectory
-				? rm(handshakeDirectory, { recursive: true, force: true })
-				: Promise.resolve(),
-		]);
+		try {
+			await Promise.allSettled([
+				closeServer(proxyServer),
+				child ? stopChild(child) : Promise.resolve(),
+			]);
+			await Promise.allSettled([
+				serialized?.cleanup() ?? Promise.resolve(),
+				handshakeDirectory
+					? rm(handshakeDirectory, { recursive: true, force: true })
+					: Promise.resolve(),
+			]);
+		} finally {
+			if (child && childHasStopped(child)) releaseControlledHost?.();
+		}
 		if (stderr) {
 			throw new NativeCLIError(
 				NativeCLIErrorCode.Startup,
@@ -832,6 +870,7 @@ async function serializeRunCLIArgs(
 	scalar('php', args.php);
 	scalar('port', args.port);
 	scalar('site-url', args['site-url']);
+	scalar('phpmyadmin', args.phpmyadmin);
 	scalar('path', args.path);
 	scalar('outfile', args.outfile);
 	scalar('workers', args.workers);
@@ -850,6 +889,14 @@ async function serializeRunCLIArgs(
 		],
 	] as const)
 		if (value) argv.push(`--${flag}`);
+	for (const [flag, value] of [
+		['redis', args.redis],
+		['memcached', args.memcached],
+		['xdebug', args.xdebug],
+	] as const) {
+		if (value !== undefined)
+			argv.push(value ? `--${flag}` : `--no-${flag}`);
+	}
 	if (args.login !== undefined)
 		argv.push(args.login ? '--login' : '--no-login');
 	if (args.autoMount === false) argv.push('--no-auto-mount');
@@ -1033,6 +1080,8 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 		'debug',
 		'login',
 		'quiet',
+		'redis',
+		'memcached',
 		'skipSqliteSetup',
 		'followSymlinks',
 		'blueprint-may-read-adjacent-files',
@@ -1042,6 +1091,10 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 		if (args[key] !== undefined && typeof args[key] !== 'boolean')
 			invalidRequest(`Native CLI ${key} must be a boolean.`);
 	}
+	if (args.xdebug !== undefined && typeof args.xdebug !== 'boolean')
+		invalidRequest(
+			'Native CLI xdebug configuration objects are not supported; use true or false.'
+		);
 	for (const key of ['outfile', 'site-url', 'wp', 'path'] as const) {
 		const propertyValue = args[key];
 		if (
@@ -1053,8 +1106,13 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 			assertNoNul(propertyValue, `Native CLI ${key}`);
 	}
 	if (args.php !== undefined) {
-		if (args.php !== '8.2')
-			invalidRequest('Native CLI php must be the supported value "8.2".');
+		if (
+			typeof args.php !== 'string' ||
+			!SUPPORTED_NATIVE_PHP_VERSIONS.has(args.php)
+		)
+			invalidRequest(
+				'Native CLI php must be one of 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, or 8.5.'
+			);
 		assertNoNul(args.php, 'Native CLI php');
 	}
 	if (
@@ -1115,6 +1173,7 @@ function snapshotSupportedArgsUnchecked(value: unknown): SupportedArgsSnapshot {
 		);
 	if (typeof args.autoMount === 'string')
 		assertNoNul(args.autoMount, 'Native CLI autoMount');
+	args.phpmyadmin = snapshotPhpMyAdminPrefix(args.phpmyadmin);
 	args.mount = snapshotMounts(args.mount, 'mount');
 	args['mount-before-install'] = snapshotMounts(
 		args['mount-before-install'],
@@ -1482,6 +1541,32 @@ function snapshotMounts(
 	});
 }
 
+function snapshotPhpMyAdminPrefix(value: unknown): string | undefined {
+	if (value === undefined || value === false) return undefined;
+	if (value === true) return '/phpmyadmin';
+	if (typeof value !== 'string' || value.length === 0)
+		invalidRequest(
+			'Native CLI phpmyadmin must be false, true, or a non-empty URL path prefix.'
+		);
+	assertNoNul(value, 'Native CLI phpmyadmin');
+	if (
+		value === '/' ||
+		!value.startsWith('/') ||
+		value.startsWith('//') ||
+		value.endsWith('/') ||
+		value.includes('\\') ||
+		value.includes('?') ||
+		value.includes('#') ||
+		value.includes('%') ||
+		/[\u0000-\u001f\u007f]/u.test(value) ||
+		value.split('/').some((segment) => segment === '.' || segment === '..')
+	)
+		invalidRequest(
+			'Native CLI phpmyadmin must be a canonical absolute URL path prefix without traversal, encoding, a query, a fragment, or a trailing slash.'
+		);
+	return value;
+}
+
 function snapshotDefineRecord(
 	value: unknown,
 	flag: 'define' | 'define-bool' | 'define-number',
@@ -1610,12 +1695,7 @@ function proxyHttpRequest(
 }
 
 async function stopChild(child: ChildProcess): Promise<void> {
-	if (
-		child.exitCode !== null ||
-		child.signalCode !== null ||
-		child.pid === undefined
-	)
-		return;
+	if (childHasStopped(child)) return;
 	const exited = new Promise<void>((resolvePromise) => {
 		child.once('exit', () => resolvePromise());
 		child.once('error', () => resolvePromise());
@@ -1645,4 +1725,12 @@ async function stopChild(child: ChildProcess): Promise<void> {
 			),
 		]);
 	}
+}
+
+function childHasStopped(child: ChildProcess): boolean {
+	return (
+		child.exitCode !== null ||
+		child.signalCode !== null ||
+		child.pid === undefined
+	);
 }
