@@ -131,10 +131,7 @@ async function streamCentralDirectoryBytes(source: BytesSource) {
 	let chunkStart = source.length;
 	do {
 		chunkStart = Math.max(0, chunkStart - chunkSize);
-		const chunkEnd = Math.min(
-			chunkStart + chunkSize - 1,
-			source.length - 1
-		);
+		const chunkEnd = Math.min(chunkStart + chunkSize, source.length);
 		const bytes = await collectBytes(
 			await source.streamBytes(chunkStart, chunkEnd)
 		);
@@ -160,7 +157,7 @@ async function streamCentralDirectoryBytes(source: BytesSource) {
 			if (dirStart < chunkStart) {
 				// We're missing some bytes, let's grab them
 				const missingBytes = await collectBytes(
-					await source.streamBytes(dirStart, chunkStart - 1)
+					await source.streamBytes(dirStart, chunkStart)
 				);
 				centralDirectory = concatUint8Array(
 					missingBytes!,
@@ -347,11 +344,13 @@ async function requestChunkRange(
 	const release = await fetchSemaphore.acquire();
 	try {
 		const lastZipEntry = zipEntries[zipEntries.length - 1];
-		const substream = await source.streamBytes(
-			zipEntries[0].firstByteAt,
-			lastZipEntry.lastByteAt
+		const bytes = await collectBytes(
+			await source.streamBytes(
+				zipEntries[0].firstByteAt,
+				lastZipEntry.lastByteAt
+			)
 		);
-		return substream;
+		return new Blob([bytes]).stream();
 	} finally {
 		release();
 	}
