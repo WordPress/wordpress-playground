@@ -1,0 +1,185 @@
+name: Build experimental cli-native macOS prerelease
+
+on:
+    pull_request:
+
+# This workflow only produces short-lived, verified Actions artifacts. Publishing
+# the inspected files as a GitHub prerelease remains a separate manual step.
+permissions: {}
+
+jobs:
+    build-macos-hosts:
+        if: >-
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.event.pull_request.number == 3837 &&
+            github.event.pull_request.head.repo.full_name == github.repository
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - label: darwin-x64
+                      os: macos-15-intel
+                      target: x86_64-apple-darwin
+                    - label: darwin-arm64
+                      os: macos-latest
+                      target: aarch64-apple-darwin
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 90
+        permissions:
+            contents: read
+        env:
+            CYPRESS_INSTALL_BINARY: '0'
+        name: Build experimental native host (${{ matrix.label }})
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  submodules: true
+
+            - name: Verify source provenance
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+
+            - name: Install Rust components
+              run: |
+                  rustup toolchain install stable --profile minimal --component clippy --component rustfmt
+                  rustup default stable
+                  rustup target add ${{ matrix.target }}
+
+            - name: Build and verify the installed private package
+              id: verify
+              shell: bash
+              env:
+                  WP_PLAYGROUND_NATIVE_KEEP_VERIFY_TEMP: '1'
+                  WP_PLAYGROUND_NATIVE_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+                  WP_PLAYGROUND_NATIVE_TARGET_TRIPLE: ${{ matrix.target }}
+                  WP_PLAYGROUND_NATIVE_TARGET_LABEL: ${{ matrix.label }}
+              run: |
+                  set -euo pipefail
+                  LOG="$RUNNER_TEMP/cli-native-verify.log"
+                  npm exec -- nx run playground-cli-native:verify:installed-package --output-style=stream | tee "$LOG"
+                  VERIFY_ROOT_MATCHES="$(sed -n 's/^.*Kept cli-native verification files at //p' "$LOG")"
+                  MATCH_COUNT="$(printf '%s\n' "$VERIFY_ROOT_MATCHES" | sed '/^$/d' | wc -l | tr -d ' ')"
+                  test "$MATCH_COUNT" = 1
+                  VERIFY_ROOT="$VERIFY_ROOT_MATCHES"
+                  case "$(basename "$VERIFY_ROOT")" in
+                      wp-playground-cli-native-verify-*) ;;
+                      *) echo "Unexpected verification root: $VERIFY_ROOT" >&2; exit 1 ;;
+                  esac
+                  test -d "$VERIFY_ROOT/fixture"
+                  STAGE="$RUNNER_TEMP/cli-native-prerelease-${{ matrix.label }}"
+                  mkdir -p "$STAGE"
+                  cp "$VERIFY_ROOT/fixture/native-host-manifest.json" \
+                      "$STAGE/native-host-manifest-${{ matrix.label }}.json"
+                  cp "$VERIFY_ROOT/fixture/hosts/wp-playground-native-${{ matrix.label }}.gz" "$STAGE/"
+                  cp "$VERIFY_ROOT/native-package/runtime-assets/package-manifest.json" \
+                      "$STAGE/runtime-package-manifest-${{ matrix.label }}.json"
+                  echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+
+            - name: Upload verified host input
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-native-prerelease-${{ matrix.label }}
+                  path: ${{ steps.verify.outputs.stage }}
+                  if-no-files-found: error
+                  retention-days: 3
+
+    assemble-macos-prerelease:
+        needs: build-macos-hosts
+        if: >-
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.event.pull_request.number == 3837 &&
+            needs.build-macos-hosts.result == 'success'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        env:
+            CYPRESS_INSTALL_BINARY: '0'
+        name: Assemble experimental macOS prerelease
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  submodules: true
+
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+
+            - uses: actions/download-artifact@v4
+              with:
+                  pattern: cli-native-prerelease-darwin-*
+                  path: ${{ runner.temp }}/cli-native-prerelease-input
+                  merge-multiple: true
+
+            - name: Build portable npm shell
+              run: npm exec -- nx run playground-cli-native:build:npm --output-style=stream
+
+            - name: Assemble verified macOS bundle
+              run: |
+                  npm exec -- node packages/playground/cli-native/scripts/assemble-macos-prerelease.mjs \
+                      --input-dir "$RUNNER_TEMP/cli-native-prerelease-input" \
+                      --package-dir dist/packages/playground/cli-native \
+                      --output-dir "$RUNNER_TEMP/cli-native-prerelease-macos" \
+                      --source-commit "${{ github.event.pull_request.head.sha }}"
+
+            - name: Recheck private package boundary
+              run: |
+                  node packages/playground/cli-native/scripts/verify-private-package-boundary.mjs \
+                      --package-dir dist/packages/playground/cli-native
+
+            - name: Upload assembled prerelease candidate
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-native-prerelease-macos
+                  path: ${{ runner.temp }}/cli-native-prerelease-macos
+                  if-no-files-found: error
+                  retention-days: 3
+
+    verify-macos-prerelease:
+        needs: assemble-macos-prerelease
+        if: >-
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.event.pull_request.number == 3837 &&
+            needs.assemble-macos-prerelease.result == 'success'
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - label: darwin-x64
+                      os: macos-15-intel
+                    - label: darwin-arm64
+                      os: macos-latest
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        name: Verify exact prerelease (${{ matrix.label }})
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - uses: actions/download-artifact@v4
+              with:
+                  name: cli-native-prerelease-macos
+                  path: ${{ runner.temp }}/cli-native-prerelease-macos
+
+            - name: Install and run PHP 8.2 from the exact final files
+              run: |
+                  node packages/playground/cli-native/scripts/verify-macos-prerelease.mjs \
+                      --bundle-dir "$RUNNER_TEMP/cli-native-prerelease-macos" \
+                      --expected-target "${{ matrix.label }}" \
+                      --source-commit "${{ github.event.pull_request.head.sha }}"

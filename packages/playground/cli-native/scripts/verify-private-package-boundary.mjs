@@ -80,6 +80,46 @@ async function main() {
 		fail('the native CLI CI job uploads an artifact');
 	}
 
+	const prereleaseWorkflow = await readFile(
+		join(
+			repositoryRoot,
+			'.github/workflows/build-cli-native-macos-prerelease.yml'
+		),
+		'utf8'
+	);
+	for (const required of [
+		'github.event.pull_request.number == 3837',
+		'github.event.pull_request.head.repo.full_name == github.repository',
+		'macos-15-intel',
+		'macos-latest',
+		'actions/upload-artifact@v4',
+		'retention-days: 3',
+		'assemble-macos-prerelease.mjs',
+		'verify-macos-prerelease.mjs',
+	]) {
+		if (!prereleaseWorkflow.includes(required)) {
+			fail(`the experimental prerelease workflow is missing ${required}`);
+		}
+	}
+	if (!/^permissions: \{\}$/m.test(prereleaseWorkflow)) {
+		fail(
+			'the experimental prerelease workflow must deny permissions by default'
+		);
+	}
+	for (const forbidden of [
+		/contents:\s*write/,
+		/npm\s+publish/,
+		/gh\s+release/,
+		/pull_request_target:/,
+		/workflow_dispatch:/,
+	]) {
+		if (forbidden.test(prereleaseWorkflow)) {
+			fail(
+				'the experimental prerelease workflow may only build short-lived candidates'
+			);
+		}
+	}
+
 	const packageDirectoryArgument = process.argv.indexOf('--package-dir');
 	if (packageDirectoryArgument !== -1) {
 		const value = process.argv[packageDirectoryArgument + 1];

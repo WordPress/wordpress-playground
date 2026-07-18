@@ -12,6 +12,13 @@ Set `WP_PLAYGROUND_NATIVE_HOST_BASE_URL` to a controlled HTTPS location (or a
 loopback integration-test server) containing the exact host named by
 `native-host-manifest.json`.
 
+An explicitly experimental GitHub prerelease may provide this private npm
+tarball together with separate macOS x64 and ARM64 gzip host assets. Install
+the tarball by URL and set `WP_PLAYGROUND_NATIVE_HOST_BASE_URL` to that
+prerelease's download directory, including the trailing slash. This does not
+make the package public on npm, does not configure a default production host,
+and does not place a native executable inside the npm package.
+
 ```bash
 wp-playground-cli runtime install
 wp-playground-cli start --skip-browser

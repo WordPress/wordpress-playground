@@ -51,6 +51,7 @@ const nodeResult = spawnSync(
 		'--test',
 		resolve(scriptDirectory, 'tests/benchmark-site-editor.test.mjs'),
 		resolve(scriptDirectory, 'tests/benchmark-regression.test.mjs'),
+		resolve(scriptDirectory, 'tests/prerelease-artifacts.test.mjs'),
 		resolve(scriptDirectory, 'tests/runtime-assets.test.mjs'),
 	],
 	{

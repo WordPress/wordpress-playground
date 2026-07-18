@@ -1,8 +1,9 @@
 # Private `@wp-playground/cli-native` package
 
-This package is an unpublished integration experiment. It exercises the npm
-launcher and JavaScript API without publishing an npm package, a native host,
-or a CI artifact.
+This package is a private integration experiment. It is never published to an
+npm registry. A PR-3837-only, read-only workflow may produce short-lived macOS
+Actions artifacts so an inspected package shell and its separately verified
+hosts can be attached to an explicitly experimental GitHub prerelease.
 
 ## Outcome
 
@@ -18,9 +19,11 @@ archive, Cargo output, or a public download URL. The package has
 `"private": true`, no `publishConfig`, no publish target, and no lifecycle
 download script.
 
-The platform-specific `wp-playground-native` test host is served by a temporary
-localhost fixture. A caller must set `WP_PLAYGROUND_NATIVE_HOST_BASE_URL`.
-There is intentionally no default while the package is private. The launcher
+The platform-specific `wp-playground-native` host is served by a temporary
+localhost fixture during verification. An experimental prerelease may instead
+serve the same verified gzip as a flat GitHub release asset. A caller must set
+`WP_PLAYGROUND_NATIVE_HOST_BASE_URL`; there is intentionally no default while
+the package is private. The launcher
 downloads the gzip-compressed host, verifies the compressed and executable
 SHA-256 values from the packaged manifest, and caches the executable under:
 
@@ -42,8 +45,9 @@ For a running server, `playground.cli(argv, { env, cwd })` is a real PHP CLI
 session, not an HTTP-SAPI emulation. It reserves one configured worker slot,
 creates a fresh interruptible component, streams stdout and stderr live, and
 returns PHP's exit code. Every PHP 7.4–8.5 component includes Phar and executes
-the bundled WP-CLI archive. No npm package, host binary, or Wasm artifact is
-published by this work.
+the bundled WP-CLI archive. Stable and registry publication remain out of
+scope; the experimental macOS prerelease contains the private shell tarball and
+separate gzip-compressed hosts, never a host inside the npm package.
 
 ## Compatibility boundary
 
@@ -273,9 +277,11 @@ and cleanup; temporary PHP script ownership; and process-local WAL resource
 limits. Native argv-probe stdout and stderr are independently bounded, and its
 schema version, exact keys, status, command, port, site URL, exit code, and
 message types are checked before the result crosses into the library API. The
-publication verifier separately rejects publish metadata,
-lifecycle downloads, public URLs, native payloads, `.cwasm`, release assets,
-and native CI uploads.
+publication verifier separately rejects publish metadata, lifecycle downloads,
+default public URLs, native payloads, `.cwasm`, and changes to the stable
+release workflow or normal native CI job. The scoped prerelease workflow has
+read-only repository permission, retains candidates for three days, and cannot
+publish a release itself.
 
 Blueprint bundle method access never invokes an accessor: data-property
 methods are captured through a bounded prototype walk before the first await,
@@ -383,7 +389,7 @@ reading cannot hang waiting for completion.
 
 | Area                  | Completion criterion                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Proof                                                                                                                                                                                                                                                                                                                                                         | Status            |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| Publication           | No npm/GitHub release path, native release asset, or native CI artifact upload exists.                                                                                                                                                                                                                                                                                                                                                                                                    | `verify:private-boundary` inspects package/project metadata and workflows.                                                                                                                                                                                                                                                                                    | Implemented       |
+| Publication           | No registry or stable-release path exists. A PR-3837-only read-only workflow may build short-lived macOS candidates; publishing the inspected files as a non-latest GitHub prerelease is a separate manual action.                                                                                                                                                                                                                                                                        | `verify:private-boundary` plus exact-source, manifest, compressed/decompressed hash, final-tarball, and PHP 8.2 checks on both macOS architectures.                                                                                                                                                                                                           | Implemented       |
 | Package metadata      | The private package exposes the bin, ESM/CJS, and types, with no lifecycle or publish scripts.                                                                                                                                                                                                                                                                                                                                                                                            | Package build/tests, boundary verification, and clean `npm pack`/install.                                                                                                                                                                                                                                                                                     | Implemented       |
 | Package contents      | Raw PHP and SQLite/WAL assets are present; host binaries, `.cwasm`, source, and Cargo output are absent.                                                                                                                                                                                                                                                                                                                                                                                  | Source-hash, recursive boundary, and tarball packlist checks.                                                                                                                                                                                                                                                                                                 | Implemented       |
 | Target selection      | Six supported glibc/macOS/Windows architecture targets map exactly; musl and unknown targets reject before download.                                                                                                                                                                                                                                                                                                                                                                      | Manifest unit tests and six-runner CI matrix.                                                                                                                                                                                                                                                                                                                 | Verified in PR CI |
@@ -401,7 +407,7 @@ reading cannot hang waiting for completion.
 | Native compatibility  | Schema-v2 methods/options/exports/events are implemented or rejected as declared; disabled booleans and Studio Blueprint bundles preserve their no-capability shape while descriptor/Proxy/prototype/alias/NUL/stream/mutation bypasses reject.                                                                                                                                                                                                                                           | AST/checker inventories, bypass tests, and Rust compatibility matrix.                                                                                                                                                                                                                                                                                         | Implemented       |
 | WordPress/WAL         | Front end, authenticated post editor and Site Editor, Blueprint/snapshot, concurrency, SQLite locks, xShm/WAL flush, and WAL reopen persistence work.                                                                                                                                                                                                                                                                                                                                     | Installed-package WordPress/editor smokes, Studio matrix, and serial ignored native process suite.                                                                                                                                                                                                                                                            | Verified locally  |
 | Benchmark tooling     | Throughput, CPU/request, memory, and Site Editor timings compare to a named baseline with directional thresholds.                                                                                                                                                                                                                                                                                                                                                                         | Python/Node metric tests and `benchmark-regression`.                                                                                                                                                                                                                                                                                                          | Implemented       |
-| Platforms             | The complete target passes on six native runners without uploading fixture hosts or tarballs.                                                                                                                                                                                                                                                                                                                                                                                             | Linux/macOS/Windows x64/arm64 CI matrix.                                                                                                                                                                                                                                                                                                                      | Verified in PR CI |
+| Platforms             | The complete target passes on six native runners. Normal CI uploads no native payload; the separately scoped experimental workflow verifies the exact combined tarball and host on macOS x64 and ARM64 before exposing its three-day candidate.                                                                                                                                                                                                                                           | Linux/macOS/Windows x64/arm64 CI matrix plus the two-architecture macOS prerelease gate.                                                                                                                                                                                                                                                                      | Verified in PR CI |
 
 ## Required tests
 
@@ -430,7 +436,10 @@ The aggregate verification target executes:
    bounds, validation/result, server disposal, listener-cleanup, extension
    default/positive/negative selection, Xdebug-object rejection, base/extended
    component routing, and TCP-connect/bind/UDP policy tests; and
-10. the existing `playground-cli:test-playground-cli` regression target.
+10. the existing `playground-cli:test-playground-cli` regression target; and
+11. the exact assembled experimental tarball on macOS x64 and ARM64, including
+    source provenance, both flat release paths, compressed and executable
+    hashes, installation, host acquisition, PHP 8.2 HTTP, and PHP 8.2 CLI.
 
 The repository gate validates the resolved
 `wordpress:php-wasi/cli@0.1.0` export and exact argv/env/cwd/run field types,
@@ -464,6 +473,19 @@ Run the complete current-platform gate from the repository root:
 ```bash
 npm exec -- nx run playground-cli-native:verify --output-style=stream
 npm exec -- nx run playground-cli-native:verify:installed-package --output-style=stream
+```
+
+The PR-scoped macOS prerelease workflow runs the installed-package verifier on
+`macos-15-intel` and `macos-latest`, assembles a two-target manifest, and then
+installs and runs the exact final tarball on both runners. Its candidate is an
+Actions artifact only; it has no GitHub release write permission. Before a
+manual prerelease is made public, download that candidate and verify:
+
+```bash
+sha256sum -c SHA256SUMS
+tar -xOf wp-playground-cli-native-*.tgz \
+  package/native-host-manifest.json > /tmp/packed-native-host-manifest.json
+cmp native-host-manifest.json /tmp/packed-native-host-manifest.json
 ```
 
 Run the full Studio proof twice from the Studio checkout with npm 11.13, using

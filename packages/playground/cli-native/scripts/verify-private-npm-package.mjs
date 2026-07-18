@@ -197,7 +197,9 @@ async function main() {
 				env: {
 					WP_PLAYGROUND_NATIVE_TARGET_TRIPLE: rustTarget,
 					WP_PLAYGROUND_NATIVE_SOURCE_COMMIT:
-						process.env['GITHUB_SHA'] ?? 'local-verification',
+						process.env['WP_PLAYGROUND_NATIVE_SOURCE_COMMIT'] ??
+						process.env['GITHUB_SHA'] ??
+						'local-verification',
 				},
 			}
 		);
