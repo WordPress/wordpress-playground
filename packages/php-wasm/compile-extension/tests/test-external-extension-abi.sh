@@ -54,17 +54,23 @@ const extensionPath = join(
 	extensionDir,
 	`external_abi-php${phpVersion}-jspi.so`
 );
+const runtimeModule = new WebAssembly.Module(readFileSync(runtimePath));
+const extensionModule = new WebAssembly.Module(readFileSync(extensionPath));
 const runtimeExports = new Set(
 	WebAssembly.Module.exports(
-		new WebAssembly.Module(readFileSync(runtimePath))
+		runtimeModule
 	).map(({ name }) => name)
 );
+const extensionExports = new Set(
+	WebAssembly.Module.exports(extensionModule).map(({ name }) => name)
+);
 const unresolvedImports = WebAssembly.Module.imports(
-	new WebAssembly.Module(readFileSync(extensionPath))
+	extensionModule
 )
 	.filter(({ module, name }) =>
 		(module === 'env' || module === 'GOT.mem' || module === 'GOT.func') &&
-		!runtimeExports.has(name)
+		!runtimeExports.has(name) &&
+		!extensionExports.has(name)
 	)
 	.map(({ module, name }) => `${module}.${name}`);
 
