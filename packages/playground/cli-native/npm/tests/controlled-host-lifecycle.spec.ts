@@ -172,7 +172,7 @@ describe.sequential('controlled native host process lifecycle', () => {
 	it('defers to a consumer signal handler without killing its host', async () => {
 		const fixture = launchFixture('handled-signal');
 		const started = await nextEvent(fixture, 'started');
-		fixture.child.kill('SIGTERM');
+		deliverSignal(fixture, 'SIGTERM');
 		await nextEvent(fixture, 'handled-signal');
 		await expectHostAlive(started);
 		writeCommand(fixture, 'dispose');
@@ -185,7 +185,7 @@ describe.sequential('controlled native host process lifecycle', () => {
 	it('defers to a pre-existing one-shot signal handler', async () => {
 		const fixture = launchFixture('handled-once-signal');
 		const started = await nextEvent(fixture, 'started');
-		fixture.child.kill('SIGTERM');
+		deliverSignal(fixture, 'SIGTERM');
 		await nextEvent(fixture, 'handled-signal');
 		await expectHostAlive(started);
 		writeCommand(fixture, 'dispose');
@@ -278,6 +278,17 @@ async function nextEvent(
 
 function writeCommand(fixture: Fixture, command: string): void {
 	fixture.child.stdin?.write(`${command}\n`);
+}
+
+function deliverSignal(fixture: Fixture, signal: 'SIGTERM'): void {
+	// Windows child.kill() terminates the target process without delivering a
+	// Node signal event, so a consumer listener cannot observe or handle it.
+	// Ask the fixture to emit the event there; POSIX keeps the real OS signal.
+	if (process.platform === 'win32') {
+		writeCommand(fixture, `emit-${signal}`);
+		return;
+	}
+	fixture.child.kill(signal);
 }
 
 async function expectHostAlive(event: FixtureEvent): Promise<void> {

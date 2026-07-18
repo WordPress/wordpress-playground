@@ -54,6 +54,10 @@ input.on('line', (line) => {
 });
 
 async function handleCommand(command: string): Promise<void> {
+	if (command === 'emit-SIGTERM') {
+		process.emit('SIGTERM');
+		return;
+	}
 	if (command === 'throw') {
 		setImmediate(() => {
 			throw new Error('controlled fixture failure');
