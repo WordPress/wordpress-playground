@@ -70,7 +70,20 @@ mkdir -p "$LOG_DIR"
 download() {
 	local url=$1 destination=$2 checksum=$3
 	if [[ ! -f "$destination" ]]; then
-		curl --fail --location --silent --show-error "$url" --output "$destination"
+		if ! curl \
+			--fail \
+			--location \
+			--silent \
+			--show-error \
+			--connect-timeout 30 \
+			--retry 5 \
+			--retry-all-errors \
+			--retry-delay 2 \
+			"$url" \
+			--output "$destination"; then
+			echo "Download failed after retries: $url" >&2
+			return 1
+		fi
 	fi
 	printf '%s  %s\n' "$checksum" "$destination" | sha256sum --check --status || {
 		echo "Checksum mismatch: $destination" >&2
