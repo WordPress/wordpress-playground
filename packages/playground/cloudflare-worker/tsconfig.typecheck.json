@@ -11,6 +11,7 @@
 			"@php-wasm/universal/php": [
 				"packages/playground/cloudflare-worker/src/php-wasm-universal.d.ts"
 			],
+			"@php-wasm/util": ["packages/php-wasm/util/src/index.ts"],
 			"@wp-playground/cloudflare-worker-memory-gate/runtime": [
 				"packages/playground/cloudflare-worker/src/runtime.ts"
 			]

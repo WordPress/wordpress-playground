@@ -2,6 +2,7 @@
 	"name": "playground-php-wasm-memory-gate",
 	"main": "src/worker.ts",
 	"compatibility_date": "2025-10-01",
+	"compatibility_flags": ["nodejs_compat"],
 	"rules": [
 		{
 			"type": "CompiledWasm",

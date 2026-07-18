@@ -1,5 +1,8 @@
 import { loadPHPRuntime } from '@php-wasm/universal/load-php-runtime';
 import { PHP } from '@php-wasm/universal/php';
+// Wrangler bundles the source package because workspace package artifacts are not prebuilt.
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { decodeRemoteZip } from '../../../php-wasm/stream-compression/src';
 import {
 	dependenciesTotalSize,
 	init,
@@ -16,10 +19,15 @@ import {
 
 const loaderPath = '@php-wasm/web-8-5/asyncify/php_8_5.js';
 const phpVersion = '8.5.8' as const;
+const wordpressArchiveUrl = 'https://wordpress.org/latest.zip';
 let runtimePromise: Promise<{ php: PHP; initializationMs: number }> | undefined;
 
 export default {
-	async fetch(): Promise<Response> {
+	async fetch(request: Request): Promise<Response> {
+		if (new URL(request.url).searchParams.get('probe') === 'remote-zip') {
+			return remoteZipProbe();
+		}
+
 		const initializedForRequest = runtimePromise === undefined;
 		const { php, initializationMs } = await (runtimePromise ??=
 			loadRuntime());
@@ -48,6 +56,38 @@ export default {
 		});
 	},
 };
+
+async function remoteZipProbe(): Promise<Response> {
+	const decoder = new TextDecoder();
+	const expectedPath = 'wordpress/wp-includes/version.php';
+	let predicateEntries = 0;
+	let predicateMatches = 0;
+	const stream = await decodeRemoteZip(wordpressArchiveUrl, (entry) => {
+		predicateEntries++;
+		const matches = decoder.decode(entry.path) === expectedPath;
+		if (matches) predicateMatches++;
+		return matches;
+	});
+	const paths: string[] = [];
+	for await (const entry of stream) {
+		paths.push(
+			entry instanceof File ? entry.name : decoder.decode(entry.path)
+		);
+	}
+	if (paths.length !== 1 || paths[0] !== expectedPath) {
+		throw new Error(
+			`Expected one decoded ${expectedPath} entry, received ${JSON.stringify(paths)}.`
+		);
+	}
+
+	return Response.json({
+		marker: 'cloudflare-remote-zip-range-gate',
+		archive: wordpressArchiveUrl,
+		predicateEntries,
+		predicateMatches,
+		paths,
+	});
+}
 
 async function loadRuntime(): Promise<{ php: PHP; initializationMs: number }> {
 	const initializationStarted = performance.now();

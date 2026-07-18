@@ -13,6 +13,7 @@
 			"@php-wasm/universal/php": [
 				"packages/php-wasm/universal/src/lib/php.ts"
 			],
+			"@php-wasm/util": ["packages/php-wasm/util/src/index.ts"],
 			"@wp-playground/cloudflare-worker-memory-gate/runtime": [
 				"packages/playground/cloudflare-worker/src/runtime.ts"
 			]
