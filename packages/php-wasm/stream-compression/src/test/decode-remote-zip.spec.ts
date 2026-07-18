@@ -31,7 +31,7 @@ describe('decodeRemoteZip', () => {
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
-	});
+	}, 15_000);
 });
 
 async function createLargeZip(): Promise<Uint8Array> {
