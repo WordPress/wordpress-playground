@@ -37,6 +37,7 @@ export function getSiteErrorView(
 	if (
 		blueprintStepError &&
 		error !== 'network-firewall-interference' &&
+		error !== 'resource-unavailable' &&
 		error !== 'resource-download-failed'
 	) {
 		return blueprintStepExecutionView(context);
@@ -64,6 +65,8 @@ export function getSiteErrorView(
 			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
+		case 'resource-unavailable':
+			return resourceUnavailableView(context);
 		case 'resource-download-failed':
 			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
@@ -551,6 +554,46 @@ function networkFirewallInterferenceView({
 			>
 				Retry
 			</Button>,
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
+	};
+}
+
+/**
+ * Builds the error view for a resource that is unavailable for download.
+ *
+ * Displays the error message when available and falls back to a generic message.
+ *
+ * @returns The unavailable-resource view configuration.
+ */
+function resourceUnavailableView({
+	errorDetails,
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	let message = 'A required resource is not available for download.';
+	if (typeof errorDetails === 'string') {
+		message = errorDetails;
+	} else if (
+		errorDetails &&
+		typeof errorDetails === 'object' &&
+		'message' in errorDetails &&
+		typeof errorDetails.message === 'string'
+	) {
+		message = errorDetails.message;
+	}
+	return {
+		title: 'Required resource is unavailable',
+		isDeveloperError: true,
+		hideReportButton: true,
+		detailSummaryOverride: 'Download details',
+		body: <p className={css.errorLead}>{message}</p>,
+		actions: [
 			<Button
 				variant="primary"
 				key="start-without-blueprint"

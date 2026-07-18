@@ -288,6 +288,16 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+			} else if (
+				(e as any).name === 'ResourceUnavailableError' ||
+				(e as any).originalErrorClassName === 'ResourceUnavailableError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-unavailable',
+						details: e,
+					})
+				);
 			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
