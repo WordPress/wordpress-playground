@@ -307,8 +307,8 @@ function fetchPartitionedEntries(
 				// There may be some extra files between the ones we're
 				// interested in. Let's filter out any files that got
 				// intertwined in the byte stream.
-				const isOneOfRequestedPaths = requestedPaths.find(
-					(entry) => entry.path === file.path
+				const isOneOfRequestedPaths = requestedPaths.find((entry) =>
+					uint8ArraysEqual(entry.path, file.path)
 				);
 				if (!isOneOfRequestedPaths) {
 					continue;
@@ -325,6 +325,13 @@ function fetchPartitionedEntries(
 		readable,
 		writable,
 	};
+}
+
+function uint8ArraysEqual(left: Uint8Array, right: Uint8Array): boolean {
+	return (
+		left.length === right.length &&
+		left.every((value, index) => value === right[index])
+	);
 }
 
 /**
