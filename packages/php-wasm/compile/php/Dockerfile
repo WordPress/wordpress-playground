@@ -2198,6 +2198,7 @@ RUN set -eux; \
 		--format=just-symbols \
 		/root/lib/libphp.a \
 		| grep -v '^[[:space:]]*$' \
+		| grep -v ':$' \
 		| sed 's/^/_/' \
 		>> /root/.JS_ABI_EXPORTS; \
 	/root/emsdk/upstream/bin/llvm-nm \
@@ -2206,6 +2207,7 @@ RUN set -eux; \
 		--format=just-symbols \
 		/root/lib/libphp.a \
 		| grep -v '^[[:space:]]*$' \
+		| grep -v ':$' \
 		>> /root/.WASM_ABI_EXPORTS
 
 RUN set -eux; \
