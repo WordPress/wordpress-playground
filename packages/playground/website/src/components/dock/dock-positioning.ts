@@ -14,6 +14,8 @@ type Size = { width: number; height: number };
 export function getDockPaneStyle({
 	isMobile,
 	dockSize,
+	toolsHeight,
+	isCollapsed,
 	dockCenter,
 	viewportSize,
 	isEditorSection,
@@ -22,6 +24,8 @@ export function getDockPaneStyle({
 }: {
 	isMobile: boolean;
 	dockSize: Size;
+	toolsHeight: number;
+	isCollapsed: boolean;
 	dockCenter: number | null;
 	viewportSize: Size;
 	isEditorSection: boolean;
@@ -37,7 +41,13 @@ export function getDockPaneStyle({
 		} as CSSProperties;
 	}
 
-	const dockTop = viewportSize.height - dockSize.height;
+	const visibleDockHeight = getVisibleDockHeight({
+		isMobile,
+		dockSize,
+		toolsHeight,
+		isCollapsed,
+	});
+	const dockTop = viewportSize.height - visibleDockHeight;
 	const center = getDockPaneCenter({
 		dockCenter,
 		viewportWidth: viewportSize.width,
@@ -52,7 +62,7 @@ export function getDockPaneStyle({
 
 	return {
 		left: `${center}px`,
-		bottom: `${dockSize.height + DOCK_PANE_GAP}px`,
+		bottom: `${visibleDockHeight + DOCK_PANE_GAP}px`,
 		top: 'auto',
 		maxHeight: `${maxHeight}px`,
 		...(isFixedHeightSection ? { height: `${stableHeight}px` } : {}),
@@ -87,12 +97,12 @@ export function getDockOperationToastStyle({
 		return undefined;
 	}
 
-	// Mobile collapse removes the tools from layout, so dockSize is already the
-	// visible height. Desktop collapse translates them out without reflowing.
-	const visibleDockHeight =
-		isCollapsed && !isMobile
-			? Math.max(0, dockSize.height - toolsHeight)
-			: dockSize.height;
+	const visibleDockHeight = getVisibleDockHeight({
+		isMobile,
+		dockSize,
+		toolsHeight,
+		isCollapsed,
+	});
 	const desiredBottom =
 		visibleDockHeight +
 		DOCK_PANE_GAP +
@@ -147,4 +157,22 @@ export function getDockPaneCenter({
 		Math.max(desiredCenter, halfPaneWidth + DOCK_DRAG_EDGE),
 		viewportWidth - halfPaneWidth - DOCK_DRAG_EDGE
 	);
+}
+
+function getVisibleDockHeight({
+	isMobile,
+	dockSize,
+	toolsHeight,
+	isCollapsed,
+}: {
+	isMobile: boolean;
+	dockSize: Size;
+	toolsHeight: number;
+	isCollapsed: boolean;
+}): number {
+	// Mobile collapse removes the tools from layout, so dockSize is already the
+	// visible height. Desktop collapse translates them out without reflowing.
+	return isCollapsed && !isMobile
+		? Math.max(0, dockSize.height - toolsHeight)
+		: dockSize.height;
 }

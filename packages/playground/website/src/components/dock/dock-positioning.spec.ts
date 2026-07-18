@@ -1,4 +1,5 @@
 import {
+	DOCK_DRAG_EDGE,
 	DOCK_PANE_GAP,
 	DOCK_PANE_MIN_HEIGHT,
 	getDockOperationToastStyle,
@@ -12,6 +13,8 @@ describe('Dock positioning', () => {
 			getDockPaneStyle({
 				isMobile: false,
 				dockSize: { width: 800, height: 0 },
+				toolsHeight: 60,
+				isCollapsed: false,
 				dockCenter: null,
 				viewportSize: { width: 1200, height: 800 },
 				isEditorSection: false,
@@ -40,6 +43,8 @@ describe('Dock positioning', () => {
 			getDockPaneStyle({
 				isMobile: false,
 				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
 				dockCenter: null,
 				viewportSize: { width: 1200, height: 100 },
 				isEditorSection: false,
@@ -54,6 +59,8 @@ describe('Dock positioning', () => {
 			getDockPaneStyle({
 				isMobile: true,
 				dockSize: { width: 390, height: 72 },
+				toolsHeight: 0,
+				isCollapsed: false,
 				dockCenter: null,
 				viewportSize: { width: 390, height: 844 },
 				isEditorSection: false,
@@ -68,6 +75,8 @@ describe('Dock positioning', () => {
 			getDockPaneStyle({
 				isMobile: false,
 				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
 				dockCenter: 100,
 				viewportSize: { width: 1200, height: 800 },
 				isEditorSection: false,
@@ -80,6 +89,25 @@ describe('Dock positioning', () => {
 			top: 'auto',
 			maxHeight: '560px',
 			height: '560px',
+		});
+	});
+
+	it('keeps desktop panes above the visible collapsed Dock row', () => {
+		expect(
+			getDockPaneStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 140 },
+				toolsHeight: 60,
+				isCollapsed: true,
+				dockCenter: null,
+				viewportSize: { width: 1200, height: 800 },
+				isEditorSection: false,
+				isFixedHeightSection: false,
+				isPlaygroundsSection: false,
+			})
+		).toMatchObject({
+			bottom: `${80 + DOCK_PANE_GAP}px`,
+			maxHeight: `${800 - 80 - DOCK_PANE_GAP - DOCK_DRAG_EDGE}px`,
 		});
 	});
 
@@ -98,6 +126,26 @@ describe('Dock positioning', () => {
 				isEditorSection: false,
 			})
 		).toEqual({ bottom: '504px', left: '308px' });
+	});
+
+	it('keeps operation notices above the visible collapsed Dock row', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 140 },
+				toolsHeight: 60,
+				isCollapsed: true,
+				dockCenter: null,
+				viewportSize: { width: 1200, height: 800 },
+				paneHeight: 0,
+				toastHeight: 62,
+				paneOpen: false,
+				isEditorSection: false,
+			})
+		).toEqual({
+			bottom: `${80 + DOCK_PANE_GAP}px`,
+			left: '600px',
+		});
 	});
 
 	it('centers operation notices when the viewport is narrower than its gaps', () => {
