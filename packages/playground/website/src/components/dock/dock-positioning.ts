@@ -169,7 +169,7 @@ function getVisibleDockHeight({
 	dockSize: Size;
 	toolsHeight: number;
 	isCollapsed: boolean;
-}) {
+}): number {
 	// Mobile collapse removes the tools from layout, so dockSize is already the
 	// visible height. Desktop collapse translates them out without reflowing.
 	return isCollapsed && !isMobile

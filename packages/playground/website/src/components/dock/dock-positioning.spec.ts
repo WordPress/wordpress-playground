@@ -128,6 +128,26 @@ describe('Dock positioning', () => {
 		).toEqual({ bottom: '504px', left: '308px' });
 	});
 
+	it('keeps operation notices above the visible collapsed Dock row', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 140 },
+				toolsHeight: 60,
+				isCollapsed: true,
+				dockCenter: null,
+				viewportSize: { width: 1200, height: 800 },
+				paneHeight: 0,
+				toastHeight: 62,
+				paneOpen: false,
+				isEditorSection: false,
+			})
+		).toEqual({
+			bottom: `${80 + DOCK_PANE_GAP}px`,
+			left: '600px',
+		});
+	});
+
 	it('centers operation notices when the viewport is narrower than its gaps', () => {
 		expect(
 			getDockOperationToastStyle({
