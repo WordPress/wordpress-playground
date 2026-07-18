@@ -2191,6 +2191,8 @@ RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 # External phpize extensions are not available while this main module is linked.
 # Export the complete public symbol surface of the matching libphp archive so
 # MAIN_MODULE=2 can retain only the PHP extension ABI instead of every symbol.
+# EXPORTED_FUNCTIONS uses Emscripten's JS-facing leading underscore, so a PHP
+# symbol such as _emalloc intentionally becomes __emalloc in that list.
 RUN set -eux; \
 	/root/emsdk/upstream/bin/llvm-nm \
 		--defined-only \
@@ -2199,15 +2201,10 @@ RUN set -eux; \
 		/root/lib/libphp.a \
 		| grep -v '^[[:space:]]*$' \
 		| grep -v ':$' \
-		| sed 's/^/_/' \
+		> /root/.PHP_EXTENSION_ABI_EXPORTS; \
+	sed 's/^/_/' /root/.PHP_EXTENSION_ABI_EXPORTS \
 		>> /root/.JS_ABI_EXPORTS; \
-	/root/emsdk/upstream/bin/llvm-nm \
-		--defined-only \
-		--extern-only \
-		--format=just-symbols \
-		/root/lib/libphp.a \
-		| grep -v '^[[:space:]]*$' \
-		| grep -v ':$' \
+	cat /root/.PHP_EXTENSION_ABI_EXPORTS \
 		>> /root/.WASM_ABI_EXPORTS
 
 RUN set -eux; \

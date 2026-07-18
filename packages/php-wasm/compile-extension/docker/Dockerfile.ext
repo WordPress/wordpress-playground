@@ -53,7 +53,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # _emalloc() entry point exported by every matching PHP.wasm main module.
 RUN /root/replace.sh \
 	's/#include "zend_alloc_sizes.h"/#include "zend_alloc_sizes.h"\n#undef HAVE_BUILTIN_CONSTANT_P/' \
-	/usr/local/include/php/Zend/zend_alloc.h
+	/usr/local/include/php/Zend/zend_alloc.h && \
+	grep -Fqx '#undef HAVE_BUILTIN_CONSTANT_P' \
+		/usr/local/include/php/Zend/zend_alloc.h
 
 RUN mkdir -p /usr/local/include/php/ext/standard && \
 	if [ -f /root/php-src/ext/standard/php_smart_string.h ]; then \

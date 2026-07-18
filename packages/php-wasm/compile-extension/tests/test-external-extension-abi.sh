@@ -38,7 +38,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [runtimeDir, extensionDir, phpVersion] = process.argv.slice(2);
-const runtimeVersion = phpVersion.replace('.', '_');
+const runtimeVersion = phpVersion.replaceAll('.', '_');
 const runtimeBuildDir = readdirSync(runtimeDir).find((entry) =>
 	entry.startsWith(`${runtimeVersion}_`)
 );
