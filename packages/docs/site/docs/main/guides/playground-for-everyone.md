@@ -4,7 +4,7 @@ slug: /guides/playground-for-everyone
 description: Discover how WordPress Playground helps beginners, site owners, and learners experiment safely with WordPress - no technical expertise required.
 ---
 
-> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `6b925f6762` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
+> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `d89ac2b956` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
 
 # WordPress Playground for Everyone
 
@@ -20,7 +20,7 @@ A car simulator gives you a steering wheel, pedals, and virtual streets. Practic
 
 WordPress Playground works the same way. It gives you a complete WordPress site to experiment with, but nothing you do affects any real website. Make changes, break things, learn from mistakes — then start fresh whenever you want.
 
-![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
+![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
 ## What Can You Do with Playground?
 
@@ -33,7 +33,7 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 
 By default, WordPress Playground loads a landing page that introduces Playground. To start with a plain WordPress install, open **New** in the Dock and choose **Vanilla WordPress** from the Blueprint gallery.
 
-![The New Playground pane with Vanilla WordPress first in the Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/dock-new-playground.webp)
+![The New Playground pane with Vanilla WordPress first in the Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ## If You're Learning WordPress
 
@@ -43,11 +43,11 @@ Are you new to WordPress or trying to understand features like the Site Editor o
 
 Playground logs you in as an administrator, so you can edit any page. Click **Edit** for editing posts and **Edit Site** to update the website layout in the top toolbar to open the editor.
 
-![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
+![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
 
 Want to understand how a page layout was created? Open the **List View** (the three horizontal lines icon) to see every block that makes up the page.
 
-![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/guides/site-editor-list-view.webp)
+![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/guides/site-editor-list-view.webp)
 
 You can inspect columns, headings, images, and buttons — and see exactly how they're arranged. This is a powerful way to learn by example.
 
@@ -55,13 +55,13 @@ You can inspect columns, headings, images, and buttons — and see exactly how t
 
 Open **New** in the Dock to browse the Blueprint gallery. The gallery has examples for art galleries, stores, portfolios, learning environments, and many other starting points.
 
-![The Blueprint gallery in the New Playground pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/dock-new-playground.webp)
+![The Blueprint gallery in the New Playground pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ### Try New Features Safely
 
 When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock to choose a WordPress or PHP version.
 
-![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/dock-site-settings.webp)
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 ## If You Own a WordPress Site
 
@@ -78,7 +78,7 @@ Curious about a new SEO plugin? Want to compare two contact form options? Instal
 
 Your real site stays untouched while you evaluate whether the plugin fits your needs.
 
-![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/guides/installing-plugins.webp)
+![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/guides/installing-plugins.webp)
 
 ### Preview Theme Changes
 
@@ -118,17 +118,17 @@ If you like what you see, recreate those changes on your real site. If not, just
 
 New Playgrounds are autosaved when browser storage is available. Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
 
-![The Your Playgrounds pane with recent and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane with recent and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
 
-![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/store-permanently-browser.webp)
+![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 ### Download as a ZIP File
 
 Need to move your work elsewhere? Open **Export** and choose **Download as .zip**. The ZIP contains the current files, database, plugins, themes, uploads, and edits. You can restore it later with **New → Import zip** or host it on a server that supports PHP and SQLite.
 
-![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/6b925f67622137ecc18960f4808987147ff99d2b/packages/docs/site/static/img/dock/dock-export-playground.webp)
+![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <div class="callout callout-tip">
 
