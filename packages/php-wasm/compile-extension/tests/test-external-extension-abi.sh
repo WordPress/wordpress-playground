@@ -66,13 +66,20 @@ const runtimeImports = new Set(
 		.filter(({ module, kind }) => module === 'env' && kind === 'function')
 		.map(({ name }) => name)
 );
+const extensionExports = new Set(
+	WebAssembly.Module.exports(extensionModule).map(({ name }) => name)
+);
 const unresolvedImports = WebAssembly.Module.imports(
 	extensionModule
 )
-	.filter(({ module, name }) =>
-		(module === 'env' || module === 'GOT.mem' || module === 'GOT.func') &&
-		!runtimeExports.has(name) &&
-		!runtimeImports.has(name)
+	.filter(
+		({ module, name }) =>
+			(module === 'env' &&
+				!runtimeExports.has(name) &&
+				!runtimeImports.has(name)) ||
+			((module === 'GOT.mem' || module === 'GOT.func') &&
+				!runtimeExports.has(name) &&
+				!extensionExports.has(name))
 	)
 	.map(({ module, name }) => `${module}.${name}`);
 
