@@ -99,15 +99,12 @@ export async function decodeRemoteZip(
  * @returns
  */
 function streamCentralDirectoryEntries(source: BytesSource) {
-	let centralDirectoryStream: ReadableStream<Uint8Array>;
+	const centralDirectoryStream = streamCentralDirectoryBytes(source);
 
 	return new ReadableStream<CentralDirectoryEntry>({
-		async start() {
-			centralDirectoryStream = await streamCentralDirectoryBytes(source);
-		},
 		async pull(controller) {
 			const entry = await readCentralDirectoryEntry(
-				centralDirectoryStream
+				await centralDirectoryStream
 			);
 			if (!entry) {
 				controller.close();
