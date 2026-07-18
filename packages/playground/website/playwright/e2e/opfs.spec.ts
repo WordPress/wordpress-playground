@@ -6,11 +6,15 @@ import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
- * The ZIP contains just an index.php file with the given marker content.
+ * The ZIP contains just one marker file with the given marker content.
  */
-async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
-	const phpContent = `<?php echo '${markerContent}';`;
-	const file = new File([phpContent], 'wp-content/index.php', {
+async function createTestWordPressZip(
+	markerContent: string,
+	markerPath = 'wp-content/index.php'
+): Promise<Buffer> {
+	const encodedMarker = Buffer.from(markerContent).toString('base64');
+	const phpContent = `<?php echo base64_decode('${encodedMarker}');`;
+	const file = new File([phpContent], markerPath, {
 		type: 'text/plain',
 	});
 	const zipStream = encodeZip([file]);
@@ -311,6 +315,52 @@ async function saveSiteViaDockPane(
 	await expect(pane).not.toBeVisible({ timeout: 60000 });
 }
 
+async function getActivePlaygroundSite(page: Page) {
+	return page.evaluate(() =>
+		(window as any).playgroundSites
+			.list()
+			.find((site: any) => site.isActive)
+	);
+}
+
+async function waitForActivePlaygroundSiteSlug(
+	page: Page,
+	matchesSlug: (slug: string) => boolean
+) {
+	await expect
+		.poll(
+			async () => {
+				const slug = (await getActivePlaygroundSite(page))?.slug;
+				return typeof slug === 'string' &&
+					slug.length > 0 &&
+					matchesSlug(slug)
+					? slug
+					: '';
+			},
+			{ timeout: 120000 }
+		)
+		.not.toBe('');
+
+	return await getActivePlaygroundSite(page);
+}
+
+async function setActivePlaygroundSite(page: Page, siteSlug: string) {
+	await page.evaluate(
+		(slug) =>
+			(window as any).playgroundSites.setActiveSite(slug, {
+				updateUrl: false,
+			}),
+		siteSlug
+	);
+}
+
+async function openPlaygroundPath(page: Page, path: string) {
+	// goTo() resolves after the nested iframe loads, so no additional test delay is needed.
+	await page.evaluate(
+		(requestedPath) => (window as any).playground.goTo(requestedPath),
+		path
+	);
+}
 test('should retry pending OPFS cleanup after another tab releases storage', async ({
 	website,
 	context,
@@ -1014,6 +1064,103 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		savedSiteName,
 		{ timeout: 30000 }
 	);
+});
+
+test('should persist an imported ZIP saved site after switching away and back', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const savedSiteMarker = 'ZIP_IMPORT_PERSISTENCE_SOURCE';
+	const blueprint: Blueprint = {
+		landingPage: '/saved-site-marker.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/saved-site-marker.php',
+				data: `<?php echo '${savedSiteMarker}';`,
+			},
+		],
+	};
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
+	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
+
+	await website.ensureSiteManagerIsOpen();
+	const savedSiteName = 'ZIP Import Persistence Source';
+	await saveSiteViaDockPane(website.page, { customName: savedSiteName });
+	await expect(getPlaygroundTitle(website.page)).toContainText(
+		savedSiteName,
+		{ timeout: 90000 }
+	);
+	const savedSite = await getActivePlaygroundSite(website.page);
+	expect(savedSite?.slug).toBeTruthy();
+	const savedSiteSlug = savedSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const importedMarker = 'ZIP_IMPORT_PERSISTED_MARKER';
+	const importedMarkerPath = 'imported-marker.php';
+	const zipBuffer = await createTestWordPressZip(
+		importedMarker,
+		importedMarkerPath
+	);
+	const dialogs: string[] = [];
+	const importSuccessMessage =
+		'File imported! This Playground instance has been updated and will refresh shortly.';
+	website.page.on('dialog', async (dialog) => {
+		dialogs.push(dialog.message());
+		await dialog.accept();
+	});
+
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'test-import-persistence.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect
+		.poll(() => dialogs, { timeout: 120000 })
+		.toEqual([importSuccessMessage]);
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== savedSiteSlug
+	);
+	expect(importedSite?.slug).toBeTruthy();
+	const importedSiteSlug = importedSite.slug;
+	// Discard the import runtime before requesting the marker. The fresh runtime
+	// must load the imported file from persisted OPFS state.
+	await website.goto(`./?site-slug=${importedSiteSlug}`);
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+
+	await setActivePlaygroundSite(website.page, savedSiteSlug);
+	await website.waitForNestedIframes();
+	await expect(getPlaygroundTitle(website.page)).toContainText(
+		savedSiteName,
+		{ timeout: 30000 }
+	);
+
+	await setActivePlaygroundSite(website.page, importedSiteSlug);
+	await website.waitForNestedIframes();
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+
+	await website.goto(`./?site-slug=${importedSiteSlug}`);
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+	expect(dialogs).toEqual([importSuccessMessage]);
 });
 
 // Missing site modal tests in a separate describe block to avoid state pollution
