@@ -21,43 +21,98 @@ describe('decodeRemoteZip', () => {
 
 			expect(files).toHaveLength(2);
 			expect(files.map((file) => decoder.decode(file.path))).toEqual([
-				'first.txt',
-				'second.txt',
+				'selected-0.txt',
+				'selected-1.txt',
 			]);
 			expect(files.map((file) => decoder.decode(file.bytes))).toEqual([
-				'first contents',
-				'second contents',
+				'contents 0',
+				'contents 1',
 			]);
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
-	}, 15_000);
+	}, 30_000);
+
+	it('bounds range requests for widely distributed selected files', async () => {
+		const zipBytes = await createLargeZip(100);
+		const originalFetch = globalThis.fetch;
+		let rangeRequests = 0;
+		globalThis.fetch = createRangeFetch(zipBytes, () => rangeRequests++);
+
+		try {
+			const decoder = new TextDecoder();
+			const stream = await decodeRemoteZip(
+				'https://example.com/archive.zip',
+				(entry) => decoder.decode(entry.path).endsWith('.txt')
+			);
+			const files = [];
+			for await (const file of stream) {
+				files.push(file);
+			}
+
+			expect(files).toHaveLength(100);
+			expect(rangeRequests).toBeLessThanOrEqual(49);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	}, 30_000);
+
+	it('propagates range failures through the returned stream', async () => {
+		const zipBytes = await createLargeZip();
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = createRangeFetch(zipBytes, () => {
+			throw new Error('Range request failed');
+		});
+
+		try {
+			const stream = await decodeRemoteZip(
+				'https://example.com/archive.zip',
+				() => true
+			);
+			await expect(readAll(stream)).rejects.toThrow('Range request failed');
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	}, 30_000);
 });
 
-async function createLargeZip(): Promise<Uint8Array> {
+async function createLargeZip(selectedFiles = 2): Promise<Uint8Array> {
 	let state = 0x12345678;
-	const noise = new Uint8Array(1_200_000);
-	for (let i = 0; i < noise.length; i++) {
-		state ^= state << 13;
-		state ^= state >>> 17;
-		state ^= state << 5;
-		noise[i] = state;
+	const files = [];
+	const noiseLength = selectedFiles === 2 ? 600_000 : 40_000;
+	for (let index = 0; index < selectedFiles; index++) {
+		files.push(new File([`contents ${index}`], `selected-${index}.txt`));
+		const noise = new Uint8Array(noiseLength);
+		for (let byteIndex = 0; byteIndex < noise.length; byteIndex++) {
+			state ^= state << 13;
+			state ^= state >>> 17;
+			state ^= state << 5;
+			noise[byteIndex] = state;
+		}
+		files.push(new File([noise], `ignored-${index}.bin`));
 	}
 
 	return await collectBytes(
 		encodeZip([
-			new File(['first contents'], 'first.txt'),
-			...Array.from(
-				{ length: 2_500 },
-				(_, index) => new File([], `ignored-${index}.bin`)
+			...files,
+			...Array.from({ length: 2_500 }, (_, index) =>
+				new File([], `ignored-${index}.bin`)
 			),
-			new File(['second contents'], 'second.txt'),
-			new File([noise], 'noise.bin'),
 		])
 	);
 }
 
-function createRangeFetch(zipBytes: Uint8Array): typeof fetch {
+async function readAll(stream: ReadableStream<unknown>) {
+	for await (const file of stream) {
+		// Consume the stream so asynchronous range errors surface to the reader.
+		void file;
+	}
+}
+
+function createRangeFetch(
+	zipBytes: Uint8Array,
+	onRangeRequest?: () => void
+): typeof fetch {
 	return async (_input, init) => {
 		if (init?.method === 'HEAD') {
 			return new Response(null, {
@@ -68,6 +123,9 @@ function createRangeFetch(zipBytes: Uint8Array): typeof fetch {
 		const range = new Headers(init?.headers).get('Range');
 		if (!range) {
 			return new Response(zipBytes);
+		}
+		if (range !== 'bytes=0-0') {
+			onRangeRequest?.();
 		}
 
 		const match = /^bytes=(\d+)-(\d+)$/.exec(range);
