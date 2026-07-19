@@ -16,6 +16,17 @@ npm exec -- wrangler dev --config packages/playground/cloudflare-worker/wrangler
 
 Local workerd is useful for loader and response wiring only. It is not evidence that the remote Cloudflare isolate stays within its memory limit.
 
+The remote ZIP probe exercises range decoding across many PHP, JSON, HTML, CSS,
+JavaScript, font, and image entries from the current WordPress archive. Use an
+isolated persistence directory to avoid reusing incompatible Miniflare state:
+
+```sh
+npm exec -- wrangler dev --config packages/playground/cloudflare-worker/wrangler.jsonc --persist-to /tmp/playground-cloudflare-worker
+curl --fail --show-error 'http://127.0.0.1:8787/?probe=remote-zip'
+```
+
+Success returns `includesVersion: true` and at least 100 `decodedEntries`.
+
 ## Remote acceptance gate
 
 Package without deploying:

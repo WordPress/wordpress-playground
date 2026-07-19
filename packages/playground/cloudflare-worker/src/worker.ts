@@ -61,22 +61,21 @@ async function remoteZipProbe(): Promise<Response> {
 	const decoder = new TextDecoder();
 	const expectedPath = 'wordpress/wp-includes/version.php';
 	let predicateEntries = 0;
-	let predicateMatches = 0;
+	let decodedEntries = 0;
+	let includesVersion = false;
 	const stream = await decodeRemoteZip(wordpressArchiveUrl, (entry) => {
 		predicateEntries++;
-		const matches = decoder.decode(entry.path) === expectedPath;
-		if (matches) predicateMatches++;
-		return matches;
+		return isWordPressRuntimeAsset(decoder.decode(entry.path));
 	});
-	const paths: string[] = [];
 	for await (const entry of stream) {
-		paths.push(
-			entry instanceof File ? entry.name : decoder.decode(entry.path)
-		);
+		decodedEntries++;
+		const path =
+			entry instanceof File ? entry.name : decoder.decode(entry.path);
+		includesVersion ||= path === expectedPath;
 	}
-	if (paths.length !== 1 || paths[0] !== expectedPath) {
+	if (!includesVersion || decodedEntries < 100) {
 		throw new Error(
-			`Expected one decoded ${expectedPath} entry, received ${JSON.stringify(paths)}.`
+			`Expected ${expectedPath} and at least 100 entries, received ${decodedEntries}.`
 		);
 	}
 
@@ -84,9 +83,15 @@ async function remoteZipProbe(): Promise<Response> {
 		marker: 'cloudflare-remote-zip-range-gate',
 		archive: wordpressArchiveUrl,
 		predicateEntries,
-		predicateMatches,
-		paths,
+		decodedEntries,
+		includesVersion,
 	});
+}
+
+function isWordPressRuntimeAsset(path: string): boolean {
+	return /\.(?:php|json|html?|css|m?js|svg|png|jpe?g|gif|webp|avif|woff2?|ttf|otf)$/i.test(
+		path
+	);
 }
 
 async function loadRuntime(): Promise<{ php: PHP; initializationMs: number }> {
