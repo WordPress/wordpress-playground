@@ -212,12 +212,12 @@ html {
 }
 .v27-network-ctl input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
 .nav-theme {
-  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: end;
-  width: calc(100% - 53px); padding: 0; border: 0; border-radius: 7px; background: transparent;
+  display: grid; grid-template-columns: 280px minmax(0, 1fr) auto; gap: 22px; align-items: center;
+  width: calc(100% - 53px); padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   color: var(--ink); font: inherit; text-align: left; cursor: pointer;
 }
-.nav-theme:hover, .nav-theme.is-active { box-shadow: 0 0 0 8px var(--soft); }
-.nav-theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 8px; }
+.nav-theme:hover, .nav-theme.is-active { border-color: #c9cddd; background: var(--soft); }
+.nav-theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .v27-theme-preview {
   display: block;
   width: 280px; height: 210px; margin: 0; overflow: hidden;
@@ -228,6 +228,10 @@ html {
 .v27-active-theme-copy .v27-section-label { margin: 0 0 7px; }
 .v27-active-theme-copy strong { display: block; font: 600 24px/1.25 var(--serif); }
 .v27-active-theme-copy > span { display: block; margin-top: 5px; color: var(--muted); font-size: 12.5px; }
+.v27-theme-action {
+  justify-self: end; color: var(--blue-dark); font-size: 14px; font-weight: 600; white-space: nowrap;
+}
+.nav-theme:hover .v27-theme-action { text-decoration: underline; text-underline-offset: 3px; }
 .nav-options { display: flex; align-items: center; gap: 9px; margin-top: 10px; flex-wrap: wrap; }
 .v27-option-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
 .paper-end {
@@ -279,7 +283,7 @@ html {
   .paper-head { grid-template-columns: 1fr; }
   .paper-head .title-input { font-size: 36px; }
   .paper-actions { justify-content: flex-start; }
-  .nav-theme { grid-template-columns: 220px minmax(0, 1fr); gap: 18px; }
+  .nav-theme { grid-template-columns: 220px minmax(0, 1fr) auto; gap: 18px; }
   .v27-theme-preview { width: 220px; height: 165px; }
   .paper-end { align-items: flex-start; flex-direction: column; }
   .sheet-form.user { grid-template-columns: 1fr; }
@@ -359,9 +363,6 @@ html {
 .v27-installed-theme strong, .v27-installed-theme span { display: block; }
 .v27-installed-theme span { margin-top: 2px; color: var(--muted); font-size: 12px; }
 .v27-installed-theme b { color: var(--blue-dark); font-size: 12px; white-space: nowrap; }
-.v27-installed-theme:not([aria-pressed="true"]) b { visibility: hidden; }
-.v27-installed-theme:not([aria-pressed="true"]):hover b,
-.v27-installed-theme:not([aria-pressed="true"]):focus-visible b { visibility: visible; }
 .v27-installed-row .v27-small-remove { opacity: 0; }
 .v27-installed-row:hover .v27-small-remove, .v27-installed-row:focus-within .v27-small-remove { opacity: 1; }
 .v27-small-remove {
@@ -606,7 +607,6 @@ html {
 @media (pointer: coarse) {
   .v27-line .v27-small-remove { width: 44px; min-height: 44px; }
   .v27-script .btn.quiet, .v27-script .v27-small-remove, .v27-installed-row .v27-small-remove { opacity: 1; }
-  .v27-installed-theme:not([aria-pressed="true"]) b { visibility: visible; }
 }
 
 </style>
@@ -638,11 +638,11 @@ html {
   </li>
 
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">2</span><div><div class="stage-heading"><h2>Put on the theme</h2><button class="new-btn" type="button" data-sheet-popover="theme" data-v27-popover-focus="[data-v27-search]" data-v27-popover-position="theme-add" aria-label="＋ Add theme" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-theme"></p></div></header>
-    <button class="nav-stage-body nav-theme" type="button" data-v27-theme-current data-sheet-popover="theme" data-v27-popover-focus="[data-v27-use-theme][aria-pressed='true']" data-v27-popover-anchor="theme-add" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">2</span><div><div class="stage-heading"><h2>Put on the theme</h2></div><p data-text="summary-theme"></p></div></header>
+    <button class="nav-stage-body nav-theme" type="button" data-v27-theme-current data-sheet-popover="theme" data-v27-popover-focus="[data-v27-use-theme][aria-current='true']" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">
       <span class="v27-theme-preview"><img data-theme-shot alt=""></span>
       <span class="v27-active-theme-copy"><span class="v27-section-label">Active theme</span><strong data-text="theme-name"></strong><span data-theme-count></span></span>
-      <span class="sr-only">Change theme</span>
+      <span class="v27-theme-action">Change theme</span>
     </button>
   </li>
 
@@ -1179,7 +1179,7 @@ function renderText() {
 	setText('ready-count', '6');
 	setText('estimate', 'about 48 seconds');
 	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php);
-	setText('summary-theme', theme().name + ' goes live');
+	setText('summary-theme', 'Switch the active theme or install another');
 	setText('summary-plugins', state.plugins.length + ' plugins install · '
 		+ state.plugins.filter((plugin) => plugin.active).length + ' activate');
 	setText('summary-content', state.content.pages.length + ' pages + '
@@ -1975,20 +1975,21 @@ function v27ThemePopover() {
 	const installed = state.installedThemes.map((item) => `
 		<div class="v27-installed-row">
 			<button class="v27-installed-theme" type="button" data-v27-use-theme="${escapeHtml(item.slug)}"
-				aria-pressed="${item.slug === state.activeTheme}">
+				aria-current="${item.slug === state.activeTheme}">
 				${v27ThemeThumb(item)}
 				<span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.source || item.note || 'Installed')}</span></span>
-				<b>${item.slug === state.activeTheme ? '✓ Active' : 'Use'}</b>
+				<b>${item.slug === state.activeTheme ? '✓ Active' : 'Activate'}</b>
 			</button>
 			${state.installedThemes.length > 1 ? `<button class="v27-small-remove" type="button" data-v27-remove-theme="${escapeHtml(item.slug)}" aria-label="Remove ${escapeHtml(item.name)}">×</button>` : ''}
 		</div>
 	`).join('');
 	return {
-		title: 'Themes',
-		subtitle: '',
+		title: 'Choose a theme',
+		subtitle: 'Switch installed themes, or install another.',
 		markup: v27SmartAddMarkup('theme', 'Search WordPress.org themes, or paste a URL', '.zip,application/zip', `
-			<p class="v27-group-label">Installed</p>
+			<p class="v27-group-label">Installed themes</p>
 			<div class="v27-installed">${installed}</div>
+			<p class="v27-group-label">Install another theme</p>
 		`),
 	};
 }
@@ -2071,10 +2072,11 @@ function v27RecipeButton(recipe) {
 	return `<button class="sheet-choice no-icon" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" ${disabled ? 'disabled' : ''}><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><b>${escapeHtml(action)}</b></button>`;
 }
 
-function v27SmartAddMarkup(kind, placeholder, accept, insert = '') {
+function v27SmartAddMarkup(kind, placeholder, accept, beforeSearch = '') {
 	const noun = kind === 'content' ? 'import' : kind;
 	return `
 		<div class="v27-smart-add" data-v27-dropzone>
+			${beforeSearch}
 			<div class="v27-search-row">
 				<input class="sheet-search" id="v27Search" type="search" data-v27-search value="${escapeHtml(v27Query)}"
 					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="v27ResultList"
@@ -2082,7 +2084,6 @@ function v27SmartAddMarkup(kind, placeholder, accept, insert = '') {
 				<button class="v27-upload" type="button" data-v27-upload-button>${kind === 'content' ? 'Upload file' : 'Upload ZIP'}</button>
 				<input type="file" data-v27-file-input accept="${accept}" ${kind === 'content' ? 'multiple' : ''} hidden>
 			</div>
-			${insert}
 			<p class="v27-status" data-v27-search-status role="status" aria-live="polite"></p>
 			<div class="sheet-results" id="v27ResultList" data-v27-results role="listbox" aria-label="${escapeHtml(noun)} results"></div>
 		</div>
@@ -2139,7 +2140,7 @@ function v27RenderResults(status, busy = false) {
 			id="v27-option-${item.kind}-${index}" role="option" aria-selected="false" data-v27-result-index="${index}">
 			${v27ResultVisual(item)}
 			<span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.note)}</span></span>
-			<b>${item.kind === 'content' ? 'Import' : 'Add'}</b>
+			<b>${item.kind === 'content' ? 'Import' : item.kind === 'theme' ? 'Install' : 'Add'}</b>
 		</button>
 	`).join('');
 	input.setAttribute('aria-expanded', String(v27Results.length > 0));
@@ -2378,7 +2379,7 @@ function v27AddTheme(item) {
 		});
 	});
 	v27Query = '';
-	v27RenderPopover({ focus: '[data-v27-search]' });
+	v27RenderPopover({ focus: '[data-v27-use-theme="' + CSS.escape(item.slug) + '"]' });
 }
 
 function v27AddImport(item) {
@@ -3486,7 +3487,7 @@ function v27RenderText() {
 	setText('content-count', String(state.content.pages.length + state.content.products + importCount));
 	setText('summary-content', state.content.pages.length + ' pages' + (state.content.products ? ' + ' + state.content.products + ' products' : '')
 		+ (importCount ? ' + ' + importCount + (importCount === 1 ? ' import' : ' imports') : '') + ' · ' + v27HomepageName() + ' at /');
-	setText('summary-theme', v27CurrentTheme().name + ' active');
+	setText('summary-theme', 'Switch the active theme or install another');
 	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php + (state.networking ? '' : ' · offline'));
 	setText('summary-users', state.users.length === 1 && state.users[0].username === 'admin'
 		? 'Default admin'
@@ -4030,26 +4031,18 @@ function v27PositionPopover() {
 	const popover = document.getElementById('sheetPopover');
 	if (!v27ActiveKind || !v27Trigger || popover.hidden) return;
 	const gutter = 12;
-	const anchorName = v27Trigger.dataset.v27PopoverAnchor;
-	const preferredAnchor = anchorName
-		? document.querySelector('[data-v27-popover-position="' + CSS.escape(anchorName) + '"]') || v27Trigger
-		: v27Trigger;
-	const preferredBounds = preferredAnchor.getBoundingClientRect();
-	const anchorElement = preferredBounds.bottom > gutter && preferredBounds.top < window.innerHeight - gutter
-		? preferredAnchor
-		: v27Trigger;
-	const anchor = anchorElement.getBoundingClientRect();
+	const anchor = v27Trigger.getBoundingClientRect();
 	const gap = 10;
 	const width = popover.offsetWidth;
 	const left = Math.max(gutter, Math.min(anchor.left, window.innerWidth - width - gutter));
-	const below = window.innerHeight - anchor.bottom - gap - gutter;
-	const above = anchor.top - gap - gutter;
-	// Never cover the trigger: pick a side, then cap the height to the room that side has.
-	const side = below >= 340 || below >= above ? 'below' : 'above';
-	const space = Math.max(180, side === 'below' ? below : above);
-	popover.style.maxHeight = Math.min(650, space) + 'px';
+	// Keep long pickers stable while the page scrolls.
+	// Clamp to the viewport instead of shrinking to the room beside the trigger.
+	popover.style.maxHeight = Math.max(180, Math.min(650, window.innerHeight - gutter * 2)) + 'px';
 	const height = popover.offsetHeight;
-	const top = side === 'below' ? anchor.bottom + gap : Math.max(gutter, anchor.top - gap - height);
+	const below = anchor.bottom + gap;
+	const above = anchor.top - gap - height;
+	const preferredTop = below + height <= window.innerHeight - gutter ? below : above;
+	const top = Math.max(gutter, Math.min(preferredTop, window.innerHeight - height - gutter));
 	popover.style.left = Math.round(left) + 'px';
 	popover.style.top = Math.round(top) + 'px';
 }
