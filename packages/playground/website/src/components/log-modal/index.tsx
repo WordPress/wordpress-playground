@@ -215,24 +215,16 @@ export function SiteLogs({ className }: { className?: string }) {
 					<div className={css.logEmptyState}>
 						<p className={css.logEmptyTitle}>Nothing logged yet</p>
 						<p className={css.logEmptyHint}>
-							This is the combined log for your Playground. Three
+							This is the combined log for your Playground. Two
 							kinds of messages land here as you use it:
 						</p>
 						<ul className={css.logLegend}>
 							<li>
 								<span className={css.logLegendTerm}>PHP</span>
 								<span className={css.logLegendDesc}>
-									fatal errors, warnings, and notices from
-									your code
-								</span>
-							</li>
-							<li>
-								<span className={css.logLegendTerm}>
-									WordPress
-								</span>
-								<span className={css.logLegendDesc}>
-									entries written to the debug log when
-									WP_DEBUG is on
+									errors, warnings, and notices from your
+									site, and anything written to the debug log
+									when WP_DEBUG is on
 								</span>
 							</li>
 							<li>

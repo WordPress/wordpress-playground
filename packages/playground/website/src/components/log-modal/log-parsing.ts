@@ -14,7 +14,11 @@ export type LogEntry = {
 	raw: string;
 	/** Full stamp, e.g. `20-Jul-2026 14:59:46 UTC`, when the record has one. */
 	timestamp: string | null;
-	/** The log source: PHP, WordPress, or Playground. */
+	/**
+	 * The runtime that produced the record: PHP (the site, via debug.log)
+	 * or Playground (the JavaScript host). Finer attribution — engine vs
+	 * WordPress core vs plugin — is not recoverable from the log text.
+	 */
 	channel: string;
 	/** Badge text, e.g. `Fatal error`, `Notice`, `Database error`. */
 	label: string;
@@ -87,7 +91,7 @@ function parseLogRecord(record: string): LogEntry {
 		return {
 			raw: record,
 			timestamp,
-			channel: 'WordPress',
+			channel: 'PHP',
 			label: 'Database error',
 			tier: 'error',
 			message: message.slice(databaseMatch[0].length),
@@ -106,11 +110,11 @@ function parseLogRecord(record: string): LogEntry {
 		};
 	}
 
-	// error_log() lines from WordPress core or plugins carry no severity head.
+	// error_log() output carries no severity head, only the debug.log stamp.
 	return {
 		raw: record,
 		timestamp,
-		channel: 'WordPress',
+		channel: 'PHP',
 		label: 'Log',
 		tier: 'info',
 		message,

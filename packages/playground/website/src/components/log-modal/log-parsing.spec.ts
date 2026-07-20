@@ -23,7 +23,7 @@ describe('parseLogs', () => {
 			/^Function _load_textdomain_just_in_time/
 		);
 		expect(entries[1]).toMatchObject({
-			channel: 'WordPress',
+			channel: 'PHP',
 			label: 'Database error',
 			tier: 'error',
 		});
@@ -75,12 +75,12 @@ describe('parseLogs', () => {
 		});
 	});
 
-	it('treats unrecognized stamped records as WordPress output', () => {
+	it('treats unrecognized stamped records as PHP output', () => {
 		const entries = parseLogs([
 			'[20-Jul-2026 14:59:46 UTC] Cron reschedule event error for hook',
 		]);
 		expect(entries[0]).toMatchObject({
-			channel: 'WordPress',
+			channel: 'PHP',
 			label: 'Log',
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',

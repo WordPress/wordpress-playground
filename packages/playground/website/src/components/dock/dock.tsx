@@ -168,7 +168,7 @@ const PANE_COPY: Record<
 	},
 	logs: {
 		title: 'Logs',
-		description: 'PHP, WordPress, and Playground runtime messages.',
+		description: 'PHP and Playground runtime messages.',
 	},
 	share: {
 		title: 'Export',
