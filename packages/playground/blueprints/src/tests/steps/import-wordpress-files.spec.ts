@@ -8,7 +8,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { joinPaths, phpVar, randomFilename } from '@php-wasm/util';
+import { dirname, joinPaths, phpVar, randomFilename } from '@php-wasm/util';
 import { setURLScope } from '@php-wasm/scopes';
 
 describe('Blueprint step importWordPressFiles', () => {
@@ -76,7 +76,40 @@ describe('Blueprint step importWordPressFiles', () => {
 
 		expect(result.text).toBeTruthy();
 		const manifest = JSON.parse(result.text);
+		expect(manifest.formatVersion).toBe(2);
 		expect(manifest.siteUrl).toContain(`scope:${sourceScope}`);
+	});
+
+	it('should export all wp-content files and wp-config.php', async () => {
+		const documentRoot = await sourcePHP.documentRoot;
+		const customizedThemeFile = joinPaths(
+			documentRoot,
+			'wp-content/themes/twentytwentyfive/playground-export-test.txt'
+		);
+		await sourcePHP.mkdir(dirname(customizedThemeFile));
+		await sourcePHP.writeFile(
+			customizedThemeFile,
+			new TextEncoder().encode('customized default theme')
+		);
+
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/check-complete.zip', zipBuffer);
+		const result = await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open('/tmp/check-complete.zip');
+			echo json_encode([
+				'themeFile' => $zip->getFromName('wp-content/themes/twentytwentyfive/playground-export-test.txt'),
+				'hasWpConfig' => $zip->locateName('wp-config.php') !== false,
+			]);
+			$zip->close();
+			`,
+		});
+
+		expect(JSON.parse(result.text)).toEqual({
+			themeFile: 'customized default theme',
+			hasWpConfig: true,
+		});
 	});
 
 	it('should replace old scope URLs with new scope URLs in post content during import', async () => {
