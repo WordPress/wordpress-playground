@@ -142,4 +142,8 @@
 	.repository-choice-main {
 		align-items: flex-start;
 	}
+
+	.repository-choice-logo {
+		transform: translateY(-3px);
+	}
 }
