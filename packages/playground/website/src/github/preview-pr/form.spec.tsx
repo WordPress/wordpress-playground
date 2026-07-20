@@ -96,12 +96,14 @@ describe('PreviewPRForm', () => {
 
 		const actions = Array.from(container.querySelectorAll('button'));
 		expect(actions).toHaveLength(2);
-		expect(actions[0].textContent).toContain('WordPress Core · PR #79908');
+		expect(actions[0].textContent).toContain('wordpress/wordpress-develop');
+		expect(actions[0].textContent).toContain('PR #79908');
 		expect(actions[0].textContent).toContain(
 			'Preserve HTML text boundaries'
 		);
 		expect(actions[0].textContent).toContain('Opened Jun 12, 2026');
-		expect(actions[1].textContent).toContain('Gutenberg · PR #79908');
+		expect(actions[1].textContent).toContain('wordpress/gutenberg');
+		expect(actions[1].textContent).toContain('PR #79908');
 		expect(actions[1].textContent).toContain(
 			'Add a command palette to the editor'
 		);

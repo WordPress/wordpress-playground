@@ -602,29 +602,38 @@ export default function PreviewPRForm({
 														css.repositoryChoiceMeta
 													}
 												>
-													{match.resolved.target ===
-													'wordpress'
-														? 'WordPress Core'
-														: 'Gutenberg'}{' '}
-													· PR #{match.resolved.ref}
-													{openedDate && (
-														<span
-															className={
-																css.repositoryChoiceOpened
-															}
-														>
-															Opened{' '}
-															<time
-																dateTime={
-																	match
-																		.verification
-																		.openedAt
+													<span>
+														{match.resolved
+															.target ===
+														'wordpress'
+															? 'wordpress/wordpress-develop'
+															: 'wordpress/gutenberg'}
+													</span>
+													<span
+														className={
+															css.repositoryChoiceDetails
+														}
+													>
+														PR #{match.resolved.ref}
+														{openedDate && (
+															<span
+																className={
+																	css.repositoryChoiceOpened
 																}
 															>
-																{openedDate}
-															</time>
-														</span>
-													)}
+																Opened{' '}
+																<time
+																	dateTime={
+																		match
+																			.verification
+																			.openedAt
+																	}
+																>
+																	{openedDate}
+																</time>
+															</span>
+														)}
+													</span>
 												</span>
 											</span>
 										</span>

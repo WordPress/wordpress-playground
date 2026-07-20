@@ -109,9 +109,15 @@
 
 .repository-choice-meta {
 	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex-direction: column;
 	font-size: 12px;
 	line-height: 1.35;
 	margin-top: 2px;
+}
+
+.repository-choice-details {
+	white-space: nowrap;
 }
 
 .repository-choice-opened {
@@ -140,6 +146,10 @@
 		flex-direction: column;
 	}
 
+	.repository-choice-main {
+		align-items: flex-start;
+	}
+
 	.repository-choice-action {
 		align-self: flex-end;
 		margin-left: 0;
@@ -147,10 +157,6 @@
 	}
 
 	.repository-choice-opened {
-		display: block;
-	}
-
-	.repository-choice-opened::before {
-		content: '';
+		display: inline-block;
 	}
 }
