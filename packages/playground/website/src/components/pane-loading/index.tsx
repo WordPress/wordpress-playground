@@ -48,8 +48,18 @@ export function PlaygroundBootNotice({
 }
 
 /**
- * A compact progress state for an operation that leaves the surrounding pane
- * visible. Use PaneLoading instead when the entire pane is unavailable.
+ * Displays progress without replacing the surrounding pane.
+ *
+ * The message and spinner are presented in the shared compact progress
+ * container. The container is also a polite live region so assistive
+ * technology announces message changes without interrupting the user.
+ *
+ * This component only renders the progress state. Its parent owns the
+ * operation lifecycle and decides when to mount or remove it. Use
+ * `PaneLoading` instead when the entire pane is unavailable.
+ *
+ * @param message Human-readable description of the operation in progress.
+ * @returns The compact progress status region.
  */
 export function InlineProgress({ message }: { message: string }) {
 	return (
