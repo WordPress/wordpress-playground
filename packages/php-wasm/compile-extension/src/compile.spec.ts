@@ -1,0 +1,25 @@
+import { describe, expect, it } from 'vitest';
+
+import { phpVersions } from '../../supported-php-versions.mjs';
+import { resolvePHPRelease, SupportedExtensionPHPVersions } from './compile';
+
+describe('resolvePHPRelease', () => {
+	it('uses the canonical release for every supported extension PHP minor version', () => {
+		const canonicalReleases = new Map(
+			phpVersions.map(({ version, lastRelease }) => [
+				version,
+				lastRelease,
+			])
+		);
+
+		for (const phpVersion of SupportedExtensionPHPVersions) {
+			expect(resolvePHPRelease(phpVersion)).toBe(
+				canonicalReleases.get(phpVersion)
+			);
+		}
+	});
+
+	it('resolves PHP 8.4 to the canonical release', () => {
+		expect(resolvePHPRelease('8.4')).toBe('8.4.23');
+	});
+});

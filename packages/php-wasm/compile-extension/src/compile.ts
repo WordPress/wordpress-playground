@@ -2,6 +2,8 @@ import { mkdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { phpVersions } from '../../supported-php-versions.mjs';
+
 import {
 	assertDockerIsAvailable,
 	buildBaseImage,
@@ -25,16 +27,6 @@ export const SupportedExtensionPHPVersions = [
 	'8.0',
 	'7.4',
 ] as const;
-
-const PHP_RELEASE_BY_MINOR: Record<string, string> = {
-	'8.5': '8.5.5',
-	'8.4': '8.4.20',
-	'8.3': '8.3.30',
-	'8.2': '8.2.30',
-	'8.1': '8.1.34',
-	'8.0': '8.0.30',
-	'7.4': '7.4.33',
-};
 
 export interface CompileExtensionOptions {
 	workspaceRoot: string;
@@ -99,7 +91,7 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 		options.phpVersions.map((phpVersion) => ({
 			phpVersion,
 			asyncMode: ExtensionAsyncMode,
-	}));
+		}));
 
 	await mkdir(outDir, { recursive: true });
 	await buildBaseImage(context);
@@ -149,7 +141,10 @@ export async function compileExtensionMatrix(options: CompileExtensionOptions) {
 }
 
 export function resolvePHPRelease(phpVersion: string): string {
-	return PHP_RELEASE_BY_MINOR[phpVersion] ?? phpVersion;
+	return (
+		phpVersions.find(({ version }) => version === phpVersion)
+			?.lastRelease ?? phpVersion
+	);
 }
 
 async function detectManifestVersion(sourceDir: string): Promise<string> {
