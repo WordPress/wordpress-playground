@@ -3,47 +3,51 @@
  * pre-formatted `[stamp] Prefix severity: message` entries, and whole
  * PHP debug.log chunks where one string carries many records (a single
  * WordPress database error can dump hundreds of lines). Parsing splits
- * chunks into records and reads each record's severity so the UI can
- * render one row per record instead of one unbounded wall of text. That
- * is all it does — the record text itself is displayed as logged.
+ * chunks into records, lifts the leading timestamp when it matches
+ * debug.log's exact stamp format, and reads each record's severity head
+ * — which stays in the text — to classify the record. Records from the
+ * Playground host (JavaScript, Wasm crashes) are dropped: this feeds a
+ * PHP error log view.
  */
 
 export type LogTier = 'error' | 'warning' | 'info';
 
 export type LogEntry = {
-	/**
-	 * The record exactly as logged — the panel renders and copies this
-	 * text verbatim. The fields below are read-only classifications of
-	 * it; parsing never rewrites the record.
-	 */
+	/** The unmodified record text — what copying puts on the clipboard. */
 	raw: string;
-	/** Full stamp, e.g. `20-Jul-2026 14:59:46 UTC`, when the record has one. */
+	/**
+	 * The lifted stamp, e.g. `20-Jul-2026 14:59:46 UTC`, when the record
+	 * starts with debug.log's exact format. Displayed above the message.
+	 */
 	timestamp: string | null;
 	/**
-	 * The runtime that produced the record: PHP (the site, via debug.log)
-	 * or Playground (the JavaScript host). Finer attribution — engine vs
-	 * WordPress core vs plugin — is not recoverable from the log text.
+	 * The record with the lifted stamp removed and nothing else — the
+	 * `PHP Notice:` style severity head stays in place.
 	 */
-	channel: string;
-	/** Badge text, e.g. `E_WARNING`, `Database error`. */
-	label: string;
+	message: string;
+	/**
+	 * Length of the severity head at the start of `message` (0 when the
+	 * record has none). The panel tints exactly that substring.
+	 */
+	headLength: number;
 	tier: LogTier;
 };
 
 /** Both PHP's debug.log and the JS logger stamp records as `[20-Jul-2026 …]`. */
 const RECORD_BOUNDARY = /\n(?=\[\d{1,2}-[A-Za-z]{3}-\d{4} )/;
-const TIMESTAMP_HEAD = /^\[(\d{1,2}-[A-Za-z]{3}-\d{4} [^\]]*)\]\s?/;
+const TIMESTAMP_HEAD =
+	/^\[(\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} [^\]]+)\]\s?/;
 
 /** Heads written by the JS logger's formatLogEntry. */
 const FORMATTED_HEAD =
 	/^(PHP|JavaScript|Wasm Crash) (fatal|error|warn|log|info|debug):\s*/;
-const FORMATTED_SEVERITIES: Record<string, { label: string; tier: LogTier }> = {
-	fatal: { label: 'Fatal error', tier: 'error' },
-	error: { label: 'Error', tier: 'error' },
-	warn: { label: 'Warning', tier: 'warning' },
-	log: { label: 'Log', tier: 'info' },
-	info: { label: 'Info', tier: 'info' },
-	debug: { label: 'Debug', tier: 'info' },
+const FORMATTED_TIERS: Record<string, LogTier> = {
+	fatal: 'error',
+	error: 'error',
+	warn: 'warning',
+	log: 'info',
+	info: 'info',
+	debug: 'info',
 };
 
 /**
@@ -54,22 +58,6 @@ const FORMATTED_SEVERITIES: Record<string, { label: string; tier: LogTier }> = {
 const PHP_HEAD =
 	/^PHP ((?:\w+ )*?(?:error|warning|notice|deprecated|strict standards)):\s*/i;
 
-/**
- * debug.log heads restored to the constant names developers configure in
- * error_reporting. PHP prints the same string for the E_USER_* and E_CORE_*
- * variants, so the base constant is as precise as the log text allows.
- * Unlisted heads keep their verbatim text.
- */
-const PHP_LEVELS: Record<string, { label: string; tier: LogTier }> = {
-	'fatal error': { label: 'E_ERROR', tier: 'error' },
-	'recoverable fatal error': { label: 'E_RECOVERABLE_ERROR', tier: 'error' },
-	'parse error': { label: 'E_PARSE', tier: 'error' },
-	warning: { label: 'E_WARNING', tier: 'warning' },
-	deprecated: { label: 'E_DEPRECATED', tier: 'warning' },
-	notice: { label: 'E_NOTICE', tier: 'info' },
-	'strict standards': { label: 'E_STRICT', tier: 'info' },
-};
-
 const DATABASE_HEAD = /^WordPress database error\s*/;
 
 export function parseLogs(rawLogs: string[]): LogEntry[] {
@@ -79,53 +67,54 @@ export function parseLogs(rawLogs: string[]): LogEntry[] {
 			.map((record) => record.trim())
 			.filter((record) => record !== '')
 			.map(parseLogRecord)
+			.filter((entry): entry is LogEntry => entry !== null)
 	);
 }
 
-function parseLogRecord(record: string): LogEntry {
-	// The heads below are matched only to classify the record; `body` is
-	// never returned. The stamp is sliced off solely so the `^`-anchored
-	// head patterns can see past it.
-	let body = record;
+function parseLogRecord(record: string): LogEntry | null {
+	let message = record;
 	let timestamp: string | null = null;
-	const stampMatch = body.match(TIMESTAMP_HEAD);
+	const stampMatch = message.match(TIMESTAMP_HEAD);
 	if (stampMatch) {
 		timestamp = stampMatch[1];
-		body = body.slice(stampMatch[0].length);
+		message = message.slice(stampMatch[0].length);
 	}
 
-	const formattedMatch = body.match(FORMATTED_HEAD);
+	const formattedMatch = message.match(FORMATTED_HEAD);
 	if (formattedMatch) {
-		const severity = FORMATTED_SEVERITIES[formattedMatch[2]];
-		const isWasmCrash = formattedMatch[1] === 'Wasm Crash';
+		// JavaScript and Wasm Crash records come from the Playground host,
+		// not from the site's PHP runtime.
+		if (formattedMatch[1] !== 'PHP') {
+			return null;
+		}
 		return {
 			raw: record,
 			timestamp,
-			channel: formattedMatch[1] === 'PHP' ? 'PHP' : 'Playground',
-			label: isWasmCrash ? 'Crash' : severity.label,
-			tier: isWasmCrash ? 'error' : severity.tier,
+			message,
+			headLength: formattedMatch[0].trimEnd().length,
+			tier: FORMATTED_TIERS[formattedMatch[2]],
 		};
 	}
 
-	if (DATABASE_HEAD.test(body)) {
+	const databaseMatch = message.match(DATABASE_HEAD);
+	if (databaseMatch) {
 		return {
 			raw: record,
 			timestamp,
-			channel: 'PHP',
-			label: 'Database error',
+			message,
+			headLength: databaseMatch[0].trimEnd().length,
 			tier: 'error',
 		};
 	}
 
-	const phpMatch = body.match(PHP_HEAD);
+	const phpMatch = message.match(PHP_HEAD);
 	if (phpMatch) {
-		const level = PHP_LEVELS[phpMatch[1].toLowerCase()];
 		return {
 			raw: record,
 			timestamp,
-			channel: 'PHP',
-			label: level?.label ?? phpMatch[1],
-			tier: level?.tier ?? phpTier(phpMatch[1]),
+			message,
+			headLength: phpMatch[0].trimEnd().length,
+			tier: phpTier(phpMatch[1]),
 		};
 	}
 
@@ -133,18 +122,18 @@ function parseLogRecord(record: string): LogEntry {
 	return {
 		raw: record,
 		timestamp,
-		channel: 'PHP',
-		label: 'Log',
+		message,
+		headLength: 0,
 		tier: 'info',
 	};
 }
 
-function phpTier(label: string): LogTier {
-	const level = label.toLowerCase();
-	if (level.endsWith('error')) {
+function phpTier(level: string): LogTier {
+	const normalized = level.toLowerCase();
+	if (normalized.endsWith('error')) {
 		return 'error';
 	}
-	if (level.endsWith('warning') || level.endsWith('deprecated')) {
+	if (normalized.endsWith('warning') || normalized.endsWith('deprecated')) {
 		return 'warning';
 	}
 	return 'info';

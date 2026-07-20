@@ -167,8 +167,8 @@ const PANE_COPY: Record<
 		description: 'Browse and edit the active Playground filesystem.',
 	},
 	logs: {
-		title: 'Logs',
-		description: 'PHP and Playground runtime messages.',
+		title: 'PHP error log',
+		description: 'Errors, warnings, and notices from your site.',
 	},
 	share: {
 		title: 'Export',

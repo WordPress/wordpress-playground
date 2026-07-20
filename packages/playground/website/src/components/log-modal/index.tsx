@@ -34,15 +34,9 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	return (
-		<Modal title={props.title || 'Error Logs'} onRequestClose={onClose}>
+		<Modal title={props.title || 'PHP error log'} onRequestClose={onClose}>
 			<div>{props.description}</div>
-			{/* Error reports must show everything — a WASM crash is a
-			    Playground entry, and hiding it would hide the crash itself. */}
-			<SiteLogs
-				key={activeModal}
-				className={css.logsInsideModal}
-				defaultShowPlayground
-			/>
+			<SiteLogs key={activeModal} className={css.logsInsideModal} />
 		</Modal>
 	);
 }
@@ -56,19 +50,10 @@ const TIER_FILTERS: Array<{ tier: LogTier; label: string }> = [
 	{ tier: 'info', label: 'Info' },
 ];
 
-export function SiteLogs({
-	className,
-	defaultShowPlayground = false,
-}: {
-	className?: string;
-	defaultShowPlayground?: boolean;
-}) {
+export function SiteLogs({ className }: { className?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [tierFilter, setTierFilter] = useState<LogTier | 'all'>('all');
-	// Playground host messages are noise for most debugging sessions, so the
-	// Dock pane hides them until the Playground chip turns them back on.
-	const [showPlayground, setShowPlayground] = useState(defaultShowPlayground);
 	const [copiedAll, copyAll] = useCopyToClipboard();
 	const contentRef = useRef<HTMLDivElement>(null);
 
@@ -84,7 +69,7 @@ export function SiteLogs({
 				node.scrollTop = 0;
 			}
 		}
-	}, [tierFilter, searchTerm, showPlayground]);
+	}, [tierFilter, searchTerm]);
 
 	const entries = useMemo(() => parseLogs(logs), [logs]);
 
@@ -96,40 +81,22 @@ export function SiteLogs({
 			.filter(({ entry }) => entry.raw.toLowerCase().includes(needle));
 	}, [entries, searchTerm]);
 
-	const playgroundCount = useMemo(
-		() =>
-			searchedEntries.filter(
-				({ entry }) => entry.channel === 'Playground'
-			).length,
-		[searchedEntries]
-	);
-
-	const channelEntries = useMemo(
-		() =>
-			showPlayground
-				? searchedEntries
-				: searchedEntries.filter(
-						({ entry }) => entry.channel !== 'Playground'
-					),
-		[searchedEntries, showPlayground]
-	);
-
 	const tierCounts = useMemo(() => {
 		const counts: Record<LogTier, number> = {
 			error: 0,
 			warning: 0,
 			info: 0,
 		};
-		for (const { entry } of channelEntries) {
+		for (const { entry } of searchedEntries) {
 			counts[entry.tier]++;
 		}
 		return counts;
-	}, [channelEntries]);
+	}, [searchedEntries]);
 
 	const visibleEntries =
 		tierFilter === 'all'
-			? channelEntries
-			: channelEntries.filter(({ entry }) => entry.tier === tierFilter);
+			? searchedEntries
+			: searchedEntries.filter(({ entry }) => entry.tier === tierFilter);
 
 	useEffect(() => {
 		getLogs();
@@ -147,7 +114,6 @@ export function SiteLogs({
 	function clearFilters() {
 		setSearchTerm('');
 		setTierFilter('all');
-		setShowPlayground(defaultShowPlayground);
 	}
 
 	return (
@@ -174,7 +140,7 @@ export function SiteLogs({
 						>
 							All
 							<span className={css.logFilterCount}>
-								{channelEntries.length}
+								{searchedEntries.length}
 							</span>
 						</button>
 						{/* The chip set is fixed: empty tiers dim instead of
@@ -201,23 +167,6 @@ export function SiteLogs({
 								</span>
 							</button>
 						))}
-						<span
-							className={css.logFilterDivider}
-							aria-hidden="true"
-						/>
-						<button
-							type="button"
-							className={css.logFilterChip}
-							aria-pressed={showPlayground}
-							disabled={playgroundCount === 0 && !showPlayground}
-							title="Show runtime messages from the Playground app itself"
-							onClick={() => setShowPlayground(!showPlayground)}
-						>
-							Playground
-							<span className={css.logFilterCount}>
-								{playgroundCount}
-							</span>
-						</button>
 						{visibleEntries.length > 0 && (
 							<button
 								type="button"
@@ -266,43 +215,14 @@ export function SiteLogs({
 								Clear filters
 							</button>
 						)}
-						{!showPlayground && playgroundCount > 0 && (
-							<button
-								type="button"
-								className={css.logClearSearch}
-								onClick={() => setShowPlayground(true)}
-							>
-								Show {playgroundCount} Playground{' '}
-								{playgroundCount === 1 ? 'entry' : 'entries'}
-							</button>
-						)}
 					</div>
 				) : (
 					<div className={css.logEmptyState}>
 						<p className={css.logEmptyTitle}>Nothing logged yet</p>
 						<p className={css.logEmptyHint}>
-							This is the combined log for your Playground. Two
-							kinds of messages land here as you use it:
+							PHP errors, warnings, and notices from your site
+							appear here as they are written to the debug log.
 						</p>
-						<ul className={css.logLegend}>
-							<li>
-								<span className={css.logLegendTerm}>PHP</span>
-								<span className={css.logLegendDesc}>
-									errors, warnings, and notices from your
-									site, and anything written to the debug log
-									when WP_DEBUG is on
-								</span>
-							</li>
-							<li>
-								<span className={css.logLegendTerm}>
-									Playground
-								</span>
-								<span className={css.logLegendDesc}>
-									runtime messages from the Playground app
-									itself
-								</span>
-							</li>
-						</ul>
 					</div>
 				)}
 			</div>
@@ -310,7 +230,7 @@ export function SiteLogs({
 	);
 }
 
-/** One log record: a fixed severity/time rail beside a clamped message. */
+/** One log record: its timestamp above a full-width, clamped message. */
 function LogEntryRow({
 	entry,
 	searchTerm,
@@ -340,45 +260,42 @@ function LogEntryRow({
 		const observer = new ResizeObserver(measure);
 		observer.observe(message);
 		return () => observer.disconnect();
-	}, [entry.raw, expanded]);
+	}, [entry.message, expanded]);
 
-	const lineCount = entry.raw.split('\n').length;
-	const time =
-		entry.timestamp?.match(/\d{2}:\d{2}:\d{2}/)?.[0] ?? entry.timestamp;
+	const lineCount = entry.message.split('\n').length;
 
 	return (
 		<li ref={entryRef} className={css.logEntry}>
-			{/* Severity and time live in one fixed rail so every message
-			    column aligns. PHP is the default context — only Playground
-			    rows carry a channel tag. */}
-			<div className={css.logEntryRail}>
-				<span className={css.logSeverity} data-tier={entry.tier}>
-					{entry.label}
-				</span>
-				{entry.timestamp && (
-					<time className={css.logTimestamp} title={entry.timestamp}>
-						{time}
-					</time>
-				)}
-				{entry.channel === 'Playground' && (
-					<span className={css.logChannelTag}>Playground</span>
-				)}
-			</div>
+			{entry.timestamp && (
+				<time className={css.logTimestamp}>{entry.timestamp}</time>
+			)}
 			<div className={css.logEntryBody}>
 				<div
 					ref={messageRef}
 					className={css.logEntryMessage}
 					data-clamped={!expanded || undefined}
 				>
-					{splitSearchHighlights(entry.raw, searchTerm).map(
-						(segment, segmentIndex) =>
-							segment.highlight ? (
-								<mark key={segmentIndex}>{segment.text}</mark>
+					{headSegments(entry, searchTerm).map(
+						(segment, segmentIndex) => {
+							const text = segment.highlight ? (
+								<mark>{segment.text}</mark>
 							) : (
-								<Fragment key={segmentIndex}>
-									{segment.text}
-								</Fragment>
-							)
+								segment.text
+							);
+							// The severity head stays part of the message; it
+							// is only tinted, never restated elsewhere.
+							return segment.head ? (
+								<span
+									key={segmentIndex}
+									className={css.logSeverityHead}
+									data-tier={entry.tier}
+								>
+									{text}
+								</span>
+							) : (
+								<Fragment key={segmentIndex}>{text}</Fragment>
+							);
+						}
 					)}
 				</div>
 				{(overflowing || expanded) && (
@@ -419,6 +336,45 @@ function LogEntryRow({
 			</button>
 		</li>
 	);
+}
+
+/**
+ * Search-highlight segments split once more at the severity-head boundary,
+ * so the head keeps its tint even when a search match crosses from the
+ * head into the message.
+ */
+function headSegments(
+	entry: LogEntry,
+	searchTerm: string
+): Array<{ text: string; highlight: boolean; head: boolean }> {
+	const segments = splitSearchHighlights(entry.message, searchTerm);
+	const pieces: Array<{ text: string; highlight: boolean; head: boolean }> =
+		[];
+	let offset = 0;
+	for (const segment of segments) {
+		const end = offset + segment.text.length;
+		if (offset < entry.headLength && end > entry.headLength) {
+			const cut = entry.headLength - offset;
+			pieces.push({
+				text: segment.text.slice(0, cut),
+				highlight: segment.highlight,
+				head: true,
+			});
+			pieces.push({
+				text: segment.text.slice(cut),
+				highlight: segment.highlight,
+				head: false,
+			});
+		} else {
+			pieces.push({
+				text: segment.text,
+				highlight: segment.highlight,
+				head: end <= entry.headLength,
+			});
+		}
+		offset = end;
+	}
+	return pieces;
 }
 
 /** Copies text and reports a short-lived "copied" flag for button feedback. */

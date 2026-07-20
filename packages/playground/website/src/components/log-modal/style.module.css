@@ -65,15 +65,6 @@
 	opacity: 0.65;
 }
 
-/* Separates the severity chips from the Playground channel toggle — a
-   different filter dimension in the same row. */
-.log-filter-divider {
-	align-self: stretch;
-	background: var(--line-control, rgba(33, 32, 29, 0.14));
-	margin: 2px var(--space-1, 4px);
-	width: 1px;
-}
-
 .log-copy-all {
 	background: none;
 	border: 0;
@@ -99,14 +90,14 @@
 	padding: 0;
 }
 
-/* One grid for every row: a fixed rail, the message, and a copy slot. All
-   metadata aligns in the rail; the message column is the widest and darkest
+/* Each row is a full-width column — timestamp above, message beneath —
+   with a copy slot on the right. The message is the widest and darkest
    element, so the eye lands on it. */
 .log-entry {
 	border-block-end: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
 	column-gap: var(--space-4, 16px);
 	display: grid;
-	grid-template-columns: 96px minmax(0, 1fr) 24px;
+	grid-template-columns: minmax(0, 1fr) 24px;
 	padding: var(--space-3, 12px) 0;
 }
 
@@ -114,48 +105,31 @@
 	border-block-end: 0;
 }
 
-.log-entry-rail {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
-
 .log-entry-body {
+	grid-column: 1;
 	min-width: 0;
-}
-
-/* Severity is a small tinted word, not a filled pill — color appears only
-   where it means something. */
-.log-severity {
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.02em;
-	line-height: 19px;
-}
-
-.log-severity[data-tier='error'] {
-	color: #96291b;
-}
-
-.log-severity[data-tier='warning'] {
-	color: #765311;
-}
-
-.log-severity[data-tier='info'] {
-	color: var(--ink-muted, #5f5b54);
 }
 
 .log-timestamp {
 	color: var(--ink-faint, #8a857b);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
+	grid-column: 1;
 	line-height: 19px;
 }
 
-.log-channel-tag {
-	color: var(--ink-faint, #8a857b);
-	font-size: 11px;
-	line-height: 19px;
+/* The `PHP Notice:` style head is part of the record text — it only gets
+   a tint, and color appears only where it means something. */
+.log-severity-head[data-tier='error'] {
+	color: #96291b;
+}
+
+.log-severity-head[data-tier='warning'] {
+	color: #765311;
+}
+
+.log-severity-head[data-tier='info'] {
+	color: var(--ink-muted, #5f5b54);
 }
 
 .log-copy {
@@ -166,6 +140,8 @@
 	color: var(--action-icon, #4f4b45);
 	cursor: pointer;
 	display: flex;
+	grid-column: 2;
+	grid-row: 1;
 	height: 24px;
 	justify-content: center;
 	opacity: 0;
@@ -240,29 +216,6 @@
 	text-decoration: underline;
 }
 
-/* On narrow screens the rail folds into one line above the message. */
-@media (max-width: 600px) {
-	.log-entry {
-		display: block;
-		position: relative;
-	}
-
-	.log-entry-rail {
-		align-items: baseline;
-		flex-direction: row;
-		gap: var(--space-2, 8px);
-		margin-bottom: var(--space-1, 4px);
-		/* Keep the metadata clear of the absolutely placed copy button. */
-		padding-right: var(--space-8, 32px);
-	}
-
-	.log-copy {
-		position: absolute;
-		right: 0;
-		top: var(--space-3, 12px);
-	}
-}
-
 .log__empty_placeholder {
 	align-items: flex-start;
 	display: flex;
@@ -305,33 +258,4 @@
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
-}
-
-.log-legend {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
-	list-style: none;
-	margin: var(--space-3) 0 0;
-	padding: 0;
-	width: 100%;
-}
-
-.log-legend li {
-	align-items: baseline;
-	display: grid;
-	gap: var(--space-3);
-	grid-template-columns: max-content 1fr;
-}
-
-.log-legend-term {
-	color: var(--ink);
-	font-size: 13px;
-	font-weight: 600;
-}
-
-.log-legend-desc {
-	color: var(--ink-muted);
-	font-size: 13px;
-	line-height: 1.5;
 }

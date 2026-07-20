@@ -13,29 +13,26 @@ describe('parseLogs', () => {
 		const entries = parseLogs([chunk]);
 
 		expect(entries).toHaveLength(2);
+		// The stamp is lifted; the severity head stays in the text and its
+		// span is reported so the UI can tint exactly that substring.
 		expect(entries[0]).toMatchObject({
-			channel: 'PHP',
-			label: 'E_NOTICE',
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',
+			message:
+				'PHP Notice:  Function _load_textdomain_just_in_time was called incorrectly.',
+			headLength: 'PHP Notice:'.length,
 		});
-		// The record text is preserved as logged — stamp and severity
-		// head included.
-		expect(entries[0].raw).toBe(
-			'[20-Jul-2026 14:59:46 UTC] PHP Notice:  Function _load_textdomain_just_in_time was called incorrectly.'
-		);
 		expect(entries[1]).toMatchObject({
-			channel: 'PHP',
-			label: 'Database error',
 			tier: 'error',
+			headLength: 'WordPress database error'.length,
 		});
 		// Continuation lines stay inside their record instead of becoming
 		// separate entries.
-		expect(entries[1].raw.split('\n')).toHaveLength(3);
-		expect(entries[1].raw).toContain('MySQL query');
+		expect(entries[1].message.split('\n')).toHaveLength(3);
+		expect(entries[1].message).toContain('MySQL query');
 	});
 
-	it('labels PHP error levels with their error_reporting constants', () => {
+	it('classifies PHP error levels into tiers', () => {
 		const entries = parseLogs([
 			'[20-Jul-2026 14:59:46 UTC] PHP Fatal error:  Uncaught Error: boom',
 			'[20-Jul-2026 14:59:46 UTC] PHP Warning:  Undefined variable $x',
@@ -48,45 +45,43 @@ describe('parseLogs', () => {
 			'warning',
 			'info',
 		]);
-		expect(entries[0].label).toBe('E_ERROR');
-		expect(entries[1].label).toBe('E_WARNING');
-		expect(entries[2].label).toBe('E_DEPRECATED');
-		// Heads outside PHP's own vocabulary keep their verbatim text.
-		expect(entries[3].label).toBe('Custom notice');
+		expect(entries[0].message).toBe(
+			'PHP Fatal error:  Uncaught Error: boom'
+		);
+		expect(entries[0].headLength).toBe('PHP Fatal error:'.length);
 	});
 
-	it('maps formatted logger entries to their channel and severity', () => {
+	it('drops Playground host records and keeps PHP ones', () => {
 		const entries = parseLogs([
 			'[20-Jul-2026 14:59:46 UTC] JavaScript error: ReferenceError: x is not defined',
 			'[20-Jul-2026 14:59:46 UTC] Wasm Crash fatal: Aborted()',
 			'[20-Jul-2026 14:59:46 UTC] PHP fatal: request aborted',
 		]);
+		expect(entries).toHaveLength(1);
 		expect(entries[0]).toMatchObject({
-			channel: 'Playground',
-			label: 'Error',
 			tier: 'error',
-		});
-		expect(entries[1]).toMatchObject({
-			channel: 'Playground',
-			label: 'Crash',
-			tier: 'error',
-		});
-		expect(entries[2]).toMatchObject({
-			channel: 'PHP',
-			label: 'Fatal error',
-			tier: 'error',
+			message: 'PHP fatal: request aborted',
+			headLength: 'PHP fatal:'.length,
 		});
 	});
 
-	it('treats unrecognized stamped records as PHP output', () => {
+	it('treats unrecognized stamped records as plain output', () => {
 		const entries = parseLogs([
 			'[20-Jul-2026 14:59:46 UTC] Cron reschedule event error for hook',
 		]);
 		expect(entries[0]).toMatchObject({
-			channel: 'PHP',
-			label: 'Log',
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',
+			message: 'Cron reschedule event error for hook',
+			headLength: 0,
+		});
+	});
+
+	it('lifts the timestamp only when it matches the exact stamp format', () => {
+		const entries = parseLogs(['[20-Jul-2026 14:59:46] missing timezone']);
+		expect(entries[0]).toMatchObject({
+			timestamp: null,
+			message: '[20-Jul-2026 14:59:46] missing timezone',
 		});
 	});
 
@@ -95,11 +90,11 @@ describe('parseLogs', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]).toMatchObject({
 			timestamp: null,
-			raw: 'stray line',
+			message: 'stray line',
 		});
 	});
 
-	it('preserves the raw record text', () => {
+	it('preserves the raw record text for copying', () => {
 		const record =
 			'[20-Jul-2026 14:59:46 UTC] PHP Notice:  Something happened';
 		expect(parseLogs([record])[0].raw).toBe(record);
