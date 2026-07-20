@@ -50,6 +50,5 @@ onmessage = async function (event: MessageEvent) {
 						}
 					: error,
 		});
-		throw error;
 	}
 };

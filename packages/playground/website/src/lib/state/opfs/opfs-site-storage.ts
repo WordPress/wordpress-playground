@@ -534,7 +534,8 @@ async function opfsWriteFile(path: string, content: string) {
 				logger.error('Error in OPFS write worker.', event.data);
 				reject(
 					new Error(
-						`The browser storage worker failed while writing ${path}. See the preceding OPFS worker log for details.`
+						`The browser storage worker failed while writing ${path}. See the preceding OPFS worker log for details.`,
+						{ cause: event.data.error }
 					)
 				);
 			} else {
