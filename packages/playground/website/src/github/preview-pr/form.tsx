@@ -119,6 +119,7 @@ export default function PreviewPRForm({
 		cleanupRetryRef.current = () => {};
 
 		const { target: repo, ref, isBranch } = resolved;
+		const isBareWordPressPr = repo === 'wordpress' && value.trim() === ref;
 		setSubmitting(true);
 
 		// For branches, skip verification since we'll use the most recent artifact with prefix matching
@@ -141,7 +142,11 @@ export default function PreviewPRForm({
 				}
 
 				if (error === 'invalid_pr_number' || error === 'no_ci_runs') {
-					setError(`The PR ${ref} does not exist.`);
+					setError(
+						isBareWordPressPr
+							? `Couldn’t find WordPress Core PR ${ref}. If this is a Gutenberg PR, paste its full GitHub URL instead.`
+							: `The PR ${ref} does not exist.`
+					);
 				} else if (
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'
@@ -180,7 +185,9 @@ export default function PreviewPRForm({
 					);
 				} else {
 					setError(
-						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
+						isBareWordPressPr
+							? `Playground treated ${ref} as a WordPress Core PR, but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.`
+							: `The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
 					);
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
@@ -251,12 +258,7 @@ export default function PreviewPRForm({
 
 	return (
 		<form onSubmit={handleSubmit}>
-			<div className={css.content}>
-				{submitting && (
-					<div className={css.overlay}>
-						<Spinner />
-					</div>
-				)}
+			<div>
 				<TextControl
 					disabled={submitting}
 					label={inputLabel}
@@ -274,6 +276,12 @@ export default function PreviewPRForm({
 						Gutenberg branch links work too.
 					</p>
 				)}
+				{submitting && (
+					<div className={css.loadingStatus} role="status">
+						<Spinner />
+						<span>Checking GitHub for a preview build…</span>
+					</div>
+				)}
 				{errorMsg &&
 					(inline ? (
 						<Notice status="error" isDismissible={false}>
@@ -289,8 +297,9 @@ export default function PreviewPRForm({
 						variant="primary"
 						type="submit"
 						disabled={submitting}
+						isBusy={submitting}
 					>
-						Preview
+						{submitting ? 'Checking…' : 'Preview'}
 					</Button>
 				</div>
 			) : (

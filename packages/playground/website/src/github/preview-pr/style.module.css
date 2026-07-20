@@ -1,7 +1,3 @@
-.content {
-	position: relative;
-}
-
 /* Short note under the field explaining what input is accepted. */
 .hint {
 	margin: 8px 0 0;
@@ -17,26 +13,21 @@
 	margin-top: 12px;
 }
 
-.overlay {
-	width: 100%;
-	height: 100%;
-	position: absolute;
+.loading-status {
+	align-items: center;
+	background: var(--paper-2, #faf8f5);
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	font-size: 13px;
+	gap: 10px;
+	line-height: 1.4;
+	margin-top: 12px;
+	padding: 10px 12px;
+}
 
-	&:before {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(255, 255, 255, 0.75);
-	}
-
-	svg {
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: 0;
-		margin: 0;
-	}
+.loading-status :global(.components-spinner) {
+	flex: none;
+	margin: 0;
 }

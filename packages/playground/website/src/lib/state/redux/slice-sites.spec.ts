@@ -335,6 +335,7 @@ describe('stored site creation', () => {
 			name: 'Original Playground',
 		});
 		const editedBundle = createBundleBlueprint();
+		const copiedBundle = createBundleBlueprint();
 		let state = {
 			sites: sitesSlice.reducer(
 				undefined,
@@ -355,6 +356,7 @@ describe('stored site creation', () => {
 		const writes: string[] = [];
 		persistBlueprintBundle.mockImplementation(async () => {
 			writes.push('bundle');
+			return copiedBundle;
 		});
 		createSite.mockImplementation(async () => {
 			writes.push('metadata');
@@ -373,7 +375,7 @@ describe('stored site creation', () => {
 			storage: 'opfs',
 			persistence: 'autosave',
 			initialOpfsSyncPending: true,
-			originalBlueprint: editedBundle,
+			originalBlueprint: copiedBundle,
 			originalBlueprintSource: { type: 'opfs-site' },
 			runtimeConfiguration,
 		});
