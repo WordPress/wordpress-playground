@@ -211,8 +211,15 @@ html {
   color: var(--ink); font: 600 14px/1.2 var(--sans);
 }
 .v27-network-ctl input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
-.nav-theme { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: end; }
-.nav-theme figure {
+.nav-theme {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: end;
+  width: calc(100% - 53px); padding: 0; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.nav-theme:hover, .nav-theme.is-active { box-shadow: 0 0 0 8px var(--soft); }
+.nav-theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 8px; }
+.v27-theme-preview {
+  display: block;
   width: 280px; height: 210px; margin: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 7px; background: #eceff4;
 }
@@ -273,7 +280,7 @@ html {
   .paper-head .title-input { font-size: 36px; }
   .paper-actions { justify-content: flex-start; }
   .nav-theme { grid-template-columns: 220px minmax(0, 1fr); gap: 18px; }
-  .nav-theme figure { width: 220px; height: 165px; }
+  .v27-theme-preview { width: 220px; height: 165px; }
   .paper-end { align-items: flex-start; flex-direction: column; }
   .sheet-form.user { grid-template-columns: 1fr; }
 }
@@ -374,27 +381,27 @@ html {
 }
 .v27-plugin:first-child { padding-top: 0; }
 .v27-plugin:last-child { border-bottom: 0; }
-.v27-plugin-main {
-  display: grid; grid-template-columns: 40px minmax(130px, 1fr) auto auto;
-  gap: 10px; align-items: center;
+.v27-plugin-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 6px; align-items: center;
 }
+.v27-plugin-main {
+  display: grid; grid-template-columns: 40px minmax(130px, 1fr) auto;
+  gap: 10px; align-items: center; width: 100%; min-height: 52px; margin: -5px 0; padding: 5px 7px;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; text-align: left;
+}
+.v27-plugin-main:hover { border-color: var(--line); background: var(--soft); }
+.v27-plugin-main:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .v27-plugin-icon, .v27-plugin-fallback {
   display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px;
   background: #eef0f4; object-fit: cover; color: var(--blue-dark); font: 700 12px var(--mono);
 }
 .v27-plugin-copy { min-width: 0; }
 .v27-plugin-copy > span { display: block; }
-.v27-plugin-title-line { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .v27-plugin-title {
-  min-width: 0; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--ink);
-  font-size: 13.5px; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap;
+  display: block; min-width: 0; overflow: hidden; color: var(--ink);
+  font-size: 13.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap;
 }
-.v27-plugin-title:hover { color: var(--blue-dark); text-decoration: underline; text-underline-offset: 2px; }
-.v27-external-link {
-  display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 5px;
-  color: var(--muted); font-size: 13px; text-decoration: none;
-}
-.v27-external-link:hover { background: var(--soft); color: var(--blue-dark); }
+.v27-plugin-main:hover .v27-plugin-title { color: var(--blue-dark); }
 .v27-plugin-copy span { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
 .v27-plugin-summary { color: var(--muted); font: 11.5px var(--mono); white-space: nowrap; }
 .v27-plugin-context {
@@ -415,6 +422,7 @@ html {
 .v27-plugin-detail-title { display: flex; align-items: center; gap: 5px; }
 .v27-plugin-detail-title h3 { margin: 0; font-size: 18px; }
 .v27-plugin-description { margin: 0; color: #3c434a; }
+.v27-plugin-source-link { width: fit-content; margin-top: -8px; color: var(--blue-dark); font-size: 12.5px; }
 .v27-plugin-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid var(--line); border-radius: 8px; }
 .v27-plugin-facts div { min-width: 0; padding: 10px; border-right: 1px solid var(--line); }
 .v27-plugin-facts div:last-child { border-right: 0; }
@@ -457,7 +465,17 @@ html {
 }
 .v27-homepage label { display: flex; align-items: center; gap: 9px; font-weight: 600; }
 .v27-homepage > span { color: var(--muted); font-size: 12px; text-align: right; }
-.v27-editor-guides { width: fit-content; margin: 2px 0 9px; }
+.v27-content-settings {
+  display: grid; gap: 2px; margin: 0 0 10px; padding: 4px 0 9px; border-bottom: 1px solid var(--line);
+}
+.v27-content-setting {
+  display: grid; grid-template-columns: 17px minmax(0, 1fr); gap: 9px; align-items: start;
+  width: fit-content; max-width: 680px; padding: 5px 0; cursor: pointer;
+}
+.v27-content-setting input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--ink); }
+.v27-content-setting strong, .v27-content-setting small { display: block; }
+.v27-content-setting strong { font-size: 13px; }
+.v27-content-setting small { margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .v27-access-stage { padding: 14px 0; border-bottom: 1px solid #e2ded4; }
 .v27-people-summary {
   display: grid; grid-template-columns: 32px auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
@@ -531,20 +549,23 @@ html {
   .new-btn, .popover-close, .v27-upload, .v27-small-remove,
   .v27-plugin .icon-btn, .v27-line .btn, .v27-script .btn, .v27-user-table .btn { min-height: 44px; }
   .popover-close, .v27-small-remove, .v27-plugin .icon-btn, .v27-user-table .v27-small-remove { width: 44px; }
-  .v27-external-link { width: 44px; height: 44px; }
-  .v27-plugin-title { min-height: 44px; }
+  .v27-plugin-row { grid-template-columns: minmax(0, 1fr) 44px; }
+  .v27-plugin-main { min-height: 54px; }
 }
 @media (max-width: 760px) {
-  .v27-plugin-main { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .v27-plugin-main { grid-template-columns: 40px minmax(0, 1fr); }
   .v27-plugin-main > .v27-plugin-icon, .v27-plugin-main > .v27-plugin-fallback { grid-column: 1; grid-row: 1; }
   .v27-plugin-main > .v27-plugin-copy { grid-column: 2; grid-row: 1; }
-  .v27-plugin-main > .icon-btn { grid-column: 3; grid-row: 1; }
-  .v27-plugin-main > .v27-plugin-summary { grid-column: 2 / -1; justify-self: start; }
+  .v27-plugin-main > .v27-plugin-summary { grid-column: 2; justify-self: start; }
   .v27-plugin-context { margin-left: 50px; margin-right: 0; }
   .v27-script { grid-template-columns: minmax(0, 1fr) auto auto 44px; }
   .v27-script > .v27-script-copy { grid-column: 1 / -1; }
 }
 @media (max-width: 520px) {
+  .about { right: 8px; bottom: 8px; }
+  .about:not(.open) { max-width: none; }
+  .about:not(.open) .about-head { width: auto; padding-right: 8px; }
+  .about:not(.open) .about-head strong, .about:not(.open) .about-hint { display: none; }
   .sheet-popover, .sheet-popover[data-kind="theme"] {
     width: calc(100vw - 24px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
   }
@@ -552,8 +573,8 @@ html {
   #sheetPopoverBody { padding: 6px 14px 14px; }
   .stage-heading { flex-wrap: wrap; gap: 6px 10px; }
   .stage-heading h2 { min-width: 0; flex: 1 1 130px; }
-  .nav-theme { grid-template-columns: 1fr; }
-  .nav-theme figure { width: min(320px, 100%); height: auto; aspect-ratio: 4 / 3; }
+  .nav-theme { grid-template-columns: 1fr; width: calc(100% - 53px); }
+  .v27-theme-preview { width: min(320px, 100%); height: auto; aspect-ratio: 4 / 3; }
   .v27-search-row, .sheet-form, .sheet-form.user, .v27-recipe-parameter { grid-template-columns: 1fr; }
   .v27-recipe-fields { grid-template-columns: 1fr; }
   .v27-recipe-fields .v27-actions { grid-column: auto; }
@@ -610,29 +631,30 @@ html {
     <header class="nav-stage-head"><span class="n" aria-hidden="true">1</span><div><div class="stage-heading"><h2>Boot WordPress</h2></div><p data-text="summary-boot"></p></div></header>
     <div class="nav-stage-body nav-runtime">
       <label>WORDPRESS <select class="ctl" name="wordpress-version" data-field="wp" aria-label="WordPress version"><option value="latest">latest</option><option value="6.7">6.7</option><option value="nightly">nightly</option></select></label>
-      <label>PHP <select class="ctl" name="php-version" data-field="php" aria-label="PHP version"><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="7.4">7.4</option></select></label>
+      <label>PHP <select class="ctl" name="php-version" data-field="php" aria-label="PHP version"><option value="8.5">8.5</option><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="8.1">8.1</option><option value="8.0">8.0</option><option value="7.4">7.4</option></select></label>
       <label>LANGUAGE <select class="ctl" name="site-language" data-field="lang" aria-label="Site language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option><option value="de_DE">Deutsch</option><option value="pl_PL">Polski</option></select></label>
       <label>NETWORK <span class="v27-network-ctl"><input type="checkbox" data-field="networking" aria-label="Internet access"><span>internet access</span></span></label>
     </div>
   </li>
 
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">2</span><div><div class="stage-heading"><h2>Put on the theme</h2><button class="new-btn" type="button" data-sheet-popover="theme" aria-label="＋ New theme" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-theme"></p></div></header>
-    <div class="nav-stage-body nav-theme">
-      <figure><img data-theme-shot alt=""></figure>
-      <div class="v27-active-theme-copy"><p class="v27-section-label">Active theme</p><strong data-text="theme-name"></strong><span data-theme-count></span></div>
-    </div>
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">2</span><div><div class="stage-heading"><h2>Put on the theme</h2><button class="new-btn" type="button" data-sheet-popover="theme" data-v27-popover-focus="[data-v27-search]" data-v27-popover-position="theme-add" aria-label="＋ Add theme" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-theme"></p></div></header>
+    <button class="nav-stage-body nav-theme" type="button" data-v27-theme-current data-sheet-popover="theme" data-v27-popover-focus="[data-v27-use-theme][aria-pressed='true']" data-v27-popover-anchor="theme-add" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">
+      <span class="v27-theme-preview"><img data-theme-shot alt=""></span>
+      <span class="v27-active-theme-copy"><span class="v27-section-label">Active theme</span><strong data-text="theme-name"></strong><span data-theme-count></span></span>
+      <span class="sr-only">Change theme</span>
+    </button>
   </li>
 
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">3</span><div><div class="stage-heading"><h2>Install the tools</h2><button class="new-btn" type="button" data-sheet-popover="plugin" aria-label="＋ New plugin" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-plugins"></p></div></header>
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">3</span><div><div class="stage-heading"><h2>Install the tools</h2><button class="new-btn" type="button" data-sheet-popover="plugin" aria-label="＋ Add plugin" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-plugins"></p></div></header>
     <div class="nav-stage-body">
       <div class="plugin-list" data-plugins></div>
     </div>
   </li>
 
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">4</span><div><div class="stage-heading"><h2>Bring in content</h2><button class="new-btn" type="button" data-sheet-popover="content" aria-label="＋ New content" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-content"></p></div></header>
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">4</span><div><div class="stage-heading"><h2>Bring in content</h2><button class="new-btn" type="button" data-sheet-popover="content" aria-label="＋ Add content" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-content"></p></div></header>
     <div class="nav-stage-body paper-lines" data-content-lines></div>
   </li>
 
@@ -641,7 +663,7 @@ html {
   </li>
 
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">6</span><div><div class="stage-heading"><h2>Finish and open</h2><button class="new-btn" type="button" data-sheet-popover="script" aria-label="＋ New finishing step" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-finish"></p></div></header>
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">6</span><div><div class="stage-heading"><h2>Finish and open</h2><button class="new-btn" type="button" data-sheet-popover="script" aria-label="＋ Add finishing step" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-finish"></p></div></header>
     <div class="nav-stage-body">
       <div data-scripts></div>
       <div class="nav-options">
@@ -659,7 +681,7 @@ html {
 
 <section class="sheet-popover" id="sheetPopover" role="dialog" aria-modal="false" aria-labelledby="sheetPopoverTitle" aria-describedby="sheetPopoverSubtitle" hidden>
   <header class="sheet-popover-head">
-    <div><h3 id="sheetPopoverTitle">New</h3><p id="sheetPopoverSubtitle"></p></div>
+    <div><h3 id="sheetPopoverTitle">Add</h3><p id="sheetPopoverSubtitle"></p></div>
     <button class="popover-close" type="button" data-close-sheet-popover aria-label="Close">×</button>
   </header>
   <div id="sheetPopoverBody"></div>
@@ -692,7 +714,7 @@ html {
   <button class="about-head" type="button" data-about-toggle aria-expanded="false">
     <span class="about-badge">Design 27</span><strong>Complete flight ledger</strong><span class="about-hint">about</span>
   </button>
-  <div class="about-body">The consolidation pass: Design 26’s single aligned sheet keeps Paper Blueprint’s headline-level New actions, while the mature interaction layer returns. Popovers anchor to their trigger, never cover it, and scroll internally under a pinned search; one surface holds installed items and WordPress.org discovery, URLs, uploads and drops. Finishing steps are grouped — recipes, developer tools, then write-your-own PHP, SQL, or WP-CLI in a proper editor — and credited once to Alex Kirk’s step library. Runtime facts live in Boot; pages edit in an embedded WordPress Playground; broad undo and deliberate focus restoration throughout. JSON and Run use one valid Blueprint; uploads launch in an embedded preview so their bytes travel with it.</div>
+  <div class="about-body">The consolidation pass: Design 26’s single aligned sheet keeps Paper Blueprint’s headline-level Add actions, while installed themes and plugins open directly when clicked. Popovers anchor to their trigger, never cover it, and scroll internally under a pinned search; one surface holds installed items and WordPress.org discovery, URLs, uploads and drops. Finishing steps are grouped — recipes, developer tools, then write-your-own PHP, SQL, or WP-CLI in a proper editor — and credited once to Alex Kirk’s step library. Runtime facts live in Boot; content defaults live with content; pages edit in an embedded WordPress Playground; broad undo and deliberate focus restoration throughout. JSON and Run use one valid Blueprint; uploads launch in an embedded preview so their bytes travel with it.</div>
 </aside>
 
 <script>
@@ -741,6 +763,14 @@ $coupon->set_code( 'WELCOME10' );
 $coupon->set_discount_type( 'percent' );
 $coupon->set_amount( 10 );
 $coupon->save();
+`;
+
+const STARTER_CONTENT_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+wp_delete_comment( 1, true );
+wp_delete_post( 1, true );
+wp_delete_post( 2, true );
 `;
 
 const DASHBOARD_CODE = `<?php
@@ -810,19 +840,6 @@ require '/wordpress/adminer/adminer.php';
 `;
 
 const FINISH_RECIPES = [
-	{
-		key: 'fresh-start',
-		name: 'Remove the starter content',
-		file: 'remove-starter-content.php',
-		note: 'Delete the “Hello world!” post, sample page, and default comment.',
-		source: 'Adapted from Alex Kirk’s Step Library',
-		steps: [
-			{
-				step: 'runPHP',
-				code: "<?php\nrequire '/wordpress/wp-load.php';\n\nwp_delete_comment( 1, true );\nwp_delete_post( 1, true );\nwp_delete_post( 2, true );\n",
-			},
-		],
-	},
 	{
 		key: 'dashboard',
 		name: 'Simplify the Dashboard',
@@ -1005,6 +1022,8 @@ let state = {
 		{ ...PLUGIN_CATALOG[2], active: false }
 	],
 	content: {
+		removeStarterContent: true,
+		addTestCoupon: true,
 		pages: [
 			{ id: 'about', title: 'About', content: '<!-- wp:paragraph --><p>Thoughtful goods for everyday life, built with care.</p><!-- /wp:paragraph -->' },
 			{ id: 'contact', title: 'Contact', content: '<!-- wp:paragraph --><p>Questions? Tell us how we can help.</p><!-- /wp:paragraph -->' },
@@ -1022,9 +1041,7 @@ let state = {
 	wordpressAdmin: {
 		hideEditorGuides: true,
 	},
-	scripts: [
-		{ name: 'Add a WELCOME10 test coupon', file: 'demo-coupon.php', kind: 'php', note: 'Creates a coupon to try at checkout.', code: COUPON_CODE }
-	]
+	scripts: []
 };
 
 const undoStack = [];
@@ -1473,7 +1490,7 @@ function onImageError(event) {
 	if (pluginChoice) fallback.className = 'v27-plugin-fallback';
 	fallback.textContent = themeChoice
 		? (themeChoice.querySelector('strong')?.textContent || 'Theme').slice(0, 2).toUpperCase()
-		: pluginChoice ? (pluginChoice.querySelector('.v27-plugin-title, h3')?.textContent || 'WP').slice(0, 2).toUpperCase()
+		: pluginChoice ? (pluginChoice.querySelector('strong, h3')?.textContent || 'WP').slice(0, 2).toUpperCase()
 		: isMainTheme ? theme().name : 'WP';
 	image.replaceWith(fallback);
 }
@@ -1705,6 +1722,22 @@ function v27OnFocusOut(event) {
 }
 
 function v27OnChange(event) {
+	if (event.target.matches('[data-v27-remove-starter-content]')) {
+		event.stopImmediatePropagation();
+		v27Commit(
+			event.target.checked ? 'WordPress starter content will be removed' : 'WordPress starter content will remain',
+			() => { state.content.removeStarterContent = event.target.checked; }
+		);
+		return;
+	}
+	if (event.target.matches('[data-v27-add-test-coupon]')) {
+		event.stopImmediatePropagation();
+		v27Commit(
+			event.target.checked ? 'WELCOME10 test coupon will be added' : 'WELCOME10 test coupon will not be added',
+			() => { state.content.addTestCoupon = event.target.checked; }
+		);
+		return;
+	}
 	if (event.target.matches('[data-v27-plugin-setup]')) {
 		event.stopImmediatePropagation();
 		const index = Number(event.target.dataset.v27PluginSetup);
@@ -1896,7 +1929,7 @@ function v27OpenPopover(kind, trigger) {
 	v27RenderPopover();
 	requestAnimationFrame(() => {
 		v27PositionPopover();
-		v27FocusFirstControl();
+		v27FocusFirstControl(trigger.dataset.v27PopoverFocus);
 	});
 }
 
@@ -2653,7 +2686,7 @@ function v27RemovePlugin(index) {
 		state.plugins.splice(index, 1);
 		if (removesStoreSetup) {
 			state.content.products = 0;
-			state.scripts = state.scripts.filter((script) => script.file !== 'demo-coupon.php');
+			state.content.addTestCoupon = false;
 			if (state.landing === '/wp-admin/edit.php?post_type=product') state.landing = '/wp-admin/';
 		}
 	});
@@ -2670,9 +2703,10 @@ function v27OpenPluginInfo(index) {
 		<div class="v27-plugin-detail" data-v27-plugin-detail="${index}" data-v27-plugin-detail-slug="${escapeHtml(plugin.slug)}">
 			<header class="v27-plugin-detail-head">
 				${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
-				<div><div class="v27-plugin-detail-title"><h3 tabindex="-1" autofocus>${escapeHtml(plugin.name)}</h3>${v27PluginExternalLink(plugin, externalUrl)}</div><span class="v27-source">${escapeHtml(plugin.source || 'Source')}</span></div>
+				<div><div class="v27-plugin-detail-title"><h3 tabindex="-1" autofocus>${escapeHtml(plugin.name)}</h3></div><span class="v27-source">${escapeHtml(plugin.source || 'Source')}</span></div>
 			</header>
 			<p class="v27-plugin-description" data-v27-plugin-description>${escapeHtml(plugin.note || 'No description is available for this source.')}</p>
+			${externalUrl ? `<a class="v27-plugin-source-link" href="${escapeHtml(externalUrl)}" target="_blank" rel="noopener">${wporg ? 'View on WordPress.org' : 'View source'}</a>` : ''}
 			<dl class="v27-plugin-facts">
 				<div><dt>Source</dt><dd>${escapeHtml(plugin.file?.name || plugin.source || 'WordPress.org')}</dd></div>
 				<div><dt>Slug</dt><dd class="mono">${escapeHtml(plugin.slug)}</dd></div>
@@ -2741,10 +2775,6 @@ function v27PluginExternalUrl(plugin) {
 		return 'https://wordpress.org/plugins/' + encodeURIComponent(plugin.slug) + '/';
 	}
 	return /^https?:\/\//i.test(plugin.url || '') ? plugin.url : '';
-}
-
-function v27PluginExternalLink(plugin, url = v27PluginExternalUrl(plugin)) {
-	return url ? `<a class="v27-external-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(plugin.name)} source in a new tab" title="Open source">↗</a>` : '';
 }
 
 function v27FormatInstallCount(value) {
@@ -3353,10 +3383,13 @@ function v27RenderPlugins() {
 			`).join('')}</div>` : '';
 			return `
 				<article class="v27-plugin" data-v27-plugin-slug="${escapeHtml(plugin.slug)}">
-					<div class="v27-plugin-main">
-						${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
-						<span class="v27-plugin-copy"><span class="v27-plugin-title-line"><button class="v27-plugin-title" type="button" data-v27-plugin-info="${index}">${escapeHtml(plugin.name)}</button>${v27PluginExternalLink(plugin)}</span><span>${escapeHtml(plugin.note || plugin.source || plugin.slug)}</span></span>
-						<span class="v27-plugin-summary">${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</span>
+					<div class="v27-plugin-row">
+						<button class="v27-plugin-main" type="button" data-v27-plugin-info="${index}">
+							${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
+							<span class="v27-plugin-copy"><strong class="v27-plugin-title">${escapeHtml(plugin.name)}</strong><span>${escapeHtml(plugin.note || plugin.source || plugin.slug)}</span></span>
+							<span class="v27-plugin-summary">${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</span>
+							<span class="sr-only">View plugin details</span>
+						</button>
 						<button class="icon-btn" type="button" data-remove-plugin="${index}" aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
 					</div>
 					${setupMarkup}
@@ -3368,6 +3401,7 @@ function v27RenderPlugins() {
 
 function v27RenderContent() {
 	document.querySelectorAll('[data-content-lines]').forEach((container) => {
+		const hasWooCommerce = state.plugins.some((plugin) => plugin.slug === 'woocommerce');
 		const pages = state.content.pages.map((page, index) => `
 			<div class="v27-line"><strong>${escapeHtml(page.title)}</strong><span class="leader"></span><span class="tail">${v27WordCount(page.content)} words</span><button class="btn quiet" type="button" data-v27-edit-page="${index}" aria-label="Edit page ${escapeHtml(page.title)}">edit</button><button class="v27-small-remove" type="button" data-v27-remove-page="${index}" aria-label="Remove page ${escapeHtml(page.title)}">×</button></div>
 		`).join('');
@@ -3379,9 +3413,15 @@ function v27RenderContent() {
 		const products = state.content.products ? `
 			<div class="v27-line"><strong>Sample products</strong><span class="leader"></span><span class="tail">${state.content.products} generated on run</span><span></span><span></span></div>
 		` : '';
-		container.innerHTML = pages + `
+		const contentSettings = `
+			<div class="v27-content-settings" role="group" aria-label="Content setup">
+				<label class="v27-content-setting"><input type="checkbox" data-v27-remove-starter-content ${state.content.removeStarterContent ? 'checked' : ''}><span><strong>Start with a clean site</strong><small>Remove “Hello world!”, Sample Page, and the default comment before adding this content.</small></span></label>
+				<label class="v27-content-setting"><input type="checkbox" data-v27-hide-editor-guides ${state.wordpressAdmin.hideEditorGuides ? 'checked' : ''}><span><strong>Hide WordPress editor welcome guides</strong><small>Open the editor ready to work, without first-run tours.</small></span></label>
+				${hasWooCommerce ? `<label class="v27-content-setting"><input type="checkbox" data-v27-add-test-coupon ${state.content.addTestCoupon ? 'checked' : ''}><span><strong>Add a WELCOME10 test coupon</strong><small>Create a 10% coupon for trying the WooCommerce checkout.</small></span></label>` : ''}
+			</div>
+		`;
+		container.innerHTML = contentSettings + pages + `
 			<div class="v27-homepage"><label>Default homepage <select class="ctl" name="homepage" data-field="homepage" aria-label="Default homepage">${homepageOptions}</select></label><span>What visitors see at <span class="mono">/</span></span></div>
-			<label class="switch v27-editor-guides"><input type="checkbox" data-v27-hide-editor-guides ${state.wordpressAdmin.hideEditorGuides ? 'checked' : ''}><span>Hide WordPress editor welcome guides</span></label>
 		` + products + imports;
 	});
 }
@@ -3420,16 +3460,16 @@ function v27RenderScripts() {
 			return `
 			<div class="script-row v27-script"><span class="v27-script-copy"><strong>${escapeHtml(script.name)}</strong><span>${escapeHtml(note)}</span></span>${script.code ? `<button class="btn quiet" type="button" data-v27-edit-script="${index}" aria-label="Edit ${escapeHtml(script.name)}">edit</button>` : '<span></span>'}<button class="btn quiet" type="button" data-open-code="${index}" aria-label="View ${script.code ? 'code' : 'steps'} for ${escapeHtml(script.name)}">view ${script.code ? 'code' : 'steps'}</button><button class="v27-small-remove" type="button" data-v27-remove-script="${index}" aria-label="Remove ${escapeHtml(script.name)}">×</button></div>
 		`;
-		}).join('') : '<p class="empty-note">No finishing steps.</p>';
+		}).join('') : '';
 	});
 }
 
 function v27RenderTheme() {
 	const selected = v27CurrentTheme();
 	setText('theme-name', selected.name);
-	document.querySelectorAll('.nav-theme figure').forEach((figure) => {
-		figure.innerHTML = selected.shot
-			? `<img data-theme-shot src="${escapeHtml(selected.shot)}" alt="${escapeHtml(selected.name)} theme preview">`
+	document.querySelectorAll('.v27-theme-preview').forEach((preview) => {
+		preview.innerHTML = selected.shot
+			? `<img data-theme-shot src="${escapeHtml(selected.shot)}" alt="">`
 			: `<span class="v27-theme-placeholder" aria-hidden="true">${escapeHtml(selected.name.slice(0, 2).toUpperCase())}</span>`;
 	});
 	document.querySelectorAll('[data-theme-count]').forEach((node) => {
@@ -3513,6 +3553,7 @@ function v27FocusToken(element) {
 	const attributes = [
 		'data-field', 'data-plugin-active', 'data-remove-plugin', 'data-v27-plugin-version',
 		'data-v27-plugin-info', 'data-v27-use-theme', 'data-v27-hide-editor-guides',
+		'data-v27-theme-current', 'data-v27-remove-starter-content', 'data-v27-add-test-coupon',
 		'data-v27-edit-page', 'data-v27-remove-page',
 		'data-v27-remove-import', 'data-v27-edit-user', 'data-v27-remove-user',
 		'data-v27-edit-script', 'data-v27-remove-script', 'data-sheet-popover',
@@ -3596,8 +3637,14 @@ function v27BuildBlueprint() {
 		});
 	});
 	if (state.lang !== 'en_US') steps.push({ step: 'setSiteLanguage', language: state.lang });
+	if (state.content.removeStarterContent) {
+		steps.push({ step: 'runPHP', code: STARTER_CONTENT_CODE });
+	}
 	state.content.pages.forEach((page) => { steps.push(v27PageStep(page)); });
 	if (state.content.products) steps.push(v27ProductsStep(state.content.products));
+	if (state.content.addTestCoupon && state.plugins.some((plugin) => plugin.slug === 'woocommerce')) {
+		steps.push({ step: 'runPHP', code: COUPON_CODE });
+	}
 	state.content.imports.forEach((item) => {
 		const resource = v27ImportResource(item);
 		steps.push(item.format === 'SQL'
@@ -3882,6 +3929,8 @@ function v27PrepareState() {
 	const usedPageIds = new Set();
 	const legacyScripts = Array.isArray(state.scripts) ? state.scripts : [];
 	const legacyWooCommerceSetup = legacyScripts.some((script) => (script.recipeKey || script.key) === 'woocommerce-onboarding');
+	const legacyStarterCleanup = legacyScripts.some((script) => (script.recipeKey || script.key) === 'fresh-start');
+	const legacyTestCoupon = legacyScripts.some((script) => script.file === 'demo-coupon.php');
 	state.content.pages = (Array.isArray(state.content.pages) ? state.content.pages : []).map((page, index) => {
 		const title = typeof page === 'string' ? page : page.title || 'Untitled page';
 		const content = typeof page === 'string' ? '' : String(page.content || '');
@@ -3896,6 +3945,12 @@ function v27PrepareState() {
 		return { id, title, content };
 	});
 	state.content.imports = Array.isArray(state.content.imports) ? state.content.imports : [];
+	if (typeof state.content.removeStarterContent !== 'boolean') {
+		state.content.removeStarterContent = legacyStarterCleanup;
+	}
+	if (typeof state.content.addTestCoupon !== 'boolean') {
+		state.content.addTestCoupon = legacyTestCoupon;
+	}
 	state.plugins.forEach((plugin) => {
 		plugin.source = plugin.source || 'WordPress.org';
 		const controls = PLUGIN_SETUP_CONTROLS[plugin.slug] || [];
@@ -3918,7 +3973,11 @@ function v27PrepareState() {
 	if (typeof state.wordpressAdmin.hideEditorGuides !== 'boolean') {
 		state.wordpressAdmin.hideEditorGuides = true;
 	}
-	state.scripts = legacyScripts.filter((script) => !['guides', 'woocommerce-onboarding'].includes(script.recipeKey || script.key));
+	state.scripts = legacyScripts.filter((script) => {
+		const recipeKey = script.recipeKey || script.key;
+		return !['guides', 'woocommerce-onboarding', 'fresh-start'].includes(recipeKey)
+			&& script.file !== 'demo-coupon.php';
+	});
 	state.scripts.forEach((script) => {
 		script.recipeKey = script.recipeKey || script.key || '';
 		delete script.key;
@@ -3935,6 +3994,9 @@ function v27PrepareState() {
 	if (state.homepage !== 'latest-posts' && !usedPageIds.has(state.homepage)) state.homepage = 'latest-posts';
 	if (state.login !== 'none' && !state.users.some((user) => user.username === state.login)) {
 		state.login = state.users[0]?.username || 'none';
+	}
+	if (!state.plugins.some((plugin) => plugin.slug === 'woocommerce')) {
+		state.content.addTestCoupon = false;
 	}
 	if (!Array.isArray(state.installedThemes)) {
 		const selected = THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
@@ -3957,16 +4019,26 @@ function v27SetTriggerState(activeTrigger) {
 	});
 }
 
-function v27FocusFirstControl() {
-	const preferred = document.querySelector('#sheetPopover [data-v27-search], #sheetPopover input:not([type="file"]), #sheetPopover textarea, #sheetPopover button:not([data-close-sheet-popover]):not([disabled])');
+function v27FocusFirstControl(selector = '') {
+	const popover = document.getElementById('sheetPopover');
+	const preferred = selector ? popover.querySelector(selector)
+		: popover.querySelector('[data-v27-search], input:not([type="file"]), textarea, button:not([data-close-sheet-popover]):not([disabled])');
 	preferred?.focus();
 }
 
 function v27PositionPopover() {
 	const popover = document.getElementById('sheetPopover');
 	if (!v27ActiveKind || !v27Trigger || popover.hidden) return;
-	const anchor = v27Trigger.getBoundingClientRect();
 	const gutter = 12;
+	const anchorName = v27Trigger.dataset.v27PopoverAnchor;
+	const preferredAnchor = anchorName
+		? document.querySelector('[data-v27-popover-position="' + CSS.escape(anchorName) + '"]') || v27Trigger
+		: v27Trigger;
+	const preferredBounds = preferredAnchor.getBoundingClientRect();
+	const anchorElement = preferredBounds.bottom > gutter && preferredBounds.top < window.innerHeight - gutter
+		? preferredAnchor
+		: v27Trigger;
+	const anchor = anchorElement.getBoundingClientRect();
 	const gap = 10;
 	const width = popover.offsetWidth;
 	const left = Math.max(gutter, Math.min(anchor.left, window.innerWidth - width - gutter));
