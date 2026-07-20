@@ -7,6 +7,7 @@ class RateLimitedException extends ApiException {}
 class PullRequestApiException extends ApiException
 {
 	private $pullRequestTitle;
+	private $pullRequestOpenedAt;
 
 	/**
 	 * Creates an API error for a pull request that GitHub resolved.
@@ -17,12 +18,19 @@ class PullRequestApiException extends ApiException
 	 *
 	 * @param string         $message          Machine-readable proxy error name.
 	 * @param string         $pullRequestTitle Title returned by the GitHub API.
-	 * @param Throwable|null $previous         Original artifact or workflow error.
+	 * @param string         $pullRequestOpenedAt GitHub creation timestamp.
+	 * @param Throwable|null $previous            Original artifact or workflow error.
 	 */
-	public function __construct($message, $pullRequestTitle, $previous = null)
+	public function __construct(
+		$message,
+		$pullRequestTitle,
+		$pullRequestOpenedAt,
+		$previous = null
+	)
 	{
 		parent::__construct($message, 0, $previous);
 		$this->pullRequestTitle = $pullRequestTitle;
+		$this->pullRequestOpenedAt = $pullRequestOpenedAt;
 	}
 
 	/**
@@ -33,6 +41,16 @@ class PullRequestApiException extends ApiException
 	public function getPullRequestTitle()
 	{
 		return $this->pullRequestTitle;
+	}
+
+	/**
+	 * Returns when GitHub records the pull request as having been opened.
+	 *
+	 * @return string ISO 8601 creation timestamp returned by the GitHub API.
+	 */
+	public function getPullRequestOpenedAt()
+	{
+		return $this->pullRequestOpenedAt;
 	}
 }
 class PluginDownloader
@@ -215,12 +233,16 @@ class PluginDownloader
 			throw new PullRequestApiException(
 				$e->getMessage(),
 				$prDetails->title,
+				$prDetails->created_at,
 				$e
 			);
 		}
 		if ($verified === true && array_key_exists('verify_only', $_GET)) {
 			header('Content-Type: application/json');
-			echo json_encode(['title' => $prDetails->title]);
+			echo json_encode([
+				'title' => $prDetails->title,
+				'created_at' => $prDetails->created_at,
+			]);
 		}
 	}
 
@@ -561,6 +583,7 @@ try {
 	$errorResponse = ['error' => $e->getMessage()];
 	if ($e instanceof PullRequestApiException) {
 		$errorResponse['title'] = $e->getPullRequestTitle();
+		$errorResponse['created_at'] = $e->getPullRequestOpenedAt();
 	}
 	die(json_encode($errorResponse));
 }

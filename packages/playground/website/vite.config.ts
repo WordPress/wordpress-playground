@@ -79,9 +79,15 @@ type PrPreviewMockResult =
 	| 'artifact_expired'
 	| 'unavailable';
 
-const prPreviewMockTitles = {
-	'wordpress-develop': 'Update the HTML API to preserve text boundaries',
-	gutenberg: 'Add a data view for managing reusable blocks',
+const prPreviewMockMetadata = {
+	'wordpress-develop': {
+		title: 'Update the HTML API to preserve text boundaries',
+		created_at: '2026-06-12T09:30:00Z',
+	},
+	gutenberg: {
+		title: 'Add a data view for managing reusable blocks',
+		created_at: '2026-07-18T14:45:00Z',
+	},
 };
 
 /**
@@ -519,11 +525,11 @@ function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
 		}
 
 		const result = scenario[repo];
-		const title = prPreviewMockTitles[repo];
+		const metadata = prPreviewMockMetadata[repo];
 		if (result === 'available') {
 			res.statusCode = 200;
 			res.setHeader('Content-Type', 'application/json');
-			res.end(JSON.stringify({ title }));
+			res.end(JSON.stringify(metadata));
 			return;
 		}
 		if (result === 'unavailable') {
@@ -538,7 +544,7 @@ function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
 		res.end(
 			JSON.stringify({
 				error: result,
-				...(result === 'invalid_pr_number' ? {} : { title }),
+				...(result === 'invalid_pr_number' ? {} : metadata),
 			})
 		);
 	});

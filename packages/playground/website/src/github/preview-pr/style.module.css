@@ -67,6 +67,30 @@
 	flex: none;
 }
 
+.repository-choice-main {
+	align-items: center;
+	display: flex;
+	flex: 1;
+	gap: 12px;
+	min-width: 0;
+}
+
+.repository-choice-logo {
+	align-items: center;
+	color: var(--ink-soft, #2f2d28);
+	display: flex;
+	flex: none;
+	height: 48px;
+	justify-content: center;
+	width: 48px;
+}
+
+.repository-choice-logo img {
+	display: block;
+	max-height: 44px;
+	max-width: 44px;
+}
+
 .repository-choice-text {
 	display: flex;
 	flex: 1;
@@ -80,7 +104,6 @@
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.4;
-	margin-top: 2px;
 	overflow-wrap: anywhere;
 }
 
@@ -88,6 +111,16 @@
 	color: var(--ink-muted, #5f5b54);
 	font-size: 12px;
 	line-height: 1.35;
+	margin-top: 2px;
+}
+
+.repository-choice-opened {
+	display: inline-block;
+	white-space: nowrap;
+}
+
+.repository-choice-opened::before {
+	content: ' · ';
 }
 
 .repository-choice-action {
@@ -108,8 +141,16 @@
 	}
 
 	.repository-choice-action {
-		align-self: flex-start;
+		align-self: flex-end;
 		margin-left: 0;
 		margin-top: 8px;
+	}
+
+	.repository-choice-opened {
+		display: block;
+	}
+
+	.repository-choice-opened::before {
+		content: '';
 	}
 }

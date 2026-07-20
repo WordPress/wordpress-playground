@@ -83,7 +83,10 @@ describe('PreviewPRForm', () => {
 					verificationSuccess(
 						isGutenberg
 							? 'Add a command palette to the editor'
-							: 'Preserve HTML text boundaries'
+							: 'Preserve HTML text boundaries',
+						isGutenberg
+							? '2026-07-18T14:45:00Z'
+							: '2026-06-12T09:30:00Z'
 					)
 				);
 			})
@@ -97,10 +100,12 @@ describe('PreviewPRForm', () => {
 		expect(actions[0].textContent).toContain(
 			'Preserve HTML text boundaries'
 		);
+		expect(actions[0].textContent).toContain('Opened Jun 12, 2026');
 		expect(actions[1].textContent).toContain('Gutenberg · PR #79908');
 		expect(actions[1].textContent).toContain(
 			'Add a command palette to the editor'
 		);
+		expect(actions[1].textContent).toContain('Opened Jul 18, 2026');
 	});
 
 	it('names both repositories when neither repository matches', async () => {
@@ -153,15 +158,22 @@ describe('PreviewPRForm', () => {
 		});
 	}
 
-	function verificationError(error: string, title?: string) {
-		return new Response(JSON.stringify({ error, title }), {
-			status: 400,
-			headers: { 'Content-Type': 'application/json' },
-		});
+	function verificationError(
+		error: string,
+		title?: string,
+		openedAt?: string
+	) {
+		return new Response(
+			JSON.stringify({ error, title, created_at: openedAt }),
+			{
+				status: 400,
+				headers: { 'Content-Type': 'application/json' },
+			}
+		);
 	}
 
-	function verificationSuccess(title: string) {
-		return new Response(JSON.stringify({ title }), {
+	function verificationSuccess(title: string, openedAt: string) {
+		return new Response(JSON.stringify({ title, created_at: openedAt }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});

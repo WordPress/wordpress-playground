@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
-import { arrowRight, Icon } from '@wordpress/icons';
+import { arrowRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
+import gutenbergLogoUrl from './gutenberg-logo.svg';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
 import { InlineProgress } from '../../components/pane-loading';
@@ -22,8 +23,8 @@ import {
  * failed build checks so repository choices can identify the actual change.
  */
 type PrVerification =
-	| { ok: true; title?: string }
-	| { ok: false; error: string; title?: string };
+	| { ok: true; title?: string; openedAt?: string }
+	| { ok: false; error: string; title?: string; openedAt?: string };
 
 /**
  * Associates a repository candidate with the response that classified it.
@@ -479,7 +480,9 @@ export default function PreviewPRForm({
 		const response = await fetch(
 			buildArtifactUrl(resolved) + '&verify_only=true'
 		);
-		let json: { error?: unknown; title?: unknown } | undefined;
+		let json:
+			| { error?: unknown; title?: unknown; created_at?: unknown }
+			| undefined;
 		const responseBody = await response.text();
 		if (responseBody) {
 			try {
@@ -489,8 +492,10 @@ export default function PreviewPRForm({
 			}
 		}
 		const title = typeof json?.title === 'string' ? json.title : undefined;
+		const openedAt =
+			typeof json?.created_at === 'string' ? json.created_at : undefined;
 		if (response.status === 200) {
-			return { ok: true, title };
+			return { ok: true, title, openedAt };
 		}
 
 		if (typeof json?.error === 'string') {
@@ -498,6 +503,7 @@ export default function PreviewPRForm({
 				ok: false,
 				error: json.error,
 				title,
+				openedAt,
 			};
 		}
 		return { ok: false, error: 'unexpected_response' };
@@ -544,41 +550,95 @@ export default function PreviewPRForm({
 							Choose the change you want to preview.
 						</p>
 						<div className={css.repositoryChoices}>
-							{repositoryMatches.map((match) => (
-								<Button
-									key={match.resolved.target}
-									className={css.repositoryChoice}
-									variant="secondary"
-									type="button"
-									onClick={() => selectRepository(match)}
-								>
-									<span className={css.repositoryChoiceText}>
+							{repositoryMatches.map((match) => {
+								const openedDate = formatPullRequestOpenedDate(
+									match.verification.openedAt
+								);
+								return (
+									<Button
+										key={match.resolved.target}
+										className={css.repositoryChoice}
+										variant="secondary"
+										type="button"
+										onClick={() => selectRepository(match)}
+									>
 										<span
-											className={css.repositoryChoiceMeta}
+											className={css.repositoryChoiceMain}
 										>
-											{match.resolved.target ===
-											'wordpress'
-												? 'WordPress Core'
-												: 'Gutenberg'}{' '}
-											· PR #{match.resolved.ref}
+											<span
+												className={
+													css.repositoryChoiceLogo
+												}
+												aria-hidden="true"
+											>
+												{match.resolved.target ===
+												'wordpress' ? (
+													<Icon
+														icon={wordpress}
+														size={42}
+													/>
+												) : (
+													<img
+														src={gutenbergLogoUrl}
+														alt=""
+													/>
+												)}
+											</span>
+											<span
+												className={
+													css.repositoryChoiceText
+												}
+											>
+												<span
+													className={
+														css.repositoryChoiceTitle
+													}
+												>
+													{match.verification.title ||
+														`Pull request ${match.resolved.ref}`}
+												</span>
+												<span
+													className={
+														css.repositoryChoiceMeta
+													}
+												>
+													{match.resolved.target ===
+													'wordpress'
+														? 'WordPress Core'
+														: 'Gutenberg'}{' '}
+													· PR #{match.resolved.ref}
+													{openedDate && (
+														<span
+															className={
+																css.repositoryChoiceOpened
+															}
+														>
+															Opened{' '}
+															<time
+																dateTime={
+																	match
+																		.verification
+																		.openedAt
+																}
+															>
+																{openedDate}
+															</time>
+														</span>
+													)}
+												</span>
+											</span>
 										</span>
 										<span
 											className={
-												css.repositoryChoiceTitle
+												css.repositoryChoiceAction
 											}
 										>
-											{match.verification.title ||
-												`Pull request ${match.resolved.ref}`}
+											Preview
+											<Icon icon={arrowRight} size={16} />
 										</span>
-									</span>
-									<span
-										className={css.repositoryChoiceAction}
-									>
-										Preview
-										<Icon icon={arrowRight} size={16} />
-									</span>
-								</Button>
-							))}
+									</Button>
+								);
+							})}
 						</div>
 					</section>
 				)}
@@ -621,6 +681,37 @@ export default function PreviewPRForm({
 		</form>
 	);
 }
+
+/**
+ * Formats the GitHub creation timestamp shown beneath a pull-request title.
+ *
+ * GitHub returns ISO 8601 timestamps. Missing or malformed timestamps are not
+ * shown, which keeps compatibility with older proxy responses that returned
+ * only verification status and a title.
+ *
+ * @param openedAt ISO 8601 timestamp returned by the preview proxy.
+ * @returns A concise English date, or `undefined` when the timestamp is absent
+ * or invalid.
+ */
+function formatPullRequestOpenedDate(
+	openedAt: string | undefined
+): string | undefined {
+	if (!openedAt) {
+		return undefined;
+	}
+	const date = new Date(openedAt);
+	if (Number.isNaN(date.getTime())) {
+		return undefined;
+	}
+	return pullRequestOpenedDateFormatter.format(date);
+}
+
+const pullRequestOpenedDateFormatter = new Intl.DateTimeFormat('en-US', {
+	day: 'numeric',
+	month: 'short',
+	timeZone: 'UTC',
+	year: 'numeric',
+});
 
 /**
  * Determines whether a verification response identifies a repository match.
