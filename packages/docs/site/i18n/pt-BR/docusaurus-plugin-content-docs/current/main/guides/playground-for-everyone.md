@@ -34,13 +34,13 @@ Assista a esta visão geral rápida:
 A car simulator gives you a steering wheel, pedals, and virtual streets. Practice driving, hit cones, make mistakes — nothing bad happens. No real car gets damaged. Want to try again? Just restart.
 -->
 
-Um simulador de carro oferece um volante, pedais e ruas virtuais. Pratique dirigir, bata em cones, cometa erros — nada de ruim acontece. Nenhum carro real é danificado. Quer tentar novamente? Basta reiniciar.
+Um simulador de carro oferece um volante, pedais e ruas virtuais. Pratique dirigir, bata em cones, cometa erros, nada de ruim acontece. Nenhum carro real é danificado. Quer tentar novamente? Basta reiniciar.
 
 <!--
 WordPress Playground works the same way. It gives you a complete WordPress site to experiment with, but nothing you do affects any real website. Make changes, break things, learn from mistakes — then start fresh whenever you want.
 -->
 
-O WordPress Playground funciona da mesma forma. Ele oferece um site WordPress completo para você experimentar, mas nada do que você faz afeta nenhum site real. Faça alterações, quebre coisas, aprenda com os erros — e depois comece do zero quando quiser.
+O WordPress Playground funciona da mesma forma. Ele oferece um site WordPress completo para você experimentar, mas nada do que você faz afeta nenhum site real. Faça alterações, quebre coisas, aprenda com os erros e depois comece do zero quando quiser.
 
 ![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
@@ -76,19 +76,19 @@ Por padrão, o WordPress Playground carrega uma página inicial para apresentar 
 1. Open **New** from the Dock.
 2. Select **Vanilla WordPress** from the Blueprint Gallery.
 
-    ![New Playground pane in the Dock](/img/dock/dock-new-playground.webp)
+    ![New Playground pane in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 -->
 
 1. Abra **New** no Dock.
 2. Selecione **Vanilla WordPress** na galeria de Blueprints.
 
-    ![Painel New Playground no Dock](/img/dock/dock-new-playground.webp)
+    ![Painel New Playground no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 <!--
 ## If You're Learning WordPress
 -->
 
-## Se Você Está Aprendendo WordPress
+## Se você está aprendendo WordPress
 
 <!--
 Are you new to WordPress or trying to understand features like the Site Editor or the new features of the latest WordPress Release? Playground is your perfect practice space.
@@ -100,7 +100,7 @@ Você é novo no WordPress ou está tentando entender recursos como o Editor do 
 ### Explore How Pages Are Built
 -->
 
-### Explore Como as Páginas São Construídas
+### Explore como as páginas são construídas
 
 <!--
 Playground logs you in as an administrator, so you can edit any page. Click **Edit** for editing posts and **Edit Site** to update the website layout in the top toolbar to open the editor.
@@ -140,13 +140,13 @@ Abra **New** no Dock para acessar a galeria de Blueprints, um conjunto de mais d
 1. Open **New** from the Dock.
 2. Browse the Blueprint Gallery and select the Blueprint to launch in WordPress Playground.
 
-    ![Blueprint Gallery in the Dock](/img/dock/dock-new-playground.webp)
+    ![Blueprint Gallery in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 -->
 
 1. Abra **New** no Dock.
 2. Navegue pela galeria de Blueprints e selecione o Blueprint que deseja iniciar no WordPress Playground.
 
-    ![Galeria de Blueprints no Dock](/img/dock/dock-new-playground.webp)
+    ![Galeria de Blueprints no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 <!--
 ### Try New Features Safely
