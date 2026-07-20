@@ -201,6 +201,9 @@ export default function PreviewPRForm({
 	function buildArtifactUrl(resolved: ResolvedRef): string {
 		const { target: repo, ref, isBranch } = resolved;
 		const refType = isBranch ? 'branch' : 'pr';
+		const proxyUrl = import.meta.env.DEV
+			? '/plugin-proxy.php'
+			: 'https://playground.wordpress.net/plugin-proxy.php';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
 		// For Gutenberg PRs: artifact name is always gutenberg-plugin
 		// For Gutenberg branches: artifact name is always gutenberg-plugin
@@ -210,7 +213,7 @@ export default function PreviewPRForm({
 			// WordPress only supports PRs, not branches
 			artifactSuffix = ref;
 		}
-		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodeURIComponent(ref)}`;
+		return `${proxyUrl}?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodeURIComponent(ref)}`;
 	}
 
 	/**
