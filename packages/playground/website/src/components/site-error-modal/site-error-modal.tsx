@@ -20,6 +20,7 @@ import type {
 import { getSiteErrorView } from './get-site-error-view';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import { useKapaAI } from './use-kapa-ai';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
 export function SiteErrorModal({
 	error,
@@ -60,11 +61,23 @@ export function SiteErrorModal({
 			window.location.href = url.toString();
 		},
 		reloadWithoutBlueprint() {
-			const url = new URL(window.location.href);
-			url.search = '';
-			url.pathname = '/';
-			url.hash = '';
-			window.location.href = url.toString();
+			const currentUrl = new URL(window.location.href);
+			const newSiteUrl = new URL(PlaygroundRoute.newSite());
+			const paramsToKeep = [
+				'mode',
+				'url',
+				'page-title',
+				'mcp',
+				'mcp-port',
+				'can-save',
+			];
+			for (const param of paramsToKeep) {
+				const value = currentUrl.searchParams.get(param);
+				if (value !== null) {
+					newSiteUrl.searchParams.set(param, value);
+				}
+			}
+			redirectTo(newSiteUrl.toString());
 		},
 	};
 
