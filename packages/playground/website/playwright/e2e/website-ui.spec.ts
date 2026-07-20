@@ -927,7 +927,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
-		['Logs', 'Logs pane'],
+		['Logs', 'PHP error log pane'],
 		['Export', 'Export pane'],
 	] as const;
 

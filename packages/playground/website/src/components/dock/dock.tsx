@@ -167,8 +167,8 @@ const PANE_COPY: Record<
 		description: 'Browse and edit the active Playground filesystem.',
 	},
 	logs: {
-		title: 'Logs',
-		description: 'PHP, WordPress, and Playground runtime messages.',
+		title: 'PHP error log',
+		description: 'Errors, warnings, and notices from your site.',
 	},
 	share: {
 		title: 'Export',
@@ -206,6 +206,8 @@ export function Dock({
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = section === 'blueprint' || section === 'files';
+	// Logs hold long monospace records, so they get a wider pane.
+	const isWideSection = section === 'logs';
 	const isFixedHeightSection =
 		section === 'new' || (section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
@@ -988,6 +990,7 @@ export function Dock({
 		dockCenter,
 		viewportSize,
 		isEditorSection,
+		isWideSection,
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
@@ -1002,6 +1005,7 @@ export function Dock({
 		toastHeight: operationToastHeight,
 		paneOpen: dockPaneIsOpen,
 		isEditorSection,
+		isWideSection,
 	});
 
 	return (
@@ -1118,6 +1122,7 @@ export function Dock({
 						[css.hostPaneHidden]:
 							!dockPaneIsOpen && paneExitComplete,
 						[css.paneSave]: section === 'save',
+						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
