@@ -201,7 +201,10 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			sourceSite.metadata.name,
 			filesystemBackend,
 			undefined,
-			{ persistence: 'autosave' }
+			{
+				persistence: 'autosave',
+				siteSlugToReturnToIfBlueprintFails: sourceSite.slug,
+			}
 		);
 		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
 			excludeSlugs: [sourceSite.slug, newSite.slug],
@@ -209,6 +212,36 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
 		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
 		expect(mocks.resolveRuntimeConfiguration).not.toHaveBeenCalled();
+	});
+
+	it('keeps the original return target when an unfinished Blueprint run is run again', async () => {
+		const failedRun = createStoredSiteInfo('autosave', 'failed-run');
+		failedRun.metadata.siteSlugToReturnToIfBlueprintFails = 'original-site';
+		const replacement = createStoredSiteInfo('autosave', 'replacement');
+		const createAction = { type: 'create-stored-site' };
+		mocks.createStoredSite.mockReturnValue(createAction);
+		mocks.pruneAutosavedSites.mockReturnValue({
+			type: 'prune-autosaves',
+		});
+		mocks.dispatch.mockImplementation((action) =>
+			action === createAction ? Promise.resolve(replacement) : action
+		);
+		const editorRef = await renderEditor({ site: failedRun });
+
+		await act(async () => editorRef.current!.runBlueprint());
+
+		expect(mocks.createStoredSite).toHaveBeenCalledWith(
+			failedRun.metadata.name,
+			filesystemBackend,
+			undefined,
+			{
+				persistence: 'autosave',
+				siteSlugToReturnToIfBlueprintFails: 'original-site',
+			}
+		);
+		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
+			excludeSlugs: ['original-site', replacement.slug],
+		});
 	});
 
 	it('queues Run until the source Playground finishes syncing to OPFS', async () => {

@@ -572,6 +572,10 @@ export function createStoredSite(
 		 * Whether the stored site is an autosave or an explicit user save.
 		 */
 		persistence?: SitePersistence;
+		/**
+		 * Slug of the stored Playground to return to if this Blueprint run fails.
+		 */
+		siteSlugToReturnToIfBlueprintFails?: string;
 	} = {}
 ) {
 	return async (
@@ -640,6 +644,12 @@ export function createStoredSite(
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
+				...(options.siteSlugToReturnToIfBlueprintFails
+					? {
+							siteSlugToReturnToIfBlueprintFails:
+								options.siteSlugToReturnToIfBlueprintFails,
+						}
+					: {}),
 				...(sourceSetupUrlFingerprint
 					? {
 							sourceSetupUrlFingerprint:
@@ -790,6 +800,13 @@ export interface SiteMetadata {
 	 * OPFS and clear this flag after a successful sync.
 	 */
 	initialOpfsSyncPending?: boolean;
+	/**
+	 * Slug of the stored Playground to return to if this Blueprint run fails.
+	 *
+	 * This remains set until the first MEMFS-to-OPFS copy succeeds so retries
+	 * and reloads retain the same return target.
+	 */
+	siteSlugToReturnToIfBlueprintFails?: string;
 	/**
 	 * Legacy crash-recovery marker for replacing autosaved WordPress files.
 	 *

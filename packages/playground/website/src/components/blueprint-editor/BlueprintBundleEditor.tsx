@@ -462,18 +462,27 @@ export const BlueprintBundleEditor = forwardRef<
 			}
 			setSaveError(null);
 			if (runInNewPlayground) {
+				const siteSlugToReturnToIfBlueprintFails =
+					site.metadata.siteSlugToReturnToIfBlueprintFails ??
+					site.slug;
 				const newSite = await dispatch(
 					createStoredSite(
 						site.metadata.name,
 						filesystem.backend,
 						undefined,
-						{ persistence: 'autosave' }
+						{
+							persistence: 'autosave',
+							siteSlugToReturnToIfBlueprintFails,
+						}
 					)
 				);
 				try {
 					await dispatch(
 						pruneAutosavedSites({
-							excludeSlugs: [site.slug, newSite.slug],
+							excludeSlugs: [
+								siteSlugToReturnToIfBlueprintFails,
+								newSite.slug,
+							],
 						})
 					);
 				} catch (error) {
