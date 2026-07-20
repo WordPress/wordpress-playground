@@ -65,7 +65,11 @@ import {
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
-import { setActiveSite, useAppDispatch } from '../../lib/state/redux/store';
+import {
+	setActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
@@ -314,10 +318,24 @@ export const BlueprintBundleEditor = forwardRef<
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
 	const [isRunningBlueprint, setIsRunningBlueprint] = useState(false);
+	const [queuedRunSiteSlug, setQueuedRunSiteSlug] = useState<string | null>(
+		null
+	);
+	const isWaitingToRun = queuedRunSiteSlug !== null;
+	const isBlueprintRunPending = isRunningBlueprint || isWaitingToRun;
 	const [validationResult, setValidationResult] =
 		useState<BlueprintValidationResult | null>(null);
 	const hasValidationErrors =
 		validationResult !== null && !validationResult.valid;
+	const storedSiteSlug = site && isStoredSite(site) ? site.slug : undefined;
+	// initialOpfsSyncPending can remain set after a failed boot. Queue only while
+	// the live client reports a copy; cancel on an explicit sync error.
+	const opfsSyncStatus = useAppSelector((state) => {
+		if (!storedSiteSlug) {
+			return undefined;
+		}
+		return state.clients.entities[storedSiteSlug]?.opfsSync?.status;
+	});
 	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
@@ -380,7 +398,7 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
-			if (readOnly || isRunningBlueprint) {
+			if (readOnly || isBlueprintRunPending) {
 				return;
 			}
 			setCode(newCode);
@@ -388,7 +406,7 @@ export const BlueprintBundleEditor = forwardRef<
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, isRunningBlueprint, readOnly, saveFile]
+		[currentPath, isBlueprintRunPending, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -428,6 +446,10 @@ export const BlueprintBundleEditor = forwardRef<
 			hasValidationErrors ||
 			runInProgressRef.current
 		) {
+			return;
+		}
+		if (opfsSyncStatus === 'syncing') {
+			setQueuedRunSiteSlug(site.slug);
 			return;
 		}
 		runInProgressRef.current = true;
@@ -502,7 +524,35 @@ export const BlueprintBundleEditor = forwardRef<
 			runInProgressRef.current = false;
 			setIsRunningBlueprint(false);
 		}
-	}, [dispatch, filesystem, hasValidationErrors, readOnly, saveFile, site]);
+	}, [
+		dispatch,
+		filesystem,
+		hasValidationErrors,
+		opfsSyncStatus,
+		readOnly,
+		saveFile,
+		site,
+	]);
+
+	// A queued Run belongs to the current editor. Resume when no live sync remains;
+	// cancel on a sync error or when the editor changes sites.
+	useEffect(() => {
+		if (queuedRunSiteSlug === null) {
+			return;
+		}
+		if (!site || site.slug !== queuedRunSiteSlug) {
+			setQueuedRunSiteSlug(null);
+			return;
+		}
+		if (opfsSyncStatus === 'syncing') {
+			return;
+		}
+		setQueuedRunSiteSlug(null);
+		if (opfsSyncStatus === 'error') {
+			return;
+		}
+		void handleRunBlueprint();
+	}, [handleRunBlueprint, opfsSyncStatus, queuedRunSiteSlug, site]);
 
 	// autorun token hook
 	useEffect(() => {
@@ -572,7 +622,7 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
-			if (readOnly || isRunningBlueprint) {
+			if (readOnly || isBlueprintRunPending) {
 				return;
 			}
 			const view = cmViewRef.current;
@@ -593,7 +643,7 @@ export const BlueprintBundleEditor = forwardRef<
 			setTimeout(() => formatEditor(view), 0);
 		},
 		[
-			isRunningBlueprint,
+			isBlueprintRunPending,
 			readOnly,
 			stringEditorState.contentEnd,
 			stringEditorState.contentStart,
@@ -728,7 +778,8 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const isAutosaved = site ? isAutosavedSite(site) : false;
 	const isStored = site ? isStoredSite(site) : false;
-	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
+	const disableRunButton =
+		isBlueprintRunPending || !site || hasValidationErrors;
 	const mobileExplorerToggle = (
 		<Button
 			className={styles.mobileToggle}
@@ -878,7 +929,7 @@ export const BlueprintBundleEditor = forwardRef<
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly || isRunningBlueprint}
+							readOnly={readOnly || isBlueprintRunPending}
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
@@ -962,8 +1013,9 @@ export const BlueprintBundleEditor = forwardRef<
 											}
 										)}
 										onClick={handleRunBlueprint}
-										isBusy={isRunningBlueprint}
+										isBusy={isBlueprintRunPending}
 										disabled={disableRunButton}
+										data-testid="run-blueprint"
 										title={
 											hasValidationErrors
 												? 'Fix validation errors before running'
@@ -975,9 +1027,11 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										{isStored
-											? 'Run in a new Playground'
-											: 'Discard current Playground & run Blueprint'}
+										{isWaitingToRun
+											? 'Finishing Playground sync…'
+											: isStored
+												? 'Run in a new Playground'
+												: 'Discard current Playground & run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -1010,12 +1064,19 @@ export const BlueprintBundleEditor = forwardRef<
 						) : null}
 						{isStored ? (
 							<p className={styles.runHint}>
-								Running this Blueprint creates a fresh autosaved
-								Playground. “{site?.metadata.name}” stays in{' '}
-								{isAutosaved
-									? 'Recent autosaves'
-									: 'Saved Playgrounds'}
-								.
+								{isWaitingToRun ? (
+									'Run will wait for this Playground to finish saving.'
+								) : (
+									<>
+										Running this Blueprint creates a fresh
+										autosaved Playground. “
+										{site?.metadata.name}” stays in{' '}
+										{isAutosaved
+											? 'Recent autosaves'
+											: 'Saved Playgrounds'}
+										.
+									</>
+								)}
 							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
@@ -1032,7 +1093,7 @@ export const BlueprintBundleEditor = forwardRef<
 										currentPath={currentPath}
 										className={styles.editor}
 										readOnly={
-											readOnly || isRunningBlueprint
+											readOnly || isBlueprintRunPending
 										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
