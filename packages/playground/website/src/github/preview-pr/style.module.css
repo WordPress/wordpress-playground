@@ -46,9 +46,12 @@
 	align-items: center;
 	background: var(--paper-2, #faf8f5);
 	border-radius: var(--radius-control, 6px);
+	box-sizing: border-box;
 	display: flex;
 	height: auto;
 	justify-content: space-between;
+	max-width: 100%;
+	overflow: hidden;
 	padding: 12px;
 	text-align: left;
 	width: 100%;
@@ -69,6 +72,7 @@
 	flex: 1;
 	flex-direction: column;
 	min-width: 0;
+	white-space: normal;
 }
 
 .repository-choice-title {
@@ -77,6 +81,7 @@
 	font-weight: 600;
 	line-height: 1.4;
 	margin-top: 2px;
+	overflow-wrap: anywhere;
 }
 
 .repository-choice-meta {
@@ -94,4 +99,17 @@
 	font-weight: 500;
 	gap: 4px;
 	margin-left: 16px;
+}
+
+@media (max-width: 519px) {
+	.repository-choice:global(.components-button) {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.repository-choice-action {
+		align-self: flex-start;
+		margin-left: 0;
+		margin-top: 8px;
+	}
 }
