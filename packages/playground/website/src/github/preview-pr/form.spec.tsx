@@ -51,6 +51,7 @@ describe('PreviewPRForm', () => {
 	afterEach(() => {
 		act(() => root.unmount());
 		container.remove();
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
@@ -101,13 +102,38 @@ describe('PreviewPRForm', () => {
 		expect(actions[0].textContent).toContain(
 			'Preserve HTML text boundaries'
 		);
-		expect(actions[0].textContent).toContain('Opened Jun 12, 2026');
+		expect(actions[0].textContent).toContain('opened 2026-06-12');
 		expect(actions[1].textContent).toContain('wordpress/gutenberg');
 		expect(actions[1].textContent).toContain('PR #79908');
 		expect(actions[1].textContent).toContain(
 			'Add a command palette to the editor'
 		);
-		expect(actions[1].textContent).toContain('Opened Jul 18, 2026');
+		expect(actions[1].textContent).toContain('opened 2026-07-18');
+	});
+
+	it('describes pull requests opened today or yesterday', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date(2026, 6, 21, 23, 0));
+		const openedToday = new Date(2026, 6, 21, 22, 48).toISOString();
+		const openedYesterday = new Date(2026, 6, 20, 10, 15).toISOString();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn((input: RequestInfo | URL) => {
+				const isGutenberg = String(input).includes('repo=gutenberg');
+				return Promise.resolve(
+					verificationSuccess(
+						isGutenberg ? 'Gutenberg change' : 'Core change',
+						isGutenberg ? openedYesterday : openedToday
+					)
+				);
+			})
+		);
+
+		await renderAndSubmit('79908');
+
+		const actions = Array.from(container.querySelectorAll('button'));
+		expect(actions[0].textContent).toContain('opened today 10:48pm');
+		expect(actions[1].textContent).toContain('opened yesterday at 10:15am');
 	});
 
 	it('names both repositories when neither repository matches', async () => {

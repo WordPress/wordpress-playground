@@ -42,7 +42,7 @@
 	margin-top: 12px;
 }
 
-.repository-choice:global(.components-button) {
+.repository-choice:global(.components-button.is-secondary) {
 	align-items: center;
 	background: var(--paper-2, #faf8f5);
 	border-radius: var(--radius-control, 6px);
@@ -55,16 +55,35 @@
 	overflow: hidden;
 	padding: 12px;
 	text-align: left;
+	transition:
+		background 0.12s ease,
+		box-shadow 0.12s ease;
 	width: 100%;
 }
 
-.repository-choice:global(.components-button:hover:not(:disabled)) {
+.repository-choice:global(
+	.components-button.is-secondary:hover:not(:disabled)
+) {
 	background: var(--paper-4, #e7e2da);
 	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
 }
 
-.repository-choice:global(.components-button) svg {
-	color: var(--ink-faint, #8a857b);
+.repository-choices
+	.repository-choice:global(
+		.components-button.is-secondary:active:not(:disabled)
+	) {
+	background: var(--paper-5, #e2dcd2);
+	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
+}
+
+.repository-choice:global(
+	.components-button.is-secondary:focus-visible:not(:disabled)
+) {
+	box-shadow: inset 0 0 0 2px rgba(56, 88, 233, 0.8);
+	outline: none;
+}
+
+.repository-choice:global(.components-button.is-secondary) svg {
 	flex: none;
 }
 
@@ -78,7 +97,7 @@
 
 .repository-choice-logo {
 	align-items: center;
-	color: var(--ink-soft, #2f2d28);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex: none;
 	height: 48px;
@@ -126,13 +145,9 @@
 	white-space: nowrap;
 }
 
-.repository-choice-opened::before {
-	content: ' · ';
-}
-
 .repository-choice-action {
 	align-items: center;
-	color: var(--ink-faint, #8a857b);
+	color: var(--action-icon, #4f4b45);
 	display: flex;
 	flex: none;
 	margin-left: 12px;

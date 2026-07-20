@@ -551,7 +551,7 @@ export default function PreviewPRForm({
 						</p>
 						<div className={css.repositoryChoices}>
 							{repositoryMatches.map((match) => {
-								const openedDate = formatPullRequestOpenedDate(
+								const openedAt = formatPullRequestOpenedAt(
 									match.verification.openedAt
 								);
 								const pullRequestTitle =
@@ -618,13 +618,13 @@ export default function PreviewPRForm({
 														}
 													>
 														PR #{match.resolved.ref}
-														{openedDate && (
+														{openedAt && (
 															<span
 																className={
 																	css.repositoryChoiceOpened
 																}
 															>
-																Opened{' '}
+																{' opened '}
 																<time
 																	dateTime={
 																		match
@@ -632,7 +632,7 @@ export default function PreviewPRForm({
 																			.openedAt
 																	}
 																>
-																	{openedDate}
+																	{openedAt}
 																</time>
 															</span>
 														)}
@@ -698,17 +698,23 @@ export default function PreviewPRForm({
 }
 
 /**
- * Formats the GitHub creation timestamp shown beneath a pull-request title.
+ * Formats when a pull request was opened for its repository choice.
  *
- * GitHub returns ISO 8601 timestamps. Missing or malformed timestamps are not
- * shown, which keeps compatibility with older proxy responses that returned
- * only verification status and a title.
+ * Pull requests opened on the user's current calendar day include a concise
+ * local time. Pull requests opened on the preceding calendar day say
+ * "yesterday at" before that time. Older timestamps use the local calendar
+ * date in YYYY-MM-DD form and omit the time.
+ *
+ * Calendar-day comparison uses local date parts rather than elapsed hours, so
+ * crossing a daylight-saving boundary does not misclassify yesterday. Missing
+ * or malformed timestamps are not shown, which keeps compatibility with older
+ * proxy responses that returned only verification status and a title.
  *
  * @param openedAt ISO 8601 timestamp returned by the preview proxy.
- * @returns A concise English date, or `undefined` when the timestamp is absent
- * or invalid.
+ * @returns A concise local description, or `undefined` when the timestamp is
+ * absent or invalid.
  */
-function formatPullRequestOpenedDate(
+function formatPullRequestOpenedAt(
 	openedAt: string | undefined
 ): string | undefined {
 	if (!openedAt) {
@@ -718,14 +724,42 @@ function formatPullRequestOpenedDate(
 	if (Number.isNaN(date.getTime())) {
 		return undefined;
 	}
-	return pullRequestOpenedDateFormatter.format(date);
+	const now = new Date();
+	const openedDay = Date.UTC(
+		date.getFullYear(),
+		date.getMonth(),
+		date.getDate()
+	);
+	const currentDay = Date.UTC(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate()
+	);
+	const daysAgo = (currentDay - openedDay) / 86_400_000;
+	const time = pullRequestOpenedTimeFormatter
+		.formatToParts(date)
+		.map(({ type, value }) =>
+			type === 'dayPeriod' ? value.toLowerCase() : value
+		)
+		.join('')
+		.replace(/\s/gu, '');
+
+	if (daysAgo === 0) {
+		return `today ${time}`;
+	}
+	if (daysAgo === 1) {
+		return `yesterday at ${time}`;
+	}
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+		2,
+		'0'
+	)}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-const pullRequestOpenedDateFormatter = new Intl.DateTimeFormat('en-US', {
-	day: 'numeric',
-	month: 'short',
-	timeZone: 'UTC',
-	year: 'numeric',
+const pullRequestOpenedTimeFormatter = new Intl.DateTimeFormat('en-US', {
+	hour: 'numeric',
+	hour12: true,
+	minute: '2-digit',
 });
 
 /**
