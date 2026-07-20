@@ -45,10 +45,10 @@ The Playground website includes a Dock that opens tools for launching, configuri
 O site do Playground inclui um Dock que abre ferramentas para iniciar, configurar, inspecionar e exportar seu Playground.
 
 <!--
-![Playground Dock](/img/dock/dock-overview.webp)
+![Playground Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 -->
 
-![Dock do Playground](/img/dock/dock-overview.webp)
+![Dock do Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 
 <!--
 ## Customize Playground
@@ -87,10 +87,10 @@ O Dock inclui estes destinos:
 ### Site Settings
 
 <!--
-![Site Settings in the Dock](/img/dock/dock-site-settings.webp)
+![Site Settings in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock//dock-site-settings.webp)
 -->
 
-![Site Settings no Dock](/img/dock/dock-site-settings.webp)
+![Site Settings no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <!--
 The **Site Settings** pane includes these [Query API options](/developers/apis/query-api#available-options):
@@ -131,10 +131,10 @@ Abra **Export** no Dock para baixar ou compartilhar o estado atual do Playground
 - **Export to GitHub**: Envia o estado atual, incluindo as edições, para um repositório GitHub.
 
 <!--
-![Export options in the Dock](/img/dock/dock-export-playground.webp)
+![Export options in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 -->
 
-![Opções de exportação no Dock](/img/dock/dock-export-playground.webp)
+![Opções de exportação no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <!--
 ### Blueprint pane
@@ -143,10 +143,10 @@ Abra **Export** no Dock para baixar ou compartilhar o estado atual do Playground
 ### Painel Blueprint
 
 <!--
-![Blueprint pane in the Dock](/img/dock/dock-current-blueprint.webp)
+![Blueprint pane in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
 -->
 
-![Painel Blueprint no Dock](/img/dock/dock-current-blueprint.webp)
+![Painel Blueprint no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
 
 <!--
 The **Blueprint** pane lets you edit, export, and run the Blueprint for the current Playground.
@@ -161,10 +161,10 @@ O painel **Blueprint** permite editar, exportar e executar o Blueprint do Playgr
 ### Novo Playground
 
 <!--
-![New Playground options in the Dock](/img/dock/dock-new-playground.webp)
+![New Playground options in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 -->
 
-![Opções para um novo Playground no Dock](/img/dock/dock-new-playground.webp)
+![Opções para um novo Playground no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 <!--
 The **New** pane shows all the ways to launch WordPress Playground: choose a Blueprint from the gallery, import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
