@@ -556,8 +556,12 @@ export function setTemporarySiteSpec(
 
 /**
  * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
- * bundle. Bundles are stored with the new Playground before their metadata is
- * written because they may include edits that cannot be represented by a URL.
+ * bundle.
+ *
+ * Editable bundles are copied into the new Playground's storage before its
+ * metadata is written. The metadata points to that persisted copy rather than
+ * the caller's backend, so editing the new Playground cannot mutate the source
+ * bundle.
  */
 export function createStoredSite(
 	siteName: string,
@@ -650,7 +654,8 @@ export function createStoredSite(
 
 		try {
 			if (blueprintBundle) {
-				await persistBlueprintBundle(siteSlug, blueprintBundle);
+				newSiteInfo.metadata.originalBlueprint =
+					await persistBlueprintBundle(siteSlug, blueprintBundle);
 			}
 			await dispatch(addSite(newSiteInfo));
 		} catch (error) {
