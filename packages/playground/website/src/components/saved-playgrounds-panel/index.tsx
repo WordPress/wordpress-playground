@@ -901,7 +901,7 @@ export function SavedPlaygroundsPanel({
 	const creationMethods: {
 		id: CreationTabId;
 		label: string;
-		panelTitle: string | null;
+		panelTitle?: string;
 		icon: React.ReactNode;
 		disabled: boolean;
 	}[] = [
@@ -929,7 +929,6 @@ export function SavedPlaygroundsPanel({
 		{
 			id: 'pull-request',
 			label: 'Preview a PR',
-			panelTitle: null,
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
@@ -1312,7 +1311,7 @@ export function SavedPlaygroundsPanel({
 	function renderNewPlaygroundSection() {
 		// A top tab strip picks a way to start; the panel below swaps to match.
 		// The three Blueprint sources lead so they read as one cohesive way to
-		// start, then the code/import flows. A quiet heading names each flow.
+		// start, then the code/import flows. Most have a quiet secondary heading.
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
@@ -1383,7 +1382,7 @@ export function SavedPlaygroundsPanel({
 					role={isGitHubImportOpen ? 'region' : 'tabpanel'}
 					aria-label={
 						isGitHubImportOpen
-							? (activeMethod?.panelTitle ?? undefined)
+							? activeMethod?.panelTitle
 							: undefined
 					}
 					aria-labelledby={
