@@ -137,7 +137,9 @@
 }
 
 .repository-choice-details {
-	white-space: nowrap;
+	column-gap: 4px;
+	display: flex;
+	flex-wrap: wrap;
 }
 
 .repository-choice-opened {
@@ -154,11 +156,26 @@
 }
 
 @media (max-width: 519px) {
+	.repository-choice:global(.components-button.is-secondary) {
+		position: relative;
+	}
+
 	.repository-choice-main {
 		align-items: flex-start;
 	}
 
 	.repository-choice-logo {
 		transform: translateY(-3px);
+	}
+
+	.repository-choice-title {
+		padding-right: 32px;
+	}
+
+	.repository-choice-action {
+		margin-left: 0;
+		position: absolute;
+		right: 12px;
+		top: 12px;
 	}
 }

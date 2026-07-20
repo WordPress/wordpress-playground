@@ -619,22 +619,27 @@ export default function PreviewPRForm({
 													>
 														PR #{match.resolved.ref}
 														{openedAt && (
-															<span
-																className={
-																	css.repositoryChoiceOpened
-																}
-															>
-																{' opened '}
-																<time
-																	dateTime={
-																		match
-																			.verification
-																			.openedAt
+															<>
+																{' '}
+																<span
+																	className={
+																		css.repositoryChoiceOpened
 																	}
 																>
-																	{openedAt}
-																</time>
-															</span>
+																	opened{' '}
+																	<time
+																		dateTime={
+																			match
+																				.verification
+																				.openedAt
+																		}
+																	>
+																		{
+																			openedAt
+																		}
+																	</time>
+																</span>
+															</>
 														)}
 													</span>
 												</span>
