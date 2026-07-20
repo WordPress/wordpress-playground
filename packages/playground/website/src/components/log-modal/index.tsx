@@ -383,10 +383,17 @@ function useCopyToClipboard(): [boolean, (text: string) => void] {
 	const timerRef = useRef<number>();
 	useEffect(() => () => window.clearTimeout(timerRef.current), []);
 	const copy = (text: string) => {
-		void navigator.clipboard?.writeText(text);
-		setCopied(true);
-		window.clearTimeout(timerRef.current);
-		timerRef.current = window.setTimeout(() => setCopied(false), 1600);
+		void navigator.clipboard?.writeText(text).then(
+			() => {
+				setCopied(true);
+				window.clearTimeout(timerRef.current);
+				timerRef.current = window.setTimeout(
+					() => setCopied(false),
+					1600
+				);
+			},
+			() => {}
+		);
 	};
 	return [copied, copy];
 }

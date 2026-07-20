@@ -13,7 +13,10 @@
 export type LogTier = 'error' | 'warning' | 'info';
 
 export type LogEntry = {
-	/** The unmodified record text — what copying puts on the clipboard. */
+	/**
+	 * The record text as logged, trimmed of surrounding whitespace —
+	 * what copying puts on the clipboard.
+	 */
 	raw: string;
 	/**
 	 * The lifted stamp, e.g. `20-Jul-2026 14:59:46 UTC`, when the record

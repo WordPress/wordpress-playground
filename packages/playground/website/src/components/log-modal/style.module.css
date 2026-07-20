@@ -227,7 +227,7 @@
 .log-clear-search {
 	background: none;
 	border: 0;
-	color: var(--accent-link);
+	color: var(--accent-link, #2645c9);
 	cursor: pointer;
 	font-size: 13px;
 	padding: 0;
