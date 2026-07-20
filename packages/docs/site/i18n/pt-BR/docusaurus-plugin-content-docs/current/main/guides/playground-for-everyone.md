@@ -67,24 +67,22 @@ Quando você visita [playground.wordpress.net](https://playground.wordpress.net)
 - Explorar recursos que você nunca experimentou antes
 
 <!--
-By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. You can also load a vanilla WordPress version without the landing page from the Dock's **New** pane.
 -->
 
-Por padrão, o WordPress Playground carrega uma página inicial para apresentar alguns dos recursos do Playground e onde você pode aprender mais sobre ele. Mas você também pode carregar uma versão vanilla do WordPress sem a página inicial. No painel de Inicialização do Playground, uma opção é carregar uma versão vanilla do WordPress.
+Por padrão, o WordPress Playground carrega uma página inicial para apresentar alguns dos recursos do Playground e onde você pode aprender mais sobre ele. Você também pode carregar uma versão padrão do WordPress sem a página inicial pelo painel **New** do Dock.
 
 <!--
-1. Open Launch WordPress Panel
+1. Open **New** from the Dock.
+2. Select **Vanilla WordPress** from the Blueprint Gallery.
+
+    ![New Playground pane in the Dock](/img/dock/dock-new-playground.webp)
 -->
 
-1. Abra o Painel de Inicialização do WordPress
-   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
+1. Abra **New** no Dock.
+2. Selecione **Vanilla WordPress** na galeria de Blueprints.
 
-<!--
-2. Select to load a Vanilla WordPress version
--->
-
-2. Selecione para carregar uma versão Vanilla do WordPress
-   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
+    ![Painel New Playground no Dock](/img/dock/dock-new-playground.webp)
 
 <!--
 ## If You're Learning WordPress
@@ -133,24 +131,22 @@ Você pode inspecionar colunas, títulos, imagens e botões — e ver exatamente
 #### Explore a Biblioteca de Blueprints
 
 <!--
-At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
+Open **New** from the Dock to access the Blueprint Gallery, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground. Art Gallery, e-commerce, and web portfolio blueprints are some of the examples.
 -->
 
-No painel de Inicialização do WordPress Playground, você terá acesso à Biblioteca de Blueprints, um conjunto de mais de 40 blueprints para inspirá-lo e experimentar diferentes tipos de sites com o WordPress Playground. Galeria de Arte, E-commerce e Portfólio Web são alguns dos exemplos.
+Abra **New** no Dock para acessar a galeria de Blueprints, um conjunto de mais de 40 blueprints que podem servir de inspiração e permitem experimentar diferentes tipos de sites com o WordPress Playground. Galeria de arte, comércio eletrônico e portfólio na web são alguns dos exemplos.
 
 <!--
-1. Open the Blueprint gallery at the Playground Launch Panel
+1. Open **New** from the Dock.
+2. Browse the Blueprint Gallery and select the Blueprint to launch in WordPress Playground.
+
+    ![Blueprint Gallery in the Dock](/img/dock/dock-new-playground.webp)
 -->
 
-1. Abra a galeria de Blueprints no Painel de Inicialização do Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
+1. Abra **New** no Dock.
+2. Navegue pela galeria de Blueprints e selecione o Blueprint que deseja iniciar no WordPress Playground.
 
-<!--
-1. Navigate and select the Blueprint to launch at WordPress Playground
--->
-
-1. Navegue e selecione o Blueprint para iniciar no WordPress Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
+    ![Galeria de Blueprints no Dock](/img/dock/dock-new-playground.webp)
 
 <!--
 ### Try New Features Safely
@@ -159,10 +155,10 @@ No painel de Inicialização do WordPress Playground, você terá acesso à Bibl
 ### Experimente Novos Recursos com Segurança
 
 <!--
-When the WordPress team releases new features, you can test them in Playground before they affect your real site. Select any WordPress version from the settings panel to explore what's new — or what's coming next.
+When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock and select any WordPress version to explore what's new — or what's coming next.
 -->
 
-Quando a equipe do WordPress lança novos recursos, você pode testá-los no Playground antes que afetem seu site real. Selecione qualquer versão do WordPress no painel de configurações para explorar o que há de novo — ou o que está por vir.
+Quando a equipe do WordPress lança novos recursos, você pode testá-los no Playground antes que afetem seu site real. Abra **Site Settings** no Dock e selecione qualquer versão do WordPress para explorar o que há de novo — ou o que está por vir.
 
 <!--
 ## If You Own a WordPress Site
