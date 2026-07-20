@@ -16,6 +16,10 @@ type SiteInfo = SliceSitesModule.SiteInfo;
 const EDITED_BLUEPRINT = '{"steps":[{"step":"login"}]}';
 const mocks = vi.hoisted(() => ({
 	changeCode: undefined as ((code: string) => void) | undefined,
+	clientEntities: {} as Record<
+		string,
+		{ opfsSync?: { status: 'syncing' | 'error' } }
+	>,
 	createStoredSite: vi.fn(),
 	dispatch: vi.fn(),
 	fileExplorerProps: undefined as Record<string, unknown> | undefined,
@@ -57,6 +61,11 @@ vi.mock('../../lib/hooks/use-blueprint-url-hash', () => ({
 
 vi.mock('../../lib/state/redux/store', () => ({
 	useAppDispatch: () => mocks.dispatch,
+	useAppSelector: (
+		selector: (state: {
+			clients: { entities: typeof mocks.clientEntities };
+		}) => unknown
+	) => selector({ clients: { entities: mocks.clientEntities } }),
 	setActiveSite: mocks.setActiveSite,
 }));
 
@@ -108,6 +117,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			writeFile,
 		} as unknown as EventedFilesystem;
 		mocks.changeCode = undefined;
+		mocks.clientEntities = {};
 		mocks.createStoredSite.mockReset();
 		mocks.fileExplorerProps = undefined;
 		mocks.dispatch.mockReset();
@@ -199,6 +209,72 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
 		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
 		expect(mocks.resolveRuntimeConfiguration).not.toHaveBeenCalled();
+	});
+
+	it('queues Run until the source Playground finishes syncing to OPFS', async () => {
+		const sourceSite = createStoredSiteInfo('autosave');
+		const newSite = createStoredSiteInfo('autosave', 'blueprint-copy');
+		const createAction = { type: 'create-stored-site' };
+		mocks.clientEntities[sourceSite.slug] = {
+			opfsSync: { status: 'syncing' },
+		};
+		mocks.createStoredSite.mockReturnValue(createAction);
+		mocks.pruneAutosavedSites.mockReturnValue({ type: 'prune-autosaves' });
+		mocks.dispatch.mockImplementation((action) =>
+			action === createAction ? Promise.resolve(newSite) : action
+		);
+		await renderEditor({ site: sourceSite });
+		const runButton = getRunButton();
+		expect(runButton.disabled).toBe(false);
+
+		await act(async () => runButton.click());
+
+		expect(mocks.createStoredSite).not.toHaveBeenCalled();
+		expect(runButton.disabled).toBe(true);
+
+		mocks.clientEntities[sourceSite.slug] = {};
+		await renderEditor({ site: sourceSite });
+
+		expect(mocks.createStoredSite).toHaveBeenCalledOnce();
+		expect(mocks.setActiveSite).toHaveBeenCalledOnce();
+		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
+	});
+
+	it('cancels a queued Run when OPFS synchronization fails', async () => {
+		const sourceSite = createStoredSiteInfo('autosave');
+		mocks.clientEntities[sourceSite.slug] = {
+			opfsSync: { status: 'syncing' },
+		};
+		await renderEditor({ site: sourceSite });
+		const runButton = getRunButton();
+
+		await act(async () => runButton.click());
+
+		mocks.clientEntities[sourceSite.slug] = {
+			opfsSync: { status: 'error' },
+		};
+		await renderEditor({ site: sourceSite });
+
+		expect(mocks.createStoredSite).not.toHaveBeenCalled();
+		expect(getRunButton().disabled).toBe(false);
+	});
+
+	it('does not block Run on pending-sync metadata alone', async () => {
+		const sourceSite = createStoredSiteInfo('autosave');
+		sourceSite.metadata.initialOpfsSyncPending = true;
+		const newSite = createStoredSiteInfo('autosave', 'blueprint-copy');
+		const createAction = { type: 'create-stored-site' };
+		mocks.createStoredSite.mockReturnValue(createAction);
+		mocks.pruneAutosavedSites.mockReturnValue({ type: 'prune-autosaves' });
+		mocks.dispatch.mockImplementation((action) =>
+			action === createAction ? Promise.resolve(newSite) : action
+		);
+		const editorRef = await renderEditor({ site: sourceSite });
+
+		await act(async () => editorRef.current!.runBlueprint());
+
+		expect(mocks.createStoredSite).toHaveBeenCalled();
+		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
 	});
 
 	it('keeps running a temporary Blueprint in the current Playground', async () => {
@@ -414,6 +490,16 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(editorRef.current).not.toBeNull();
 		expect(mocks.changeCode).toBeTypeOf('function');
 		return editorRef;
+	}
+
+	function getRunButton(): HTMLButtonElement {
+		const button = container.querySelector<HTMLButtonElement>(
+			'button[data-testid="run-blueprint"]'
+		);
+		if (!button) {
+			throw new Error('Run button not found');
+		}
+		return button;
 	}
 
 	function createStoredSiteInfo(

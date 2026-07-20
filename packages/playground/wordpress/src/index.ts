@@ -518,10 +518,9 @@ export async function unzipWordPress(
 			options.expectedFileCount != null &&
 			stats.fileCount !== options.expectedFileCount
 		) {
-			throw new Error(
-				`WordPress core bundle file-count parity check failed: ` +
-					`extracted ${stats.fileCount} files, expected ${options.expectedFileCount}. ` +
-					`The download may be truncated or corrupt.`
+			throw new WordPressBundleFileCountMismatchError(
+				stats.fileCount,
+				options.expectedFileCount
 			);
 		}
 	} else {
@@ -610,6 +609,17 @@ export async function unzipWordPress(
 				joinPaths(php.documentRoot, '/wp-config-sample.php')
 			)
 		);
+	}
+}
+
+export class WordPressBundleFileCountMismatchError extends Error {
+	constructor(actualFileCount: number, expectedFileCount: number) {
+		super(
+			`WordPress core bundle file-count parity check failed: ` +
+				`extracted ${actualFileCount} files, expected ${expectedFileCount}. ` +
+				`The download may be truncated or corrupt.`
+		);
+		this.name = 'WordPressBundleFileCountMismatchError';
 	}
 }
 
