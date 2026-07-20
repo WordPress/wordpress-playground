@@ -26,7 +26,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-2, 8px);
-	margin-top: var(--space-3, 12px);
+	margin-top: var(--space-2, 8px);
 }
 
 .log-filter-chip {
@@ -41,15 +41,22 @@
 	padding: 0 10px;
 }
 
-.log-filter-chip:hover {
+.log-filter-chip:hover:not(:disabled) {
 	border-color: var(--line-hover, rgba(33, 32, 29, 0.22));
 	color: var(--ink, #21201d);
 }
 
+/* The active chip fills with a warm neutral instead of near-black so the
+   filter row stays quieter than the log content it controls. */
 .log-filter-chip[aria-pressed='true'] {
-	background: var(--ink-soft, #2f2d28);
-	border-color: var(--ink-soft, #2f2d28);
-	color: var(--paper-1, #f7f5f2);
+	background: var(--paper-5, #e2dcd2);
+	border-color: var(--paper-5, #e2dcd2);
+	color: var(--ink, #21201d);
+}
+
+.log-filter-chip:disabled {
+	cursor: default;
+	opacity: 0.45;
 }
 
 .log-filter-count {
@@ -92,8 +99,14 @@
 	padding: 0;
 }
 
+/* One grid for every row: a fixed rail, the message, and a copy slot. All
+   metadata aligns in the rail; the message column is the widest and darkest
+   element, so the eye lands on it. */
 .log-entry {
 	border-block-end: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
+	column-gap: var(--space-4, 16px);
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr) 24px;
 	padding: var(--space-3, 12px) 0;
 }
 
@@ -101,52 +114,48 @@
 	border-block-end: 0;
 }
 
-.log-entry-meta {
-	align-items: center;
+.log-entry-rail {
 	display: flex;
-	gap: var(--space-2, 8px);
-	min-height: 24px;
+	flex-direction: column;
+	gap: 2px;
 }
 
-.log-badge {
-	border-radius: 999px;
-	flex-shrink: 0;
+.log-entry-body {
+	min-width: 0;
+}
+
+/* Severity is a small tinted word, not a filled pill — color appears only
+   where it means something. */
+.log-severity {
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.02em;
-	line-height: 18px;
-	padding: 0 var(--space-2, 8px);
+	line-height: 19px;
 }
 
-.log-badge[data-tier='error'] {
-	background: #f6e0da;
+.log-severity[data-tier='error'] {
 	color: #96291b;
 }
 
-.log-badge[data-tier='warning'] {
-	background: #f3e8cd;
+.log-severity[data-tier='warning'] {
 	color: #765311;
 }
 
-.log-badge[data-tier='info'] {
-	background: var(--paper-3, #ece8e1);
+.log-severity[data-tier='info'] {
 	color: var(--ink-muted, #5f5b54);
-}
-
-/* A fixed-width first column ("PHP" / "Playground") so the variable-width
-   severity badges after it all start at the same x and stay scannable. */
-.log-channel {
-	color: var(--ink-faint, #8a857b);
-	flex-shrink: 0;
-	font-size: 12px;
-	min-width: 72px;
 }
 
 .log-timestamp {
 	color: var(--ink-faint, #8a857b);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
-	margin-left: auto;
+	line-height: 19px;
+}
+
+.log-channel-tag {
+	color: var(--ink-faint, #8a857b);
+	font-size: 11px;
+	line-height: 19px;
 }
 
 .log-copy {
@@ -180,8 +189,9 @@
 	font-family:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 	font-size: 12px;
-	line-height: 1.6;
-	margin-top: var(--space-2, 8px);
+	/* Matches the 19px rail line height so the first message line and the
+	   severity word share a baseline. */
+	line-height: 19px;
 	overflow-wrap: anywhere;
 	white-space-collapse: preserve-breaks;
 }
@@ -228,6 +238,29 @@
 
 .log-entry-toggle:hover {
 	text-decoration: underline;
+}
+
+/* On narrow screens the rail folds into one line above the message. */
+@media (max-width: 600px) {
+	.log-entry {
+		display: block;
+		position: relative;
+	}
+
+	.log-entry-rail {
+		align-items: baseline;
+		flex-direction: row;
+		gap: var(--space-2, 8px);
+		margin-bottom: var(--space-1, 4px);
+		/* Keep the metadata clear of the absolutely placed copy button. */
+		padding-right: var(--space-8, 32px);
+	}
+
+	.log-copy {
+		position: absolute;
+		right: 0;
+		top: var(--space-3, 12px);
+	}
 }
 
 .log__empty_placeholder {

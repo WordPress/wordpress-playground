@@ -159,7 +159,7 @@ export function SiteLogs({
 						placeholder="Search logs"
 						value={searchTerm}
 						onChange={setSearchTerm}
-						autoFocus={true}
+						__nextHasNoMarginBottom
 					/>
 					<div
 						className={css.logFilters}
@@ -177,15 +177,18 @@ export function SiteLogs({
 								{channelEntries.length}
 							</span>
 						</button>
-						{TIER_FILTERS.filter(
-							({ tier }) =>
-								tierCounts[tier] > 0 || tierFilter === tier
-						).map(({ tier, label }) => (
+						{/* The chip set is fixed: empty tiers dim instead of
+						    disappearing, so the row never reshuffles. */}
+						{TIER_FILTERS.map(({ tier, label }) => (
 							<button
 								key={tier}
 								type="button"
 								className={css.logFilterChip}
 								aria-pressed={tierFilter === tier}
+								disabled={
+									tierCounts[tier] === 0 &&
+									tierFilter !== tier
+								}
 								onClick={() =>
 									setTierFilter(
 										tierFilter === tier ? 'all' : tier
@@ -198,28 +201,23 @@ export function SiteLogs({
 								</span>
 							</button>
 						))}
-						{(playgroundCount > 0 || showPlayground) && (
-							<>
-								<span
-									className={css.logFilterDivider}
-									aria-hidden="true"
-								/>
-								<button
-									type="button"
-									className={css.logFilterChip}
-									aria-pressed={showPlayground}
-									title="Show runtime messages from the Playground app itself"
-									onClick={() =>
-										setShowPlayground(!showPlayground)
-									}
-								>
-									Playground
-									<span className={css.logFilterCount}>
-										{playgroundCount}
-									</span>
-								</button>
-							</>
-						)}
+						<span
+							className={css.logFilterDivider}
+							aria-hidden="true"
+						/>
+						<button
+							type="button"
+							className={css.logFilterChip}
+							aria-pressed={showPlayground}
+							disabled={playgroundCount === 0 && !showPlayground}
+							title="Show runtime messages from the Playground app itself"
+							onClick={() => setShowPlayground(!showPlayground)}
+						>
+							Playground
+							<span className={css.logFilterCount}>
+								{playgroundCount}
+							</span>
+						</button>
 						{visibleEntries.length > 0 && (
 							<button
 								type="button"
@@ -312,7 +310,7 @@ export function SiteLogs({
 	);
 }
 
-/** One log record: severity, source, and time above a clamped message body. */
+/** One log record: a fixed severity/time rail beside a clamped message. */
 function LogEntryRow({
 	entry,
 	searchTerm,
@@ -350,11 +348,11 @@ function LogEntryRow({
 
 	return (
 		<li ref={entryRef} className={css.logEntry}>
-			<div className={css.logEntryMeta}>
-				{/* Channel first: a two-value, fixed-width column keeps both
-				    it and the variable-width severity badge aligned. */}
-				<span className={css.logChannel}>{entry.channel}</span>
-				<span className={css.logBadge} data-tier={entry.tier}>
+			{/* Severity and time live in one fixed rail so every message
+			    column aligns. PHP is the default context — only Playground
+			    rows carry a channel tag. */}
+			<div className={css.logEntryRail}>
+				<span className={css.logSeverity} data-tier={entry.tier}>
 					{entry.label}
 				</span>
 				{entry.timestamp && (
@@ -362,58 +360,63 @@ function LogEntryRow({
 						{time}
 					</time>
 				)}
-				<button
-					type="button"
-					className={css.logCopy}
-					aria-label="Copy log entry"
-					title="Copy log entry"
-					onClick={() => copy(entry.raw)}
-				>
-					<Icon icon={copied ? check : copySmall} size={18} />
-				</button>
-			</div>
-			<div
-				ref={messageRef}
-				className={css.logEntryMessage}
-				data-clamped={!expanded || undefined}
-			>
-				{splitSearchHighlights(entry.message, searchTerm).map(
-					(segment, segmentIndex) =>
-						segment.highlight ? (
-							<mark key={segmentIndex}>{segment.text}</mark>
-						) : (
-							<Fragment key={segmentIndex}>
-								{segment.text}
-							</Fragment>
-						)
+				{entry.channel === 'Playground' && (
+					<span className={css.logChannelTag}>Playground</span>
 				)}
 			</div>
-			{(overflowing || expanded) && (
-				<button
-					type="button"
-					className={css.logEntryToggle}
-					aria-expanded={expanded}
-					onClick={() => {
-						const next = !expanded;
-						setExpanded(next);
-						if (!next) {
-							// Collapsing shrinks the list; without this the
-							// viewport lands on whatever slid up into it.
-							requestAnimationFrame(() =>
-								entryRef.current?.scrollIntoView({
-									block: 'nearest',
-								})
-							);
-						}
-					}}
+			<div className={css.logEntryBody}>
+				<div
+					ref={messageRef}
+					className={css.logEntryMessage}
+					data-clamped={!expanded || undefined}
 				>
-					{expanded
-						? 'Show less'
-						: lineCount > CLAMP_LINES
-							? `Show all ${lineCount} lines`
-							: 'Show more'}
-				</button>
-			)}
+					{splitSearchHighlights(entry.message, searchTerm).map(
+						(segment, segmentIndex) =>
+							segment.highlight ? (
+								<mark key={segmentIndex}>{segment.text}</mark>
+							) : (
+								<Fragment key={segmentIndex}>
+									{segment.text}
+								</Fragment>
+							)
+					)}
+				</div>
+				{(overflowing || expanded) && (
+					<button
+						type="button"
+						className={css.logEntryToggle}
+						aria-expanded={expanded}
+						onClick={() => {
+							const next = !expanded;
+							setExpanded(next);
+							if (!next) {
+								// Collapsing shrinks the list; without this
+								// the viewport lands on whatever slid up.
+								requestAnimationFrame(() =>
+									entryRef.current?.scrollIntoView({
+										block: 'nearest',
+									})
+								);
+							}
+						}}
+					>
+						{expanded
+							? 'Show less'
+							: lineCount > CLAMP_LINES
+								? `Show all ${lineCount} lines`
+								: 'Show more'}
+					</button>
+				)}
+			</div>
+			<button
+				type="button"
+				className={css.logCopy}
+				aria-label="Copy log entry"
+				title="Copy log entry"
+				onClick={() => copy(entry.raw)}
+			>
+				<Icon icon={copied ? check : copySmall} size={18} />
+			</button>
 		</li>
 	);
 }
