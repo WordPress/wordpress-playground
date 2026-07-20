@@ -1,5 +1,6 @@
 import css from './style.module.css';
 import classNames from 'classnames';
+import { createPortal } from 'react-dom';
 import {
 	Spinner,
 	DropdownMenu,
@@ -170,6 +171,7 @@ export function SavedPlaygroundsPanel({
 	const playground = usePlaygroundClient();
 	const localFsAvailability = useLocalFsAvailability(playground ?? undefined);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+	const zipDragDepthRef = useRef(0);
 	const panelRootRef = useRef<HTMLDivElement>(null);
 	const creationPanelRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
@@ -177,6 +179,7 @@ export function SavedPlaygroundsPanel({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [isDraggingZip, setIsDraggingZip] = useState(false);
 	const [zipImportError, setZipImportError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
@@ -316,47 +319,147 @@ export function SavedPlaygroundsPanel({
 		}
 	}, [panel]);
 
-	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-		if (zipImportPendingRef.current) {
-			e.target.value = '';
-			return;
-		}
-
-		zipImportPendingRef.current = true;
-		setIsImportingZip(true);
-		setZipImportError(undefined);
-		onClose();
-		try {
-			const importedSiteSlug = await sitesAPI.createNewSiteFromZip(file);
-			const importedSite = sitesAPI
-				.list()
-				.find((site) => site.slug === importedSiteSlug);
-			dispatch(
-				setDockOperationNotice({
-					status: 'success',
-					title: 'Playground imported',
-					message:
-						importedSite?.storage === 'temporary'
-							? 'Your Playground is ready. It’s available until you close this page.'
-							: 'Your Playground is ready. It’s autosaved in this browser.',
-				})
-			);
-		} catch (error) {
-			logger.error(error);
-			setZipImportError(
-				'Unable to import this file. Is it a valid WordPress Playground export?'
-			);
-			dispatch(setDockPaneOpen(true));
-		} finally {
-			zipImportPendingRef.current = false;
-			setIsImportingZip(false);
-			if (zipFileInputRef.current) {
-				zipFileInputRef.current.value = '';
-			}
+	const handleImportZip = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (file) {
+			void importZipFile(file);
 		}
 	};
+
+	const importZipFile = useCallback(
+		async (file: File) => {
+			if (zipImportPendingRef.current) {
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+				return;
+			}
+			if (!file.name.toLowerCase().endsWith('.zip')) {
+				setZipImportError('Choose a WordPress Playground .zip export.');
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+				return;
+			}
+
+			zipImportPendingRef.current = true;
+			setIsImportingZip(true);
+			setZipImportError(undefined);
+			onClose();
+			try {
+				const importedSiteSlug =
+					await sitesAPI.createNewSiteFromZip(file);
+				const importedSite = sitesAPI
+					.list()
+					.find((site) => site.slug === importedSiteSlug);
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Playground imported',
+						message:
+							importedSite?.storage === 'temporary'
+								? 'Your Playground is ready. It’s available until you close this page.'
+								: 'Your Playground is ready. It’s autosaved in this browser.',
+					})
+				);
+			} catch (error) {
+				logger.error(error);
+				setZipImportError(
+					'Unable to import this file. Is it a valid WordPress Playground export?'
+				);
+				dispatch(setDockPaneOpen(true));
+			} finally {
+				zipImportPendingRef.current = false;
+				setIsImportingZip(false);
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+			}
+		},
+		[dispatch, onClose, sitesAPI]
+	);
+
+	useEffect(() => {
+		if (panel !== 'new' || activeCreationTab !== 'zip' || isImportingZip) {
+			return;
+		}
+		let dragLeaveTimer: number | undefined;
+
+		function handleDragEnter(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			cancelPendingDragLeave();
+			zipDragDepthRef.current += 1;
+			setIsDraggingZip(true);
+		}
+
+		function handleDragOver(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = 'copy';
+			}
+		}
+
+		function handleDragLeave(event: DragEvent) {
+			if (zipDragDepthRef.current === 0) {
+				return;
+			}
+			event.preventDefault();
+			zipDragDepthRef.current -= 1;
+			if (zipDragDepthRef.current === 0) {
+				dragLeaveTimer = window.setTimeout(() => {
+					dragLeaveTimer = undefined;
+					if (zipDragDepthRef.current === 0) {
+						setIsDraggingZip(false);
+					}
+				}, 50);
+			}
+		}
+
+		function handleDrop(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			cancelPendingDragLeave();
+			zipDragDepthRef.current = 0;
+			setIsDraggingZip(false);
+			const file = event.dataTransfer?.files[0];
+			if (file) {
+				void importZipFile(file);
+			}
+		}
+
+		function hasFiles(event: DragEvent) {
+			return event.dataTransfer?.types.includes('Files') ?? false;
+		}
+
+		function cancelPendingDragLeave() {
+			if (dragLeaveTimer !== undefined) {
+				window.clearTimeout(dragLeaveTimer);
+				dragLeaveTimer = undefined;
+			}
+		}
+
+		document.addEventListener('dragenter', handleDragEnter, true);
+		document.addEventListener('dragover', handleDragOver, true);
+		document.addEventListener('dragleave', handleDragLeave, true);
+		document.addEventListener('drop', handleDrop, true);
+		return () => {
+			document.removeEventListener('dragenter', handleDragEnter, true);
+			document.removeEventListener('dragover', handleDragOver, true);
+			document.removeEventListener('dragleave', handleDragLeave, true);
+			document.removeEventListener('drop', handleDrop, true);
+			cancelPendingDragLeave();
+			zipDragDepthRef.current = 0;
+			setIsDraggingZip(false);
+		};
+	}, [activeCreationTab, importZipFile, isImportingZip, panel]);
 
 	const {
 		data: blueprintsData,
@@ -1494,36 +1597,58 @@ export function SavedPlaygroundsPanel({
 				);
 			case 'zip':
 				return (
-					<div className={css.inlineForm}>
-						<p className={css.inlineFormHint}>
-							Import a WordPress Playground <code>.zip</code>{' '}
-							export to start a new Playground from it.
-						</p>
-						<div className={css.inlineFormActions}>
-							<Button
-								variant="primary"
+					<>
+						{isDraggingZip &&
+							createPortal(
+								<div
+									className={css.zipDropOverlay}
+									data-cy="zip-drop-overlay"
+									aria-hidden="true"
+								>
+									<span className={css.zipDropOverlayIcon}>
+										<Icon icon={upload} size={56} />
+									</span>
+									<span className={css.zipDropOverlayTitle}>
+										Drop a Playground ZIP here
+									</span>
+								</div>,
+								document.body
+							)}
+						<div className={css.inlineForm}>
+							<p className={css.inlineFormHint}>
+								Import a WordPress Playground <code>.zip</code>{' '}
+								export to start a new Playground from it.
+							</p>
+							<button
+								type="button"
+								className={css.zipDropzone}
 								data-cy="restore-from-zip"
-								isBusy={isImportingZip}
 								disabled={isImportingZip}
 								onClick={() => zipFileInputRef.current?.click()}
 							>
-								{isImportingZip
-									? 'Importing…'
-									: 'Choose a .zip file…'}
-							</Button>
+								<span className={css.zipDropzoneIcon}>
+									<Icon icon={upload} size={32} />
+								</span>
+								<span className={css.zipDropzoneTitle}>
+									Drop a Playground ZIP here
+								</span>
+								<span className={css.zipDropzoneHint}>
+									or click to choose a file
+								</span>
+							</button>
+							{zipImportError && (
+								<div
+									className={classNames(
+										css.zipImportStatus,
+										css.zipImportError
+									)}
+									role="alert"
+								>
+									{zipImportError}
+								</div>
+							)}
 						</div>
-						{zipImportError && (
-							<div
-								className={classNames(
-									css.zipImportStatus,
-									css.zipImportError
-								)}
-								role="alert"
-							>
-								{zipImportError}
-							</div>
-						)}
-					</div>
+					</>
 				);
 			default:
 				return null;
@@ -1620,7 +1745,7 @@ export function SavedPlaygroundsPanel({
 				ref={zipFileInputRef}
 				onChange={handleImportZip}
 				accept=".zip,application/zip"
-				style={{ display: 'none' }}
+				className={css.zipFileInput}
 			/>
 			{panel !== 'new' && renderYourPlaygroundsSection()}
 			{panel !== 'playgrounds' && renderNewPlaygroundSection()}
