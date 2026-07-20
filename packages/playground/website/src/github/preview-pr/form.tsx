@@ -117,6 +117,20 @@ export default function PreviewPRForm({
 		return () => cleanupRetryRef.current();
 	}, []);
 
+	const resolvedInput = resolvePrInput(value, target);
+	const isBarePrNumber =
+		inline &&
+		resolvedInput.ok &&
+		!resolvedInput.value.isBranch &&
+		value.trim() === resolvedInput.value.ref;
+	const resolvedSource =
+		inline && resolvedInput.ok && !isBarePrNumber
+			? resolvedInput.value
+			: undefined;
+	const resolvedSourceRepository = resolvedSource
+		? `wordpress/${targetParams[resolvedSource.target].repo}`
+		: undefined;
+
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 
@@ -124,26 +138,21 @@ export default function PreviewPRForm({
 			return;
 		}
 
-		const resolved = resolvePrInput(value, target);
-		if (!resolved.ok) {
+		if (!resolvedInput.ok) {
 			setFeedback({
 				title: 'Check the pull request',
-				message: resolved.error,
+				message: resolvedInput.error,
 				status: 'error',
 			});
 			return;
 		}
 
-		const isBarePrNumber =
-			inline &&
-			!resolved.value.isBranch &&
-			value.trim() === resolved.value.ref;
 		if (isBarePrNumber) {
-			await detectRepository(resolved.value.ref);
+			await detectRepository(resolvedInput.value.ref);
 			return;
 		}
 
-		await previewPr(resolved.value);
+		await previewPr(resolvedInput.value);
 	}
 
 	/**
@@ -510,7 +519,7 @@ export default function PreviewPRForm({
 	}
 
 	const inputLabel = inline
-		? 'WordPress Core or Gutenberg PR'
+		? 'WordPress Core or Gutenberg'
 		: target === 'wordpress'
 			? 'PR number or URL'
 			: 'PR number, URL, or a branch name';
@@ -521,7 +530,7 @@ export default function PreviewPRForm({
 				<TextControl
 					disabled={submitting}
 					label={inputLabel}
-					placeholder={inline ? 'URL or number' : undefined}
+					placeholder={inline ? 'PR number or GitHub URL' : undefined}
 					value={value}
 					autoFocus={!inline}
 					onChange={(e) => {
@@ -530,6 +539,30 @@ export default function PreviewPRForm({
 						setValue(e);
 					}}
 				/>
+				{resolvedSource && (
+					<div className={css.resolvedSource}>
+						<span
+							className={css.resolvedSourceLogo}
+							aria-hidden="true"
+						>
+							{resolvedSource.target === 'wordpress' ? (
+								<Icon icon={wordpress} size={28} />
+							) : (
+								<img src={gutenbergLogoUrl} alt="" />
+							)}
+						</span>
+						<span className={css.resolvedSourceText}>
+							<span className={css.resolvedSourceRepository}>
+								{resolvedSourceRepository}
+							</span>
+							<span className={css.resolvedSourceRef}>
+								{resolvedSource.isBranch
+									? `Branch ${resolvedSource.ref}`
+									: `PR #${resolvedSource.ref}`}
+							</span>
+						</span>
+					</div>
+				)}
 				{submitting && (
 					<div className={css.progress}>
 						<InlineProgress message={loadingMessage} />
@@ -687,7 +720,7 @@ export default function PreviewPRForm({
 						type="submit"
 						disabled={submitting}
 					>
-						Preview
+						{isBarePrNumber ? 'Find pull request' : 'Preview'}
 					</Button>
 				</div>
 			) : !inline ? (

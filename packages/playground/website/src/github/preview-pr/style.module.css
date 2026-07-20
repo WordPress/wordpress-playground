@@ -9,6 +9,50 @@
 	margin-top: 12px;
 }
 
+.resolved-source {
+	align-items: center;
+	color: var(--ink, #21201d);
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.resolved-source-logo {
+	align-items: center;
+	color: var(--action-icon, #4f4b45);
+	display: flex;
+	flex: none;
+	height: 32px;
+	justify-content: center;
+	width: 32px;
+}
+
+.resolved-source-logo img {
+	display: block;
+	max-height: 28px;
+	max-width: 28px;
+}
+
+.resolved-source-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.resolved-source-repository {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.resolved-source-ref {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 12px;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
 .feedback-notice {
 	margin-top: 12px;
 }
