@@ -25,11 +25,12 @@ A full node-graph canvas (n8n/Make style) was **considered and rejected**: both 
 
 ---
 
-## The seven designs
+## The eight designs
 
 | # | Direction | Audience | Foregrounds | Backed by |
 |---|-----------|----------|-------------|-----------|
-| **7** | [**Site Card**](./mockups/08-site-card.html) | newest — evolves #6 | **the site is the control**: identity (title, theme, environment, landing page, users) edited directly on a mini-site — theme = the screenshot (click → installed-themes gallery), landing page = the address bar, environment = the click-to-change spec line, users = the avatar stack; category rows remain only for true collections (Plugins, Content) | direct manipulation · macOS/Slack profile cards · #6's manifest |
+| **8** | [**Paper Blueprint**](./mockups/09-paper-blueprint.html) | newest — evolves #7 | **every section speaks its own notation**: the whole Blueprint is one typeset document — quiet ruled sections, no boxes or accordions. Plugins are a *packing list* (small icon-and-name tiles; click one and its ledger line of version/state/options opens below), content is a *table of contents* with dotted leaders, fonts are *type specimens* set in themselves, recipes are *numbered steps* whose parameters are fill-in-the-blanks inside the sentence, options/constants/code are one block of *fine print*. Names upfront, facts on approach: **what's empty doesn't print** (its ＋ lines gather at the end of the document) and the editing machinery (underlines, carets, actions) surfaces only on the hovered line, so at rest the whole site reads as one calm page. Keeps #7's site-card hero, undo, live JSON, and embedded Run | forms follow their paper ancestors · typographic hierarchy replaces chrome · #7's shelves |
+| **7** | [**Site Card**](./mockups/08-site-card.html) | evolves #6 | **the site is the control**: identity (title, theme, environment, landing page, language, users) edited directly on a mini-site — theme = the screenshot, landing page = the address bar, environment = the click-to-change spec line, users = the avatar stack; collections are always-visible shelves (plugins, content, files & media, fonts, configurable recipes) with undo everywhere, a live JSON tab (+ .zip bundle export), and a Run that carries bundled bytes into an embedded Playground | direct manipulation · macOS/Slack profile cards · #6's manifest |
 | **6** | [**Bill of Materials · minimal**](./mockups/07-bom-minimal.html) | **★ recommended primary** | whole site as a one-line-per-category manifest; open one line to drill in, the rest stay as summaries (focus accordion); two-level drill-down; list + ＋ per category; Materials⇄JSON. *(Fuller "everything expanded" variant: [06](./mockups/06-bill-of-materials.html).)* | package manifests · settings apps · Figma layers · v2 declarative schema |
 | **1** | [**Recipe Cards**](./mockups/01-recipe-cards.html) | alternative: steps = blocks | inline-edited plain-language step cards; Advanced reveal; escape hatch; status dots | Gutenberg · Alex Kirk Step Library |
 | **2** | [**Form ⇄ Code split**](./mockups/02-form-code-split.html) | developer round-trip | round-trip sync; jump-to-node; lenient validation; merged "full config" lens — *its form half is superseded by #6; the code round-trip lives on as #6's JSON toggle* | Stoplight · GitLab CI · Ryan Welcher's WP Director |
@@ -37,7 +38,7 @@ A full node-graph canvas (n8n/Make style) was **considered and rejected**: both 
 | **4** | [**AI Conversational Builder**](./mockups/04-ai-builder.html) | entry layer | describe → editable cards; "explain this"; "what's missing?"; escape to JSON | Matías/Artur AI thread · Alex Kirk "AI instructions" · PLAYGRD-610 |
 | **5** | [**Notebook Blueprint**](./mockups/05-notebook.html) | share & teach | prose + step capsules + first-class code cells; per-cell show-code | Observable · Jupyter · "WordPress Recipes" |
 
-Each mockup has an **"about this design"** panel pinned to the bottom explaining the pattern and the evidence.
+Each mockup has an **"about this design"** panel pinned to the bottom explaining the pattern and the research behind it.
 
 ---
 

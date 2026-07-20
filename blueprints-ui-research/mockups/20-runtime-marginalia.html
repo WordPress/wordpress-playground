@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design 20 · Runtime marginalia — Blueprint editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+
+:root {
+  color-scheme: light;
+  --ink: #1e1e1e;
+  --muted: #646970;
+  --faint: #8c8f94;
+  --line: #dcdcde;
+  --line-strong: #c3c4c7;
+  --soft: #f6f7f7;
+  --blue: #3858e9;
+  --blue-dark: #2145e6;
+  --paper: #fffefb;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --serif: Fraunces, Georgia, serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { color: inherit; font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+code, pre, .mono { font-family: var(--mono); }
+.title-input {
+  width: 100%; padding: 0; border: 0; border-bottom: 1px solid transparent;
+  background: transparent; color: var(--ink); font-family: var(--serif); font-weight: 600;
+}
+.title-input:hover { border-bottom-color: var(--line-strong); }
+.title-input:focus { outline: 0; border-bottom-color: var(--ink); }
+.ctl {
+  min-height: 36px; padding: 6px 28px 6px 10px; appearance: none; border: 1px solid var(--line-strong);
+  border-radius: 6px; background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 9px center / 10px; font-size: 14px; font-weight: 600;
+}
+.ctl:hover, .btn:hover { border-color: #8c8f94; }
+.btn {
+  min-height: 38px; padding: 7px 13px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: #fff; font-size: 13.5px; font-weight: 600;
+}
+.btn:hover { background: var(--soft); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.quiet:hover { border-color: var(--line); color: var(--ink); }
+.run {
+  min-height: 42px; padding: 9px 20px; border: 1px solid var(--blue); border-radius: 7px;
+  background: var(--blue); color: #fff; font-size: 14px; font-weight: 700;
+}
+.run:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
+.switch { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.switch input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+.plugin-list { display: flex; flex-direction: column; }
+.plugin-item {
+  display: grid; grid-template-columns: 34px minmax(140px, 1fr) auto auto auto; gap: 10px;
+  align-items: center; min-height: 50px; padding: 7px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.plugin-icon { width: 32px; height: 32px; border-radius: 7px; object-fit: cover; background: var(--soft); }
+.plugin-copy { min-width: 0; }
+.plugin-copy strong { display: block; overflow: hidden; font-size: 14.5px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-copy span, .plugin-state { color: var(--muted); font-size: 12.5px; }
+.plugin-state { white-space: nowrap; }
+.icon-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--faint); font-size: 18px;
+}
+.icon-btn:hover { background: var(--soft); color: var(--ink); }
+.paper-lines { display: flex; flex-direction: column; }
+.paper-line {
+  display: grid; grid-template-columns: auto minmax(28px, 1fr) auto; gap: 10px; align-items: baseline;
+  min-height: 34px; padding: 6px 0; font-size: 14px;
+}
+.paper-line .leader { border-bottom: 1px dotted var(--line-strong); transform: translateY(-3px); }
+.paper-line .tail { color: var(--muted); text-align: right; }
+.person-row, .script-row {
+  display: grid; grid-template-columns: minmax(140px, 1fr) auto auto; gap: 12px; align-items: center;
+  min-height: 42px; padding: 6px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.person-row span, .script-row span { color: var(--muted); font-size: 13px; }
+.script-row .btn { min-height: 34px; padding: 5px 10px; }
+.empty-note { padding: 14px 0; color: var(--muted); font-size: 13.5px; }
+.image-fallback {
+  display: grid; place-items: center; width: 100%; height: 100%; min-height: 90px; background: #ecebea;
+  color: var(--muted); font-weight: 600; text-align: center;
+}
+.icon-fallback {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 7px;
+  background: #ecebea; color: var(--muted); font-size: 11px; font-weight: 700;
+}
+
+/* Shared dialog, undo, and design-note furniture. */
+.overlay {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px;
+  background: rgba(20, 22, 27, .46);
+}
+.modal {
+  width: min(680px, 100%); max-height: min(720px, 90vh); overflow: auto; border-radius: 12px;
+  background: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, .34);
+}
+.modal-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); background: #fff;
+}
+.modal-head h2 { margin: 0; font-size: 17px; }
+.modal-body { padding: 18px; }
+.modal-body pre {
+  max-height: 58vh; margin: 0; padding: 15px; overflow: auto; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--soft); font: 13px/1.55 var(--mono); white-space: pre;
+}
+.picker-search {
+  width: 100%; min-height: 42px; margin-bottom: 12px; padding: 8px 12px; border: 1px solid var(--line-strong);
+  border-radius: 7px;
+}
+.picker-list { display: flex; flex-direction: column; gap: 4px; }
+.picker-item {
+  display: grid; grid-template-columns: 38px 1fr auto; gap: 11px; align-items: center; width: 100%;
+  min-height: 54px; padding: 7px 9px; border: 0; border-radius: 8px; background: #fff; text-align: left;
+}
+.picker-item:hover { background: var(--soft); }
+.picker-item img { width: 36px; height: 36px; border-radius: 7px; object-fit: cover; }
+.picker-item strong { display: block; }
+.picker-item span { color: var(--muted); font-size: 12.5px; }
+.picker-theme { grid-template-columns: 100px 1fr auto; }
+.picker-theme img { width: 100px; height: 66px; object-position: top; }
+.toast {
+  position: fixed; left: 16px; bottom: 16px; z-index: 110; display: flex; align-items: center; gap: 12px;
+  padding: 8px 9px 8px 15px; border-radius: 9px; background: #111319; color: #fff;
+  font-size: 13.5px; box-shadow: 0 9px 32px rgba(0, 0, 0, .3);
+}
+.toast .btn { min-height: 34px; border-color: #4b5260; background: #262a32; color: #fff; }
+.about {
+  position: fixed; right: 14px; bottom: 14px; z-index: 80; max-width: min(470px, calc(100vw - 28px));
+  border: 1px solid #2a2d34; border-radius: 18px; background: #111319; color: #cfd6e4;
+  font-size: 13px; box-shadow: 0 8px 30px rgba(0, 0, 0, .28);
+}
+.about-head {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; padding: 6px 14px 6px 8px;
+  border: 0; background: transparent; color: inherit; text-align: left;
+}
+.about-badge { padding: 3px 10px; border-radius: 999px; background: #7b5c17; color: #fff; font-weight: 700; }
+.about-hint { color: #8a94a6; }
+.about-body { display: none; padding: 0 16px 15px; line-height: 1.6; }
+.about.open { border-radius: 13px; }
+.about.open .about-body { display: block; }
+@media (max-width: 720px) {
+  .plugin-item { grid-template-columns: 34px 1fr auto; }
+  .plugin-state, .plugin-item .switch { grid-column: 2 / -1; }
+}
+
+
+html { background: #eeeae2; }
+.annotated {
+  position: relative; width: min(980px, calc(100% - 36px)); margin: 30px auto 120px; padding: 42px 48px 48px 132px;
+  border: 1px solid #ddd6c7; border-radius: 5px; background: var(--paper);
+  box-shadow: 0 17px 50px rgba(44, 39, 28, .12);
+}
+.annotated::before { content: ""; position: absolute; top: 0; bottom: 0; left: 103px; border-left: 1px solid #d8b7ae; }
+.annotation-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 26px; border-bottom: 2px solid var(--ink); }
+.annotation-head .kicker { margin: 0 0 6px; color: var(--muted); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.annotation-head .title-input { font-size: 41px; }
+.annotation-head p { margin: 8px 0 0; color: var(--muted); }
+.head-actions { display: flex; gap: 8px; }
+.a-section { position: relative; padding: 24px 0 26px; border-bottom: 1px solid #e5e0d6; scroll-margin: 24vh; }
+.margin-note { position: absolute; top: 24px; left: -118px; width: 88px; color: #8f6b5e; font: 500 10.5px/1.35 var(--mono); text-align: right; }
+.margin-note b { display: block; margin-bottom: 3px; color: #694d43; font-size: 13px; }
+.margin-note::after { content: ""; position: absolute; top: 9px; right: -22px; width: 15px; border-top: 1px solid #c98e7d; }
+.a-section h2 { display: flex; align-items: baseline; gap: 9px; margin: 0 0 12px; color: var(--muted); font: 500 12.5px var(--mono); }
+.a-section h2 b { color: var(--ink); font: 600 21px var(--serif); }
+.hero-grid { display: grid; grid-template-columns: 1fr 158px; gap: 24px; align-items: center; }
+.hero-grid .runtime { display: flex; gap: 8px; flex-wrap: wrap; }
+.hero-grid figure { width: 158px; height: 105px; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
+.hero-grid img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pack-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.pack-list .name-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 39px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; font-size: 13.5px; }
+.pack-list .name-chip img { width: 25px; height: 25px; border-radius: 6px; object-fit: cover; }
+.detail-rule { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #ddd7ca; }
+.fine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.a-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 24px; }
+.a-footer p { margin: 0; color: var(--muted); font-size: 13px; }
+.a-footer-actions { display: flex; gap: 8px; }
+.legend { display: flex; gap: 15px; margin: 14px 0 0; color: var(--faint); font: 10.5px var(--mono); }
+.legend span::before { content: ""; display: inline-block; width: 14px; margin-right: 5px; border-top: 1px solid #c98e7d; vertical-align: middle; }
+.pulse { animation: margin-pulse .9s ease; }
+@keyframes margin-pulse { 35% { background: #fbf2e8; } }
+@media (max-width: 760px) {
+  .annotated { width: 100%; margin: 0 0 100px; padding: 28px 20px 38px 70px; border: 0; border-radius: 0; }
+  .annotated::before { left: 54px; }
+  .margin-note { left: -64px; width: 48px; font-size: 9px; }
+  .margin-note::after { right: -14px; width: 9px; }
+  .annotation-head { align-items: flex-start; flex-direction: column; }
+  .hero-grid { grid-template-columns: 1fr; }
+  .fine-grid { grid-template-columns: 1fr; gap: 0; }
+  .a-footer { align-items: flex-start; flex-direction: column; }
+}
+
+</style>
+</head>
+<body>
+
+<main class="annotated">
+  <header class="annotation-head">
+    <div>
+      <p class="kicker">Annotated Blueprint · categories on the page, runtime in the margin</p>
+      <input class="title-input" data-title aria-label="Site title" spellcheck="false">
+      <p>The materials stay grouped by meaning. Red notes reveal when each one runs.</p>
+      <div class="legend"><span>runtime annotation</span><span>paper manifest</span></div>
+    </div>
+    <div class="head-actions"><button class="btn" type="button" data-view-json>JSON</button><button class="run" type="button" data-run>Run</button></div>
+  </header>
+
+  <section class="a-section" id="note-site">
+    <aside class="margin-note"><b>RUN 01</b>boot first</aside>
+    <h2><b>Site</b> identity and runtime</h2>
+    <div class="hero-grid">
+      <div class="runtime"><select class="ctl" data-field="wp" aria-label="WordPress version"><option value="latest">latest (6.8 today)</option><option value="6.7">6.7</option><option value="nightly">nightly</option></select> <select class="ctl" data-field="php" aria-label="PHP version"><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="7.4">7.4</option></select> <select class="ctl" data-field="lang" aria-label="Site language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option><option value="de_DE">Deutsch</option><option value="pl_PL">Polski</option></select></div>
+      <figure><img data-theme-shot alt=""></figure>
+    </div>
+  </section>
+
+  <section class="a-section" id="note-theme">
+    <aside class="margin-note"><b>RUN 02</b>activate after boot</aside>
+    <h2><b>Theme</b> the face of the site</h2>
+    <div class="paper-line"><strong data-text="theme-name"></strong><span class="leader"></span><span class="tail">will be active <button class="btn quiet" type="button" data-change-theme>change</button></span></div>
+  </section>
+
+  <section class="a-section" id="note-plugins">
+    <aside class="margin-note"><b>RUN 03</b>install in this order</aside>
+    <h2><b>Plugins</b> packing list</h2>
+    <div class="pack-list" data-plugin-names></div>
+    <div class="detail-rule"><div class="plugin-list" data-plugins></div><button class="btn quiet" type="button" data-add-plugin>+ Add a plugin</button></div>
+  </section>
+
+  <section class="a-section" id="note-content">
+    <aside class="margin-note"><b>RUN 04</b>import into blank site</aside>
+    <h2><b>Content</b> table of contents</h2>
+    <div class="paper-lines" data-content-lines></div>
+  </section>
+
+  <section class="a-section" id="note-people">
+    <aside class="margin-note"><b>RUN 05</b>create, then sign in</aside>
+    <h2><b>People</b> access list</h2>
+    <div data-users></div>
+    <p>Sign in as <select class="ctl" data-field="login" aria-label="Who to sign in as"><option value="admin">admin</option><option value="demo-editor">demo-editor</option><option value="none">no one</option></select></p>
+  </section>
+
+  <section class="a-section" id="note-finish">
+    <aside class="margin-note"><b>RUN 06</b>last, before opening</aside>
+    <h2><b>Fine print</b> scripts and arrival</h2>
+    <div class="fine-grid"><div data-scripts></div><div><p>Open <select class="ctl" data-field="landing" aria-label="First page"><option value="/wp-admin/edit.php?post_type=product">the Products page</option><option value="/wp-admin/">the Dashboard</option><option value="/">the homepage</option><option value="/wp-admin/plugins.php">the Plugins page</option></select></p><label class="switch"><input type="checkbox" data-field="networking"><span>internet access</span></label></div></div>
+  </section>
+
+  <footer class="a-footer">
+    <p>The page answers “what is in it?” The margin answers “when does it happen?” Both compile to one file.</p>
+    <div class="a-footer-actions"><button class="btn" type="button" data-view-json>Read file</button><button class="run" type="button" data-run>Run stages 1–6</button></div>
+  </footer>
+</main>
+
+
+<div class="overlay" id="hybridModal" hidden>
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="hybridModalTitle">
+    <header class="modal-head">
+      <h2 id="hybridModalTitle">Details</h2>
+      <button class="btn" type="button" data-close-modal>Close</button>
+    </header>
+    <div class="modal-body" id="hybridModalBody"></div>
+  </section>
+</div>
+<div class="toast" id="hybridToast" role="status" hidden>
+  <span id="hybridToastText"></span>
+  <button class="btn" type="button" data-undo>Undo</button>
+</div>
+
+
+<aside class="about" data-about>
+  <button class="about-head" type="button" data-about-toggle aria-expanded="false">
+    <span class="about-badge">Design 20</span><strong>Runtime marginalia</strong><span class="about-hint">about</span>
+  </button>
+  <div class="about-body">The bet: Paper Blueprint should remain the primary document, with Pre-flight added as annotation rather than a competing layout. Materials stay in stable semantic sections; short notes in the red proofing margin disclose runtime order and lifecycle. The reader gets chronology without sacrificing the calm paper scan or duplicating any controls.</div>
+</aside>
+
+<script>
+
+'use strict';
+
+const GUIDE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+// Keep the first wp-admin visit focused on the site, not welcome panels.
+update_user_meta(
+	1,
+	'wp_persisted_preferences',
+	array( 'core/edit-post' => array( 'welcomeGuide' => false ) )
+);
+`;
+
+const COUPON_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+// Add a coupon so checkout can be tested as soon as the site opens.
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->save();
+`;
+
+const THEMES = [
+	{
+		slug: 'storefront',
+		name: 'Storefront',
+		shot: 'https://ts.w.org/wp-content/themes/storefront/screenshot.png',
+		note: 'WooCommerce storefront'
+	},
+	{
+		slug: 'twentytwentyfive',
+		name: 'Twenty Twenty-Five',
+		shot: 'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png',
+		note: 'Block theme'
+	},
+	{
+		slug: 'ollie',
+		name: 'Ollie',
+		shot: 'https://ts.w.org/wp-content/themes/ollie/screenshot.png',
+		note: 'Block theme with patterns'
+	}
+];
+
+const PLUGIN_CATALOG = [
+	{
+		slug: 'woocommerce',
+		name: 'WooCommerce',
+		icon: 'https://ps.w.org/woocommerce/assets/icon.svg',
+		version: '9.4',
+		note: 'Online store'
+	},
+	{
+		slug: 'wordpress-seo',
+		name: 'Yoast SEO',
+		icon: 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908',
+		version: 'latest',
+		note: 'Search optimization'
+	},
+	{
+		slug: 'query-monitor',
+		name: 'Query Monitor',
+		icon: 'https://ps.w.org/query-monitor/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Developer tools'
+	},
+	{
+		slug: 'contact-form-7',
+		name: 'Contact Form 7',
+		icon: 'https://ps.w.org/contact-form-7/assets/icon.svg',
+		version: 'latest',
+		note: 'Forms'
+	},
+	{
+		slug: 'akismet',
+		name: 'Akismet Anti-spam',
+		icon: 'https://ps.w.org/akismet/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Spam protection'
+	},
+	{
+		slug: 'jetpack',
+		name: 'Jetpack',
+		icon: 'https://ps.w.org/jetpack/assets/icon.svg',
+		version: 'latest',
+		note: 'Site tools'
+	}
+];
+
+let state = {
+	title: "Adam's Demo Store",
+	wp: 'latest',
+	php: '8.3',
+	lang: 'en_US',
+	activeTheme: 'storefront',
+	plugins: [
+		{ ...PLUGIN_CATALOG[0], active: true },
+		{ ...PLUGIN_CATALOG[1], active: true },
+		{ ...PLUGIN_CATALOG[2], active: false, source: 'Bundled file' }
+	],
+	content: {
+		pages: [ 'About', 'Contact', 'Shop' ],
+		products: 12
+	},
+	users: [
+		{ username: 'admin', role: 'Administrator', roleSlug: 'administrator' },
+		{ username: 'demo-editor', role: 'Store manager', roleSlug: 'shop_manager' }
+	],
+	login: 'admin',
+	landing: '/wp-admin/edit.php?post_type=product',
+	networking: true,
+	scripts: [
+		{ name: 'Hide the WordPress welcome guides', file: 'welcome-guides.php', code: GUIDE_CODE },
+		{ name: 'Add a WELCOME10 test coupon', file: 'demo-coupon.php', code: COUPON_CODE }
+	]
+};
+
+const undoStack = [];
+let toastTimer = 0;
+let pickerMode = '';
+let activeLens = 'plan';
+
+init();
+
+function init() {
+	document.addEventListener('click', onClick);
+	document.addEventListener('change', onChange);
+	document.addEventListener('input', onInput);
+	document.addEventListener('keydown', onKeyDown);
+	document.addEventListener('error', onImageError, true);
+	render();
+}
+
+function onClick(event) {
+	const button = event.target.closest('button, [data-scroll]');
+	if (!button) return;
+
+	if (button.matches('[data-add-plugin]')) {
+		openPicker('plugin');
+	} else if (button.matches('[data-change-theme]')) {
+		openPicker('theme');
+	} else if (button.matches('[data-pick-plugin]')) {
+		pickPlugin(button.dataset.pickPlugin);
+	} else if (button.matches('[data-pick-theme]')) {
+		pickTheme(button.dataset.pickTheme);
+	} else if (button.matches('[data-remove-plugin]')) {
+		removePlugin(Number(button.dataset.removePlugin));
+	} else if (button.matches('[data-open-code]')) {
+		openCode(Number(button.dataset.openCode));
+	} else if (button.matches('[data-view-json]')) {
+		openJson();
+	} else if (button.matches('[data-run]')) {
+		runBlueprint();
+	} else if (button.matches('[data-close-modal]')) {
+		closeModal();
+	} else if (button.matches('[data-undo]')) {
+		undo();
+	} else if (button.matches('[data-about-toggle]')) {
+		toggleAbout();
+	} else if (button.matches('[data-lens]')) {
+		setLens(button.dataset.lens);
+	} else if (button.matches('[data-scroll]')) {
+		focusStage(button.dataset.scroll);
+	}
+}
+
+function onChange(event) {
+	const field = event.target.dataset.field;
+	if (field) {
+		const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+		commit('Updated ' + fieldLabel(field), () => { state[field] = value; });
+		return;
+	}
+
+	if (event.target.matches('[data-plugin-active]')) {
+		const index = Number(event.target.dataset.pluginActive);
+		commit(
+			event.target.checked ? 'Plugin will activate' : 'Plugin will install without activation',
+			() => { state.plugins[index].active = event.target.checked; }
+		);
+	}
+}
+
+function onInput(event) {
+	if (event.target.matches('[data-title]')) {
+		state.title = event.target.value || 'Untitled site';
+		document.querySelectorAll('[data-title]').forEach((input) => {
+			if (input !== event.target) input.value = state.title;
+		});
+		renderText();
+		return;
+	}
+
+	if (event.target.matches('[data-picker-search]')) {
+		renderPicker(event.target.value);
+	}
+}
+
+function onKeyDown(event) {
+	if (event.key === 'Escape') {
+		if (!document.getElementById('hybridModal').hidden) {
+			closeModal();
+			return;
+		}
+		const about = document.querySelector('[data-about]');
+		if (about && about.classList.contains('open')) toggleAbout(false);
+	}
+	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+		if (event.target.matches('input, select, textarea')) return;
+		event.preventDefault();
+		undo();
+	}
+}
+
+function render() {
+	renderControls();
+	renderText();
+	renderPlugins();
+	renderContent();
+	renderUsers();
+	renderScripts();
+	renderTheme();
+	renderLens();
+}
+
+function renderControls() {
+	document.querySelectorAll('[data-title]').forEach((input) => {
+		if (document.activeElement !== input) input.value = state.title;
+	});
+	document.querySelectorAll('[data-field]').forEach((control) => {
+		const field = control.dataset.field;
+		if (!(field in state)) return;
+		if (control.type === 'checkbox') control.checked = Boolean(state[field]);
+		else control.value = state[field];
+	});
+}
+
+function renderText() {
+	setText('site-title', state.title);
+	setText('plugin-count', String(state.plugins.length));
+	setText('plugin-active-count', String(state.plugins.filter((plugin) => plugin.active).length));
+	setText('content-count', String(state.content.pages.length + state.content.products));
+	setText('page-count', String(state.content.pages.length));
+	setText('product-count', String(state.content.products));
+	setText('user-count', String(state.users.length));
+	setText('script-count', String(state.scripts.length));
+	setText('login-name', state.login === 'none' ? 'no one' : state.login);
+	setText('landing-name', landingName(state.landing));
+	setText('network-state', state.networking ? 'with internet access' : 'without internet access');
+	setText('ready-count', '6');
+	setText('estimate', 'about 48 seconds');
+	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php);
+	setText('summary-theme', theme().name + ' goes live');
+	setText('summary-plugins', state.plugins.length + ' plugins install · '
+		+ state.plugins.filter((plugin) => plugin.active).length + ' activate');
+	setText('summary-content', state.content.pages.length + ' pages + '
+		+ state.content.products + ' products arrive');
+	setText('summary-users', state.users.length + ' users · sign in as '
+		+ (state.login === 'none' ? 'no one' : state.login));
+	setText('summary-finish', state.scripts.length + ' scripts · open ' + landingName(state.landing));
+}
+
+function renderPlugins() {
+	document.querySelectorAll('[data-plugins]').forEach((container) => {
+		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => `
+			<div class="plugin-item">
+				<img class="plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">
+				<span class="plugin-copy"><strong>${escapeHtml(plugin.name)}</strong>
+					<span>${escapeHtml(plugin.note || plugin.slug)}</span></span>
+				<span class="plugin-state">${escapeHtml(plugin.version)}${plugin.source ? ' · ' + escapeHtml(plugin.source) : ''}</span>
+				<label class="switch"><input type="checkbox" data-plugin-active="${index}"
+					${plugin.active ? 'checked' : ''}><span>active</span></label>
+				<button class="icon-btn" type="button" data-remove-plugin="${index}"
+					aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
+			</div>
+		`).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+	});
+
+	document.querySelectorAll('[data-plugin-names]').forEach((container) => {
+		container.innerHTML = state.plugins.map((plugin) => `
+			<span class="name-chip"><img src="${escapeHtml(plugin.icon)}" alt="">
+				<strong>${escapeHtml(plugin.name)}</strong></span>
+		`).join('');
+	});
+}
+
+function renderContent() {
+	document.querySelectorAll('[data-content-lines]').forEach((container) => {
+		container.innerHTML = `
+			<div class="paper-line"><strong>Starter pages</strong><span class="leader"></span>
+				<span class="tail">${escapeHtml(state.content.pages.join(' · '))}</span></div>
+			<div class="paper-line"><strong>Sample products</strong><span class="leader"></span>
+				<span class="tail">${state.content.products} generated on run</span></div>
+		`;
+	});
+}
+
+function renderUsers() {
+	document.querySelectorAll('[data-users]').forEach((container) => {
+		container.innerHTML = state.users.map((user) => `
+			<div class="person-row"><strong class="mono">${escapeHtml(user.username)}</strong>
+				<span>${escapeHtml(user.role)}</span><span>${user.username === state.login ? 'sign in' : ''}</span></div>
+		`).join('');
+	});
+}
+
+function renderScripts() {
+	document.querySelectorAll('[data-scripts]').forEach((container) => {
+		container.innerHTML = state.scripts.map((script, index) => `
+			<div class="script-row"><strong>${escapeHtml(script.name)}</strong>
+				<span class="mono">${escapeHtml(script.file)}</span>
+				<button class="btn quiet" type="button" data-open-code="${index}">view code</button></div>
+		`).join('');
+	});
+}
+
+function renderTheme() {
+	const selected = theme();
+	setText('theme-name', selected.name);
+	document.querySelectorAll('[data-theme-shot]').forEach((image) => {
+		if (image.tagName === 'IMG') {
+			image.src = selected.shot;
+			image.alt = selected.name + ' theme preview';
+		}
+	});
+}
+
+function renderLens() {
+	document.body.dataset.lens = activeLens;
+	document.querySelectorAll('[data-lens-panel]').forEach((panel) => {
+		panel.hidden = panel.dataset.lensPanel !== activeLens;
+	});
+	document.querySelectorAll('[data-lens]').forEach((button) => {
+		const selected = button.dataset.lens === activeLens;
+		button.classList.toggle('active', selected);
+		button.setAttribute('aria-pressed', String(selected));
+	});
+}
+
+function openPicker(mode) {
+	pickerMode = mode;
+	const noun = mode === 'plugin' ? 'plugin' : 'theme';
+	openModal('Choose a ' + noun, `
+		<input class="picker-search" type="search" data-picker-search
+			placeholder="Filter ${noun}s" aria-label="Filter ${noun}s" autofocus>
+		<div class="picker-list" data-picker-list></div>
+	`);
+	renderPicker('');
+	const search = document.querySelector('[data-picker-search]');
+	if (search) search.focus();
+}
+
+function renderPicker(query) {
+	const list = document.querySelector('[data-picker-list]');
+	if (!list) return;
+	const words = query.trim().toLowerCase();
+	if (pickerMode === 'plugin') {
+		const installed = new Set(state.plugins.map((plugin) => plugin.slug));
+		const matches = PLUGIN_CATALOG.filter((plugin) => !installed.has(plugin.slug))
+			.filter((plugin) => (plugin.name + ' ' + plugin.note).toLowerCase().includes(words));
+		list.innerHTML = matches.length ? matches.map((plugin) => `
+			<button class="picker-item" type="button" data-pick-plugin="${escapeHtml(plugin.slug)}">
+				<img src="${escapeHtml(plugin.icon)}" alt=""><span><strong>${escapeHtml(plugin.name)}</strong>
+				${escapeHtml(plugin.note)}</span><b>Add</b>
+			</button>
+		`).join('') : '<p class="empty-note">No matching plugins.</p>';
+		return;
+	}
+
+	const matches = THEMES.filter((item) => (item.name + ' ' + item.note).toLowerCase().includes(words));
+	list.innerHTML = matches.map((item) => `
+		<button class="picker-item picker-theme" type="button" data-pick-theme="${escapeHtml(item.slug)}">
+			<img src="${escapeHtml(item.shot)}" alt=""><span><strong>${escapeHtml(item.name)}</strong>
+			${escapeHtml(item.note)}</span><b>${item.slug === state.activeTheme ? 'Active' : 'Use'}</b>
+		</button>
+	`).join('');
+}
+
+function pickPlugin(slug) {
+	const plugin = PLUGIN_CATALOG.find((item) => item.slug === slug);
+	if (!plugin) return;
+	commit('Added ' + plugin.name, () => { state.plugins.push({ ...plugin, active: true }); });
+	closeModal();
+}
+
+function pickTheme(slug) {
+	const selected = THEMES.find((item) => item.slug === slug);
+	if (!selected) return;
+	commit('Changed theme to ' + selected.name, () => { state.activeTheme = slug; });
+	closeModal();
+}
+
+function removePlugin(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	commit('Removed ' + plugin.name, () => { state.plugins.splice(index, 1); });
+}
+
+function openCode(index) {
+	const script = state.scripts[index];
+	if (!script) return;
+	openModal(script.name, '<pre>' + escapeHtml(script.code) + '</pre>');
+}
+
+function openJson() {
+	openModal('blueprint.json', '<pre>' + escapeHtml(JSON.stringify(buildBlueprint(), null, 2)) + '</pre>');
+}
+
+function runBlueprint() {
+	const url = 'https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(buildBlueprint()));
+	window.open(url, '_blank', 'noopener');
+}
+
+function buildBlueprint() {
+	return {
+		'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
+		meta: { title: state.title },
+		wordpressVersion: state.wp,
+		phpVersion: state.php,
+		language: state.lang,
+		siteOptions: { blogname: state.title },
+		activeTheme: state.activeTheme,
+		themes: [ state.activeTheme ],
+		plugins: state.plugins.map((plugin) => ({
+			slug: plugin.slug,
+			version: plugin.version,
+			activate: plugin.active
+		})),
+		content: {
+			startsBlank: true,
+			pages: state.content.pages.slice(),
+			sampleProducts: state.content.products
+		},
+		users: state.users.map((user) => ({ username: user.username, role: user.roleSlug })),
+		login: state.login === 'none' ? false : state.login,
+		landingPage: state.landing,
+		networking: state.networking,
+		afterSetup: state.scripts.map((script) => ({
+			step: 'runPHP',
+			note: script.name,
+			code: script.code
+		}))
+	};
+}
+
+function commit(message, change) {
+	undoStack.push(JSON.stringify(state));
+	change();
+	render();
+	showToast(message);
+}
+
+function undo() {
+	const previous = undoStack.pop();
+	if (!previous) return;
+	state = JSON.parse(previous);
+	render();
+	showToast('Last change undone');
+}
+
+function showToast(message) {
+	const toast = document.getElementById('hybridToast');
+	document.getElementById('hybridToastText').textContent = message;
+	toast.hidden = false;
+	window.clearTimeout(toastTimer);
+	toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4500);
+}
+
+function openModal(title, markup) {
+	document.getElementById('hybridModalTitle').textContent = title;
+	document.getElementById('hybridModalBody').innerHTML = markup;
+	document.getElementById('hybridModal').hidden = false;
+}
+
+function closeModal() {
+	document.getElementById('hybridModal').hidden = true;
+	document.getElementById('hybridModalBody').innerHTML = '';
+	pickerMode = '';
+}
+
+function toggleAbout(force) {
+	const about = document.querySelector('[data-about]');
+	if (!about) return;
+	const open = typeof force === 'boolean' ? force : !about.classList.contains('open');
+	about.classList.toggle('open', open);
+	const button = about.querySelector('[data-about-toggle]');
+	if (button) button.setAttribute('aria-expanded', String(open));
+}
+
+function setLens(lens) {
+	activeLens = lens;
+	renderLens();
+	window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function focusStage(id) {
+	const target = document.getElementById(id);
+	if (!target) return;
+	document.querySelectorAll('[data-scroll]').forEach((button) => {
+		button.classList.toggle('current', button.dataset.scroll === id);
+	});
+	target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	target.classList.add('pulse');
+	window.setTimeout(() => target.classList.remove('pulse'), 900);
+}
+
+function setText(name, value) {
+	document.querySelectorAll('[data-text="' + name + '"]').forEach((element) => {
+		element.textContent = value;
+	});
+}
+
+function theme() {
+	return THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
+}
+
+function wpName(value) {
+	return value === 'latest' ? 'latest' : value;
+}
+
+function landingName(value) {
+	return {
+		'/wp-admin/edit.php?post_type=product': 'Products',
+		'/wp-admin/': 'Dashboard',
+		'/': 'Homepage',
+		'/wp-admin/plugins.php': 'Plugins'
+	}[value] || value;
+}
+
+function fieldLabel(field) {
+	return {
+		wp: 'WordPress version',
+		php: 'PHP version',
+		lang: 'language',
+		login: 'login',
+		landing: 'first page',
+		networking: 'internet access'
+	}[field] || field;
+}
+
+function onImageError(event) {
+	const image = event.target;
+	if (!(image instanceof HTMLImageElement) || image.dataset.failed) return;
+	image.dataset.failed = 'true';
+	const fallback = document.createElement('span');
+	const isTheme = image.hasAttribute('data-theme-shot') || image.closest('.picker-theme');
+	fallback.className = isTheme ? 'image-fallback' : 'icon-fallback';
+	fallback.textContent = isTheme ? theme().name : 'WP';
+	image.replaceWith(fallback);
+}
+
+function escapeHtml(value) {
+	return String(value).replace(/[&<>"']/g, (character) => ({
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	}[character]));
+}
+
+</script>
+</body>
+</html>

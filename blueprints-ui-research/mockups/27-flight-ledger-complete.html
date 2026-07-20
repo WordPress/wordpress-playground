@@ -1,0 +1,4075 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An interactive WordPress Playground Blueprint editor presented as a six-stage flight ledger.">
+<title>Design 27 · Complete flight ledger — Blueprint editor</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+
+:root {
+  color-scheme: light;
+  --ink: #1e1e1e;
+  --muted: #646970;
+  --faint: #8c8f94;
+  --line: #dcdcde;
+  --line-strong: #c3c4c7;
+  --soft: #f6f7f7;
+  --blue: #3858e9;
+  --blue-dark: #2145e6;
+  --paper: #fffefb;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --serif: Fraunces, Georgia, serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { color: inherit; font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+code, pre, .mono { font-family: var(--mono); }
+.title-input {
+  width: 100%; padding: 0; border: 0; border-bottom: 1px solid transparent;
+  background: transparent; color: var(--ink); font-family: var(--serif); font-weight: 600;
+}
+.title-input:hover { border-bottom-color: var(--line-strong); }
+.title-input:focus { outline: 0; border-bottom-color: var(--ink); }
+.ctl {
+  min-height: 36px; padding: 6px 28px 6px 10px; appearance: none; border: 1px solid var(--line-strong);
+  border-radius: 6px; background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 9px center / 10px; font-size: 14px; font-weight: 600;
+}
+.ctl:hover, .btn:hover { border-color: #8c8f94; }
+.btn {
+  min-height: 38px; padding: 7px 13px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: #fff; font-size: 13.5px; font-weight: 600;
+}
+.btn:hover { background: var(--soft); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.quiet:hover { border-color: var(--line); color: var(--ink); }
+.run {
+  min-height: 42px; padding: 9px 20px; border: 1px solid var(--blue); border-radius: 7px;
+  background: var(--blue); color: #fff; font-size: 14px; font-weight: 700;
+}
+.run:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
+.switch { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.switch input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+.plugin-list { display: flex; flex-direction: column; }
+.plugin-item {
+  display: grid; grid-template-columns: 34px minmax(140px, 1fr) auto auto auto; gap: 10px;
+  align-items: center; min-height: 50px; padding: 7px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.plugin-icon { width: 32px; height: 32px; border-radius: 7px; object-fit: cover; background: var(--soft); }
+.plugin-copy { min-width: 0; }
+.plugin-copy strong { display: block; overflow: hidden; font-size: 14.5px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-copy span, .plugin-state { color: var(--muted); font-size: 12.5px; }
+.plugin-state { white-space: nowrap; }
+.icon-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--faint); font-size: 18px;
+}
+.icon-btn:hover { background: var(--soft); color: var(--ink); }
+.paper-lines { display: flex; flex-direction: column; }
+.paper-line {
+  display: grid; grid-template-columns: auto minmax(28px, 1fr) auto; gap: 10px; align-items: baseline;
+  min-height: 34px; padding: 6px 0; font-size: 14px;
+}
+.paper-line .leader { border-bottom: 1px dotted var(--line-strong); transform: translateY(-3px); }
+.paper-line .tail { color: var(--muted); text-align: right; }
+.person-row, .script-row {
+  display: grid; grid-template-columns: minmax(140px, 1fr) auto auto; gap: 12px; align-items: center;
+  min-height: 42px; padding: 6px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.person-row span, .script-row span { color: var(--muted); font-size: 13px; }
+.script-row .btn { min-height: 34px; padding: 5px 10px; }
+.empty-note { padding: 14px 0; color: var(--muted); font-size: 13.5px; }
+.image-fallback {
+  display: grid; place-items: center; width: 100%; height: 100%; min-height: 90px; background: #ecebea;
+  color: var(--muted); font-weight: 600; text-align: center;
+}
+.icon-fallback {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 7px;
+  background: #ecebea; color: var(--muted); font-size: 11px; font-weight: 700;
+}
+
+/* Shared dialog, undo, and design-note furniture. */
+.overlay {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px;
+  background: rgba(20, 22, 27, .46);
+}
+.modal {
+  width: min(680px, 100%); max-height: min(720px, 90vh); overflow: auto; border-radius: 12px;
+  background: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, .34);
+}
+.modal-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); background: #fff;
+}
+.modal-head h2 { margin: 0; font-size: 17px; }
+.v27-modal-head-actions { display: flex; gap: 8px; margin-left: auto; }
+.modal-body { padding: 18px; }
+.modal-body pre {
+  max-height: 58vh; margin: 0; padding: 15px; overflow: auto; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--soft); font: 13px/1.55 var(--mono); white-space: pre;
+}
+.picker-search {
+  width: 100%; min-height: 42px; margin-bottom: 12px; padding: 8px 12px; border: 1px solid var(--line-strong);
+  border-radius: 7px;
+}
+.picker-list { display: flex; flex-direction: column; gap: 4px; }
+.picker-item {
+  display: grid; grid-template-columns: 38px 1fr auto; gap: 11px; align-items: center; width: 100%;
+  min-height: 54px; padding: 7px 9px; border: 0; border-radius: 8px; background: #fff; text-align: left;
+}
+.picker-item:hover { background: var(--soft); }
+.picker-item img { width: 36px; height: 36px; border-radius: 7px; object-fit: cover; }
+.picker-item strong { display: block; }
+.picker-item span { color: var(--muted); font-size: 12.5px; }
+.picker-theme { grid-template-columns: 100px 1fr auto; }
+.picker-theme img { width: 100px; height: 66px; object-position: top; }
+.toast {
+  position: fixed; left: 16px; bottom: 16px; z-index: 110; display: flex; align-items: center; gap: 12px;
+  padding: 8px 9px 8px 15px; border-radius: 9px; background: #111319; color: #fff;
+  font-size: 13.5px; box-shadow: 0 9px 32px rgba(0, 0, 0, .3);
+}
+.toast .btn { min-height: 34px; border-color: #4b5260; background: #262a32; color: #fff; }
+.about {
+  position: fixed; right: 14px; bottom: 14px; z-index: 80; max-width: min(470px, calc(100vw - 28px));
+  border: 1px solid #2a2d34; border-radius: 18px; background: #111319; color: #cfd6e4;
+  font-size: 13px; box-shadow: 0 8px 30px rgba(0, 0, 0, .28);
+}
+.about-head {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; padding: 6px 14px 6px 8px;
+  border: 0; background: transparent; color: inherit; text-align: left;
+}
+.about-badge { padding: 3px 10px; border-radius: 999px; background: #7b5c17; color: #fff; font-weight: 700; }
+.about-hint { color: #8a94a6; }
+.about-body { display: none; padding: 0 16px 15px; line-height: 1.6; }
+.about.open { border-radius: 13px; }
+.about.open .about-body { display: block; }
+@media (max-width: 720px) {
+  .plugin-item { grid-template-columns: 34px 1fr auto; }
+  .plugin-state, .plugin-item .switch { grid-column: 2 / -1; }
+}
+
+
+html {
+  background-color: #eceef0;
+  background-image: radial-gradient(#d5d8de .65px, transparent .65px);
+  background-size: 19px 19px;
+}
+.paper-ledger {
+  width: min(860px, calc(100% - 36px)); margin: 28px auto 120px; padding: 39px 46px 45px;
+  border: 1px solid #dbdce0; border-radius: 10px; background: var(--paper);
+  box-shadow: 0 14px 44px rgba(34, 38, 46, .1);
+}
+.paper-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: end;
+  padding-bottom: 25px; border-bottom: 2px solid var(--ink);
+}
+.paper-title { min-width: 0; }
+.paper-head .kicker {
+  margin: 0 0 5px; color: var(--muted); font: 500 11px var(--mono);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.paper-head .title-input { font-size: 40px; }
+.paper-head p:last-child { margin: 7px 0 0; color: var(--muted); }
+.paper-actions { display: flex; gap: 8px; }
+.nav-stage { padding: 25px 0 27px; border-bottom: 1px solid #e2ded4; }
+.nav-stage-head {
+  display: grid; grid-template-columns: 43px 1fr; gap: 10px; align-items: start;
+  margin-bottom: 13px;
+}
+.stage-heading { display: flex; align-items: center; gap: 10px; }
+.nav-stage-head .n {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: 1px solid #c9b88e; border-radius: 50%; color: #806a3b;
+  font: 600 11px var(--mono);
+}
+.nav-stage-head h2 { margin: 1px 0 3px; font: 600 22px/1.3 var(--serif); }
+.nav-stage-head p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.new-btn {
+  min-width: 88px; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 9px; background: transparent;
+  color: var(--muted); font-size: 15px; font-weight: 600; line-height: 20px; white-space: nowrap;
+}
+.new-btn:hover, .new-btn.is-active { background: #eef1ff; color: var(--blue-dark); }
+/* The 43px number column plus its 10px gap gives headings and bodies one exact x-origin. */
+.nav-stage-body { margin-left: 53px; }
+.nav-runtime { display: flex; gap: 7px 14px; flex-wrap: wrap; }
+.nav-runtime label {
+  display: flex; flex-direction: column; gap: 2px; color: var(--muted);
+  font: 10px var(--mono);
+}
+.v27-network-ctl {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px;
+  color: var(--ink); font: 600 14px/1.2 var(--sans);
+}
+.v27-network-ctl input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+.nav-theme { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: end; }
+.nav-theme figure {
+  width: 280px; height: 210px; margin: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 7px; background: #eceff4;
+}
+.nav-theme img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.v27-active-theme-copy { min-width: 0; padding-bottom: 3px; }
+.v27-active-theme-copy .v27-section-label { margin: 0 0 7px; }
+.v27-active-theme-copy strong { display: block; font: 600 24px/1.25 var(--serif); }
+.v27-active-theme-copy > span { display: block; margin-top: 5px; color: var(--muted); font-size: 12.5px; }
+.nav-options { display: flex; align-items: center; gap: 9px; margin-top: 10px; flex-wrap: wrap; }
+.v27-option-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+.paper-end {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding-top: 24px;
+}
+.paper-end p { max-width: 480px; margin: 0; color: var(--muted); font-size: 13px; }
+.paper-end-actions { display: flex; gap: 8px; }
+.sheet-popover {
+  position: fixed; z-index: 86; width: min(390px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 24px));
+  overflow: auto; padding: 14px; border: 1px solid rgba(23, 23, 27, .1); border-radius: 13px;
+  background: #fff; box-shadow: 0 3px 8px rgba(24, 28, 64, .08), 0 24px 60px -12px rgba(24, 28, 64, .25);
+}
+.sheet-popover-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sheet-popover-head h3 { margin: 0; font-size: 14px; }
+.sheet-popover-head p { margin: 2px 0 0; color: var(--muted); font-size: 11.5px; }
+.popover-close {
+  display: grid; place-items: center; width: 30px; height: 30px; flex: none; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 16px;
+}
+.popover-close:hover { background: var(--soft); color: var(--ink); }
+.sheet-search, .sheet-input, .sheet-select {
+  width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-strong);
+  border-radius: 7px; background: #fff; font-size: 13px;
+}
+.sheet-results { display: flex; flex-direction: column; gap: 3px; margin-top: 9px; }
+.sheet-choice {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  width: 100%; min-height: 48px; padding: 7px 8px; border: 0; border-radius: 7px;
+  background: #fff; text-align: left;
+}
+.sheet-choice:hover { background: var(--soft); }
+.sheet-choice img { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; }
+.sheet-choice strong { display: block; font-size: 13px; }
+.sheet-choice span span { display: block; color: var(--muted); font-size: 11.5px; }
+.sheet-choice > b { color: var(--blue-dark); font-size: 11.5px; }
+.sheet-choice.active { background: #eef1ff; }
+.sheet-choice.no-icon { grid-template-columns: 1fr auto; }
+.sheet-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.sheet-form + .sheet-choice, .sheet-choice + .sheet-form { margin-top: 10px; }
+.sheet-form.user { grid-template-columns: minmax(0, 1fr) 135px auto; }
+.sheet-empty { margin: 10px 4px 2px; color: var(--muted); font-size: 12px; }
+.sheet-popover-note { margin: 10px 3px 0; color: var(--faint); font-size: 11px; }
+@media (max-width: 720px) {
+  .paper-ledger {
+    width: 100%; margin: 0 0 100px; padding: 28px 20px 38px;
+    border: 0; border-radius: 0;
+  }
+  .paper-head { grid-template-columns: 1fr; }
+  .paper-head .title-input { font-size: 36px; }
+  .paper-actions { justify-content: flex-start; }
+  .nav-theme { grid-template-columns: 220px minmax(0, 1fr); gap: 18px; }
+  .nav-theme figure { width: 220px; height: 165px; }
+  .paper-end { align-items: flex-start; flex-direction: column; }
+  .sheet-form.user { grid-template-columns: 1fr; }
+}
+
+#hybridModal { z-index: 120; }
+.stage-heading { gap: 12px; }
+.stage-list { margin: 0; padding: 0; list-style: none; }
+.title-input:focus-visible {
+  border-bottom-color: transparent; border-radius: 3px; outline: 2px solid var(--blue); outline-offset: 4px;
+}
+.new-btn:focus-visible, .popover-close:focus-visible, .sheet-choice:focus-visible,
+.v27-upload:focus-visible, .v27-installed-theme:focus-visible {
+  outline: 2px solid var(--blue); outline-offset: 2px;
+}
+.sheet-popover {
+  display: flex; flex-direction: column; width: min(480px, calc(100vw - 24px));
+  max-height: min(650px, calc(100vh - 24px)); overflow: hidden; padding: 0; border-radius: 14px;
+}
+.sheet-popover[data-kind="theme"] { width: min(520px, calc(100vw - 24px)); }
+#sheetPopoverBody { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 6px 18px 18px; }
+.sheet-popover-head { margin-bottom: 10px; padding: 16px 18px 0; }
+.sheet-popover-head h3 { font-size: 17px; }
+.sheet-popover-head p { margin-top: 3px; font-size: 12.5px; line-height: 1.45; }
+.popover-close { width: 38px; height: 38px; border-radius: 8px; font-size: 19px; }
+.sheet-search, .sheet-input, .sheet-select {
+  min-height: 42px; padding: 9px 11px; font-size: 14px;
+}
+.sheet-choice {
+  grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 58px;
+  padding: 8px 10px; border: 1px solid transparent; border-radius: 9px;
+}
+.sheet-choice:hover, .sheet-choice.is-keyboard-active { background: #eef1ff; }
+.sheet-choice.is-keyboard-active { border-color: #b5c0ff; }
+.sheet-choice:disabled { background: #f7f7f8; color: var(--muted); opacity: .68; }
+.sheet-choice img { width: 40px; height: 40px; border-radius: 8px; }
+.sheet-choice strong { font-size: 14px; }
+.sheet-choice span span {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 2px;
+  overflow: hidden; overflow-wrap: anywhere; font-size: 12px; line-height: 1.35;
+}
+.sheet-choice > b { font-size: 12px; }
+.sheet-choice.is-theme-result { grid-template-columns: 84px minmax(0, 1fr) auto; }
+.sheet-choice.is-theme-result img { width: 84px; height: 54px; object-position: top; }
+.sheet-choice.no-icon { grid-template-columns: minmax(0, 1fr) auto; }
+.sheet-results { gap: 4px; margin-top: 10px; }
+.v27-smart-add { border-radius: 10px; }
+.v27-smart-add.is-dragging { outline: 2px dashed var(--blue); outline-offset: 5px; background: #f4f6ff; }
+.v27-search-row {
+  position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px; margin-top: -6px; padding: 6px 0 10px; background: #fff;
+  box-shadow: 0 1px 0 var(--line);
+}
+.v27-upload {
+  min-height: 42px; padding: 8px 12px; border: 1px solid var(--line-strong);
+  border-radius: 8px; background: #fff; color: var(--blue-dark); font-size: 13px; font-weight: 600;
+}
+.v27-status { min-height: 18px; margin: 8px 3px 0; color: var(--muted); font-size: 12px; }
+.v27-status[data-tone="error"] { color: #a33b27; }
+.v27-status[data-tone="success"] { color: #257344; }
+.v27-status[data-v27-search-status] { margin: 10px 2px 0; font-weight: 600; }
+.v27-group-label { margin: 16px 2px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.v27-group-label:first-child { margin-top: 2px; }
+.v27-section-label {
+  margin: 2px 2px 8px; color: var(--muted); font: 600 12px var(--mono);
+  letter-spacing: .07em; text-transform: uppercase;
+}
+.v27-installed { display: grid; gap: 2px; }
+.v27-installed-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px; align-items: center; }
+.v27-installed-theme {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  min-height: 64px; padding: 6px 8px; border: 1px solid transparent; border-radius: 9px;
+  background: transparent; text-align: left;
+}
+.v27-installed-theme:hover { background: var(--soft); }
+.v27-installed-theme img { width: 84px; height: 54px; border-radius: 7px; object-fit: cover; object-position: top; }
+.v27-installed-theme strong, .v27-installed-theme span { display: block; }
+.v27-installed-theme span { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.v27-installed-theme b { color: var(--blue-dark); font-size: 12px; white-space: nowrap; }
+.v27-installed-theme:not([aria-pressed="true"]) b { visibility: hidden; }
+.v27-installed-theme:not([aria-pressed="true"]):hover b,
+.v27-installed-theme:not([aria-pressed="true"]):focus-visible b { visibility: visible; }
+.v27-installed-row .v27-small-remove { opacity: 0; }
+.v27-installed-row:hover .v27-small-remove, .v27-installed-row:focus-within .v27-small-remove { opacity: 1; }
+.v27-small-remove {
+  width: 38px; min-height: 38px; align-self: center; padding: 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--muted); font-size: 17px;
+}
+.v27-small-remove:hover { background: #f6e9e6; color: #9a3827; }
+.v27-divider { margin: 15px 0; border: 0; border-top: 1px solid var(--line); }
+.v27-script-code {
+  width: 100%; min-height: 122px; padding: 10px 11px; resize: vertical;
+  border: 1px solid var(--line-strong); border-radius: 8px; background: #fff;
+  font: 12.5px/1.55 var(--mono);
+}
+.v27-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.v27-plugin {
+  padding: 10px 0; border-bottom: 1px solid var(--line); scroll-margin: 30vh;
+}
+.v27-plugin:first-child { padding-top: 0; }
+.v27-plugin:last-child { border-bottom: 0; }
+.v27-plugin-main {
+  display: grid; grid-template-columns: 40px minmax(130px, 1fr) auto auto;
+  gap: 10px; align-items: center;
+}
+.v27-plugin-icon, .v27-plugin-fallback {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px;
+  background: #eef0f4; object-fit: cover; color: var(--blue-dark); font: 700 12px var(--mono);
+}
+.v27-plugin-copy { min-width: 0; }
+.v27-plugin-copy > span { display: block; }
+.v27-plugin-title-line { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.v27-plugin-title {
+  min-width: 0; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--ink);
+  font-size: 13.5px; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap;
+}
+.v27-plugin-title:hover { color: var(--blue-dark); text-decoration: underline; text-underline-offset: 2px; }
+.v27-external-link {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 5px;
+  color: var(--muted); font-size: 13px; text-decoration: none;
+}
+.v27-external-link:hover { background: var(--soft); color: var(--blue-dark); }
+.v27-plugin-copy span { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+.v27-plugin-summary { color: var(--muted); font: 11.5px var(--mono); white-space: nowrap; }
+.v27-plugin-context {
+  display: flex; align-items: center; gap: 9px; margin: 7px 50px 0; color: var(--muted);
+}
+.v27-plugin-context .switch { min-height: 32px; }
+.v27-plugin-context .switch span { font-size: 12px; }
+.v27-plugin-context small { font-size: 11px; }
+.v27-version {
+  min-height: 40px; max-width: 112px; padding: 7px 9px; border: 1px solid var(--line-strong);
+  border-radius: 7px; background: #fff; font-size: 13px;
+}
+.v27-source { color: var(--muted); font-size: 11.5px; }
+.v27-plugin .icon-btn { width: 40px; height: 40px; }
+.v27-plugin-detail { display: grid; gap: 16px; }
+.v27-plugin-detail-head { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 13px; align-items: center; }
+.v27-plugin-detail-head .v27-plugin-icon, .v27-plugin-detail-head .v27-plugin-fallback { width: 54px; height: 54px; }
+.v27-plugin-detail-title { display: flex; align-items: center; gap: 5px; }
+.v27-plugin-detail-title h3 { margin: 0; font-size: 18px; }
+.v27-plugin-description { margin: 0; color: #3c434a; }
+.v27-plugin-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid var(--line); border-radius: 8px; }
+.v27-plugin-facts div { min-width: 0; padding: 10px; border-right: 1px solid var(--line); }
+.v27-plugin-facts div:last-child { border-right: 0; }
+.v27-plugin-facts dt { color: var(--muted); font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.v27-plugin-facts dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 600; }
+.v27-installation-settings { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.v27-installation-settings summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 2px;
+  color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.v27-installation-settings summary strong { color: var(--ink); font-size: 12.5px; }
+.v27-installation-settings summary small { color: var(--faint); font: 11px var(--mono); }
+.v27-plugin-controls { display: flex; align-items: end; gap: 22px; padding: 3px 2px 13px; }
+.v27-plugin-version-control { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
+.v27-plugin-version-control strong { color: var(--ink); font-size: 13px; }
+.v27-plugin-controls .switch { min-height: 40px; }
+.v27-plugin-detail-status { margin: -7px 1px 0; }
+.v27-flash { animation: v27-flash 1.2s ease; }
+@keyframes v27-flash { 35% { background: #fff3c9; } }
+.v27-line {
+  display: grid; grid-template-columns: auto minmax(30px, 1fr) minmax(0, auto) auto 44px;
+  gap: 8px; align-items: center; min-height: 37px;
+}
+.v27-line .leader { border-bottom: 1px dotted #c9c3b8; }
+.v27-line .tail { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.v27-line .btn, .v27-script .btn { min-height: 38px; padding: 7px 10px; }
+.v27-line .v27-small-remove { width: 38px; min-height: 38px; }
+.v27-script { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+.v27-script-copy { min-width: 0; }
+.v27-script-copy strong { display: block; font-size: 14.5px; }
+.v27-script-copy span { display: block; margin-top: 1px; color: var(--muted); font-size: 12.5px; }
+.v27-script .btn.quiet, .v27-script .v27-small-remove { opacity: 0; }
+.v27-script:hover .btn.quiet, .v27-script:focus-within .btn.quiet,
+.v27-script:hover .v27-small-remove, .v27-script:focus-within .v27-small-remove { opacity: 1; }
+.v27-edit-modal { display: grid; gap: 10px; }
+.v27-edit-modal label { display: grid; gap: 5px; color: var(--muted); font: 11px var(--mono); letter-spacing: .04em; }
+.v27-homepage {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 46px; margin-top: 4px; padding: 4px 0;
+}
+.v27-homepage label { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+.v27-homepage > span { color: var(--muted); font-size: 12px; text-align: right; }
+.v27-editor-guides { width: fit-content; margin: 2px 0 9px; }
+.v27-access-stage { padding: 14px 0; border-bottom: 1px solid #e2ded4; }
+.v27-people-summary {
+  display: grid; grid-template-columns: 32px auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 50px; width: 100%; padding: 5px 8px 5px 0;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; text-align: left;
+}
+.v27-people-summary:hover, .v27-people-summary.is-active { border-color: var(--line); background: var(--soft); }
+.v27-people-summary .n {
+  display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #d4c7a7;
+  border-radius: 50%; color: #806a3b; font: 600 10px var(--mono);
+}
+.v27-access-action { color: var(--muted); font-size: 12px; font-weight: 600; }
+.v27-avatar-stack { display: flex; padding-left: 7px; }
+.v27-avatar {
+  display: grid; place-items: center; width: 34px; height: 34px; margin-left: -7px; border: 2px solid var(--paper);
+  border-radius: 50%; background: #e2e7ff; color: var(--blue-dark); font: 700 12px var(--mono);
+}
+.v27-people-copy strong, .v27-people-copy span { display: block; }
+.v27-people-copy strong { font-size: 13px; }
+.v27-people-copy span { color: var(--muted); font-size: 11.5px; }
+.v27-user-login { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.v27-user-login label { color: var(--muted); font-size: 12.5px; }
+.v27-user-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; }
+.v27-user-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.v27-user-table th, .v27-user-table td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.v27-user-table tbody tr:last-child td { border-bottom: 0; }
+.v27-user-table th { background: var(--soft); color: var(--muted); font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+.v27-user-table td:last-child { display: flex; justify-content: flex-end; gap: 2px; }
+.v27-user-table .btn { min-height: 34px; padding: 5px 8px; }
+.v27-user-table .v27-small-remove { width: 34px; min-height: 34px; }
+.v27-recipe-credit { margin: 16px 2px 2px; color: var(--faint); font-size: 11.5px; }
+.v27-recipe-credit a { color: inherit; }
+.v27-recipe-config { padding: 10px; border: 1px solid transparent; border-radius: 9px; }
+.v27-recipe-config:hover { border-color: var(--line); background: var(--soft); }
+.v27-recipe-config strong, .v27-recipe-config span { display: block; }
+.v27-recipe-config > span > span { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.v27-recipe-parameter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; align-items: end; margin-top: 9px; }
+.v27-recipe-parameter label { color: var(--muted); font-size: 11px; }
+.v27-recipe-parameter label span { margin-bottom: 3px; }
+.v27-recipe-fields { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 7px; margin-top: 9px; }
+.v27-recipe-fields label { color: var(--muted); font-size: 11px; }
+.v27-recipe-fields label > span { margin-bottom: 3px; }
+.v27-recipe-fields .v27-actions { grid-column: 1 / -1; }
+.v27-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.v27-json-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.v27-json-actions .v27-status { min-height: 0; margin: 0 0 0 auto; }
+.v27-runner-frame { width: 100%; height: min(540px, 65vh); border: 1px solid var(--line); border-radius: 8px; }
+#hybridModal[data-v27-mode="page-editor"] .modal {
+  display: flex; flex-direction: column; width: min(1280px, calc(100vw - 40px));
+  height: min(880px, calc(100vh - 40px)); max-height: none; overflow: hidden;
+}
+.v27-editor-body { position: relative; flex: 1; min-height: 0; padding: 0; background: #f0f0f1; }
+.v27-editor-frame { display: block; width: 100%; height: 100%; border: 0; }
+.v27-editor-status {
+  position: absolute; inset: 0; z-index: 2; display: grid; place-items: center;
+  margin: 0; padding: 24px; background: #fbfbfc; color: var(--muted); text-align: center;
+}
+.v27-editor-status[data-tone="error"] {
+  inset: auto 18px 18px; display: block; max-width: min(560px, calc(100% - 36px));
+  padding: 12px 15px; border: 1px solid #d7a89f; border-radius: 8px; background: #fff4f1;
+  color: #8a2f20; text-align: left; box-shadow: 0 7px 24px rgba(0, 0, 0, .14);
+}
+.v27-theme-placeholder { display: grid; place-items: center; width: 100%; height: 100%; background: #eceff4; color: var(--blue-dark); font: 700 15px var(--mono); }
+.v27-installed-theme > .v27-theme-placeholder { width: 84px; height: 54px; border-radius: 7px; }
+.sheet-choice.is-theme-result > .v27-theme-placeholder { width: 84px; height: 54px; border-radius: 8px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+@media (pointer: coarse) {
+  .new-btn, .popover-close, .v27-upload, .v27-small-remove,
+  .v27-plugin .icon-btn, .v27-line .btn, .v27-script .btn, .v27-user-table .btn { min-height: 44px; }
+  .popover-close, .v27-small-remove, .v27-plugin .icon-btn, .v27-user-table .v27-small-remove { width: 44px; }
+  .v27-external-link { width: 44px; height: 44px; }
+  .v27-plugin-title { min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .v27-plugin-main { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .v27-plugin-main > .v27-plugin-icon, .v27-plugin-main > .v27-plugin-fallback { grid-column: 1; grid-row: 1; }
+  .v27-plugin-main > .v27-plugin-copy { grid-column: 2; grid-row: 1; }
+  .v27-plugin-main > .icon-btn { grid-column: 3; grid-row: 1; }
+  .v27-plugin-main > .v27-plugin-summary { grid-column: 2 / -1; justify-self: start; }
+  .v27-plugin-context { margin-left: 50px; margin-right: 0; }
+  .v27-script { grid-template-columns: minmax(0, 1fr) auto auto 44px; }
+  .v27-script > .v27-script-copy { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .sheet-popover, .sheet-popover[data-kind="theme"] {
+    width: calc(100vw - 24px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+  }
+  .sheet-popover-head { padding: 14px 14px 0; }
+  #sheetPopoverBody { padding: 6px 14px 14px; }
+  .stage-heading { flex-wrap: wrap; gap: 6px 10px; }
+  .stage-heading h2 { min-width: 0; flex: 1 1 130px; }
+  .nav-theme { grid-template-columns: 1fr; }
+  .nav-theme figure { width: min(320px, 100%); height: auto; aspect-ratio: 4 / 3; }
+  .v27-search-row, .sheet-form, .sheet-form.user, .v27-recipe-parameter { grid-template-columns: 1fr; }
+  .v27-recipe-fields { grid-template-columns: 1fr; }
+  .v27-recipe-fields .v27-actions { grid-column: auto; }
+  .v27-upload { width: 100%; }
+  .v27-installed-theme { grid-template-columns: 68px minmax(0, 1fr); }
+  .v27-installed-theme img, .v27-installed-theme > .v27-theme-placeholder { width: 68px; height: 44px; }
+  .v27-installed-theme b { grid-column: 2; }
+  .v27-installed-row .v27-small-remove { opacity: 1; }
+  .v27-plugin-facts { grid-template-columns: 1fr; }
+  .v27-plugin-facts div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .v27-plugin-facts div:last-child { border-bottom: 0; }
+  .v27-plugin-controls, .v27-homepage, .v27-user-login { align-items: stretch; flex-direction: column; }
+  .v27-plugin-context { margin-left: 50px; }
+  .v27-people-summary { grid-template-columns: 28px auto minmax(0, 1fr); }
+  .v27-access-action { display: none; }
+  .v27-homepage > span { text-align: left; }
+  .v27-script { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; }
+  .v27-script > .v27-script-copy { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
+  .v27-script .btn.quiet, .v27-script .v27-small-remove { opacity: 1; }
+  .v27-line { grid-template-columns: minmax(64px, .8fr) minmax(12px, 1fr) minmax(0, .8fr) auto 44px; }
+  .v27-line strong { min-width: 0; overflow-wrap: anywhere; }
+}
+@media (max-width: 720px) {
+  #hybridModal[data-v27-mode="page-editor"] { padding: 0; }
+  #hybridModal[data-v27-mode="page-editor"] .modal {
+    width: 100%; height: 100vh; height: 100dvh; border-radius: 0;
+  }
+}
+@media (pointer: coarse) {
+  .v27-line .v27-small-remove { width: 44px; min-height: 44px; }
+  .v27-script .btn.quiet, .v27-script .v27-small-remove, .v27-installed-row .v27-small-remove { opacity: 1; }
+  .v27-installed-theme:not([aria-pressed="true"]) b { visibility: visible; }
+}
+
+</style>
+</head>
+<body>
+
+<main class="paper-ledger">
+  <header class="paper-head">
+    <div class="paper-title">
+      <p class="kicker">Complete flight ledger · six stages · <span data-text="estimate"></span></p>
+      <input class="title-input" name="site-title" data-title aria-label="Site title" spellcheck="false">
+      <p>Everything this site starts with, in the order it happens.</p>
+    </div>
+    <div class="paper-actions">
+      <button class="btn" type="button" data-view-json>View JSON</button>
+      <button class="run" type="button" data-run>Run</button>
+    </div>
+  </header>
+
+  <ol class="stage-list" aria-label="Blueprint stages">
+  <li class="nav-stage">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">1</span><div><div class="stage-heading"><h2>Boot WordPress</h2></div><p data-text="summary-boot"></p></div></header>
+    <div class="nav-stage-body nav-runtime">
+      <label>WORDPRESS <select class="ctl" name="wordpress-version" data-field="wp" aria-label="WordPress version"><option value="latest">latest</option><option value="6.7">6.7</option><option value="nightly">nightly</option></select></label>
+      <label>PHP <select class="ctl" name="php-version" data-field="php" aria-label="PHP version"><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="7.4">7.4</option></select></label>
+      <label>LANGUAGE <select class="ctl" name="site-language" data-field="lang" aria-label="Site language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option><option value="de_DE">Deutsch</option><option value="pl_PL">Polski</option></select></label>
+      <label>NETWORK <span class="v27-network-ctl"><input type="checkbox" data-field="networking" aria-label="Internet access"><span>internet access</span></span></label>
+    </div>
+  </li>
+
+  <li class="nav-stage">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">2</span><div><div class="stage-heading"><h2>Put on the theme</h2><button class="new-btn" type="button" data-sheet-popover="theme" aria-label="＋ New theme" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-theme"></p></div></header>
+    <div class="nav-stage-body nav-theme">
+      <figure><img data-theme-shot alt=""></figure>
+      <div class="v27-active-theme-copy"><p class="v27-section-label">Active theme</p><strong data-text="theme-name"></strong><span data-theme-count></span></div>
+    </div>
+  </li>
+
+  <li class="nav-stage">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">3</span><div><div class="stage-heading"><h2>Install the tools</h2><button class="new-btn" type="button" data-sheet-popover="plugin" aria-label="＋ New plugin" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-plugins"></p></div></header>
+    <div class="nav-stage-body">
+      <div class="plugin-list" data-plugins></div>
+    </div>
+  </li>
+
+  <li class="nav-stage">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">4</span><div><div class="stage-heading"><h2>Bring in content</h2><button class="new-btn" type="button" data-sheet-popover="content" aria-label="＋ New content" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-content"></p></div></header>
+    <div class="nav-stage-body paper-lines" data-content-lines></div>
+  </li>
+
+  <li class="v27-access-stage">
+    <button class="v27-people-summary" type="button" data-sheet-popover="user" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog"><span class="n" aria-hidden="true">5</span><span class="v27-avatar-stack" data-user-avatars aria-hidden="true"></span><span class="v27-people-copy"><strong>Access</strong><span data-user-summary></span></span><span class="v27-access-action">Manage</span></button>
+  </li>
+
+  <li class="nav-stage">
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">6</span><div><div class="stage-heading"><h2>Finish and open</h2><button class="new-btn" type="button" data-sheet-popover="script" aria-label="＋ New finishing step" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-finish"></p></div></header>
+    <div class="nav-stage-body">
+      <div data-scripts></div>
+      <div class="nav-options">
+        <label class="v27-option-label"><span>Open after build</span><select class="ctl" name="landing-page" data-field="landing" aria-label="Open after build"><option value="/wp-admin/edit.php?post_type=product">the Products page</option><option value="/wp-admin/">the Dashboard</option><option value="/">the homepage</option><option value="/wp-admin/plugins.php">the Plugins page</option></select></label>
+      </div>
+    </div>
+  </li>
+  </ol>
+
+  <footer class="paper-end">
+    <p>The document is the route. Everything above compiles into one <code>blueprint.json</code>.</p>
+    <div class="paper-end-actions"><button class="btn" type="button" data-view-json>View JSON</button><button class="run" type="button" data-run>Run</button></div>
+  </footer>
+</main>
+
+<section class="sheet-popover" id="sheetPopover" role="dialog" aria-modal="false" aria-labelledby="sheetPopoverTitle" aria-describedby="sheetPopoverSubtitle" hidden>
+  <header class="sheet-popover-head">
+    <div><h3 id="sheetPopoverTitle">New</h3><p id="sheetPopoverSubtitle"></p></div>
+    <button class="popover-close" type="button" data-close-sheet-popover aria-label="Close">×</button>
+  </header>
+  <div id="sheetPopoverBody"></div>
+</section>
+
+
+<div class="overlay" id="hybridModal" hidden>
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="hybridModalTitle">
+    <header class="modal-head">
+      <h2 id="hybridModalTitle">Details</h2>
+      <div class="v27-modal-head-actions">
+        <button class="btn quiet" type="button" data-v27-discard-editor aria-label="Discard page edits and close" hidden>Cancel</button>
+        <button class="btn" type="button" data-close-modal>Close</button>
+      </div>
+    </header>
+    <div class="modal-body" id="hybridModalBody"></div>
+    <div class="modal-body v27-editor-body" id="v27EditorBody" hidden>
+      <p class="v27-editor-status" data-v27-editor-status role="status" aria-live="polite" tabindex="-1">Starting WordPress…</p>
+      <iframe class="v27-editor-frame" id="v27EditorFrame" title="WordPress page editor" allow="clipboard-read; clipboard-write" tabindex="0"></iframe>
+    </div>
+  </section>
+</div>
+<div class="toast" id="hybridToast" role="status" hidden>
+  <span id="hybridToastText"></span>
+  <button class="btn" type="button" data-undo>Undo</button>
+</div>
+
+
+<aside class="about" data-about>
+  <button class="about-head" type="button" data-about-toggle aria-expanded="false">
+    <span class="about-badge">Design 27</span><strong>Complete flight ledger</strong><span class="about-hint">about</span>
+  </button>
+  <div class="about-body">The consolidation pass: Design 26’s single aligned sheet keeps Paper Blueprint’s headline-level New actions, while the mature interaction layer returns. Popovers anchor to their trigger, never cover it, and scroll internally under a pinned search; one surface holds installed items and WordPress.org discovery, URLs, uploads and drops. Finishing steps are grouped — recipes, developer tools, then write-your-own PHP, SQL, or WP-CLI in a proper editor — and credited once to Alex Kirk’s step library. Runtime facts live in Boot; pages edit in an embedded WordPress Playground; broad undo and deliberate focus restoration throughout. JSON and Run use one valid Blueprint; uploads launch in an embedded preview so their bytes travel with it.</div>
+</aside>
+
+<script>
+
+'use strict';
+
+const GUIDE_CODE = `<?php
+function wp_playground_hide_editor_welcome_guides() {
+	wp_add_inline_script(
+		'wp-data',
+		<<<'JS'
+window.addEventListener( 'load', function () {
+	var preferences = window.wp && window.wp.data
+		? window.wp.data.dispatch( 'core/preferences' )
+		: null;
+	if ( ! preferences ) return;
+	preferences.set( 'core/edit-post', 'welcomeGuide', false );
+	preferences.set( 'core/edit-post', 'welcomeGuideTemplate', false );
+	preferences.set( 'core/edit-site', 'welcomeGuide', false );
+	preferences.set( 'core/edit-site', 'welcomeGuideStyles', false );
+	preferences.set( 'core/edit-site', 'welcomeGuidePage', false );
+	preferences.set( 'core/edit-site', 'welcomeGuideTemplate', false );
+} );
+JS,
+		'after'
+	);
+}
+
+add_action(
+	'enqueue_block_editor_assets',
+	'wp_playground_hide_editor_welcome_guides',
+	20
+);
+`;
+
+const COUPON_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+// Add a coupon so checkout can be tested as soon as the site opens.
+if ( ! class_exists( 'WC_Coupon' ) ) {
+	return;
+}
+
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->save();
+`;
+
+const DASHBOARD_CODE = `<?php
+add_action(
+	'do_meta_boxes',
+	static function ( $screen_id ) {
+		if ( 'dashboard' !== $screen_id ) {
+			return;
+		}
+
+		remove_action( 'welcome_panel', 'wp_welcome_panel' );
+		$widgets = array(
+			'dashboard_right_now'   => 'normal',
+			'dashboard_primary'     => 'side',
+			'dashboard_quick_press' => 'side',
+			'dashboard_activity'    => 'normal',
+		);
+		foreach ( $widgets as $widget_id => $context ) {
+			remove_meta_box( $widget_id, $screen_id, $context );
+		}
+	}
+);
+`;
+
+const WOOCOMMERCE_ONBOARDING_CODE = `<?php
+add_filter( 'woocommerce_prevent_automatic_wizard_redirect', '__return_true' );
+`;
+
+const ADMINER_BAR_CODE = `<?php
+add_action( 'admin_bar_menu', function( WP_Admin_Bar $wp_menu ) {
+	$wp_menu->add_node(
+		array(
+			'id' => 'adminer',
+			'title' => 'Adminer',
+			'href' => '/adminer/?sqlite=&username=&db=%2Fwordpress%2Fwp-content%2Fdatabase%2F.ht.sqlite',
+		)
+	);
+}, 100 );
+`;
+
+const ADMINER_INDEX_CODE = `<?php
+function adminer_object() {
+	class AdminerLoginPasswordLess extends Adminer\\Plugin {
+		function login( $login, $password ) {
+			return true;
+		}
+
+		function head() {
+			echo '<style>
+				body { margin-top: 32px !important; }
+				#wp-admin-bar { position: fixed; inset: 0 0 auto; height: 32px; background: #23282d; z-index: 99999; }
+				#wp-admin-bar a { color: #a7aaad; padding: 0 15px; line-height: 32px; text-decoration: none; }
+			</style>';
+		}
+
+		function loginForm() {
+			echo '<div id="wp-admin-bar"><a href="/wp-admin/">← WordPress Admin</a></div>';
+		}
+
+		function homepage() {
+			$this->loginForm();
+		}
+	}
+	return new Adminer\\Plugins( array( new AdminerLoginPasswordLess() ) );
+}
+require '/wordpress/adminer/adminer.php';
+`;
+
+const FINISH_RECIPES = [
+	{
+		key: 'fresh-start',
+		name: 'Remove the starter content',
+		file: 'remove-starter-content.php',
+		note: 'Delete the “Hello world!” post, sample page, and default comment.',
+		source: 'Adapted from Alex Kirk’s Step Library',
+		steps: [
+			{
+				step: 'runPHP',
+				code: "<?php\nrequire '/wordpress/wp-load.php';\n\nwp_delete_comment( 1, true );\nwp_delete_post( 1, true );\nwp_delete_post( 2, true );\n",
+			},
+		],
+	},
+	{
+		key: 'dashboard',
+		name: 'Simplify the Dashboard',
+		file: 'remove-dashboard-widgets.php',
+		note: 'Remove the welcome, glance, events, draft, and activity panels.',
+		source: 'Alex Kirk · removeDashboardWidgets',
+		steps: [
+			{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+			{ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/remove-dashboard-widgets.php', data: DASHBOARD_CODE },
+		],
+	},
+	{
+		key: 'notice',
+		name: 'Show an admin notice',
+		file: 'show-admin-notice.php',
+		note: 'Add a dismissible message across wp-admin.',
+		source: 'Adapted from Alex Kirk · showAdminNotice',
+		steps: [],
+	},
+	{
+		key: 'permalinks',
+		name: 'Use post names in URLs',
+		file: 'pretty-permalinks',
+		note: 'Set /%postname%/ permalinks and refresh rewrite rules.',
+		source: 'Alex Kirk · setSiteOption',
+		steps: [
+			{ step: 'setSiteOptions', options: { permalink_structure: '/%postname%/' } },
+			{ step: 'runPHP', code: "<?php\nrequire '/wordpress/wp-load.php';\n\nflush_rewrite_rules();\n" },
+		],
+	},
+	{
+		key: 'category',
+		name: 'Rename “Uncategorized”',
+		file: 'rename-default-category.php',
+		note: 'Give the default post category a clearer public name.',
+		source: 'Alex Kirk · renameDefaultCategory',
+		steps: [
+			{
+				step: 'runPHP',
+				code: "<?php\nrequire '/wordpress/wp-load.php';\n\nwp_update_term(\n\t1,\n\t'category',\n\tarray(\n\t\t'name' => base64_decode( 'TmV3cw==' ),\n\t\t'slug' => base64_decode( 'bmV3cw==' ),\n\t)\n);\n",
+			},
+		],
+	},
+	{
+		key: 'debug',
+		name: 'Turn on debugging',
+		file: 'wp-debug',
+		note: 'Display errors and write them to wp-content/debug.log.',
+		source: 'Alex Kirk · debug',
+		advanced: true,
+		steps: [
+			{
+				step: 'defineWpConfigConsts',
+				consts: { WP_DEBUG: true, WP_DEBUG_DISPLAY: true, WP_DEBUG_LOG: true },
+			},
+		],
+	},
+	{
+		key: 'adminer',
+		name: 'Add a database browser',
+		file: 'adminer',
+		note: 'Put an auto-login Adminer link in the admin bar.',
+		source: 'Alex Kirk · installAdminer',
+		advanced: true,
+		steps: [
+			{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+			{ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/adminer-link.php', data: ADMINER_BAR_CODE },
+			{ step: 'mkdir', path: '/wordpress/adminer' },
+			{ step: 'writeFile', path: '/wordpress/adminer/index.php', data: ADMINER_INDEX_CODE },
+			{
+				step: 'writeFile',
+				path: '/wordpress/adminer/adminer.php',
+				data: { resource: 'url', url: 'https://github.com/vrana/adminer/releases/download/v5.3.0/adminer-5.3.0-en.php' },
+			},
+		],
+	},
+	{
+		key: 'multisite',
+		name: 'Enable Multisite',
+		file: 'enable-multisite',
+		note: 'Turn this WordPress install into a network.',
+		source: 'Alex Kirk · enableMultisite',
+		advanced: true,
+		steps: [{ step: 'enableMultisite' }],
+	},
+];
+
+const THEMES = [
+	{
+		slug: 'storefront',
+		name: 'Storefront',
+		shot: 'https://ts.w.org/wp-content/themes/storefront/screenshot.png',
+		note: 'WooCommerce storefront'
+	},
+	{
+		slug: 'twentytwentyfive',
+		name: 'Twenty Twenty-Five',
+		shot: 'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png',
+		note: 'Block theme'
+	},
+	{
+		slug: 'ollie',
+		name: 'Ollie',
+		shot: 'https://ts.w.org/wp-content/themes/ollie/screenshot.png',
+		note: 'Block theme with patterns'
+	}
+];
+
+const PLUGIN_CATALOG = [
+	{
+		slug: 'woocommerce',
+		name: 'WooCommerce',
+		icon: 'https://ps.w.org/woocommerce/assets/icon.svg',
+		version: 'latest',
+		note: 'Online store'
+	},
+	{
+		slug: 'wordpress-seo',
+		name: 'Yoast SEO',
+		icon: 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908',
+		version: 'latest',
+		note: 'Search optimization'
+	},
+	{
+		slug: 'query-monitor',
+		name: 'Query Monitor',
+		icon: 'https://ps.w.org/query-monitor/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Developer tools'
+	},
+	{
+		slug: 'contact-form-7',
+		name: 'Contact Form 7',
+		icon: 'https://ps.w.org/contact-form-7/assets/icon.svg',
+		version: 'latest',
+		note: 'Forms'
+	},
+	{
+		slug: 'akismet',
+		name: 'Akismet Anti-spam',
+		icon: 'https://ps.w.org/akismet/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Spam protection'
+	},
+	{
+		slug: 'jetpack',
+		name: 'Jetpack',
+		icon: 'https://ps.w.org/jetpack/assets/icon.svg',
+		version: 'latest',
+		note: 'Site tools'
+	}
+];
+
+const PLUGIN_SETUP_CONTROLS = {
+	woocommerce: [{
+		key: 'skipOnboarding',
+		label: 'Skip setup wizard',
+		note: 'Mark onboarding complete and suppress the first-run redirect.',
+		status: 'setup wizard skipped',
+		defaultValue: false,
+	}],
+	jetpack: [{
+		key: 'offlineMode',
+		label: 'Use offline mode',
+		note: 'Skip the WordPress.com connection; cloud features will be unavailable.',
+		status: 'offline mode',
+		defaultValue: false,
+	}],
+};
+
+let state = {
+	title: "Adam's Demo Store",
+	wp: 'latest',
+	php: '8.3',
+	lang: 'en_US',
+	activeTheme: 'storefront',
+	plugins: [
+		{ ...PLUGIN_CATALOG[0], active: true },
+		{ ...PLUGIN_CATALOG[1], active: true },
+		{ ...PLUGIN_CATALOG[2], active: false }
+	],
+	content: {
+		pages: [
+			{ id: 'about', title: 'About', content: '<!-- wp:paragraph --><p>Thoughtful goods for everyday life, built with care.</p><!-- /wp:paragraph -->' },
+			{ id: 'contact', title: 'Contact', content: '<!-- wp:paragraph --><p>Questions? Tell us how we can help.</p><!-- /wp:paragraph -->' },
+			{ id: 'shop', title: 'Shop', content: '<!-- wp:heading --><h2 class="wp-block-heading">Browse the collection</h2><!-- /wp:heading -->\n\n<!-- wp:paragraph --><p>Find something useful for your day.</p><!-- /wp:paragraph -->' },
+		],
+		products: 12
+	},
+	homepage: 'shop',
+	users: [
+		{ username: 'admin', role: 'Administrator', roleSlug: 'administrator' }
+	],
+	login: 'admin',
+	landing: '/wp-admin/edit.php?post_type=product',
+	networking: true,
+	wordpressAdmin: {
+		hideEditorGuides: true,
+	},
+	scripts: [
+		{ name: 'Add a WELCOME10 test coupon', file: 'demo-coupon.php', kind: 'php', note: 'Creates a coupon to try at checkout.', code: COUPON_CODE }
+	]
+};
+
+const undoStack = [];
+let toastTimer = 0;
+let pickerMode = '';
+let activeLens = 'plan';
+
+init();
+
+function init() {
+	document.addEventListener('click', onClick);
+	document.addEventListener('change', onChange);
+	document.addEventListener('input', onInput);
+	document.addEventListener('keydown', onKeyDown);
+	document.addEventListener('error', onImageError, true);
+	render();
+}
+
+function onClick(event) {
+	const button = event.target.closest('button, [data-scroll]');
+	if (!button) return;
+
+	if (button.matches('[data-add-plugin]')) {
+		openPicker('plugin');
+	} else if (button.matches('[data-change-theme]')) {
+		openPicker('theme');
+	} else if (button.matches('[data-pick-plugin]')) {
+		pickPlugin(button.dataset.pickPlugin);
+	} else if (button.matches('[data-pick-theme]')) {
+		pickTheme(button.dataset.pickTheme);
+	} else if (button.matches('[data-remove-plugin]')) {
+		removePlugin(Number(button.dataset.removePlugin));
+	} else if (button.matches('[data-open-code]')) {
+		openCode(Number(button.dataset.openCode));
+	} else if (button.matches('[data-view-json]')) {
+		openJson();
+	} else if (button.matches('[data-run]')) {
+		runBlueprint();
+	} else if (button.matches('[data-close-modal]')) {
+		closeModal();
+	} else if (button.matches('[data-undo]')) {
+		undo();
+	} else if (button.matches('[data-about-toggle]')) {
+		toggleAbout();
+	} else if (button.matches('[data-lens]')) {
+		setLens(button.dataset.lens);
+	} else if (button.matches('[data-scroll]')) {
+		focusStage(button.dataset.scroll);
+	}
+}
+
+function onChange(event) {
+	const field = event.target.dataset.field;
+	if (field) {
+		const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+		commit('Updated ' + fieldLabel(field), () => { state[field] = value; });
+		return;
+	}
+
+	if (event.target.matches('[data-plugin-active]')) {
+		const index = Number(event.target.dataset.pluginActive);
+		commit(
+			event.target.checked ? 'Plugin will activate' : 'Plugin will install without activation',
+			() => { state.plugins[index].active = event.target.checked; }
+		);
+	}
+}
+
+function onInput(event) {
+	if (event.target.matches('[data-title]')) {
+		state.title = event.target.value || 'Untitled site';
+		document.querySelectorAll('[data-title]').forEach((input) => {
+			if (input !== event.target) input.value = state.title;
+		});
+		renderText();
+		return;
+	}
+
+	if (event.target.matches('[data-picker-search]')) {
+		renderPicker(event.target.value);
+	}
+}
+
+function onKeyDown(event) {
+	if (event.key === 'Escape') {
+		if (!document.getElementById('hybridModal').hidden) {
+			closeModal();
+			return;
+		}
+		const about = document.querySelector('[data-about]');
+		if (about && about.classList.contains('open')) toggleAbout(false);
+	}
+	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+		if (event.target.matches('input, select, textarea')) return;
+		event.preventDefault();
+		undo();
+	}
+}
+
+function render() {
+	renderControls();
+	renderText();
+	renderPlugins();
+	renderContent();
+	renderUsers();
+	renderScripts();
+	renderTheme();
+	renderLens();
+}
+
+function renderControls() {
+	document.querySelectorAll('[data-title]').forEach((input) => {
+		if (document.activeElement !== input) input.value = state.title;
+	});
+	document.querySelectorAll('[data-field]').forEach((control) => {
+		const field = control.dataset.field;
+		if (!(field in state)) return;
+		if (control.type === 'checkbox') control.checked = Boolean(state[field]);
+		else control.value = state[field];
+	});
+}
+
+function renderText() {
+	setText('site-title', state.title);
+	setText('plugin-count', String(state.plugins.length));
+	setText('plugin-active-count', String(state.plugins.filter((plugin) => plugin.active).length));
+	setText('content-count', String(state.content.pages.length + state.content.products));
+	setText('page-count', String(state.content.pages.length));
+	setText('product-count', String(state.content.products));
+	setText('user-count', String(state.users.length));
+	setText('script-count', String(state.scripts.length));
+	setText('login-name', state.login === 'none' ? 'no one' : state.login);
+	setText('landing-name', landingName(state.landing));
+	setText('network-state', state.networking ? 'with internet access' : 'without internet access');
+	setText('ready-count', '6');
+	setText('estimate', 'about 48 seconds');
+	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php);
+	setText('summary-theme', theme().name + ' goes live');
+	setText('summary-plugins', state.plugins.length + ' plugins install · '
+		+ state.plugins.filter((plugin) => plugin.active).length + ' activate');
+	setText('summary-content', state.content.pages.length + ' pages + '
+		+ state.content.products + ' products arrive');
+	setText('summary-users', state.users.length + (state.users.length === 1 ? ' user' : ' users') + ' · sign in as '
+		+ (state.login === 'none' ? 'no one' : state.login));
+	setText('summary-finish', state.scripts.length + ' finishing steps · open ' + landingName(state.landing));
+}
+
+function renderPlugins() {
+	document.querySelectorAll('[data-plugins]').forEach((container) => {
+		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => `
+			<div class="plugin-item">
+				<img class="plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">
+				<span class="plugin-copy"><strong>${escapeHtml(plugin.name)}</strong>
+					<span>${escapeHtml(plugin.note || plugin.slug)}</span></span>
+				<span class="plugin-state">${escapeHtml(plugin.version)}${plugin.source ? ' · ' + escapeHtml(plugin.source) : ''}</span>
+				<label class="switch"><input type="checkbox" data-plugin-active="${index}"
+					${plugin.active ? 'checked' : ''}><span>active</span></label>
+				<button class="icon-btn" type="button" data-remove-plugin="${index}"
+					aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
+			</div>
+		`).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+	});
+
+	document.querySelectorAll('[data-plugin-names]').forEach((container) => {
+		container.innerHTML = state.plugins.map((plugin) => `
+			<span class="name-chip"><img src="${escapeHtml(plugin.icon)}" alt="">
+				<strong>${escapeHtml(plugin.name)}</strong></span>
+		`).join('');
+	});
+}
+
+function renderContent() {
+	document.querySelectorAll('[data-content-lines]').forEach((container) => {
+		container.innerHTML = `
+			<div class="paper-line"><strong>Starter pages</strong><span class="leader"></span>
+				<span class="tail">${escapeHtml(state.content.pages.map((page) => page.title || page).join(' · '))}</span></div>
+			<div class="paper-line"><strong>Sample products</strong><span class="leader"></span>
+				<span class="tail">${state.content.products} generated on run</span></div>
+		`;
+	});
+}
+
+function renderUsers() {
+	document.querySelectorAll('[data-users]').forEach((container) => {
+		container.innerHTML = state.users.map((user) => `
+			<div class="person-row"><strong class="mono">${escapeHtml(user.username)}</strong>
+				<span>${escapeHtml(user.role)}</span><span>${user.username === state.login ? 'sign in' : ''}</span></div>
+		`).join('');
+	});
+}
+
+function renderScripts() {
+	document.querySelectorAll('[data-scripts]').forEach((container) => {
+		container.innerHTML = state.scripts.map((script, index) => `
+			<div class="script-row"><strong>${escapeHtml(script.name)}</strong>
+				<span class="mono">${escapeHtml(script.file)}</span>
+				<button class="btn quiet" type="button" data-open-code="${index}">view code</button></div>
+		`).join('');
+	});
+}
+
+function renderTheme() {
+	const selected = theme();
+	setText('theme-name', selected.name);
+	document.querySelectorAll('[data-theme-shot]').forEach((image) => {
+		if (image.tagName === 'IMG') {
+			image.src = selected.shot;
+			image.alt = selected.name + ' theme preview';
+		}
+	});
+}
+
+function renderLens() {
+	document.body.dataset.lens = activeLens;
+	document.querySelectorAll('[data-lens-panel]').forEach((panel) => {
+		panel.hidden = panel.dataset.lensPanel !== activeLens;
+	});
+	document.querySelectorAll('button[data-lens]').forEach((button) => {
+		const selected = button.dataset.lens === activeLens;
+		button.classList.toggle('active', selected);
+		button.setAttribute('aria-pressed', String(selected));
+	});
+}
+
+function openPicker(mode) {
+	pickerMode = mode;
+	const noun = mode === 'plugin' ? 'plugin' : 'theme';
+	openModal('Choose a ' + noun, `
+		<input class="picker-search" type="search" data-picker-search
+			placeholder="Filter ${noun}s" aria-label="Filter ${noun}s" autofocus>
+		<div class="picker-list" data-picker-list></div>
+	`);
+	renderPicker('');
+	const search = document.querySelector('[data-picker-search]');
+	if (search) search.focus();
+}
+
+function renderPicker(query) {
+	const list = document.querySelector('[data-picker-list]');
+	if (!list) return;
+	const words = query.trim().toLowerCase();
+	if (pickerMode === 'plugin') {
+		const installed = new Set(state.plugins.map((plugin) => plugin.slug));
+		const matches = PLUGIN_CATALOG.filter((plugin) => !installed.has(plugin.slug))
+			.filter((plugin) => (plugin.name + ' ' + plugin.note).toLowerCase().includes(words));
+		list.innerHTML = matches.length ? matches.map((plugin) => `
+			<button class="picker-item" type="button" data-pick-plugin="${escapeHtml(plugin.slug)}">
+				<img src="${escapeHtml(plugin.icon)}" alt=""><span><strong>${escapeHtml(plugin.name)}</strong>
+				${escapeHtml(plugin.note)}</span><b>Add</b>
+			</button>
+		`).join('') : '<p class="empty-note">No matching plugins.</p>';
+		return;
+	}
+
+	const matches = THEMES.filter((item) => (item.name + ' ' + item.note).toLowerCase().includes(words));
+	list.innerHTML = matches.map((item) => `
+		<button class="picker-item picker-theme" type="button" data-pick-theme="${escapeHtml(item.slug)}">
+			<img src="${escapeHtml(item.shot)}" alt=""><span><strong>${escapeHtml(item.name)}</strong>
+			${escapeHtml(item.note)}</span><b>${item.slug === state.activeTheme ? 'Active' : 'Use'}</b>
+		</button>
+	`).join('');
+}
+
+function pickPlugin(slug) {
+	const plugin = PLUGIN_CATALOG.find((item) => item.slug === slug);
+	if (!plugin) return;
+	commit('Added ' + plugin.name, () => { state.plugins.push({ ...plugin, active: true }); });
+	closeModal();
+}
+
+function pickTheme(slug) {
+	const selected = THEMES.find((item) => item.slug === slug);
+	if (!selected) return;
+	commit('Changed theme to ' + selected.name, () => { state.activeTheme = slug; });
+	closeModal();
+}
+
+function removePlugin(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	commit('Removed ' + plugin.name, () => { state.plugins.splice(index, 1); });
+}
+
+function openCode(index) {
+	const script = state.scripts[index];
+	if (!script) return;
+	const source = script.code || JSON.stringify(script.steps || [], null, 2);
+	openModal(script.name, '<pre tabindex="0" autofocus>' + escapeHtml(source) + '</pre>');
+}
+
+function openJson() {
+	const json = JSON.stringify(buildBlueprint(), null, 2);
+	openModal('blueprint.json', `
+		<div class="v27-json-actions">
+			<button class="btn" type="button" data-v27-copy-json>Copy JSON</button>
+			<button class="btn" type="button" data-v27-download-json>Download</button>
+			<span class="v27-status" data-v27-json-status role="status" aria-live="polite"></span>
+		</div>
+		<pre tabindex="0" autofocus data-v27-json>${escapeHtml(json)}</pre>
+	`);
+}
+
+function runBlueprint() {
+	const url = 'https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(buildBlueprint()));
+	window.open(url, '_blank', 'noopener');
+}
+
+function buildBlueprint() {
+	return {
+		'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
+		meta: { title: state.title },
+		wordpressVersion: state.wp,
+		phpVersion: state.php,
+		language: state.lang,
+		siteOptions: { blogname: state.title },
+		activeTheme: state.activeTheme,
+		themes: [ state.activeTheme ],
+		plugins: state.plugins.map((plugin) => ({
+			slug: plugin.slug,
+			version: plugin.version,
+			activate: plugin.active
+		})),
+		content: {
+			startsBlank: true,
+			pages: state.content.pages.slice(),
+			sampleProducts: state.content.products
+		},
+		users: state.users.map((user) => ({ username: user.username, role: user.roleSlug })),
+		login: state.login === 'none' ? false : state.login,
+		landingPage: state.landing,
+		networking: state.networking,
+		afterSetup: state.scripts.map((script) => ({
+			step: 'runPHP',
+			note: script.name,
+			code: script.code
+		}))
+	};
+}
+
+function commit(message, change) {
+	undoStack.push(JSON.stringify(state));
+	change();
+	render();
+	showToast(message);
+}
+
+function undo() {
+	const previous = undoStack.pop();
+	if (!previous) return;
+	state = JSON.parse(previous);
+	render();
+	showToast('Last change undone');
+}
+
+function showToast(message) {
+	const toast = document.getElementById('hybridToast');
+	document.getElementById('hybridToastText').textContent = message;
+	toast.querySelector('[data-undo]').hidden = undoStack.length === 0;
+	toast.hidden = false;
+	window.clearTimeout(toastTimer);
+	toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4500);
+}
+
+function openModal(title, markup) {
+	document.getElementById('hybridModalTitle').textContent = title;
+	document.getElementById('hybridModalBody').innerHTML = markup;
+	document.getElementById('hybridModal').hidden = false;
+}
+
+function closeModal() {
+	document.getElementById('hybridModal').hidden = true;
+	document.getElementById('hybridModalBody').innerHTML = '';
+	pickerMode = '';
+}
+
+function toggleAbout(force) {
+	const about = document.querySelector('[data-about]');
+	if (!about) return;
+	const open = typeof force === 'boolean' ? force : !about.classList.contains('open');
+	about.classList.toggle('open', open);
+	const button = about.querySelector('[data-about-toggle]');
+	if (button) button.setAttribute('aria-expanded', String(open));
+}
+
+function setLens(lens) {
+	activeLens = lens;
+	renderLens();
+	window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function focusStage(id) {
+	const target = document.getElementById(id);
+	if (!target) return;
+	document.querySelectorAll('[data-scroll]').forEach((button) => {
+		button.classList.toggle('current', button.dataset.scroll === id);
+	});
+	target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	target.classList.add('pulse');
+	window.setTimeout(() => target.classList.remove('pulse'), 900);
+}
+
+function setText(name, value) {
+	document.querySelectorAll('[data-text="' + name + '"]').forEach((element) => {
+		element.textContent = value;
+	});
+}
+
+function theme() {
+	return THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
+}
+
+function wpName(value) {
+	return value === 'latest' ? 'latest' : value;
+}
+
+function landingName(value) {
+	return {
+		'/wp-admin/edit.php?post_type=product': 'Products',
+		'/wp-admin/': 'Dashboard',
+		'/': 'Homepage',
+		'/wp-admin/plugins.php': 'Plugins'
+	}[value] || value;
+}
+
+function fieldLabel(field) {
+	return {
+		wp: 'WordPress version',
+		php: 'PHP version',
+		lang: 'language',
+		login: 'login',
+		homepage: 'default homepage',
+		landing: 'open-after-build page',
+		networking: 'internet access'
+	}[field] || field;
+}
+
+function onImageError(event) {
+	const image = event.target;
+	if (!(image instanceof HTMLImageElement) || image.dataset.failed) return;
+	image.dataset.failed = 'true';
+	const fallback = document.createElement('span');
+	const themeChoice = image.closest('.v27-installed-theme, .sheet-choice.is-theme-result');
+	const pluginChoice = image.closest('.v27-plugin-main, .v27-plugin-detail-head');
+	const isMainTheme = image.hasAttribute('data-theme-shot') || image.closest('.picker-theme');
+	fallback.className = themeChoice ? 'v27-theme-placeholder' : isMainTheme ? 'image-fallback' : 'icon-fallback';
+	if (pluginChoice) fallback.className = 'v27-plugin-fallback';
+	fallback.textContent = themeChoice
+		? (themeChoice.querySelector('strong')?.textContent || 'Theme').slice(0, 2).toUpperCase()
+		: pluginChoice ? (pluginChoice.querySelector('.v27-plugin-title, h3')?.textContent || 'WP').slice(0, 2).toUpperCase()
+		: isMainTheme ? theme().name : 'WP';
+	image.replaceWith(fallback);
+}
+
+function escapeHtml(value) {
+	return String(value).replace(/[&<>"']/g, (character) => ({
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	}[character]));
+}
+
+</script>
+<script>
+
+'use strict';
+
+const v27OriginalRenderText = renderText;
+let v27ActiveKind = '';
+let v27Trigger = null;
+let v27Query = '';
+let v27Results = [];
+let v27ActiveIndex = -1;
+let v27SearchTimer = 0;
+let v27SearchSerial = 0;
+let v27ModalOpener = null;
+let v27ModalReturnSelector = '';
+let v27TitleStart = '';
+let v27Runner = null;
+let v27EditorClient = null;
+let v27EditorBootPromise = null;
+let v27EditorFingerprint = '';
+let v27EditorBootGeneration = 0;
+let v27EditorNavigationPromise = Promise.resolve();
+let v27EditorSession = 0;
+let v27EditorPageId = '';
+let v27EditorPostId = 0;
+let v27EditorPageReady = false;
+let v27EditorSaving = false;
+let v27EditorPendingClose = false;
+let v27EditorSaveTimer = 0;
+let v27EditorSaveSerial = 0;
+let v27EditorCurrentRequest = '';
+let v27EditorLastMessage = '';
+const v27EditorChannel = 'v27-editor-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+const v27VersionCache = new Map();
+const v27PluginInfoCache = new Map();
+const v27Popular = { plugin: null, theme: null };
+const v27PopularLoading = { plugin: null, theme: null };
+
+commit = v27Commit;
+undo = v27Undo;
+buildBlueprint = v27BuildBlueprint;
+renderText = v27RenderText;
+renderPlugins = v27RenderPlugins;
+renderContent = v27RenderContent;
+renderUsers = v27RenderUsers;
+renderScripts = v27RenderScripts;
+renderTheme = v27RenderTheme;
+theme = v27CurrentTheme;
+removePlugin = v27RemovePlugin;
+runBlueprint = v27RunBlueprint;
+openModal = v27OpenModal;
+closeModal = v27RequestModalClose;
+v27Initialize();
+
+function v27Initialize() {
+	v27PrepareState();
+	document.addEventListener('click', v27OnClick);
+	document.addEventListener('input', v27OnInput, true);
+	document.addEventListener('change', v27OnChange, true);
+	document.addEventListener('focusin', v27OnFocusIn);
+	document.addEventListener('focusout', v27OnFocusOut);
+	document.addEventListener('pointerdown', v27OnOutsidePointer, true);
+	document.addEventListener('pointerover', v27OnPointerOver);
+	document.addEventListener('keydown', v27OnKeyDown, true);
+	document.addEventListener('dragover', v27OnDragOver);
+	document.addEventListener('dragleave', v27OnDragLeave);
+	document.addEventListener('drop', v27OnDrop);
+	window.addEventListener('message', v27OnEditorMessage);
+	window.addEventListener('resize', v27PositionPopover);
+	window.addEventListener('scroll', v27PositionPopover, true);
+	render();
+}
+
+function v27OnClick(event) {
+	if (event.target.id === 'hybridModal') {
+		v27RequestModalClose();
+		return;
+	}
+	if (event.target.closest('[data-v27-discard-editor]')) {
+		v27CloseModal();
+		return;
+	}
+	const trigger = event.target.closest('[data-sheet-popover]');
+	if (trigger) {
+		v27OpenPopover(trigger.dataset.sheetPopover, trigger);
+		return;
+	}
+	if (event.target.closest('[data-close-sheet-popover]')) {
+		v27ClosePopover(true);
+		return;
+	}
+	const result = event.target.closest('[data-v27-result-index]');
+	if (result) {
+		v27ChooseResult(Number(result.dataset.v27ResultIndex));
+		return;
+	}
+	const installedTheme = event.target.closest('[data-v27-use-theme]');
+	if (installedTheme) {
+		v27UseTheme(installedTheme.dataset.v27UseTheme);
+		return;
+	}
+	const removeTheme = event.target.closest('[data-v27-remove-theme]');
+	if (removeTheme) {
+		v27RemoveTheme(removeTheme.dataset.v27RemoveTheme);
+		return;
+	}
+	if (event.target.closest('[data-v27-upload-button]')) {
+		document.querySelector('[data-v27-file-input]')?.click();
+		return;
+	}
+	if (event.target.closest('[data-v27-add-page]')) {
+		v27AddPage();
+		return;
+	}
+	if (event.target.closest('[data-v27-products]')) {
+		v27AddProducts(event.target.closest('[data-v27-products]'));
+		return;
+	}
+	if (event.target.closest('[data-v27-add-user]')) {
+		v27AddUser();
+		return;
+	}
+	const preset = event.target.closest('[data-v27-script-preset]');
+	if (preset) {
+		v27AddScriptPreset(preset.dataset.v27ScriptPreset);
+		return;
+	}
+	const newScript = event.target.closest('[data-v27-new-script]');
+	if (newScript) {
+		v27NewScriptModal(newScript.dataset.v27NewScript);
+		return;
+	}
+	const saveNewScript = event.target.closest('[data-v27-save-new-script]');
+	if (saveNewScript) {
+		v27SaveNewScript(saveNewScript.dataset.v27SaveNewScript);
+		return;
+	}
+	const pluginInfo = event.target.closest('[data-v27-plugin-info]');
+	if (pluginInfo) {
+		v27OpenPluginInfo(Number(pluginInfo.dataset.v27PluginInfo));
+		return;
+	}
+	const removePage = event.target.closest('[data-v27-remove-page]');
+	if (removePage) {
+		v27RemovePage(Number(removePage.dataset.v27RemovePage));
+		return;
+	}
+	const editPage = event.target.closest('[data-v27-edit-page]');
+	if (editPage) {
+		v27EditPage(Number(editPage.dataset.v27EditPage));
+		return;
+	}
+	const removeImport = event.target.closest('[data-v27-remove-import]');
+	if (removeImport) {
+		v27RemoveImport(Number(removeImport.dataset.v27RemoveImport));
+		return;
+	}
+	const removeUser = event.target.closest('[data-v27-remove-user]');
+	if (removeUser) {
+		v27RemoveUser(Number(removeUser.dataset.v27RemoveUser));
+		return;
+	}
+	const editUser = event.target.closest('[data-v27-edit-user]');
+	if (editUser) {
+		v27EditUser(Number(editUser.dataset.v27EditUser));
+		return;
+	}
+	const editScript = event.target.closest('[data-v27-edit-script]');
+	if (editScript) {
+		v27EditScript(Number(editScript.dataset.v27EditScript));
+		return;
+	}
+	const removeScript = event.target.closest('[data-v27-remove-script]');
+	if (removeScript) {
+		v27RemoveScript(Number(removeScript.dataset.v27RemoveScript));
+		return;
+	}
+	const saveScript = event.target.closest('[data-v27-save-script]');
+	if (saveScript) {
+		v27SaveScript(Number(saveScript.dataset.v27SaveScript));
+		return;
+	}
+	const saveUser = event.target.closest('[data-v27-save-user]');
+	if (saveUser) {
+		v27SaveUser(Number(saveUser.dataset.v27SaveUser));
+		return;
+	}
+	if (event.target.closest('[data-v27-copy-json]')) {
+		v27CopyJson();
+		return;
+	}
+	if (event.target.closest('[data-v27-download-json]')) v27DownloadJson();
+}
+
+function v27OnInput(event) {
+	if (event.target.matches('[data-title]')) {
+		event.stopImmediatePropagation();
+		document.querySelectorAll('[data-title]').forEach((input) => {
+			if (input !== event.target) input.value = event.target.value;
+		});
+		return;
+	}
+	if (!event.target.matches('[data-v27-search]')) return;
+	v27Query = event.target.value;
+	v27ActiveIndex = -1;
+	v27PopulateResults();
+}
+
+function v27OnFocusIn(event) {
+	if (event.target.matches('[data-title]')) v27TitleStart = state.title;
+}
+
+function v27OnFocusOut(event) {
+	if (event.target.matches('[data-title]')) v27CommitTitle(event.target);
+}
+
+function v27OnChange(event) {
+	if (event.target.matches('[data-v27-plugin-setup]')) {
+		event.stopImmediatePropagation();
+		const index = Number(event.target.dataset.v27PluginSetup);
+		const plugin = state.plugins[index];
+		const control = plugin
+			? (PLUGIN_SETUP_CONTROLS[plugin.slug] || []).find((item) => item.key === event.target.dataset.v27PluginSetupKey)
+			: null;
+		if (!plugin || !control || control.key !== event.target.dataset.v27PluginSetupKey) return;
+		v27CommitWithoutRender(
+			event.target.checked ? control.label + ' enabled' : control.label + ' disabled',
+			() => { plugin.setup[control.key] = event.target.checked; }
+		);
+		v27UpdatePluginDetailStatus(index);
+		return;
+	}
+	if (event.target.matches('[data-v27-hide-editor-guides]')) {
+		event.stopImmediatePropagation();
+		v27Commit(
+			event.target.checked ? 'Editor welcome guides will be hidden' : 'Editor welcome guides will remain available',
+			() => { state.wordpressAdmin.hideEditorGuides = event.target.checked; }
+		);
+		return;
+	}
+	if (event.target.matches('[data-plugin-active]')) {
+		event.stopImmediatePropagation();
+		const index = Number(event.target.dataset.pluginActive);
+		const plugin = state.plugins[index];
+		if (!plugin) return;
+		v27CommitWithoutRender(
+			event.target.checked ? plugin.name + ' will activate' : plugin.name + ' will install without activation',
+			() => { plugin.active = event.target.checked; }
+		);
+		v27RenderPlugins();
+		v27RenderText();
+		v27UpdatePluginDetailStatus(index);
+		return;
+	}
+	if (event.target.matches('[data-v27-file-input]')) {
+		v27AddFiles(Array.from(event.target.files || []));
+		event.target.value = '';
+		return;
+	}
+	if (event.target.matches('[data-v27-plugin-version]')) {
+		v27SetPluginVersion(Number(event.target.dataset.v27PluginVersion), event.target.value);
+	}
+}
+
+function v27OnOutsidePointer(event) {
+	if (!v27ActiveKind || !document.getElementById('hybridModal').hidden) return;
+	if (event.target.closest('#sheetPopover, [data-sheet-popover], #hybridToast')) return;
+	v27ClosePopover(false);
+}
+
+function v27OnPointerOver(event) {
+	const option = event.target.closest('[data-v27-result-index]');
+	if (!option) return;
+	v27SetActiveResult(Number(option.dataset.v27ResultIndex));
+}
+
+function v27OnKeyDown(event) {
+	const modal = document.getElementById('hybridModal');
+	if (!modal.hidden) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			v27RequestModalClose();
+		} else if (event.key === 'Enter' && event.target.matches('#v27EditUserName, #v27EditScriptName')) {
+			event.preventDefault();
+			modal.querySelector('[data-v27-save-user], [data-v27-save-script], [data-v27-save-new-script]')?.click();
+		} else if (event.key === 'Tab') {
+			v27TrapModalTab(event);
+		} else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+			event.stopImmediatePropagation();
+		}
+		return;
+	}
+
+	if (event.target.matches('[data-title]') && event.key === 'Enter') {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		v27CommitTitle(event.target);
+		event.target.blur();
+		return;
+	}
+	if (event.target.matches('[data-title]') && event.key === 'Escape') {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		event.target.value = v27TitleStart || state.title;
+		event.target.blur();
+		return;
+	}
+
+	if (event.target.matches('[data-v27-search]')) {
+		if (v27Results.length && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			v27MoveActiveResult(event.key);
+			return;
+		}
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			if (v27Results.length) v27ChooseResult(v27ActiveIndex >= 0 ? v27ActiveIndex : 0);
+			return;
+		}
+	}
+
+	if (event.key === 'Enter' && event.target.id === 'v27PageName') {
+		event.preventDefault();
+		v27AddPage();
+		return;
+	}
+	if (event.key === 'Enter' && event.target.id === 'v27UserName') {
+		event.preventDefault();
+		v27AddUser();
+		return;
+	}
+	if (event.key === 'Enter' && event.target.id === 'v27CategoryName') {
+		event.preventDefault();
+		v27AddScriptPreset('category');
+		return;
+	}
+	if (event.key === 'Enter' && event.target.id === 'v27NoticeMessage') {
+		event.preventDefault();
+		v27AddScriptPreset('notice');
+		return;
+	}
+	if (event.key === 'Escape' && v27ActiveKind) {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		if (v27Query) v27ClearSearch();
+		else v27ClosePopover(true);
+		return;
+	}
+	if (event.key === 'Escape') {
+		const about = document.querySelector('[data-about].open');
+		if (about) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			toggleAbout(false);
+		}
+	}
+}
+
+function v27CommitTitle(input) {
+	const title = input.value.replace(/\s+/g, ' ').trim() || 'Untitled site';
+	input.value = title;
+	if (title === state.title) return;
+	v27Commit('Renamed site to “' + title + '”', () => { state.title = title; });
+	v27TitleStart = title;
+}
+
+function v27OnDragOver(event) {
+	const dropzone = event.target.closest('[data-v27-dropzone]');
+	if (!dropzone) return;
+	event.preventDefault();
+	dropzone.classList.add('is-dragging');
+}
+
+function v27OnDragLeave(event) {
+	const dropzone = event.target.closest('[data-v27-dropzone]');
+	if (!dropzone || dropzone.contains(event.relatedTarget)) return;
+	dropzone.classList.remove('is-dragging');
+}
+
+function v27OnDrop(event) {
+	const dropzone = event.target.closest('[data-v27-dropzone]');
+	if (!dropzone) return;
+	event.preventDefault();
+	dropzone.classList.remove('is-dragging');
+	v27AddFiles(Array.from(event.dataTransfer?.files || []));
+}
+
+function v27OpenPopover(kind, trigger) {
+	if (v27ActiveKind === kind && v27Trigger === trigger) {
+		v27ClosePopover(true);
+		return;
+	}
+	v27SetTriggerState(null);
+	v27ActiveKind = kind;
+	v27Trigger = trigger;
+	v27Query = '';
+	v27Results = [];
+	v27ActiveIndex = -1;
+	v27SetTriggerState(trigger);
+	const popover = document.getElementById('sheetPopover');
+	popover.dataset.kind = kind;
+	popover.hidden = false;
+	v27RenderPopover();
+	requestAnimationFrame(() => {
+		v27PositionPopover();
+		v27FocusFirstControl();
+	});
+}
+
+function v27ClosePopover(returnFocus) {
+	const trigger = v27Trigger;
+	window.clearTimeout(v27SearchTimer);
+	v27SearchSerial += 1;
+	document.getElementById('sheetPopover').hidden = true;
+	v27SetTriggerState(null);
+	v27ActiveKind = '';
+	v27Trigger = null;
+	v27Query = '';
+	v27Results = [];
+	v27ActiveIndex = -1;
+	if (returnFocus && trigger && document.contains(trigger)) trigger.focus();
+}
+
+function v27RenderPopover(options = {}) {
+	if (!v27ActiveKind) return;
+	const title = document.getElementById('sheetPopoverTitle');
+	const subtitle = document.getElementById('sheetPopoverSubtitle');
+	const body = document.getElementById('sheetPopoverBody');
+	const renderers = {
+		theme: v27ThemePopover,
+		plugin: v27PluginPopover,
+		content: v27ContentPopover,
+		user: v27UserPopover,
+		script: v27ScriptPopover,
+	};
+	const rendered = renderers[v27ActiveKind]();
+	title.textContent = rendered.title;
+	subtitle.textContent = rendered.subtitle || '';
+	subtitle.hidden = !rendered.subtitle;
+	body.innerHTML = rendered.markup;
+	if (['theme', 'plugin', 'content'].includes(v27ActiveKind)) v27PopulateResults();
+	requestAnimationFrame(() => {
+		v27PositionPopover();
+		if (options.focus) document.getElementById('sheetPopover').querySelector(options.focus)?.focus();
+	});
+}
+
+function v27ThemePopover() {
+	const installed = state.installedThemes.map((item) => `
+		<div class="v27-installed-row">
+			<button class="v27-installed-theme" type="button" data-v27-use-theme="${escapeHtml(item.slug)}"
+				aria-pressed="${item.slug === state.activeTheme}">
+				${v27ThemeThumb(item)}
+				<span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.source || item.note || 'Installed')}</span></span>
+				<b>${item.slug === state.activeTheme ? '✓ Active' : 'Use'}</b>
+			</button>
+			${state.installedThemes.length > 1 ? `<button class="v27-small-remove" type="button" data-v27-remove-theme="${escapeHtml(item.slug)}" aria-label="Remove ${escapeHtml(item.name)}">×</button>` : ''}
+		</div>
+	`).join('');
+	return {
+		title: 'Themes',
+		subtitle: '',
+		markup: v27SmartAddMarkup('theme', 'Search WordPress.org themes, or paste a URL', '.zip,application/zip', `
+			<p class="v27-group-label">Installed</p>
+			<div class="v27-installed">${installed}</div>
+		`),
+	};
+}
+
+function v27PluginPopover() {
+	return {
+		title: 'Add plugins',
+		subtitle: '',
+		markup: v27SmartAddMarkup('plugin', 'Search WordPress.org plugins, or paste a URL', '.zip,application/zip'),
+	};
+}
+
+function v27ContentPopover() {
+	return {
+		title: 'Add content',
+		subtitle: '',
+		markup: `
+			${v27SmartAddMarkup('content', 'Paste a WXR, XML, or SQL URL', '.xml,.wxr,.sql,text/xml,application/xml')}
+			<p class="v27-group-label">Create</p>
+			<div class="sheet-form"><input class="sheet-input" id="v27PageName" placeholder="Page title" aria-label="Page title"><button class="btn" type="button" data-v27-add-page>Add page</button></div>
+			<button class="sheet-choice no-icon" type="button" data-v27-products="6"><span><strong>Add 6 sample products</strong><span>Generated during stage 4 · adds WooCommerce if needed</span></span><b>Add</b></button>
+			<p class="v27-status" data-v27-notice role="status" aria-live="polite"></p>
+		`,
+	};
+}
+
+function v27UserPopover() {
+	return {
+		title: 'Users',
+		subtitle: '',
+		markup: `
+			<div class="v27-user-login"><label for="v27LoginUser">Sign in after build</label><select class="sheet-select" id="v27LoginUser" data-field="login" aria-label="Who to sign in as">${v27LoginOptions()}</select></div>
+			<div class="v27-user-table-wrap">
+				<table class="v27-user-table"><thead><tr><th>User</th><th>Role</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody data-v27-user-table>${v27UserTableRows()}</tbody></table>
+			</div>
+			<hr class="v27-divider">
+			<div class="sheet-form user"><input class="sheet-input" id="v27UserName" placeholder="username" aria-label="Username" maxlength="60"><select class="sheet-select" id="v27UserRole" aria-label="Role"><option value="editor">Editor</option><option value="author">Author</option><option value="shop_manager">Store manager</option><option value="administrator">Administrator</option></select><button class="btn" type="button" data-v27-add-user>Add</button></div>
+			<p class="v27-status" data-v27-notice role="status" aria-live="polite"></p>
+		`,
+	};
+}
+
+function v27ScriptPopover() {
+	const recipes = FINISH_RECIPES.filter((recipe) => !recipe.advanced).map(v27RecipeButton).join('');
+	const developer = FINISH_RECIPES.filter((recipe) => recipe.advanced).map(v27RecipeButton).join('');
+	return {
+		title: 'Finishing steps',
+		subtitle: '',
+		markup: `
+			<p class="v27-group-label">Recipes</p>
+			<div class="sheet-results">${recipes}</div>
+			<p class="v27-group-label">For developers</p>
+			<div class="sheet-results">${developer}</div>
+			<p class="v27-group-label">Write your own</p>
+			<div class="sheet-results">
+				<button class="sheet-choice no-icon" type="button" data-v27-new-script="php"><span><strong>Run PHP</strong><span>A script that runs once everything is installed.</span></span><b>Write</b></button>
+				<button class="sheet-choice no-icon" type="button" data-v27-new-script="sql"><span><strong>Run SQL</strong><span>Queries against the site database.</span></span><b>Write</b></button>
+				<button class="sheet-choice no-icon" type="button" data-v27-new-script="wp-cli"><span><strong>Run WP-CLI</strong><span>Commands, one per line.</span></span><b>Write</b></button>
+			</div>
+			<p class="v27-status" data-v27-notice role="status" aria-live="polite"></p>
+			<p class="v27-recipe-credit">Recipes adapted from <a href="https://akirk.github.io/playground-step-library/" target="_blank" rel="noreferrer">Alex Kirk’s Step Library</a>.</p>
+		`,
+	};
+}
+
+function v27RecipeButton(recipe) {
+	const added = state.scripts.some((script) => script.recipeKey === recipe.key);
+	const disabled = added;
+	const action = added ? 'Added' : 'Add';
+	if (recipe.key === 'category') {
+		const saved = state.scripts.find((script) => script.recipeKey === recipe.key)?.params?.categoryName || 'News';
+		return `<div class="v27-recipe-config"><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><div class="v27-recipe-parameter"><label><span>New category name</span><input class="sheet-input" id="v27CategoryName" value="${escapeHtml(saved)}" ${disabled ? 'disabled' : ''}></label><button class="btn" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" aria-label="${escapeHtml(action + ' ' + recipe.name + ' recipe')}" ${disabled ? 'disabled' : ''}><b>${escapeHtml(action)}</b></button></div></div>`;
+	}
+	if (recipe.key === 'notice') {
+		const params = state.scripts.find((script) => script.recipeKey === recipe.key)?.params || {};
+		const tone = params.tone || 'info';
+		const toneOptions = ['info', 'success', 'warning', 'error'].map((value) => `<option value="${value}" ${value === tone ? 'selected' : ''}>${value.slice(0, 1).toUpperCase() + value.slice(1)}</option>`).join('');
+		return `<div class="v27-recipe-config"><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><div class="v27-recipe-fields"><label><span>Message</span><input class="sheet-input" id="v27NoticeMessage" value="${escapeHtml(params.message || 'Welcome! This demo is ready to explore.')}" ${disabled ? 'disabled' : ''}></label><label><span>Tone</span><select class="sheet-select" id="v27NoticeTone" ${disabled ? 'disabled' : ''}>${toneOptions}</select></label><div class="v27-actions"><button class="btn" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" aria-label="${escapeHtml(action + ' ' + recipe.name + ' recipe')}" ${disabled ? 'disabled' : ''}><b>${escapeHtml(action)}</b></button></div></div></div>`;
+	}
+	return `<button class="sheet-choice no-icon" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" ${disabled ? 'disabled' : ''}><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><b>${escapeHtml(action)}</b></button>`;
+}
+
+function v27SmartAddMarkup(kind, placeholder, accept, insert = '') {
+	const noun = kind === 'content' ? 'import' : kind;
+	return `
+		<div class="v27-smart-add" data-v27-dropzone>
+			<div class="v27-search-row">
+				<input class="sheet-search" id="v27Search" type="search" data-v27-search value="${escapeHtml(v27Query)}"
+					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="v27ResultList"
+					placeholder="${escapeHtml(placeholder)}" aria-label="Find a ${escapeHtml(noun)}">
+				<button class="v27-upload" type="button" data-v27-upload-button>${kind === 'content' ? 'Upload file' : 'Upload ZIP'}</button>
+				<input type="file" data-v27-file-input accept="${accept}" ${kind === 'content' ? 'multiple' : ''} hidden>
+			</div>
+			${insert}
+			<p class="v27-status" data-v27-search-status role="status" aria-live="polite"></p>
+			<div class="sheet-results" id="v27ResultList" data-v27-results role="listbox" aria-label="${escapeHtml(noun)} results"></div>
+		</div>
+	`;
+}
+
+function v27PopulateResults() {
+	window.clearTimeout(v27SearchTimer);
+	v27SearchSerial += 1;
+	v27ActiveIndex = -1;
+	const query = v27Query.trim();
+	if (v27ActiveKind === 'content') {
+		v27Results = /^https?:\/\//i.test(query) ? [v27UrlResult('content', query)] : [];
+		v27RenderResults(query ? (v27Results.length ? 'Press Enter to import this source' : 'Use a WXR, XML, or SQL URL — or upload a file') : 'Paste a URL above, or drop a file here');
+		return;
+	}
+	if (v27LooksLikeUrl(query)) {
+		v27Results = [v27UrlResult(v27ActiveKind, query)];
+		v27RenderResults('Press Enter to add this source');
+		return;
+	}
+	if (!query) {
+		v27Results = v27SuggestionResults(v27ActiveKind);
+		v27RenderResults(v27Results.length + ' popular suggestions, excluding installed items.');
+		const kind = v27ActiveKind;
+		const serial = v27SearchSerial;
+		v27LoadPopular(kind).then(() => {
+			if (v27ActiveKind === kind && v27SearchSerial === serial && !v27Query.trim()) {
+				const activeSlug = v27Results[v27ActiveIndex]?.slug;
+				v27Results = v27SuggestionResults(kind);
+				v27RenderResults('Popular on WordPress.org');
+				const nextIndex = v27Results.findIndex((item) => item.slug === activeSlug);
+				if (nextIndex >= 0) v27SetActiveResult(nextIndex);
+			}
+		});
+		return;
+	}
+	const local = v27LocalMatches(v27ActiveKind, query);
+	v27Results = local;
+	v27RenderResults('Searching WordPress.org…', true);
+	const serial = v27SearchSerial;
+	v27SearchTimer = window.setTimeout(() => v27SearchDirectory(v27ActiveKind, query, local, serial), 280);
+}
+
+function v27RenderResults(status, busy = false) {
+	const list = document.querySelector('[data-v27-results]');
+	const input = document.querySelector('[data-v27-search]');
+	const statusNode = document.querySelector('[data-v27-search-status]');
+	if (!list || !input) return;
+	v27ActiveIndex = -1;
+	list.setAttribute('aria-busy', String(busy));
+	list.innerHTML = v27Results.map((item, index) => `
+		<button class="sheet-choice ${item.kind === 'theme' ? 'is-theme-result' : ''}" type="button" tabindex="-1"
+			id="v27-option-${item.kind}-${index}" role="option" aria-selected="false" data-v27-result-index="${index}">
+			${v27ResultVisual(item)}
+			<span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.note)}</span></span>
+			<b>${item.kind === 'content' ? 'Import' : 'Add'}</b>
+		</button>
+	`).join('');
+	input.setAttribute('aria-expanded', String(v27Results.length > 0));
+	input.removeAttribute('aria-activedescendant');
+	if (statusNode) {
+		statusNode.textContent = status;
+		delete statusNode.dataset.tone;
+	}
+	requestAnimationFrame(v27PositionPopover);
+}
+
+function v27MoveActiveResult(key) {
+	if (!v27Results.length) return;
+	if (key === 'Home') v27ActiveIndex = 0;
+	else if (key === 'End') v27ActiveIndex = v27Results.length - 1;
+	else if (key === 'ArrowDown') v27ActiveIndex = Math.min(v27ActiveIndex + 1, v27Results.length - 1);
+	else v27ActiveIndex = Math.max(v27ActiveIndex < 0 ? 0 : v27ActiveIndex - 1, 0);
+	v27SetActiveResult(v27ActiveIndex);
+}
+
+function v27SetActiveResult(index) {
+	const input = document.querySelector('[data-v27-search]');
+	const options = Array.from(document.querySelectorAll('[data-v27-result-index]'));
+	if (!input || !options[index]) return;
+	v27ActiveIndex = index;
+	options.forEach((option, optionIndex) => {
+		const active = optionIndex === index;
+		option.classList.toggle('is-keyboard-active', active);
+		option.setAttribute('aria-selected', String(active));
+	});
+	input.setAttribute('aria-activedescendant', options[index].id);
+	options[index].scrollIntoView({ block: 'nearest' });
+}
+
+function v27ChooseResult(index) {
+	const item = v27Results[index];
+	if (!item) return;
+	if (item.kind === 'plugin') v27AddPlugin(item);
+	else if (item.kind === 'theme') v27AddTheme(item);
+	else v27AddImport(item);
+}
+
+function v27ClearSearch() {
+	v27Query = '';
+	const input = document.querySelector('[data-v27-search]');
+	if (input) input.value = '';
+	v27PopulateResults();
+	input?.focus();
+}
+
+async function v27LoadPopular(kind) {
+	if (v27Popular[kind]) return v27Popular[kind];
+	if (v27PopularLoading[kind]) return v27PopularLoading[kind];
+	const endpoint = kind === 'plugin'
+		? 'https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[browse]=popular&request[per_page]=24&request[fields][icons]=1&request[fields][short_description]=1'
+		: 'https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[browse]=popular&request[per_page]=24';
+	v27PopularLoading[kind] = fetch(endpoint)
+		.then((response) => {
+			if (!response.ok) throw new Error('Directory request failed');
+			return response.json();
+		})
+		.then((payload) => {
+			const items = kind === 'plugin' ? payload.plugins || [] : payload.themes || [];
+			v27Popular[kind] = items.map((item) => v27NormalizeDirectoryItem(kind, item));
+			return v27Popular[kind];
+		})
+		.catch(() => {
+			v27Popular[kind] = [];
+			return [];
+		});
+	return v27PopularLoading[kind];
+}
+
+async function v27SearchDirectory(kind, query, local, serial) {
+	const endpoint = kind === 'plugin'
+		? 'https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[per_page]=10&request[fields][icons]=1&request[fields][short_description]=1&request[search]=' + encodeURIComponent(query)
+		: 'https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[per_page]=10&request[search]=' + encodeURIComponent(query);
+	try {
+		const response = await fetch(endpoint);
+		if (!response.ok) throw new Error('Directory request failed');
+		const payload = await response.json();
+		if (serial !== v27SearchSerial || v27Query.trim() !== query || v27ActiveKind !== kind) return;
+		const remote = (kind === 'plugin' ? payload.plugins || [] : payload.themes || [])
+			.map((item) => v27NormalizeDirectoryItem(kind, item));
+		const activeSlug = v27Results[v27ActiveIndex]?.slug;
+		v27Results = v27FilterInstalled(kind, v27Dedupe(local.concat(remote))).slice(0, 10);
+		v27RenderResults(v27Results.length ? 'From WordPress.org' : 'No matches — paste a URL or upload a ZIP');
+		const nextIndex = v27Results.findIndex((item) => item.slug === activeSlug);
+		if (nextIndex >= 0) v27SetActiveResult(nextIndex);
+	} catch (error) {
+		if (serial !== v27SearchSerial || v27Query.trim() !== query || v27ActiveKind !== kind) return;
+		const activeSlug = v27Results[v27ActiveIndex]?.slug;
+		v27Results = local;
+		v27RenderResults(local.length ? 'Built-in matches — WordPress.org is unavailable' : 'WordPress.org is unavailable — paste a URL or upload a ZIP');
+		const nextIndex = v27Results.findIndex((item) => item.slug === activeSlug);
+		if (nextIndex >= 0) v27SetActiveResult(nextIndex);
+	}
+}
+
+function v27SuggestionResults(kind) {
+	return v27FilterInstalled(kind, v27Dedupe(v27Catalog(kind))).slice(0, 7);
+}
+
+function v27LocalMatches(kind, query) {
+	const words = query.toLowerCase();
+	const prefix = [];
+	const contains = [];
+	v27Dedupe(v27Catalog(kind)).forEach((item) => {
+		const name = item.name.toLowerCase();
+		const slug = item.slug.toLowerCase();
+		if (name.startsWith(words) || slug.startsWith(words)) prefix.push(item);
+		else if (name.includes(words) || slug.includes(words) || item.note.toLowerCase().includes(words)) contains.push(item);
+	});
+	return v27FilterInstalled(kind, prefix.concat(contains)).slice(0, 8);
+}
+
+function v27Catalog(kind) {
+	const local = kind === 'plugin'
+		? PLUGIN_CATALOG.map((item) => ({ ...item, kind: 'plugin', source: 'WordPress.org' }))
+		: THEMES.map((item) => ({ ...item, kind: 'theme', source: 'WordPress.org' }));
+	return local.concat(v27Popular[kind] || []);
+}
+
+function v27FilterInstalled(kind, items) {
+	const installed = new Set(kind === 'plugin'
+		? state.plugins.map((item) => item.slug)
+		: state.installedThemes.map((item) => item.slug));
+	return items.filter((item) => !installed.has(item.slug));
+}
+
+function v27Dedupe(items) {
+	const seen = new Set();
+	return items.filter((item) => {
+		if (!item.slug || seen.has(item.slug)) return false;
+		seen.add(item.slug);
+		return true;
+	});
+}
+
+function v27NormalizeDirectoryItem(kind, item) {
+	const name = v27PlainText(item.name || item.slug || 'Untitled');
+	if (kind === 'plugin') {
+		const icons = item.icons || {};
+		return {
+			kind,
+			slug: item.slug || v27Slugify(name),
+			name,
+			icon: icons['1x'] || icons['2x'] || icons.default || '',
+			version: item.version || 'latest',
+			note: v27Tagline(item.short_description, 'WordPress.org plugin'),
+			source: 'WordPress.org',
+		};
+	}
+	const screenshot = item.screenshot_url || item.screenshot || '';
+	return {
+		kind,
+		slug: item.slug || v27Slugify(name),
+		name,
+		shot: screenshot.startsWith('//') ? 'https:' + screenshot : screenshot,
+		note: v27Tagline(item.description, 'WordPress.org theme'),
+		source: 'WordPress.org',
+	};
+}
+
+function v27Tagline(text, fallback) {
+	const plain = v27PlainText(text || '').trim();
+	if (!plain) return fallback;
+	const sentence = (plain.split(/(?<=[.!?])\s/)[0] || plain).replace(/[.!?]+$/, '');
+	if (sentence.length <= 110) return sentence;
+	const cut = sentence.slice(0, 110);
+	const breakAt = cut.lastIndexOf(' ');
+	return cut.slice(0, breakAt > 60 ? breakAt : 110).replace(/[,;:–—-]$/, '') + '…';
+}
+
+function v27UrlResult(kind, value) {
+	const github = /github\.com/i.test(value) || /^[\w.-]+\/[\w.-]+$/.test(value);
+	const clean = value.replace(/^https?:\/\//i, '').replace(/^github\.com\//i, '').split(/[?#]/)[0];
+	const last = clean.split('/').filter(Boolean).pop() || clean;
+	const name = v27SafeDecode(last).replace(/\.git$|\.zip$|\.xml$|\.wxr$|\.sql$/i, '') || value;
+	return {
+		kind,
+		slug: v27Slugify(name),
+		name,
+		note: (github ? 'GitHub' : 'Direct URL') + ' · ' + value,
+		source: github ? 'GitHub' : 'URL',
+		url: value,
+		version: 'latest',
+	};
+}
+
+function v27AddPlugin(item) {
+	const existing = state.plugins.find((plugin) => plugin.slug === item.slug);
+	if (existing) {
+		v27SetNotice(existing.name + ' is already in stage 3.', 'error');
+		v27Flash('[data-v27-plugin-slug="' + CSS.escape(existing.slug) + '"]');
+		requestAnimationFrame(() => document.querySelector('[data-v27-search]')?.focus());
+		return;
+	}
+	v27Commit('Added ' + item.name, () => {
+		const setup = v27PluginSetupDefaults(item.slug);
+		state.plugins.push({
+			slug: item.slug,
+			name: item.name,
+			icon: item.icon || '',
+			version: item.version || 'latest',
+			note: item.note || item.source,
+			source: item.source || 'WordPress.org',
+			url: item.url || '',
+			file: item.file || null,
+			active: true,
+			...(setup ? { setup } : {}),
+		});
+	});
+	v27Query = '';
+	const input = document.querySelector('[data-v27-search]');
+	if (input) input.value = '';
+	v27PopulateResults();
+	requestAnimationFrame(() => input?.focus());
+}
+
+function v27AddTheme(item) {
+	const existing = state.installedThemes.find((themeItem) => themeItem.slug === item.slug);
+	if (existing) {
+		v27UseTheme(existing.slug);
+		return;
+	}
+	v27Commit('Installed ' + item.name, () => {
+		state.installedThemes.push({
+			slug: item.slug,
+			name: item.name,
+			shot: item.shot || '',
+			note: item.note || item.source,
+			source: item.source || 'WordPress.org',
+			url: item.url || '',
+			file: item.file || null,
+		});
+	});
+	v27Query = '';
+	v27RenderPopover({ focus: '[data-v27-search]' });
+}
+
+function v27AddImport(item) {
+	const source = item.url || v27Query.trim();
+	if (state.content.imports.some((entry) => entry.source === source)) {
+		v27SetNotice('That import is already in stage 4.', 'error');
+		requestAnimationFrame(() => document.querySelector('[data-v27-search]')?.focus());
+		return;
+	}
+	const format = /\.sql(?:[?#]|$)/i.test(source) ? 'SQL' : 'WXR / XML';
+	v27Commit('Added ' + item.name + ' import', () => {
+		state.content.imports.push({ name: item.name, format, source, bundled: false });
+	});
+	v27Query = '';
+	const input = document.querySelector('[data-v27-search]');
+	if (input) input.value = '';
+	v27PopulateResults();
+	requestAnimationFrame(() => input?.focus());
+}
+
+function v27UseTheme(slug) {
+	const item = state.installedThemes.find((themeItem) => themeItem.slug === slug);
+	if (!item) return;
+	if (state.activeTheme !== slug) v27Commit('Activated ' + item.name, () => { state.activeTheme = slug; });
+	v27RenderPopover({ focus: '[data-v27-use-theme="' + CSS.escape(slug) + '"]' });
+}
+
+function v27RemoveTheme(slug) {
+	const item = state.installedThemes.find((themeItem) => themeItem.slug === slug);
+	if (!item || state.installedThemes.length < 2) return;
+	v27Commit('Removed ' + item.name, () => {
+		state.installedThemes = state.installedThemes.filter((themeItem) => themeItem.slug !== slug);
+		if (state.activeTheme === slug) state.activeTheme = state.installedThemes[0].slug;
+	});
+	v27RenderPopover({ focus: '[data-v27-search]' });
+}
+
+async function v27AddFiles(files) {
+	if (!files.length || !v27ActiveKind) return;
+	const kind = v27ActiveKind;
+	for (const file of files) {
+		try {
+			await v27AddFile(file, kind);
+		} catch (error) {
+			v27SetNotice('Could not read ' + file.name + '.', 'error');
+		}
+	}
+	if (v27ActiveKind === kind) requestAnimationFrame(() => document.querySelector('[data-v27-search]')?.focus());
+}
+
+async function v27AddFile(file, kind) {
+	const valid = kind === 'content' ? /\.(xml|wxr|sql)$/i.test(file.name) : /\.zip$/i.test(file.name);
+	if (!valid) {
+		v27SetNotice(kind === 'content' ? 'Choose a WXR, XML, or SQL file.' : 'Choose a ZIP file.', 'error');
+		return;
+	}
+	const baseName = file.name.replace(/\.(zip|xml|wxr|sql)$/i, '');
+	v27SetNotice('Reading ' + file.name + '…');
+	const resource = {
+		name: file.name,
+		mimeType: file.type || 'application/octet-stream',
+		size: file.size,
+		dataUrl: await v27ReadFileAsDataUrl(file),
+	};
+	if (kind === 'plugin') {
+		v27AddPlugin({ kind: 'plugin', slug: v27Slugify(baseName), name: baseName, note: file.name + ' · embedded in blueprint', source: 'Uploaded file', version: 'embedded', file: resource });
+		return;
+	}
+	if (kind === 'theme') {
+		v27AddTheme({ kind: 'theme', slug: v27Slugify(baseName), name: baseName, note: file.name + ' · embedded in blueprint', source: 'Uploaded file', file: resource });
+		return;
+	}
+	if (state.content.imports.some((entry) => entry.bundled && entry.name === file.name)) {
+		v27SetNotice(file.name + ' is already included.', 'error');
+		return;
+	}
+	v27Commit('Embedded ' + file.name, () => {
+		state.content.imports.push({ name: file.name, format: /\.sql$/i.test(file.name) ? 'SQL' : 'WXR / XML', source: file.name, bundled: true, file: resource });
+	});
+	v27SetNotice('Added ' + file.name + '; the panel is still active.', 'success');
+}
+
+function v27ReadFileAsDataUrl(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.addEventListener('load', () => resolve(String(reader.result)));
+		reader.addEventListener('error', () => reject(reader.error || new Error('Could not read file')));
+		reader.readAsDataURL(file);
+	});
+}
+
+function v27AddPage() {
+	const input = document.getElementById('v27PageName');
+	const name = input?.value.replace(/\s+/g, ' ').trim() || '';
+	if (!name) {
+		v27SetNotice('Enter a page title.', 'error');
+		input?.focus();
+		return;
+	}
+	if (state.content.pages.some((page) => page.title.toLowerCase() === name.toLowerCase())) {
+		v27SetNotice('“' + name + '” is already in stage 4.', 'error');
+		input.focus();
+		input.select();
+		return;
+	}
+	v27Commit('Added page “' + name + '”', () => {
+		state.content.pages.push({ id: v27UniquePageId(name), title: name, content: '' });
+	});
+	input.value = '';
+	v27SetNotice('Added “' + name + '”. Add another when ready.', 'success');
+	input.focus();
+}
+
+function v27AddProducts(button) {
+	const amount = Number(button.dataset.v27Products || 6);
+	const addedWooCommerce = !state.plugins.some((plugin) => plugin.slug === 'woocommerce');
+	v27Commit('Added ' + amount + ' sample products', () => {
+		if (addedWooCommerce) {
+			const catalogItem = PLUGIN_CATALOG.find((plugin) => plugin.slug === 'woocommerce');
+			state.plugins.push({ ...catalogItem, active: true, source: 'WordPress.org', setup: v27PluginSetupDefaults('woocommerce') });
+		}
+		state.content.products += amount;
+	});
+	v27SetNotice(state.content.products + ' sample products will be generated.', 'success');
+	button.focus();
+}
+
+function v27AddUser() {
+	const input = document.getElementById('v27UserName');
+	const role = document.getElementById('v27UserRole');
+	const username = input?.value.trim().replace(/\s+/g, '-').toLowerCase() || '';
+	if (!username) {
+		v27SetNotice('Enter a username.', 'error');
+		input?.focus();
+		return;
+	}
+	if (username.length > 60) {
+		v27SetNotice('WordPress usernames can be at most 60 characters.', 'error');
+		input.focus();
+		input.select();
+		return;
+	}
+	if (username === 'none' || !/^[a-z0-9._@-]+$/.test(username)) {
+		v27SetNotice(username === 'none' ? '“none” is reserved for staying signed out.' : 'Use letters, numbers, dots, underscores, @, or hyphens.', 'error');
+		input.focus();
+		input.select();
+		return;
+	}
+	if (state.users.some((user) => user.username.toLowerCase() === username)) {
+		v27SetNotice(username + ' already exists in stage 5.', 'error');
+		input.focus();
+		input.select();
+		return;
+	}
+	const labels = { editor: 'Editor', author: 'Author', shop_manager: 'Store manager', administrator: 'Administrator' };
+	v27Commit('Added user ' + username, () => {
+		state.users.push({ username, role: labels[role.value], roleSlug: role.value });
+	});
+	v27RenderPopover({ focus: '#v27UserName' });
+	v27SetNotice('Added ' + username + '; “Sign in as” is updated.', 'success');
+}
+
+function v27AddScriptPreset(key) {
+	const recipe = FINISH_RECIPES.find((item) => item.key === key);
+	if (!recipe) return;
+	if (state.scripts.some((script) => script.recipeKey === key)) {
+		v27SetNotice(recipe.name + ' is already in stage 6.', 'error');
+		return;
+	}
+	const categoryName = key === 'category'
+		? document.getElementById('v27CategoryName')?.value.replace(/\s+/g, ' ').trim() || 'News'
+		: '';
+	const noticeMessage = key === 'notice'
+		? document.getElementById('v27NoticeMessage')?.value.replace(/\s+/g, ' ').trim() || ''
+		: '';
+	const noticeTone = key === 'notice' ? document.getElementById('v27NoticeTone')?.value || 'info' : '';
+	if (key === 'notice' && !noticeMessage) {
+		v27SetNotice('Enter the notice message.', 'error');
+		document.getElementById('v27NoticeMessage')?.focus();
+		return;
+	}
+	const resolvedName = key === 'category' ? 'Rename “Uncategorized” to “' + categoryName + '”' : recipe.name;
+	v27Commit('Added ' + resolvedName, () => {
+		const script = JSON.parse(JSON.stringify(recipe));
+		script.recipeKey = script.key;
+		delete script.key;
+		if (key === 'category') {
+			script.name = resolvedName;
+			script.params = { categoryName };
+			script.steps = [{ step: 'runPHP', code: v27CategoryRecipeCode(categoryName) }];
+		}
+		if (key === 'notice') {
+			script.params = { message: noticeMessage, tone: noticeTone };
+			script.steps = [
+				{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+				{
+					step: 'writeFile',
+					path: '/wordpress/wp-content/mu-plugins/show-admin-notice.php',
+					data: v27AdminNoticeRecipeCode(noticeMessage, noticeTone),
+				},
+			];
+		}
+		state.scripts.push(script);
+	});
+	v27SetNotice('Added ' + resolvedName + '.', 'success');
+	v27SyncScriptPresetButtons();
+	const buttons = Array.from(document.querySelectorAll('[data-v27-script-preset]'));
+	const currentIndex = buttons.findIndex((button) => button.dataset.v27ScriptPreset === key);
+	const next = buttons.slice(currentIndex + 1).concat(buttons.slice(0, currentIndex)).find((button) => !button.disabled);
+	(next || document.querySelector('[data-v27-new-script]'))?.focus();
+}
+
+function v27CategoryRecipeCode(categoryName) {
+	return "<?php\nrequire '/wordpress/wp-load.php';\n\nwp_update_term(\n\t1,\n\t'category',\n\tarray(\n\t\t'name' => base64_decode( '" + v27Base64(categoryName) + "' ),\n\t\t'slug' => base64_decode( '" + v27Base64(v27Slugify(categoryName)) + "' ),\n\t)\n);\n";
+}
+
+function v27AdminNoticeRecipeCode(message, tone) {
+	const safeTone = ['success', 'error', 'warning', 'info'].includes(tone) ? tone : 'info';
+	return "<?php\nadd_action(\n\t'admin_notices',\n\tstatic function () {\n\t\techo '<div class=\"notice notice-" + safeTone + " is-dismissible\"><p>'\n\t\t\t. esc_html( base64_decode( '" + v27Base64(message) + "' ) )\n\t\t\t. '</p></div>';\n\t}\n);\n";
+}
+
+function v27NewScriptModal(kind) {
+	const labels = { php: 'PHP', sql: 'SQL', 'wp-cli': 'WP-CLI' };
+	const presets = {
+		php: { code: "<?php\nrequire '/wordpress/wp-load.php';\n\n// Runs after setup.\n", hint: 'Runs once the site materials are installed.' },
+		sql: { code: '-- One or more SQL queries, separated by semicolons.\n', hint: 'Runs against the WordPress database after content is added.' },
+		'wp-cli': { code: '# One command per line.\nwp option get blogname\n', hint: 'Each non-comment line must begin with wp.' },
+	};
+	const preset = presets[kind] || presets.php;
+	const label = labels[kind] || 'PHP';
+	v27OpenModal('New ' + label + ' step', `
+		<div class="v27-edit-modal">
+			<label>NAME<input class="sheet-input" id="v27EditScriptName" value=""></label>
+			<label>${escapeHtml(label)}<textarea class="v27-script-code" id="v27EditScriptCode" spellcheck="false">${escapeHtml(preset.code)}</textarea></label>
+			<small class="v27-source">${escapeHtml(preset.hint)}</small>
+			<div class="v27-modal-actions"><button class="run" type="button" data-v27-save-new-script="${escapeHtml(kind)}">Add step</button></div>
+		</div>
+	`);
+	requestAnimationFrame(() => document.getElementById('v27EditScriptName')?.focus());
+}
+
+function v27SaveNewScript(kind) {
+	const nameInput = document.getElementById('v27EditScriptName');
+	const codeInput = document.getElementById('v27EditScriptCode');
+	const name = nameInput?.value.replace(/\s+/g, ' ').trim() || '';
+	const code = codeInput?.value.trim() || '';
+	if (!name || !code) {
+		v27SetModalNotice('Give the step a name and content.');
+		(!name ? nameInput : codeInput)?.focus();
+		return;
+	}
+	let script;
+	try {
+		script = v27BuildCustomScript(kind, name, code);
+	} catch (error) {
+		v27SetModalNotice(String(error.message || error));
+		codeInput?.focus();
+		return;
+	}
+	if (state.scripts.some((item) => item.file === script.file)) {
+		v27SetModalNotice('A step named ' + script.file + ' already exists.');
+		nameInput?.focus();
+		nameInput?.select();
+		return;
+	}
+	v27Commit('Added ' + name, () => { state.scripts.push(script); });
+	v27CloseModal();
+	v27SetNotice('Added ' + name + '.', 'success');
+}
+
+function v27BuildCustomScript(kind, name, code) {
+	const slug = v27Slugify(name) || 'custom-step';
+	if (kind === 'sql') {
+		const file = slug + '.sql';
+		return {
+			name,
+			file,
+			kind,
+			code,
+			steps: [{ step: 'runSql', sql: { resource: 'literal', name: file, contents: code } }],
+		};
+	}
+	if (kind === 'wp-cli') {
+		const commands = code.split('\n').map((line) => line.trim())
+			.filter((line) => line && !line.startsWith('#'));
+		if (!commands.length || commands.some((command) => !/^wp(?:\s|$)/.test(command))) {
+			throw new Error('Each WP-CLI command must be on its own line and begin with wp.');
+		}
+		return {
+			name,
+			file: slug + '.wp-cli',
+			kind,
+			code,
+			steps: commands.map((command) => ({ step: 'wp-cli', command })),
+		};
+	}
+	return { name, file: slug + '.php', kind: 'php', code };
+}
+
+function v27RemovePlugin(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	const removesStoreSetup = plugin.slug === 'woocommerce';
+	v27Commit(removesStoreSetup ? 'Removed WooCommerce and its demo setup' : 'Removed ' + plugin.name, () => {
+		state.plugins.splice(index, 1);
+		if (removesStoreSetup) {
+			state.content.products = 0;
+			state.scripts = state.scripts.filter((script) => script.file !== 'demo-coupon.php');
+			if (state.landing === '/wp-admin/edit.php?post_type=product') state.landing = '/wp-admin/';
+		}
+	});
+	const nextIndex = Math.min(index, state.plugins.length - 1);
+	v27RestoreFocus('[data-remove-plugin="' + nextIndex + '"]', '[data-sheet-popover="plugin"]');
+}
+
+function v27OpenPluginInfo(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	const wporg = (plugin.source || 'WordPress.org') === 'WordPress.org';
+	const externalUrl = v27PluginExternalUrl(plugin);
+	v27OpenModal('Plugin details', `
+		<div class="v27-plugin-detail" data-v27-plugin-detail="${index}" data-v27-plugin-detail-slug="${escapeHtml(plugin.slug)}">
+			<header class="v27-plugin-detail-head">
+				${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
+				<div><div class="v27-plugin-detail-title"><h3 tabindex="-1" autofocus>${escapeHtml(plugin.name)}</h3>${v27PluginExternalLink(plugin, externalUrl)}</div><span class="v27-source">${escapeHtml(plugin.source || 'Source')}</span></div>
+			</header>
+			<p class="v27-plugin-description" data-v27-plugin-description>${escapeHtml(plugin.note || 'No description is available for this source.')}</p>
+			<dl class="v27-plugin-facts">
+				<div><dt>Source</dt><dd>${escapeHtml(plugin.file?.name || plugin.source || 'WordPress.org')}</dd></div>
+				<div><dt>Slug</dt><dd class="mono">${escapeHtml(plugin.slug)}</dd></div>
+				<div><dt>Directory</dt><dd data-v27-plugin-directory>${wporg ? 'Loading…' : 'Not a directory plugin'}</dd></div>
+			</dl>
+			<details class="v27-installation-settings">
+				<summary><strong>Installation settings</strong><small data-v27-plugin-install-summary>${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</small></summary>
+				<div class="v27-plugin-controls">
+					${wporg ? `<label class="v27-plugin-version-control">Version<select class="v27-version" data-v27-plugin-version="${index}" data-v27-version-slug="${escapeHtml(plugin.slug)}" aria-label="${escapeHtml(plugin.name)} version"><option value="${escapeHtml(plugin.version || 'latest')}" selected>${escapeHtml(plugin.version || 'latest')}</option>${plugin.version === 'latest' ? '' : '<option value="latest">latest</option>'}</select></label>` : `<div class="v27-plugin-version-control"><span>Version</span><strong>${escapeHtml(plugin.version || plugin.source || 'source archive')}</strong></div>`}
+					<label class="switch"><input type="checkbox" data-plugin-active="${index}" aria-label="Activate ${escapeHtml(plugin.name)} on run" ${plugin.active ? 'checked' : ''}><span>Activate after install</span></label>
+				</div>
+				<p class="v27-status" data-v27-plugin-control-status role="status" aria-live="polite"></p>
+			</details>
+			<p class="v27-status v27-plugin-detail-status" data-v27-plugin-info-status role="status" aria-live="polite">${wporg ? 'Loading WordPress.org details…' : 'Added from ' + escapeHtml(plugin.source || 'a custom source') + '.'}</p>
+		</div>
+	`);
+	const versionSelect = document.querySelector('[data-v27-plugin-detail="' + index + '"] [data-v27-version-slug]');
+	if (versionSelect) versionSelect.addEventListener('focus', () => v27LoadVersions(versionSelect), { once: true });
+	v27UpdatePluginDetailStatus(index);
+	if (wporg) v27LoadPluginInfo(index);
+}
+
+async function v27LoadPluginInfo(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	let details = v27PluginInfoCache.get(plugin.slug);
+	if (!details) {
+		try {
+			const response = await fetch('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=' + encodeURIComponent(plugin.slug) + '&request[fields][short_description]=1&request[fields][description]=1&request[fields][active_installs]=1&request[fields][rating]=1&request[fields][last_updated]=1');
+			if (!response.ok) throw new Error('Directory request failed');
+			details = await response.json();
+			v27PluginInfoCache.set(plugin.slug, details);
+		} catch (error) {
+			const status = document.querySelector('[data-v27-plugin-detail-slug="' + CSS.escape(plugin.slug) + '"] [data-v27-plugin-info-status]');
+			if (status) status.textContent = 'WordPress.org details are unavailable right now.';
+			return;
+		}
+	}
+	const modal = document.querySelector('[data-v27-plugin-detail-slug="' + CSS.escape(plugin.slug) + '"]');
+	if (!modal) return;
+	const description = v27PlainText(details.short_description || details.sections?.description || details.description || '');
+	if (description) modal.querySelector('[data-v27-plugin-description]').textContent = description.slice(0, 520);
+	const facts = [];
+	if (details.active_installs) facts.push(v27FormatInstallCount(details.active_installs) + ' active installs');
+	if (details.rating) facts.push(Math.round(Number(details.rating)) + '% rating');
+	if (details.last_updated) facts.push('updated ' + details.last_updated);
+	modal.querySelector('[data-v27-plugin-directory]').textContent = facts.length ? facts.slice(0, 2).join(' · ') : 'WordPress.org';
+	modal.querySelector('[data-v27-plugin-info-status]').textContent = facts[2] || 'Details loaded from WordPress.org.';
+}
+
+function v27UpdatePluginDetailStatus(index) {
+	const plugin = state.plugins[index];
+	const status = document.querySelector('[data-v27-plugin-detail="' + index + '"] [data-v27-plugin-control-status]');
+	const summary = document.querySelector('[data-v27-plugin-detail="' + index + '"] [data-v27-plugin-install-summary]');
+	if (!plugin) return;
+	const setup = (PLUGIN_SETUP_CONTROLS[plugin.slug] || [])
+		.filter((control) => plugin.setup?.[control.key])
+		.map((control) => control.status);
+	if (summary) summary.textContent = (plugin.version || 'latest') + ' · ' + (plugin.active ? 'active' : 'inactive');
+	if (status) status.textContent = 'Will install ' + (plugin.active ? 'and activate' : 'without activation')
+		+ (setup.length ? ' · ' + setup.join(' · ') : '');
+}
+
+function v27PluginExternalUrl(plugin) {
+	if ((plugin.source || 'WordPress.org') === 'WordPress.org') {
+		return 'https://wordpress.org/plugins/' + encodeURIComponent(plugin.slug) + '/';
+	}
+	return /^https?:\/\//i.test(plugin.url || '') ? plugin.url : '';
+}
+
+function v27PluginExternalLink(plugin, url = v27PluginExternalUrl(plugin)) {
+	return url ? `<a class="v27-external-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(plugin.name)} source in a new tab" title="Open source">↗</a>` : '';
+}
+
+function v27FormatInstallCount(value) {
+	const amount = Number(value) || 0;
+	return amount >= 1000000 ? (amount / 1000000).toFixed(amount % 1000000 ? 1 : 0) + 'M'
+		: amount >= 1000 ? Math.round(amount / 1000) + 'K'
+		: String(amount);
+}
+
+function v27SetPluginVersion(pluginIndex, version) {
+	const plugin = state.plugins[pluginIndex];
+	if (!plugin || plugin.version === version) return;
+	v27CommitWithoutRender('Changed ' + plugin.name + ' version', () => { plugin.version = version; });
+	v27RenderPlugins();
+	v27UpdatePluginDetailStatus(pluginIndex);
+}
+
+function v27RemovePage(index) {
+	const page = state.content.pages[index];
+	if (!page) return;
+	v27Commit('Removed page “' + page.title + '”', () => {
+		state.content.pages.splice(index, 1);
+		if (state.homepage === page.id) state.homepage = 'latest-posts';
+	});
+	const nextIndex = Math.min(index, state.content.pages.length - 1);
+	v27RestoreFocus('[data-v27-edit-page="' + nextIndex + '"]', '[data-sheet-popover="content"]');
+}
+
+async function v27EditPage(index) {
+	const page = state.content.pages[index];
+	if (!page) return;
+	const session = ++v27EditorSession;
+	v27EditorPageId = page.id;
+	v27EditorPostId = 0;
+	v27EditorPageReady = false;
+	v27OpenModal('Editing “' + page.title + '”', '', 'page-editor');
+	v27SetEditorStatus('Starting WordPress and the block editor…');
+	try {
+		const client = await v27EnsurePageEditor();
+		if (!v27EditorIsOpen(page.id, session)) return;
+		v27SetEditorStatus('Opening “' + page.title + '”…');
+		const postId = await v27SeedEditorPage(page);
+		if (!v27EditorIsOpen(page.id, session)) return;
+		v27EditorPostId = postId;
+		const opened = await v27NavigatePageEditor(client, postId, page.id, session);
+		if (!opened) return;
+		v27EditorPageReady = true;
+		v27SetEditorStatus('');
+		document.getElementById('v27EditorFrame')?.focus();
+	} catch (error) {
+		if (v27EditorIsOpen(page.id, session)) {
+			v27SetEditorStatus('Could not open the WordPress editor: ' + String(error), 'error');
+		}
+	}
+}
+
+function v27EditorIsOpen(pageId = v27EditorPageId, session = v27EditorSession) {
+	const modal = document.getElementById('hybridModal');
+	return !modal.hidden && modal.dataset.v27Mode === 'page-editor'
+		&& v27EditorPageId === pageId && v27EditorSession === session;
+}
+
+async function v27EnsurePageEditor() {
+	const fingerprint = v27PageEditorFingerprint();
+	if (v27EditorClient && v27EditorFingerprint === fingerprint) return v27EditorClient;
+	if (v27EditorBootPromise && v27EditorFingerprint === fingerprint) return v27EditorBootPromise;
+	const generation = ++v27EditorBootGeneration;
+	v27EditorClient = null;
+	v27EditorPageReady = false;
+	v27EditorFingerprint = fingerprint;
+	const frame = document.getElementById('v27EditorFrame');
+	if (frame) frame.src = 'about:blank';
+	const bootPromise = import('https://playground.wordpress.net/client/index.js')
+		.then((module) => module.startPlaygroundWeb({
+			iframe: frame,
+			remoteUrl: 'https://playground.wordpress.net/remote.html',
+			blueprint: v27PageEditorBlueprint(),
+		}))
+		.then(async (client) => {
+			await client.isReady();
+			if (generation !== v27EditorBootGeneration) throw new Error('The editor configuration changed while WordPress was starting.');
+			v27EditorClient = client;
+			return client;
+		})
+		.catch((error) => {
+			if (v27EditorBootPromise === bootPromise) {
+				v27EditorBootPromise = null;
+				v27EditorFingerprint = '';
+			}
+			throw error;
+		});
+	v27EditorBootPromise = bootPromise;
+	return bootPromise;
+}
+
+function v27PageEditorBlueprint() {
+	const steps = [{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' }];
+	if (state.wordpressAdmin.hideEditorGuides) {
+		steps.push({
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/hide-editor-welcome-guides.php',
+			data: GUIDE_CODE,
+		});
+	}
+	steps.push(
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/blueprint-page-editor.php',
+			data: v27EditorBridgeCode(),
+		}
+	);
+	const activeTheme = v27CurrentTheme();
+	steps.push({
+		step: 'installTheme',
+		themeData: v27ResourceForItem(activeTheme, 'theme'),
+		options: {
+			activate: true,
+			targetFolderName: activeTheme.slug,
+			humanReadableName: activeTheme.name,
+		},
+	});
+	if (state.lang !== 'en_US') steps.push({ step: 'setSiteLanguage', language: state.lang });
+	steps.push({ step: 'login', username: 'admin' });
+	return {
+		preferredVersions: { wp: state.wp, php: state.php },
+		features: { networking: state.networking },
+		siteOptions: { blogname: state.title },
+		landingPage: '/wp-admin/post-new.php?post_type=page',
+		steps,
+	};
+}
+
+function v27PageEditorFingerprint() {
+	return JSON.stringify({
+		wp: state.wp,
+		php: state.php,
+		lang: state.lang,
+		networking: state.networking,
+		title: state.title,
+		hideEditorGuides: state.wordpressAdmin.hideEditorGuides,
+		theme: v27EditorResourceFingerprint(v27CurrentTheme()),
+	});
+}
+
+function v27EditorResourceFingerprint(item) {
+	return {
+		slug: item.slug,
+		url: item.url || '',
+		file: item.file ? [item.file.name, item.file.size, item.file.dataUrl?.length || 0] : null,
+	};
+}
+
+async function v27SeedEditorPage(page) {
+	const code = "<?php\nrequire '/wordpress/wp-load.php';\n\n$blueprint_id = base64_decode( '" + v27Base64(page.id) + "' );\n$post_ids = get_posts( array(\n\t'post_type' => 'page',\n\t'post_status' => 'any',\n\t'posts_per_page' => 1,\n\t'fields' => 'ids',\n\t'meta_key' => '_v27_blueprint_page_id',\n\t'meta_value' => $blueprint_id,\n) );\n$post_data = array(\n\t'post_type' => 'page',\n\t'post_status' => 'draft',\n\t'post_title' => wp_slash( base64_decode( '" + v27Base64(page.title) + "' ) ),\n\t'post_content' => wp_slash( base64_decode( '" + v27Base64(page.content) + "' ) ),\n);\nif ( $post_ids ) {\n\t$post_data['ID'] = $post_ids[0];\n}\n$post_id = wp_insert_post( $post_data, true );\nif ( is_wp_error( $post_id ) ) {\n\techo wp_json_encode( array( 'error' => $post_id->get_error_message() ) );\n\treturn;\n}\nupdate_post_meta( $post_id, '_v27_blueprint_page_id', $blueprint_id );\necho wp_json_encode( array( 'id' => $post_id ) );\n";
+	const result = await v27EditorClient.run({ code });
+	const payload = JSON.parse(String(result?.text || '').trim());
+	const postId = Number(payload.id);
+	if (!Number.isInteger(postId) || postId < 1) {
+		throw new Error(payload.error || 'WordPress did not create the draft page.');
+	}
+	return postId;
+}
+
+function v27NavigatePageEditor(client, postId, pageId, session) {
+	v27EditorNavigationPromise = v27EditorNavigationPromise.catch(() => {}).then(async () => {
+		if (!v27EditorIsOpen(pageId, session)) return false;
+		await client.goTo('/wp-admin/post.php?post=' + postId + '&action=edit');
+		return v27EditorIsOpen(pageId, session);
+	});
+	return v27EditorNavigationPromise;
+}
+
+function v27RequestModalClose() {
+	if (document.getElementById('hybridModal').dataset.v27Mode === 'page-editor') {
+		v27RequestEditorCapture(true);
+		return;
+	}
+	v27CloseModal();
+}
+
+function v27RequestEditorCapture(close) {
+	if (v27EditorSaving) return;
+	if (!v27EditorClient || !v27EditorPageId || !v27EditorPageReady) {
+		if (close) v27CloseModal();
+		return;
+	}
+	v27EditorSaving = true;
+	v27EditorPendingClose = Boolean(close);
+	v27EditorCurrentRequest = 'host-' + (++v27EditorSaveSerial);
+	v27SetEditorButtonSaving(true);
+	v27SetEditorStatus('Saving changes into the Blueprint…');
+	v27PostToPageEditor({
+		type: 'v27-editor-save',
+		channel: v27EditorChannel,
+		requestId: v27EditorCurrentRequest,
+	});
+	window.clearTimeout(v27EditorSaveTimer);
+	const requestId = v27EditorCurrentRequest;
+	v27EditorSaveTimer = window.setTimeout(() => {
+		if (v27EditorCurrentRequest !== requestId) return;
+		v27EditorSaving = false;
+		v27EditorPendingClose = false;
+		v27EditorCurrentRequest = '';
+		v27SetEditorButtonSaving(false);
+		v27SetEditorStatus('WordPress did not confirm the save. Choose Done to retry.', 'error');
+	}, 10000);
+}
+
+function v27PostToPageEditor(message) {
+	try {
+		const remote = document.getElementById('v27EditorFrame').contentWindow;
+		if (!remote) return;
+		remote.postMessage(message, '*');
+		for (let index = 0; index < remote.frames.length; index += 1) {
+			try { remote.frames[index].postMessage(message, '*'); } catch (error) {}
+		}
+	} catch (error) {}
+}
+
+async function v27OnEditorMessage(event) {
+	const message = event.data;
+	if (!message || message.channel !== v27EditorChannel) return;
+	if (!['v27-editor-saved', 'v27-editor-error'].includes(message.type)) return;
+	if (!v27EditorIsOpen()) return;
+	const messageKey = message.type + ':' + String(message.requestId || '') + ':' + String(message.id || '');
+	if (messageKey === v27EditorLastMessage) return;
+	v27EditorLastMessage = messageKey;
+	const hostRequest = message.requestId === v27EditorCurrentRequest;
+	if (!hostRequest) return;
+	if (message.type === 'v27-editor-error') {
+		window.clearTimeout(v27EditorSaveTimer);
+		v27EditorSaving = false;
+		v27EditorPendingClose = false;
+		v27EditorCurrentRequest = '';
+		v27SetEditorButtonSaving(false);
+		v27SetEditorStatus('WordPress could not save this page: ' + (message.message || 'Unknown error'), 'error');
+		return;
+	}
+	if (Number(message.id) !== v27EditorPostId) {
+		window.clearTimeout(v27EditorSaveTimer);
+		v27EditorCaptureFailed('WordPress returned a different page.');
+		return;
+	}
+	window.clearTimeout(v27EditorSaveTimer);
+	const close = v27EditorPendingClose;
+	const session = v27EditorSession;
+	const requestId = v27EditorCurrentRequest;
+	v27EditorSaving = true;
+	v27EditorPendingClose = false;
+	v27SetEditorButtonSaving(true);
+	await v27CaptureEditorPage(Number(message.id), close, session, requestId);
+}
+
+async function v27CaptureEditorPage(postId, close, session, requestId) {
+	const pageId = v27EditorPageId;
+	const page = state.content.pages.find((item) => item.id === pageId);
+	if (!v27EditorClient || !page || !Number.isInteger(postId) || postId < 1) {
+		v27EditorCaptureFailed('WordPress returned an invalid page.');
+		return;
+	}
+	try {
+		v27SetEditorStatus('Copying changes into the Blueprint…');
+		const code = "<?php\nrequire '/wordpress/wp-load.php';\n\n$post = get_post( " + postId + " );\n$blueprint_id = $post ? get_post_meta( $post->ID, '_v27_blueprint_page_id', true ) : '';\nif ( $post && 'page' === $post->post_type ) {\n\techo wp_json_encode( array(\n\t\t'id' => $post->ID,\n\t\t'blueprintId' => $blueprint_id,\n\t\t'title' => $post->post_title,\n\t\t'content' => $post->post_content,\n\t) );\n}\n";
+		const result = await v27EditorClient.run({ code });
+		if (!v27EditorIsOpen(pageId, session) || v27EditorCurrentRequest !== requestId
+			|| v27EditorPostId !== postId) return;
+		const payload = JSON.parse(String(result?.text || '').trim());
+		const title = String(payload.title || '').replace(/\s+/g, ' ').trim();
+		const content = String(payload.content || '');
+		if (payload.blueprintId !== pageId) throw new Error('WordPress returned a different page.');
+		if (!title) throw new Error('Give this page a title before saving.');
+		if (state.content.pages.some((item) => item.id !== pageId && item.title.toLowerCase() === title.toLowerCase())) {
+			throw new Error('A page named “' + title + '” already exists.');
+		}
+		if (title !== page.title || content !== page.content) {
+			v27Commit('Updated page “' + page.title + '”', () => {
+				page.title = title;
+				page.content = content;
+			});
+		}
+		document.getElementById('hybridModalTitle').textContent = 'Editing “' + title + '”';
+		v27EditorSaving = false;
+		v27EditorCurrentRequest = '';
+		v27SetEditorButtonSaving(false);
+		if (close) v27CloseModal();
+		else v27SetEditorStatus('');
+	} catch (error) {
+		if (!v27EditorIsOpen(pageId, session) || v27EditorCurrentRequest !== requestId) return;
+		v27EditorCaptureFailed(String(error.message || error));
+	}
+}
+
+function v27EditorCaptureFailed(message) {
+	window.clearTimeout(v27EditorSaveTimer);
+	v27EditorSaving = false;
+	v27EditorPendingClose = false;
+	v27EditorCurrentRequest = '';
+	v27SetEditorButtonSaving(false);
+	v27SetEditorStatus(message, 'error');
+}
+
+function v27SetEditorStatus(message, tone = '') {
+	const status = document.querySelector('[data-v27-editor-status]');
+	if (!status) return;
+	status.textContent = message;
+	status.hidden = !message;
+	if (tone) status.dataset.tone = tone;
+	else delete status.dataset.tone;
+}
+
+function v27SetEditorButtonSaving(saving) {
+	const button = document.querySelector('#hybridModal [data-close-modal]');
+	if (!button) return;
+	button.disabled = saving;
+	button.textContent = saving ? 'Saving…' : 'Done';
+}
+
+function v27EditorBridgeCode() {
+	return `<?php
+add_action( 'admin_head', function () {
+?>
+<style>
+.edit-post-fullscreen-mode-close,
+.editor-header a[href*="/wp-admin/edit.php"],
+.editor-post-save-draft,
+.editor-header button[aria-label="Save draft"],
+.editor-post-publish-button,
+.editor-post-publish-panel__toggle {
+	display: none !important;
+}
+</style>
+<?php
+} );
+
+add_action( 'admin_footer', function () {
+?>
+<script>
+( function () {
+	var channel = ${JSON.stringify(v27EditorChannel)};
+	var requests = {};
+	function postToHost( message ) {
+		message.channel = channel;
+		try { window.parent.postMessage( message, '*' ); } catch ( error ) {}
+		try {
+			if ( window.top !== window.parent ) window.top.postMessage( message, '*' );
+		} catch ( error ) {}
+	}
+
+	function whenEditorIsIdle( callback ) {
+		var editor = wp.data.select( 'core/editor' );
+		if ( ! editor.isSavingPost() && ! editor.isAutosavingPost() ) {
+			callback();
+			return;
+		}
+		var unsubscribe = wp.data.subscribe( function () {
+			editor = wp.data.select( 'core/editor' );
+			if ( editor.isSavingPost() || editor.isAutosavingPost() ) return;
+			try { unsubscribe(); } catch ( error ) {}
+			callback();
+		} );
+	}
+
+	function saveAndNotify( requestId ) {
+		if ( requests[ requestId ] ) return;
+		requests[ requestId ] = true;
+		whenEditorIsIdle( function () {
+			try {
+				var editor = wp.data.select( 'core/editor' );
+				if ( typeof editor.isEditedPostSaveable === 'function' && ! editor.isEditedPostSaveable() ) {
+					postToHost( { type: 'v27-editor-error', requestId: requestId, message: 'Give this page a title before saving.' } );
+					return;
+				}
+				Promise.resolve( wp.data.dispatch( 'core/editor' ).savePost() ).then( function () {
+					editor = wp.data.select( 'core/editor' );
+					if ( typeof editor.didPostSaveRequestFail === 'function' && editor.didPostSaveRequestFail() ) {
+						postToHost( { type: 'v27-editor-error', requestId: requestId, message: 'WordPress rejected the save.' } );
+						return;
+					}
+					var id = editor.getCurrentPostId() || 0;
+					postToHost( { type: 'v27-editor-saved', requestId: requestId, id: id } );
+				} ).catch( function ( error ) {
+					postToHost( { type: 'v27-editor-error', requestId: requestId, message: String( error ) } );
+				} );
+			} catch ( error ) {
+				postToHost( { type: 'v27-editor-error', requestId: requestId, message: String( error ) } );
+			}
+		} );
+	}
+
+	window.addEventListener( 'message', function ( event ) {
+		if ( ! event.data || event.data.type !== 'v27-editor-save' || event.data.channel !== channel ) return;
+		saveAndNotify( event.data.requestId || '' );
+	} );
+} )();
+<\/script>
+<?php
+} );
+`;
+}
+
+function v27RemoveImport(index) {
+	const item = state.content.imports[index];
+	if (!item) return;
+	v27Commit('Removed import ' + item.name, () => { state.content.imports.splice(index, 1); });
+	const nextIndex = Math.min(index, state.content.imports.length - 1);
+	v27RestoreFocus('[data-v27-remove-import="' + nextIndex + '"]', '[data-sheet-popover="content"]');
+}
+
+function v27RemoveUser(index) {
+	const user = state.users[index];
+	if (!user || user.username === 'admin') return;
+	v27Commit('Removed user ' + user.username, () => {
+		state.users.splice(index, 1);
+		if (state.login === user.username) state.login = state.users[0]?.username || 'none';
+	});
+	const nextIndex = Math.min(index, state.users.length - 1);
+	if (v27ActiveKind === 'user') {
+		const focus = nextIndex >= 0 && state.users[nextIndex]?.username !== 'admin'
+			? '[data-v27-edit-user="' + nextIndex + '"]'
+			: '#v27UserName';
+		v27RenderPopover({ focus });
+	} else {
+		v27RestoreFocus('[data-v27-edit-user="' + nextIndex + '"]', '[data-sheet-popover="user"]');
+	}
+}
+
+function v27EditUser(index) {
+	const user = state.users[index];
+	if (!user || user.username === 'admin') return;
+	v27OpenModal('Edit user', `
+		<div class="v27-edit-modal">
+			<label>USERNAME<input class="sheet-input" id="v27EditUserName" value="${escapeHtml(user.username)}" maxlength="60"></label>
+			<label>ROLE<select class="sheet-select" id="v27EditUserRole"><option value="editor">Editor</option><option value="author">Author</option><option value="shop_manager">Store manager</option><option value="administrator">Administrator</option></select></label>
+			<p class="v27-status" data-v27-modal-status role="status" aria-live="polite"></p>
+			<div class="v27-modal-actions"><button class="run" type="button" data-v27-save-user="${index}">Save changes</button></div>
+		</div>
+	`);
+	document.getElementById('v27EditUserRole').value = user.roleSlug;
+}
+
+function v27SaveUser(index) {
+	const user = state.users[index];
+	const input = document.getElementById('v27EditUserName');
+	const role = document.getElementById('v27EditUserRole');
+	const username = input?.value.trim().replace(/\s+/g, '-').toLowerCase() || '';
+	if (!user || !username) {
+		v27SetModalNotice('Enter a username.');
+		input?.focus();
+		return;
+	}
+	if (username.length > 60) {
+		v27SetModalNotice('WordPress usernames can be at most 60 characters.');
+		input.focus();
+		input.select();
+		return;
+	}
+	if (username === 'none' || !/^[a-z0-9._@-]+$/.test(username)) {
+		v27SetModalNotice(username === 'none' ? '“none” is reserved for staying signed out.' : 'Use letters, numbers, dots, underscores, @, or hyphens.');
+		input.focus();
+		input.select();
+		return;
+	}
+	if (state.users.some((item, userIndex) => userIndex !== index && item.username.toLowerCase() === username)) {
+		v27SetModalNotice(username + ' already exists.');
+		input.focus();
+		input.select();
+		return;
+	}
+	const labels = { editor: 'Editor', author: 'Author', shop_manager: 'Store manager', administrator: 'Administrator' };
+	const previousUsername = user.username;
+	v27Commit('Updated user ' + previousUsername, () => {
+		user.username = username;
+		user.roleSlug = role.value;
+		user.role = labels[role.value];
+		if (state.login === previousUsername) state.login = username;
+	});
+	v27CloseModal();
+	if (v27ActiveKind === 'user') v27RenderPopover({ focus: '[data-v27-edit-user="' + index + '"]' });
+}
+
+function v27EditScript(index) {
+	const script = state.scripts[index];
+	if (!script) return;
+	if (!script.code) {
+		openCode(index);
+		return;
+	}
+	const kind = script.kind || 'php';
+	const labels = { php: 'PHP', sql: 'SQL', 'wp-cli': 'WP-CLI' };
+	v27OpenModal('Edit finishing script', `
+		<div class="v27-edit-modal">
+			<input type="hidden" id="v27EditScriptKind" value="${escapeHtml(kind)}">
+			<label>NAME<input class="sheet-input" id="v27EditScriptName" value="${escapeHtml(script.name)}"></label>
+			<label>${escapeHtml(labels[kind] || 'PHP')}<textarea class="v27-script-code" id="v27EditScriptCode" spellcheck="false">${escapeHtml(script.code)}</textarea></label>
+			<div class="v27-modal-actions"><button class="run" type="button" data-v27-save-script="${index}">Save changes</button></div>
+		</div>
+	`);
+	requestAnimationFrame(() => document.getElementById('v27EditScriptName')?.focus());
+}
+
+function v27SaveScript(index) {
+	const script = state.scripts[index];
+	const kind = document.getElementById('v27EditScriptKind')?.value || 'php';
+	const name = document.getElementById('v27EditScriptName')?.value.trim();
+	const code = document.getElementById('v27EditScriptCode')?.value.trim();
+	if (!script || !name || !code) {
+		v27SetModalNotice('Give the step a name and content.');
+		document.getElementById(!name ? 'v27EditScriptName' : 'v27EditScriptCode')?.focus();
+		return;
+	}
+	let updated;
+	try {
+		updated = v27BuildCustomScript(kind, name, code);
+	} catch (error) {
+		v27SetModalNotice(String(error.message || error));
+		document.getElementById('v27EditScriptCode')?.focus();
+		return;
+	}
+	if (state.scripts.some((item, itemIndex) => itemIndex !== index && item.file === updated.file)) {
+		v27SetModalNotice('A step named ' + updated.file + ' already exists.');
+		document.getElementById('v27EditScriptName')?.focus();
+		return;
+	}
+	v27Commit('Updated ' + script.name, () => {
+		state.scripts[index] = updated;
+	});
+	v27CloseModal();
+}
+
+function v27RemoveScript(index) {
+	const script = state.scripts[index];
+	if (!script) return;
+	v27Commit('Removed ' + script.name, () => { state.scripts.splice(index, 1); });
+	const nextIndex = Math.min(index, state.scripts.length - 1);
+	v27RestoreFocus('[data-v27-edit-script="' + nextIndex + '"]', '[data-sheet-popover="script"]');
+}
+
+function v27SyncScriptPresetButtons() {
+	document.querySelectorAll('[data-v27-script-preset]').forEach((button) => {
+		const recipe = FINISH_RECIPES.find((item) => item.key === button.dataset.v27ScriptPreset);
+		const added = state.scripts.some((script) => script.recipeKey === recipe?.key);
+		button.disabled = added;
+		const action = added ? 'Added' : 'Add';
+		const stateLabel = button.querySelector('b');
+		if (stateLabel) stateLabel.textContent = action;
+		if (recipe?.key === 'category') {
+			button.setAttribute('aria-label', action + ' ' + recipe.name + ' recipe');
+			document.getElementById('v27CategoryName').disabled = added;
+		}
+	});
+}
+
+function v27RestoreFocus(preferredSelector, fallbackSelector) {
+	requestAnimationFrame(() => {
+		const target = document.querySelector(preferredSelector) || document.querySelector(fallbackSelector);
+		target?.focus();
+	});
+}
+
+function v27SetModalNotice(message) {
+	const node = document.querySelector('[data-v27-modal-status]');
+	if (node) {
+		node.textContent = message;
+		node.dataset.tone = 'error';
+	}
+}
+
+async function v27CopyJson() {
+	const json = document.querySelector('[data-v27-json]')?.textContent || '';
+	const status = document.querySelector('[data-v27-json-status]');
+	try {
+		await navigator.clipboard.writeText(json);
+	} catch (error) {
+		const textarea = document.createElement('textarea');
+		textarea.value = json;
+		textarea.style.position = 'fixed';
+		textarea.style.opacity = '0';
+		document.body.appendChild(textarea);
+		textarea.select();
+		document.execCommand('copy');
+		textarea.remove();
+	}
+	if (status) status.textContent = 'Copied';
+}
+
+function v27DownloadJson() {
+	const json = document.querySelector('[data-v27-json]')?.textContent || '';
+	const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = 'blueprint.json';
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+	window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+	const status = document.querySelector('[data-v27-json-status]');
+	if (status) status.textContent = 'Downloaded';
+}
+
+function v27RenderPlugins() {
+	document.querySelectorAll('[data-plugins]').forEach((container) => {
+		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => {
+			const setupControls = PLUGIN_SETUP_CONTROLS[plugin.slug] || [];
+			const setupMarkup = setupControls.length ? `<div class="v27-plugin-context">${setupControls.map((control) => `
+				<label class="switch" title="${escapeHtml(control.note)}"><input type="checkbox" data-v27-plugin-setup="${index}" data-v27-plugin-setup-key="${escapeHtml(control.key)}" ${plugin.setup?.[control.key] ? 'checked' : ''}><span>${escapeHtml(control.label)}</span></label>
+			`).join('')}</div>` : '';
+			return `
+				<article class="v27-plugin" data-v27-plugin-slug="${escapeHtml(plugin.slug)}">
+					<div class="v27-plugin-main">
+						${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
+						<span class="v27-plugin-copy"><span class="v27-plugin-title-line"><button class="v27-plugin-title" type="button" data-v27-plugin-info="${index}">${escapeHtml(plugin.name)}</button>${v27PluginExternalLink(plugin)}</span><span>${escapeHtml(plugin.note || plugin.source || plugin.slug)}</span></span>
+						<span class="v27-plugin-summary">${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</span>
+						<button class="icon-btn" type="button" data-remove-plugin="${index}" aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
+					</div>
+					${setupMarkup}
+				</article>
+			`;
+		}).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+	});
+}
+
+function v27RenderContent() {
+	document.querySelectorAll('[data-content-lines]').forEach((container) => {
+		const pages = state.content.pages.map((page, index) => `
+			<div class="v27-line"><strong>${escapeHtml(page.title)}</strong><span class="leader"></span><span class="tail">${v27WordCount(page.content)} words</span><button class="btn quiet" type="button" data-v27-edit-page="${index}" aria-label="Edit page ${escapeHtml(page.title)}">edit</button><button class="v27-small-remove" type="button" data-v27-remove-page="${index}" aria-label="Remove page ${escapeHtml(page.title)}">×</button></div>
+		`).join('');
+		const imports = state.content.imports.map((item, index) => `
+			<div class="v27-line"><strong>${escapeHtml(item.name)}</strong><span class="leader"></span><span class="tail">${escapeHtml(item.format)}${item.bundled ? ' · embedded' : ''}</span><span></span><button class="v27-small-remove" type="button" data-v27-remove-import="${index}" aria-label="Remove import ${escapeHtml(item.name)}">×</button></div>
+		`).join('');
+		const homepageOptions = '<option value="latest-posts"' + (state.homepage === 'latest-posts' ? ' selected' : '') + '>Latest posts</option>'
+			+ state.content.pages.map((page) => `<option value="${escapeHtml(page.id)}" ${state.homepage === page.id ? 'selected' : ''}>${escapeHtml(page.title)}</option>`).join('');
+		const products = state.content.products ? `
+			<div class="v27-line"><strong>Sample products</strong><span class="leader"></span><span class="tail">${state.content.products} generated on run</span><span></span><span></span></div>
+		` : '';
+		container.innerHTML = pages + `
+			<div class="v27-homepage"><label>Default homepage <select class="ctl" name="homepage" data-field="homepage" aria-label="Default homepage">${homepageOptions}</select></label><span>What visitors see at <span class="mono">/</span></span></div>
+			<label class="switch v27-editor-guides"><input type="checkbox" data-v27-hide-editor-guides ${state.wordpressAdmin.hideEditorGuides ? 'checked' : ''}><span>Hide WordPress editor welcome guides</span></label>
+		` + products + imports;
+	});
+}
+
+function v27RenderUsers() {
+	const avatars = state.users.slice(0, 4).map((user) => `<span class="v27-avatar" title="${escapeHtml(user.username)}" aria-hidden="true">${escapeHtml(user.username.slice(0, 1).toUpperCase())}</span>`).join('');
+	const users = state.users.length === 1
+		? state.users[0].username + ' · ' + state.users[0].role
+		: state.users.length + ' users';
+	const login = state.login === 'none' ? 'stay signed out' : 'sign in as ' + state.login;
+	document.querySelectorAll('[data-user-avatars]').forEach((container) => { container.innerHTML = avatars; });
+	document.querySelectorAll('[data-user-summary]').forEach((node) => { node.textContent = users + ' · ' + login; });
+	document.querySelectorAll('[data-v27-user-table]').forEach((body) => { body.innerHTML = v27UserTableRows(); });
+	document.querySelectorAll('select[data-field="login"]').forEach((select) => {
+		select.innerHTML = v27LoginOptions();
+		select.value = state.login;
+	});
+}
+
+function v27UserTableRows() {
+	return state.users.length ? state.users.map((user, index) => `
+		<tr><td><strong class="mono">${escapeHtml(user.username)}</strong>${user.username === state.login ? '<span class="v27-source"> · opens</span>' : ''}</td><td>${escapeHtml(user.role)}</td><td>${user.username === 'admin' ? '<span class="v27-source">Default</span>' : `<button class="btn quiet" type="button" data-v27-edit-user="${index}" aria-label="Edit user ${escapeHtml(user.username)}">edit</button><button class="v27-small-remove" type="button" data-v27-remove-user="${index}" aria-label="Remove user ${escapeHtml(user.username)}">×</button>`}</td></tr>
+	`).join('') : '<tr><td colspan="3">No managed users.</td></tr>';
+}
+
+function v27LoginOptions() {
+	return state.users.map((user) => `<option value="${escapeHtml(user.username)}" ${user.username === state.login ? 'selected' : ''}>${escapeHtml(user.username)}</option>`).join('')
+		+ `<option value="none" ${state.login === 'none' ? 'selected' : ''}>no one</option>`;
+}
+
+function v27RenderScripts() {
+	const kindLabels = { php: 'Custom PHP', sql: 'Custom SQL', 'wp-cli': 'WP-CLI commands' };
+	document.querySelectorAll('[data-scripts]').forEach((container) => {
+		container.innerHTML = state.scripts.length ? state.scripts.map((script, index) => {
+			const note = script.note || kindLabels[script.kind] || (script.recipeKey ? 'Step Library recipe' : 'Custom PHP');
+			return `
+			<div class="script-row v27-script"><span class="v27-script-copy"><strong>${escapeHtml(script.name)}</strong><span>${escapeHtml(note)}</span></span>${script.code ? `<button class="btn quiet" type="button" data-v27-edit-script="${index}" aria-label="Edit ${escapeHtml(script.name)}">edit</button>` : '<span></span>'}<button class="btn quiet" type="button" data-open-code="${index}" aria-label="View ${script.code ? 'code' : 'steps'} for ${escapeHtml(script.name)}">view ${script.code ? 'code' : 'steps'}</button><button class="v27-small-remove" type="button" data-v27-remove-script="${index}" aria-label="Remove ${escapeHtml(script.name)}">×</button></div>
+		`;
+		}).join('') : '<p class="empty-note">No finishing steps.</p>';
+	});
+}
+
+function v27RenderTheme() {
+	const selected = v27CurrentTheme();
+	setText('theme-name', selected.name);
+	document.querySelectorAll('.nav-theme figure').forEach((figure) => {
+		figure.innerHTML = selected.shot
+			? `<img data-theme-shot src="${escapeHtml(selected.shot)}" alt="${escapeHtml(selected.name)} theme preview">`
+			: `<span class="v27-theme-placeholder" aria-hidden="true">${escapeHtml(selected.name.slice(0, 2).toUpperCase())}</span>`;
+	});
+	document.querySelectorAll('[data-theme-count]').forEach((node) => {
+		const otherCount = state.installedThemes.length - 1;
+		node.textContent = otherCount
+			? otherCount + (otherCount === 1 ? ' other theme installed' : ' other themes installed')
+			: 'Only theme installed';
+	});
+}
+
+function v27RenderText() {
+	v27OriginalRenderText();
+	const importCount = state.content.imports.length;
+	setText('content-count', String(state.content.pages.length + state.content.products + importCount));
+	setText('summary-content', state.content.pages.length + ' pages' + (state.content.products ? ' + ' + state.content.products + ' products' : '')
+		+ (importCount ? ' + ' + importCount + (importCount === 1 ? ' import' : ' imports') : '') + ' · ' + v27HomepageName() + ' at /');
+	setText('summary-theme', v27CurrentTheme().name + ' active');
+	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php + (state.networking ? '' : ' · offline'));
+	setText('summary-users', state.users.length === 1 && state.users[0].username === 'admin'
+		? 'Default admin'
+		: state.users.length + (state.users.length === 1 ? ' user' : ' users') + ' · sign in as ' + (state.login === 'none' ? 'no one' : state.login));
+	setText('summary-finish', state.scripts.length + (state.scripts.length === 1 ? ' finishing step' : ' finishing steps') + ' · open ' + landingName(state.landing));
+	const hasWooCommerce = state.plugins.some((plugin) => plugin.slug === 'woocommerce');
+	document.querySelectorAll('select[data-field="landing"] option[value="/wp-admin/edit.php?post_type=product"]').forEach((option) => {
+		option.disabled = !hasWooCommerce;
+	});
+	const seconds = 26 + state.plugins.length * 4 + state.content.imports.length * 5 + state.scripts.length * 2;
+	setText('estimate', 'about ' + seconds + ' seconds');
+}
+
+function v27Commit(message, change) {
+	if (undoStack.length >= 30) undoStack.shift();
+	const focus = v27FocusToken(document.activeElement);
+	undoStack.push({ state: JSON.stringify(state), focus });
+	change();
+	render();
+	showToast(message);
+	v27RestoreCapturedFocus(focus);
+}
+
+function v27CommitWithoutRender(message, change) {
+	if (undoStack.length >= 30) undoStack.shift();
+	undoStack.push({ state: JSON.stringify(state), focus: v27FocusToken(document.activeElement) });
+	change();
+	showToast(message);
+}
+
+function v27Undo() {
+	const entry = undoStack.pop();
+	if (!entry) return;
+	const previous = typeof entry === 'string' ? entry : entry.state;
+	const focus = typeof entry === 'string' ? '' : entry.focus;
+	state = JSON.parse(previous);
+	v27PrepareState();
+	render();
+	showToast('Last change undone');
+	if (v27ActiveKind === 'theme') v27RenderPopover({ focus: '[data-v27-search]' });
+	else if (v27ActiveKind === 'plugin') {
+		v27PopulateResults();
+		requestAnimationFrame(() => document.querySelector('[data-v27-search]')?.focus());
+	} else if (v27ActiveKind === 'user') {
+		v27RenderPopover({ focus: '#v27UserName' });
+	} else if (v27ActiveKind) {
+		if (v27ActiveKind === 'script') v27SyncScriptPresetButtons();
+		const focusSelector = v27ActiveKind === 'script' ? '#v27ScriptName'
+			: v27ActiveKind === 'content' && document.getElementById('v27PageName')?.value ? '#v27PageName'
+			: '[data-v27-search]';
+		requestAnimationFrame(() => document.querySelector(focusSelector)?.focus());
+	}
+	if (['content', 'user', 'script'].includes(v27ActiveKind)) v27SetNotice('Last change undone.');
+	if (!v27ActiveKind) v27RestoreCapturedFocus(focus, true);
+}
+
+function v27FocusToken(element) {
+	if (!(element instanceof Element)) return '';
+	if (element.closest('#hybridModal') && v27ModalReturnSelector) return v27ModalReturnSelector;
+	if (element.closest('#sheetPopover') && v27ActiveKind) {
+		return '[data-sheet-popover="' + CSS.escape(v27ActiveKind) + '"]';
+	}
+	if (element.matches('[data-title]')) return '[data-title]';
+	const attributes = [
+		'data-field', 'data-plugin-active', 'data-remove-plugin', 'data-v27-plugin-version',
+		'data-v27-plugin-info', 'data-v27-use-theme', 'data-v27-hide-editor-guides',
+		'data-v27-edit-page', 'data-v27-remove-page',
+		'data-v27-remove-import', 'data-v27-edit-user', 'data-v27-remove-user',
+		'data-v27-edit-script', 'data-v27-remove-script', 'data-sheet-popover',
+	];
+	for (const attribute of attributes) {
+		if (element.hasAttribute(attribute)) {
+			return '[' + attribute + '="' + CSS.escape(element.getAttribute(attribute)) + '"]';
+		}
+	}
+	return '';
+}
+
+function v27RestoreCapturedFocus(selector, force = false) {
+	if (!selector) return;
+	requestAnimationFrame(() => {
+		const active = document.activeElement;
+		if (!force && active && active !== document.body && document.contains(active)) return;
+		document.querySelector(selector)?.focus();
+	});
+}
+
+function v27RunBlueprint() {
+	const blueprint = v27BuildBlueprint();
+	const hasEmbeddedFiles = state.installedThemes.some((item) => item.file)
+		|| state.plugins.some((item) => item.file)
+		|| state.content.imports.some((item) => item.file);
+	if (hasEmbeddedFiles) {
+		v27RunEmbedded(blueprint);
+		return;
+	}
+	window.open('https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(blueprint)), '_blank', 'noopener');
+}
+
+async function v27RunEmbedded(blueprint) {
+	v27OpenModal('Running this Blueprint', `
+		<p class="v27-status" data-v27-run-status role="status" aria-live="polite" tabindex="0" autofocus>Loading WordPress Playground…</p>
+		<iframe class="v27-runner-frame" data-v27-run-frame title="Blueprint preview" tabindex="0"></iframe>
+	`);
+	const frame = document.querySelector('[data-v27-run-frame]');
+	const status = document.querySelector('[data-v27-run-status]');
+	try {
+		const module = await import('https://playground.wordpress.net/client/index.js');
+		if (!frame?.isConnected) return;
+		v27Runner = await module.startPlaygroundWeb({
+			iframe: frame,
+			remoteUrl: 'https://playground.wordpress.net/remote.html',
+			blueprint,
+		});
+		await v27Runner.isReady();
+		if (status?.isConnected) status.textContent = 'Ready';
+	} catch (error) {
+		if (status?.isConnected) {
+			status.dataset.tone = 'error';
+			status.textContent = 'Could not start the preview: ' + String(error);
+		}
+	}
+}
+
+function v27BuildBlueprint() {
+	const steps = v27ContextualSetupSteps();
+	state.installedThemes.forEach((item) => {
+		steps.push({
+			step: 'installTheme',
+			themeData: v27ResourceForItem(item, 'theme'),
+			options: {
+				activate: item.slug === state.activeTheme,
+				targetFolderName: item.slug,
+				humanReadableName: item.name,
+			},
+		});
+	});
+	state.plugins.forEach((plugin) => {
+		steps.push({
+			step: 'installPlugin',
+			pluginData: v27ResourceForItem(plugin, 'plugin'),
+			options: {
+				activate: plugin.active,
+				targetFolderName: plugin.slug,
+				humanReadableName: plugin.name,
+			},
+		});
+	});
+	if (state.lang !== 'en_US') steps.push({ step: 'setSiteLanguage', language: state.lang });
+	state.content.pages.forEach((page) => { steps.push(v27PageStep(page)); });
+	if (state.content.products) steps.push(v27ProductsStep(state.content.products));
+	state.content.imports.forEach((item) => {
+		const resource = v27ImportResource(item);
+		steps.push(item.format === 'SQL'
+			? { step: 'runSql', sql: resource }
+			: { step: 'importWxr', file: resource });
+	});
+	steps.push(v27HomepageStep());
+	state.users.forEach((user) => {
+		if (user.username !== 'admin' || user.roleSlug !== 'administrator') steps.push(v27UserStep(user));
+	});
+	state.scripts.forEach((script) => {
+		if (Array.isArray(script.steps)) {
+			steps.push(...JSON.parse(JSON.stringify(script.steps)));
+		} else if (script.code) {
+			steps.push({ step: 'runPHP', code: v27NormalizePhpCode(script.code) });
+		}
+	});
+	if (state.login !== 'none') steps.push({ step: 'login', username: state.login });
+
+	const blueprint = {
+		'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
+		landingPage: state.landing,
+		preferredVersions: { php: state.php, wp: state.wp },
+		features: { networking: state.networking },
+		siteOptions: { blogname: state.title },
+		steps,
+	};
+	if (state.scripts.some((script) => script.kind === 'wp-cli'
+		|| script.steps?.some((step) => step.step === 'wp-cli'))) {
+		blueprint.extraLibraries = ['wp-cli'];
+	}
+	return blueprint;
+}
+
+function v27ContextualSetupSteps() {
+	const steps = [];
+	const wooCommerce = state.plugins.find((plugin) => plugin.slug === 'woocommerce');
+	const jetpack = state.plugins.find((plugin) => plugin.slug === 'jetpack');
+	const hideEditorGuides = state.wordpressAdmin.hideEditorGuides;
+	const skipWooCommerceOnboarding = Boolean(wooCommerce?.setup?.skipOnboarding);
+	if (jetpack?.setup?.offlineMode) {
+		steps.push({
+			step: 'defineWpConfigConsts',
+			consts: { JETPACK_DEV_DEBUG: true },
+			method: 'rewrite-wp-config',
+		});
+	}
+	if (hideEditorGuides || skipWooCommerceOnboarding) {
+		steps.push({ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' });
+	}
+	if (hideEditorGuides) {
+		steps.push({
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/hide-editor-welcome-guides.php',
+			data: GUIDE_CODE,
+		});
+	}
+	if (skipWooCommerceOnboarding) {
+		steps.push({
+			step: 'setSiteOptions',
+			options: { woocommerce_onboarding_profile: { completed: true } },
+		});
+		steps.push({
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/skip-woocommerce-onboarding.php',
+			data: WOOCOMMERCE_ONBOARDING_CODE,
+		});
+	}
+	return steps;
+}
+
+function v27ResourceForItem(item, kind) {
+	const sourceUrl = item.file?.dataUrl || item.url;
+	if (sourceUrl) return v27UrlResource(sourceUrl, item.slug);
+	if (kind === 'plugin' && item.version && item.version !== 'latest') {
+		return {
+			resource: 'url',
+			url: 'https://downloads.wordpress.org/plugin/' + item.slug + '.' + item.version + '.zip',
+		};
+	}
+	return { resource: 'wordpress.org/' + (kind === 'plugin' ? 'plugins' : 'themes'), slug: item.slug };
+}
+
+function v27UrlResource(value, name) {
+	const normalized = v27NormalizeSourceUrl(value);
+	if (!/^https?:\/\//i.test(normalized) || !/github\.com/i.test(normalized)
+		|| /(?:\.zip(?:[?#]|$)|\/releases\/download\/|\/archive\/|\/blob\/|raw\.githubusercontent\.com)/i.test(normalized)) {
+		return { resource: 'url', url: normalized };
+	}
+	try {
+		const url = new URL(normalized);
+		const parts = url.pathname.replace(/^\/+|\/+$/g, '').split('/');
+		if (parts.length < 2) return { resource: 'url', url: normalized };
+		const treeIndex = parts.indexOf('tree');
+		const inner = {
+			resource: 'git:directory',
+			url: 'https://github.com/' + parts[0] + '/' + parts[1].replace(/\.git$/, ''),
+			ref: treeIndex === 2 && parts[3] ? parts[3] : 'HEAD',
+		};
+		if (treeIndex === 2 && parts.length > 4) inner.path = parts.slice(4).join('/');
+		return { resource: 'zip', inner, name: name + '.zip' };
+	} catch (error) {
+		return { resource: 'url', url: normalized };
+	}
+}
+
+function v27NormalizeSourceUrl(value) {
+	if (/^[\w.-]+\/[\w.-]+$/.test(value)) return 'https://github.com/' + value;
+	if (/^github\.com\//i.test(value)) return 'https://' + value;
+	return value;
+}
+
+function v27ImportResource(item) {
+	return { resource: 'url', url: v27NormalizeSourceUrl(item.file?.dataUrl || item.source) };
+}
+
+function v27PageStep(page) {
+	return {
+		step: 'runPHP',
+		code: "<?php\nrequire '/wordpress/wp-load.php';\n\n$page_path = base64_decode( '" + v27Base64(page.id) + "' );\n$existing = get_page_by_path( $page_path, OBJECT, 'page' );\n$page_data = array(\n\t'post_type' => 'page',\n\t'post_status' => 'publish',\n\t'post_name' => $page_path,\n\t'post_title' => wp_slash( base64_decode( '" + v27Base64(page.title) + "' ) ),\n\t'post_content' => wp_slash( base64_decode( '" + v27Base64(page.content) + "' ) ),\n);\nif ( $existing ) {\n\t$page_data['ID'] = $existing->ID;\n\twp_update_post( $page_data );\n} else {\n\twp_insert_post( $page_data );\n}\n",
+	};
+}
+
+function v27HomepageStep() {
+	if (state.homepage === 'latest-posts') {
+		return {
+			step: 'runPHP',
+			code: "<?php\nrequire '/wordpress/wp-load.php';\n\nupdate_option( 'show_on_front', 'posts' );\nupdate_option( 'page_on_front', 0 );\n",
+		};
+	}
+	return {
+		step: 'runPHP',
+		code: "<?php\nrequire '/wordpress/wp-load.php';\n\n$homepage = get_page_by_path( base64_decode( '" + v27Base64(state.homepage) + "' ), OBJECT, 'page' );\nif ( $homepage ) {\n\tupdate_option( 'show_on_front', 'page' );\n\tupdate_option( 'page_on_front', $homepage->ID );\n}\n",
+	};
+}
+
+function v27ProductsStep(amount) {
+	return {
+		step: 'runPHP',
+		code: "<?php\nrequire '/wordpress/wp-load.php';\n\nif ( class_exists( 'WC_Product_Simple' ) ) {\n\tfor ( $index = 1; $index <= " + Number(amount) + "; $index++ ) {\n\t\t$product = new WC_Product_Simple();\n\t\t$product->set_name( sprintf( 'Sample product %d', $index ) );\n\t\t$product->set_regular_price( (string) ( 10 + $index ) );\n\t\t$product->set_status( 'publish' );\n\t\t$product->save();\n\t}\n}\n",
+	};
+}
+
+function v27UserStep(user) {
+	return {
+		step: 'runPHP',
+		code: "<?php\nrequire '/wordpress/wp-load.php';\n\n$username = base64_decode( '" + v27Base64(user.username) + "' );\n$user = get_user_by( 'login', $username );\nif ( ! $user ) {\n\t$user_id = wp_create_user( $username, 'password', $username . '@example.com' );\n\t$user = is_wp_error( $user_id ) ? null : new WP_User( $user_id );\n}\nif ( $user ) {\n\t$user->set_role( '" + user.roleSlug + "' );\n}\n",
+	};
+}
+
+function v27NormalizePhpCode(code) {
+	const trimmed = String(code).trim();
+	return /^<\?php\b/.test(trimmed) ? trimmed : "<?php\n" + trimmed;
+}
+
+function v27Base64(value) {
+	const bytes = new TextEncoder().encode(String(value));
+	let binary = '';
+	bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+	return btoa(binary);
+}
+
+async function v27LoadVersions(select) {
+	const slug = select.dataset.v27VersionSlug;
+	if (!slug) return;
+	let versions = v27VersionCache.get(slug);
+	if (!versions) {
+		try {
+			const response = await fetch('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=' + encodeURIComponent(slug) + '&request[fields][versions]=1');
+			if (!response.ok) return;
+			const payload = await response.json();
+			versions = Object.keys(payload.versions || {}).filter((version) => /^\d+(?:\.\d+)*$/.test(version)).sort(v27CompareVersions).slice(-12).reverse();
+			v27VersionCache.set(slug, versions);
+		} catch (error) {
+			return;
+		}
+	}
+	if (!document.contains(select)) return;
+	const current = select.value;
+	const choices = ['latest'].concat(versions.filter((version) => version !== current));
+	if (current !== 'latest') choices.unshift(current);
+	select.innerHTML = v27DedupeValues(choices).map((version) => `<option value="${escapeHtml(version)}" ${version === current ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('');
+}
+
+function v27OpenModal(title, markup, mode = 'dialog') {
+	v27ModalOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	v27ModalReturnSelector = v27ModalReturnTarget(v27ModalOpener);
+	const modal = document.getElementById('hybridModal');
+	const body = document.getElementById('hybridModalBody');
+	const editorBody = document.getElementById('v27EditorBody');
+	const pageEditor = mode === 'page-editor';
+	document.getElementById('hybridModalTitle').textContent = title;
+	modal.dataset.v27Mode = mode;
+	body.hidden = pageEditor;
+	editorBody.hidden = !pageEditor;
+	const closeButton = modal.querySelector('[data-close-modal]');
+	modal.querySelector('[data-v27-discard-editor]').hidden = !pageEditor;
+	closeButton.disabled = false;
+	closeButton.textContent = pageEditor ? 'Done' : 'Close';
+	if (!pageEditor) body.innerHTML = markup;
+	modal.hidden = false;
+	v27SetBackgroundInert(true);
+	requestAnimationFrame(() => {
+		const preferred = pageEditor
+			? document.querySelector('[data-v27-editor-status]')
+			: document.querySelector('#hybridModalBody [autofocus]')
+				|| document.querySelector('#hybridModalBody input, #hybridModalBody textarea, #hybridModalBody select, #hybridModalBody [tabindex="0"], #hybridModalBody button')
+				|| closeButton;
+		preferred?.focus();
+	});
+}
+
+function v27ModalReturnTarget(opener) {
+	const attributes = [ 'data-v27-plugin-info', 'data-v27-edit-page', 'data-v27-edit-user', 'data-v27-edit-script' ];
+	for (const attribute of attributes) {
+		const button = opener?.closest('[' + attribute + ']');
+		if (button) {
+			return '[' + attribute + '="' + CSS.escape(button.getAttribute(attribute)) + '"]';
+		}
+	}
+	return '';
+}
+
+function v27CloseModal() {
+	const opener = v27ModalOpener;
+	const fallback = v27ModalReturnSelector ? document.querySelector(v27ModalReturnSelector) : null;
+	const modal = document.getElementById('hybridModal');
+	if (modal.dataset.v27Mode === 'page-editor') v27EditorSession += 1;
+	window.clearTimeout(v27EditorSaveTimer);
+	v27EditorSaving = false;
+	v27EditorPendingClose = false;
+	v27EditorCurrentRequest = '';
+	v27EditorPageId = '';
+	v27EditorPostId = 0;
+	v27EditorPageReady = false;
+	v27Runner = null;
+	modal.hidden = true;
+	modal.dataset.v27Mode = 'dialog';
+	document.getElementById('hybridModalBody').innerHTML = '';
+	document.getElementById('hybridModalBody').hidden = false;
+	document.getElementById('v27EditorBody').hidden = true;
+	const closeButton = modal.querySelector('[data-close-modal]');
+	modal.querySelector('[data-v27-discard-editor]').hidden = true;
+	closeButton.disabled = false;
+	closeButton.textContent = 'Close';
+	pickerMode = '';
+	v27SetBackgroundInert(false);
+	v27ModalOpener = null;
+	v27ModalReturnSelector = '';
+	if (opener && document.contains(opener)) opener.focus();
+	else fallback?.focus();
+}
+
+function v27TrapModalTab(event) {
+	const controls = Array.from(document.querySelectorAll('#hybridModal button:not([disabled]), #hybridModal input:not([disabled]), #hybridModal select:not([disabled]), #hybridModal textarea:not([disabled]), #hybridModal a[href], #hybridModal [tabindex]:not([tabindex="-1"])'))
+		.filter((control) => !control.closest('[hidden]'));
+	if (!controls.length) return;
+	const first = controls[0];
+	const last = controls[controls.length - 1];
+	if (!document.getElementById('hybridModal').contains(document.activeElement)) {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		(event.shiftKey ? last : first).focus();
+	} else if (event.shiftKey && document.activeElement === first) {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		last.focus();
+	} else if (!event.shiftKey && document.activeElement === last) {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		first.focus();
+	}
+}
+
+function v27SetBackgroundInert(inert) {
+	document.querySelectorAll('body > main, #sheetPopover, #hybridToast, [data-about]').forEach((element) => {
+		element.inert = inert;
+	});
+}
+
+function v27PrepareState() {
+	const usedPageIds = new Set();
+	const legacyScripts = Array.isArray(state.scripts) ? state.scripts : [];
+	const legacyWooCommerceSetup = legacyScripts.some((script) => (script.recipeKey || script.key) === 'woocommerce-onboarding');
+	state.content.pages = (Array.isArray(state.content.pages) ? state.content.pages : []).map((page, index) => {
+		const title = typeof page === 'string' ? page : page.title || 'Untitled page';
+		const content = typeof page === 'string' ? '' : String(page.content || '');
+		const base = v27Slugify(typeof page === 'string' ? page : page.id || title);
+		let id = base;
+		let suffix = 2;
+		while (usedPageIds.has(id)) {
+			id = base + '-' + suffix;
+			suffix += 1;
+		}
+		usedPageIds.add(id);
+		return { id, title, content };
+	});
+	state.content.imports = Array.isArray(state.content.imports) ? state.content.imports : [];
+	state.plugins.forEach((plugin) => {
+		plugin.source = plugin.source || 'WordPress.org';
+		const controls = PLUGIN_SETUP_CONTROLS[plugin.slug] || [];
+		if (!controls.length) {
+			delete plugin.setup;
+			return;
+		}
+		plugin.setup = plugin.setup && typeof plugin.setup === 'object' ? plugin.setup : {};
+		controls.forEach((control) => {
+			if (typeof plugin.setup[control.key] !== 'boolean') {
+				plugin.setup[control.key] = plugin.slug === 'woocommerce' && control.key === 'skipOnboarding' && legacyWooCommerceSetup
+					? true
+					: control.defaultValue;
+			}
+		});
+	});
+	state.wordpressAdmin = state.wordpressAdmin && typeof state.wordpressAdmin === 'object'
+		? state.wordpressAdmin
+		: {};
+	if (typeof state.wordpressAdmin.hideEditorGuides !== 'boolean') {
+		state.wordpressAdmin.hideEditorGuides = true;
+	}
+	state.scripts = legacyScripts.filter((script) => !['guides', 'woocommerce-onboarding'].includes(script.recipeKey || script.key));
+	state.scripts.forEach((script) => {
+		script.recipeKey = script.recipeKey || script.key || '';
+		delete script.key;
+		if (script.code && !script.kind) script.kind = 'php';
+		const recipe = FINISH_RECIPES.find((item) => item.key === script.recipeKey);
+		if (recipe) script.source = script.source || recipe.source;
+	});
+	state.users = Array.isArray(state.users) ? state.users : [];
+	if (!state.users.some((user) => user.username === 'admin')) {
+		state.users.unshift({ username: 'admin', role: 'Administrator', roleSlug: 'administrator' });
+	}
+	const defaultHomepage = state.content.pages.find((page) => page.id === 'shop')?.id || 'latest-posts';
+	state.homepage = state.homepage || defaultHomepage;
+	if (state.homepage !== 'latest-posts' && !usedPageIds.has(state.homepage)) state.homepage = 'latest-posts';
+	if (state.login !== 'none' && !state.users.some((user) => user.username === state.login)) {
+		state.login = state.users[0]?.username || 'none';
+	}
+	if (!Array.isArray(state.installedThemes)) {
+		const selected = THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
+		state.installedThemes = [{ ...selected, source: 'WordPress.org' }];
+	}
+}
+
+function v27PluginSetupDefaults(slug) {
+	const controls = PLUGIN_SETUP_CONTROLS[slug] || [];
+	return controls.length
+		? Object.fromEntries(controls.map((control) => [control.key, control.defaultValue]))
+		: null;
+}
+
+function v27SetTriggerState(activeTrigger) {
+	document.querySelectorAll('[data-sheet-popover]').forEach((button) => {
+		const active = button === activeTrigger;
+		button.classList.toggle('is-active', active);
+		button.setAttribute('aria-expanded', String(active));
+	});
+}
+
+function v27FocusFirstControl() {
+	const preferred = document.querySelector('#sheetPopover [data-v27-search], #sheetPopover input:not([type="file"]), #sheetPopover textarea, #sheetPopover button:not([data-close-sheet-popover]):not([disabled])');
+	preferred?.focus();
+}
+
+function v27PositionPopover() {
+	const popover = document.getElementById('sheetPopover');
+	if (!v27ActiveKind || !v27Trigger || popover.hidden) return;
+	const anchor = v27Trigger.getBoundingClientRect();
+	const gutter = 12;
+	const gap = 10;
+	const width = popover.offsetWidth;
+	const left = Math.max(gutter, Math.min(anchor.left, window.innerWidth - width - gutter));
+	const below = window.innerHeight - anchor.bottom - gap - gutter;
+	const above = anchor.top - gap - gutter;
+	// Never cover the trigger: pick a side, then cap the height to the room that side has.
+	const side = below >= 340 || below >= above ? 'below' : 'above';
+	const space = Math.max(180, side === 'below' ? below : above);
+	popover.style.maxHeight = Math.min(650, space) + 'px';
+	const height = popover.offsetHeight;
+	const top = side === 'below' ? anchor.bottom + gap : Math.max(gutter, anchor.top - gap - height);
+	popover.style.left = Math.round(left) + 'px';
+	popover.style.top = Math.round(top) + 'px';
+}
+
+function v27SetNotice(message, tone = '') {
+	const node = document.querySelector('[data-v27-notice], [data-v27-search-status]');
+	if (!node) return;
+	node.textContent = message;
+	node.dataset.tone = tone;
+}
+
+function v27Flash(selector) {
+	const item = document.querySelector(selector);
+	if (!item) return;
+	item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	item.classList.remove('v27-flash');
+	requestAnimationFrame(() => item.classList.add('v27-flash'));
+}
+
+function v27CurrentTheme() {
+	return state.installedThemes.find((item) => item.slug === state.activeTheme) || state.installedThemes[0] || THEMES[0];
+}
+
+function v27HomepageName() {
+	if (state.homepage === 'latest-posts') return 'Latest posts';
+	return state.content.pages.find((page) => page.id === state.homepage)?.title || 'Latest posts';
+}
+
+function v27UniquePageId(title) {
+	const base = v27Slugify(title);
+	let id = base;
+	let suffix = 2;
+	while (state.content.pages.some((page) => page.id === id)) {
+		id = base + '-' + suffix;
+		suffix += 1;
+	}
+	return id;
+}
+
+function v27WordCount(content) {
+	const text = String(content).replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+	return text ? text.split(' ').length : 0;
+}
+
+function v27ThemeThumb(item) {
+	return item.shot
+		? `<img src="${escapeHtml(item.shot)}" alt="">`
+		: `<span class="v27-theme-placeholder" aria-hidden="true">${escapeHtml(item.name.slice(0, 2).toUpperCase())}</span>`;
+}
+
+function v27ResultVisual(item) {
+	const image = item.kind === 'theme' ? item.shot : item.icon;
+	if (image) return `<img src="${escapeHtml(image)}" alt="">`;
+	if (item.kind === 'theme') return `<span class="v27-theme-placeholder" aria-hidden="true">${escapeHtml(item.name.slice(0, 2).toUpperCase())}</span>`;
+	return `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(item.name.slice(0, 2).toUpperCase())}</span>`;
+}
+
+function v27LooksLikeUrl(value) {
+	return /^https?:\/\//i.test(value) || /^github\.com\//i.test(value) || /^[\w.-]+\/[\w.-]+$/.test(value);
+}
+
+function v27PlainText(value) {
+	const parser = document.createElement('textarea');
+	parser.innerHTML = String(value).replace(/<[^>]+>/g, ' ');
+	return parser.value.replace(/\s+/g, ' ').trim();
+}
+
+function v27SafeDecode(value) {
+	try {
+		return decodeURIComponent(value);
+	} catch (error) {
+		return value;
+	}
+}
+
+function v27Slugify(value) {
+	return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'resource';
+}
+
+function v27CompareVersions(left, right) {
+	const a = left.split('.').map(Number);
+	const b = right.split('.').map(Number);
+	for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+		if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) - (b[index] || 0);
+	}
+	return 0;
+}
+
+function v27DedupeValues(values) {
+	return Array.from(new Set(values));
+}
+
+</script>
+</body>
+</html>

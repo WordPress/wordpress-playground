@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poster — every fact has a permanent home (Design 15)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#eef0f3; --paper:#fff; --ink:#1d2327; --muted:#50575e; --faint:#8a8f98;
+  --line:#e5e6ea; --line2:#cfd1d7; --blue:#3858e9; --blue-dark:#2b48d7; --danger:#b32d2e;
+  --chipbg:#f2f3f5;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --serif:"Fraunces",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--canvas)}
+body{margin:0;padding:14px;font-family:var(--sans);font-size:15px;line-height:1.45;color:var(--ink);
+  display:grid;place-items:start center;min-height:100vh;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{display:block}
+.mono{font-family:var(--mono)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+input[type=checkbox]{accent-color:var(--ink);width:16px;height:16px;flex:none;cursor:pointer}
+
+/* ---------- the poster: a fixed grid of zones, nothing ever moves ---------- */
+.poster{width:min(1324px,100%);background:var(--paper);border:1px solid var(--line2);border-radius:16px;
+  padding:22px 24px;display:grid;grid-template-columns:380px 1fr;gap:14px 24px;
+  grid-template-areas:"left right" "trust trust";box-shadow:0 1px 2px rgba(20,22,40,.05),0 22px 60px -28px rgba(20,22,40,.18)}
+.col-left{grid-area:left;display:flex;flex-direction:column;gap:18px;min-width:0}
+.col-right{grid-area:right;display:flex;flex-direction:column;gap:18px;min-width:0}
+.duo{display:grid;gap:20px;align-items:stretch}
+.duo.mid{grid-template-columns:1.15fr .85fr}
+.duo.low{grid-template-columns:1fr 1fr;flex:1}
+
+.zone{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;min-width:0;background:var(--paper)}
+.zone.grow{flex:1}
+.zh{display:flex;align-items:baseline;gap:10px;padding:0 4px 8px}
+.zh-noun{font-size:13.5px;font-weight:600;color:var(--muted);letter-spacing:.01em}
+.zh-fact{margin-left:auto;font-size:13.5px;color:var(--muted);text-align:right}
+
+/* ---------- masthead ---------- */
+.masthead{display:flex;align-items:flex-start;gap:20px}
+.mh-main{flex:1;min-width:0}
+.eyebrow{margin:0 0 2px;font-size:13.5px;color:var(--muted)}
+.title-in{display:block;width:100%;border:0;background:transparent;padding:0 0 3px;margin:0 0 10px;
+  font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.01em;line-height:1.15;color:var(--ink);
+  border-bottom:1px dashed var(--line2)}
+.title-in:focus{outline:none;border-bottom:1px solid var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:6px 14px;border:1px solid var(--line);
+  border-radius:999px;background:var(--chipbg);font-size:15px;font-weight:600}
+.pill:hover{border-color:var(--line2);background:#eceef1}
+.pill .car{color:var(--faint)}
+.mh-actions{display:flex;gap:10px;flex:none;padding-top:22px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 16px;
+  border:1px solid var(--line2);border-radius:8px;background:#fff;font-size:15px;font-weight:550}
+.btn:hover{background:#f6f6f7}
+.btn.slim{min-height:40px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.run{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 28px;border:0;
+  border-radius:8px;background:var(--blue);color:#fff;font-size:15px;font-weight:650;box-shadow:0 1px 2px rgba(43,72,215,.4)}
+.run:hover{background:var(--blue-dark)}
+
+/* ---------- one shared row grammar ---------- */
+.row{display:flex;align-items:center;gap:10px;min-height:44px;padding:2px 6px;border-radius:8px}
+.rmain{flex:1;min-width:0}
+.rname{font-size:15px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsub{font-size:13.5px;color:var(--muted);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.act{width:100%;border:0;background:transparent;text-align:left;cursor:pointer}
+.row.act:hover{background:#f6f6f7}
+.rlab{font-size:13.5px;color:var(--muted);flex:none}
+.rval{margin-left:auto;font-size:15px;font-weight:600;text-align:right;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.glyph{color:var(--faint);flex:none;display:inline-grid;place-items:center;width:22px}
+.chip{background:var(--chipbg);border:1px solid #e0e2e6;color:#3c434a;border-radius:999px;padding:4px 10px;
+  font-size:13.5px;font-weight:550;white-space:nowrap;flex:none}
+.xbtn{flex:none;width:32px;height:40px;border:0;border-radius:7px;background:transparent;color:var(--faint);
+  display:inline-grid;place-items:center}
+.xbtn:hover{background:#fbeaea;color:var(--danger)}
+.chk{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 4px;flex:none;cursor:pointer;
+  font-size:13.5px;color:var(--muted);border-radius:7px}
+.chk:hover{background:#f2f3f5}
+.car{flex:none;color:var(--faint)}
+.row.flash{animation:rowflash 1.2s ease-out}
+@keyframes rowflash{0%{background:#eceef8}100%{background:transparent}}
+
+/* ---------- theme zone (the hero) ---------- */
+.browser{margin:0;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:#fff}
+.bbar{display:flex;gap:5px;align-items:center;padding:8px 10px;background:#f4f5f7;border-bottom:1px solid var(--line)}
+.bbar i{width:8px;height:8px;border-radius:50%;background:#dcdee3}
+.bshot{width:100%;height:232px;object-fit:cover;object-position:top;display:block;background:#f1f2f4}
+.shotfall{width:100%;height:232px;display:grid;place-items:center;background:#f1f2f4;color:var(--faint);
+  font-family:var(--serif);font-size:44px}
+.thumb{width:38px;height:29px;object-fit:cover;object-position:top;border-radius:5px;border:1px solid var(--line);flex:none;background:#f1f2f4}
+.thumbfall{width:38px;height:29px;border-radius:5px;background:#f1f2f4;color:var(--muted);font-size:13.5px;font-weight:700;
+  display:inline-grid;place-items:center;flex:none}
+#z-theme .btn{margin-top:6px;width:100%}
+
+/* ---------- plugins zone ---------- */
+.plist{height:264px;overflow:auto;overscroll-behavior:contain}
+.pico{width:30px;height:30px;border-radius:7px;flex:none;object-fit:contain;background:#fff}
+.tile{width:30px;height:30px;border-radius:7px;background:var(--chipbg);color:var(--muted);font-weight:700;font-size:13.5px;
+  display:inline-grid;place-items:center;flex:none}
+#z-plugins .btn{margin-top:8px;width:100%}
+
+/* ---------- users ---------- */
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--chipbg);border:1px solid var(--line);
+  color:var(--muted);font-size:13.5px;font-weight:700;display:inline-grid;place-items:center;flex:none}
+
+/* ---------- trust line ---------- */
+.trust{grid-area:trust;margin:0;padding:12px 4px 0;border-top:1px solid var(--line);
+  font-size:13.5px;color:var(--muted)}
+
+/* ---------- anchored popovers: they dim nothing and move nothing ---------- */
+.pop{position:fixed;z-index:60;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:8px;
+  min-width:230px;box-shadow:0 4px 12px rgba(20,22,40,.08),0 20px 50px -12px rgba(20,22,40,.25);animation:drop .13s ease}
+@keyframes drop{from{opacity:0;transform:translateY(-4px)}}
+.mi{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:7px 12px;border:0;border-radius:8px;
+  background:transparent;text-align:left;font-size:15px}
+.mi:hover{background:var(--chipbg)}
+.mi .mtxt{min-width:0}
+.mi .misub{display:block;font-family:var(--mono);font-size:13.5px;color:var(--muted)}
+.mi .msub2{display:block;font-size:13.5px;color:var(--muted)}
+.mi .mck{margin-left:auto;font-weight:700}
+.search{width:100%;min-height:42px;border:1px solid var(--line2);border-radius:8px;padding:8px 12px;font-size:15px;background:#fff}
+.search:focus{outline:none;border-color:var(--ink)}
+.pop-head{padding:2px 2px 8px}
+.pop-sec{padding:4px 2px 8px}
+.pop-lbl{font-size:13.5px;font-weight:600;color:var(--muted);padding:2px 4px 8px}
+.pop-foot{display:flex;gap:12px;align-items:center;padding:8px 6px 2px;font-size:13.5px;color:var(--muted)}
+.results{max-height:312px;overflow:auto;overscroll-behavior:contain}
+.pr{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 10px;border:0;border-radius:8px;
+  background:transparent;text-align:left}
+.pr:hover,.pr.hl{background:var(--chipbg)}
+.prname{font-size:15px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prmeta{margin-left:auto;font-size:13.5px;color:var(--muted);flex:none}
+.quiet{font-size:13.5px;color:var(--muted);margin:8px 6px}
+.tgrid{display:grid;gap:10px;padding:2px}
+.tgrid.installed{grid-template-columns:1fr 1fr}
+.tgrid.found{grid-template-columns:1fr 1fr 1fr;margin-top:10px}
+.tcard{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;padding:0;text-align:left;display:block}
+button.tcard:hover{border-color:var(--ink)}
+.tcard img{width:100%;height:84px;object-fit:cover;object-position:top;display:block;background:#f1f2f4}
+.tgrid.found .tcard img{height:66px}
+.tshotfall{width:100%;height:84px;display:grid;place-items:center;background:#f1f2f4;color:var(--faint);
+  font-family:var(--serif);font-size:26px}
+.tcard .tname{display:block;font-size:13.5px;font-weight:600;padding:7px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard .chip{position:absolute;top:6px;right:6px;background:#fff}
+.tcard.current{outline:2px solid var(--ink);outline-offset:-2px}
+
+/* ---------- modal ---------- */
+.scrim{position:fixed;inset:0;z-index:70;background:rgba(17,19,28,.35);display:grid;place-items:center;padding:20px}
+.modal{width:min(640px,94vw);max-height:80vh;background:#fff;border-radius:14px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:12px;box-shadow:0 30px 80px -20px rgba(0,0,0,.4)}
+.modal h2{margin:0;font-size:17px;font-weight:650}
+.msub{margin:-6px 0 0;font-size:13.5px;color:var(--muted)}
+.modal pre{margin:0;flex:1;overflow:auto;background:#f6f7f8;border:1px solid var(--line);border-radius:8px;
+  padding:14px;font-family:var(--mono);font-size:13.5px;line-height:1.55;white-space:pre;tab-size:4}
+.mf{display:flex;justify-content:flex-end}
+
+/* ---------- toast (bottom-left) ---------- */
+.toast{position:fixed;left:16px;bottom:16px;z-index:80;display:flex;align-items:center;gap:14px;
+  background:#16181f;color:#e8eaf0;border-radius:10px;padding:8px 10px 8px 16px;font-size:15px;
+  box-shadow:0 10px 34px rgba(0,0,0,.3)}
+.toast[hidden]{display:none}
+.tundo{border:0;background:transparent;color:#fff;font-weight:650;text-decoration:underline;min-height:40px;padding:0 10px;border-radius:7px}
+.tundo:hover{background:#262a35}
+
+/* ---------- about pill (bottom-right) ---------- */
+.about{position:fixed;right:14px;bottom:14px;z-index:50;max-width:min(480px,calc(100vw - 28px));
+  background:#111319;color:#cfd6e4;border:1px solid #2a2d34;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.28)}
+.about .ah{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;border:0;background:transparent;
+  color:inherit;padding:5px 14px 5px 7px;font-size:13.5px;text-align:left}
+.about .badge{background:#3c4250;color:#fff;font-weight:650;border-radius:20px;padding:3px 10px;font-size:13.5px;white-space:nowrap}
+.about .ah .hint{color:#8a94a6;white-space:nowrap}
+.about .ab{display:none;padding:2px 16px 14px;line-height:1.6;font-size:13.5px}
+.about.open .ab{display:block}
+.about.open{border-radius:14px}
+
+@media (max-width:1120px){
+  .poster{grid-template-columns:1fr;grid-template-areas:"right" "left" "trust"}
+  .duo.mid,.duo.low{grid-template-columns:1fr}
+  .plist{height:auto;max-height:264px}
+}
+</style>
+</head>
+<body>
+
+<main class="poster" id="poster">
+
+  <aside class="col-left">
+    <section class="zone" id="z-theme">
+      <header class="zh"><span class="zh-noun">Themes</span><span class="zh-fact" id="fact-themes"></span></header>
+      <div id="theme-body"></div>
+      <button class="btn" data-act="change-theme">Change theme</button>
+    </section>
+
+    <section class="zone grow" id="z-opens">
+      <header class="zh"><span class="zh-noun">When it opens</span></header>
+      <div id="opens-body"></div>
+    </section>
+  </aside>
+
+  <section class="col-right">
+    <div class="masthead">
+      <div class="mh-main">
+        <p class="eyebrow">A plan for a WordPress site</p>
+        <input id="title-in" class="title-in" aria-label="Site title — click to edit" spellcheck="false">
+        <div class="pills">
+          <button class="pill" data-act="pick-wp"><span id="v-wp"></span><svg class="car" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="pill" data-act="pick-php"><span id="v-php"></span><svg class="car" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="pill" data-act="pick-lang"><span id="v-lang"></span><svg class="car" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="mh-actions">
+        <button class="btn" data-act="view-json">View the JSON</button>
+        <button class="run" data-act="run">Run</button>
+      </div>
+    </div>
+
+    <div class="duo mid">
+      <section class="zone" id="z-plugins">
+        <header class="zh"><span class="zh-noun">Plugins</span><span class="zh-fact" id="fact-plugins"></span></header>
+        <div class="plist" id="plugins-list"></div>
+        <button class="btn" data-act="add-plugin">+ Add plugin</button>
+      </section>
+
+      <section class="zone" id="z-content">
+        <header class="zh"><span class="zh-noun">Content</span><span class="zh-fact" id="fact-content"></span></header>
+        <div id="content-body"></div>
+      </section>
+    </div>
+
+    <div class="duo low">
+      <section class="zone" id="z-users">
+        <header class="zh"><span class="zh-noun">Users</span><span class="zh-fact" id="fact-users"></span></header>
+        <div id="users-body"></div>
+      </section>
+
+      <section class="zone" id="z-after">
+        <header class="zh"><span class="zh-noun">After setup</span><span class="zh-fact" id="fact-after"></span></header>
+        <div id="after-body"></div>
+      </section>
+    </div>
+  </section>
+
+  <p class="trust">Everything above is one <span class="mono">blueprint.json</span> — press Run to build a fresh site from it. Nothing is installed until then.</p>
+</main>
+
+<div class="toast" id="toast" hidden>
+  <span id="toast-msg"></span>
+  <button class="tundo" id="toast-undo">Undo</button>
+</div>
+
+<div class="about" id="about">
+  <button class="ah" id="about-toggle" aria-expanded="false">
+    <span class="badge">Design 15 · Poster</span>
+    <span class="hint">about</span>
+  </button>
+  <div class="ab">
+    The bet: zero navigation — the whole Blueprint is one non-scrolling poster on a fixed grid of zones,
+    and every fact has a permanent home. Nothing ever moves, expands, or reflows; every edit happens in a
+    small popover anchored to the fact you clicked, so spatial memory does all the wayfinding. After one
+    visit you stop searching: versions live under the title, plugins in the middle, the theme is always the
+    big picture on the left. The map is the interface — if it never changes, reading it costs nothing.
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ---------- seed state: every fact on the poster comes from here ---------- */
+let state = {
+  title: "Adam's Demo Store",
+  wp: 'latest', php: '8.3', language: 'en_US',
+  themes: [
+    { slug:'storefront', name:'Storefront', shot:'https://ts.w.org/wp-content/themes/storefront/screenshot.png' },
+    { slug:'twentytwentyfive', name:'Twenty Twenty-Five', shot:'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png' }
+  ],
+  activeTheme: 'storefront',
+  plugins: [
+    { slug:'woocommerce', name:'WooCommerce', icon:'https://ps.w.org/woocommerce/assets/icon.svg', source:'wordpress.org', version:'9.4', activate:true },
+    { slug:'wordpress-seo', name:'Yoast SEO', icon:'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', source:'wordpress.org', version:'latest', activate:true },
+    { slug:'query-monitor', name:'Query Monitor', icon:'https://ps.w.org/query-monitor/assets/icon-256x256.png', source:'file', version:'latest', activate:false }
+  ],
+  content: { pages:['About','Contact','Shop'], products:12 },
+  users: [
+    { login:'admin', role:'administrator', roleLabel:'Administrator' },
+    { login:'demo-editor', role:'store_manager', roleLabel:'Store manager (custom role)' }
+  ],
+  landing: { label:'Products (wp-admin)', path:'/wp-admin/edit.php?post_type=product' },
+  login: 'admin',
+  networking: true,
+  afterSetup: [
+    { name:'Hide the WordPress welcome guides',
+      php:"<?php\n// Happens once, right after the site is built.\n$admin = get_user_by( 'login', 'admin' );\nupdate_user_meta( $admin->ID, 'show_welcome_panel', 0 );\n// Keep the WooCommerce setup wizard out of the way too.\nupdate_option( 'woocommerce_task_list_hidden', 'yes' );\nupdate_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );" },
+    { name:'Add a WELCOME10 coupon for testing',
+      php:"<?php\n// A 10% coupon so checkout can be tested right away.\n$coupon_id = wp_insert_post( array(\n\t'post_title'  => 'WELCOME10',\n\t'post_type'   => 'shop_coupon',\n\t'post_status' => 'publish',\n) );\nupdate_post_meta( $coupon_id, 'discount_type', 'percent' );\nupdate_post_meta( $coupon_id, 'coupon_amount', '10' );\nupdate_post_meta( $coupon_id, 'usage_limit', '100' );" }
+  ]
+};
+
+const WP_OPTS = [
+  { v:'latest', label:'WordPress latest (6.8 today)' },
+  { v:'6.8', label:'WordPress 6.8' },
+  { v:'6.7', label:'WordPress 6.7' },
+  { v:'6.6', label:'WordPress 6.6' }
+];
+const PHP_OPTS = ['8.4','8.3','8.2','8.1','8.0','7.4'];
+const LANGS = [
+  { v:'en_US', label:'English (US)' }, { v:'en_GB', label:'English (UK)' },
+  { v:'es_ES', label:'Español' }, { v:'de_DE', label:'Deutsch' },
+  { v:'fr_FR', label:'Français' }, { v:'pl_PL', label:'Polski' }
+];
+const LANDINGS = [
+  { label:'Products (wp-admin)', path:'/wp-admin/edit.php?post_type=product' },
+  { label:'Dashboard (wp-admin)', path:'/wp-admin/' },
+  { label:'Homepage', path:'/' },
+  { label:'Pages (wp-admin)', path:'/wp-admin/edit.php?post_type=page' }
+];
+const CURATED = [
+  { slug:'contact-form-7', name:'Contact Form 7', icon:'https://ps.w.org/contact-form-7/assets/icon.svg', installs:10000000 },
+  { slug:'elementor', name:'Elementor', icon:'https://ps.w.org/elementor/assets/icon.svg', installs:10000000 },
+  { slug:'akismet', name:'Akismet Anti-spam', icon:'https://ps.w.org/akismet/assets/icon-256x256.png', installs:6000000 },
+  { slug:'jetpack', name:'Jetpack', icon:'https://ps.w.org/jetpack/assets/icon.svg', installs:4000000 },
+  { slug:'wpforms-lite', name:'WPForms', icon:'https://ps.w.org/wpforms-lite/assets/icon.svg', installs:6000000 },
+  { slug:'wordpress-importer', name:'WordPress Importer', icon:'https://ps.w.org/wordpress-importer/assets/icon.svg', installs:5000000 }
+];
+
+const CARET = '<svg class="car" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const XG = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const G = {
+  page:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>',
+  product:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+  script:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg>',
+  globe:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18-3-4-3-14.5 0-18z"/></svg>',
+  door:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h6a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-6"/><path d="M3 12h11M10 8l4 4-4 4"/></svg>',
+  person:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>'
+};
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function deent(s){ const t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+function debounce(fn, ms){ let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; }
+function fmtInstalls(n){
+  if (n >= 1e6) return Math.floor(n / 1e6) + 'M+ installs';
+  if (n >= 1e3) return Math.floor(n / 1e3) + 'K+ installs';
+  return n + ' installs';
+}
+function normShot(u){ if (!u) return ''; return u.startsWith('//') ? 'https:' + u : u; }
+function pluginIcon(icons){ if (!icons) return ''; return icons.svg || icons['2x'] || icons['1x'] || icons.default || ''; }
+/* image fallback: neutral letter tile, so offline still looks right */
+window.ltile = function(img){
+  const d = document.createElement('span');
+  d.className = img.dataset.fallclass || 'tile';
+  d.textContent = img.dataset.letter || '?';
+  img.replaceWith(d);
+};
+
+/* ---------- rendering: each zone repaints from state ---------- */
+function renderAll(){
+  closePops();
+  renderMast(); renderTheme(); renderOpens(); renderPlugins();
+  renderContent(); renderUsers(); renderAfter();
+}
+
+function renderMast(){
+  const t = document.getElementById('title-in');
+  if (document.activeElement !== t) t.value = state.title;
+  document.getElementById('v-wp').textContent = WP_OPTS.find(o => o.v === state.wp).label;
+  document.getElementById('v-php').textContent = 'PHP ' + state.php;
+  document.getElementById('v-lang').textContent = LANGS.find(o => o.v === state.language).label;
+}
+
+function renderTheme(){
+  const n = state.themes.length;
+  const off = n - 1;
+  document.getElementById('fact-themes').textContent =
+    n === 1 ? '1' : n + ' · ' + off + (off === 1 ? ' stays off' : ' stay off');
+  const active = state.themes.find(t => t.slug === state.activeTheme) || state.themes[0];
+  const others = state.themes.filter(t => t !== active);
+  let h = `
+    <figure class="browser">
+      <div class="bbar"><i></i><i></i><i></i></div>
+      <img class="bshot" src="${esc(active.shot)}" alt="Preview of the ${esc(active.name)} theme"
+        data-letter="${esc(active.name[0])}" data-fallclass="shotfall" onerror="ltile(this)">
+    </figure>
+    <div class="row">
+      <div class="rmain">
+        <div class="rname">${esc(active.name)}</div>
+        <div class="rsub">From WordPress.org</div>
+      </div>
+      <span class="chip">Will be active</span>
+    </div>`;
+  h += others.map(t => `
+    <div class="row">
+      <img class="thumb" src="${esc(t.shot)}" alt="" data-letter="${esc(t.name[0])}" data-fallclass="thumbfall" onerror="ltile(this)">
+      <div class="rmain">
+        <div class="rname">${esc(t.name)}</div>
+        <div class="rsub">From WordPress.org · installs, stays off</div>
+      </div>
+      <button class="xbtn" data-act="remove-theme" data-slug="${esc(t.slug)}" aria-label="Remove ${esc(t.name)}">${XG}</button>
+    </div>`).join('');
+  document.getElementById('theme-body').innerHTML = h;
+}
+
+function renderOpens(){
+  const loginVal = state.login === 'none' ? 'No one (signed out)' : state.login;
+  document.getElementById('opens-body').innerHTML = `
+    <button class="row act" data-act="pick-landing">
+      <span class="glyph">${G.door}</span>
+      <span class="rlab">First page</span>
+      <span class="rval">${esc(state.landing.label)}</span>${CARET}
+    </button>
+    <button class="row act" data-act="pick-login">
+      <span class="glyph">${G.person}</span>
+      <span class="rlab">Signed in as</span>
+      <span class="rval">${esc(loginVal)}</span>${CARET}
+    </button>
+    <label class="row act">
+      <span class="glyph">${G.globe}</span>
+      <span class="rlab">Internet access</span>
+      <input type="checkbox" id="net-chk" style="margin-left:auto" ${state.networking ? 'checked' : ''}>
+    </label>`;
+}
+
+function pluginsFact(){
+  const n = state.plugins.length;
+  const off = state.plugins.filter(p => !p.activate).length;
+  return off ? n + ' · ' + off + (off === 1 ? ' stays off' : ' stay off') : String(n);
+}
+function renderPlugins(){
+  document.getElementById('fact-plugins').textContent = pluginsFact();
+  const list = document.getElementById('plugins-list');
+  const keep = list.scrollTop;
+  list.innerHTML = state.plugins.map((p, i) => {
+    const src = p.source === 'file'
+      ? 'From a file in this Blueprint'
+      : 'From WordPress.org · ' + (p.version === 'latest' ? 'latest version' : 'version ' + p.version);
+    return `
+    <div class="row" data-slug="${esc(p.slug)}">
+      <img class="pico" src="${esc(p.icon)}" alt="" data-letter="${esc(p.name[0])}" onerror="ltile(this)">
+      <div class="rmain">
+        <div class="rname">${esc(p.name)}</div>
+        <div class="rsub" title="${esc(src)}">${esc(src)}</div>
+      </div>
+      <label class="chk"><input type="checkbox" data-chk-plugin="${i}" ${p.activate ? 'checked' : ''}><span>Activate after install</span></label>
+      <button class="xbtn" data-act="remove-plugin" data-i="${i}" aria-label="Remove ${esc(p.name)}">${XG}</button>
+    </div>`;
+  }).join('');
+  list.scrollTop = keep;
+}
+
+function renderContent(){
+  const pages = state.content.pages, products = state.content.products;
+  const any = pages.length || products;
+  document.getElementById('fact-content').textContent = any ? 'starts blank, then adds:' : 'starts blank';
+  let h = '';
+  if (pages.length) h += `
+    <div class="row">
+      <span class="glyph">${G.page}</span>
+      <div class="rmain">
+        <div class="rname">${pages.length} starter page${pages.length === 1 ? '' : 's'}</div>
+        <div class="rsub">${esc(pages.join(', '))}</div>
+      </div>
+      <button class="xbtn" data-act="remove-pages" aria-label="Remove the starter pages">${XG}</button>
+    </div>`;
+  if (products) h += `
+    <div class="row">
+      <span class="glyph">${G.product}</span>
+      <div class="rmain">
+        <div class="rname">${products} sample products</div>
+        <div class="rsub">generated during setup</div>
+      </div>
+      <button class="xbtn" data-act="remove-products" aria-label="Remove the sample products">${XG}</button>
+    </div>`;
+  if (!any) h = `<div class="row"><div class="rmain"><div class="rsub">Nothing else — the site stays blank.</div></div></div>`;
+  document.getElementById('content-body').innerHTML = h;
+}
+
+function renderUsers(){
+  document.getElementById('fact-users').textContent = String(state.users.length);
+  document.getElementById('users-body').innerHTML = state.users.length
+    ? state.users.map((u, i) => `
+      <div class="row">
+        <span class="avatar">${esc(u.login[0].toUpperCase())}</span>
+        <div class="rmain">
+          <div class="rname">${esc(u.login)}</div>
+          <div class="rsub">${esc(u.roleLabel)}</div>
+        </div>
+        <button class="xbtn" data-act="remove-user" data-i="${i}" aria-label="Remove ${esc(u.login)}">${XG}</button>
+      </div>`).join('')
+    : `<div class="row"><div class="rmain"><div class="rsub">No users — the site will have none beyond WordPress defaults.</div></div></div>`;
+}
+
+function renderAfter(){
+  const n = state.afterSetup.length;
+  document.getElementById('fact-after').textContent = n ? n + ' small script' + (n === 1 ? '' : 's') : 'none';
+  document.getElementById('after-body').innerHTML = n
+    ? state.afterSetup.map((s, i) => `
+      <div class="row">
+        <span class="glyph">${G.script}</span>
+        <div class="rmain"><div class="rname" title="${esc(s.name)}">${esc(s.name)}</div></div>
+        <button class="btn slim" data-act="view-code" data-i="${i}">View code</button>
+        <button class="xbtn" data-act="remove-script" data-i="${i}" aria-label="Remove ${esc(s.name)}">${XG}</button>
+      </div>`).join('')
+    : `<div class="row"><div class="rmain"><div class="rsub">Nothing else happens after setup.</div></div></div>`;
+}
+
+/* ---------- layers: anchored popovers + modals; Esc closes deepest first ---------- */
+const layers = [];
+function openPop(anchor, width, build){
+  closePops();
+  const pop = document.createElement('div');
+  pop.className = 'pop';
+  if (width) pop.style.width = width + 'px';
+  const layer = { type:'pop', el:pop, anchor,
+    close(){
+      if (!pop.isConnected) return;
+      pop.remove();
+      const ix = layers.indexOf(layer); if (ix > -1) layers.splice(ix, 1);
+      if (anchor && anchor.isConnected) anchor.focus();
+    } };
+  build(pop, () => layer.close());
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(Math.max(12, r.left), window.innerWidth - pw - 12);
+  let top = r.bottom + 8;
+  if (top + ph > window.innerHeight - 12) top = Math.max(12, r.top - ph - 8);
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  layers.push(layer);
+  const f = pop.querySelector('input,button'); if (f) f.focus();
+}
+function closePops(){ layers.slice().filter(l => l.type === 'pop').forEach(l => l.close()); }
+
+function openModal(titleHtml, build){
+  closePops();
+  const prev = document.activeElement;
+  const scrim = document.createElement('div'); scrim.className = 'scrim';
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<h2>${titleHtml}</h2>`;
+  build(m);
+  const foot = document.createElement('div'); foot.className = 'mf';
+  const c = document.createElement('button'); c.className = 'btn'; c.textContent = 'Close';
+  foot.appendChild(c); m.appendChild(foot);
+  scrim.appendChild(m); document.body.appendChild(scrim);
+  const layer = { type:'modal',
+    close(){
+      scrim.remove();
+      const ix = layers.indexOf(layer); if (ix > -1) layers.splice(ix, 1);
+      if (prev && prev.isConnected) prev.focus();
+    } };
+  layers.push(layer);
+  c.addEventListener('click', () => layer.close());
+  scrim.addEventListener('mousedown', ev => { if (ev.target === scrim) layer.close(); });
+  c.focus();
+}
+
+function menuPop(anchor, items, isCurrent, onPick){
+  openPop(anchor, null, (pop, close) => {
+    pop.innerHTML = items.map((it, i) => `
+      <button class="mi" role="menuitemradio" aria-checked="${isCurrent(it)}" data-i="${i}">
+        <span class="mtxt">${esc(it.label)}
+          ${it.sub ? `<span class="misub">${esc(it.sub)}</span>` : ''}
+          ${it.sub2 ? `<span class="msub2">${esc(it.sub2)}</span>` : ''}
+        </span>
+        ${isCurrent(it) ? '<span class="mck">✓</span>' : ''}
+      </button>`).join('');
+    pop.addEventListener('click', e => {
+      const b = e.target.closest('.mi'); if (!b) return;
+      onPick(items[+b.dataset.i]); close();
+    });
+  });
+}
+
+/* ---------- pickers ---------- */
+function pluginPicker(anchor){
+  openPop(anchor, 404, (pop, close) => {
+    pop.innerHTML = `
+      <div class="pop-head"><input class="search" type="search" placeholder="Search WordPress.org plugins" aria-label="Search WordPress.org plugins"></div>
+      <div class="results" role="listbox" aria-label="Plugin results"></div>
+      <div class="pop-foot"><span>↓ ↑ move · Enter adds</span><span class="offnote" hidden>Search needs the internet — showing a short list.</span></div>`;
+    const input = pop.querySelector('.search');
+    const resEl = pop.querySelector('.results');
+    const off = pop.querySelector('.offnote');
+    let items = [], hl = 0, token = 0;
+    function paint(){
+      resEl.innerHTML = items.length
+        ? items.map((p, i) => `
+          <button class="pr${i === hl ? ' hl' : ''}" data-i="${i}" role="option" aria-selected="${i === hl}">
+            <img class="pico" src="${esc(p.icon)}" alt="" data-letter="${esc((p.name[0] || '?').toUpperCase())}" onerror="ltile(this)">
+            <span class="prname">${esc(p.name)}</span>
+            <span class="prmeta">${fmtInstalls(p.installs)}</span>
+          </button>`).join('')
+        : `<p class="quiet">No matches on WordPress.org.</p>`;
+    }
+    function setItems(list){
+      items = list.filter(p => !state.plugins.some(q => q.slug === p.slug)).slice(0, 6);
+      hl = 0; paint();
+    }
+    function pick(i){
+      const p = items[i]; if (!p) return;
+      state.plugins.push({ slug:p.slug, name:p.name, icon:p.icon, source:'wordpress.org', version:'latest', activate:true });
+      renderPlugins(); close();
+      const row = document.querySelector(`#plugins-list .row[data-slug="${p.slug}"]`);
+      if (row){ row.classList.add('flash'); row.scrollIntoView({ block:'nearest' }); }
+    }
+    resEl.addEventListener('click', e => { const b = e.target.closest('.pr'); if (b) pick(+b.dataset.i); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown'){ e.preventDefault(); hl = Math.min(hl + 1, items.length - 1); paint(); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); hl = Math.max(hl - 1, 0); paint(); }
+      else if (e.key === 'Enter'){ e.preventDefault(); pick(hl); }
+    });
+    const doSearch = debounce(() => {
+      const q = input.value.trim();
+      if (q.length < 2){ off.hidden = true; setItems(CURATED); return; }
+      const t = ++token;
+      resEl.innerHTML = '<p class="quiet">Searching WordPress.org…</p>';
+      fetch('https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[search]=' + encodeURIComponent(q) + '&request[per_page]=6')
+        .then(r => r.json())
+        .then(d => {
+          if (t !== token) return;
+          off.hidden = true;
+          setItems((d.plugins || []).map(p => ({ slug:p.slug, name:deent(p.name), icon:pluginIcon(p.icons), installs:p.active_installs || 0 })));
+        })
+        .catch(() => {
+          if (t !== token) return;
+          off.hidden = false;
+          setItems(CURATED.filter(c => c.name.toLowerCase().includes(q.toLowerCase())));
+        });
+    }, 300);
+    input.addEventListener('input', doSearch);
+    setItems(CURATED);
+  });
+}
+
+function themeGallery(anchor){
+  openPop(anchor, 508, (pop, close) => {
+    pop.innerHTML = `
+      <div class="pop-sec">
+        <div class="pop-lbl">In this Blueprint — pick which one will be active</div>
+        <div class="tgrid installed"></div>
+      </div>
+      <div class="pop-sec">
+        <input class="search" type="search" placeholder="Search WordPress.org themes" aria-label="Search WordPress.org themes">
+        <div class="tgrid found"></div>
+        <p class="quiet offnote" hidden>Search needs the internet — pick from the themes above.</p>
+      </div>`;
+    const inst = pop.querySelector('.installed');
+    const foundEl = pop.querySelector('.found');
+    const off = pop.querySelector('.offnote');
+    const input = pop.querySelector('.search');
+    inst.innerHTML = state.themes.map(t => {
+      const img = `<img src="${esc(t.shot)}" alt="" data-letter="${esc(t.name[0])}" data-fallclass="tshotfall" onerror="ltile(this)">`;
+      return t.slug === state.activeTheme
+        ? `<div class="tcard current">${img}<span class="chip">Will be active</span><span class="tname">${esc(t.name)}</span></div>`
+        : `<button class="tcard" data-slug="${esc(t.slug)}">${img}<span class="tname">${esc(t.name)}</span></button>`;
+    }).join('');
+    inst.addEventListener('click', e => {
+      const b = e.target.closest('button.tcard'); if (!b) return;
+      state.activeTheme = b.dataset.slug; renderTheme(); close();
+    });
+    let found = [], token = 0;
+    foundEl.addEventListener('click', e => {
+      const b = e.target.closest('button.tcard'); if (!b) return;
+      const th = found[+b.dataset.i]; if (!th) return;
+      if (!state.themes.some(x => x.slug === th.slug)) state.themes.push({ slug:th.slug, name:th.name, shot:th.shot });
+      state.activeTheme = th.slug; renderTheme(); close();
+    });
+    const doSearch = debounce(() => {
+      const q = input.value.trim();
+      if (q.length < 2){ foundEl.innerHTML = ''; off.hidden = true; return; }
+      const t = ++token;
+      foundEl.innerHTML = '<p class="quiet" style="grid-column:1/-1">Searching WordPress.org…</p>';
+      fetch('https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[search]=' + encodeURIComponent(q) + '&request[per_page]=6')
+        .then(r => r.json())
+        .then(d => {
+          if (t !== token) return;
+          off.hidden = true;
+          found = (d.themes || []).map(x => ({ slug:x.slug, name:deent(x.name), shot:normShot(x.screenshot_url) }));
+          foundEl.innerHTML = found.length
+            ? found.map((x, i) => `
+              <button class="tcard" data-i="${i}">
+                <img src="${esc(x.shot)}" alt="" loading="lazy" data-letter="${esc(x.name[0])}" data-fallclass="tshotfall" onerror="ltile(this)">
+                <span class="tname">${esc(x.name)}</span>
+              </button>`).join('')
+            : '<p class="quiet" style="grid-column:1/-1">No matches on WordPress.org.</p>';
+        })
+        .catch(() => { if (t !== token) return; found = []; foundEl.innerHTML = ''; off.hidden = false; });
+    }, 350);
+    input.addEventListener('input', doSearch);
+  });
+}
+
+/* ---------- blueprint JSON: rebuilt from state every time ---------- */
+function buildBlueprint(){
+  const bp = {
+    version: 2,
+    wordpressVersion: state.wp,
+    phpVersion: state.php,
+    language: state.language,
+    siteOptions: { blogname: state.title },
+    themes: state.themes.map(t => t.slug),
+    activeTheme: state.activeTheme,
+    plugins: state.plugins.map(p => p.source === 'file'
+      ? { file: './' + p.slug + '.zip', activate: p.activate }
+      : (p.version && p.version !== 'latest'
+        ? { slug: p.slug, version: p.version, activate: p.activate }
+        : { slug: p.slug, activate: p.activate })),
+    landingPage: state.landing.path,
+    login: state.login === 'none' ? false : state.login,
+    networking: state.networking
+  };
+  const content = {};
+  if (state.content.pages.length) content.starterPages = state.content.pages.slice();
+  if (state.content.products) content.sampleProducts = state.content.products;
+  if (Object.keys(content).length) bp.content = content;
+  if (state.users.length) bp.users = state.users.map(u => ({ username: u.login, role: u.role }));
+  if (state.afterSetup.length) bp.afterSetup = state.afterSetup.map(s => ({ step:'runPHP', note:s.name, code:s.php }));
+  return bp;
+}
+
+/* ---------- undo: full-state snapshots, restored faithfully ---------- */
+const undoStack = [];
+let toastTimer;
+function removeWithUndo(label, mutate){
+  undoStack.push(JSON.stringify(state));
+  mutate();
+  renderAll();
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = label;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, 6000);
+}
+function undo(){
+  const snap = undoStack.pop();
+  if (!snap) return;
+  state = JSON.parse(snap);
+  renderAll();
+  document.getElementById('toast').hidden = true;
+}
+
+/* ---------- wiring ---------- */
+document.getElementById('poster').addEventListener('click', e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const act = btn.dataset.act;
+  if (act === 'pick-wp') menuPop(btn, WP_OPTS, it => it.v === state.wp, it => { state.wp = it.v; renderMast(); });
+  else if (act === 'pick-php') menuPop(btn, PHP_OPTS.map(v => ({ v, label:'PHP ' + v })), it => it.v === state.php, it => { state.php = it.v; renderMast(); });
+  else if (act === 'pick-lang') menuPop(btn, LANGS, it => it.v === state.language, it => { state.language = it.v; renderMast(); });
+  else if (act === 'pick-landing') menuPop(btn, LANDINGS.map(l => ({ ...l, sub:l.path })), it => it.path === state.landing.path,
+    it => { state.landing = { label:it.label, path:it.path }; renderOpens(); });
+  else if (act === 'pick-login'){
+    const items = state.users.map(u => ({ v:u.login, label:u.login, sub2:u.roleLabel }))
+      .concat([{ v:'none', label:'No one (signed out)' }]);
+    menuPop(btn, items, it => it.v === state.login, it => { state.login = it.v; renderOpens(); });
+  }
+  else if (act === 'change-theme') themeGallery(btn);
+  else if (act === 'add-plugin') pluginPicker(btn);
+  else if (act === 'remove-theme'){
+    const t = state.themes.find(x => x.slug === btn.dataset.slug);
+    removeWithUndo('Removed ' + t.name, () => { state.themes = state.themes.filter(x => x.slug !== t.slug); });
+  }
+  else if (act === 'remove-plugin'){
+    const i = +btn.dataset.i;
+    removeWithUndo('Removed ' + state.plugins[i].name, () => state.plugins.splice(i, 1));
+  }
+  else if (act === 'remove-pages'){
+    const n = state.content.pages.length;
+    removeWithUndo('Removed the ' + n + ' starter page' + (n === 1 ? '' : 's'), () => { state.content.pages = []; });
+  }
+  else if (act === 'remove-products'){
+    removeWithUndo('Removed the ' + state.content.products + ' sample products', () => { state.content.products = 0; });
+  }
+  else if (act === 'remove-user'){
+    const i = +btn.dataset.i;
+    removeWithUndo('Removed ' + state.users[i].login, () => {
+      state.users.splice(i, 1);
+      if (!state.users.some(u => u.login === state.login)) state.login = state.users[0] ? state.users[0].login : 'none';
+    });
+  }
+  else if (act === 'remove-script'){
+    const i = +btn.dataset.i;
+    removeWithUndo('Removed “' + state.afterSetup[i].name + '”', () => state.afterSetup.splice(i, 1));
+  }
+  else if (act === 'view-code'){
+    const s = state.afterSetup[+btn.dataset.i];
+    openModal(esc(s.name), m => {
+      const sub = document.createElement('p'); sub.className = 'msub';
+      sub.textContent = 'Happens once, right after setup. Read-only here.';
+      const pre = document.createElement('pre'); pre.textContent = s.php;
+      m.appendChild(sub); m.appendChild(pre);
+    });
+  }
+  else if (act === 'view-json'){
+    openModal('<span class="mono">blueprint.json</span>', m => {
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(buildBlueprint(), null, 2);
+      m.appendChild(pre);
+    });
+  }
+  else if (act === 'run'){
+    window.open('https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(buildBlueprint())));
+  }
+});
+
+document.getElementById('poster').addEventListener('change', e => {
+  if (e.target.matches('[data-chk-plugin]')){
+    state.plugins[+e.target.dataset.chkPlugin].activate = e.target.checked;
+    document.getElementById('fact-plugins').textContent = pluginsFact();
+  } else if (e.target.id === 'net-chk'){
+    state.networking = e.target.checked;
+  }
+});
+
+document.getElementById('title-in').addEventListener('input', e => { state.title = e.target.value; });
+document.getElementById('title-in').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+document.getElementById('toast-undo').addEventListener('click', undo);
+
+const aboutEl = document.getElementById('about');
+document.getElementById('about-toggle').addEventListener('click', () => {
+  const open = aboutEl.classList.toggle('open');
+  document.getElementById('about-toggle').setAttribute('aria-expanded', String(open));
+});
+
+document.addEventListener('mousedown', e => {
+  const top = layers[layers.length - 1];
+  if (top && top.type === 'pop' && !top.el.contains(e.target) && !(top.anchor && top.anchor.contains(e.target))) top.close();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    if (layers.length){ layers[layers.length - 1].close(); return; }
+    if (aboutEl.classList.contains('open')){
+      aboutEl.classList.remove('open');
+      document.getElementById('about-toggle').setAttribute('aria-expanded', 'false');
+    }
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && t.type !== 'checkbox') return;
+    e.preventDefault();
+    undo();
+  }
+});
+
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design 14 · One thing at a time — Blueprint editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --ink:#1e1e1e; --muted:#50575e; --line:#dcdcde; --line-soft:#eceef0;
+  --ctl:#c6ccd2; --blue:#3858e9; --soft:#f6f7f7;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:#eef0f1}
+body{margin:0;font:15.5px/1.5 Inter,system-ui,sans-serif;color:var(--ink)}
+b{font-weight:600}
+code{font:13.5px 'IBM Plex Mono',monospace;color:var(--muted)}
+button,input,select{font:inherit;color:inherit}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
+
+.app{max-width:1080px;margin:26px auto 100px;background:#fff;border:1px solid #d5d9dd;border-radius:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 14px 44px rgba(16,18,22,.07)}
+
+/* top bar: title left, Run right — the only saturated blue on screen */
+.top{display:flex;align-items:center;gap:12px;height:66px;padding:0 18px 0 22px;border-bottom:1px solid #e4e7ea;
+  position:sticky;top:0;z-index:25;background:#fff;border-radius:14px 14px 0 0}
+.title{font-family:Fraunces,serif;font-weight:600;font-size:25px;color:var(--ink);border:0;background:transparent;
+  padding:2px 4px;min-width:110px;max-width:44vw;border-bottom:2px solid transparent}
+.title:hover,.title:focus{border-bottom-color:#cfd4d9}
+.meas{position:absolute;left:-9999px;top:0;font-family:Fraunces,serif;font-weight:600;font-size:25px;white-space:pre;visibility:hidden}
+.pen{background:none;border:0;padding:6px;min-height:40px;min-width:34px;color:#8b939b;cursor:pointer;flex:none}
+.pen:hover{color:var(--ink)}
+.pen svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.top .grow{flex:1}
+.btn{background:#fff;border:1px solid var(--ctl);border-radius:8px;min-height:40px;padding:7px 16px;
+  font-size:15px;font-weight:600;color:var(--ink);cursor:pointer}
+.btn:hover{border-color:#8b939b;background:#fafbfc}
+.btn.quiet{font-weight:500;color:var(--muted)}
+.runbtn{background:var(--blue);border:1px solid var(--blue);border-radius:8px;color:#fff;font-weight:600;
+  font-size:15.5px;min-height:42px;padding:8px 26px;cursor:pointer}
+.runbtn:hover{background:#2b48d7}
+
+/* the never-moving map: 6 equal segments, each carries its own fact */
+.map{display:grid;grid-template-columns:repeat(6,1fr);background:var(--soft);border-bottom:1px solid var(--line);
+  position:sticky;top:66px;z-index:24}
+.seg{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:78px;padding:12px 8px 13px;
+  background:transparent;border:0;border-right:1px solid #e3e5e7;cursor:pointer;color:var(--muted);min-width:0}
+.seg:last-child{border-right:0}
+.seg svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.seg-n{font-size:15px;font-weight:600;color:#3c434a}
+.seg-f{font-size:13.5px;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg:hover{background:#f0f1f2}
+.seg[aria-selected="true"]{background:#fff;box-shadow:inset 0 -3px 0 var(--ink);color:var(--ink)}
+.seg[aria-selected="true"] .seg-n{color:var(--ink)}
+
+/* one canvas: only the selected section's decisions */
+.canvas{padding:34px 42px 30px;min-height:450px;background:#fff}
+.rows{max-width:780px}
+.row{display:flex;align-items:center;gap:14px;min-height:56px;padding:10px 4px;border-bottom:1px solid var(--line-soft)}
+.row:last-child{border-bottom:0}
+.rmain{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rmain b{font-size:16px}
+.rfact{font-size:13.5px;color:var(--muted)}
+.rctl{margin-left:auto;display:flex;gap:10px;align-items:center;flex:none}
+.grouplab{display:block;font-size:14px;font-weight:600;color:var(--ink);margin:0 0 2px}
+.grouplab.g2{margin-top:30px}
+.groupnote{font-size:13.5px;color:var(--muted);margin-bottom:4px}
+.flash{animation:flash 1.4s ease-out}
+@keyframes flash{0%{background:#e9edf1}100%{background:transparent}}
+
+/* the digest — 7 sentences, version pickers live inside sentence 1 */
+.siterow{display:flex;gap:46px;align-items:flex-start}
+.dig{flex:1;max-width:640px;margin:2px 0 0;font-size:17px;line-height:2.1;color:var(--ink)}
+.sitemini{flex:none;width:300px;margin:6px 0 0}
+figure.sitemini{margin:6px 0 0}
+.mini{border:1px solid #d7dbdf;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.mdots{display:flex;gap:5px;padding:8px 10px;background:#f1f3f4;border-bottom:1px solid #e3e6e8}
+.mdots i{width:9px;height:9px;border-radius:50%;background:#d4d8db}
+.mini .shot{display:block;width:100%;height:auto;min-height:100px;object-fit:cover;object-position:top}
+.mini span.shot{height:170px;font-size:34px;border-radius:0}
+
+/* inline picker: quiet bordered chip with caret, never a link */
+.ipick{position:relative;display:inline-block}
+.ipick select{appearance:none;-webkit-appearance:none;font-weight:600;color:var(--ink);background:#fff;
+  border:1px solid #cfd4d9;border-radius:8px;min-height:40px;padding:4px 27px 5px 11px;cursor:pointer}
+.ipick select:hover{border-color:#8b939b}
+.ipick::after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;pointer-events:none;
+  border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:translateY(-72%) rotate(45deg)}
+
+/* theme cards */
+.tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;max-width:740px}
+.tcard{border:1px solid #dfe2e5;border-radius:14px;padding:12px;background:#fff}
+.tcard.on{border:2px solid var(--ink);padding:11px}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;min-height:40px}
+.trow b{font-size:16px}
+.tbtns{display:flex;gap:8px}
+.onchip{background:var(--ink);color:#fff;border-radius:999px;padding:6px 13px;font-size:13.5px;font-weight:600}
+.tsearch{margin-top:32px;max-width:740px}
+.search{width:100%;max-width:430px;min-height:42px;margin-top:8px;border:1px solid var(--ctl);border-radius:9px;
+  padding:0 14px;font-size:15px;background:#fff}
+.tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+.ttile{display:flex;flex-direction:column;gap:9px;text-align:left;background:#fff;border:1px solid #dfe2e5;
+  border-radius:12px;padding:10px;cursor:pointer}
+.ttile:hover{border-color:#8b939b}
+.ttile .shot{width:100%;border-radius:8px;aspect-ratio:4/3;object-fit:cover;object-position:top}
+.ttile span.shot{display:flex;height:120px}
+.ttname{font-weight:600;font-size:15px}
+.ttuse{align-self:flex-start;border:1px solid var(--ctl);border-radius:7px;padding:6px 11px;font-size:13.5px;font-weight:600}
+
+/* plugin rows + picker */
+.picon{width:34px;height:34px;border-radius:8px;object-fit:contain;flex:none}
+.tile{display:inline-flex;align-items:center;justify-content:center;background:#e4e7ea;color:var(--muted);
+  font-weight:600;border-radius:8px}
+.tile.picon{font-size:15px}
+.ck{display:flex;align-items:center;gap:8px;font-size:15px;color:#3c434a;min-height:40px;cursor:pointer}
+.ck input{width:17px;height:17px;accent-color:var(--ink);cursor:pointer}
+.addwrap{position:relative;margin-top:18px}
+.picker{position:absolute;left:0;top:calc(100% + 8px);width:min(480px,92vw);background:#fff;border:1px solid #cfd4d9;
+  border-radius:12px;box-shadow:0 14px 40px rgba(16,18,22,.18);padding:12px;z-index:30}
+.picker .search{max-width:none;margin-top:0}
+#plugResults{margin-top:6px;max-height:330px;overflow:auto}
+.pres{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 10px;text-align:left;
+  background:none;border:0;border-radius:9px;cursor:pointer}
+.pres:hover,.pres.hl{background:#f0f2f4}
+.prmain{display:flex;flex-direction:column;gap:1px;min-width:0}
+.prname{font-weight:600;font-size:15px}
+.prsub{font-size:13.5px;color:var(--muted)}
+.presnote{font-size:13.5px;color:var(--muted);padding:9px 10px 3px}
+.pickhint{font-size:13.5px;color:var(--muted);padding:9px 10px 0;border-top:1px solid var(--line-soft);margin-top:8px}
+
+/* users */
+.avatar{width:38px;height:38px;border-radius:50%;background:#e4e7ea;color:#3c434a;display:flex;align-items:center;
+  justify-content:center;font-weight:600;font-size:16px;flex:none}
+
+/* footer: the trust sentence */
+.trust{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:15px 42px 17px;
+  border-top:1px solid var(--line-soft);font-size:13.5px;color:var(--muted);border-radius:0 0 14px 14px;background:#fff}
+.trust .keys{flex:none}
+
+/* toast (bottom-left) */
+.toast{position:fixed;left:18px;bottom:18px;z-index:80;display:flex;align-items:center;gap:12px;
+  background:#111319;color:#fff;border-radius:10px;padding:10px 12px 10px 16px;font-size:14.5px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.undobtn{background:#2a2f3a;color:#fff;border:1px solid #3d4450;border-radius:7px;font-weight:600;
+  min-height:40px;padding:7px 16px;cursor:pointer}
+.undobtn:hover{background:#39404d}
+
+/* modal (code / JSON) */
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(16,18,22,.45);display:flex;align-items:center;
+  justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:82vh;display:flex;
+  flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.m-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;
+  border-bottom:1px solid #e6e8ea;font-size:16px;font-weight:600}
+.xbtn{background:none;border:0;min-height:40px;min-width:40px;font-size:16px;color:var(--muted);cursor:pointer;border-radius:8px}
+.xbtn:hover{background:#f0f2f4;color:var(--ink)}
+.modal pre{margin:0;padding:16px 18px;overflow:auto;font:13px/1.6 'IBM Plex Mono',monospace;
+  background:#101319;color:#dfe6f1;border-radius:0 0 12px 12px}
+
+/* about pill */
+.dnote{position:fixed;right:16px;bottom:16px;z-index:70;background:#111319;color:#d5dbe6;
+  border:1px solid #2b303a;border-radius:999px;font-size:13px;max-width:420px}
+.dnote.open{border-radius:14px}
+.dn-head{display:flex;align-items:center;gap:9px;background:none;border:0;padding:7px 15px 7px 8px;
+  min-height:40px;cursor:pointer;color:inherit;white-space:nowrap}
+.dn-badge{background:#0a7d4f;color:#fff;font-weight:700;border-radius:20px;padding:3px 10px;font-size:11.5px}
+.dn-name{font-weight:600;color:#eef1f6}
+.dn-more{color:#8a94a6}
+.dn-body{display:none;padding:0 16px 14px;line-height:1.6}
+.dnote.open .dn-body{display:block}
+
+@media (max-width:900px){
+  .map{grid-template-columns:repeat(3,1fr);position:static}
+  .top{position:static}
+  .siterow{flex-direction:column}
+  .tgrid,.tres{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .canvas,.trust{padding-left:22px;padding-right:22px}
+  .row{flex-wrap:wrap}
+  .rctl{margin-left:48px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <input class="title" id="titleIn" value="Adam’s Demo Store" aria-label="Site title — click to rename"
+      oninput="titleInput(this)" autocomplete="off" spellcheck="false">
+    <span class="meas" id="meas" aria-hidden="true"></span>
+    <button class="pen" onclick="renameTitle()" aria-label="Rename the site" title="Rename the site">
+      <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1z"/><path d="M14.5 6.5l3 3"/></svg>
+    </button>
+    <span class="grow"></span>
+    <button class="btn quiet" onclick="openJson()">View the JSON</button>
+    <button class="runbtn" onclick="runNow()">Run</button>
+  </header>
+
+  <nav class="map" role="tablist" aria-label="Blueprint sections">
+    <button class="seg" id="seg-site" role="tab" aria-selected="true" onclick="go('site')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="2"/><path d="M9 21h6m-3-4v4"/></svg>
+      <span class="seg-n">Site</span><span class="seg-f" id="f-site"></span>
+    </button>
+    <button class="seg" id="seg-theme" role="tab" aria-selected="false" onclick="go('theme')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.7"/><path d="M3.5 17.5l4.5-4.5 3.5 3.5 3-3 5.5 5.5"/></svg>
+      <span class="seg-n">Theme</span><span class="seg-f" id="f-theme"></span>
+    </button>
+    <button class="seg" id="seg-plugins" role="tab" aria-selected="false" onclick="go('plugins')">
+      <svg viewBox="0 0 24 24"><path d="M9 3.5V8m6-4.5V8"/><path d="M6.5 8h11v2.5a5.5 5.5 0 0 1-11 0V8z"/><path d="M12 16v4.5"/></svg>
+      <span class="seg-n">Plugins</span><span class="seg-f" id="f-plugins"></span>
+    </button>
+    <button class="seg" id="seg-content" role="tab" aria-selected="false" onclick="go('content')">
+      <svg viewBox="0 0 24 24"><path d="M6.5 3.5h7.5l3.5 3.5v13.5H6.5z"/><path d="M14 3.5V7h3.5"/><path d="M9.5 12h5m-5 3.5h5"/></svg>
+      <span class="seg-n">Content</span><span class="seg-f" id="f-content"></span>
+    </button>
+    <button class="seg" id="seg-users" role="tab" aria-selected="false" onclick="go('users')">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3"/><path d="M3.5 20c.7-3.4 2.9-5.3 5.5-5.3s4.8 1.9 5.5 5.3"/><path d="M15.4 5.4a3.3 3.3 0 0 1 0 5.2"/><path d="M17.2 14.9c1.9.8 3 2.5 3.3 5.1"/></svg>
+      <span class="seg-n">Users</span><span class="seg-f" id="f-users"></span>
+    </button>
+    <button class="seg" id="seg-finishing" role="tab" aria-selected="false" onclick="go('finishing')">
+      <svg viewBox="0 0 24 24"><path d="M6.5 21V3.5"/><path d="M6.5 4.5h10.5l-2.4 3.5 2.4 3.5H6.5"/></svg>
+      <span class="seg-n">Finishing</span><span class="seg-f" id="f-finishing"></span>
+    </button>
+  </nav>
+
+  <main class="canvas" id="canvas" role="tabpanel" aria-label="Section details"></main>
+
+  <footer class="trust">
+    <span>Everything above is one <code>blueprint.json</code> — press Run to build a fresh site from it.
+      Nothing is installed until then.</span>
+    <span class="keys">← → switch sections</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast" hidden>
+  <span id="toastMsg"></span>
+  <button class="undobtn" onclick="doUndo()">Undo</button>
+</div>
+
+<div class="overlay" id="overlay" hidden onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="m-head"><span id="mTitle"></span>
+      <button class="xbtn" id="mClose" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <pre id="mPre"></pre>
+  </div>
+</div>
+
+<div class="dnote" id="dnote">
+  <button class="dn-head" onclick="toggleNote()" aria-expanded="false">
+    <span class="dn-badge">Design 14</span><span class="dn-name">One thing at a time</span><span class="dn-more">about</span>
+  </button>
+  <div class="dn-body">
+    The bet: ADHD load drops when at most 1 section’s decisions are on screen — if the map of everything
+    else never moves, never reorders, and carries the facts itself. The 6-segment map is permanent; each
+    segment states its section’s headline fact and updates live as you edit. The canvas below shows only
+    the selected section, in large type, with every control visible and labeled by outcome. The first
+    screen is a 7-sentence digest of the whole site, so nothing hides behind the tabs — they only zoom.
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const THEME_API='https://api.wordpress.org/themes/info/1.2/';
+const PLUGIN_API='https://api.wordpress.org/plugins/info/1.2/';
+
+const PHP_GUIDES=`<?php
+// Runs once, right after the site is built.
+$user_ids = get_users( array( 'fields' => 'ID' ) );
+foreach ( $user_ids as $user_id ) {
+	// Skip the block editor welcome guide.
+	update_user_meta( $user_id, 'wp_persisted_preferences', array(
+		'core/edit-post' => array( 'welcomeGuide' => false ),
+	) );
+	// Hide the dashboard welcome panel.
+	update_user_meta( $user_id, 'show_welcome_panel', 0 );
+}`;
+
+const PHP_COUPON=`<?php
+// Runs once, right after the site is built. Needs WooCommerce.
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->set_individual_use( true );
+$coupon->set_usage_limit( 100 );
+$coupon->save();`;
+
+const state={
+  title:'Adam’s Demo Store',
+  wp:'latest', php:'8.3', lang:'en_US',
+  themes:[
+    {slug:'storefront',name:'Storefront',shot:'https://ts.w.org/wp-content/themes/storefront/screenshot.png',active:true},
+    {slug:'twentytwentyfive',name:'Twenty Twenty-Five',shot:'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png',active:false}
+  ],
+  plugins:[
+    {slug:'woocommerce',name:'WooCommerce',icon:'https://ps.w.org/woocommerce/assets/icon.svg',source:'wporg',version:'9.4',activate:true},
+    {slug:'wordpress-seo',name:'Yoast SEO',icon:'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908',source:'wporg',version:'latest',activate:true},
+    {slug:'query-monitor',name:'Query Monitor',icon:'https://ps.w.org/query-monitor/assets/icon-256x256.png',source:'file',version:'latest',activate:false}
+  ],
+  content:{pages:['About','Contact','Shop'],products:12},
+  users:[
+    {login:'admin',role:'Administrator',roleSlug:'administrator'},
+    {login:'demo-editor',role:'Store manager',roleSlug:'store_manager',roleNote:'a custom role'}
+  ],
+  landing:'/wp-admin/edit.php?post_type=product',
+  loginAs:'admin',
+  network:true,
+  scripts:[
+    {name:'Hide the WordPress welcome guides',php:PHP_GUIDES},
+    {name:'Add a WELCOME10 coupon for testing',php:PHP_COUPON}
+  ]
+};
+
+const WPS=[['latest','latest (6.8 today)'],['6.8','6.8'],['6.7','6.7'],['6.6','6.6']];
+const PHPS=[['8.4','8.4'],['8.3','8.3'],['8.2','8.2'],['8.1','8.1'],['8.0','8.0'],['7.4','7.4']];
+const LANGS=[['en_US','English (US)'],['en_GB','English (UK)'],['de_DE','Deutsch'],['fr_FR','Français'],['es_ES','Español'],['pl_PL','Polski']];
+const LANDINGS=[
+  ['/wp-admin/edit.php?post_type=product','The Products page','Products'],
+  ['/wp-admin/','The dashboard','the dashboard'],
+  ['/','The homepage','the homepage'],
+  ['/shop/','The Shop page','the Shop page']
+];
+const SIGNINS=[['admin','admin (Administrator)'],['demo-editor','demo-editor (Store manager)'],['','No one — signed out']];
+const CURATED=[
+  {slug:'contact-form-7',name:'Contact Form 7',icon:'https://ps.w.org/contact-form-7/assets/icon.svg',installs:10000000},
+  {slug:'elementor',name:'Elementor',icon:'https://ps.w.org/elementor/assets/icon.svg',installs:10000000},
+  {slug:'classic-editor',name:'Classic Editor',icon:'https://ps.w.org/classic-editor/assets/icon.svg',installs:10000000},
+  {slug:'akismet',name:'Akismet Anti-spam',icon:'https://ps.w.org/akismet/assets/icon-256x256.png',installs:6000000},
+  {slug:'wpforms-lite',name:'WPForms',icon:'https://ps.w.org/wpforms-lite/assets/icon.svg',installs:6000000},
+  {slug:'jetpack',name:'Jetpack',icon:'https://ps.w.org/jetpack/assets/icon.svg',installs:4000000}
+];
+
+let current='site';
+const undoStack=[];
+let toastTimer=null, lastFocus=null;
+let pickerOpen=false, hl=-1, curPlugResults=[], plugTimer=null, plugToken=0;
+let themeTimer=null, themeToken=0, curThemeResults=[];
+
+/* ---------- rendering ---------- */
+
+function renderAll(){
+  const focusId=document.activeElement&&document.activeElement.id;
+  pickerOpen=false;
+  document.removeEventListener('click',outsideClose);
+  renderMap();
+  const views={site:renderSite,theme:renderTheme,plugins:renderPlugins,content:renderContent,users:renderUsers,finishing:renderFinishing};
+  el('canvas').innerHTML=views[current]();
+  if(document.activeElement!==el('titleIn')){el('titleIn').value=state.title;sizeTitle();}
+  if(focusId){const f=el(focusId);if(f)f.focus();}
+}
+
+function renderMap(){
+  const t=activeTheme();
+  el('f-site').textContent=`WP ${state.wp==='latest'?'latest':state.wp} / PHP ${state.php}`;
+  el('f-theme').textContent=t?t.name:'none yet';
+  const n=state.plugins.length, off=state.plugins.filter(p=>!p.activate).length;
+  el('f-plugins').textContent=n?`${n}${off?`, ${off} stay${off===1?'s':''} off`:''}`:'none yet';
+  el('f-content').textContent=`${state.content.pages.length} pages + ${state.content.products} products`;
+  el('f-users').textContent=String(state.users.length);
+  const land=LANDINGS.find(l=>l[0]===state.landing);
+  const ns=state.scripts.length;
+  el('f-finishing').textContent=`${ns} script${ns===1?'':'s'}, opens ${land?land[2]:'the homepage'}`;
+  ['site','theme','plugins','content','users','finishing'].forEach(k=>{
+    el('seg-'+k).setAttribute('aria-selected',String(k===current));
+  });
+}
+
+function renderSite(){
+  const t=activeTheme();
+  return `<div class="siterow">
+    <p class="dig">${digestHTML()}</p>
+    <figure class="sitemini" aria-hidden="true">
+      <div class="mini"><div class="mdots"><i></i><i></i><i></i></div>
+        <img class="shot" src="${esc(t?t.shot:'')}" alt="" data-n="${esc(t?t.name:'?')}" onerror="iFall(this)">
+      </div>
+    </figure>
+  </div>`;
+}
+
+function digestHTML(){
+  const t=activeTheme();
+  const spares=state.themes.filter(x=>!x.active);
+  const on=state.plugins.filter(p=>p.activate), off=state.plugins.filter(p=>!p.activate);
+  const s=[];
+  s.push(`The site will run WordPress ${pick('pick-wp','setWp',WPS,state.wp,'WordPress version')} `+
+    `on PHP ${pick('pick-php','setPhp',PHPS,state.php,'PHP version')}, `+
+    `in ${pick('pick-lang','setLang',LANGS,state.lang,'Language')}.`);
+  if(t){
+    let d=`The design will be <b>${esc(t.name)}</b>`;
+    if(spares.length)d+=`; ${names(spares)} will be installed as ${spares.length>1?'backups':'a backup'}`;
+    s.push(d+'.');
+  }else{
+    s.push('No theme is chosen yet.');
+  }
+  if(state.plugins.length){
+    const parts=[];
+    if(on.length)parts.push(`${names(on)} will be turned on`);
+    if(off.length)parts.push(`${names(off)} will be installed but stay off`);
+    s.push(parts.join('; ')+'.');
+  }else{
+    s.push('No plugins will be installed.');
+  }
+  s.push(`It starts blank, then adds <b>${state.content.pages.length} starter pages</b> and `+
+    `<b>${state.content.products} sample products</b> during setup.`);
+  s.push(`<b>${state.users.length} people</b> will be able to sign in: `+
+    state.users.map(u=>`<b>${esc(u.login)}</b> (${esc(u.role)})`).join(' and ')+'.');
+  const ns=state.scripts.length;
+  if(ns)s.push(`<b>${ns} small script${ns>1?'s':''}</b> will run right after setup.`);
+  const land=LANDINGS.find(l=>l[0]===state.landing);
+  s.push(`The first screen will be <b>${land?lcFirst(land[1]):'the homepage'}</b>, `+
+    (state.loginAs?`signed in as <b>${esc(state.loginAs)}</b>`:'not signed in')+
+    `, with internet access ${state.network?'on':'off'}.`);
+  return s.join(' ');
+}
+
+function renderTheme(){
+  const cards=state.themes.map(t=>`
+    <div class="tcard${t.active?' on':''}">
+      <div class="mini"><div class="mdots"><i></i><i></i><i></i></div>
+        <img class="shot" src="${esc(t.shot)}" alt="${esc(t.name)} preview" data-n="${esc(t.name)}" onerror="iFall(this)">
+      </div>
+      <div class="trow"><b>${esc(t.name)}</b>
+        ${t.active?'<span class="onchip">Will be active</span>'
+          :`<span class="tbtns"><button class="btn" onclick="makeActive('${t.slug}')">Make active</button>
+             <button class="btn quiet" onclick="removeTheme('${t.slug}')">Remove</button></span>`}
+      </div>
+    </div>`).join('');
+  return `<div class="tgrid">${cards}</div>
+    <div class="tsearch">
+      <label class="grouplab" for="themeQ">Add a different look</label>
+      <input class="search" id="themeQ" type="search" placeholder="Search WordPress.org themes…"
+        oninput="themeSearchInput(this.value)" autocomplete="off">
+      <div class="tres" id="tres" aria-live="polite"></div>
+    </div>`;
+}
+
+function renderPlugins(){
+  const rows=state.plugins.map(p=>{
+    const src=p.source==='file'?'From a file in this Blueprint':'From WordPress.org';
+    const ver=p.version==='latest'?'latest version':`version ${p.version}`;
+    return `<div class="row" id="row-${p.slug}">
+      <img class="picon" src="${esc(p.icon)}" alt="" data-n="${esc(p.name)}" onerror="iFall(this)">
+      <div class="rmain"><b>${esc(p.name)}</b><span class="rfact">${src} · ${ver}</span></div>
+      <span class="rctl">
+        <label class="ck" for="ck-${p.slug}"><input type="checkbox" id="ck-${p.slug}"
+          ${p.activate?'checked':''} onchange="toggleActivate('${p.slug}',this.checked)">Activate after install</label>
+        <button class="btn quiet" onclick="removePlugin('${p.slug}')">Remove</button>
+      </span>
+    </div>`;}).join('');
+  return `<div class="rows">${rows}
+    <div class="addwrap" id="addwrap">
+      <button class="btn" id="addPlugBtn" aria-expanded="false" onclick="togglePicker()">+ Add plugin</button>
+      <div class="picker" id="plugPicker" hidden>
+        <input class="search" id="plugSearch" type="search" placeholder="Search WordPress.org plugins…"
+          oninput="plugSearchInput(this.value)" onkeydown="plugKeys(event)" autocomplete="off">
+        <div id="plugResults" role="listbox" aria-label="Plugin results"></div>
+        <div class="pickhint">↓ ↑ to choose · Enter to add · Esc to close</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderContent(){
+  return `<div class="rows">
+    <div class="row"><div class="rmain"><b>Starts blank</b>
+      <span class="rfact">Setup adds the pages and products below</span></div></div>
+    <div class="row"><div class="rmain"><b>${state.content.pages.length} starter pages</b>
+      <span class="rfact">${esc(state.content.pages.join(', '))}</span></div></div>
+    <div class="row"><div class="rmain"><b>${state.content.products} sample products</b>
+      <span class="rfact">Generated during setup, so the store has something to show</span></div></div>
+  </div>`;
+}
+
+function renderUsers(){
+  return `<div class="rows">${state.users.map(u=>`
+    <div class="row">
+      <span class="avatar" aria-hidden="true">${esc(u.login[0].toUpperCase())}</span>
+      <div class="rmain"><b>${esc(u.login)}</b>
+        <span class="rfact">${esc(u.role)}${u.roleNote?` — ${esc(u.roleNote)}`:''}${state.loginAs===u.login?' · signs in automatically':''}</span>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function renderFinishing(){
+  return `<div class="rows">
+    <span class="grouplab">When it opens</span>
+    <div class="row">
+      <div class="rmain"><b>First screen</b><span class="rfact"><code>${esc(state.landing)}</code></span></div>
+      <span class="rctl">${pick('pick-landing','setLanding',LANDINGS.map(l=>[l[0],l[1]]),state.landing,'First screen')}</span>
+    </div>
+    <div class="row">
+      <div class="rmain"><b>Signed in as</b></div>
+      <span class="rctl">${pick('pick-login','setLoginAs',SIGNINS,state.loginAs,'Signed in as')}</span>
+    </div>
+    <div class="row">
+      <label class="ck" for="ck-net"><input type="checkbox" id="ck-net"
+        ${state.network?'checked':''} onchange="setNetwork(this.checked)">Allow internet access</label>
+      <span class="rfact">The site will be able to reach WordPress.org and other sites</span>
+    </div>
+    <span class="grouplab g2">After setup</span>
+    <div class="groupnote">These run once, right after the site is built.</div>
+    ${state.scripts.map((sc,i)=>`
+    <div class="row">
+      <div class="rmain"><b>${esc(sc.name)}</b></div>
+      <span class="rctl">
+        <button class="btn" onclick="viewCode(${i})">View code</button>
+        <button class="btn quiet" onclick="removeScript(${i})">Remove</button>
+      </span>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ---------- navigation ---------- */
+
+function go(id){current=id;renderAll();}
+
+/* ---------- edits ---------- */
+
+function titleInput(i){state.title=i.value;sizeTitle();}
+function renameTitle(){const i=el('titleIn');i.focus();i.select();}
+function sizeTitle(){
+  const m=el('meas');m.textContent=el('titleIn').value||' ';
+  el('titleIn').style.width=(m.offsetWidth+16)+'px';
+}
+function setWp(v){state.wp=v;renderAll();}
+function setPhp(v){state.php=v;renderAll();}
+function setLang(v){state.lang=v;renderAll();}
+function setLanding(v){state.landing=v;renderAll();}
+function setLoginAs(v){state.loginAs=v;renderAll();}
+function setNetwork(v){state.network=!!v;renderAll();}
+function toggleActivate(slug,v){
+  const p=state.plugins.find(x=>x.slug===slug);
+  if(p){p.activate=!!v;renderAll();}
+}
+function makeActive(slug){
+  state.themes.forEach(t=>t.active=(t.slug===slug));
+  renderAll();
+}
+function removeTheme(slug){
+  const t=state.themes.find(x=>x.slug===slug);
+  if(!t||t.active)return;
+  pushUndo();
+  state.themes=state.themes.filter(x=>x.slug!==slug);
+  renderAll();showToast(`Removed ${t.name}`);
+}
+function removePlugin(slug){
+  const p=state.plugins.find(x=>x.slug===slug);
+  if(!p)return;
+  pushUndo();
+  state.plugins=state.plugins.filter(x=>x.slug!==slug);
+  renderAll();showToast(`Removed ${p.name}`);
+}
+function removeScript(i){
+  const sc=state.scripts[i];
+  if(!sc)return;
+  pushUndo();
+  state.scripts.splice(i,1);
+  renderAll();showToast(`Removed “${sc.name}”`);
+}
+
+/* ---------- undo + toast ---------- */
+
+function pushUndo(){undoStack.push(JSON.parse(JSON.stringify(state)));}
+function doUndo(){
+  const snap=undoStack.pop();
+  if(!snap)return;
+  Object.keys(state).forEach(k=>delete state[k]);
+  Object.assign(state,snap);
+  el('toast').hidden=true;clearTimeout(toastTimer);
+  renderAll();
+}
+function showToast(msg){
+  el('toastMsg').textContent=msg+' —';
+  el('toast').hidden=false;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{el('toast').hidden=true;},6000);
+}
+
+/* ---------- theme search ---------- */
+
+function themeSearchInput(v){
+  clearTimeout(themeTimer);
+  const q=v.trim();
+  if(q.length<2){const b=el('tres');if(b)b.innerHTML='';return;}
+  themeTimer=setTimeout(()=>doThemeSearch(q),350);
+}
+async function doThemeSearch(q){
+  const tok=++themeToken;
+  const box=el('tres');if(!box)return;
+  box.innerHTML='<div class="presnote">Searching WordPress.org…</div>';
+  try{
+    const res=await fetch(`${THEME_API}?action=query_themes&request[search]=${encodeURIComponent(q)}&request[per_page]=6`);
+    const data=await res.json();
+    if(tok!==themeToken)return;
+    curThemeResults=(data.themes||[]).map(t=>({slug:t.slug,name:deent(t.name),shot:fixShot(t.screenshot_url)}));
+    box.innerHTML=curThemeResults.length
+      ?curThemeResults.map(ttile).join('')
+      :'<div class="presnote">No matches on WordPress.org.</div>';
+  }catch(err){
+    if(tok!==themeToken)return;
+    curThemeResults=state.themes.map(t=>({slug:t.slug,name:t.name,shot:t.shot}));
+    box.innerHTML='<div class="presnote">Can’t reach WordPress.org right now — these are already in this blueprint.</div>'
+      +curThemeResults.map(ttile).join('');
+  }
+}
+function ttile(r,i){
+  return `<button class="ttile" onclick="pickSearchedTheme(${i})">
+    <img class="shot" src="${esc(r.shot)}" alt="" data-n="${esc(r.name)}" onerror="iFall(this)">
+    <span class="ttname">${esc(r.name)}</span>
+    <span class="ttuse">Use this theme</span>
+  </button>`;
+}
+function pickSearchedTheme(i){
+  const r=curThemeResults[i];
+  if(!r)return;
+  if(!state.themes.some(t=>t.slug===r.slug)){
+    state.themes.push({slug:r.slug,name:r.name,shot:r.shot,active:false});
+  }
+  state.themes.forEach(t=>t.active=(t.slug===r.slug));
+  renderAll();
+}
+function fixShot(u){if(!u)return'';return u.startsWith('//')?'https:'+u:u;}
+
+/* ---------- plugin picker ---------- */
+
+function togglePicker(){pickerOpen?closePicker():openPicker();}
+function openPicker(){
+  pickerOpen=true;
+  el('plugPicker').hidden=false;
+  el('addPlugBtn').setAttribute('aria-expanded','true');
+  renderPlugResults(CURATED,'Popular on WordPress.org');
+  el('plugSearch').focus();
+  setTimeout(()=>document.addEventListener('click',outsideClose),0);
+}
+function closePicker(){
+  pickerOpen=false;
+  const p=el('plugPicker');if(p)p.hidden=true;
+  const b=el('addPlugBtn');if(b)b.setAttribute('aria-expanded','false');
+  document.removeEventListener('click',outsideClose);
+}
+function outsideClose(e){
+  const w=el('addwrap');
+  if(w&&!w.contains(e.target))closePicker();
+}
+function plugSearchInput(v){
+  clearTimeout(plugTimer);
+  const q=v.trim();
+  if(q.length<2){renderPlugResults(CURATED,'Popular on WordPress.org');return;}
+  plugTimer=setTimeout(()=>doPlugSearch(q),350);
+}
+async function doPlugSearch(q){
+  const tok=++plugToken;
+  setPlugNote('Searching WordPress.org…');
+  try{
+    const res=await fetch(`${PLUGIN_API}?action=query_plugins&request[search]=${encodeURIComponent(q)}&request[per_page]=6`);
+    const data=await res.json();
+    if(tok!==plugToken)return;
+    const list=(data.plugins||[]).map(p=>({
+      slug:p.slug,name:deent(p.name),icon:pickIcon(p),installs:p.active_installs
+    }));
+    if(list.length)renderPlugResults(list,'');
+    else setPlugNote('No matches on WordPress.org.');
+  }catch(err){
+    if(tok!==plugToken)return;
+    renderPlugResults(CURATED,'Can’t reach WordPress.org — showing popular plugins.');
+  }
+}
+function pickIcon(p){
+  const ic=p.icons||{};
+  return ic.svg||ic['2x']||ic['1x']||ic.default||`https://ps.w.org/${p.slug}/assets/icon-128x128.png`;
+}
+function setPlugNote(text){
+  const box=el('plugResults');
+  if(box)box.innerHTML=`<div class="presnote">${esc(text)}</div>`;
+  curPlugResults=[];hl=-1;
+}
+function renderPlugResults(list,note){
+  curPlugResults=list;hl=-1;
+  const box=el('plugResults');if(!box)return;
+  box.innerHTML=(note?`<div class="presnote">${esc(note)}</div>`:'')+list.map((r,i)=>{
+    const added=state.plugins.some(p=>p.slug===r.slug);
+    return `<button class="pres" id="pres-${i}" role="option" onclick="chooseResult(${i})">
+      <img class="picon" src="${esc(r.icon)}" alt="" data-n="${esc(r.name)}" onerror="iFall(this)">
+      <span class="prmain"><span class="prname">${esc(r.name)}</span>
+        <span class="prsub">${added?'Already in this blueprint':esc(fmtInstalls(r.installs))}</span></span>
+    </button>`;}).join('');
+}
+function plugKeys(e){
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    if(!curPlugResults.length)return;
+    hl=e.key==='ArrowDown'?Math.min(hl+1,curPlugResults.length-1):Math.max(hl-1,0);
+    document.querySelectorAll('.pres').forEach((b,i)=>b.classList.toggle('hl',i===hl));
+    const b=el('pres-'+hl);if(b)b.scrollIntoView({block:'nearest'});
+  }else if(e.key==='Enter'){
+    e.preventDefault();
+    if(curPlugResults.length)chooseResult(hl>=0?hl:0);
+  }
+}
+function chooseResult(i){
+  const r=curPlugResults[i];
+  if(!r)return;
+  if(state.plugins.some(p=>p.slug===r.slug)){
+    closePicker();flashRow(r.slug);return;
+  }
+  state.plugins.push({slug:r.slug,name:r.name,icon:r.icon,source:'wporg',version:'latest',activate:true});
+  closePicker();renderAll();flashRow(r.slug);
+}
+function flashRow(slug){
+  const row=el('row-'+slug);
+  if(!row)return;
+  row.classList.add('flash');
+  setTimeout(()=>row.classList.remove('flash'),1400);
+}
+function fmtInstalls(n){
+  if(!n)return'On WordPress.org';
+  const v=n>=1e6?Math.round(n/1e6)+'M+':n>=1e3?Math.round(n/1e3)+'K+':String(n);
+  return v+' active installs';
+}
+
+/* ---------- modal ---------- */
+
+function viewCode(i){
+  const sc=state.scripts[i];
+  if(sc)openModal(sc.name,sc.php);
+}
+function openJson(){
+  openModal('The JSON behind this page',JSON.stringify(buildBlueprint(),null,2));
+}
+function openModal(title,text){
+  el('mTitle').textContent=title;
+  el('mPre').textContent=text;
+  lastFocus=document.activeElement;
+  el('overlay').hidden=false;
+  el('mClose').focus();
+}
+function closeModal(){
+  el('overlay').hidden=true;
+  if(lastFocus&&lastFocus.focus)lastFocus.focus();
+}
+
+/* ---------- blueprint ---------- */
+
+function buildBlueprint(){
+  const t=activeTheme();
+  return {
+    version:2,
+    siteOptions:{blogname:state.title},
+    wordpressVersion:state.wp,
+    phpVersion:state.php,
+    language:state.lang,
+    activeTheme:t?t.slug:null,
+    themes:state.themes.map(x=>x.slug),
+    plugins:state.plugins.map(p=>p.source==='file'
+      ?{path:`./plugins/${p.slug}.zip`,activate:p.activate}
+      :Object.assign({slug:p.slug},p.version!=='latest'?{version:p.version}:{},{activate:p.activate})),
+    content:{startsBlank:true,pages:state.content.pages.slice(),sampleProducts:state.content.products},
+    users:state.users.map(u=>({username:u.login,role:u.roleSlug})),
+    landingPage:state.landing,
+    login:state.loginAs||false,
+    networkAccess:state.network,
+    afterSetup:state.scripts.map(sc=>({step:'runPHP',note:sc.name,code:sc.php}))
+  };
+}
+function runNow(){
+  window.open('https://playground.wordpress.net/#'+encodeURIComponent(JSON.stringify(buildBlueprint())));
+}
+
+/* ---------- helpers ---------- */
+
+function el(id){return document.getElementById(id);}
+function activeTheme(){return state.themes.find(t=>t.active);}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function deent(s){return new DOMParser().parseFromString(String(s),'text/html').documentElement.textContent||'';}
+function lcFirst(s){return s.charAt(0).toLowerCase()+s.slice(1);}
+function names(list){
+  const bs=list.map(p=>`<b>${esc(p.name)}</b>`);
+  return bs.length===1?bs[0]:bs.slice(0,-1).join(', ')+' and '+bs[bs.length-1];
+}
+function pick(id,fn,options,sel,label){
+  return `<span class="ipick"><select id="${id}" aria-label="${esc(label)}" onchange="${fn}(this.value)">`+
+    options.map(o=>`<option value="${esc(o[0])}"${o[0]===sel?' selected':''}>${esc(o[1])}</option>`).join('')+
+    `</select></span>`;
+}
+function iFall(img){
+  const d=document.createElement('span');
+  d.className='tile '+(img.className||'');
+  d.textContent=((img.dataset.n||'?')[0]||'?').toUpperCase();
+  img.replaceWith(d);
+}
+function toggleNote(){
+  const d=el('dnote');
+  const open=d.classList.toggle('open');
+  d.querySelector('.dn-head').setAttribute('aria-expanded',String(open));
+}
+
+/* ---------- keyboard ---------- */
+
+document.addEventListener('keydown',e=>{
+  const t=e.target;
+  const typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
+  if(e.key==='Escape'){if(closeTop())e.preventDefault();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){
+    if(typing&&t.tagName==='INPUT'&&t.type!=='checkbox')return; /* keep native text undo */
+    if(undoStack.length){e.preventDefault();doUndo();}
+    return;
+  }
+  if(typing)return;
+  if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+    const order=['site','theme','plugins','content','users','finishing'];
+    const i=order.indexOf(current)+(e.key==='ArrowRight'?1:-1);
+    if(i>=0&&i<order.length){go(order[i]);el('seg-'+order[i]).focus();e.preventDefault();}
+  }
+});
+function closeTop(){
+  if(!el('overlay').hidden){closeModal();return true;}
+  if(pickerOpen){closePicker();const b=el('addPlugBtn');if(b)b.focus();return true;}
+  if(el('dnote').classList.contains('open')){toggleNote();return true;}
+  return false;
+}
+
+sizeTitle();
+renderAll();
+</script>
+</body>
+</html>

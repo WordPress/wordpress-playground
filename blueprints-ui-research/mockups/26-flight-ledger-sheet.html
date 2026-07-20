@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design 26 · Single-sheet flight ledger — Blueprint editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+
+:root {
+  color-scheme: light;
+  --ink: #1e1e1e;
+  --muted: #646970;
+  --faint: #8c8f94;
+  --line: #dcdcde;
+  --line-strong: #c3c4c7;
+  --soft: #f6f7f7;
+  --blue: #3858e9;
+  --blue-dark: #2145e6;
+  --paper: #fffefb;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --serif: Fraunces, Georgia, serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { color: inherit; font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+code, pre, .mono { font-family: var(--mono); }
+.title-input {
+  width: 100%; padding: 0; border: 0; border-bottom: 1px solid transparent;
+  background: transparent; color: var(--ink); font-family: var(--serif); font-weight: 600;
+}
+.title-input:hover { border-bottom-color: var(--line-strong); }
+.title-input:focus { outline: 0; border-bottom-color: var(--ink); }
+.ctl {
+  min-height: 36px; padding: 6px 28px 6px 10px; appearance: none; border: 1px solid var(--line-strong);
+  border-radius: 6px; background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 9px center / 10px; font-size: 14px; font-weight: 600;
+}
+.ctl:hover, .btn:hover { border-color: #8c8f94; }
+.btn {
+  min-height: 38px; padding: 7px 13px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: #fff; font-size: 13.5px; font-weight: 600;
+}
+.btn:hover { background: var(--soft); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.quiet:hover { border-color: var(--line); color: var(--ink); }
+.run {
+  min-height: 42px; padding: 9px 20px; border: 1px solid var(--blue); border-radius: 7px;
+  background: var(--blue); color: #fff; font-size: 14px; font-weight: 700;
+}
+.run:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
+.switch { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.switch input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+.plugin-list { display: flex; flex-direction: column; }
+.plugin-item {
+  display: grid; grid-template-columns: 34px minmax(140px, 1fr) auto auto auto; gap: 10px;
+  align-items: center; min-height: 50px; padding: 7px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.plugin-icon { width: 32px; height: 32px; border-radius: 7px; object-fit: cover; background: var(--soft); }
+.plugin-copy { min-width: 0; }
+.plugin-copy strong { display: block; overflow: hidden; font-size: 14.5px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-copy span, .plugin-state { color: var(--muted); font-size: 12.5px; }
+.plugin-state { white-space: nowrap; }
+.icon-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--faint); font-size: 18px;
+}
+.icon-btn:hover { background: var(--soft); color: var(--ink); }
+.paper-lines { display: flex; flex-direction: column; }
+.paper-line {
+  display: grid; grid-template-columns: auto minmax(28px, 1fr) auto; gap: 10px; align-items: baseline;
+  min-height: 34px; padding: 6px 0; font-size: 14px;
+}
+.paper-line .leader { border-bottom: 1px dotted var(--line-strong); transform: translateY(-3px); }
+.paper-line .tail { color: var(--muted); text-align: right; }
+.person-row, .script-row {
+  display: grid; grid-template-columns: minmax(140px, 1fr) auto auto; gap: 12px; align-items: center;
+  min-height: 42px; padding: 6px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+}
+.person-row span, .script-row span { color: var(--muted); font-size: 13px; }
+.script-row .btn { min-height: 34px; padding: 5px 10px; }
+.empty-note { padding: 14px 0; color: var(--muted); font-size: 13.5px; }
+.image-fallback {
+  display: grid; place-items: center; width: 100%; height: 100%; min-height: 90px; background: #ecebea;
+  color: var(--muted); font-weight: 600; text-align: center;
+}
+.icon-fallback {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 7px;
+  background: #ecebea; color: var(--muted); font-size: 11px; font-weight: 700;
+}
+
+/* Shared dialog, undo, and design-note furniture. */
+.overlay {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px;
+  background: rgba(20, 22, 27, .46);
+}
+.modal {
+  width: min(680px, 100%); max-height: min(720px, 90vh); overflow: auto; border-radius: 12px;
+  background: #fff; box-shadow: 0 24px 80px rgba(0, 0, 0, .34);
+}
+.modal-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); background: #fff;
+}
+.modal-head h2 { margin: 0; font-size: 17px; }
+.modal-body { padding: 18px; }
+.modal-body pre {
+  max-height: 58vh; margin: 0; padding: 15px; overflow: auto; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--soft); font: 13px/1.55 var(--mono); white-space: pre;
+}
+.picker-search {
+  width: 100%; min-height: 42px; margin-bottom: 12px; padding: 8px 12px; border: 1px solid var(--line-strong);
+  border-radius: 7px;
+}
+.picker-list { display: flex; flex-direction: column; gap: 4px; }
+.picker-item {
+  display: grid; grid-template-columns: 38px 1fr auto; gap: 11px; align-items: center; width: 100%;
+  min-height: 54px; padding: 7px 9px; border: 0; border-radius: 8px; background: #fff; text-align: left;
+}
+.picker-item:hover { background: var(--soft); }
+.picker-item img { width: 36px; height: 36px; border-radius: 7px; object-fit: cover; }
+.picker-item strong { display: block; }
+.picker-item span { color: var(--muted); font-size: 12.5px; }
+.picker-theme { grid-template-columns: 100px 1fr auto; }
+.picker-theme img { width: 100px; height: 66px; object-position: top; }
+.toast {
+  position: fixed; left: 16px; bottom: 16px; z-index: 110; display: flex; align-items: center; gap: 12px;
+  padding: 8px 9px 8px 15px; border-radius: 9px; background: #111319; color: #fff;
+  font-size: 13.5px; box-shadow: 0 9px 32px rgba(0, 0, 0, .3);
+}
+.toast .btn { min-height: 34px; border-color: #4b5260; background: #262a32; color: #fff; }
+.about {
+  position: fixed; right: 14px; bottom: 14px; z-index: 80; max-width: min(470px, calc(100vw - 28px));
+  border: 1px solid #2a2d34; border-radius: 18px; background: #111319; color: #cfd6e4;
+  font-size: 13px; box-shadow: 0 8px 30px rgba(0, 0, 0, .28);
+}
+.about-head {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; padding: 6px 14px 6px 8px;
+  border: 0; background: transparent; color: inherit; text-align: left;
+}
+.about-badge { padding: 3px 10px; border-radius: 999px; background: #7b5c17; color: #fff; font-weight: 700; }
+.about-hint { color: #8a94a6; }
+.about-body { display: none; padding: 0 16px 15px; line-height: 1.6; }
+.about.open { border-radius: 13px; }
+.about.open .about-body { display: block; }
+@media (max-width: 720px) {
+  .plugin-item { grid-template-columns: 34px 1fr auto; }
+  .plugin-state, .plugin-item .switch { grid-column: 2 / -1; }
+}
+
+
+html {
+  background-color: #eceef0;
+  background-image: radial-gradient(#d5d8de .65px, transparent .65px);
+  background-size: 19px 19px;
+}
+.paper-ledger {
+  width: min(860px, calc(100% - 36px)); margin: 28px auto 120px; padding: 39px 46px 45px;
+  border: 1px solid #dbdce0; border-radius: 10px; background: var(--paper);
+  box-shadow: 0 14px 44px rgba(34, 38, 46, .1);
+}
+.paper-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: end;
+  padding-bottom: 25px; border-bottom: 2px solid var(--ink);
+}
+.paper-title { min-width: 0; }
+.paper-head .kicker {
+  margin: 0 0 5px; color: var(--muted); font: 500 11px var(--mono);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.paper-head .title-input { font-size: 40px; }
+.paper-head p:last-child { margin: 7px 0 0; color: var(--muted); }
+.paper-actions { display: flex; gap: 8px; }
+.nav-stage { padding: 25px 0 27px; border-bottom: 1px solid #e2ded4; }
+.nav-stage-head {
+  display: grid; grid-template-columns: 43px 1fr; gap: 10px; align-items: start;
+  margin-bottom: 13px;
+}
+.stage-heading { display: flex; align-items: center; gap: 10px; }
+.nav-stage-head .n {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: 1px solid #c9b88e; border-radius: 50%; color: #806a3b;
+  font: 600 11px var(--mono);
+}
+.nav-stage-head h2 { margin: 1px 0 3px; font: 600 22px/1.3 var(--serif); }
+.nav-stage-head p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.new-btn {
+  min-width: 72px; min-height: 38px; padding: 7px 11px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--muted); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.new-btn:hover, .new-btn.is-active { background: #eef1ff; color: var(--blue-dark); }
+/* The 43px number column plus its 10px gap gives headings and bodies one exact x-origin. */
+.nav-stage-body { margin-left: 53px; }
+.nav-runtime { display: flex; gap: 7px; flex-wrap: wrap; }
+.nav-runtime label {
+  display: flex; flex-direction: column; gap: 2px; color: var(--faint);
+  font: 10px var(--mono);
+}
+.nav-theme { display: grid; grid-template-columns: 130px 1fr; gap: 13px; align-items: center; }
+.nav-theme figure {
+  width: 130px; height: 87px; margin: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 4px;
+}
+.nav-theme img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.nav-theme strong { display: block; }
+.nav-theme span { color: var(--muted); font-size: 12px; }
+.nav-options { display: flex; align-items: center; gap: 9px; margin-top: 10px; flex-wrap: wrap; }
+.paper-end {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding-top: 24px;
+}
+.paper-end p { max-width: 480px; margin: 0; color: var(--muted); font-size: 13px; }
+.paper-end-actions { display: flex; gap: 8px; }
+.sheet-popover {
+  position: fixed; z-index: 86; width: min(390px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 24px));
+  overflow: auto; padding: 14px; border: 1px solid rgba(23, 23, 27, .1); border-radius: 13px;
+  background: #fff; box-shadow: 0 3px 8px rgba(24, 28, 64, .08), 0 24px 60px -12px rgba(24, 28, 64, .25);
+}
+.sheet-popover-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sheet-popover-head h3 { margin: 0; font-size: 14px; }
+.sheet-popover-head p { margin: 2px 0 0; color: var(--muted); font-size: 11.5px; }
+.popover-close {
+  display: grid; place-items: center; width: 30px; height: 30px; flex: none; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 16px;
+}
+.popover-close:hover { background: var(--soft); color: var(--ink); }
+.sheet-search, .sheet-input, .sheet-select {
+  width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-strong);
+  border-radius: 7px; background: #fff; font-size: 13px;
+}
+.sheet-results { display: flex; flex-direction: column; gap: 3px; margin-top: 9px; }
+.sheet-choice {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  width: 100%; min-height: 48px; padding: 7px 8px; border: 0; border-radius: 7px;
+  background: #fff; text-align: left;
+}
+.sheet-choice:hover { background: var(--soft); }
+.sheet-choice img { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; }
+.sheet-choice strong { display: block; font-size: 13px; }
+.sheet-choice span span { display: block; color: var(--muted); font-size: 11.5px; }
+.sheet-choice > b { color: var(--blue-dark); font-size: 11.5px; }
+.sheet-choice.active { background: #eef1ff; }
+.sheet-choice.no-icon { grid-template-columns: 1fr auto; }
+.sheet-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.sheet-form + .sheet-choice, .sheet-choice + .sheet-form { margin-top: 10px; }
+.sheet-form.user { grid-template-columns: minmax(0, 1fr) 135px auto; }
+.sheet-empty { margin: 10px 4px 2px; color: var(--muted); font-size: 12px; }
+.sheet-popover-note { margin: 10px 3px 0; color: var(--faint); font-size: 11px; }
+@media (max-width: 720px) {
+  .paper-ledger {
+    width: 100%; margin: 0 0 100px; padding: 28px 20px 38px;
+    border: 0; border-radius: 0;
+  }
+  .paper-head { grid-template-columns: 1fr; }
+  .paper-actions { justify-content: flex-start; }
+  .nav-theme { grid-template-columns: 105px 1fr; }
+  .nav-theme figure { width: 105px; height: 70px; }
+  .paper-end { align-items: flex-start; flex-direction: column; }
+  .sheet-form.user { grid-template-columns: 1fr; }
+}
+
+</style>
+</head>
+<body>
+
+<main class="paper-ledger">
+  <header class="paper-head">
+    <div class="paper-title">
+      <p class="kicker">Flight ledger · six stages · <span data-text="estimate"></span></p>
+      <input class="title-input" data-title aria-label="Site title" spellcheck="false">
+      <p>The complete run order, with no parallel navigation or secondary pane.</p>
+    </div>
+    <div class="paper-actions">
+      <button class="btn" type="button" data-view-json>View JSON</button>
+      <button class="run" type="button" data-run>Run</button>
+    </div>
+  </header>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">1</span><div><div class="stage-heading"><h2>Boot WordPress</h2></div><p data-text="summary-boot"></p></div></header>
+    <div class="nav-stage-body nav-runtime">
+      <label>WORDPRESS <select class="ctl" data-field="wp" aria-label="WordPress version"><option value="latest">latest (6.8 today)</option><option value="6.7">6.7</option><option value="nightly">nightly</option></select></label>
+      <label>PHP <select class="ctl" data-field="php" aria-label="PHP version"><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="7.4">7.4</option></select></label>
+      <label>LANGUAGE <select class="ctl" data-field="lang" aria-label="Site language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option><option value="de_DE">Deutsch</option><option value="pl_PL">Polski</option></select></label>
+    </div>
+  </section>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">2</span><div><div class="stage-heading"><h2>Put on the theme</h2><button class="new-btn" type="button" data-sheet-popover="theme" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-theme"></p></div></header>
+    <div class="nav-stage-body nav-theme">
+      <figure><img data-theme-shot alt=""></figure>
+      <div><strong data-text="theme-name"></strong><span>active on first paint</span></div>
+    </div>
+  </section>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">3</span><div><div class="stage-heading"><h2>Install the tools</h2><button class="new-btn" type="button" data-sheet-popover="plugin" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-plugins"></p></div></header>
+    <div class="nav-stage-body">
+      <div class="plugin-list" data-plugins></div>
+    </div>
+  </section>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">4</span><div><div class="stage-heading"><h2>Bring in content</h2><button class="new-btn" type="button" data-sheet-popover="content" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-content"></p></div></header>
+    <div class="nav-stage-body paper-lines" data-content-lines></div>
+  </section>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">5</span><div><div class="stage-heading"><h2>Create the people</h2><button class="new-btn" type="button" data-sheet-popover="user" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-users"></p></div></header>
+    <div class="nav-stage-body">
+      <div data-users></div>
+      <div class="nav-options"><span>Sign in as</span><select class="ctl" data-field="login" aria-label="Who to sign in as"><option value="admin">admin</option><option value="demo-editor">demo-editor</option><option value="none">no one</option></select></div>
+    </div>
+  </section>
+
+  <section class="nav-stage">
+    <header class="nav-stage-head"><span class="n">6</span><div><div class="stage-heading"><h2>Finish and open</h2><button class="new-btn" type="button" data-sheet-popover="script" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ New</button></div><p data-text="summary-finish"></p></div></header>
+    <div class="nav-stage-body">
+      <div data-scripts></div>
+      <div class="nav-options">
+        <select class="ctl" data-field="landing" aria-label="First page"><option value="/wp-admin/edit.php?post_type=product">the Products page</option><option value="/wp-admin/">the Dashboard</option><option value="/">the homepage</option><option value="/wp-admin/plugins.php">the Plugins page</option></select>
+        <label class="switch"><input type="checkbox" data-field="networking"><span>internet access</span></label>
+      </div>
+    </div>
+  </section>
+
+  <footer class="paper-end">
+    <p>The document is the route. Everything above compiles into one <code>blueprint.json</code>.</p>
+    <div class="paper-end-actions"><button class="btn" type="button" data-view-json>Read JSON</button><button class="run" type="button" data-run>Build this site</button></div>
+  </footer>
+</main>
+
+<section class="sheet-popover" id="sheetPopover" role="dialog" aria-modal="false" aria-labelledby="sheetPopoverTitle" hidden>
+  <header class="sheet-popover-head">
+    <div><h3 id="sheetPopoverTitle">New</h3><p id="sheetPopoverSubtitle"></p></div>
+    <button class="popover-close" type="button" data-close-sheet-popover aria-label="Close">×</button>
+  </header>
+  <div id="sheetPopoverBody"></div>
+</section>
+
+
+<div class="overlay" id="hybridModal" hidden>
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="hybridModalTitle">
+    <header class="modal-head">
+      <h2 id="hybridModalTitle">Details</h2>
+      <button class="btn" type="button" data-close-modal>Close</button>
+    </header>
+    <div class="modal-body" id="hybridModalBody"></div>
+  </section>
+</div>
+<div class="toast" id="hybridToast" role="status" hidden>
+  <span id="hybridToastText"></span>
+  <button class="btn" type="button" data-undo>Undo</button>
+</div>
+
+
+<aside class="about" data-about>
+  <button class="about-head" type="button" data-about-toggle aria-expanded="false">
+    <span class="about-badge">Design 26</span><strong>Single-sheet flight ledger</strong><span class="about-hint">about</span>
+  </button>
+  <div class="about-body">The bet: Design 24’s document is already enough orientation. Remove the left rail, center the paper, and let the numbered headings carry the route. Paper Blueprint’s headline-level New actions return as click-owned popovers: they stay active through search, typing, and repeated additions, and close only outside or on Escape. The 43-pixel number column plus 10-pixel gap gives every heading and body the same exact x-origin.</div>
+</aside>
+
+<script>
+
+'use strict';
+
+const GUIDE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+// Keep the first wp-admin visit focused on the site, not welcome panels.
+update_user_meta(
+	1,
+	'wp_persisted_preferences',
+	array( 'core/edit-post' => array( 'welcomeGuide' => false ) )
+);
+`;
+
+const COUPON_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+// Add a coupon so checkout can be tested as soon as the site opens.
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->save();
+`;
+
+const THEMES = [
+	{
+		slug: 'storefront',
+		name: 'Storefront',
+		shot: 'https://ts.w.org/wp-content/themes/storefront/screenshot.png',
+		note: 'WooCommerce storefront'
+	},
+	{
+		slug: 'twentytwentyfive',
+		name: 'Twenty Twenty-Five',
+		shot: 'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png',
+		note: 'Block theme'
+	},
+	{
+		slug: 'ollie',
+		name: 'Ollie',
+		shot: 'https://ts.w.org/wp-content/themes/ollie/screenshot.png',
+		note: 'Block theme with patterns'
+	}
+];
+
+const PLUGIN_CATALOG = [
+	{
+		slug: 'woocommerce',
+		name: 'WooCommerce',
+		icon: 'https://ps.w.org/woocommerce/assets/icon.svg',
+		version: '9.4',
+		note: 'Online store'
+	},
+	{
+		slug: 'wordpress-seo',
+		name: 'Yoast SEO',
+		icon: 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908',
+		version: 'latest',
+		note: 'Search optimization'
+	},
+	{
+		slug: 'query-monitor',
+		name: 'Query Monitor',
+		icon: 'https://ps.w.org/query-monitor/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Developer tools'
+	},
+	{
+		slug: 'contact-form-7',
+		name: 'Contact Form 7',
+		icon: 'https://ps.w.org/contact-form-7/assets/icon.svg',
+		version: 'latest',
+		note: 'Forms'
+	},
+	{
+		slug: 'akismet',
+		name: 'Akismet Anti-spam',
+		icon: 'https://ps.w.org/akismet/assets/icon-256x256.png',
+		version: 'latest',
+		note: 'Spam protection'
+	},
+	{
+		slug: 'jetpack',
+		name: 'Jetpack',
+		icon: 'https://ps.w.org/jetpack/assets/icon.svg',
+		version: 'latest',
+		note: 'Site tools'
+	}
+];
+
+let state = {
+	title: "Adam's Demo Store",
+	wp: 'latest',
+	php: '8.3',
+	lang: 'en_US',
+	activeTheme: 'storefront',
+	plugins: [
+		{ ...PLUGIN_CATALOG[0], active: true },
+		{ ...PLUGIN_CATALOG[1], active: true },
+		{ ...PLUGIN_CATALOG[2], active: false, source: 'Bundled file' }
+	],
+	content: {
+		pages: [ 'About', 'Contact', 'Shop' ],
+		products: 12
+	},
+	users: [
+		{ username: 'admin', role: 'Administrator', roleSlug: 'administrator' },
+		{ username: 'demo-editor', role: 'Store manager', roleSlug: 'shop_manager' }
+	],
+	login: 'admin',
+	landing: '/wp-admin/edit.php?post_type=product',
+	networking: true,
+	scripts: [
+		{ name: 'Hide the WordPress welcome guides', file: 'welcome-guides.php', code: GUIDE_CODE },
+		{ name: 'Add a WELCOME10 test coupon', file: 'demo-coupon.php', code: COUPON_CODE }
+	]
+};
+
+const undoStack = [];
+let toastTimer = 0;
+let pickerMode = '';
+let activeLens = 'plan';
+
+init();
+
+function init() {
+	document.addEventListener('click', onClick);
+	document.addEventListener('change', onChange);
+	document.addEventListener('input', onInput);
+	document.addEventListener('keydown', onKeyDown);
+	document.addEventListener('error', onImageError, true);
+	render();
+}
+
+function onClick(event) {
+	const button = event.target.closest('button, [data-scroll]');
+	if (!button) return;
+
+	if (button.matches('[data-add-plugin]')) {
+		openPicker('plugin');
+	} else if (button.matches('[data-change-theme]')) {
+		openPicker('theme');
+	} else if (button.matches('[data-pick-plugin]')) {
+		pickPlugin(button.dataset.pickPlugin);
+	} else if (button.matches('[data-pick-theme]')) {
+		pickTheme(button.dataset.pickTheme);
+	} else if (button.matches('[data-remove-plugin]')) {
+		removePlugin(Number(button.dataset.removePlugin));
+	} else if (button.matches('[data-open-code]')) {
+		openCode(Number(button.dataset.openCode));
+	} else if (button.matches('[data-view-json]')) {
+		openJson();
+	} else if (button.matches('[data-run]')) {
+		runBlueprint();
+	} else if (button.matches('[data-close-modal]')) {
+		closeModal();
+	} else if (button.matches('[data-undo]')) {
+		undo();
+	} else if (button.matches('[data-about-toggle]')) {
+		toggleAbout();
+	} else if (button.matches('[data-lens]')) {
+		setLens(button.dataset.lens);
+	} else if (button.matches('[data-scroll]')) {
+		focusStage(button.dataset.scroll);
+	}
+}
+
+function onChange(event) {
+	const field = event.target.dataset.field;
+	if (field) {
+		const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+		commit('Updated ' + fieldLabel(field), () => { state[field] = value; });
+		return;
+	}
+
+	if (event.target.matches('[data-plugin-active]')) {
+		const index = Number(event.target.dataset.pluginActive);
+		commit(
+			event.target.checked ? 'Plugin will activate' : 'Plugin will install without activation',
+			() => { state.plugins[index].active = event.target.checked; }
+		);
+	}
+}
+
+function onInput(event) {
+	if (event.target.matches('[data-title]')) {
+		state.title = event.target.value || 'Untitled site';
+		document.querySelectorAll('[data-title]').forEach((input) => {
+			if (input !== event.target) input.value = state.title;
+		});
+		renderText();
+		return;
+	}
+
+	if (event.target.matches('[data-picker-search]')) {
+		renderPicker(event.target.value);
+	}
+}
+
+function onKeyDown(event) {
+	if (event.key === 'Escape') {
+		if (!document.getElementById('hybridModal').hidden) {
+			closeModal();
+			return;
+		}
+		const about = document.querySelector('[data-about]');
+		if (about && about.classList.contains('open')) toggleAbout(false);
+	}
+	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+		if (event.target.matches('input, select, textarea')) return;
+		event.preventDefault();
+		undo();
+	}
+}
+
+function render() {
+	renderControls();
+	renderText();
+	renderPlugins();
+	renderContent();
+	renderUsers();
+	renderScripts();
+	renderTheme();
+	renderLens();
+}
+
+function renderControls() {
+	document.querySelectorAll('[data-title]').forEach((input) => {
+		if (document.activeElement !== input) input.value = state.title;
+	});
+	document.querySelectorAll('[data-field]').forEach((control) => {
+		const field = control.dataset.field;
+		if (!(field in state)) return;
+		if (control.type === 'checkbox') control.checked = Boolean(state[field]);
+		else control.value = state[field];
+	});
+}
+
+function renderText() {
+	setText('site-title', state.title);
+	setText('plugin-count', String(state.plugins.length));
+	setText('plugin-active-count', String(state.plugins.filter((plugin) => plugin.active).length));
+	setText('content-count', String(state.content.pages.length + state.content.products));
+	setText('page-count', String(state.content.pages.length));
+	setText('product-count', String(state.content.products));
+	setText('user-count', String(state.users.length));
+	setText('script-count', String(state.scripts.length));
+	setText('login-name', state.login === 'none' ? 'no one' : state.login);
+	setText('landing-name', landingName(state.landing));
+	setText('network-state', state.networking ? 'with internet access' : 'without internet access');
+	setText('ready-count', '6');
+	setText('estimate', 'about 48 seconds');
+	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php);
+	setText('summary-theme', theme().name + ' goes live');
+	setText('summary-plugins', state.plugins.length + ' plugins install · '
+		+ state.plugins.filter((plugin) => plugin.active).length + ' activate');
+	setText('summary-content', state.content.pages.length + ' pages + '
+		+ state.content.products + ' products arrive');
+	setText('summary-users', state.users.length + ' users · sign in as '
+		+ (state.login === 'none' ? 'no one' : state.login));
+	setText('summary-finish', state.scripts.length + ' scripts · open ' + landingName(state.landing));
+}
+
+function renderPlugins() {
+	document.querySelectorAll('[data-plugins]').forEach((container) => {
+		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => `
+			<div class="plugin-item">
+				<img class="plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">
+				<span class="plugin-copy"><strong>${escapeHtml(plugin.name)}</strong>
+					<span>${escapeHtml(plugin.note || plugin.slug)}</span></span>
+				<span class="plugin-state">${escapeHtml(plugin.version)}${plugin.source ? ' · ' + escapeHtml(plugin.source) : ''}</span>
+				<label class="switch"><input type="checkbox" data-plugin-active="${index}"
+					${plugin.active ? 'checked' : ''}><span>active</span></label>
+				<button class="icon-btn" type="button" data-remove-plugin="${index}"
+					aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
+			</div>
+		`).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+	});
+
+	document.querySelectorAll('[data-plugin-names]').forEach((container) => {
+		container.innerHTML = state.plugins.map((plugin) => `
+			<span class="name-chip"><img src="${escapeHtml(plugin.icon)}" alt="">
+				<strong>${escapeHtml(plugin.name)}</strong></span>
+		`).join('');
+	});
+}
+
+function renderContent() {
+	document.querySelectorAll('[data-content-lines]').forEach((container) => {
+		container.innerHTML = `
+			<div class="paper-line"><strong>Starter pages</strong><span class="leader"></span>
+				<span class="tail">${escapeHtml(state.content.pages.join(' · '))}</span></div>
+			<div class="paper-line"><strong>Sample products</strong><span class="leader"></span>
+				<span class="tail">${state.content.products} generated on run</span></div>
+		`;
+	});
+}
+
+function renderUsers() {
+	document.querySelectorAll('[data-users]').forEach((container) => {
+		container.innerHTML = state.users.map((user) => `
+			<div class="person-row"><strong class="mono">${escapeHtml(user.username)}</strong>
+				<span>${escapeHtml(user.role)}</span><span>${user.username === state.login ? 'sign in' : ''}</span></div>
+		`).join('');
+	});
+}
+
+function renderScripts() {
+	document.querySelectorAll('[data-scripts]').forEach((container) => {
+		container.innerHTML = state.scripts.map((script, index) => `
+			<div class="script-row"><strong>${escapeHtml(script.name)}</strong>
+				<span class="mono">${escapeHtml(script.file)}</span>
+				<button class="btn quiet" type="button" data-open-code="${index}">view code</button></div>
+		`).join('');
+	});
+}
+
+function renderTheme() {
+	const selected = theme();
+	setText('theme-name', selected.name);
+	document.querySelectorAll('[data-theme-shot]').forEach((image) => {
+		if (image.tagName === 'IMG') {
+			image.src = selected.shot;
+			image.alt = selected.name + ' theme preview';
+		}
+	});
+}
+
+function renderLens() {
+	document.body.dataset.lens = activeLens;
+	document.querySelectorAll('[data-lens-panel]').forEach((panel) => {
+		panel.hidden = panel.dataset.lensPanel !== activeLens;
+	});
+	document.querySelectorAll('[data-lens]').forEach((button) => {
+		const selected = button.dataset.lens === activeLens;
+		button.classList.toggle('active', selected);
+		button.setAttribute('aria-pressed', String(selected));
+	});
+}
+
+function openPicker(mode) {
+	pickerMode = mode;
+	const noun = mode === 'plugin' ? 'plugin' : 'theme';
+	openModal('Choose a ' + noun, `
+		<input class="picker-search" type="search" data-picker-search
+			placeholder="Filter ${noun}s" aria-label="Filter ${noun}s" autofocus>
+		<div class="picker-list" data-picker-list></div>
+	`);
+	renderPicker('');
+	const search = document.querySelector('[data-picker-search]');
+	if (search) search.focus();
+}
+
+function renderPicker(query) {
+	const list = document.querySelector('[data-picker-list]');
+	if (!list) return;
+	const words = query.trim().toLowerCase();
+	if (pickerMode === 'plugin') {
+		const installed = new Set(state.plugins.map((plugin) => plugin.slug));
+		const matches = PLUGIN_CATALOG.filter((plugin) => !installed.has(plugin.slug))
+			.filter((plugin) => (plugin.name + ' ' + plugin.note).toLowerCase().includes(words));
+		list.innerHTML = matches.length ? matches.map((plugin) => `
+			<button class="picker-item" type="button" data-pick-plugin="${escapeHtml(plugin.slug)}">
+				<img src="${escapeHtml(plugin.icon)}" alt=""><span><strong>${escapeHtml(plugin.name)}</strong>
+				${escapeHtml(plugin.note)}</span><b>Add</b>
+			</button>
+		`).join('') : '<p class="empty-note">No matching plugins.</p>';
+		return;
+	}
+
+	const matches = THEMES.filter((item) => (item.name + ' ' + item.note).toLowerCase().includes(words));
+	list.innerHTML = matches.map((item) => `
+		<button class="picker-item picker-theme" type="button" data-pick-theme="${escapeHtml(item.slug)}">
+			<img src="${escapeHtml(item.shot)}" alt=""><span><strong>${escapeHtml(item.name)}</strong>
+			${escapeHtml(item.note)}</span><b>${item.slug === state.activeTheme ? 'Active' : 'Use'}</b>
+		</button>
+	`).join('');
+}
+
+function pickPlugin(slug) {
+	const plugin = PLUGIN_CATALOG.find((item) => item.slug === slug);
+	if (!plugin) return;
+	commit('Added ' + plugin.name, () => { state.plugins.push({ ...plugin, active: true }); });
+	closeModal();
+}
+
+function pickTheme(slug) {
+	const selected = THEMES.find((item) => item.slug === slug);
+	if (!selected) return;
+	commit('Changed theme to ' + selected.name, () => { state.activeTheme = slug; });
+	closeModal();
+}
+
+function removePlugin(index) {
+	const plugin = state.plugins[index];
+	if (!plugin) return;
+	commit('Removed ' + plugin.name, () => { state.plugins.splice(index, 1); });
+}
+
+function openCode(index) {
+	const script = state.scripts[index];
+	if (!script) return;
+	openModal(script.name, '<pre>' + escapeHtml(script.code) + '</pre>');
+}
+
+function openJson() {
+	openModal('blueprint.json', '<pre>' + escapeHtml(JSON.stringify(buildBlueprint(), null, 2)) + '</pre>');
+}
+
+function runBlueprint() {
+	const url = 'https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(buildBlueprint()));
+	window.open(url, '_blank', 'noopener');
+}
+
+function buildBlueprint() {
+	return {
+		'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
+		meta: { title: state.title },
+		wordpressVersion: state.wp,
+		phpVersion: state.php,
+		language: state.lang,
+		siteOptions: { blogname: state.title },
+		activeTheme: state.activeTheme,
+		themes: [ state.activeTheme ],
+		plugins: state.plugins.map((plugin) => ({
+			slug: plugin.slug,
+			version: plugin.version,
+			activate: plugin.active
+		})),
+		content: {
+			startsBlank: true,
+			pages: state.content.pages.slice(),
+			sampleProducts: state.content.products
+		},
+		users: state.users.map((user) => ({ username: user.username, role: user.roleSlug })),
+		login: state.login === 'none' ? false : state.login,
+		landingPage: state.landing,
+		networking: state.networking,
+		afterSetup: state.scripts.map((script) => ({
+			step: 'runPHP',
+			note: script.name,
+			code: script.code
+		}))
+	};
+}
+
+function commit(message, change) {
+	undoStack.push(JSON.stringify(state));
+	change();
+	render();
+	showToast(message);
+}
+
+function undo() {
+	const previous = undoStack.pop();
+	if (!previous) return;
+	state = JSON.parse(previous);
+	render();
+	showToast('Last change undone');
+}
+
+function showToast(message) {
+	const toast = document.getElementById('hybridToast');
+	document.getElementById('hybridToastText').textContent = message;
+	toast.hidden = false;
+	window.clearTimeout(toastTimer);
+	toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4500);
+}
+
+function openModal(title, markup) {
+	document.getElementById('hybridModalTitle').textContent = title;
+	document.getElementById('hybridModalBody').innerHTML = markup;
+	document.getElementById('hybridModal').hidden = false;
+}
+
+function closeModal() {
+	document.getElementById('hybridModal').hidden = true;
+	document.getElementById('hybridModalBody').innerHTML = '';
+	pickerMode = '';
+}
+
+function toggleAbout(force) {
+	const about = document.querySelector('[data-about]');
+	if (!about) return;
+	const open = typeof force === 'boolean' ? force : !about.classList.contains('open');
+	about.classList.toggle('open', open);
+	const button = about.querySelector('[data-about-toggle]');
+	if (button) button.setAttribute('aria-expanded', String(open));
+}
+
+function setLens(lens) {
+	activeLens = lens;
+	renderLens();
+	window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function focusStage(id) {
+	const target = document.getElementById(id);
+	if (!target) return;
+	document.querySelectorAll('[data-scroll]').forEach((button) => {
+		button.classList.toggle('current', button.dataset.scroll === id);
+	});
+	target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	target.classList.add('pulse');
+	window.setTimeout(() => target.classList.remove('pulse'), 900);
+}
+
+function setText(name, value) {
+	document.querySelectorAll('[data-text="' + name + '"]').forEach((element) => {
+		element.textContent = value;
+	});
+}
+
+function theme() {
+	return THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
+}
+
+function wpName(value) {
+	return value === 'latest' ? 'latest' : value;
+}
+
+function landingName(value) {
+	return {
+		'/wp-admin/edit.php?post_type=product': 'Products',
+		'/wp-admin/': 'Dashboard',
+		'/': 'Homepage',
+		'/wp-admin/plugins.php': 'Plugins'
+	}[value] || value;
+}
+
+function fieldLabel(field) {
+	return {
+		wp: 'WordPress version',
+		php: 'PHP version',
+		lang: 'language',
+		login: 'login',
+		landing: 'first page',
+		networking: 'internet access'
+	}[field] || field;
+}
+
+function onImageError(event) {
+	const image = event.target;
+	if (!(image instanceof HTMLImageElement) || image.dataset.failed) return;
+	image.dataset.failed = 'true';
+	const fallback = document.createElement('span');
+	const isTheme = image.hasAttribute('data-theme-shot') || image.closest('.picker-theme');
+	fallback.className = isTheme ? 'image-fallback' : 'icon-fallback';
+	fallback.textContent = isTheme ? theme().name : 'WP';
+	image.replaceWith(fallback);
+}
+
+function escapeHtml(value) {
+	return String(value).replace(/[&<>"']/g, (character) => ({
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	}[character]));
+}
+
+</script>
+<script>
+
+let activeSheetPopover = '';
+let sheetPopoverTrigger = null;
+let sheetQuery = '';
+
+/* Click-owned popovers close only on an outside press, Escape, or their close button. */
+document.addEventListener('click', onSheetClick);
+document.addEventListener('input', onSheetInput);
+document.addEventListener('pointerdown', onSheetOutsidePointer, true);
+document.addEventListener('keydown', onSheetKeyDown);
+window.addEventListener('resize', positionSheetPopover);
+window.addEventListener('scroll', positionSheetPopover, true);
+
+function onSheetClick(event) {
+	const trigger = event.target.closest('[data-sheet-popover]');
+	if (trigger) {
+		openSheetPopover(trigger.dataset.sheetPopover, trigger);
+		return;
+	}
+	if (event.target.closest('[data-close-sheet-popover]')) {
+		closeSheetPopover(true);
+		return;
+	}
+	const themeButton = event.target.closest('[data-sheet-theme]');
+	if (themeButton) {
+		const chosen = THEMES.find((item) => item.slug === themeButton.dataset.sheetTheme);
+		if (!chosen) return;
+		commit('Changed theme to ' + chosen.name, () => { state.activeTheme = chosen.slug; });
+		renderSheetPopover();
+		return;
+	}
+	const pluginButton = event.target.closest('[data-sheet-plugin]');
+	if (pluginButton) {
+		const plugin = PLUGIN_CATALOG.find((item) => item.slug === pluginButton.dataset.sheetPlugin);
+		if (!plugin) return;
+		commit('Added ' + plugin.name, () => { state.plugins.push({ ...plugin, active: true }); });
+		renderSheetPopover();
+		return;
+	}
+	if (event.target.closest('[data-sheet-add-page]')) {
+		addSheetPage();
+		return;
+	}
+	const productsButton = event.target.closest('[data-sheet-products]');
+	if (productsButton) {
+		const amount = Number(productsButton.dataset.sheetProducts);
+		commit('Added ' + amount + ' sample products', () => { state.content.products += amount; });
+		renderSheetPopover();
+		return;
+	}
+	if (event.target.closest('[data-sheet-add-user]')) {
+		addSheetUser();
+		return;
+	}
+	if (event.target.closest('[data-sheet-add-script]')) {
+		addSheetScript();
+	}
+}
+
+function onSheetInput(event) {
+	if (!event.target.matches('[data-sheet-filter]')) return;
+	sheetQuery = event.target.value;
+	renderSheetPluginResults();
+}
+
+function onSheetOutsidePointer(event) {
+	if (!activeSheetPopover) return;
+	if (event.target.closest('#sheetPopover, [data-sheet-popover]')) return;
+	closeSheetPopover(false);
+}
+
+function onSheetKeyDown(event) {
+	if (!activeSheetPopover) return;
+	if (event.key === 'Escape') {
+		event.stopPropagation();
+		closeSheetPopover(true);
+		return;
+	}
+	if (event.key === 'Enter' && event.target.id === 'sheetPageName') {
+		event.preventDefault();
+		addSheetPage();
+	} else if (event.key === 'Enter' && event.target.id === 'sheetUserName') {
+		event.preventDefault();
+		addSheetUser();
+	} else if (event.key === 'Enter' && event.target.id === 'sheetScriptName') {
+		event.preventDefault();
+		addSheetScript();
+	}
+}
+
+function openSheetPopover(kind, trigger) {
+	if (activeSheetPopover === kind && sheetPopoverTrigger === trigger) {
+		closeSheetPopover(true);
+		return;
+	}
+	document.querySelectorAll('[data-sheet-popover]').forEach((button) => {
+		button.classList.remove('is-active');
+		button.setAttribute('aria-expanded', 'false');
+	});
+	activeSheetPopover = kind;
+	sheetPopoverTrigger = trigger;
+	sheetQuery = '';
+	trigger.classList.add('is-active');
+	trigger.setAttribute('aria-expanded', 'true');
+	document.getElementById('sheetPopover').hidden = false;
+	renderSheetPopover();
+	requestAnimationFrame(() => {
+		positionSheetPopover();
+		const first = document.querySelector('#sheetPopover input, #sheetPopover button:not([data-close-sheet-popover])');
+		if (first) first.focus();
+	});
+}
+
+function closeSheetPopover(returnFocus) {
+	const trigger = sheetPopoverTrigger;
+	document.getElementById('sheetPopover').hidden = true;
+	document.querySelectorAll('[data-sheet-popover]').forEach((button) => {
+		button.classList.remove('is-active');
+		button.setAttribute('aria-expanded', 'false');
+	});
+	activeSheetPopover = '';
+	sheetPopoverTrigger = null;
+	if (returnFocus && trigger && document.contains(trigger)) trigger.focus();
+}
+
+function renderSheetPopover() {
+	const title = document.getElementById('sheetPopoverTitle');
+	const subtitle = document.getElementById('sheetPopoverSubtitle');
+	const body = document.getElementById('sheetPopoverBody');
+	if (!activeSheetPopover) return;
+	if (activeSheetPopover === 'theme') {
+		title.textContent = 'Choose a theme';
+		subtitle.textContent = 'The selected theme becomes active at stage 2.';
+		body.innerHTML = '<div class="sheet-results">' + THEMES.map((item) => `
+			<button class="sheet-choice ${item.slug === state.activeTheme ? 'active' : ''}" type="button" data-sheet-theme="${escapeHtml(item.slug)}">
+				<img src="${escapeHtml(item.shot)}" alt=""><span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.note)}</span></span><b>${item.slug === state.activeTheme ? 'Active' : 'Use'}</b>
+			</button>
+		`).join('') + '</div>';
+	} else if (activeSheetPopover === 'plugin') {
+		title.textContent = 'New plugin';
+		subtitle.textContent = 'Add several without reopening this popover.';
+		body.innerHTML = `
+			<input class="sheet-search" type="search" data-sheet-filter value="${escapeHtml(sheetQuery)}" placeholder="Filter plugins" aria-label="Filter plugins">
+			<div class="sheet-results" data-sheet-plugin-results></div>
+			<p class="sheet-popover-note">The popover stays open after each addition.</p>
+		`;
+		renderSheetPluginResults();
+	} else if (activeSheetPopover === 'content') {
+		title.textContent = 'New content';
+		subtitle.textContent = 'Add to the blank site before it opens.';
+		body.innerHTML = `
+			<div class="sheet-form"><input class="sheet-input" id="sheetPageName" placeholder="Page title" aria-label="Page title"><button class="btn" type="button" data-sheet-add-page>Add page</button></div>
+			<button class="sheet-choice no-icon" type="button" data-sheet-products="6"><span><strong>Add 6 sample products</strong><span>Generated during stage 4</span></span><b>Add</b></button>
+		`;
+	} else if (activeSheetPopover === 'user') {
+		title.textContent = 'New user';
+		subtitle.textContent = 'Create another account before sign-in.';
+		body.innerHTML = `
+			<div class="sheet-form user"><input class="sheet-input" id="sheetUserName" placeholder="username" aria-label="Username"><select class="sheet-select" id="sheetUserRole" aria-label="Role"><option value="editor">Editor</option><option value="author">Author</option><option value="shop_manager">Store manager</option><option value="administrator">Administrator</option></select><button class="btn" type="button" data-sheet-add-user>Add</button></div>
+		`;
+	} else {
+		title.textContent = 'New finishing script';
+		subtitle.textContent = 'Run PHP after setup and before the first screen opens.';
+		body.innerHTML = `
+			<div class="sheet-form"><input class="sheet-input" id="sheetScriptName" placeholder="What should the script do?" aria-label="Script name"><button class="btn" type="button" data-sheet-add-script>Add script</button></div>
+			<p class="sheet-popover-note">A named PHP starter is added; use “view code” to inspect it.</p>
+		`;
+	}
+	requestAnimationFrame(positionSheetPopover);
+}
+
+function renderSheetPluginResults() {
+	const list = document.querySelector('[data-sheet-plugin-results]');
+	if (!list) return;
+	const installed = new Set(state.plugins.map((plugin) => plugin.slug));
+	const query = sheetQuery.trim().toLowerCase();
+	const matches = PLUGIN_CATALOG.filter((plugin) => !installed.has(plugin.slug))
+		.filter((plugin) => (plugin.name + ' ' + plugin.note).toLowerCase().includes(query));
+	list.innerHTML = matches.length ? matches.map((plugin) => `
+		<button class="sheet-choice" type="button" data-sheet-plugin="${escapeHtml(plugin.slug)}">
+			<img src="${escapeHtml(plugin.icon)}" alt=""><span><strong>${escapeHtml(plugin.name)}</strong><span>${escapeHtml(plugin.note)}</span></span><b>Add</b>
+		</button>
+	`).join('') : '<p class="sheet-empty">No more matching plugins.</p>';
+	requestAnimationFrame(positionSheetPopover);
+}
+
+function addSheetPage() {
+	const input = document.getElementById('sheetPageName');
+	const name = input ? input.value.replace(/\s+/g, ' ').trim() : '';
+	if (!name) {
+		if (input) input.focus();
+		return;
+	}
+	commit('Added page “' + name + '”', () => { state.content.pages.push(name); });
+	renderSheetPopover();
+	requestAnimationFrame(() => document.getElementById('sheetPageName')?.focus());
+}
+
+function addSheetUser() {
+	const nameInput = document.getElementById('sheetUserName');
+	const roleInput = document.getElementById('sheetUserRole');
+	const username = nameInput ? nameInput.value.trim().replace(/\s+/g, '-').toLowerCase() : '';
+	if (!username) {
+		if (nameInput) nameInput.focus();
+		return;
+	}
+	const labels = { editor: 'Editor', author: 'Author', shop_manager: 'Store manager', administrator: 'Administrator' };
+	const roleSlug = roleInput.value;
+	commit('Added user ' + username, () => {
+		state.users.push({ username, role: labels[roleSlug], roleSlug });
+	});
+	renderSheetPopover();
+	requestAnimationFrame(() => document.getElementById('sheetUserName')?.focus());
+}
+
+function addSheetScript() {
+	const input = document.getElementById('sheetScriptName');
+	const name = input ? input.value.replace(/\s+/g, ' ').trim() : '';
+	if (!name) {
+		if (input) input.focus();
+		return;
+	}
+	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'finishing-script';
+	const code = `<?php\nrequire '/wordpress/wp-load.php';\n\n// ${name}\n`;
+	commit('Added finishing script', () => {
+		state.scripts.push({ name, file: slug + '.php', code });
+	});
+	renderSheetPopover();
+	requestAnimationFrame(() => document.getElementById('sheetScriptName')?.focus());
+}
+
+function positionSheetPopover() {
+	const popover = document.getElementById('sheetPopover');
+	if (!activeSheetPopover || !sheetPopoverTrigger || popover.hidden) return;
+	const anchor = sheetPopoverTrigger.getBoundingClientRect();
+	const gutter = 12;
+	const width = popover.offsetWidth;
+	const height = popover.offsetHeight;
+	let left = Math.min(anchor.left, window.innerWidth - width - gutter);
+	left = Math.max(gutter, left);
+	let top = anchor.bottom + 7;
+	if (top + height > window.innerHeight - gutter && anchor.top - height - 7 >= gutter) {
+		top = anchor.top - height - 7;
+	}
+	popover.style.left = Math.round(left) + 'px';
+	popover.style.top = Math.round(Math.max(gutter, top)) + 'px';
+}
+
+</script>
+</body>
+</html>

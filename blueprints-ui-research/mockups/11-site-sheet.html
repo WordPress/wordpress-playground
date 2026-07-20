@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design 11 · Site sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f1eee6;
+  --ink:#1e1e1e;
+  --muted:#50575e;
+  --line:#e3e1da;
+  --line-strong:#c3c4c7;
+  --row-line:#efeeea;
+  --blue:#3858e9;
+  --blue-dark:#2145e6;
+  --danger:#b32d2e;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{
+  margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;
+  background:var(--paper);color:var(--ink);
+  font:15px/1.45 Inter,-apple-system,sans-serif;
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
+
+.sheet{
+  width:min(1340px,100%);
+  background:#fff;border-radius:12px;
+  box-shadow:0 24px 70px rgba(70,58,35,.14),0 2px 10px rgba(70,58,35,.08);
+  padding:26px 34px 18px;
+  display:flex;flex-direction:column;gap:18px;
+}
+
+/* ── top band ─────────────────────────────────── */
+.band{display:grid;grid-template-columns:280px 1fr;gap:30px;align-items:start}
+.bside{display:flex;flex-direction:column;gap:10px}
+.mini{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.mini-bar{display:flex;align-items:center;gap:5px;height:24px;padding:0 10px;background:#f4f2ec;border-bottom:1px solid var(--line)}
+.mini-bar i{width:8px;height:8px;border-radius:50%;background:#d8d4c9}
+.mini img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top}
+.tmeta{padding:0 2px}
+.tline{display:flex;align-items:center;gap:8px}
+.tline b{font-size:15px}
+.chip{flex:none;font-size:13.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--ink);color:#fff}
+.chip.quiet{background:#f0efe9;color:var(--muted)}
+.tsub{margin-top:2px;font-size:13.5px;color:var(--muted)}
+.btn{
+  min-height:40px;padding:7px 14px;border:1px solid var(--line-strong);border-radius:6px;
+  background:#fff;font-size:14px;font-weight:600;cursor:pointer;
+}
+.btn:hover{border-color:#8c8f94}
+.btn.wide{width:100%}
+
+.bmain{display:flex;flex-direction:column;gap:12px;min-width:0}
+.trow{display:flex;align-items:flex-start;gap:24px}
+.title{
+  flex:1;min-width:0;padding:2px 0 6px;border:0;border-bottom:1px dashed var(--line-strong);
+  background:transparent;color:var(--ink);
+  font-family:Fraunces,serif;font-size:34px;font-weight:600;line-height:1.15;
+}
+.title:hover{border-bottom-color:#8c8f94}
+.title:focus{border-bottom:2px solid var(--ink);outline:none;padding-bottom:5px}
+.run{
+  flex:none;min-height:48px;padding:10px 30px;border:1px solid var(--blue);border-radius:8px;
+  background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  box-shadow:0 3px 10px rgba(56,88,233,.28);
+}
+.run:hover{background:var(--blue-dark);border-color:var(--blue-dark)}
+.pillrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.prlabel{font-size:13.5px;color:var(--muted);margin-right:2px}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:6px 13px;
+  border:1px solid var(--line);border-radius:999px;background:#fcfbf8;cursor:pointer;font-size:15px;
+}
+.pill:hover{border-color:#8c8f94}
+.pill .pk{color:var(--muted)}
+.pill b{font-weight:600}
+.car{color:#8c8f94;font-size:11px}
+
+/* ── collections ──────────────────────────────── */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px 44px;align-items:start}
+.col{display:flex;flex-direction:column;gap:22px;min-width:0}
+.chead{display:flex;align-items:center;gap:10px;min-height:44px;border-bottom:1px solid var(--line)}
+.chead h2{margin:0;font-size:15px;font-weight:700}
+.cfact{font-size:13.5px;color:var(--muted);margin-right:auto}
+.row{display:flex;align-items:center;gap:10px;min-height:46px;padding:2px 0}
+.row + .row{border-top:1px solid var(--row-line)}
+.ric{flex:none;width:24px;height:24px;display:grid;place-items:center}
+.ric img{width:24px;height:24px;border-radius:4px;object-fit:contain}
+.ric svg{width:22px;height:22px}
+.tile{
+  display:grid;place-items:center;width:24px;height:24px;border-radius:5px;
+  background:#eceae3;color:var(--muted);font-size:11px;font-weight:700;
+}
+.tile.round{border-radius:50%}
+.rname{font-weight:600;font-size:15px;white-space:nowrap}
+.rfact{flex:1;min-width:0;font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 4px;font-size:13.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.act input{width:16px;height:16px;margin:0;accent-color:var(--ink);cursor:pointer}
+.x{
+  flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;color:var(--muted);font-size:17px;line-height:1;cursor:pointer;
+}
+.x:hover{border-color:var(--danger);color:var(--danger)}
+.rbtn{min-height:40px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rbtn:hover{border-color:#8c8f94}
+
+/* ── footer ───────────────────────────────────── */
+.foot{display:flex;align-items:center;gap:18px;border-top:1px solid var(--row-line);padding-top:14px;margin-top:2px}
+.trust{margin:0;flex:1;font-size:13.5px;color:var(--muted)}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:.93em}
+
+/* ── popover menu ─────────────────────────────── */
+.menu{
+  position:fixed;z-index:60;min-width:240px;max-width:340px;padding:6px;
+  background:#fff;border:1px solid var(--line-strong);border-radius:10px;
+  box-shadow:0 14px 40px rgba(40,34,20,.2);
+}
+.mi{display:flex;align-items:flex-start;gap:8px;width:100%;min-height:40px;padding:8px 10px;border:0;border-radius:6px;background:none;text-align:left;cursor:pointer}
+.mi:hover{background:#f4f2ec}
+.mcheck{flex:none;width:15px;font-weight:700;font-size:13px;padding-top:1px}
+.ml{display:block;font-size:14.5px}
+.msub{display:block;font-size:13.5px;color:var(--muted)}
+.mnote{padding:10px 12px;font-size:13.5px;color:var(--muted)}
+.uform{display:flex;flex-direction:column;gap:8px;padding:8px;min-width:250px}
+.uform input,.uform select{min-height:40px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;font-size:14.5px}
+.uform label{font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+
+/* ── modal ────────────────────────────────────── */
+.scrim{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;background:rgba(35,30,18,.42)}
+.modal{display:flex;flex-direction:column;width:min(620px,94vw);max-height:86vh;background:#fff;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.modal.wide{width:min(900px,94vw)}
+.mhead{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--row-line)}
+.mhead h3{margin:0;flex:1;font-size:16px;font-weight:700}
+.mclose{flex:none;width:40px;height:40px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:18px;line-height:1;cursor:pointer;color:var(--muted)}
+.mclose:hover{border-color:#8c8f94;color:var(--ink)}
+.mbody{padding:16px 20px 20px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.search{width:100%;min-height:44px;padding:8px 14px;border:1px solid var(--line-strong);border-radius:8px;font-size:15px}
+.search:focus{border-color:var(--ink);outline:none}
+.hint{font-size:13.5px;color:var(--muted)}
+pre.code{
+  margin:0;padding:14px 16px;overflow:auto;
+  background:#f7f6f2;border:1px solid var(--line);border-radius:8px;
+  font:13px/1.6 'IBM Plex Mono',monospace;color:var(--ink);
+}
+.prow{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:6px 10px;border:0;border-radius:8px;background:none;text-align:left;cursor:pointer}
+.prow:hover,.prow.sel{background:#f4f2ec}
+.prow .ric,.prow .ric img{width:28px;height:28px}
+.pmeta{min-width:0}
+.pmeta b{display:block;font-size:14.5px}
+.pmeta span{display:block;font-size:13.5px;color:var(--muted)}
+.glabel{font-size:13.5px;font-weight:600;color:var(--muted)}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ttile{display:flex;flex-direction:column;gap:7px;padding:0 0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden;text-align:left;cursor:pointer}
+.ttile:hover{border-color:#8c8f94}
+.ttile img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top;background:#f4f2ec}
+.ttile b{padding:0 10px;font-size:14px}
+.ttile .chip{margin:0 10px;align-self:flex-start}
+
+/* ── toast ────────────────────────────────────── */
+.toast{
+  position:fixed;left:16px;bottom:16px;z-index:80;display:flex;align-items:center;gap:14px;
+  padding:9px 9px 9px 16px;border-radius:9px;background:var(--ink);color:#fff;font-size:14.5px;
+  opacity:0;visibility:hidden;transform:translateY(70px);transition:.25s;
+}
+.toast.show{opacity:1;visibility:visible;transform:none}
+.toast button{min-height:40px;padding:7px 16px;border:0;border-radius:6px;background:#fff;color:var(--ink);font-weight:700;cursor:pointer}
+
+/* ── about pill ───────────────────────────────── */
+.about{position:fixed;right:14px;bottom:14px;z-index:40;max-width:440px;background:#111319;border:1px solid #2a2d34;border-radius:999px;box-shadow:0 10px 34px rgba(0,0,0,.3)}
+.about.open{border-radius:12px}
+.ahead{display:flex;align-items:center;gap:9px;min-height:40px;padding:5px 14px 5px 7px;border:0;background:none;color:#e8ebf2;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.abadge{padding:2px 10px;border-radius:999px;background:#00844a;color:#fff;font-size:12.5px;font-weight:700}
+.acar{color:#8a94a6}
+.abody{display:none;padding:2px 16px 14px;color:#c7cedb;font-size:13.5px;line-height:1.6}
+.about.open .abody{display:block}
+
+@media (max-width:1020px){
+  body{place-items:start center}
+  .band{grid-template-columns:1fr}
+  .bside{max-width:300px}
+  .cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <div class="band">
+    <div class="bside">
+      <div class="mini">
+        <div class="mini-bar"><i></i><i></i><i></i></div>
+        <img id="themeShot" src="https://ts.w.org/wp-content/themes/storefront/screenshot.png" alt="Storefront theme preview">
+      </div>
+      <div class="tmeta">
+        <div class="tline"><b id="themeName">Storefront</b><span class="chip">Will be active</span></div>
+        <div class="tsub" id="themeSub">Twenty Twenty-Five installs too</div>
+      </div>
+      <button class="btn wide" id="btnTheme">Change theme</button>
+    </div>
+    <div class="bmain">
+      <div class="trow">
+        <input class="title" id="titleInput" value="Adam’s Demo Store" title="Click to rename" aria-label="Site title — click to rename" spellcheck="false">
+        <button class="run" id="btnRun" title="Builds this site at playground.wordpress.net">Run</button>
+      </div>
+      <div class="pillrow" id="pillsEnv"></div>
+      <div class="pillrow"><span class="prlabel">When it opens:</span><span class="pillrow" id="pillsOpen"></span></div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <section id="secPlugins"></section>
+      <section id="secContent"></section>
+    </div>
+    <div class="col">
+      <section id="secUsers"></section>
+      <section id="secScripts"></section>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <p class="trust">Everything above is one <span class="mono">blueprint.json</span> — press Run to build a fresh site from it. Nothing is installed until then.</p>
+    <button class="btn" id="btnJson">View the JSON</button>
+  </footer>
+</main>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
+
+<div class="about" id="about">
+  <button class="ahead" id="aboutHead" aria-expanded="false"><span class="abadge">Design 11</span><span>Site sheet</span><span class="acar">ⓘ</span></button>
+  <div class="abody">The bet: the entire Blueprint fits one screen as a single paper sheet, so nothing hides behind tabs or scrolling. Every item in every collection uses one row grammar — icon, name, one plain fact, control — so the pattern is learned once and reused everywhere. Facts you can change are pills with visible carets; the only saturated color on the sheet is the Run button. Every count and summary is computed from the same state object that generates the JSON, so the sheet can never disagree with itself.</div>
+</div>
+<script>
+'use strict';
+
+/* ── seed data ─────────────────────────────────── */
+const PHP_GUIDES = `<?php
+// Runs once after WordPress is installed.
+require '/wordpress/wp-load.php';
+
+foreach ( get_users( [ 'fields' => 'ID' ] ) as $user_id ) {
+	update_user_meta( $user_id, 'wp_persisted_preferences', [
+		'core/edit-post' => [ 'welcomeGuide' => false ],
+		'core/edit-site' => [ 'welcomeGuide' => false ],
+	] );
+}`;
+
+const PHP_COUPON = `<?php
+require '/wordpress/wp-load.php';
+
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->set_usage_limit( 100 );
+$coupon->save();`;
+
+const PHP_DELETE_SAMPLE = `<?php
+require '/wordpress/wp-load.php';
+
+// Post 1 is the sample "Hello world!" post.
+wp_delete_post( 1, true );`;
+
+const PHP_PERMALINKS = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'permalink_structure', '/%postname%/' );
+flush_rewrite_rules();`;
+
+const LANGS = [
+	{ v: 'en_US', l: 'English (US)' },
+	{ v: 'en_GB', l: 'English (UK)' },
+	{ v: 'de_DE', l: 'Deutsch' },
+	{ v: 'es_ES', l: 'Español' },
+	{ v: 'fr_FR', l: 'Français' },
+	{ v: 'pl_PL', l: 'Polski' },
+];
+const WPS = [
+	{ v: 'latest', l: 'Latest (6.8 today)' },
+	{ v: '6.7', l: '6.7' },
+	{ v: '6.6', l: '6.6' },
+	{ v: 'nightly', l: 'Nightly build' },
+];
+const PHPS = ['8.4', '8.3', '8.2', '8.1', '8.0'];
+const LANDINGS = [
+	{ m: 'Home page', l: 'the home page', p: '/' },
+	{ m: 'Dashboard', l: 'the dashboard', p: '/wp-admin/' },
+	{ m: 'Products page', l: 'the Products page', p: '/wp-admin/edit.php?post_type=product' },
+	{ m: 'Pages list', l: 'the Pages list', p: '/wp-admin/edit.php?post_type=page' },
+	{ m: 'Plugins page', l: 'the Plugins page', p: '/wp-admin/plugins.php' },
+];
+const CURATED_PLUGINS = [
+	{ slug: 'contact-form-7', name: 'Contact Form 7', icon: 'https://ps.w.org/contact-form-7/assets/icon.svg', installs: '10M+ installs' },
+	{ slug: 'jetpack', name: 'Jetpack', icon: 'https://ps.w.org/jetpack/assets/icon.svg', installs: '4M+ installs' },
+	{ slug: 'akismet', name: 'Akismet Anti-spam', icon: 'https://ps.w.org/akismet/assets/icon-256x256.png', installs: '6M+ installs' },
+	{ slug: 'elementor', name: 'Elementor', icon: 'https://ps.w.org/elementor/assets/icon.svg', installs: '10M+ installs' },
+	{ slug: 'wpforms-lite', name: 'WPForms', icon: 'https://ps.w.org/wpforms-lite/assets/icon.svg', installs: '6M+ installs' },
+	{ slug: 'mailpoet', name: 'MailPoet', icon: 'https://ps.w.org/mailpoet/assets/icon-256x256.png', installs: '700K+ installs' },
+];
+const CONTENT_OPTIONS = [
+	{ kind: 'posts', name: '5 sample posts', fact: 'Generated during setup', note: '5 sample posts, generated during setup' },
+	{ kind: 'menu', name: '1 navigation menu', fact: 'Links to every page', note: '1 navigation menu linking to every page' },
+	{ kind: 'images', name: '3 sample images', fact: 'Added to the media library', note: '3 sample images in the media library' },
+];
+const SCRIPT_OPTIONS = [
+	{ name: 'Delete the sample “Hello world” post', php: PHP_DELETE_SAMPLE },
+	{ name: 'Use “Post name” permalinks', php: PHP_PERMALINKS },
+];
+
+const state = {
+	title: 'Adam’s Demo Store',
+	wp: 'latest',
+	php: '8.3',
+	lang: 'en_US',
+	login: 'admin',
+	landing: LANDINGS[2],
+	net: true,
+	themes: [
+		{ slug: 'storefront', name: 'Storefront', shot: 'https://ts.w.org/wp-content/themes/storefront/screenshot.png', active: true },
+		{ slug: 'twentytwentyfive', name: 'Twenty Twenty-Five', shot: 'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png', active: false },
+	],
+	plugins: [
+		{ id: 'p1', slug: 'woocommerce', name: 'WooCommerce', icon: 'https://ps.w.org/woocommerce/assets/icon.svg', version: '9.4', activate: true },
+		{ id: 'p2', slug: 'wordpress-seo', name: 'Yoast SEO', icon: 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', version: 'latest', activate: true },
+		{ id: 'p3', slug: 'query-monitor', name: 'Query Monitor', icon: 'https://ps.w.org/query-monitor/assets/icon-256x256.png', version: 'latest', activate: false, file: './plugins/query-monitor.zip' },
+	],
+	content: [
+		{ id: 'c1', kind: 'pages', name: '3 starter pages', fact: 'About, Contact, Shop', note: '3 starter pages: About, Contact, Shop' },
+		{ id: 'c2', kind: 'products', name: '12 sample products', fact: 'Generated during setup', note: '12 sample products, generated during setup' },
+	],
+	users: [
+		{ id: 'u1', username: 'admin', role: 'Administrator', fact: 'Administrator' },
+		{ id: 'u2', username: 'demo-editor', role: 'Store manager', fact: 'Store manager (a custom role)' },
+	],
+	scripts: [
+		{ id: 's1', name: 'Hide the WordPress welcome guides', php: PHP_GUIDES },
+		{ id: 's2', name: 'Add a WELCOME10 coupon for testing', php: PHP_COUPON },
+	],
+};
+let uidCounter = 10;
+const nid = (p) => p + (++uidCounter);
+
+/* ── tiny DOM helpers ─────────────────────────── */
+const $ = (s) => document.querySelector(s);
+function el(tag, cls, text) {
+	const n = document.createElement(tag);
+	if (cls) n.className = cls;
+	if (text != null) n.textContent = text;
+	return n;
+}
+function decodeEntities(s) {
+	const t = document.createElement('textarea');
+	t.innerHTML = s;
+	return t.value;
+}
+const GLYPHS = {
+	pages: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
+	products: '<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4"/><path d="M12 12v8"/>',
+	posts: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+	menu: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+	images: '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 17l5-5 4 4 3-3 4 4"/>',
+	code: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>',
+};
+function glyph(kind) {
+	const w = el('span', 'ric');
+	w.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#50575e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (GLYPHS[kind] || GLYPHS.pages) + '</svg>';
+	return w;
+}
+function tile(ch, round) {
+	return el('span', 'tile' + (round ? ' round' : ''), (ch || '?').toUpperCase());
+}
+function iconNode(url, name) {
+	const w = el('span', 'ric');
+	if (url) {
+		const img = new Image();
+		img.alt = '';
+		img.onerror = () => { w.textContent = ''; w.appendChild(tile(name[0])); };
+		img.src = url;
+		w.appendChild(img);
+	} else {
+		w.appendChild(tile(name[0]));
+	}
+	return w;
+}
+
+/* ── layers: Esc closes deepest first ─────────── */
+const layers = [];
+function pushLayer(l) { layers.push(l); }
+function popLayer(l) {
+	const i = layers.indexOf(l);
+	if (i > -1) layers.splice(i, 1);
+	l.destroy();
+}
+document.addEventListener('keydown', (e) => {
+	if (e.key === 'Escape' && layers.length) {
+		e.preventDefault();
+		popLayer(layers[layers.length - 1]);
+		return;
+	}
+	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+		const t = e.target;
+		if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+		if (undoStack.length) { e.preventDefault(); performUndo(); }
+	}
+});
+document.addEventListener('mousedown', (e) => {
+	for (let i = layers.length - 1; i >= 0; i--) {
+		const l = layers[i];
+		if (l.menu && !l.node.contains(e.target) && !(l.anchor && l.anchor.contains(e.target))) {
+			popLayer(l);
+		}
+	}
+});
+
+/* ── popover menu ─────────────────────────────── */
+function openMenu(anchor, items) {
+	const top = layers[layers.length - 1];
+	if (top && top.menu && top.anchor === anchor) { popLayer(top); return; }
+	while (layers.length && layers[layers.length - 1].menu) popLayer(layers[layers.length - 1]);
+
+	const m = el('div', 'menu');
+	m.setAttribute('role', 'menu');
+	const layer = { node: m, menu: true, anchor, destroy: () => m.remove() };
+	items.forEach((it) => {
+		if (it.custom) { m.appendChild(it.custom); return; }
+		const b = el('button', 'mi');
+		b.setAttribute('role', 'menuitem');
+		b.appendChild(el('span', 'mcheck', it.current ? '✓' : ''));
+		const w = el('span');
+		w.appendChild(el('span', 'ml', it.label));
+		if (it.sub) w.appendChild(el('span', 'msub' + (it.mono ? ' mono' : ''), it.sub));
+		b.appendChild(w);
+		b.onclick = () => { popLayer(layer); if (it.onPick) it.onPick(); };
+		m.appendChild(b);
+	});
+	m.addEventListener('keydown', (e) => {
+		const bs = [...m.querySelectorAll('button.mi')];
+		if (!bs.length) return;
+		const i = bs.indexOf(document.activeElement);
+		if (e.key === 'ArrowDown') { e.preventDefault(); (bs[i + 1] || bs[0]).focus(); }
+		if (e.key === 'ArrowUp') { e.preventDefault(); (bs[i - 1] || bs[bs.length - 1]).focus(); }
+	});
+	document.body.appendChild(m);
+	placePopover(m, anchor);
+	pushLayer(layer);
+	const first = m.querySelector('button.mi');
+	if (first) first.focus();
+	return layer;
+}
+function placePopover(m, anchor) {
+	const r = anchor.getBoundingClientRect();
+	let top = r.bottom + 6;
+	let left = r.left;
+	if (left + m.offsetWidth > innerWidth - 12) left = innerWidth - 12 - m.offsetWidth;
+	if (top + m.offsetHeight > innerHeight - 12) top = Math.max(12, r.top - 6 - m.offsetHeight);
+	m.style.top = top + 'px';
+	m.style.left = Math.max(12, left) + 'px';
+}
+
+/* ── modal ────────────────────────────────────── */
+function openModal(titleText, wide) {
+	const scrim = el('div', 'scrim');
+	const modal = el('div', 'modal' + (wide ? ' wide' : ''));
+	modal.setAttribute('role', 'dialog');
+	modal.setAttribute('aria-label', titleText);
+	const head = el('div', 'mhead');
+	const close = el('button', 'mclose', '×');
+	close.setAttribute('aria-label', 'Close');
+	head.append(el('h3', null, titleText), close);
+	const body = el('div', 'mbody');
+	modal.append(head, body);
+	scrim.appendChild(modal);
+	document.body.appendChild(scrim);
+	const layer = { node: scrim, destroy: () => scrim.remove() };
+	pushLayer(layer);
+	close.onclick = () => popLayer(layer);
+	scrim.addEventListener('mousedown', (e) => { if (e.target === scrim) popLayer(layer); });
+	return { body, close: () => popLayer(layer) };
+}
+
+/* ── remove + undo + toast ────────────────────── */
+const undoStack = [];
+let toastTimer;
+function removeItem(list, id, label) {
+	const arr = state[list];
+	const i = arr.findIndex((x) => x.id === id);
+	if (i < 0) return;
+	const rec = { list, index: i, item: arr[i] };
+	if (list === 'users' && state.login === arr[i].username) {
+		rec.prevLogin = state.login;
+		const rest = arr.filter((_, j) => j !== i);
+		state.login = rest.length ? rest[0].username : null;
+	}
+	arr.splice(i, 1);
+	undoStack.push(rec);
+	showToast('Removed ' + label);
+	renderAll();
+}
+function performUndo() {
+	const a = undoStack.pop();
+	if (!a) return;
+	state[a.list].splice(a.index, 0, a.item);
+	if (a.prevLogin !== undefined) state.login = a.prevLogin;
+	hideToast();
+	renderAll();
+}
+function showToast(msg) {
+	$('#toastMsg').textContent = msg;
+	$('#toast').classList.add('show');
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast() { $('#toast').classList.remove('show'); }
+
+/* ── top band: theme panel + pills ────────────── */
+function renderThemePanel() {
+	const active = state.themes.find((t) => t.active) || state.themes[0];
+	$('#themeShot').src = active.shot;
+	$('#themeShot').alt = active.name + ' theme preview';
+	$('#themeName').textContent = active.name;
+	const others = state.themes.filter((t) => !t.active).map((t) => t.name);
+	$('#themeSub').textContent = others.length
+		? others.join(', ') + (others.length > 1 ? ' install too' : ' installs too')
+		: '';
+}
+
+function pillBtn(key, val, onOpen) {
+	const b = el('button', 'pill');
+	if (key) b.appendChild(el('span', 'pk', key));
+	b.appendChild(el('b', null, val));
+	b.appendChild(el('span', 'car', '▾'));
+	b.onclick = () => onOpen(b);
+	return b;
+}
+function renderPills() {
+	const env = $('#pillsEnv');
+	env.textContent = '';
+	const wpVal = state.wp === 'latest' ? 'latest (6.8 today)'
+		: state.wp === 'nightly' ? 'nightly build' : state.wp;
+	env.appendChild(pillBtn('WordPress', wpVal, (b) =>
+		openMenu(b, WPS.map((w) => ({ label: w.l, current: w.v === state.wp, onPick: () => { state.wp = w.v; renderPills(); } })))
+	));
+	env.appendChild(pillBtn('PHP', state.php, (b) =>
+		openMenu(b, PHPS.map((v) => ({ label: 'PHP ' + v, current: v === state.php, onPick: () => { state.php = v; renderPills(); } })))
+	));
+	env.appendChild(pillBtn(null, (LANGS.find((l) => l.v === state.lang) || LANGS[0]).l, (b) =>
+		openMenu(b, LANGS.map((l) => ({ label: l.l, current: l.v === state.lang, onPick: () => { state.lang = l.v; renderPills(); } })))
+	));
+	env.appendChild(pillBtn(null, state.login ? 'Signs in as ' + state.login : 'Doesn’t sign in', (b) => {
+		const items = state.users.map((u) => ({
+			label: 'Signs in as ' + u.username,
+			sub: u.fact,
+			current: state.login === u.username,
+			onPick: () => { state.login = u.username; renderPills(); },
+		}));
+		items.push({ label: 'Doesn’t sign in', sub: 'Starts on the public site', current: !state.login, onPick: () => { state.login = null; renderPills(); } });
+		openMenu(b, items);
+	}));
+
+	const open = $('#pillsOpen');
+	open.textContent = '';
+	open.appendChild(pillBtn(null, 'Opens on ' + state.landing.l, (b) =>
+		openMenu(b, LANDINGS.map((o) => ({ label: o.m, sub: o.p, mono: true, current: o.p === state.landing.p, onPick: () => { state.landing = o; renderPills(); } })))
+	));
+	open.appendChild(pillBtn(null, 'Internet access ' + (state.net ? 'on' : 'off'), (b) =>
+		openMenu(b, [
+			{ label: 'Internet access on', sub: 'The site can reach other servers', current: state.net, onPick: () => { state.net = true; renderPills(); } },
+			{ label: 'Internet access off', sub: 'The site stays fully offline', current: !state.net, onPick: () => { state.net = false; renderPills(); } },
+		])
+	));
+}
+
+/* ── collections ──────────────────────────────── */
+function renderColl(mount, title, fact, addLabel, onAdd, buildRows) {
+	mount.textContent = '';
+	const head = el('div', 'chead');
+	head.appendChild(el('h2', null, title));
+	head.appendChild(el('span', 'cfact', fact));
+	const add = el('button', 'btn', '+ ' + addLabel);
+	add.onclick = () => onAdd(add);
+	head.appendChild(add);
+	const rows = el('div', 'rows');
+	buildRows(rows);
+	mount.append(head, rows);
+}
+function xBtn(list, item, label) {
+	const x = el('button', 'x', '×');
+	x.title = 'Remove ' + label;
+	x.setAttribute('aria-label', 'Remove ' + label);
+	x.onclick = () => removeItem(list, item.id, label);
+	return x;
+}
+
+function renderPlugins() {
+	const n = state.plugins.length;
+	const off = state.plugins.filter((p) => !p.activate).length;
+	let fact = n ? n + (n === 1 ? ' plugin' : ' plugins') : 'None yet';
+	if (off) fact += ' · ' + off + (off === 1 ? ' stays off' : ' stay off');
+	renderColl($('#secPlugins'), 'Plugins', fact, 'Add plugin', openPluginPicker, (rows) => {
+		state.plugins.forEach((p) => {
+			const row = el('div', 'row');
+			row.appendChild(iconNode(p.icon, p.name));
+			row.appendChild(el('span', 'rname', p.name));
+			row.appendChild(el('span', 'rfact', p.file
+				? 'From a file in this Blueprint'
+				: 'From WordPress.org · ' + (p.version === 'latest' ? 'latest version' : 'version ' + p.version)));
+			const lab = el('label', 'act');
+			const cb = el('input');
+			cb.type = 'checkbox';
+			cb.checked = p.activate;
+			cb.onchange = () => { p.activate = cb.checked; renderPlugins(); };
+			lab.append(cb, document.createTextNode('Activate after install'));
+			row.appendChild(lab);
+			row.appendChild(xBtn('plugins', p, p.name));
+			rows.appendChild(row);
+		});
+	});
+}
+
+function renderContent() {
+	const fact = state.content.length ? 'Starts blank, then adds:' : 'Starts blank — nothing added';
+	renderColl($('#secContent'), 'Content', fact, 'Add content', (btn) => {
+		const remaining = CONTENT_OPTIONS.filter((o) => !state.content.some((c) => c.name === o.name));
+		const items = remaining.map((o) => ({
+			label: o.name,
+			sub: o.fact,
+			onPick: () => { state.content.push({ id: nid('c'), ...o }); renderContent(); },
+		}));
+		if (!items.length) items.push({ custom: el('div', 'mnote', 'Everything available is already added') });
+		openMenu(btn, items);
+	}, (rows) => {
+		state.content.forEach((c) => {
+			const row = el('div', 'row');
+			row.appendChild(glyph(c.kind));
+			row.appendChild(el('span', 'rname', c.name));
+			row.appendChild(el('span', 'rfact', c.fact));
+			row.appendChild(xBtn('content', c, c.name));
+			rows.appendChild(row);
+		});
+	});
+}
+
+function renderUsers() {
+	const n = state.users.length;
+	renderColl($('#secUsers'), 'Users', n ? n + (n === 1 ? ' user' : ' users') : 'None yet', 'Add user', openUserForm, (rows) => {
+		state.users.forEach((u) => {
+			const row = el('div', 'row');
+			const w = el('span', 'ric');
+			w.appendChild(tile(u.username[0], true));
+			row.appendChild(w);
+			row.appendChild(el('span', 'rname', u.username));
+			row.appendChild(el('span', 'rfact', u.fact));
+			row.appendChild(xBtn('users', u, u.username));
+			rows.appendChild(row);
+		});
+	});
+}
+function openUserForm(btn) {
+	const form = el('div', 'uform');
+	const nameLab = el('label', null, 'Username');
+	const name = el('input');
+	name.placeholder = 'e.g. shop-tester';
+	nameLab.appendChild(name);
+	const roleLab = el('label', null, 'Role');
+	const role = el('select');
+	['Administrator', 'Editor', 'Author', 'Subscriber'].forEach((r) => role.appendChild(new Option(r)));
+	roleLab.appendChild(role);
+	const add = el('button', 'btn', 'Add user');
+	form.append(nameLab, roleLab, add);
+	const layer = openMenu(btn, [{ custom: form }]);
+	name.focus();
+	const submit = () => {
+		const v = name.value.trim().toLowerCase().replace(/\s+/g, '-');
+		if (!v || state.users.some((u) => u.username === v)) { name.focus(); return; }
+		state.users.push({ id: nid('u'), username: v, role: role.value, fact: role.value });
+		if (layer) popLayer(layer);
+		renderUsers();
+	};
+	add.onclick = submit;
+	name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+}
+
+function renderScripts() {
+	const n = state.scripts.length;
+	renderColl($('#secScripts'), 'After setup', n ? n + (n === 1 ? ' small script' : ' small scripts') : 'Nothing extra runs', 'Add script', (btn) => {
+		const remaining = SCRIPT_OPTIONS.filter((o) => !state.scripts.some((s) => s.name === o.name));
+		const items = remaining.map((o) => ({
+			label: o.name,
+			sub: 'PHP · runs once',
+			onPick: () => { state.scripts.push({ id: nid('s'), ...o }); renderScripts(); },
+		}));
+		if (!items.length) items.push({ custom: el('div', 'mnote', 'Everything available is already added') });
+		openMenu(btn, items);
+	}, (rows) => {
+		state.scripts.forEach((s) => {
+			const row = el('div', 'row');
+			row.appendChild(glyph('code'));
+			row.appendChild(el('span', 'rname', s.name));
+			row.appendChild(el('span', 'rfact', 'PHP · runs once'));
+			const view = el('button', 'rbtn', 'View code');
+			view.onclick = () => {
+				const { body } = openModal(s.name);
+				const pre = el('pre', 'code');
+				pre.textContent = s.php;
+				body.appendChild(pre);
+			};
+			row.appendChild(view);
+			row.appendChild(xBtn('scripts', s, '“' + s.name + '”'));
+			rows.appendChild(row);
+		});
+	});
+}
+
+/* ── theme gallery ────────────────────────────── */
+function openThemeGallery() {
+	const { body } = openModal('Choose a theme', true);
+	const search = el('input', 'search');
+	search.type = 'search';
+	search.placeholder = 'Search WordPress.org themes';
+	const installedWrap = el('div');
+	const resultsWrap = el('div');
+	body.append(search, installedWrap, resultsWrap);
+
+	function themeTile(t, chipText, chipDark, onPick) {
+		const b = el('button', 'ttile');
+		const img = new Image();
+		img.alt = t.name + ' screenshot';
+		img.onerror = () => img.remove();
+		img.src = t.shot;
+		b.appendChild(img);
+		b.appendChild(el('b', null, t.name));
+		if (chipText) b.appendChild(el('span', 'chip' + (chipDark ? '' : ' quiet'), chipText));
+		b.onclick = onPick;
+		return b;
+	}
+	function renderInstalled() {
+		installedWrap.textContent = '';
+		installedWrap.appendChild(el('div', 'glabel', 'In this Blueprint'));
+		const grid = el('div', 'tgrid');
+		grid.style.marginTop = '8px';
+		state.themes.forEach((t) => {
+			grid.appendChild(themeTile(t, t.active ? 'Will be active' : 'Installs', t.active, () => {
+				state.themes.forEach((x) => { x.active = x.slug === t.slug; });
+				renderThemePanel();
+				renderInstalled();
+			}));
+		});
+		installedWrap.appendChild(grid);
+	}
+	renderInstalled();
+
+	let timer;
+	search.addEventListener('input', () => {
+		clearTimeout(timer);
+		const q = search.value.trim();
+		if (q.length < 2) { resultsWrap.textContent = ''; return; }
+		timer = setTimeout(async () => {
+			resultsWrap.textContent = '';
+			resultsWrap.appendChild(el('div', 'hint', 'Searching WordPress.org…'));
+			try {
+				const res = await fetch('https://api.wordpress.org/themes/info/1.2/?action=query_themes&request[search]=' + encodeURIComponent(q) + '&request[per_page]=6');
+				const data = await res.json();
+				resultsWrap.textContent = '';
+				resultsWrap.appendChild(el('div', 'glabel', 'From WordPress.org'));
+				const grid = el('div', 'tgrid');
+				grid.style.marginTop = '8px';
+				(data.themes || []).forEach((t) => {
+					let shot = t.screenshot_url || '';
+					if (shot.startsWith('//')) shot = 'https:' + shot;
+					const item = { slug: t.slug, name: decodeEntities(t.name), shot };
+					grid.appendChild(themeTile(item, null, false, () => {
+						const existing = state.themes.find((x) => x.slug === item.slug);
+						if (!existing) state.themes.push({ ...item, active: false });
+						state.themes.forEach((x) => { x.active = x.slug === item.slug; });
+						renderThemePanel();
+						renderInstalled();
+					}));
+				});
+				resultsWrap.appendChild(grid);
+				if (!(data.themes || []).length) resultsWrap.appendChild(el('div', 'hint', 'No themes match “' + q + '”.'));
+			} catch (err) {
+				resultsWrap.textContent = '';
+				resultsWrap.appendChild(el('div', 'hint', 'Search needs internet — the 2 themes above still work.'));
+			}
+		}, 350);
+	});
+}
+
+/* ── plugin picker ────────────────────────────── */
+function openPluginPicker() {
+	const { body, close } = openModal('Add a plugin');
+	const search = el('input', 'search');
+	search.type = 'search';
+	search.placeholder = 'Search WordPress.org plugins';
+	const hint = el('div', 'hint', 'Type to search · ↓ ↑ to choose · Enter to add');
+	const list = el('div');
+	body.append(search, hint, list);
+	search.focus();
+
+	let items = [];
+	let selIdx = 0;
+	function pick(it) {
+		state.plugins.push({ id: nid('p'), slug: it.slug, name: it.name, icon: it.icon, version: 'latest', activate: true });
+		close();
+		renderPlugins();
+	}
+	function renderList(arr, note) {
+		items = arr.filter((it) => !state.plugins.some((p) => p.slug === it.slug));
+		selIdx = 0;
+		list.textContent = '';
+		if (note) list.appendChild(el('div', 'glabel', note));
+		items.forEach((it, i) => {
+			const b = el('button', 'prow' + (i === selIdx ? ' sel' : ''));
+			b.appendChild(iconNode(it.icon, it.name));
+			const meta = el('span', 'pmeta');
+			meta.appendChild(el('b', null, it.name));
+			if (it.installs) meta.appendChild(el('span', null, it.installs));
+			b.appendChild(meta);
+			b.onclick = () => pick(it);
+			list.appendChild(b);
+		});
+		if (!items.length) list.appendChild(el('div', 'hint', 'Nothing new to add here.'));
+	}
+	function highlight() {
+		[...list.querySelectorAll('.prow')].forEach((b, i) => {
+			b.classList.toggle('sel', i === selIdx);
+			if (i === selIdx) b.scrollIntoView({ block: 'nearest' });
+		});
+	}
+	renderList(CURATED_PLUGINS, 'Popular on WordPress.org');
+
+	let timer;
+	search.addEventListener('input', () => {
+		clearTimeout(timer);
+		const q = search.value.trim();
+		if (q.length < 2) { renderList(CURATED_PLUGINS, 'Popular on WordPress.org'); return; }
+		timer = setTimeout(async () => {
+			try {
+				const res = await fetch('https://api.wordpress.org/plugins/info/1.2/?action=query_plugins&request[search]=' + encodeURIComponent(q) + '&request[per_page]=6');
+				const data = await res.json();
+				renderList((data.plugins || []).map((p) => ({
+					slug: p.slug,
+					name: decodeEntities(p.name),
+					icon: p.icons && (p.icons.svg || p.icons['2x'] || p.icons['1x'] || p.icons.default),
+					installs: fmtInstalls(p.active_installs),
+				})), 'From WordPress.org');
+			} catch (err) {
+				renderList(CURATED_PLUGINS, 'Search needs internet — popular picks instead');
+			}
+		}, 300);
+	});
+	search.addEventListener('keydown', (e) => {
+		if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx + 1, items.length - 1); highlight(); }
+		if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx - 1, 0); highlight(); }
+		if (e.key === 'Enter' && items[selIdx]) { e.preventDefault(); pick(items[selIdx]); }
+	});
+}
+function fmtInstalls(n) {
+	if (!n) return '';
+	if (n >= 1e6) return Math.round(n / 1e6) + 'M+ installs';
+	if (n >= 1e3) return Math.round(n / 1e3) + 'K+ installs';
+	return n + ' installs';
+}
+
+/* ── the JSON, and Run ────────────────────────── */
+function buildBlueprint() {
+	const active = state.themes.find((t) => t.active) || {};
+	return {
+		version: 2,
+		meta: { title: state.title },
+		wordpressVersion: state.wp,
+		phpVersion: state.php,
+		siteLanguage: state.lang,
+		activeTheme: active.slug,
+		themes: state.themes.map((t) => t.slug),
+		plugins: state.plugins.map((p) => p.file
+			? { path: p.file, activate: p.activate }
+			: { slug: p.slug, version: p.version, activate: p.activate }),
+		siteOptions: { blogname: state.title },
+		users: state.users.map((u) => ({ username: u.username, role: u.role })),
+		login: state.login || false,
+		landingPage: state.landing.p,
+		networking: state.net,
+		content: state.content.map((c) => c.note),
+		afterSetup: state.scripts.map((s) => ({ step: 'runPHP', note: s.name, code: s.php })),
+	};
+}
+
+/* ── wiring + first render ────────────────────── */
+function renderAll() {
+	renderThemePanel();
+	renderPills();
+	renderPlugins();
+	renderContent();
+	renderUsers();
+	renderScripts();
+}
+$('#titleInput').addEventListener('input', (e) => { state.title = e.target.value; });
+$('#btnTheme').onclick = openThemeGallery;
+$('#btnJson').onclick = () => {
+	const { body } = openModal('This Blueprint as JSON', true);
+	const pre = el('pre', 'code');
+	pre.textContent = JSON.stringify(buildBlueprint(), null, 2);
+	body.appendChild(pre);
+};
+$('#btnRun').onclick = () => {
+	window.open('https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(buildBlueprint())), '_blank');
+};
+$('#toastUndo').onclick = performUndo;
+$('#aboutHead').onclick = () => {
+	const open = $('#about').classList.toggle('open');
+	$('#aboutHead').setAttribute('aria-expanded', String(open));
+};
+renderAll();
+</script>
+</body>
+</html>

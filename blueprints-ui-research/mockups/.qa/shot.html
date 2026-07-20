@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html,body{margin:0}iframe{display:block;width:1440px;height:1010px;border:0}</style>
+<iframe src="../27-flight-ledger-complete.html"></iframe>
+<script>
+const params = new URLSearchParams(location.search);
+const frameEl = document.querySelector('iframe');
+if (params.get('w')) { frameEl.style.width = params.get('w') + 'px'; frameEl.style.height = (Number(params.get('h')) || 880) + 'px'; }
+const scenario = params.get('s') || 'base';
+const frame = document.querySelector('iframe');
+frame.addEventListener('load', () => {
+	const doc = frame.contentDocument;
+	const win = frame.contentWindow;
+	const step = (fn, delay) => setTimeout(fn, delay);
+	const kind = scenario.startsWith('theme') || scenario === 'search' ? 'theme'
+		: scenario.startsWith('finish') || scenario === 'new-php' ? 'script'
+		: scenario === 'users' ? 'user' : scenario;
+	step(() => doc.querySelector('[data-sheet-popover="' + kind + '"]')?.scrollIntoView({ block: 'center' }), 900);
+	if (scenario === 'theme') {
+		step(() => doc.querySelector('[data-sheet-popover="theme"]').click(), 1200);
+	}
+	if (scenario === 'theme-scroll') {
+		step(() => doc.querySelector('[data-sheet-popover="theme"]').click(), 1200);
+		step(() => { doc.getElementById('sheetPopoverBody').scrollTop = 320; }, 2600);
+	}
+	if (scenario === 'theme-multi') {
+		step(() => doc.querySelector('[data-sheet-popover="theme"]').click(), 1200);
+		step(() => {
+			const results = doc.querySelectorAll('[data-v27-result-index]');
+			if (results[0]) results[0].click();
+		}, 2600);
+	}
+	if (scenario === 'finish') {
+		step(() => doc.querySelector('[data-sheet-popover="script"]').click(), 1200);
+	}
+	if (scenario === 'finish-scroll') {
+		step(() => doc.querySelector('[data-sheet-popover="script"]').click(), 1200);
+		step(() => { doc.getElementById('sheetPopoverBody').scrollTop = 9999; }, 1600);
+	}
+	if (scenario === 'new-php') {
+		step(() => doc.querySelector('[data-sheet-popover="script"]').click(), 1200);
+		step(() => doc.querySelector('[data-v27-new-script="php"]').click(), 1600);
+	}
+	if (scenario === 'plugin') {
+		step(() => doc.querySelector('[data-sheet-popover="plugin"]').click(), 1200);
+	}
+	if (scenario === 'content') {
+		step(() => doc.querySelector('[data-sheet-popover="content"]').click(), 1200);
+	}
+	if (scenario === 'users') {
+		step(() => doc.querySelector('[data-sheet-popover="user"]').click(), 1200);
+	}
+	if (scenario === 'finish-added') {
+		step(() => doc.querySelector('[data-sheet-popover="script"]').click(), 1200);
+		step(() => doc.querySelector('[data-v27-script-preset="fresh-start"]')?.click(), 1600);
+		step(() => doc.querySelector('[data-v27-script-preset="permalinks"]')?.click(), 1900);
+		step(() => doc.querySelector('[data-close-sheet-popover]').click(), 2300);
+	}
+	if (scenario === 'search') {
+		step(() => doc.querySelector('[data-sheet-popover="theme"]').click(), 1200);
+		step(() => {
+			const input = doc.querySelector('[data-v27-search]');
+			input.value = 'neve';
+			input.dispatchEvent(new win.Event('input', { bubbles: true }));
+		}, 2400);
+	}
+})
+</script>

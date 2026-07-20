@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Blueprints UI Editor — research &amp; 6 design directions</title>
+<title>Blueprints UI Editor — research &amp; design directions</title>
 <style>
 :root{
   --wp-blue:#3858e9; --wp-blue-600:#2145d6; --wp-blue-050:#eef1ff;
@@ -58,6 +58,45 @@ h2{font-size:23px;letter-spacing:-.01em;margin:0 0 6px}
 .mini{font-size:11px;background:#f2f2f3;border-radius:20px;padding:2px 9px;color:#4a4a4a}
 .open{margin-top:13px;font-size:13px;font-weight:700;color:var(--wp-blue-600)}
 
+/* Paper Blueprint × Pre-flight hybrids */
+.hybrid-set{padding:26px;border:1px solid #dfd4bc;border-radius:var(--radius);background:#fffdf8;box-shadow:var(--shadow)}
+.hybrid-set h2{font-size:25px}
+.hybrid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:20px}
+.hcard{display:flex;min-height:188px;flex-direction:column;padding:16px;border:1px solid #ded8cc;border-radius:10px;background:#fff;color:inherit;text-decoration:none;transition:.14s}
+.hcard:hover{transform:translateY(-3px);border-color:#b9aa8a;box-shadow:var(--shadow-lg)}
+.hnum{color:#8b6a28;font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.hcard h3{margin:7px 0 5px;font-size:17px}
+.hcard p{margin:0;color:var(--muted);font-size:13px}
+.hmotif{position:relative;height:55px;margin-top:auto;padding-top:13px;overflow:hidden}
+.hmotif .rule{height:1px;margin:8px 0;background:#ded8cc}
+.hmotif .dot{position:absolute;top:14px;left:6px;width:20px;height:20px;border:1px solid #aa9265;border-radius:50%;background:#fff}
+.hmotif .dot::after{content:"";position:absolute;top:20px;bottom:-35px;left:9px;border-left:1px solid #d1c5aa}
+.hmotif .copy{display:block;height:6px;margin:0 0 7px 38px;border-radius:4px;background:#e9e4da}
+.hmotif .copy.short{width:48%}
+.hmotif.split{display:grid;grid-template-columns:1fr 38%;gap:8px}
+.hmotif.split::after{content:"";border-left:1px solid #d6d1c7;background:repeating-linear-gradient(to bottom,#e8e4dd 0 5px,transparent 5px 12px)}
+.hmotif.checks{display:flex;gap:7px;align-items:center}
+.hmotif.checks i{width:24px;height:24px;border:1px solid #8ca18c;color:#527052;font-style:normal;text-align:center;line-height:22px}
+.hmotif.toggle{display:flex;align-items:center;justify-content:center}
+.hmotif.toggle span{padding:5px 11px;background:#f0f0f1;color:var(--muted);font-size:11px;font-weight:700}
+.hmotif.toggle span:first-child{border-radius:6px 0 0 6px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15);color:var(--ink)}
+.hmotif.toggle span:last-child{border-radius:0 6px 6px 0}
+.hmotif.margin{border-left:1px solid #cc9e91;margin-left:28px}
+.hmotif.margin::before{content:"RUN 03";position:absolute;left:-27px;top:17px;color:#9c695b;font:700 8px var(--mono);writing-mode:vertical-rl}
+.hmotif.compact{display:flex;flex-direction:column;gap:5px;padding-top:10px}
+.hmotif.compact i{height:4px;border-radius:3px;background:linear-gradient(90deg,#cfbf9d 0 8%,#e7e2d8 8% 34%,#d8d3c9 34%)}
+.hmotif.chapters{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding-top:10px}
+.hmotif.chapters i{border-top:3px solid #bda879;background:repeating-linear-gradient(to bottom,transparent 0 8px,#e5e0d6 8px 9px)}
+.hmotif.io{display:grid;grid-template-columns:1fr 20px 1fr;gap:5px;align-items:center}
+.hmotif.io::before,.hmotif.io::after{content:"";height:31px;border:1px solid #d8d3c9;background:#fff}
+.hmotif.io i{position:relative;height:1px;background:#a9afa7}
+.hmotif.io i::after{content:"";position:absolute;right:0;top:-3px;width:6px;height:6px;border-top:1px solid #778176;border-right:1px solid #778176;transform:rotate(45deg)}
+.hmotif.navigator{display:grid;grid-template-columns:34% 1fr;gap:7px;padding-top:9px}
+.hmotif.navigator::before{content:"1\A 2\A 3\A 4\A 5\A 6";white-space:pre;padding:3px 7px;background:#f1f2f3;color:#7b7f85;font:700 7px/1.35 var(--mono)}
+.hmotif.navigator::after{content:"";border:1px solid #ded8cc;background:repeating-linear-gradient(to bottom,#fff 0 7px,#e7e2d9 7px 8px)}
+.hmotif.timed{border-top:3px solid #c9b98f;margin-top:19px;overflow:visible}
+.hmotif.timed::before{content:"T+00     T+11     T+17     T+35     T+48";position:absolute;top:8px;left:0;color:#826e46;font:700 7px var(--mono);white-space:pre}
+
 /* thumb motifs (pure CSS mini-illustrations) */
 .tm{position:absolute;inset:0;padding:16px 14px;display:flex;gap:7px}
 .tm .col{display:flex;flex-direction:column;gap:6px;flex:1}
@@ -105,8 +144,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);f
 
 <div class="hero"><div class="wrap">
   <span class="eyebrow"><span class="logo" style="width:18px;height:18px;font-size:10px">B</span> Playground · design research</span>
-  <h1>A visual Blueprints editor — and 6 ways it could look</h1>
-  <p class="lede">Research into everything the team has said about a Blueprint UI, a survey of how comparable products handle “config-as-code that also needs a friendly face,” the progressive-disclosure patterns that make users happy without capping developers — and six clickable design directions to react to, led by a “bill of materials.”</p>
+  <h1>A visual Blueprints editor — directions to explore</h1>
+  <p class="lede">Research into everything the team has said about a Blueprint UI, a survey of how comparable products handle “config-as-code that also needs a friendly face,” the progressive-disclosure patterns that make users happy without capping developers — and clickable design directions to react to, led by a “bill of materials.”</p>
 </div></div>
 
 <div class="wrap">
@@ -127,14 +166,123 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);f
     </div>
   </section>
 
+  <section>
+    <div class="hybrid-set">
+      <h2>Flight Ledger — seven clearer refinements</h2>
+      <p class="section-sub">Seven close relatives of Design 16. They preserve its one-sheet, six-stage run story and vary how the reader scans, groups, predicts, navigates, or works through the details.</p>
+      <div class="hybrid-grid">
+        <a class="hcard" href="mockups/21-flight-ledger-compact.html">
+          <span class="hnum">Design 21 · density</span>
+          <h3>Compact flight ledger</h3>
+          <p>Every decision remains visible, but the six stages read as concise rows with roughly half the vertical travel.</p>
+          <div class="hmotif compact"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </a>
+        <a class="hcard" href="mockups/22-flight-ledger-chapters.html">
+          <span class="hnum">Design 22 · hierarchy</span>
+          <h3>Chaptered flight ledger</h3>
+          <p>The six stages become three memorable chapters: start the machine, assemble the site, and hand over the keys.</p>
+          <div class="hmotif chapters"><i></i><i></i><i></i></div>
+        </a>
+        <a class="hcard" href="mockups/23-flight-ledger-input-output.html">
+          <span class="hnum">Design 23 · causality</span>
+          <h3>Input → outcome ledger</h3>
+          <p>Editable choices sit directly beside the future-tense result they produce, making every consequence explicit.</p>
+          <div class="hmotif io"><i></i></div>
+        </a>
+        <a class="hcard" href="mockups/24-flight-ledger-navigator.html">
+          <span class="hnum">Design 24 · orientation</span>
+          <h3>Navigator flight ledger</h3>
+          <p>A fixed six-stage route keeps the reader oriented while the complete paper ledger scrolls beside it.</p>
+          <div class="hmotif navigator"></div>
+        </a>
+        <a class="hcard" href="mockups/25-flight-ledger-timed.html">
+          <span class="hnum">Design 25 · predictability</span>
+          <h3>Timed flight ledger</h3>
+          <p>Cumulative timestamps and stage estimates turn the same clear build order into a readable schedule.</p>
+          <div class="hmotif timed"></div>
+        </a>
+        <a class="hcard" href="mockups/26-flight-ledger-sheet.html">
+          <span class="hnum">Design 26 · single focus</span>
+          <h3>Single-sheet flight ledger</h3>
+          <p>Design 24’s paper without the rail. Headline-level New actions open stable, anchored popovers.</p>
+          <div class="hmotif"><i class="dot"></i><i class="copy"></i><i class="copy short"></i></div>
+        </a>
+        <a class="hcard" href="mockups/27-flight-ledger-complete.html">
+          <span class="hnum">Design 27 · complete interaction</span>
+          <h3>Complete flight ledger</h3>
+          <p>The single sheet with larger New actions and the mature keyboard, source, editing, focus, and undo behaviors restored.</p>
+          <div class="hmotif"><i class="dot"></i><i class="copy"></i><i class="copy short"></i></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="hybrid-set">
+      <h2>Paper Blueprint × Pre-flight — five hybrids</h2>
+      <p class="section-sub">Five ways to combine Paper Blueprint’s calm, content-specific notation with Pre-flight’s literal answer to “what happens when I press Run.” Each uses the same editable site and live JSON.</p>
+      <div class="hybrid-grid">
+        <a class="hcard" href="mockups/16-flight-ledger.html">
+          <span class="hnum">Design 16 · closest blend</span>
+          <h3>Flight ledger</h3>
+          <p>One paper document in exact runtime order. Every stage keeps its native ledger, table-of-contents, roster, or fine-print notation.</p>
+          <div class="hmotif"><i class="dot"></i><i class="copy"></i><i class="copy short"></i></div>
+        </a>
+        <a class="hcard" href="mockups/17-twin-lens.html">
+          <span class="hnum">Design 17 · simultaneous</span>
+          <h3>Twin lens</h3>
+          <p>A paper manifest beside a sticky run path. Click a future stage and its source material comes into view.</p>
+          <div class="hmotif split"><span><i class="rule"></i><i class="rule"></i><i class="rule"></i></span></div>
+        </a>
+        <a class="hcard" href="mockups/18-build-clearance.html">
+          <span class="hnum">Design 18 · confirmation</span>
+          <h3>Build clearance</h3>
+          <p>Six editable go/no-go claims turn the manifest into a pre-run confirmation record.</p>
+          <div class="hmotif checks"><i>✓</i><span><i class="rule" style="width:130px"></i><i class="rule" style="width:90px"></i></span></div>
+        </a>
+        <a class="hcard" href="mockups/19-plan-flight.html">
+          <span class="hnum">Design 19 · two readings</span>
+          <h3>Paper plan ⇄ Run preview</h3>
+          <p>Edit the same live state as grouped materials or as a future-tense sequence. The toggle changes the reading, not the data.</p>
+          <div class="hmotif toggle"><span>Paper plan</span><span>Run preview</span></div>
+        </a>
+        <a class="hcard" href="mockups/20-runtime-marginalia.html">
+          <span class="hnum">Design 20 · paper-first</span>
+          <h3>Runtime marginalia</h3>
+          <p>Keep the Paper Blueprint intact; add Pre-flight as proofing notes in the margin beside each material.</p>
+          <div class="hmotif margin"><i class="copy"></i><i class="copy short"></i></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- The 5 designs -->
   <section>
-    <h2>Seven design directions</h2>
+    <h2>Eight design directions</h2>
     <p class="section-sub">Each is a self-contained, clickable HTML mockup with an “about this design” panel at the bottom explaining the pattern and the research behind it. Open them side by side.</p>
+
+    <a class="dcard" href="mockups/09-paper-blueprint.html" style="flex-direction:row;margin-bottom:16px;border-color:#e2cf9b;box-shadow:0 0 0 3px #f8f1de, var(--shadow)">
+      <div class="thumb" style="width:290px;flex:none;height:auto;border-bottom:0;border-right:1px solid var(--line);background:#fbfbfc">
+        <span class="dnum" style="background:#b8860b">8</span><span class="tagpos" style="color:#946c06;border-color:#e2cf9b">hybrid source · evolves 7</span>
+        <div class="tm" style="flex-direction:column;gap:6px;padding:14px 16px;justify-content:center">
+          <div class="bar" style="width:34%;height:9px"></div>
+          <div style="display:flex;gap:6px;align-items:center"><div class="bar" style="width:44%;background:#eee2c2"></div><div style="flex:1;border-bottom:1px dotted #d9cba4"></div><div class="bar" style="width:14%;background:#eee2c2"></div></div>
+          <div style="display:flex;gap:6px;align-items:center"><div class="bar" style="width:30%;background:#eee2c2"></div><div style="flex:1;border-bottom:1px dotted #d9cba4"></div><div class="bar" style="width:20%;background:#eee2c2"></div></div>
+          <div class="bar" style="width:26%;height:9px;margin-top:4px"></div>
+          <div style="display:flex;gap:6px;align-items:center"><div class="bar" style="width:52%;background:#eee2c2"></div><div style="flex:1;border-bottom:1px dotted #d9cba4"></div><div class="bar" style="width:10%;background:#eee2c2"></div></div>
+        </div>
+      </div>
+      <div class="body" style="flex:1;padding:18px 20px">
+        <h3>8 · Paper Blueprint <span style="font-size:12px;color:#946c06;font-weight:700">every section speaks its own notation</span></h3>
+        <p>The whole Blueprint reads as <b>one typeset document</b> — quiet ruled sections, no boxes, no accordions. Each section borrows the notation its content already has on paper: plugins are a <b>packing list</b> (small icon-and-name tiles; click one and its ledger line of version / state / options opens below), content is a <b>table of contents</b> with dotted leaders, fonts are <b>type specimens</b> set in themselves, recipes are <b>numbered steps</b> with the parameters as fill-in-the-blanks <i>inside the sentence</i>, options / constants / code are one block of <b>fine print</b>. Names upfront, facts on approach: <b>what's empty doesn't print</b> (its ＋ lines gather at the end) and the editing machinery surfaces only on the line under your cursor, so at rest the whole site fits one calm screen.</p>
+        <div class="foot"><span class="mini">one document, zero boxes</span><span class="mini">ledger · TOC · specimens · steps · fine print</span><span class="mini">empty sections don't print</span><span class="mini">calm at rest, edit in place</span></div>
+        <div class="open">Open Paper Blueprint →</div>
+      </div>
+    </a>
 
     <a class="dcard" href="mockups/08-site-card.html" style="flex-direction:row;margin-bottom:16px;border-color:#dcc8f7;box-shadow:0 0 0 3px #f3ebfd, var(--shadow)">
       <div class="thumb" style="width:290px;flex:none;height:auto;border-bottom:0;border-right:1px solid var(--line);background:#fbfbfc">
-        <span class="dnum" style="background:#7b3fe4">7</span><span class="tagpos" style="color:#7b3fe4;border-color:#dcc8f7">newest · evolves 6</span>
+        <span class="dnum" style="background:#7b3fe4">7</span><span class="tagpos" style="color:#7b3fe4;border-color:#dcc8f7">evolves 6</span>
         <div class="tm" style="flex-direction:row;gap:9px;padding:16px 14px;align-items:flex-start">
           <div style="border:1px solid #dcc8f7;border-radius:7px;width:74px;height:56px;background:linear-gradient(#f3ebfd 30%,#faf7ff 30%);flex:none"></div>
           <div class="col"><div class="bar" style="width:70%;height:9px"></div><div class="bar" style="width:92%;background:#e8defb"></div><div class="bar" style="width:52%;background:#e8defb"></div></div>
@@ -142,9 +290,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);f
       </div>
       <div class="body" style="flex:1;padding:18px 20px">
         <h3>7 · Site Card <span style="font-size:12px;color:#7b3fe4;font-weight:700">the site is the control</span></h3>
-        <p><b>Identity is edited directly on a mini-site</b>: the theme IS the screenshot (click it → an installed-themes gallery), the title IS the headline, the landing page IS the address bar, the environment IS the spec line, users ARE the avatar stack. <b>Category rows remain only for true collections</b> — Plugins and Content. No “Themes” lane, no duplicated “Site title”.</p>
+        <p><b>Identity is edited directly on a mini-site</b>: the theme IS the screenshot (click it → an installed-themes gallery), the title IS the headline, the landing page IS the address bar, the environment IS the spec line, users ARE the avatar stack. <b>Collections are always-visible shelves</b> — plugins, content, files &amp; media, fonts, configurable recipes — with undo everywhere, a live JSON tab, and a Run that carries bundled bytes into an embedded Playground.</p>
         <div class="foot"><span class="mini">direct manipulation</span><span class="mini">theme = screenshot</span><span class="mini">env = spec line</span><span class="mini">users = avatars</span></div>
-        <div class="open">Open the newest exploration →</div>
+        <div class="open">Open the site card →</div>
       </div>
     </a>
 
@@ -300,7 +448,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);f
     <b>Files in this bundle</b>
     <div class="filelist">
       <a href="README.md">README.md — full writeup</a>
-      <a href="mockups/08-site-card.html">08-site-card.html (newest — site card)</a>
+      <a href="mockups/21-flight-ledger-compact.html">21-flight-ledger-compact.html</a>
+      <a href="mockups/22-flight-ledger-chapters.html">22-flight-ledger-chapters.html</a>
+      <a href="mockups/23-flight-ledger-input-output.html">23-flight-ledger-input-output.html</a>
+      <a href="mockups/24-flight-ledger-navigator.html">24-flight-ledger-navigator.html</a>
+      <a href="mockups/25-flight-ledger-timed.html">25-flight-ledger-timed.html</a>
+      <a href="mockups/26-flight-ledger-sheet.html">26-flight-ledger-sheet.html</a>
+      <a href="mockups/27-flight-ledger-complete.html">27-flight-ledger-complete.html</a>
+      <a href="mockups/16-flight-ledger.html">16-flight-ledger.html</a>
+      <a href="mockups/17-twin-lens.html">17-twin-lens.html</a>
+      <a href="mockups/18-build-clearance.html">18-build-clearance.html</a>
+      <a href="mockups/19-plan-flight.html">19-plan-flight.html</a>
+      <a href="mockups/20-runtime-marginalia.html">20-runtime-marginalia.html</a>
+      <a href="mockups/09-paper-blueprint.html">09-paper-blueprint.html (paper blueprint source)</a>
+      <a href="mockups/08-site-card.html">08-site-card.html (site card)</a>
       <a href="mockups/07-bom-minimal.html">07-bom-minimal.html ★ recommended</a>
       <a href="mockups/06-bill-of-materials.html">06-bill-of-materials.html (full/expanded)</a>
       <a href="mockups/01-recipe-cards.html">01-recipe-cards.html</a>

@@ -1,0 +1,1150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-flight — Adam's Demo Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --ink: #1e1e1e;
+  --muted: #50575e;
+  --line: #dcdcde;
+  --line-strong: #c3c4c7;
+  --soft: #f6f7f7;
+  --blue: #3858e9;
+  --blue-dark: #2145e6;
+}
+* { box-sizing: border-box; }
+html { background: #f0f0f1; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 400 15px/1.5 Inter, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+code, pre { font-family: "IBM Plex Mono", monospace; }
+
+.sheet {
+  max-width: 860px;
+  margin: 36px auto 130px;
+  padding: 40px 48px 48px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* ---- masthead ---- */
+.masthead { display: flex; gap: 32px; align-items: flex-start; justify-content: space-between; }
+.title-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+h1 {
+  margin: 0;
+  font-family: Fraunces, serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 40px;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+#siteTitle { border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
+#siteTitle:focus { outline: 2px solid var(--ink); outline-offset: 3px; }
+.lede { margin: 14px 0 0; font-size: 16px; color: var(--muted); }
+.lede strong { color: var(--ink); font-weight: 600; }
+
+/* ---- mini browser frame ---- */
+.mini-browser {
+  flex: none;
+  width: 148px;
+  margin: 4px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(30, 30, 30, .08);
+}
+.mb-bar { display: flex; gap: 3px; padding: 5px 7px; border-bottom: 1px solid var(--line); background: #f0f0f1; }
+.mb-bar i { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); }
+.mb-shot img, .mb-shot .shot-blank { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; }
+.shot-blank {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  background: #e7e8ea;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---- timeline ---- */
+.timeline { list-style: none; margin: 30px 0 0; padding: 0; }
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  column-gap: 22px;
+  align-items: start;
+  padding: 22px 0;
+}
+.stage:not(.end)::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 56px;
+  bottom: -30px;
+  width: 2px;
+  background: var(--line);
+}
+.num {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+.enddot {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 4px #fff;
+}
+.headline { margin: 4px 0 0; font-size: 18px; font-weight: 600; line-height: 1.6; }
+.headline .chip { margin: 2px 1px; vertical-align: middle; }
+.fact { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.fact code { padding: 1px 6px; border-radius: 4px; background: var(--soft); font-size: 13px; }
+
+/* ---- controls ---- */
+.chip {
+  min-height: 40px;
+  padding: 7px 30px 7px 11px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center / 10px;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 100%;
+}
+.chip:hover { border-color: #8c8f94; }
+.btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover { border-color: #8c8f94; background: var(--soft); }
+.btn.sm { padding: 6px 12px; font-size: 13.5px; }
+.run {
+  min-height: 52px;
+  padding: 14px 30px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.run:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+
+.switch { position: relative; display: inline-flex; align-items: center; min-height: 40px; vertical-align: middle; cursor: pointer; }
+.switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.switch .track { position: relative; flex: none; width: 40px; height: 24px; border-radius: 12px; background: var(--line-strong); transition: background .15s; }
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  transition: left .15s;
+}
+.switch input:checked + .track { background: var(--ink); }
+.switch input:checked + .track::after { left: 19px; }
+.switch input:focus-visible + .track { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---- stage 2: theme ---- */
+.theme-wrap { display: flex; gap: 18px; align-items: flex-start; margin-top: 14px; }
+.theme-wrap .mini-browser { width: 120px; margin: 0; }
+
+/* ---- stage 3: plugins ---- */
+.prow {
+  display: grid;
+  grid-template-columns: 36px 1fr auto auto auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 58px;
+  padding: 9px 0;
+}
+.prow + .prow { border-top: 1px solid var(--line); }
+.plist { margin-top: 12px; }
+.picon, .tile { width: 36px; height: 36px; border-radius: 8px; }
+.picon { object-fit: cover; background: var(--soft); }
+.tile { display: grid; place-items: center; background: #e7e8ea; color: var(--muted); font-size: 16px; font-weight: 600; }
+.pmeta strong { display: block; font-size: 15.5px; line-height: 1.3; }
+.pmeta span { display: block; margin-top: 2px; font-size: 13.5px; color: var(--muted); }
+.offchip {
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.check { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; color: var(--muted); font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+.addrow { margin-top: 12px; }
+
+/* ---- stage 4: content ---- */
+.expander { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; }
+.expander .caret { transition: transform .12s; font-size: 11px; color: var(--muted); }
+.expander[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.content-panel { max-height: 190px; margin-top: 10px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.crow { display: flex; gap: 16px; align-items: center; justify-content: space-between; min-height: 44px; padding: 7px 14px; }
+.crow + .crow { border-top: 1px solid var(--line); }
+.crow strong { font-size: 15px; font-weight: 600; }
+.crow span { font-size: 13.5px; color: var(--muted); text-align: right; }
+
+/* ---- stage 5: users ---- */
+.urow { display: flex; gap: 16px; align-items: center; min-height: 44px; padding: 5px 0; }
+.urow + .urow { border-top: 1px solid var(--line); }
+.ulist { margin-top: 10px; }
+.uname { font-family: "IBM Plex Mono", monospace; font-size: 14.5px; font-weight: 500; }
+.urole { font-size: 14px; color: var(--muted); }
+.signin { margin: 14px 0 0; font-size: 15.5px; font-weight: 600; line-height: 1.6; }
+.signin .chip { vertical-align: middle; margin-left: 2px; }
+
+/* ---- stage 6: scripts ---- */
+.srow { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; min-height: 54px; padding: 7px 0; }
+.srow + .srow { border-top: 1px solid var(--line); }
+.slist { margin-top: 12px; }
+.srow strong { font-size: 15.5px; font-weight: 500; }
+
+/* ---- terminal ---- */
+.stage.end { padding-top: 26px; }
+.trust { max-width: 600px; margin: 0 0 18px; font-size: 14px; color: var(--muted); }
+.trust code { padding: 1px 6px; border-radius: 4px; background: var(--soft); font-size: 13px; }
+.go-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* ---- modals ---- */
+.overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(30, 30, 30, .45); }
+.overlay[hidden] { display: none; }
+.modal {
+  width: min(660px, 100%);
+  max-height: min(700px, 92vh);
+  overflow: auto;
+  padding: 20px 24px 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
+}
+.m-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.m-head h3 { margin: 0; font-size: 18px; }
+.m-label { margin: 16px 0 8px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.m-note { margin: 12px 0 0; font-size: 13.5px; color: var(--muted); }
+.search { width: 100%; min-height: 44px; margin-top: 16px; padding: 8px 13px; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 15px; }
+.search.mt0 { margin-top: 0; }
+.tgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ttile { position: relative; overflow: hidden; padding: 0 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; text-align: left; cursor: pointer; }
+.ttile:hover { border-color: #8c8f94; }
+.ttile.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.ttile img, .ttile .shot-blank { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; border-bottom: 1px solid var(--line); }
+.ttile .tname { display: block; padding: 8px 10px 0; font-size: 14px; font-weight: 600; }
+.tchip { display: inline-block; margin: 6px 10px 0; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 13.5px; font-weight: 600; }
+.presrow { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; width: 100%; min-height: 52px; padding: 8px 10px; border: 0; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; }
+.presrow:hover { background: var(--soft); }
+.presrow.hi { background: var(--soft); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.presrow img, .presrow .tile { width: 32px; height: 32px; border-radius: 6px; }
+.presrow .tile { font-size: 14px; }
+.prname { font-size: 15px; font-weight: 600; }
+.prinstalls { font-size: 13.5px; color: var(--muted); white-space: nowrap; }
+pre.codeview {
+  max-height: 56vh;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* ---- toast ---- */
+.toast {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .3);
+}
+.toast[hidden] { display: none; }
+.toast button { min-height: 40px; padding: 6px 14px; border: 1px solid #5b5b5b; border-radius: 6px; background: transparent; color: #fff; font-weight: 600; cursor: pointer; }
+.toast button:hover { background: #333; }
+
+/* ---- about pill ---- */
+.designnote {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 70;
+  max-width: min(460px, calc(100vw - 28px));
+  border: 1px solid #2a2d34;
+  border-radius: 16px;
+  background: #111319;
+  color: #cfd6e4;
+  font-size: 13px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .28);
+}
+.dn-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 6px 13px 6px 8px; border: 0; background: none; color: inherit; cursor: pointer; }
+.badge { padding: 3px 10px; border-radius: 999px; background: #00844a; color: #fff; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.dn-hint { color: #8a94a6; }
+.dn-body { display: none; padding: 0 16px 14px; line-height: 1.6; }
+.designnote.open .dn-body { display: block; }
+
+@media (max-width: 760px) {
+  .sheet { margin: 0 0 130px; padding: 24px 18px 40px; border: 0; border-radius: 0; }
+  .masthead { flex-direction: column; gap: 18px; }
+  .prow { grid-template-columns: 36px 1fr auto; }
+  .prow .check, .prow .offchip { grid-column: 2 / -1; }
+  .tgrid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="masthead">
+    <div>
+      <div class="title-row">
+        <h1><span id="siteTitle" contenteditable="plaintext-only" spellcheck="false" role="textbox" aria-label="Site title">Adam's Demo Store</span></h1>
+        <button class="btn sm" id="renameBtn">Rename</button>
+      </div>
+      <p class="lede">Pressing <strong>Run</strong> builds this site in about a minute:</p>
+    </div>
+    <figure class="mini-browser" aria-hidden="true">
+      <div class="mb-bar"><i></i><i></i><i></i></div>
+      <div class="mb-shot" id="mastShotWrap"></div>
+    </figure>
+  </header>
+
+  <ol class="timeline">
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">1</span>
+      <div>
+        <h2 class="headline">WordPress
+          <select class="chip" id="selWp" aria-label="WordPress version">
+            <option value="latest" selected>latest (6.8 today)</option>
+            <option value="6.7">6.7</option>
+            <option value="6.6">6.6</option>
+            <option value="nightly">nightly (next release)</option>
+          </select>
+          and PHP
+          <select class="chip" id="selPhp" aria-label="PHP version">
+            <option>8.4</option>
+            <option selected>8.3</option>
+            <option>8.2</option>
+            <option>8.1</option>
+            <option>8.0</option>
+            <option>7.4</option>
+          </select>
+          boot, in
+          <select class="chip" id="selLang" aria-label="Language">
+            <option value="en_US" selected>English (US)</option>
+            <option value="en_GB">English (UK)</option>
+            <option value="de_DE">Deutsch</option>
+            <option value="es_ES">Español</option>
+            <option value="fr_FR">Français</option>
+            <option value="pl_PL">Polski</option>
+          </select>
+        </h2>
+        <p class="fact">The web server and database are included — everything lives in your browser tab.</p>
+      </div>
+    </li>
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">2</span>
+      <div>
+        <h2 class="headline">The <span id="themeName">Storefront</span> theme goes live</h2>
+        <p class="fact" id="themeExtra"></p>
+        <div class="theme-wrap">
+          <figure class="mini-browser" aria-hidden="true">
+            <div class="mb-bar"><i></i><i></i><i></i></div>
+            <div class="mb-shot" id="stageShotWrap"></div>
+          </figure>
+          <button class="btn" id="changeThemeBtn">Change theme</button>
+        </div>
+      </div>
+    </li>
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">3</span>
+      <div>
+        <h2 class="headline" id="h3head">3 plugins install</h2>
+        <p class="fact" id="h3fact"></p>
+        <div class="plist" id="pluginRows"></div>
+        <div class="addrow"><button class="btn" id="addPluginBtn">+ Add plugin</button></div>
+      </div>
+    </li>
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">4</span>
+      <div>
+        <h2 class="headline" id="h4head">Content arrives: 3 starter pages + 12 sample products</h2>
+        <p class="fact">Starts blank, then this is added.</p>
+        <button class="btn expander" id="expandBtn" aria-expanded="false" aria-controls="contentPanel">
+          <span id="expLabel">See the list</span><span class="caret" aria-hidden="true">▼</span>
+        </button>
+        <div class="content-panel" id="contentPanel" hidden></div>
+      </div>
+    </li>
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">5</span>
+      <div>
+        <h2 class="headline" id="h5head">2 users are created</h2>
+        <div class="ulist" id="userRows"></div>
+        <p class="signin">You'll be signed in as
+          <select class="chip" id="selLogin" aria-label="Who you'll be signed in as">
+            <option value="admin" selected>admin</option>
+            <option value="demo-editor">demo-editor</option>
+            <option value="none">no one</option>
+          </select>
+        </p>
+      </div>
+    </li>
+
+    <li class="stage">
+      <span class="num" aria-hidden="true">6</span>
+      <div>
+        <h2 class="headline"><span id="h6a">2 finishing scripts run, then</span>
+          <select class="chip" id="selLanding" aria-label="Page that appears first">
+            <option value="/wp-admin/edit.php?post_type=product" selected>the Products page</option>
+            <option value="/wp-admin/">the dashboard</option>
+            <option value="/">the homepage</option>
+            <option value="/wp-admin/plugins.php">the Plugins page</option>
+          </select>
+          appears, <span id="h6net">with internet access</span>
+          <label class="switch"><input type="checkbox" id="netSwitch" checked aria-label="Internet access"><span class="track"></span></label>
+        </h2>
+        <p class="fact"><code id="landPath">/wp-admin/edit.php?post_type=product</code></p>
+        <div class="slist" id="scriptRows"></div>
+      </div>
+    </li>
+
+    <li class="stage end">
+      <span class="enddot" aria-hidden="true"></span>
+      <div>
+        <p class="trust">Everything above is one <code>blueprint.json</code> — press Run to build a fresh site from it. Nothing is installed until then.</p>
+        <div class="go-row">
+          <button class="run" id="runBtn">Run — build this site now</button>
+          <button class="btn" id="jsonBtn">View the JSON</button>
+        </div>
+      </div>
+    </li>
+
+  </ol>
+</main>
+
+<!-- theme picker -->
+<div class="overlay" id="themeModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="themeModalTitle">
+    <div class="m-head"><h3 id="themeModalTitle">Pick the theme that goes live</h3><button class="btn sm" data-close>Close</button></div>
+    <div class="m-label">In this Blueprint</div>
+    <div class="tgrid" id="installedThemes"></div>
+    <input type="search" class="search" id="themeSearch" placeholder="Search WordPress.org themes" aria-label="Search WordPress.org themes" data-autofocus>
+    <div class="m-label" id="themeResLabel" hidden>From WordPress.org</div>
+    <div class="tgrid" id="themeResults"></div>
+    <p class="m-note" id="themeNote" hidden></p>
+  </div>
+</div>
+
+<!-- plugin picker -->
+<div class="overlay" id="pluginModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pluginModalTitle">
+    <div class="m-head"><h3 id="pluginModalTitle">Add a plugin</h3><button class="btn sm" data-close>Close</button></div>
+    <input type="search" class="search mt0" id="pluginSearch" placeholder="Search WordPress.org plugins" aria-label="Search WordPress.org plugins" data-autofocus>
+    <div class="m-label" id="plugResLabel">Popular on WordPress.org</div>
+    <div id="pluginResults"></div>
+    <p class="m-note" id="plugNote" hidden></p>
+    <p class="m-note">↓ ↑ to move · Enter to add</p>
+  </div>
+</div>
+
+<!-- script code -->
+<div class="overlay" id="codeModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="codeTitle">
+    <div class="m-head"><h3 id="codeTitle"></h3><button class="btn sm" data-close>Close</button></div>
+    <pre class="codeview" id="codePre" tabindex="0"></pre>
+  </div>
+</div>
+
+<!-- live JSON -->
+<div class="overlay" id="jsonModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="jsonTitle">
+    <div class="m-head"><h3 id="jsonTitle">The blueprint.json behind this page</h3><button class="btn sm" data-close>Close</button></div>
+    <pre class="codeview" id="jsonPre" tabindex="0"></pre>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toastMsg"></span>
+  <button id="toastUndo">Undo</button>
+</div>
+
+<div class="designnote" id="dnote">
+  <button class="dn-head" id="dnHead" aria-expanded="false">
+    <span class="badge">Design 13 · Pre-flight</span>
+    <span class="dn-hint">about</span>
+  </button>
+  <div class="dn-body">
+    The bet: the page is the literal answer to “what happens when I press Run”, so trust anxiety
+    has nowhere to live. 6 numbered stages read as one ordered story — boot, theme, plugins,
+    content, users, finish — each a future-tense outcome with its controls sitting inside the row.
+    Nothing hides in tabs or accordions; the only expandable list scrolls inside itself, so the
+    6-stage map never leaves the screen. The timeline terminates in the single blue element on
+    the page: the Run button, placed like a checkout confirm.
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const PHP_GUIDES = `<?php
+require '/wordpress/wp-load.php';
+
+// Skip the block editor welcome guide for the admin user.
+update_user_meta(
+	1,
+	'wp_persisted_preferences',
+	array( 'core/edit-post' => array( 'welcomeGuide' => false ) )
+);
+
+// Hide the WooCommerce setup task list.
+update_option( 'woocommerce_task_list_hidden', 'yes' );
+`;
+
+const PHP_COUPON = `<?php
+require '/wordpress/wp-load.php';
+
+// A 10% coupon so the checkout can be tested right away.
+$coupon = new WC_Coupon();
+$coupon->set_code( 'WELCOME10' );
+$coupon->set_discount_type( 'percent' );
+$coupon->set_amount( 10 );
+$coupon->save();
+`;
+
+const state = {
+	title: "Adam's Demo Store",
+	wp: 'latest',
+	php: '8.3',
+	lang: 'en_US',
+	themes: [
+		{ slug: 'storefront', name: 'Storefront', shot: 'https://ts.w.org/wp-content/themes/storefront/screenshot.png' },
+		{ slug: 'twentytwentyfive', name: 'Twenty Twenty-Five', shot: 'https://ts.w.org/wp-content/themes/twentytwentyfive/screenshot.png' }
+	],
+	activeTheme: 'storefront',
+	plugins: [
+		{ slug: 'woocommerce', name: 'WooCommerce', icon: 'https://ps.w.org/woocommerce/assets/icon.svg', version: '9.4', source: 'wporg', activate: true },
+		{ slug: 'wordpress-seo', name: 'Yoast SEO', icon: 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', version: 'latest', source: 'wporg', activate: true },
+		{ slug: 'query-monitor', name: 'Query Monitor', icon: 'https://ps.w.org/query-monitor/assets/icon-256x256.png', version: 'latest', source: 'file', activate: false }
+	],
+	content: { pages: ['About', 'Contact', 'Shop'], products: 12 },
+	users: [
+		{ username: 'admin', role: 'Administrator', roleSlug: 'administrator' },
+		{ username: 'demo-editor', role: 'Store manager — a custom role', roleSlug: 'store_manager' }
+	],
+	login: 'admin',
+	landing: '/wp-admin/edit.php?post_type=product',
+	networking: true,
+	scripts: [
+		{ name: 'Hide the WordPress welcome guides', php: PHP_GUIDES },
+		{ name: 'Add a WELCOME10 coupon for testing', php: PHP_COUPON }
+	]
+};
+
+const CURATED_PLUGINS = [
+	{ slug: 'contact-form-7', name: 'Contact Form 7', icon: 'https://ps.w.org/contact-form-7/assets/icon.svg', installsText: '10,000,000+ installs' },
+	{ slug: 'elementor', name: 'Elementor', icon: 'https://ps.w.org/elementor/assets/icon.svg', installsText: '10,000,000+ installs' },
+	{ slug: 'wordfence', name: 'Wordfence Security', icon: 'https://ps.w.org/wordfence/assets/icon.svg', installsText: '5,000,000+ installs' },
+	{ slug: 'akismet', name: 'Akismet Anti-spam', icon: 'https://ps.w.org/akismet/assets/icon-256x256.png', installsText: '7,000,000+ installs' },
+	{ slug: 'jetpack', name: 'Jetpack', icon: 'https://ps.w.org/jetpack/assets/icon.svg', installsText: '4,000,000+ installs' },
+	{ slug: 'wpforms-lite', name: 'WPForms', icon: 'https://ps.w.org/wpforms-lite/assets/icon.svg', installsText: '6,000,000+ installs' }
+];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dec = (s) => { const t = document.createElement('textarea'); t.innerHTML = s; return t.value; };
+
+const undoStack = [];
+const layers = [];
+let toastTimer = null;
+
+init();
+
+function init() {
+	// stage 1
+	$('selWp').addEventListener('change', (e) => { state.wp = e.target.value; });
+	$('selPhp').addEventListener('change', (e) => { state.php = e.target.value; });
+	$('selLang').addEventListener('change', (e) => { state.lang = e.target.value; });
+
+	// title
+	const titleEl = $('siteTitle');
+	let titleBefore = state.title;
+	titleEl.addEventListener('focus', () => { titleBefore = titleEl.textContent; });
+	titleEl.addEventListener('input', () => { state.title = titleEl.textContent; });
+	titleEl.addEventListener('blur', () => {
+		const v = titleEl.textContent.replace(/\s+/g, ' ').trim();
+		state.title = v || 'Untitled site';
+		titleEl.textContent = state.title;
+	});
+	titleEl.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+		if (e.key === 'Escape') {
+			e.stopPropagation();
+			titleEl.textContent = titleBefore;
+			state.title = titleBefore;
+			titleEl.blur();
+		}
+	});
+	$('renameBtn').addEventListener('click', () => {
+		titleEl.focus();
+		const r = document.createRange();
+		r.selectNodeContents(titleEl);
+		const sel = getSelection();
+		sel.removeAllRanges();
+		sel.addRange(r);
+	});
+
+	// stage 2
+	$('changeThemeBtn').addEventListener('click', (e) => openThemeModal(e.currentTarget));
+
+	// stage 3
+	$('addPluginBtn').addEventListener('click', (e) => openPluginModal(e.currentTarget));
+	$('pluginRows').addEventListener('click', (e) => {
+		const rm = e.target.closest('[data-rm]');
+		if (rm) removePlugin(+rm.dataset.rm);
+	});
+	$('pluginRows').addEventListener('change', (e) => {
+		const cb = e.target.closest('input[data-act]');
+		if (!cb) return;
+		const p = state.plugins[+cb.dataset.act];
+		p.activate = cb.checked;
+		cb.closest('.prow').querySelector('.offchip').hidden = p.activate;
+		renderPluginSummary();
+	});
+
+	// stage 4
+	$('expandBtn').addEventListener('click', () => {
+		const panel = $('contentPanel');
+		const open = panel.hidden;
+		panel.hidden = !open;
+		$('expandBtn').setAttribute('aria-expanded', String(open));
+		$('expLabel').textContent = open ? 'Hide the list' : 'See the list';
+	});
+
+	// stage 5
+	$('selLogin').addEventListener('change', (e) => { state.login = e.target.value; });
+
+	// stage 6
+	$('selLanding').addEventListener('change', (e) => {
+		state.landing = e.target.value;
+		$('landPath').textContent = state.landing;
+	});
+	$('netSwitch').addEventListener('change', (e) => {
+		state.networking = e.target.checked;
+		$('h6net').textContent = state.networking ? 'with internet access' : 'without internet access';
+	});
+	$('scriptRows').addEventListener('click', (e) => {
+		const code = e.target.closest('[data-code]');
+		if (code) { openCodeModal(+code.dataset.code, code); return; }
+		const rm = e.target.closest('[data-rm]');
+		if (rm) removeScript(+rm.dataset.rm);
+	});
+
+	// terminal
+	$('runBtn').addEventListener('click', () => {
+		const bp = buildBlueprint();
+		window.open('https://playground.wordpress.net/#' + encodeURIComponent(JSON.stringify(bp)));
+	});
+	$('jsonBtn').addEventListener('click', (e) => {
+		$('jsonPre').textContent = JSON.stringify(buildBlueprint(), null, 2);
+		openModal('jsonModal', e.currentTarget);
+	});
+
+	// modals
+	document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeTopLayer));
+	document.querySelectorAll('.overlay').forEach((ov) => {
+		ov.addEventListener('mousedown', (e) => { if (e.target === ov) closeTopLayer(); });
+	});
+
+	// toast + keyboard
+	$('toastUndo').addEventListener('click', undoLast);
+	document.addEventListener('keydown', onGlobalKey);
+
+	// about pill
+	$('dnHead').addEventListener('click', () => toggleNote());
+
+	wireThemeSearch();
+	wirePluginSearch();
+	// Esc in a non-empty search clears it; a second Esc closes the modal.
+	[$('themeSearch'), $('pluginSearch')].forEach((input) => {
+		input.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && input.value) {
+				e.stopPropagation();
+				input.value = '';
+				input.dispatchEvent(new Event('input'));
+			}
+		});
+	});
+
+	renderTheme();
+	renderPlugins();
+	renderContent();
+	renderUsers();
+	renderStage6();
+}
+
+function onGlobalKey(e) {
+	if (e.key === 'Escape') {
+		if (layers.length) { closeTopLayer(); return; }
+		if ($('dnote').classList.contains('open')) toggleNote(false);
+		return;
+	}
+	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+		const a = document.activeElement;
+		if (a && (a.tagName === 'INPUT' || a.isContentEditable)) return;
+		e.preventDefault();
+		undoLast();
+	}
+}
+
+/* ---------- rendering ---------- */
+
+function renderTheme() {
+	const t = state.themes.find((x) => x.slug === state.activeTheme);
+	$('themeName').textContent = t.name;
+	const shot = (id) => {
+		$(id).innerHTML = '<img src="' + esc(t.shot) + '" alt="' + esc(t.name) + ' theme" data-fb="' + esc(t.name) + '" data-kind="shot">';
+		armImgs($(id));
+	};
+	shot('mastShotWrap');
+	shot('stageShotWrap');
+	const others = state.themes.filter((x) => x.slug !== state.activeTheme);
+	$('themeExtra').textContent = others.length
+		? '+' + others.length + ' more theme' + (others.length > 1 ? 's' : '') + ' installed: ' + others.map((x) => x.name).join(', ')
+		: 'The only theme installed.';
+}
+
+function renderPlugins() {
+	const rows = state.plugins.map((p, i) => {
+		const src = p.source === 'file'
+			? 'From a file in this Blueprint'
+			: 'From WordPress.org · ' + (p.version === 'latest' ? 'latest version' : 'version ' + esc(p.version));
+		return '<div class="prow">'
+			+ pluginIconHtml(p)
+			+ '<div class="pmeta"><strong>' + esc(p.name) + '</strong><span>' + src + '</span></div>'
+			+ '<span class="offchip"' + (p.activate ? ' hidden' : '') + '>Installs, stays off</span>'
+			+ '<label class="check"><input type="checkbox" data-act="' + i + '"' + (p.activate ? ' checked' : '') + '> Activate after install</label>'
+			+ '<button class="btn sm" data-rm="' + i + '">Remove</button>'
+			+ '</div>';
+	});
+	$('pluginRows').innerHTML = rows.join('');
+	armImgs($('pluginRows'));
+	renderPluginSummary();
+}
+
+function renderPluginSummary() {
+	const n = state.plugins.length;
+	const on = state.plugins.filter((p) => p.activate).length;
+	const off = n - on;
+	$('h3head').textContent = n === 0 ? 'No plugins install' : n + ' plugin' + (n > 1 ? 's' : '') + ' install' + (n === 1 ? 's' : '');
+	let fact = '';
+	if (n > 0) {
+		if (off === 0) fact = n === 1 ? 'It turns on right away' : 'All ' + n + ' turn on right away';
+		else if (on === 0) fact = n === 1 ? 'It installs, stays off' : 'All ' + n + ' stay off';
+		else fact = on + ' turn' + (on === 1 ? 's' : '') + ' on right away · ' + off + ' stay' + (off === 1 ? 's' : '') + ' off';
+	}
+	$('h3fact').textContent = fact;
+	$('h3fact').hidden = !fact;
+}
+
+function pluginIconHtml(p) {
+	if (!p.icon) return '<span class="tile">' + esc((p.name || '?').charAt(0).toUpperCase()) + '</span>';
+	return '<img class="picon" src="' + esc(p.icon) + '" alt="" data-fb="' + esc(p.name) + '" data-kind="icon">';
+}
+
+function renderContent() {
+	const c = state.content;
+	$('h4head').textContent = 'Content arrives: ' + c.pages.length + ' starter pages + ' + c.products + ' sample products';
+	$('contentPanel').innerHTML = c.pages.map((p) =>
+		'<div class="crow"><strong>' + esc(p) + '</strong><span>Starter page</span></div>'
+	).join('') + '<div class="crow"><strong>' + c.products + ' sample products</strong><span>WooCommerce’s sample catalog — hoodies, tees, caps</span></div>';
+}
+
+function renderUsers() {
+	$('h5head').textContent = state.users.length + ' users are created';
+	$('userRows').innerHTML = state.users.map((u) =>
+		'<div class="urow"><span class="uname">' + esc(u.username) + '</span><span class="urole">' + esc(u.role) + '</span></div>'
+	).join('');
+}
+
+function renderStage6() {
+	const n = state.scripts.length;
+	$('h6a').textContent = n > 0
+		? n + ' finishing script' + (n > 1 ? 's' : '') + ' run' + (n === 1 ? 's' : '') + ', then'
+		: 'When it’s ready,';
+	$('scriptRows').innerHTML = state.scripts.map((s, i) =>
+		'<div class="srow"><strong>' + esc(s.name) + '</strong>'
+		+ '<button class="btn sm" data-code="' + i + '">View code</button>'
+		+ '<button class="btn sm" data-rm="' + i + '">Remove</button></div>'
+	).join('');
+}
+
+/* ---------- removal + undo ---------- */
+
+function removePlugin(i) {
+	const [item] = state.plugins.splice(i, 1);
+	undoStack.push({ list: state.plugins, item, index: i, after: renderPlugins });
+	renderPlugins();
+	showToast('Removed ' + item.name, true);
+}
+
+function removeScript(i) {
+	const [item] = state.scripts.splice(i, 1);
+	undoStack.push({ list: state.scripts, item, index: i, after: renderStage6 });
+	renderStage6();
+	showToast('Removed ' + item.name, true);
+}
+
+function undoLast() {
+	const u = undoStack.pop();
+	if (!u) { hideToast(); return; }
+	u.list.splice(u.index, 0, u.item);
+	u.after();
+	hideToast();
+}
+
+function showToast(msg, undoable) {
+	$('toastMsg').textContent = msg;
+	$('toastUndo').hidden = !undoable;
+	$('toast').hidden = false;
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(hideToast, 6000);
+}
+
+function hideToast() {
+	clearTimeout(toastTimer);
+	$('toast').hidden = true;
+}
+
+/* ---------- theme picker ---------- */
+
+function openThemeModal(opener) {
+	renderInstalledThemes();
+	$('themeSearch').value = '';
+	$('themeResults').innerHTML = '';
+	$('themeResLabel').hidden = true;
+	$('themeNote').hidden = true;
+	openModal('themeModal', opener);
+}
+
+function renderInstalledThemes() {
+	$('installedThemes').innerHTML = state.themes.map((t) =>
+		'<button class="ttile' + (t.slug === state.activeTheme ? ' active' : '') + '" data-pick="' + esc(t.slug) + '">'
+		+ '<img src="' + esc(t.shot) + '" alt="" data-fb="' + esc(t.name) + '" data-kind="shot">'
+		+ '<span class="tname">' + esc(t.name) + '</span>'
+		+ (t.slug === state.activeTheme ? '<span class="tchip">Will be active</span>' : '')
+		+ '</button>'
+	).join('');
+	armImgs($('installedThemes'));
+	$('installedThemes').querySelectorAll('[data-pick]').forEach((b) => {
+		b.addEventListener('click', () => pickTheme(state.themes.find((t) => t.slug === b.dataset.pick)));
+	});
+}
+
+function pickTheme(t) {
+	if (!state.themes.some((x) => x.slug === t.slug)) state.themes.push(t);
+	state.activeTheme = t.slug;
+	closeTopLayer();
+	renderTheme();
+}
+
+function wireThemeSearch() {
+	let timer = null;
+	let reqId = 0;
+	$('themeSearch').addEventListener('input', () => {
+		clearTimeout(timer);
+		const q = $('themeSearch').value.trim();
+		if (!q) {
+			reqId++;
+			$('themeResults').innerHTML = '';
+			$('themeResLabel').hidden = true;
+			$('themeNote').hidden = true;
+			return;
+		}
+		timer = setTimeout(async () => {
+			const id = ++reqId;
+			note('themeNote', 'Searching WordPress.org…');
+			try {
+				const r = await fetch('https://api.wordpress.org/themes/info/1.2/?action=query_themes'
+					+ '&request[search]=' + encodeURIComponent(q)
+					+ '&request[per_page]=6&request[fields][screenshot_url]=1');
+				const data = await r.json();
+				if (id !== reqId) return;
+				renderThemeResults(data.themes || [], q);
+			} catch (err) {
+				if (id !== reqId) return;
+				$('themeResults').innerHTML = '';
+				$('themeResLabel').hidden = true;
+				note('themeNote', 'Search needs internet — the themes above still work.');
+			}
+		}, 300);
+	});
+}
+
+function renderThemeResults(themes, q) {
+	if (!themes.length) {
+		$('themeResults').innerHTML = '';
+		$('themeResLabel').hidden = true;
+		note('themeNote', 'No themes found for “' + q + '”.');
+		return;
+	}
+	$('themeNote').hidden = true;
+	$('themeResLabel').hidden = false;
+	const items = themes.map((t) => {
+		let shot = t.screenshot_url || '';
+		if (shot.startsWith('//')) shot = 'https:' + shot;
+		return { slug: t.slug, name: dec(t.name || t.slug), shot };
+	});
+	$('themeResults').innerHTML = items.map((t, i) =>
+		'<button class="ttile" data-res="' + i + '">'
+		+ '<img src="' + esc(t.shot) + '" alt="" data-fb="' + esc(t.name) + '" data-kind="shot">'
+		+ '<span class="tname">' + esc(t.name) + '</span></button>'
+	).join('');
+	armImgs($('themeResults'));
+	$('themeResults').querySelectorAll('[data-res]').forEach((b) => {
+		b.addEventListener('click', () => pickTheme(items[+b.dataset.res]));
+	});
+}
+
+/* ---------- plugin picker ---------- */
+
+let plugList = [];
+let plugHi = 0;
+
+function openPluginModal(opener) {
+	$('pluginSearch').value = '';
+	showPluginList(CURATED_PLUGINS, 'Popular on WordPress.org');
+	$('plugNote').hidden = true;
+	openModal('pluginModal', opener);
+}
+
+function showPluginList(list, label) {
+	plugList = list;
+	plugHi = 0;
+	$('plugResLabel').textContent = label;
+	$('plugResLabel').hidden = !list.length;
+	$('pluginResults').innerHTML = list.map((p, i) =>
+		'<button class="presrow' + (i === 0 ? ' hi' : '') + '" data-idx="' + i + '">'
+		+ pluginIconHtml(p)
+		+ '<span class="prname">' + esc(p.name) + '</span>'
+		+ '<span class="prinstalls">' + esc(p.installsText || '') + '</span></button>'
+	).join('');
+	armImgs($('pluginResults'));
+	$('pluginResults').querySelectorAll('[data-idx]').forEach((b) => {
+		b.addEventListener('click', () => pickPlugin(plugList[+b.dataset.idx]));
+	});
+}
+
+function setPlugHi(i) {
+	plugHi = Math.max(0, Math.min(i, plugList.length - 1));
+	$('pluginResults').querySelectorAll('.presrow').forEach((row, j) => {
+		row.classList.toggle('hi', j === plugHi);
+		if (j === plugHi) row.scrollIntoView({ block: 'nearest' });
+	});
+}
+
+function pickPlugin(p) {
+	if (state.plugins.some((x) => x.slug === p.slug)) {
+		closeTopLayer();
+		showToast(p.name + ' is already in this Blueprint', false);
+		return;
+	}
+	state.plugins.push({ slug: p.slug, name: p.name, icon: p.icon, version: 'latest', source: 'wporg', activate: true });
+	renderPlugins();
+	closeTopLayer();
+}
+
+function wirePluginSearch() {
+	const input = $('pluginSearch');
+	let timer = null;
+	let reqId = 0;
+	input.addEventListener('keydown', (e) => {
+		if (e.key === 'ArrowDown') { e.preventDefault(); setPlugHi(plugHi + 1); }
+		else if (e.key === 'ArrowUp') { e.preventDefault(); setPlugHi(plugHi - 1); }
+		else if (e.key === 'Enter') {
+			e.preventDefault();
+			if (plugList[plugHi]) pickPlugin(plugList[plugHi]);
+		}
+	});
+	input.addEventListener('input', () => {
+		clearTimeout(timer);
+		const q = input.value.trim();
+		if (!q) {
+			reqId++;
+			showPluginList(CURATED_PLUGINS, 'Popular on WordPress.org');
+			$('plugNote').hidden = true;
+			return;
+		}
+		timer = setTimeout(async () => {
+			const id = ++reqId;
+			note('plugNote', 'Searching WordPress.org…');
+			try {
+				const r = await fetch('https://api.wordpress.org/plugins/info/1.2/?action=query_plugins'
+					+ '&request[search]=' + encodeURIComponent(q) + '&request[per_page]=6');
+				const data = await r.json();
+				if (id !== reqId) return;
+				const items = (data.plugins || []).map((p) => ({
+					slug: p.slug,
+					name: dec(p.name || p.slug),
+					icon: (p.icons && (p.icons.svg || p.icons['2x'] || p.icons['1x'] || p.icons.default)) || '',
+					installsText: p.active_installs ? Number(p.active_installs).toLocaleString('en-US') + '+ installs' : ''
+				}));
+				if (!items.length) {
+					showPluginList([], '');
+					note('plugNote', 'No plugins found for “' + q + '”.');
+					return;
+				}
+				$('plugNote').hidden = true;
+				showPluginList(items, 'From WordPress.org');
+			} catch (err) {
+				if (id !== reqId) return;
+				showPluginList(CURATED_PLUGINS, 'Popular on WordPress.org');
+				note('plugNote', 'Search needs internet — here are popular picks instead.');
+			}
+		}, 300);
+	});
+}
+
+/* ---------- code + JSON ---------- */
+
+function openCodeModal(i, opener) {
+	const s = state.scripts[i];
+	$('codeTitle').textContent = s.name;
+	$('codePre').textContent = s.php;
+	openModal('codeModal', opener);
+}
+
+function buildBlueprint() {
+	return {
+		version: 2,
+		wordpressVersion: state.wp,
+		phpVersion: state.php,
+		language: state.lang,
+		siteOptions: { blogname: state.title },
+		activeTheme: state.activeTheme,
+		themes: state.themes.map((t) => t.slug),
+		plugins: state.plugins.map((p) => (
+			p.source === 'file'
+				? { file: './plugins/' + p.slug + '.zip', activate: p.activate }
+				: { slug: p.slug, version: p.version, activate: p.activate }
+		)),
+		content: {
+			startsBlank: true,
+			pages: state.content.pages.slice(),
+			sampleProducts: state.content.products
+		},
+		users: state.users.map((u) => ({ username: u.username, role: u.roleSlug })),
+		login: state.login === 'none' ? false : state.login,
+		landingPage: state.landing,
+		networking: state.networking,
+		afterSetup: state.scripts.map((s) => ({ step: 'runPHP', note: s.name, code: s.php }))
+	};
+}
+
+/* ---------- modal + misc plumbing ---------- */
+
+function openModal(id, opener) {
+	const ov = $(id);
+	ov.hidden = false;
+	layers.push({ ov, opener });
+	const f = ov.querySelector('[data-autofocus]') || ov.querySelector('button');
+	if (f) f.focus();
+}
+
+function closeTopLayer() {
+	const l = layers.pop();
+	if (!l) return;
+	l.ov.hidden = true;
+	if (l.opener && document.contains(l.opener)) l.opener.focus();
+}
+
+function toggleNote(force) {
+	const el = $('dnote');
+	const open = typeof force === 'boolean' ? force : !el.classList.contains('open');
+	el.classList.toggle('open', open);
+	$('dnHead').setAttribute('aria-expanded', String(open));
+}
+
+function note(id, msg) {
+	$(id).textContent = msg;
+	$(id).hidden = false;
+}
+
+function armImgs(root) {
+	root.querySelectorAll('img[data-fb]').forEach((img) => {
+		img.addEventListener('error', () => {
+			const d = document.createElement('div');
+			if (img.dataset.kind === 'shot') {
+				d.className = 'shot-blank';
+				d.textContent = img.dataset.fb;
+			} else {
+				d.className = 'tile';
+				d.textContent = (img.dataset.fb || '?').charAt(0).toUpperCase();
+			}
+			img.replaceWith(d);
+		}, { once: true });
+	});
+}
+</script>
+</body>
+</html>

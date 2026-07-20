@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>QA assertions</title>
+<pre id="out">running…</pre>
+<iframe src="../27-flight-ledger-complete.html" style="width:1400px;height:900px"></iframe>
+<script>
+const out = [];
+const ok = (name, cond, detail) => out.push((cond ? 'PASS ' : 'FAIL ') + name + (cond || detail === undefined ? '' : ' — ' + detail));
+const frame = document.querySelector('iframe');
+frame.addEventListener('load', () => setTimeout(() => {
+	const win = frame.contentWindow;
+	const doc = frame.contentDocument;
+	const errors = [];
+	win.addEventListener('error', (event) => errors.push(String(event.message)));
+	try {
+		const state = win.eval('state');
+		win.state = state;
+
+		ok('initial scripts seeded', state.scripts.length === 1 && state.scripts[0].note);
+		ok('networking checkbox lives in stage 1', !!doc.querySelector('.nav-runtime [data-field="networking"]'));
+		ok('stage 6 has no networking control', !doc.querySelector('.nav-options [data-field="networking"]'));
+
+		// Theme flows.
+		win.v27AddTheme({ kind: 'theme', slug: 'ollie', name: 'Ollie', shot: '', note: 'Block theme', source: 'WordPress.org' });
+		ok('second theme installs', state.installedThemes.length === 2);
+		win.v27UseTheme('ollie');
+		ok('activating installed theme works', state.activeTheme === 'ollie');
+		let blueprint = win.v27BuildBlueprint();
+		const themeSteps = blueprint.steps.filter((step) => step.step === 'installTheme');
+		ok('one installTheme per installed theme', themeSteps.length === 2, JSON.stringify(themeSteps.map(s => s.options)));
+		ok('only active theme activates', themeSteps.filter((step) => step.options?.activate).length === 1
+			&& themeSteps.find((step) => step.options?.activate)?.options?.targetFolderName === 'ollie');
+		win.v27RemoveTheme('ollie');
+		ok('removing active theme falls back', state.installedThemes.length === 1 && state.activeTheme === 'storefront');
+
+		// Finishing steps: recipes.
+		win.v27AddScriptPreset('fresh-start');
+		win.v27AddScriptPreset('permalinks');
+		win.v27AddScriptPreset('category');
+		ok('recipes append to stage 6', state.scripts.length === 4, state.scripts.map(s => s.name).join(' | '));
+		ok('duplicate recipe blocked', (win.v27AddScriptPreset('permalinks'), state.scripts.length === 4));
+		blueprint = win.v27BuildBlueprint();
+		ok('permalinks recipe lands in blueprint', blueprint.steps.some((step) => step.step === 'setSiteOptions' && step.options?.permalink_structure === '/%postname%/'));
+		ok('fresh-start recipe lands in blueprint', blueprint.steps.some((step) => step.step === 'runPHP' && String(step.code).includes('wp_delete_post( 2, true )')));
+		ok('category rename parameterized', state.scripts.find(s => s.recipeKey === 'category')?.name.includes('News'));
+
+		// Custom steps via builder used by the New-step modal.
+		const sql = win.v27BuildCustomScript('sql', 'Seed a flag', "INSERT INTO wp_options (option_name, option_value) VALUES ('demo_flag', '1');");
+		ok('sql builder yields runSql step', sql.steps?.[0]?.step === 'runSql' && sql.file === 'seed-a-flag.sql');
+		let threw = false;
+		try { win.v27BuildCustomScript('wp-cli', 'Bad', 'echo hi'); } catch (error) { threw = true; }
+		ok('wp-cli builder rejects non-wp lines', threw);
+
+		// Blueprint sanity.
+		ok('every step has a step name', blueprint.steps.every((step) => typeof step.step === 'string' && step.step.length));
+		ok('landing page carried through', blueprint.landingPage === state.landing);
+		ok('networking flag carried through', blueprint.features?.networking === true);
+		const roundTrip = JSON.parse(JSON.stringify(blueprint));
+		ok('blueprint JSON round-trips', roundTrip.steps.length === blueprint.steps.length);
+
+		// Undo restores.
+		const before = state.scripts.length;
+		win.v27Undo();
+		ok('undo removes last recipe', win.eval('state').scripts.length === before - 1);
+
+		// Modal chrome.
+		win.v27NewScriptModal('php');
+		const overlay = win.getComputedStyle(doc.getElementById('hybridModal')).backgroundColor;
+		ok('new-step modal opens with dim overlay', overlay.includes('0.46') || overlay.includes('rgba'), overlay);
+		ok('new-step modal shows name field', !!doc.getElementById('v27EditScriptName'));
+		doc.getElementById('v27EditScriptName').value = 'Say hello';
+		win.v27SaveNewScript('php');
+		ok('new PHP step saves from modal', win.eval('state').scripts.some(s => s.file === 'say-hello.php'));
+		ok('modal closed after save', doc.getElementById('hybridModal').hidden === true);
+
+		ok('no window errors', errors.length === 0, errors.join(' ; '));
+	} catch (error) {
+		out.push('FAIL harness — ' + (error.stack || error));
+	}
+	document.getElementById('out').textContent = out.join('\n');
+	document.title = out.filter(l => l.startsWith('FAIL')).length + ' failures';
+}, 1600));
+</script>

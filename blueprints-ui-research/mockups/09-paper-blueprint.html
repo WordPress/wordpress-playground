@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Site Card · the site is the control — Blueprint editor concept</title>
+<title>Paper Blueprint · every section in its own notation — Blueprint editor concept</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -63,8 +63,8 @@ svg{display:block}
 .b-shot:hover{opacity:.93}
 .theme-cap{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:8px 4px 0;font-size:12px;color:var(--muted);cursor:pointer}
 .theme-cap b{color:var(--ink);font-weight:600}
-.theme-cap .tc-hint{margin-left:auto;color:var(--accent-600);font-weight:600;font-size:11.5px}
-.theme-cap:hover .tc-hint{text-decoration:underline}
+.theme-cap .tc-hint{margin-left:auto;color:var(--muted);font-weight:500;font-size:11.5px}
+.theme-cap:hover .tc-hint{color:var(--accent-600)}
 /* spec line — each segment is its own control */
 .specline{display:flex;flex-wrap:wrap;align-items:center;gap:2px 2px;row-gap:3px;font-family:var(--mono);font-size:12.5px;color:var(--muted);padding-top:6px;margin-left:-5px}
 .specline .brk{flex-basis:100%;height:0}
@@ -72,7 +72,8 @@ svg{display:block}
 .spec{border:0;background:transparent;font:inherit;color:inherit;padding:2px 5px;border-radius:6px}
 .spec b{color:var(--ink);font-weight:600}
 .spec:hover{background:var(--accent-050)}
-.spec .car{color:var(--faint);font-size:10px}
+.spec .car{color:var(--faint);font-size:10px;opacity:0;transition:opacity .12s}
+.spec:hover .car,.spec:focus-visible .car{opacity:1}
 .specmenu{position:absolute;z-index:56;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 40px rgba(24,28,64,.16);padding:5px;min-width:180px;display:none}
 .specmenu.show{display:block;animation:drop .14s ease}
 .specmenu button{display:flex;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:7px 10px;border-radius:7px;font-size:12.5px;gap:8px;color:var(--ink)}
@@ -167,6 +168,103 @@ svg{display:block}
 .frow:hover .x{opacity:1}
 .frow .x:hover{background:#fdecec;color:#b32d2e}
 .fdetail{background:#fafafc;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px;box-shadow:inset 3px 0 0 var(--accent)}
+/* ============ 09 · the paper blueprint: each section in its own notation ============ */
+.psec{margin:0 0 18px}
+.psec.blank{display:none}
+/* folio labels — the same quiet mono register as the "Bill of materials" eyebrow,
+   so headings frame the document instead of competing with its lines */
+.psec-h{display:flex;align-items:baseline;font-family:var(--mono);font-size:11.5px;font-weight:500;color:#74747e;padding:0 0 5px;border-bottom:1px solid var(--line);margin-bottom:2px}
+/* fill-in-the-blank tokens — a printed form's blanks, alive */
+.tok{border:0;background:none;font:inherit;color:var(--ink);padding:0 1px;border-bottom:1px dotted #b9bcc7;cursor:pointer}
+.tok:hover{border-bottom-color:var(--accent);color:var(--accent-600)}
+.tokin{border:0;border-bottom:1px dotted #b9bcc7;background:none;font:inherit;color:var(--ink);padding:0 1px;outline:none}
+.tokin:focus{border-bottom:1px solid var(--accent)}
+.tokse{border:0;border-bottom:1px dotted #b9bcc7;background:none;font:inherit;color:var(--ink);padding:0 14px 0 1px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6"><path d="M1 1l3 3 3-3" fill="none" stroke="%238a8a94" stroke-width="1.4"/></svg>');background-repeat:no-repeat;background-position:right 2px center}
+.tokse:hover{border-bottom-color:var(--accent)}
+/* calm at rest: on filled lines the machinery (underlines, carets) surfaces only on the line
+   you're on — a printed page until you reach for it. Recipe blanks keep their underlines:
+   a blank IS its underline. */
+.pline .tok,.pline .tokse,.pline .tokin,.tocline .tokin,.tocline .tokse{border-bottom-color:transparent;background-image:none}
+.pline:hover .tok,.pline:hover .tokse,.pline:hover .tokin,.pline:focus-within .tok,.pline:focus-within .tokse,.pline:focus-within .tokin,
+.tocline:hover .tokin,.tocline:hover .tokse,.tocline:focus-within .tokin,.tocline:focus-within .tokse{border-bottom-color:#b9bcc7}
+.pline:hover .tokse,.pline:focus-within .tokse,.tocline:hover .tokse,.tocline:focus-within .tokse{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6"><path d="M1 1l3 3 3-3" fill="none" stroke="%238a8a94" stroke-width="1.4"/></svg>')}
+.addline{border:0;background:none;color:var(--faint);font-size:12px;font-weight:500;padding:6px 2px 2px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.addline:hover,.addline.active{color:var(--accent-600)}
+.addrow{display:flex;flex-wrap:wrap;gap:0 14px;align-items:center}
+/* what isn't in the Blueprint doesn't print — its ＋ lines gather here instead,
+   in the same idiom as every other add row */
+.addcluster{display:flex;flex-wrap:wrap;gap:0 14px;align-items:center;padding:2px 0 0}
+.addcluster button{border:0;background:none;font:inherit;font-size:12.5px;font-weight:500;color:var(--muted);cursor:pointer;padding:6px 2px 2px;display:inline-flex;align-items:center;gap:6px}
+.addcluster button:hover{color:var(--accent-600)}
+/* 1 · plugins as a packing list: small tiles, name upfront, facts on approach */
+.ptiles{display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 2px}
+.ptile2{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 11px 5px 7px;cursor:pointer;font:inherit;font-size:12.8px;font-weight:600;color:var(--ink)}
+.ptile2:hover{border-color:#c3cbf2}
+.ptile2 .pt-name{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptile2.sel{border-color:#b9c4ff;box-shadow:0 0 0 3px var(--accent-050)}
+.pt-ic{width:18px;height:18px;border-radius:5px;object-fit:cover;flex:none}
+.pt-ic.lt{display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);background:#f1f2f6}
+.ptile2.off{opacity:.62}
+.ptile2.off .pt-name{text-decoration:line-through;text-decoration-thickness:1px;color:var(--muted)}
+.ptile2 .pt-off{font-size:10.5px;color:var(--faint);font-weight:500}
+/* the one selected tile opens as a ledger line below the row */
+.pdetail2{background:#fafafc;border:1px solid var(--line);border-radius:12px;padding:8px 14px;margin-top:8px;box-shadow:inset 3px 0 0 var(--accent)}
+.pline.pdetail2 .pl-end{opacity:1}
+.pdetail2 .tok,.pdetail2 .tokse,.pdetail2 .tokin{border-bottom-color:#b9bcc7}
+.pdetail2 .tokse{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6"><path d="M1 1l3 3 3-3" fill="none" stroke="%238a8a94" stroke-width="1.4"/></svg>')}
+.pline{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid #f4f4f6;font-size:13.2px}
+.pline:last-child{border-bottom:0}
+.pic2{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);object-fit:cover;flex:none;background:#fff}
+.pic2.lt{display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted);background:#f1f2f6;line-height:1}
+.pline .pl-name{font-weight:600;flex:none}
+.pline.off .pl-name{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+.pline.off .pic2{opacity:.45}
+.pline .dim{color:var(--faint)}
+.pline .kvchip{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.pline .kvchip .tokin{font-family:var(--mono);font-size:11.5px}
+.pline .grow{flex:1;min-width:8px}
+.pline .pl-end{display:flex;gap:9px;align-items:center;flex:none;opacity:0;transition:opacity .12s}
+.pline:hover .pl-end,.pline .pl-end:focus-within{opacity:1}
+.pline .pl-link2{color:var(--faint);text-decoration:none;font-size:12px}
+.pline .pl-link2:hover{color:var(--accent-600)}
+.kvadd2{border:0;background:none;color:var(--faint);font-size:11.5px;cursor:pointer;padding:0}
+.kvadd2:hover{color:var(--accent-600)}
+/* 2 · content as a table of contents with leader dots */
+.tocline{display:flex;align-items:baseline;gap:8px;padding:7px 2px;font-size:13.2px}
+.toc-t{font-weight:600;flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toc-t.lnk{cursor:pointer;border:0;background:none;font:inherit;font-weight:600;padding:0;text-align:left}
+.toc-t.lnk:hover{color:var(--accent-600)}
+.leader{flex:1;min-width:24px;border-bottom:1px dotted #cdd0da;transform:translateY(-3px)}
+.toc-m{color:var(--faint);font-size:12px;flex:none}
+/* 4 · fonts as a specimen sheet */
+.fline{display:flex;align-items:baseline;gap:10px;padding:9px 2px;border-bottom:1px solid #f6f6f8;font-size:16.5px;line-height:1.4}
+.fline:last-child{border-bottom:0}
+.fline .f-name{font-weight:600;flex:none}
+.fline .f-sample{color:#5a5a63;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fline .f-src{font-family:var(--sans);font-size:11.5px;color:var(--faint);flex:none}
+/* 5 · recipes as numbered instructions, params filled in the sentence */
+.steps{list-style:none;counter-reset:step;margin:0;padding:0}
+.steps li{counter-increment:step;display:flex;flex-wrap:wrap;align-items:baseline;gap:5px;padding:8px 2px;font-size:13.2px;border-bottom:1px solid #f6f6f8}
+.steps li:last-child{border-bottom:0}
+.steps li::before{content:counter(step) '.';font-family:var(--mono);font-size:11.5px;color:var(--faint);width:20px;flex:none}
+.steps .st-name{font-weight:600}
+.steps .st-desc{color:var(--faint)}
+.steps .rcode{width:100%;margin:6px 0 2px 20px}
+.steps .x2{margin-left:2px}
+/* 6/7 · fine print as definition lines */
+.optline{display:flex;align-items:baseline;gap:10px;padding:6px 2px;font-size:13px;border-bottom:1px solid #f6f6f8}
+.optline:last-child{border-bottom:0}
+.optline .o-k{flex:none;min-width:150px;font-weight:500}
+.optline .o-k.mono{font-weight:500;font-size:12.3px}
+.optline .imeta{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.6px;color:#3f3f47;cursor:pointer;border-bottom:1px dotted transparent}
+.optline:hover .imeta{border-bottom-color:#c3c6d0}
+.optline .imeta:hover{border-bottom-color:var(--accent);color:var(--accent-600)}
+.optline .x{margin-left:auto}
+.optline .link{flex:none}
+/* shared hover controls on paper lines */
+.pline .x,.tocline .x,.fline .x,.steps .x,.optline .x{width:22px;height:22px;flex:none}
+.inlineadd{display:none;padding:8px 0 2px}
+.inlineadd.show{display:block}
 /* recipe library rows — one click adds; singletons flip to “Added ✓” */
 .rlib{margin-top:6px}
 .rrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:0;background:transparent;padding:8px 8px;border-radius:10px;cursor:pointer}
@@ -296,7 +394,8 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
 .pg-adv{display:none;padding-top:8px}
 .pg-adv.show{display:block}
 .pg-adv select{border:1px solid var(--line-2);border-radius:7px;padding:5px 9px;font-size:12.5px;background:#fff;font-family:inherit}
-.link{color:var(--accent-600);font-size:12px;font-weight:600;background:none;border:0}
+.link{color:var(--muted);font-size:12px;font-weight:500;background:none;border:0}
+.link:hover{color:var(--accent-600)}
 .item .x{width:26px;height:26px;border-radius:6px;border:0;background:transparent;color:var(--faint);font-size:12px;opacity:0}
 .item:hover .x,.item .x:focus-visible{opacity:1}
 .item .x:hover{background:#fdecec;color:#b32d2e}
@@ -511,15 +610,12 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
         <button class="spec" onclick="openSpecMenu(this,'php')">PHP <b id="spec-php">8.3</b> <span class="car">▾</span></button>
         <span class="brk"></span>
         <button class="spec" onclick="openSpecMenu(this,'login')"><b id="spec-login">logged in as admin</b> <span class="car">▾</span></button><span class="sdot">·</span>
-        <button class="spec" onclick="openSpecMenu(this,'net')">network <b id="spec-net">on</b> <span class="car">▾</span></button>
+        <button class="spec" onclick="openSpecMenu(this,'net')">internet access <b id="spec-net">on</b> <span class="car">▾</span></button>
         <span class="brk"></span>
-        <button class="spec" onclick="openSpecMenu(this,'lang')"><b id="spec-lang">English (US)</b> <span class="car">▾</span></button>
+        <button class="spec" onclick="openSpecMenu(this,'lang')"><b id="spec-lang">English (US)</b> <span class="car">▾</span></button><span class="sdot">·</span>
+        <button class="spec" onclick="toggleDrawer('users',this)" title="Users on this site"><b id="peopleLabel">1 user</b> <span class="car">▾</span></button>
       </div>
-      <button class="people" onclick="toggleDrawer('users',this)" title="Users on this site">
-        <span class="pstack" id="peopleStack"></span>
-        <span class="uadd">＋</span>
-        <span class="plabel" id="peopleLabel">1 user</span>
-      </button>
+      <span id="peopleStack" hidden></span>
     </div>
   </div>
 
@@ -567,15 +663,11 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
 
   <div class="specmenu" id="specMenu" role="menu"></div>
 
-  <!-- PLUGINS SHELF — always visible, like a dock of installed apps -->
-  <section class="pshelf" id="cat-plugins">
-    <div class="group-label">Plugins <button class="labeladd" data-drawer="plugins" onclick="toggleDrawer('plugins',this)">＋ Add</button></div>
-    <div class="items">
-      <div class="ptile ptile-add" id="pluginAddTile" data-addtile="plugins" role="button" tabindex="0" aria-label="Add a plugin"
-        onclick="toggleDrawer('plugins',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDrawer('plugins',this);}">
-        <span class="pico">＋</span><span class="pname">Add</span>
-      </div>
-    </div>
+  <!-- 1 · PLUGINS — a ledger: every value on the line, edited where it stands -->
+  <section class="psec" id="cat-plugins">
+    <div class="psec-h">Plugins</div>
+    <div id="pluginLines"></div>
+    <button class="addline" data-addtile="plugins" onclick="toggleDrawer('plugins',this)">＋ Add a plugin…</button>
   </section>
 
   <div class="drawer" id="drawer-plugins">
@@ -597,15 +689,11 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
     </div>
   </div>
 
-  <!-- CONTENT SHELF — documents on the sheet, same pattern as plugins -->
-  <section class="pshelf" id="cat-content">
-    <div class="group-label">Content <button class="labeladd" data-drawer="content" onclick="toggleDrawer('content',this)">＋ Add</button></div>
-    <div class="items">
-      <div class="ptile ptile-add" id="contentAddTile" data-addtile="content" role="button" tabindex="0" aria-label="Add content"
-        onclick="toggleDrawer('content',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDrawer('content',this);}">
-        <span class="pico">＋</span><span class="pname">Add</span>
-      </div>
-    </div>
+  <!-- 2 · CONTENT — a table of contents with leader dots -->
+  <section class="psec" id="cat-content">
+    <div class="psec-h">Content</div>
+    <div class="items"></div>
+    <button class="addline" data-addtile="content" onclick="toggleDrawer('content',this)">＋ Write a page, import, add a post type…</button>
   </section>
 
   <div class="drawer" id="drawer-content">
@@ -635,11 +723,12 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
     </div>
   </div>
 
-  <!-- FILES & MEDIA SHELF — one lane; the card decides how to present each file -->
-  <section class="pshelf" id="cat-files">
-    <div class="group-label">Files &amp; media <button class="labeladd" data-drawer="files" onclick="toggleDrawer('files',this)">＋ Add</button></div>
+  <!-- 3 · FILES & MEDIA — a directory listing (already paper's own notation) -->
+  <section class="psec pshelf" id="cat-files">
+    <div class="psec-h">Files &amp; media</div>
     <div class="ftree" id="ftree"></div>
     <div id="fdetailHost"></div>
+    <button class="addline" data-drawer="files" onclick="toggleDrawer('files',this)">＋ Add a file, image, or URL…</button>
   </section>
 
   <div class="drawer" id="drawer-files" ondragover="dzOver(event,this)" ondragleave="dzLeave(this)" ondrop="dropFiles(event,this)">
@@ -663,15 +752,11 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
     </div>
   </div>
 
-  <!-- FONTS SHELF -->
-  <section class="pshelf" id="cat-fonts">
-    <div class="group-label">Fonts <button class="labeladd" data-drawer="fonts" onclick="toggleDrawer('fonts',this)">＋ Add</button></div>
-    <div class="items">
-      <div class="ptile ptile-add" data-addtile="fonts" role="button" tabindex="0" aria-label="Add a font"
-        onclick="toggleDrawer('fonts',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDrawer('fonts',this);}">
-        <span class="pico">＋</span><span class="pname">Add</span>
-      </div>
-    </div>
+  <!-- 4 · FONTS — a specimen sheet: every family shows itself -->
+  <section class="psec" id="cat-fonts">
+    <div class="psec-h">Fonts</div>
+    <div class="items"></div>
+    <button class="addline" data-addtile="fonts" onclick="toggleDrawer('fonts',this)">＋ Add a font…</button>
   </section>
 
   <div class="drawer" id="drawer-fonts">
@@ -691,15 +776,11 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
     <input type="file" id="file-fonts" accept=".woff2,.ttf,.otf" multiple hidden onchange="uploadFonts(this)">
   </div>
 
-  <!-- RECIPES SHELF — named outcomes, configurable in place, one click to add -->
-  <section class="pshelf" id="cat-recipes">
-    <div class="group-label">Recipes <button class="labeladd" data-drawer="recipes" onclick="toggleDrawer('recipes',this)">＋ Add</button></div>
-    <div class="items">
-      <div class="ptile ptile-add" data-addtile="recipes" role="button" tabindex="0" aria-label="Add a recipe"
-        onclick="toggleDrawer('recipes',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDrawer('recipes',this);}">
-        <span class="pico">＋</span><span class="pname">Add</span>
-      </div>
-    </div>
+  <!-- 5 · RECIPES — numbered instructions; parameters are blanks filled in the sentence -->
+  <section class="psec" id="cat-recipes">
+    <div class="psec-h">Recipes</div>
+    <ol class="steps items"></ol>
+    <button class="addline" data-addtile="recipes" onclick="toggleDrawer('recipes',this)">＋ Add a recipe…</button>
   </section>
 
   <div class="drawer" id="drawer-recipes">
@@ -715,102 +796,66 @@ img.pv-th{width:36px;height:22px;border-radius:4px;border:1px solid var(--line);
     </div>
   </div>
 
-  <div class="manifest" id="manifest">
-    <div class="group setup">
-      <div class="group-label">Setup</div>
-
-    <!-- SETTINGS -->
-    <div class="cat" id="cat-settings">
-      <div class="cat-row" onclick="toggleCat(this)">
-        <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2.4" fill="#fbfbfc"/><circle cx="15" cy="16" r="2.4" fill="#fbfbfc"/></svg></span>
-        <span class="cat-name">Site options</span><span class="cat-count">1</span>
-        <span class="cat-preview">Permalinks</span>
-        <button class="cat-add" onclick="event.stopPropagation();openAdd('settings')" aria-label="Add a site option"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
-        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+  <!-- SETUP — fine print: options, constants, code as one block of definition lines -->
+  <section class="psec" id="cat-setup">
+    <div class="psec-h">Setup</div>
+    <div id="cat-settings">
+      <div class="items">
+        <div class="item optline" data-opt="permalink_structure"><span class="iname o-k">Permalinks</span><span class="imeta mono" onclick="editSetting(this)" title="Click to edit">/%postname%/</span><button class="x" onclick="rmItem(this)">✕</button></div>
       </div>
-      <div class="cat-detail">
-        <div class="additem">
-          <div class="addpanel" id="add-settings">
-            <div class="chips">
-              <button onclick="addSettingChip(this,'Tagline','blogdescription')">＋ Tagline</button>
-              <button onclick="addSettingChip(this,'Timezone','timezone_string')">＋ Timezone</button>
-            </div>
-            <div class="inlineform">
-              <input id="sf-key" class="mono" placeholder="option_name" style="width:150px" onkeydown="if(event.key==='Enter')addCustomSetting()">
-              <span style="color:var(--faint)">=</span>
-              <input id="sf-val" class="mono" placeholder="value" style="flex:1;min-width:90px" onkeydown="if(event.key==='Enter')addCustomSetting()">
-              <button class="go" onclick="addCustomSetting()">Add option</button>
-            </div>
-          </div>
+      <div class="inlineadd">
+        <div class="chips">
+          <button onclick="addSettingChip(this,'Tagline','blogdescription')">＋ Tagline</button>
+          <button onclick="addSettingChip(this,'Timezone','timezone_string')">＋ Timezone</button>
         </div>
-        <div class="items">
-          <div class="item" data-opt="permalink_structure"><div class="item-head"><span class="iname">Permalinks</span><span class="imeta mono">/%postname%/</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        <div class="inlineform">
+          <input id="sf-key" class="mono" placeholder="option_name" style="width:150px" onkeydown="if(event.key==='Enter')addCustomSetting()">
+          <span style="color:var(--faint)">=</span>
+          <input id="sf-val" class="mono" placeholder="value" style="flex:1;min-width:90px" onkeydown="if(event.key==='Enter')addCustomSetting()">
+          <button class="go" onclick="addCustomSetting()">Add option</button>
         </div>
       </div>
     </div>
-
-    <!-- CONSTANTS -->
-    <div class="cat" id="cat-constants">
-      <div class="cat-row" onclick="toggleCat(this)">
-        <span class="ic"><svg viewBox="0 0 24 24"><path d="M9.5 4L7.5 20M16.5 4l-2 16M5 9.5h15M4 14.5h15"/></svg></span>
-        <span class="cat-name">Constants</span><span class="cat-count">0</span>
-        <span class="cat-preview">wp-config.php defines</span>
-        <button class="cat-add" onclick="event.stopPropagation();openAdd('constants')" aria-label="Add a constant"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
-        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-      </div>
-      <div class="cat-detail">
-        <div class="additem">
-          <div class="addpanel" id="add-constants">
-            <div class="chips">
-              <button class="recipe" onclick="addDebugConsts(this)">✦ Debug mode</button>
-              <button onclick="addConstItem('WP_ENVIRONMENT_TYPE','staging',this)">＋ WP_ENVIRONMENT_TYPE</button>
-              <button onclick="addConstItem('DISALLOW_FILE_MODS','true',this)">＋ DISALLOW_FILE_MODS</button>
-            </div>
-            <div class="inlineform">
-              <input id="cf-key" class="mono" placeholder="CONSTANT_NAME" style="width:190px" onkeydown="if(event.key==='Enter')addCustomConst()">
-              <span style="color:var(--faint)">=</span>
-              <input id="cf-val" class="mono" placeholder="value" style="flex:1;min-width:90px" onkeydown="if(event.key==='Enter')addCustomConst()">
-              <button class="go" onclick="addCustomConst()">Add constant</button>
-            </div>
-          </div>
+    <div id="cat-constants">
+      <div class="items"></div>
+      <div class="inlineadd">
+        <div class="chips">
+          <button class="recipe" onclick="addDebugConsts(this)">✦ Debug mode</button>
+          <button onclick="addConstItem('WP_ENVIRONMENT_TYPE','staging',this)">＋ WP_ENVIRONMENT_TYPE</button>
+          <button onclick="addConstItem('DISALLOW_FILE_MODS','true',this)">＋ DISALLOW_FILE_MODS</button>
         </div>
-        <div class="items"></div>
-      </div>
-    </div>
-
-    <!-- CUSTOM CODE -->
-    <div class="cat" id="cat-code">
-      <div class="cat-row" onclick="toggleCat(this)">
-        <span class="ic"><svg viewBox="0 0 24 24"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></span>
-        <span class="cat-name">Custom code</span><span class="cat-count">1</span>
-        <span class="cat-preview">Run PHP · Hide setup task list</span>
-        <button class="cat-add" onclick="event.stopPropagation();openAdd('code')" aria-label="Add custom code"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button>
-        <span class="cat-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
-      </div>
-      <div class="cat-detail">
-        <div class="additem">
-          <div class="addpanel" id="add-code">
-            <div class="srchint" style="margin:0 0 8px">The lowest level — for anything a Recipe or a field can't express.</div>
-            <div class="chips">
-              <button onclick="openCodeModal('code','php')">＋ Run PHP</button>
-              <button onclick="openCodeModal('code','sql')">＋ Run SQL</button>
-              <button onclick="openCodeModal('code','cli')">＋ WP-CLI</button>
-            </div>
-          </div>
-        </div>
-        <div class="items">
-          <div class="item" data-fname="hide-wc-tasklist.php" data-code="<?php
-// Hide the WooCommerce setup task list
-update_option( 'woocommerce_task_list_hidden', 'yes' );
-update_option( 'woocommerce_extended_task_list_hidden', 'yes' );
-"><div class="item-head"><span class="iname">Run PHP</span><span class="imeta">hide-wc-tasklist.php · Hide the WooCommerce setup task list</span><span class="ictl"><button class="link" onclick="editCodeItem(this)">Edit code</button><button class="x" onclick="rmItem(this)">✕</button></span></div></div>
+        <div class="inlineform">
+          <input id="cf-key" class="mono" placeholder="CONSTANT_NAME" style="width:190px" onkeydown="if(event.key==='Enter')addCustomConst()">
+          <span style="color:var(--faint)">=</span>
+          <input id="cf-val" class="mono" placeholder="value" style="flex:1;min-width:90px" onkeydown="if(event.key==='Enter')addCustomConst()">
+          <button class="go" onclick="addCustomConst()">Add constant</button>
         </div>
       </div>
     </div>
-    </div><!-- /Setup -->
+    <div id="cat-code">
+      <div class="items">
+        <div class="item optline" data-fname="demo-coupon.php" data-code="<?php
+// Add a WELCOME10 coupon for checkout testing
+$id = wp_insert_post( array(
+	'post_title'  => 'welcome10',
+	'post_status' => 'publish',
+	'post_type'   => 'shop_coupon',
+) );
+update_post_meta( $id, 'discount_type', 'percent' );
+update_post_meta( $id, 'coupon_amount', '10' );
+"><span class="iname o-k">Run PHP</span><span class="imeta">demo-coupon.php · Add a WELCOME10 coupon for testing</span><button class="link" onclick="editCodeItem(this)">edit code</button><button class="x" onclick="rmItem(this)">✕</button></div>
+      </div>
+    </div>
+    <div class="addrow">
+      <button class="addline" onclick="toggleInline('cat-settings')">＋ Site option</button>
+      <button class="addline" onclick="toggleInline('cat-constants')">＋ Constant</button>
+      <button class="addline" onclick="openCodeModal('code','php')">＋ PHP</button>
+      <button class="addline" onclick="openCodeModal('code','sql')">＋ SQL</button>
+      <button class="addline" onclick="openCodeModal('code','cli')">＋ WP-CLI</button>
+    </div>
+  </section>
 
-    <div class="addmore-note">Coming to this concept: multisite…</div>
-  </div>
+  <div class="addcluster" id="addCluster"></div>
 
   <div class="foot">
     <span class="meta">Everything above ships as one <span class="mono">blueprint.json</span> — press <b>Run</b> to launch it.</span>
@@ -853,11 +898,11 @@ update_option( 'woocommerce_extended_task_list_hidden', 'yes' );
 
 <div class="designnote" id="dn">
   <div class="dn-head" onclick="document.getElementById('dn').classList.toggle('open')">
-    <span class="badge" style="background:#7b3fe4">Design 7 · site card</span> <b class="dn-title">The site is the control</b><span class="dn-desc"> — identity edited directly on a mini-site; category rows only for true collections.</span> <span class="dn-arrow" style="color:#8a94a6">ⓘ about</span>
+    <span class="badge" style="background:#b8860b">Design 8 · paper blueprint</span> <b class="dn-title">Every section in its own notation</b><span class="dn-desc"> — one typeset document; values live in the text and are edited where they stand.</span> <span class="dn-arrow" style="color:#8a94a6">ⓘ about</span>
   </div>
   <div class="dn-body">
     <p><b>Direct manipulation, taken further (evolves design 6).</b> A blueprint holds two kinds of things. <b>Identity</b> — the site's title, theme, environment, people — is singular: you don't “manage a list of site titles.” So identity lives on a <b>site card</b> and is edited in place, no category rows: the <b>theme IS the screenshot</b> (click it → a gallery drawer: click a card to activate, search/drop to install more — every installed theme ships), the <b>title IS the headline</b> (the big serif input is the canonical site title — Site options no longer duplicates it), the <b>landing page IS the address bar</b> of the mini browser, the <b>environment IS the spec line</b> (each segment — WordPress · PHP · login · network — is its own click-to-change control), and the <b>users ARE the avatar stack</b> (click → the people drawer; “log in as” any of them, which also drives the spec line).</p>
-    <p><b>Collections are shelves, not accordions</b> — Plugins (a dock of real app icons), Content (document cards; written pages preview their actual text and reopen in the real editor), Files &amp; media (a path tree), Fonts (live specimens), and <b>Recipes</b> (✦ cards you configure right on the card — singletons can’t be added twice, repeatables can; each shows the code it ships). Click any tile → its inspector opens below the shelf, which never moves. ＋ opens a filterable popover anchored to its trigger. Only Setup — Site options / Constants / Custom code — remains as quiet rows.</p>
+    <p><b>Every section speaks its own notation (evolves design 7's shelves).</b> Plugins are a <b>packing list</b> — small tiles, just icon and name; click one and its ledger line opens below with version, active state, and options edited in place. Content is a <b>table of contents</b> with leader dots; written pages open in the real editor from their title. Files &amp; media stay a <b>directory tree</b>. Fonts are a <b>specimen sheet</b> — every family set in itself. Recipes are <b>numbered instructions whose parameters are blanks filled inside the sentence</b>. Site options, constants, and code are one block of <b>fine print</b>: key, value, click the value to change it. Filled lines read as plain print until you point at them, and <b>sections with nothing in them don't print at all</b> — their ＋ lines gather at the end of the document instead.</p>
     <p><b>Everything really ships:</b> ▶ Run compiles pages into <span class="mono">wp_insert_post</span>, WXR into <span class="mono">importWxr</span>, SQL into <span class="mono">runSql</span>, post types &amp; recipes into mu-plugins, roles, constants, language — and when local bytes are bundled, Run boots an <b>embedded Playground</b> and writes them in, with real media-library imports. The <b>JSON tab renders the live blueprint</b>: copy it, download it, or export the <b>.zip bundle</b> carrying the bundled bytes.</p>
     <p><b>Every removal is undoable</b> — plugins, themes, users, content, recipes, options, code. A quiet toast offers <b>Undo</b>, and <b>⌘Z / Ctrl+Z</b> walks back up to 30 removals.</p>
     <p><b>Everything still runs:</b> ▶ Run assembles the real blueprint from the card + rows (versions, login, landing page, networking, blogname, plugin slugs, an installTheme step per installed theme with only the active one activating) and launches playground.wordpress.net. Content still opens the <b>real block editor</b> (Playground booted once, pre-warmed, drafts never silently lost).</p>
@@ -896,53 +941,6 @@ update_option( 'woocommerce_extended_task_list_hidden', 'yes' );
 </div>
 
 <script>
-function toggleCat(row){
-  var cat = row.parentElement, open = cat.classList.contains('open');
-  document.querySelectorAll('#manifest .cat.open').forEach(function(c){ c.classList.remove('open'); refreshPreview(c); });
-  if(!open){ cat.classList.add('open'); if(!cat.querySelector('.items .item')) showAddPanel(cat); }
-}
-function openCat(key){
-  var cat = document.getElementById('cat-'+key);
-  document.querySelectorAll('#manifest .cat.open').forEach(function(c){ if(c!==cat){ c.classList.remove('open'); refreshPreview(c);} });
-  cat.classList.add('open'); cat.scrollIntoView({block:'center',behavior:'smooth'});
-}
-function openAdd(key){
-  var cat = document.getElementById('cat-'+key);
-  if(!cat.classList.contains('open')){
-    document.querySelectorAll('#manifest .cat.open').forEach(function(c){ c.classList.remove('open'); refreshPreview(c); });
-    cat.classList.add('open');
-    showAddPanel(cat);
-  } else {
-    var p = document.getElementById('add-'+key);
-    if(p.classList.contains('show')){ p.classList.remove('show'); syncAddState(cat); }
-    else showAddPanel(cat);
-  }
-}
-function showAddPanel(cat){
-  var p = cat.querySelector('.addpanel'); if(!p) return;
-  document.querySelectorAll('.addpanel').forEach(function(el){ if(el!==p && el.classList.contains('show')){ el.classList.remove('show'); syncAddState(el.closest('.cat')); } });
-  p.classList.add('show'); syncAddState(cat);
-  if(cat.id==='cat-content') ensurePlayground('page').catch(function(){});   // pre-warm the editor
-  var inp = p.querySelector('.cinput') || p.querySelector('input.search');
-  if(inp) setTimeout(function(){ inp.focus(); }, 30);
-}
-function syncAddState(cat){
-  var p = cat.querySelector('.addpanel'), b = cat.querySelector('.cat-add');
-  if(b) b.classList.toggle('active', !!(p && p.classList.contains('show')));
-}
-function toggleItem(head){
-  var item=head.parentElement; item.classList.toggle('exp');
-  if(item.classList.contains('exp') && item.dataset.slug && !item.dataset.pgLoaded) pgLoadDetails(item);
-}
-/* plugin shelf: one inspector open at a time; the shelf itself never moves */
-function togglePluginTile(tile){
-  var item=tile.closest('.item'), wasOpen=item.classList.contains('exp');
-  document.querySelectorAll('.pshelf .item.exp').forEach(function(it){ it.classList.remove('exp'); var t=it.querySelector('.ptile'); if(t) t.setAttribute('aria-expanded','false'); });
-  if(!wasOpen){
-    item.classList.add('exp'); tile.setAttribute('aria-expanded','true');
-    if(item.dataset.slug && !item.dataset.pgLoaded) pgLoadDetails(item);
-  }
-}
 /* directory icons can be animated GIFs (e.g. Elementor) — freeze them to their first frame.
    ps.w.org sends CORS headers, so a crossorigin img can be drawn to canvas and swapped for a PNG. */
 function gifAttrs(url){ return /\.gif(\?|#|$)/i.test(url||'') ? ' crossorigin="anonymous" data-gif="1"' : ''; }
@@ -973,6 +971,48 @@ function syncAddTiles(){
 function closeDrawers(){
   document.querySelectorAll('.drawer.show').forEach(function(d){ d.classList.remove('show'); });
   syncAddTiles();
+}
+/* one Setup section, three kinds of fine print — each ＋ opens its own inline form */
+function toggleInline(id){
+  var ia=document.querySelector('#'+id+' .inlineadd'), was=ia.classList.contains('show');
+  document.querySelectorAll('#cat-setup .inlineadd.show').forEach(function(el){ el.classList.remove('show'); });
+  if(!was){
+    ia.classList.add('show');
+    var f=ia.querySelector('.inlineform input');
+    if(f) setTimeout(function(){ f.focus(); }, 30);
+  }
+}
+/* a paper document has no blank headings — sections without content don't print.
+   One quiet ＋ line at the end stands in for everything the Blueprint doesn't have yet. */
+var PAPER_SECS=[
+  { id:'cat-plugins', sel:'.ptile2',       drawer:'plugins', label:'Plugins' },
+  { id:'cat-content', sel:'.items > *',    drawer:'content', label:'Content' },
+  { id:'cat-files',   sel:'.ftree > *',    drawer:'files',   label:'Files & media' },
+  { id:'cat-fonts',   sel:'.items > *',    drawer:'fonts',   label:'Fonts' },
+  { id:'cat-recipes', sel:'.steps > li',   drawer:'recipes', label:'Recipes' },
+  { id:'cat-setup',   sel:'.items .item',  drawer:null,      label:'Options & code' }
+];
+function syncPaperSections(){
+  var links=[];
+  PAPER_SECS.forEach(function(s){
+    var sec=document.getElementById(s.id); if(!sec) return;
+    var blank=!sec.querySelector(s.sel) && !sec.classList.contains('keep');
+    sec.classList.toggle('blank', blank);
+    if(blank) links.push('<button onclick="clusterAdd(\''+s.id+'\',this)">＋ '+s.label+'…</button>');
+  });
+  var c=document.getElementById('addCluster');
+  var html=links.join('');
+  if(c && c.dataset.h!==html){ c.dataset.h=html; c.innerHTML=html; }
+}
+function clusterAdd(id, el){
+  var s=PAPER_SECS.find(function(x){ return x.id===id; });
+  if(!s.drawer){                                    // setup has no popover — print it and open the first form
+    document.getElementById(id).classList.add('keep');
+    syncPaperSections();
+    toggleInline('cat-settings');
+    return;
+  }
+  toggleDrawer(s.drawer, el);
 }
 
 /* ============ files & media · fonts — shelves, same philosophy ============ */
@@ -1018,7 +1058,7 @@ function renderFileDetail(){
   if(!f){ host.innerHTML=''; return; }
   host.innerHTML='<div class="fdetail">'+
     '<div class="pdetail-head"><b>'+escHtml(f.name)+'</b><span class="pd-meta imeta">'+escHtml(f.sub||'')+'</span>'+
-      (f.content!=null ? '<button class="link" onclick="editFileCode('+f.id+')">Edit code</button>' : '')+'</div>'+
+      (f.content!=null ? '<button class="link" onclick="editFileCode('+f.id+')">edit code</button>' : '')+'</div>'+
     '<div class="f"><label>Write to</label><input class="mono" value="'+escAttr(f.path)+'" style="flex:1;min-width:220px" onchange="fpathChange('+f.id+',this.value)"></div>'+
     (f.src ? '<div class="f"><label>Source</label><input class="mono" value="'+escAttr(f.src)+'" style="flex:1;min-width:200px" onchange="fsrcChange('+f.id+',this.value)"></div>'
            : (f.content!=null ? '' : '<div class="srchint" style="margin:0">Bundled — ships with the exported blueprint, not in the Run URL.</div>'))+
@@ -1067,16 +1107,13 @@ function addFont(fam, sub){
   if(installedFonts().indexOf(fam)!==-1) return;
   if(sub==='Google Fonts') ensureFontCss(fam);
   var shelf=document.getElementById('cat-fonts'), list=shelf.querySelector('.items');
-  var row=document.createElement('div'); row.className='item'; row.dataset.font=fam;
+  var row=document.createElement('div'); row.className='item fline'; row.dataset.font=fam;
+  row.style.fontFamily="'"+fam.replace(/'/g,'')+"'";
   row.innerHTML =
-    '<div class="ptile" role="button" tabindex="0" aria-expanded="false" onclick="togglePluginTile(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();togglePluginTile(this);}">'+
-      '<span class="fspec" style="font-family:\''+escAttr(fam)+'\'">Ag</span><span class="pname iname">'+escHtml(fam)+'</span><span class="csub">'+escHtml(sub||'')+'</span>'+
-      '<button class="px" aria-label="Remove '+escAttr(fam)+'" onclick="event.stopPropagation();rmItem(this)">✕</button>'+
-    '</div>'+
-    '<div class="pdetail">'+
-      '<div class="pdetail-head"><b style="font-family:\''+escAttr(fam)+'\'">'+escHtml(fam)+'</b><span class="pd-meta imeta">'+escHtml(sub||'')+'</span></div>'+
-      '<div class="srchint" style="margin:0;font-family:\''+escAttr(fam)+'\';font-size:14px;color:var(--ink)">The quick brown fox jumps over the lazy dog — 0123456789</div>'+
-    '</div>';
+    '<b class="f-name iname">'+escHtml(fam)+'</b>'+
+    '<span class="f-sample">The quick brown fox jumps over the lazy dog — 0123456789</span>'+
+    '<span class="f-src">'+escHtml(sub||'')+'</span>'+
+    '<button class="x" aria-label="Remove '+escAttr(fam)+'" onclick="rmItem(this)">✕</button>';
   insertNewItem(list,row); refreshPreview(shelf); renderFontPicks();
 }
 function addFontByName(){ var i=document.getElementById('fontName'); addFont(i.value,'Google Fonts'); i.value=''; closeFontAc(); i.focus(); }
@@ -1132,12 +1169,12 @@ function uploadFonts(input){
   input.value=''; closeDrawers();
 }
 
-/* wp-config constants */
+/* wp-config constants — fine-print lines */
 function addConstItem(key, val, chip){
   var cat=document.getElementById('cat-constants'), list=cat.querySelector('.items');
   if([].some.call(list.querySelectorAll('.item'), function(r){ return r.dataset.const===key; })){ chipDone(chip); return; }
-  var row=document.createElement('div'); row.className='item'; row.dataset.const=key;
-  row.innerHTML='<div class="item-head"><span class="iname mono" style="font-size:12.5px">'+escHtml(key)+'</span><span class="imeta mono">'+escHtml(val)+'</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  var row=document.createElement('div'); row.className='item optline'; row.dataset.const=key;
+  row.innerHTML='<span class="iname o-k mono">'+escHtml(key)+'</span><span class="imeta mono" onclick="editSetting(this)" title="Click to edit">'+escHtml(val)+'</span><button class="x" onclick="rmItem(this)">✕</button>';
   insertNewItem(list,row); refreshPreview(cat); chipDone(chip);
 }
 function addDebugConsts(chip){ addConstItem('WP_DEBUG','true'); addConstItem('WP_DEBUG_LOG','true'); chipDone(chip); }
@@ -1185,30 +1222,21 @@ function addContentCard(opts){
   CONTENT_STORE[cid]={ kind:opts.kind, name:opts.name, src:opts.src||'', pgId:opts.pgId||null, title:opts.title||'', content:opts.content||'', words:opts.words||0 };
   var shelf=document.getElementById('cat-content'), list=shelf.querySelector('.items');
   var written = opts.kind==='page'||opts.kind==='post';
-  var row=document.createElement('div'); row.className='item'; row.dataset.cid=cid; row.dataset.ckind=opts.kind;
-  var inspector = written ? '' :
-    '<div class="pdetail">'+
-      '<div class="pdetail-head"><b>'+escHtml(opts.name)+'</b><span class="pd-meta imeta">'+escHtml(opts.sub||opts.kind)+'</span></div>'+
-      (opts.kind==='recipe'
-        ? '<div class="srchint" style="margin:0">Generated by the recipe library when the Blueprint runs.</div>'
-        : opts.kind==='cpt'
-        ? '<div class="f"><label>Singular</label><input class="cpt-sing" value="'+escAttr(opts.name)+'" style="width:160px"></div>'+
-          '<div class="f"><label>Plural</label><input class="cpt-plur" value="'+escAttr(opts.name+'s')+'" style="width:160px"></div>'+
-          '<div class="f"><label>Behaves like</label><select class="cpt-hier"><option value="0">Posts (flat)</option><option value="1">Pages (hierarchical)</option></select></div>'+
-          '<div class="srchint" style="margin:0">Registered via a bundled mu-plugin when the Blueprint runs.</div>'
-        : '<div class="f"><label>Source</label><input class="mono csrc" value="'+escAttr(opts.src||'')+'" placeholder="https://…" style="flex:1;min-width:200px"></div>'+
-          '<div class="f"><label>Type</label><span class="srchint" style="margin:0;padding:0">'+(opts.kind==='sql'?'SQL — runs against the database':'WXR — imports posts, pages & media')+'</span></div>')+
-    '</div>';
-  var doc = (written && opts.excerpt)
-    ? '<span class="cdoc"><span class="tx">'+escHtml(opts.excerpt.slice(0,220))+'</span></span>'
-    : '<span class="cdoc">'+cGlyph(opts.kind)+'</span>';
-  row.innerHTML =
-    '<div class="ptile" role="button" tabindex="0" aria-expanded="false"'+(written&&opts.excerpt?' title="'+escAttr(opts.excerpt)+'"':'')+' onclick="contentCardClick(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();contentCardClick(this);}">'+
-      doc+
-      '<span class="pname iname">'+escHtml(opts.name)+'</span>'+
-      '<span class="csub">'+escHtml(opts.sub||opts.kind)+'</span>'+
-      '<button class="px" aria-label="Remove '+escAttr(opts.name)+'" onclick="event.stopPropagation();rmItem(this)">✕</button>'+
-    '</div>'+inspector;
+  var row=document.createElement('div'); row.className='item tocline'; row.dataset.cid=cid; row.dataset.ckind=opts.kind;
+  var title = written
+    ? '<button class="toc-t lnk pname iname"'+(opts.excerpt?' title="'+escAttr(opts.excerpt)+'"':'')+' onclick="openContentEditor('+cid+')">'+escHtml(opts.name)+'</button>'
+    : '<span class="toc-t pname iname">'+(opts.kind==='cpt'?'Post type: ':'')+escHtml(opts.name)+'</span>';
+  var mid='';
+  if(opts.kind==='cpt'){
+    mid='<span class="toc-m">— plural <input class="tokin cpt-plur" value="'+escAttr(opts.name+'s')+'" style="width:'+(opts.name.length+4)+'ch" aria-label="Plural name"> · behaves like <select class="tokse cpt-hier" aria-label="Behavior"><option value="0">posts</option><option value="1">pages</option></select></span>';
+  } else if(opts.kind==='wxr'||opts.kind==='sql'){
+    mid='<span class="toc-m">from <input class="tokin csrc mono" value="'+escAttr(opts.src||'')+'" placeholder="https://…" style="width:24ch;font-size:11.5px" aria-label="Source URL"></span>';
+  }
+  row.innerHTML = title + mid +
+    '<span class="leader"></span>'+
+    '<span class="toc-m csub">'+escHtml(opts.sub||opts.kind)+'</span>'+
+    (written?'<button class="link" style="font-size:11.5px" onclick="openContentEditor('+cid+')">edit</button>':'')+
+    '<button class="x" aria-label="Remove '+escAttr(opts.name)+'" onclick="rmItem(this)">✕</button>';
   insertNewItem(list, row); refreshPreview(shelf);
   return row;
 }
@@ -1258,31 +1286,23 @@ function addRecipe(rid){
   def.fields.forEach(function(f){ params[f.key]=f.def; });
   RECIPE_STORE[cid]=params;
   var shelf=document.getElementById('cat-recipes'), list=shelf.querySelector('.items');
-  var row=document.createElement('div'); row.className='item'; row.dataset.rid=rid; row.dataset.rcid=cid;
+  var row=document.createElement('li'); row.className='item'; row.dataset.rid=rid; row.dataset.rcid=cid;
   var fieldsHtml=def.fields.map(function(f){
     var ctl = f.type==='select'
-      ? '<select onchange="recipeParam('+cid+',\''+f.key+'\',this.value)">'+f.options.map(function(o){ return '<option'+(o===params[f.key]?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>'
-      : '<input value="'+escAttr(params[f.key])+'" style="flex:1;min-width:220px" oninput="recipeParam('+cid+',\''+f.key+'\',this.value)">';
-    return '<div class="f"><label>'+escHtml(f.label)+'</label>'+ctl+'</div>';
-  }).join('');
+      ? '<select class="tokse" aria-label="'+escAttr(f.label)+'" onchange="recipeParam('+cid+',\''+f.key+'\',this.value)">'+f.options.map(function(o){ return '<option'+(o===params[f.key]?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>'
+      : '“<input class="tokin" aria-label="'+escAttr(f.label)+'" value="'+escAttr(params[f.key])+'" style="width:'+Math.max(12,String(params[f.key]||'').length+1)+'ch" oninput="recipeParam('+cid+',\''+f.key+'\',this.value);this.style.width=Math.max(12,this.value.length+1)+\'ch\'">”';
+    return ctl;
+  }).join(' <span class="st-desc">as</span> ');
   row.innerHTML =
-    '<div class="ptile" role="button" tabindex="0" aria-expanded="false" onclick="togglePluginTile(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();togglePluginTile(this);}">'+
-      '<span class="cdoc" style="color:#7b3fe4;background:#fdfbff">'+cGlyph('recipe')+'</span>'+
-      '<span class="pname iname">'+escHtml(def.name)+'</span>'+
-      '<span class="csub">'+escHtml(def.sub?def.sub(params):'recipe')+'</span>'+
-      '<button class="px" aria-label="Remove '+escAttr(def.name)+'" onclick="event.stopPropagation();rmItem(this)">✕</button>'+
-    '</div>'+
-    '<div class="pdetail">'+
-      '<div class="pdetail-head"><b>'+escHtml(def.name)+'</b><span class="pd-meta imeta">'+escHtml(def.desc)+'</span></div>'+
-      fieldsHtml+
-      '<button class="pg-advtoggle" onclick="this.nextElementSibling.classList.toggle(\'show\');this.classList.toggle(\'open\')">The code it ships</button>'+
-      '<div class="pg-adv"><div class="codeline rcode">'+escHtml(def.code(params))+'</div></div>'+
-    '</div>';
+    '<span class="st-name iname">'+escHtml(def.name)+'</span>'+
+    (fieldsHtml ? '<span class="st-desc">:</span> '+fieldsHtml : '<span class="st-desc"> — '+escHtml(def.desc)+'</span>')+
+    '<button class="link" style="font-size:11.5px" onclick="var c=this.parentElement.querySelector(\'.rcode\');c.hidden=!c.hidden">view code</button>'+
+    '<button class="x x2" aria-label="Remove '+escAttr(def.name)+'" onclick="rmItem(this)">✕</button>'+
+    '<div class="codeline rcode" hidden>'+escHtml(def.code(params))+'</div>';
   insertNewItem(list, row); refreshPreview(shelf);
-  if(def.fields.length){                              // configurable → open its form immediately
+  if(def.fields.length){                              // configurable → the blanks are right in the sentence
     closeDrawers();
-    togglePluginTile(row.querySelector('.ptile'));
-    var first=row.querySelector('.pdetail input, .pdetail select');
+    var first=row.querySelector('.tokin, .tokse');
     if(first) setTimeout(function(){ first.focus(); if(first.select) first.select(); }, 30);
   } else {
     renderRecipeLib(document.getElementById('recipeFilter').value);   // stay for multi-add
@@ -1293,7 +1313,7 @@ function recipeParam(cid, key, value){
   params[key]=value;
   var row=document.querySelector('.item[data-rcid="'+cid+'"]'); if(!row) return;
   var def=RECIPE_LIB.find(function(r){ return r.id===row.dataset.rid; });
-  if(def.sub) row.querySelector('.csub').textContent=def.sub(params);
+  var sub=row.querySelector('.csub'); if(def.sub && sub) sub.textContent=def.sub(params);
   var c=row.querySelector('.rcode'); if(c) c.textContent=def.code(params);
 }
 function flashRecipeCard(rid){
@@ -1303,11 +1323,6 @@ function flashRecipeCard(rid){
   row.scrollIntoView({block:'center',behavior:'smooth'});
   row.classList.add('flash');
   row.addEventListener('animationend', function(){ row.classList.remove('flash'); }, {once:true});
-}
-function contentCardClick(tile){
-  var row=tile.closest('.item'), st=CONTENT_STORE[row.dataset.cid];
-  if(st && (st.kind==='page'||st.kind==='post')) openContentEditor(row.dataset.cid);
-  else togglePluginTile(tile);
 }
 async function openContentEditor(cid){
   var st=CONTENT_STORE[cid]; if(!st) return;
@@ -1361,16 +1376,14 @@ function addItem(key,name,meta,toggle,chip){
   refreshPreview(cat);
 }
 function rmItem(btn){
-  var row=btn.closest('.item'), cat=btn.closest('.cat'), shelf=btn.closest('.pshelf');
+  var row=btn.closest('.item'), sec=btn.closest('.psec');
   var name=(row.querySelector('.iname')||{textContent:'item'}).textContent;
   var parent=row.parentNode, next=row.nextElementSibling;
   row.remove();
-  if(cat){ refreshPreview(cat); if(cat.classList.contains('open') && !cat.querySelector('.items .item')) showAddPanel(cat); }
-  if(shelf) refreshPreview(shelf);
+  if(sec) refreshPreview(sec);
   pushUndo('Removed '+name, function(){
     if(next && next.parentNode===parent) parent.insertBefore(row,next); else parent.appendChild(row);
-    if(cat) refreshPreview(cat);
-    if(shelf) refreshPreview(shelf);
+    if(sec) refreshPreview(sec);
   });
 }
 function refreshPreview(cat){
@@ -1605,7 +1618,7 @@ document.addEventListener('mousedown', function(e){
 /* clicking outside an open add drawer closes it (its own triggers keep their toggle behavior) */
 document.addEventListener('mousedown', function(e){
   if(!document.querySelector('.drawer.show')) return;
-  if(e.target.closest('.drawer,[data-addtile],.labeladd,.b-shot,.theme-cap,.people,.modal-overlay,.specmenu,.undo-toast')) return;
+  if(e.target.closest('.drawer,[data-addtile],.addcluster,.labeladd,.b-shot,.theme-cap,.people,.modal-overlay,.specmenu,.undo-toast')) return;
   document.querySelectorAll('.drawer.show').forEach(function(d){ d.classList.remove('show'); });
   syncAddTiles();
 });
@@ -1688,11 +1701,7 @@ function buildBlueprint(){
     if(k && v) so[k]=v.textContent;
   });
   bp.siteOptions=so;
-  var plugins=[];
-  document.querySelectorAll('#cat-plugins .items .item').forEach(function(it){
-    var slug=it.dataset.slug, tog=it.querySelector('.mini-toggle');
-    if(slug && (!tog || tog.classList.contains('on'))) plugins.push(slug);
-  });
+  var plugins=PLUGINS.filter(function(p){ return p.active && p.source==='WordPress.org' && p.slug; }).map(function(p){ return p.slug; });
   if(plugins.length) bp.plugins=plugins;
   var b64=function(s){ return btoa(unescape(encodeURIComponent(s||''))); };
   var steps=THEMES.map(function(t){
@@ -1753,14 +1762,17 @@ function buildBlueprint(){
   return bp;
 }
 function editSetting(btn){
-  var head=btn.closest('.item-head'), meta=head.querySelector('.imeta'); if(!meta) return;
-  var cur=meta.textContent, cls=meta.className;
+  var item=btn.closest('.item');
+  var meta=btn.classList.contains('imeta') ? btn : item.querySelector('.imeta');
+  if(!meta) return;
+  var cur=meta.textContent, cls=meta.className, title=meta.getAttribute('title')||'Click to edit';
   var inp=document.createElement('input'); inp.className='imeta-edit'+(cls.indexOf('mono')!==-1?' mono':''); inp.value=cur;
   meta.replaceWith(inp); inp.focus(); inp.select();
   var done=false;
   function commit(){
     if(done) return; done=true;
     var m=document.createElement('span'); m.className=cls; m.textContent=inp.value;
+    m.setAttribute('onclick','editSetting(this)'); m.setAttribute('title',title);
     inp.replaceWith(m);
   }
   inp.addEventListener('keydown', function(e){
@@ -1771,16 +1783,16 @@ function editSetting(btn){
 }
 function addSettingItem(name, value, opt, chip){
   var cat=document.getElementById('cat-settings'), list=cat.querySelector('.items');
-  var row=document.createElement('div'); row.className='item'; if(opt) row.dataset.opt=opt;
+  var row=document.createElement('div'); row.className='item optline'; if(opt) row.dataset.opt=opt;
   var mono=(opt && opt!=='blogname') ? ' mono' : '';
-  row.innerHTML='<div class="item-head"><span class="iname">'+escHtml(name)+'</span><span class="imeta'+mono+'">'+escHtml(value||'')+'</span><span class="ictl"><button class="link" onclick="editSetting(this)">Edit</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  row.innerHTML='<span class="iname o-k">'+escHtml(name)+'</span><span class="imeta'+mono+'" onclick="editSetting(this)" title="Click to edit">'+escHtml(value||'')+'</span><button class="x" onclick="rmItem(this)">✕</button>';
   insertNewItem(list, row); refreshPreview(cat);
   chipDone(chip);
   return row;
 }
 function addSettingChip(chip, name, opt){
   var row=addSettingItem(name, '', opt, chip);
-  editSetting(row.querySelector('.link'));
+  editSetting(row.querySelector('.imeta'));
 }
 function addCustomSetting(){
   var k=document.getElementById('sf-key'), v=document.getElementById('sf-val');
@@ -1831,7 +1843,7 @@ function loadPopular(kind){
 }
 /* an empty add input isn't empty — it suggests from the wp.org directory (popular, minus installed) */
 function installedSlugs(kind){
-  if(kind==='plugins') return [].map.call(document.querySelectorAll('#cat-plugins .items .item'), function(it){ return it.dataset.slug; }).filter(Boolean);
+  if(kind==='plugins') return PLUGINS.map(function(p){ return p.slug; }).filter(Boolean);
   if(kind==='themes') return THEMES.map(function(t){ return t.slug; });
   return [];
 }
@@ -1925,8 +1937,8 @@ function selectOption(kind, i){
     : 'from '+el.getAttribute('data-src');
   if(kind==='themes') addTheme(nm, el.getAttribute('data-slug')||slugify(nm), el.getAttribute('data-img')||'');
   else if(kind==='plugins'){
-    if(wporg) addPluginItem(nm, { slug: el.getAttribute('data-slug')||slugify(nm), ver: el.getAttribute('data-ver')||'', icon: el.getAttribute('data-img')||'', installs: parseInt(el.getAttribute('data-installs')||'0',10), desc: el.getAttribute('data-desc')||'', source:'WordPress.org' });
-    else addPluginItem(nm, { slug: slugify(nm), source: el.getAttribute('data-src')||'URL' });
+    if(wporg) addPlugin({ name:nm, slug: el.getAttribute('data-slug')||slugify(nm), ver: el.getAttribute('data-ver')||'', icon: el.getAttribute('data-img')||'', installs: parseInt(el.getAttribute('data-installs')||'0',10), desc: el.getAttribute('data-desc')||'', source:'WordPress.org' });
+    else addPlugin({ name:nm, source: el.getAttribute('data-src')||'URL' });
   }
   else if(kind==='content'){
     var full=(document.querySelector('#add-content .cinput')||{value:''}).value.trim();
@@ -1939,69 +1951,94 @@ function selectOption(kind, i){
   showSuggestions(kind);                             // refresh the shortlist minus what's now installed
 }
 function slugify(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
-function addPluginItem(name, opts){
-  opts = opts || {};
-  var cat=document.getElementById('cat-plugins'), list=cat.querySelector('.items');
-  var slug = opts.slug || slugify(name), ver = opts.ver || '', src = opts.source || 'WordPress.org';
-  var wporg = (src === 'WordPress.org');
-  var installsTxt = opts.installs ? fmtInstalls(opts.installs)+' installs' : '';
-  var meta = wporg ? ('WordPress.org'+(installsTxt?' · '+installsTxt:'')+' · '+(ver?'v'+ver:'latest')) : ('from '+src);
-  var kvHtml = (opts.activationOptions||[]).map(function(p){ return kvRowHTML(p[0],p[1]); }).join('');
-  var row=document.createElement('div'); row.className='item'; row.dataset.slug = wporg ? slug : ''; row.dataset.icon = opts.icon || '';
-  var rowIcon = opts.icon
-    ? '<img class="pico" src="'+escAttr(opts.icon)+'"'+gifAttrs(opts.icon)+' alt="" onerror="this.style.visibility=\'hidden\'">'
-    : '<span class="pico lt">'+escHtml((name[0]||'?').toUpperCase())+'</span>';
-  row.innerHTML =
-    '<div class="ptile" role="button" tabindex="0" aria-expanded="false" onclick="togglePluginTile(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();togglePluginTile(this);}">'+
-      rowIcon+
-      '<span class="pname iname">'+escHtml(name)+'</span>'+
-      '<button class="px" aria-label="Remove '+escAttr(name)+'" onclick="event.stopPropagation();rmItem(this)">✕</button>'+
-    '</div>'+
-    '<div class="pdetail pg-more">'+
-      '<div class="pdetail-head"><b>'+escHtml(name)+'</b><span class="pd-meta imeta">'+escHtml(meta)+'</span><button class="mini-toggle on" onclick="togglePluginActive(this)">Active</button></div>'+
-      '<div class="pg-head">'+
-        (opts.icon ? '<img class="pg-icon" src="'+escAttr(opts.icon)+'"'+gifAttrs(opts.icon)+' alt="" onerror="this.style.visibility=\'hidden\'">' : '<span class="pg-icon"></span>')+
-        '<div class="pg-head-body">'+
-          '<div class="pg-desc">'+(opts.desc?escHtml(opts.desc):(wporg?'':'Bundled from '+escHtml(src)+'.'))+'</div>'+
-          '<div class="pg-stats"><span class="pg-rating"></span><span class="pg-installs">'+(installsTxt?escHtml(installsTxt.replace('installs','active installs')):'')+'</span>'+
-            (wporg?'<a class="pg-link" href="https://wordpress.org/plugins/'+escAttr(slug)+'/" target="_blank" rel="noopener">wordpress.org ↗</a>':'')+'</div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="f"><label>Version</label><select class="pg-version" data-ver="'+escAttr(ver)+'"><option value=""'+(ver?'':' selected')+'>Latest</option>'+(ver?'<option value="'+escAttr(ver)+'" selected>'+escHtml(ver)+'</option>':'')+'</select></div>'+
-      '<div class="f"><label>Source</label><span class="srchint" style="margin:0;padding:0">'+escHtml(src)+'</span></div>'+
-      '<div class="f"><label>Slug</label><input class="mono" value="'+escAttr(slug)+'" style="width:190px"></div>'+
-      '<div class="f pg-actf"><label>On activate</label><div class="kv-wrap"><div class="kv-rows">'+kvHtml+'</div><button class="kvadd" onclick="addKv(this)">＋ Add activation option</button></div></div>'+
-      '<button class="pg-advtoggle" onclick="this.nextElementSibling.classList.toggle(\'show\');this.classList.toggle(\'open\')">Advanced</button>'+
-      '<div class="pg-adv">'+
-        '<div class="f"><label>If installed</label><select><option>Overwrite</option><option>Skip</option><option>Error</option></select></div>'+
-        '<div class="f"><label>On error</label><select><option>Fail the Blueprint</option><option>Skip this plugin</option></select></div>'+
-      '</div>'+
-    '</div>';
-  insertNewItem(list, row); refreshPreview(cat);
+/* 1 · plugins as a ledger: every value on the line, edited where it stands */
+var PLUGINS=[], _pseq=0, _verCache={};
+function addPlugin(o){
+  o.slug=o.slug||slugify(o.name);
+  if(PLUGINS.some(function(p){ return p.slug===o.slug; })){ flashPluginLine(o.slug); return; }
+  o.id=++_pseq; o.active=o.active!==false; o.kv=o.kv||[]; o.source=o.source||'WordPress.org';
+  PLUGINS.push(o); renderPlugins();
 }
-function kvRowHTML(k,v){ return '<div class="kv"><input class="kv-k" placeholder="key" value="'+escAttr(k||'')+'"><span class="kv-eq">=</span><input class="kv-v" placeholder="value" value="'+escAttr(v||'')+'"><button class="kv-x" onclick="this.closest(\'.kv\').remove()">✕</button></div>'; }
-function addKv(btn){ btn.parentElement.querySelector('.kv-rows').insertAdjacentHTML('beforeend', kvRowHTML('','')); }
+function rmPlugin(id){
+  var snap=PLUGINS.slice(), snapSel=_plugSel;
+  var p=PLUGINS.find(function(x){ return x.id===id; });
+  PLUGINS=PLUGINS.filter(function(x){ return x.id!==id; });
+  if(_plugSel===id) _plugSel=null;
+  renderPlugins();
+  pushUndo('Removed '+(p?p.name:'plugin'), function(){ PLUGINS=snap; _plugSel=snapSel; renderPlugins(); });
+}
+/* a packing list: the resting tile is just icon + name — version, state, and
+   options print only for the one tile you open */
+var _plugSel=null;
+function renderPlugins(){
+  var sel=PLUGINS.find(function(p){ return p.id===_plugSel; });
+  document.getElementById('pluginLines').innerHTML=
+    (PLUGINS.length?'<div class="ptiles">'+PLUGINS.map(function(p){
+      var icon=p.icon
+        ? '<img class="pt-ic" src="'+escAttr(p.icon)+'"'+gifAttrs(p.icon)+' alt="" onerror="this.style.visibility=\'hidden\'">'
+        : '<span class="pt-ic lt">'+escHtml((p.name[0]||'?').toUpperCase())+'</span>';
+      return '<button class="ptile2 item'+(p.active?'':' off')+(p.id===_plugSel?' sel':'')+'" data-pid="'+p.id+'" data-slug="'+escAttr(p.source==='WordPress.org'?p.slug:'')+'" '+
+        'title="'+escAttr(p.name+(p.ver?' '+p.ver:'')+(p.active?'':' · ships inactive')+' — click for version, state & options')+'" onclick="selPlugin('+p.id+')">'+
+        icon+'<span class="pt-name iname">'+escHtml(p.name)+'</span>'+(p.active?'':'<span class="pt-off">off</span>')+
+      '</button>';
+    }).join('')+'</div>':'')+
+    (sel?plugDetailHTML(sel):'');
+}
+function selPlugin(id){ _plugSel=(_plugSel===id?null:id); renderPlugins(); }
+function plugDetailHTML(p){
+  var wporg=p.source==='WordPress.org';
+  var ver=wporg
+    ? '<select class="tokse" title="Version" data-pid="'+p.id+'" onfocus="loadVers(this)" onchange="setPluginVer('+p.id+',this.value)">'+
+        (p.ver ? '<option selected>'+escHtml(p.ver)+'</option><option value="">latest</option>' : '<option value="" selected>latest</option>')+
+      '</select>'
+    : '<span class="dim">'+escHtml(p.source)+'</span>';
+  var kv=p.kv.map(function(pair,i){
+    return '<span class="kvchip">'+escHtml(pair[0])+' = <input class="tokin" style="width:'+Math.max(4,(pair[1]||'').length+1)+'ch" value="'+escAttr(pair[1])+'" aria-label="'+escAttr(pair[0])+'" oninput="setKv('+p.id+','+i+',this.value);this.style.width=Math.max(4,this.value.length+1)+\'ch\'"></span>';
+  }).join('<span class="dim">·</span>');
+  return '<div class="pdetail2 pline'+(p.active?'':' off')+'" data-pid="'+p.id+'">'+
+    '<span class="pl-name">'+escHtml(p.name)+'</span>'+
+    ver+
+    '<button class="tok" title="'+(p.active?'Ships active — click to install without activating':'Ships installed but inactive — click to activate')+'" onclick="togglePluginState('+p.id+')">'+(p.active?'active':'inactive')+'</button>'+
+    (kv?'<span class="dim">·</span>'+kv:'')+
+    '<span class="grow"></span>'+
+    '<span class="pl-end">'+
+      '<button class="kvadd2" onclick="addKvState('+p.id+')">＋ option</button>'+
+      (wporg?'<a class="pl-link2" href="https://wordpress.org/plugins/'+escAttr(p.slug)+'/" target="_blank" rel="noopener" title="'+escAttr((p.desc||'')+(p.installs?' · '+fmtInstalls(p.installs)+' active installs':''))+'">w.org ↗</a>':'')+
+      '<button class="x" style="opacity:1" aria-label="Remove '+escAttr(p.name)+'" onclick="rmPlugin('+p.id+')">✕</button>'+
+    '</span>'+
+  '</div>';
+}
+function togglePluginState(id){ var p=PLUGINS.find(function(x){ return x.id===id; }); if(p){ p.active=!p.active; renderPlugins(); } }
+function setPluginVer(id,v){ var p=PLUGINS.find(function(x){ return x.id===id; }); if(p) p.ver=v; }
+function setKv(id,i,v){ var p=PLUGINS.find(function(x){ return x.id===id; }); if(p&&p.kv[i]) p.kv[i][1]=v; }
+function addKvState(id){
+  var p=PLUGINS.find(function(x){ return x.id===id; }); if(!p) return;
+  _plugSel=id; p.kv.push(['option','value']); renderPlugins();
+  var inp=document.querySelectorAll('.pdetail2 .kvchip .tokin');
+  if(inp.length){ var last=inp[inp.length-1]; last.focus(); last.select(); }
+}
+function flashPluginLine(slug){
+  var tile=document.querySelector('.ptile2[data-slug="'+slug+'"]'); if(!tile) return;
+  tile.scrollIntoView({block:'center',behavior:'smooth'});
+  tile.classList.add('flash');
+  tile.addEventListener('animationend', function(){ tile.classList.remove('flash'); }, {once:true});
+}
 function pgVerCmp(a,b){ var pa=a.split('.').map(Number), pb=b.split('.').map(Number); for(var i=0;i<Math.max(pa.length,pb.length);i++){ var x=pa[i]||0,y=pb[i]||0; if(x!==y) return x-y; } return 0; }
-function pgLoadDetails(item){
-  var slug=item.dataset.slug; if(!slug) return; item.dataset.pgLoaded='1';
-  fetch('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]='+encodeURIComponent(slug)+'&request[fields][versions]=1&request[fields][short_description]=1')
+function loadVers(sel){
+  var p=PLUGINS.find(function(x){ return x.id===+sel.dataset.pid; });
+  if(!p || p._versLoaded) return; p._versLoaded=true;
+  fetch('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]='+encodeURIComponent(p.slug)+'&request[fields][versions]=1')
     .then(function(r){ return r.json(); }).then(function(j){
-    if(!j || j.error) return;
-    var sel=item.querySelector('.pg-version');
-    if(sel && j.versions){
-      var vers=Object.keys(j.versions).filter(function(v){ return /^[0-9]+(\.[0-9]+)*$/.test(v); }).sort(pgVerCmp);
-      var recent=vers.slice(-16).reverse(), cur=sel.getAttribute('data-ver')||'', opts=recent.slice();
-      if(cur && opts.indexOf(cur)===-1) opts.unshift(cur);
-      sel.innerHTML='<option value=""'+(cur?'':' selected')+'>Latest'+(recent[0]?' ('+recent[0]+')':'')+'</option>'+
-        opts.map(function(v){ return '<option value="'+escAttr(v)+'"'+(v===cur?' selected':'')+'>'+escHtml(v)+'</option>'; }).join('');
-    }
-    var d=item.querySelector('.pg-desc'); if(d && !d.textContent && j.short_description) d.textContent=decodeEnt(j.short_description).replace(/<[^>]+>/g,'').trim();
-    var rt=item.querySelector('.pg-rating'); if(rt && j.rating) rt.textContent='★ '+(j.rating/20).toFixed(1)+(j.num_ratings?' ('+fmtInstalls(j.num_ratings)+')':'');
-    var ins=item.querySelector('.pg-installs'); if(ins && !ins.textContent && j.active_installs) ins.textContent=fmtInstalls(j.active_installs)+' active installs';
-  }).catch(function(){});
+      if(!j || !j.versions) return;
+      var vers=Object.keys(j.versions).filter(function(v){ return /^[0-9]+(\.[0-9]+)*$/.test(v); }).sort(pgVerCmp).slice(-12).reverse();
+      var cur=p.ver||'';
+      sel.innerHTML='<option value=""'+(cur?'':' selected')+'>latest</option>'+
+        vers.map(function(v){ return '<option'+(v===cur?' selected':'')+'>'+v+'</option>'; }).join('')+
+        (cur && vers.indexOf(cur)===-1 ? '<option selected>'+escHtml(cur)+'</option>' : '');
+    }).catch(function(){});
 }
 function addResource(kind, name, meta){
-  if(kind==='plugins') addPluginItem(name, { slug: slugify(name), source: (/github/i.test(meta)?'GitHub':/url/i.test(meta)?'URL':'Upload') });
+  if(kind==='plugins') addPlugin({ name:name, source: (/github/i.test(meta)?'GitHub':/url/i.test(meta)?'URL':'Upload') });
   else if(kind==='themes') addTheme(name.replace(/\.zip$/i,''), null, '');
   else if(kind==='content'){
     var ck=/\.sql$/i.test(name) ? 'sql' : 'wxr';
@@ -2080,14 +2117,14 @@ function saveCodeModal(){
   } else if(_cmKind==='files'){
     addFile({ name:name, sub:lines+' lines · written', content:code, path:'/wordpress/wp-content/mu-plugins/'+name });
   } else {
-    addItem(_cmKind, name, 'written · '+lines+' lines', _cmKind==='plugins');
+    addPlugin({ name:name.replace(/\.php$/i,''), source:'Written' });
   }
   closeCodeModal();
 }
 function addCodeItem(label, fname, code){
   var cat=document.getElementById('cat-code'), list=cat.querySelector('.items');
-  var row=document.createElement('div'); row.className='item'; row.dataset.fname=fname; row.dataset.code=code;
-  row.innerHTML='<div class="item-head"><span class="iname">'+escHtml(label)+'</span><span class="imeta">'+escHtml(fname)+' · '+code.split('\n').length+' lines</span><span class="ictl"><button class="link" onclick="editCodeItem(this)">Edit code</button><button class="x" onclick="rmItem(this)">✕</button></span></div>';
+  var row=document.createElement('div'); row.className='item optline'; row.dataset.fname=fname; row.dataset.code=code;
+  row.innerHTML='<span class="iname o-k">'+escHtml(label)+'</span><span class="imeta">'+escHtml(fname)+' · '+code.split('\n').length+' lines</span><button class="link" onclick="editCodeItem(this)">edit code</button><button class="x" onclick="rmItem(this)">✕</button>';
   insertNewItem(list, row); refreshPreview(cat);
 }
 /* content: a self-contained block editor (no Playground) — outputs WordPress block markup */
@@ -2402,13 +2439,13 @@ async function captureEditorPost(prefId){
     var row=document.querySelector('.item[data-cid="'+_beEditCid+'"]');
     if(row){
       row.querySelector('.pname').textContent=st.name;
-      row.querySelector('.csub').textContent=st.kind+(words?' · ~'+words+' words':'');
+      row.querySelector('.csub').textContent=st.kind+wordsMeta(words);
       var doc=row.querySelector('.cdoc'); if(doc) doc.innerHTML='<span class="tx">'+escHtml(excerpt.slice(0,220))+'</span>';
-      var tl=row.querySelector('.ptile'); if(tl) tl.title=excerpt;
+      var tl=row.querySelector('.ptile')||row.querySelector('.pname'); if(tl) tl.title=excerpt;
       row.classList.add('flash'); row.addEventListener('animationend', function(){ row.classList.remove('flash'); }, {once:true});
     }
   } else {
-    var newRow=addContentCard({ kind:_beType, name:title||('New '+_beType), sub:_beType+(words?' · ~'+words+' words':''), pgId:pgId, title:title, content:markup, words:words, excerpt:excerpt });
+    var newRow=addContentCard({ kind:_beType, name:title||('New '+_beType), sub:_beType+wordsMeta(words), pgId:pgId, title:title, content:markup, words:words, excerpt:excerpt });
     _beEditCid=newRow.dataset.cid;                                /* further ⌘S saves update this card */
   }
   _beUnsaved=false;
@@ -2445,32 +2482,22 @@ document.addEventListener('keydown', function(e){
   if(document.getElementById('runModal').classList.contains('show')){ closeRunner(); return; }
   if(document.getElementById('beModal').classList.contains('show')){ closeBlockEditor(); return; }
   if(document.getElementById('specMenu').classList.contains('show')){ closeSpecMenu(); return; }
-  var pd=document.querySelector('.pshelf .item.exp');                 // Esc walks up: inspector → drawer → panel → category
-  if(pd){ pd.classList.remove('exp'); var pt=pd.querySelector('.ptile'); if(pt){ pt.setAttribute('aria-expanded','false'); pt.focus(); } return; }
-  var dr=document.querySelector('.drawer.show');
+  var dr=document.querySelector('.drawer.show');                      // Esc walks up: popover → inline add
   if(dr){ dr.classList.remove('show'); syncAddTiles(); return; }
-  var p=document.querySelector('.addpanel.show');
-  if(p){ var cat=p.closest('.cat'); p.classList.remove('show'); syncAddState(cat); var b=cat.querySelector('.cat-add'); if(b) b.focus(); return; }
-  var oc=document.querySelector('#manifest .cat.open');
-  if(oc){ oc.classList.remove('open'); refreshPreview(oc); var r=oc.querySelector('.cat-row'); if(r) r.focus(); }
+  var ia=document.querySelector('.inlineadd.show');
+  if(ia){ ia.classList.remove('show'); return; }
 });
 /* helpers */
+function wordsMeta(n){ return n ? ' · ~'+n+' word'+(n===1?'':'s') : ''; }
 function decodeEnt(s){ var t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
 function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s){ return escHtml(s).replace(/"/g,'&quot;'); }
 function fmtInstalls(n){ if(n>=1e6) return Math.round(n/1e6)+'M+'; if(n>=1e3) return Math.round(n/1e3)+'k+'; return String(n); }
 function fmtSize(b){ if(b>=1e6) return (b/1e6).toFixed(1)+' MB'; if(b>=1e3) return Math.round(b/1e3)+' KB'; return b+' B'; }
 loadPopular('plugins'); loadPopular('themes');
-/* category rows are div-based; make them keyboard-operable */
-document.querySelectorAll('.cat-row').forEach(function(row){
-  row.setAttribute('tabindex','0'); row.setAttribute('role','button');
-  row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleCat(row); } });
-});
-/* seed the sample store's plugins through the same renderer everything else uses
-   (new items prepend, so seed in reverse display order; strip the new-item flash) */
-addPluginItem('Yoast SEO', {slug:'wordpress-seo', ver:'', installs:10000000, icon:'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', desc:'Improve your WordPress SEO — write better content and have a fully optimized site.', source:'WordPress.org'});
-addPluginItem('WooCommerce', {slug:'woocommerce', ver:'9.4', installs:7000000, icon:'https://ps.w.org/woocommerce/assets/icon.svg', desc:'The customizable, open-source ecommerce platform for WordPress.', source:'WordPress.org', activationOptions:[['storeCity','Warsaw']]});
-document.querySelectorAll('#cat-plugins .item.flash').forEach(function(el){ el.classList.remove('flash'); });
+/* seed the sample store's plugins through the same renderer everything else uses */
+addPlugin({ name:'WooCommerce', slug:'woocommerce', ver:'9.4', installs:7000000, icon:'https://ps.w.org/woocommerce/assets/icon.svg', desc:'The customizable, open-source ecommerce platform for WordPress.', kv:[['storeCity','Warsaw']] });
+addPlugin({ name:'Yoast SEO', slug:'wordpress-seo', installs:10000000, icon:'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908', desc:'Improve your WordPress SEO — write better content and have a fully optimized site.' });
 /* render the site card: theme gallery + hero shot, avatar stack, spec labels, roles, empty shelves */
 renderThemes(); renderUsers(); syncLoginLabel(); renderRoles();
 renderFiles();
@@ -2479,6 +2506,9 @@ refreshPreview(document.getElementById('cat-fonts'));
 addContentCard({ kind:'recipe', name:'Sample products', sub:'12 products · generated on run' });
 addRecipe('welcome-guides');
 document.querySelectorAll('#cat-content .item.flash, #cat-recipes .item.flash').forEach(function(el){ el.classList.remove('flash'); });
+/* keep blank sections unprinted as content comes and goes — any add/remove re-syncs */
+new MutationObserver(function(){ syncPaperSections(); }).observe(document.querySelector('main'), { childList:true, subtree:true });
+syncPaperSections();
 </script>
 <script type="module">
   import { EditorView, basicSetup } from "https://esm.sh/codemirror@6.0.1";

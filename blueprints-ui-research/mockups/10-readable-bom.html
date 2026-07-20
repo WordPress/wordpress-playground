@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint readability directions</title>
+<style>
+:root {
+  color-scheme: light;
+  --canvas: #f0f0f1;
+  --surface: #ffffff;
+  --surface-soft: #f6f7f7;
+  --ink: #1e1e1e;
+  --muted: #50575e;
+  --line: #dcdcde;
+  --line-strong: #c3c4c7;
+  --blue: #3858e9;
+  --blue-dark: #2145e6;
+  --blue-soft: #eff2ff;
+  --warning: #8a4b00;
+  --danger: #b32d2e;
+  --radius: 4px;
+  --shadow: 0 12px 42px rgba(30, 30, 30, .16);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); }
+body { margin: 0; color: var(--ink); background: var(--canvas); font-size: 16px; line-height: 1.45; }
+button, input, select { font: inherit; }
+button { color: inherit; }
+
+.study-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 82px;
+  padding: 14px 28px;
+  border-bottom: 1px solid #2d2d2d;
+  background: #1e1e1e;
+  color: #fff;
+}
+.study-title { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.study-title strong { flex: none; font-size: 15px; }
+.study-title span { display: none; }
+.switcher { display: flex; gap: 4px; padding: 3px; border-radius: 7px; background: #303030; }
+.switcher button {
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #d8d8d8;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.switcher button:hover { background: #414141; color: #fff; }
+.switcher button[aria-pressed="true"] { background: #fff; color: #1e1e1e; }
+
+.stage { padding: 28px; }
+.concept-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(1180px, 100%);
+  margin: 0 auto 14px;
+}
+.concept-intro h1 { margin: 0 0 3px; font-size: 20px; line-height: 1.3; }
+.concept-intro p { max-width: 720px; margin: 0; color: var(--muted); font-size: 14px; }
+.concept-tag { flex: none; padding-top: 4px; color: var(--muted); font-size: 14px; }
+
+.prototype {
+  width: min(1180px, 100%);
+  min-height: 720px;
+  margin: 0 auto;
+  overflow: clip;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 2px 12px rgba(30, 30, 30, .06);
+}
+.product-bar {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.brand-mark {
+  display: grid;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+}
+.product-name { display: flex; flex-direction: column; min-width: 0; }
+.product-name strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.product-name span { color: var(--muted); font-size: 14px; }
+.product-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.mobile-part-picker { display: none; }
+.change-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 7px 20px;
+  border-bottom: 1px solid #b8c2f4;
+  background: var(--blue-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+.change-notice .text-action { flex: none; }
+
+.primary,
+.secondary,
+.text-action,
+.add-action,
+.edit-action,
+.source-action {
+  min-height: 44px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+}
+.primary { padding: 8px 16px; border: 1px solid var(--blue); background: var(--blue); color: #fff; }
+.primary:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
+.secondary { padding: 8px 14px; border: 1px solid var(--line-strong); background: #fff; }
+.secondary:hover { border-color: #8c8f94; }
+.text-action { padding: 8px 10px; border: 0; background: transparent; color: var(--blue-dark); }
+.text-action:hover { text-decoration: underline; }
+.add-action { padding: 8px 13px; border: 1px solid var(--line-strong); background: #fff; }
+.add-action:hover { border-color: var(--blue); color: var(--blue-dark); }
+.edit-action { min-height: 44px; padding: 8px 9px; border: 0; background: transparent; color: var(--blue-dark); font-size: 14px; }
+.edit-action:hover { text-decoration: underline; }
+.source-action { min-height: 44px; padding: 8px 10px; border: 1px solid var(--line-strong); background: #fff; font-size: 14px; }
+
+.bill { padding: 14px 0; }
+.bill-label { padding: 4px 20px 10px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.bill-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  padding: 10px 18px 10px 20px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.bill-row:last-child { border-bottom: 1px solid var(--line); }
+.bill-row:hover { background: var(--surface-soft); }
+.bill-row[aria-pressed="true"] { background: var(--blue-soft); }
+.bill-row[aria-pressed="true"]::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--blue); }
+.bill-row strong { display: block; margin-bottom: 2px; font-size: 16px; line-height: 1.3; }
+.bill-row span { display: block; overflow: hidden; color: var(--muted); font-size: 14px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+
+.detail { min-width: 0; padding: 26px 32px 44px; }
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  min-height: 66px;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.detail-header h2 { margin: 0 0 3px; font-size: 24px; line-height: 1.25; }
+.detail-header p { margin: 0; color: var(--muted); font-size: 14px; }
+.detail-header .add-action { flex: none; margin-left: auto; }
+.section-copy { max-width: 720px; margin: 18px 0 4px; color: var(--muted); font-size: 14px; }
+
+.material-list { margin-top: 10px; border-top: 1px solid var(--line); }
+.material-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(170px, .85fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 66px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.material-row.selected { background: var(--blue-soft); }
+.material-name strong, .material-value strong { display: block; font-size: 16px; line-height: 1.3; }
+.material-name span, .material-value span { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 1.35; }
+.material-source { color: var(--muted); font-size: 14px; }
+.material-state { color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.material-state.exception { color: var(--warning); }
+
+.item-editor {
+  margin: 0 0 10px;
+  padding: 20px;
+  border: 1px solid #b8c2f4;
+  border-top: 0;
+  background: #fafbff;
+}
+.editor-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.editor-heading strong { font-size: 17px; }
+.editor-heading .text-action { margin-left: auto; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 18px 22px; }
+.field { display: grid; gap: 6px; }
+.field > span { color: var(--muted); font-size: 14px; font-weight: 600; }
+.field input, .field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+}
+.field input:focus, .field select:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.check-field { display: flex; align-items: center; gap: 9px; min-height: 44px; font-size: 15px; }
+.check-field input { width: 18px; height: 18px; accent-color: var(--blue); }
+.from-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 48px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.from-row > span:first-child { color: var(--muted); font-weight: 600; }
+.more-settings { margin-top: 16px; }
+.more-settings summary { width: fit-content; min-height: 44px; padding: 11px 0; cursor: pointer; color: var(--blue-dark); font-size: 14px; font-weight: 600; }
+.more-settings p { max-width: 600px; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+
+.scalar-form { max-width: 760px; margin-top: 22px; }
+.subsection { margin-top: 28px; }
+.subsection h3 { margin: 0 0 8px; font-size: 17px; }
+.subsection > p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.warning-line { padding-left: 12px; border-left: 3px solid #dba617; color: var(--warning); font-size: 14px; }
+
+/* Version 1: the complete bill remains beside one focused editor. */
+.rail-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); height: 655px; overflow: hidden; }
+.rail-layout > nav { overflow: auto; border-right: 1px solid var(--line); background: #fbfbfc; }
+.rail-layout > .detail { overflow: auto; }
+
+/* Version 2: one continuous build sheet with a sticky table of contents. */
+.continuous-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; }
+.continuous-outline { position: sticky; top: 82px; max-height: calc(100vh - 98px); overflow: auto; border-right: 1px solid var(--line); background: #fbfbfc; }
+.continuous-sheet { min-width: 0; }
+.continuous-section { scroll-margin-top: 98px; border-bottom: 8px solid var(--canvas); }
+.continuous-section:last-child { border-bottom: 0; }
+.continuous-section .detail { max-width: 860px; }
+
+/* Version 3: all parts are a single stable ledger. */
+.ledger-layout { max-width: 880px; min-height: 655px; margin: 0 auto; padding: 22px 32px 46px; }
+.ledger-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 12px; }
+.ledger-heading h2 { margin: 0; font-size: 20px; }
+.ledger-heading p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.ledger-part { border-top: 1px solid var(--line); }
+.ledger-part:last-child { border-bottom: 1px solid var(--line); }
+.ledger-summary {
+  display: grid;
+  grid-template-columns: 190px 1fr auto;
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ledger-summary:hover { background: var(--surface-soft); }
+.ledger-summary strong { font-size: 15px; }
+.ledger-summary span { color: var(--muted); font-size: 14px; }
+.ledger-summary b { color: var(--blue-dark); font-size: 14px; }
+.ledger-part.open { border-left: 4px solid var(--blue); }
+.ledger-part.open .ledger-summary { padding-left: 14px; background: var(--blue-soft); }
+.ledger-open { padding: 0 18px 24px; }
+.ledger-open .detail { padding: 20px 0 0; }
+.ledger-open .detail-header h2 { display: none; }
+.ledger-open .detail-header { min-height: 54px; }
+
+/* Version 4: a read-first description with a stable Quick Look sheet. */
+.summary-layout { display: grid; grid-template-columns: minmax(0, 1fr) 430px; height: 655px; overflow: hidden; }
+.summary-layout.resting { grid-template-columns: 1fr; }
+.summary-document { padding: 32px 38px 48px; border-right: 1px solid var(--line-strong); }
+.summary-document, .quick-sheet { overflow: auto; }
+.summary-document h2 { margin: 0 0 4px; font-size: 28px; }
+.summary-document > p { margin: 0 0 24px; color: var(--muted); }
+.sentence-list { border-top: 1px solid var(--line); }
+.sentence-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 68px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.sentence-row.current { margin-inline: -14px; padding-inline: 14px; background: var(--blue-soft); }
+.sentence-row p { margin: 0; font-size: 16px; }
+.sentence-row p strong { font-weight: 650; }
+.quick-sheet { background: #fbfbfc; }
+.sheet-close { display: flex; justify-content: flex-end; padding: 8px 14px 0; }
+.quick-sheet .detail { padding: 26px 24px 40px; }
+.quick-sheet .material-row { grid-template-columns: 1fr auto; gap: 8px; }
+.quick-sheet .material-source { grid-column: 1; }
+.quick-sheet .material-state { grid-column: 2; grid-row: 1; }
+.quick-sheet .edit-action { grid-column: 2; grid-row: 2; }
+.quick-sheet .form-grid { grid-template-columns: 1fr; }
+
+/* Version 5: parts, materials, and settings stay visible as columns. */
+.columns-layout { display: grid; grid-template-columns: 280px 320px minmax(0, 1fr); height: 655px; overflow: hidden; }
+.column { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: #fbfbfc; }
+.column:last-child { border-right: 0; background: #fff; }
+.column-title { position: sticky; top: 0; z-index: 2; min-height: 64px; padding: 18px 18px 12px; border-bottom: 1px solid var(--line-strong); background: inherit; }
+.column-title strong { display: block; font-size: 17px; }
+.column-title span { color: var(--muted); font-size: 14px; }
+.columns-layout .bill { padding-top: 0; }
+.columns-layout .bill-label { display: none; }
+.columns-layout .bill-row { min-height: 62px; }
+.object-row {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.object-row:hover { background: var(--surface-soft); }
+.object-row[aria-pressed="true"] { background: var(--blue-soft); box-shadow: inset 4px 0 var(--blue); }
+.object-row strong { display: block; font-size: 15px; }
+.object-row span { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.column-add { padding: 14px 18px; }
+.column-inspector { padding: 24px 28px 42px; }
+.column-inspector h2 { margin: 0 0 3px; font-size: 23px; }
+.column-inspector > p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.column-inspector .form-grid { grid-template-columns: 1fr; }
+
+dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(30, 30, 30, .48); }
+.dialog-form { display: flex; max-height: inherit; flex-direction: column; }
+.dialog-header { display: flex; align-items: center; min-height: 62px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.dialog-header h2 { margin: 0; font-size: 20px; }
+.dialog-close { width: 44px; height: 44px; margin-left: auto; border: 0; background: transparent; cursor: pointer; font-size: 20px; }
+.dialog-close:hover { background: var(--surface-soft); }
+.dialog-body { padding: 22px 20px; overflow: auto; }
+.dialog-body h3 { margin: 0 0 4px; font-size: 18px; }
+.dialog-body > p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.search-label { display: grid; gap: 7px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.search-label input { min-height: 46px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.choice-list { margin-top: 16px; border-top: 1px solid var(--line); }
+.choice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.choice:hover { background: var(--surface-soft); }
+.choice.selected { background: var(--blue-soft); box-shadow: inset 4px 0 var(--blue); padding-left: 14px; }
+.choice input { align-self: center; width: 18px; height: 18px; accent-color: var(--blue); }
+.choice strong { display: block; font-size: 15px; }
+.choice span { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
+.choice b { align-self: center; color: var(--blue-dark); font-size: 14px; }
+.source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.source-options label { display: flex; min-height: 44px; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; cursor: pointer; }
+.source-options label:hover { border-color: var(--blue); }
+.source-options input { width: 18px; height: 18px; accent-color: var(--blue); }
+.effects { margin-top: 16px; padding: 14px 16px; border-left: 4px solid var(--blue); background: var(--surface-soft); }
+.effects strong { display: block; margin-bottom: 8px; }
+.effect-row { display: grid; grid-template-columns: 100px 1fr; gap: 12px; padding: 5px 0; font-size: 14px; }
+.effect-row span:first-child { color: var(--muted); font-weight: 600; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 8px; min-height: 68px; padding: 13px 20px; border-top: 1px solid var(--line); background: #fbfbfc; }
+
+@media (max-width: 900px) {
+  .study-bar { grid-template-columns: 1fr; gap: 8px; padding: 12px 16px; }
+  .study-title span { display: none; }
+  .switcher { overflow-x: auto; }
+  .switcher button { flex: none; }
+  .stage { padding: 16px; }
+  .concept-intro { display: block; }
+  .concept-tag { padding-top: 6px; }
+  .rail-layout { grid-template-columns: 220px minmax(0, 1fr); }
+  .detail { padding: 22px 24px 38px; }
+  .material-row { grid-template-columns: minmax(150px, 1fr) auto auto; }
+  .material-source { grid-column: 1; }
+  .material-state { grid-column: 2; grid-row: 1; }
+  .edit-action { grid-column: 3; grid-row: 1 / span 2; }
+  .continuous-layout { grid-template-columns: 210px minmax(0, 1fr); }
+  .continuous-outline { top: 93px; max-height: calc(100vh - 109px); }
+  .summary-layout { grid-template-columns: minmax(0, 1fr) 370px; }
+  .columns-layout { grid-template-columns: 220px 270px minmax(320px, 1fr); overflow-x: auto; }
+}
+
+@media (max-width: 680px) {
+  .study-bar { position: static; }
+  .stage { padding: 0; }
+  .concept-intro { padding: 16px; margin: 0; }
+  .prototype { min-height: 720px; border-inline: 0; border-radius: 0; }
+  .product-bar { padding-inline: 14px; }
+  .save-state { display: none; }
+  .mobile-part-picker { position: sticky; top: 0; z-index: 90; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; min-height: 58px; padding: 7px 14px; border-bottom: 1px solid var(--line-strong); background: #fff; }
+  .mobile-part-picker span { font-size: 14px; font-weight: 600; }
+  .mobile-part-picker select { min-width: 0; min-height: 44px; padding: 7px 10px; border: 1px solid var(--line-strong); background: #fff; }
+  .rail-layout { display: block; height: auto; overflow: visible; }
+  .rail-layout > nav { display: none; }
+  .rail-layout > .detail { overflow: visible; }
+  .continuous-layout { display: block; }
+  .continuous-outline { display: none; }
+  .detail { padding: 20px 16px 34px; }
+  .detail-header { display: grid; gap: 12px; }
+  .detail-header .add-action { margin-left: 0; width: fit-content; }
+  .detail-header h2 { font-size: 22px; }
+  .material-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .material-source { grid-column: 1; }
+  .material-state { grid-column: 2; grid-row: 1; }
+  .edit-action { grid-column: 2; grid-row: 2; }
+  .form-grid { grid-template-columns: 1fr; }
+  .ledger-layout { padding: 18px 14px 36px; }
+  .ledger-summary { grid-template-columns: 1fr auto; gap: 3px 12px; }
+  .ledger-summary span { grid-column: 1; }
+  .ledger-summary b { grid-column: 2; grid-row: 1 / span 2; }
+  .summary-layout { display: block; height: auto; overflow: visible; }
+  .summary-document { padding: 24px 18px 32px; border-right: 0; }
+  .summary-layout:not(.resting) .quick-sheet { position: fixed; inset: 0; z-index: 200; overflow: auto; border-top: 0; }
+  .columns-layout { display: block; height: auto; overflow: visible; }
+  .columns-layout .column { border-right: 0; border-bottom: 5px solid var(--canvas); }
+  .columns-layout > nav.column { display: none; }
+  .column-title { min-height: 56px; padding: 13px 16px; }
+  .source-options { grid-template-columns: 1fr; }
+  .effect-row { grid-template-columns: 90px 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="study-bar">
+  <div class="study-title">
+    <strong>Blueprint readability study</strong>
+    <span id="study-summary">The entire bill stays visible beside one focused editor.</span>
+  </div>
+  <nav class="switcher" aria-label="Design versions">
+    <button type="button" data-concept="rail" aria-pressed="true">1 Guide rail</button>
+    <button type="button" data-concept="continuous" aria-pressed="false">2 Continuous sheet</button>
+    <button type="button" data-concept="ledger" aria-pressed="false">3 Expand in place</button>
+    <button type="button" data-concept="summary" aria-pressed="false">4 Readable summary</button>
+    <button type="button" data-concept="columns" aria-pressed="false">5 Column browser</button>
+  </nav>
+</header>
+
+<main class="stage" id="app"></main>
+
+<dialog id="add-dialog" aria-labelledby="add-dialog-title">
+  <form method="dialog" class="dialog-form">
+    <header class="dialog-header">
+      <h2 id="add-dialog-title">Add plugin</h2>
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+    </header>
+    <div class="dialog-body" id="add-dialog-body"></div>
+    <footer class="dialog-footer">
+      <button class="text-action" value="cancel">Cancel</button>
+      <button class="primary" id="dialog-primary" value="confirm">Add to Blueprint</button>
+    </footer>
+  </form>
+</dialog>
+
+<script>
+const parts = [
+  { id: 'site', name: 'Site' },
+  { id: 'appearance', name: 'Themes & fonts' },
+  { id: 'plugins', name: 'Plugins' },
+  { id: 'content', name: 'Content' },
+  { id: 'people', name: 'Users' },
+  { id: 'opening', name: 'Open in Playground' },
+  { id: 'custom', name: 'Custom setup' }
+];
+
+const concepts = {
+  rail: {
+    number: '1',
+    title: 'Guide rail',
+    summary: 'The entire bill stays visible beside one focused editor.',
+    tag: 'Recommended default'
+  },
+  continuous: {
+    number: '2',
+    title: 'Continuous sheet',
+    summary: 'The full build sheet stays scrollable beside a sticky table of contents.',
+    tag: 'Best for overview and bulk editing'
+  },
+  ledger: {
+    number: '3',
+    title: 'Expand in place',
+    summary: 'One familiar ledger; the selected part opens without introducing a second pane.',
+    tag: 'Best for narrow layouts'
+  },
+  summary: {
+    number: '4',
+    title: 'Readable summary',
+    summary: 'Seven literal sentences stay readable while one part opens in a side sheet.',
+    tag: 'Best for review and handoff'
+  },
+  columns: {
+    number: '5',
+    title: 'Column browser',
+    summary: 'A structural exploration with full plugin editing and read-only inspectors elsewhere.',
+    tag: 'Navigation model for large Blueprints'
+  }
+};
+
+const state = {
+  concept: 'rail',
+  part: 'plugins',
+  plugin: '',
+  columnItem: 0,
+  summaryOpen: false,
+  json: false,
+  dialogMode: '',
+  dialogKind: '',
+  sourcePlugin: '',
+  sources: {
+    woocommerce: 'WordPress.org',
+    'query-monitor': 'File in this Blueprint'
+  },
+  pluginActive: {
+    woocommerce: true,
+    'query-monitor': false,
+    'classic-editor': true
+  },
+  pluginVersions: {
+    woocommerce: '9.4',
+    'query-monitor': 'latest',
+    'classic-editor': 'latest'
+  },
+  sourceValues: {
+    woocommerce: '',
+    'query-monitor': './plugins/query-monitor.zip',
+    'classic-editor': ''
+  },
+  classicEditorAdded: false,
+  demoProductsAdded: false,
+  extraUserAdded: false,
+  extraUsername: 'content-reviewer',
+  extraEmail: 'reviewer@example.com',
+  extraRole: 'editor',
+  frostAdded: false,
+  interAdded: false,
+  welcomeAdded: false,
+  siteTitle: 'Demo Store',
+  wordpressVersion: '6.8',
+  phpVersion: '8.3',
+  contentBaseline: 'empty',
+  permalink: '/%postname%/',
+  landingPage: '/wp-admin/edit.php?post_type=product',
+  loginUser: 'admin',
+  networkAccess: true,
+  feedback: '',
+  undoState: null
+};
+
+let continuousObserver;
+let continuousVisibility = new Map();
+
+function summaryFor(part) {
+  const pluginCount = 2 + (state.classicEditorAdded ? 1 : 0);
+  const userCount = 2 + (state.demoProductsAdded ? 5 : 0) + (state.extraUserAdded ? 1 : 0);
+  const finalActionCount = 2 + (state.demoProductsAdded ? 1 : 0) + (state.welcomeAdded ? 1 : 0);
+  return ({
+    site: `WP ${state.wordpressVersion} / PHP ${state.phpVersion} · ${state.contentBaseline === 'empty' ? 'Empty site' : 'Sample content'}`,
+    appearance: `${2 + (state.frostAdded ? 1 : 0)} themes, ${state.interAdded ? '1 font' : 'no fonts'} · Storefront active`,
+    plugins: `${pluginCount} plugins · Query Monitor ${state.pluginActive['query-monitor'] ? 'active' : 'inactive'}`,
+    content: state.demoProductsAdded ? '20 products, 3 pages · 12 media files' : '3 pages · 12 media files',
+    people: `${userCount} users · 1 custom role`,
+    opening: `${state.landingPage.includes('product') ? 'Products' : state.landingPage === '/' ? 'Site front' : 'Dashboard'} · ${state.loginUser === 'admin' ? 'Admin' : 'Signed out'}, ${state.networkAccess ? 'external access' : 'offline'}`,
+    custom: `${finalActionCount} final actions · 1 setting in JSON`
+  })[part.id];
+}
+
+function productBar() {
+  return `
+    <header class="product-bar">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span class="product-name"><strong>Product demo</strong><span>Blueprint</span></span>
+      <span class="product-actions">
+        <button type="button" class="text-action" data-json>${state.json ? 'Visual editor' : 'JSON'}</button>
+        <button type="button" class="primary" data-run>Run</button>
+      </span>
+    </header>
+    ${state.feedback ? `<div class="change-notice" role="status"><span>${state.feedback}</span>${state.undoState ? '<button type="button" class="text-action" data-undo>Undo</button>' : ''}</div>` : ''}`;
+}
+
+function mobilePartPicker() {
+  const current = parts.find((part) => part.id === state.part);
+  return `<label class="mobile-part-picker"><span>All parts</span><select data-part-select aria-label="Blueprint part">
+    ${parts.map((part) => `<option value="${part.id}" ${part.id === current.id ? 'selected' : ''}>${part.name} — ${summaryFor(part)}</option>`).join('')}
+  </select></label>`;
+}
+
+function billRows() {
+  return parts.map((part) => `
+    <button type="button" class="bill-row" data-part="${part.id}"
+      aria-pressed="${state.part === part.id}">
+      <strong>${part.name}</strong>
+      <span data-summary="${part.id}">${summaryFor(part)}</span>
+    </button>`).join('');
+}
+
+function bill(label = true) {
+  return `<nav class="bill" aria-label="Blueprint parts">
+    ${label ? '<div class="bill-label">Blueprint at a glance</div>' : ''}
+    ${billRows()}
+  </nav>`;
+}
+
+function detailHeader(title, summary, addKind, addLabel) {
+  return `<header class="detail-header">
+    <div><h2 tabindex="-1">${title}</h2><p>${summary}</p></div>
+    ${addKind ? `<button type="button" class="add-action" data-add="${addKind}">${addLabel}</button>` : ''}
+  </header>`;
+}
+
+function pluginRows(showEditor = true) {
+  const wooSelected = state.plugin === 'woocommerce';
+  const qmSelected = state.plugin === 'query-monitor';
+  const classicSelected = state.plugin === 'classic-editor';
+  return `
+    <div class="material-list">
+      <div class="material-row ${wooSelected ? 'selected' : ''}">
+        <span class="material-name"><strong>WooCommerce</strong><span>${state.sources.woocommerce === 'WordPress.org' ? `Version ${state.pluginVersions.woocommerce === 'latest' ? 'latest' : state.pluginVersions.woocommerce}` : 'Custom source'}</span></span>
+        <span class="material-source">${state.sources.woocommerce}</span>
+        <span class="material-state">${state.pluginActive.woocommerce ? 'Active' : 'Inactive'}</span>
+        <button type="button" class="edit-action" data-plugin="woocommerce" aria-label="Edit WooCommerce">Edit</button>
+      </div>
+      ${showEditor && wooSelected ? pluginEditor('woocommerce') : ''}
+      <div class="material-row ${qmSelected ? 'selected' : ''}">
+        <span class="material-name"><strong>Query Monitor</strong><span>${state.sources['query-monitor'] === 'File in this Blueprint' ? 'Included with this Blueprint' : 'Latest version'}</span></span>
+        <span class="material-source">${state.sources['query-monitor']}</span>
+        <span class="material-state ${state.pluginActive['query-monitor'] ? '' : 'exception'}">${state.pluginActive['query-monitor'] ? 'Active' : 'Inactive'}</span>
+        <button type="button" class="edit-action" data-plugin="query-monitor" aria-label="Edit Query Monitor">Edit</button>
+      </div>
+      ${showEditor && qmSelected ? pluginEditor('query-monitor') : ''}
+      ${state.classicEditorAdded ? `<div class="material-row ${classicSelected ? 'selected' : ''}">
+        <span class="material-name"><strong>Classic Editor</strong><span>${(state.sources['classic-editor'] || 'WordPress.org') === 'WordPress.org' ? 'Latest version' : 'Custom source'}</span></span>
+        <span class="material-source">${state.sources['classic-editor'] || 'WordPress.org'}</span><span class="material-state">${state.pluginActive['classic-editor'] ? 'Active' : 'Inactive'}</span>
+        <button type="button" class="edit-action" data-plugin="classic-editor" aria-label="Edit Classic Editor">Edit</button>
+      </div>${showEditor && classicSelected ? pluginEditor('classic-editor') : ''}` : ''}
+    </div>`;
+}
+
+function pluginEditor(plugin) {
+  const woo = plugin === 'woocommerce';
+  const queryMonitor = plugin === 'query-monitor';
+  const title = woo ? 'WooCommerce' : queryMonitor ? 'Query Monitor' : 'Classic Editor';
+  const source = state.sources[plugin] || 'WordPress.org';
+  return `<div class="item-editor">
+    <div class="editor-heading">
+      <strong>${title}</strong>
+      <button type="button" class="text-action" data-close-item>Close details</button>
+    </div>
+    <div class="from-row">
+      <span>From</span>
+      <strong>${source}</strong>
+      <button type="button" class="source-action" data-source="${plugin}" aria-label="Change source for ${title}">Change</button>
+    </div>
+    <div class="form-grid">
+      ${pluginSourceControl(plugin, source)}
+      <label class="check-field"><input type="checkbox" data-plugin-active="${plugin}" ${state.pluginActive[plugin] ? 'checked' : ''}> Activate this plugin</label>
+    </div>
+    <details class="more-settings"><summary>More settings</summary>
+      <p>Installation behavior, activation options, and failure handling live here. They do not crowd the inventory row.</p>
+    </details>
+  </div>`;
+}
+
+function pluginSourceControl(plugin, source) {
+  const sourceValue = state.sourceValues[plugin] || defaultSourceValue(plugin, source);
+  if (source === 'File in this Blueprint') return `<label class="field"><span>File</span><input data-plugin-source-value="${plugin}" value="${escapeAttribute(sourceValue)}"></label>`;
+  if (source === 'Web address') return `<label class="field"><span>Web address</span><input data-plugin-source-value="${plugin}" value="${escapeAttribute(sourceValue)}"></label>`;
+  if (source === 'Git repository') return `<label class="field"><span>Repository</span><input data-plugin-source-value="${plugin}" value="${escapeAttribute(sourceValue)}"></label>`;
+  if (source === 'Pasted plugin files') return `<label class="field"><span>Folder</span><input data-plugin-source-value="${plugin}" value="${escapeAttribute(sourceValue)}"></label>`;
+  if (plugin !== 'woocommerce') return '<label class="field"><span>Version</span><input value="Latest" readonly></label>';
+  return `<label class="field"><span>Version</span><select data-plugin-version="${plugin}"><option value="9.4" ${state.pluginVersions[plugin] === '9.4' ? 'selected' : ''}>9.4</option><option value="latest" ${state.pluginVersions[plugin] === 'latest' ? 'selected' : ''}>Latest</option></select></label>`;
+}
+
+function defaultSourceValue(plugin, source) {
+  if (source === 'File in this Blueprint') return `./plugins/${plugin}.zip`;
+  if (source === 'Web address') return `https://example.com/plugins/${plugin}.zip`;
+  if (source === 'Git repository') return `https://github.com/example/${plugin}.git`;
+  if (source === 'Pasted plugin files') return plugin;
+  return '';
+}
+
+function siteDetail() {
+  return `<section class="detail">
+    ${detailHeader('Site', `WordPress ${state.wordpressVersion}, PHP ${state.phpVersion}, and ${state.contentBaseline === 'empty' ? 'an empty starting site' : 'WordPress sample content'}.`)}
+    <div class="scalar-form form-grid">
+      <label class="field"><span>Site title</span><input data-state-field="siteTitle" value="${escapeAttribute(state.siteTitle)}"></label>
+      <label class="field"><span>Language</span><select><option>English (United States)</option></select></label>
+      <label class="field"><span>WordPress</span><select data-state-field="wordpressVersion"><option value="6.8" ${state.wordpressVersion === '6.8' ? 'selected' : ''}>6.8</option><option value="latest" ${state.wordpressVersion === 'latest' ? 'selected' : ''}>Latest stable</option></select></label>
+      <label class="field"><span>PHP</span><select data-state-field="phpVersion"><option value="8.3" ${state.phpVersion === '8.3' ? 'selected' : ''}>8.3</option><option value="8.4" ${state.phpVersion === '8.4' ? 'selected' : ''}>8.4 recommended</option></select></label>
+      <label class="field"><span>Begin with</span><select data-state-field="contentBaseline"><option value="empty" ${state.contentBaseline === 'empty' ? 'selected' : ''}>An empty site</option><option value="keep-all" ${state.contentBaseline === 'keep-all' ? 'selected' : ''}>WordPress sample content</option></select></label>
+      <label class="field"><span>Link style</span><select data-state-field="permalink"><option value="/%postname%/" ${state.permalink === '/%postname%/' ? 'selected' : ''}>Post name</option><option value="false" ${state.permalink === false ? 'selected' : ''}>Plain</option></select></label>
+    </div>
+    <details class="more-settings"><summary>More settings</summary><p>Time zone, compatibility ranges, internationalization support, and uncommon site settings.</p></details>
+  </section>`;
+}
+
+function appearanceDetail() {
+  return `<section class="detail">
+    ${detailHeader('Themes & fonts', `Storefront is active. ${1 + (state.frostAdded ? 1 : 0)} other ${state.frostAdded ? 'themes are' : 'theme is'} installed. ${state.interAdded ? 'One font is included.' : 'No fonts are included.'}`, 'theme', 'Add theme')}
+    <div class="material-list">
+      <div class="material-row"><span class="material-name"><strong>Storefront</strong><span>WordPress.org</span></span><span class="material-source">Starter content off</span><span class="material-state">Active theme</span></div>
+      <div class="material-row"><span class="material-name"><strong>Twenty Twenty-Five</strong><span>WordPress.org</span></span><span class="material-source">Latest</span><span class="material-state">Installed</span></div>
+      ${state.frostAdded ? '<div class="material-row"><span class="material-name"><strong>Frost</strong><span>WordPress.org</span></span><span class="material-source">Latest</span><span class="material-state">Installed</span></div>' : ''}
+    </div>
+    <div class="subsection"><h3>Fonts</h3><p>${state.interAdded ? 'Inter · Font file in this Blueprint' : 'None'}</p>${state.interAdded ? '' : '<button type="button" class="add-action" data-add="font">Add font</button>'}</div>
+  </section>`;
+}
+
+function pluginsDetail() {
+  const count = 2 + (state.classicEditorAdded ? 1 : 0);
+  return `<section class="detail">
+    ${detailHeader('Plugins', `${count} plugins are included. Query Monitor will ${state.pluginActive['query-monitor'] ? '' : 'not '}be activated.`, 'plugin', 'Add plugin')}
+    ${pluginRows(true)}
+  </section>`;
+}
+
+function contentDetail() {
+  return `<section class="detail">
+    ${detailHeader('Content', `${state.demoProductsAdded ? 'Twenty demo products, ' : ''}three starter pages, and twelve Media Library files are included.`, 'content', 'Add content')}
+    <div class="material-list">
+      <div class="material-row"><span class="material-name"><strong>Starter pages</strong><span>WordPress import</span></span><span class="material-source">File in this Blueprint</span><span class="material-state">3 pages</span></div>
+      ${state.demoProductsAdded ? `<div class="material-row"><span class="material-name"><strong>Demo products</strong><span>Created when the Blueprint runs</span></span><span class="material-source">Uses WooCommerce</span><span class="material-state">20 products</span></div>` : ''}
+      <div class="material-row"><span class="material-name"><strong>Product media</strong><span>Media Library</span></span><span class="material-source">12 files in this Blueprint</span><span class="material-state">Included</span></div>
+    </div>
+    <p class="section-copy">Sources stay attached to the content that uses them. There is no separate Resources section to manage.</p>
+  </section>`;
+}
+
+function peopleDetail() {
+  return `<section class="detail">
+    ${detailHeader('Users', `${2 + (state.demoProductsAdded ? 5 : 0) + (state.extraUserAdded ? 1 : 0)} users and one custom role will be created.`, 'person', 'Add user')}
+    <div class="material-list">
+      <div class="material-row"><span class="material-name"><strong>admin</strong><span>${state.contentBaseline === 'empty' ? 'admin@example.com' : 'Existing WordPress administrator'}</span></span><span class="material-source">Administrator</span><span class="material-state">Signs in</span></div>
+      <div class="material-row"><span class="material-name"><strong>demo-editor</strong><span>editor@example.com</span></span><span class="material-source">Store manager</span><span class="material-state">Created</span></div>
+      ${state.demoProductsAdded ? `<div class="material-row"><span class="material-name"><strong>Demo customers</strong><span>Created when the Blueprint runs</span></span><span class="material-source">Customer role</span><span class="material-state">5 users</span></div>` : ''}
+      ${state.extraUserAdded ? `<div class="material-row"><span class="material-name"><strong>${escapeHtml(state.extraUsername)}</strong><span>${escapeHtml(state.extraEmail)}</span></span><span class="material-source">${state.extraRole === 'store_manager' ? 'Store manager' : state.extraRole === 'administrator' ? 'Administrator' : 'Editor'}</span><span class="material-state">Created</span></div>` : ''}
+      <div class="material-row"><span class="material-name"><strong>Store manager</strong><span>Custom role</span></span><span class="material-source">Shop permissions</span><span class="material-state">Available</span></div>
+    </div>
+  </section>`;
+}
+
+function openingDetail() {
+  return `<section class="detail">
+    ${detailHeader('Open in Playground', `${state.landingPage.includes('product') ? 'Open Products' : state.landingPage === '/' ? 'Open the site front' : 'Open the Dashboard'}, ${state.loginUser === 'admin' ? 'sign in as admin' : 'stay signed out'}, and ${state.networkAccess ? 'allow' : 'block'} external requests.`)}
+    <div class="scalar-form form-grid">
+      <label class="field"><span>Start page</span><select data-state-field="landingPage"><option value="/wp-admin/edit.php?post_type=product" ${state.landingPage.includes('product') ? 'selected' : ''}>Products</option><option value="/wp-admin" ${state.landingPage === '/wp-admin' ? 'selected' : ''}>Dashboard</option><option value="/" ${state.landingPage === '/' ? 'selected' : ''}>Site front</option></select></label>
+      <label class="field"><span>Sign in as</span><select data-state-field="loginUser"><option value="admin" ${state.loginUser === 'admin' ? 'selected' : ''}>admin</option><option value="" ${state.loginUser === '' ? 'selected' : ''}>Stay signed out</option></select></label>
+      <label class="check-field"><input type="checkbox" data-state-field="networkAccess" ${state.networkAccess ? 'checked' : ''}> Allow external requests from the site</label>
+    </div>
+    <p class="section-copy">These choices describe the Playground opening experience, not the WordPress site itself.</p>
+  </section>`;
+}
+
+function customDetail() {
+  const finalActionCount = 2 + (state.demoProductsAdded ? 1 : 0) + (state.welcomeAdded ? 1 : 0);
+  return `<section class="detail">
+    ${detailHeader('Custom setup', `Debugging is enabled. ${finalActionCount} items run after the site is built.`, 'custom', 'Add custom setup')}
+    <div class="subsection"><h3>WordPress settings</h3>
+      <div class="material-list"><div class="material-row"><span class="material-name"><strong>Debugging</strong><span>Log errors without showing them</span></span><span class="material-source">WordPress constants</span><span class="material-state">Enabled</span></div></div>
+    </div>
+    <div class="subsection"><h3>After setup</h3><p>Order matters only in this list.</p>
+      <div class="material-list">
+        <div class="material-row"><span class="material-name"><strong>Hide the setup task list</strong><span>Runs after plugin setup</span></span><span class="material-source">PHP in this Blueprint</span><span class="material-state">1 of ${finalActionCount}</span></div>
+        ${state.demoProductsAdded ? `<div class="material-row"><span class="material-name"><strong>Generate demo data</strong><span>Creates products and customers</span></span><span class="material-source">PHP in this Blueprint</span><span class="material-state">2 of ${finalActionCount}</span></div>` : ''}
+        ${state.welcomeAdded ? `<div class="material-row"><span class="material-name"><strong>Show a welcome notice</strong><span>Runs after setup</span></span><span class="material-source">PHP in this Blueprint</span><span class="material-state">${state.demoProductsAdded ? 3 : 2} of ${finalActionCount}</span></div>` : ''}
+        <div class="material-row"><span class="material-name"><strong>Refresh links</strong><span>Flush rewrite rules</span></span><span class="material-source">WP-CLI</span><span class="material-state">${finalActionCount} of ${finalActionCount}</span></div>
+      </div>
+    </div>
+    <p class="warning-line"><strong>Environment type: local</strong> is shown only in JSON in this layout study and will be preserved. <button type="button" class="text-action" data-json>View JSON</button></p>
+  </section>`;
+}
+
+function detailFor(part = state.part) {
+  return ({
+    site: siteDetail,
+    appearance: appearanceDetail,
+    plugins: pluginsDetail,
+    content: contentDetail,
+    people: peopleDetail,
+    opening: openingDetail,
+    custom: customDetail
+  }[part] || siteDetail)();
+}
+
+function conceptRail() {
+  if (window.matchMedia('(max-width: 680px)').matches) return `${productBar()}${ledgerBody()}`;
+  return `${productBar()}${mobilePartPicker()}<div class="rail-layout">${bill()}${detailFor()}</div>`;
+}
+
+function conceptContinuous() {
+  return `${productBar()}${mobilePartPicker()}<div class="continuous-layout">
+    <aside class="continuous-outline">${bill()}</aside>
+    <div class="continuous-sheet">${parts.map((part) => `<section class="continuous-section" data-section="${part.id}">${detailFor(part.id)}</section>`).join('')}</div>
+  </div>`;
+}
+
+function conceptLedger() {
+  return `${productBar()}${ledgerBody()}`;
+}
+
+function ledgerBody() {
+  return `<div class="ledger-layout">
+    <header class="ledger-heading"><div><h2>Blueprint at a glance</h2><p>Open one part to make changes.</p></div></header>
+    ${parts.map((part) => `<section class="ledger-part ${state.part === part.id ? 'open' : ''}">
+      <button type="button" class="ledger-summary" data-part="${part.id}" aria-expanded="${state.part === part.id}">
+        <strong>${part.name}</strong><span data-summary="${part.id}">${summaryFor(part)}</span><b>${state.part === part.id ? 'Selected' : 'Open'}</b>
+      </button>
+      ${state.part === part.id ? `<div class="ledger-open">${detailFor(part.id)}</div>` : ''}
+    </section>`).join('')}
+  </div>`;
+}
+
+const sentences = {
+  content: 'Import <strong>three starter pages</strong> and add twelve Media Library files.',
+};
+
+function sentenceFor(part) {
+  if (part.id === 'site') return `Build <strong>${state.contentBaseline === 'empty' ? 'an empty site' : 'a site with sample content'}</strong> called ${escapeHtml(state.siteTitle)} with WordPress ${state.wordpressVersion} and PHP ${state.phpVersion}.`;
+  if (part.id === 'appearance') return `Use <strong>Storefront</strong>, keep ${1 + (state.frostAdded ? 1 : 0)} other ${state.frostAdded ? 'themes' : 'theme'} installed, and include ${state.interAdded ? 'one font' : 'no fonts'}.`;
+  if (part.id === 'plugins') return `Install <strong>${state.classicEditorAdded ? 'three plugins' : 'WooCommerce and Query Monitor'}</strong>; leave Query Monitor ${state.pluginActive['query-monitor'] ? 'active' : 'inactive'}.`;
+  if (part.id === 'content' && state.demoProductsAdded) return 'Import <strong>three starter pages</strong>, create twenty demo products, and add twelve Media Library files.';
+  if (part.id === 'people') {
+    const userCount = 2 + (state.demoProductsAdded ? 5 : 0) + (state.extraUserAdded ? 1 : 0);
+    const customerCopy = state.demoProductsAdded ? ', including five demo customers,' : '';
+    return `Create <strong>${userCount} users</strong>${customerCopy} and one custom role.`;
+  }
+  if (part.id === 'opening') return `${state.landingPage.includes('product') ? 'Open <strong>Products</strong>' : state.landingPage === '/' ? 'Open <strong>the site front</strong>' : 'Open <strong>the Dashboard</strong>'}, ${state.loginUser === 'admin' ? 'sign in as admin' : 'stay signed out'}, and ${state.networkAccess ? 'allow' : 'block'} external requests.`;
+  if (part.id === 'custom') return `Enable debugging, run <strong>${2 + (state.demoProductsAdded ? 1 : 0) + (state.welcomeAdded ? 1 : 0)} final actions including PHP</strong>, and preserve the environment type in JSON.`;
+  return sentences[part.id];
+}
+
+function conceptSummary() {
+  const mobileDialog = state.summaryOpen && window.matchMedia('(max-width: 680px)').matches;
+  return `${productBar()}${mobilePartPicker()}<div class="summary-layout ${state.summaryOpen ? '' : 'resting'}">
+    <article class="summary-document" ${mobileDialog ? 'inert' : ''}>
+      <h2>Product demo</h2><p>What this Blueprint will build.</p>
+      <div class="sentence-list">
+        ${parts.map((part) => `<div class="sentence-row ${state.summaryOpen && state.part === part.id ? 'current' : ''}">
+          <p data-sentence="${part.id}">${sentenceFor(part)}</p>
+          <button type="button" class="edit-action" data-part="${part.id}" aria-label="Edit ${part.name}">Edit</button>
+        </div>`).join('')}
+      </div>
+    </article>
+    ${state.summaryOpen ? `<aside class="quick-sheet" aria-label="Selected Blueprint part" ${mobileDialog ? 'role="dialog" aria-modal="true"' : ''}><div class="sheet-close"><button type="button" class="text-action" data-close-sheet>Close editor</button></div>${detailFor()}</aside>` : ''}
+  </div>`;
+}
+
+function columnObjects() {
+  return {
+    site: [['Starting point', `WP ${state.wordpressVersion} · PHP ${state.phpVersion} · ${state.contentBaseline}`], ['Site details', `${state.siteTitle} · English`], ['Links', state.permalink === false ? 'Plain' : 'Post name']],
+    appearance: [['Storefront', 'Active theme'], ['Twenty Twenty-Five', 'Installed theme'], ...(state.frostAdded ? [['Frost', 'Installed theme']] : []), ['Fonts', state.interAdded ? 'Inter' : 'None']],
+    plugins: [['WooCommerce', `${state.sources.woocommerce} · ${state.pluginActive.woocommerce ? 'active' : 'inactive'}`], ['Query Monitor', `${state.sources['query-monitor']} · ${state.pluginActive['query-monitor'] ? 'active' : 'inactive'}`], ...(state.classicEditorAdded ? [['Classic Editor', `${state.sources['classic-editor'] || 'WordPress.org'} · ${state.pluginActive['classic-editor'] ? 'active' : 'inactive'}`]] : [])],
+    content: [['Starter pages', '3 pages'], ...(state.demoProductsAdded ? [['Demo products', '20 products · created when run']] : []), ['Product media', '12 files']],
+    people: [['admin', 'Administrator'], ['demo-editor', 'Store manager'], ...(state.demoProductsAdded ? [['Demo customers', '5 users']] : []), ...(state.extraUserAdded ? [[state.extraUsername, state.extraRole === 'store_manager' ? 'Store manager' : state.extraRole === 'administrator' ? 'Administrator' : 'Editor']] : []), ['Store manager', 'Custom role']],
+    opening: [['Start page', state.landingPage.includes('product') ? 'Products' : state.landingPage === '/' ? 'Site front' : 'Dashboard'], ['Sign in', state.loginUser || 'Stay signed out'], ['External requests', state.networkAccess ? 'Allowed' : 'Blocked']],
+    custom: [['Debugging', 'Enabled'], ['Hide setup task list', 'Final action'], ...(state.demoProductsAdded ? [['Generate demo data', 'Final action']] : []), ...(state.welcomeAdded ? [['Show a welcome notice', 'Final action']] : []), ['Refresh links', 'Final action'], ['Environment type', 'Local · shown in JSON']]
+  };
+}
+
+function columnItemList() {
+  const rows = columnObjects()[state.part];
+  return rows.map((row, index) => `<button type="button" class="object-row" data-column-item="${index}" aria-pressed="${index === state.columnItem}">
+    <strong>${escapeHtml(String(row[0]))}</strong><span>${escapeHtml(String(row[1]))}</span>
+  </button>`).join('');
+}
+
+function columnInspector() {
+  const rows = columnObjects()[state.part];
+  const selected = rows[Math.min(state.columnItem, rows.length - 1)];
+  if (state.part === 'plugins') {
+    const pluginIds = ['woocommerce', 'query-monitor', 'classic-editor'];
+    const plugin = pluginIds[state.columnItem] || 'woocommerce';
+    const source = state.sources[plugin] || 'WordPress.org';
+    return `<div class="column-inspector"><h2 tabindex="-1">${escapeHtml(String(selected[0]))}</h2><p>${escapeHtml(String(selected[1]))}</p>
+      <div class="from-row"><span>From</span><strong>${source}</strong><button class="source-action" data-source="${plugin}" aria-label="Change source for ${selected[0]}">Change</button></div>
+      <div class="form-grid">${pluginSourceControl(plugin, source)}<label class="check-field"><input type="checkbox" data-plugin-active="${plugin}" ${state.pluginActive[plugin] ? 'checked' : ''}> Activate this plugin</label></div>
+      <details class="more-settings"><summary>More settings</summary><p>Activation options and installation behavior.</p></details>
+    </div>`;
+  }
+  return `<div class="column-inspector"><h2 tabindex="-1">${escapeHtml(String(selected[0]))}</h2><p>${escapeHtml(String(selected[1]))}</p>
+    <p class="section-copy">This structural comparison keeps the current value visible. Plugins demonstrate the complete editing pattern.</p>
+    ${selected[0] === 'Environment type' ? '<button type="button" class="secondary" data-json>View JSON</button>' : ''}
+  </div>`;
+}
+
+function addLabelForPart() {
+  return ({ appearance: 'Add theme', plugins: 'Add plugin', content: 'Add content', people: 'Add user', custom: 'Add custom setup' })[state.part];
+}
+
+function conceptColumns() {
+  const current = parts.find((part) => part.id === state.part);
+  const addLabel = addLabelForPart();
+  return `${productBar()}${mobilePartPicker()}<div class="columns-layout">
+    <nav class="column" aria-label="Blueprint parts"><div class="column-title"><strong>Blueprint</strong><span>Seven parts</span></div><div class="bill">${billRows()}</div></nav>
+    <section class="column"><div class="column-title"><strong>${current.name}</strong><span data-current-summary>${summaryFor(current)}</span></div>${columnItemList()}
+      ${addLabel ? `<div class="column-add"><button type="button" class="add-action" data-add="${state.part}">${addLabel}</button></div>` : ''}
+    </section>
+    <section class="column">${columnInspector()}</section>
+  </div>`;
+}
+
+function jsonView() {
+  const plugins = [pluginDefinition('woocommerce', state.pluginVersions.woocommerce, state.pluginActive.woocommerce), pluginDefinition('query-monitor', state.pluginVersions['query-monitor'], state.pluginActive['query-monitor']), ...(state.classicEditorAdded ? [pluginDefinition('classic-editor', state.pluginVersions['classic-editor'], state.pluginActive['classic-editor'])] : [])];
+  const users = [
+    ...(state.contentBaseline === 'empty' ? [{ username: 'admin', email: 'admin@example.com', role: 'administrator', meta: {} }] : []),
+    { username: 'demo-editor', email: 'editor@example.com', role: 'store_manager', meta: {} },
+    ...(state.extraUserAdded ? [{ username: state.extraUsername, email: state.extraEmail, role: state.extraRole, meta: {} }] : [])
+  ];
+  const blueprint = {
+    version: 2,
+    blueprintMeta: { name: 'Product demo' },
+    wordpressVersion: state.wordpressVersion,
+    phpVersion: state.phpVersion,
+    contentBaseline: state.contentBaseline,
+    usersBaseline: state.contentBaseline === 'empty' ? 'empty' : 'keep-all',
+    siteLanguage: 'en_US',
+    siteOptions: { blogname: state.siteTitle, permalink_structure: state.permalink },
+    applicationOptions: { 'wordpress-playground': { landingPage: state.landingPage, login: state.loginUser === 'admin', networkAccess: state.networkAccess } },
+    activeTheme: 'storefront',
+    themes: ['twentytwentyfive', ...(state.frostAdded ? ['frost'] : [])],
+    ...(state.interAdded ? { fonts: { inter: './fonts/inter.woff2' } } : {}),
+    plugins,
+    content: [{ type: 'wxr', source: './content/starter-pages.xml', authorsMode: 'default-author', defaultAuthorUsername: 'admin' }],
+    media: Array.from({ length: 12 }, (_, index) => `./media/product-${String(index + 1).padStart(2, '0')}.jpg`),
+    users,
+    roles: [{ name: 'store_manager', capabilities: { read: 'true', edit_products: 'true' } }],
+    constants: { WP_DEBUG: true, WP_DEBUG_LOG: true, WP_DEBUG_DISPLAY: false, WP_ENVIRONMENT_TYPE: 'local' },
+    additionalStepsAfterExecution: [
+      { step: 'runPHP', code: './code/hide-setup-task-list.php' },
+      ...(state.demoProductsAdded ? [{ step: 'runPHP', code: './code/generate-demo-data.php' }] : []),
+      ...(state.welcomeAdded ? [{ step: 'runPHP', code: './code/show-welcome-notice.php' }] : []),
+      { step: 'wp-cli', command: 'wp rewrite flush' }
+    ]
+  };
+  return `<section class="detail"><header class="detail-header"><div><h2>Blueprint JSON</h2><p>The same document shown by the visual editor. This layout study keeps source editing read-only.</p></div><button type="button" class="secondary" data-json>Back to visual editor</button></header><pre style="overflow:auto;padding:20px;background:#1e1e1e;color:#f6f7f7;font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace">${escapeHtml(JSON.stringify(blueprint, null, 2))}</pre></section>`;
+}
+
+function pluginDefinition(slug, version, active) {
+  const sourceName = state.sources[slug] || 'WordPress.org';
+  const sourceValue = state.sourceValues[slug] || defaultSourceValue(slug, sourceName);
+  let source;
+  if (sourceName === 'WordPress.org') source = version === 'latest' ? slug : `${slug}@${version}`;
+  else if (sourceName === 'File in this Blueprint' || sourceName === 'Web address') source = sourceValue;
+  else if (sourceName === 'Git repository') source = { gitRepository: sourceValue };
+  else source = { directoryName: sourceValue, files: { [`${slug}.php`]: '<?php // Pasted plugin code' } };
+  return active ? source : { source, active: false };
+}
+
+function escapeHtml(value) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function blueprintStateSnapshot() {
+  const {
+    concept, part, plugin, columnItem, summaryOpen, json,
+    dialogMode, dialogKind, sourcePlugin, feedback, undoState,
+    ...blueprintState
+  } = state;
+  return structuredClone(blueprintState);
+}
+
+function performBlueprintChange(message, change) {
+  state.undoState = blueprintStateSnapshot();
+  change();
+  state.feedback = message;
+  syncVisibleState();
+  showFeedback();
+}
+
+function syncVisibleState() {
+  parts.forEach((part) => {
+    document.querySelectorAll(`[data-summary="${part.id}"]`).forEach((summary) => {
+      summary.textContent = summaryFor(part);
+    });
+    document.querySelectorAll(`[data-sentence="${part.id}"]`).forEach((sentence) => {
+      sentence.innerHTML = sentenceFor(part);
+    });
+  });
+  document.querySelectorAll('[data-part-select] option').forEach((option) => {
+    const part = parts.find((item) => item.id === option.value);
+    if (part) option.textContent = `${part.name} — ${summaryFor(part)}`;
+  });
+  const currentSummary = document.querySelector('[data-current-summary]');
+  const currentPart = parts.find((part) => part.id === state.part);
+  if (currentSummary && currentPart) currentSummary.textContent = summaryFor(currentPart);
+  if (state.concept === 'columns') {
+    const rows = columnObjects()[state.part];
+    document.querySelectorAll('[data-column-item]').forEach((button) => {
+      const row = rows[Number(button.dataset.columnItem)];
+      if (!row) return;
+      button.querySelector('strong').textContent = row[0];
+      button.querySelector('span').textContent = row[1];
+    });
+    const selected = rows[Math.min(state.columnItem, rows.length - 1)];
+    const inspectorCopy = document.querySelector('.column-inspector > p');
+    if (inspectorCopy && selected) inspectorCopy.textContent = selected[1];
+  }
+  document.querySelectorAll('.detail-header').forEach((header) => {
+    const title = header.querySelector('h2')?.textContent;
+    const summary = header.querySelector('p');
+    if (!summary) return;
+    if (title === 'Site') summary.textContent = `WordPress ${state.wordpressVersion}, PHP ${state.phpVersion}, and ${state.contentBaseline === 'empty' ? 'an empty starting site' : 'WordPress sample content'}.`;
+    if (title === 'Plugins') summary.textContent = `${2 + (state.classicEditorAdded ? 1 : 0)} plugins are included. Query Monitor will ${state.pluginActive['query-monitor'] ? '' : 'not '}be activated.`;
+    if (title === 'Open in Playground') summary.textContent = `${state.landingPage.includes('product') ? 'Open Products' : state.landingPage === '/' ? 'Open the site front' : 'Open the Dashboard'}, ${state.loginUser === 'admin' ? 'sign in as admin' : 'stay signed out'}, and ${state.networkAccess ? 'allow' : 'block'} external requests.`;
+  });
+}
+
+function showFeedback() {
+  document.querySelectorAll('.change-notice').forEach((notice) => notice.remove());
+  if (!state.feedback) return;
+  const markup = `<div class="change-notice" role="status"><span>${escapeHtml(state.feedback)}</span>${state.undoState ? '<button type="button" class="text-action" data-undo>Undo</button>' : ''}</div>`;
+  document.querySelectorAll('.product-bar').forEach((bar) => bar.insertAdjacentHTML('afterend', markup));
+}
+
+function undoBlueprintChange() {
+  if (!state.undoState) return;
+  const previous = state.undoState;
+  Object.assign(state, previous);
+  state.undoState = null;
+  state.feedback = 'Last change undone.';
+}
+
+function currentPartFocusSelector() {
+  if (state.concept === 'continuous') return `[data-section="${state.part}"] h2`;
+  if (state.concept === 'ledger' || (state.concept === 'rail' && window.matchMedia('(max-width: 680px)').matches)) return `[data-part="${state.part}"]`;
+  if (state.concept === 'summary') return '.quick-sheet .detail h2';
+  if (state.concept === 'columns') return '.column-inspector h2';
+  return '.detail h2';
+}
+
+function renderCurrentPart(focusSelector = currentPartFocusSelector()) {
+  const part = state.part;
+  render(focusSelector);
+  if (state.concept === 'continuous') {
+    requestAnimationFrame(() => document.querySelector(`[data-section="${part}"]`)?.scrollIntoView());
+  }
+}
+
+function render(focusSelector = '') {
+  const info = concepts[state.concept];
+  const renderConcept = ({ rail: conceptRail, continuous: conceptContinuous, ledger: conceptLedger, summary: conceptSummary, columns: conceptColumns })[state.concept];
+  document.getElementById('study-summary').textContent = info.summary;
+  document.querySelectorAll('[data-concept]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.concept === state.concept));
+  });
+  document.getElementById('app').innerHTML = `
+    <header class="concept-intro">
+      <div><h1>${info.number}. ${info.title}</h1><p>${info.summary}</p></div>
+      <span class="concept-tag">${info.tag}</span>
+    </header>
+    <article class="prototype">${state.json ? `${productBar()}${jsonView()}` : renderConcept()}</article>`;
+  observeContinuousSections();
+  if (focusSelector) requestAnimationFrame(() => document.querySelector(focusSelector)?.focus());
+}
+
+function observeContinuousSections() {
+  continuousObserver?.disconnect();
+  continuousVisibility = new Map();
+  if (state.concept !== 'continuous' || state.json) return;
+  continuousObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => continuousVisibility.set(entry.target.dataset.section, entry));
+    const visible = [...continuousVisibility.values()]
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => Math.abs(a.boundingClientRect.top - 110) - Math.abs(b.boundingClientRect.top - 110));
+    const current = visible[0]?.target.dataset.section;
+    if (!current || current === state.part) return;
+    state.part = current;
+    document.querySelectorAll('[data-part]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.part === current)));
+    const picker = document.querySelector('[data-part-select]');
+    if (picker) picker.value = current;
+  }, { rootMargin: '-100px 0px -55% 0px', threshold: [0, .01, .5] });
+  document.querySelectorAll('[data-section]').forEach((section) => continuousObserver.observe(section));
+}
+
+function pluginDialog() {
+  return `<p>Search WordPress.org first. Choose another source only when you need it.</p>
+    <label class="search-label">Search WordPress.org<input value="Classic Editor" autofocus></label>
+    <div class="choice-list">
+      <label class="choice selected"><span><strong>Classic Editor</strong><span>WordPress.org · 5+ million active installs</span></span><input type="radio" name="addition" value="classic-editor" checked aria-label="Classic Editor"></label>
+    </div>
+    <details class="more-settings"><summary>Use another source</summary>
+      <div class="source-options"><label><input type="radio" name="new-plugin-source" value="File in this Blueprint">File or folder in this Blueprint</label><label><input type="radio" name="new-plugin-source" value="Web address">Web address</label><label><input type="radio" name="new-plugin-source" value="Git repository">Git repository</label><label><input type="radio" name="new-plugin-source" value="Pasted plugin files">Paste plugin files</label></div>
+    </details>`;
+}
+
+function contentDialog() {
+  return `<p>This addition is named for its outcome. Confirming it merges every result into the normal bill.</p>
+    <div class="choice-list">
+      <label class="choice selected"><span><strong>Create demo products</strong><span>Adds sample store data when the Blueprint runs</span></span><input type="radio" name="addition" value="demo-products" checked aria-label="Create demo products"></label>
+    </div>
+    <div class="effects"><strong>What this uses and creates</strong>
+      <div class="effect-row"><span>Plugins</span><span>Uses existing WooCommerce</span></div>
+      <div class="effect-row"><span>Content</span><span>Creates 20 products when run</span></div>
+      <div class="effect-row"><span>Users</span><span>Creates 5 demo customers when run</span></div>
+      <div class="effect-row"><span>After setup</span><span>Adds one ordered “Generate demo data” action</span></div>
+    </div>`;
+}
+
+function genericDialog(kind) {
+  const names = {
+    theme: ['Search WordPress.org, or choose a theme file only when needed.', 'Frost', 'WordPress.org theme'],
+    font: ['Choose a font file to include in the WordPress Font Library.', 'Inter', 'Font file in this Blueprint'],
+    custom: ['Choose a named outcome. Ordered work will appear under After setup.', 'Show a welcome notice', 'Runs after setup'],
+    appearance: ['Search WordPress.org, or choose a theme file only when needed.', 'Frost', 'WordPress.org theme']
+  };
+  if (kind === 'person' || kind === 'people') return `<p>Create a WordPress user, then choose their role.</p><div class="form-grid"><label class="field"><span>Username</span><input name="username" value="${escapeAttribute(state.extraUsername)}"></label><label class="field"><span>Email</span><input name="email" type="email" value="${escapeAttribute(state.extraEmail)}"></label><label class="field"><span>Role</span><select name="role"><option value="editor">Editor</option><option value="store_manager">Store manager</option><option value="administrator">Administrator</option></select></label></div><input type="hidden" name="addition" value="user">`;
+  const copy = names[kind] || ['Choose one addition. It will appear in the part of the bill that it changes.', 'Welcome notice', 'Ready to add'];
+  return `<p>${copy[0]}</p>
+    <div class="choice-list">
+      <label class="choice selected"><span><strong>${copy[1]}</strong><span>${copy[2]}</span></span><input type="radio" name="addition" value="generic" checked aria-label="${copy[1]}"></label>
+    </div>`;
+}
+
+function sourceDialog(plugin) {
+  const current = state.sources[plugin] || 'WordPress.org';
+  const choices = [
+    { value: 'WordPress.org', label: 'WordPress.org' },
+    { value: 'File in this Blueprint', label: 'File or folder in this Blueprint' },
+    { value: 'Web address', label: 'Web address' },
+    { value: 'Git repository', label: 'Git repository' },
+    { value: 'Pasted plugin files', label: 'Pasted plugin files' }
+  ];
+  return `<p>Choose only from sources that can provide a plugin.</p><div class="choice-list">${choices.map((choice) => `<label class="choice ${choice.value === current ? 'selected' : ''}"><span><strong>${choice.label}</strong></span><input type="radio" name="source" value="${choice.value}" ${choice.value === current ? 'checked' : ''}></label>`).join('')}</div>`;
+}
+
+function openAddDialog(kind) {
+  const dialog = document.getElementById('add-dialog');
+  state.dialogMode = 'add';
+  state.dialogKind = kind;
+  document.getElementById('add-dialog-title').textContent = ({ plugin: 'Add plugin', plugins: 'Add plugin', content: 'Add content', person: 'Add user', people: 'Add user', theme: 'Add theme', appearance: 'Add theme', font: 'Add font', custom: 'Add custom setup' })[kind] || 'Add to Blueprint';
+  document.getElementById('dialog-primary').textContent = 'Add to Blueprint';
+  document.getElementById('add-dialog-body').innerHTML = kind === 'plugin' || kind === 'plugins'
+    ? pluginDialog()
+    : kind === 'content'
+      ? contentDialog()
+      : genericDialog(kind);
+  dialog.showModal();
+}
+
+function openSourceDialog(plugin) {
+  state.dialogMode = 'source';
+  state.sourcePlugin = plugin;
+  document.getElementById('add-dialog-title').textContent = 'Change source';
+  document.getElementById('dialog-primary').textContent = 'Use source';
+  document.getElementById('add-dialog-body').innerHTML = sourceDialog(plugin);
+  document.getElementById('add-dialog').showModal();
+}
+
+document.addEventListener('click', (event) => {
+  const conceptButton = event.target.closest('[data-concept]');
+  if (conceptButton) {
+    state.concept = conceptButton.dataset.concept;
+    state.json = false;
+    state.summaryOpen = false;
+    render();
+    if (state.concept === 'continuous') requestAnimationFrame(() => document.querySelector(`[data-section="${state.part}"]`)?.scrollIntoView());
+    return;
+  }
+
+  if (event.target.closest('[data-json]')) {
+    state.json = !state.json;
+    render(state.json ? '.detail h2' : 'button[data-json]');
+    return;
+  }
+
+  if (event.target.closest('[data-run]')) {
+    state.feedback = 'Run is not connected in this layout study.';
+    showFeedback();
+    return;
+  }
+
+  if (event.target.closest('[data-undo]')) {
+    undoBlueprintChange();
+    renderCurrentPart();
+    return;
+  }
+
+  const partButton = event.target.closest('[data-part]');
+  if (partButton) {
+    state.part = partButton.dataset.part;
+    state.plugin = '';
+    state.columnItem = 0;
+    if (state.concept === 'summary') state.summaryOpen = true;
+    renderCurrentPart();
+    return;
+  }
+
+  const columnItem = event.target.closest('[data-column-item]');
+  if (columnItem) {
+    state.columnItem = Number(columnItem.dataset.columnItem);
+    render('.column-inspector h2');
+    return;
+  }
+
+  const pluginButton = event.target.closest('[data-plugin]');
+  if (pluginButton) {
+    state.plugin = pluginButton.dataset.plugin;
+    render('[data-close-item]');
+    return;
+  }
+
+  if (event.target.closest('[data-close-item]')) {
+    const plugin = state.plugin;
+    state.plugin = '';
+    render(`[data-plugin="${plugin}"]`);
+    return;
+  }
+
+  if (event.target.closest('[data-close-sheet]')) {
+    state.summaryOpen = false;
+    render(`[data-part="${state.part}"]`);
+    return;
+  }
+
+  const addButton = event.target.closest('[data-add]');
+  if (addButton) {
+    openAddDialog(addButton.dataset.add);
+    return;
+  }
+
+  const sourceButton = event.target.closest('[data-source]');
+  if (sourceButton) {
+    openSourceDialog(sourceButton.dataset.source);
+  }
+});
+
+document.addEventListener('change', (event) => {
+  if (event.target.matches('[data-part-select]')) {
+    state.part = event.target.value;
+    state.plugin = '';
+    state.columnItem = 0;
+    if (state.concept === 'summary') state.summaryOpen = true;
+    renderCurrentPart();
+    return;
+  }
+  if (event.target.matches('[data-plugin-active]')) {
+    const plugin = event.target.dataset.pluginActive;
+    performBlueprintChange(`${plugin === 'woocommerce' ? 'WooCommerce' : plugin === 'query-monitor' ? 'Query Monitor' : 'Classic Editor'} activation changed.`, () => {
+      state.pluginActive[plugin] = event.target.checked;
+    });
+    document.querySelectorAll(`[data-plugin="${plugin}"]`).forEach((button) => {
+      const status = button.closest('.material-row')?.querySelector('.material-state');
+      if (!status) return;
+      status.textContent = state.pluginActive[plugin] ? 'Active' : 'Inactive';
+      status.classList.toggle('exception', !state.pluginActive[plugin]);
+    });
+    return;
+  }
+  if (event.target.matches('[data-plugin-version]')) {
+    const plugin = event.target.dataset.pluginVersion;
+    performBlueprintChange('Plugin version changed.', () => {
+      state.pluginVersions[plugin] = event.target.value;
+    });
+    document.querySelectorAll(`[data-plugin="${plugin}"]`).forEach((button) => {
+      const version = button.closest('.material-row')?.querySelector('.material-name span');
+      if (version) version.textContent = `Version ${state.pluginVersions[plugin] === 'latest' ? 'latest' : state.pluginVersions[plugin]}`;
+    });
+    return;
+  }
+  if (event.target.matches('[data-plugin-source-value]')) {
+    const plugin = event.target.dataset.pluginSourceValue;
+    performBlueprintChange('Plugin source details changed.', () => {
+      state.sourceValues[plugin] = event.target.value;
+    });
+    return;
+  }
+  if (event.target.matches('[data-state-field]')) {
+    const field = event.target.dataset.stateField;
+    const label = event.target.closest('label')?.querySelector('span')?.textContent || 'Setting';
+    performBlueprintChange(`${label} changed.`, () => {
+      if (event.target.type === 'checkbox') state[field] = event.target.checked;
+      else if (field === 'permalink' && event.target.value === 'false') state[field] = false;
+      else state[field] = event.target.value;
+    });
+    return;
+  }
+  if (event.target.matches('#add-dialog input[type="radio"]')) {
+    event.target.closest('.choice-list')?.querySelectorAll('.choice').forEach((choice) => choice.classList.toggle('selected', choice.contains(event.target)));
+  }
+});
+
+document.getElementById('add-dialog').addEventListener('close', (event) => {
+  const dialog = event.currentTarget;
+  if (dialog.returnValue !== 'confirm') return;
+  const formData = new FormData(dialog.querySelector('form'));
+  if (state.dialogMode === 'source') {
+    const source = formData.get('source');
+    if (source) performBlueprintChange('Plugin source changed.', () => {
+      state.sources[state.sourcePlugin] = String(source);
+      state.sourceValues[state.sourcePlugin] = defaultSourceValue(state.sourcePlugin, String(source));
+    });
+  } else {
+    const addition = formData.get('addition');
+    if (addition === 'classic-editor') performBlueprintChange('Classic Editor added to the Blueprint.', () => {
+      state.classicEditorAdded = true;
+      const source = String(formData.get('new-plugin-source') || 'WordPress.org');
+      state.sources['classic-editor'] = source;
+      state.sourceValues['classic-editor'] = defaultSourceValue('classic-editor', source);
+    });
+    if (addition === 'demo-products') performBlueprintChange('Demo products added to the Blueprint.', () => {
+      state.demoProductsAdded = true;
+    });
+    if (addition === 'user') performBlueprintChange('User added to the Blueprint.', () => {
+      state.extraUserAdded = true;
+      state.extraUsername = String(formData.get('username') || 'content-reviewer');
+      state.extraEmail = String(formData.get('email') || 'reviewer@example.com');
+      state.extraRole = String(formData.get('role') || 'editor');
+    });
+    if (addition === 'generic' && (state.dialogKind === 'theme' || state.dialogKind === 'appearance')) performBlueprintChange('Frost added to the Blueprint.', () => {
+      state.frostAdded = true;
+    });
+    if (addition === 'generic' && state.dialogKind === 'font') performBlueprintChange('Inter added to the Blueprint.', () => {
+      state.interAdded = true;
+    });
+    if (addition === 'generic' && state.dialogKind === 'custom') performBlueprintChange('Welcome notice added to the Blueprint.', () => {
+      state.welcomeAdded = true;
+    });
+  }
+  dialog.returnValue = '';
+  renderCurrentPart();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.concept === 'summary' && state.summaryOpen && !document.getElementById('add-dialog').open) {
+    state.summaryOpen = false;
+    render(`[data-part="${state.part}"]`);
+    return;
+  }
+  if (event.key !== 'Tab' || state.concept !== 'summary' || state.json || !state.summaryOpen || !window.matchMedia('(max-width: 680px)').matches) return;
+  const sheet = document.querySelector('.quick-sheet');
+  if (!sheet) return;
+  const focusable = [...sheet.querySelectorAll('button, input, select, summary, [tabindex]:not([tabindex="-1"])')].filter((element) => !element.disabled);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+window.matchMedia('(max-width: 680px)').addEventListener?.('change', () => {
+  if (state.concept === 'rail' || state.concept === 'summary') render();
+});
+
+render();
+</script>
+</body>
+</html>
