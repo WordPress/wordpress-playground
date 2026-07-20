@@ -328,6 +328,16 @@ export default function PreviewPRForm({
 				verification: await verifyPr(resolved),
 			}))
 		);
+		const failedVerification = results.find(
+			({ verification }) =>
+				!isRepositoryMatch(verification) &&
+				!isRepositoryMiss(verification)
+		);
+		if (failedVerification && !failedVerification.verification.ok) {
+			throw new Error(
+				`Unexpected response while checking ${failedVerification.resolved.target}: ${failedVerification.verification.error}`
+			);
+		}
 
 		return results.filter(({ verification }) =>
 			isRepositoryMatch(verification)
@@ -342,17 +352,15 @@ export default function PreviewPRForm({
 			return { ok: true };
 		}
 
-		let error = 'invalid_pr_number';
 		try {
 			const json = await response.json();
-			if (json.error) {
-				error = json.error;
+			if (typeof json?.error === 'string') {
+				return { ok: false, error: json.error };
 			}
 		} catch (parseError) {
 			logger.error(parseError);
-			return { ok: false, error: 'unexpected_response' };
 		}
-		return { ok: false, error };
+		return { ok: false, error: 'unexpected_response' };
 	}
 
 	const inputLabel = inline
@@ -434,13 +442,18 @@ export default function PreviewPRForm({
 }
 
 function isRepositoryMatch(verification: PrVerification): boolean {
-	return (
-		verification.ok ||
-		[
-			'artifact_not_found',
-			'artifact_not_available',
-			'artifact_invalid',
-			'artifact_expired',
-		].includes(verification.error)
-	);
+	return verification.ok || repositoryMatchErrors.has(verification.error);
 }
+
+function isRepositoryMiss(verification: PrVerification): boolean {
+	return !verification.ok && repositoryMissErrors.has(verification.error);
+}
+
+const repositoryMatchErrors = new Set([
+	'artifact_not_found',
+	'artifact_not_available',
+	'artifact_invalid',
+	'artifact_expired',
+]);
+
+const repositoryMissErrors = new Set(['invalid_pr_number', 'no_ci_runs']);

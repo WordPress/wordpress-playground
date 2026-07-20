@@ -59,16 +59,69 @@ describe('PreviewPRForm', () => {
 			const url = String(input);
 			const error = url.includes('repo=gutenberg')
 				? 'artifact_expired'
-				: 'Request failed';
-			return Promise.resolve(
-				new Response(JSON.stringify({ error }), {
-					status: 400,
-					headers: { 'Content-Type': 'application/json' },
-				})
-			);
+				: 'invalid_pr_number';
+			return Promise.resolve(verificationError(error));
 		});
 		vi.stubGlobal('fetch', fetchMock);
 
+		await renderAndSubmit('79908');
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(String(fetchMock.mock.calls[0][0])).toContain(
+			'repo=wordpress-develop'
+		);
+		expect(String(fetchMock.mock.calls[1][0])).toContain('repo=gutenberg');
+		expect(container.textContent).toContain('artifact has expired');
+	});
+
+	it('offers a repository choice when both repositories match', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() =>
+				Promise.resolve(verificationError('artifact_not_found'))
+			)
+		);
+
+		await renderAndSubmit('79908');
+
+		const actions = Array.from(container.querySelectorAll('button')).map(
+			(button) => button.textContent
+		);
+		expect(actions).toEqual([
+			'WordPress Core PR 79908',
+			'Gutenberg PR 79908',
+		]);
+	});
+
+	it('names both repositories when neither repository matches', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() => Promise.resolve(verificationError('invalid_pr_number')))
+		);
+
+		await renderAndSubmit('79908');
+
+		expect(container.textContent).toContain(
+			'Couldn’t find PR 79908 in WordPress Core or Gutenberg.'
+		);
+	});
+
+	it('reports a verification failure instead of a missing PR', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('Bad gateway', { status: 502 }))
+			.mockResolvedValueOnce(verificationError('invalid_pr_number'));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await renderAndSubmit('79908');
+
+		expect(container.textContent).toContain(
+			'Playground couldn’t check GitHub right now.'
+		);
+		expect(container.textContent).not.toContain('Couldn’t find PR');
+	});
+
+	async function renderAndSubmit(value: string) {
 		act(() => {
 			root.render(<PreviewPRForm inline onClose={() => {}} />);
 		});
@@ -77,7 +130,7 @@ describe('PreviewPRForm', () => {
 			Object.getOwnPropertyDescriptor(
 				HTMLInputElement.prototype,
 				'value'
-			)!.set!.call(input, '79908');
+			)!.set!.call(input, value);
 			input.dispatchEvent(new Event('input', { bubbles: true }));
 		});
 
@@ -88,12 +141,12 @@ describe('PreviewPRForm', () => {
 					new Event('submit', { bubbles: true, cancelable: true })
 				);
 		});
+	}
 
-		expect(fetchMock).toHaveBeenCalledTimes(2);
-		expect(String(fetchMock.mock.calls[0][0])).toContain(
-			'repo=wordpress-develop'
-		);
-		expect(String(fetchMock.mock.calls[1][0])).toContain('repo=gutenberg');
-		expect(container.textContent).toContain('artifact has expired');
-	});
+	function verificationError(error: string) {
+		return new Response(JSON.stringify({ error }), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
 });
