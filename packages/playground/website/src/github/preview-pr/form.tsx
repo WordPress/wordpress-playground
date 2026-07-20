@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
+import { chevronRight, Icon } from '@wordpress/icons';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -29,6 +30,20 @@ type PrVerification = { ok: true } | { ok: false; error: string };
 type RepositoryMatch = {
 	resolved: ResolvedRef;
 	verification: PrVerification;
+};
+
+/**
+ * User-facing state shown after the form cannot immediately open a preview.
+ *
+ * A title gives each message a scannable outcome while the detail explains
+ * what happened and, when possible, what the user can do next. Waiting for a
+ * build is a warning because the form will retry automatically; terminal
+ * failures are errors.
+ */
+type FormFeedback = {
+	title: string;
+	message: string;
+	status: 'error' | 'warning';
 };
 
 interface PreviewPRFormProps {
@@ -70,7 +85,7 @@ export default function PreviewPRForm({
 }: PreviewPRFormProps) {
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
-	const [errorMsg, setError] = useState<string>('');
+	const [feedback, setFeedback] = useState<FormFeedback>();
 	const [loadingMessage, setLoadingMessage] = useState<string>('');
 	const [repositoryMatches, setRepositoryMatches] = useState<
 		RepositoryMatch[]
@@ -106,7 +121,11 @@ export default function PreviewPRForm({
 
 		const resolved = resolvePrInput(value, target);
 		if (!resolved.ok) {
-			setError(resolved.error);
+			setFeedback({
+				title: 'Check the pull request',
+				message: resolved.error,
+				status: 'error',
+			});
 			return;
 		}
 
@@ -140,7 +159,7 @@ export default function PreviewPRForm({
 	async function detectRepository(ref: string) {
 		cleanupRetryRef.current();
 		cleanupRetryRef.current = () => {};
-		setError('');
+		setFeedback(undefined);
 		setRepositoryMatches([]);
 		setLoadingMessage('Checking WordPress Core and Gutenberg…');
 		setSubmitting(true);
@@ -150,17 +169,23 @@ export default function PreviewPRForm({
 			matches = await findMatchingRepositories(ref);
 		} catch (error) {
 			logger.error(error);
-			setError(
-				'Playground couldn’t check GitHub right now. Check your connection and try again.'
-			);
+			setFeedback({
+				title: 'Playground couldn’t check GitHub right now.',
+				message:
+					'Check your internet connection, then try previewing the pull request again.',
+				status: 'error',
+			});
 			setSubmitting(false);
 			return;
 		}
 
 		if (matches.length === 0) {
-			setError(
-				`Couldn’t find PR ${ref} in WordPress Core or Gutenberg. Check the number, or paste the full GitHub URL if its preview build is still being prepared.`
-			);
+			setFeedback({
+				title: `Couldn’t find PR ${ref} in WordPress Core or Gutenberg.`,
+				message:
+					'Check the number, or paste the full GitHub URL if its preview build is still being prepared.',
+				status: 'error',
+			});
 			setSubmitting(false);
 			return;
 		}
@@ -189,13 +214,15 @@ export default function PreviewPRForm({
 	}
 
 	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
-		setError(
-			`Waiting for GitHub to finish building ${
+		setFeedback({
+			title: 'Preview build in progress',
+			message: `GitHub is still building ${
 				resolved.isBranch ? 'branch' : 'PR'
-			} ${resolved.ref}. This might take 15 minutes or more! Retrying in ${
+			} ${resolved.ref}. This can take 15 minutes or more. Retrying in ${
 				retryIn / 1000
-			}...`
-		);
+			} seconds…`,
+			status: 'warning',
+		});
 	}
 
 	function buildArtifactUrl(resolved: ResolvedRef): string {
@@ -239,6 +266,7 @@ export default function PreviewPRForm({
 	) {
 		cleanupRetryRef.current();
 		cleanupRetryRef.current = () => {};
+		setFeedback(undefined);
 
 		const { target: repo, ref, isBranch } = resolved;
 		const isBareWordPressPr =
@@ -254,9 +282,12 @@ export default function PreviewPRForm({
 				verification = knownVerification ?? (await verifyPr(resolved));
 			} catch (error) {
 				logger.error(error);
-				setError(
-					'Playground couldn’t check GitHub right now. Check your connection and try again.'
-				);
+				setFeedback({
+					title: 'Playground couldn’t check GitHub right now.',
+					message:
+						'Check your internet connection, then try previewing the pull request again.',
+					status: 'error',
+				});
 				setSubmitting(false);
 				return;
 			}
@@ -264,23 +295,29 @@ export default function PreviewPRForm({
 				const { error } = verification;
 
 				if (error === 'invalid_pr_number') {
-					setError(
-						isBareWordPressPr
-							? `Couldn’t find WordPress Core PR ${ref}. If this is a Gutenberg PR, paste its full GitHub URL instead.`
-							: `The PR ${ref} does not exist.`
-					);
+					setFeedback({
+						title: `PR ${ref} wasn’t found`,
+						message: isBareWordPressPr
+							? 'If this is a Gutenberg PR, paste its full GitHub URL instead.'
+							: 'Check the pull request number or URL and try again.',
+						status: 'error',
+					});
 				} else if (error === 'no_ci_runs') {
-					setError(
-						`GitHub hasn’t started a preview build for PR ${ref} yet. Check that its preview workflow is enabled, then try again.`
-					);
+					setFeedback({
+						title: 'Preview build not started',
+						message: `GitHub hasn’t started a preview build for PR ${ref}. Check that its preview workflow is enabled, then try again.`,
+						status: 'error',
+					});
 				} else if (
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'
 				) {
 					if (isWordPressPrBeforePreviewer(resolved)) {
-						setError(
-							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
-						);
+						setFeedback({
+							title: 'Rebase required',
+							message: `PR ${ref} predates the Pull Request previewer. Rebase it to create a preview build.`,
+							status: 'error',
+						});
 					} else {
 						// For PRs, retry since we expect a specific build to complete
 						let retryIn = 30000;
@@ -302,19 +339,25 @@ export default function PreviewPRForm({
 						};
 					}
 				} else if (error === 'artifact_invalid') {
-					setError(
-						`The PR ${ref} requires a rebase before it can be previewed.`
-					);
+					setFeedback({
+						title: 'Rebase required',
+						message: `Rebase PR ${ref} to create a valid preview build.`,
+						status: 'error',
+					});
 				} else if (error === 'artifact_expired') {
-					setError(
-						`The PR ${ref} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`
-					);
+					setFeedback({
+						title: 'Preview build expired',
+						message: `The CI build artifact has expired for PR ${ref}. Push a new commit, rebase, or rerun the CI job to create a fresh build.`,
+						status: 'error',
+					});
 				} else {
-					setError(
-						isBareWordPressPr
-							? `Playground treated ${ref} as a WordPress Core PR, but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.`
-							: `The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`
-					);
+					setFeedback({
+						title: 'Preview unavailable',
+						message: isBareWordPressPr
+							? `Playground treated ${ref} as a WordPress Core PR but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.`
+							: `PR ${ref} couldn’t be previewed. Try again later or file an issue in the WordPress Playground repository.`,
+						status: 'error',
+					});
 					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
 
@@ -463,7 +506,7 @@ export default function PreviewPRForm({
 					value={value}
 					autoFocus={!inline}
 					onChange={(e) => {
-						setError('');
+						setFeedback(undefined);
 						setRepositoryMatches([]);
 						setValue(e);
 					}}
@@ -474,33 +517,65 @@ export default function PreviewPRForm({
 					</div>
 				)}
 				{repositoryMatches.length > 1 && (
-					<Notice status="warning" isDismissible={false}>
-						PR {repositoryMatches[0].resolved.ref} has preview
-						builds in both repositories. Choose the one you want to
-						open.
+					<Notice
+						className={css.repositoryNotice}
+						status="warning"
+						isDismissible={false}
+					>
+						<p className={css.feedbackTitle}>Choose a repository</p>
+						<p className={css.feedbackMessage}>
+							PR {repositoryMatches[0].resolved.ref} has preview
+							builds in both WordPress Core and Gutenberg.
+						</p>
 						<div className={css.repositoryChoices}>
 							{repositoryMatches.map((match) => (
 								<Button
 									key={match.resolved.target}
-									variant="secondary"
+									className={css.repositoryChoice}
+									variant="tertiary"
 									type="button"
 									onClick={() => selectRepository(match)}
 								>
-									{match.resolved.target === 'wordpress'
-										? `WordPress Core PR ${match.resolved.ref}`
-										: `Gutenberg PR ${match.resolved.ref}`}
+									<span className={css.repositoryChoiceText}>
+										<span
+											className={
+												css.repositoryChoiceTitle
+											}
+										>
+											{match.resolved.target ===
+											'wordpress'
+												? 'WordPress Core'
+												: 'Gutenberg'}
+										</span>
+										<span
+											className={css.repositoryChoiceMeta}
+										>
+											{' '}
+											PR {match.resolved.ref}
+										</span>
+									</span>
+									<Icon icon={chevronRight} size={18} />
 								</Button>
 							))}
 						</div>
 					</Notice>
 				)}
-				{errorMsg &&
+				{feedback &&
 					(inline ? (
-						<Notice status="error" isDismissible={false}>
-							{errorMsg}
+						<Notice
+							className={css.feedbackNotice}
+							status={feedback.status}
+							isDismissible={false}
+						>
+							<p className={css.feedbackTitle}>
+								{feedback.title}
+							</p>
+							<p className={css.feedbackMessage}>
+								{feedback.message}
+							</p>
 						</Notice>
 					) : (
-						<div>{errorMsg}</div>
+						<div>{feedback.message}</div>
 					))}
 			</div>
 			{inline && repositoryMatches.length === 0 ? (
