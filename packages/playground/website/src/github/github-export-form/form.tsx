@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import {
-	wpContentFilesExcludedFromExport,
+	getLegacyPlaygroundRuntimeWpContentPaths,
 	zipWpContent,
 } from '@wp-playground/client';
 
@@ -390,12 +390,17 @@ export default function GitHubExportForm({
 			}
 
 			const allPlaygroundFiles: FileEntry[] = [];
+			const excludedWpContentPaths =
+				await getLegacyPlaygroundRuntimeWpContentPaths(
+					playground,
+					joinPaths(docroot, 'wp-content')
+				);
 			for (const path of relativeExportPaths) {
 				const iterator = iterateFiles(
 					playground,
 					joinPaths(fromPlaygroundRoot, path),
 					{
-						exceptPaths: wpContentFilesExcludedFromExport,
+						exceptPaths: excludedWpContentPaths,
 					}
 				);
 				for await (const file of iterator) {

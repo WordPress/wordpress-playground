@@ -3,7 +3,8 @@ import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar, phpVars } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { ensureWpConfig } from '@wp-playground/wordpress';
-import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
+import { legacyUserWpContentPathsExcludedFromExport } from '../utils/legacy-wp-content-paths-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
 /**
@@ -80,25 +81,49 @@ export const importWordPressFiles: StepHandler<
 		}
 	}
 
-	// Carry over any Playground-related files, such as the
-	// SQLite database plugin, from the current wp-content
-	// into the one that's about to be imported
 	const importedWpContentPath = joinPaths(importPath, 'wp-content');
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
-	for (const relativePath of wpContentFilesExcludedFromExport) {
-		// Remove any paths that were supposed to be excluded from the export
-		// but maybe weren't
-		const excludedImportPath = joinPaths(
+
+	// Runtime artifacts from the current Playground win over copies from old
+	// archives. An unmarked db.php is user-owned and remains authoritative.
+	const importedRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
+		playground,
+		importedWpContentPath
+	);
+	const currentRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
+		playground,
+		wpContentPath
+	);
+	for (const relativePath of importedRuntimePaths) {
+		await removePath(
+			playground,
+			joinPaths(importedWpContentPath, relativePath)
+		);
+	}
+	for (const relativePath of currentRuntimePaths) {
+		const importedRuntimePath = joinPaths(
 			importedWpContentPath,
 			relativePath
 		);
-		await removePath(playground, excludedImportPath);
+		const currentRuntimePath = joinPaths(wpContentPath, relativePath);
+		if (
+			!(await playground.fileExists(importedRuntimePath)) &&
+			(await playground.fileExists(currentRuntimePath))
+		) {
+			await playground.mkdir(dirname(importedRuntimePath));
+			await playground.mv(currentRuntimePath, importedRuntimePath);
+		}
+	}
 
-		// Replace them with files sourced from the live wp-content directory
-		const restoreFromPath = joinPaths(wpContentPath, relativePath);
-		if (await playground.fileExists(restoreFromPath)) {
-			await playground.mkdir(dirname(excludedImportPath));
-			await playground.mv(restoreFromPath, excludedImportPath);
+	// Legacy exports omitted stock plugins and themes. Retain the current
+	// copies until versioned exports can be distinguished in the importer.
+	for (const relativePath of legacyUserWpContentPathsExcludedFromExport) {
+		const importedUserPath = joinPaths(importedWpContentPath, relativePath);
+		await removePath(playground, importedUserPath);
+		const currentUserPath = joinPaths(wpContentPath, relativePath);
+		if (await playground.fileExists(currentUserPath)) {
+			await playground.mkdir(dirname(importedUserPath));
+			await playground.mv(currentUserPath, importedUserPath);
 		}
 	}
 
