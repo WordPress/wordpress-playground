@@ -31,3 +31,10 @@
 	flex: none;
 	margin: 0;
 }
+
+.repository-choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}

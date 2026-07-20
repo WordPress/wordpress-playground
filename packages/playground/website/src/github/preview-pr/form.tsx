@@ -11,12 +11,19 @@ import {
 	resolvePrInput,
 } from './resolve-pr-input';
 
+type PrVerification = { ok: true } | { ok: false; error: string };
+
+type RepositoryMatch = {
+	resolved: ResolvedRef;
+	verification: PrVerification;
+};
+
 interface PreviewPRFormProps {
 	onClose: () => void;
 	/**
-	 * Preferred repository for ambiguous (bare) input. A recognized GitHub URL
-	 * always wins over this; it only decides whether a bare number/branch is a
-	 * WordPress Core or Gutenberg reference. Defaults to WordPress Core.
+	 * Preferred repository for ambiguous input in the repository-specific
+	 * modal. The inline form checks both repositories for bare PR numbers. A
+	 * recognized GitHub URL always decides the repository.
 	 */
 	target?: 'wordpress' | 'gutenberg';
 	/** Render a single left-aligned primary action (dock pane) instead of the
@@ -51,6 +58,10 @@ export default function PreviewPRForm({
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [errorMsg, setError] = useState<string>('');
+	const [loadingMessage, setLoadingMessage] = useState<string>('');
+	const [repositoryMatches, setRepositoryMatches] = useState<
+		RepositoryMatch[]
+	>([]);
 	const cleanupRetryRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
@@ -86,7 +97,57 @@ export default function PreviewPRForm({
 			return;
 		}
 
+		const isBarePrNumber =
+			inline &&
+			!resolved.value.isBranch &&
+			value.trim() === resolved.value.ref;
+		if (isBarePrNumber) {
+			await detectRepository(resolved.value.ref);
+			return;
+		}
+
 		await previewPr(resolved.value);
+	}
+
+	async function detectRepository(ref: string) {
+		cleanupRetryRef.current();
+		cleanupRetryRef.current = () => {};
+		setError('');
+		setRepositoryMatches([]);
+		setLoadingMessage('Checking WordPress Core and Gutenberg…');
+		setSubmitting(true);
+
+		let matches: RepositoryMatch[];
+		try {
+			matches = await findMatchingRepositories(ref);
+		} catch (error) {
+			logger.error(error);
+			setError(
+				'Playground couldn’t check GitHub right now. Check your connection and try again.'
+			);
+			setSubmitting(false);
+			return;
+		}
+
+		if (matches.length === 0) {
+			setError(
+				`Couldn’t find PR ${ref} in WordPress Core or Gutenberg. Check the number, or paste the full GitHub URL if its preview build is still being prepared.`
+			);
+			setSubmitting(false);
+			return;
+		}
+		if (matches.length === 1) {
+			await previewPr(matches[0].resolved, matches[0].verification);
+			return;
+		}
+
+		setRepositoryMatches(matches);
+		setSubmitting(false);
+	}
+
+	async function selectRepository(match: RepositoryMatch) {
+		setRepositoryMatches([]);
+		await previewPr(match.resolved, match.verification);
 	}
 
 	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
@@ -114,32 +175,35 @@ export default function PreviewPRForm({
 		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[repo].repo}&workflow=${targetParams[repo].workflow}&artifact=${targetParams[repo].artifact}${artifactSuffix}&${refType}=${encodeURIComponent(ref)}`;
 	}
 
-	async function previewPr(resolved: ResolvedRef) {
+	async function previewPr(
+		resolved: ResolvedRef,
+		knownVerification?: PrVerification
+	) {
 		cleanupRetryRef.current();
 		cleanupRetryRef.current = () => {};
 
 		const { target: repo, ref, isBranch } = resolved;
-		const isBareWordPressPr = repo === 'wordpress' && value.trim() === ref;
+		const isBareWordPressPr =
+			!inline && repo === 'wordpress' && value.trim() === ref;
+		setLoadingMessage('Checking GitHub for a preview build…');
 		setSubmitting(true);
 
 		// For branches, skip verification since we'll use the most recent artifact with prefix matching
 		// For PRs, verify that the specific PR build exists
 		if (!isBranch) {
-			const zipArtifactUrl = buildArtifactUrl(resolved);
-			const response = await fetch(zipArtifactUrl + '&verify_only=true');
-			if (response.status !== 200) {
-				let error = 'invalid_pr_number';
-				try {
-					const json = await response.json();
-					if (json.error) {
-						error = json.error;
-					}
-				} catch (e) {
-					logger.error(e);
-					setError('An unexpected error occurred. Please try again.');
-					setSubmitting(false);
-					return;
-				}
+			let verification: PrVerification;
+			try {
+				verification = knownVerification ?? (await verifyPr(resolved));
+			} catch (error) {
+				logger.error(error);
+				setError(
+					'Playground couldn’t check GitHub right now. Check your connection and try again.'
+				);
+				setSubmitting(false);
+				return;
+			}
+			if (!verification.ok) {
+				const { error } = verification;
 
 				if (error === 'invalid_pr_number' || error === 'no_ci_runs') {
 					setError(
@@ -250,6 +314,46 @@ export default function PreviewPRForm({
 		window.location.href = urlWithPreview.toString();
 	}
 
+	async function findMatchingRepositories(
+		ref: string
+	): Promise<RepositoryMatch[]> {
+		const candidates: ResolvedRef[] = [
+			{ target: 'wordpress', ref, isBranch: false },
+			{ target: 'gutenberg', ref, isBranch: false },
+		];
+		const results = await Promise.all(
+			candidates.map(async (resolved) => ({
+				resolved,
+				verification: await verifyPr(resolved),
+			}))
+		);
+
+		return results.filter(({ verification }) =>
+			isRepositoryMatch(verification)
+		);
+	}
+
+	async function verifyPr(resolved: ResolvedRef): Promise<PrVerification> {
+		const response = await fetch(
+			buildArtifactUrl(resolved) + '&verify_only=true'
+		);
+		if (response.status === 200) {
+			return { ok: true };
+		}
+
+		let error = 'invalid_pr_number';
+		try {
+			const json = await response.json();
+			if (json.error) {
+				error = json.error;
+			}
+		} catch (parseError) {
+			logger.error(parseError);
+			return { ok: false, error: 'unexpected_response' };
+		}
+		return { ok: false, error };
+	}
+
 	const inputLabel = inline
 		? 'Pull request URL or number'
 		: target === 'wordpress'
@@ -266,21 +370,43 @@ export default function PreviewPRForm({
 					autoFocus={!inline}
 					onChange={(e) => {
 						setError('');
+						setRepositoryMatches([]);
 						setValue(e);
 					}}
 				/>
 				{inline && (
 					<p className={css.hint}>
 						Paste a link to a WordPress Core or Gutenberg pull
-						request — or just the PR number for WordPress Core.
-						Gutenberg branch links work too.
+						request, or enter a PR number and Playground will find
+						the repository. Gutenberg branch links work too.
 					</p>
 				)}
 				{submitting && (
 					<div className={css.loadingStatus} role="status">
 						<Spinner />
-						<span>Checking GitHub for a preview build…</span>
+						<span>{loadingMessage}</span>
 					</div>
+				)}
+				{repositoryMatches.length > 1 && (
+					<Notice status="warning" isDismissible={false}>
+						PR {repositoryMatches[0].resolved.ref} has preview
+						builds in both repositories. Choose the one you want to
+						open.
+						<div className={css.repositoryChoices}>
+							{repositoryMatches.map((match) => (
+								<Button
+									key={match.resolved.target}
+									variant="secondary"
+									type="button"
+									onClick={() => selectRepository(match)}
+								>
+									{match.resolved.target === 'wordpress'
+										? `WordPress Core PR ${match.resolved.ref}`
+										: `Gutenberg PR ${match.resolved.ref}`}
+								</Button>
+							))}
+						</div>
+					</Notice>
 				)}
 				{errorMsg &&
 					(inline ? (
@@ -291,7 +417,7 @@ export default function PreviewPRForm({
 						<div>{errorMsg}</div>
 					))}
 			</div>
-			{inline ? (
+			{inline && repositoryMatches.length === 0 ? (
 				<div className={css.inlineActions}>
 					<Button
 						variant="primary"
@@ -302,14 +428,26 @@ export default function PreviewPRForm({
 						{submitting ? 'Checking…' : 'Preview'}
 					</Button>
 				</div>
-			) : (
+			) : !inline ? (
 				<ModalButtons
 					areDisabled={submitting}
 					onCancel={onClose}
 					onSubmit={handleSubmit}
 					submitText="Preview"
 				/>
-			)}
+			) : null}
 		</form>
+	);
+}
+
+function isRepositoryMatch(verification: PrVerification): boolean {
+	return (
+		verification.ok ||
+		[
+			'artifact_not_found',
+			'artifact_not_available',
+			'artifact_invalid',
+			'artifact_expired',
+		].includes(verification.error)
 	);
 }
