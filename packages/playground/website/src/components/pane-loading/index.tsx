@@ -41,15 +41,21 @@ export function PlaygroundBootNotice({
 			aria-hidden={!show || undefined}
 		>
 			<div className={css.bootNoticeInner}>
-				<div
-					className={css.bootNotice}
-					role="status"
-					aria-live="polite"
-				>
-					<Spinner size={16} />
-					<span className={css.bootNoticeText}>{message}</span>
-				</div>
+				<InlineProgress message={message} />
 			</div>
+		</div>
+	);
+}
+
+/**
+ * A compact progress state for an operation that leaves the surrounding pane
+ * visible. Use PaneLoading instead when the entire pane is unavailable.
+ */
+export function InlineProgress({ message }: { message: string }) {
+	return (
+		<div className={css.inlineProgress} role="status" aria-live="polite">
+			<Spinner size={16} />
+			<span className={css.inlineProgressText}>{message}</span>
 		</div>
 	);
 }

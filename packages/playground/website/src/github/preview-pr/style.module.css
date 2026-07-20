@@ -5,23 +5,8 @@
 	margin-top: 12px;
 }
 
-.loading-status {
-	align-items: center;
-	background: var(--paper-2, #faf8f5);
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
-	border-radius: var(--radius-card, 8px);
-	color: var(--ink-muted, #5f5b54);
-	display: flex;
-	font-size: 13px;
-	gap: 10px;
-	line-height: 1.4;
+.progress {
 	margin-top: 12px;
-	padding: 10px 12px;
-}
-
-.loading-status :global(.components-spinner) {
-	flex: none;
-	margin: 0;
 }
 
 .repository-choices {

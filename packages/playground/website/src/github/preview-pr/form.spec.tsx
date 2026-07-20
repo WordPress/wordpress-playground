@@ -7,17 +7,14 @@ import PreviewPRForm from './form';
 vi.mock('@wordpress/components', () => ({
 	Button: ({
 		children,
-		isBusy: _isBusy,
 		variant: _variant,
 		...props
 	}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-		isBusy?: boolean;
 		variant?: string;
 	}) => <button {...props}>{children}</button>,
 	Notice: ({ children }: { children: React.ReactNode }) => (
 		<div>{children}</div>
 	),
-	Spinner: () => <span>Loading</span>,
 	TextControl: ({
 		label,
 		onChange,

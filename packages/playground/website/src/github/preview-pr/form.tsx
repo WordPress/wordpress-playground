@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
-import { Button, Notice, Spinner, TextControl } from '@wordpress/components';
+import { Button, Notice, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
+import { InlineProgress } from '../../components/pane-loading';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { ResolvedRef } from './resolve-pr-input';
 import {
@@ -376,9 +377,8 @@ export default function PreviewPRForm({
 					}}
 				/>
 				{submitting && (
-					<div className={css.loadingStatus} role="status">
-						<Spinner />
-						<span>{loadingMessage}</span>
+					<div className={css.progress}>
+						<InlineProgress message={loadingMessage} />
 					</div>
 				)}
 				{repositoryMatches.length > 1 && (
@@ -417,9 +417,8 @@ export default function PreviewPRForm({
 						variant="primary"
 						type="submit"
 						disabled={submitting}
-						isBusy={submitting}
 					>
-						{submitting ? 'Checking…' : 'Preview'}
+						Preview
 					</Button>
 				</div>
 			) : !inline ? (

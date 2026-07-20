@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PaneLoading, PlaygroundBootNotice } from './index';
+import { InlineProgress, PaneLoading, PlaygroundBootNotice } from './index';
 
 describe('PaneLoading', () => {
 	it('announces the loading message politely', () => {
@@ -10,6 +10,18 @@ describe('PaneLoading', () => {
 		expect(markup).toContain('role="status"');
 		expect(markup).toContain('aria-live="polite"');
 		expect(markup).toContain('Loading the file browser…');
+	});
+});
+
+describe('InlineProgress', () => {
+	it('announces progress without replacing the surrounding pane', () => {
+		const markup = renderToStaticMarkup(
+			<InlineProgress message="Checking GitHub…" />
+		);
+
+		expect(markup).toContain('role="status"');
+		expect(markup).toContain('aria-live="polite"');
+		expect(markup).toContain('Checking GitHub…');
 	});
 });
 
