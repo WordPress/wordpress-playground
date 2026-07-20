@@ -15,7 +15,7 @@ describe('parseLogs', () => {
 		expect(entries).toHaveLength(2);
 		expect(entries[0]).toMatchObject({
 			channel: 'PHP',
-			label: 'Notice',
+			label: 'E_NOTICE',
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',
 		});
@@ -33,12 +33,12 @@ describe('parseLogs', () => {
 		expect(entries[1].message).toContain('MySQL query');
 	});
 
-	it('keeps severity tiers for the common PHP error levels', () => {
+	it('labels PHP error levels with their error_reporting constants', () => {
 		const entries = parseLogs([
 			'[20-Jul-2026 14:59:46 UTC] PHP Fatal error:  Uncaught Error: boom',
 			'[20-Jul-2026 14:59:46 UTC] PHP Warning:  Undefined variable $x',
 			'[20-Jul-2026 14:59:46 UTC] PHP Deprecated:  Optional parameter',
-			'[20-Jul-2026 14:59:46 UTC] PHP User notice:  hello',
+			'[20-Jul-2026 14:59:46 UTC] PHP Custom notice:  hello',
 		]);
 		expect(entries.map((entry) => entry.tier)).toEqual([
 			'error',
@@ -46,9 +46,12 @@ describe('parseLogs', () => {
 			'warning',
 			'info',
 		]);
-		expect(entries[0].label).toBe('Fatal error');
+		expect(entries[0].label).toBe('E_ERROR');
 		expect(entries[0].message).toBe('Uncaught Error: boom');
-		expect(entries[3].label).toBe('User notice');
+		expect(entries[1].label).toBe('E_WARNING');
+		expect(entries[2].label).toBe('E_DEPRECATED');
+		// Heads outside PHP's own vocabulary keep their verbatim text.
+		expect(entries[3].label).toBe('Custom notice');
 	});
 
 	it('maps formatted logger entries to their channel and severity', () => {

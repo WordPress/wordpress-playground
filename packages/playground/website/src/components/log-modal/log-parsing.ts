@@ -45,11 +45,27 @@ const FORMATTED_SEVERITIES: Record<string, { label: string; tier: LogTier }> = {
 
 /**
  * Heads PHP itself writes to debug.log. The lazy word prefix covers the
- * compound levels — `Fatal error`, `Recoverable fatal error`, `User notice`,
- * `Core warning`, and the like — without listing each one.
+ * compound levels — `Fatal error`, `Recoverable fatal error`, and the
+ * like — without listing each one.
  */
 const PHP_HEAD =
 	/^PHP ((?:\w+ )*?(?:error|warning|notice|deprecated|strict standards)):\s*/i;
+
+/**
+ * debug.log heads restored to the constant names developers configure in
+ * error_reporting. PHP prints the same string for the E_USER_* and E_CORE_*
+ * variants, so the base constant is as precise as the log text allows.
+ * Unlisted heads keep their verbatim text.
+ */
+const PHP_LEVELS: Record<string, { label: string; tier: LogTier }> = {
+	'fatal error': { label: 'E_ERROR', tier: 'error' },
+	'recoverable fatal error': { label: 'E_RECOVERABLE_ERROR', tier: 'error' },
+	'parse error': { label: 'E_PARSE', tier: 'error' },
+	warning: { label: 'E_WARNING', tier: 'warning' },
+	deprecated: { label: 'E_DEPRECATED', tier: 'warning' },
+	notice: { label: 'E_NOTICE', tier: 'info' },
+	'strict standards': { label: 'E_STRICT', tier: 'info' },
+};
 
 const DATABASE_HEAD = /^WordPress database error\s*/;
 
@@ -100,12 +116,13 @@ function parseLogRecord(record: string): LogEntry {
 
 	const phpMatch = message.match(PHP_HEAD);
 	if (phpMatch) {
+		const level = PHP_LEVELS[phpMatch[1].toLowerCase()];
 		return {
 			raw: record,
 			timestamp,
 			channel: 'PHP',
-			label: phpMatch[1],
-			tier: phpTier(phpMatch[1]),
+			label: level?.label ?? phpMatch[1],
+			tier: level?.tier ?? phpTier(phpMatch[1]),
 			message: message.slice(phpMatch[0].length),
 		};
 	}
