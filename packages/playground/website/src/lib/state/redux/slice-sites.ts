@@ -35,6 +35,7 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	isAutosavedSite,
 	isStoredSite,
 	isTemporarySite,
 	type AutosavedSitesPruneOptions,
@@ -363,6 +364,38 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 			await dispatch(removeSite(site.slug));
 		}
 	};
+}
+
+/**
+ * Checks whether a stored Playground may be offered as an autosave.
+ *
+ * A Blueprint run uses autosave persistence before its initial OPFS copy
+ * succeeds. Its return target marks it unfinished, so callers withhold it from
+ * Recent and matching-setup restore suggestions until that copy succeeds.
+ *
+ * @param site The Playground whose autosave lifecycle should be checked.
+ * @returns Whether the Playground is a restorable autosave.
+ */
+export function isRestorableAutosavedSite(site: SiteInfo) {
+	return isAutosavedSite(site) && !isUnfinishedBlueprintRun(site);
+}
+
+/**
+ * Checks whether a Playground is marked as an unfinished Blueprint run.
+ *
+ * Running a stored Blueprint records the Playground to return to before boot.
+ * The return target survives a failed boot or reload and is cleared only after
+ * the first MEMFS-to-OPFS copy succeeds.
+ *
+ * This cannot be inferred from `initialOpfsSyncPending`, because every new
+ * stored Playground starts with an initial copy. The return target distinguishes
+ * the Blueprint run while that common sync flag cannot.
+ *
+ * @param site The Playground whose Blueprint run lifecycle should be checked.
+ * @returns Whether the Playground is an unfinished Blueprint run.
+ */
+export function isUnfinishedBlueprintRun(site: SiteInfo) {
+	return typeof site.metadata.siteSlugToReturnToIfBlueprintFails === 'string';
 }
 
 /**

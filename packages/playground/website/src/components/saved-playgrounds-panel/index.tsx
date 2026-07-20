@@ -49,6 +49,7 @@ import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	isRestorableAutosavedSite,
 	selectSortedSites,
 	selectTemporarySite,
 	updateSiteMetadata,
@@ -1006,7 +1007,7 @@ export function SavedPlaygroundsPanel({
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
-	const recentSites = inactiveStoredSites.filter(isAutosavedSite);
+	const recentSites = inactiveStoredSites.filter(isRestorableAutosavedSite);
 	const savedSites = inactiveStoredSites.filter(isExplicitlySavedSite);
 
 	function formatSiteCreatedDate(site: SiteInfo) {
