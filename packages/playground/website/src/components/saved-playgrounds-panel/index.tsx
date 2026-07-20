@@ -896,12 +896,12 @@ export function SavedPlaygroundsPanel({
 	 * The start methods, as a top tab strip. The three Blueprint sources lead
 	 * (Gallery / From a URL / Write your own) so they read as one cohesive way to
 	 * start; the code/import flows follow. Each tab shows an icon + label; the
-	 * panel below names the active flow and renders it.
+	 * panel below renders the active flow.
 	 */
 	const creationMethods: {
 		id: CreationTabId;
 		label: string;
-		panelTitle: string;
+		panelTitle: string | null;
 		icon: React.ReactNode;
 		disabled: boolean;
 	}[] = [
@@ -929,7 +929,7 @@ export function SavedPlaygroundsPanel({
 		{
 			id: 'pull-request',
 			label: 'Preview a PR',
-			panelTitle: 'Preview a pull request',
+			panelTitle: null,
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
@@ -1383,7 +1383,7 @@ export function SavedPlaygroundsPanel({
 					role={isGitHubImportOpen ? 'region' : 'tabpanel'}
 					aria-label={
 						isGitHubImportOpen
-							? activeMethod?.panelTitle
+							? (activeMethod?.panelTitle ?? undefined)
 							: undefined
 					}
 					aria-labelledby={
@@ -1392,7 +1392,7 @@ export function SavedPlaygroundsPanel({
 							: `creation-tab-${activeCreationTab}`
 					}
 				>
-					{!isGitHubImportOpen && (
+					{!isGitHubImportOpen && activeMethod?.panelTitle && (
 						<div className={css.panelHeader}>
 							<h3
 								id="creation-panel-title"

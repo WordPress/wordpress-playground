@@ -355,7 +355,7 @@ export default function PreviewPRForm({
 	}
 
 	const inputLabel = inline
-		? 'Pull request URL or number'
+		? 'WordPress Core or Gutenberg PR'
 		: target === 'wordpress'
 			? 'PR number or URL'
 			: 'PR number, URL, or a branch name';
@@ -366,6 +366,7 @@ export default function PreviewPRForm({
 				<TextControl
 					disabled={submitting}
 					label={inputLabel}
+					placeholder={inline ? 'URL or number' : undefined}
 					value={value}
 					autoFocus={!inline}
 					onChange={(e) => {
@@ -374,13 +375,6 @@ export default function PreviewPRForm({
 						setValue(e);
 					}}
 				/>
-				{inline && (
-					<p className={css.hint}>
-						Paste a link to a WordPress Core or Gutenberg pull
-						request, or enter a PR number and Playground will find
-						the repository. Gutenberg branch links work too.
-					</p>
-				)}
 				{submitting && (
 					<div className={css.loadingStatus} role="status">
 						<Spinner />
