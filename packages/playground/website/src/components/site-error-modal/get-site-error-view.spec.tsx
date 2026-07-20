@@ -82,6 +82,27 @@ describe('getSiteErrorView', () => {
 		expect(view.title).toBe('Blueprint could not be downloaded');
 		expect(renderToStaticMarkup(view.body)).toContain(url);
 	});
+
+	it('explains an incomplete WordPress download and offers a retry', () => {
+		const view = getSiteErrorView({
+			error: 'site-boot-failed',
+			site: createSite(),
+			helpers,
+			errorDetails: {
+				message:
+					'WordPress core bundle file-count parity check failed: extracted 1812 files, expected 1816.',
+			},
+		});
+
+		expect(view.title).toBe('WordPress download was incomplete');
+		expect(renderToStaticMarkup(view.body)).toContain(
+			'the downloaded WordPress package was missing files'
+		);
+		expect(renderToStaticMarkup(view.actions[0])).toContain(
+			'Reload and try again'
+		);
+		expect(view.hideReportButton).toBe(true);
+	});
 });
 
 function createSite(

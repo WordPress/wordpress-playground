@@ -1361,6 +1361,51 @@
 	color: #5f5b54;
 }
 
+.playgrounds-pane .blueprintsError {
+	align-items: flex-start;
+	background: #fff8e5;
+	border: 1px solid #e6d39a;
+	border-radius: 10px;
+	color: var(--ink, #21201d);
+	display: flex;
+	gap: 12px;
+	padding: 14px 16px;
+}
+
+.playgrounds-pane .blueprintsErrorIcon {
+	align-items: center;
+	background: #f5df9d;
+	border-radius: 50%;
+	color: #6d4a00;
+	display: flex;
+	flex: none;
+	font-size: 13px;
+	font-weight: 700;
+	height: 24px;
+	justify-content: center;
+	line-height: 1;
+	width: 24px;
+}
+
+.playgrounds-pane .blueprintsErrorTitle,
+.playgrounds-pane .blueprintsErrorMessage {
+	margin: 0;
+}
+
+.playgrounds-pane .blueprintsErrorTitle {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.playgrounds-pane .blueprintsErrorMessage {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 13px;
+	line-height: 1.5;
+	margin-top: 2px;
+}
+
 .playgrounds-pane .showMoreButton {
 	border-color: rgba(33, 30, 25, 0.14);
 	color: #5f5b54;
