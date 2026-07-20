@@ -89,8 +89,7 @@ describe('getSiteErrorView', () => {
 			site: createSite(),
 			helpers,
 			errorDetails: {
-				message:
-					'WordPress core bundle file-count parity check failed: extracted 1812 files, expected 1816.',
+				originalErrorClassName: 'WordPressBundleFileCountMismatchError',
 			},
 		});
 

@@ -699,19 +699,16 @@ function genericSiteBootFailedView({
 }
 
 function isIncompleteWordPressBundleError(errorDetails: unknown): boolean {
-	let message = '';
-	if (typeof errorDetails === 'string') {
-		message = errorDetails;
-	} else if (
-		errorDetails &&
-		typeof errorDetails === 'object' &&
-		'message' in errorDetails &&
-		typeof errorDetails.message === 'string'
-	) {
-		message = errorDetails.message;
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return false;
 	}
-	return message.includes(
-		'WordPress core bundle file-count parity check failed'
+	const error = errorDetails as {
+		name?: unknown;
+		originalErrorClassName?: unknown;
+	};
+	return (
+		error.name === 'WordPressBundleFileCountMismatchError' ||
+		error.originalErrorClassName === 'WordPressBundleFileCountMismatchError'
 	);
 }
 
