@@ -340,9 +340,9 @@ function LogEntryRow({
 		const observer = new ResizeObserver(measure);
 		observer.observe(message);
 		return () => observer.disconnect();
-	}, [entry.message, expanded]);
+	}, [entry.raw, expanded]);
 
-	const lineCount = entry.message.split('\n').length;
+	const lineCount = entry.raw.split('\n').length;
 	const time =
 		entry.timestamp?.match(/\d{2}:\d{2}:\d{2}/)?.[0] ?? entry.timestamp;
 
@@ -370,7 +370,7 @@ function LogEntryRow({
 					className={css.logEntryMessage}
 					data-clamped={!expanded || undefined}
 				>
-					{splitSearchHighlights(entry.message, searchTerm).map(
+					{splitSearchHighlights(entry.raw, searchTerm).map(
 						(segment, segmentIndex) =>
 							segment.highlight ? (
 								<mark key={segmentIndex}>{segment.text}</mark>

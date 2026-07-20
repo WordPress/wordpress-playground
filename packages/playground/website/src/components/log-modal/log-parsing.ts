@@ -4,13 +4,18 @@
  * PHP debug.log chunks where one string carries many records (a single
  * WordPress database error can dump hundreds of lines). Parsing splits
  * chunks into records and reads each record's severity so the UI can
- * render one row per record instead of one unbounded wall of text.
+ * render one row per record instead of one unbounded wall of text. That
+ * is all it does — the record text itself is displayed as logged.
  */
 
 export type LogTier = 'error' | 'warning' | 'info';
 
 export type LogEntry = {
-	/** The unmodified record text — what copying puts on the clipboard. */
+	/**
+	 * The record exactly as logged — the panel renders and copies this
+	 * text verbatim. The fields below are read-only classifications of
+	 * it; parsing never rewrites the record.
+	 */
 	raw: string;
 	/** Full stamp, e.g. `20-Jul-2026 14:59:46 UTC`, when the record has one. */
 	timestamp: string | null;
@@ -20,11 +25,9 @@ export type LogEntry = {
 	 * WordPress core vs plugin — is not recoverable from the log text.
 	 */
 	channel: string;
-	/** Badge text, e.g. `Fatal error`, `Notice`, `Database error`. */
+	/** Badge text, e.g. `E_WARNING`, `Database error`. */
 	label: string;
 	tier: LogTier;
-	/** Record text without the timestamp and severity head. */
-	message: string;
 };
 
 /** Both PHP's debug.log and the JS logger stamp records as `[20-Jul-2026 …]`. */
@@ -80,15 +83,18 @@ export function parseLogs(rawLogs: string[]): LogEntry[] {
 }
 
 function parseLogRecord(record: string): LogEntry {
-	let message = record;
+	// The heads below are matched only to classify the record; `body` is
+	// never returned. The stamp is sliced off solely so the `^`-anchored
+	// head patterns can see past it.
+	let body = record;
 	let timestamp: string | null = null;
-	const stampMatch = message.match(TIMESTAMP_HEAD);
+	const stampMatch = body.match(TIMESTAMP_HEAD);
 	if (stampMatch) {
 		timestamp = stampMatch[1];
-		message = message.slice(stampMatch[0].length);
+		body = body.slice(stampMatch[0].length);
 	}
 
-	const formattedMatch = message.match(FORMATTED_HEAD);
+	const formattedMatch = body.match(FORMATTED_HEAD);
 	if (formattedMatch) {
 		const severity = FORMATTED_SEVERITIES[formattedMatch[2]];
 		const isWasmCrash = formattedMatch[1] === 'Wasm Crash';
@@ -98,23 +104,20 @@ function parseLogRecord(record: string): LogEntry {
 			channel: formattedMatch[1] === 'PHP' ? 'PHP' : 'Playground',
 			label: isWasmCrash ? 'Crash' : severity.label,
 			tier: isWasmCrash ? 'error' : severity.tier,
-			message: message.slice(formattedMatch[0].length),
 		};
 	}
 
-	const databaseMatch = message.match(DATABASE_HEAD);
-	if (databaseMatch) {
+	if (DATABASE_HEAD.test(body)) {
 		return {
 			raw: record,
 			timestamp,
 			channel: 'PHP',
 			label: 'Database error',
 			tier: 'error',
-			message: message.slice(databaseMatch[0].length),
 		};
 	}
 
-	const phpMatch = message.match(PHP_HEAD);
+	const phpMatch = body.match(PHP_HEAD);
 	if (phpMatch) {
 		const level = PHP_LEVELS[phpMatch[1].toLowerCase()];
 		return {
@@ -123,7 +126,6 @@ function parseLogRecord(record: string): LogEntry {
 			channel: 'PHP',
 			label: level?.label ?? phpMatch[1],
 			tier: level?.tier ?? phpTier(phpMatch[1]),
-			message: message.slice(phpMatch[0].length),
 		};
 	}
 
@@ -134,7 +136,6 @@ function parseLogRecord(record: string): LogEntry {
 		channel: 'PHP',
 		label: 'Log',
 		tier: 'info',
-		message,
 	};
 }
 

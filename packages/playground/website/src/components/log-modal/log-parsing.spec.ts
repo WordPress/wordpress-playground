@@ -19,8 +19,10 @@ describe('parseLogs', () => {
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',
 		});
-		expect(entries[0].message).toMatch(
-			/^Function _load_textdomain_just_in_time/
+		// The record text is preserved as logged — stamp and severity
+		// head included.
+		expect(entries[0].raw).toBe(
+			'[20-Jul-2026 14:59:46 UTC] PHP Notice:  Function _load_textdomain_just_in_time was called incorrectly.'
 		);
 		expect(entries[1]).toMatchObject({
 			channel: 'PHP',
@@ -29,8 +31,8 @@ describe('parseLogs', () => {
 		});
 		// Continuation lines stay inside their record instead of becoming
 		// separate entries.
-		expect(entries[1].message.split('\n')).toHaveLength(3);
-		expect(entries[1].message).toContain('MySQL query');
+		expect(entries[1].raw.split('\n')).toHaveLength(3);
+		expect(entries[1].raw).toContain('MySQL query');
 	});
 
 	it('labels PHP error levels with their error_reporting constants', () => {
@@ -47,7 +49,6 @@ describe('parseLogs', () => {
 			'info',
 		]);
 		expect(entries[0].label).toBe('E_ERROR');
-		expect(entries[0].message).toBe('Uncaught Error: boom');
 		expect(entries[1].label).toBe('E_WARNING');
 		expect(entries[2].label).toBe('E_DEPRECATED');
 		// Heads outside PHP's own vocabulary keep their verbatim text.
@@ -64,7 +65,6 @@ describe('parseLogs', () => {
 			channel: 'Playground',
 			label: 'Error',
 			tier: 'error',
-			message: 'ReferenceError: x is not defined',
 		});
 		expect(entries[1]).toMatchObject({
 			channel: 'Playground',
@@ -87,7 +87,6 @@ describe('parseLogs', () => {
 			label: 'Log',
 			tier: 'info',
 			timestamp: '20-Jul-2026 14:59:46 UTC',
-			message: 'Cron reschedule event error for hook',
 		});
 	});
 
@@ -96,11 +95,11 @@ describe('parseLogs', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]).toMatchObject({
 			timestamp: null,
-			message: 'stray line',
+			raw: 'stray line',
 		});
 	});
 
-	it('preserves the raw record text for copying', () => {
+	it('preserves the raw record text', () => {
 		const record =
 			'[20-Jul-2026 14:59:46 UTC] PHP Notice:  Something happened';
 		expect(parseLogs([record])[0].raw).toBe(record);
