@@ -343,6 +343,48 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('clears the return target after the initial OPFS copy succeeds', async () => {
+		let resolveMount = () => {};
+		const mountFinished = new Promise<void>((resolve) => {
+			resolveMount = resolve;
+		});
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(() => mountFinished),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('blueprint-run', {
+			metadata: {
+				initialOpfsSyncPending: true,
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+		resolveMount();
+		await vi.waitFor(() =>
+			expect(
+				state.sites.entities['blueprint-run'].metadata
+					.siteSlugToReturnToIfBlueprintFails
+			).toBeUndefined()
+		);
+	});
+
 	it('classifies a worker resource-unavailable error', async () => {
 		const unavailableError = Object.assign(
 			new Error('WordPress 6.8 is not available for download.'),

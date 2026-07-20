@@ -366,7 +366,10 @@ describe('stored site creation', () => {
 			'Edited Blueprint',
 			editedBundle,
 			'source-site',
-			{ persistence: 'autosave' }
+			{
+				persistence: 'autosave',
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			}
 		)(dispatch as any, getState as any);
 
 		expect(newSite.slug).toBe('source-site-2');
@@ -375,6 +378,7 @@ describe('stored site creation', () => {
 			storage: 'opfs',
 			persistence: 'autosave',
 			initialOpfsSyncPending: true,
+			siteSlugToReturnToIfBlueprintFails: 'source-site',
 			originalBlueprint: copiedBundle,
 			originalBlueprintSource: { type: 'opfs-site' },
 			runtimeConfiguration,
