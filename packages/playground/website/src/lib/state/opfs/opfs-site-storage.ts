@@ -530,6 +530,14 @@ async function opfsWriteFile(path: string, content: string) {
 		channel.port1.onmessage = function (event: MessageEvent) {
 			if (event.data === 'done') {
 				resolve();
+			} else if (event.data?.type === 'error') {
+				logger.error('Error in OPFS write worker.', event.data);
+				reject(
+					new Error(
+						`The browser storage worker failed while writing ${path}. See the preceding OPFS worker log for details.`,
+						{ cause: event.data.error }
+					)
+				);
 			} else {
 				reject(
 					new Error(
