@@ -4,7 +4,7 @@ slug: /blueprints/troubleshoot-and-debug
 description: A searchable guide to common Blueprint errors, including fetch failures, validation errors, PHP failures, and plugin activation issues.
 ---
 
-> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `d89ac2b956` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
+> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `73a051fcd2` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
 
 # Troubleshoot and debug Blueprints
 
@@ -445,11 +445,11 @@ To inspect the final state, use **Files**, **Database**, and **Logs** from the D
 
 Use **Files** to confirm the Blueprint created, moved, or edited the expected files.
 
-![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/files.webp)
+![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/files.webp)
 
 Use **Database** to inspect tables and records changed by SQL or WordPress steps.
 
-![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/database.webp)
+![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/database.webp)
 
 You can also inspect a Playground instance from the browser console through
 `window.playground`:
@@ -482,7 +482,7 @@ You can write your own messages with `error_log()` in a
 [`runPHP` step](/blueprints/steps), then check the Playground
 **Logs** panel or the browser console.
 
-![The Logs pane showing Playground messages and PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/logs.webp)
+![The Logs pane showing Playground messages and PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 

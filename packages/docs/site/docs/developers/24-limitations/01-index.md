@@ -3,7 +3,7 @@ slug: /developers/limitations
 description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, browser persistence and recovery constraints, iframe quirks, and WP-CLI support.
 ---
 
-> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `d89ac2b956` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
+> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `73a051fcd2` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
 
 # Limitations
 
@@ -15,21 +15,21 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Browser storage and recovery
 
-Playground runs WordPress in the browser. New Playgrounds are autosaved when browser storage and saving are available, and up to five recent autosaves appear in **Your Playgrounds**. Autosaves are recovery points, not long-term backups. Store an autosave permanently or export a ZIP when you want to keep it.
+Playground runs WordPress in the browser. New Playgrounds are autosaved when browser storage and saving are available, and they appear in **Your Playgrounds**. Only the five most recent autosaves are kept: when a new autosave is created, the oldest one is deleted. Autosaves are recovery points, not long-term backups. Store an autosave permanently or export a ZIP when you want to keep it.
 
 Use these storage modes deliberately:
 
-- **Autosaved**: stored in browser storage and retained while it is one of the recent autosaves kept by Playground.
+- **Autosaved**: stored in browser storage and retained only while it is one of the five most recent autosaves.
 - **Saved**: stored permanently in browser storage or saved to a local directory.
 - **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 
 The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot.
 
-![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/persistence-controls.webp)
+![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/persistence-controls.webp)
 
 Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
 
-![The Your Playgrounds pane lists the current Playground, recent autosaves, and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane lists the current Playground, recent autosaves, and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 ### Browser support
 
@@ -51,7 +51,7 @@ Loading times vary based on what Playground needs to set up:
 | With large plugins (e.g., WooCommerce) | 30-60 seconds              |
 | On mobile devices                      | 1.5-2x slower than desktop |
 
-![Playground performance graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/playground-performance-graph.webp)
+![Playground performance graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **Factors that affect performance:**
 

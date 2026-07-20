@@ -5,7 +5,7 @@ description: Learn how WordPress Playground helps you build products, from setti
 sidebar_class_name: navbar-build-item
 ---
 
-> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `d89ac2b956` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
+> **Review preview of [PR #4082](https://github.com/WordPress/wordpress-playground/pull/4082).** Image URLs are pinned to commit `73a051fcd2` so they render before merge. The real pages use `refs/heads/trunk` URLs. Do not edit this copy.
 
 # Build
 
@@ -33,7 +33,7 @@ Some more examples of this workflow:
 
 In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save in a local directory**, click **Choose...**, and select an empty directory dedicated to this Playground. After granting write access, click **Save**. Playground copies the current site into the selected directory and overwrites files with matching names; it does not import an existing site from that directory.
 
-![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/d89ac2b956967925037d2886a79df5ae4924c439/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
+![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/73a051fcd205f7cab5c972c50c9fcf555d72dc82/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
 Local-directory storage uses the File System Access API, so availability depends on browser and platform support for choosing and writing to directories. Chromium-based desktop browsers usually support it. Browsers without that capability can still use browser storage and ZIP export. See [Browser support](/developers/limitations#browser-support) for the broader compatibility model.
 
