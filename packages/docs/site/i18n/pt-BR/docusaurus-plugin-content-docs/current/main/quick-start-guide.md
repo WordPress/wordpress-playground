@@ -129,30 +129,24 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 ## Salve o seu site
 
 <!--
-To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
--->
-
-<!--
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
 -->
 
 Para manter o seu site WordPress Playground por mais de uma sessão do navegador, você pode exporta-lo como um arquivo `.zip`.
 
 <!--
-1. Open the Playground site manager panel:
+1. Open **Export** from the Dock.
+2. Select **Download as .zip**.
 -->
 
-1. Abra o painel do gerenciador de sites do Playground:
-
-![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
+1. Abra **Export** no Dock.
+2. Selecione **Download as .zip**.
 
 <!--
-2. Use the "Download as .zip" button in the additional actions menu
+![Export Playground from the Dock](/img/dock/dock-export-playground.webp)
 -->
 
-2. Use o botão "Download como .zip" no menu de ações adicionais
-
-![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
+![Exporte o Playground pelo Dock](/img/dock/dock-export-playground.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -173,26 +167,26 @@ O arquivo de banco de dados SQLite também está incluído na exportação. Voc�
 ## Restaurando um site salvo
 
 <!--
-You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
+You can restore the saved site from the Dock's **New** pane:
 -->
 
-Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel do painel de controle do Playground:
+Você pode restaurar o site salvo no painel **New** do Dock:
 
 <!--
-1. Open the Playground dashboard panel:
+1. Open the **New** pane from the Dock.
+2. Select **Import zip**.
+3. Choose the `.zip` file you exported earlier.
 -->
 
-1. Abra o painel do painel de controle do Playground:
-
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
+1. Abra o painel **New** no Dock.
+2. Selecione **Import zip**.
+3. Escolha o arquivo `.zip` que você exportou antes.
 
 <!--
-1. Use the "Import .zip" button at the end of the "Start a new Playground" section
+![Import a Playground zip from the Dock](/img/dock/dock-new-playground-import-zip.webp)
 -->
 
-1. Use o botão "Importar .zip" no final da seção "Iniciar um novo Playground"
-
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
+![Importe um arquivo zip do Playground pelo Dock](/img/dock/dock-new-playground-import-zip.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -201,11 +195,16 @@ Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel d
 ## Use uma versão específica do WordPress ou PHP
 
 <!--
-The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
+The quickest way to change the version of WordPress or PHP is by opening **Site Settings** from the Dock on the [official demo site](https://playground.wordpress.net/):
 -->
 
-A maneira mais rápida de trocar a versão do WordPress ou PHP no é utilizando o painel de configurações do [site oficial de demonstração](https://playground.wordpress.net/):
-![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
+A maneira mais rápida de mudar a versão do WordPress ou do PHP é abrir **Site Settings** no Dock do [site oficial de demonstração](https://playground.wordpress.net/):
+
+<!--
+![WordPress and PHP settings in the Dock](/img/dock/dock-site-settings.webp)
+-->
+
+![Configurações do WordPress e do PHP no Dock](/img/dock/dock-site-settings.webp)
 
 <!--
 <div class="callout callout-info">
