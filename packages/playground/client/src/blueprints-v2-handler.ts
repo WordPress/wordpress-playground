@@ -37,6 +37,7 @@ export class BlueprintsV2Handler {
 			gitAdditionalHeadersCallback,
 			mounts,
 			sapiName,
+			documentRoot,
 			scope,
 			shouldInstallWordPress,
 			sqliteDriverVersion,
@@ -111,6 +112,7 @@ export class BlueprintsV2Handler {
 		await playground.boot({
 			mounts,
 			sapiName,
+			documentRoot,
 			scope: scope ?? Math.random().toFixed(16),
 			wordpressInstallMode: resolvedWordPressInstallMode,
 			blueprint:

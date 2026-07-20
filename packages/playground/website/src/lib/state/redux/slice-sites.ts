@@ -9,6 +9,7 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import type { OriginalUrlParams } from '../original-url-params';
 import {
+	type Blueprint,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
@@ -45,6 +46,10 @@ import {
 	getDefaultSiteNameFromBlueprint,
 	getSiteNameWithCreationTimeIfDuplicate,
 } from './site-name';
+import {
+	getLocalDirectoryDocumentRoot,
+	type LocalDirectoryBootConfiguration,
+} from '../../local-directory-site';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -664,6 +669,64 @@ export function createStoredSite(
 }
 
 /**
+ * Creates the metadata record for a site that boots directly from a local
+ * directory. Project files remain in place; site metadata includes the boot
+ * configuration while IndexedDB stores the directory handle separately.
+ */
+export function createLocalDirectorySite(
+	siteName: string,
+	localDirectoryBootConfiguration: LocalDirectoryBootConfiguration,
+	preferredSlug?: string
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		// Reject malformed boot metadata before the site is persisted.
+		getLocalDirectoryDocumentRoot(localDirectoryBootConfiguration);
+		const sites = selectAllSites(getState());
+		const now = Date.now();
+		const displayName = getSiteNameWithCreationTimeIfDuplicate(
+			siteName,
+			sites.map((site) => site.metadata.name),
+			new Date(now)
+		);
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(siteName),
+			{ unavailableSlugs: sites.map((site) => site.slug) }
+		);
+		const blueprint: Blueprint =
+			localDirectoryBootConfiguration.siteMode === 'php'
+				? {
+						preferredVersions: {
+							php: RecommendedPHPVersion,
+							wp: false,
+						},
+					}
+				: {};
+		const newSiteInfo: SiteInfo = {
+			slug: siteSlug,
+			metadata: {
+				name: displayName,
+				id: crypto.randomUUID(),
+				whenCreated: now,
+				whenLastUsed: now,
+				persistence: 'explicit',
+				storage: 'local-fs',
+				localDirectoryBootConfiguration,
+				originalBlueprint: blueprint,
+				originalBlueprintSource: { type: 'none' },
+				runtimeConfiguration:
+					await resolveRuntimeConfiguration(blueprint),
+			},
+		};
+
+		await dispatch(addSite(newSiteInfo));
+		return newSiteInfo;
+	};
+}
+
+/**
  * Compatibility alias for callers that create a stored Playground from a URL.
  */
 export const setStoredSiteSpec = createStoredSite;
@@ -798,6 +861,11 @@ export interface SiteMetadata {
 	 * they can be replayed after reload without changing the live boot config.
 	 */
 	playgroundDefinedConstants?: RuntimeConfiguration['constants'];
+	/**
+	 * Boot paths and mode for sites opened directly from a local directory.
+	 * Legacy local-fs records omit this and retain `/wordpress` WordPress boot.
+	 */
+	localDirectoryBootConfiguration?: LocalDirectoryBootConfiguration;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;

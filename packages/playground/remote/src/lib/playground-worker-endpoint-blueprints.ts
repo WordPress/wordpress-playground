@@ -43,6 +43,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
+		documentRoot,
 		extensions = [],
 		withNetworking = true,
 		shouldInstallWordPress,
@@ -74,11 +75,13 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
+				documentRoot,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
 				extensions,
 				withNetworking,
 				phpVersion: phpVersion!,
+				mounts,
 				pathAliases,
 			});
 

@@ -21,6 +21,7 @@ import {
 	setActiveModal,
 	setActiveSiteError,
 	setGitHubAuthRepoUrl,
+	setLocalDirectoryReconnect,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
@@ -41,6 +42,8 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { getLocalDirectoryDocumentRoot } from '../../local-directory-site';
+import { probeDirectoryHandle } from '../../local-directory-handle';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -106,6 +109,11 @@ export function bootSiteClient(
 			}
 		}
 
+		const localDirectoryBootConfiguration =
+			site.metadata.localDirectoryBootConfiguration;
+		const documentRoot = localDirectoryBootConfiguration
+			? getLocalDirectoryDocumentRoot(localDirectoryBootConfiguration)
+			: undefined;
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
 			mountDescriptor = {
@@ -131,9 +139,25 @@ export function bootSiteClient(
 				}
 				logger.error(e);
 				dispatch(
-					setActiveSiteError({
-						error: 'directory-handle-not-found-in-indexeddb',
-						details: e,
+					setLocalDirectoryReconnect({ reason: 'missing-handle' })
+				);
+				return;
+			}
+			// A restored handle can outlive its permission grant or its folder.
+			// Boot pauses behind a reconnect prompt instead of crashing because
+			// re-requesting the permission requires a user gesture.
+			const readiness = await probeDirectoryHandle(localDirectoryHandle);
+			if (signal.aborted) {
+				return;
+			}
+			if (readiness !== 'ready') {
+				dispatch(
+					setLocalDirectoryReconnect({
+						reason:
+							readiness === 'missing-directory'
+								? 'missing-directory'
+								: 'needs-permission',
+						folderName: localDirectoryHandle.name,
 					})
 				);
 				return;
@@ -143,7 +167,10 @@ export function bootSiteClient(
 					type: 'local-fs',
 					handle: localDirectoryHandle,
 				},
-				mountpoint: '/wordpress',
+				// Local sites saved before boot configuration was introduced remain
+				// WordPress installations mounted at the historical document root.
+				mountpoint:
+					localDirectoryBootConfiguration?.mountpoint ?? '/wordpress',
 			} as const;
 		}
 
@@ -157,7 +184,20 @@ export function bootSiteClient(
 		logTrackingEvent('load');
 
 		let blueprint: Blueprint;
-		if (shouldBootFromStoredFiles) {
+		if (localDirectoryBootConfiguration?.siteMode === 'php') {
+			blueprint = {
+				preferredVersions: {
+					php: site.metadata.runtimeConfiguration.phpVersion,
+					wp: false,
+				},
+				features: {
+					intl: site.metadata.runtimeConfiguration.intl,
+					networking: site.metadata.runtimeConfiguration.networking,
+				},
+				extraLibraries: site.metadata.runtimeConfiguration
+					.extraLibraries as any[],
+			};
+		} else if (shouldBootFromStoredFiles) {
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -233,6 +273,7 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				documentRoot,
 				extensions: phpExtensions,
 				// Intercept the Playground client even if the
 				// Blueprint fails.

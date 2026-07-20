@@ -1,0 +1,31 @@
+.overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: #f7f5f2;
+	z-index: 10;
+}
+
+/* The card itself is a Dock callout (see dock-callout.module.css); this module
+   only carries what the shared anatomy has no slot for. */
+.lead {
+	margin: 0;
+	color: #1e1e1e;
+	font-size: 13px;
+	line-height: 19px;
+}
+
+.error {
+	margin: 0;
+	color: #cc1818;
+	font-size: 13px;
+	line-height: 19px;
+}
+
+.secondaryAction :global(.components-button.is-link) {
+	font-size: 13px;
+	text-decoration: none;
+}

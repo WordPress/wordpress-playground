@@ -281,6 +281,10 @@
 	justify-content: center;
 }
 
+.wordpressOnlyHidden.wordpressOnlyHidden {
+	display: none;
+}
+
 @media (max-width: 600px) {
 	.form-section :global(.components-select-control) {
 		align-items: stretch;

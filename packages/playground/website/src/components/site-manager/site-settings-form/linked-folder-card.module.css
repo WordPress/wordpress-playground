@@ -1,0 +1,67 @@
+/* Two plain form rows that share the exact geometry of the side-labelled
+   controls below them (150px label column + 8px gap, measured from the
+   rendered PHP Version row), so the folder reads as part of one settings
+   list rather than a boxed card. */
+.rows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	/* The form section below carries a --space-6 inline padding; share it so
+	   both label columns start at the same x. */
+	padding: 0 var(--space-6);
+	margin-bottom: var(--space-3);
+}
+
+.row {
+	display: grid;
+	grid-template-columns: 150px minmax(0, 1fr);
+	gap: 8px;
+	align-items: center;
+}
+
+.label {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.value {
+	display: flex;
+	align-items: center;
+	gap: 4px 12px;
+	flex-wrap: wrap;
+	min-width: 0;
+	color: var(--ink);
+	font-size: 13px;
+}
+
+.folderName {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.value :global(.components-button.is-link) {
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.value code {
+	padding: 1px 5px;
+	background: var(--paper-3);
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+.feedbackError {
+	margin: 0;
+	color: #cc1818;
+	font-size: 13px;
+}
+
+.feedbackSuccess {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: 13px;
+}

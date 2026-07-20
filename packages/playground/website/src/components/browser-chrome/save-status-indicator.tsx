@@ -15,6 +15,7 @@ import {
 } from '../../lib/state/redux/slice-ui';
 import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
 import {
+	archive,
 	check,
 	cautionFilled,
 	chevronDown,
@@ -29,8 +30,17 @@ import {
 import type { ClientInfo, OpfsSync } from '../../lib/state/redux/slice-clients';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
-import { logger } from '@php-wasm/logger';
+import {
+	useDocumentRootPicker,
+	useReloadFromDisk,
+} from '../../lib/hooks/use-local-folder';
+import {
+	getLocalDirectoryPickerPath,
+	isLocalDirectoryPhpApp,
+} from '../../lib/local-directory-site';
 import { Spinner } from '../spinner';
+import { LocalDirectoryDocumentRootModal } from '../local-directory-document-root-modal';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
 type SaveStatus =
 	| 'saved'
@@ -42,9 +52,9 @@ type SaveStatus =
 type SyncOperation = 'save' | 'autosave';
 
 /**
- * Compact persistence status for the Dock. The actionable states (autosaved,
- * unsaved, error) open the save surface directly on click, with the explanation
- * carried by a hover/focus tooltip rather than an extra explain-then-act popover.
+ * Compact persistence status for the Dock. Autosaved, unsaved, and error states
+ * open the save surface directly; saved local projects expose their available
+ * local actions from the same control.
  */
 export function SaveStatusIndicator({
 	disabled = false,
@@ -54,11 +64,14 @@ export function SaveStatusIndicator({
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const previousStatusRef = useRef<{
 		status: SaveStatus | undefined;
 		siteSlug: string | undefined;
 	}>();
-	const [isReloadingFromDisk, setIsReloadingFromDisk] = useState(false);
+	const { reloadFromDisk, isReloading: isReloadingFromDisk } =
+		useReloadFromDisk();
+	const documentRootPicker = useDocumentRootPicker();
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
@@ -69,6 +82,9 @@ export function SaveStatusIndicator({
 	const canStorePermanently =
 		isOpfsAvailable || localFsAvailability === 'available';
 	const isLocalFs = activeSite?.metadata.storage === 'local-fs';
+	const reconnect = useAppSelector(
+		(state) => state.ui.activeSite?.localDirectoryReconnect
+	);
 
 	useEffect(() => {
 		const previousStatus = previousStatusRef.current;
@@ -124,38 +140,28 @@ export function SaveStatusIndicator({
 		dispatch(setDockPaneOpen(true));
 	};
 
-	// Re-reads the linked local directory into the running Playground so edits
-	// made to the files on disk (outside Playground) show up. Re-mounts OPFS with
-	// an opfs-to-memfs sync, then reloads the page to reflect the new files.
-	const reloadFilesFromDisk = async () => {
-		const client = clientInfo?.client;
-		const opfsMountDescriptor = clientInfo?.opfsMountDescriptor;
-		const url = clientInfo?.url;
-		if (!client || !opfsMountDescriptor || !url) {
-			return;
-		}
-		setIsReloadingFromDisk(true);
-		try {
-			const docroot = await client.documentRoot;
-			await client.unmountOpfs(docroot);
-			await client.mountOpfs({
-				device: opfsMountDescriptor.device,
-				mountpoint: docroot,
-				initialSyncDirection: 'opfs-to-memfs',
-			});
-			await client.goTo(url);
-		} catch (error) {
-			logger.error(
-				'Error reloading files from the local directory.',
-				error
-			);
-		} finally {
-			setIsReloadingFromDisk(false);
-		}
+	const openFolderSettings = () => {
+		dispatch(setDockPaneSection('settings'));
+		dispatch(setDockPaneOpen(true));
 	};
 
 	if (!status) {
 		return null;
+	}
+
+	// The runtime never connects while boot waits for the user to reconnect
+	// the local folder, so the chip mirrors the viewport prompt instead of
+	// showing an indefinite "Loading…" spinner.
+	if (isLocalFs && reconnect) {
+		return withStatusAnnouncement(
+			<div
+				className={classNames(css.indicator, css.unsaved)}
+				title="This Playground's local folder needs to be reconnected."
+			>
+				<Icon icon={cautionFilled} size={18} />
+				<span className={css.label}>Reconnect needed</span>
+			</div>
+		);
 	}
 
 	if (status === 'loading') {
@@ -170,95 +176,178 @@ export function SaveStatusIndicator({
 	}
 
 	if (status === 'saved') {
-		// Local-directory Playgrounds fold their one extra action — re-reading
-		// files edited on disk outside Playground — into the status itself, so
-		// the dock shows a single "Saved" control instead of a status chip plus
-		// a separate, unclear "Sync local files" button.
+		// Local-folder Playgrounds fold their available disk reload and
+		// document-root actions into the status itself, so the dock keeps one
+		// "On disk" control instead of adding storage-specific buttons beside it.
 		if (isLocalFs) {
+			const bootConfiguration =
+				activeSite.metadata.localDirectoryBootConfiguration;
 			return withStatusAnnouncement(
-				<Dropdown
-					popoverProps={{
-						placement: 'top',
-						shift: true,
-						noArrow: false,
-						className: classNames(
-							calloutCss.popover,
-							css.savedMenuPopover
-						),
-					}}
-					renderToggle={({ isOpen, onToggle }) => (
-						<button
-							type="button"
-							className={classNames(
-								css.indicator,
-								css.saved,
-								css.actionable
-							)}
-							onClick={onToggle}
-							disabled={disabled}
-							aria-expanded={isOpen}
-							aria-haspopup="dialog"
-							title="Saved to a local directory."
-						>
-							<Icon icon={check} size={18} />
-							<span className={css.label}>Saved</span>
-							<Icon icon={chevronDown} size={16} />
-						</button>
-					)}
-					renderContent={({ onClose }) => (
-						<aside
-							className={calloutCss.card}
-							role="dialog"
-							aria-label="Local directory save status"
-						>
-							<div className={calloutCss.header}>
-								<div className={calloutCss.eyebrow}>
-									Local directory
+				<>
+					<Dropdown
+						popoverProps={{
+							placement: 'top',
+							shift: true,
+							noArrow: false,
+							className: classNames(
+								calloutCss.popover,
+								css.savedMenuPopover
+							),
+						}}
+						renderToggle={({ isOpen, onToggle }) => (
+							<button
+								type="button"
+								className={classNames(
+									css.indicator,
+									css.saved,
+									css.actionable
+								)}
+								onClick={() => {
+									documentRootPicker.clearError();
+									onToggle();
+								}}
+								disabled={disabled}
+								aria-expanded={isOpen}
+								aria-haspopup="dialog"
+								title="Saved to a local folder on this computer."
+							>
+								<Icon icon={check} size={18} />
+								<span className={css.label}>On disk</span>
+								<Icon icon={chevronDown} size={16} />
+							</button>
+						)}
+						renderContent={({ onClose }) => (
+							<aside
+								className={calloutCss.card}
+								role="dialog"
+								aria-label="Local folder status"
+							>
+								<div className={calloutCss.header}>
+									<div className={calloutCss.eyebrow}>
+										Local folder
+									</div>
+									<Button
+										className={calloutCss.dismiss}
+										icon={close}
+										label="Close local folder status"
+										onClick={onClose}
+									/>
+								</div>
+								<div className={calloutCss.identity}>
+									<span
+										className={calloutCss.avatar}
+										aria-hidden="true"
+									>
+										<Icon
+											icon={
+												isLocalDirectoryPhpApp(
+													bootConfiguration
+												)
+													? archive
+													: wordpress
+											}
+											size={28}
+										/>
+									</span>
+									<div className={calloutCss.identityCopy}>
+										<div
+											className={calloutCss.identityTitle}
+										>
+											{activeSite.metadata.name}
+										</div>
+										<div
+											className={calloutCss.identityMeta}
+										>
+											{bootConfiguration ? (
+												<>
+													Serving{' '}
+													<code
+														className={
+															css.savedMenuCode
+														}
+													>
+														{getLocalDirectoryPickerPath(
+															bootConfiguration.documentRoot
+														)}
+													</code>{' '}
+													from the linked folder
+												</>
+											) : (
+												'Saved directly to the linked folder'
+											)}
+										</div>
+									</div>
 								</div>
 								<Button
-									className={calloutCss.dismiss}
-									icon={close}
-									label="Close local directory status"
-									onClick={onClose}
-								/>
-							</div>
-							<div className={calloutCss.identity}>
-								<span
-									className={calloutCss.avatar}
-									aria-hidden="true"
+									variant="primary"
+									className={calloutCss.primaryAction}
+									disabled={disabled || isReloadingFromDisk}
+									isBusy={isReloadingFromDisk}
+									onClick={async () => {
+										await reloadFromDisk();
+										onClose();
+									}}
 								>
-									<Icon icon={wordpress} size={28} />
-								</span>
-								<div className={calloutCss.identityCopy}>
-									<div className={calloutCss.identityTitle}>
-										{activeSite?.metadata.name}
-									</div>
-									<div className={calloutCss.identityMeta}>
-										Saved directly to the linked folder
-									</div>
+									{isReloadingFromDisk
+										? 'Refreshing…'
+										: 'Refresh from folder'}
+								</Button>
+								<p className={calloutCss.hint}>
+									Picks up edits you made to the folder
+									outside Playground.
+								</p>
+								<div className={css.savedMenuFooter}>
+									{bootConfiguration ? (
+										<Button
+											variant="link"
+											disabled={disabled}
+											onClick={async () => {
+												if (
+													await documentRootPicker.openPicker()
+												) {
+													onClose();
+												}
+											}}
+										>
+											Change document root
+										</Button>
+									) : null}
+									<Button
+										variant="link"
+										disabled={disabled}
+										onClick={() => {
+											onClose();
+											openFolderSettings();
+										}}
+									>
+										Folder settings
+									</Button>
 								</div>
-							</div>
-							<Button
-								variant="primary"
-								className={calloutCss.primaryAction}
-								disabled={disabled || isReloadingFromDisk}
-								isBusy={isReloadingFromDisk}
-								onClick={async () => {
-									await reloadFilesFromDisk();
-									onClose();
-								}}
-							>
-								{isReloadingFromDisk
-									? 'Reloading…'
-									: 'Reload files from disk'}
-							</Button>
-							<p className={calloutCss.hint}>
-								Reload to pick up edits made to the folder
-								outside Playground.
-							</p>
-						</aside>
-					)}
-				/>
+								{documentRootPicker.error ? (
+									<p
+										className={css.savedMenuError}
+										role="alert"
+									>
+										{documentRootPicker.error}
+									</p>
+								) : null}
+							</aside>
+						)}
+					/>
+					{documentRootPicker.directoryHandle && bootConfiguration ? (
+						<LocalDirectoryDocumentRootModal
+							directoryHandle={documentRootPicker.directoryHandle}
+							initialDocumentRoot={bootConfiguration.documentRoot}
+							onRequestClose={documentRootPicker.closePicker}
+							onSelect={async (documentRoot) => {
+								await sitesAPI.changeLocalDirectoryDocumentRoot(
+									documentRoot
+								);
+								documentRootPicker.closePicker();
+							}}
+						/>
+					) : null}
+				</>
 			);
 		}
 		return withStatusAnnouncement(

@@ -56,9 +56,15 @@ export function DeleteSiteModal() {
 		}
 	};
 
+	// Deleting a local-folder Playground only forgets the link — the folder
+	// and its files stay on disk. Say so instead of implying data loss.
+	const isLocalFolderSite = site.metadata.storage === 'local-fs';
+
 	return (
 		<Modal
-			title="Delete Playground"
+			title={
+				isLocalFolderSite ? 'Remove Playground' : 'Delete Playground'
+			}
 			contentLabel='This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Delete Playground". Pressing the Close button will close the modal and bring you back to where you were on the page.'
 			onRequestClose={closeModal}
 			small
@@ -71,8 +77,20 @@ export function DeleteSiteModal() {
 				}}
 			>
 				<Text>
-					Are you sure you want to delete the site &ldquo;
-					{site.metadata.name}&rdquo;? This action cannot be undone.
+					{isLocalFolderSite ? (
+						<>
+							Are you sure you want to remove &ldquo;
+							{site.metadata.name}&rdquo; from Playground? The
+							folder and its files stay on this computer — only
+							Playground&rsquo;s link to it is removed.
+						</>
+					) : (
+						<>
+							Are you sure you want to delete the site &ldquo;
+							{site.metadata.name}&rdquo;? This action cannot be
+							undone.
+						</>
+					)}
 				</Text>
 				{error ? (
 					<Notice status="error" isDismissible={false}>
@@ -80,7 +98,7 @@ export function DeleteSiteModal() {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Delete"
+					submitText={isLocalFolderSite ? 'Remove' : 'Delete'}
 					areBusy={isSubmitting}
 					onCancel={closeModal}
 				/>

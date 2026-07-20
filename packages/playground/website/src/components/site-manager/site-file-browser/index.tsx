@@ -1,30 +1,49 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { PlaygroundFileEditor } from '@wp-playground/components';
+import { joinPaths } from '@php-wasm/util';
+import { isLocalDirectoryPhpApp } from '../../../lib/local-directory-site';
+import { loadDirectoryHandle } from '../../../lib/state/opfs/opfs-directory-handle-storage';
 
+/**
+ * Browses from `filesystemRoot` while opening the conventional initial file inside
+ * the PHP document root. For local projects, using the mount root exposes files
+ * such as `vendor/` that intentionally sit outside a public document root.
+ */
 export function SiteFileBrowser({
 	site,
 	isVisible = true,
 	documentRoot,
+	filesystemRoot,
 	mobileHeaderTarget,
 }: {
 	site: SiteInfo;
 	isVisible?: boolean;
 	documentRoot: string;
+	filesystemRoot: string;
 	mobileHeaderTarget?: Element | null;
 }) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
+	const localFolderName = useLocalFolderName(site);
 
 	return (
 		<PlaygroundFileEditor
 			filesystem={filesystem}
-			documentRoot={documentRoot}
+			documentRoot={filesystemRoot}
+			rootLabel={localFolderName}
 			isVisible={isVisible}
-			initialPath={`${documentRoot}/wp-config.php`}
+			initialPath={joinPaths(
+				documentRoot,
+				isLocalDirectoryPhpApp(
+					site.metadata.localDirectoryBootConfiguration
+				)
+					? 'index.php'
+					: 'wp-config.php'
+			)}
 			placeholderText="Start this Playground to browse and edit its files."
 			dockPresentation
 			mobileHeaderTarget={mobileHeaderTarget}
@@ -90,4 +109,33 @@ function useFilesystem(
 		}
 		return new ClientFilesystemWrapper(client);
 	}, [client]);
+}
+
+/**
+ * Labels the tree root with the linked folder's real name. The internal
+ * mountpoint (`/app`) means nothing to the person who picked the folder.
+ */
+function useLocalFolderName(site: SiteInfo): string | undefined {
+	const isLocalFolderSite =
+		site.metadata.localDirectoryBootConfiguration !== undefined;
+	const [folderName, setFolderName] = useState<string>();
+	useEffect(() => {
+		if (!isLocalFolderSite) {
+			return;
+		}
+		let cancelled = false;
+		loadDirectoryHandle(site.slug)
+			.then((handle) => {
+				if (!cancelled && handle.name) {
+					setFolderName(handle.name);
+				}
+			})
+			.catch(() => {
+				// The mount path label remains a valid fallback.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [isLocalFolderSite, site.slug]);
+	return isLocalFolderSite ? folderName : undefined;
 }

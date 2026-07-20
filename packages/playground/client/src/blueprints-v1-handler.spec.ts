@@ -83,12 +83,14 @@ describe('BlueprintsV1Handler', () => {
 					wp: false,
 				},
 			},
+			documentRoot: '/app/public',
 		});
 
 		await handler.bootPlayground(iframe, createProgressTracker());
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
+				documentRoot: '/app/public',
 				wordpressInstallMode: 'do-not-attempt-installing',
 			})
 		);

@@ -10,7 +10,7 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError } from './slice-ui';
+import { setActiveSiteError, setLocalDirectoryReconnect } from './slice-ui';
 import { addClientInfo } from './slice-clients';
 import {
 	selectAllSites,
@@ -20,6 +20,7 @@ import {
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
+	createLocalDirectorySite,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
@@ -36,6 +37,20 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import {
+	deleteDirectoryHandle,
+	loadDirectoryHandle,
+	saveDirectoryHandle,
+} from '../opfs/opfs-directory-handle-storage';
+import {
+	EventedFilesystem,
+	OpfsFilesystemBackend,
+} from '@wp-playground/storage';
+import {
+	LOCAL_DIRECTORY_MOUNTPOINT,
+	detectLocalDirectorySiteMode,
+} from '../../local-directory-site';
+import { logger } from '@php-wasm/logger';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -148,6 +163,9 @@ export function createSitesAPI(
 				if (selectActiveSiteError(state)) {
 					return true;
 				}
+				if (state.ui.activeSite?.localDirectoryReconnect) {
+					return true;
+				}
 				return Boolean(selectClientBySiteSlug(state, site.slug));
 			};
 
@@ -174,6 +192,11 @@ export function createSitesAPI(
 						error,
 						selectActiveSiteErrorDetails(settledState)
 					)
+				);
+			}
+			if (settledState.ui.activeSite?.localDirectoryReconnect) {
+				throw new Error(
+					'The local folder must be reconnected before this Playground can boot.'
 				);
 			}
 			const site = selectActiveSite(settledState)!;
@@ -498,6 +521,110 @@ export function createSitesAPI(
 		},
 
 		/**
+		 * Changes and persists the directory served by the active local project.
+		 * Reclassifying the selection keeps WordPress boot limited to compatible
+		 * SQLite-backed trees; the boot fingerprint then restarts the site.
+		 */
+		async changeLocalDirectoryDocumentRoot(
+			documentRoot: string
+		): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (
+				!site ||
+				site.metadata.storage !== 'local-fs' ||
+				!site.metadata.localDirectoryBootConfiguration
+			) {
+				throw new Error(
+					'The active Playground was not opened from a local directory.'
+				);
+			}
+			const handle = await loadDirectoryHandle(site.slug);
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(handle)
+			);
+			const siteMode = await detectLocalDirectorySiteMode(
+				filesystem,
+				documentRoot
+			);
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						localDirectoryBootConfiguration: {
+							mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+							documentRoot,
+							siteMode,
+						},
+					},
+				})
+			);
+		},
+
+		/**
+		 * Replaces the directory handle backing a local-folder site.
+		 *
+		 * Recovers a site whose stored handle lost its permission or whose
+		 * folder was moved or deleted. The new folder is re-classified: a
+		 * document root that no longer exists falls back to the folder root
+		 * rather than serving a path the folder does not contain.
+		 *
+		 * @param siteSlug The slug of the local-folder site.
+		 * @param directoryHandle A picker-granted handle to link instead.
+		 * @throws When the site is not backed by a local folder.
+		 */
+		async relinkLocalDirectory(
+			siteSlug: string,
+			directoryHandle: FileSystemDirectoryHandle
+		): Promise<void> {
+			const site = selectSiteBySlug(getState(), siteSlug);
+			if (!site || site.metadata.storage !== 'local-fs') {
+				throw new Error(
+					'Only Playgrounds opened from a local folder can be relinked.'
+				);
+			}
+			await saveDirectoryHandle(siteSlug, directoryHandle);
+			const bootConfiguration =
+				site.metadata.localDirectoryBootConfiguration;
+			if (!bootConfiguration) {
+				return;
+			}
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(directoryHandle)
+			);
+			let documentRoot = bootConfiguration.documentRoot;
+			let siteMode;
+			try {
+				siteMode = await detectLocalDirectorySiteMode(
+					filesystem,
+					documentRoot
+				);
+			} catch {
+				documentRoot = '';
+				siteMode = await detectLocalDirectorySiteMode(
+					filesystem,
+					documentRoot
+				);
+			}
+			if (
+				documentRoot !== bootConfiguration.documentRoot ||
+				siteMode !== bootConfiguration.siteMode
+			) {
+				await dispatch(
+					updateSiteMetadata({
+						slug: siteSlug,
+						changes: {
+							localDirectoryBootConfiguration: {
+								mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+								documentRoot,
+								siteMode,
+							},
+						},
+					})
+				);
+			}
+		},
+
+		/**
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
@@ -514,6 +641,14 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(removeSite(siteSlug));
+			if (site.metadata.storage === 'local-fs') {
+				await deleteDirectoryHandle(site.slug).catch((error) => {
+					logger.error(
+						'Error deleting the local directory handle.',
+						error
+					);
+				});
+			}
 		},
 
 		/**
@@ -544,7 +679,8 @@ export function createSitesAPI(
 					predicate: (action) =>
 						(addClientInfo.match(action) &&
 							action.payload.siteSlug === siteSlug) ||
-						setActiveSiteError.match(action),
+						setActiveSiteError.match(action) ||
+						setLocalDirectoryReconnect.match(action),
 					effect: (action) => {
 						unsubscribe();
 						if (setActiveSiteError.match(action)) {
@@ -557,6 +693,8 @@ export function createSitesAPI(
 								)
 							);
 						} else {
+							// A reconnect prompt settles the switch: the site
+							// is active and boot awaits a user gesture.
 							resolve();
 						}
 					},
@@ -645,8 +783,75 @@ export function createSitesAPI(
 			);
 			return newSiteInfo.slug;
 		},
+
+		/**
+		 * Opens a site directly from a local directory without copying its files.
+		 * New sites initially serve the mount root; users can change the document
+		 * root after boot.
+		 * Site metadata includes the safe boot configuration, while IndexedDB stores
+		 * the directory handle separately.
+		 * A failed handle write or initial boot attempts to remove both records.
+		 */
+		async createNewLocalDirectorySite(
+			directoryHandle: FileSystemDirectoryHandle
+		): Promise<string> {
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot save local project metadata because browser storage is not available.'
+				);
+			}
+			const documentRoot = '';
+			const filesystem = new EventedFilesystem(
+				OpfsFilesystemBackend.fromDirectoryHandle(directoryHandle)
+			);
+			const siteMode = await detectLocalDirectorySiteMode(
+				filesystem,
+				documentRoot
+			);
+			const siteName = directoryHandle.name || randomSiteName();
+			const newSiteInfo = await dispatch(
+				createLocalDirectorySite(siteName, {
+					mountpoint: LOCAL_DIRECTORY_MOUNTPOINT,
+					documentRoot,
+					siteMode,
+				})
+			);
+
+			try {
+				await saveDirectoryHandle(newSiteInfo.slug, directoryHandle);
+				await api.setActiveSite(newSiteInfo.slug);
+				return newSiteInfo.slug;
+			} catch (error) {
+				await rollbackLocalDirectorySite(newSiteInfo.slug, dispatch);
+				throw error;
+			}
+		},
 	};
 	return api;
+}
+
+/**
+ * Attempts to remove both local-site records after creation fails.
+ *
+ * Cleanup attempts are independent so failure in one store does not prevent
+ * cleanup in the other.
+ */
+async function rollbackLocalDirectorySite(
+	siteSlug: string,
+	dispatch: PlaygroundDispatch
+) {
+	const cleanupResults = await Promise.allSettled([
+		deleteDirectoryHandle(siteSlug),
+		dispatch(removeSite(siteSlug)),
+	]);
+	for (const result of cleanupResults) {
+		if (result.status === 'rejected') {
+			logger.error(
+				'Error rolling back a local directory site.',
+				result.reason
+			);
+		}
+	}
 }
 
 /**

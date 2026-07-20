@@ -78,6 +78,11 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
+	/**
+	 * Absolute filesystem path served by PHP. It may be nested beneath a mounted
+	 * project root, such as `/app/public`. Defaults to `/wordpress`.
+	 */
+	documentRoot?: string;
 	mounts?: Array<MountDescriptor>;
 	/**
 	 * @deprecated Use `wordpressInstallMode` instead.

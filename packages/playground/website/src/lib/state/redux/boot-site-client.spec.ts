@@ -343,6 +343,127 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('boots generic local directories as PHP apps under their selected document root', async () => {
+		const site = createSite('local-php-app', {
+			metadata: {
+				storage: 'local-fs',
+				localDirectoryBootConfiguration: {
+					mountpoint: '/app',
+					documentRoot: 'public',
+					siteMode: 'php',
+				},
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'local-php-app',
+			document.createElement('iframe'),
+			{
+				signal: new AbortController().signal,
+			}
+		)(dispatch, () => state);
+
+		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				documentRoot: '/app/public',
+				blueprint: expect.objectContaining({
+					preferredVersions: expect.objectContaining({ wp: false }),
+				}),
+				wordpressInstallMode: 'do-not-attempt-installing',
+				mounts: [
+					expect.objectContaining({
+						mountpoint: '/app',
+						initialSyncDirection: 'opfs-to-memfs',
+					}),
+				],
+			})
+		);
+	});
+
+	it('pauses boot behind a reconnect prompt when the stored handle is gone', async () => {
+		vi.mocked(loadDirectoryHandle).mockRejectedValue(
+			new Error('Directory handle not found in IndexedDB')
+		);
+		const site = createSite('local-save', {
+			metadata: { storage: 'local-fs' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setLocalDirectoryReconnect',
+				payload: { reason: 'missing-handle' },
+			})
+		);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+	});
+
+	it('pauses boot behind a reconnect prompt when the permission lapsed', async () => {
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			name: 'my-project',
+			queryPermission: async () => 'prompt',
+		} as any);
+		const site = createSite('local-save', {
+			metadata: { storage: 'local-fs' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setLocalDirectoryReconnect',
+				payload: {
+					reason: 'needs-permission',
+					folderName: 'my-project',
+				},
+			})
+		);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+	});
+
+	it('pauses boot behind a reconnect prompt when the folder was deleted', async () => {
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			name: 'my-project',
+			queryPermission: async () => 'granted',
+			keys: () => ({
+				next: async () => {
+					throw new DOMException('Gone.', 'NotFoundError');
+				},
+			}),
+		} as any);
+		const site = createSite('local-save', {
+			metadata: { storage: 'local-fs' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setLocalDirectoryReconnect',
+				payload: {
+					reason: 'missing-directory',
+					folderName: 'my-project',
+				},
+			})
+		);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+	});
+
 	it('does not add client info when iframe boot finishes after abort', async () => {
 		let resolveStart = () => {};
 		const startFinished = new Promise<void>((resolve) => {

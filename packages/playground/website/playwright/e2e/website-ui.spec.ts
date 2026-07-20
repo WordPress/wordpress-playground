@@ -1926,7 +1926,7 @@ test.describe('Default Playground storage', () => {
 			.getByRole('button', { name: `Actions for ${activeSite.name}` })
 			.click();
 		await website.page
-			.getByRole('menuitem', { name: 'Save in a local directory…' })
+			.getByRole('menuitem', { name: 'Save a copy to a local folder…' })
 			.click();
 		const notice = website.page
 			.getByRole('group', {
@@ -2186,7 +2186,6 @@ test.describe('Default Playground storage', () => {
 		const galleryTab = newPane.locator('#creation-tab-gallery');
 		const blueprintUrlTab = newPane.locator('#creation-tab-blueprint-url');
 		const writeTab = newPane.locator('#creation-tab-write-own');
-		const pullRequestTab = newPane.locator('#creation-tab-pull-request');
 		const githubTab = newPane.locator('#creation-tab-github');
 		await galleryTab.click();
 		await galleryTab.focus();
@@ -2201,8 +2200,6 @@ test.describe('Default Playground storage', () => {
 			'draft-kept'
 		);
 		await writeTab.press('ArrowRight');
-		await expect(pullRequestTab).toBeFocused();
-		await pullRequestTab.press('ArrowRight');
 		await expect(githubTab).toBeFocused();
 		await expect(
 			newPane.getByRole('tablist', {
@@ -2217,10 +2214,10 @@ test.describe('Default Playground storage', () => {
 		});
 		await expect(githubUrlInput).toBeVisible();
 
-		await pullRequestTab.click();
-		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
+		// Pull-request previews live inside the GitHub tab as a visible mode.
+		await newPane
+			.getByRole('radio', { name: 'Pull request', exact: true })
+			.click();
 		await expect(
 			newPane.getByRole('textbox', {
 				name: 'Pull request URL or number',
@@ -2230,10 +2227,12 @@ test.describe('Default Playground storage', () => {
 			newPane.getByRole('button', { name: 'Preview', exact: true })
 		).toBeVisible();
 
-		await githubTab.click();
+		await newPane
+			.getByRole('radio', { name: 'Repository', exact: true })
+			.click();
 		await expect(
 			newPane.getByRole('heading', {
-				name: 'Import from GitHub',
+				name: 'Start from GitHub',
 				level: 3,
 			})
 		).toBeVisible();
@@ -2740,10 +2739,12 @@ test.describe('Default Playground storage', () => {
 		);
 		await expect(savePane).toBeVisible();
 		await expect(
-			savePane.getByText('Save in browser storage')
+			savePane.getByRole('radio', { name: 'Save in browser storage' })
 		).toBeVisible();
 		await expect(
-			savePane.getByText('Save in a local directory')
+			savePane.getByRole('radio', {
+				name: /Save a copy to a local folder/,
+			})
 		).toBeVisible();
 		await savePane.getByRole('button', { name: 'Save' }).click();
 		await expect(savePane).not.toBeVisible({ timeout: 120000 });
@@ -2807,10 +2808,10 @@ test.describe('Default Playground storage', () => {
 		);
 		await expect(savePane).toBeVisible();
 		await expect(
-			savePane.getByText('Save in a local directory (not available)')
+			savePane.getByText('Save a copy to a local folder (not available)')
 		).toHaveCount(0, { timeout: 30000 });
 		await savePane
-			.getByRole('radio', { name: /Save in a local directory/ })
+			.getByRole('radio', { name: /Save a copy to a local folder/ })
 			.check();
 		await savePane.getByRole('button', { name: 'Choose...' }).click();
 		await savePane.getByRole('button', { name: 'Save' }).click();
@@ -2831,7 +2832,7 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page
 				.getByRole('navigation', { name: 'Playground tools' })
-				.getByRole('button', { name: 'Saved', exact: true })
+				.getByRole('button', { name: 'On disk', exact: true })
 		).toBeVisible();
 		expect(
 			await website.page.evaluate(async () => {
@@ -2845,6 +2846,464 @@ test.describe('Default Playground storage', () => {
 				}
 			})
 		).toBe(true);
+	});
+
+	test('should open a local PHP project at its root and allow changing document root', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		const directoryName = `e2e-local-php-${Date.now()}`;
+		await website.page.addInitScript(async (name) => {
+			async function writeFile(
+				directory: FileSystemDirectoryHandle,
+				filename: string,
+				contents: string
+			) {
+				const file = await directory.getFileHandle(filename, {
+					create: true,
+				});
+				const writable = await file.createWritable();
+				await writable.write(contents);
+				await writable.close();
+			}
+
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					const storageRoot = await navigator.storage.getDirectory();
+					const project = await storageRoot.getDirectoryHandle(name, {
+						create: true,
+					});
+					const publicDirectory = await project.getDirectoryHandle(
+						'public',
+						{ create: true }
+					);
+					const vendorDirectory = await project.getDirectoryHandle(
+						'vendor',
+						{ create: true }
+					);
+					await writeFile(
+						vendorDirectory,
+						'autoload.php',
+						"<?php function app_message() { return 'symfony-public'; }"
+					);
+					await writeFile(
+						publicDirectory,
+						'index.php',
+						"<?php require dirname(__DIR__) . '/vendor/autoload.php'; echo app_message();"
+					);
+					await writeFile(
+						project,
+						'index.php',
+						"<?php echo 'root-entry';"
+					);
+					return project;
+				},
+			});
+		}, directoryName);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('local-php-app'));
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.locator('#creation-tab-local-directory').click();
+		const siteCountBeforeDeniedPermission = await website.page.evaluate(
+			() => (window as any).playgroundSites.list().length
+		);
+		await website.page.evaluate(() => {
+			(window as any).__successfulLocalDirectoryPicker = (
+				window as any
+			).showDirectoryPicker;
+			(window as any).showDirectoryPicker = async () => ({
+				name: 'denied',
+				requestPermission: async () => 'denied',
+			});
+		});
+		await newPane.getByRole('button', { name: 'Choose a folder…' }).click();
+		await expect(
+			newPane.getByText('The selected folder could not be opened.')
+		).toBeVisible();
+		expect(
+			await website.page.evaluate(
+				() => (window as any).playgroundSites.list().length
+			)
+		).toBe(siteCountBeforeDeniedPermission);
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = (
+				window as any
+			).__successfulLocalDirectoryPicker;
+		});
+		const siteCountBeforeCancel = await website.page.evaluate(
+			() => (window as any).playgroundSites.list().length
+		);
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = async () => {
+				throw new DOMException('The user cancelled.', 'AbortError');
+			};
+		});
+		await newPane.getByRole('button', { name: 'Choose a folder…' }).click();
+		await expect(
+			newPane.getByRole('button', { name: 'Choose a folder…' })
+		).toBeEnabled();
+		expect(
+			await website.page.evaluate(
+				() => (window as any).playgroundSites.list().length
+			)
+		).toBe(siteCountBeforeCancel);
+		await website.page.evaluate(() => {
+			(window as any).showDirectoryPicker = (
+				window as any
+			).__successfulLocalDirectoryPicker;
+		});
+		await newPane.getByRole('button', { name: 'Choose a folder…' }).click();
+
+		const getPhpAppState = () =>
+			website.page.evaluate(async () => {
+				try {
+					const client = (window as any).playgroundSites.getClient();
+					if (!client) {
+						return undefined;
+					}
+					const responses = await Promise.all(
+						[0, 1, 2].map(() => client.request({ url: '/' }))
+					);
+					return {
+						documentRoot: await client.documentRoot,
+						responses: responses.map(
+							(response: { text: string }) => response.text
+						),
+						hasWordPress:
+							await client.fileExists('/app/wp-config.php'),
+					};
+				} catch {
+					return undefined;
+				}
+			});
+		const appBody = website.wordpress().locator('body');
+		await expect(appBody).toHaveText('root-entry', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
+			hasWordPress: false,
+		});
+
+		await website.page.reload();
+		await expect(appBody).toHaveText('root-entry', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toEqual({
+			documentRoot: '/app',
+			responses: ['root-entry', 'root-entry', 'root-entry'],
+			hasWordPress: false,
+		});
+
+		const dock = website.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		await expect(
+			dock.getByRole('button', { name: 'Database' })
+		).toHaveCount(0);
+		await website.openDockPane('Playgrounds');
+		await expect(
+			website.page.getByText(/PHP app · PHP/).first()
+		).toBeVisible();
+		await website.openDockPane('Site Settings');
+		const settingsPane = website.page.getByRole('dialog', {
+			name: 'Site Settings pane',
+		});
+		await expect(settingsPane.getByLabel(/PHP version/i)).toBeVisible();
+		await expect(
+			settingsPane.getByLabel(/WordPress version/i)
+		).not.toBeVisible();
+		await expect(settingsPane.getByLabel('Language')).not.toBeVisible();
+		await expect(
+			settingsPane.getByLabel('Create a multisite network')
+		).not.toBeVisible();
+		await website.page.keyboard.press('Escape');
+
+		await dock
+			.getByRole('button', { name: 'On disk', exact: true })
+			.click();
+		await website.page
+			.getByRole('button', { name: 'Change document root' })
+			.click();
+		const documentRootDialog = website.page.getByRole('dialog', {
+			name: 'Choose a document root',
+		});
+		await documentRootDialog
+			.locator('.file-node-button[data-path="/public"]')
+			.click();
+		await documentRootDialog
+			.getByRole('button', { name: 'Use this directory' })
+			.click();
+		await expect(appBody).toHaveText('symfony-public', { timeout: 120000 });
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			hasWordPress: false,
+		});
+
+		await website.page.reload();
+		await expect(appBody).toHaveText('symfony-public', { timeout: 120000 });
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app/public',
+			responses: ['symfony-public', 'symfony-public', 'symfony-public'],
+			hasWordPress: false,
+		});
+
+		await website.page.evaluate(async (name) => {
+			const storageRoot = await navigator.storage.getDirectory();
+			const project = await storageRoot.getDirectoryHandle(name);
+			const publicDirectory = await project.getDirectoryHandle('public');
+			const index = await publicDirectory.getFileHandle('index.php');
+			const writable = await index.createWritable();
+			await writable.write("<?php echo 'externally-edited';");
+			await writable.close();
+		}, directoryName);
+		await dock
+			.getByRole('button', { name: 'On disk', exact: true })
+			.click();
+		await website.page
+			.getByRole('button', { name: 'Refresh from folder' })
+			.click();
+		await expect(appBody).toHaveText('externally-edited', {
+			timeout: 120000,
+		});
+		await expect.poll(getPhpAppState, { timeout: 120000 }).toMatchObject({
+			documentRoot: '/app/public',
+			responses: [
+				'externally-edited',
+				'externally-edited',
+				'externally-edited',
+			],
+			hasWordPress: false,
+		});
+	});
+
+	test('should reconnect a local folder Playground after its permission lapses', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		const directoryName = `e2e-local-reconnect-${Date.now()}`;
+		await website.page.addInitScript(async (name) => {
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					const storageRoot = await navigator.storage.getDirectory();
+					const project = await storageRoot.getDirectoryHandle(name, {
+						create: true,
+					});
+					const file = await project.getFileHandle('index.php', {
+						create: true,
+					});
+					const writable = await file.createWritable();
+					await writable.write("<?php echo 'reconnect-entry';");
+					await writable.close();
+					return project;
+				},
+			});
+			// While the flag is set, restored handles report a lapsed grant
+			// until requestPermission runs — mirroring a Chromium restart.
+			const proto = FileSystemDirectoryHandle.prototype as any;
+			proto.queryPermission = async function () {
+				return sessionStorage.getItem('e2e-permission-lapsed') === 'on'
+					? 'prompt'
+					: 'granted';
+			};
+			proto.requestPermission = async function () {
+				sessionStorage.removeItem('e2e-permission-lapsed');
+				return 'granted';
+			};
+		}, directoryName);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('local-reconnect'));
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.locator('#creation-tab-local-directory').click();
+		await newPane.getByRole('button', { name: 'Choose a folder…' }).click();
+		const appBody = website.wordpress().locator('body');
+		await expect(appBody).toHaveText('reconnect-entry', {
+			timeout: 120000,
+		});
+
+		await website.page.evaluate(() =>
+			sessionStorage.setItem('e2e-permission-lapsed', 'on')
+		);
+		await website.page.reload();
+
+		const overlay = website.page.getByRole('alertdialog', {
+			name: 'Reconnect the local folder',
+		});
+		await expect(overlay).toBeVisible({ timeout: 120000 });
+		await expect(
+			website.page
+				.getByRole('navigation', { name: 'Playground tools' })
+				.getByText('Reconnect needed')
+		).toBeVisible();
+		await overlay
+			.getByRole('button', { name: 'Allow folder access' })
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 120000 });
+		await expect(appBody).toHaveText('reconnect-entry', {
+			timeout: 120000,
+		});
+	});
+
+	test('should relink a local folder Playground after its stored handle is lost', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		const directoryName = `e2e-local-relink-${Date.now()}`;
+		await website.page.addInitScript(async (name) => {
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					const storageRoot = await navigator.storage.getDirectory();
+					const project = await storageRoot.getDirectoryHandle(name, {
+						create: true,
+					});
+					const file = await project.getFileHandle('index.php', {
+						create: true,
+					});
+					const writable = await file.createWritable();
+					await writable.write("<?php echo 'relink-entry';");
+					await writable.close();
+					return project;
+				},
+			});
+		}, directoryName);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('local-relink'));
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane.locator('#creation-tab-local-directory').click();
+		await newPane.getByRole('button', { name: 'Choose a folder…' }).click();
+		const appBody = website.wordpress().locator('body');
+		await expect(appBody).toHaveText('relink-entry', { timeout: 120000 });
+
+		// Losing the IndexedDB record models a cleared-site-data browser.
+		await website.page.evaluate(async () => {
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				const request = indexedDB.open('fileSystemDB');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			await new Promise<void>((resolve, reject) => {
+				const tx = db.transaction('fileSystemStore', 'readwrite');
+				tx.objectStore('fileSystemStore').clear();
+				tx.oncomplete = () => resolve();
+				tx.onerror = () => reject(tx.error);
+			});
+			db.close();
+		});
+		await website.page.reload();
+
+		const overlay = website.page.getByRole('alertdialog', {
+			name: 'Choose the local folder again',
+		});
+		await expect(overlay).toBeVisible({ timeout: 120000 });
+		await overlay
+			.getByRole('button', { name: 'Choose the folder…' })
+			.click();
+		await expect(overlay).not.toBeVisible({ timeout: 120000 });
+		await expect(appBody).toHaveText('relink-entry', { timeout: 120000 });
+	});
+
+	test('should require confirmation before saving into a non-empty folder', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+		const directoryName = `e2e-local-nonempty-${Date.now()}`;
+		await website.page.addInitScript(async (name) => {
+			Object.defineProperty(window, 'showDirectoryPicker', {
+				configurable: true,
+				value: async () => {
+					const storageRoot = await navigator.storage.getDirectory();
+					const target = await storageRoot.getDirectoryHandle(name, {
+						create: true,
+					});
+					const file = await target.getFileHandle('existing.txt', {
+						create: true,
+					});
+					const writable = await file.createWritable();
+					await writable.write('do not lose me');
+					await writable.close();
+					(window as any).__e2eLocalDirectory = target;
+					return target;
+				},
+			});
+		}, directoryName);
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('local-nonempty'));
+		await website.ensureSiteManagerIsClosed();
+		const statusButton = website.page.getByRole('button', {
+			name: 'Autosaved',
+		});
+		await expect(statusButton).toBeVisible({ timeout: 120000 });
+		await statusButton.click();
+		const savePane = website.page.locator(
+			'section[aria-label="Store permanently pane"]'
+		);
+		await expect(savePane).toBeVisible();
+		await savePane
+			.getByRole('radio', { name: /Save a copy to a local folder/ })
+			.check();
+		await savePane.getByRole('button', { name: 'Choose...' }).click();
+
+		await expect(savePane.getByText(/isn’t empty/)).toBeVisible();
+		await expect(
+			savePane.getByRole('button', { name: 'Save', exact: true })
+		).toBeDisabled();
+		await savePane
+			.getByRole('button', { name: 'Use this folder anyway' })
+			.click();
+		await expect(
+			savePane.getByRole('button', { name: 'Save', exact: true })
+		).toBeEnabled();
+		await savePane
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
+		await expect(savePane).not.toBeVisible({ timeout: 90000 });
+
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => {
+					const sites = (window as any).playgroundSites.list();
+					return sites.find((site: any) => site.isActive)?.storage;
+				})
+			)
+			.toBe('local-fs');
+		expect(
+			await website.page.evaluate(async () => {
+				const directory = (window as any)
+					.__e2eLocalDirectory as FileSystemDirectoryHandle;
+				const results = { existing: false, wordpress: false };
+				try {
+					await directory.getFileHandle('existing.txt');
+					results.existing = true;
+				} catch {
+					// Overwritten — the assertion below reports it.
+				}
+				try {
+					await directory.getFileHandle('wp-config.php');
+					results.wordpress = true;
+				} catch {
+					// Missing — the assertion below reports it.
+				}
+				return results;
+			})
+		).toEqual({ existing: true, wordpress: true });
 	});
 
 	test('should persist WordPress changes after refreshing the default Playground', async ({

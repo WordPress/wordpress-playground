@@ -66,6 +66,25 @@
 	gap: 12px;
 }
 
+/* The GitHub tab keeps both of its forms mounted and toggles them with the
+   `hidden` attribute; the pane-scoped flex display would otherwise override
+   it, so this selector outranks `.playgrounds-pane .inlineForm`. */
+.playgrounds-pane .inlineForm[hidden] {
+	display: none;
+}
+
+/* The GitHub mode switch sizes its segments to their labels; the stock equal
+   widths force the longer label onto two lines. */
+.playgrounds-pane .inlineForm :global(.components-toggle-group-control) {
+	width: fit-content;
+}
+
+.playgrounds-pane
+	.inlineForm
+	:global(.components-toggle-group-control-option-base) {
+	white-space: nowrap;
+}
+
 .inlineFormHint {
 	margin: 0;
 	font-size: 13px;

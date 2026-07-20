@@ -2,7 +2,12 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import {
+	isParentOf,
+	joinPaths,
+	normalizePath,
+	sendmailSpawnHandler,
+} from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -77,6 +82,11 @@ export type WorkerBootOptions = {
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
+	/**
+	 * Absolute filesystem path served by PHP. It may be nested beneath a mounted
+	 * project root, such as `/app/public`. Defaults to `/wordpress`.
+	 */
+	documentRoot?: string;
 	scope: string;
 	extensions?: PHPWebExtension[];
 	withNetworking: boolean;
@@ -145,20 +155,24 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
+		documentRoot,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
 		extensions,
 		withNetworking,
 		phpVersion,
+		mounts = [],
 		pathAliases,
 	}: {
 		siteUrl: string;
 		sapiName: string;
+		documentRoot?: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
 		extensions?: PHPWebExtension[];
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
+		mounts?: Array<MountDescriptor>;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
@@ -204,6 +218,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
+			documentRoot,
 			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
@@ -246,12 +261,31 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				);
 
 				if (!isPrimary) {
-					const pathsToShareBetweenPhpInstances = [
-						'/tmp',
-						requestHandler.documentRoot,
-						'/internal/shared',
-						'/internal/symlinks',
-					];
+					/**
+					 * Share mount roots so PHP apps can load files outside a nested
+					 * document root, such as `/app/vendor` from `/app/public`.
+					 * Drop descendants because the parent PROXYFS mount includes them.
+					 */
+					const candidatePaths = Array.from(
+						new Set(
+							[
+								'/tmp',
+								...mounts.map(({ mountpoint }) => mountpoint),
+								requestHandler.documentRoot,
+								'/internal/shared',
+								'/internal/symlinks',
+							].map(normalizePath)
+						)
+					);
+					const pathsToShareBetweenPhpInstances =
+						candidatePaths.filter(
+							(path) =>
+								!candidatePaths.some(
+									(candidate) =>
+										candidate !== path &&
+										isParentOf(candidate, path)
+								)
+						);
 					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
 						(path) => !isPathToSharedFS(php, path)
 					);

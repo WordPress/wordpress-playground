@@ -30,6 +30,11 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import {
+	directoryHandleHasEntries,
+	showLocalFolderPicker,
+} from '../../lib/local-directory-handle';
+import { consumePendingPickedFolder } from './pending-picked-folder';
 
 type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
 
@@ -96,6 +101,11 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 	const [directoryPermission, setDirectoryPermission] =
 		useState<PermissionState | null>(null);
 	const [directoryError, setDirectoryError] = useState<string | null>(null);
+	// A folder that already contains files is never written to silently: the
+	// user must confirm once per picked folder before Save unlocks.
+	const [directoryNeedsConfirmation, setDirectoryNeedsConfirmation] =
+		useState(false);
+	const [directoryConfirmed, setDirectoryConfirmed] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const nameInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +154,36 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		setDirectoryHandle(null);
 		setDirectoryPermission(null);
 		setDirectoryError(null);
+		setDirectoryNeedsConfirmation(false);
+		setDirectoryConfirmed(false);
+	}, [site?.slug]);
+
+	// A row menu may have already picked a folder inside its click gesture and
+	// handed it off here for the non-empty confirmation.
+	useEffect(() => {
+		const pendingHandle = consumePendingPickedFolder();
+		if (!pendingHandle) {
+			return;
+		}
+		let cancelled = false;
+		(async () => {
+			const hasEntries = await directoryHandleHasEntries(
+				pendingHandle
+			).catch(() => false);
+			if (cancelled) {
+				return;
+			}
+			setSelectedStorage('local-fs');
+			setDirectoryHandle(pendingHandle);
+			// The picker itself granted readwrite access within the gesture.
+			setDirectoryPermission('granted');
+			setDirectoryError(null);
+			setDirectoryNeedsConfirmation(hasEntries);
+			setDirectoryConfirmed(false);
+		})();
+		return () => {
+			cancelled = true;
+		};
 	}, [site?.slug]);
 
 	// Monitor save progress through opfsSync status
@@ -187,10 +227,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 	}
 
 	const localUnavailableMessage = !targetIsActive
-		? 'Open this Playground to save it to a local directory'
+		? 'Open this Playground to save a copy to a local folder'
 		: localFsAvailability === 'not-available'
 			? 'Not available in this browser'
-			: 'Not available on this site';
+			: 'Unavailable here: this Playground runs on a different origin than the app.';
 
 	const chooseStorage = (storage: StorageOption) => {
 		if (storage === 'local-fs' && !localIsAvailable) {
@@ -240,23 +280,23 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		setSubmitError(null);
 		if (!(window as any).showDirectoryPicker) {
 			setDirectoryError(
-				'Directory selection is not supported in this browser.'
+				'Folder selection is not supported in this browser.'
 			);
 			return;
 		}
 		try {
-			const handle: FileSystemDirectoryHandle = await (
-				window as any
-			).showDirectoryPicker({
-				id: 'playground-directory',
-				mode: 'readwrite',
-			});
+			const handle = await showLocalFolderPicker();
 			const permission = await requestWriteAccess(handle);
 			setDirectoryHandle(handle);
 			setDirectoryPermission(permission);
+			setDirectoryConfirmed(false);
+			setDirectoryNeedsConfirmation(
+				permission === 'granted' &&
+					(await directoryHandleHasEntries(handle).catch(() => false))
+			);
 			if (permission !== 'granted') {
 				setDirectoryError(
-					'Allow Playground to edit that directory in the browser prompt to continue.'
+					'Allow Playground to edit that folder in the browser prompt to continue.'
 				);
 			} else {
 				setDirectoryError(null);
@@ -266,7 +306,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				return;
 			}
 			logger.error(error);
-			setDirectoryError('Unable to access the selected directory.');
+			setDirectoryError('Unable to access the selected folder.');
 		}
 	};
 
@@ -289,7 +329,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					return;
 				}
 				if (!directoryHandle) {
-					setDirectoryError('Choose a directory to continue.');
+					setDirectoryError('Choose a folder to continue.');
 					setIsSubmitting(false);
 					return;
 				}
@@ -334,10 +374,15 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		selectedStorage === 'local-fs'
 			? !!directoryHandle && directoryPermission === 'granted'
 			: true;
+	const awaitsNonEmptyConfirmation =
+		selectedStorage === 'local-fs' &&
+		directoryNeedsConfirmation &&
+		!directoryConfirmed;
 	const saveDisabled =
 		!trimmedName ||
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
+		awaitsNonEmptyConfirmation ||
 		isSaving;
 	const savingProgressLabel =
 		savingProgress &&
@@ -383,9 +428,9 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					}}
 				>
 					{isAutosaved
-						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
+						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save a copy to a local folder.'
 						: asPane
-							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'
+							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save a copy to a local folder to keep your work and find it later in Your Playgrounds.'
 							: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
@@ -413,9 +458,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						},
 						{
 							label:
-								(asPane
-									? 'Save in a local directory'
-									: 'Save to a local directory') +
+								'Save a copy to a local folder' +
 								(!localIsAvailable ? ' (not available)' : ''),
 							value: 'local-fs',
 						},
@@ -430,7 +473,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					<p style={helpTextStyle}>{localUnavailableMessage}</p>
 				)}
 				{selectedStorage === 'local-fs' && (
-					<BaseControl label="Local directory">
+					<BaseControl label="Local folder">
 						<div
 							style={{
 								display: 'flex',
@@ -443,7 +486,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								className="components-text-control__input"
 								value={directoryHandle?.name ?? ''}
 								readOnly
-								placeholder="Choose a directory..."
+								placeholder="Choose a folder..."
 								style={{ flexGrow: 1 }}
 							/>
 							<Button
@@ -458,6 +501,32 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						{directoryError ? (
 							<Notice status="error" isDismissible={false}>
 								{directoryError}
+							</Notice>
+						) : null}
+						{directoryNeedsConfirmation && !directoryConfirmed ? (
+							<Notice status="warning" isDismissible={false}>
+								“{directoryHandle?.name}” isn’t empty.
+								Playground will write this site’s files
+								alongside the folder’s existing contents.
+								<div style={{ marginTop: 8 }}>
+									<Button
+										type="button"
+										variant="secondary"
+										size="compact"
+										onClick={() =>
+											setDirectoryConfirmed(true)
+										}
+									>
+										Use this folder anyway
+									</Button>
+								</div>
+							</Notice>
+						) : null}
+						{directoryNeedsConfirmation && directoryConfirmed ? (
+							<Notice status="info" isDismissible={false}>
+								Playground will write into “
+								{directoryHandle?.name}” alongside its existing
+								files.
 							</Notice>
 						) : null}
 					</BaseControl>

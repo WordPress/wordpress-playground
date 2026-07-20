@@ -1,6 +1,7 @@
 import type { RuntimeConfiguration } from '@wp-playground/blueprints';
 import type { SiteInfo } from './redux/slice-sites';
 import type { QueryAPIParams } from './url/router';
+import type { LocalDirectoryBootConfiguration } from '../local-directory-site';
 
 // Query API params that do not affect Playground setup must be named here.
 // This makes typechecking fail when a new query param is added without
@@ -116,12 +117,17 @@ export function getAutosaveFingerprintFromSite(site: SiteInfo) {
  *
  * Unlike the autosave setup fingerprint, this does not describe the original
  * setup URL. It only tracks runtime options passed into an already selected
- * site's boot process.
+ * site's boot process. Local mount, document-root, or mode changes participate
+ * so they replace the iframe instead of leaving the previous worker running.
  */
 export function getRuntimeBootFingerprint(
-	runtimeConfiguration: RuntimeConfiguration
+	runtimeConfiguration: RuntimeConfiguration,
+	localDirectoryBootConfiguration?: LocalDirectoryBootConfiguration
 ) {
-	return JSON.stringify(runtimeConfiguration);
+	return JSON.stringify({
+		runtimeConfiguration,
+		localDirectoryBootConfiguration,
+	});
 }
 
 /**

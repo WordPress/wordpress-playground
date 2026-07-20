@@ -8,6 +8,7 @@ import {
 	getSetupFormDefaultValues,
 	getSiteSettingsFromFormData,
 } from './setup-form-values';
+import { LinkedFolderCard } from './linked-folder-card';
 import { SiteSettingsActionFooter } from './site-settings-action-footer';
 import type { SiteSettingsSubmission } from './use-site-settings-submission';
 
@@ -47,6 +48,15 @@ export function StoredSiteSettingsForm({
 	return (
 		<UnconnectedSiteSettingsForm
 			className="is-stored-site"
+			siteMode={
+				siteInfo.metadata.localDirectoryBootConfiguration?.siteMode ??
+				'wordpress'
+			}
+			header={
+				siteInfo.metadata.storage === 'local-fs' ? (
+					<LinkedFolderCard siteSlug={siteSlug} />
+				) : undefined
+			}
 			onSubmit={(data) => submission.run(updateSite, data)}
 			defaultValues={defaultValues}
 			footer={(context) => (

@@ -43,11 +43,6 @@ export function getSiteErrorView(
 	}
 
 	switch (error) {
-		case 'directory-handle-not-found-in-indexeddb':
-		case 'directory-handle-permission-denied':
-			return directoryHandlePermissionsExpiredView();
-		case 'directory-handle-directory-does-not-exist':
-			return directoryHandleDeletedView();
 		case 'github-artifact-expired':
 			return githubArtifactExpiredView(context);
 		case 'blueprint-fetch-failed':
@@ -56,8 +51,6 @@ export function getSiteErrorView(
 			return blueprintFilesystemRequiredView(context);
 		case 'blueprint-validation-failed':
 			return blueprintValidationFailedView(context);
-		case 'directory-handle-unknown-error':
-			return directoryHandleUnknownErrorView();
 		case 'browser-storage-cleanup-failed':
 			return browserStorageCleanupFailedView(context);
 		case 'initial-opfs-sync-interrupted':
@@ -149,52 +142,6 @@ function initialOpfsSyncInterruptedView({
 				Start a new Playground
 			</Button>,
 		],
-	};
-}
-
-function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
-	return {
-		title: 'Local directory permissions expired',
-		isDeveloperError: false,
-		body: (
-			<>
-				<p className={css.errorLead}>
-					The browser no longer lets Playground access your previously
-					shared local directory.
-				</p>
-				<ul className={css.errorList}>
-					<li>Re-selecting the directory is not supported yet.</li>
-					<li>
-						Need urgent access? Let us know on{' '}
-						<a
-							target="_blank"
-							rel="noopener noreferrer"
-							href="https://github.com/WordPress/wordpress-playground/issues/1746"
-						>
-							GitHub
-						</a>
-						.
-					</li>
-				</ul>
-			</>
-		),
-		actions: [],
-		detailSummaryOverride: undefined,
-	};
-}
-
-function directoryHandleDeletedView(): SiteErrorViewConfig {
-	return {
-		title: 'Local directory was deleted',
-		isDeveloperError: false,
-		body: (
-			<p className={css.errorLead}>
-				It seems like the local directory backing this site was removed.
-				This Playground copy will not load anymore.
-			</p>
-		),
-		actions: [],
-		detailSummaryOverride: undefined,
 	};
 }
 
@@ -356,21 +303,6 @@ function blueprintValidationFailedView({
 				Start without a Blueprint
 			</Button>,
 		],
-	};
-}
-
-function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
-	return {
-		title: 'The local directory became unavailable',
-		isDeveloperError: false,
-		detailSummaryOverride: undefined,
-		body: (
-			<p className={css.errorLead}>
-				The browser could no longer access your local directory handle.
-				Re-importing the folder will be necessary to continue.
-			</p>
-		),
-		actions: [],
 	};
 }
 

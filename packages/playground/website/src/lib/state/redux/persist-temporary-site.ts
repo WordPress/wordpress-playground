@@ -28,6 +28,7 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 import { getSetupUrlFromSite } from '../playground-identity';
+import { showLocalFolderPicker } from '../../local-directory-handle';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -165,13 +166,7 @@ export function persistTemporarySite(
 			} else {
 				// Request permission to access the directory.
 				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-				dirHandle = (await (window as any).showDirectoryPicker({
-					// By specifying an ID, the browser can remember different directories
-					// for different IDs.If the same ID is used for another picker, the
-					// picker opens in the same directory.
-					id: 'playground-directory',
-					mode: 'readwrite',
-				})) as FileSystemDirectoryHandle;
+				dirHandle = await showLocalFolderPicker();
 			}
 			await saveDirectoryHandle(siteSlug, dirHandle);
 

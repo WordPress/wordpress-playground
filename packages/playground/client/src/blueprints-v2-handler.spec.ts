@@ -143,12 +143,14 @@ describe('BlueprintsV2Handler', () => {
 			iframe,
 			remoteUrl: 'http://example.com/remote.html',
 			blueprint,
+			documentRoot: '/app/public',
 		});
 
 		await handler.bootPlayground(iframe, createProgressTracker());
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
+				documentRoot: '/app/public',
 				wordpressInstallMode: 'do-not-attempt-installing',
 				wordPressZip: undefined,
 			})

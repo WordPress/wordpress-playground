@@ -18,7 +18,10 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
+import { LocalDirectoryReconnectOverlay } from '../local-directory-reconnect';
+import { LocalFolderStarterNotice } from '../local-folder-starter-notice';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
+import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -167,7 +170,13 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{!hasVisibleSite && (
 				<div className={css.loadingViewport}>
-					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
+					<h1 className={css.loadingCaption}>
+						{isLocalDirectoryPhpApp(
+							activeSite?.metadata.localDirectoryBootConfiguration
+						)
+							? 'Preparing PHP app'
+							: 'Preparing WordPress'}
+					</h1>
 					<div className={css.progressWrapper}>
 						<div className={css.progressBar} />
 					</div>
@@ -205,7 +214,13 @@ export const JustViewport = function JustViewport({
 
 	const dispatch = useAppDispatch();
 	const runtimeBootFingerprint = getRuntimeBootFingerprint(
-		site.metadata.runtimeConfiguration
+		site.metadata.runtimeConfiguration,
+		site.metadata.localDirectoryBootConfiguration
+	);
+	// Incremented after the user repairs a local folder handle so the same
+	// site+runtime boots again without a page reload.
+	const bootAttempt = useAppSelector(
+		(state) => state.ui.bootAttempts[siteSlug] ?? 0
 	);
 	useEffect(() => {
 		const iframe = iframeRef.current;
@@ -230,21 +245,35 @@ export const JustViewport = function JustViewport({
 			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
+	}, [siteSlug, iframeRef, runtimeBootFingerprint, bootAttempt]);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	const reconnect = useAppSelector((state) =>
+		state.ui.activeSite?.slug === siteSlug
+			? state.ui.activeSite?.localDirectoryReconnect
+			: undefined
+	);
 	const showOverlay = error && activeSiteSlug === siteSlug;
 
 	return (
 		<>
 			<iframe
 				key={siteSlug}
-				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+				title="Playground wrapper (the actual site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize)}
 				ref={iframeRef}
 			/>
+			{reconnect ? (
+				<LocalDirectoryReconnectOverlay
+					site={site}
+					reconnect={reconnect}
+				/>
+			) : null}
+			{!reconnect && activeSiteSlug === siteSlug ? (
+				<LocalFolderStarterNotice site={site} />
+			) : null}
 			{showOverlay ? (
 				<SiteErrorModal
 					error={error}

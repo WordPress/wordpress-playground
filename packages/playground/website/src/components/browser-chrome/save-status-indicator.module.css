@@ -102,10 +102,38 @@
 	display: inline;
 }
 
-/* The shared callout stays centered over the Saved pill. These margins count
+/* The shared callout stays centered over the On disk pill. These margins count
    toward collision detection and preserve its shadow at both mobile edges. */
 .saved-menu-popover :global(.components-popover__content) {
 	margin-inline: 16px;
+}
+
+/* The served document root inside the identity meta line. */
+.saved-menu-code {
+	padding: 1px 5px;
+	background: #f0f0f0;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+/* Quiet destinations under the primary action: the document-root picker and
+   the fuller folder card in Site Settings. */
+.saved-menu-footer {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.saved-menu-footer :global(.components-button.is-link) {
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.saved-menu-error {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #cc1818;
 }
 
 .progress-ring {

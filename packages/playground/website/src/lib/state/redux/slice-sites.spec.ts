@@ -394,6 +394,48 @@ describe('stored site creation', () => {
 		});
 	});
 
+	it('persists PHP-only boot metadata for a local directory project', async () => {
+		const { createLocalDirectorySite } = await import('./slice-sites');
+		const runtimeConfiguration = {
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		};
+		resolveRuntimeConfiguration.mockResolvedValue(runtimeConfiguration);
+
+		const newSite = await createLocalDirectorySite(
+			'Symfony app',
+			{
+				mountpoint: '/app',
+				documentRoot: 'public',
+				siteMode: 'php',
+			},
+			'symfony-app'
+		)(createThunkDispatch() as any, createEmptyGetState() as any);
+
+		expect(newSite.metadata).toMatchObject({
+			storage: 'local-fs',
+			persistence: 'explicit',
+			localDirectoryBootConfiguration: {
+				mountpoint: '/app',
+				documentRoot: 'public',
+				siteMode: 'php',
+			},
+			originalBlueprint: {
+				preferredVersions: { php: '8.3', wp: false },
+			},
+			runtimeConfiguration,
+		});
+		expect(createSite).toHaveBeenCalledWith(
+			'symfony-app',
+			newSite.metadata,
+			undefined
+		);
+	});
+
 	it('does not persist an edited Blueprint bundle when its runtime is invalid', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')

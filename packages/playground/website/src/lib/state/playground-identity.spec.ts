@@ -215,4 +215,20 @@ describe('getRuntimeBootFingerprint', () => {
 			})
 		);
 	});
+
+	it('changes when a local directory document root changes', () => {
+		expect(
+			getRuntimeBootFingerprint(runtimeConfiguration, {
+				mountpoint: '/app',
+				documentRoot: '',
+				siteMode: 'php',
+			})
+		).not.toBe(
+			getRuntimeBootFingerprint(runtimeConfiguration, {
+				mountpoint: '/app',
+				documentRoot: 'public',
+				siteMode: 'php',
+			})
+		);
+	});
 });

@@ -7,6 +7,8 @@ import {
 	MenuItem,
 	TextControl,
 	Button,
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 } from '@wordpress/components';
 import {
 	moreVertical,
@@ -15,6 +17,7 @@ import {
 	pencil,
 	layout,
 	fullscreen,
+	archive,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -59,9 +62,16 @@ import {
 	setDockPaneOpen,
 	setDockPaneSection,
 	setSiteSlugToDelete,
+	setSiteSlugToSave,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 } from '../../lib/state/redux/slice-ui';
+import {
+	directoryHandleHasEntries,
+	requestDirectoryHandlePermission,
+	showLocalFolderPicker,
+} from '../../lib/local-directory-handle';
+import { setPendingPickedFolder } from '../save-site-modal/pending-picked-folder';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
@@ -70,6 +80,7 @@ import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
+import { isLocalDirectoryPhpApp } from '../../lib/local-directory-site';
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -140,8 +151,11 @@ type CreationTabId =
 	| 'blueprint-url'
 	| 'write-own'
 	| 'github'
-	| 'pull-request'
+	| 'local-directory'
 	| 'zip';
+
+/** The GitHub tab hosts both repository imports and pull-request previews. */
+type GitHubPanelMode = 'repository' | 'preview-pr';
 
 interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
@@ -184,6 +198,9 @@ export function SavedPlaygroundsPanel({
 		string | null
 	>(null);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [isOpeningLocalDirectory, setIsOpeningLocalDirectory] =
+		useState(false);
+	const [localDirectoryError, setLocalDirectoryError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
 	// routine re-renders, so this prevents a second concurrent import firing while
@@ -199,6 +216,8 @@ export function SavedPlaygroundsPanel({
 	const creationBackButtonRef = useRef<HTMLButtonElement>(null);
 	const [activeCreationTab, setActiveCreationTab] =
 		useState<CreationTabId>('gallery');
+	const [githubPanelMode, setGithubPanelMode] =
+		useState<GitHubPanelMode>('repository');
 	const [isGitHubImportDetailsOpen, setIsGitHubImportDetailsOpen] =
 		useState(false);
 	const handleCreationBack = useCallback(() => {
@@ -296,11 +315,7 @@ export function SavedPlaygroundsPanel({
 			return;
 		}
 		focusCreationFieldAfterMouseClickRef.current = false;
-		const formTabs: CreationTabId[] = [
-			'blueprint-url',
-			'github',
-			'pull-request',
-		];
+		const formTabs: CreationTabId[] = ['blueprint-url', 'github'];
 		if (!formTabs.includes(activeCreationTab)) {
 			return;
 		}
@@ -633,7 +648,9 @@ export function SavedPlaygroundsPanel({
 	// reads the running Playground, so a non-active one is switched to first —
 	// but the OS directory picker MUST open inside this click gesture, before the
 	// async switch/boot, or the browser blocks it. So we pick the folder first,
-	// then switch and write into it.
+	// then switch and write into it. A folder that already contains files is
+	// never written to from this one click: it hands off to the save pane,
+	// which asks for an explicit confirmation first.
 	const handleSaveToLocalDirectory = async (
 		site: SiteInfo,
 		closeMenu: () => void
@@ -643,23 +660,28 @@ export function SavedPlaygroundsPanel({
 		}
 		try {
 			dispatch(setDockOperationNotice(undefined));
-			if (site.slug === activeSite?.slug) {
-				closeMenu();
-				await sitesAPI.saveToLocalFileSystem();
+			// Close the menu before the picker so a failure or cancellation
+			// does not leave it open, capturing Escape and focus. The state
+			// update is synchronous and does not consume the click gesture
+			// the picker needs.
+			closeMenu();
+			const directoryHandle = await showLocalFolderPicker();
+			if (site.slug !== activeSite?.slug) {
+				await sitesAPI.setActiveSite(site.slug);
+			}
+			if (await directoryHandleHasEntries(directoryHandle)) {
+				setPendingPickedFolder(directoryHandle);
+				dispatch(setSiteSlugToSave(site.slug));
+				dispatch(setDockPaneSection('save'));
+				dispatch(setDockPaneOpen(true));
 				return;
 			}
-			const directoryHandle = await (window as any).showDirectoryPicker({
-				id: 'playground-local-fs',
-				mode: 'readwrite',
-			});
-			closeMenu();
-			await sitesAPI.setActiveSite(site.slug);
 			await sitesAPI.saveToLocalFileSystem(undefined, directoryHandle);
 		} catch (error) {
 			if ((error as Error)?.name === 'AbortError') {
 				return; // The user dismissed the directory picker.
 			}
-			logger.error('Error saving Playground to a local directory', error);
+			logger.error('Error saving Playground to a local folder', error);
 			dispatch(
 				setDockOperationNotice({
 					title: `Couldn’t save ${site.metadata.name} locally`,
@@ -676,7 +698,7 @@ export function SavedPlaygroundsPanel({
 			return 'Not saved to browser storage';
 		}
 		if (site.metadata.storage === 'local-fs') {
-			return 'Local directory';
+			return 'Local folder';
 		}
 		return formatSiteCreatedDate(site) ?? '';
 	};
@@ -684,16 +706,33 @@ export function SavedPlaygroundsPanel({
 	const getCurrentSiteDetails = (site: SiteInfo) => {
 		return [
 			getRuntimeLabel(site),
+			// A site saved to disk after its creation would otherwise read as a
+			// browser-storage site — its row is where users look for "where does
+			// this live".
+			...(site.metadata.storage === 'local-fs' &&
+			!site.metadata.localDirectoryBootConfiguration
+				? ['Saved to a local folder']
+				: []),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
 		const { phpVersion, wpVersion } = site.metadata.runtimeConfiguration;
+		if (
+			isLocalDirectoryPhpApp(
+				site.metadata.localDirectoryBootConfiguration
+			)
+		) {
+			return `PHP app · PHP ${phpVersion}`;
+		}
 		return `WP ${wpVersion} · PHP ${phpVersion}`;
 	};
 
 	const getSourceLabel = (site: SiteInfo) => {
+		if (site.metadata.localDirectoryBootConfiguration) {
+			return 'local folder';
+		}
 		const corePr = getOriginalSearchParam(site, 'core-pr');
 		if (corePr) {
 			return `WordPress PR #${corePr}`;
@@ -855,6 +894,27 @@ export function SavedPlaygroundsPanel({
 		onClose();
 	};
 
+	const chooseLocalDirectory = async () => {
+		setLocalDirectoryError(undefined);
+		setIsOpeningLocalDirectory(true);
+		try {
+			const directoryHandle = await showLocalFolderPicker();
+			await requestLocalDirectoryWriteAccess(directoryHandle);
+			await sitesAPI.createNewLocalDirectorySite(directoryHandle);
+			dispatch(setDockPaneOpen(false));
+			onClose();
+		} catch (error) {
+			if ((error as DOMException | undefined)?.name !== 'AbortError') {
+				logger.error('Error opening local folder', error);
+				setLocalDirectoryError(
+					'The selected folder could not be opened.'
+				);
+			}
+		} finally {
+			setIsOpeningLocalDirectory(false);
+		}
+	};
+
 	/**
 	 * Opens the roomier Blueprint tab with its file tree. A temporary Playground
 	 * first receives the edited draft as an in-memory declaration, without
@@ -926,16 +986,9 @@ export function SavedPlaygroundsPanel({
 			disabled: false,
 		},
 		{
-			id: 'pull-request',
-			label: 'Preview a PR',
-			panelTitle: 'Preview a pull request',
-			icon: <PullRequestIcon />,
-			disabled: offline,
-		},
-		{
 			id: 'github',
 			label: 'From GitHub',
-			panelTitle: 'Import from GitHub',
+			panelTitle: 'Start from GitHub',
 			icon: GitHubIcon,
 			disabled: offline,
 		},
@@ -945,6 +998,16 @@ export function SavedPlaygroundsPanel({
 			panelTitle: 'Import a .zip export',
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
+		},
+		{
+			id: 'local-directory',
+			label: 'Local folder',
+			panelTitle: 'Open a local folder',
+			icon: <Icon icon={archive} size={20} />,
+			disabled:
+				!isOpfsAvailable ||
+				typeof (window as Window & { showDirectoryPicker?: unknown })
+					.showDirectoryPicker !== 'function',
 		},
 	];
 
@@ -1089,7 +1152,7 @@ export function SavedPlaygroundsPanel({
 												)
 											}
 										>
-											Save in a local directory…
+											Save a copy to a local folder…
 										</MenuItem>
 									)}
 								</MenuGroup>
@@ -1360,7 +1423,9 @@ export function SavedPlaygroundsPanel({
 							disabled={method.disabled || isImportingZip}
 							title={
 								method.disabled
-									? 'Needs an internet connection — unavailable offline'
+									? method.id === 'local-directory'
+										? 'Opening local folders is not supported by this browser'
+										: 'Needs an internet connection — unavailable offline'
 									: undefined
 							}
 						>
@@ -1508,38 +1573,80 @@ export function SavedPlaygroundsPanel({
 						</div>
 					</div>
 				);
-			case 'pull-request':
-				return (
-					<div className={css.inlineForm}>
-						<PreviewPRForm
-							inline
-							onClose={() => setActiveCreationTab('gallery')}
-						/>
-					</div>
-				);
 			case 'github':
 				return (
 					<div className={css.inlineForm}>
-						<GitHubImportForm
-							playground={playground!}
-							showRepositoryDetails={isGitHubImportDetailsOpen}
-							onRepositoryResolved={() => {
-								creationFocusTargetRef.current = 'back';
-								setIsGitHubImportDetailsOpen(true);
-							}}
-							getPlaygroundBeforeImport={
-								createSiteForGitHubImport
+						{/* One GitHub tab covers both flows; the toggle keeps
+						    pull-request previews visible rather than buried.
+						    Both forms stay mounted so switching modes does not
+						    discard a typed URL. */}
+						{!isGitHubImportDetailsOpen && (
+							<ToggleGroupControl
+								label="What to start from"
+								hideLabelFromVision
+								value={githubPanelMode}
+								onChange={(value) =>
+									setGithubPanelMode(
+										value === 'preview-pr'
+											? 'preview-pr'
+											: 'repository'
+									)
+								}
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize={false}
+							>
+								<ToggleGroupControlOption
+									value="repository"
+									label="Repository"
+								/>
+								<ToggleGroupControlOption
+									value="preview-pr"
+									label="Pull request"
+								/>
+							</ToggleGroupControl>
+						)}
+						<div
+							hidden={
+								githubPanelMode === 'preview-pr' &&
+								!isGitHubImportDetailsOpen
 							}
-							onClose={() => setActiveCreationTab('gallery')}
-							onImported={(details) => {
-								githubExportSession.recordImport(details);
-								// eslint-disable-next-line no-alert
-								alert(
-									'Import finished! Your Playground has been updated.'
-								);
-								onClose();
-							}}
-						/>
+							className={css.inlineForm}
+						>
+							<GitHubImportForm
+								playground={playground!}
+								showRepositoryDetails={
+									isGitHubImportDetailsOpen
+								}
+								onRepositoryResolved={() => {
+									creationFocusTargetRef.current = 'back';
+									setIsGitHubImportDetailsOpen(true);
+								}}
+								getPlaygroundBeforeImport={
+									createSiteForGitHubImport
+								}
+								onClose={() => setActiveCreationTab('gallery')}
+								onImported={(details) => {
+									githubExportSession.recordImport(details);
+									// eslint-disable-next-line no-alert
+									alert(
+										'Import finished! Your Playground has been updated.'
+									);
+									onClose();
+								}}
+							/>
+						</div>
+						<div
+							hidden={
+								githubPanelMode !== 'preview-pr' ||
+								isGitHubImportDetailsOpen
+							}
+							className={css.inlineForm}
+						>
+							<PreviewPRForm
+								inline
+								onClose={() => setActiveCreationTab('gallery')}
+							/>
+						</div>
 					</div>
 				);
 			case 'blueprint-url':
@@ -1597,6 +1704,34 @@ export function SavedPlaygroundsPanel({
 								{isImportingZip
 									? 'Importing…'
 									: 'Choose a .zip file…'}
+							</Button>
+						</div>
+					</div>
+				);
+			case 'local-directory':
+				return (
+					<div className={css.inlineForm}>
+						<p className={css.inlineFormHint}>
+							Run a PHP or WordPress project straight from a
+							folder on this computer. Playground reads and writes
+							the real files, so the folder keeps working with
+							your editor and version control. PHP serves the
+							folder itself; you can change the served document
+							root later.
+						</p>
+						{localDirectoryError ? (
+							<p role="alert">{localDirectoryError}</p>
+						) : null}
+						<div className={css.inlineFormActions}>
+							<Button
+								variant="primary"
+								disabled={isOpeningLocalDirectory}
+								isBusy={isOpeningLocalDirectory}
+								onClick={() => void chooseLocalDirectory()}
+							>
+								{isOpeningLocalDirectory
+									? 'Opening…'
+									: 'Choose a folder…'}
 							</Button>
 						</div>
 					</div>
@@ -1704,12 +1839,20 @@ export function SavedPlaygroundsPanel({
 	);
 }
 
-function PullRequestIcon() {
-	return (
-		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-			<path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
-		</svg>
-	);
+/**
+ * Requests write permission, when supported, immediately after native directory
+ * selection and before any site metadata is created.
+ */
+async function requestLocalDirectoryWriteAccess(
+	directoryHandle: FileSystemDirectoryHandle
+) {
+	const permission = await requestDirectoryHandlePermission(directoryHandle);
+	if (permission !== 'granted') {
+		throw new DOMException(
+			'Permission to open this folder was denied.',
+			'NotAllowedError'
+		);
+	}
 }
 
 /**
@@ -1740,10 +1883,7 @@ async function flushImportedWordPressFiles(playground: PlaygroundClient) {
 }
 
 function isCreationTabDisabled(tab: CreationTabId, offline: boolean) {
-	return (
-		offline &&
-		(tab === 'blueprint-url' || tab === 'github' || tab === 'pull-request')
-	);
+	return offline && (tab === 'blueprint-url' || tab === 'github');
 }
 
 function getOpfsSyncProgressPercent(progress: {
