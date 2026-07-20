@@ -4,6 +4,37 @@ ini_set('display_errors', 0);
 
 class ApiException extends Exception {}
 class RateLimitedException extends ApiException {}
+class PullRequestApiException extends ApiException
+{
+	private $pullRequestTitle;
+
+	/**
+	 * Creates an API error for a pull request that GitHub resolved.
+	 *
+	 * Artifact and workflow checks happen after the pull request has been
+	 * fetched. Keeping its title on those errors lets verification clients
+	 * identify the resolved pull request even when its preview is unavailable.
+	 *
+	 * @param string         $message          Machine-readable proxy error name.
+	 * @param string         $pullRequestTitle Title returned by the GitHub API.
+	 * @param Throwable|null $previous         Original artifact or workflow error.
+	 */
+	public function __construct($message, $pullRequestTitle, $previous = null)
+	{
+		parent::__construct($message, 0, $previous);
+		$this->pullRequestTitle = $pullRequestTitle;
+	}
+
+	/**
+	 * Returns the title of the pull request resolved before the error occurred.
+	 *
+	 * @return string Pull-request title returned by the GitHub API.
+	 */
+	public function getPullRequestTitle()
+	{
+		return $this->pullRequestTitle;
+	}
+}
 class PluginDownloader
 {
 
@@ -116,7 +147,7 @@ class PluginDownloader
 			 */
 			if (array_key_exists('verify_only', $_GET)) {
 				header('HTTP/1.1 200 OK');
-				return;
+				return true;
 			}
 
 			$allowed_headers = array(
@@ -170,7 +201,27 @@ class PluginDownloader
 		if (!$prDetails) {
 			throw new ApiException('invalid_pr_number');
 		}
-		$this->streamArtifactFromBranch($organization, $repo, $prDetails->head->ref, $workflow_name, $artifact_name);
+		try {
+			$verified = $this->streamArtifactFromBranch(
+				$organization,
+				$repo,
+				$prDetails->head->ref,
+				$workflow_name,
+				$artifact_name
+			);
+		} catch (RateLimitedException $e) {
+			throw $e;
+		} catch (ApiException $e) {
+			throw new PullRequestApiException(
+				$e->getMessage(),
+				$prDetails->title,
+				$e
+			);
+		}
+		if ($verified === true && array_key_exists('verify_only', $_GET)) {
+			header('Content-Type: application/json');
+			echo json_encode(['title' => $prDetails->title]);
+		}
 	}
 
 	public function streamFromGithubReleases($repo, $name)
@@ -507,5 +558,9 @@ try {
 	if (!headers_sent()) {
 		header('Content-Type: application/json');
 	}
-	die(json_encode(['error' => $e->getMessage()]));
+	$errorResponse = ['error' => $e->getMessage()];
+	if ($e instanceof PullRequestApiException) {
+		$errorResponse['title'] = $e->getPullRequestTitle();
+	}
+	die(json_encode($errorResponse));
 }

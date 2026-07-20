@@ -77,20 +77,30 @@ describe('PreviewPRForm', () => {
 	it('offers a repository choice when both repositories match', async () => {
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(() =>
-				Promise.resolve(verificationError('artifact_not_found'))
-			)
+			vi.fn((input: RequestInfo | URL) => {
+				const isGutenberg = String(input).includes('repo=gutenberg');
+				return Promise.resolve(
+					verificationSuccess(
+						isGutenberg
+							? 'Add a command palette to the editor'
+							: 'Preserve HTML text boundaries'
+					)
+				);
+			})
 		);
 
 		await renderAndSubmit('79908');
 
-		const actions = Array.from(container.querySelectorAll('button')).map(
-			(button) => button.textContent
+		const actions = Array.from(container.querySelectorAll('button'));
+		expect(actions).toHaveLength(2);
+		expect(actions[0].textContent).toContain('WordPress Core · PR #79908');
+		expect(actions[0].textContent).toContain(
+			'Preserve HTML text boundaries'
 		);
-		expect(actions).toEqual([
-			'WordPress Core PR 79908',
-			'Gutenberg PR 79908',
-		]);
+		expect(actions[1].textContent).toContain('Gutenberg · PR #79908');
+		expect(actions[1].textContent).toContain(
+			'Add a command palette to the editor'
+		);
 	});
 
 	it('names both repositories when neither repository matches', async () => {
@@ -143,9 +153,16 @@ describe('PreviewPRForm', () => {
 		});
 	}
 
-	function verificationError(error: string) {
-		return new Response(JSON.stringify({ error }), {
+	function verificationError(error: string, title?: string) {
+		return new Response(JSON.stringify({ error, title }), {
 			status: 400,
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+
+	function verificationSuccess(title: string) {
+		return new Response(JSON.stringify({ title }), {
+			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});
 	}

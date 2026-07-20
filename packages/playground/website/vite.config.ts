@@ -79,6 +79,11 @@ type PrPreviewMockResult =
 	| 'artifact_expired'
 	| 'unavailable';
 
+const prPreviewMockTitles = {
+	'wordpress-develop': 'Update the HTML API to preserve text boundaries',
+	gutenberg: 'Add a data view for managing reusable blocks',
+};
+
 /**
  * Reserved PR numbers and their independent Core and Gutenberg responses.
  *
@@ -514,9 +519,11 @@ function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
 		}
 
 		const result = scenario[repo];
+		const title = prPreviewMockTitles[repo];
 		if (result === 'available') {
 			res.statusCode = 200;
-			res.end();
+			res.setHeader('Content-Type', 'application/json');
+			res.end(JSON.stringify({ title }));
 			return;
 		}
 		if (result === 'unavailable') {
@@ -528,6 +535,11 @@ function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
 
 		res.statusCode = 400;
 		res.setHeader('Content-Type', 'application/json');
-		res.end(JSON.stringify({ error: result }));
+		res.end(
+			JSON.stringify({
+				error: result,
+				...(result === 'invalid_pr_number' ? {} : { title }),
+			})
+		);
 	});
 }

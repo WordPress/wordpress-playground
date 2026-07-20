@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
-import { chevronRight, Icon } from '@wordpress/icons';
+import { arrowRight, Icon } from '@wordpress/icons';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -17,9 +17,13 @@ import {
  * Result returned by the preview proxy when asked whether a PR build exists.
  *
  * The proxy forwards operational error names as strings, so failures are not
- * restricted to the error names currently recognized by this form.
+ * restricted to the error names currently recognized by this form. Once the
+ * proxy resolves a pull request, its title is preserved on both successful and
+ * failed build checks so repository choices can identify the actual change.
  */
-type PrVerification = { ok: true } | { ok: false; error: string };
+type PrVerification =
+	| { ok: true; title?: string }
+	| { ok: false; error: string; title?: string };
 
 /**
  * Associates a repository candidate with the response that classified it.
@@ -475,17 +479,26 @@ export default function PreviewPRForm({
 		const response = await fetch(
 			buildArtifactUrl(resolved) + '&verify_only=true'
 		);
+		let json: { error?: unknown; title?: unknown } | undefined;
+		const responseBody = await response.text();
+		if (responseBody) {
+			try {
+				json = JSON.parse(responseBody);
+			} catch (parseError) {
+				logger.error(parseError);
+			}
+		}
+		const title = typeof json?.title === 'string' ? json.title : undefined;
 		if (response.status === 200) {
-			return { ok: true };
+			return { ok: true, title };
 		}
 
-		try {
-			const json = await response.json();
-			if (typeof json?.error === 'string') {
-				return { ok: false, error: json.error };
-			}
-		} catch (parseError) {
-			logger.error(parseError);
+		if (typeof json?.error === 'string') {
+			return {
+				ok: false,
+				error: json.error,
+				title,
+			};
 		}
 		return { ok: false, error: 'unexpected_response' };
 	}
@@ -517,48 +530,57 @@ export default function PreviewPRForm({
 					</div>
 				)}
 				{repositoryMatches.length > 1 && (
-					<Notice
-						className={css.repositoryNotice}
-						status="warning"
-						isDismissible={false}
+					<section
+						className={css.repositoryPicker}
+						aria-labelledby="pr-repository-picker-title"
 					>
-						<p className={css.feedbackTitle}>Choose a repository</p>
+						<p
+							className={css.feedbackTitle}
+							id="pr-repository-picker-title"
+						>
+							Two pull requests found
+						</p>
 						<p className={css.feedbackMessage}>
-							PR {repositoryMatches[0].resolved.ref} has preview
-							builds in both WordPress Core and Gutenberg.
+							Choose the change you want to preview.
 						</p>
 						<div className={css.repositoryChoices}>
 							{repositoryMatches.map((match) => (
 								<Button
 									key={match.resolved.target}
 									className={css.repositoryChoice}
-									variant="tertiary"
+									variant="secondary"
 									type="button"
 									onClick={() => selectRepository(match)}
 								>
 									<span className={css.repositoryChoiceText}>
 										<span
-											className={
-												css.repositoryChoiceTitle
-											}
+											className={css.repositoryChoiceMeta}
 										>
 											{match.resolved.target ===
 											'wordpress'
 												? 'WordPress Core'
-												: 'Gutenberg'}
+												: 'Gutenberg'}{' '}
+											· PR #{match.resolved.ref}
 										</span>
 										<span
-											className={css.repositoryChoiceMeta}
+											className={
+												css.repositoryChoiceTitle
+											}
 										>
-											{' '}
-											PR {match.resolved.ref}
+											{match.verification.title ||
+												`Pull request ${match.resolved.ref}`}
 										</span>
 									</span>
-									<Icon icon={chevronRight} size={18} />
+									<span
+										className={css.repositoryChoiceAction}
+									>
+										Preview
+										<Icon icon={arrowRight} size={16} />
+									</span>
 								</Button>
 							))}
 						</div>
-					</Notice>
+					</section>
 				)}
 				{feedback &&
 					(inline ? (
