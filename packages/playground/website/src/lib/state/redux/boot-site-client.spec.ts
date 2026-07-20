@@ -343,6 +343,32 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('classifies a worker resource-unavailable error', async () => {
+		const unavailableError = Object.assign(
+			new Error('WordPress 6.8 is not available for download.'),
+			{ originalErrorClassName: 'ResourceUnavailableError' }
+		);
+		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(unavailableError);
+		const site = createSite('unavailable-version');
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'unavailable-version',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: expect.objectContaining({
+					error: 'resource-unavailable',
+				}),
+			})
+		);
+	});
+
 	it('does not add client info when iframe boot finishes after abort', async () => {
 		let resolveStart = () => {};
 		const startFinished = new Promise<void>((resolve) => {
