@@ -1,21 +1,22 @@
 {
-	"screenshot": "fake_shot.png",
+	"screenshot": "sample-shot.webp",
 	"output": "test-cards.webp",
 	"css_width": 1440,
 	"supersample": 2,
-	"dim": { "region": [410, 630, 620, 140], "radius": 16 },
+	"chrome_bar": { "url": "playground.wordpress.net" },
+	"dim": { "region": [385, 762, 660, 126], "radius": 16 },
 	"outlines": [
-		{ "type": "circle", "center": [456, 676], "r": 26 },
+		{ "type": "circle", "center": [425, 816], "r": 24 },
 		{
 			"type": "rect",
-			"box": [865, 660, 95, 32],
-			"padding": 7,
-			"radius": 10
+			"box": [409, 839, 622, 53],
+			"padding": 6,
+			"radius": 12
 		},
 		{
 			"type": "rect",
-			"box": [880, 706, 120, 44],
-			"padding": 7,
+			"box": [861, 799, 88, 34],
+			"padding": 6,
 			"radius": 12
 		}
 	],
@@ -28,18 +29,18 @@
 		},
 		{
 			"number": 2,
-			"title": "Save status",
-			"subtitle": "Click to choose where to save",
+			"title": "Tool panes",
+			"subtitle": "Blueprints, settings, export",
 			"target": 1
 		},
 		{
 			"number": 3,
-			"title": "Export",
-			"subtitle": "Download a ZIP or share",
+			"title": "Autosaved",
+			"subtitle": "Click to manage this Playground",
 			"target": 2
 		}
 	],
-	"cards_top": 380,
+	"cards_top": 560,
 	"cards_inset": 48,
 	"cards_gap": 40
 }

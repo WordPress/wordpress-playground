@@ -18,10 +18,10 @@ to spec. Do not reimplement the drawing by hand.
 ## Workflow
 
 1. **Capture.** Take screenshots at `deviceScaleFactor: 2`. Never eyeball
-   coordinates: record each target's bounding box programmatically and save
-   the boxes to JSON. Element coordinates are viewport-relative even inside
-   nested iframes — when a target lives in an iframe, add the iframe's own
-   box offset. With Playwright:
+   coordinates: record every target's bounding box programmatically and save
+   the boxes to JSON — including _regions_ (panels, sidebars, block trees),
+   not just buttons; eyeballed region outlines are the most common
+   quality-gate failure. With Playwright:
 
     ```js
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
@@ -30,26 +30,49 @@ to spec. Do not reimplement the drawing by hand.
     await page.screenshot({ path: 'shot.png' });
     ```
 
-    Playwright is not in the repo venv — `pip install playwright && playwright
-install chromium` if needed, or capture via the Chrome DevTools MCP tools
-    (`take_screenshot` + `evaluate_script` with `getBoundingClientRect()`),
-    which gives the same viewport-relative CSS-px boxes.
+    **Iframes:** Playwright's `locator(...).boundingBox()` already returns
+    main-viewport coordinates, even inside nested iframes (Playground nests
+    main page → `remote.html` wrapper → the WordPress scope frame) — use
+    the boxes as-is, no offsets. Only raw `getBoundingClientRect()` inside a
+    frame's own `evaluate()` (or the Chrome DevTools MCP tools) needs the
+    enclosing iframe's box offset added.
+
+    **WordPress modals:** editor screens open welcome guides ("Edit your
+    site" → Get started) whose overlay swallows clicks; some have no
+    `aria-label="Close"` button. Dismiss with an Escape loop — while
+    `.components-modal__screen-overlay` exists, press Escape on the frame's
+    body, wait ~1s — and retry the blocked click between attempts. The modal
+    can appear _after_ the page looks loaded, so dismiss lazily around the
+    click, not once up front.
+
+    Prefer driving the browser from Node with the repo's own
+    `node_modules/playwright`; otherwise `pip install playwright &&
+ playwright install chromium`, or use the Chrome DevTools MCP capture
+    tools.
 
     Before capturing, clean up dev-environment artifacts: update nags, debug
     badges, plugin notices. They must not appear in docs imagery.
 
 2. **Author the config.** All geometry is in CSS px relative to the
    screenshot's top-left. Write a config JSON (schema in the script's
-   docstring — read it; working examples of both modes are in `examples/`)
-   and run:
+   docstring — read it; runnable examples of both modes are in `examples/`,
+   sharing the bundled `sample-shot.webp`) and run:
 
     ```bash
-    source venv/bin/activate
     python .claude/skills/doc-screenshots/scripts/annotate.py config.json --crops crops/
     ```
 
+    The script needs Python with Pillow. If no suitable interpreter is
+    active, create a venv in the session scratchpad (`python3 -m venv
+ <scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`) and call
+    that interpreter directly. The script validates the config up front and
+    exits with a readable `config error:` message on bad input; `output`
+    must be a `.webp` path.
+
 3. **Quality gate — actually look.** Read the rendered WEBP at full size,
-   plus the zoomed crops the script saves of every arrowhead and outline.
+   plus the zoomed crops the script saves of every arrowhead and outline
+   (named `<output-stem>-NN-<spot>.png`, so one crops dir can serve all
+   configs of a batch).
    Check: tip gaps even (5–7px short of each outline), halos unbroken,
    no arrow crosses another arrow or a sibling annotation, no card text
    overflow warnings on stderr, artifacts removed. Also sanity-check
@@ -99,3 +122,10 @@ canvas.
 Reference outputs in this style: an action walkthrough
 (free arrows onto dialog controls) and an overview legend (three cards over
 a dimmed page) — match their look, spacing and restraint.
+
+## Keep the mirror in sync
+
+This skill exists twice in the repo: `.claude/skills/doc-screenshots/` (the
+live copy) and `.agents/skills/doc-screenshots/` (mirror for other agent
+tooling). After editing any file here, copy the change to the mirror so the
+two trees stay byte-identical.

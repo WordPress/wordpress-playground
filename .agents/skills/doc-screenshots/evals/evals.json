@@ -1,0 +1,50 @@
+{
+	"skill_name": "doc-screenshots",
+	"evals": [
+		{
+			"id": 1,
+			"prompt": "Create a documentation screenshot that walks the reader through opening the WordPress editors from the admin bar. Use the pre-captured WordPress Playground screenshot at examples/sample-shot.webp (viewport 1440x900 CSS px, deviceScaleFactor 2) — do NOT capture a new screenshot. The bounding boxes of every relevant control are in evals/files/boxes.json (CSS px, screenshot top-left origin). Annotate the 'Edit Site' and 'Edit Page' admin-bar buttons so a reader knows to click them, framed with a browser chrome bar showing playground.wordpress.net. Deliver the rendered image and the config you authored into the outputs directory.",
+			"expected_output": "A .webp render in the established house style: both admin-bar buttons outlined, one tapered blue ribbon arrow arriving on each outline, chrome bar on top, no annotation collisions.",
+			"files": ["examples/sample-shot.webp", "evals/files/boxes.json"],
+			"expectations": [
+				"The render was produced by scripts/annotate.py from a config JSON, not by hand-drawn image code or a different drawing approach",
+				"The delivered image is a .webp whose final width is 1512 px (1440 css + 2*36 margin)",
+				"The config outlines the 'Edit Site' control using box [216, 0, 91, 32] from boxes.json (same values, plus a small padding setting), not eyeballed coordinates",
+				"The config outlines the 'Edit Page' control using box [424, 0, 98, 32] from boxes.json",
+				"Each outlined control has exactly one arrow, whose 'to' endpoint stops a few px (roughly 5-10) outside the outline edge rather than touching or entering the box",
+				"The two arrows do not cross each other (their horizontal spans do not overlap given both tails are below the targets)",
+				"The config includes chrome_bar with url playground.wordpress.net",
+				"Zoomed QA crops were generated (--crops) and the workflow shows the crops or full render were actually inspected before finishing"
+			]
+		},
+		{
+			"id": 2,
+			"prompt": "Create an overview documentation image ('legend style') of the Playground Dock's main controls, using the pre-captured screenshot examples/sample-shot.webp (1440x900 CSS px, dsf 2) — do NOT capture a new screenshot. Bounding boxes are in evals/files/boxes.json. Document three controls with numbered callout cards: the refresh button (icon-only, circular control), the row of tool panes, and the Autosaved chip. The rest of the page should be visually de-emphasized while the Dock stays at full brightness. Deliver the rendered image and your config into the outputs directory.",
+			"expected_output": "A dimmed-overview render: three numbered white callout cards in one aligned row, each with a vertical arrow onto its outlined Dock control, Dock region undimmed.",
+			"files": ["examples/sample-shot.webp", "evals/files/boxes.json"],
+			"expectations": [
+				"The render uses the cards + outlines + dim mode of scripts/annotate.py (cards with target indexes, dim with a region)",
+				"The refresh button is outlined as a circle (type circle), not a rectangle",
+				"The dim region corresponds to the dock panel box [389, 766, 660, 126] (or a slightly padded version of it), keeping the Dock undimmed",
+				"Cards are ordered left-to-right to match the left-to-right order of their targets, so no card arrow crosses another",
+				"The render completed with no 'WARNING: text overflows card' message on stderr (card copy is short: 2-3 word titles, one short clause subtitles)",
+				"The delivered image is a .webp 1512 px wide"
+			]
+		},
+		{
+			"id": 3,
+			"prompt": "A colleague left a half-finished annotation config at evals/files/broken-config.json for the screenshot examples/sample-shot.webp. First run scripts/annotate.py on it exactly as-is (from the skill root) and report precisely what happens. Then repair the config with the minimal set of fixes needed to render a sensible single-outline walkthrough image (the outline is the 'Edit Site' admin-bar button), and render it into the outputs directory. Report every problem the original config had.",
+			"expected_output": "An accurate report of the failure mode of the broken config (missing css_width, non-webp output, incomplete circle outline, invalid arrow axis, card target out of range, missing cards_top), plus a repaired config and a successful render.",
+			"files": [
+				"examples/sample-shot.webp",
+				"evals/files/broken-config.json"
+			],
+			"expectations": [
+				"The original config was actually executed and its failure honestly reported (not skipped or paraphrased from reading the config alone)",
+				"The report identifies at least these problems: missing css_width, output not ending in .webp, the empty circle outline, invalid arrow axis value, and the cards target index pointing outside outlines",
+				"The final workflow state is a successful render from a repaired config (exit 0), delivered as a .webp",
+				"The repaired config keeps the Edit Site rect outline [216, 0, 91, 32] and drops or fixes (rather than silently keeps) the broken circle, bad axis, and out-of-range card target"
+			]
+		}
+	]
+}

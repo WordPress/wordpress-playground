@@ -11,6 +11,10 @@ Usage:
     python annotate.py config.json
     python annotate.py config.json --crops <dir>   # also save zoomed QA crops
 
+The config is validated before rendering; problems exit with a readable
+"config error:" message. `output` must end in .webp. QA crops are named
+<output-stem>-NN-<spot>.png, so multiple configs can share one crops dir.
+
 Config schema (all coordinates in CSS px of the screenshot):
 {
   "screenshot": "shot.png",          // captured at deviceScaleFactor 2
@@ -410,9 +414,14 @@ def render(cfg):
 
 
 def save_crops(final, tips, cfg, out_dir, scale):
-    """Zoomed crops of every arrowhead and outline for the quality gate."""
+    """Zoomed crops of every arrowhead and outline for the quality gate.
+
+    Crop names are prefixed with the output basename so several configs (or
+    re-renders) can share one crops directory without overwriting each other.
+    """
     import os
     os.makedirs(out_dir, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(cfg["output"]))[0]
     margin = MARGIN
     chrome_h = CHROME_H if cfg.get("chrome_bar") else 0
     spots = [("tip", x, y) for x, y in tips]
@@ -428,18 +437,65 @@ def save_crops(final, tips, cfg, out_dir, scale):
                min(final.size[0], int(x + half)), min(final.size[1], int(y + half)))
         crop = final.crop(box)
         crop = crop.resize((crop.size[0] * 3, crop.size[1] * 3), Image.NEAREST)
-        path = f"{out_dir}/{idx:02d}-{name}.png"
+        path = f"{out_dir}/{stem}-{idx:02d}-{name}.png"
         crop.save(path)
         print(f"crop: {path}")
+
+
+def validate(cfg):
+    """Check the config before rendering; exit with readable errors."""
+    errors = []
+    for key in ("screenshot", "output", "css_width"):
+        if key not in cfg:
+            errors.append(f"missing required key {key!r}")
+    if "output" in cfg and not str(cfg["output"]).lower().endswith(".webp"):
+        errors.append("output must end in .webp (the exporter writes WEBP)")
+    for i, spec in enumerate(cfg.get("outlines", [])):
+        if spec.get("type", "rect") == "circle":
+            if len(spec.get("center", [])) != 2:
+                errors.append(f"outlines[{i}]: circle needs center [x, y]")
+        elif len(spec.get("box", [])) != 4:
+            errors.append(f"outlines[{i}]: rect needs box [x, y, w, h]")
+    for i, arrow in enumerate(cfg.get("arrows", [])):
+        for key in ("from", "to"):
+            if len(arrow.get(key, [])) != 2:
+                errors.append(f"arrows[{i}]: needs {key} [x, y]")
+        if arrow.get("axis") not in (None, "h", "v"):
+            errors.append(f'arrows[{i}]: axis must be "h" or "v"')
+    n_outlines = len(cfg.get("outlines", []))
+    for i, card in enumerate(cfg.get("cards", [])):
+        if "number" not in card or "title" not in card:
+            errors.append(f"cards[{i}]: needs number and title")
+        target = card.get("target")
+        if target is not None and not (
+            isinstance(target, int) and 0 <= target < n_outlines
+        ):
+            errors.append(
+                f"cards[{i}]: target {target!r} is not an index into outlines"
+                f" (0..{n_outlines - 1})")
+    if cfg.get("cards") and "cards_top" not in cfg:
+        errors.append("cards need cards_top (top edge of the card row)")
+    if errors:
+        sys.exit("config error:\n  " + "\n  ".join(errors))
 
 
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    with open(sys.argv[1]) as fh:
-        cfg = json.load(fh)
-    final, tips, scale = render(cfg)
+    try:
+        with open(sys.argv[1]) as fh:
+            cfg = json.load(fh)
+    except FileNotFoundError:
+        sys.exit(f"config error: no such config file {sys.argv[1]!r}")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"config error: {sys.argv[1]} is not valid JSON ({exc})")
+    validate(cfg)
+    try:
+        final, tips, scale = render(cfg)
+    except FileNotFoundError:
+        sys.exit(
+            f"config error: cannot open screenshot {cfg['screenshot']!r}")
     if "--crops" in sys.argv:
         out_dir = sys.argv[sys.argv.index("--crops") + 1]
         save_crops(final, tips, cfg, out_dir, scale)
