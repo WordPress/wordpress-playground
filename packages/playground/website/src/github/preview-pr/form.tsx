@@ -37,6 +37,15 @@ type RepositoryMatch = {
 	verification: PrVerification;
 };
 
+type PullRequestPreviewCardProps = {
+	target: ResolvedRef['target'];
+	title: string;
+	repositoryName: string;
+	details?: React.ReactNode;
+	disabled?: boolean;
+	onClick: () => void;
+};
+
 /**
  * User-facing state shown after the form cannot immediately open a preview.
  *
@@ -127,9 +136,6 @@ export default function PreviewPRForm({
 		inline && resolvedInput.ok && !isBarePrNumber
 			? resolvedInput.value
 			: undefined;
-	const resolvedSourceRepository = resolvedSource
-		? `wordpress/${targetParams[resolvedSource.target].repo}`
-		: undefined;
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -540,27 +546,21 @@ export default function PreviewPRForm({
 					}}
 				/>
 				{resolvedSource && (
-					<div className={css.resolvedSource}>
-						<span
-							className={css.resolvedSourceLogo}
-							aria-hidden="true"
-						>
-							{resolvedSource.target === 'wordpress' ? (
-								<Icon icon={wordpress} size={28} />
-							) : (
-								<img src={gutenbergLogoUrl} alt="" />
-							)}
-						</span>
-						<span className={css.resolvedSourceText}>
-							<span className={css.resolvedSourceRepository}>
-								{resolvedSourceRepository}
-							</span>
-							<span className={css.resolvedSourceRef}>
-								{resolvedSource.isBranch
-									? `Branch ${resolvedSource.ref}`
-									: `PR #${resolvedSource.ref}`}
-							</span>
-						</span>
+					<div className={css.repositoryChoices}>
+						<PullRequestPreviewCard
+							target={resolvedSource.target}
+							title={
+								resolvedSource.isBranch
+									? resolvedSource.ref
+									: `PR #${resolvedSource.ref}`
+							}
+							repositoryName={`wordpress/${targetParams[resolvedSource.target].repo}`}
+							details={
+								resolvedSource.isBranch ? 'Branch' : undefined
+							}
+							disabled={submitting}
+							onClick={() => previewPr(resolvedSource)}
+						/>
 					</div>
 				)}
 				{submitting && (
@@ -595,101 +595,39 @@ export default function PreviewPRForm({
 										? 'wordpress/wordpress-develop'
 										: 'wordpress/gutenberg';
 								return (
-									<Button
+									<PullRequestPreviewCard
 										key={match.resolved.target}
-										className={css.repositoryChoice}
-										variant="secondary"
-										type="button"
-										aria-label={`Preview ${pullRequestTitle} from ${repositoryName}`}
-										onClick={() => selectRepository(match)}
-									>
-										<span
-											className={css.repositoryChoiceMain}
-										>
-											<span
-												className={
-													css.repositoryChoiceLogo
-												}
-												aria-hidden="true"
-											>
-												{match.resolved.target ===
-												'wordpress' ? (
-													<Icon
-														icon={wordpress}
-														size={42}
-													/>
-												) : (
-													<img
-														src={gutenbergLogoUrl}
-														alt=""
-													/>
+										target={match.resolved.target}
+										title={pullRequestTitle}
+										repositoryName={repositoryName}
+										details={
+											<>
+												PR #{match.resolved.ref}
+												{openedAt && (
+													<>
+														{' '}
+														<span
+															className={
+																css.repositoryChoiceOpened
+															}
+														>
+															opened{' '}
+															<time
+																dateTime={
+																	match
+																		.verification
+																		.openedAt
+																}
+															>
+																{openedAt}
+															</time>
+														</span>
+													</>
 												)}
-											</span>
-											<span
-												className={
-													css.repositoryChoiceText
-												}
-											>
-												<span
-													className={
-														css.repositoryChoiceTitle
-													}
-												>
-													{pullRequestTitle}
-												</span>
-												<span
-													className={
-														css.repositoryChoiceMeta
-													}
-												>
-													<span>
-														{repositoryName}
-													</span>
-													<span
-														className={
-															css.repositoryChoiceDetails
-														}
-													>
-														PR #{match.resolved.ref}
-														{openedAt && (
-															<>
-																{' '}
-																<span
-																	className={
-																		css.repositoryChoiceOpened
-																	}
-																>
-																	opened{' '}
-																	<time
-																		dateTime={
-																			match
-																				.verification
-																				.openedAt
-																		}
-																	>
-																		{
-																			openedAt
-																		}
-																	</time>
-																</span>
-															</>
-														)}
-													</span>
-												</span>
-											</span>
-										</span>
-										<span
-											className={
-												css.repositoryChoiceAction
-											}
-											aria-hidden="true"
-										>
-											<Icon
-												icon={chevronRight}
-												size={20}
-											/>
-										</span>
-									</Button>
+											</>
+										}
+										onClick={() => selectRepository(match)}
+									/>
 								);
 							})}
 						</div>
@@ -713,7 +651,7 @@ export default function PreviewPRForm({
 						<div>{feedback.message}</div>
 					))}
 			</div>
-			{inline && repositoryMatches.length === 0 ? (
+			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
 				<div className={css.inlineActions}>
 					<Button
 						variant="primary"
@@ -732,6 +670,67 @@ export default function PreviewPRForm({
 				/>
 			) : null}
 		</form>
+	);
+}
+
+/**
+ * Renders a repository-aware action for previewing a pull request or branch.
+ *
+ * A recognized GitHub URL and an ambiguous bare pull-request number both lead
+ * to the same action: a full-width row that identifies the repository and
+ * opens its preview. Keeping that action in one component prevents the input
+ * confirmation and repository picker from developing different interaction,
+ * spacing, icon, or focus treatments.
+ *
+ * The title identifies the change when the proxy returned one, or the parsed
+ * pull request or branch when the URL alone supplied the available context.
+ * Optional details add metadata such as a pull-request number, opened date, or
+ * the fact that the reference is a branch.
+ *
+ * @param props Repository, copy, state, and click handler for the preview row.
+ * @returns A button using the shared pull-request preview-card presentation.
+ */
+function PullRequestPreviewCard({
+	target,
+	title,
+	repositoryName,
+	details,
+	disabled = false,
+	onClick,
+}: PullRequestPreviewCardProps) {
+	return (
+		<Button
+			className={css.repositoryChoice}
+			variant="secondary"
+			type="button"
+			disabled={disabled}
+			aria-label={`Preview ${title} from ${repositoryName}`}
+			onClick={onClick}
+		>
+			<span className={css.repositoryChoiceMain}>
+				<span className={css.repositoryChoiceLogo} aria-hidden="true">
+					{target === 'wordpress' ? (
+						<Icon icon={wordpress} size={42} />
+					) : (
+						<img src={gutenbergLogoUrl} alt="" />
+					)}
+				</span>
+				<span className={css.repositoryChoiceText}>
+					<span className={css.repositoryChoiceTitle}>{title}</span>
+					<span className={css.repositoryChoiceMeta}>
+						<span>{repositoryName}</span>
+						{details && (
+							<span className={css.repositoryChoiceDetails}>
+								{details}
+							</span>
+						)}
+					</span>
+				</span>
+			</span>
+			<span className={css.repositoryChoiceAction} aria-hidden="true">
+				<Icon icon={chevronRight} size={20} />
+			</span>
+		</Button>
 	);
 }
 
