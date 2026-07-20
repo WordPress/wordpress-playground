@@ -13,11 +13,11 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Browser storage and recovery
 
-Playground runs WordPress in the browser. New Playgrounds are autosaved when browser storage and saving are available, and up to five recent autosaves appear in **Your Playgrounds**. Autosaves are recovery points, not long-term backups. Store an autosave permanently or export a ZIP when you want to keep it.
+Playground runs WordPress in the browser. New Playgrounds are autosaved when browser storage and saving are available, and they appear in **Your Playgrounds**. Only the five most recent autosaves are kept: when a new autosave is created, the oldest one is deleted. Autosaves are recovery points, not long-term backups. Store an autosave permanently or export a ZIP when you want to keep it.
 
 Use these storage modes deliberately:
 
-- **Autosaved**: stored in browser storage and retained while it is one of the recent autosaves kept by Playground.
+- **Autosaved**: stored in browser storage and retained only while it is one of the five most recent autosaves.
 - **Saved**: stored permanently in browser storage or saved to a local directory.
 - **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 
