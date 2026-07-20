@@ -550,8 +550,9 @@ async function opfsWriteFile(path: string, content: string) {
 			);
 		};
 	});
+	let timeoutId: ReturnType<typeof setTimeout>;
 	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(
+		timeoutId = setTimeout(
 			() =>
 				reject(
 					new Error(
@@ -562,7 +563,10 @@ async function opfsWriteFile(path: string, content: string) {
 		);
 	});
 
-	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
-		worker.terminate()
+	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
+		() => {
+			clearTimeout(timeoutId);
+			worker.terminate();
+		}
 	);
 }
