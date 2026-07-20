@@ -42,6 +42,7 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -382,6 +383,28 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		try {
+			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
+		} catch (error) {
+			if (signal.aborted) {
+				return;
+			}
+			logger.error('Error initializing saved Playground', error);
+			if (mountDescriptorForInitialOpfsSync) {
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.

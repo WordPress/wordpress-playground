@@ -12,6 +12,7 @@ import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
 import { logBlueprintEvents } from '../../tracking';
 import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -583,6 +584,40 @@ describe('bootSiteClient', () => {
 			expect.objectContaining({ initialOpfsSyncPending: false }),
 			undefined
 		);
+	});
+
+	it('runs a first-boot initializer before the initial OPFS copy', async () => {
+		const calls: string[] = [];
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(async () => {
+				calls.push('copy to OPFS');
+			}),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('zip-import', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		const initialization = registerSiteFirstBootInitializer(
+			'zip-import',
+			async () => {
+				calls.push('import ZIP');
+			}
+		);
+
+		await bootSiteClient('zip-import', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		await initialization.finished;
+		await vi.waitFor(() => expect(calls).toHaveLength(2));
+
+		expect(calls).toEqual(['import ZIP', 'copy to OPFS']);
 	});
 });
 

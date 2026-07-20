@@ -11,7 +11,7 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo } from './slice-clients';
+import { addClientInfo, updateClientInfo } from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
@@ -31,11 +31,16 @@ import {
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
-import { selectClientBySiteSlug } from './slice-clients';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+} from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { importWordPressFiles } from '@wp-playground/client';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -580,17 +585,7 @@ export function createSitesAPI(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings
 		): Promise<string> {
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-			});
-			const newSiteInfo = await dispatch(
-				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
-			);
-			await api.setActiveSite(newSiteInfo.slug);
-			return newSiteInfo.slug;
+			return await createTemporarySite(requestedSiteSlug, settings);
 		},
 
 		/**
@@ -616,37 +611,148 @@ export function createSitesAPI(
 				excludeFromPruning?: string[];
 			} = {}
 		): Promise<string> {
+			return await createSavedSite(requestedSiteSlug, settings, options);
+		},
+
+		/**
+		 * Creates a site from a Playground ZIP and waits until its imported
+		 * filesystem is safely stored. The import runs against first-boot MEMFS
+		 * before the initial OPFS copy, avoiding an empty-site persistence pass.
+		 *
+		 * @param wordPressFilesZip Playground ZIP export.
+		 * @returns The new site's slug.
+		 */
+		async createNewSiteFromZip(wordPressFilesZip: File): Promise<string> {
+			const initialize = async (playground: PlaygroundClient) => {
+				await importWordPressFiles(playground, { wordPressFilesZip });
+			};
 			if (!opfsSiteStorage) {
-				throw new Error(
-					'Cannot create a saved Playground because browser storage is not available.'
+				return await createTemporarySite(
+					undefined,
+					undefined,
+					initialize
 				);
 			}
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-				onlySetupParams: true,
-			});
-			const newSiteInfo = await dispatch(
-				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
-					persistence: options.persistence ?? 'explicit',
-				})
-			);
-			await api.setActiveSite(newSiteInfo.slug, {
-				updateUrl: options.updateUrl,
-			});
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [
-						newSiteInfo.slug,
-						...(options.excludeFromPruning ?? []),
-					],
-				})
-			);
-			return newSiteInfo.slug;
+			return await createSavedSite(undefined, undefined, {}, initialize);
 		},
 	};
+
+	async function createTemporarySite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		initialize?: (playground: PlaygroundClient) => Promise<void>
+	): Promise<string> {
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+		});
+		const newSiteInfo = await dispatch(
+			setTemporarySiteSpec(siteName, url, requestedSiteSlug, {
+				// ZIP initialization must run during a fresh boot, before WordPress
+				// starts serving requests from the new filesystem.
+				replaceExisting: Boolean(initialize),
+			})
+		);
+		await activateNewSite(newSiteInfo.slug, initialize);
+		return newSiteInfo.slug;
+	}
+
+	async function createSavedSite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		options: {
+			persistence?: SitePersistence;
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		} = {},
+		initialize?: (playground: PlaygroundClient) => Promise<void>
+	): Promise<string> {
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+			onlySetupParams: true,
+		});
+		const newSiteInfo = await dispatch(
+			setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+				persistence: options.persistence ?? 'explicit',
+			})
+		);
+		await activateNewSite(newSiteInfo.slug, initialize, {
+			updateUrl: options.updateUrl,
+		});
+		if (initialize) {
+			await waitForInitialOpfsSync(newSiteInfo.slug);
+		}
+		await dispatch(
+			pruneAutosavedSites({
+				excludeSlugs: [
+					newSiteInfo.slug,
+					...(options.excludeFromPruning ?? []),
+				],
+			})
+		);
+		return newSiteInfo.slug;
+	}
+
+	async function activateNewSite(
+		siteSlug: string,
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
+	) {
+		const initialization = initialize
+			? registerSiteFirstBootInitializer(siteSlug, initialize)
+			: undefined;
+		try {
+			await api.setActiveSite(siteSlug, options);
+			await initialization?.finished;
+		} catch (error) {
+			initialization?.cancel();
+			throw error;
+		}
+	}
+
+	async function waitForInitialOpfsSync(siteSlug: string) {
+		const getSync = () =>
+			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
+		const sync = getSync();
+		if (!sync) {
+			return;
+		}
+		if (sync.status === 'error') {
+			throw new Error('Unable to save the imported Playground.');
+		}
+
+		await new Promise<void>((resolve, reject) => {
+			const unsubscribe = startListening({
+				predicate: (action) =>
+					updateClientInfo.match(action) &&
+					action.payload.siteSlug === siteSlug,
+				effect: () => {
+					const currentSync = getSync();
+					if (currentSync?.status === 'syncing') {
+						return;
+					}
+					unsubscribe();
+					if (currentSync?.status === 'error') {
+						reject(
+							new Error('Unable to save the imported Playground.')
+						);
+					} else {
+						resolve();
+					}
+				},
+			});
+		});
+	}
 	return api;
 }
 
