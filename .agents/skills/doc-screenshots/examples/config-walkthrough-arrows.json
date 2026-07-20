@@ -1,0 +1,25 @@
+{
+	"screenshot": "fake_shot.png",
+	"output": "test-arrows.webp",
+	"css_width": 1440,
+	"supersample": 2,
+	"chrome_bar": { "url": "playground.wordpress.net" },
+	"outlines": [
+		{
+			"type": "rect",
+			"box": [865, 660, 95, 32],
+			"padding": 7,
+			"radius": 10
+		},
+		{
+			"type": "rect",
+			"box": [880, 706, 120, 44],
+			"padding": 7,
+			"radius": 12
+		}
+	],
+	"arrows": [
+		{ "from": [1200, 668], "to": [979, 676], "axis": "h" },
+		{ "from": [1180, 520], "to": [940, 693], "axis": "v" }
+	]
+}

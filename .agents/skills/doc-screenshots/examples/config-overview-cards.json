@@ -1,0 +1,45 @@
+{
+	"screenshot": "fake_shot.png",
+	"output": "test-cards.webp",
+	"css_width": 1440,
+	"supersample": 2,
+	"dim": { "region": [410, 630, 620, 140], "radius": 16 },
+	"outlines": [
+		{ "type": "circle", "center": [456, 676], "r": 26 },
+		{
+			"type": "rect",
+			"box": [865, 660, 95, 32],
+			"padding": 7,
+			"radius": 10
+		},
+		{
+			"type": "rect",
+			"box": [880, 706, 120, 44],
+			"padding": 7,
+			"radius": 12
+		}
+	],
+	"cards": [
+		{
+			"number": 1,
+			"title": "Refresh page",
+			"subtitle": "Reloads WordPress only",
+			"target": 0
+		},
+		{
+			"number": 2,
+			"title": "Save status",
+			"subtitle": "Click to choose where to save",
+			"target": 1
+		},
+		{
+			"number": 3,
+			"title": "Export",
+			"subtitle": "Download a ZIP or share",
+			"target": 2
+		}
+	],
+	"cards_top": 380,
+	"cards_inset": 48,
+	"cards_gap": 40
+}
