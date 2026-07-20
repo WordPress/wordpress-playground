@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { phpVersions } from '../../supported-php-versions.mjs';
 import { resolvePHPRelease, SupportedExtensionPHPVersions } from './compile';
 

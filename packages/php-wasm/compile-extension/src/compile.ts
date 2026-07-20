@@ -2,6 +2,8 @@ import { mkdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+// This repository-level file is the canonical source used by PHP builds.
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { phpVersions } from '../../supported-php-versions.mjs';
 
 import {
