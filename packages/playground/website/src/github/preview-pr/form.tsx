@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
-import { arrowRight, Icon, wordpress } from '@wordpress/icons';
+import { chevronRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
 import gutenbergLogoUrl from './gutenberg-logo.svg';
 import { logger } from '@php-wasm/logger';
@@ -554,12 +554,20 @@ export default function PreviewPRForm({
 								const openedDate = formatPullRequestOpenedDate(
 									match.verification.openedAt
 								);
+								const pullRequestTitle =
+									match.verification.title ||
+									`Pull request ${match.resolved.ref}`;
+								const repositoryName =
+									match.resolved.target === 'wordpress'
+										? 'wordpress/wordpress-develop'
+										: 'wordpress/gutenberg';
 								return (
 									<Button
 										key={match.resolved.target}
 										className={css.repositoryChoice}
 										variant="secondary"
 										type="button"
+										aria-label={`Preview ${pullRequestTitle} from ${repositoryName}`}
 										onClick={() => selectRepository(match)}
 									>
 										<span
@@ -594,8 +602,7 @@ export default function PreviewPRForm({
 														css.repositoryChoiceTitle
 													}
 												>
-													{match.verification.title ||
-														`Pull request ${match.resolved.ref}`}
+													{pullRequestTitle}
 												</span>
 												<span
 													className={
@@ -603,11 +610,7 @@ export default function PreviewPRForm({
 													}
 												>
 													<span>
-														{match.resolved
-															.target ===
-														'wordpress'
-															? 'wordpress/wordpress-develop'
-															: 'wordpress/gutenberg'}
+														{repositoryName}
 													</span>
 													<span
 														className={
@@ -641,9 +644,12 @@ export default function PreviewPRForm({
 											className={
 												css.repositoryChoiceAction
 											}
+											aria-hidden="true"
 										>
-											Preview
-											<Icon icon={arrowRight} size={16} />
+											<Icon
+												icon={chevronRight}
+												size={20}
+											/>
 										</span>
 									</Button>
 								);

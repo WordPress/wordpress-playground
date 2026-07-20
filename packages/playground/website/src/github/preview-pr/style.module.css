@@ -47,6 +47,7 @@
 	background: var(--paper-2, #faf8f5);
 	border-radius: var(--radius-control, 6px);
 	box-sizing: border-box;
+	cursor: pointer;
 	display: flex;
 	height: auto;
 	justify-content: space-between;
@@ -131,32 +132,14 @@
 
 .repository-choice-action {
 	align-items: center;
-	color: var(--accent-link, #2645c9);
+	color: var(--ink-faint, #8a857b);
 	display: flex;
 	flex: none;
-	font-size: 13px;
-	font-weight: 500;
-	gap: 4px;
-	margin-left: 16px;
+	margin-left: 12px;
 }
 
 @media (max-width: 519px) {
-	.repository-choice:global(.components-button) {
-		align-items: stretch;
-		flex-direction: column;
-	}
-
 	.repository-choice-main {
 		align-items: flex-start;
-	}
-
-	.repository-choice-action {
-		align-self: flex-end;
-		margin-left: 0;
-		margin-top: 8px;
-	}
-
-	.repository-choice-opened {
-		display: inline-block;
 	}
 }
