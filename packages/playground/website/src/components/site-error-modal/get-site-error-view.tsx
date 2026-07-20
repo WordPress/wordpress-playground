@@ -661,6 +661,7 @@ function resourceDownloadFailedView({
 function genericSiteBootFailedView({
 	blueprintStepError,
 	helpers,
+	errorDetails,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	// If we have a Blueprint step error, the dedicated view will have been used.
 	if (blueprintStepError) {
@@ -670,6 +671,9 @@ function genericSiteBootFailedView({
 			blueprintStepError,
 			helpers,
 		});
+	}
+	if (isIncompleteWordPressBundleError(errorDetails)) {
+		return incompleteWordPressBundleView(helpers);
 	}
 
 	return {
@@ -689,6 +693,56 @@ function genericSiteBootFailedView({
 				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Reload Fresh Playground
+			</Button>,
+		],
+	};
+}
+
+function isIncompleteWordPressBundleError(errorDetails: unknown): boolean {
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return false;
+	}
+	const error = errorDetails as {
+		name?: unknown;
+		originalErrorClassName?: unknown;
+	};
+	return (
+		error.name === 'WordPressBundleFileCountMismatchError' ||
+		error.originalErrorClassName === 'WordPressBundleFileCountMismatchError'
+	);
+}
+
+function incompleteWordPressBundleView(
+	helpers: PresentationHelpers
+): SiteErrorViewConfig {
+	return {
+		title: 'WordPress download was incomplete',
+		isDeveloperError: false,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground stopped because the downloaded WordPress package
+					was missing files.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						This usually means the download was interrupted or a
+						cached copy was damaged.
+					</li>
+					<li>Reload to download WordPress again.</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-incomplete-wordpress"
+				onClick={helpers.reloadPage}
+			>
+				Reload and try again
 			</Button>,
 		],
 	};

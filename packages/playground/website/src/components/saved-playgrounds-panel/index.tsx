@@ -15,6 +15,7 @@ import {
 	pencil,
 	layout,
 	fullscreen,
+	offline as offlineIcon,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -1422,9 +1423,22 @@ export function SavedPlaygroundsPanel({
 					</div>
 				)}
 				{!blueprintsLoading && blueprintsError && (
-					<p className={css.emptyMessage}>
-						Unable to load Blueprints. Check your connection.
-					</p>
+					<div className={css.blueprintsError} role="alert">
+						<span
+							className={css.blueprintsErrorIcon}
+							aria-hidden="true"
+						>
+							<Icon icon={offlineIcon} size={16} />
+						</span>
+						<div>
+							<p className={css.blueprintsErrorTitle}>
+								The Blueprint gallery couldn’t load
+							</p>
+							<p className={css.blueprintsErrorMessage}>
+								Check your internet connection and try again.
+							</p>
+						</div>
+					</div>
 				)}
 				{!blueprintsLoading &&
 					!blueprintsError &&
