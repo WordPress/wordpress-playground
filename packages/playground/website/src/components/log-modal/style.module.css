@@ -58,6 +58,15 @@
 	opacity: 0.65;
 }
 
+/* Separates the severity chips from the Playground channel toggle — a
+   different filter dimension in the same row. */
+.log-filter-divider {
+	align-self: stretch;
+	background: var(--line-control, rgba(33, 32, 29, 0.14));
+	margin: 2px var(--space-1, 4px);
+	width: 1px;
+}
+
 .log-copy-all {
 	background: none;
 	border: 0;
@@ -124,9 +133,13 @@
 	color: var(--ink-muted, #5f5b54);
 }
 
+/* A fixed-width first column ("PHP" / "Playground") so the variable-width
+   severity badges after it all start at the same x and stay scannable. */
 .log-channel {
 	color: var(--ink-faint, #8a857b);
+	flex-shrink: 0;
 	font-size: 12px;
+	min-width: 72px;
 }
 
 .log-timestamp {
@@ -197,6 +210,20 @@
 	font-weight: 500;
 	margin-top: var(--space-1, 4px);
 	padding: 0;
+}
+
+/* While an entry is expanded, "Show less" rides the bottom of the scrollport
+   so collapsing never requires scrolling to the end of a long record. The
+   full-width opaque band masks the text passing beneath it. */
+.log-entry-toggle[aria-expanded='true'] {
+	background: var(--paper-1, #fff);
+	bottom: 0;
+	box-shadow: 0 -1px 0 var(--line-subtle, rgba(33, 32, 29, 0.08));
+	display: block;
+	padding: var(--space-2, 8px) 0;
+	position: sticky;
+	text-align: left;
+	width: 100%;
 }
 
 .log-entry-toggle:hover {

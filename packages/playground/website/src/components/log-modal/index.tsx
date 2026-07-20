@@ -36,7 +36,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	return (
 		<Modal title={props.title || 'Error Logs'} onRequestClose={onClose}>
 			<div>{props.description}</div>
-			<SiteLogs key={activeModal} className={css.logsInsideModal} />
+			{/* Error reports must show everything — a WASM crash is a
+			    Playground entry, and hiding it would hide the crash itself. */}
+			<SiteLogs
+				key={activeModal}
+				className={css.logsInsideModal}
+				defaultShowPlayground
+			/>
 		</Modal>
 	);
 }
@@ -50,10 +56,19 @@ const TIER_FILTERS: Array<{ tier: LogTier; label: string }> = [
 	{ tier: 'info', label: 'Info' },
 ];
 
-export function SiteLogs({ className }: { className?: string }) {
+export function SiteLogs({
+	className,
+	defaultShowPlayground = false,
+}: {
+	className?: string;
+	defaultShowPlayground?: boolean;
+}) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [tierFilter, setTierFilter] = useState<LogTier | 'all'>('all');
+	// Playground host messages are noise for most debugging sessions, so the
+	// Dock pane hides them until the Playground chip turns them back on.
+	const [showPlayground, setShowPlayground] = useState(defaultShowPlayground);
 	const [copiedAll, copyAll] = useCopyToClipboard();
 	const contentRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +84,7 @@ export function SiteLogs({ className }: { className?: string }) {
 				node.scrollTop = 0;
 			}
 		}
-	}, [tierFilter, searchTerm]);
+	}, [tierFilter, searchTerm, showPlayground]);
 
 	const entries = useMemo(() => parseLogs(logs), [logs]);
 
@@ -81,22 +96,40 @@ export function SiteLogs({ className }: { className?: string }) {
 			.filter(({ entry }) => entry.raw.toLowerCase().includes(needle));
 	}, [entries, searchTerm]);
 
+	const playgroundCount = useMemo(
+		() =>
+			searchedEntries.filter(
+				({ entry }) => entry.channel === 'Playground'
+			).length,
+		[searchedEntries]
+	);
+
+	const channelEntries = useMemo(
+		() =>
+			showPlayground
+				? searchedEntries
+				: searchedEntries.filter(
+						({ entry }) => entry.channel !== 'Playground'
+					),
+		[searchedEntries, showPlayground]
+	);
+
 	const tierCounts = useMemo(() => {
 		const counts: Record<LogTier, number> = {
 			error: 0,
 			warning: 0,
 			info: 0,
 		};
-		for (const { entry } of searchedEntries) {
+		for (const { entry } of channelEntries) {
 			counts[entry.tier]++;
 		}
 		return counts;
-	}, [searchedEntries]);
+	}, [channelEntries]);
 
 	const visibleEntries =
 		tierFilter === 'all'
-			? searchedEntries
-			: searchedEntries.filter(({ entry }) => entry.tier === tierFilter);
+			? channelEntries
+			: channelEntries.filter(({ entry }) => entry.tier === tierFilter);
 
 	useEffect(() => {
 		getLogs();
@@ -114,6 +147,7 @@ export function SiteLogs({ className }: { className?: string }) {
 	function clearFilters() {
 		setSearchTerm('');
 		setTierFilter('all');
+		setShowPlayground(defaultShowPlayground);
 	}
 
 	return (
@@ -130,7 +164,7 @@ export function SiteLogs({ className }: { className?: string }) {
 					<div
 						className={css.logFilters}
 						role="group"
-						aria-label="Filter logs by severity"
+						aria-label="Filter logs"
 					>
 						<button
 							type="button"
@@ -140,7 +174,7 @@ export function SiteLogs({ className }: { className?: string }) {
 						>
 							All
 							<span className={css.logFilterCount}>
-								{searchedEntries.length}
+								{channelEntries.length}
 							</span>
 						</button>
 						{TIER_FILTERS.filter(
@@ -164,6 +198,28 @@ export function SiteLogs({ className }: { className?: string }) {
 								</span>
 							</button>
 						))}
+						{(playgroundCount > 0 || showPlayground) && (
+							<>
+								<span
+									className={css.logFilterDivider}
+									aria-hidden="true"
+								/>
+								<button
+									type="button"
+									className={css.logFilterChip}
+									aria-pressed={showPlayground}
+									title="Show runtime messages from the Playground app itself"
+									onClick={() =>
+										setShowPlayground(!showPlayground)
+									}
+								>
+									Playground
+									<span className={css.logFilterCount}>
+										{playgroundCount}
+									</span>
+								</button>
+							</>
+						)}
 						{visibleEntries.length > 0 && (
 							<button
 								type="button"
@@ -203,13 +259,25 @@ export function SiteLogs({ className }: { className?: string }) {
 								? `No logs match “${searchTerm}”.`
 								: 'No logs match the current filter.'}
 						</p>
-						<button
-							type="button"
-							className={css.logClearSearch}
-							onClick={clearFilters}
-						>
-							Clear filters
-						</button>
+						{(searchTerm !== '' || tierFilter !== 'all') && (
+							<button
+								type="button"
+								className={css.logClearSearch}
+								onClick={clearFilters}
+							>
+								Clear filters
+							</button>
+						)}
+						{!showPlayground && playgroundCount > 0 && (
+							<button
+								type="button"
+								className={css.logClearSearch}
+								onClick={() => setShowPlayground(true)}
+							>
+								Show {playgroundCount} Playground{' '}
+								{playgroundCount === 1 ? 'entry' : 'entries'}
+							</button>
+						)}
 					</div>
 				) : (
 					<div className={css.logEmptyState}>
@@ -254,6 +322,7 @@ function LogEntryRow({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const [overflowing, setOverflowing] = useState(false);
+	const entryRef = useRef<HTMLLIElement>(null);
 	const messageRef = useRef<HTMLDivElement>(null);
 	const [copied, copy] = useCopyToClipboard();
 
@@ -280,12 +349,14 @@ function LogEntryRow({
 		entry.timestamp?.match(/\d{2}:\d{2}:\d{2}/)?.[0] ?? entry.timestamp;
 
 	return (
-		<li className={css.logEntry}>
+		<li ref={entryRef} className={css.logEntry}>
 			<div className={css.logEntryMeta}>
+				{/* Channel first: a two-value, fixed-width column keeps both
+				    it and the variable-width severity badge aligned. */}
+				<span className={css.logChannel}>{entry.channel}</span>
 				<span className={css.logBadge} data-tier={entry.tier}>
 					{entry.label}
 				</span>
-				<span className={css.logChannel}>{entry.channel}</span>
 				{entry.timestamp && (
 					<time className={css.logTimestamp} title={entry.timestamp}>
 						{time}
@@ -322,7 +393,19 @@ function LogEntryRow({
 					type="button"
 					className={css.logEntryToggle}
 					aria-expanded={expanded}
-					onClick={() => setExpanded(!expanded)}
+					onClick={() => {
+						const next = !expanded;
+						setExpanded(next);
+						if (!next) {
+							// Collapsing shrinks the list; without this the
+							// viewport lands on whatever slid up into it.
+							requestAnimationFrame(() =>
+								entryRef.current?.scrollIntoView({
+									block: 'nearest',
+								})
+							);
+						}
+					}}
 				>
 					{expanded
 						? 'Show less'
