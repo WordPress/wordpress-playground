@@ -316,7 +316,12 @@ export function addSite(siteInfo: SiteInfo) {
 /**
  * Removes a stored site from OPFS and from the redux state.
  *
- * Temporary sites are rejected because they only exist in redux state.
+ * Temporary sites are rejected because they only exist in redux state. If
+ * deleting the OPFS data fails, the redux record remains available for retry
+ * and the storage error is rethrown.
+ *
+ * @throws When the site is temporary, browser storage is unavailable, or its
+ * OPFS data cannot be deleted.
  */
 export function removeSite(slug: string) {
 	return async (
@@ -328,11 +333,12 @@ export function removeSite(slug: string) {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error('Cannot remove a temporary site.');
 		}
-		try {
-			await opfsSiteStorage?.delete(siteInfo.slug);
-		} catch (error: any) {
-			logger.error('Error deleting site from OPFS:', error);
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot remove a saved Playground because browser storage is not available.'
+			);
 		}
+		await opfsSiteStorage.delete(siteInfo.slug);
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
@@ -349,7 +355,9 @@ export function removeSite(slug: string) {
  * Removes autosaved Playgrounds beyond the retention limit.
  *
  * Explicitly saved Playgrounds are never pruned. `excludeSlugs` protects
- * specific autosaves for the current prune pass.
+ * specific autosaves for the current prune pass. Removal is best-effort: a
+ * failed deletion remains available for retry and does not prevent later
+ * candidates from being pruned.
  */
 export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 	return async (
@@ -361,7 +369,14 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 			options
 		);
 		for (const site of sitesToPrune) {
-			await dispatch(removeSite(site.slug));
+			try {
+				await dispatch(removeSite(site.slug));
+			} catch (error) {
+				logger.error(
+					`Failed to prune autosaved Playground "${site.slug}"`,
+					error
+				);
+			}
 		}
 	};
 }
