@@ -80,7 +80,7 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(manifest.siteUrl).toContain(`scope:${sourceScope}`);
 	});
 
-	it('should export all wp-content files and wp-config.php', async () => {
+	it('should export all user-owned wp-content files and wp-config.php', async () => {
 		const documentRoot = await sourcePHP.documentRoot;
 		const customizedThemeFile = joinPaths(
 			documentRoot,
@@ -110,6 +110,100 @@ describe('Blueprint step importWordPressFiles', () => {
 			themeFile: 'customized default theme',
 			hasWpConfig: true,
 		});
+	});
+
+	it('should omit legacy runtime artifacts but preserve custom db.php', async () => {
+		const documentRoot = await sourcePHP.documentRoot;
+		const wpContentPath = joinPaths(documentRoot, 'wp-content');
+		const runtimePluginPath = joinPaths(
+			wpContentPath,
+			'mu-plugins/0-playground.php'
+		);
+		const dbPhpPath = joinPaths(wpContentPath, 'db.php');
+		await sourcePHP.mkdir(dirname(runtimePluginPath));
+		await sourcePHP.writeFile(
+			runtimePluginPath,
+			new TextEncoder().encode('<?php // Legacy Playground runtime')
+		);
+		await sourcePHP.writeFile(
+			dbPhpPath,
+			new TextEncoder().encode(
+				'<?php // @playground-managed generated database drop-in'
+			)
+		);
+
+		const managedDbZip = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/managed-db.zip', managedDbZip);
+
+		await sourcePHP.writeFile(
+			dbPhpPath,
+			new TextEncoder().encode('<?php // User-provided database drop-in')
+		);
+		const customDbZip = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/custom-db.zip', customDbZip);
+
+		const result = await targetPHP.run({
+			code: `<?php
+			$managed = new ZipArchive();
+			$managed->open('/tmp/managed-db.zip');
+			$custom = new ZipArchive();
+			$custom->open('/tmp/custom-db.zip');
+			echo json_encode([
+				'managedDb' => $managed->locateName('wp-content/db.php') !== false,
+				'managedPlugin' => $managed->locateName('wp-content/mu-plugins/0-playground.php') !== false,
+				'customDb' => $custom->getFromName('wp-content/db.php'),
+				'customPlugin' => $custom->locateName('wp-content/mu-plugins/0-playground.php') !== false,
+			]);
+			$managed->close();
+			$custom->close();
+			`,
+		});
+
+		expect(JSON.parse(result.text)).toEqual({
+			managedDb: false,
+			managedPlugin: false,
+			customDb: '<?php // User-provided database drop-in',
+			customPlugin: false,
+		});
+	});
+
+	it('should retain current runtime artifacts when old archives contain them', async () => {
+		const targetDocumentRoot = await targetPHP.documentRoot;
+		const runtimeRelativePath = 'wp-content/mu-plugins/0-playground.php';
+		const targetRuntimePath = joinPaths(
+			targetDocumentRoot,
+			runtimeRelativePath
+		);
+		await targetPHP.mkdir(dirname(targetRuntimePath));
+		await targetPHP.writeFile(
+			targetRuntimePath,
+			new TextEncoder().encode('<?php // Current Playground runtime')
+		);
+
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/legacy-runtime.zip', zipBuffer);
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open('/tmp/legacy-runtime.zip');
+			$zip->addFromString(
+				${phpVar(runtimeRelativePath)},
+				'<?php // Archived Playground runtime'
+			);
+			$zip->close();
+			`,
+		});
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File(
+				[await targetPHP.readFileAsBuffer('/tmp/legacy-runtime.zip')],
+				'legacy-runtime.zip'
+			),
+		});
+
+		expect(await targetPHP.readFileAsText(targetRuntimePath)).toBe(
+			'<?php // Current Playground runtime'
+		);
 	});
 
 	it('should replace old scope URLs with new scope URLs in post content during import', async () => {

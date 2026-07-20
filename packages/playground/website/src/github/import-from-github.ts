@@ -4,8 +4,8 @@ import { dirname, joinPaths } from '@php-wasm/util';
 import {
 	activatePlugin,
 	activateTheme,
+	getLegacyPlaygroundRuntimeWpContentPaths,
 	login,
-	wpContentFilesExcludedFromExport,
 } from '@wp-playground/blueprints';
 import type { Files } from '@wp-playground/storage';
 import { filesListToObject } from '@wp-playground/storage';
@@ -70,29 +70,46 @@ export async function importTheme(
 }
 
 export async function importWpContent(php: UniversalPHP, files: Files) {
-	const restorePaths = wpContentFilesExcludedFromExport.map((path) =>
-		joinPaths('wp-content', path)
+	const wpContentPath = '/wordpress/wp-content';
+	const temporaryWpContentPath = '/tmp/wp-content';
+	const currentRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
+		php,
+		wpContentPath
 	);
 
-	// Backup the required Playground PHP files
-	for (const restorePath of restorePaths) {
-		if (await php.fileExists(`/wordpress/${restorePath}`)) {
-			await php.mkdir(`/tmp/${dirname(restorePath)}`);
-			await php.mv(`/wordpress/${restorePath}`, `/tmp/${restorePath}`);
+	// Back up runtime artifacts supplied by the current Playground.
+	for (const relativePath of currentRuntimePaths) {
+		const currentPath = joinPaths(wpContentPath, relativePath);
+		const temporaryPath = joinPaths(temporaryWpContentPath, relativePath);
+		if (await php.fileExists(currentPath)) {
+			await php.mkdir(dirname(temporaryPath));
+			await php.mv(currentPath, temporaryPath);
 		}
 	}
 
-	await writeFiles(php, '/wordpress/wp-content', files, {
+	await writeFiles(php, wpContentPath, files, {
 		rmRoot: true,
 	});
 
-	for (const restorePath of restorePaths) {
+	// Remove runtime artifacts committed by older Playgrounds. A custom db.php
+	// has no Playground marker and remains part of the imported site.
+	const importedRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
+		php,
+		wpContentPath
+	);
+	for (const relativePath of importedRuntimePaths) {
+		await removePath(php, joinPaths(wpContentPath, relativePath));
+	}
+
+	for (const relativePath of currentRuntimePaths) {
+		const currentPath = joinPaths(wpContentPath, relativePath);
+		const temporaryPath = joinPaths(temporaryWpContentPath, relativePath);
 		if (
-			(await php.fileExists(`/tmp/${restorePath}`)) &&
-			!(await php.fileExists(`/wordpress/${restorePath}`))
+			!(await php.fileExists(currentPath)) &&
+			(await php.fileExists(temporaryPath))
 		) {
-			await php.mkdir(`/wordpress/${dirname(restorePath)}`);
-			await php.mv(`/tmp/${restorePath}`, `/wordpress/${restorePath}`);
+			await php.mkdir(dirname(currentPath));
+			await php.mv(temporaryPath, currentPath);
 		}
 	}
 
@@ -104,4 +121,15 @@ export async function importWpContent(php: UniversalPHP, files: Files) {
 	});
 
 	await login(php, {});
+}
+
+async function removePath(php: UniversalPHP, path: string) {
+	if (!(await php.fileExists(path))) {
+		return;
+	}
+	if (await php.isDir(path)) {
+		await php.rmdir(path, { recursive: true });
+	} else {
+		await php.unlink(path);
+	}
 }
