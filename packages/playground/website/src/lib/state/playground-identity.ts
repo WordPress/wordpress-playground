@@ -10,6 +10,7 @@ type SetupQueryParam = Exclude<keyof QueryAPIParams, NonSetupQueryParam>;
 
 const SETUP_QUERY_PARAM_KEYS = Object.keys({
 	blueprint: true,
+	'blueprint-source': true,
 	'blueprint-url': true,
 	'core-pr': true,
 	'gutenberg-branch': true,

@@ -13,6 +13,7 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
+import { getOpenerBlueprintReceiver } from '../../opener-blueprint-protocol';
 
 export { decodeBlueprintHash };
 
@@ -23,6 +24,10 @@ export type BlueprintSource =
 	  }
 	| {
 			type: 'inline-string';
+	  }
+	| {
+			type: 'opener';
+			runId: string;
 	  }
 	| {
 			type: 'none';
@@ -70,7 +75,32 @@ export async function resolveBlueprintFromURL(
 	 * If the URL has no parameters or fragment, and a default blueprint is provided,
 	 * use the default blueprint.
 	 */
-	if (
+	if (query.get('blueprint-source') === 'opener') {
+		const receiver = getOpenerBlueprintReceiver();
+		if (!receiver) {
+			throw new Error(
+				'The opener Blueprint receiver was not initialized.'
+			);
+		}
+		const { blueprint, runId } = await receiver.waitForRun();
+		if (isMcpServerEnabled()) {
+			const error = new Error(
+				`Starting a new Playground from an opener Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the "blueprint-source" query parameter to proceed or
+				disable the MCP server by removing the "mcp-port" query parameter.`
+			);
+			receiver.reportError(error);
+			throw error;
+		}
+		return {
+			blueprint: blueprint as Blueprint,
+			source: {
+				type: 'opener',
+				runId,
+			},
+		};
+	} else if (
 		window.self === window.top &&
 		!query.size &&
 		!fragment.length &&
