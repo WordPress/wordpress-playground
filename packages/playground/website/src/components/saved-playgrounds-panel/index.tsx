@@ -143,6 +143,12 @@ type CreationTabId =
 	| 'pull-request'
 	| 'zip';
 
+type ZipImportStatus = {
+	type: 'progress' | 'error';
+	caption: string;
+	progress?: number;
+};
+
 interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
@@ -179,6 +185,7 @@ export function SavedPlaygroundsPanel({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [zipImportStatus, setZipImportStatus] = useState<ZipImportStatus>();
 	const zipImportPendingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
@@ -332,23 +339,45 @@ export function SavedPlaygroundsPanel({
 
 		zipImportPendingRef.current = true;
 		setIsImportingZip(true);
+		setZipImportStatus({
+			type: 'progress',
+			caption: 'Preparing a new Playground',
+			progress: 0,
+		});
 		try {
-			await sitesAPI.createNewSiteFromZip(file);
+			const importedSiteSlug = await sitesAPI.createNewSiteFromZip(
+				file,
+				(progress) => {
+					setZipImportStatus({ type: 'progress', ...progress });
+				}
+			);
+			const importedSite = sitesAPI
+				.list()
+				.find((site) => site.slug === importedSiteSlug);
 			const importedPlayground = sitesAPI.getClient();
 			window.setTimeout(() => {
 				void importedPlayground?.goTo('/').catch((error) => {
 					logger.error('Failed to refresh imported site', error);
 				});
 			}, 200);
-			alert(
-				'File imported! This Playground instance has been updated and will refresh shortly.'
+			dispatch(
+				setDockOperationNotice({
+					kind: 'success',
+					title: 'Playground imported',
+					message:
+						importedSite?.storage === 'temporary'
+							? `${file.name} is temporary and will be lost when this page closes.`
+							: `${file.name} is stored in this browser.`,
+				})
 			);
 			onClose();
 		} catch (error) {
 			logger.error(error);
-			alert(
-				'Unable to import file. Is it a valid WordPress Playground export?'
-			);
+			setZipImportStatus({
+				type: 'error',
+				caption:
+					'Unable to import this file. Is it a valid WordPress Playground export?',
+			});
 		} finally {
 			zipImportPendingRef.current = false;
 			setIsImportingZip(false);
@@ -1509,6 +1538,46 @@ export function SavedPlaygroundsPanel({
 									: 'Choose a .zip file…'}
 							</Button>
 						</div>
+						{zipImportStatus && (
+							<div
+								className={classNames(css.zipImportStatus, {
+									[css.zipImportError]:
+										zipImportStatus.type === 'error',
+								})}
+								role={
+									zipImportStatus.type === 'error'
+										? 'alert'
+										: 'status'
+								}
+								aria-live="polite"
+							>
+								<div className={css.zipImportStatusLabel}>
+									{zipImportStatus.type === 'progress' && (
+										<Spinner />
+									)}
+									<span>{zipImportStatus.caption}</span>
+									{zipImportStatus.type === 'progress' &&
+										typeof zipImportStatus.progress ===
+											'number' && (
+											<span
+												className={css.zipImportPercent}
+											>
+												{Math.round(
+													zipImportStatus.progress
+												)}
+												%
+											</span>
+										)}
+								</div>
+								{zipImportStatus.type === 'progress' && (
+									<progress
+										max={100}
+										value={zipImportStatus.progress ?? 0}
+										aria-label="ZIP import progress"
+									/>
+								)}
+							</div>
+						)}
 					</div>
 				);
 			default:

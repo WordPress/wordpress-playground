@@ -10,7 +10,7 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError } from './slice-ui';
+import { setActiveSiteError, setSiteImportIsRunning } from './slice-ui';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -45,6 +45,8 @@ import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
 import { importWordPressFiles } from '@wp-playground/client';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { ProgressTracker, type ProgressTrackerEvent } from '@php-wasm/progress';
+import { logger } from '@php-wasm/logger';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 
 export interface SiteSettings {
@@ -57,6 +59,10 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
+type ZipImportProgress = { caption: string; progress: number };
+
+const ZIP_INSTALL_PROGRESS_PERCENT = 85;
+const ZIP_STORAGE_PROGRESS_PERCENT = 100 - ZIP_INSTALL_PROGRESS_PERCENT;
 
 /**
  * Tracks the operation shared by concurrent autosave calls for one site.
@@ -837,18 +843,61 @@ export function createSitesAPI(
 		 * @param wordPressFilesZip Playground ZIP export.
 		 * @returns The new site's slug.
 		 */
-		async createNewSiteFromZip(wordPressFilesZip: File): Promise<string> {
-			const initialize = async (playground: PlaygroundClient) => {
-				await importWordPressFiles(playground, { wordPressFilesZip });
-			};
-			if (!opfsSiteStorage) {
-				return await createTemporarySite(
-					undefined,
-					undefined,
-					initialize
+		async createNewSiteFromZip(
+			wordPressFilesZip: File,
+			onProgress?: (progress: ZipImportProgress) => void
+		): Promise<string> {
+			dispatch(setSiteImportIsRunning(true));
+			try {
+				const tracker = new ProgressTracker();
+				const importWeight = opfsSiteStorage
+					? ZIP_INSTALL_PROGRESS_PERCENT / 100
+					: 1;
+				tracker.addEventListener(
+					'progress',
+					(event: ProgressTrackerEvent) => {
+						onProgress?.({
+							caption: event.detail.caption,
+							progress: event.detail.progress * importWeight,
+						});
+					}
 				);
+				const initialize = async (playground: PlaygroundClient) => {
+					await importWordPressFiles(
+						playground,
+						{ wordPressFilesZip },
+						{ tracker }
+					);
+					void playground
+						.goTo('/')
+						.catch((error) => {
+							logger.error(
+								'Failed to refresh imported site',
+								error
+							);
+						})
+						.finally(() => {
+							dispatch(setSiteImportIsRunning(false));
+						});
+				};
+				if (!opfsSiteStorage) {
+					return await createTemporarySite(
+						undefined,
+						undefined,
+						initialize
+					);
+				}
+				return await createSavedSite(
+					undefined,
+					undefined,
+					{},
+					initialize,
+					onProgress
+				);
+			} catch (error) {
+				dispatch(setSiteImportIsRunning(false));
+				throw error;
 			}
-			return await createSavedSite(undefined, undefined, {}, initialize);
 		},
 	};
 
@@ -882,7 +931,8 @@ export function createSitesAPI(
 			updateUrl?: boolean;
 			excludeFromPruning?: string[];
 		} = {},
-		initialize?: (playground: PlaygroundClient) => Promise<void>
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		onProgress?: (progress: ZipImportProgress) => void
 	): Promise<string> {
 		if (!opfsSiteStorage) {
 			throw new Error(
@@ -907,7 +957,7 @@ export function createSitesAPI(
 				updateUrl: options.updateUrl,
 			});
 			if (initialize) {
-				await waitForInitialOpfsSync(newSiteInfo.slug);
+				await waitForInitialOpfsSync(newSiteInfo.slug, onProgress);
 			}
 		} catch (error) {
 			if (initialize) {
@@ -950,9 +1000,30 @@ export function createSitesAPI(
 		}
 	}
 
-	async function waitForInitialOpfsSync(siteSlug: string) {
+	async function waitForInitialOpfsSync(
+		siteSlug: string,
+		onProgress?: (progress: ZipImportProgress) => void
+	) {
 		const getSync = () =>
 			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
+		const reportProgress = () => {
+			const currentSync = getSync();
+			const syncProgress =
+				currentSync?.status === 'syncing'
+					? currentSync.progress
+					: undefined;
+			const completedFiles = syncProgress?.files ?? 0;
+			const totalFiles = syncProgress?.total ?? 0;
+			onProgress?.({
+				caption: 'Saving imported Playground',
+				progress:
+					ZIP_INSTALL_PROGRESS_PERCENT +
+					(totalFiles > 0
+						? Math.min(1, completedFiles / totalFiles) *
+							ZIP_STORAGE_PROGRESS_PERCENT
+						: 0),
+			});
+		};
 		const sync = getSync();
 		if (!sync) {
 			const site = selectSiteBySlug(getState(), siteSlug);
@@ -961,11 +1032,13 @@ export function createSitesAPI(
 					'Unable to save the imported Playground because its initial storage sync did not complete.'
 				);
 			}
+			onProgress?.({ caption: 'Import complete', progress: 100 });
 			return;
 		}
 		if (sync.status === 'error') {
 			throw new Error('Unable to save the imported Playground.');
 		}
+		reportProgress();
 
 		await new Promise<void>((resolve, reject) => {
 			const unsubscribe = startListening({
@@ -986,6 +1059,7 @@ export function createSitesAPI(
 					}
 					const currentSync = getSync();
 					if (currentSync?.status === 'syncing') {
+						reportProgress();
 						return;
 					}
 					unsubscribe();
@@ -994,6 +1068,10 @@ export function createSitesAPI(
 							new Error('Unable to save the imported Playground.')
 						);
 					} else {
+						onProgress?.({
+							caption: 'Import complete',
+							progress: 100,
+						});
 						resolve();
 					}
 				},
