@@ -6,8 +6,6 @@
  *
  * This worker exists so non-worker threads can trigger writing to OPFS files.
  */
-import { logger } from '@php-wasm/logger';
-
 onmessage = async function (event: MessageEvent) {
 	const filePath: string = event.data.path;
 	const content: string = event.data.content;
@@ -40,9 +38,17 @@ onmessage = async function (event: MessageEvent) {
 			syncAccessHandle.close();
 		}
 	} catch (error) {
-		logger.error('Error in OPFS write worker.', {
+		responsePort.postMessage({
+			type: 'error',
 			path: filePath,
-			error,
+			error:
+				error instanceof Error
+					? {
+							name: error.name,
+							message: error.message,
+							stack: error.stack,
+						}
+					: error,
 		});
 		throw error;
 	}
