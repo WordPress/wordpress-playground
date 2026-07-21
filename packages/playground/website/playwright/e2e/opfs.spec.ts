@@ -1102,17 +1102,15 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler for the import success alert
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
-
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
 		name: 'test-import.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 
 	// The import should switch us to a new saved Playground by default.
 	await expect(getPlaygroundTitle(website.page)).not.toContainText(
@@ -1128,8 +1126,7 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 	await website.openPlaygroundsPane();
 
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
 		.click();
 	await website.ensureSiteManagerIsOpen();
 
@@ -1214,17 +1211,15 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
-
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
 		name: 'test-import-direct.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 
 	// The import should trigger creation of a new saved site by default.
 	await expect(getPlaygroundTitle(website.page)).not.toContainText(
@@ -1239,8 +1234,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	await website.openPlaygroundsPane();
 
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
 		.click();
 	await website.ensureSiteManagerIsOpen();
 
