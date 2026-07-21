@@ -259,6 +259,85 @@ add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
+ * Captures this document when the trusted Playground parent requests a site
+ * thumbnail. The renderer is loaded only for a capture, so normal WordPress
+ * page loads do not pay its download or execution cost.
+ */
+function playground_enable_site_thumbnail_capture() {
+	?>
+	<script>
+		(function () {
+			if (window.__playgroundSiteThumbnailCaptureEnabled) {
+				return;
+			}
+			window.__playgroundSiteThumbnailCaptureEnabled = true;
+
+			window.addEventListener('message', async function (event) {
+				// The origin protects the trust boundary. Checking source as well
+				// prevents another same-origin frame from requesting code execution.
+				if (
+					event.source !== window.parent ||
+					event.origin !== window.location.origin ||
+					event.data?.type !== 'playground-capture-site-thumbnail'
+				) {
+					return;
+				}
+
+				const request = event.data;
+				try {
+					if (
+						typeof request.moduleUrl !== 'string' ||
+						!request.moduleUrl
+					) {
+						throw new Error('Missing site thumbnail module URL.');
+					}
+					// Dynamic import executes inside the WordPress document. Accept only
+					// the same-origin renderer asset marked by the trusted parent.
+					const moduleUrl = new URL(request.moduleUrl);
+					if (
+						moduleUrl.origin !== event.origin ||
+						!moduleUrl.pathname.includes('/capture-site-thumbnail') ||
+						moduleUrl.searchParams.get(
+							'playground-site-thumbnail-module'
+						) !== '1'
+					) {
+						throw new Error('Invalid site thumbnail module URL.');
+					}
+					await import(moduleUrl.href);
+					if (typeof window.__playgroundCaptureSiteThumbnail !== 'function') {
+						throw new Error('Site thumbnail renderer did not load.');
+					}
+					const thumbnail = await window.__playgroundCaptureSiteThumbnail();
+					window.parent.postMessage(
+						{
+							type: 'playground-site-thumbnail-result',
+							requestId: request.requestId,
+							thumbnail,
+						},
+						event.origin
+					);
+				} catch (error) {
+					window.parent.postMessage(
+						{
+							type: 'playground-site-thumbnail-result',
+							requestId: request.requestId,
+							error:
+								error instanceof Error
+									? error.message
+									: String(error),
+						},
+						event.origin
+					);
+				}
+			});
+		})();
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_enable_site_thumbnail_capture');
+add_action('admin_head', 'playground_enable_site_thumbnail_capture');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.

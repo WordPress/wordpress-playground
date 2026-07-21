@@ -221,16 +221,37 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
+	// imports them during development. Sending them through WordPress turns the
+	// module graph into scoped 404 responses.
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js') ||
-		url.pathname.startsWith('/relay/');
+		url.pathname.startsWith('/relay/') ||
+		url.pathname.startsWith('/@fs/');
 	if (isReservedUrl) {
 		return;
 	}
 
 	if (url.pathname === '/feature-detect/document-isolation-policy.html') {
 		return event.respondWith(documentIsolationPolicyHtml());
+	}
+
+	// The thumbnail renderer and its resource worker are Playground assets loaded
+	// from inside a scoped WordPress document. Serve them as app assets instead of
+	// redirecting them into that site's virtual URL namespace, where WordPress
+	// would return a 404.
+	if (
+		(url.pathname.includes('/capture-site-thumbnail') &&
+			url.searchParams.has('playground-site-thumbnail-module')) ||
+		(event.request.destination === 'worker' &&
+			url.searchParams.has('playground-site-thumbnail-worker'))
+	) {
+		return event.respondWith(
+			shouldCacheUrl(url)
+				? cacheFirstFetch(event.request)
+				: fetch(event.request)
+		);
 	}
 
 	if (isURLScoped(url)) {

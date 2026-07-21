@@ -26,7 +26,7 @@ export {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor };
+export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
 
 import {
 	BlueprintReflection,
@@ -41,7 +41,11 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import type {
+	MountDescriptor,
+	PlaygroundClient,
+	SiteThumbnail,
+} from '@wp-playground/remote';
 import type { PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
