@@ -876,6 +876,9 @@ export function createSitesAPI(
 						logger.error('Failed to refresh imported site', error);
 						throw error;
 					});
+					// The imported page is ready. Reveal it while createSavedSite waits
+					// for the initial OPFS autosave to finish.
+					dispatch(setSiteImportIsRunning(false));
 				};
 				if (!opfsSiteStorage) {
 					return await createTemporarySite(

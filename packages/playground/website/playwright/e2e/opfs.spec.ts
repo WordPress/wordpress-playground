@@ -996,10 +996,13 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	const loading = website.page.getByRole('heading', {
 		name: 'Preparing WordPress',
 	});
-	const saveProgress = website.page.getByRole('progressbar', {
-		name: 'Save progress',
+	const autosaveProgress = website.page.getByRole('progressbar', {
+		name: 'Autosave progress',
 	});
 	const loadingStarted = expect(loading).toBeVisible({ timeout: 120000 });
+	const autosaveStarted = expect(autosaveProgress).toBeVisible({
+		timeout: 120000,
+	});
 	await fileInput.setInputFiles({
 		name: 'playground-export-with-plugin-and-theme.zip',
 		mimeType: 'application/zip',
@@ -1007,8 +1010,9 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	});
 	await expect(pane).not.toBeVisible();
 	await loadingStarted;
-	await expect(saveProgress).toHaveCount(0);
+	await expect(autosaveProgress).toHaveCount(0);
 	await expect(loading).not.toBeVisible({ timeout: 120000 });
+	await autosaveStarted;
 	await expect(
 		website.page.locator('iframe.playground-viewport:visible')
 	).toHaveCount(1);
