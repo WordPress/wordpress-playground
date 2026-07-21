@@ -4,7 +4,7 @@ import { dirname, joinPaths, phpVar, phpVars } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
-import { legacyUserWpContentPathsExcludedFromExport } from '../utils/legacy-wp-content-paths-excluded-from-exports';
+import { wpContentPathsExcludedFromLegacyExports } from '../utils/legacy-wp-content-paths-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
 /**
@@ -40,10 +40,18 @@ export interface ImportWordPressFilesStep<ResourceType> {
  * `wp-content` and `wp-includes` directories, they will replace
  * the corresponding directories in Playground's `documentRoot`.
  *
- * Legacy Playground runtime artifacts carry over from the existing document
- * root. Versioned Playground exports otherwise replace user-owned wp-content
- * exactly. Legacy partial exports retain the stock plugins and themes those
- * exports omitted when the archive does not contain them.
+ * Imported copies of Playground-owned runtime artifacts are discarded. For
+ * example, an archive cannot replace `mu-plugins/sqlite-database-integration`,
+ * `mu-plugins/0-playground.php`, or a Playground-generated `db.php`. If those
+ * paths still exist in the importing document root, its copies are retained.
+ * An unmarked custom `db.php` remains part of the imported site.
+ *
+ * A `formatVersion: 2` archive is otherwise authoritative for user-owned
+ * `wp-content`: a customized Twenty Twenty-Five theme replaces the boot
+ * default, while an absent theme remains deleted. For an older archive, stock
+ * paths omitted by the exporter, such as `plugins/akismet`, `plugins/hello.php`,
+ * and `themes/twentytwentyfive`, are restored from the importing document root
+ * only when absent from the archive.
  *
  * @param playground Playground client.
  * @param wordPressFilesZip Zipped WordPress site.
@@ -89,11 +97,19 @@ export const importWordPressFiles: StepHandler<
 	}
 
 	const importedWpContentPath = joinPaths(importPath, 'wp-content');
+	// wp-content is optional: this step also accepts partial WordPress archives
+	// containing only other top-level paths, such as wp-config.php or wp-includes.
+	// Apply wp-content compatibility rules only when the archive provides it.
 	if (await playground.fileExists(importedWpContentPath)) {
 		const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
-		// Runtime artifacts from the current Playground win over copies from old
-		// archives. An unmarked db.php is user-owned and remains authoritative.
+		// Old exports may contain Playground runtime implementations under wp-content.
+		// They must not replace the runtime selected by the importing Playground.
+		// db.php needs content-based ownership because WordPress also supports custom
+		// database drop-ins at that path. During legacy WordPress boot,
+		// writeLegacyDbPhp() creates db.php from generateDbPhpContent(), whose header
+		// includes @playground-managed. Only a db.php containing that marker is
+		// runtime-owned; an unmarked db.php remains user-owned.
 		const importedRuntimePaths =
 			await getLegacyPlaygroundRuntimeWpContentPaths(
 				playground,
@@ -104,12 +120,15 @@ export const importWordPressFiles: StepHandler<
 				playground,
 				wpContentPath
 			);
+		// Discard runtime implementations supplied by the archive.
 		for (const relativePath of importedRuntimePaths) {
 			await removePath(
 				playground,
 				joinPaths(importedWpContentPath, relativePath)
 			);
 		}
+		// Stage runtime files that still live in the current wp-content so replacing
+		// that directory does not delete the importing Playground's copies.
 		for (const relativePath of currentRuntimePaths) {
 			const importedRuntimePath = joinPaths(
 				importedWpContentPath,
@@ -129,7 +148,7 @@ export const importWordPressFiles: StepHandler<
 			// Old exports omitted these stock plugins and themes without recording
 			// deletions. Restore current copies missing from the archive because we
 			// cannot tell a user deletion from an exporter omission.
-			for (const relativePath of legacyUserWpContentPathsExcludedFromExport) {
+			for (const relativePath of wpContentPathsExcludedFromLegacyExports) {
 				const importedUserPath = joinPaths(
 					importedWpContentPath,
 					relativePath
