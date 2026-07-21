@@ -12,6 +12,7 @@ describe('opfsSiteStorage', () => {
 		vi.resetModules();
 		loadPersistedBlueprintBundle = vi.fn();
 		loadPersistedBlueprintBundleFromPath = vi.fn();
+		const activeWorkerWrites = new Set<string>();
 		opfsRoot = new MemoryDirectoryHandle('');
 		vi.stubGlobal('navigator', {
 			storage: {
@@ -27,7 +28,23 @@ describe('opfsSiteStorage', () => {
 				) {
 					const port = options?.transfer?.[0];
 					setTimeout(async () => {
+						if (activeWorkerWrites.has(message.path)) {
+							port?.postMessage({
+								type: 'error',
+								path: message.path,
+								error: {
+									name: 'NoModificationAllowedError',
+									message:
+										'The file is already being written.',
+								},
+							});
+							return;
+						}
+						activeWorkerWrites.add(message.path);
 						try {
+							await new Promise((resolve) =>
+								setTimeout(resolve, 5)
+							);
 							await writeOpfsPath(
 								opfsRoot,
 								message.path,
@@ -40,6 +57,8 @@ describe('opfsSiteStorage', () => {
 									? error.message
 									: String(error)
 							);
+						} finally {
+							activeWorkerWrites.delete(message.path);
 						}
 					}, 0);
 				}
@@ -132,6 +151,23 @@ describe('opfsSiteStorage', () => {
 			},
 			originalUrlParams,
 		});
+	});
+
+	it('serializes concurrent metadata updates to the same site', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await Promise.all([
+			storage.update(
+				'stored-site',
+				createSiteMetadata({ name: 'First name' })
+			),
+			storage.update(
+				'stored-site',
+				createSiteMetadata({ name: 'Second name' })
+			),
+		]);
+		const site = await storage.read('stored-site');
+		expect(['First name', 'Second name']).toContain(site?.metadata.name);
 	});
 
 	it('deletes the legacy site directory when the encoded directory is incomplete', async () => {

@@ -793,7 +793,13 @@ export default function GitHubExportForm({
 									)}
 								</div>
 								{allowZipExport ? (
+									/*
+									 * Playground ZIPs are now complete snapshots, so do not offer to
+									 * commit one alongside the GitHub file export. Retain this control
+									 * and its export path until GitHub ZIP exports are revisited.
+									 */
 									<div
+										hidden
 										className={`${forms.formGroup} ${forms.formGroupLast}`}
 									>
 										<label>

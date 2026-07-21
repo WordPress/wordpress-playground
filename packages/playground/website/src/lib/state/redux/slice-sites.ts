@@ -357,9 +357,12 @@ export function removeSite(slug: string) {
  * Explicitly saved Playgrounds are never pruned. `excludeSlugs` protects
  * specific autosaves for the current prune pass. Removal is best-effort: a
  * failed deletion remains available for retry and does not prevent later
- * candidates from being pruned.
+ * candidates from being pruned. `signal` invalidates the pass between deletions
+ * when its exclusion snapshot is no longer current.
  */
-export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
+export function pruneAutosavedSites(
+	options: AutosavedSitesPruneOptions & { signal?: AbortSignal } = {}
+) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -369,6 +372,11 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 			options
 		);
 		for (const site of sitesToPrune) {
+			// The candidate list belongs to the exclusion snapshot supplied when this
+			// pass started. Do not delete another site after that snapshot is invalidated.
+			if (options.signal?.aborted) {
+				return;
+			}
 			try {
 				await dispatch(removeSite(site.slug));
 			} catch (error) {
