@@ -86,7 +86,7 @@ test('playgroundSites.autosaveTemporarySite() persists without disrupting the ta
 	expect(result.sameUrl).toBe(true);
 });
 
-test('autosaveTemporarySite() joins finalization after persistence finishes', async ({
+test('a concurrent autosave waits for pruning after persistence finishes', async ({
 	website,
 	browserName,
 }) => {
@@ -99,6 +99,8 @@ test('autosaveTemporarySite() joins finalization after persistence finishes', as
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
+	// Seed more autosaved sites than the retention limit so the next autosave
+	// must remove an older site before it can finish.
 	await website.page.evaluate(async () => {
 		const opfsRoot = await navigator.storage.getDirectory();
 		const sitesRoot = await opfsRoot.getDirectoryHandle('sites', {
@@ -154,6 +156,8 @@ test('autosaveTemporarySite() joins finalization after persistence finishes', as
 		});
 		const directoryHandlePrototype = FileSystemDirectoryHandle.prototype;
 		const removeEntry = directoryHandlePrototype.removeEntry;
+		// Pause pruning after the current site has been persisted. This exposes the
+		// interval where its storage is already OPFS but its autosave is still active.
 		directoryHandlePrototype.removeEntry = async function (name, options) {
 			if (name.startsWith('site-autosave-timing-')) {
 				notifyDeletionStarted();
@@ -165,6 +169,8 @@ test('autosaveTemporarySite() joins finalization after persistence finishes', as
 		try {
 			const firstSave = api.autosaveTemporarySite(siteSlug);
 			await deletionStarted;
+			// A second request for the same site must wait for the complete shared
+			// autosave instead of returning early based on the updated storage alone.
 			const secondSave = api.autosaveTemporarySite(siteSlug);
 			let secondSaveFinished = false;
 			void secondSave.finally(() => {
@@ -172,6 +178,7 @@ test('autosaveTemporarySite() joins finalization after persistence finishes', as
 			});
 			await new Promise((resolve) => setTimeout(resolve));
 			const secondSaveFinishedBeforePruning = secondSaveFinished;
+			// Let pruning finish so both calls can resolve with the shared result.
 			finishDeletion();
 			const [firstResult, secondResult] = await Promise.all([
 				firstSave,
