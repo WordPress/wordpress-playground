@@ -4,6 +4,7 @@ ini_set('display_errors', 0);
 
 class ApiException extends Exception {}
 class RateLimitedException extends ApiException {}
+class UrlNotAllowedException extends ApiException {}
 class PluginDownloader
 {
 
@@ -229,7 +230,60 @@ class PluginDownloader
 		];
 	}
 }
-function streamHttpResponse($url, $request_method = 'GET', $request_headers = [], $request_body = null, $allowed_response_headers = [], $default_response_headers = [])
+
+function streamHttpResponse($url, $request_method = 'GET', $request_headers = [], $request_body = null, $allowed_response_headers = [], $default_response_headers = [], $allowed_hosts = null)
+{
+	$redirect_count = 0;
+	$follow_location = $allowed_hosts === null;
+	while (true) {
+		// An allowlist opts into manual redirects so every outbound URL is checked first.
+		if (
+			!$follow_location
+			&& !isPluginProxyUrlAllowed($url, $allowed_hosts)
+		) {
+			throw new UrlNotAllowedException('URL is not allowed');
+		}
+
+		$info = streamHttpResponseOnce(
+			$url,
+			$request_method,
+			$request_headers,
+			$request_body,
+			$allowed_response_headers,
+			$default_response_headers,
+			$follow_location
+		);
+
+		if ($follow_location || empty($info['redirect_url'])) {
+			return $info;
+		}
+
+		// Match modern libcurl's default redirect limit.
+		if ($redirect_count >= 30) {
+			throw new ApiException('Too many redirects');
+		}
+
+		// Match libcurl's default redirect behavior for POST requests.
+		if (
+			$request_method === 'POST'
+			&& in_array($info['http_code'], [301, 302, 303], true)
+		) {
+			$request_method = 'GET';
+			$request_body = null;
+		}
+
+		$url = $info['redirect_url'];
+		$redirect_count++;
+	}
+}
+
+function isPluginProxyUrlAllowed($candidate_url, $allowed_hosts)
+{
+	$host = is_string($candidate_url) ? parse_url($candidate_url, PHP_URL_HOST) : null;
+	return is_string($host) && in_array($host, $allowed_hosts, true);
+}
+
+function streamHttpResponseOnce($url, $request_method, $request_headers, $request_body, $allowed_response_headers, $default_response_headers, $follow_location)
 {
 	$ch = curl_init($url);
 	curl_setopt_array(
@@ -238,7 +292,7 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_CONNECTTIMEOUT => 30,
 			CURLOPT_FAILONERROR => true,
-			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_FOLLOWLOCATION => $follow_location,
 		]
 	);
 
@@ -253,39 +307,68 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $request_headers);
 	}
 
-	$seen_headers = [];
+	// Hold each header block until we know whether it describes an intermediate redirect.
+	$response_status = 0;
+	$response_headers = [];
+	$has_location_header = false;
+	$is_redirect_response = false;
 	curl_setopt(
 		$ch,
 		CURLOPT_HEADERFUNCTION,
-		function ($curl, $header_line) use ($seen_headers, $allowed_response_headers) {
-			if (strpos($header_line, ':') === false) {
-				return strlen($header_line);
+		function ($curl, $header_line) use (
+			&$response_status,
+			&$response_headers,
+			&$has_location_header,
+			&$is_redirect_response,
+			$allowed_response_headers,
+			$default_response_headers
+		) {
+			$header_length = strlen($header_line);
+			if (preg_match('/^HTTP\/\S+\s+(\d{3})/', $header_line, $matches)) {
+				$response_status = (int)$matches[1];
+				$response_headers = [];
+				$has_location_header = false;
+				$is_redirect_response = false;
+				return $header_length;
 			}
-			$header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-			$seen_headers[$header_name] = true;
-			$illegal_headers = ['transfer-encoding'];
-			$header_allowed = (
-				NULL === $allowed_response_headers || in_array($header_name, $allowed_response_headers)
-			) && !in_array($header_name, $illegal_headers);
-			if ($header_allowed) {
-				header($header_line);
+
+			if (trim($header_line) === '') {
+				if ($response_status < 100 || $response_status >= 200) {
+					$is_redirect_response = (
+						$response_status >= 300
+						&& $response_status < 400
+						&& $has_location_header
+					);
+					if (!$is_redirect_response) {
+						sendBufferedResponseHeaders(
+							$response_headers,
+							$allowed_response_headers,
+							$default_response_headers
+						);
+					}
+				}
+				return $header_length;
 			}
-			return strlen($header_line);
+
+			$separator_position = strpos($header_line, ':');
+			if ($separator_position === false) {
+				return $header_length;
+			}
+
+			$header_name = strtolower(substr($header_line, 0, $separator_position));
+			$response_headers[] = [$header_name, $header_line];
+			if ($header_name === 'location') {
+				$has_location_header = true;
+			}
+			return $header_length;
 		}
 	);
-	$extra_headers_sent = false;
 	curl_setopt(
 		$ch,
 		CURLOPT_WRITEFUNCTION,
-		function ($curl, $body) use (&$extra_headers_sent, $default_response_headers) {
-			if (!$extra_headers_sent) {
-				foreach ($default_response_headers as $header_line) {
-					$header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-					if (!isset($seen_headers[$header_name])) {
-						header($header_line);
-					}
-				}
-				$extra_headers_sent = true;
+		function ($curl, $body) use (&$is_redirect_response) {
+			if ($is_redirect_response) {
+				return strlen($body);
 			}
 			echo $body;
 			flush();
@@ -294,12 +377,36 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 	);
 	$response = curl_exec($ch);
 	$info = curl_getinfo($ch);
+	closeCurlHandle($ch);
+	if (!$follow_location && $is_redirect_response && empty($info['redirect_url'])) {
+		throw new ApiException('Invalid redirect');
+	}
 	if ($response === false && isset($info['http_code']) && $info['http_code'] === 429) {
-		closeCurlHandle($ch);
 		throw new RateLimitedException('Rate limited');
 	}
-	closeCurlHandle($ch);
 	return $info;
+}
+
+function sendBufferedResponseHeaders($response_headers, $allowed_response_headers, $default_response_headers)
+{
+	$seen_headers = [];
+	foreach ($response_headers as [$header_name, $header_line]) {
+		$seen_headers[$header_name] = true;
+		$header_allowed = (
+			NULL === $allowed_response_headers
+			|| in_array($header_name, $allowed_response_headers, true)
+		) && $header_name !== 'transfer-encoding';
+		if ($header_allowed) {
+			header($header_line);
+		}
+	}
+
+	foreach ($default_response_headers as $header_line) {
+		$header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+		if (!isset($seen_headers[$header_name])) {
+			header($header_line);
+		}
+	}
 }
 
 function closeCurlHandle($ch)
@@ -450,12 +557,6 @@ try {
 		// but only if the URL is allowlisted.
 		$url = $_GET['url'];
 		$allowed_domains = ['api.wordpress.org', 'w.org', 'wordpress.org', 's.w.org'];
-		$parsed_url = parse_url($url);
-		if (!in_array($parsed_url['host'], $allowed_domains)) {
-			http_response_code(403);
-			echo "Error: The specified URL is not allowed.";
-			exit;
-		}
 
 		/**
 		 * Pass through the request headers we got from WordPress via fetch(),
@@ -497,12 +598,18 @@ try {
 			$_SERVER['REQUEST_METHOD'],
 			get_request_headers(),
 			file_get_contents('php://input'),
-			null
+			null,
+			[],
+			$allowed_domains
 		);
 	} else {
 		throw new ApiException('Invalid query parameters');
 	}
 } catch (ApiException $e) {
+	if ($e instanceof UrlNotAllowedException) {
+		http_response_code(403);
+		die("Error: The specified URL is not allowed.");
+	}
 	http_response_code($e instanceof RateLimitedException ? 429 : 400);
 	if (!headers_sent()) {
 		header('Content-Type: application/json');
