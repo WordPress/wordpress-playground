@@ -51,9 +51,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # PHP optimizes constant-size emalloc() calls into a build-specific family of
 # _emalloc_<size>() symbols. External side modules must use the stable
 # _emalloc() entry point exported by every matching PHP.wasm main module.
-RUN /root/replace.sh \
-	's/#include "zend_alloc_sizes.h"/#include "zend_alloc_sizes.h"\n#undef HAVE_BUILTIN_CONSTANT_P/' \
-	/usr/local/include/php/Zend/zend_alloc.h && \
+RUN if ! grep -Fqx '#undef HAVE_BUILTIN_CONSTANT_P' \
+	/usr/local/include/php/Zend/zend_alloc.h; then \
+	/root/replace.sh \
+		's/#include "zend_alloc_sizes.h"/#include "zend_alloc_sizes.h"\n#undef HAVE_BUILTIN_CONSTANT_P/' \
+		/usr/local/include/php/Zend/zend_alloc.h; \
+	fi && \
 	grep -Fqx '#undef HAVE_BUILTIN_CONSTANT_P' \
 		/usr/local/include/php/Zend/zend_alloc.h
 

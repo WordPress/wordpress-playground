@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-WORK_DIR="${ROOT_DIR}/tmp/external-extension-abi"
 PHP_VERSION="${PHP_VERSION:-8.3}"
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -10,8 +9,8 @@ if ! command -v docker >/dev/null 2>&1; then
 	exit 1
 fi
 
-rm -rf "$WORK_DIR"
-mkdir -p "$WORK_DIR"
+mkdir -p "${ROOT_DIR}/tmp"
+WORK_DIR="$(mktemp -d "${ROOT_DIR}/tmp/external-extension-abi.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 node "$ROOT_DIR/packages/php-wasm/compile/build.js" \

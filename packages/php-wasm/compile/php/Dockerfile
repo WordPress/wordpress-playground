@@ -2199,6 +2199,7 @@ RUN set -eux; \
 		/root/lib/libphp.a \
 		| grep -v '^[[:space:]]*$' \
 		| grep -v ':$' \
+		| LC_ALL=C sort -u \
 		> /root/.PHP_EXTENSION_ABI_EXPORTS; \
 	sed 's/^/_/' /root/.PHP_EXTENSION_ABI_EXPORTS \
 		>> /root/.JS_ABI_EXPORTS; \
