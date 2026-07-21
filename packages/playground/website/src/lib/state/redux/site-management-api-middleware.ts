@@ -50,7 +50,7 @@ type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type AutosaveInProgress = {
 	promise: Promise<SaveSiteResult>;
-	excludeFromPruning: string[];
+	excludeFromPruning: Set<string>;
 	urlUpdateRequested: boolean;
 };
 
@@ -281,7 +281,8 @@ export function createSitesAPI(
 		 * Autosave keeps the current browser URL unchanged unless the caller
 		 * asks to route to the new stored site. Concurrent requests for one site
 		 * share the filesystem copy and metadata update. Routing runs when any caller
-		 * requests it, and pruning checks their combined exclusions as it proceeds.
+		 * requests it. Pruning repeats with a new immutable exclusion snapshot when a
+		 * caller joins during the current prune pass.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -328,15 +329,25 @@ export function createSitesAPI(
 							);
 						}
 						let urlWasUpdated = false;
-						if (currentAutosave.urlUpdateRequested) {
-							redirectTo(PlaygroundRoute.site(updatedSite));
-							urlWasUpdated = true;
-						}
-						await dispatch(
-							pruneAutosavedSites({
-								excludeSlugs:
-									currentAutosave.excludeFromPruning,
-							})
+						let prunedExclusionCount = 0;
+						do {
+							if (
+								currentAutosave.urlUpdateRequested &&
+								!urlWasUpdated
+							) {
+								redirectTo(PlaygroundRoute.site(updatedSite));
+								urlWasUpdated = true;
+							}
+							const excludeSlugs = [
+								...currentAutosave.excludeFromPruning,
+							];
+							await dispatch(
+								pruneAutosavedSites({ excludeSlugs })
+							);
+							prunedExclusionCount = excludeSlugs.length;
+						} while (
+							prunedExclusionCount !==
+							currentAutosave.excludeFromPruning.size
 						);
 						if (
 							currentAutosave.urlUpdateRequested &&
@@ -357,7 +368,7 @@ export function createSitesAPI(
 					});
 				autosaveInProgress = {
 					promise,
-					excludeFromPruning: [site.slug],
+					excludeFromPruning: new Set([site.slug]),
 					urlUpdateRequested: false,
 				};
 				autosavesInProgressBySiteSlug.set(
@@ -367,13 +378,7 @@ export function createSitesAPI(
 			}
 
 			for (const excludedSlug of options.excludeFromPruning ?? []) {
-				if (
-					!autosaveInProgress.excludeFromPruning.includes(
-						excludedSlug
-					)
-				) {
-					autosaveInProgress.excludeFromPruning.push(excludedSlug);
-				}
+				autosaveInProgress.excludeFromPruning.add(excludedSlug);
 			}
 			autosaveInProgress.urlUpdateRequested ||=
 				options.updateUrl ?? false;

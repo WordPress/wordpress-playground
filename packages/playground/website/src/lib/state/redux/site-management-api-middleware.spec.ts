@@ -112,8 +112,8 @@ describe('createSitesAPI', () => {
 		await Promise.resolve();
 
 		expect(secondAutosaveFinished).toBe(false);
-		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
-			excludeSlugs: [site.slug, 'late-exclusion'],
+		expect(mocks.pruneAutosavedSites).toHaveBeenNthCalledWith(1, {
+			excludeSlugs: [site.slug],
 		});
 		expect(pushState).not.toHaveBeenCalled();
 		finishPruning();
@@ -123,6 +123,9 @@ describe('createSitesAPI', () => {
 			{ slug: site.slug, storage: 'opfs' },
 			{ slug: site.slug, storage: 'opfs' },
 		]);
+		expect(mocks.pruneAutosavedSites).toHaveBeenNthCalledWith(2, {
+			excludeSlugs: [site.slug, 'late-exclusion'],
+		});
 		expect(pushState).toHaveBeenCalledTimes(1);
 	});
 

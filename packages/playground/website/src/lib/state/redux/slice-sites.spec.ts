@@ -415,61 +415,6 @@ describe('stored sites', () => {
 		);
 	});
 
-	it('honors exclusions added while a prune pass is running', async () => {
-		const { pruneAutosavedSites, sitesSlice } =
-			await import('./slice-sites');
-		const firstAutosave = createSiteInfo({ slug: 'first-autosave' });
-		firstAutosave.metadata.persistence = 'autosave';
-		firstAutosave.metadata.whenCreated = 2;
-		const excludedAutosave = createSiteInfo({
-			slug: 'excluded-autosave',
-		});
-		excludedAutosave.metadata.persistence = 'autosave';
-		excludedAutosave.metadata.whenCreated = 1;
-		let state = {
-			sites: sitesSlice.reducer(
-				undefined,
-				sitesSlice.actions.addSites([firstAutosave, excludedAutosave])
-			),
-		};
-		const getState = () => state as any;
-		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
-			if (typeof action === 'function') {
-				return action(dispatch, getState);
-			}
-			state = {
-				sites: sitesSlice.reducer(state.sites, action),
-			};
-			return action;
-		});
-		let finishFirstDeletion!: () => void;
-		const firstDeletionCanFinish = new Promise<void>((resolve) => {
-			finishFirstDeletion = resolve;
-		});
-		deleteSite.mockImplementation(async (slug) => {
-			if (slug === firstAutosave.slug) {
-				await firstDeletionCanFinish;
-			}
-		});
-		const excludeSlugs: string[] = [];
-
-		const pruning = pruneAutosavedSites({ limit: 0, excludeSlugs })(
-			dispatch as any,
-			getState
-		);
-		await vi.waitFor(() =>
-			expect(deleteSite).toHaveBeenCalledWith(firstAutosave.slug)
-		);
-		excludeSlugs.push(excludedAutosave.slug);
-		finishFirstDeletion();
-		await pruning;
-
-		expect(deleteSite).not.toHaveBeenCalledWith(excludedAutosave.slug);
-		expect(state.sites.entities[excludedAutosave.slug]).toEqual(
-			excludedAutosave
-		);
-	});
-
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')

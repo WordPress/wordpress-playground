@@ -369,11 +369,6 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 			options
 		);
 		for (const site of sitesToPrune) {
-			// Another caller can add an exclusion while an autosave's prune pass
-			// is waiting for an earlier deletion to finish.
-			if (options.excludeSlugs?.includes(site.slug)) {
-				continue;
-			}
 			try {
 				await dispatch(removeSite(site.slug));
 			} catch (error) {
