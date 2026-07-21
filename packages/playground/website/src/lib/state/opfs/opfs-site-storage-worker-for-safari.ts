@@ -28,7 +28,8 @@ onmessage = async function (event: MessageEvent) {
 			create: true,
 		});
 
-		const syncAccessHandle = await fileHandle.createSyncAccessHandle();
+		const syncAccessHandle =
+			await createSyncAccessHandleWithRetry(fileHandle);
 		try {
 			const encodedContent = new TextEncoder().encode(content);
 			syncAccessHandle.truncate(0);
@@ -52,3 +53,41 @@ onmessage = async function (event: MessageEvent) {
 		});
 	}
 };
+
+/**
+ * Creates an exclusive OPFS access handle after transient contention clears.
+ *
+ * Chrome rejects `createSyncAccessHandle()` with
+ * `NoModificationAllowedError` while another tab or writable stream still
+ * holds the file. Same-page metadata writes are serialized by the caller, but
+ * those external handles cannot join that in-memory queue. Retrying every 50
+ * milliseconds for at most 20 attempts gives a short-lived handle time to
+ * close while remaining well inside the caller's five-second worker timeout.
+ *
+ * Only access-handle contention is retried. Missing directories, permission
+ * failures, and every other error are returned immediately.
+ *
+ * @param fileHandle OPFS file whose synchronous access handle is required.
+ * @returns The exclusive synchronous access handle.
+ * @throws The final contention error or any non-retryable error.
+ */
+async function createSyncAccessHandleWithRetry(
+	fileHandle: FileSystemFileHandle
+): Promise<FileSystemSyncAccessHandle> {
+	const maxAttempts = 20;
+	const retryDelayMs = 50;
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await fileHandle.createSyncAccessHandle();
+		} catch (error) {
+			if (
+				!(error instanceof DOMException) ||
+				error.name !== 'NoModificationAllowedError' ||
+				attempt === maxAttempts
+			) {
+				throw error;
+			}
+			await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+		}
+	}
+}
