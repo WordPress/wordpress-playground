@@ -5,7 +5,7 @@
  * This list exists only to restore paths missing from old, partial archives.
  * Current exports contain all user-owned plugins and themes.
  */
-export const legacyUserWpContentPathsExcludedFromExport = [
+export const wpContentPathsExcludedFromLegacyExports = [
 	'plugins/akismet',
 	'plugins/hello.php',
 	'plugins/wordpress-importer',
