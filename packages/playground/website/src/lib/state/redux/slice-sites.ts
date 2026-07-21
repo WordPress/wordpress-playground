@@ -320,10 +320,16 @@ export function addSite(siteInfo: SiteInfo) {
  * deleting the OPFS data fails, the redux record remains available for retry
  * and the storage error is rethrown.
  *
+ * @param options.replacementSiteSlug Site to select after deleting the active
+ * site. Falls back to the most recently created remaining site.
+ * @param options.updateUrl Whether selecting the replacement updates the URL.
  * @throws When the site is temporary, browser storage is unavailable, or its
  * OPFS data cannot be deleted.
  */
-export function removeSite(slug: string) {
+export function removeSite(
+	slug: string,
+	options: { replacementSiteSlug?: string; updateUrl?: boolean } = {}
+) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -343,9 +349,17 @@ export function removeSite(slug: string) {
 
 		// Select the most recently created site
 		if (activeSite?.slug === siteInfo.slug) {
-			const newActiveSite = selectSortedSites(getState())[0];
+			const requestedReplacement = options.replacementSiteSlug
+				? selectSiteBySlug(getState(), options.replacementSiteSlug)
+				: undefined;
+			const newActiveSite =
+				requestedReplacement ?? selectSortedSites(getState())[0];
 			if (newActiveSite) {
-				dispatch(setActiveSite(newActiveSite.slug));
+				dispatch(
+					setActiveSite(newActiveSite.slug, {
+						updateUrl: options.updateUrl,
+					})
+				);
 			}
 		}
 	};
@@ -422,12 +436,14 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 }
 
 /**
- * Creates or reuses a temporary Playground in the redux state.
+ * Creates or reuses a temporary Playground in the redux state. Replacements
+ * receive a different slug so React boots them in a fresh iframe.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL,
-	preferredSlug?: string
+	preferredSlug?: string,
+	options: { replaceExisting?: boolean } = {}
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -497,7 +513,7 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite) {
+		if (currentTemporarySite && !options.replaceExisting) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -514,6 +530,11 @@ export function setTemporarySiteSpec(
 			(site) => site.metadata.storage !== 'none'
 		);
 		const unavailableSlugs = storedSites.map((site) => site.slug);
+		if (currentTemporarySite && options.replaceExisting) {
+			// Reserve the old slug so selecting the replacement changes the active
+			// slug and React boots a fresh iframe for it.
+			unavailableSlugs.push(currentTemporarySite.slug);
+		}
 		const unavailableNames = storedSites.map((site) => site.metadata.name);
 		const getAvailableSiteSlug = (name: string) =>
 			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {

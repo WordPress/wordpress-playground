@@ -36,8 +36,6 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
-import { importWordPressFiles } from '@wp-playground/client';
-import type { PlaygroundClient } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -51,7 +49,6 @@ import {
 	isExplicitlySavedSite,
 	isRestorableAutosavedSite,
 	selectSortedSites,
-	selectTemporarySite,
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import {
@@ -165,7 +162,6 @@ export function SavedPlaygroundsPanel({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
-	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const activeClientInfo = useAppSelector(getActiveClientInfo);
 	const activeSiteSyncLabel = getActiveSiteSyncLabel(activeClientInfo);
@@ -181,16 +177,8 @@ export function SavedPlaygroundsPanel({
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
-	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
-	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
-		string | null
-	>(null);
 	const [isImportingZip, setIsImportingZip] = useState(false);
 	const zipImportPendingRef = useRef(false);
-	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
-	// routine re-renders, so this prevents a second concurrent import firing while
-	// one is already in flight.
-	const importingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
 	// dedicated GitHub view moves keyboard focus to its Back button because it
@@ -333,107 +321,10 @@ export function SavedPlaygroundsPanel({
 		}
 	}, [panel]);
 
-	useEffect(() => {
-		if (
-			!pendingZipFile ||
-			!playground ||
-			!activeSite ||
-			activeSite.slug !== pendingZipTargetSlug ||
-			importingRef.current
-		) {
-			return;
-		}
-		if (activeClientInfo?.opfsSync?.status === 'syncing') {
-			return;
-		}
-		if (activeClientInfo?.opfsSync?.status === 'error') {
-			setPendingZipFile(null);
-			setPendingZipTargetSlug(null);
-			zipImportPendingRef.current = false;
-			setIsImportingZip(false);
-			if (zipFileInputRef.current) {
-				zipFileInputRef.current.value = '';
-			}
-			alert('Unable to save the new Playground before import.');
-			return;
-		}
-
-		// Capture the file and clear the pending request synchronously, BEFORE the
-		// async work, so a re-render (new onClose/activeSite identity) re-running
-		// this effect can't kick off a second concurrent import into the same site.
-		importingRef.current = true;
-		const zipFile = pendingZipFile;
-		setPendingZipFile(null);
-		setPendingZipTargetSlug(null);
-
-		const doImport = async () => {
-			try {
-				await importWordPressFiles(playground, {
-					wordPressFilesZip: zipFile,
-				});
-				// Import writes are journaled to OPFS asynchronously. Flush before
-				// reporting success so switching sites cannot boot a partial save.
-				await flushImportedWordPressFiles(playground);
-				window.setTimeout(() => {
-					void playground.goTo('/').catch((error) => {
-						logger.error('Failed to refresh imported site', error);
-					});
-				}, 200);
-				alert(
-					'File imported! This Playground instance has been updated and will refresh shortly.'
-				);
-				onClose();
-			} catch (error) {
-				logger.error(error);
-				alert(
-					'Unable to import file. Is it a valid WordPress Playground export?'
-				);
-			} finally {
-				zipImportPendingRef.current = false;
-				setIsImportingZip(false);
-				importingRef.current = false;
-				if (zipFileInputRef.current) {
-					zipFileInputRef.current.value = '';
-				}
-			}
-		};
-		void doImport();
-	}, [
-		pendingZipFile,
-		pendingZipTargetSlug,
-		activeSite,
-		playground,
-		activeClientInfo?.opfsSync?.status,
-		onClose,
-	]);
-
-	/**
-	 * Creates or selects a target Playground before importing a zip archive.
-	 *
-	 * Imports prefer a new OPFS-backed site so the result survives a refresh.
-	 * If that cannot be created, the import falls back to an existing or new
-	 * temporary site.
-	 */
-	async function createSiteForImport() {
-		try {
-			return await sitesAPI.createNewSavedSite();
-		} catch {
-			if (temporarySite) {
-				await sitesAPI.setActiveSite(temporarySite.slug);
-				return temporarySite.slug;
-			}
-			return await sitesAPI.createNewTemporarySite();
-		}
-	}
-
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
-		if (
-			zipImportPendingRef.current ||
-			importingRef.current ||
-			pendingZipFile
-		) {
+		if (zipImportPendingRef.current) {
 			e.target.value = '';
 			return;
 		}
@@ -441,16 +332,25 @@ export function SavedPlaygroundsPanel({
 		zipImportPendingRef.current = true;
 		setIsImportingZip(true);
 		try {
-			const targetSlug = await createSiteForImport();
-			setPendingZipTargetSlug(targetSlug);
-			setPendingZipFile(file);
+			await sitesAPI.createNewSiteFromZip(file);
+			const importedPlayground = sitesAPI.getClient();
+			window.setTimeout(() => {
+				void importedPlayground?.goTo('/').catch((error) => {
+					logger.error('Failed to refresh imported site', error);
+				});
+			}, 200);
+			alert(
+				'File imported! This Playground instance has been updated and will refresh shortly.'
+			);
+			onClose();
 		} catch (error) {
 			logger.error(error);
+			alert(
+				'Unable to import file. Is it a valid WordPress Playground export?'
+			);
+		} finally {
 			zipImportPendingRef.current = false;
 			setIsImportingZip(false);
-			alert(
-				'No active Playground to import into. Please create one first.'
-			);
 			if (zipFileInputRef.current) {
 				zipFileInputRef.current.value = '';
 			}
@@ -1744,13 +1644,6 @@ function getActiveSiteSyncLabel(
 		return `${verb}… ${getOpfsSyncProgressPercent(progress)}%`;
 	}
 	return `${verb}…`;
-}
-
-async function flushImportedWordPressFiles(playground: PlaygroundClient) {
-	const documentRoot = await playground.documentRoot;
-	if (await playground.hasOpfsMount(documentRoot)) {
-		await playground.flushOpfs(documentRoot);
-	}
 }
 
 function isCreationTabDisabled(tab: CreationTabId, offline: boolean) {
