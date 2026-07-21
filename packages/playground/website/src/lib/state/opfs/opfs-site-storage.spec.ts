@@ -152,11 +152,10 @@ describe('opfsSiteStorage', () => {
 			},
 		};
 
-		await storage.update(
-			'stored-site',
-			createSiteMetadata({ name: 'Renamed Playground' }),
-			originalUrlParams
-		);
+		await storage.update('stored-site', {
+			metadata: { name: 'Renamed Playground' },
+			originalUrlParams,
+		});
 
 		await expect(storage.read('stored-site')).resolves.toMatchObject({
 			metadata: {
@@ -170,14 +169,12 @@ describe('opfsSiteStorage', () => {
 		await storage.create('stored-site', createSiteMetadata());
 
 		await Promise.all([
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'First name' })
-			),
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'Second name' })
-			),
+			storage.update('stored-site', {
+				metadata: { name: 'First name' },
+			}),
+			storage.update('stored-site', {
+				metadata: { name: 'Second name' },
+			}),
 		]);
 		const site = await storage.read('stored-site');
 		expect(['First name', 'Second name']).toContain(site?.metadata.name);

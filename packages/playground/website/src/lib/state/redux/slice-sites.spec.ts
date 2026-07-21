@@ -17,6 +17,19 @@ describe('stored sites', () => {
 		deleteSite = vi.fn();
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
+		updateSiteStorage.mockImplementation(async (slug, changes) => {
+			const site = createSiteInfo({ slug });
+			return {
+				...site,
+				...('originalUrlParams' in changes
+					? { originalUrlParams: changes.originalUrlParams }
+					: {}),
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
+		});
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
@@ -155,23 +168,16 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			updatedMetadata,
-			originalUrlParams
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 	});
 
 	it('updates redux only after persisted metadata is written', async () => {
@@ -184,8 +190,15 @@ describe('stored sites', () => {
 			),
 		};
 		const order: string[] = [];
-		updateSiteStorage.mockImplementation(async () => {
+		updateSiteStorage.mockImplementation(async (_slug, changes) => {
 			order.push('opfs');
+			return {
+				...site,
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
 		});
 		const dispatch = vi.fn((action) => {
 			order.push('redux');
@@ -194,15 +207,10 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
@@ -224,16 +232,11 @@ describe('stored sites', () => {
 			state.sites = sitesSlice.reducer(state.sites, action);
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await expect(
 			updateSite({
 				slug: site.slug,
 				changes: {
-					metadata: updatedMetadata,
+					metadata: { name: 'Renamed Playground' },
 				},
 			})(dispatch as any, () => state as any)
 		).rejects.toThrow(storageError);
@@ -261,21 +264,13 @@ describe('stored sites', () => {
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: {
-					name: 'Renamed Playground',
-				} as any,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			expect.objectContaining({
-				name: 'Renamed Playground',
-				storage: 'opfs',
-				runtimeConfiguration: site.metadata.runtimeConfiguration,
-			}),
-			undefined
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 		expect(state.sites.entities[site.slug]?.metadata).toEqual({
 			...site.metadata,
 			name: 'Renamed Playground',

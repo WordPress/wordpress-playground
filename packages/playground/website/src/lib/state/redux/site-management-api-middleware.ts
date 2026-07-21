@@ -614,9 +614,7 @@ export function createSitesAPI(
 							selectClientInfoBySiteSlug(getState(), site.slug)
 								?.url,
 						metadata: {
-							...site.metadata,
 							runtimeConfiguration: {
-								...site.metadata.runtimeConfiguration,
 								phpVersion: version,
 							},
 						},
@@ -650,9 +648,7 @@ export function createSitesAPI(
 							selectClientInfoBySiteSlug(getState(), site.slug)
 								?.url,
 						metadata: {
-							...site.metadata,
 							runtimeConfiguration: {
-								...site.metadata.runtimeConfiguration,
 								networking: enabled,
 							},
 						},
@@ -705,9 +701,7 @@ export function createSitesAPI(
 							selectClientInfoBySiteSlug(getState(), site.slug)
 								?.url,
 						metadata: {
-							...site.metadata,
 							runtimeConfiguration: {
-								...site.metadata.runtimeConfiguration,
 								phpVersion: settings.phpVersion,
 								networking: settings.networking,
 							},

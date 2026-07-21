@@ -171,7 +171,7 @@ export function updateSiteMetadata({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	changes: SiteMetadataChanges;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -185,10 +185,7 @@ export function updateSiteMetadata({
 			updateSite({
 				slug,
 				changes: {
-					metadata: {
-						...storedSite.metadata,
-						...changes,
-					},
+					metadata: changes,
 				},
 			})
 		);
@@ -234,7 +231,9 @@ export function updateSite({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteInfo>;
+	changes: Omit<Partial<SiteInfo>, 'metadata'> & {
+		metadata?: SiteMetadataChanges;
+	};
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -248,13 +247,26 @@ export function updateSite({
 			throw new Error(`Site not found: ${slug}`);
 		}
 		const { metadata, ...topLevelChanges } = changes;
-		const updatedSite = {
+		const {
+			runtimeConfiguration: runtimeConfigurationChanges,
+			...metadataChanges
+		} = metadata ?? {};
+		let updatedSite = {
 			...existingSite,
 			...topLevelChanges,
 			metadata: metadata
 				? {
 						...existingSite.metadata,
-						...metadata,
+						...metadataChanges,
+						...(runtimeConfigurationChanges
+							? {
+									runtimeConfiguration: {
+										...existingSite.metadata
+											.runtimeConfiguration,
+										...runtimeConfigurationChanges,
+									},
+								}
+							: {}),
 					}
 				: existingSite.metadata,
 		};
@@ -264,18 +276,35 @@ export function updateSite({
 					'Cannot update a saved Playground because browser storage is not available.'
 				);
 			}
-			await opfsSiteStorage.update(
+			const persistedSite = await opfsSiteStorage.update(
 				updatedSite.slug,
-				updatedSite.metadata,
-				updatedSite.originalUrlParams
+				{
+					...(metadata ? { metadata } : {}),
+					...('originalUrlParams' in topLevelChanges
+						? { originalUrlParams: updatedSite.originalUrlParams }
+						: {}),
+				}
 			);
+			updatedSite = {
+				...updatedSite,
+				originalUrlParams: persistedSite.originalUrlParams,
+				metadata: persistedSite.metadata,
+			};
 		}
 		dispatch(
 			sitesSlice.actions.updateSite({
 				id: slug,
 				changes: {
 					...topLevelChanges,
-					...(metadata ? { metadata: updatedSite.metadata } : {}),
+					...(updatedSite.metadata.storage !== 'none'
+						? {
+								originalUrlParams:
+									updatedSite.originalUrlParams,
+								metadata: updatedSite.metadata,
+							}
+						: metadata
+							? { metadata: updatedSite.metadata }
+							: {}),
 				},
 			})
 		);
@@ -912,6 +941,19 @@ export interface SiteMetadata {
 	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
+
+/**
+ * Fields to merge into existing site metadata.
+ *
+ * Runtime configuration is also a patch so one settings change does not
+ * restore unrelated runtime fields from an older tab's Redux snapshot.
+ */
+export type SiteMetadataChanges = Omit<
+	Partial<SiteMetadata>,
+	'runtimeConfiguration'
+> & {
+	runtimeConfiguration?: Partial<SiteMetadata['runtimeConfiguration']>;
+};
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 export { sitesSlice };

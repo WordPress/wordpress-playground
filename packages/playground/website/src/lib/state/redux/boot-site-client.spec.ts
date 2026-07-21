@@ -89,7 +89,30 @@ describe('bootSiteClient', () => {
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).mockResolvedValue(undefined);
 		vi.mocked(opfsSiteStorage!.update).mockReset();
-		vi.mocked(opfsSiteStorage!.update).mockResolvedValue(undefined);
+		vi.mocked(opfsSiteStorage!.update).mockImplementation(
+			async (slug, changes) => {
+				const site = createSite(slug);
+				const {
+					runtimeConfiguration: runtimeConfigurationChanges,
+					...metadataChanges
+				} = changes.metadata ?? {};
+				return {
+					...site,
+					metadata: {
+						...site.metadata,
+						...metadataChanges,
+						...(runtimeConfigurationChanges
+							? {
+									runtimeConfiguration: {
+										...site.metadata.runtimeConfiguration,
+										...runtimeConfigurationChanges,
+									},
+								}
+							: {}),
+					},
+				};
+			}
+		);
 	});
 
 	it('does not report a missing site after boot is aborted', async () => {
@@ -129,11 +152,11 @@ describe('bootSiteClient', () => {
 		).toBeLessThan(
 			vi.mocked(startPlaygroundWeb).mock.invocationCallOrder[0]
 		);
-		expect(opfsSiteStorage!.update).toHaveBeenCalledWith(
-			'autosaved',
-			expect.objectContaining({ opfsSiteRemovalPending: undefined }),
-			undefined
-		);
+		expect(opfsSiteStorage!.update).toHaveBeenCalledWith('autosaved', {
+			metadata: expect.objectContaining({
+				opfsSiteRemovalPending: undefined,
+			}),
+		});
 		expect(startPlaygroundWeb).toHaveBeenCalled();
 	});
 
@@ -645,8 +668,11 @@ describe('bootSiteClient', () => {
 		expect(dispatch.mock.calls.length).toBe(actionCountAfterAbort);
 		expect(opfsSiteStorage!.update).not.toHaveBeenCalledWith(
 			'initial-sync',
-			expect.objectContaining({ initialOpfsSyncPending: false }),
-			undefined
+			{
+				metadata: expect.objectContaining({
+					initialOpfsSyncPending: false,
+				}),
+			}
 		);
 	});
 

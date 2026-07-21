@@ -718,6 +718,9 @@ test('should preserve metadata changes made in different tabs', async ({
 		({ name, slug }) => (window as any).playgroundSites.rename(name, slug),
 		{ name: newName, slug: site.slug }
 	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.setPhpVersion('8.2')
+	);
 	await secondTab.evaluate(() =>
 		(window as any).playgroundSites.setNetworking(false)
 	);
@@ -731,6 +734,7 @@ test('should preserve metadata changes made in different tabs', async ({
 		return JSON.parse(await (await metadataFile.getFile()).text());
 	}, getDirectoryNameForSlug(site.slug));
 	expect(persistedMetadata.name).toBe(newName);
+	expect(persistedMetadata.runtimeConfiguration.phpVersion).toBe('8.2');
 	expect(persistedMetadata.runtimeConfiguration.networking).toBe(false);
 });
 
