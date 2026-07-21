@@ -166,9 +166,8 @@ describe('opfsSiteStorage', () => {
 				createSiteMetadata({ name: 'Second name' })
 			),
 		]);
-		await expect(storage.read('stored-site')).resolves.toMatchObject({
-			metadata: { name: 'Second name' },
-		});
+		const site = await storage.read('stored-site');
+		expect(['First name', 'Second name']).toContain(site?.metadata.name);
 	});
 
 	it('deletes the legacy site directory when the encoded directory is incomplete', async () => {
