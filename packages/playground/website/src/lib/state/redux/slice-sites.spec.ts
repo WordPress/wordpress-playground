@@ -2,7 +2,7 @@ import type { OriginalUrlParams } from '../original-url-params';
 import type { SiteInfo } from './slice-sites';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
-describe('stored site creation', () => {
+describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -87,6 +87,19 @@ describe('stored site creation', () => {
 		vi.doUnmock('../url/resolve-blueprint-from-url');
 		vi.doUnmock('./slice-ui');
 		vi.doUnmock('./store');
+	});
+
+	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+		const { isRestorableAutosavedSite } = await import('./slice-sites');
+		const autosave = createSiteInfo({ slug: 'autosave' });
+		autosave.metadata.persistence = 'autosave';
+		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
+		unfinishedRun.metadata.persistence = 'autosave';
+		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
+			'source-site';
+
+		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
 	it('persists setup URL params when adding a saved site', async () => {
