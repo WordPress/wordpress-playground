@@ -606,6 +606,64 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.closePlaygroundsPane();
 });
 
+test('should wait for a temporary OPFS metadata lock', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser()
+	);
+	const site = await getActivePlaygroundSite(website.page);
+	const newName = 'Renamed after OPFS lock';
+
+	await website.page.evaluate(
+		async ({ dirName, newName, slug }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(dirName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const writable = await metadataFile.createWritable({
+				keepExistingData: true,
+			});
+			const releaseLock = new Promise<void>((resolve) => {
+				setTimeout(async () => {
+					await writable.close();
+					resolve();
+				}, 200);
+			});
+
+			try {
+				await (window as any).playgroundSites.rename(newName, slug);
+			} finally {
+				await releaseLock;
+			}
+		},
+		{
+			dirName: getDirectoryNameForSlug(site.slug),
+			newName,
+			slug: site.slug,
+		}
+	);
+
+	await website.page.reload();
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.name)
+		.toBe(newName);
+});
+
 test('should show the Store permanently pane with the save controls', async ({
 	website,
 	browserName,
