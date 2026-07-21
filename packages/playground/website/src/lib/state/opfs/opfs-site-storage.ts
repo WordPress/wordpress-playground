@@ -92,7 +92,7 @@ class OpfsSiteStorage {
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
-		await opfsWriteFile(
+		await writeOpfsFile(
 			getSiteMetadataPath(newSiteDirName),
 			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
@@ -111,7 +111,7 @@ class OpfsSiteStorage {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
 
-		await opfsWriteFile(
+		await writeOpfsFile(
 			getSiteMetadataPath(siteDirName),
 			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
@@ -519,7 +519,7 @@ export async function deleteDirectory(path: string) {
 	await parentDirHandle.removeEntry(targetName!, { recursive: true });
 }
 
-const lastOpfsWriteByPath = new Map<string, Promise<void>>();
+const lastWriteByPath = new Map<string, Promise<void>>();
 
 /**
  * Writes file content to OPFS after earlier writes to the same path finish.
@@ -536,18 +536,18 @@ const lastOpfsWriteByPath = new Map<string, Promise<void>>();
  * @param path Absolute OPFS path to write.
  * @param content Complete file content that should replace the current file.
  */
-async function opfsWriteFile(path: string, content: string): Promise<void> {
-	const previousWrite = lastOpfsWriteByPath.get(path);
+async function writeOpfsFile(path: string, content: string): Promise<void> {
+	const previousWrite = lastWriteByPath.get(path);
 	const write = (previousWrite ?? Promise.resolve())
 		.catch(() => undefined)
-		.then(() => writeOpfsFile(path, content));
-	lastOpfsWriteByPath.set(path, write);
+		.then(() => writeOpfsFileInWorker(path, content));
+	lastWriteByPath.set(path, write);
 
 	try {
 		await write;
 	} finally {
-		if (lastOpfsWriteByPath.get(path) === write) {
-			lastOpfsWriteByPath.delete(path);
+		if (lastWriteByPath.get(path) === write) {
+			lastWriteByPath.delete(path);
 		}
 	}
 }
@@ -562,7 +562,10 @@ async function opfsWriteFile(path: string, content: string): Promise<void> {
  * @param path Absolute OPFS path to write.
  * @param content Complete file content that should replace the current file.
  */
-async function writeOpfsFile(path: string, content: string): Promise<void> {
+async function writeOpfsFileInWorker(
+	path: string,
+	content: string
+): Promise<void> {
 	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
 	const channel = new MessageChannel();
