@@ -55,6 +55,7 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { networkingDisabledFunctions } from './disabled-functions';
+import { getPhpInstanceSharedPaths } from './php-instance-shared-paths';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 /* @ts-ignore */
@@ -246,12 +247,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				);
 
 				if (!isPrimary) {
-					const pathsToShareBetweenPhpInstances = [
-						'/tmp',
-						requestHandler.documentRoot,
-						'/internal/shared',
-						'/internal/symlinks',
-					];
+					const pathsToShareBetweenPhpInstances =
+						getPhpInstanceSharedPaths(
+							requestHandler.documentRoot,
+							pathAliases
+						);
 					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
 						(path) => !isPathToSharedFS(php, path)
 					);

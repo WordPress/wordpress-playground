@@ -1232,6 +1232,34 @@ test.describe('Database panel', () => {
 
 		await newPage.close();
 	});
+
+	test('should open phpMyAdmin after Adminer', async ({
+		website,
+		context,
+	}) => {
+		const adminerPagePromise = context.waitForEvent('page');
+		await website.page
+			.getByRole('button', { name: 'Open Adminer' })
+			.click();
+		const adminerPage = await adminerPagePromise;
+		await adminerPage.waitForLoadState();
+		await expect(adminerPage.locator('body')).toContainText('Adminer');
+		await expect(adminerPage.locator('body')).toContainText('wp_posts');
+
+		const phpMyAdminPagePromise = context.waitForEvent('page');
+		await website.page
+			.getByRole('button', { name: 'Open phpMyAdmin' })
+			.click();
+		const phpMyAdminPage = await phpMyAdminPagePromise;
+		await phpMyAdminPage.waitForLoadState();
+		await expect(phpMyAdminPage.locator('body')).toContainText(
+			'phpMyAdmin'
+		);
+		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
+
+		await adminerPage.close();
+		await phpMyAdminPage.close();
+	});
 });
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
