@@ -50,7 +50,7 @@ type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type AutosaveInProgress = {
 	promise: Promise<SaveSiteResult>;
-	excludeFromPruning: Set<string>;
+	excludeFromPruning: string[];
 	urlUpdateRequested: boolean;
 };
 
@@ -279,10 +279,9 @@ export function createSitesAPI(
 		 * Autosaves a temporary Playground into browser storage.
 		 *
 		 * Autosave keeps the current browser URL unchanged unless the caller
-		 * asks to route to the new stored site. Concurrent requests that begin while
-		 * one site is temporary share the filesystem copy and metadata update.
-		 * Routing runs when any caller requests it, and pruning uses their combined
-		 * exclusions.
+		 * asks to route to the new stored site. Concurrent requests for one site
+		 * share the filesystem copy and metadata update. Routing runs when any caller
+		 * requests it, and pruning checks their combined exclusions as it proceeds.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -328,17 +327,23 @@ export function createSitesAPI(
 								`Site ${site.slug} was not persisted (storage: ${storage}).`
 							);
 						}
+						let urlWasUpdated = false;
 						if (currentAutosave.urlUpdateRequested) {
 							redirectTo(PlaygroundRoute.site(updatedSite));
+							urlWasUpdated = true;
 						}
 						await dispatch(
 							pruneAutosavedSites({
-								excludeSlugs: [
-									site.slug,
-									...currentAutosave.excludeFromPruning,
-								],
+								excludeSlugs:
+									currentAutosave.excludeFromPruning,
 							})
 						);
+						if (
+							currentAutosave.urlUpdateRequested &&
+							!urlWasUpdated
+						) {
+							redirectTo(PlaygroundRoute.site(updatedSite));
+						}
 						return { slug: site.slug, storage };
 					})
 					.finally(() => {
@@ -352,7 +357,7 @@ export function createSitesAPI(
 					});
 				autosaveInProgress = {
 					promise,
-					excludeFromPruning: new Set(),
+					excludeFromPruning: [site.slug],
 					urlUpdateRequested: false,
 				};
 				autosavesInProgressBySiteSlug.set(
@@ -361,13 +366,17 @@ export function createSitesAPI(
 				);
 			}
 
-			if (site.metadata.storage === 'none') {
-				for (const excludedSlug of options.excludeFromPruning ?? []) {
-					autosaveInProgress.excludeFromPruning.add(excludedSlug);
+			for (const excludedSlug of options.excludeFromPruning ?? []) {
+				if (
+					!autosaveInProgress.excludeFromPruning.includes(
+						excludedSlug
+					)
+				) {
+					autosaveInProgress.excludeFromPruning.push(excludedSlug);
 				}
-				autosaveInProgress.urlUpdateRequested ||=
-					options.updateUrl ?? false;
 			}
+			autosaveInProgress.urlUpdateRequested ||=
+				options.updateUrl ?? false;
 			return await autosaveInProgress.promise;
 		},
 
