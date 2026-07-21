@@ -132,27 +132,16 @@ class OpfsSiteStorage {
 			const siteDirectory =
 				await this.root.getDirectoryHandle(siteDirName);
 			const currentSite = await this.readSiteFromDirHandle(siteDirectory);
-			const {
-				runtimeConfiguration: runtimeConfigurationChanges,
-				...metadataChanges
-			} = changes.metadata ?? {};
 			const updatedSite: SiteInfo = {
 				...currentSite,
-				...('originalUrlParams' in changes
-					? { originalUrlParams: changes.originalUrlParams }
-					: {}),
+				...changes,
 				metadata: {
 					...currentSite.metadata,
-					...metadataChanges,
-					...(runtimeConfigurationChanges
-						? {
-								runtimeConfiguration: {
-									...currentSite.metadata
-										.runtimeConfiguration,
-									...runtimeConfigurationChanges,
-								},
-							}
-						: {}),
+					...changes.metadata,
+					runtimeConfiguration: {
+						...currentSite.metadata.runtimeConfiguration,
+						...changes.metadata?.runtimeConfiguration,
+					},
 				},
 			};
 
