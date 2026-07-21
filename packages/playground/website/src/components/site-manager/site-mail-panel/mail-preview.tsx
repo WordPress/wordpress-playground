@@ -5,7 +5,7 @@ import {
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
 import type { Attachment, Email } from 'postal-mime';
-import { useEffect, useRef } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
 	type AttachmentResources,
 	MailAttachments,
@@ -19,73 +19,34 @@ import {
 import css from './style.module.css';
 
 export function MailPreview({ mail }: { mail: Email }) {
-	const htmlPreviewRef = useRef<HTMLIFrameElement>(null);
 	const attachmentResources = useAttachmentResources(mail.attachments);
 	const subject = getMailSubject(mail);
+	const renderBodyInIframe = Boolean(
+		mail.html || mail.attachments.length > 0
+	);
 
-	useEffect(() => {
-		const iframe = htmlPreviewRef.current;
-		if (!iframe) {
-			return;
-		}
-		const htmlPreview = iframe;
-
-		let contentResizeObserver: ResizeObserver | undefined;
-		let animationFrame: number | undefined;
-
-		function observeIframeContents() {
-			contentResizeObserver?.disconnect();
-			const documentElement =
-				htmlPreview.contentDocument?.documentElement;
-			if (documentElement) {
-				const observer = new ResizeObserver(resizeIframe);
-				observer.observe(documentElement);
-				contentResizeObserver = observer;
-			}
-			resizeIframe();
-		}
-
-		function resizeIframe() {
-			if (animationFrame !== undefined) {
-				return;
-			}
-
-			animationFrame = window.requestAnimationFrame(() => {
-				animationFrame = undefined;
-				const documentElement =
-					htmlPreview.contentDocument?.documentElement;
-				if (!documentElement) {
-					return;
-				}
-
-				const contentHeight = Math.ceil(
-					Math.max(
-						documentElement.scrollHeight,
-						documentElement.offsetHeight,
-						documentElement.getBoundingClientRect().height
-					)
-				);
-				const height = `${Math.max(1, contentHeight)}px`;
-				if (htmlPreview.style.height !== height) {
-					htmlPreview.style.height = height;
-				}
-			});
-		}
-
-		htmlPreview.addEventListener('load', observeIframeContents);
-		observeIframeContents();
-
-		return () => {
-			htmlPreview.removeEventListener('load', observeIframeContents);
-			contentResizeObserver?.disconnect();
-			if (animationFrame !== undefined) {
-				window.cancelAnimationFrame(animationFrame);
-			}
-		};
-	}, [mail]);
+	const emailBody = createEmailBodyHtml(mail, attachmentResources);
+	const attachmentsHtml = renderToStaticMarkup(
+		<MailAttachments
+			attachments={mail.attachments}
+			resources={attachmentResources}
+		/>
+	);
+	const previewDocument = createEmailPreviewDocument(
+		emailBody,
+		attachmentsHtml
+	);
 
 	return (
-		<VStack className={css.mailPreview} spacing={4} justify="flex-start">
+		<VStack
+			className={
+				renderBodyInIframe
+					? `${css.mailPreview} ${css.mailPreviewWithIframe}`
+					: css.mailPreview
+			}
+			spacing={4}
+			justify="flex-start"
+		>
 			<VStack spacing={2}>
 				<Heading level={2}>{subject}</Heading>
 				<div className={css.mailMetadata}>
@@ -125,39 +86,19 @@ export function MailPreview({ mail }: { mail: Email }) {
 				</div>
 			</VStack>
 			<Divider />
-			{mail.html ? (
-				/* Same-origin enables content-driven sizing. Popups escape the
-				 * sandbox so linked sites work normally. */
+			{renderBodyInIframe ? (
+				/* Popups and downloads escape the sandbox so links and attachment
+				 * actions work normally. */
 				<iframe
-					ref={htmlPreviewRef}
-					className={
-						mail.attachments.length > 0
-							? `${css.htmlPreview} ${css.htmlPreviewWithAttachments}`
-							: css.htmlPreview
-					}
+					className={css.htmlPreview}
 					title={`Contents of ${subject}`}
-					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-					srcDoc={createEmailPreviewDocument(
-						embedRelatedAttachments(
-							mail.html,
-							mail.attachments,
-							attachmentResources
-						)
-					)}
+					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+					srcDoc={previewDocument}
 				/>
 			) : mail.text ? (
 				<pre className={css.textBody}>{mail.text}</pre>
 			) : (
 				<Text>This message has no body.</Text>
-			)}
-			{mail.attachments.length > 0 && (
-				<>
-					<Divider />
-					<MailAttachments
-						attachments={mail.attachments}
-						resources={attachmentResources}
-					/>
-				</>
 			)}
 		</VStack>
 	);
@@ -172,6 +113,19 @@ function formatDate(value: string): string {
 		dateStyle: 'medium',
 		timeStyle: 'short',
 	}).format(date);
+}
+
+function createEmailBodyHtml(
+	mail: Email,
+	resources: AttachmentResources
+): string {
+	if (mail.html) {
+		return embedRelatedAttachments(mail.html, mail.attachments, resources);
+	}
+	if (mail.text) {
+		return renderToStaticMarkup(<pre>{mail.text}</pre>);
+	}
+	return renderToStaticMarkup(<p>This message has no body.</p>);
 }
 
 function embedRelatedAttachments(
@@ -196,7 +150,10 @@ function embedRelatedAttachments(
 	return html;
 }
 
-function createEmailPreviewDocument(html: string): string {
+function createEmailPreviewDocument(
+	html: string,
+	attachmentsHtml: string
+): string {
 	/*
 	 * Email bodies are untrusted fragments and may not include document metadata.
 	 * UTF-8 and standards mode keep parsing consistent across messages. CSP blocks
@@ -209,10 +166,11 @@ function createEmailPreviewDocument(html: string): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https: data: blob:; media-src http: https: data: blob:; style-src 'unsafe-inline' http: https: data:; font-src http: https: data: blob:; script-src 'none'; form-action 'none'; base-uri 'none'">
 <base target="_blank">
 <style>
-	html { overflow: hidden !important; }
+	html { overflow: auto !important; }
 	body { color: #1e1e1e; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; overflow-wrap: anywhere; }
 	img { height: auto; max-width: 100%; }
 	pre { white-space: pre-wrap; }
 </style>
-${html}`;
+${html}
+${attachmentsHtml}`;
 }

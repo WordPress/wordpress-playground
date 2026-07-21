@@ -32,6 +32,10 @@
 	padding: 24px;
 }
 
+.mail-preview-with-iframe {
+	overflow: hidden;
+}
+
 .mail-preview > * {
 	flex-shrink: 0;
 }
@@ -64,115 +68,11 @@
 
 .html-preview {
 	display: block;
-	flex: 1 0 auto;
-	height: 300px;
+	flex: 1 1 auto;
+	height: 100vh;
 	min-height: 0;
 	width: 100%;
 	border: 0;
-}
-
-.html-preview-with-attachments {
-	flex-grow: 0;
-}
-
-.attachments {
-	min-width: 0;
-}
-
-.attachment-list {
-	box-sizing: border-box;
-	width: 100%;
-	margin: 0;
-	padding: 2px 2px 8px;
-	list-style: none;
-}
-
-.attachment-item {
-	min-width: 0;
-}
-
-.attachment-card {
-	height: 100%;
-}
-
-.attachment-media {
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 80px;
-	overflow: hidden;
-	background: var(--wp-components-color-gray-100, #f0f0f0);
-}
-
-.attachment-preview {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 100%;
-	height: 100%;
-}
-
-.attachment-actions {
-	position: absolute;
-	inset: 0;
-	align-items: center;
-	padding: 8px;
-	opacity: 0;
-	pointer-events: none;
-	background: var(--wp-components-color-gray-100, #f0f0f0);
-}
-
-.attachment-card:hover .attachment-preview,
-.attachment-card:focus-within .attachment-preview {
-	opacity: 0;
-}
-
-.attachment-card:hover .attachment-actions,
-.attachment-card:focus-within .attachment-actions {
-	opacity: 1;
-	pointer-events: auto;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-	.attachment-preview,
-	.attachment-actions {
-		transition: opacity 120ms ease-out;
-	}
-}
-
-.attachment-image,
-.attachment-video {
-	display: block;
-	width: 100%;
-	height: 100%;
-	object-fit: contain;
-}
-
-.attachment-audio {
-	display: block;
-	width: calc(100% - 24px);
-}
-
-.attachment-details {
-	min-width: 0;
-	overflow-wrap: anywhere;
-}
-
-.attachment-download {
-	gap: 4px;
-	min-width: 0;
-	padding: 0;
-	font-size: 13px;
-	line-height: 16px;
-	pointer-events: auto;
-}
-
-.attachment-placeholder {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--wp-components-color-gray-700, #757575);
 }
 
 @container (max-width: 600px) {
@@ -200,6 +100,10 @@
 		box-sizing: border-box;
 		overflow-x: hidden;
 		overflow-y: auto;
+	}
+
+	.mail-preview-with-iframe {
+		overflow: hidden;
 	}
 
 	.mail-metadata {
