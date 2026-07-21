@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Annotate UI screenshots with documentation callouts.
 
-Renders tapered blue ribbon arrows with white halos, double-stroke target
+Renders uniform-width blue arrows with white halos, double-stroke target
 outlines, numbered callout cards, dim overlays and a framed canvas, from a
 JSON config. All geometry is authored in CSS px relative to the screenshot's
 top-left corner; the script supersamples, draws, downsamples once with
@@ -114,40 +114,38 @@ def _norm(vx, vy):
     return vx / d, vy / d
 
 
-def _arrow_shapes(p0, p1, axis, w_tail, w_head, head_len, head_half, tip_ext):
-    """Return (ribbon polygon, head polygon, tail circle) for one arrow.
+def _arrow_shapes(p0, p1, axis, half_w, head_len, head_half, tip_ext, overlap):
+    """Return (shaft center points, head polygon) for one arrow.
 
-    The ribbon is a filled tapered polygon around the cubic Bézier — never a
-    stroked polyline (strokes band at the joints). It is trimmed 16px (the
-    blue head length) before the endpoint; the triangular head sits there
-    with its tip exactly on the (possibly extended) endpoint.
+    The shaft is a uniform-width stroke along the cubic Bézier, rendered by
+    stamping filled circles at dense, even arc-length steps — this keeps the
+    line width identical from tail to head and leaves round caps with no
+    polygon-edge artifacts. It runs `overlap` past the head base and is
+    covered by the head polygon there, so the bending curve can never open
+    a gap against the head's straight edges.
     """
     c1, c2 = _controls(p0, p1, axis)
-    n_samples = 160
+    n_samples = 600
     pts = [_cubic(p0, c1, c2, p1, i / n_samples) for i in range(n_samples + 1)]
     segs = [math.dist(pts[i], pts[i + 1]) for i in range(n_samples)]
     total = sum(segs)
-    # both passes end their ribbon at the same head base: 16px before the
-    # true endpoint (halo: head_len 19.2 with tip extended 3.2 → same base)
-    trim = head_len - tip_ext
-    ribbon_len = max(total - trim, 1e-6)
+    shaft_len = max(total - (head_len - tip_ext) + overlap, 1e-6)
 
-    left, right = [], []
+    centers = [p0]
     acc = 0.0
-    for i, pt in enumerate(pts):
-        if i > 0:
-            acc += segs[i - 1]
-        if acc > ribbon_len:
+    for i in range(n_samples):
+        acc += segs[i]
+        if acc > shaft_len:
             break
-        j = min(i, n_samples - 1)
-        tx, ty = _norm(pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1])
-        nx, ny = -ty, tx
-        w = w_tail + (w_head - w_tail) * min(acc / ribbon_len, 1.0)
-        left.append((pt[0] + nx * w, pt[1] + ny * w))
-        right.append((pt[0] - nx * w, pt[1] - ny * w))
-    ribbon = left + right[::-1]
+        centers.append(pts[i + 1])
 
-    dx, dy = _norm(p1[0] - c2[0], p1[1] - c2[1])
+    # Point the head along the shaft's actual arrival direction (the chord
+    # from the last visible shaft point to the endpoint), not the endpoint
+    # tangent — on short or tightly bent arrows those differ and an
+    # axis-aligned head would kink against the line feeding into it.
+    dx, dy = _norm(p1[0] - centers[-1][0], p1[1] - centers[-1][1])
+    if (dx, dy) == (0.0, 0.0):
+        dx, dy = _norm(p1[0] - c2[0], p1[1] - c2[1])
     if (dx, dy) == (0.0, 0.0):
         dx, dy = _norm(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
     tip = (p1[0] + dx * tip_ext, p1[1] + dy * tip_ext)
@@ -158,27 +156,23 @@ def _arrow_shapes(p0, p1, axis, w_tail, w_head, head_len, head_half, tip_ext):
         tip,
         (base[0] - nx * head_half, base[1] - ny * head_half),
     ]
-    tail = (p0, w_tail)
-    return ribbon, head, tail
+    return centers, head
 
 
 def draw_arrow(draw, p0, p1, axis, scale):
     """Halo pass (white, expanded 3.2px/side, tip extended 3.2px) then blue."""
     passes = [
-        (WHITE, (7.5 + 3.2) * scale, (3.5 + 3.2) * scale,
-         (16 + 3.2) * scale, (8 + 3.2) * scale, 3.2 * scale),
-        (BLUE, 7.5 * scale, 3.5 * scale, 16 * scale, 8 * scale, 0.0),
+        (WHITE, (4.5 + 3.2) * scale, (20 + 3.2) * scale,
+         (10 + 3.2) * scale, 3.2 * scale),
+        (BLUE, 4.5 * scale, 20 * scale, 10 * scale, 0.0),
     ]
-    for color, w_tail, w_head, head_len, head_half, tip_ext in passes:
-        ribbon, head, (tail_c, tail_r) = _arrow_shapes(
-            p0, p1, axis, w_tail, w_head, head_len, head_half, tip_ext)
-        if len(ribbon) >= 3:
-            draw.polygon(ribbon, fill=color)
+    for color, half_w, head_len, head_half, tip_ext in passes:
+        centers, head = _arrow_shapes(
+            p0, p1, axis, half_w, head_len, head_half, tip_ext, 7 * scale)
+        for cx, cy in centers:
+            draw.ellipse([cx - half_w, cy - half_w, cx + half_w, cy + half_w],
+                         fill=color)
         draw.polygon(head, fill=color)
-        draw.ellipse(
-            [tail_c[0] - tail_r, tail_c[1] - tail_r,
-             tail_c[0] + tail_r, tail_c[1] + tail_r],
-            fill=color)
 
 
 # ---------------------------------------------------------------- outlines
@@ -204,9 +198,9 @@ def draw_outline(draw, spec, offset, scale):
     x1, y1 = x + ox + w + pad, y + oy + h + pad
     halo = 2.5 * scale
     draw.rounded_rectangle([x0 - halo, y0 - halo, x1 + halo, y1 + halo],
-                           radius=radius + halo, outline=WHITE,
+                           radius=int(round(radius + halo)), outline=WHITE,
                            width=int(9 * scale))
-    draw.rounded_rectangle([x0, y0, x1, y1], radius=radius,
+    draw.rounded_rectangle([x0, y0, x1, y1], radius=int(round(radius)),
                            outline=BLUE, width=int(4 * scale))
 
 
@@ -230,14 +224,14 @@ def _shadow(canvas, box, radius, blur, alpha, dy, scale):
     d = ImageDraw.Draw(layer)
     d.rounded_rectangle(
         [box[0], box[1] + dy * scale, box[2], box[3] + dy * scale],
-        radius=radius, fill=(15, 20, 30, alpha))
+        radius=int(round(radius)), fill=(15, 20, 30, alpha))
     canvas.alpha_composite(layer.filter(ImageFilter.GaussianBlur(blur * scale)))
 
 
 def _rounded_mask(size, radius):
     mask = Image.new("L", size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, size[0] - 1, size[1] - 1],
-                                           radius=radius, fill=255)
+                                           radius=int(round(radius)), fill=255)
     return mask
 
 
@@ -258,7 +252,7 @@ def _chrome_bar(width, url, scale):
     px0 = (width - pill_w) / 2
     py0 = (h - pill_h) / 2 - 0.5 * scale
     d.rounded_rectangle([px0, py0, px0 + pill_w, py0 + pill_h],
-                        radius=pill_h / 2, fill=WHITE)
+                        radius=int(round(pill_h / 2)), fill=WHITE)
     d.text((width / 2, py0 + pill_h / 2), url, font=font, fill=URL_COLOR,
            anchor="mm")
     return bar
@@ -291,7 +285,7 @@ def draw_card(canvas, placed, scale):
     c = placed
     x0, y0, w, h = c["x0"], c["y0"], c["w"], c["h"]
     box = [x0, y0, x0 + w, y0 + h]
-    radius = 16 * scale
+    radius = int(round(16 * scale))
     _shadow(canvas, box, radius, blur=22, alpha=26, dy=8, scale=scale)
     _shadow(canvas, box, radius, blur=8, alpha=32, dy=3, scale=scale)
     d = ImageDraw.Draw(canvas)
@@ -343,7 +337,7 @@ def render(cfg):
                        CANVAS_BG)
 
     # frame with soft shadow, rounded corners, 1px border
-    frame_r = cfg.get("frame_radius", 16) * scale
+    frame_r = int(round(cfg.get("frame_radius", 16) * scale))
     fbox = [margin, margin, margin + frame_w, margin + frame_h]
     _shadow(canvas, fbox, frame_r, blur=18, alpha=42, dy=7, scale=scale)
 
@@ -361,7 +355,8 @@ def render(cfg):
             hole = ImageDraw.Draw(overlay)
             hole.rounded_rectangle(
                 [x, y + chrome_h, x + w, y + chrome_h + h],
-                radius=dim.get("radius", 16) * scale, fill=(0, 0, 0, 0))
+                radius=int(round(dim.get("radius", 16) * scale)),
+                fill=(0, 0, 0, 0))
         frame.alpha_composite(overlay)
 
     canvas.paste(frame, (margin, margin),
@@ -497,8 +492,10 @@ def main():
         sys.exit(
             f"config error: cannot open screenshot {cfg['screenshot']!r}")
     if "--crops" in sys.argv:
-        out_dir = sys.argv[sys.argv.index("--crops") + 1]
-        save_crops(final, tips, cfg, out_dir, scale)
+        crops_at = sys.argv.index("--crops")
+        if crops_at + 1 >= len(sys.argv):
+            sys.exit("config error: --crops needs a directory argument")
+        save_crops(final, tips, cfg, sys.argv[crops_at + 1], scale)
 
 
 if __name__ == "__main__":

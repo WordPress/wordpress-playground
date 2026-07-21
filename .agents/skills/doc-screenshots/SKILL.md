@@ -1,12 +1,12 @@
 ---
 name: doc-screenshots
-description: Annotate UI screenshots with documentation callouts in Fellyph's established visual style — tapered blue ribbon arrows with white halos, double-stroke target outlines, numbered callout cards, dim overlays and a framed canvas. Use this whenever the user asks to annotate a screenshot, add arrows or callouts to a screenshot, create documentation images, highlight UI controls in a capture, or produce docs/tutorial visuals for Playground, Studio or any web UI — even if they just say "add arrows to this" or "make a docs screenshot".
+description: Annotate UI screenshots with documentation callouts in Fellyph's established visual style — uniform-width blue arrows with white halos, double-stroke target outlines, numbered callout cards, dim overlays and a framed canvas. Use this whenever the user asks to annotate a screenshot, add arrows or callouts to a screenshot, create documentation images, highlight UI controls in a capture, or produce docs/tutorial visuals for Playground, Studio or any web UI — even if they just say "add arrows to this" or "make a docs screenshot".
 ---
 
 # Documentation Screenshot Annotations
 
-Produce annotated UI screenshots in one specific house style: tapered blue
-(#3858e9) ribbon arrows with white halos, double-stroke outlines around
+Produce annotated UI screenshots in one specific house style: uniform-width
+blue (#3858e9) arrows with white halos, double-stroke outlines around
 targets, and (for overviews) a row of numbered callout cards over a dimmed
 screenshot. Never use stock arrow shapes, stroked polylines, or ad-hoc styles.
 
@@ -47,7 +47,7 @@ to spec. Do not reimplement the drawing by hand.
 
     Prefer driving the browser from Node with the repo's own
     `node_modules/playwright`; otherwise `pip install playwright &&
- playwright install chromium`, or use the Chrome DevTools MCP capture
+playwright install chromium`, or use the Chrome DevTools MCP capture
     tools.
 
     Before capturing, clean up dev-environment artifacts: update nags, debug
@@ -59,12 +59,12 @@ to spec. Do not reimplement the drawing by hand.
    sharing the bundled `sample-shot.webp`) and run:
 
     ```bash
-    python .claude/skills/doc-screenshots/scripts/annotate.py config.json --crops crops/
+    python .agents/skills/doc-screenshots/scripts/annotate.py config.json --crops crops/
     ```
 
     The script needs Python with Pillow. If no suitable interpreter is
     active, create a venv in the session scratchpad (`python3 -m venv
- <scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`) and call
+<scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`) and call
     that interpreter directly. The script validates the config up front and
     exits with a readable `config error:` message on bad input; `output`
     must be a `.webp` path.
@@ -110,8 +110,9 @@ to spec. Do not reimplement the drawing by hand.
 
 ## Style constants (already baked into the script — do not override)
 
-Blue #3858e9 on pure white halos; ribbon tapers 7.5px → 3.5px with a 16×8
-triangular head; halo expanded 3.2px per side. Outline = white width 9 on
+Blue #3858e9 on pure white halos; the shaft is a uniform 9px line (constant
+top to bottom, round caps) ending in a 20-long × 20-wide triangular head
+that flares well past the shaft; halo expanded 3.2px per side. Outline = white width 9 on
 the bbox expanded 2.5px, blue width 4 on the exact bbox. Canvas #f6f7f7,
 36px margins, rounded frame with 1px #dcdcde border and soft shadow. Cards:
 white, radius 16, 1px #ccced0 border, double shadow, blue badge r22,
@@ -123,9 +124,8 @@ Reference outputs in this style: an action walkthrough
 (free arrows onto dialog controls) and an overview legend (three cards over
 a dimmed page) — match their look, spacing and restraint.
 
-## Keep the mirror in sync
+## Repo layout
 
-This skill exists twice in the repo: `.claude/skills/doc-screenshots/` (the
-live copy) and `.agents/skills/doc-screenshots/` (mirror for other agent
-tooling). After editing any file here, copy the change to the mirror so the
-two trees stay byte-identical.
+The source of truth is `.agents/skills/doc-screenshots/`. `.claude/skills`
+is a committed symlink to `../.agents/skills`, so Claude Code loads the same
+files — edit only under `.agents/skills/` and never create a separate copy.
