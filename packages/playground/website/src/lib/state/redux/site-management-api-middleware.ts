@@ -11,7 +11,11 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo, updateClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	removeClientInfo,
+	updateClientInfo,
+} from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
@@ -681,16 +685,36 @@ export function createSitesAPI(
 			baseUrl: new URL(window.location.href),
 			onlySetupParams: true,
 		});
+		const previousActiveSiteSlug = selectActiveSite(getState())?.slug;
 		const newSiteInfo = await dispatch(
 			setStoredSiteSpec(siteName, url, requestedSiteSlug, {
 				persistence: options.persistence ?? 'explicit',
 			})
 		);
-		await activateNewSite(newSiteInfo.slug, initialize, {
-			updateUrl: options.updateUrl,
-		});
-		if (initialize) {
-			await waitForInitialOpfsSync(newSiteInfo.slug);
+		try {
+			await activateNewSite(newSiteInfo.slug, initialize, {
+				updateUrl: options.updateUrl,
+			});
+			if (initialize) {
+				await waitForInitialOpfsSync(newSiteInfo.slug);
+			}
+		} catch (error) {
+			if (initialize) {
+				// A failed initializer or first OPFS copy cannot produce a reloadable
+				// site. Remove it instead of retaining incomplete files and metadata.
+				await dispatch(removeSite(newSiteInfo.slug));
+				if (
+					previousActiveSiteSlug &&
+					selectSiteBySlug(getState(), previousActiveSiteSlug)
+				) {
+					dispatch(
+						setActiveSite(previousActiveSiteSlug, {
+							updateUrl: options.updateUrl,
+						})
+					);
+				}
+			}
+			throw error;
 		}
 		await dispatch(
 			pruneAutosavedSites({
@@ -734,9 +758,20 @@ export function createSitesAPI(
 		await new Promise<void>((resolve, reject) => {
 			const unsubscribe = startListening({
 				predicate: (action) =>
-					updateClientInfo.match(action) &&
-					action.payload.siteSlug === siteSlug,
-				effect: () => {
+					(updateClientInfo.match(action) &&
+						action.payload.siteSlug === siteSlug) ||
+					(removeClientInfo.match(action) &&
+						action.payload === siteSlug),
+				effect: (action) => {
+					if (removeClientInfo.match(action)) {
+						unsubscribe();
+						reject(
+							new Error(
+								'Unable to save the imported Playground because its runtime stopped.'
+							)
+						);
+						return;
+					}
 					const currentSync = getSync();
 					if (currentSync?.status === 'syncing') {
 						return;

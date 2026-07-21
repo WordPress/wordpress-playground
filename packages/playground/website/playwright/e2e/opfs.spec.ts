@@ -325,6 +325,20 @@ async function getActivePlaygroundSite(page: Page) {
 	);
 }
 
+async function getStoredPlaygroundSiteSlugs(page: Page) {
+	return page.evaluate(() => {
+		const sitesAPI = (window as any).playgroundSites;
+		if (!sitesAPI) {
+			return null;
+		}
+		return sitesAPI
+			.list()
+			.filter((site: any) => site.storage !== 'temporary')
+			.map((site: any) => site.slug)
+			.sort();
+	});
+}
+
 async function waitForActivePlaygroundSiteSlug(
 	page: Page,
 	matchesSlug: (slug: string) => boolean
@@ -781,6 +795,50 @@ test('should display OPFS storage option as selected by default', async ({
 	await expect(opfsRadio).toBeChecked();
 
 	await pane.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should remove the saved site created for a failed ZIP import', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const activeSiteBeforeImport = await getActivePlaygroundSite(website.page);
+	const storedSiteSlugsBeforeImport = await getStoredPlaygroundSiteSlugs(
+		website.page
+	);
+	expect(storedSiteSlugsBeforeImport).not.toBeNull();
+
+	const importFailed = await website.page.evaluate(async () => {
+		try {
+			await (window as any).playgroundSites.createNewSiteFromZip(
+				new File(['not a zip archive'], 'invalid-playground.zip', {
+					type: 'application/zip',
+				})
+			);
+			return false;
+		} catch {
+			return true;
+		}
+	});
+	expect(importFailed).toBe(true);
+
+	await expect
+		.poll(() => getStoredPlaygroundSiteSlugs(website.page))
+		.toEqual(storedSiteSlugsBeforeImport);
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.slug)
+		.toBe(activeSiteBeforeImport.slug);
+
+	await website.page.reload();
+	await website.waitForPlaygroundShell();
+	await expect
+		.poll(() => getStoredPlaygroundSiteSlugs(website.page))
+		.toEqual(storedSiteSlugsBeforeImport);
 });
 
 test('should block closing and finish during a ZIP import', async ({
