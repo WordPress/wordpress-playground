@@ -100,13 +100,22 @@ describe.each(blueprintVersions)(
 			});
 			expect(workerResponse.text).toBe('booted');
 
-			const freshResponse = await cliServer.playground.runInFreshProcess({
-				code: `<?php
-				echo function_exists('add_filter') ? 'booted:' : 'clean:';
-				require_once '/wordpress/wp-load.php';
-				echo function_exists('add_filter') ? 'loaded' : 'missing';`,
-			});
-			expect(freshResponse.text).toBe('clean:loaded');
+			const freshResponses = await Promise.all(
+				Array.from({ length: 4 }, (_, index) =>
+					cliServer.playground.runInFreshProcess({
+						code: `<?php
+						echo function_exists('add_filter') ? 'booted:' : 'clean:';
+						require_once '/wordpress/wp-load.php';
+						echo function_exists('add_filter') ? 'loaded:${index}' : 'missing';`,
+					})
+				)
+			);
+			expect(freshResponses.map((response) => response.text)).toEqual([
+				'clean:loaded:0',
+				'clean:loaded:1',
+				'clean:loaded:2',
+				'clean:loaded:3',
+			]);
 		});
 
 		test('should have Intl extension enabled by default', async () => {

@@ -78,6 +78,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
 	requestHandlerOptions: WorkerBootRequestHandlerOptions | undefined;
+	freshProcessQueue: Promise<unknown> = Promise.resolve();
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -220,34 +221,38 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	async runInFreshProcess(request: PHPRunOptions): Promise<PHPResponse> {
-		const options = this.requestHandlerOptions;
-		if (!options || !this.fileLockManager) {
-			throw new Error('Playground request handler is not booted');
-		}
+		const execution = this.freshProcessQueue.then(async () => {
+			const options = this.requestHandlerOptions;
+			if (!options || !this.fileLockManager) {
+				throw new Error('Playground request handler is not booted');
+			}
 
-		const requestHandler = await bootRequestHandler({
-			siteUrl: options.siteUrl,
-			phpVersion: options.phpVersion,
-			maxPhpInstances: 1,
-			createPhpRuntime: createPhpRuntimeFactory(
-				options,
-				this.fileLockManager
-			),
-			onPHPInstanceCreated: async (php) => {
-				await mountResources(php, options.mountsBeforeWpInstall);
-				await mountResources(php, options.mountsAfterWpInstall);
-			},
-			sapiName: 'cli',
-			cookieStore: false,
-			pathAliases: options.pathAliases,
+			const requestHandler = await bootRequestHandler({
+				siteUrl: options.siteUrl,
+				phpVersion: options.phpVersion,
+				maxPhpInstances: 1,
+				createPhpRuntime: createPhpRuntimeFactory(
+					options,
+					this.fileLockManager
+				),
+				onPHPInstanceCreated: async (php) => {
+					await mountResources(php, options.mountsBeforeWpInstall);
+					await mountResources(php, options.mountsAfterWpInstall);
+				},
+				sapiName: 'cli',
+				cookieStore: false,
+				pathAliases: options.pathAliases,
+			});
+
+			try {
+				const php = await requestHandler.getPrimaryPhp();
+				return await php.run(request);
+			} finally {
+				await requestHandler[Symbol.asyncDispose]();
+			}
 		});
-
-		try {
-			const php = await requestHandler.getPrimaryPhp();
-			return await php.run(request);
-		} finally {
-			await requestHandler[Symbol.asyncDispose]();
-		}
+		this.freshProcessQueue = execution.catch(() => undefined);
+		return await execution;
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
