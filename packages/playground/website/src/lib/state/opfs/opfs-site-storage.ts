@@ -519,9 +519,50 @@ export async function deleteDirectory(path: string) {
 	await parentDirHandle.removeEntry(targetName!, { recursive: true });
 }
 
-async function opfsWriteFile(path: string, content: string) {
-	// Note: Safari appears to require a worker to write OPFS file content,
-	// and that is why we're using a worker here.
+const lastOpfsWriteByPath = new Map<string, Promise<void>>();
+
+/**
+ * Writes file content to OPFS after earlier writes to the same path finish.
+ *
+ * OPFS sync access handles are exclusive. Starting two workers for the same
+ * metadata file can therefore make one worker fail with
+ * `NoModificationAllowedError`. Chaining writes by path prevents that race
+ * without making metadata writes for unrelated Playgrounds wait.
+ *
+ * A rejected write does not block later writes. The completed chain is removed
+ * only while it remains the newest write for its path, so an earlier write
+ * cannot discard a later write that is already waiting.
+ *
+ * @param path Absolute OPFS path to write.
+ * @param content Complete file content that should replace the current file.
+ */
+async function opfsWriteFile(path: string, content: string): Promise<void> {
+	const previousWrite = lastOpfsWriteByPath.get(path);
+	const write = (previousWrite ?? Promise.resolve())
+		.catch(() => undefined)
+		.then(() => writeOpfsFile(path, content));
+	lastOpfsWriteByPath.set(path, write);
+
+	try {
+		await write;
+	} finally {
+		if (lastOpfsWriteByPath.get(path) === write) {
+			lastOpfsWriteByPath.delete(path);
+		}
+	}
+}
+
+/**
+ * Runs one OPFS file write in the metadata worker.
+ *
+ * Safari requires the synchronous OPFS access handle used by this worker. The
+ * worker reports structured failures through its message channel and is always
+ * terminated after completion, failure, or timeout.
+ *
+ * @param path Absolute OPFS path to write.
+ * @param content Complete file content that should replace the current file.
+ */
+async function writeOpfsFile(path: string, content: string): Promise<void> {
 	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
 	const channel = new MessageChannel();
