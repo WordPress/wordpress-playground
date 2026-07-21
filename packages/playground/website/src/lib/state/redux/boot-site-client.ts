@@ -25,6 +25,7 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -326,6 +327,14 @@ export function bootSiteClient(
 				if (shouldShowGitHubAuthModal(repoUrl)) {
 					if (repoUrl) {
 						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					if (isUnfinishedBlueprintRun(site)) {
+						dispatch(
+							setActiveSiteError({
+								error: 'site-boot-failed',
+								details: e,
+							})
+						);
 					}
 					dispatch(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
