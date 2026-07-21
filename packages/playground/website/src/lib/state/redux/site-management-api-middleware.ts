@@ -49,12 +49,28 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
+
+/**
+ * Tracks the operation shared by concurrent autosave calls for one site.
+ *
+ * The promise covers persistence, routing, and pruning. Routing requests remain
+ * mutable until the operation completes because a later caller may require a
+ * URL update while awaiting the same promise.
+ */
 type AutosaveInProgress = {
 	promise: Promise<SaveSiteResult>;
 	requests: {
 		urlUpdateRequested: boolean;
 	};
 };
+
+/**
+ * Coordinates autosaves created for one Redux store.
+ *
+ * Filesystem persistence is shared by site slug. Pruning reads the store's
+ * complete site list, so active calls contribute exclusions to one shared
+ * pruning operation.
+ */
 type AutosaveCoordinator = {
 	autosavesBySiteSlug: Map<string, AutosaveInProgress>;
 	activePruningExclusions: Set<ReadonlySet<string>>;
@@ -314,24 +330,26 @@ export function createSitesAPI(
 			let autosaveInProgress = autosavesInProgressBySiteSlug.get(
 				site.slug
 			);
-			// With no shared autosave left to finalize, a stored site needs no work.
+			// A stored site with no autosave in progress has no work left to complete.
 			if (!autosaveInProgress && isStoredSite(site)) {
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
 
-			// Pruning is store-wide, so register this caller's exclusions with the
-			// store coordinator rather than the per-site persistence operation.
+			// Each pruning pass considers every autosaved site in the Redux store.
+			// Keep this call's exclusions visible to the shared pass until it finishes.
 			const pruningExclusions = new Set([
 				site.slug,
 				...(options.excludeFromPruning ?? []),
 			]);
 			coordinator.activePruningExclusions.add(pruningExclusions);
-			// Stop between deletions and restart with a new immutable snapshot.
+			// A running pass selected its candidates from an older snapshot. Stop it
+			// before its next deletion so the new exclusions can be applied.
 			coordinator.activePruneAbortController?.abort();
 
 			try {
-				// The first caller starts and registers the shared persistence work.
-				// Later callers contribute routing and await that same operation.
+				// Only one filesystem copy may target a site's OPFS destination.
+				// Concurrent autosaveTemporarySite() invocations for that slug share the
+				// copy and combine whether the stored site's URL must be opened.
 				if (!autosaveInProgress) {
 					const requests: AutosaveInProgress['requests'] = {
 						urlUpdateRequested: false,
@@ -354,19 +372,18 @@ export function createSitesAPI(
 			}
 
 			/**
-			 * Persists one site and finalizes every request that joins before it
-			 * completes.
+			 * Persists one site and completes its shared routing and pruning work.
 			 *
-			 * Persistence is shared because concurrent filesystem copies target the
-			 * same OPFS destination and race its mount and metadata work. Routing remains
-			 * attached to that site, while pruning is coordinated across the store.
+			 * Concurrent filesystem copies would target the same OPFS destination and
+			 * race its mount and metadata updates. Routing remains specific to this site;
+			 * pruning joins the operation shared by the Redux store.
 			 */
 			async function runSharedAutosave(
 				siteToAutosave: SiteInfo,
 				requests: AutosaveInProgress['requests']
 			): Promise<SaveSiteResult> {
-				// Let the caller publish this promise in the per-store map before any
-				// persistence work can dispatch actions that start another autosave.
+				// The promise must be present in the per-site map before persistence can
+				// dispatch actions that start another autosave.
 				await Promise.resolve();
 
 				try {
@@ -374,7 +391,7 @@ export function createSitesAPI(
 						persistTemporarySite(siteToAutosave.slug, 'opfs', {
 							skipRenameModal: true,
 							persistence: 'autosave',
-							// Routing is decided after all concurrent callers have joined.
+							// The shared operation combines routing requests separately.
 							updateUrl: false,
 						})
 					);
@@ -415,9 +432,11 @@ export function createSitesAPI(
 			}
 
 			/**
-			 * Shares one store-wide prune between concurrent autosaves. A caller that
-			 * arrives during a pass aborts it between deletions; the pass then restarts
-			 * with a fresh snapshot containing every active caller's exclusions.
+			 * Runs the pruning operation shared by active autosaves in this Redux store.
+			 *
+			 * Each pass receives an immutable exclusion snapshot. Registering another
+			 * autosave aborts an active pass between deletions, then the loop starts a
+			 * replacement pass containing all exclusions that are still active.
 			 */
 			async function runStoreWidePruning(): Promise<void> {
 				let pruning = coordinator.pruneInProgress;
@@ -428,7 +447,8 @@ export function createSitesAPI(
 				await pruning;
 
 				async function runPruningPasses(): Promise<void> {
-					// Publish the promise before pruning can dispatch more autosave work.
+					// The shared promise must be published before pruning can dispatch work
+					// that starts another autosave.
 					await Promise.resolve();
 					try {
 						let passWasAborted: boolean;
@@ -464,6 +484,9 @@ export function createSitesAPI(
 				}
 			}
 
+			/**
+			 * Returns the union of exclusions owned by active autosave calls.
+			 */
 			function getActivePruningExclusions(): Set<string> {
 				const slugs = new Set<string>();
 				for (const exclusions of coordinator.activePruningExclusions) {
