@@ -2219,11 +2219,8 @@ test.describe('Default Playground storage', () => {
 
 		await pullRequestTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
-		await expect(
 			newPane.getByRole('textbox', {
-				name: 'Pull request URL or number',
+				name: 'WordPress Core or Gutenberg',
 			})
 		).toBeVisible();
 		await expect(

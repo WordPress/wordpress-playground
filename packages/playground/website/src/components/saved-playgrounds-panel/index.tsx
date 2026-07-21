@@ -897,12 +897,12 @@ export function SavedPlaygroundsPanel({
 	 * The start methods, as a top tab strip. The three Blueprint sources lead
 	 * (Gallery / From a URL / Write your own) so they read as one cohesive way to
 	 * start; the code/import flows follow. Each tab shows an icon + label; the
-	 * panel below names the active flow and renders it.
+	 * panel below renders the active flow.
 	 */
 	const creationMethods: {
 		id: CreationTabId;
 		label: string;
-		panelTitle: string;
+		panelTitle?: string;
 		icon: React.ReactNode;
 		disabled: boolean;
 	}[] = [
@@ -930,7 +930,6 @@ export function SavedPlaygroundsPanel({
 		{
 			id: 'pull-request',
 			label: 'Preview a PR',
-			panelTitle: 'Preview a pull request',
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
@@ -1313,7 +1312,7 @@ export function SavedPlaygroundsPanel({
 	function renderNewPlaygroundSection() {
 		// A top tab strip picks a way to start; the panel below swaps to match.
 		// The three Blueprint sources lead so they read as one cohesive way to
-		// start, then the code/import flows. A quiet heading names each flow.
+		// start, then the code/import flows. Most have a quiet secondary heading.
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
@@ -1393,7 +1392,7 @@ export function SavedPlaygroundsPanel({
 							: `creation-tab-${activeCreationTab}`
 					}
 				>
-					{!isGitHubImportOpen && (
+					{!isGitHubImportOpen && activeMethod?.panelTitle && (
 						<div className={css.panelHeader}>
 							<h3
 								id="creation-panel-title"
