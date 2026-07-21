@@ -366,6 +366,16 @@ export function Dock({
 	}, [operationNotice]);
 
 	useEffect(() => {
+		if (operationNotice?.status !== 'success') {
+			return;
+		}
+		const timeout = window.setTimeout(() => {
+			dispatch(setDockOperationNotice(undefined));
+		}, 4000);
+		return () => window.clearTimeout(timeout);
+	}, [dispatch, operationNotice]);
+
+	useEffect(() => {
 		if (dockCenter === null || !dockSize.width) {
 			return;
 		}
@@ -1003,7 +1013,14 @@ export function Dock({
 	return (
 		<>
 			{operationNotice && (
-				<span className={css.visuallyHidden} role="alert">
+				<span
+					className={css.visuallyHidden}
+					role={
+						operationNotice.status === 'success'
+							? 'status'
+							: 'alert'
+					}
+				>
 					{operationNotice.title}
 					{operationNotice.message && `. ${operationNotice.message}`}
 				</span>
@@ -1150,9 +1167,16 @@ export function Dock({
 			{operationNotice && (
 				<div
 					ref={operationToastRef}
-					className={css.dockOperationToast}
+					className={classNames(css.dockOperationToast, {
+						[css.dockOperationToastSuccess]:
+							operationNotice.status === 'success',
+					})}
 					role="group"
-					aria-label="Operation failed"
+					aria-label={
+						operationNotice.status === 'success'
+							? 'Operation succeeded'
+							: 'Operation failed'
+					}
 					style={operationToastStyle}
 				>
 					<div className={css.dockOperationToastContent}>
@@ -1167,7 +1191,11 @@ export function Dock({
 					</div>
 					<button
 						type="button"
-						aria-label="Dismiss operation error"
+						aria-label={
+							operationNotice.status === 'success'
+								? 'Dismiss operation notification'
+								: 'Dismiss operation error'
+						}
 						onClick={() =>
 							dispatch(setDockOperationNotice(undefined))
 						}
