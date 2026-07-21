@@ -799,6 +799,73 @@ const WOOCOMMERCE_ONBOARDING_CODE = `<?php
 add_filter( 'woocommerce_prevent_automatic_wizard_redirect', '__return_true' );
 `;
 
+const YOAST_FIRST_RUN_CODE = `<?php
+add_filter( 'wpseo_should_redirect_after_install', '__return_false' );
+`;
+
+const YOAST_FIRST_RUN_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+$options = get_option( 'wpseo', array() );
+$options['should_redirect_after_install_free'] = false;
+$options['activation_redirect_timestamp_free'] = time();
+$options['dismiss_configuration_workout_notice'] = true;
+update_option( 'wpseo', $options );
+`;
+
+const WP_MAIL_SMTP_SETUP_CODE = `<?php
+add_filter( 'wp_mail_smtp_admin_setup_wizard_load_wizard', '__return_false' );
+`;
+
+const RANK_MATH_SETUP_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( '_rank_math_activation_redirect' );
+update_option( 'rank_math_registration_skip', true );
+update_option( 'rank_math_wizard_completed', true );
+update_option( 'rank_math_is_configured', true );
+`;
+
+const REDIRECTION_SETUP_CODE = `<?php
+require '/wordpress/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+$plugin = 'redirection/redirection.php';
+$was_active = is_plugin_active( $plugin );
+if ( ! $was_active ) {
+	$result = activate_plugin( $plugin );
+	if ( is_wp_error( $result ) ) {
+		throw new RuntimeException( $result->get_error_message() );
+	}
+}
+
+try {
+	require_once WP_PLUGIN_DIR . '/redirection/database/database.php';
+	$status = new Red_Database_Status();
+	if ( $status->needs_installing() || $status->needs_updating() ) {
+		$database = new Red_Database();
+		$info = $status->get_json();
+		for ( $attempt = 0; $attempt < 50; $attempt++ ) {
+			$database->apply_upgrade( $status );
+			$info = $status->get_json();
+			if ( isset( $info['result'] ) && 'error' === $info['result'] ) {
+				throw new RuntimeException( (string) ( $info['reason'] ?? 'Database setup failed.' ) );
+			}
+			if ( ! $info['inProgress'] ) {
+				break;
+			}
+		}
+		if ( $info['inProgress'] ) {
+			throw new RuntimeException( 'Redirection database setup did not finish.' );
+		}
+	}
+} finally {
+	if ( ! $was_active ) {
+		deactivate_plugins( $plugin );
+	}
+}
+`;
+
 const ADMINER_BAR_CODE = `<?php
 add_action( 'admin_bar_menu', function( WP_Admin_Bar $wp_menu ) {
 	$wp_menu->add_node(
@@ -993,20 +1060,156 @@ const PLUGIN_CATALOG = [
 	}
 ];
 
+// Only include first-run flows with a supported skip, safe local mode, or setup we can complete.
+// Never fabricate credentials to make required account or license setup look finished.
 const PLUGIN_SETUP_CONTROLS = {
 	woocommerce: [{
 		key: 'skipOnboarding',
 		label: 'Skip setup wizard',
 		note: 'Mark onboarding complete and suppress the first-run redirect.',
 		status: 'setup wizard skipped',
-		defaultValue: false,
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/skip-woocommerce-onboarding.php',
+			data: WOOCOMMERCE_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { woocommerce_onboarding_profile: { completed: true } },
+		}],
+	}],
+	'wordpress-seo': [{
+		key: 'hideFirstRunPrompts',
+		label: 'Hide first-run prompts',
+		note: 'Suppress the install redirect and configuration notice without marking SEO configured.',
+		status: 'first-run prompts hidden',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/hide-yoast-first-run-prompts.php',
+			data: YOAST_FIRST_RUN_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: YOAST_FIRST_RUN_STATE_CODE }],
+	}],
+	elementor: [{
+		key: 'skipOnboarding',
+		label: 'Skip onboarding',
+		note: 'Mark onboarding complete and dismiss the editor starter panel.',
+		status: 'onboarding skipped',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: {
+				elementor_onboarded: '2.0.0',
+				elementor_onboarding_progress: {
+					exit_type: 'user_exit',
+					starter_dismissed: true,
+				},
+			},
+		}],
+	}],
+	'wpforms-lite': [{
+		key: 'disableSetupWizard',
+		label: 'Disable setup wizard',
+		note: 'Use WPForms’ built-in switch to disable its setup wizard and welcome screen.',
+		status: 'setup wizard disabled',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { wpforms_setup_wizard_disabled: true },
+		}],
+	}],
+	'wp-mail-smtp': [{
+		key: 'disableSetupWizard',
+		label: 'Disable setup wizard',
+		note: 'Prevent the automatic launch and disable the wizard route.',
+		status: 'setup wizard disabled',
+		defaultValue: true,
+		beforeInstallSteps: [
+			{
+				step: 'setSiteOptions',
+				options: { wp_mail_smtp_activation_prevent_redirect: true },
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/skip-wp-mail-smtp-setup.php',
+				data: WP_MAIL_SMTP_SETUP_CODE,
+			},
+		],
+	}],
+	'seo-by-rank-math': [{
+		key: 'skipSetupWizard',
+		label: 'Skip setup wizard',
+		note: 'Dismiss registration and mark the setup wizard complete.',
+		status: 'setup wizard skipped',
+		defaultValue: true,
+		afterInstallSteps: [{ step: 'runPHP', code: RANK_MATH_SETUP_CODE }],
+	}],
+	updraftplus: [{
+		key: 'skipTour',
+		label: 'Skip guided tour',
+		note: 'Disable UpdraftPlus’ first-run guided tour.',
+		status: 'guided tour skipped',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'defineWpConfigConsts',
+			consts: { UPDRAFTPLUS_ENABLE_TOUR: false },
+			method: 'rewrite-wp-config',
+		}],
+	}],
+	'really-simple-ssl': [{
+		key: 'dismissOnboarding',
+		label: 'Dismiss onboarding',
+		note: 'Hide onboarding without changing the site’s SSL configuration.',
+		status: 'onboarding dismissed',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { rsssl_onboarding_dismissed: true },
+		}],
 	}],
 	jetpack: [{
 		key: 'offlineMode',
 		label: 'Use offline mode',
 		note: 'Skip the WordPress.com connection; cloud features will be unavailable.',
 		status: 'offline mode',
-		defaultValue: false,
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'defineWpConfigConsts',
+			consts: { JETPACK_DEV_DEBUG: true },
+			method: 'rewrite-wp-config',
+		}],
+	}],
+	'all-in-one-seo-pack': [{
+		key: 'skipSetupWizard',
+		label: 'Skip setup wizard',
+		note: 'Prevent the setup wizard from opening automatically after activation.',
+		status: 'setup wizard skipped',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { aioseo_activation_redirect: true },
+		}],
+	}],
+	redirection: [{
+		key: 'automaticSetup',
+		label: 'Set up automatically',
+		note: 'Create the required database tables and groups instead of opening the setup wizard.',
+		status: 'automatic setup',
+		defaultValue: true,
+		afterInstallSteps: [{ step: 'runPHP', code: REDIRECTION_SETUP_CODE }],
+	}],
+	'google-analytics-for-wordpress': [{
+		key: 'skipSetupWizard',
+		label: 'Skip setup wizard',
+		note: 'Prevent MonsterInsights’ setup wizard from opening automatically.',
+		status: 'setup wizard skipped',
+		defaultValue: true,
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { monsterinsights_skip_wizard: true },
+		}],
 	}],
 };
 
@@ -3637,6 +3840,7 @@ function v27BuildBlueprint() {
 			},
 		});
 	});
+	steps.push(...v27ContextualSetupSteps('afterInstallSteps'));
 	if (state.lang !== 'en_US') steps.push({ step: 'setSiteLanguage', language: state.lang });
 	if (state.content.removeStarterContent) {
 		steps.push({ step: 'runPHP', code: STARTER_CONTENT_CODE });
@@ -3680,39 +3884,24 @@ function v27BuildBlueprint() {
 	return blueprint;
 }
 
-function v27ContextualSetupSteps() {
+function v27ContextualSetupSteps(phase = 'beforeInstallSteps') {
 	const steps = [];
-	const wooCommerce = state.plugins.find((plugin) => plugin.slug === 'woocommerce');
-	const jetpack = state.plugins.find((plugin) => plugin.slug === 'jetpack');
-	const hideEditorGuides = state.wordpressAdmin.hideEditorGuides;
-	const skipWooCommerceOnboarding = Boolean(wooCommerce?.setup?.skipOnboarding);
-	if (jetpack?.setup?.offlineMode) {
-		steps.push({
-			step: 'defineWpConfigConsts',
-			consts: { JETPACK_DEV_DEBUG: true },
-			method: 'rewrite-wp-config',
-		});
-	}
-	if (hideEditorGuides || skipWooCommerceOnboarding) {
-		steps.push({ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' });
-	}
-	if (hideEditorGuides) {
+	if (phase === 'beforeInstallSteps' && state.wordpressAdmin.hideEditorGuides) {
 		steps.push({
 			step: 'writeFile',
 			path: '/wordpress/wp-content/mu-plugins/hide-editor-welcome-guides.php',
 			data: GUIDE_CODE,
 		});
 	}
-	if (skipWooCommerceOnboarding) {
-		steps.push({
-			step: 'setSiteOptions',
-			options: { woocommerce_onboarding_profile: { completed: true } },
+	state.plugins.forEach((plugin) => {
+		(PLUGIN_SETUP_CONTROLS[plugin.slug] || []).forEach((control) => {
+			if (!plugin.setup?.[control.key]) return;
+			steps.push(...JSON.parse(JSON.stringify(control[phase] || [])));
 		});
-		steps.push({
-			step: 'writeFile',
-			path: '/wordpress/wp-content/mu-plugins/skip-woocommerce-onboarding.php',
-			data: WOOCOMMERCE_ONBOARDING_CODE,
-		});
+	});
+	if (steps.some((step) => step.step === 'writeFile'
+		&& step.path.startsWith('/wordpress/wp-content/mu-plugins/'))) {
+		steps.unshift({ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' });
 	}
 	return steps;
 }
