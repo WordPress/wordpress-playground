@@ -574,12 +574,12 @@ export function Dock({
 	// already fixed to an edge and keep their native control interactions.
 	const canDrag = !isMobile && !isFullWidth;
 
-	/** Reports whether a target is a real Dock control. */
-	const isInteractiveTarget = (target: EventTarget | null) =>
+	/** Reports whether a target belongs to a Dock control, including a portal. */
+	const isDockControlTarget = (target: EventTarget | null) =>
 		target instanceof Element &&
 		Boolean(
 			target.closest(
-				'button, a, input, textarea, select, [role="menu"], [role="menuitem"]'
+				'button, a, input, textarea, select, [role="menu"], [role="menuitem"], [role="listbox"]'
 			)
 		);
 
@@ -609,20 +609,12 @@ export function Dock({
 	// Controls keep native press, selection, and motor-tolerance behavior. The
 	// surrounding Dock chrome remains a large drag handle without turning a small
 	// pointer wobble on a button into an accidental Dock move.
-	const isNativePressTarget = (target: EventTarget | null) =>
-		target instanceof Element &&
-		Boolean(
-			target.closest(
-				'button, input, textarea, select, a, [role="menu"], [role="menuitem"]'
-			)
-		);
-
 	/** Arms a whole-surface horizontal drag and swallows clicks after real drags. */
 	const handleDockPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
 		if (
 			!canDrag ||
 			event.button !== 0 ||
-			isNativePressTarget(event.target)
+			isDockControlTarget(event.target)
 		) {
 			return;
 		}
@@ -756,7 +748,7 @@ export function Dock({
 			return;
 		}
 		setDockSheen(
-			isInteractiveTarget(event.target) ? 0.12 : 1,
+			isDockControlTarget(event.target) ? 0.12 : 1,
 			event.clientX
 		);
 	};
@@ -1217,6 +1209,7 @@ export function Dock({
 						<div className={css.dockAddress}>
 							<AddressBar
 								url={clientInfo?.url}
+								isMobile={isMobile}
 								disabled={!clientInfo}
 								onUpdate={
 									clientInfo
