@@ -97,10 +97,12 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
-	const autosavesInProgressBySiteSlug =
-		autosavesInProgressByDispatch.get(dispatch) ??
-		new Map<string, AutosaveInProgress>();
-	autosavesInProgressByDispatch.set(dispatch, autosavesInProgressBySiteSlug);
+	let autosavesForStore = autosavesInProgressByDispatch.get(dispatch);
+	if (!autosavesForStore) {
+		autosavesForStore = new Map();
+		autosavesInProgressByDispatch.set(dispatch, autosavesForStore);
+	}
+	const autosavesInProgressBySiteSlug = autosavesForStore;
 	const api = {
 		/**
 		 * Lists all known sites.
@@ -301,10 +303,17 @@ export function createSitesAPI(
 			let autosaveInProgress = autosavesInProgressBySiteSlug.get(
 				site.slug
 			);
+			// The first caller starts and registers the shared autosave. Callers that
+			// arrive while it is running skip this branch, add their options below,
+			// and await the same persistence and pruning work.
 			if (!autosaveInProgress) {
+				// With no shared autosave left to finalize, a stored site needs no work.
 				if (site.metadata.storage !== 'none') {
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
+				// Always protect the site being saved from pruning. Caller-specific
+				// exclusions and routing requests are merged below for both the first
+				// caller and any callers that join later.
 				const requests: AutosaveInProgress['requests'] = {
 					excludeFromPruning: new Set([site.slug]),
 					urlUpdateRequested: false,
