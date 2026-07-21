@@ -14,9 +14,11 @@ import type {
 	MountDescriptor,
 } from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
-import type { WebClientMixin } from './playground-client';
+import type { SiteThumbnail, WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
+// @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
+import siteThumbnailModuleUrl from './capture-site-thumbnail.ts?worker&url';
 
 type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
@@ -358,6 +360,12 @@ export async function bootPlaygroundRemote() {
 			}
 			return await playground.internalUrlToPath(url);
 		},
+		async captureSiteThumbnail() {
+			return await captureSiteThumbnailFromWordPress({
+				frontPageUrl: await playground.pathToInternalUrl('/'),
+				sandbox: wpFrame.getAttribute('sandbox'),
+			});
+		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
 		},
@@ -566,6 +574,121 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
+const SITE_THUMBNAIL_RESPONSE = 'playground-site-thumbnail-result';
+const SITE_THUMBNAIL_LOAD_TIMEOUT_MS = 20000;
+const SITE_THUMBNAIL_RENDER_TIMEOUT_MS = 3000;
+
+/**
+ * Loads the front page in a disposable iframe and asks that document to render
+ * itself. The WordPress MU plugin owns the receiving side because the remote
+ * frame cannot inspect the WordPress DOM under Document-Isolation-Policy. A
+ * separate iframe avoids navigating or capturing wp-admin in the visible one.
+ * Every response path removes the iframe and listeners. The load watchdog
+ * covers a page that never loads; once it loads, a shorter deadline bounds the
+ * renderer work.
+ */
+async function captureSiteThumbnailFromWordPress({
+	frontPageUrl,
+	sandbox,
+}: {
+	frontPageUrl: string;
+	sandbox: string | null;
+}): Promise<SiteThumbnail> {
+	const frontPageOrigin = new URL(frontPageUrl).origin;
+	const iframe = document.createElement('iframe');
+	iframe.setAttribute('aria-hidden', 'true');
+	iframe.tabIndex = -1;
+	iframe.style.position = 'fixed';
+	iframe.style.left = '-10000px';
+	iframe.style.top = '0';
+	iframe.style.width = '1024px';
+	iframe.style.height = '768px';
+	iframe.style.opacity = '0';
+	iframe.style.pointerEvents = 'none';
+	if (sandbox) {
+		iframe.setAttribute('sandbox', sandbox);
+	}
+	iframe.src = frontPageUrl;
+
+	return await new Promise<SiteThumbnail>((resolve, reject) => {
+		const requestId = `${Date.now()}-${Math.random()}`;
+		let timeout = setTimeout(onTimeout, SITE_THUMBNAIL_LOAD_TIMEOUT_MS);
+
+		const onMessage = (event: MessageEvent) => {
+			if (
+				event.source !== iframe.contentWindow ||
+				event.origin !== frontPageOrigin ||
+				event.data?.type !== SITE_THUMBNAIL_RESPONSE ||
+				event.data?.requestId !== requestId
+			) {
+				return;
+			}
+			if (event.data.error) {
+				finish(() => reject(new Error(event.data.error)));
+				return;
+			}
+			const thumbnail = event.data.thumbnail;
+			if (
+				typeof thumbnail !== 'object' ||
+				thumbnail === null ||
+				(thumbnail.mime !== 'image/webp' &&
+					thumbnail.mime !== 'image/jpeg') ||
+				typeof thumbnail.data !== 'string' ||
+				thumbnail.data.length === 0
+			) {
+				finish(() =>
+					reject(
+						new Error(
+							'The site thumbnail renderer returned an invalid image.'
+						)
+					)
+				);
+				return;
+			}
+			finish(() => resolve(thumbnail));
+		};
+
+		const onLoad = () => {
+			clearTimeout(timeout);
+			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
+			const moduleUrl = new URL(
+				siteThumbnailModuleUrl,
+				document.location.href
+			);
+			// The marker lets the service worker distinguish this app asset
+			// from a path inside the scoped WordPress site.
+			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');
+			iframe.contentWindow?.postMessage(
+				{
+					type: SITE_THUMBNAIL_REQUEST,
+					requestId,
+					moduleUrl: moduleUrl.href,
+				},
+				frontPageOrigin
+			);
+		};
+
+		function onTimeout() {
+			finish(() =>
+				reject(new Error('Timed out capturing the site thumbnail.'))
+			);
+		}
+
+		function finish(callback: () => void) {
+			clearTimeout(timeout);
+			window.removeEventListener('message', onMessage);
+			iframe.removeEventListener('load', onLoad);
+			iframe.remove();
+			callback();
+		}
+
+		window.addEventListener('message', onMessage);
+		iframe.addEventListener('load', onLoad, { once: true });
+		document.body.append(iframe);
+	});
 }
 
 /**
