@@ -837,13 +837,20 @@ function parseSearchParams(searchParams: URLSearchParams) {
 export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
-/**
- * The site logo data.
- */
-export type SiteLogo = {
+export type SiteImage = {
 	mime: string;
 	data: string;
 };
+
+/**
+ * The site logo data.
+ */
+export type SiteLogo = SiteImage;
+
+/**
+ * A compact front-page image used to identify a saved Playground.
+ */
+export type SiteThumbnail = SiteImage;
 
 // TODO: Create a schema for this as the design matures
 /**
@@ -854,6 +861,7 @@ export interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
+	thumbnail?: SiteThumbnail;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;

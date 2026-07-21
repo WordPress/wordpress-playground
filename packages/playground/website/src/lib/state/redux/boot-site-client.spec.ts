@@ -64,6 +64,7 @@ vi.mock('../opfs/opfs-site-storage', () => ({
 vi.mock('@php-wasm/logger', () => ({
 	logger: {
 		error: vi.fn(),
+		warn: vi.fn(),
 	},
 }));
 

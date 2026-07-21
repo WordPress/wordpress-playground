@@ -43,6 +43,7 @@ import {
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -418,6 +419,18 @@ export function bootSiteClient(
 				signal,
 				siteSlugToReturnToIfBlueprintFails:
 					site.metadata.siteSlugToReturnToIfBlueprintFails,
+			}).then(() => {
+				const storedSite = selectSiteBySlug(getState(), site.slug);
+				if (
+					!signal.aborted &&
+					storedSite?.metadata.initialOpfsSyncPending === false
+				) {
+					void captureAndPersistSiteThumbnail({
+						playground: connectedPlayground,
+						siteSlug: site.slug,
+						dispatch,
+					});
+				}
 			});
 		} else {
 			try {
@@ -450,6 +463,13 @@ export function bootSiteClient(
 						},
 					})
 				);
+			}
+			if (site.metadata.storage !== 'none') {
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+				});
 			}
 		}
 

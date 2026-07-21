@@ -43,7 +43,7 @@ import {
 	useAppDispatch,
 	getActiveClientInfo,
 } from '../../lib/state/redux/store';
-import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
+import type { SiteImage, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
@@ -411,10 +411,6 @@ export function SavedPlaygroundsPanel({
 				})
 			);
 		});
-	};
-
-	const getLogoDataURL = (logo: SiteLogo): string => {
-		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
 	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
@@ -1069,16 +1065,7 @@ export function SavedPlaygroundsPanel({
 				})}
 			>
 				<div className={css.siteRowContent} {...rowButtonProps}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					{renderSitePreview(site)}
 					<div className={css.siteRowInfo}>
 						{renderSiteRowName(site)}
 						{meta && (
@@ -1102,16 +1089,7 @@ export function SavedPlaygroundsPanel({
 				className={classNames(css.siteRow, css.currentSiteRow)}
 			>
 				<div className={css.siteRowContent}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					{renderSitePreview(site)}
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
@@ -1139,6 +1117,36 @@ export function SavedPlaygroundsPanel({
 				{renderRowActions(site)}
 			</div>
 		);
+	}
+
+	function renderSitePreview(site: SiteInfo) {
+		return (
+			<div className={css.siteRowPreview}>
+				{site.metadata.thumbnail ? (
+					<img
+						className={css.siteRowThumbnail}
+						src={getSiteImageDataURL(site.metadata.thumbnail)}
+						alt=""
+						data-site-thumbnail
+					/>
+				) : (
+					<div className={css.siteRowLogo}>
+						{site.metadata.logo ? (
+							<img
+								src={getSiteImageDataURL(site.metadata.logo)}
+								alt=""
+							/>
+						) : (
+							<WordPressIcon />
+						)}
+					</div>
+				)}
+			</div>
+		);
+	}
+
+	function getSiteImageDataURL(image: SiteImage) {
+		return `data:${image.mime};base64,${image.data}`;
 	}
 
 	function renderSiteGroup(title: string, sites: SiteInfo[]) {
