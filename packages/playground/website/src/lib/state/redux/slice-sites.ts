@@ -231,7 +231,7 @@ export function updateSite({
 	changes,
 }: {
 	slug: string;
-	changes: Omit<Partial<SiteInfo>, 'metadata'> & {
+	changes: Omit<Partial<SiteInfo>, 'metadata' | 'slug'> & {
 		metadata?: SiteMetadataChanges;
 	};
 }) {
@@ -241,6 +241,9 @@ export function updateSite({
 	) => {
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
+		}
+		if ('slug' in changes) {
+			throw new Error('Cannot update the slug for a site.');
 		}
 		const existingSite = selectSiteBySlug(getState(), slug);
 		if (!existingSite) {

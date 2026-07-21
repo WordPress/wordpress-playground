@@ -165,6 +165,27 @@ describe('opfsSiteStorage', () => {
 		});
 	});
 
+	it('preserves runtime configuration fields across partial updates', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { phpVersion: '8.2' } },
+		});
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { networking: false } },
+		});
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				runtimeConfiguration: {
+					phpVersion: '8.2',
+					wpVersion: 'latest',
+					networking: false,
+				},
+			},
+		});
+	});
+
 	it('serializes concurrent metadata updates to the same site', async () => {
 		await storage.create('stored-site', createSiteMetadata());
 

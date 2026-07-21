@@ -120,7 +120,7 @@ class OpfsSiteStorage {
 	 *
 	 * @param slug Slug of the stored site to update.
 	 * @param changes Metadata and setup URL fields to merge.
-	 * @returns The complete site metadata written to OPFS.
+	 * @returns The merged site information written to OPFS.
 	 */
 	async update(slug: string, changes: StoredSiteChanges): Promise<SiteInfo> {
 		return await withSiteMetadataLock(slug, async () => {
