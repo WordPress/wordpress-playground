@@ -24,6 +24,48 @@ async function createTestWordPressZip(
 	return Buffer.from(zipBytes!);
 }
 
+async function dropZipFile(
+	page: Page,
+	name: string,
+	zipBuffer: Buffer,
+	verifyDragLeaveStability = true
+) {
+	const dataTransfer = await page.evaluateHandle(
+		(file) => {
+			const bytes = Uint8Array.from(atob(file.base64), (character) =>
+				character.charCodeAt(0)
+			);
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(
+				new File([bytes], file.name, { type: 'application/zip' })
+			);
+			return dataTransfer;
+		},
+		{ name, base64: zipBuffer.toString('base64') }
+	);
+	await expect(
+		page.getByRole('button', { name: /Drop a Playground ZIP here/ })
+	).toBeVisible();
+	await page.waitForTimeout(50);
+	const pane = page.getByRole('dialog', { name: 'New Playground pane' });
+	const paneText = await pane.innerText();
+	const pageBody = page.locator('body');
+	await pageBody.dispatchEvent('dragenter', { dataTransfer });
+	await expect(page.locator('[data-cy="zip-drop-overlay"]')).toBeVisible();
+	expect(await pane.innerText()).toBe(paneText);
+	if (verifyDragLeaveStability) {
+		await pageBody.dispatchEvent('dragleave', { dataTransfer });
+		await pageBody.dispatchEvent('dragenter', { dataTransfer });
+		await page.waitForTimeout(75);
+		await expect(
+			page.locator('[data-cy="zip-drop-overlay"]')
+		).toBeVisible();
+	}
+	await pageBody.dispatchEvent('dragover', { dataTransfer });
+	await pageBody.dispatchEvent('drop', { dataTransfer });
+	await dataTransfer.dispose();
+}
+
 async function createPluginThemeExportZip(): Promise<Buffer> {
 	const files = [
 		new File(
@@ -971,6 +1013,70 @@ test('should remove the saved site created for a failed ZIP import', async ({
 		.toEqual(storedSiteSlugsBeforeImport);
 });
 
+test('should import a ZIP dropped on the page', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const marker = 'PAGE_DROP_ZIP_IMPORT_MARKER';
+	const markerPath = 'wp-content/page-drop-zip-import-marker.php';
+	const zipBuffer = await createTestWordPressZip(marker, markerPath);
+	await dropZipFile(website.page, 'page-drop-import.zip', zipBuffer);
+
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
+	await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	await openPlaygroundPath(website.page, `/${markerPath}`);
+	await expect(wordpress.locator('body')).toContainText(marker);
+});
+
+test('should show an inline error for a non-ZIP drop', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+	await dropZipFile(
+		website.page,
+		'not-a-playground-export.txt',
+		Buffer.from('not a zip archive'),
+		false
+	);
+
+	await expect(
+		website.page.getByRole('alert').filter({
+			hasText: 'Choose a WordPress Playground .zip export.',
+		})
+	).toBeVisible();
+});
+
 test('should close the pane, reveal the site, and finish during a ZIP import', async ({
 	website,
 	browserName,
@@ -1205,11 +1311,6 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	await website.page
 		.getByRole('tab', { name: 'Import zip', exact: true })
 		.click();
-
-	const importZipButton = website.page.getByRole('button', {
-		name: 'Choose a .zip file…',
-	});
-	await expect(importZipButton).toBeVisible();
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
