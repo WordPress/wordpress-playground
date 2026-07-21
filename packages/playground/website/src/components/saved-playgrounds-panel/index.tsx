@@ -1062,6 +1062,9 @@ export function SavedPlaygroundsPanel({
 				data-playground-row={site.slug}
 				className={classNames(css.siteRow, {
 					[css.siteRowSelected]: isSelected,
+					[css.siteRowWithThumbnail]: Boolean(
+						site.metadata.thumbnail
+					),
 				})}
 			>
 				<div className={css.siteRowContent} {...rowButtonProps}>
@@ -1086,7 +1089,11 @@ export function SavedPlaygroundsPanel({
 		return (
 			<div
 				data-playground-row={site.slug}
-				className={classNames(css.siteRow, css.currentSiteRow)}
+				className={classNames(css.siteRow, css.currentSiteRow, {
+					[css.siteRowWithThumbnail]: Boolean(
+						site.metadata.thumbnail
+					),
+				})}
 			>
 				<div className={css.siteRowContent}>
 					{renderSitePreview(site)}

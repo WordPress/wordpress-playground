@@ -1128,6 +1128,33 @@
 	width: 128px;
 }
 
+/* On phones, put the name above the preview. Keeping the thumbnail beside the
+   secondary details preserves a compact list without squeezing the primary
+   label into the narrow strip between the preview and the actions menu. */
+@media (max-width: 480px) {
+	.playgrounds-pane .siteRowWithThumbnail .siteRowContent {
+		flex-wrap: wrap;
+		gap: 8px 12px;
+	}
+
+	.playgrounds-pane .siteRowWithThumbnail .siteRowInfo {
+		display: contents;
+	}
+
+	.playgrounds-pane .siteRowWithThumbnail .siteRowName,
+	.playgrounds-pane .siteRowWithThumbnail .siteRowNameInput,
+	.playgrounds-pane .siteRowWithThumbnail .currentSiteNameLine {
+		flex-basis: 100%;
+		order: -1;
+	}
+
+	.playgrounds-pane .siteRowWithThumbnail .siteRowDate,
+	.playgrounds-pane .siteRowWithThumbnail .siteRowSaving {
+		flex: 1;
+		min-width: 0;
+	}
+}
+
 /* Without a thumbnail, the 50px gallery logo and 20px name drove the row
    height. Keep that fallback compact; thumbnail rows intentionally use the
    larger 96px preview. */
