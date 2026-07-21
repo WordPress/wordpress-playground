@@ -200,9 +200,10 @@ const attachmentStyles = `
 	.attachments {
 		display: block;
 		min-width: 0;
-		padding-top: 16px;
+		padding: 16px 16px 0;
 		color: #1e1e1e;
-		font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+			Oxygen-Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
 	}
 	hr { height: 0; margin: 0 0 16px; border: 0; border-top: 1px solid #dddddd; }
 	h2 { margin: 0 0 8px; font-size: 15px; line-height: 20px; }
