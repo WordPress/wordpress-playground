@@ -1113,8 +1113,8 @@
 .playgrounds-pane .siteRowPreview {
 	align-items: center;
 	display: flex;
-	flex: 0 0 64px;
-	height: 48px;
+	flex: 0 0 128px;
+	height: 96px;
 	justify-content: center;
 }
 
@@ -1122,14 +1122,15 @@
 	background: var(--paper-3);
 	border: 1px solid var(--line-subtle);
 	border-radius: 6px;
-	height: 48px;
+	height: 96px;
 	object-fit: cover;
 	object-position: top;
-	width: 64px;
+	width: 128px;
 }
 
-/* Denser rows: the 50px gallery logo and 20px name drove the row height, so
-   trim both to fit more Playgrounds in view without scrolling. */
+/* Without a thumbnail, the 50px gallery logo and 20px name drove the row
+   height. Keep that fallback compact; thumbnail rows intentionally use the
+   larger 96px preview. */
 /* Neutral logo chips — a blue-tinted box on every row added up to a lot of
    accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
 .playgrounds-pane .siteRowLogo {
