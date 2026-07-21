@@ -82,6 +82,10 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
+	const autosavesInProgressBySiteSlug = new Map<
+		string,
+		Promise<SaveSiteResult>
+	>();
 	const api = {
 		/**
 		 * Lists all known sites.
@@ -257,7 +261,9 @@ export function createSitesAPI(
 		 * Autosaves a temporary Playground into browser storage.
 		 *
 		 * Autosave keeps the current browser URL unchanged unless the caller
-		 * asks to route to the new stored site.
+		 * asks to route to the new stored site. Concurrent requests for one site
+		 * share the same persistence operation so they cannot race the filesystem
+		 * copy, metadata update, or autosave pruning.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -279,29 +285,47 @@ export function createSitesAPI(
 			if (site.metadata.storage !== 'none') {
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
-			await dispatch(
-				persistTemporarySite(site.slug, 'opfs', {
-					skipRenameModal: true,
-					persistence: 'autosave',
-					updateUrl: options.updateUrl ?? false,
-				})
+			const autosaveInProgress = autosavesInProgressBySiteSlug.get(
+				site.slug
 			);
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [
-						site.slug,
-						...(options.excludeFromPruning ?? []),
-					],
-				})
-			);
-			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage;
-			if (storage !== 'opfs' && storage !== 'local-fs') {
-				throw new Error(
-					`Site ${site.slug} was not persisted (storage: ${storage}).`
-				);
+			if (autosaveInProgress) {
+				return await autosaveInProgress;
 			}
-			return { slug: site.slug, storage };
+
+			const autosave = (async () => {
+				await dispatch(
+					persistTemporarySite(site.slug, 'opfs', {
+						skipRenameModal: true,
+						persistence: 'autosave',
+						updateUrl: options.updateUrl ?? false,
+					})
+				);
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [
+							site.slug,
+							...(options.excludeFromPruning ?? []),
+						],
+					})
+				);
+				const updatedSite = selectSiteBySlug(getState(), site.slug);
+				const storage = updatedSite?.metadata.storage;
+				if (storage !== 'opfs' && storage !== 'local-fs') {
+					throw new Error(
+						`Site ${site.slug} was not persisted (storage: ${storage}).`
+					);
+				}
+				return { slug: site.slug, storage };
+			})();
+			autosavesInProgressBySiteSlug.set(site.slug, autosave);
+
+			try {
+				return await autosave;
+			} finally {
+				if (autosavesInProgressBySiteSlug.get(site.slug) === autosave) {
+					autosavesInProgressBySiteSlug.delete(site.slug);
+				}
+			}
 		},
 
 		/**
