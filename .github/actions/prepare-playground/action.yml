@@ -35,7 +35,17 @@ runs:
         - name: Install Dependencies
           shell: bash
           if: steps.cache-nodemodules.outputs.cache-hit != 'true'
-          run: npm ci
+          run: |
+              for attempt in 1 2 3; do
+                  echo "npm ci attempt $attempt of 3"
+                  npm ci && exit 0
+
+                  if [ "$attempt" = 3 ]; then
+                      exit 1
+                  fi
+
+                  sleep $((attempt * 10))
+              done
         - name: Disable unrelated Microsoft apt feeds
           shell: bash
           run: |
