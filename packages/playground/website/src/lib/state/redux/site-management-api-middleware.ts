@@ -97,16 +97,10 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
-	const existingAutosavesInProgress =
-		autosavesInProgressByDispatch.get(dispatch);
 	const autosavesInProgressBySiteSlug =
-		existingAutosavesInProgress ?? new Map<string, AutosaveInProgress>();
-	if (!existingAutosavesInProgress) {
-		autosavesInProgressByDispatch.set(
-			dispatch,
-			autosavesInProgressBySiteSlug
-		);
-	}
+		autosavesInProgressByDispatch.get(dispatch) ??
+		new Map<string, AutosaveInProgress>();
+	autosavesInProgressByDispatch.set(dispatch, autosavesInProgressBySiteSlug);
 	const api = {
 		/**
 		 * Lists all known sites.
