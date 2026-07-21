@@ -114,65 +114,68 @@ def _norm(vx, vy):
     return vx / d, vy / d
 
 
-def _arrow_shapes(p0, p1, axis, half_w, head_len, head_half, tip_ext, overlap):
-    """Return (shaft center points, head polygon) for one arrow.
+WING_ANGLE = math.radians(35)
 
-    The shaft is a uniform-width stroke along the cubic Bézier, rendered by
-    stamping filled circles at dense, even arc-length steps — this keeps the
-    line width identical from tail to head and leaves round caps with no
-    polygon-edge artifacts. It runs `overlap` past the head base and is
-    covered by the head polygon there, so the bending curve can never open
-    a gap against the head's straight edges.
+
+def _arrow_shapes(p0, p1, axis, half_w, wing_len, tip_ext):
+    """Return the stamp centers (shaft + chevron wings) for one arrow.
+
+    The shaft is a uniform-width stroke rendered by stamping filled circles
+    at dense, even arc-length steps — this keeps the line width identical
+    from tail to tip and leaves round caps with no polygon-edge artifacts.
+
+    The path is a cubic Bézier that hands over to a straight, axis-aligned
+    run into the endpoint, always longer than the head, so the arrow
+    arrives straight and points exactly at the target — even on short,
+    tightly bent arrows, where a plain end-to-end Bézier is still turning
+    at the tip.
+
+    The head is an open chevron: two diagonal strokes of the same width as
+    the shaft, sweeping back from the tip at ±WING_ANGLE.
     """
-    c1, c2 = _controls(p0, p1, axis)
-    n_samples = 600
-    pts = [_cubic(p0, c1, c2, p1, i / n_samples) for i in range(n_samples + 1)]
-    segs = [math.dist(pts[i], pts[i + 1]) for i in range(n_samples)]
-    total = sum(segs)
-    shaft_len = max(total - (head_len - tip_ext) + overlap, 1e-6)
+    dx_axis, dy_axis = p1[0] - p0[0], p1[1] - p0[1]
+    if axis == "v":
+        dvec = (0.0, 1.0 if dy_axis >= 0 else -1.0)
+        axis_span = abs(dy_axis)
+    else:
+        dvec = (1.0 if dx_axis >= 0 else -1.0, 0.0)
+        axis_span = abs(dx_axis)
+    straight = min(wing_len * 2.0, 0.55 * axis_span)
+    pm = (p1[0] - dvec[0] * straight, p1[1] - dvec[1] * straight)
 
-    centers = [p0]
-    acc = 0.0
-    for i in range(n_samples):
-        acc += segs[i]
-        if acc > shaft_len:
-            break
-        centers.append(pts[i + 1])
+    c1, c2 = _controls(p0, pm, axis)
+    n_curve, n_straight = 560, 40
+    pts = [_cubic(p0, c1, c2, pm, i / n_curve) for i in range(n_curve + 1)]
+    pts += [(pm[0] + (p1[0] - pm[0]) * i / n_straight,
+             pm[1] + (p1[1] - pm[1]) * i / n_straight)
+            for i in range(1, n_straight + 1)]
 
-    # Point the head along the shaft's actual arrival direction (the chord
-    # from the last visible shaft point to the endpoint), not the endpoint
-    # tangent — on short or tightly bent arrows those differ and an
-    # axis-aligned head would kink against the line feeding into it.
-    dx, dy = _norm(p1[0] - centers[-1][0], p1[1] - centers[-1][1])
-    if (dx, dy) == (0.0, 0.0):
-        dx, dy = _norm(p1[0] - c2[0], p1[1] - c2[1])
-    if (dx, dy) == (0.0, 0.0):
-        dx, dy = _norm(pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1])
+    dx, dy = dvec
     tip = (p1[0] + dx * tip_ext, p1[1] + dy * tip_ext)
-    base = (tip[0] - dx * head_len, tip[1] - dy * head_len)
-    nx, ny = -dy, dx
-    head = [
-        (base[0] + nx * head_half, base[1] + ny * head_half),
-        tip,
-        (base[0] - nx * head_half, base[1] - ny * head_half),
-    ]
-    return centers, head
+    centers = pts + [tip]
+
+    bx, by = -dx, -dy  # from the tip back along the arrival direction
+    cos_a, sin_a = math.cos(WING_ANGLE), math.sin(WING_ANGLE)
+    for side in (1.0, -1.0):
+        wx = bx * cos_a - side * by * sin_a
+        wy = side * bx * sin_a + by * cos_a
+        n_wing = 30
+        centers += [(tip[0] + wx * wing_len * i / n_wing,
+                     tip[1] + wy * wing_len * i / n_wing)
+                    for i in range(1, n_wing + 1)]
+    return centers
 
 
 def draw_arrow(draw, p0, p1, axis, scale):
     """Halo pass (white, expanded 3.2px/side, tip extended 3.2px) then blue."""
     passes = [
-        (WHITE, (4.5 + 3.2) * scale, (20 + 3.2) * scale,
-         (10 + 3.2) * scale, 3.2 * scale),
-        (BLUE, 4.5 * scale, 20 * scale, 10 * scale, 0.0),
+        (WHITE, (4.5 + 3.2) * scale, (16 + 3.2) * scale, 3.2 * scale),
+        (BLUE, 4.5 * scale, 16 * scale, 0.0),
     ]
-    for color, half_w, head_len, head_half, tip_ext in passes:
-        centers, head = _arrow_shapes(
-            p0, p1, axis, half_w, head_len, head_half, tip_ext, 7 * scale)
-        for cx, cy in centers:
+    for color, half_w, wing_len, tip_ext in passes:
+        for cx, cy in _arrow_shapes(p0, p1, axis, half_w, wing_len, tip_ext):
             draw.ellipse([cx - half_w, cy - half_w, cx + half_w, cy + half_w],
                          fill=color)
-        draw.polygon(head, fill=color)
 
 
 # ---------------------------------------------------------------- outlines
