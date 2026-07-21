@@ -86,6 +86,116 @@ test('playgroundSites.autosaveTemporarySite() persists without disrupting the ta
 	expect(result.sameUrl).toBe(true);
 });
 
+test('autosaveTemporarySite() joins finalization after persistence finishes', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./?storage=temp');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await website.page.evaluate(async () => {
+		const opfsRoot = await navigator.storage.getDirectory();
+		const sitesRoot = await opfsRoot.getDirectoryHandle('sites', {
+			create: true,
+		});
+		for (let index = 0; index < 6; index++) {
+			const slug = `autosave-timing-${index}`;
+			const siteDirectory = await sitesRoot.getDirectoryHandle(
+				`site-${slug}`,
+				{ create: true }
+			);
+			const metadataFile = await siteDirectory.getFileHandle(
+				'wp-runtime.json',
+				{ create: true }
+			);
+			const writable = await metadataFile.createWritable();
+			await writable.write(
+				JSON.stringify({
+					slug,
+					id: slug,
+					name: `Autosave timing ${index}`,
+					storage: 'opfs',
+					persistence: 'autosave',
+					whenCreated: index + 1,
+					whenLastUsed: index + 1,
+					runtimeConfiguration: {
+						phpVersion: '8.3',
+						wpVersion: 'latest',
+						intl: false,
+						networking: true,
+						extraLibraries: [],
+						constants: {},
+					},
+					originalBlueprint: {},
+					originalBlueprintSource: { type: 'none' },
+				})
+			);
+			await writable.close();
+		}
+	});
+	await website.goto('./?storage=temp&autosave-timing=1');
+
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const siteSlug = api.list().find((site: any) => site.isActive).slug;
+		let notifyDeletionStarted!: () => void;
+		const deletionStarted = new Promise<void>((resolve) => {
+			notifyDeletionStarted = resolve;
+		});
+		let finishDeletion!: () => void;
+		const deletionCanFinish = new Promise<void>((resolve) => {
+			finishDeletion = resolve;
+		});
+		const directoryHandlePrototype = FileSystemDirectoryHandle.prototype;
+		const removeEntry = directoryHandlePrototype.removeEntry;
+		directoryHandlePrototype.removeEntry = async function (name, options) {
+			if (name.startsWith('site-autosave-timing-')) {
+				notifyDeletionStarted();
+				await deletionCanFinish;
+			}
+			return await removeEntry.call(this, name, options);
+		};
+
+		try {
+			const firstSave = api.autosaveTemporarySite(siteSlug);
+			await deletionStarted;
+			const secondSave = api.autosaveTemporarySite(siteSlug);
+			let secondSaveFinished = false;
+			void secondSave.finally(() => {
+				secondSaveFinished = true;
+			});
+			await new Promise((resolve) => setTimeout(resolve));
+			const secondSaveFinishedBeforePruning = secondSaveFinished;
+			finishDeletion();
+			const [firstResult, secondResult] = await Promise.all([
+				firstSave,
+				secondSave,
+			]);
+			return {
+				firstResult,
+				secondResult,
+				secondSaveFinishedBeforePruning,
+			};
+		} finally {
+			finishDeletion();
+			directoryHandlePrototype.removeEntry = removeEntry;
+		}
+	});
+
+	expect(result.secondSaveFinishedBeforePruning).toBe(false);
+	expect(result.secondResult).toEqual(result.firstResult);
+	expect(result.firstResult).toEqual({
+		slug: expect.any(String),
+		storage: 'opfs',
+	});
+});
+
 test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blueprint titles', async ({
 	website,
 	browserName,

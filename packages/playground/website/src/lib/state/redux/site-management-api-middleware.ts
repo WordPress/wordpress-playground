@@ -400,7 +400,7 @@ export function createSitesAPI(
 						siteToAutosave.slug
 					);
 					const storage = updatedSite?.metadata.storage;
-					if (storage !== 'opfs' && storage !== 'local-fs') {
+					if (!updatedSite || !isStoredSite(updatedSite)) {
 						throw new Error(
 							`Site ${siteToAutosave.slug} was not persisted (storage: ${storage}).`
 						);
