@@ -859,6 +859,74 @@ test('should display OPFS storage option as selected by default', async ({
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
+test('should import ZIP into a fresh temporary site without browser storage', async ({
+	website,
+	browserName,
+	context,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		'This test controls OPFS availability in Chromium.'
+	);
+	await context.addInitScript(() => {
+		Object.defineProperty(StorageManager.prototype, 'getDirectory', {
+			configurable: true,
+			value: undefined,
+		});
+	});
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const siteBeforeImport = await getActivePlaygroundSite(website.page);
+	expect(siteBeforeImport?.storage).toBe('temporary');
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const marker = 'TEMPORARY_ZIP_IMPORT_MARKER';
+	const markerPath = 'wp-content/temporary-zip-import-marker.txt';
+	const zipBuffer = await createTestWordPressZip(
+		marker,
+		'wp-content/index.php',
+		[new File([marker], markerPath)]
+	);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'temporary-playground.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect(
+		website.page
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Playground imported' })
+	).toBeVisible({ timeout: 120000 });
+	await expect(
+		website.page.getByRole('alert').filter({
+			hasText: 'Playground imported',
+		})
+	).toHaveCount(0);
+	const siteAfterImport = await getActivePlaygroundSite(website.page);
+	expect(siteAfterImport).toMatchObject({
+		storage: 'temporary',
+	});
+	expect(siteAfterImport.slug).not.toBe(siteBeforeImport.slug);
+	await expect
+		.poll(async () => {
+			return await website.page.evaluate(async (relativePath) => {
+				const playground = (window as any).playgroundSites.getClient();
+				const documentRoot = await playground.documentRoot;
+				return await playground.readFileAsText(
+					`${documentRoot}/${relativePath}`
+				);
+			}, markerPath);
+		})
+		.toBe(marker);
+});
+
 test('should remove the saved site created for a failed ZIP import', async ({
 	website,
 	browserName,
@@ -903,7 +971,7 @@ test('should remove the saved site created for a failed ZIP import', async ({
 		.toEqual(storedSiteSlugsBeforeImport);
 });
 
-test('should block closing and finish during a ZIP import', async ({
+test('should close the pane, reveal the site, and finish during a ZIP import', async ({
 	website,
 	browserName,
 }) => {
@@ -922,40 +990,36 @@ test('should block closing and finish during a ZIP import', async ({
 	const fileInput = website.page.locator(
 		'input[type="file"][accept*=".zip"]'
 	);
-	const importComplete = website.page
-		.waitForEvent('dialog')
-		.then(async (dialog) => {
-			await dialog.accept();
-		});
+	const pane = website.page.getByRole('dialog', {
+		name: 'New Playground pane',
+	});
+	const loading = website.page.getByRole('heading', {
+		name: 'Preparing WordPress',
+	});
+	const saveProgress = website.page.getByRole('progressbar', {
+		name: 'Save progress',
+	});
+	const loadingStarted = expect(loading).toBeVisible({ timeout: 120000 });
 	await fileInput.setInputFiles({
 		name: 'playground-export-with-plugin-and-theme.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
-	const importingButton = website.page.getByRole('button', {
-		name: 'Importing…',
+	await expect(pane).not.toBeVisible();
+	await loadingStarted;
+	await expect(saveProgress).toHaveCount(0);
+	await expect(loading).not.toBeVisible({ timeout: 120000 });
+	await expect(
+		website.page.locator('iframe.playground-viewport:visible')
+	).toHaveCount(1);
+	const newPlaygroundButton = website.page.getByRole('button', {
+		name: 'New Playground',
+		exact: true,
 	});
-	await expect(importingButton).toBeVisible();
-	const saveStatus = website.page.getByRole('button', { name: 'Unsaved' });
-	await expect(saveStatus).toBeDisabled();
-	await saveStatus.evaluate((button: HTMLButtonElement) => button.click());
+	await expect(newPlaygroundButton).toBeEnabled();
 	await expect(
-		website.page.getByRole('dialog', { name: 'New Playground pane' })
-	).toBeVisible();
-	await expect(
-		website.page.locator('section[aria-label="Store permanently pane"]')
-	).toHaveCount(0);
-	const newPlaygroundTool = website.page
-		.getByRole('navigation', { name: 'Playground tools' })
-		.getByRole('button', { name: 'New Playground' });
-	await expect(newPlaygroundTool).toBeDisabled();
-	await website.page.keyboard.press('Escape');
-	await expect(
-		website.page.getByRole('dialog', { name: 'New Playground pane' })
-	).toBeVisible();
-	await expect(importingButton).toBeVisible();
-	await importComplete;
-	await expect(newPlaygroundTool).toBeEnabled();
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 
 	await expect
 		.poll(
@@ -1236,13 +1300,6 @@ test('should persist an imported ZIP saved site after switching away and back', 
 		importedMarker,
 		importedMarkerPath
 	);
-	const dialogs: string[] = [];
-	const importSuccessMessage =
-		'File imported! This Playground instance has been updated and will refresh shortly.';
-	website.page.on('dialog', async (dialog) => {
-		dialogs.push(dialog.message());
-		await dialog.accept();
-	});
 
 	await website.page
 		.locator('input[type="file"][accept*=".zip"]')
@@ -1252,9 +1309,9 @@ test('should persist an imported ZIP saved site after switching away and back', 
 			buffer: zipBuffer,
 		});
 
-	await expect
-		.poll(() => dialogs, { timeout: 120000 })
-		.toEqual([importSuccessMessage]);
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 	const importedSite = await waitForActivePlaygroundSiteSlug(
 		website.page,
 		(slug) => slug !== savedSiteSlug
@@ -1263,7 +1320,7 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	const importedSiteSlug = importedSite.slug;
 	// Discard the import runtime before requesting the marker. The fresh runtime
 	// must load the imported file from persisted OPFS state.
-	await website.goto(`./?site-slug=${importedSiteSlug}`);
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
@@ -1279,10 +1336,9 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-	await website.goto(`./?site-slug=${importedSiteSlug}`);
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
-	expect(dialogs).toEqual([importSuccessMessage]);
 });
 
 test('should retain files omitted from a legacy ZIP export', async ({

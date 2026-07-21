@@ -63,6 +63,9 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const activeSiteSlugIsSet = useAppSelector(
 		(state) => !!state.ui.activeSite?.slug
 	);
+	const siteImportIsRunning = useAppSelector(
+		(state) => state.ui.siteImportIsRunning
+	);
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
 			(site) => site.slug !== activeSite?.slug
@@ -165,7 +168,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{!hasVisibleSite && (
+			{(!hasVisibleSite || siteImportIsRunning) && (
 				<div className={css.loadingViewport}>
 					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
 					<div className={css.progressWrapper}>
@@ -182,7 +185,9 @@ export const KeepAliveTemporarySitesViewport = () => {
 					<div
 						key={slug}
 						className={classNames(css.fullSize, {
-							[css.hidden]: slug !== activeSite?.slug,
+							[css.hidden]:
+								slug !== activeSite?.slug ||
+								siteImportIsRunning,
 						})}
 					>
 						{siteSlugsToRender.includes(slug) ? (

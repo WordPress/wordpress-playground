@@ -1043,28 +1043,6 @@
 	padding: 12px;
 }
 
-.playgrounds-pane .zipImportStatusLabel {
-	align-items: center;
-	display: flex;
-	font-size: 13px;
-	gap: var(--space-2, 8px);
-}
-
-.playgrounds-pane .zipImportPercent {
-	margin-left: auto;
-}
-
-.playgrounds-pane .zipImportStatus :global(.components-spinner) {
-	flex: none;
-	margin: 0;
-}
-
-.playgrounds-pane .zipImportStatus :global(progress) {
-	accent-color: var(--accent, #3858e9);
-	height: 8px;
-	width: 100%;
-}
-
 .playgrounds-pane .zipImportError {
 	border-color: var(--color-alert-red, #cc1818);
 	color: var(--color-alert-red, #cc1818);

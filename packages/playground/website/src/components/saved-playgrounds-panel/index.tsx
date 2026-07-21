@@ -143,16 +143,9 @@ type CreationTabId =
 	| 'pull-request'
 	| 'zip';
 
-type ZipImportStatus = {
-	type: 'progress' | 'error';
-	caption: string;
-	progress?: number;
-};
-
 interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
-	onCloseBlockedChange: (isBlocked: boolean) => void;
 	onPaneHeaderChange: (header: DockPaneHeaderOverride | undefined) => void;
 }
 
@@ -162,7 +155,6 @@ interface SavedPlaygroundsPanelProps {
 export function SavedPlaygroundsPanel({
 	onClose,
 	panel,
-	onCloseBlockedChange,
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -185,7 +177,7 @@ export function SavedPlaygroundsPanel({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [isImportingZip, setIsImportingZip] = useState(false);
-	const [zipImportStatus, setZipImportStatus] = useState<ZipImportStatus>();
+	const [zipImportError, setZipImportError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
@@ -238,11 +230,6 @@ export function SavedPlaygroundsPanel({
 	const writeOwnSeededSlug = useAppSelector(
 		(state) => state.ui.writeOwnSeededSlug
 	);
-
-	useEffect(() => {
-		onCloseBlockedChange(isImportingZip);
-		return () => onCloseBlockedChange(false);
-	}, [isImportingZip, onCloseBlockedChange]);
 
 	useEffect(() => {
 		if (isCreationTabDisabled(activeCreationTab, offline)) {
@@ -339,27 +326,13 @@ export function SavedPlaygroundsPanel({
 
 		zipImportPendingRef.current = true;
 		setIsImportingZip(true);
-		setZipImportStatus({
-			type: 'progress',
-			caption: 'Preparing a new Playground',
-			progress: 0,
-		});
+		setZipImportError(undefined);
+		onClose();
 		try {
-			const importedSiteSlug = await sitesAPI.createNewSiteFromZip(
-				file,
-				(progress) => {
-					setZipImportStatus({ type: 'progress', ...progress });
-				}
-			);
+			const importedSiteSlug = await sitesAPI.createNewSiteFromZip(file);
 			const importedSite = sitesAPI
 				.list()
 				.find((site) => site.slug === importedSiteSlug);
-			const importedPlayground = sitesAPI.getClient();
-			window.setTimeout(() => {
-				void importedPlayground?.goTo('/').catch((error) => {
-					logger.error('Failed to refresh imported site', error);
-				});
-			}, 200);
 			dispatch(
 				setDockOperationNotice({
 					kind: 'success',
@@ -370,14 +343,12 @@ export function SavedPlaygroundsPanel({
 							: `${file.name} is stored in this browser.`,
 				})
 			);
-			onClose();
 		} catch (error) {
 			logger.error(error);
-			setZipImportStatus({
-				type: 'error',
-				caption:
-					'Unable to import this file. Is it a valid WordPress Playground export?',
-			});
+			setZipImportError(
+				'Unable to import this file. Is it a valid WordPress Playground export?'
+			);
+			dispatch(setDockPaneOpen(true));
 		} finally {
 			zipImportPendingRef.current = false;
 			setIsImportingZip(false);
@@ -1538,44 +1509,16 @@ export function SavedPlaygroundsPanel({
 									: 'Choose a .zip file…'}
 							</Button>
 						</div>
-						{zipImportStatus && (
+						{zipImportError && (
 							<div
-								className={classNames(css.zipImportStatus, {
-									[css.zipImportError]:
-										zipImportStatus.type === 'error',
-								})}
-								role={
-									zipImportStatus.type === 'error'
-										? 'alert'
-										: 'status'
-								}
+								className={classNames(
+									css.zipImportStatus,
+									css.zipImportError
+								)}
+								role="alert"
 								aria-live="polite"
 							>
-								<div className={css.zipImportStatusLabel}>
-									{zipImportStatus.type === 'progress' && (
-										<Spinner />
-									)}
-									<span>{zipImportStatus.caption}</span>
-									{zipImportStatus.type === 'progress' &&
-										typeof zipImportStatus.progress ===
-											'number' && (
-											<span
-												className={css.zipImportPercent}
-											>
-												{Math.round(
-													zipImportStatus.progress
-												)}
-												%
-											</span>
-										)}
-								</div>
-								{zipImportStatus.type === 'progress' && (
-									<progress
-										max={100}
-										value={zipImportStatus.progress ?? 0}
-										aria-label="ZIP import progress"
-									/>
-								)}
+								{zipImportError}
 							</div>
 						)}
 					</div>

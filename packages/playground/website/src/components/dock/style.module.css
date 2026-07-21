@@ -1281,7 +1281,7 @@
 	padding: 8px;
 }
 
-/* Operation failures outlive individual panes, so this surface stays outside
+/* Operation notices outlive individual panes, so this surface stays outside
    both pane and Dock layout. Its inline position follows whichever Dock surface
    is visible without shifting the preview, pane, or Dock when it appears. */
 .dock-operation-toast {
