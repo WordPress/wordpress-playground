@@ -82,6 +82,8 @@ export type FilePickerTreeProps = {
 	withContextMenu?: boolean;
 	/** Disables filesystem mutations while preserving selection and previews. */
 	readOnly?: boolean;
+	/** Keeps files visible for context, but permits selecting directories only. */
+	directoriesOnly?: boolean;
 	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
@@ -149,6 +151,7 @@ export const FilePickerTree = forwardRef<
 	{
 		withContextMenu = true,
 		readOnly = false,
+		directoriesOnly = false,
 		filesystem,
 		root = '/wordpress',
 		initialSelectedPath,
@@ -1342,6 +1345,7 @@ export const FilePickerTree = forwardRef<
 						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
 						onDoubleClickFile={onDoubleClickFile}
+						directoriesOnly={directoriesOnly}
 					/>
 				))}
 			</TreeGrid>
@@ -1485,6 +1489,7 @@ const NodeRow: React.FC<{
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
 	onDoubleClickFile?: (path: string) => void;
+	directoriesOnly: boolean;
 }> = ({
 	node,
 	level,
@@ -1512,6 +1517,7 @@ const NodeRow: React.FC<{
 	onDrop,
 	rootPath,
 	onDoubleClickFile,
+	directoriesOnly,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1604,7 +1610,11 @@ const NodeRow: React.FC<{
 			if (node.type === 'folder') {
 				// For folders, toggle open/closed
 				onToggle(path, node, !isExpanded);
-			} else {
+				if (directoriesOnly) {
+					selectPath(path);
+					focusPath(path);
+				}
+			} else if (!directoriesOnly) {
 				// For files, behave like double-click: open with focus
 				selectPath(path, false); // Update visual selection
 				focusPath(path);
@@ -1660,6 +1670,10 @@ const NodeRow: React.FC<{
 		if (node.type === 'folder') {
 			toggleOpen();
 			selectPath(path);
+			focusPath(path);
+			return;
+		}
+		if (directoriesOnly) {
 			focusPath(path);
 			return;
 		}
@@ -1832,6 +1846,7 @@ const NodeRow: React.FC<{
 						onDrop={onDrop}
 						rootPath={rootPath}
 						onDoubleClickFile={onDoubleClickFile}
+						directoriesOnly={directoriesOnly}
 					/>
 				))}
 		</>

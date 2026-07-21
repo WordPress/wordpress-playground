@@ -1,18 +1,22 @@
 import React from 'react';
-import { useRef, useState } from 'react';
-import { Notice, Button as WPButton } from '@wordpress/components';
+import { useMemo, useRef, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
+import { FilePickerControl } from '@wp-playground/components';
+import { Button as WordPressButton } from '@wordpress/components';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
-import Button from '../../components/button';
 import type { GitHubURLInformation } from '../analyze-github-url';
 import {
+	normalizeGitHubRepositoryInput,
 	resolveGitHubBranchPath,
 	staticAnalyzeGitHubURL,
 } from '../analyze-github-url';
 import type { GetFilesProgress, GithubClient } from '@wp-playground/storage';
-import { getFilesFromDirectory } from '@wp-playground/storage';
+import {
+	getFilesFromDirectory,
+	removePathPrefix,
+} from '@wp-playground/storage';
 import { setOAuthToken } from '../state';
 import {
 	getAuthenticatedGitHubClient as getClient,
@@ -22,13 +26,17 @@ import type { ContentType } from '../import-from-github';
 import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { basename, normalizePath } from '@php-wasm/util';
+import { basename, ensureAbsolutePath } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { GitHubRepositoryFilesystem } from './github-repository-filesystem';
+import { inferContentType } from './infer-content-type';
+import { getImportTargetLabel } from './import-labels';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
 	getPlaygroundBeforeImport?: () => Promise<PlaygroundClient>;
 	onRepositoryResolved?: () => void;
+	onRepositoryChange?: () => void;
 	showRepositoryDetails?: boolean;
 	onImported: (details: {
 		url: string;
@@ -42,51 +50,83 @@ export interface GitHubImportFormProps {
 	onClose: () => void;
 }
 
+type ContentTypeSelection = {
+	contentType: ContentType;
+	source: 'inferred' | 'manual';
+};
+
 export default function GitHubImportForm({
 	playground,
 	getPlaygroundBeforeImport,
 	onRepositoryResolved,
+	onRepositoryChange,
 	showRepositoryDetails = true,
 	onImported,
 }: GitHubImportFormProps) {
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-	const [isImporting, setIsImporting] = useState<boolean>(false);
+	const [isInspectingPath, setIsInspectingPath] = useState<boolean>(false);
+	const [importPhase, setImportPhase] = useState<
+		'idle' | 'downloading' | 'applying'
+	>('idle');
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
 	});
-	const [showExample, setShowExample] = useState<boolean>(false);
-
 	const [url, setUrl] = useState<string>('');
 	const latestUrlRef = useRef(url);
 	const analysisRunRef = useRef(0);
+	const pathInspectionRunRef = useRef(0);
 	const [urlInformation, setUrlInformation] = useState<
 		GitHubURLInformation | undefined
 	>();
-	const [contentType, setContentType] = useState<ContentType | undefined>(
-		undefined
-	);
+	const [contentTypeSelection, setContentTypeSelection] = useState<
+		ContentTypeSelection | undefined
+	>();
 	const [path, setPath] = useState<string>('');
-	const [branch, setBranch] = useState<string>('');
+	const branch = urlInformation?.ref ?? '';
+	const contentType = contentTypeSelection?.contentType;
+	const isContentTypeInferred = contentTypeSelection?.source === 'inferred';
+	const isImporting = importPhase !== 'idle';
+	const repositoryFilesystem = useMemo(() => {
+		if (
+			!urlInformation?.owner ||
+			!urlInformation.repo ||
+			!(urlInformation.commitSha || urlInformation.ref)
+		) {
+			return undefined;
+		}
+		return new GitHubRepositoryFilesystem(
+			getClient,
+			urlInformation.owner,
+			urlInformation.repo,
+			urlInformation.commitSha || urlInformation.ref!
+		);
+	}, [
+		urlInformation?.commitSha,
+		urlInformation?.owner,
+		urlInformation?.ref,
+		urlInformation?.repo,
+	]);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		const newUrl = url.trim();
-		setUrl(newUrl);
-		latestUrlRef.current = newUrl;
+		const repositoryInput = url.trim();
+		const normalizedUrl = normalizeGitHubRepositoryInput(repositoryInput);
+		setUrl(repositoryInput);
+		latestUrlRef.current = repositoryInput;
 		setErrors({});
-		if (!newUrl) {
+		if (!repositoryInput) {
 			setErrors({
-				url: 'Please enter a URL',
+				url: 'Please enter a repository',
 			});
 			return;
 		}
 		if (!urlInformation) {
-			const info = staticAnalyzeGitHubURL(newUrl);
+			const info = staticAnalyzeGitHubURL(normalizedUrl);
 			if (!['pr', 'branch', 'repo'].includes(info.type)) {
 				setErrors({
-					url: 'This URL is not supported',
+					url: 'Enter owner/repository or a GitHub repository URL',
 				});
 				return;
 			}
@@ -99,30 +139,36 @@ export default function GitHubImportForm({
 				const importSource = await resolveImportSource(octokit, info);
 				if (
 					analysisRunRef.current !== analysisRun ||
-					latestUrlRef.current.trim() !== newUrl
+					latestUrlRef.current.trim() !== repositoryInput
 				) {
 					return;
 				}
-				const guessedContentType = await guessContentType(
+				const guessedContentType = await inspectContentType(
 					octokit,
 					importSource
 				);
 				if (
 					analysisRunRef.current !== analysisRun ||
-					latestUrlRef.current.trim() !== newUrl
+					latestUrlRef.current.trim() !== repositoryInput
 				) {
 					return;
 				}
 				setUrlInformation(importSource);
 				setPath(importSource.path ?? '');
-				setBranch(importSource.ref ?? '');
-				setContentType(guessedContentType);
+				setContentTypeSelection(
+					guessedContentType
+						? {
+								contentType: guessedContentType,
+								source: 'inferred',
+							}
+						: undefined
+				);
 				onRepositoryResolved?.();
 				return;
 			} catch (e: any) {
 				if (
 					analysisRunRef.current !== analysisRun ||
-					latestUrlRef.current.trim() !== newUrl
+					latestUrlRef.current.trim() !== repositoryInput
 				) {
 					return;
 				}
@@ -137,6 +183,14 @@ export default function GitHubImportForm({
 						case 404:
 							setErrors({
 								url: "This repo (or the resource in it) doesn't exist",
+							});
+							return;
+						case 500:
+						case 502:
+						case 503:
+						case 504:
+							setErrors({
+								url: 'GitHub is temporarily unavailable. Try again in a moment.',
 							});
 							return;
 					}
@@ -159,13 +213,16 @@ export default function GitHubImportForm({
 			});
 			return;
 		}
-		setIsImporting(true);
+		setImportPhase('downloading');
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
-			const pluginOrThemeName = basename(path!) || urlInformation!.repo!;
-
-			const relativeRepoPath = path!.replace(/^\//g, '');
+			const relativeRepoPath = removePathPrefix(
+				ensureAbsolutePath(path),
+				'/'
+			);
+			const pluginOrThemeName =
+				basename(relativeRepoPath) || urlInformation!.repo!;
 			// Use the commit resolved during analysis so a branch moving
 			// mid-flow cannot change the files being imported.
 			const ghFiles = await getFilesFromDirectory(
@@ -179,6 +236,7 @@ export default function GitHubImportForm({
 						setImportProgress({ ...progress }),
 				}
 			);
+			setImportPhase('applying');
 			const targetPlayground = getPlaygroundBeforeImport
 				? await getPlaygroundBeforeImport()
 				: playground;
@@ -191,7 +249,7 @@ export default function GitHubImportForm({
 			);
 			targetPlayground.goTo('/');
 			onImported({
-				url: newUrl,
+				url: normalizeGitHubRepositoryInput(url),
 				urlInformation: urlInformation!,
 				path: path!,
 				contentType,
@@ -212,200 +270,285 @@ export default function GitHubImportForm({
 			});
 			return;
 		} finally {
-			setIsImporting(false);
+			setImportPhase('idle');
 		}
 	}
 
+	async function handlePathChange(selectedPath: string) {
+		if (!urlInformation) {
+			return;
+		}
+		const relativePath = removePathPrefix(
+			ensureAbsolutePath(selectedPath),
+			'/'
+		);
+		const inspectionRun = ++pathInspectionRunRef.current;
+		setPath(relativePath);
+		setContentTypeSelection(undefined);
+		setErrors({});
+		setIsInspectingPath(true);
+		try {
+			const guessedContentType = await inspectContentType(getClient(), {
+				...urlInformation,
+				path: relativePath,
+			});
+			if (pathInspectionRunRef.current !== inspectionRun) {
+				return;
+			}
+			setContentTypeSelection(
+				guessedContentType
+					? {
+							contentType: guessedContentType,
+							source: 'inferred',
+						}
+					: undefined
+			);
+		} catch (error) {
+			if (pathInspectionRunRef.current !== inspectionRun) {
+				return;
+			}
+			if ((error as { status?: number })?.status === 401) {
+				setOAuthToken(undefined);
+				resetClient();
+				setUrlInformation(undefined);
+				return;
+			}
+			logger.error(error);
+			setErrors({
+				path:
+					(error as Error)?.message ||
+					'Could not inspect this repository path.',
+			});
+		} finally {
+			if (pathInspectionRunRef.current === inspectionRun) {
+				setIsInspectingPath(false);
+			}
+		}
+	}
+
+	function handleChangeRepository() {
+		analysisRunRef.current++;
+		pathInspectionRunRef.current++;
+		setIsAnalyzing(false);
+		setIsInspectingPath(false);
+		setUrlInformation(undefined);
+		setContentTypeSelection(undefined);
+		setPath('');
+		setErrors({});
+		onRepositoryChange?.();
+	}
+
+	const importTargetLabel = contentType
+		? getImportTargetLabel(contentType)
+		: undefined;
+	const showRepositorySummary = Boolean(
+		urlInformation && showRepositoryDetails
+	);
+
 	return (
 		<GitHubOAuthGuard>
-			<form id="import-playground-form" onSubmit={handleSubmit}>
-				<p>
-					You may import WordPress plugins, themes, and entire
-					wp-content directories from any public GitHub repository.
-				</p>
-				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
-					<label>
-						{' '}
-						I want to import from this GitHub URL:
-						<input
-							type="text"
-							value={url}
-							className={css.repoInput}
-							onChange={(
-								e: React.ChangeEvent<HTMLInputElement>
-							) => {
-								const nextUrl = e.target.value;
-								latestUrlRef.current = nextUrl;
-								analysisRunRef.current++;
-								setUrl(nextUrl);
-								setIsAnalyzing(false);
-								setUrlInformation(undefined);
-								setContentType(undefined);
-								setPath('');
-								setBranch('');
-							}}
-							placeholder="https://github.com/my-org/my-repo/..."
-							autoFocus
-						/>
-					</label>
-					{'url' in errors ? (
-						<div className={forms.error}>{errors.url}</div>
-					) : null}
-					<WPButton
-						variant="link"
-						style={{ marginTop: 5 }}
-						onClick={() => setShowExample(!showExample)}
+			<form
+				id="import-playground-form"
+				className={css.importForm}
+				onSubmit={handleSubmit}
+			>
+				{showRepositorySummary ? (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast} ${css.repositorySummary}`}
 					>
-						{showExample ? 'Hide examples' : 'Need an example?'}
-					</WPButton>
-				</div>
-				{showExample ? (
-					<Notice isDismissible={false} className={css.notice}>
-						<p style={{ marginTop: 0 }}>
-							Here's a few examples of URLs you can use:
-						</p>
-						<dl className={css.examplesDl}>
-							<dt>A repository:</dt>
-							<dd>https://github.com/org/repo-name</dd>
-
-							<dt>A path inside a repository:</dt>
-							<dd>
-								https://github.com/org/repo-name/tree/trunk/my-theme
-							</dd>
-
-							<dt>A Pull Request:</dt>
-							<dd>https://github.com/org/repo-name/pull/733</dd>
-						</dl>
-					</Notice>
-				) : (
-					false
-				)}
-				{urlInformation && showRepositoryDetails && !isAnalyzing ? (
-					<>
-						{urlInformation ? (
-							<div>
-								<h3>
-									{urlInformation.type === 'pr' ? (
-										<>
-											Importing from Pull Request #
-											{urlInformation.pr} at{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo}
-										</>
-									) : urlInformation.type === 'branch' ? (
-										<>
-											Importing from branch{' '}
-											{urlInformation.ref} at{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo}
-										</>
-									) : urlInformation.type === 'repo' ? (
-										<>
-											Importing from the{' '}
-											{urlInformation.owner}/
-											{urlInformation.repo} repository
-										</>
-									) : (
-										false
-									)}
-								</h3>
+						<div className={css.repositoryIdentity}>
+							<span className={css.repositoryLabel}>
+								GitHub repository
+							</span>
+							<strong className={css.repositoryName}>
+								{urlInformation?.owner}/{urlInformation?.repo}
+							</strong>
+						</div>
+						<WordPressButton
+							type="button"
+							variant="tertiary"
+							className={css.changeRepository}
+							disabled={isImporting}
+							onClick={handleChangeRepository}
+						>
+							Change
+						</WordPressButton>
+						{'url' in errors ? (
+							<div
+								className={`${forms.error} ${css.repositoryError}`}
+								role="alert"
+							>
+								{errors.url}
 							</div>
-						) : (
-							false
-						)}
-						{['pr', 'branch', 'repo'].includes(
-							urlInformation.type
-						) ? (
-							<>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										I am importing a:
-										<select
-											value={contentType}
-											className={css.repoInput}
-											onChange={(e) =>
-												setContentType(
-													e.target
-														.value as ContentType
-												)
-											}
-										>
-											<option value="">
-												-- Select an option --
-											</option>
-											<option value="theme">Theme</option>
-											<option value="plugin">
-												Plugin
-											</option>
-											<option value="wp-content">
-												wp-content directory
-											</option>
-										</select>
-									</label>
-									{'contentType' in errors ? (
-										<div className={forms.error}>
-											{errors.contentType}
-										</div>
-									) : null}
-								</div>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										From the following path in the repo:
-										<input
-											type="text"
-											className={css.repoInput}
-											value={normalizePath('/' + path)}
-											onChange={(e) => {
-												setPath(
-													e.target.value.replace(
-														/^\/+/,
-														''
-													)
-												);
-											}}
-										/>
-									</label>
-									{'path' in errors ? (
-										<div className={forms.error}>
-											{errors.path}
-										</div>
-									) : null}
-								</div>
-							</>
-						) : (
-							false
-						)}
-					</>
+						) : null}
+					</div>
 				) : (
-					false
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							GitHub repository
+							<input
+								type="text"
+								name="repository"
+								value={url}
+								className={css.repoInput}
+								onChange={(
+									event: React.ChangeEvent<HTMLInputElement>
+								) => {
+									const nextUrl = event.target.value;
+									latestUrlRef.current = nextUrl;
+									analysisRunRef.current++;
+									pathInspectionRunRef.current++;
+									setUrl(nextUrl);
+									setIsAnalyzing(false);
+									setIsInspectingPath(false);
+									setUrlInformation(undefined);
+									setContentTypeSelection(undefined);
+									setPath('');
+									setErrors({});
+								}}
+								placeholder="owner/repository"
+								autoFocus={!urlInformation}
+							/>
+						</label>
+						<p className={css.fieldHint}>
+							Enter owner/repository or a GitHub URL.
+						</p>
+						{'url' in errors ? (
+							<div className={forms.error} role="alert">
+								{errors.url}
+							</div>
+						) : null}
+					</div>
 				)}
+				{urlInformation &&
+				showRepositoryDetails &&
+				!isAnalyzing &&
+				repositoryFilesystem ? (
+					<>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<div className={css.fieldLabel}>
+								Path in repository
+							</div>
+							<FilePickerControl
+								key={`${urlInformation.owner}/${urlInformation.repo}@${urlInformation.commitSha}`}
+								value={ensureAbsolutePath(path)}
+								filesystem={repositoryFilesystem}
+								root="/"
+								readOnly
+								directoriesOnly
+								disabled={isImporting}
+								onChange={handlePathChange}
+							/>
+							{isInspectingPath ? (
+								<div className={css.pathStatus} role="status">
+									<Spinner size={20} />
+									Inspecting the selected path...
+								</div>
+							) : null}
+							{'path' in errors ? (
+								<div className={forms.error}>{errors.path}</div>
+							) : null}
+						</div>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<label>
+								<span className={css.fieldHeading}>
+									<span>Import as</span>
+									{isContentTypeInferred ? (
+										<span className={css.inferredStatus}>
+											Detected automatically
+										</span>
+									) : null}
+								</span>
+								<select
+									name="contentType"
+									value={contentType ?? ''}
+									className={css.repoInput}
+									disabled={isInspectingPath || isImporting}
+									onChange={(event) => {
+										setContentTypeSelection(
+											event.target.value
+												? {
+														contentType: event
+															.target
+															.value as ContentType,
+														source: 'manual',
+													}
+												: undefined
+										);
+										setErrors((current) => {
+											const next = { ...current };
+											delete next.contentType;
+											return next;
+										});
+									}}
+								>
+									<option value="">Select a type</option>
+									<option value="plugin">Plugin</option>
+									<option value="theme">Theme</option>
+									<option value="wp-content">
+										wp-content directory
+									</option>
+								</select>
+							</label>
+							{'contentType' in errors ? (
+								<div className={forms.error}>
+									{errors.contentType}
+								</div>
+							) : null}
+						</div>
+					</>
+				) : null}
 				<div className={forms.submitRow}>
-					<Button
-						disabled={!url || isAnalyzing || isImporting}
+					<WordPressButton
+						className={css.submitButton}
+						disabled={
+							!url ||
+							isAnalyzing ||
+							isInspectingPath ||
+							isImporting ||
+							(Boolean(urlInformation && showRepositoryDetails) &&
+								!contentType)
+						}
 						type="submit"
 						variant="primary"
-						size="large"
 					>
 						{isAnalyzing ? (
 							<>
 								<Spinner size={20} />
 								Analyzing the repository...
 							</>
+						) : isInspectingPath ? (
+							<>
+								<Spinner size={20} />
+								Inspecting the selected path...
+							</>
 						) : isImporting ? (
 							<>
 								<Spinner size={20} />
-								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+								{importPhase === 'downloading'
+									? `Downloading files…${
+											importProgress.foundFiles
+												? ` ${importProgress.downloadedFiles} of ${importProgress.foundFiles}`
+												: ''
+										}`
+									: `Importing ${importTargetLabel}…`}
 							</>
-						) : showRepositoryDetails ? (
-							'Import'
+						) : urlInformation && showRepositoryDetails ? (
+							importTargetLabel ? (
+								`Import ${importTargetLabel}`
+							) : (
+								'Import'
+							)
 						) : (
 							'Continue'
 						)}
-					</Button>
+					</WordPressButton>
 				</div>
 			</form>
 		</GitHubOAuthGuard>
@@ -424,6 +567,7 @@ async function resolveImportSource(
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 			pull_number: urlDetails.pr!,
+			request: { retries: 0 },
 		});
 		if (!prDetails.data.head.repo) {
 			throw new Error(
@@ -444,11 +588,13 @@ async function resolveImportSource(
 		} = await octokit.rest.repos.get({
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
+			request: { retries: 0 },
 		});
 		const { data: branch } = await octokit.rest.repos.getBranch({
 			owner: urlDetails.owner!,
 			repo: urlDetails.repo!,
 			branch: default_branch,
+			request: { retries: 0 },
 		});
 		return {
 			...urlDetails,
@@ -459,28 +605,19 @@ async function resolveImportSource(
 	return resolveGitHubBranchPath(octokit, urlDetails);
 }
 
-async function guessContentType(
+async function inspectContentType(
 	octokit: GithubClient,
 	{ owner, repo, path, ref, commitSha }: GitHubURLInformation
 ): Promise<ContentType | undefined> {
-	// Guess the content type
 	const { data: files } = await octokit.rest.repos.getContent({
 		owner: owner!,
 		repo: repo!,
 		path: path!,
 		ref: commitSha || ref,
+		request: { retries: 0 },
 	});
-	if (Array.isArray(files)) {
-		if (files.some(({ name }) => name === 'theme.json')) {
-			return 'theme';
-		} else if (
-			files.some(({ name }) =>
-				['plugins', 'themes', 'mu-plugins'].includes(name)
-			)
-		) {
-			return 'wp-content';
-		} else if (files.some(({ name }) => name.endsWith('.php'))) {
-			return 'plugin';
-		}
+	if (!Array.isArray(files)) {
+		throw new Error('Select a directory to import.');
 	}
+	return inferContentType(files);
 }

@@ -1,8 +1,32 @@
 import type { GitHubURLInformation } from './analyze-github-url';
 import {
+	normalizeGitHubRepositoryInput,
 	resolveGitHubBranchPath,
 	staticAnalyzeGitHubURL,
 } from './analyze-github-url';
+
+describe('normalizeGitHubRepositoryInput', () => {
+	it('expands owner/repository shorthand into a GitHub URL', () => {
+		expect(normalizeGitHubRepositoryInput(' WordPress/gutenberg ')).toBe(
+			'https://github.com/WordPress/gutenberg'
+		);
+	});
+
+	it('leaves full URLs unchanged apart from surrounding whitespace', () => {
+		expect(
+			normalizeGitHubRepositoryInput(
+				' https://github.com/WordPress/gutenberg/tree/trunk '
+			)
+		).toBe('https://github.com/WordPress/gutenberg/tree/trunk');
+	});
+
+	it('does not expand malformed shorthand', () => {
+		expect(normalizeGitHubRepositoryInput('WordPress')).toBe('WordPress');
+		expect(
+			normalizeGitHubRepositoryInput('WordPress/gutenberg/extra')
+		).toBe('WordPress/gutenberg/extra');
+	});
+});
 
 describe('staticAnalyzeGitHubURL', () => {
 	it('should return correct GitHubURLInformation for a repo URL', () => {

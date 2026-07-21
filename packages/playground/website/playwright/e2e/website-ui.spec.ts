@@ -169,25 +169,77 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 			const requestUrl =
 				input instanceof Request ? input.url : String(input);
 			const url = new URL(requestUrl);
-			if (
-				url.origin !== 'https://api.github.com' ||
-				!url.pathname.startsWith('/repos/playground-test/import-source')
-			) {
+			const pathname = decodeURIComponent(url.pathname);
+			if (url.origin !== 'https://api.github.com') {
+				return originalFetch.call(this, input, init);
+			}
+			if (pathname === '/repos/playground-test/unavailable') {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({ message: 'Service Unavailable' }),
+						{
+							status: 503,
+							headers: {
+								'Content-Type': 'application/json',
+							},
+						}
+					)
+				);
+			}
+			if (!pathname.startsWith('/repos/playground-test/import-source')) {
 				return originalFetch.call(this, input, init);
 			}
 
 			let body;
-			if (url.pathname === '/repos/playground-test/import-source') {
+			if (pathname === '/repos/playground-test/import-source') {
 				body = { default_branch: 'trunk' };
 			} else if (
-				url.pathname ===
+				pathname ===
 				'/repos/playground-test/import-source/branches/trunk'
 			) {
 				body = { commit: { sha: 'test-commit-sha' } };
 			} else if (
-				url.pathname === '/repos/playground-test/import-source/contents'
+				pathname === '/repos/playground-test/import-source/contents'
 			) {
-				body = [{ name: 'plugin.php', type: 'file' }];
+				body = [
+					{ name: 'plugin', path: 'plugin', type: 'dir' },
+					{ name: 'theme', path: 'theme', type: 'dir' },
+					{ name: 'readme.md', path: 'readme.md', type: 'file' },
+				];
+			} else if (
+				pathname ===
+				'/repos/playground-test/import-source/contents/plugin'
+			) {
+				body = [
+					{
+						name: 'plugin.php',
+						path: 'plugin/plugin.php',
+						type: 'file',
+					},
+				];
+			} else if (
+				pathname ===
+				'/repos/playground-test/import-source/contents/plugin/plugin.php'
+			) {
+				body = {
+					name: 'plugin.php',
+					path: 'plugin/plugin.php',
+					type: 'file',
+					content: btoa(
+						'<?php\n/**\n * Plugin Name: Imported Plugin\n */\n'
+					),
+				};
+			} else if (
+				pathname ===
+				'/repos/playground-test/import-source/contents/theme'
+			) {
+				body = [
+					{
+						name: 'style.css',
+						path: 'theme/style.css',
+						type: 'file',
+					},
+				];
 			} else {
 				return Promise.reject(
 					new Error(`Unexpected GitHub API request: ${url}`)
@@ -2228,7 +2280,7 @@ test.describe('Default Playground storage', () => {
 			.getByRole('link', { name: 'Connect your GitHub account' })
 			.click();
 		const githubUrlInput = newPane.getByRole('textbox', {
-			name: /I want to import from this GitHub URL/,
+			name: 'GitHub repository',
 		});
 		await expect(githubUrlInput).toBeVisible();
 
@@ -2284,26 +2336,186 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 		await expect(
 			githubImportPane.getByRole('combobox', {
-				name: 'I am importing a:',
+				name: 'Import as',
 			})
 		).toBeVisible();
-		const creationBackButton = githubImportPane.getByRole('button', {
-			name: 'Back to the GitHub repository URL',
+		await expect(
+			githubImportPane.getByText('playground-test/import-source', {
+				exact: true,
+			})
+		).toBeVisible();
+		await githubImportPane
+			.getByRole('button', { name: 'Change', exact: true })
+			.click();
+		const resolvedRepositoryInput = newPane.getByRole('textbox', {
+			name: 'GitHub repository',
 		});
-		await expect(creationBackButton).toBeFocused();
+		await expect(resolvedRepositoryInput).toHaveValue(
+			'https://github.com/playground-test/import-source'
+		);
+		await expect(resolvedRepositoryInput).toBeFocused();
+		await newPane
+			.getByRole('button', { name: 'Continue', exact: true })
+			.click();
+		const creationBackButton = githubImportPane.getByRole('button', {
+			name: 'Back to the GitHub repository',
+		});
+		await expect(creationBackButton).toBeVisible();
 		await creationBackButton.click();
 		await expect(githubUrlInput).toHaveValue(
 			'https://github.com/playground-test/import-source'
 		);
 		await expect(
 			newPane.getByRole('combobox', {
-				name: 'I am importing a:',
+				name: 'Import as',
 			})
 		).toHaveCount(0);
 		await expect(
 			newPane.getByRole('button', { name: 'Continue', exact: true })
 		).toBeVisible();
 		await expect(githubTab).toBeFocused();
+	});
+
+	test('should show an error when GitHub is unavailable during repository analysis', async ({
+		website,
+		browserName,
+	}) => {
+		await mockGitHubOAuth(website.page, browserName);
+		await mockGitHubRepositoryAnalysis(website.page);
+
+		await website.goto('./?storage=temp');
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane
+			.getByRole('tab', { name: 'From GitHub', exact: true })
+			.click();
+		await newPane
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		await newPane
+			.getByRole('textbox', { name: 'GitHub repository' })
+			.fill('playground-test/unavailable');
+		const continueButton = newPane.getByRole('button', {
+			name: 'Continue',
+			exact: true,
+		});
+		await continueButton.click();
+
+		await expect(newPane.getByRole('alert')).toBeVisible({ timeout: 5000 });
+		await expect(continueButton).toBeEnabled();
+	});
+
+	test('should browse a GitHub repository path and infer its import type', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			'Creating the imported saved Playground requires OPFS.'
+		);
+		await mockGitHubOAuth(website.page, browserName);
+		await mockGitHubRepositoryAnalysis(website.page);
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('github-path-import')
+		);
+		await website.openDockPane('New Playground');
+		const newPane = website.page.getByRole('dialog', {
+			name: 'New Playground pane',
+		});
+		await newPane
+			.getByRole('tab', { name: 'From GitHub', exact: true })
+			.click();
+		await newPane
+			.getByRole('link', { name: 'Connect your GitHub account' })
+			.click();
+		await newPane
+			.getByRole('textbox', { name: 'GitHub repository' })
+			.fill('playground-test/import-source');
+		await newPane
+			.getByRole('button', { name: 'Continue', exact: true })
+			.click();
+
+		const githubImportPane = website.page.getByRole('dialog', {
+			name: 'Import from GitHub pane',
+		});
+		const importButton = githubImportPane.getByRole('button', {
+			name: 'Import',
+			exact: true,
+		});
+		await expect(importButton).toBeDisabled();
+		await githubImportPane
+			.getByRole('button', {
+				name: 'Choose path. Current path: /',
+				exact: true,
+			})
+			.click();
+
+		const pathPicker = website.page.getByRole('dialog', {
+			name: 'Select a path',
+		});
+		await pathPicker
+			.getByRole('button', { name: 'plugin', exact: true })
+			.click();
+		await pathPicker
+			.getByRole('button', { name: 'Select path', exact: true })
+			.click();
+
+		const importType = githubImportPane.getByRole('combobox', {
+			name: 'Import as',
+		});
+		await expect(importType).toHaveValue('plugin');
+		await expect(
+			githubImportPane.getByText('Detected automatically', {
+				exact: true,
+			})
+		).toBeVisible();
+		await importType.selectOption('theme');
+		await expect(importType).toHaveValue('theme');
+		await expect(
+			githubImportPane.getByText('Detected automatically', {
+				exact: true,
+			})
+		).toHaveCount(0);
+		await expect(
+			githubImportPane.getByRole('button', {
+				name: 'Import theme',
+				exact: true,
+			})
+		).toBeEnabled();
+		await importType.selectOption('plugin');
+		const importPluginButton = githubImportPane.getByRole('button', {
+			name: 'Import plugin',
+			exact: true,
+		});
+		await expect(importPluginButton).toBeEnabled();
+
+		await importPluginButton.click();
+		const successNotice = website.page.getByRole('group', {
+			name: 'Operation succeeded',
+		});
+		await expect(successNotice).toContainText(
+			'plugin imported as a plugin',
+			{ timeout: 120000 }
+		);
+		await expect(githubImportPane).toHaveCount(0);
+		await expect
+			.poll(
+				() =>
+					website.page.evaluate(async () => {
+						const client = (
+							window as any
+						).playgroundSites?.getClient();
+						return client
+							? client.fileExists(
+									'/wordpress/wp-content/plugins/plugin/plugin.php'
+								)
+							: false;
+					}),
+				{ timeout: 120000 }
+			)
+			.toBe(true);
 	});
 
 	test('should open GitHub export as a styled subpanel', async ({
@@ -2330,10 +2542,10 @@ test.describe('Default Playground storage', () => {
 		await website.page
 			.getByRole('link', { name: 'Connect your GitHub account' })
 			.click();
-		const importIntro = website.page.getByText(
-			/You may import WordPress plugins/
-		);
-		await expect(importIntro).toBeVisible();
+		const importRepositoryInput = website.page.getByRole('textbox', {
+			name: 'GitHub repository',
+		});
+		await expect(importRepositoryInput).toBeVisible();
 
 		await website.openDockPane('Export');
 		const exportOptionsPane = website.page.getByRole('dialog', {
@@ -2354,7 +2566,7 @@ test.describe('Default Playground storage', () => {
 			level: 2,
 		});
 		await expect(heading).toBeVisible();
-		await expect(importIntro).not.toBeVisible();
+		await expect(importRepositoryInput).not.toBeVisible();
 		const backButton = githubExportPane.getByRole('button', {
 			name: 'Back to export options',
 		});
@@ -2431,15 +2643,15 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 	});
 
-	for (const { name, viewport } of [
-		{ name: 'desktop', viewport: { width: 1280, height: 600 } },
-		{ name: 'mobile', viewport: { width: 320, height: 600 } },
+	for (const { name, width } of [
+		{ name: 'desktop', width: 1280 },
+		{ name: 'mobile', width: 320 },
 	]) {
 		test(`should scroll the dedicated GitHub import form on ${name}`, async ({
 			website,
 			browserName,
 		}) => {
-			await website.page.setViewportSize(viewport);
+			await website.page.setViewportSize({ width, height: 600 });
 			await mockGitHubOAuth(website.page, browserName);
 			await mockGitHubRepositoryAnalysis(website.page);
 			await website.goto('./?storage=temp');
@@ -2453,9 +2665,7 @@ test.describe('Default Playground storage', () => {
 				.getByRole('link', { name: 'Connect your GitHub account' })
 				.click();
 			await newPane
-				.getByRole('textbox', {
-					name: /I want to import from this GitHub URL/,
-				})
+				.getByRole('textbox', { name: 'GitHub repository' })
 				.fill('https://github.com/playground-test/import-source');
 			await newPane
 				.getByRole('button', { name: 'Continue', exact: true })
@@ -2466,9 +2676,7 @@ test.describe('Default Playground storage', () => {
 			const formPanel = githubImportPane.getByRole('region', {
 				name: 'Import from GitHub',
 			});
-			await formPanel
-				.getByRole('button', { name: 'Need an example?' })
-				.click();
+			await website.page.setViewportSize({ width, height: 300 });
 			await expect
 				.poll(() =>
 					formPanel.evaluate(
@@ -2484,7 +2692,7 @@ test.describe('Default Playground storage', () => {
 
 			await githubImportPane
 				.getByRole('button', {
-					name: 'Back to the GitHub repository URL',
+					name: 'Back to the GitHub repository',
 				})
 				.click();
 			await expect(

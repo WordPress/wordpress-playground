@@ -16,10 +16,22 @@ type GitHubBranchClient = {
 				owner: string;
 				repo: string;
 				branch: string;
+				request?: { retries?: number };
 			}): Promise<{ data?: { commit?: { sha?: string } } }>;
 		};
 	};
 };
+
+/**
+ * Expands GitHub's owner/repository shorthand into a repository URL.
+ */
+export function normalizeGitHubRepositoryInput(input: string): string {
+	const trimmed = input.trim();
+	if (/^[a-z\d_.-]+\/[a-z\d_.-]+$/i.test(trimmed)) {
+		return `https://github.com/${trimmed}`;
+	}
+	return trimmed;
+}
 
 /**
  * Parses supported GitHub URLs without making network requests.
@@ -125,6 +137,7 @@ export async function resolveGitHubBranchPath(
 				owner: urlDetails.owner,
 				repo: urlDetails.repo,
 				branch: ref,
+				request: { retries: 0 },
 			});
 			return {
 				...urlDetails,

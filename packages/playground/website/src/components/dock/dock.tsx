@@ -82,6 +82,7 @@ export type DockProps = {
 const DRAG_THRESHOLD = 4;
 const CORNER_OVERDRAG = 36;
 const MOBILE_QUERY = '(max-width: 1024px)';
+const SUCCESS_NOTICE_DURATION = 5000;
 
 const DOCK_ITEMS: DockItem[] = [
 	{
@@ -226,6 +227,7 @@ export function Dock({
 	const operationNotice = useAppSelector(
 		(state) => state.ui.dockOperationNotice
 	);
+	const operationNoticeStatus = operationNotice?.status ?? 'error';
 
 	const paneRef = useRef<HTMLElement>(null);
 	const dockRef = useRef<HTMLElement>(null);
@@ -364,6 +366,17 @@ export function Dock({
 		observer.observe(toast);
 		return () => observer.disconnect();
 	}, [operationNotice]);
+
+	useEffect(() => {
+		if (operationNoticeStatus !== 'success') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() => dispatch(setDockOperationNotice(undefined)),
+			SUCCESS_NOTICE_DURATION
+		);
+		return () => window.clearTimeout(timeout);
+	}, [dispatch, operationNotice, operationNoticeStatus]);
 
 	useEffect(() => {
 		if (dockCenter === null || !dockSize.width) {
@@ -1003,7 +1016,12 @@ export function Dock({
 	return (
 		<>
 			{operationNotice && (
-				<span className={css.visuallyHidden} role="alert">
+				<span
+					className={css.visuallyHidden}
+					role={
+						operationNoticeStatus === 'success' ? 'status' : 'alert'
+					}
+				>
 					{operationNotice.title}
 					{operationNotice.message && `. ${operationNotice.message}`}
 				</span>
@@ -1150,9 +1168,16 @@ export function Dock({
 			{operationNotice && (
 				<div
 					ref={operationToastRef}
-					className={css.dockOperationToast}
+					className={classNames(css.dockOperationToast, {
+						[css.dockOperationToastSuccess]:
+							operationNoticeStatus === 'success',
+					})}
 					role="group"
-					aria-label="Operation failed"
+					aria-label={
+						operationNoticeStatus === 'success'
+							? 'Operation succeeded'
+							: 'Operation failed'
+					}
 					style={operationToastStyle}
 				>
 					<div className={css.dockOperationToastContent}>
@@ -1167,7 +1192,11 @@ export function Dock({
 					</div>
 					<button
 						type="button"
-						aria-label="Dismiss operation error"
+						aria-label={
+							operationNoticeStatus === 'success'
+								? 'Dismiss success message'
+								: 'Dismiss operation error'
+						}
 						onClick={() =>
 							dispatch(setDockOperationNotice(undefined))
 						}

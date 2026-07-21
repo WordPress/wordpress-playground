@@ -1,57 +1,124 @@
-import React, { useState } from 'react';
-import { Button, Modal } from '@wordpress/components';
+import React, { useEffect, useState } from 'react';
+import { Button, Icon, Modal } from '@wordpress/components';
+import { chevronRight } from '@wordpress/icons';
 import { PathPreview } from './PathPreview';
 import css from './style.module.css';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FilePickerTree } from '../FilePickerTree';
+import { folder } from '../icons';
 
 export function FilePickerControl({
 	value = '',
 	onChange,
 	filesystem,
+	root,
+	readOnly = false,
+	directoriesOnly = false,
+	disabled = false,
 }: {
 	value?: string;
 	onChange: (selectedPath: string) => void;
 	filesystem: AsyncWritableFilesystem;
+	root?: string;
+	readOnly?: boolean;
+	directoriesOnly?: boolean;
+	disabled?: boolean;
 }) {
 	const [isOpen, setOpen] = useState(false);
-	const openModal = () => setOpen(true);
-	const closeModal = () => setOpen(false);
-
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		value || null
 	);
+	const [verifiedDirectoryPath, setVerifiedDirectoryPath] = useState<
+		string | null
+	>(null);
+	const canSubmit = Boolean(
+		lastSelectedPath &&
+		(!directoriesOnly || verifiedDirectoryPath === lastSelectedPath)
+	);
+	const openModal = () => {
+		setLastSelectedPath(value || null);
+		setVerifiedDirectoryPath(null);
+		setOpen(true);
+	};
+	const closeModal = () => setOpen(false);
+
+	useEffect(() => {
+		if (!isOpen || !directoriesOnly || !lastSelectedPath) {
+			return;
+		}
+		let cancelled = false;
+		filesystem
+			.isDir(lastSelectedPath)
+			.then((isDirectory) => {
+				if (!cancelled) {
+					setVerifiedDirectoryPath(
+						isDirectory ? lastSelectedPath : null
+					);
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setVerifiedDirectoryPath(null);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [directoriesOnly, filesystem, isOpen, lastSelectedPath]);
+
 	function handleSubmit(event?: React.FormEvent<HTMLFormElement>) {
 		event?.preventDefault();
-		onChange(lastSelectedPath || '');
+		event?.stopPropagation();
+		if (!canSubmit || !lastSelectedPath) {
+			return;
+		}
+		onChange(lastSelectedPath);
 		closeModal();
 	}
 
 	return (
 		<>
 			<Button
+				type="button"
 				variant="tertiary"
 				className={css['control']}
+				disabled={disabled}
+				aria-label={`Choose path. Current path: ${
+					value || 'No path selected'
+				}`}
+				title={value || 'Select a path'}
 				onClick={openModal}
 			>
-				<span className={css['browseLabel']}>Browse</span>
+				<span className={css['folderIcon']} aria-hidden="true">
+					<Icon icon={folder} size={18} />
+				</span>
 				<PathPreview path={value || ''} />
+				<span className={css['chevron']} aria-hidden="true">
+					<Icon icon={chevronRight} size={18} />
+				</span>
 			</Button>
 			{isOpen && (
 				<Modal
-					title="Select a path "
+					title="Select a path"
 					onRequestClose={closeModal}
 					className={css['modal']}
 				>
 					<form onSubmit={handleSubmit}>
 						<FilePickerTree
 							filesystem={filesystem}
-							initialSelectedPath={value}
+							root={root}
+							readOnly={readOnly}
+							directoriesOnly={directoriesOnly}
+							initialSelectedPath={value || undefined}
 							onSelect={setLastSelectedPath}
 						/>
 						<div className={css['modalFooter']}>
-							<Button type="submit" variant="primary">
-								Select Path
+							<Button
+								type="submit"
+								variant="primary"
+								disabled={!canSubmit}
+							>
+								Select path
 							</Button>
 						</div>
 					</form>
