@@ -2859,6 +2859,58 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should persist a front-page thumbnail for a saved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('thumbnail'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		const thumbnail = website.page.locator(
+			`[data-playground-row="${activeSite.slug}"] [data-site-thumbnail]`
+		);
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			/^data:image\/(webp|jpeg);base64,/
+		);
+
+		const storedThumbnail = await website.page.evaluate(
+			async (siteSlug) => {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(
+					`site-${encodeURIComponent(siteSlug)}`
+				);
+				const metadata = await site.getFileHandle('wp-runtime.json');
+				return JSON.parse(await (await metadata.getFile()).text())
+					.thumbnail;
+			},
+			activeSite.slug
+		);
+		expect(storedThumbnail.mime).toMatch(/^image\/(webp|jpeg)$/);
+		expect(storedThumbnail.data.length).toBeGreaterThan(0);
+
+		await website.goto(
+			`./?site-slug=${encodeURIComponent(activeSite.slug)}`
+		);
+		await website.waitForNestedIframes();
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			`data:${storedThumbnail.mime};base64,${storedThumbnail.data}`
+		);
+	});
+
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
 		browserName,

@@ -43,7 +43,7 @@ import {
 	useAppDispatch,
 	getActiveClientInfo,
 } from '../../lib/state/redux/store';
-import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
+import type { SiteImage, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
@@ -413,10 +413,6 @@ export function SavedPlaygroundsPanel({
 		});
 	};
 
-	const getLogoDataURL = (logo: SiteLogo): string => {
-		return `data:${logo.mime};base64,${logo.data}`;
-	};
-
 	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
 		if (isImportingZip) {
 			return;
@@ -571,8 +567,8 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
-	// The save state lives in the row's status chip, so the meta line stays clean
-	// (just the date, or the location for local-directory Playgrounds).
+	// The save state lives in the row's status chip, so the meta line stays focused
+	// on runtime/date details or the local-directory location.
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
 			return 'Not saved to browser storage';
@@ -580,7 +576,10 @@ export function SavedPlaygroundsPanel({
 		if (site.metadata.storage === 'local-fs') {
 			return 'Local directory';
 		}
-		return formatSiteCreatedDate(site) ?? '';
+		const createdDate = formatSiteCreatedDate(site);
+		return isAutosavedSite(site)
+			? [getRuntimeLabel(site), createdDate].filter(Boolean).join(' · ')
+			: (createdDate ?? '');
 	};
 
 	const getCurrentSiteDetails = (site: SiteInfo) => {
@@ -1069,16 +1068,7 @@ export function SavedPlaygroundsPanel({
 				})}
 			>
 				<div className={css.siteRowContent} {...rowButtonProps}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					<SitePreview site={site} />
 					<div className={css.siteRowInfo}>
 						{renderSiteRowName(site)}
 						{meta && (
@@ -1102,16 +1092,7 @@ export function SavedPlaygroundsPanel({
 				className={classNames(css.siteRow, css.currentSiteRow)}
 			>
 				<div className={css.siteRowContent}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					<SitePreview site={site} />
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
@@ -1616,6 +1597,40 @@ export function SavedPlaygroundsPanel({
 			{panel !== 'playgrounds' && renderNewPlaygroundSection()}
 		</div>
 	);
+}
+
+function SitePreview({ site }: { site: SiteInfo }) {
+	return (
+		<div
+			className={classNames(css.siteRowPreview, {
+				[css.siteRowPreviewFallback]: !site.metadata.thumbnail,
+			})}
+		>
+			{site.metadata.thumbnail ? (
+				<img
+					className={css.siteRowThumbnail}
+					src={getSiteImageDataURL(site.metadata.thumbnail)}
+					alt=""
+					data-site-thumbnail
+				/>
+			) : (
+				<div className={css.siteRowLogo}>
+					{site.metadata.logo ? (
+						<img
+							src={getSiteImageDataURL(site.metadata.logo)}
+							alt=""
+						/>
+					) : (
+						<WordPressIcon />
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+function getSiteImageDataURL(image: SiteImage) {
+	return `data:${image.mime};base64,${image.data}`;
 }
 
 function PullRequestIcon() {

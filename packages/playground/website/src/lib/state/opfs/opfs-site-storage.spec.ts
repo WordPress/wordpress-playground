@@ -128,6 +128,19 @@ describe('opfsSiteStorage', () => {
 		});
 	});
 
+	it('stores the saved Playground thumbnail in site metadata', async () => {
+		const thumbnail = {
+			mime: 'image/webp',
+			data: 'thumbnail-bytes',
+		};
+
+		await storage.create('stored-site', createSiteMetadata({ thumbnail }));
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: { thumbnail },
+		});
+	});
+
 	it('updates setup URL params alongside site metadata', async () => {
 		await storage.create('stored-site', createSiteMetadata(), {
 			searchParams: { language: 'en_US' },
