@@ -60,8 +60,10 @@ import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
 	createStoredSite,
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	isStoredSite,
 	pruneAutosavedSites,
+	removeSite,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
@@ -328,6 +330,8 @@ export const BlueprintBundleEditor = forwardRef<
 	const hasValidationErrors =
 		validationResult !== null && !validationResult.valid;
 	const storedSiteSlug = site && isStoredSite(site) ? site.slug : undefined;
+	const siteIsUnfinishedBlueprintRun =
+		!!site && isUnfinishedBlueprintRun(site);
 	// initialOpfsSyncPending can remain set after a failed boot. Queue only while
 	// the live client reports a copy; cancel on an explicit sync error.
 	const opfsSyncStatus = useAppSelector((state) => {
@@ -462,31 +466,40 @@ export const BlueprintBundleEditor = forwardRef<
 			}
 			setSaveError(null);
 			if (runInNewPlayground) {
+				const siteSlugToReturnToIfBlueprintFails =
+					site.metadata.siteSlugToReturnToIfBlueprintFails ??
+					site.slug;
 				const newSite = await dispatch(
 					createStoredSite(
 						site.metadata.name,
 						filesystem.backend,
 						undefined,
-						{ persistence: 'autosave' }
+						{
+							persistence: 'autosave',
+							siteSlugToReturnToIfBlueprintFails,
+						}
 					)
 				);
-				try {
-					await dispatch(
-						pruneAutosavedSites({
-							excludeSlugs: [site.slug, newSite.slug],
-						})
-					);
-				} catch (error) {
-					// The new Playground is already committed. Retention cleanup is
-					// housekeeping and must not turn a successful run into a retry
-					// that creates a duplicate Playground.
-					logger.error(
-						'Failed to prune autosaved Playgrounds',
-						error
-					);
-				}
 				dispatch(setDockPaneOpen(false));
 				dispatch(setActiveSite(newSite.slug));
+				if (siteIsUnfinishedBlueprintRun) {
+					try {
+						await dispatch(removeSite(site.slug));
+					} catch (error) {
+						logger.error('Failed to discard Blueprint run', error);
+						// Pruning while the failed run still counts toward the limit
+						// could discard an unrelated Playground.
+						return;
+					}
+				}
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [
+							siteSlugToReturnToIfBlueprintFails,
+							newSite.slug,
+						],
+					})
+				);
 				return;
 			}
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
@@ -528,6 +541,7 @@ export const BlueprintBundleEditor = forwardRef<
 		dispatch,
 		filesystem,
 		hasValidationErrors,
+		siteIsUnfinishedBlueprintRun,
 		opfsSyncStatus,
 		readOnly,
 		saveFile,
@@ -1062,7 +1076,10 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{isStored ? (
+						{isStored &&
+						site &&
+						(opfsSyncStatus === 'syncing' ||
+							!siteIsUnfinishedBlueprintRun) ? (
 							<p className={styles.runHint}>
 								{isWaitingToRun ? (
 									'Run will wait for this Playground to finish saving.'

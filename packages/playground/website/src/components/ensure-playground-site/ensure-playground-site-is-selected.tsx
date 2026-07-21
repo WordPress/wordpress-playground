@@ -11,6 +11,7 @@ import {
 	OPFSSitesLoaded,
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
+	isRestorableAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
 	type SiteInfo,
@@ -229,7 +230,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				// setup URL. A different setup URL should create a fresh
 				// Playground even if another autosave exists.
 				const matchingAutosave = sortedSites
-					.filter(isAutosavedSite)
+					.filter(isRestorableAutosavedSite)
 					.find(
 						(site) =>
 							getAutosaveFingerprintFromSite(site) ===

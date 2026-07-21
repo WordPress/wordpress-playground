@@ -19,6 +19,7 @@ export function getDockPaneStyle({
 	dockCenter,
 	viewportSize,
 	isEditorSection,
+	isWideSection,
 	isFixedHeightSection,
 	isPlaygroundsSection,
 }: {
@@ -29,6 +30,7 @@ export function getDockPaneStyle({
 	dockCenter: number | null;
 	viewportSize: Size;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 	isFixedHeightSection: boolean;
 	isPlaygroundsSection: boolean;
 }): CSSProperties | undefined {
@@ -52,6 +54,7 @@ export function getDockPaneStyle({
 		dockCenter,
 		viewportWidth: viewportSize.width,
 		isEditorSection,
+		isWideSection,
 	});
 	const availableHeight = Math.max(
 		DOCK_PANE_MIN_HEIGHT,
@@ -81,6 +84,7 @@ export function getDockOperationToastStyle({
 	toastHeight,
 	paneOpen,
 	isEditorSection,
+	isWideSection,
 }: {
 	isMobile: boolean;
 	dockSize: Size;
@@ -92,6 +96,7 @@ export function getDockOperationToastStyle({
 	toastHeight: number;
 	paneOpen: boolean;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 }): CSSProperties | undefined {
 	if (!dockSize.height) {
 		return undefined;
@@ -124,6 +129,7 @@ export function getDockOperationToastStyle({
 				dockCenter,
 				viewportWidth: viewportSize.width,
 				isEditorSection,
+				isWideSection,
 			});
 	const minCenter = halfToastWidth + DOCK_PANE_GAP;
 	const maxCenter = viewportSize.width - halfToastWidth - DOCK_PANE_GAP;
@@ -143,14 +149,17 @@ export function getDockPaneCenter({
 	dockCenter,
 	viewportWidth,
 	isEditorSection,
+	isWideSection,
 }: {
 	dockCenter: number | null;
 	viewportWidth: number;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 }) {
 	const desiredCenter = dockCenter ?? viewportWidth / 2;
+	// Half of the .pane / .pane-wide / .pane-editor widths in style.module.css.
 	const halfPaneWidth = Math.min(
-		isEditorSection ? 560 : 300,
+		isEditorSection ? 560 : isWideSection ? 430 : 300,
 		(viewportWidth - 2 * DOCK_DRAG_EDGE) / 2
 	);
 	return Math.min(
