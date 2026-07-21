@@ -10,8 +10,8 @@ import {
 } from '@wp-playground/client';
 import {
 	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_CONFIG_PATH,
 	PHPMYADMIN_ENTRY_PATH,
-	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -39,7 +39,7 @@ export function PhpMyAdminButton({
 				return;
 			}
 
-			if (await playground.isDir(PHPMYADMIN_INSTALL_PATH)) {
+			if (await playground.isFile(PHPMYADMIN_CONFIG_PATH)) {
 				setState('ready');
 			} else {
 				setState('idle');

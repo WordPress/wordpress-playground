@@ -1,5 +1,5 @@
 import type { PathAlias } from '@php-wasm/universal';
-import { dirname, isParentOf, normalizePath } from '@php-wasm/util';
+import { isParentOf, normalizePath } from '@php-wasm/util';
 
 export function getPhpInstanceSharedPaths(
 	documentRoot: string,
@@ -11,25 +11,15 @@ export function getPhpInstanceSharedPaths(
 		'/internal/shared',
 		'/internal/symlinks',
 	].map(normalizePath);
-	const aliasSharedPaths = pathAliases.map(({ fsPath }) => {
-		const normalizedPath = normalizePath(fsPath);
-		const parentPath = dirname(normalizedPath);
-
-		/**
-		 * Alias targets may be installed after a secondary PHP instance starts.
-		 * Share the parent so later writes are visible without creating the target
-		 * early. Do not broaden the mount over an existing shared root.
-		 */
-		if (
-			parentPath !== '/' &&
-			!standardSharedPaths.some((sharedPath) =>
-				isParentOf(parentPath, sharedPath)
-			)
-		) {
-			return parentPath;
-		}
-		return normalizedPath;
-	});
+	/*
+	 * Share each declared alias target itself. `proxyFileSystem()` creates a missing
+	 * target before mounting it, so later writes anywhere below `fsPath` go through
+	 * to the primary instance. This avoids guessing which ancestor should be shared
+	 * and keeps unrelated sibling paths private.
+	 */
+	const aliasSharedPaths = pathAliases.map(({ fsPath }) =>
+		normalizePath(fsPath)
+	);
 	const candidatePaths = Array.from(
 		new Set([...standardSharedPaths, ...aliasSharedPaths])
 	);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getPhpInstanceSharedPaths } from './php-instance-shared-paths';
 
 describe('getPhpInstanceSharedPaths', () => {
-	it('shares the parent of an alias that may be installed later', () => {
+	it('shares an alias target without widening it to an ancestor', () => {
 		const sharedPaths = getPhpInstanceSharedPaths('/wordpress', [
 			{
 				urlPrefix: '/phpmyadmin',
@@ -10,7 +10,7 @@ describe('getPhpInstanceSharedPaths', () => {
 			},
 		]);
 
-		expect(sharedPaths).toContain('/tools');
-		expect(sharedPaths).not.toContain('/tools/phpmyadmin');
+		expect(sharedPaths).toContain('/tools/phpmyadmin');
+		expect(sharedPaths).not.toContain('/tools');
 	});
 });
