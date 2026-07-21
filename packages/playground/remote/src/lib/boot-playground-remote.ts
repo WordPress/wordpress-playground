@@ -578,15 +578,17 @@ export async function bootPlaygroundRemote() {
 
 const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
 const SITE_THUMBNAIL_RESPONSE = 'playground-site-thumbnail-result';
-const SITE_THUMBNAIL_TIMEOUT_MS = 3000;
+const SITE_THUMBNAIL_LOAD_TIMEOUT_MS = 20000;
+const SITE_THUMBNAIL_RENDER_TIMEOUT_MS = 3000;
 
 /**
  * Loads the front page in a disposable iframe and asks that document to render
  * itself. The WordPress MU plugin owns the receiving side because the remote
  * frame cannot inspect the WordPress DOM under Document-Isolation-Policy. A
  * separate iframe avoids navigating or capturing wp-admin in the visible one.
- * Every response path removes the iframe and listeners. The short timeout
- * bounds how long the disposable page may load or render.
+ * Every response path removes the iframe and listeners. The load watchdog
+ * covers a page that never loads; once it loads, a shorter deadline bounds the
+ * renderer work.
  */
 async function captureSiteThumbnailFromWordPress({
 	frontPageUrl,
@@ -613,11 +615,7 @@ async function captureSiteThumbnailFromWordPress({
 
 	return await new Promise<SiteThumbnail>((resolve, reject) => {
 		const requestId = `${Date.now()}-${Math.random()}`;
-		const timeout = setTimeout(() => {
-			finish(() =>
-				reject(new Error('Timed out capturing the site thumbnail.'))
-			);
-		}, SITE_THUMBNAIL_TIMEOUT_MS);
+		let timeout = setTimeout(onTimeout, SITE_THUMBNAIL_LOAD_TIMEOUT_MS);
 
 		const onMessage = (event: MessageEvent) => {
 			if (
@@ -654,6 +652,8 @@ async function captureSiteThumbnailFromWordPress({
 		};
 
 		const onLoad = () => {
+			clearTimeout(timeout);
+			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
 			const moduleUrl = new URL(
 				siteThumbnailModuleUrl,
 				document.location.href
@@ -670,6 +670,12 @@ async function captureSiteThumbnailFromWordPress({
 				frontPageOrigin
 			);
 		};
+
+		function onTimeout() {
+			finish(() =>
+				reject(new Error('Timed out capturing the site thumbnail.'))
+			);
+		}
 
 		function finish(callback: () => void) {
 			clearTimeout(timeout);
