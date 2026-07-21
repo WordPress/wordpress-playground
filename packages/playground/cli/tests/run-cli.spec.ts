@@ -90,7 +90,7 @@ describe.each(blueprintVersions)(
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
-				workers: 1,
+				workers: 2,
 			});
 
 			const workerResponse = await cliServer.playground.run({

@@ -79,6 +79,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	fileLockManager: FileLockManager | undefined;
 	requestHandlerOptions: WorkerBootRequestHandlerOptions | undefined;
 	freshProcessQueue: Promise<unknown> = Promise.resolve();
+	freshProcessSequence = 0;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -246,6 +247,16 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 			try {
 				const php = await requestHandler.getPrimaryPhp();
+				if ('code' in request && typeof request.code === 'string') {
+					const { code, ...runOptions } = request;
+					const scriptPath = `/internal/fresh-run-${options.processId}-${++this.freshProcessSequence}.php`;
+					await php.writeFile(scriptPath, code);
+					try {
+						return await php.run({ ...runOptions, scriptPath });
+					} finally {
+						await php.unlink(scriptPath);
+					}
+				}
 				return await php.run(request);
 			} finally {
 				await requestHandler[Symbol.asyncDispose]();
