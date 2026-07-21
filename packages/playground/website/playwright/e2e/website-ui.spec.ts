@@ -1233,6 +1233,11 @@ test.describe('Database panel', () => {
 		await newPage.close();
 	});
 
+	/*
+	 * Regression coverage for https://github.com/WordPress/wordpress-playground/pull/4144.
+	 * Opening Adminer first can create a secondary PHP instance. phpMyAdmin may reuse
+	 * that instance, which must see the filesystem behind the `/phpmyadmin` path alias.
+	 */
 	test('should open phpMyAdmin after Adminer', async ({
 		website,
 		context,
