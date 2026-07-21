@@ -18,12 +18,10 @@ describe('remote sendmail transport', () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 		vi.stubGlobal('location', { href: 'http://playground.test/' });
 		const setCommandSpawnHandler = vi.fn();
-		const addEventListener = vi.fn();
-		const php = {
+		const php = Object.assign(new EventTarget(), {
 			requestHandler: undefined,
 			setCommandSpawnHandler,
-			addEventListener,
-		};
+		});
 		const requestHandler = {
 			documentRoot: '/wordpress',
 			getPrimaryPhp: vi.fn(async () => php),
@@ -49,6 +47,10 @@ describe('remote sendmail transport', () => {
 			}
 		}
 		const endpoint = new TestEndpoint({} as EmscriptenDownloadMonitor);
+		const forwardedEvents: Event[] = [];
+		endpoint.addEventListener('sendmail.spawned', (event) => {
+			forwardedEvents.push(event as Event);
+		});
 
 		await endpoint.createRequestHandlerForTest();
 
@@ -57,5 +59,12 @@ describe('remote sendmail transport', () => {
 			'sendmail',
 			expect.any(Function)
 		);
+
+		const event = Object.assign(new Event('sendmail.spawned'), {
+			stdin: new ReadableStream<Uint8Array>(),
+		});
+		php.dispatchEvent(event);
+
+		expect(forwardedEvents).toEqual([event]);
 	});
 });

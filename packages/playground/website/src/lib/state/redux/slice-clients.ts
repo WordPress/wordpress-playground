@@ -50,10 +50,10 @@ const clientsSlice = createSlice({
 				changes: Partial<ClientInfo>;
 			}>
 		) => {
-			state.entities[action.payload.siteSlug] = {
-				...state.entities[action.payload.siteSlug],
-				...action.payload.changes,
-			};
+			clientsAdapter.updateOne(state, {
+				id: action.payload.siteSlug,
+				changes: action.payload.changes,
+			});
 		},
 		addClientEmail: (
 			state,
