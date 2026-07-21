@@ -339,8 +339,8 @@ export function SavedPlaygroundsPanel({
 					title: 'Playground imported',
 					message:
 						importedSite?.storage === 'temporary'
-							? `${file.name} is temporary and will be lost when this page closes.`
-							: `${file.name} is stored in this browser.`,
+							? 'Your Playground is ready. It’s available until you close this page.'
+							: 'Your Playground is ready. It’s saved in this browser.',
 				})
 			);
 		} catch (error) {
