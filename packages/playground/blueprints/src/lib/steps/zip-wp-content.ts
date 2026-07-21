@@ -1,9 +1,11 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
+import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
 
 /**
- * Creates a complete Playground archive containing wp-content, wp-config.php,
- * and export metadata.
+ * Creates a Playground site archive containing user-owned wp-content,
+ * wp-config.php, and export metadata. Runtime artifacts are supplied by the
+ * Playground that imports the archive.
  *
  * @param playground Playground client.
  */
@@ -27,16 +29,24 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 		[manifestPath]: 'playground-export.json',
 		[joinPaths(documentRoot, 'wp-config.php')]: 'wp-config.php',
 	};
+	const excludedPaths = (
+		await getLegacyPlaygroundRuntimeWpContentPaths(
+			playground,
+			wpContentPath
+		)
+	).map((path) => joinPaths(wpContentPath, path));
 
 	const js = phpVars({
 		zipPath,
 		wpContentPath,
 		documentRoot,
+		excludedPaths,
 		additionalPaths,
 	});
 	await runPhpWithZipFunctions(
 		playground,
 		`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
+			'exclude_paths' => ${js.excludedPaths},
 			'zip_root'      => ${js.documentRoot},
 			'additional_paths' => ${js.additionalPaths}
 		));`
@@ -55,6 +65,7 @@ function zipDir($root, $output, $options = array())
 {
     $root = rtrim($root, '/');
     $additionalPaths = array_key_exists('additional_paths', $options) ? $options['additional_paths'] : array();
+    $excludePaths = array_key_exists('exclude_paths', $options) ? $options['exclude_paths'] : array();
     $zip_root = array_key_exists('zip_root', $options) ? $options['zip_root'] : $root;
 
     $zip = new ZipArchive;
@@ -73,6 +84,9 @@ function zipDir($root, $output, $options = array())
                     }
 
                     $entry = join_paths($current_dir, $entry);
+                    if (in_array($entry, $excludePaths)) {
+                        continue;
+                    }
                     if (is_dir($entry)) {
                         $directory_path = $entry . '/';
                         array_push($directories, $directory_path);
