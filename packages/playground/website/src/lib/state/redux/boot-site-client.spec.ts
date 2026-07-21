@@ -337,6 +337,69 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('reopens the current page after a runtime settings reboot', async () => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange:
+				'/index.php?slashes=///#more/slashes',
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).toHaveBeenCalledWith(
+			'/index.php?slashes=///#more/slashes'
+		);
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
+	});
+
+	it.each([
+		'https://example.com/wp-admin/',
+		'//example.com/wp-admin/',
+		'/\\example.com/wp-admin/',
+	])('skips unsafe runtime settings restore URL %s', async (urlToRestore) => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange: urlToRestore,
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).not.toHaveBeenCalled();
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
+	});
+
 	it('mounts legacy OPFS directories from stored metadata', async () => {
 		const site = createSite('stored-save', {
 			loadedFromStorage: true,
@@ -653,12 +716,15 @@ function createSite(
 	slug: string,
 	options: {
 		loadedFromStorage?: boolean;
+		urlToRestoreAfterRuntimeSettingsChange?: string;
 		metadata?: Partial<SiteInfo['metadata']>;
 	} = {}
 ): SiteInfo {
 	return {
 		slug,
 		loadedFromStorage: options.loadedFromStorage,
+		urlToRestoreAfterRuntimeSettingsChange:
+			options.urlToRestoreAfterRuntimeSettingsChange,
 		metadata: {
 			id: slug,
 			name: slug,

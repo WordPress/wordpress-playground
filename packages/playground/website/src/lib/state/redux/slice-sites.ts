@@ -75,6 +75,7 @@ export interface SiteInfo {
 	slug: string;
 	loadedFromStorage?: boolean;
 	originalUrlParams?: OriginalUrlParams;
+	urlToRestoreAfterRuntimeSettingsChange?: string;
 	metadata: SiteMetadata;
 }
 
