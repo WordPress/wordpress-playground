@@ -237,21 +237,20 @@ self.addEventListener('fetch', (event) => {
 		return event.respondWith(documentIsolationPolicyHtml());
 	}
 
-	// The thumbnail renderer and its resource worker are Playground assets loaded
-	// from inside a scoped WordPress document. Serve them as app assets instead of
-	// redirecting them into that site's virtual URL namespace, where WordPress
-	// would return a 404.
+	// The renderer is bundled from
+	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts`; it imports its
+	// resource worker from `modern-screenshot/worker`. Vite serves the source path
+	// in development and emits a hashed root-level filename in builds. Both assets
+	// load from inside a scoped WordPress document, so keep them out of that site's
+	// virtual URL namespace, where WordPress would return a 404.
 	const isSiteThumbnailModule =
 		url.searchParams.has('playground-site-thumbnail-module') &&
-		(/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname) ||
-			(url.pathname === '/src/lib/capture-site-thumbnail.ts' &&
-				url.searchParams.has('worker_file') &&
-				url.searchParams.get('type') === 'module'));
-	if (
-		isSiteThumbnailModule ||
-		(event.request.destination === 'worker' &&
-			url.searchParams.has('playground-site-thumbnail-worker'))
-	) {
+		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
+			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+	const isSiteThumbnailWorker =
+		event.request.destination === 'worker' &&
+		url.searchParams.has('playground-site-thumbnail-worker');
+	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
 		return event.respondWith(
 			shouldCacheUrl(url)
 				? cacheFirstFetch(event.request)

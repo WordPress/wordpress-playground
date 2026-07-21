@@ -306,13 +306,11 @@ function playground_enable_site_thumbnail_capture() {
 					// the same-origin renderer asset marked by the trusted parent.
 					const moduleUrl = new URL(request.moduleUrl);
 					const isRendererModule =
+						moduleUrl.pathname ===
+							'/src/lib/capture-site-thumbnail.ts' ||
 						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
 							moduleUrl.pathname
-						) ||
-						(moduleUrl.pathname ===
-							'/src/lib/capture-site-thumbnail.ts' &&
-							moduleUrl.searchParams.has('worker_file') &&
-							moduleUrl.searchParams.get('type') === 'module');
+						);
 					if (
 						moduleUrl.origin !== event.origin ||
 						!isRendererModule ||

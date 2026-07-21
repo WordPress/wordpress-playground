@@ -58,7 +58,17 @@ export async function captureSiteThumbnail(): Promise<SiteThumbnail> {
 		await yieldToNextTask();
 		blob = await canvasToBlob(canvas, 'image/jpeg', 0.72);
 	}
-	return splitDataUrl(await blobToDataUrl(blob));
+	const dataUrl = await blobToDataUrl(blob);
+	const dataUrlPrefix = `data:${blob.type};base64,`;
+	if (!dataUrl.startsWith(dataUrlPrefix)) {
+		throw new Error(
+			'The site thumbnail renderer returned an invalid image.'
+		);
+	}
+	return {
+		mime: blob.type,
+		data: dataUrl.slice(dataUrlPrefix.length),
+	};
 }
 
 (
@@ -150,17 +160,4 @@ function blobToDataUrl(blob: Blob) {
 		reader.onerror = () => reject(reader.error);
 		reader.readAsDataURL(blob);
 	});
-}
-
-function splitDataUrl(dataUrl: string): SiteThumbnail {
-	const match = /^data:([^;,]+);base64,(.*)$/.exec(dataUrl);
-	if (!match) {
-		throw new Error(
-			'The site thumbnail renderer returned an invalid image.'
-		);
-	}
-	return {
-		mime: match[1],
-		data: match[2],
-	};
 }
