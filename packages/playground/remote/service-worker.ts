@@ -237,12 +237,12 @@ self.addEventListener('fetch', (event) => {
 		return event.respondWith(documentIsolationPolicyHtml());
 	}
 
-	// The renderer is bundled from
-	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts`; it imports its
-	// resource worker from `modern-screenshot/worker`. Vite serves the source path
-	// in development and emits a hashed root-level filename in builds. Both assets
-	// load from inside a scoped WordPress document, so keep them out of that site's
-	// virtual URL namespace, where WordPress would return a 404.
+	// Vite bundles
+	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts` as the renderer
+	// and `modern-screenshot/worker` as its resource worker. Their requests originate
+	// from a scoped WordPress document, so the generic referrer handling below would
+	// redirect them into that site's virtual URL namespace, where WordPress returns
+	// a 404. Fetch these marked app assets directly instead.
 	const isSiteThumbnailModule =
 		url.searchParams.has('playground-site-thumbnail-module') &&
 		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
