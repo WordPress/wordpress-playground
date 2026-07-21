@@ -50,8 +50,10 @@ type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type AutosaveInProgress = {
 	promise: Promise<SaveSiteResult>;
-	excludeFromPruning: Set<string>;
-	urlUpdateRequested: boolean;
+	requests: {
+		excludeFromPruning: Set<string>;
+		urlUpdateRequested: boolean;
+	};
 };
 
 // The window API and React hooks create separate API objects for the same Redux
@@ -95,10 +97,11 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
-	let autosavesInProgressBySiteSlug =
+	const existingAutosavesInProgress =
 		autosavesInProgressByDispatch.get(dispatch);
-	if (!autosavesInProgressBySiteSlug) {
-		autosavesInProgressBySiteSlug = new Map();
+	const autosavesInProgressBySiteSlug =
+		existingAutosavesInProgress ?? new Map<string, AutosaveInProgress>();
+	if (!existingAutosavesInProgress) {
 		autosavesInProgressByDispatch.set(
 			dispatch,
 			autosavesInProgressBySiteSlug
@@ -308,68 +311,13 @@ export function createSitesAPI(
 				if (site.metadata.storage !== 'none') {
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
-				const promise = Promise.resolve()
-					.then(async () => {
-						const currentAutosave = autosaveInProgress!;
-						await dispatch(
-							persistTemporarySite(site.slug, 'opfs', {
-								skipRenameModal: true,
-								persistence: 'autosave',
-								updateUrl: false,
-							})
-						);
-						const updatedSite = selectSiteBySlug(
-							getState(),
-							site.slug
-						);
-						const storage = updatedSite?.metadata.storage;
-						if (storage !== 'opfs' && storage !== 'local-fs') {
-							throw new Error(
-								`Site ${site.slug} was not persisted (storage: ${storage}).`
-							);
-						}
-						let urlWasUpdated = false;
-						let prunedExclusionCount = 0;
-						do {
-							if (
-								currentAutosave.urlUpdateRequested &&
-								!urlWasUpdated
-							) {
-								redirectTo(PlaygroundRoute.site(updatedSite));
-								urlWasUpdated = true;
-							}
-							const excludeSlugs = [
-								...currentAutosave.excludeFromPruning,
-							];
-							await dispatch(
-								pruneAutosavedSites({ excludeSlugs })
-							);
-							prunedExclusionCount = excludeSlugs.length;
-						} while (
-							prunedExclusionCount !==
-							currentAutosave.excludeFromPruning.size
-						);
-						if (
-							currentAutosave.urlUpdateRequested &&
-							!urlWasUpdated
-						) {
-							redirectTo(PlaygroundRoute.site(updatedSite));
-						}
-						return { slug: site.slug, storage };
-					})
-					.finally(() => {
-						const currentAutosave = autosaveInProgress!;
-						if (
-							autosavesInProgressBySiteSlug.get(site.slug) ===
-							currentAutosave
-						) {
-							autosavesInProgressBySiteSlug.delete(site.slug);
-						}
-					});
-				autosaveInProgress = {
-					promise,
+				const requests: AutosaveInProgress['requests'] = {
 					excludeFromPruning: new Set([site.slug]),
 					urlUpdateRequested: false,
+				};
+				autosaveInProgress = {
+					promise: runSharedAutosave(site, requests),
+					requests,
 				};
 				autosavesInProgressBySiteSlug.set(
 					site.slug,
@@ -378,11 +326,85 @@ export function createSitesAPI(
 			}
 
 			for (const excludedSlug of options.excludeFromPruning ?? []) {
-				autosaveInProgress.excludeFromPruning.add(excludedSlug);
+				autosaveInProgress.requests.excludeFromPruning.add(
+					excludedSlug
+				);
 			}
-			autosaveInProgress.urlUpdateRequested ||=
+			autosaveInProgress.requests.urlUpdateRequested ||=
 				options.updateUrl ?? false;
 			return await autosaveInProgress.promise;
+
+			/**
+			 * Persists one site and finalizes every request that joins before it
+			 * completes.
+			 *
+			 * Persistence is shared because concurrent filesystem copies target the
+			 * same OPFS destination and race its mount and metadata work. Routing and
+			 * pruning stay outside that copy so later callers can still contribute their
+			 * requested side effects.
+			 */
+			async function runSharedAutosave(
+				siteToAutosave: SiteInfo,
+				requests: AutosaveInProgress['requests']
+			): Promise<SaveSiteResult> {
+				// Let the caller publish this promise in the per-store map before any
+				// persistence work can dispatch actions that start another autosave.
+				await Promise.resolve();
+
+				try {
+					await dispatch(
+						persistTemporarySite(siteToAutosave.slug, 'opfs', {
+							skipRenameModal: true,
+							persistence: 'autosave',
+							// Routing is decided after all concurrent callers have joined.
+							updateUrl: false,
+						})
+					);
+					const updatedSite = selectSiteBySlug(
+						getState(),
+						siteToAutosave.slug
+					);
+					const storage = updatedSite?.metadata.storage;
+					if (storage !== 'opfs' && storage !== 'local-fs') {
+						throw new Error(
+							`Site ${siteToAutosave.slug} was not persisted (storage: ${storage}).`
+						);
+					}
+
+					let urlWasUpdated = false;
+					let prunedExclusionCount = 0;
+					do {
+						if (requests.urlUpdateRequested && !urlWasUpdated) {
+							redirectTo(PlaygroundRoute.site(updatedSite));
+							urlWasUpdated = true;
+						}
+						// Never expose the mutable request set to the pruning thunk. If a
+						// caller joins while this snapshot is in use, run another pass.
+						const excludeSlugs = [...requests.excludeFromPruning];
+						await dispatch(pruneAutosavedSites({ excludeSlugs }));
+						prunedExclusionCount = excludeSlugs.length;
+					} while (
+						prunedExclusionCount !==
+						requests.excludeFromPruning.size
+					);
+					if (requests.urlUpdateRequested && !urlWasUpdated) {
+						// The URL request arrived while the final prune pass was pending.
+						redirectTo(PlaygroundRoute.site(updatedSite));
+					}
+					return { slug: siteToAutosave.slug, storage };
+				} finally {
+					// Only remove the entry owned by this workflow. A replacement for the
+					// same slug must remain registered.
+					if (
+						autosavesInProgressBySiteSlug.get(siteToAutosave.slug)
+							?.requests === requests
+					) {
+						autosavesInProgressBySiteSlug.delete(
+							siteToAutosave.slug
+						);
+					}
+				}
+			}
 		},
 
 		/**
