@@ -52,16 +52,22 @@ type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type AutosaveInProgress = {
 	promise: Promise<SaveSiteResult>;
 	requests: {
-		excludeFromPruning: Set<string>;
 		urlUpdateRequested: boolean;
 	};
 };
+type AutosaveCoordinator = {
+	autosavesBySiteSlug: Map<string, AutosaveInProgress>;
+	activePruningExclusions: Set<ReadonlySet<string>>;
+	pruneInProgress?: Promise<void>;
+	activePruneAbortController?: AbortController;
+};
 
 // The window API and React hooks create separate API objects for the same Redux
-// store. Key by dispatch so those objects share autosaves without mixing stores.
-const autosavesInProgressByDispatch = new WeakMap<
+// store. Key by dispatch so those objects share per-site persistence and one
+// store-wide pruning operation without mixing stores.
+const autosaveCoordinatorsByDispatch = new WeakMap<
 	PlaygroundDispatch,
-	Map<string, AutosaveInProgress>
+	AutosaveCoordinator
 >();
 
 /**
@@ -98,12 +104,16 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
-	let autosavesForStore = autosavesInProgressByDispatch.get(dispatch);
-	if (!autosavesForStore) {
-		autosavesForStore = new Map();
-		autosavesInProgressByDispatch.set(dispatch, autosavesForStore);
+	let autosaveCoordinator = autosaveCoordinatorsByDispatch.get(dispatch);
+	if (!autosaveCoordinator) {
+		autosaveCoordinator = {
+			autosavesBySiteSlug: new Map(),
+			activePruningExclusions: new Set(),
+		};
+		autosaveCoordinatorsByDispatch.set(dispatch, autosaveCoordinator);
 	}
-	const autosavesInProgressBySiteSlug = autosavesForStore;
+	const coordinator = autosaveCoordinator;
+	const autosavesInProgressBySiteSlug = coordinator.autosavesBySiteSlug;
 	const api = {
 		/**
 		 * Lists all known sites.
@@ -281,8 +291,8 @@ export function createSitesAPI(
 		 * Autosave keeps the current browser URL unchanged unless the caller
 		 * asks to route to the new stored site. Concurrent requests for one site
 		 * share the filesystem copy and metadata update. Routing runs when any caller
-		 * requests it. Pruning repeats with a new immutable exclusion snapshot when a
-		 * caller joins during the current prune pass.
+		 * requests it. Pruning is serialized across the store and protects the slugs
+		 * requested by every concurrent autosave.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -304,48 +314,52 @@ export function createSitesAPI(
 			let autosaveInProgress = autosavesInProgressBySiteSlug.get(
 				site.slug
 			);
-			// The first caller starts and registers the shared autosave. Callers that
-			// arrive while it is running skip this branch, add their options below,
-			// and await the same persistence and pruning work.
-			if (!autosaveInProgress) {
-				// With no shared autosave left to finalize, a stored site needs no work.
-				if (isStoredSite(site)) {
-					return { slug: site.slug, storage: site.metadata.storage };
-				}
-				// Always protect the site being saved from pruning. Caller-specific
-				// exclusions and routing requests are merged below for both the first
-				// caller and any callers that join later.
-				const requests: AutosaveInProgress['requests'] = {
-					excludeFromPruning: new Set([site.slug]),
-					urlUpdateRequested: false,
-				};
-				autosaveInProgress = {
-					promise: runSharedAutosave(site, requests),
-					requests,
-				};
-				autosavesInProgressBySiteSlug.set(
-					site.slug,
-					autosaveInProgress
-				);
+			// With no shared autosave left to finalize, a stored site needs no work.
+			if (!autosaveInProgress && isStoredSite(site)) {
+				return { slug: site.slug, storage: site.metadata.storage };
 			}
 
-			for (const excludedSlug of options.excludeFromPruning ?? []) {
-				autosaveInProgress.requests.excludeFromPruning.add(
-					excludedSlug
-				);
+			// Pruning is store-wide, so register this caller's exclusions with the
+			// store coordinator rather than the per-site persistence operation.
+			const pruningExclusions = new Set([
+				site.slug,
+				...(options.excludeFromPruning ?? []),
+			]);
+			coordinator.activePruningExclusions.add(pruningExclusions);
+			// Stop between deletions and restart with a new immutable snapshot.
+			coordinator.activePruneAbortController?.abort();
+
+			try {
+				// The first caller starts and registers the shared persistence work.
+				// Later callers contribute routing and await that same operation.
+				if (!autosaveInProgress) {
+					const requests: AutosaveInProgress['requests'] = {
+						urlUpdateRequested: false,
+					};
+					autosaveInProgress = {
+						promise: runSharedAutosave(site, requests),
+						requests,
+					};
+					autosavesInProgressBySiteSlug.set(
+						site.slug,
+						autosaveInProgress
+					);
+				}
+
+				autosaveInProgress.requests.urlUpdateRequested ||=
+					options.updateUrl ?? false;
+				return await autosaveInProgress.promise;
+			} finally {
+				coordinator.activePruningExclusions.delete(pruningExclusions);
 			}
-			autosaveInProgress.requests.urlUpdateRequested ||=
-				options.updateUrl ?? false;
-			return await autosaveInProgress.promise;
 
 			/**
 			 * Persists one site and finalizes every request that joins before it
 			 * completes.
 			 *
 			 * Persistence is shared because concurrent filesystem copies target the
-			 * same OPFS destination and race its mount and metadata work. Routing and
-			 * pruning stay outside that copy so later callers can still contribute their
-			 * requested side effects.
+			 * same OPFS destination and race its mount and metadata work. Routing remains
+			 * attached to that site, while pruning is coordinated across the store.
 			 */
 			async function runSharedAutosave(
 				siteToAutosave: SiteInfo,
@@ -376,23 +390,13 @@ export function createSitesAPI(
 					}
 
 					let urlWasUpdated = false;
-					let prunedExclusionCount = 0;
-					do {
-						if (requests.urlUpdateRequested && !urlWasUpdated) {
-							redirectTo(PlaygroundRoute.site(updatedSite));
-							urlWasUpdated = true;
-						}
-						// Never expose the mutable request set to the pruning thunk. If a
-						// caller joins while this snapshot is in use, run another pass.
-						const excludeSlugs = [...requests.excludeFromPruning];
-						await dispatch(pruneAutosavedSites({ excludeSlugs }));
-						prunedExclusionCount = excludeSlugs.length;
-					} while (
-						prunedExclusionCount !==
-						requests.excludeFromPruning.size
-					);
+					if (requests.urlUpdateRequested) {
+						redirectTo(PlaygroundRoute.site(updatedSite));
+						urlWasUpdated = true;
+					}
+					await runStoreWidePruning();
 					if (requests.urlUpdateRequested && !urlWasUpdated) {
-						// The URL request arrived while the final prune pass was pending.
+						// The URL request arrived while pruning was pending.
 						redirectTo(PlaygroundRoute.site(updatedSite));
 					}
 					return { slug: siteToAutosave.slug, storage };
@@ -408,6 +412,66 @@ export function createSitesAPI(
 						);
 					}
 				}
+			}
+
+			/**
+			 * Shares one store-wide prune between concurrent autosaves. A caller that
+			 * arrives during a pass aborts it between deletions; the pass then restarts
+			 * with a fresh snapshot containing every active caller's exclusions.
+			 */
+			async function runStoreWidePruning(): Promise<void> {
+				let pruning = coordinator.pruneInProgress;
+				if (!pruning) {
+					pruning = runPruningPasses();
+					coordinator.pruneInProgress = pruning;
+				}
+				await pruning;
+
+				async function runPruningPasses(): Promise<void> {
+					// Publish the promise before pruning can dispatch more autosave work.
+					await Promise.resolve();
+					try {
+						let passWasAborted: boolean;
+						do {
+							const abortController = new AbortController();
+							coordinator.activePruneAbortController =
+								abortController;
+							try {
+								await dispatch(
+									pruneAutosavedSites({
+										excludeSlugs: [
+											...getActivePruningExclusions(),
+										],
+										signal: abortController.signal,
+									})
+								);
+							} finally {
+								if (
+									coordinator.activePruneAbortController ===
+									abortController
+								) {
+									coordinator.activePruneAbortController =
+										undefined;
+								}
+							}
+							passWasAborted = abortController.signal.aborted;
+						} while (passWasAborted);
+					} finally {
+						if (coordinator.pruneInProgress === pruning) {
+							coordinator.pruneInProgress = undefined;
+						}
+					}
+				}
+			}
+
+			function getActivePruningExclusions(): Set<string> {
+				const slugs = new Set<string>();
+				for (const exclusions of coordinator.activePruningExclusions) {
+					for (const slug of exclusions) {
+						slugs.add(slug);
+					}
+				}
+				return slugs;
 			}
 		},
 

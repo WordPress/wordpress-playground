@@ -114,6 +114,7 @@ describe('createSitesAPI', () => {
 		expect(secondAutosaveFinished).toBe(false);
 		expect(mocks.pruneAutosavedSites).toHaveBeenNthCalledWith(1, {
 			excludeSlugs: [site.slug],
+			signal: expect.any(AbortSignal),
 		});
 		expect(pushState).not.toHaveBeenCalled();
 		finishPruning();
@@ -125,6 +126,7 @@ describe('createSitesAPI', () => {
 		]);
 		expect(mocks.pruneAutosavedSites).toHaveBeenNthCalledWith(2, {
 			excludeSlugs: [site.slug, 'late-exclusion'],
+			signal: expect.any(AbortSignal),
 		});
 		expect(pushState).toHaveBeenCalledTimes(1);
 	});
@@ -170,8 +172,69 @@ describe('createSitesAPI', () => {
 		expect(mocks.pruneAutosavedSites).toHaveBeenCalledOnce();
 		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
 			excludeSlugs: [site.slug, 'first-exclusion', 'second-exclusion'],
+			signal: expect.any(AbortSignal),
 		});
 		expect(pushState).toHaveBeenCalledTimes(1);
+	});
+
+	it('coordinates pruning exclusions across site slugs', async () => {
+		const firstSite = createTemporarySite('first-site');
+		const secondSite = createTemporarySite('second-site');
+		const state = createState(firstSite, secondSite);
+		let finishPersistence!: () => void;
+		const persistenceCanFinish = new Promise<void>((resolve) => {
+			finishPersistence = resolve;
+		});
+		mocks.persistTemporarySite.mockImplementation(
+			(siteSlug: string) => async () => {
+				await persistenceCanFinish;
+				state.sites.entities[siteSlug]!.metadata.storage = 'opfs';
+			}
+		);
+		let finishFirstPrune!: () => void;
+		const firstPruneCanFinish = new Promise<void>((resolve) => {
+			finishFirstPrune = resolve;
+		});
+		let pruneRuns = 0;
+		mocks.pruneAutosavedSites.mockImplementation(() => async () => {
+			pruneRuns++;
+			if (pruneRuns === 1) {
+				await firstPruneCanFinish;
+			}
+		});
+		const dispatch = vi.fn((action: unknown) => {
+			if (typeof action === 'function') {
+				return action(dispatch, () => state);
+			}
+			return action;
+		}) as unknown as PlaygroundDispatch;
+		const api = createSitesAPI(() => state, dispatch);
+
+		const firstAutosave = api.autosaveTemporarySite(firstSite.slug, {
+			excludeFromPruning: ['first-protected-site'],
+		});
+		const secondAutosave = api.autosaveTemporarySite(secondSite.slug, {
+			excludeFromPruning: ['second-protected-site'],
+		});
+		finishPersistence();
+
+		await vi.waitFor(() =>
+			expect(mocks.pruneAutosavedSites).toHaveBeenCalledTimes(1)
+		);
+		expect(mocks.pruneAutosavedSites).toHaveBeenNthCalledWith(1, {
+			excludeSlugs: [
+				firstSite.slug,
+				'first-protected-site',
+				secondSite.slug,
+				'second-protected-site',
+			],
+			signal: expect.any(AbortSignal),
+		});
+		expect(pruneRuns).toBe(1);
+
+		finishFirstPrune();
+		await Promise.all([firstAutosave, secondAutosave]);
+		expect(pruneRuns).toBe(1);
 	});
 });
 
@@ -188,21 +251,23 @@ function createDispatch(
 	}) as unknown as PlaygroundDispatch;
 }
 
-function createState(site: SiteInfo): PlaygroundReduxState {
+function createState(...sites: SiteInfo[]): PlaygroundReduxState {
 	return {
-		ui: { activeSite: { slug: site.slug } },
+		ui: { activeSite: { slug: sites[0].slug } },
 		sites: {
-			ids: [site.slug],
-			entities: { [site.slug]: site },
+			ids: sites.map((site) => site.slug),
+			entities: Object.fromEntries(
+				sites.map((site) => [site.slug, site])
+			),
 		},
 	} as PlaygroundReduxState;
 }
 
-function createTemporarySite(): SiteInfo {
+function createTemporarySite(slug = 'test-site'): SiteInfo {
 	return {
-		slug: 'test-site',
+		slug,
 		metadata: {
-			id: 'test-site',
+			id: slug,
 			name: 'Test Playground',
 			storage: 'none',
 			whenCreated: 0,

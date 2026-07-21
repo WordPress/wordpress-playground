@@ -415,6 +415,62 @@ describe('stored sites', () => {
 		);
 	});
 
+	it('stops an aborted prune before deleting the next autosave', async () => {
+		const { pruneAutosavedSites, sitesSlice } =
+			await import('./slice-sites');
+		const firstAutosave = createSiteInfo({ slug: 'first-autosave' });
+		firstAutosave.metadata.persistence = 'autosave';
+		firstAutosave.metadata.whenCreated = 2;
+		const protectedAutosave = createSiteInfo({
+			slug: 'protected-autosave',
+		});
+		protectedAutosave.metadata.persistence = 'autosave';
+		protectedAutosave.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([firstAutosave, protectedAutosave])
+			),
+		};
+		const getState = () => state as any;
+		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		let finishFirstDeletion!: () => void;
+		const firstDeletionCanFinish = new Promise<void>((resolve) => {
+			finishFirstDeletion = resolve;
+		});
+		deleteSite.mockImplementation(async (slug) => {
+			if (slug === firstAutosave.slug) {
+				await firstDeletionCanFinish;
+			}
+		});
+		const abortController = new AbortController();
+
+		const pruning = pruneAutosavedSites({
+			limit: 0,
+			signal: abortController.signal,
+		})(dispatch as any, getState);
+		await vi.waitFor(() =>
+			expect(deleteSite).toHaveBeenCalledWith(firstAutosave.slug)
+		);
+		abortController.abort();
+		finishFirstDeletion();
+		await pruning;
+
+		expect(deleteSite).not.toHaveBeenCalledWith(protectedAutosave.slug);
+		expect(state.sites.entities[firstAutosave.slug]).toBeUndefined();
+		expect(state.sites.entities[protectedAutosave.slug]).toEqual(
+			protectedAutosave
+		);
+	});
+
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
