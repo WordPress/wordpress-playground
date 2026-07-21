@@ -840,9 +840,9 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Creates a site from a Playground ZIP and waits until its imported
-		 * filesystem is safely stored. The import runs against first-boot MEMFS
-		 * before the initial OPFS copy, avoiding an empty-site persistence pass.
+		 * Creates an autosaved site from a Playground ZIP and waits until its
+		 * imported filesystem is safely stored. The import runs against first-boot
+		 * MEMFS before the initial OPFS copy, avoiding an empty-site persistence pass.
 		 *
 		 * @param wordPressFilesZip Playground ZIP export.
 		 * @returns The new site's slug.
@@ -887,7 +887,7 @@ export function createSitesAPI(
 				return await createSavedSite(
 					undefined,
 					undefined,
-					{},
+					{ persistence: 'autosave' },
 					initialize,
 					onProgress
 				);

@@ -1020,6 +1020,11 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	await expect(
 		website.page.getByText('Playground imported', { exact: true })
 	).toBeVisible({ timeout: 120000 });
+	const importedSite = await getActivePlaygroundSite(website.page);
+	expect(importedSite).toMatchObject({
+		storage: 'opfs',
+		persistence: 'autosave',
+	});
 
 	await expect
 		.poll(

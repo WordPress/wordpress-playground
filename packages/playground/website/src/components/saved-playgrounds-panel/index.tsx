@@ -340,7 +340,7 @@ export function SavedPlaygroundsPanel({
 					message:
 						importedSite?.storage === 'temporary'
 							? 'Your Playground is ready. It’s available until you close this page.'
-							: 'Your Playground is ready. It’s saved in this browser.',
+							: 'Your Playground is ready. It’s autosaved in this browser.',
 				})
 			);
 		} catch (error) {
