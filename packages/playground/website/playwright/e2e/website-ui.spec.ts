@@ -229,6 +229,21 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
+test('should navigate from the address bar suggestions', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const address = dock.getByRole('combobox');
+
+	await address.click();
+	await website.page.getByRole('option', { name: /Dashboard/ }).click();
+
+	await expect(address).toHaveValue('/wp-admin/');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {
