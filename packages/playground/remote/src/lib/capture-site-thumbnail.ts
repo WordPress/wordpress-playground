@@ -6,7 +6,7 @@ import resourceWorkerUrl from 'modern-screenshot/worker?url';
 const CAPTURE_WIDTH = 1024;
 const CAPTURE_HEIGHT = 768;
 const THUMBNAIL_WIDTH = 320;
-const CAPTURE_TIMEOUT_MS = 7000;
+const CAPTURE_TIMEOUT_MS = 3000;
 const CLONED_NODES_PER_YIELD = 100;
 
 /**

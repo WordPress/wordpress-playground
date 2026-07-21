@@ -578,15 +578,15 @@ export async function bootPlaygroundRemote() {
 
 const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
 const SITE_THUMBNAIL_RESPONSE = 'playground-site-thumbnail-result';
-const SITE_THUMBNAIL_TIMEOUT_MS = 20000;
+const SITE_THUMBNAIL_TIMEOUT_MS = 3000;
 
 /**
  * Loads the front page in a disposable iframe and asks that document to render
  * itself. The WordPress MU plugin owns the receiving side because the remote
  * frame cannot inspect the WordPress DOM under Document-Isolation-Policy. A
  * separate iframe avoids navigating or capturing wp-admin in the visible one.
- * Every response path removes the iframe and listeners, and the timeout also
- * covers a page that never loads or never answers.
+ * Every response path removes the iframe and listeners. The short timeout
+ * bounds how long the disposable page may load or render.
  */
 async function captureSiteThumbnailFromWordPress({
 	frontPageUrl,
