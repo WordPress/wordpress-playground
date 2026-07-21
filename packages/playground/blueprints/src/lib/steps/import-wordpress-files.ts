@@ -40,9 +40,10 @@ export interface ImportWordPressFilesStep<ResourceType> {
  * `wp-content` and `wp-includes` directories, they will replace
  * the corresponding directories in Playground's `documentRoot`.
  *
- * Any files that Playground recognizes as "excluded from the export"
- * will carry over from the existing document root into the imported
- * directories. For example, the sqlite-database-integration plugin.
+ * Legacy Playground runtime artifacts carry over from the existing document
+ * root. Versioned Playground exports otherwise replace user-owned wp-content
+ * exactly. Legacy partial exports retain the stock plugins and themes those
+ * exports omitted when the archive does not contain them.
  *
  * @param playground Playground client.
  * @param wordPressFilesZip Zipped WordPress site.
@@ -68,12 +69,18 @@ export const importWordPressFiles: StepHandler<
 	// to update URLs in the database when the scope changes.
 	const manifestPath = joinPaths(importPath, 'playground-export.json');
 	let oldSiteUrl: string | null = null;
+	let exportFormatVersion: number | null = null;
 	if (await playground.fileExists(manifestPath)) {
 		try {
 			const manifestContent =
 				await playground.readFileAsText(manifestPath);
 			const manifest = JSON.parse(manifestContent);
-			oldSiteUrl = manifest.siteUrl;
+			if (typeof manifest.siteUrl === 'string') {
+				oldSiteUrl = manifest.siteUrl;
+			}
+			if (typeof manifest.formatVersion === 'number') {
+				exportFormatVersion = manifest.formatVersion;
+			}
 			// Remove the manifest file - it's not needed in the document root
 			await playground.unlink(manifestPath);
 		} catch {
@@ -82,64 +89,74 @@ export const importWordPressFiles: StepHandler<
 	}
 
 	const importedWpContentPath = joinPaths(importPath, 'wp-content');
-	const wpContentPath = joinPaths(documentRoot, 'wp-content');
+	if (await playground.fileExists(importedWpContentPath)) {
+		const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
-	// Runtime artifacts from the current Playground win over copies from old
-	// archives. An unmarked db.php is user-owned and remains authoritative.
-	const importedRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
-		playground,
-		importedWpContentPath
-	);
-	const currentRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
-		playground,
-		wpContentPath
-	);
-	for (const relativePath of importedRuntimePaths) {
-		await removePath(
-			playground,
-			joinPaths(importedWpContentPath, relativePath)
-		);
-	}
-	for (const relativePath of currentRuntimePaths) {
-		const importedRuntimePath = joinPaths(
-			importedWpContentPath,
-			relativePath
-		);
-		const currentRuntimePath = joinPaths(wpContentPath, relativePath);
-		if (
-			!(await playground.fileExists(importedRuntimePath)) &&
-			(await playground.fileExists(currentRuntimePath))
-		) {
-			await playground.mkdir(dirname(importedRuntimePath));
-			await playground.cp(currentRuntimePath, importedRuntimePath);
+		// Runtime artifacts from the current Playground win over copies from old
+		// archives. An unmarked db.php is user-owned and remains authoritative.
+		const importedRuntimePaths =
+			await getLegacyPlaygroundRuntimeWpContentPaths(
+				playground,
+				importedWpContentPath
+			);
+		const currentRuntimePaths =
+			await getLegacyPlaygroundRuntimeWpContentPaths(
+				playground,
+				wpContentPath
+			);
+		for (const relativePath of importedRuntimePaths) {
+			await removePath(
+				playground,
+				joinPaths(importedWpContentPath, relativePath)
+			);
 		}
-	}
-
-	// Legacy exports omitted these stock plugins and themes without recording
-	// deletions. Restore the current copies because an old archive cannot
-	// distinguish deletion from exporter omission.
-	for (const relativePath of legacyUserWpContentPathsExcludedFromExport) {
-		const importedUserPath = joinPaths(importedWpContentPath, relativePath);
-		await removePath(playground, importedUserPath);
-		const currentUserPath = joinPaths(wpContentPath, relativePath);
-		if (await playground.fileExists(currentUserPath)) {
-			await playground.mkdir(dirname(importedUserPath));
-			await playground.cp(currentUserPath, importedUserPath);
+		for (const relativePath of currentRuntimePaths) {
+			const importedRuntimePath = joinPaths(
+				importedWpContentPath,
+				relativePath
+			);
+			const currentRuntimePath = joinPaths(wpContentPath, relativePath);
+			if (
+				!(await playground.fileExists(importedRuntimePath)) &&
+				(await playground.fileExists(currentRuntimePath))
+			) {
+				await playground.mkdir(dirname(importedRuntimePath));
+				await playground.cp(currentRuntimePath, importedRuntimePath);
+			}
 		}
-	}
 
-	// Carry over the database directory if the imported zip file doesn't
-	// already contain one.
-	const importedDatabasePath = joinPaths(
-		importPath,
-		'wp-content',
-		'database'
-	);
-	if (!(await playground.fileExists(importedDatabasePath))) {
-		await playground.cp(
-			joinPaths(documentRoot, 'wp-content', 'database'),
-			importedDatabasePath
-		);
+		if (exportFormatVersion === null || exportFormatVersion < 2) {
+			// Old exports omitted these stock plugins and themes without recording
+			// deletions. Restore current copies missing from the archive because we
+			// cannot tell a user deletion from an exporter omission.
+			for (const relativePath of legacyUserWpContentPathsExcludedFromExport) {
+				const importedUserPath = joinPaths(
+					importedWpContentPath,
+					relativePath
+				);
+				const userPath = joinPaths(wpContentPath, relativePath);
+				if (
+					!(await playground.fileExists(importedUserPath)) &&
+					(await playground.fileExists(userPath))
+				) {
+					await playground.mkdir(dirname(importedUserPath));
+					await playground.cp(userPath, importedUserPath);
+				}
+			}
+
+			// Legacy exports may also omit the database directory.
+			const importedDatabasePath = joinPaths(
+				importedWpContentPath,
+				'database'
+			);
+			const databasePath = joinPaths(wpContentPath, 'database');
+			if (
+				!(await playground.fileExists(importedDatabasePath)) &&
+				(await playground.fileExists(databasePath))
+			) {
+				await playground.cp(databasePath, importedDatabasePath);
+			}
+		}
 	}
 
 	// Move all the paths from the imported directory into the document root.

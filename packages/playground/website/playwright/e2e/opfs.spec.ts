@@ -3,6 +3,7 @@ import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
+import { readFile } from 'node:fs/promises';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
@@ -10,14 +11,15 @@ import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path
  */
 async function createTestWordPressZip(
 	markerContent: string,
-	markerPath = 'wp-content/index.php'
+	markerPath = 'wp-content/index.php',
+	additionalFiles: File[] = []
 ): Promise<Buffer> {
 	const encodedMarker = Buffer.from(markerContent).toString('base64');
 	const phpContent = `<?php echo base64_decode('${encodedMarker}');`;
 	const file = new File([phpContent], markerPath, {
 		type: 'text/plain',
 	});
-	const zipStream = encodeZip([file]);
+	const zipStream = encodeZip([file, ...additionalFiles]);
 	const zipBytes = await collectBytes(zipStream);
 	return Buffer.from(zipBytes!);
 }
@@ -1161,6 +1163,239 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 	expect(dialogs).toEqual([importSuccessMessage]);
+});
+
+test('should retain files omitted from a legacy ZIP export', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const legacyMarker = 'LEGACY_ZIP_IMPORT_MARKER';
+	const legacyMarkerPath = 'wp-content/plugins/legacy-zip-import-marker.php';
+	const zipBuffer = await createTestWordPressZip(
+		legacyMarker,
+		legacyMarkerPath,
+		[
+			new File(
+				[JSON.stringify({ siteUrl: 'http://playground-domain/' })],
+				'playground-export.json'
+			),
+		]
+	);
+	let importDialogAccepted = false;
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+		importDialogAccepted = true;
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'legacy-playground-export.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(
+					async ({ originalSlug, markerPath }) => {
+						const sitesAPI = (window as any).playgroundSites;
+						if (!sitesAPI) {
+							return { marker: false, defaultTheme: false };
+						}
+						const activeSite = sitesAPI
+							.list()
+							.find((site: any) => site.isActive);
+						const playground = sitesAPI.getClient();
+						if (
+							!activeSite ||
+							activeSite.slug === originalSlug ||
+							!playground
+						) {
+							return { marker: false, defaultTheme: false };
+						}
+						const documentRoot = await playground.documentRoot;
+						return {
+							marker: await playground.fileExists(
+								`${documentRoot}/${markerPath}`
+							),
+							defaultTheme: await playground.fileExists(
+								`${documentRoot}/wp-content/themes/twentytwentyfive/theme.json`
+							),
+						};
+					},
+					{
+						originalSlug: sourceSiteSlug,
+						markerPath: legacyMarkerPath,
+					}
+				),
+			{ timeout: 120000 }
+		)
+		.toEqual({ marker: true, defaultTheme: true });
+	await expect
+		.poll(
+			async () =>
+				importDialogAccepted ||
+				(await website.page
+					.getByText('Playground imported', { exact: true })
+					.isVisible()),
+			{ timeout: 120000 }
+		)
+		.toBe(true);
+	website.page.off('dialog', acceptImportDialog);
+
+	await website.waitForNestedIframes();
+	await openPlaygroundPath(website.page, '/');
+	await expect(wordpress.locator('body')).toBeVisible();
+	await expect(wordpress.locator('body')).not.toContainText(
+		'There has been a critical error'
+	);
+});
+
+test('should preserve a customized default-theme background through export and import', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const purpleBackground = '#7f54b3';
+	const purpleBackgroundRgb = 'rgb(127, 84, 179)';
+	// Keep the customization in stock-theme files, which older imports replaced
+	// with pristine files from the new runtime.
+	const blueprint: Blueprint = {
+		landingPage: '/',
+		steps: [
+			{
+				step: 'runPHP',
+				code: `<?php
+					$functions_path = '/wordpress/wp-content/themes/twentytwentyfive/functions.php';
+					$customization = <<<'PHP'
+add_action('wp_head', function() {
+	echo '<style>
+body { background-color: ${purpleBackground} !important; }
+</style>';
+});
+PHP;
+					file_put_contents(
+						$functions_path,
+						"\n$customization\n",
+						FILE_APPEND
+					);
+				`,
+			},
+			{
+				step: 'activateTheme',
+				themeFolderName: 'twentytwentyfive',
+			},
+		],
+	};
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
+	await expect(wordpress.locator('body')).toHaveCSS(
+		'background-color',
+		purpleBackgroundRgb
+	);
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('Export');
+	const downloadPromise = website.page.waitForEvent('download');
+	await website.page
+		.getByRole('dialog', { name: 'Export pane' })
+		.getByRole('button', { name: 'Download as .zip' })
+		.click();
+	const download = await downloadPromise;
+	const downloadPath = await download.path();
+	expect(downloadPath).toBeTruthy();
+	const zipBuffer = await readFile(downloadPath!);
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+	let importDialogAccepted = false;
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+		importDialogAccepted = true;
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'brewcommerce-purple-export.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	expect(importedSite?.slug).toBeTruthy();
+	const importedSiteSlug = importedSite.slug;
+	await expect
+		.poll(() =>
+			website.page.evaluate(async (background) => {
+				const sitesAPI = (window as any).playgroundSites;
+				const playground = sitesAPI?.getClient();
+				if (!playground) {
+					return false;
+				}
+				const documentRoot = await playground.documentRoot;
+				return (
+					await playground.readFileAsText(
+						`${documentRoot}/wp-content/themes/twentytwentyfive/functions.php`
+					)
+				).includes(background);
+			}, purpleBackground)
+		)
+		.toBe(true);
+	await expect
+		.poll(
+			async () =>
+				importDialogAccepted ||
+				(await website.page
+					.getByText('Playground imported', { exact: true })
+					.isVisible()),
+			{ timeout: 120000 }
+		)
+		.toBe(true);
+	website.page.off('dialog', acceptImportDialog);
+
+	// Reboot the imported site so the final assertion reads the customization
+	// from persisted OPFS state rather than the import runtime.
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
+	await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug === importedSiteSlug
+	);
+	await openPlaygroundPath(website.page, '/');
+	await expect(wordpress.locator('body')).toHaveCSS(
+		'background-color',
+		purpleBackgroundRgb
+	);
 });
 
 // Missing site modal tests in a separate describe block to avoid state pollution

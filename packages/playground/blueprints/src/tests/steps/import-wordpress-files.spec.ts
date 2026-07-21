@@ -233,6 +233,81 @@ describe('Blueprint step importWordPressFiles', () => {
 		);
 	});
 
+	it('should import customized default themes from versioned exports', async () => {
+		const sourceDocumentRoot = await sourcePHP.documentRoot;
+		const targetDocumentRoot = await targetPHP.documentRoot;
+		const customizedThemeFile = joinPaths(
+			sourceDocumentRoot,
+			'wp-content/themes/twentytwentyfive/playground-import-test.txt'
+		);
+		await sourcePHP.writeFile(
+			customizedThemeFile,
+			new TextEncoder().encode('purple theme customization')
+		);
+
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File([zipBuffer], 'versioned-export.zip'),
+		});
+
+		expect(
+			await targetPHP.readFileAsText(
+				joinPaths(
+					targetDocumentRoot,
+					'wp-content/themes/twentytwentyfive/playground-import-test.txt'
+				)
+			)
+		).toBe('purple theme customization');
+	});
+
+	it('should not restore user files missing from versioned exports', async () => {
+		const sourceDocumentRoot = await sourcePHP.documentRoot;
+		const targetDocumentRoot = await targetPHP.documentRoot;
+		const themeRelativePath = 'wp-content/themes/twentytwentyfive';
+		await sourcePHP.rmdir(
+			joinPaths(sourceDocumentRoot, themeRelativePath),
+			{ recursive: true }
+		);
+
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File([zipBuffer], 'versioned-export.zip'),
+		});
+
+		expect(
+			await targetPHP.fileExists(
+				joinPaths(targetDocumentRoot, themeRelativePath)
+			)
+		).toBe(false);
+	});
+
+	it('should restore user files omitted from legacy exports', async () => {
+		const targetDocumentRoot = await targetPHP.documentRoot;
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+			$zip->addFromString('wp-content/plugins/legacy-import.php', '<?php');
+			$zip->close();
+			`,
+		});
+
+		const zipBuffer = await targetPHP.readFileAsBuffer(zipPath);
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File([zipBuffer], 'legacy-export.zip'),
+		});
+
+		expect(
+			await targetPHP.fileExists(
+				joinPaths(
+					targetDocumentRoot,
+					'wp-content/themes/twentytwentyfive'
+				)
+			)
+		).toBe(true);
+	});
+
 	it('should replace old scope URLs with new scope URLs in post content during import', async () => {
 		// Create a post with an image URL containing the source scope
 		const sourceUrl = await sourcePHP.absoluteUrl;
