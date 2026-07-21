@@ -58,12 +58,65 @@ code, pre, .mono { font-family: var(--mono); }
   background: var(--blue); color: #fff; font-size: 14px; font-weight: 700;
 }
 .run:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
-.switch { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
-.switch input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
-.plugin-list { display: flex; flex-direction: column; }
+input[type="checkbox"] {
+  width: 16px; height: 16px; flex: none; margin: 0; appearance: none;
+  border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; cursor: pointer;
+}
+input[type="checkbox"]:hover { border-color: var(--faint); }
+input[type="checkbox"]:checked {
+  border-color: var(--ink);
+  background: var(--ink)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M1.2 4.3l2.5 2.5L8.8 1.4' fill='none' stroke='%23fff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 10px 8px no-repeat;
+}
+/* A value typed onto the ledger: an unboxed select on a dotted rule, self-labeled by its options. */
+.v27-fact-select {
+  max-width: 100%; min-height: 27px; padding: 2px 20px 3px 2px; appearance: none;
+  border: 0; border-bottom: 1px dotted #c9c3b8; border-radius: 5px 5px 0 0;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 5px center / 10px;
+  color: var(--ink); cursor: pointer; font: 500 13.5px/1.5 var(--mono);
+}
+.v27-fact-select:hover { border-bottom: 1px solid var(--ink); background-color: var(--soft); }
+.v27-check {
+  display: inline-flex; align-items: center; gap: 9px; min-height: 32px;
+  color: var(--ink); cursor: pointer; font-size: 13.5px;
+}
+.v27-lang-wrap { position: relative; display: inline-flex; max-width: 100%; }
+.v27-lang-popover {
+  position: absolute; top: calc(100% + 5px); left: 0; z-index: 40; width: 268px; padding: 4px;
+  border: 1px solid var(--line-strong); border-radius: 9px; background: var(--paper);
+  box-shadow: 0 16px 44px rgba(34, 38, 46, .18);
+}
+.v27-lang-filter {
+  width: 100%; padding: 7px 9px 8px; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; font: 400 13px/1.4 var(--sans);
+}
+.v27-lang-filter:focus, .v27-lang-filter:focus-visible { outline: 0; border-bottom-color: var(--blue); }
+.v27-lang-list {
+  max-height: 296px; margin: 4px 0 0; padding: 0; overflow: auto; overscroll-behavior: contain;
+  list-style: none;
+}
+.v27-lang-list li {
+  position: relative; display: flex; align-items: baseline; gap: 10px; min-height: 32px;
+  padding: 6px 9px 6px 26px; border-radius: 6px; cursor: pointer; font: 500 13px/1.4 var(--mono);
+}
+.v27-lang-list li .code { margin-left: auto; color: var(--faint); font-size: 10.5px; }
+.v27-lang-list li:hover, .v27-lang-list li.is-active { background: var(--soft); }
+.v27-lang-list li[aria-selected="true"]::before {
+  content: '✓'; position: absolute; left: 9px; color: var(--muted); font-size: 11px;
+}
+.v27-lang-list .v27-lang-empty { color: var(--muted); cursor: default; font: 400 12.5px/1.4 var(--sans); }
+.v27-lang-list .v27-lang-empty:hover { background: transparent; }
+.switch { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.plugin-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 9px;
+}
 .plugin-item {
-  display: grid; grid-template-columns: 34px minmax(140px, 1fr) auto auto auto; gap: 10px;
-  align-items: center; min-height: 50px; padding: 7px 0; border-bottom: 1px solid rgba(220, 220, 222, .7);
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; gap: 10px;
+  align-items: center; min-height: 72px; padding: 9px; border: 1px solid var(--line);
+  border-radius: 9px; background: #fff;
 }
 .plugin-icon { width: 32px; height: 32px; border-radius: 7px; object-fit: cover; background: var(--soft); }
 .plugin-copy { min-width: 0; }
@@ -151,11 +204,15 @@ code, pre, .mono { font-family: var(--mono); }
 .about-badge { padding: 3px 10px; border-radius: 999px; background: #7b5c17; color: #fff; font-weight: 700; }
 .about-hint { color: #8a94a6; }
 .about-body { display: none; padding: 0 16px 15px; line-height: 1.6; }
+.about:not(.open) { max-width: none; }
+.about:not(.open) .about-head { width: auto; padding-right: 8px; }
+.about:not(.open) .about-head strong, .about:not(.open) .about-hint { display: none; }
 .about.open { border-radius: 13px; }
 .about.open .about-body { display: block; }
 @media (max-width: 720px) {
   .plugin-item { grid-template-columns: 34px 1fr auto; }
-  .plugin-state, .plugin-item .switch { grid-column: 2 / -1; }
+  .plugin-state { grid-column: 2; }
+  .plugin-item > .icon-btn { grid-column: 3; grid-row: 1; }
 }
 
 
@@ -187,8 +244,10 @@ html {
   margin-bottom: 13px;
 }
 .stage-heading { display: flex; align-items: center; gap: 10px; }
+/* 5px drop centers the circle on the h2's first text line (measured: line center 20.7px
+   below the head top, so circle top = 20.7 - 16). */
 .nav-stage-head .n {
-  display: grid; place-items: center; width: 32px; height: 32px;
+  display: grid; place-items: center; width: 32px; height: 32px; margin-top: 5px;
   border: 1px solid #c9b88e; border-radius: 50%; color: #806a3b;
   font: 600 11px var(--mono);
 }
@@ -201,27 +260,18 @@ html {
 .new-btn:hover, .new-btn.is-active { background: #eef1ff; color: var(--blue-dark); }
 /* The 43px number column plus its 10px gap gives headings and bodies one exact x-origin. */
 .nav-stage-body { margin-left: 53px; }
-.nav-runtime { display: flex; gap: 7px 14px; flex-wrap: wrap; }
-.nav-runtime label {
-  display: flex; flex-direction: column; gap: 2px; color: var(--muted);
-  font: 10px var(--mono);
-}
-.v27-network-ctl {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 36px;
-  color: var(--ink); font: 600 14px/1.2 var(--sans);
-}
-.v27-network-ctl input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+.nav-runtime { display: flex; align-items: center; gap: 4px 22px; flex-wrap: wrap; }
 .nav-theme {
-  display: grid; grid-template-columns: 280px minmax(0, 1fr) auto; gap: 22px; align-items: center;
-  width: calc(100% - 53px); padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  display: grid; grid-template-columns: 224px minmax(0, 1fr) auto; gap: 20px; align-items: center;
+  width: calc(100% - 53px); padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   color: var(--ink); font: inherit; text-align: left; cursor: pointer;
 }
 .nav-theme:hover, .nav-theme.is-active { border-color: #c9cddd; background: var(--soft); }
 .nav-theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .v27-theme-preview {
   display: block;
-  width: 280px; height: 210px; margin: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: 7px; background: #eceff4;
+  width: 224px; height: 140px; margin: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 6px; background: #eceff4;
 }
 .nav-theme img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .v27-active-theme-copy { min-width: 0; padding-bottom: 3px; }
@@ -232,8 +282,50 @@ html {
   justify-self: end; color: var(--blue-dark); font-size: 14px; font-weight: 600; white-space: nowrap;
 }
 .nav-theme:hover .v27-theme-action { text-decoration: underline; text-underline-offset: 3px; }
-.nav-options { display: flex; align-items: center; gap: 9px; margin-top: 10px; flex-wrap: wrap; }
-.v27-option-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+.v27-fonts { margin: 14px 0 0 53px; }
+[data-v27-fonts] .v27-section-label { margin: 0 0 2px; }
+.v27-font-line {
+  display: grid; grid-template-columns: auto minmax(30px, 1fr) minmax(0, auto) 38px;
+  gap: 8px; align-items: center; min-height: 46px;
+}
+.v27-font-name { overflow: hidden; font-size: 20px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.v27-font-line .leader { border-bottom: 1px dotted #c9c3b8; }
+.v27-font-line .tail { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.v27-font-line .v27-small-remove { opacity: 0; }
+.v27-font-line:hover .v27-small-remove, .v27-font-line:focus-within .v27-small-remove { opacity: 1; }
+.v27-add-font {
+  margin-left: -8px; padding: 6px 8px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.v27-add-font:hover, .v27-add-font.is-active { background: #eef1ff; color: var(--blue-dark); }
+.v27-font-results { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.v27-font-results .sheet-choice strong { font-size: 15px; font-weight: 500; }
+.nav-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 16px; }
+.v27-landing-choice { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: var(--ink); font-size: 14px; }
+.v27-fact-blank { display: inline-flex; align-items: center; min-width: 0; border-bottom: 1px dotted #c9c3b8; }
+.v27-fact-input {
+  min-width: 110px; max-width: 100%; field-sizing: content; min-height: 26px; padding: 2px 2px 2px;
+  border: 0; background: transparent; color: var(--ink); font: 500 13.5px/1.5 var(--mono);
+}
+.v27-fact-input:focus { outline: 0; }
+.v27-fact-blank:focus-within { border-bottom: 1px solid var(--ink); }
+.v27-fact-caret {
+  width: 20px; height: 24px; padding: 0; border: 0; cursor: pointer; background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2350575e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 5px center / 10px;
+}
+/* Ghost lines: the ledger's empty pre-printed rows. Faint at rest; clicking fills the
+   row in as ink (it becomes a real finishing step). */
+.v27-ghost-line {
+  width: calc(100% + 16px); margin: 0 -8px; padding: 0 8px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--muted); font: inherit; text-align: left; cursor: pointer;
+}
+.v27-ghost-line strong { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.v27-ghost-line .leader { border-bottom-color: #ded8cb; }
+.v27-ghost-line .tail { color: var(--faint); }
+.v27-ghost-line:hover, .v27-ghost-line:focus-visible { background: #eef1ff; }
+.v27-ghost-line:hover strong, .v27-ghost-line:focus-visible strong { color: var(--blue-dark); }
+.v27-ghost-line:hover .tail, .v27-ghost-line:focus-visible .tail { color: var(--muted); }
 .paper-end {
   display: flex; align-items: center; justify-content: space-between; gap: 20px;
   padding-top: 24px;
@@ -378,45 +470,82 @@ html {
 }
 .v27-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .v27-plugin {
-  padding: 10px 0; border-bottom: 1px solid var(--line); scroll-margin: 30vh;
+  min-width: 0; scroll-margin: 30vh;
 }
-.v27-plugin:first-child { padding-top: 0; }
-.v27-plugin:last-child { border-bottom: 0; }
 .v27-plugin-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 6px; align-items: center;
+  position: relative; height: 100%;
 }
 .v27-plugin-main {
-  display: grid; grid-template-columns: 40px minmax(130px, 1fr) auto;
-  gap: 10px; align-items: center; width: 100%; min-height: 52px; margin: -5px 0; padding: 5px 7px;
-  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; text-align: left;
+  display: grid; grid-template-columns: 30px minmax(0, 1fr); grid-template-rows: auto auto;
+  gap: 0 9px; align-items: center; width: 100%; height: 100%; min-height: 54px; padding: 8px 30px 8px 9px;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; text-align: left;
 }
-.v27-plugin-main:hover { border-color: var(--line); background: var(--soft); }
+.v27-plugin-main:hover { border-color: #a7aaad; background: var(--soft); }
 .v27-plugin-main:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .v27-plugin-icon, .v27-plugin-fallback {
-  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px;
-  background: #eef0f4; object-fit: cover; color: var(--blue-dark); font: 700 12px var(--mono);
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px;
+  background: #eef0f4; object-fit: cover; color: var(--blue-dark); font: 700 10px var(--mono);
+}
+.v27-plugin-main > .v27-plugin-icon, .v27-plugin-main > .v27-plugin-fallback {
+  grid-column: 1; grid-row: 1 / 3;
 }
 .v27-plugin-copy { min-width: 0; }
 .v27-plugin-copy > span { display: block; }
 .v27-plugin-title {
-  display: block; min-width: 0; overflow: hidden; color: var(--ink);
-  font-size: 13.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink);
+  font-size: 13px; font-weight: 600;
 }
+.v27-plugin-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .v27-plugin-main:hover .v27-plugin-title { color: var(--blue-dark); }
-.v27-plugin-copy span { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
-.v27-plugin-summary { color: var(--muted); font: 11.5px var(--mono); white-space: nowrap; }
-.v27-plugin-context {
-  display: flex; align-items: center; gap: 9px; margin: 7px 50px 0; color: var(--muted);
+.v27-plugin-meta {
+  display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 1px;
+  color: var(--muted); font-size: 11.5px;
 }
-.v27-plugin-context .switch { min-height: 32px; }
-.v27-plugin-context .switch span { font-size: 12px; }
-.v27-plugin-context small { font-size: 11px; }
+.v27-plugin-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* An override reads as a stamped tag, not a second tagline. */
+.v27-plugin-summary {
+  flex: none; padding: 1px 7px 2px; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: #fff; color: var(--muted); font: 500 10px/1.5 var(--mono);
+}
+.v27-plugin.is-inactive .v27-plugin-icon, .v27-plugin.is-inactive .v27-plugin-fallback {
+  filter: grayscale(1); opacity: .5;
+}
+.v27-plugin.is-inactive .v27-plugin-name { color: var(--muted); }
+.v27-plugin.is-inactive .v27-plugin-meta { color: var(--faint); }
+.v27-plugin.is-inactive .v27-plugin-main:hover .v27-plugin-name { color: var(--blue-dark); }
+.v27-plugin-wide-setting {
+  display: inline-flex; align-items: center; gap: 2px; width: fit-content; margin-bottom: 12px;
+}
+.v27-plugin-wide-setting label {
+  display: inline-flex; align-items: center; gap: 9px; min-height: 32px;
+  color: var(--ink); font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.v27-info-button {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--muted);
+}
+.v27-info-button:hover { background: var(--soft); color: var(--ink); }
+.v27-info-button svg { width: 14px; height: 14px; }
+.v27-onboarding-support > p { margin: 0; color: #3c434a; }
+.v27-onboarding-support > p + p { margin-top: 8px; }
+.v27-supported-plugin-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 16px 0 0;
+  padding: 0; border-top: 1px solid var(--line); list-style: none;
+}
+.v27-supported-plugin-list li { min-width: 0; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+.v27-supported-plugin-list strong, .v27-supported-plugin-list span, .v27-supported-plugin-list small { display: block; }
+.v27-supported-plugin-list strong { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.v27-supported-plugin-list span { margin-top: 1px; color: var(--muted); font: 10.5px var(--mono); overflow-wrap: anywhere; }
+.v27-supported-plugin-list small { margin-top: 4px; color: var(--muted); font-size: 10.5px; line-height: 1.4; }
 .v27-version {
   min-height: 40px; max-width: 112px; padding: 7px 9px; border: 1px solid var(--line-strong);
   border-radius: 7px; background: #fff; font-size: 13px;
 }
 .v27-source { color: var(--muted); font-size: 11.5px; }
-.v27-plugin .icon-btn { width: 40px; height: 40px; }
+.v27-plugin .icon-btn {
+  position: absolute; top: 4px; right: 3px; z-index: 1; width: 30px; height: 30px; opacity: 0;
+}
+.v27-plugin-row:hover .icon-btn, .v27-plugin-row:focus-within .icon-btn { opacity: 1; }
 .v27-plugin-detail { display: grid; gap: 16px; }
 .v27-plugin-detail-head { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 13px; align-items: center; }
 .v27-plugin-detail-head .v27-plugin-icon, .v27-plugin-detail-head .v27-plugin-fallback { width: 54px; height: 54px; }
@@ -449,34 +578,27 @@ html {
 }
 .v27-line .leader { border-bottom: 1px dotted #c9c3b8; }
 .v27-line .tail { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.v27-line .btn, .v27-script .btn { min-height: 38px; padding: 7px 10px; }
+.v27-line .btn { min-height: 38px; padding: 7px 10px; }
 .v27-line .v27-small-remove { width: 38px; min-height: 38px; }
-.v27-script { grid-template-columns: minmax(0, 1fr) auto auto auto; }
-.v27-script-copy { min-width: 0; }
-.v27-script-copy strong { display: block; font-size: 14.5px; }
-.v27-script-copy span { display: block; margin-top: 1px; color: var(--muted); font-size: 12.5px; }
-.v27-script .btn.quiet, .v27-script .v27-small-remove { opacity: 0; }
-.v27-script:hover .btn.quiet, .v27-script:focus-within .btn.quiet,
-.v27-script:hover .v27-small-remove, .v27-script:focus-within .v27-small-remove { opacity: 1; }
 .v27-edit-modal { display: grid; gap: 10px; }
 .v27-edit-modal label { display: grid; gap: 5px; color: var(--muted); font: 11px var(--mono); letter-spacing: .04em; }
-.v27-homepage {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  min-height: 46px; margin-top: 4px; padding: 4px 0;
+.v27-homepage-line {
+  display: grid; grid-template-columns: auto auto minmax(30px, 1fr) minmax(0, auto) 44px;
+  gap: 8px; align-items: center; min-height: 37px; cursor: pointer;
 }
-.v27-homepage label { display: flex; align-items: center; gap: 9px; font-weight: 600; }
-.v27-homepage > span { color: var(--muted); font-size: 12px; text-align: right; }
-.v27-content-settings {
-  display: grid; gap: 2px; margin: 0 0 10px; padding: 4px 0 9px; border-bottom: 1px solid var(--line);
+.v27-homepage-line .leader { border-bottom: 1px dotted #c9c3b8; }
+.v27-homepage-line .tail {
+  overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap;
 }
-.v27-content-setting {
-  display: grid; grid-template-columns: 17px minmax(0, 1fr); gap: 9px; align-items: start;
-  width: fit-content; max-width: 680px; padding: 5px 0; cursor: pointer;
+.v27-prep { display: grid; justify-items: start; margin: 2px 0 12px; }
+.v27-prep-line {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 9px; align-items: start;
+  min-height: 32px; padding: 5px 0; cursor: pointer; font-size: 13.5px;
 }
-.v27-content-setting input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--ink); }
-.v27-content-setting strong, .v27-content-setting small { display: block; }
-.v27-content-setting strong { font-size: 13px; }
-.v27-content-setting small { margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.v27-prep-line input { margin-top: 2px; }
+.v27-prep-line strong { font-weight: 600; }
+.v27-prep-line .note { color: var(--muted); font-size: 12.5px; }
+.v27-prep-line .note::before { content: '— '; }
 .v27-access-stage { padding: 14px 0; border-bottom: 1px solid #e2ded4; }
 .v27-people-summary {
   display: grid; grid-template-columns: 32px auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
@@ -509,17 +631,13 @@ html {
 .v27-user-table .v27-small-remove { width: 34px; min-height: 34px; }
 .v27-recipe-credit { margin: 16px 2px 2px; color: var(--faint); font-size: 11.5px; }
 .v27-recipe-credit a { color: inherit; }
-.v27-recipe-config { padding: 10px; border: 1px solid transparent; border-radius: 9px; }
-.v27-recipe-config:hover { border-color: var(--line); background: var(--soft); }
-.v27-recipe-config strong, .v27-recipe-config span { display: block; }
-.v27-recipe-config > span > span { margin-top: 2px; color: var(--muted); font-size: 12px; }
-.v27-recipe-parameter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; align-items: end; margin-top: 9px; }
-.v27-recipe-parameter label { color: var(--muted); font-size: 11px; }
-.v27-recipe-parameter label span { margin-bottom: 3px; }
-.v27-recipe-fields { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 7px; margin-top: 9px; }
-.v27-recipe-fields label { color: var(--muted); font-size: 11px; }
-.v27-recipe-fields label > span { margin-bottom: 3px; }
-.v27-recipe-fields .v27-actions { grid-column: 1 / -1; }
+/* A recipe's configured value: click the ledger value to edit it in place. */
+.v27-value-edit {
+  padding: 0 0 1px; border: 0; border-bottom: 1px dotted #c9c3b8; border-radius: 0;
+  background: transparent; cursor: pointer; font: inherit;
+}
+.v27-value-edit:hover { border-bottom: 1px solid var(--ink); color: var(--ink); }
+.v27-param-input { min-width: 150px; font-size: 12.5px; border-bottom: 1px solid var(--ink); }
 .v27-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .v27-json-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .v27-json-actions .v27-status { min-height: 0; margin: 0 0 0 auto; }
@@ -532,8 +650,18 @@ html {
 .v27-editor-frame { display: block; width: 100%; height: 100%; border: 0; }
 .v27-editor-status {
   position: absolute; inset: 0; z-index: 2; display: grid; place-items: center;
+  align-content: center; justify-items: center; gap: 16px;
   margin: 0; padding: 24px; background: #fbfbfc; color: var(--muted); text-align: center;
 }
+.v27-editor-progress {
+  display: block; width: 240px; height: 3px; overflow: hidden; border-radius: 999px;
+  background: #e4e4e8;
+}
+.v27-editor-progress > span {
+  display: block; width: 0; height: 100%; border-radius: 999px; background: var(--blue);
+  transition: width .3s ease;
+}
+.v27-editor-status[data-tone="error"] .v27-editor-progress { display: none; }
 .v27-editor-status[data-tone="error"] {
   inset: auto 18px 18px; display: block; max-width: min(560px, calc(100% - 36px));
   padding: 12px 15px; border: 1px solid #d7a89f; border-radius: 8px; background: #fff4f1;
@@ -548,25 +676,11 @@ html {
 }
 @media (pointer: coarse) {
   .new-btn, .popover-close, .v27-upload, .v27-small-remove,
-  .v27-plugin .icon-btn, .v27-line .btn, .v27-script .btn, .v27-user-table .btn { min-height: 44px; }
+  .v27-plugin .icon-btn, .v27-line .btn, .v27-user-table .btn { min-height: 44px; }
   .popover-close, .v27-small-remove, .v27-plugin .icon-btn, .v27-user-table .v27-small-remove { width: 44px; }
-  .v27-plugin-row { grid-template-columns: minmax(0, 1fr) 44px; }
-  .v27-plugin-main { min-height: 54px; }
-}
-@media (max-width: 760px) {
-  .v27-plugin-main { grid-template-columns: 40px minmax(0, 1fr); }
-  .v27-plugin-main > .v27-plugin-icon, .v27-plugin-main > .v27-plugin-fallback { grid-column: 1; grid-row: 1; }
-  .v27-plugin-main > .v27-plugin-copy { grid-column: 2; grid-row: 1; }
-  .v27-plugin-main > .v27-plugin-summary { grid-column: 2; justify-self: start; }
-  .v27-plugin-context { margin-left: 50px; margin-right: 0; }
-  .v27-script { grid-template-columns: minmax(0, 1fr) auto auto 44px; }
-  .v27-script > .v27-script-copy { grid-column: 1 / -1; }
 }
 @media (max-width: 520px) {
   .about { right: 8px; bottom: 8px; }
-  .about:not(.open) { max-width: none; }
-  .about:not(.open) .about-head { width: auto; padding-right: 8px; }
-  .about:not(.open) .about-head strong, .about:not(.open) .about-hint { display: none; }
   .sheet-popover, .sheet-popover[data-kind="theme"] {
     width: calc(100vw - 24px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
   }
@@ -587,16 +701,18 @@ html {
   .v27-plugin-facts { grid-template-columns: 1fr; }
   .v27-plugin-facts div { border-right: 0; border-bottom: 1px solid var(--line); }
   .v27-plugin-facts div:last-child { border-bottom: 0; }
-  .v27-plugin-controls, .v27-homepage, .v27-user-login { align-items: stretch; flex-direction: column; }
-  .v27-plugin-context { margin-left: 50px; }
+  .v27-plugin-controls, .v27-user-login { align-items: stretch; flex-direction: column; }
+  .v27-supported-plugin-list { grid-template-columns: 1fr; }
   .v27-people-summary { grid-template-columns: 28px auto minmax(0, 1fr); }
   .v27-access-action { display: none; }
-  .v27-homepage > span { text-align: left; }
-  .v27-script { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; }
-  .v27-script > .v27-script-copy { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
-  .v27-script .btn.quiet, .v27-script .v27-small-remove { opacity: 1; }
+  .v27-homepage-line { grid-template-columns: auto auto 1fr; }
+  .v27-homepage-line .tail { grid-column: 1 / -1; }
+  .v27-homepage-line > span:empty { display: none; }
   .v27-line { grid-template-columns: minmax(64px, .8fr) minmax(12px, 1fr) minmax(0, .8fr) auto 44px; }
   .v27-line strong { min-width: 0; overflow-wrap: anywhere; }
+  .v27-products-line { grid-template-columns: 1fr; gap: 2px; padding-top: 8px; }
+  .v27-products-line > span:empty { display: none; }
+  .v27-products-line .tail { overflow: visible; text-align: left; white-space: normal; }
 }
 @media (max-width: 720px) {
   #hybridModal[data-v27-mode="page-editor"] { padding: 0; }
@@ -606,7 +722,24 @@ html {
 }
 @media (pointer: coarse) {
   .v27-line .v27-small-remove { width: 44px; min-height: 44px; }
-  .v27-script .btn.quiet, .v27-script .v27-small-remove, .v27-installed-row .v27-small-remove { opacity: 1; }
+  .v27-installed-row .v27-small-remove, .v27-plugin .icon-btn { opacity: 1; }
+  .v27-fact-select { min-height: 40px; }
+}
+
+/* Chrome's customizable <select>: the open picker matches the paper, and clicking a
+   wrapping label opens it. Other engines keep the native dropdown. */
+@supports (appearance: base-select) {
+  .v27-fact-select { appearance: base-select; }
+  .v27-fact-select::picker-icon { display: none; }
+  .v27-fact-select::picker(select) {
+    appearance: base-select; margin: 3px 0 0; padding: 4px; border: 1px solid var(--line-strong);
+    border-radius: 9px; background: var(--paper); box-shadow: 0 16px 44px rgba(34, 38, 46, .18);
+  }
+  .v27-fact-select option {
+    min-height: 30px; padding: 5px 9px; border-radius: 6px; font: 500 13px/1.5 var(--mono);
+  }
+  .v27-fact-select option:is(:hover, :focus-visible) { background: var(--soft); }
+  .v27-fact-select option::checkmark { margin-right: 7px; color: var(--muted); }
 }
 
 </style>
@@ -628,12 +761,12 @@ html {
 
   <ol class="stage-list" aria-label="Blueprint stages">
   <li class="nav-stage">
-    <header class="nav-stage-head"><span class="n" aria-hidden="true">1</span><div><div class="stage-heading"><h2>Boot WordPress</h2></div><p data-text="summary-boot"></p></div></header>
+    <header class="nav-stage-head"><span class="n" aria-hidden="true">1</span><div><div class="stage-heading"><h2>Boot WordPress</h2></div></div></header>
     <div class="nav-stage-body nav-runtime">
-      <label>WORDPRESS <select class="ctl" name="wordpress-version" data-field="wp" aria-label="WordPress version"><option value="latest">latest</option><option value="6.7">6.7</option><option value="nightly">nightly</option></select></label>
-      <label>PHP <select class="ctl" name="php-version" data-field="php" aria-label="PHP version"><option value="8.5">8.5</option><option value="8.4">8.4</option><option value="8.3">8.3</option><option value="8.2">8.2</option><option value="8.1">8.1</option><option value="8.0">8.0</option><option value="7.4">7.4</option></select></label>
-      <label>LANGUAGE <select class="ctl" name="site-language" data-field="lang" aria-label="Site language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option><option value="de_DE">Deutsch</option><option value="pl_PL">Polski</option></select></label>
-      <label>NETWORK <span class="v27-network-ctl"><input type="checkbox" data-field="networking" aria-label="Internet access"><span>internet access</span></span></label>
+      <select class="v27-fact-select" name="wordpress-version" data-field="wp" aria-label="WordPress version"><option value="latest">WordPress latest</option><option value="6.7">WordPress 6.7</option><option value="nightly">WordPress nightly</option></select>
+      <select class="v27-fact-select" name="php-version" data-field="php" aria-label="PHP version"><option value="8.5">PHP 8.5</option><option value="8.4">PHP 8.4</option><option value="8.3">PHP 8.3</option><option value="8.2">PHP 8.2</option><option value="8.1">PHP 8.1</option><option value="8.0">PHP 8.0</option><option value="7.4">PHP 7.4</option></select>
+      <span class="v27-lang-wrap"><button class="v27-fact-select" type="button" data-v27-lang-button aria-label="Site language" aria-haspopup="listbox" aria-expanded="false">English (US)</button><div class="v27-lang-popover" data-v27-lang-popover hidden><input class="v27-lang-filter" data-v27-lang-filter type="search" role="combobox" aria-expanded="true" aria-controls="v27LangList" placeholder="Filter languages" aria-label="Filter languages" autocomplete="off" spellcheck="false"><ul class="v27-lang-list" id="v27LangList" data-v27-lang-list role="listbox" aria-label="Site language"></ul></div></span>
+      <label class="v27-check"><input type="checkbox" data-field="networking"><span>Internet access</span></label>
     </div>
   </li>
 
@@ -644,11 +777,21 @@ html {
       <span class="v27-active-theme-copy"><span class="v27-section-label">Active theme</span><strong data-text="theme-name"></strong><span data-theme-count></span></span>
       <span class="v27-theme-action">Change theme</span>
     </button>
+    <div class="v27-fonts">
+      <div data-v27-fonts></div>
+      <button class="v27-add-font" type="button" data-sheet-popover="font" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add font</button>
+    </div>
   </li>
 
   <li class="nav-stage">
     <header class="nav-stage-head"><span class="n" aria-hidden="true">3</span><div><div class="stage-heading"><h2>Install the tools</h2><button class="new-btn" type="button" data-sheet-popover="plugin" aria-label="＋ Add plugin" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-plugins"></p></div></header>
     <div class="nav-stage-body">
+      <div class="v27-plugin-wide-setting" role="group" aria-label="Plugin setup">
+        <label><input type="checkbox" data-v27-disable-plugin-onboarding checked><span>Skip setup wizards and welcome tours</span></label>
+        <button class="v27-info-button" type="button" data-v27-onboarding-info aria-label="See what gets skipped" aria-haspopup="dialog">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.1v4M8 4.7v.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
       <div class="plugin-list" data-plugins></div>
     </div>
   </li>
@@ -666,8 +809,10 @@ html {
     <header class="nav-stage-head"><span class="n" aria-hidden="true">6</span><div><div class="stage-heading"><h2>Finish and open</h2><button class="new-btn" type="button" data-sheet-popover="script" aria-label="＋ Add finishing step" aria-expanded="false" aria-controls="sheetPopover" aria-haspopup="dialog">＋ Add</button></div><p data-text="summary-finish"></p></div></header>
     <div class="nav-stage-body">
       <div data-scripts></div>
+      <div data-v27-recipe-suggest></div>
       <div class="nav-options">
-        <label class="v27-option-label"><span>Open after build</span><select class="ctl" name="landing-page" data-field="landing" aria-label="Open after build"><option value="/wp-admin/edit.php?post_type=product">the Products page</option><option value="/wp-admin/">the Dashboard</option><option value="/">the homepage</option><option value="/wp-admin/plugins.php">the Plugins page</option></select></label>
+        <label class="v27-prep-line"><input type="checkbox" data-v27-simplify-dashboard><span><strong>Simplify the dashboard</strong> <span class="note">removes the welcome, glance, and activity panels</span></span></label>
+        <span class="v27-landing-choice" data-v27-landing-zone><span>Open</span><select class="v27-fact-select" name="landing-page" data-field="landing" data-v27-landing-select aria-label="Page to open after build"></select><span class="v27-fact-blank" hidden><input class="v27-fact-input" data-v27-landing-custom aria-label="Custom URL to open after build" placeholder="/wp-admin/" spellcheck="false"><button class="v27-fact-caret" type="button" data-v27-landing-picker aria-label="Choose a page from the list"></button></span><span>after build</span></span>
       </div>
     </div>
   </li>
@@ -699,7 +844,7 @@ html {
     </header>
     <div class="modal-body" id="hybridModalBody"></div>
     <div class="modal-body v27-editor-body" id="v27EditorBody" hidden>
-      <p class="v27-editor-status" data-v27-editor-status role="status" aria-live="polite" tabindex="-1">Starting WordPress…</p>
+      <p class="v27-editor-status" data-v27-editor-status role="status" aria-live="polite" tabindex="-1"><span data-v27-editor-status-text>Starting WordPress…</span><span class="v27-editor-progress" data-v27-editor-progress hidden aria-hidden="true"><span></span></span></p>
       <iframe class="v27-editor-frame" id="v27EditorFrame" title="WordPress page editor" allow="clipboard-read; clipboard-write" tabindex="0"></iframe>
     </div>
   </section>
@@ -796,25 +941,1373 @@ add_action(
 `;
 
 const WOOCOMMERCE_ONBOARDING_CODE = `<?php
-add_filter( 'woocommerce_prevent_automatic_wizard_redirect', '__return_true' );
+add_filter( 'woocommerce_prevent_automatic_wizard_redirect', '__return_true', PHP_INT_MAX );
+
+add_action( 'admin_init', 'wp_playground_silence_woocommerce_prompts', PHP_INT_MAX );
+add_action( 'user_register', 'wp_playground_silence_woocommerce_prompts' );
+
+function wp_playground_silence_woocommerce_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	foreach (
+		array(
+			'woocommerce_admin_launch_your_store_tour_hidden',
+			'woocommerce_launch_your_store_tour_hidden',
+			'woocommerce_admin_variable_product_tour_shown',
+			'woocommerce_admin_variable_product_block_tour_shown',
+		) as $preference
+	) {
+		update_user_meta( $user_id, $preference, 'yes' );
+	}
+}
 `;
 
-const YOAST_FIRST_RUN_CODE = `<?php
+const WOOCOMMERCE_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+$profile = get_option( 'woocommerce_onboarding_profile', array() );
+$profile = is_array( $profile ) ? $profile : array();
+$profile['completed'] = true;
+update_option( 'woocommerce_onboarding_profile', $profile );
+
+$hidden_lists = get_option( 'woocommerce_task_list_hidden_lists', array() );
+$hidden_lists = is_array( $hidden_lists ) ? $hidden_lists : array();
+update_option(
+	'woocommerce_task_list_hidden_lists',
+	array_values( array_unique( array_merge( $hidden_lists, array( 'setup', 'extended' ) ) ) )
+);
+
+update_option( 'woocommerce_show_lys_tour', 'no' );
+update_option( 'woocommerce_block_product_tour_shown', 'yes' );
+update_option( 'woocommerce_revenue_report_date_tour_shown', 'yes' );
+update_option( 'woocommerce_orders_report_date_tour_shown', 'yes' );
+update_option( 'woocommerce_admin_dismissed_in_app_marketplace_tour', 'yes' );
+
+foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_woocommerce_prompts' ) ) {
+		wp_playground_silence_woocommerce_prompts( $user_id );
+	}
+}
+`;
+
+const YOAST_PROMPTS_CODE = `<?php
 add_filter( 'wpseo_should_redirect_after_install', '__return_false' );
+add_filter( 'wpseo_introductions', '__return_empty_array', PHP_INT_MAX );
+add_filter( 'wpseo_enable_ai_content_planner_inline_banner', '__return_false' );
+
+add_action( 'admin_init', 'wp_playground_silence_yoast_prompts', PHP_INT_MAX );
+add_action( 'user_register', 'wp_playground_silence_yoast_prompts' );
+
+function wp_playground_silence_yoast_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	update_user_meta( $user_id, '_yoast_wpseo_task_list_opt_in_notification_seen', true );
+
+	$elementor_introductions = get_user_meta( $user_id, 'elementor_introduction', true );
+	if ( ! is_array( $elementor_introductions ) ) {
+		$elementor_introductions = array();
+	}
+	$elementor_introductions['yoast-introduction'] = true;
+	$elementor_introductions['yoast-introduction-editor-v2'] = true;
+	update_user_meta( $user_id, 'elementor_introduction', $elementor_introductions );
+
+	$dismissed_alerts = get_user_meta( $user_id, '_yoast_alerts_dismissed', true );
+	if ( ! is_array( $dismissed_alerts ) ) {
+		$dismissed_alerts = array();
+	}
+	$alert_ids = array_merge(
+		array(
+			'ai_generator_tip_notification',
+			'black-friday-2023-product-editor-checklist',
+			'black-friday-promotion',
+			'black-friday-2023-sidebar-checklist',
+			'trustpilot-review-notification',
+			'webinar-promo-notification',
+		),
+		(array) apply_filters( 'wpseo_allowed_dismissable_alerts', array() )
+	);
+	foreach ( array_filter( $alert_ids, 'is_string' ) as $alert_id ) {
+		$dismissed_alerts[ $alert_id ] = true;
+	}
+	update_user_meta( $user_id, '_yoast_alerts_dismissed', $dismissed_alerts );
+}
 `;
 
-const YOAST_FIRST_RUN_STATE_CODE = `<?php
+const YOAST_PROMPT_STATE_CODE = `<?php
 require '/wordpress/wp-load.php';
 
 $options = get_option( 'wpseo', array() );
 $options['should_redirect_after_install_free'] = false;
 $options['activation_redirect_timestamp_free'] = time();
 $options['dismiss_configuration_workout_notice'] = true;
+$options['site_kit_configuration_permanently_dismissed'] = true;
 update_option( 'wpseo', $options );
+
+foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_yoast_prompts' ) ) {
+		wp_playground_silence_yoast_prompts( $user_id );
+	}
+}
+`;
+
+const ELEMENTOR_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_elementor_activation_redirect', 0 );
+add_action( 'admin_init', 'wp_playground_silence_elementor_prompts', PHP_INT_MAX );
+add_action( 'user_register', 'wp_playground_silence_elementor_prompts' );
+
+function wp_playground_silence_elementor_activation_redirect() {
+	delete_transient( 'elementor_activation_redirect' );
+}
+
+function wp_playground_silence_elementor_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$preferences = get_user_meta( $user_id, 'elementor_preferences', true );
+	$preferences = is_array( $preferences ) ? $preferences : array();
+	$preferences['show_launchpad_checklist'] = '';
+	update_user_meta( $user_id, 'elementor_preferences', $preferences );
+
+	update_user_meta( $user_id, '_e_welcome_popover_displayed', true );
+	update_user_meta( $user_id, '_e_pro_free_trial_popup_displayed', true );
+
+	$introductions = get_user_meta( $user_id, 'elementor_introduction', true );
+	$introductions = is_array( $introductions ) ? $introductions : array();
+	$introduction_ids = array(
+		'ai_get_started',
+		'ai-context-animation-promotion',
+		'ai-context-code-promotion',
+		'ai-context-layout-promotion',
+		'ai-context-media-promotion',
+		'ai-context-text-promotion',
+		'atomic_elements_promo',
+		'conversion_banner_go_pro',
+		'e-ai-product-image-unification',
+		'e-apps',
+		'flexbox',
+		'globals_introduction',
+		'black_friday_pointer_2025',
+		'birthday_pointer_2026',
+	);
+	foreach ( $introduction_ids as $introduction_id ) {
+		$introductions[ $introduction_id ] = true;
+	}
+	update_user_meta( $user_id, 'elementor_introduction', $introductions );
+}
+`;
+
+const ELEMENTOR_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'elementor_activation_redirect' );
+update_option( 'elementor_onboarded', '2.0.0' );
+update_option( 'elementor_angie_guide_auto_shown', 'yes' );
+
+$progress = get_option( 'elementor_onboarding_progress', array() );
+$progress = is_array( $progress ) ? $progress : array();
+$progress['exit_type'] = 'user_exit';
+$progress['starter_dismissed'] = true;
+update_option( 'elementor_onboarding_progress', $progress );
+
+foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_elementor_prompts' ) ) {
+		wp_playground_silence_elementor_prompts( $user_id );
+	}
+}
+`;
+
+const CONTACT_FORM_7_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_contact_form_7_prompts', PHP_INT_MAX );
+add_action( 'user_register', 'wp_playground_silence_contact_form_7_prompts' );
+
+function wp_playground_silence_contact_form_7_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$major_version = function_exists( 'wpcf7_version' )
+		? wpcf7_version( 'only_major=1' )
+		: '';
+	if ( ! $major_version ) {
+		$plugin_data = get_file_data(
+			WP_PLUGIN_DIR . '/contact-form-7/wp-contact-form-7.php',
+			array( 'version' => 'Version' )
+		);
+		$version_parts = explode( '.', (string) ( $plugin_data['version'] ?? '' ) );
+		$major_version = implode( '.', array_slice( $version_parts, 0, 2 ) );
+	}
+	if ( ! $major_version ) {
+		return;
+	}
+
+	$hidden_on = get_user_meta( $user_id, 'wpcf7_hide_welcome_panel_on', true );
+	$hidden_on = is_array( $hidden_on ) ? $hidden_on : array();
+	$hidden_on[] = $major_version;
+	update_user_meta( $user_id, 'wpcf7_hide_welcome_panel_on', array_values( array_unique( $hidden_on ) ) );
+}
+`;
+
+const CONTACT_FORM_7_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_contact_form_7_prompts' ) ) {
+		wp_playground_silence_contact_form_7_prompts( $user_id );
+	}
+}
+`;
+
+const AKISMET_PROMPTS_CODE = `<?php
+add_action(
+	'admin_init',
+	static function () {
+		delete_option( 'Activated_Akismet' );
+	},
+	0
+);
+`;
+
+const AKISMET_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'Activated_Akismet' );
+`;
+
+const SITE_KIT_PROMPTS_CODE = `<?php
+add_filter( 'googlesitekit_admin_pointers', '__return_empty_array', PHP_INT_MAX );
+add_action( 'admin_init', 'wp_playground_silence_site_kit_prompts', PHP_INT_MAX );
+add_action( 'user_register', 'wp_playground_silence_site_kit_prompts' );
+
+function wp_playground_silence_site_kit_prompts( $user_id = 0 ) {
+	delete_option( 'googlesitekit_show_activation_notice' );
+
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$tour_ids = array(
+		'welcome-with-analytics',
+		'welcome-without-analytics',
+		'site-goals-feature-tour',
+	);
+	$item_ids = array(
+		'welcome-modal-with-tour',
+		'welcome-modal-gathering-data',
+		'initial-setup-notification-timeout',
+	);
+
+	$tours = get_user_option( 'googlesitekitpersistent_dismissed_tours', $user_id );
+	$tours = is_array( $tours ) ? $tours : array();
+	update_user_option(
+		$user_id,
+		'googlesitekitpersistent_dismissed_tours',
+		array_values( array_unique( array_merge( $tours, $tour_ids ) ) )
+	);
+	$items = get_user_option( 'googlesitekitpersistent_dismissed_items', $user_id );
+	$items = is_array( $items ) ? $items : array();
+	foreach ( $item_ids as $item_id ) {
+		$items[ $item_id ] = 0;
+	}
+	update_user_option( $user_id, 'googlesitekitpersistent_dismissed_items', $items );
+
+	$network_tours = get_user_meta( $user_id, 'googlesitekitpersistent_dismissed_tours', true );
+	$network_tours = is_array( $network_tours ) ? $network_tours : array();
+	update_user_meta(
+		$user_id,
+		'googlesitekitpersistent_dismissed_tours',
+		array_values( array_unique( array_merge( $network_tours, $tour_ids ) ) )
+	);
+	$network_items = get_user_meta( $user_id, 'googlesitekitpersistent_dismissed_items', true );
+	$network_items = is_array( $network_items ) ? $network_items : array();
+	foreach ( $item_ids as $item_id ) {
+		$network_items[ $item_id ] = 0;
+	}
+	update_user_meta( $user_id, 'googlesitekitpersistent_dismissed_items', $network_items );
+}
+`;
+
+const SITE_KIT_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'googlesitekit_show_activation_notice' );
+foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_site_kit_prompts' ) ) {
+		wp_playground_silence_site_kit_prompts( $user_id );
+	}
+}
+`;
+
+const WORDFENCE_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_wordfence_prompts', PHP_INT_MAX );
+
+function wp_playground_silence_wordfence_prompts() {
+	if ( ! class_exists( 'wfConfig' ) ) {
+		return;
+	}
+
+	wfConfig::set( 'onboardingAttempt1', 'skipped' );
+	wfConfig::set( 'onboardingAttempt2', 'skipped' );
+	if ( defined( 'WORDFENCE_VERSION' ) ) {
+		wfConfig::set( 'onboardingLastVersion', WORDFENCE_VERSION );
+	}
+
+	$tour_ids = array( 'dashboard', 'firewall', 'scan', 'blocking', 'livetraffic', 'auditlog', 'loginsecurity' );
+	foreach ( $tour_ids as $tour_id ) {
+		wfConfig::set( 'needsNewTour_' . $tour_id, 0 );
+		wfConfig::set( 'needsUpgradeTour_' . $tour_id, 0 );
+	}
+
+	remove_action( 'in_admin_header', 'wfOnboardingController::_admin_header' );
+	remove_action( 'pre_current_active_plugins', 'wfOnboardingController::_pre_plugins' );
+	remove_action( 'admin_enqueue_scripts', 'wfOnboardingController::_enqueue_scripts' );
+	remove_action( 'admin_notices', 'wordfence::showOnboardingBanner' );
+	remove_action( 'network_admin_notices', 'wordfence::showOnboardingBanner' );
+}
+`;
+
+const WORDFENCE_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_wordfence_prompts' ) ) {
+	wp_playground_silence_wordfence_prompts();
+}
+`;
+
+const JETPACK_PROMPTS_CODE = `<?php
+add_action( 'plugins_loaded', 'wp_playground_silence_jetpack_prompts', PHP_INT_MAX );
+add_action( 'admin_init', 'wp_playground_silence_jetpack_prompts', 0 );
+
+function wp_playground_silence_jetpack_prompts() {
+	delete_transient( 'activated_jetpack' );
+	if ( class_exists( 'Jetpack_Options' ) ) {
+		Jetpack_Options::update_option( 'dismissed_welcome_banner', true );
+	}
+}
+`;
+
+const JETPACK_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_jetpack_prompts' ) ) {
+	wp_playground_silence_jetpack_prompts();
+}
+`;
+
+const AIOSEO_PROMPTS_CODE = `<?php
+add_filter( 'aioseo_show_seo_setup', '__return_false', PHP_INT_MAX );
+add_filter( 'aioseo_show_seo_checklist', '__return_false', PHP_INT_MAX );
+`;
+
+const WP_FORMS_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'wpforms_activation_redirect' );
+`;
+
+const DUPLICATE_POST_PROMPTS_CODE = `<?php
+add_action(
+	'admin_init',
+	static function () {
+		update_site_option( 'duplicate_post_show_notice', 0 );
+	},
+	PHP_INT_MAX
+);
+`;
+
+const HFE_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_hfe_prompts', 0 );
+
+function wp_playground_silence_hfe_prompts() {
+	delete_option( 'hfe_start_onboarding' );
+	update_option( 'hfe_onboarding_triggered', 'yes' );
+}
+`;
+
+const HFE_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_hfe_prompts' ) ) {
+	wp_playground_silence_hfe_prompts();
+}
+`;
+
+const ASTRA_SITES_PROMPTS_CODE = `<?php
+add_filter( 'getting_started_is_setup_wizard_showing', '__return_false', PHP_INT_MAX );
+add_action( 'admin_init', 'wp_playground_silence_astra_sites_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_astra_sites_prompts' );
+
+function wp_playground_silence_astra_sites_prompts( $user_id = 0 ) {
+	delete_option( 'st_start_onboarding' );
+	update_option( '_astra_sites_gettings_started', 'yes' );
+
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( $user_id ) {
+		update_user_meta( $user_id, 'astra-sites-welcome-notice', 'notice-dismissed' );
+	}
+}
+`;
+
+const ASTRA_SITES_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_astra_sites_prompts' ) ) {
+	wp_playground_silence_astra_sites_prompts();
+	foreach ( get_users( array( 'fields' => 'ID' ) ) as $user_id ) {
+		wp_playground_silence_astra_sites_prompts( $user_id );
+	}
+}
+`;
+
+const LLAR_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_llar_prompts', 0 );
+
+function wp_playground_silence_llar_prompts() {
+	delete_transient( 'llar_dashboard_redirect' );
+
+	if ( class_exists( '\\LLAR\\Core\\Config' ) ) {
+		\\LLAR\\Core\\Config::update( 'onboarding_popup_shown', true );
+		return;
+	}
+
+	update_option( 'limit_login_onboarding_popup_shown', true );
+	update_site_option( 'limit_login_onboarding_popup_shown', true );
+}
+`;
+
+const LLAR_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_llar_prompts' ) ) {
+	wp_playground_silence_llar_prompts();
+}
+`;
+
+const WP_MAIL_SMTP_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'wp_mail_smtp_activation_redirect' );
+`;
+
+const MONSTERINSIGHTS_PROMPTS_CODE = `<?php
+add_filter( 'monsterinsights_enable_onboarding_wizard', '__return_false', PHP_INT_MAX );
+add_action(
+	'admin_init',
+	static function () {
+		delete_transient( '_monsterinsights_activation_redirect' );
+	},
+	0
+);
+`;
+
+const MONSTERINSIGHTS_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( '_monsterinsights_activation_redirect' );
+`;
+
+const COOKIEYES_ONBOARDING_CODE = `<?php
+add_action(
+	'activated_plugin',
+	static function ( $plugin ) {
+		if ( 'cookie-law-info/cookie-law-info.php' !== $plugin ) {
+			return;
+		}
+
+		global $wp_filter;
+		$hook = $wp_filter['activated_plugin'] ?? null;
+		if ( ! $hook instanceof WP_Hook ) {
+			return;
+		}
+
+		foreach ( $hook->callbacks as $priority => $callbacks ) {
+			foreach ( $callbacks as $callback ) {
+				$function = $callback['function'] ?? null;
+				if (
+					is_array( $function )
+					&& is_object( $function[0] )
+					&& is_a( $function[0], '\\CookieYes\\Lite\\Admin\\Admin' )
+					&& 'handle_activation_redirect' === $function[1]
+				) {
+					remove_action( 'activated_plugin', $function, $priority );
+				}
+			}
+		}
+	},
+	0
+);
+
+add_action(
+	'admin_head',
+	static function () {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( 'cookie-law-info' !== $page ) {
+			return;
+		}
+		echo '<style>#cky-app div:has(> .cky-connect-card-accordion){display:none!important}</style>';
+	},
+	PHP_INT_MAX
+);
+`;
+
+const COOKIEYES_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'cky_first_time_activated_plugin' );
+delete_site_transient( '_cky_first_time_install' );
+
+$settings = get_option( 'cky_settings', array() );
+$settings = is_array( $settings ) ? $settings : array();
+$settings['onboarding'] = array( 'step' => 2 );
+update_option( 'cky_settings', $settings );
+update_option( 'cky_connect_expand', array( 'status' => false ) );
+update_option( 'cky_connect_notice', array( 'status' => true ) );
+`;
+
+const DISABLE_COMMENTS_PROMPTS_CODE = `<?php
+add_action(
+	'wp_loaded',
+	static function () {
+		if ( ! class_exists( 'Disable_Comments' ) ) {
+			return;
+		}
+		$plugin = Disable_Comments::get_instance();
+		remove_action( 'all_admin_notices', array( $plugin, 'setup_notice' ) );
+		remove_action( 'all_admin_notices', array( $plugin, 'admin_notice' ) );
+	},
+	PHP_INT_MAX
+);
+`;
+
+const DISABLE_COMMENTS_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+$blocked = get_option( 'wpins_block_notice', array() );
+$blocked = is_array( $blocked ) ? $blocked : array();
+$blocked['disable-comments'] = 'disable-comments';
+update_option( 'wpins_block_notice', $blocked );
+`;
+
+const CODE_SNIPPETS_PROMPTS_CODE = `<?php
+add_filter( 'code_snippets/hide_welcome_banner', '__return_true' );
+`;
+
+const WP_SUPER_CACHE_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_wp_super_cache_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_wp_super_cache_prompts' );
+
+function wp_playground_silence_wp_super_cache_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( $user_id ) {
+		update_user_option( $user_id, 'wpsc_dismissed_boost_admin_notice', '1' );
+	}
+}
+`;
+
+const LOGINIZER_PROMPTS_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'loginizer_dismiss_newsletter', time() );
+update_option( 'loginizer_promo_time', 0 - time() );
+update_option( 'loginizer_backuply_promo_time', 0 - time() );
+update_option( 'loginizer_csrf_promo_time', 0 - time() );
+`;
+
+const MANAGEWP_PROMPTS_CODE = `<?php
+add_filter( 'mwp_admin_notice_enabled', '__return_false' );
+`;
+
+const DUPLICATOR_ONBOARDING_CODE = `<?php
+add_filter( 'duplicator_disable_onboarding_redirect', '__return_true' );
+`;
+
+const DUPLICATOR_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'duplicator_redirect_to_welcome' );
+`;
+
+const FILE_MANAGER_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_file_manager_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_file_manager_prompts' );
+
+function wp_playground_silence_file_manager_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( $user_id ) {
+		update_option( 'filemanager_email_verified_' . $user_id, 'yes' );
+	}
+	update_option( 'mk_fm_close_fm_help_c_fm', 'done' );
+}
+`;
+
+const COMPLIANZ_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'cmplz_redirect_to_settings_page' );
+update_option( 'cmplz_onboarding_dismissed', true, false );
+update_option( 'cmplz_wsc_dismissed', true, false );
+`;
+
+const HOSTINGER_REACH_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'hostinger_reach_activation_redirect' );
+`;
+
+const CPTUI_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'cptui_activation_redirect' );
+`;
+
+const WP_OPTIMIZE_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+foreach ( array( 'wp-optimize', 'wp-optimize-mu' ) as $prefix ) {
+	delete_site_option( $prefix . '_start_onboarding' );
+	update_site_option( $prefix . '_skipped_onboarding', true );
+}
+`;
+
+const SPECTRA_ONBOARDING_CODE = `<?php
+add_filter( 'uagb_enable_redirect_activation', '__return_false' );
+`;
+
+const SPECTRA_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( '__uagb_do_redirect', false );
+`;
+
+const OPTINMONSTER_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'optin_monster_api_activation_redirect_disabled', true );
+delete_transient( 'optin_monster_api_activation_redirect' );
+`;
+
+const MAINTENANCE_PROMPTS_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+$maintenance = get_option( 'mtnc-options', array( 'options' => array() ) );
+$maintenance = is_array( $maintenance ) ? $maintenance : array( 'options' => array() );
+$maintenance['dismissed_notices'] = isset( $maintenance['dismissed_notices'] )
+	&& is_array( $maintenance['dismissed_notices'] )
+	? $maintenance['dismissed_notices']
+	: array();
+$maintenance['dismissed_notices']['welcome'] = true;
+update_option( 'mtnc-options', $maintenance );
+`;
+
+const IMAGE_OPTIMIZATION_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_image_optimizer_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_image_optimizer_prompts' );
+
+function wp_playground_silence_image_optimizer_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$pointers = get_user_meta( $user_id, 'image_optimizer_dismissed_pointers', true );
+	$pointers = is_array( $pointers ) ? $pointers : array();
+	$pointers['image-optimizer-settings'] = true;
+	$pointers['image-optimizer-list-view'] = true;
+	update_user_meta( $user_id, 'image_optimizer_dismissed_pointers', $pointers );
+}
+
+add_action(
+	'plugins_loaded',
+	static function () {
+		if ( ! class_exists( '\\ImageOptimization\\Plugin' ) ) {
+			return;
+		}
+
+		$manager = \\ImageOptimization\\Plugin::instance()->modules_manager;
+		$callbacks = array(
+			array( 'settings', 'Settings_Pointer', 'admin_print_script' ),
+			array( 'optimization', 'List_View_Pointer', 'admin_print_script' ),
+			array( 'Oauth', 'Connect_Pointer', 'admin_print_script' ),
+		);
+
+		foreach ( $callbacks as list( $module_name, $component_name, $method ) ) {
+			$module = $manager->get_modules( $module_name );
+			$component = $module ? $module->get_component( $component_name ) : false;
+			if ( $component ) {
+				remove_action( 'in_admin_header', array( $component, $method ) );
+			}
+		}
+
+		$core = $manager->get_modules( 'core' );
+		$modal = $core ? $core->get_component( 'Not_Connected_Modal' ) : false;
+		if ( $modal ) {
+			add_action(
+				'current_screen',
+				static function () use ( $modal ) {
+					remove_action(
+						'admin_notices',
+						array( $modal, 'render_not_connected_modal' )
+					);
+				},
+				PHP_INT_MAX
+			);
+		}
+	},
+	999
+);
+`;
+
+const INSTAGRAM_ONBOARDING_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_instagram_tours', 0 );
+add_action( 'user_register', 'wp_playground_silence_instagram_tours' );
+
+function wp_playground_silence_instagram_tours( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	update_user_meta(
+		$user_id,
+		'sbi_onboarding',
+		maybe_serialize( array( 'newuser' => 'dismissed', 'customizer' => 'dismissed' ) )
+	);
+}
+`;
+
+const INSTAGRAM_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_option( 'sbi_plugin_do_activation_redirect' );
+
+$statuses = get_option( 'sbi_statuses', array() );
+$statuses = is_array( $statuses ) ? $statuses : array();
+$statuses['wizard_dismissed'] = true;
+if ( isset( $statuses['legacy_onboarding'] ) && is_array( $statuses['legacy_onboarding'] ) ) {
+	$statuses['legacy_onboarding']['active'] = false;
+}
+update_option( 'sbi_statuses', $statuses );
+
+foreach ( get_users( array( 'role__in' => array( 'administrator' ), 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_instagram_tours' ) ) {
+		wp_playground_silence_instagram_tours( $user_id );
+	}
+}
+`;
+
+const EWWW_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'ewww_image_optimizer_wizard_complete', true, false );
+update_site_option( 'ewww_image_optimizer_wizard_complete', true );
+`;
+
+const AIOS_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'aios_redirect_to_dashboard_page' );
+delete_site_option( 'aios_start_onboarding' );
+update_site_option( 'aios_skipped_onboarding', true );
+`;
+
+const SMUSH_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'skip-smush-setup', true );
+delete_site_option( 'wp-smush-show_upgrade_modal' );
+`;
+
+const IMAGIFY_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_imagify_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_imagify_prompts' );
+
+function wp_playground_silence_imagify_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$notices = get_user_meta( $user_id, '_imagify_ignore_notices', true );
+	$notices = is_array( $notices ) ? $notices : array();
+	if ( ! in_array( 'welcome-steps', $notices, true ) ) {
+		$notices[] = 'welcome-steps';
+	}
+	update_user_meta( $user_id, '_imagify_ignore_notices', array_values( $notices ) );
+}
+`;
+
+const IMAGIFY_PROMPTS_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+foreach ( get_users( array( 'role__in' => array( 'administrator' ), 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_imagify_prompts' ) ) {
+		wp_playground_silence_imagify_prompts( $user_id );
+	}
+}
+`;
+
+const TRUSTINDEX_ONBOARDING_CODE = `<?php
+add_action( 'plugins_loaded', 'wp_playground_silence_trustindex_prompts', 0 );
+
+function wp_playground_silence_trustindex_prompts() {
+	delete_option( 'trustindex-google-activation-redirect' );
+
+	$notifications = get_option( 'trustindex-google-notifications', array() );
+	$notifications = is_array( $notifications ) ? $notifications : array();
+	foreach ( array( 'not-using-no-connection', 'not-using-no-widget' ) as $notification_id ) {
+		$current = isset( $notifications[ $notification_id ] )
+			&& is_array( $notifications[ $notification_id ] )
+			? $notifications[ $notification_id ]
+			: array();
+		$notifications[ $notification_id ] = array_merge(
+			$current,
+			array( 'hidden' => true, 'active' => false, 'do-check' => false )
+		);
+	}
+	$rate_us = isset( $notifications['rate-us'] ) && is_array( $notifications['rate-us'] )
+		? $notifications['rate-us']
+		: array();
+	$notifications['rate-us'] = array_merge(
+		$rate_us,
+		array( 'hidden' => true, 'active' => false )
+	);
+	update_option( 'trustindex-google-notifications', $notifications, false );
+	update_option( 'trustindex-wc-notification', 'hide', false );
+}
+`;
+
+const TRUSTINDEX_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_trustindex_prompts' ) ) {
+	wp_playground_silence_trustindex_prompts();
+}
+`;
+
+const WPVIVID_ONBOARDING_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_wpvivid_prompts', 0 );
+
+function wp_playground_silence_wpvivid_prompts() {
+	update_option( 'wpvivid_do_activation_redirect', false );
+	update_option( 'wpvivid_need_review', 'do_not_ask' );
+}
+`;
+
+const WPVIVID_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_wpvivid_prompts' ) ) {
+	wp_playground_silence_wpvivid_prompts();
+}
+`;
+
+const W3TC_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_site_option( 'w3tc_setupguide_completed', time() );
+`;
+
+const GTRANSLATE_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_gtranslate_prompts', 0 );
+
+function wp_playground_silence_gtranslate_prompts() {
+	$notices = get_option( 'gtranslate_admin_notice', array() );
+	$notices = is_array( $notices ) ? $notices : array();
+	foreach ( array( 'two_week_review', 'upgrade_tips' ) as $notice_id ) {
+		$current = isset( $notices[ $notice_id ] ) && is_array( $notices[ $notice_id ] )
+			? $notices[ $notice_id ]
+			: array();
+		$current['dismissed'] = 1;
+		$notices[ $notice_id ] = $current;
+	}
+	update_option( 'gtranslate_admin_notice', $notices );
+}
+`;
+
+const COOKIE_NOTICE_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'cn_activation_redirect' );
+delete_transient( 'cn_show_welcome' );
+delete_site_transient( 'cn_show_welcome' );
+
+$dismissed_at = current_time( 'mysql' );
+update_option( 'cookie_notice_welcome_dismissed', $dismissed_at );
+update_option( 'cookie_notice_setup_wizard_complete', true );
+update_site_option( 'cookie_notice_welcome_dismissed', $dismissed_at );
+update_site_option( 'cookie_notice_setup_wizard_complete', true );
+
+$options = get_option( 'cookie_notice_options', array() );
+$options = is_array( $options ) ? $options : array();
+$options['review_notice'] = false;
+$options['review_notice_delay'] = 0;
+update_option( 'cookie_notice_options', $options );
+
+$site_options = get_site_option( 'cookie_notice_options', array() );
+$site_options = is_array( $site_options ) ? $site_options : array();
+$site_options['review_notice'] = false;
+$site_options['review_notice_delay'] = 0;
+update_site_option( 'cookie_notice_options', $site_options );
+`;
+
+const WOO_PAYMENTS_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_woo_payments_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_woo_payments_prompts' );
+
+function wp_playground_silence_woo_payments_prompts( $user_id = 0 ) {
+	update_option( 'wcpay_should_redirect_to_onboarding', false );
+	update_option( 'wcpay_fraud_protection_welcome_tour_dismissed', '1' );
+	update_option( 'wcpay_connection_success_modal_dismissed', '1' );
+
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( $user_id ) {
+		update_user_meta( $user_id, 'woocommerce_admin_wc_payments_review_prompt_dismissed', 1 );
+	}
+}
+`;
+
+const WOO_PAYMENTS_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+foreach ( get_users( array( 'role__in' => array( 'administrator' ), 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_woo_payments_prompts' ) ) {
+		wp_playground_silence_woo_payments_prompts( $user_id );
+	}
+}
+`;
+
+const STRIPE_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_stripe_prompts', 0 );
+
+function wp_playground_silence_stripe_prompts() {
+	delete_transient( 'wc_stripe_redirect_to_settings' );
+	foreach (
+		array(
+			'wc_stripe_show_bnpl_promotion_banner',
+			'wc_stripe_show_oc_promotion_banner',
+			'wc_stripe_show_stripe_tax_banner',
+			'wc_stripe_show_ap_only_banner',
+			'wc_stripe_show_ocs_ap_banner',
+			'wc_stripe_show_ocs_only_banner',
+			'wc_stripe_show_customization_notice',
+			'wc_stripe_show_optimized_checkout_notice',
+			'wc_stripe_show_stripe_first_method_notice',
+		) as $option_name
+	) {
+		update_option( $option_name, 'no' );
+	}
+}
+`;
+
+const STRIPE_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_stripe_prompts' ) ) {
+	wp_playground_silence_stripe_prompts();
+}
+`;
+
+const FLUENT_FORMS_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_fluent_forms_prompts', 0 );
+
+function wp_playground_silence_fluent_forms_prompts() {
+	$preferences = get_option( '_fluentform_notice_pref', array() );
+	$preferences = is_array( $preferences ) ? $preferences : array();
+	$review_query = isset( $preferences['review_query'] ) && is_array( $preferences['review_query'] )
+		? $preferences['review_query']
+		: array();
+	$review_query['permanent'] = time();
+	$preferences['review_query'] = $review_query;
+	update_option( '_fluentform_notice_pref', $preferences, false );
+}
+`;
+
+const SOLID_SECURITY_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_solid_security_prompts', 0 );
+
+function wp_playground_silence_solid_security_prompts() {
+	$dismissed = get_site_option( 'itsec_dismissed_notices', array() );
+	$dismissed = is_array( $dismissed ) ? $dismissed : array();
+	if ( ! in_array( 'network-brute-force-promo', $dismissed, true ) ) {
+		$dismissed[] = 'network-brute-force-promo';
+	}
+	update_site_option( 'itsec_dismissed_notices', array_values( $dismissed ) );
+}
+`;
+
+const SOLID_SECURITY_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_solid_security_prompts' ) ) {
+	wp_playground_silence_solid_security_prompts();
+}
+`;
+
+const GOOGLE_LISTINGS_ONBOARDING_CODE = `<?php
+add_action( 'wc_gla_cron_daily_notes', 'wp_playground_silence_google_listings_prompts', PHP_INT_MAX );
+add_action( 'admin_init', 'wp_playground_silence_google_listings_prompts', PHP_INT_MAX );
+
+function wp_playground_silence_google_listings_prompts() {
+	if ( class_exists( '\\Automattic\\WooCommerce\\Admin\\Notes\\Notes' ) ) {
+		\\Automattic\\WooCommerce\\Admin\\Notes\\Notes::delete_notes_with_name(
+			array( 'gla-review-after-clicks', 'gla-review-after-conversions' )
+		);
+	}
+}
+`;
+
+const GOOGLE_LISTINGS_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+update_option( 'gla_redirect_to_onboarding', 'no' );
+
+$tours = get_option( 'gla_tours', array() );
+$tours = is_array( $tours ) ? $tours : array();
+foreach (
+	array(
+		'rebranding-tour',
+		'dashboard-feature--campaign-assets',
+		'youtube-shopping-tour',
+	) as $tour_id
+) {
+	$tours[ $tour_id ] = array( 'id' => $tour_id, 'checked' => true );
+}
+update_option( 'gla_tours', $tours );
+
+if ( function_exists( 'wp_playground_silence_google_listings_prompts' ) ) {
+	wp_playground_silence_google_listings_prompts();
+}
+`;
+
+const POLYLANG_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'pll_activation_redirect' );
+
+$dismissed = get_option( 'pll_dismissed_notices', array() );
+$dismissed = is_array( $dismissed ) ? $dismissed : array();
+foreach ( array( 'wizard', 'pllwc', 'review' ) as $notice_id ) {
+	if ( ! in_array( $notice_id, $dismissed, true ) ) {
+		$dismissed[] = $notice_id;
+	}
+}
+update_option( 'pll_dismissed_notices', array_values( $dismissed ) );
+`;
+
+const AUTOPTIMIZE_PROMPTS_CODE = `<?php
+add_filter( 'autoptimize_filter_main_imgopt_plug_notice', '__return_empty_string', PHP_INT_MAX );
+`;
+
+const SMART_SLIDER_ONBOARDING_CODE = `<?php
+add_action(
+	'admin_init',
+	static function () {
+		if ( class_exists( '\\Nextend\\Framework\\Model\\StorageSectionManager' ) ) {
+			$storage = \\Nextend\\Framework\\Model\\StorageSectionManager::getStorage( 'smartslider' );
+			$storage->set( 'tutorial', 'GettingStarted', 1 );
+			foreach (
+				array(
+					'upgrade-pro',
+					'dismissNewsletterDashboard',
+					'dismissNewsletterSampleSliders',
+					'rated',
+				) as $key
+			) {
+				$storage->set( 'free', $key, 1 );
+			}
+		}
+	},
+	0
+);
+`;
+
+const JOINCHAT_ONBOARDING_CODE = `<?php
+add_filter( 'joinchat_onboard', '__return_false', PHP_INT_MAX );
+`;
+
+const MAINWP_CHILD_PROMPTS_CODE = `<?php
+add_action(
+	'plugins_loaded',
+	static function () {
+		if ( class_exists( '\\MainWP\\Child\\MainWP_Pages' ) ) {
+			remove_action(
+				'admin_notices',
+				array( \\MainWP\\Child\\MainWP_Pages::get_instance(), 'admin_notice' )
+			);
+		}
+	},
+	PHP_INT_MAX
+);
+`;
+
+const POPUP_MAKER_ONBOARDING_CODE = `<?php
+if ( ! defined( 'POPUP_MAKER_DISABLE_UPSELLS' ) ) {
+	define( 'POPUP_MAKER_DISABLE_UPSELLS', true );
+}
+
+add_filter( 'pum_admin_pointers-popup', '__return_empty_array', PHP_INT_MAX );
+add_filter( 'pum_admin_pointers-edit-popup', '__return_empty_array', PHP_INT_MAX );
+add_filter( 'pum_reviews_triggers', '__return_empty_array', PHP_INT_MAX );
+add_filter( 'popup_maker/notification_providers', '__return_empty_array', PHP_INT_MAX );
+add_filter( 'pum_alert_list', 'wp_playground_remove_popup_maker_telemetry_prompt', PHP_INT_MAX );
+
+function wp_playground_remove_popup_maker_telemetry_prompt( $alerts ) {
+	if ( ! is_array( $alerts ) ) {
+		return array();
+	}
+
+	return array_values(
+		array_filter(
+			$alerts,
+			static function ( $alert ) {
+				return ! is_array( $alert ) || 'pum_telemetry_notice' !== ( $alert['code'] ?? '' );
+			}
+		)
+	);
+}
+`;
+
+const POPUP_MAKER_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'pum_activation_redirect' );
+update_option( 'pum_seen_welcome', 1 );
+
+$settings = get_option( 'popmake_settings', array() );
+$settings = is_array( $settings ) ? $settings : array();
+$settings['disable_tips'] = true;
+update_option( 'popmake_settings', $settings );
+`;
+
+const SEEDPROD_PROMPTS_CODE = `<?php
+add_filter( 'seedprod_admin_notifications_has_access', '__return_false', PHP_INT_MAX );
+`;
+
+const SEEDPROD_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( '_seedprod_welcome_screen_activation_redirect' );
+update_option( 'seedprod_dismiss_setup_wizard', 1 );
+`;
+
+const PREMIUM_ADDONS_ONBOARDING_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_premium_addons_onboarding', 0 );
+
+function wp_playground_silence_premium_addons_onboarding() {
+	delete_transient( 'pa_activation_redirect' );
+	set_transient( 'pa_sumr26_pointer_dismiss', true, YEAR_IN_SECONDS );
+	update_option( 'pa_review_notice', '1' );
+	update_option( 'content-toggle-not', '1' );
+}
+`;
+
+const PREMIUM_ADDONS_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_premium_addons_onboarding' ) ) {
+	wp_playground_silence_premium_addons_onboarding();
+}
+`;
+
+const CLICK_TO_CHAT_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_click_to_chat_prompts', 0 );
+
+function wp_playground_silence_click_to_chat_prompts() {
+	$notices = get_option( 'ht_ctc_notices', array() );
+	$notices = is_array( $notices ) ? $notices : array();
+	$notices['pro_banner'] = time();
+	if ( defined( 'HT_CTC_VERSION' ) ) {
+		$notices['version'] = HT_CTC_VERSION;
+		$notices['pro_banner_version'] = HT_CTC_VERSION;
+	}
+	update_option( 'ht_ctc_notices', $notices, false );
+}
+`;
+
+const BACKUPLY_PROMPTS_CODE = `<?php
+add_action( 'admin_init', 'wp_playground_silence_backuply_prompts', 0 );
+
+function wp_playground_silence_backuply_prompts() {
+	$dismissed_at = 0 - time();
+	foreach (
+		array(
+			'backuply_hide_trial',
+			'backuply_promo_time',
+			'backuply_offer_time',
+			'backuply_hide_holiday',
+		) as $option_name
+	) {
+		update_option( $option_name, $dismissed_at, false );
+	}
+}
+`;
+
+const EVENTS_CALENDAR_ONBOARDING_CODE = `<?php
+add_filter( 'tec_should_hide_upsell', '__return_true', PHP_INT_MAX );
+add_filter( 'tribe_get_option_tec_onboarding_wizard_visited_guided_setup', '__return_true' );
+add_action( 'admin_init', 'wp_playground_silence_events_calendar_onboarding', 0 );
+
+function wp_playground_silence_events_calendar_onboarding() {
+	if ( function_exists( 'tribe_update_option' ) ) {
+		tribe_update_option( 'tec_onboarding_wizard_visited_guided_setup', true );
+	}
+}
+`;
+
+const EVENTS_CALENDAR_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+if ( function_exists( 'wp_playground_silence_events_calendar_onboarding' ) ) {
+	wp_playground_silence_events_calendar_onboarding();
+}
+`;
+
+const TABLEPRESS_ONBOARDING_CODE = `<?php
+add_action(
+	'tb_tp_fs_loaded',
+	static function () {
+		tb_tp_fs()->add_filter( 'redirect_on_activation', '__return_false' );
+		tb_tp_fs()->skip_connection();
+	}
+);
+
+add_action( 'tablepress_loaded', 'wp_playground_silence_tablepress_prompts', PHP_INT_MAX );
+add_action( 'admin_init', 'wp_playground_silence_tablepress_pointers', 0 );
+add_action( 'user_register', 'wp_playground_silence_tablepress_pointers' );
+
+function wp_playground_silence_tablepress_prompts() {
+	if ( class_exists( 'TablePress' ) && isset( TablePress::$model_options ) ) {
+		TablePress::$model_options->update(
+			array(
+				'message_first_visit'   => false,
+				'message_plugin_update' => false,
+				'message_donation_nag'  => false,
+			)
+		);
+	}
+}
+
+function wp_playground_silence_tablepress_pointers( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( ! $user_id ) {
+		return;
+	}
+
+	$dismissed = array_filter(
+		explode( ',', (string) get_user_meta( $user_id, 'dismissed_wp_pointers', true ) )
+	);
+	$dismissed = array_unique(
+		array_merge(
+			$dismissed,
+			array(
+				'tp20_import_drag_drop_detect_format',
+				'tp20_edit_context_menu',
+				'tp33_edit_quick_navigation',
+			)
+		)
+	);
+	update_user_meta( $user_id, 'dismissed_wp_pointers', implode( ',', $dismissed ) );
+}
+`;
+
+const TABLEPRESS_ONBOARDING_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'fs_plugin_tablepress_activated' );
+if ( function_exists( 'tb_tp_fs' ) ) {
+	tb_tp_fs()->skip_connection();
+}
+`;
+
+const CUSTOM_CSS_JS_PROMPTS_CODE = `<?php
+add_filter( 'pre_option_ccj__dismiss_notice', '__return_true' );
+`;
+
+const ROYAL_ADDONS_PROMPTS_CODE = `<?php
+add_action(
+	'wpr_fs_loaded',
+	static function () {
+		wpr_fs()->add_filter( 'redirect_on_activation', '__return_false' );
+		wpr_fs()->skip_connection();
+	}
+);
+
+add_action( 'admin_init', 'wp_playground_silence_royal_addons_prompts', 0 );
+add_action( 'user_register', 'wp_playground_silence_royal_addons_prompts' );
+
+function wp_playground_silence_royal_addons_prompts( $user_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	if ( $user_id ) {
+		update_user_meta( $user_id, 'wpr_dismiss_backup_popup', '1' );
+	}
+}
+`;
+
+const ROYAL_ADDONS_PROMPT_STATE_CODE = `<?php
+require '/wordpress/wp-load.php';
+
+delete_transient( 'wpr_plugin_do_activation_redirect' );
+delete_transient( 'fs_plugin_wpr-addons_activated' );
+update_option( 'wpr_hide_banners', 'on' );
+update_option( 'wpr_rating_dismiss_notice', true );
+
+foreach ( get_users( array( 'role__in' => array( 'administrator' ), 'fields' => 'ID' ) ) as $user_id ) {
+	if ( function_exists( 'wp_playground_silence_royal_addons_prompts' ) ) {
+		wp_playground_silence_royal_addons_prompts( $user_id );
+	}
+}
+`;
+
+const ENABLE_MEDIA_REPLACE_PROMPTS_CODE = `<?php
+add_filter( 'emr/upsell', '__return_false' );
+
+add_action(
+	'shutdown',
+	static function () {
+		if ( ! class_exists( '\\EnableMediaReplace\\Notices\\NoticeController' ) ) {
+			return;
+		}
+		$controller = \\EnableMediaReplace\\Notices\\NoticeController::getInstance();
+		$notice = $controller->getNoticeByID( 'EMR001' );
+		if ( false === $notice || $notice->isDismissed() ) {
+			return;
+		}
+		$notice->dismiss();
+		$notice->setDismissedUntil( PHP_INT_MAX );
+		$controller->update();
+	},
+	PHP_INT_MAX
+);
 `;
 
 const WP_MAIL_SMTP_SETUP_CODE = `<?php
-add_filter( 'wp_mail_smtp_admin_setup_wizard_load_wizard', '__return_false' );
+add_filter( 'wp_mail_smtp_admin_setup_wizard_load_wizard', '__return_false', PHP_INT_MAX );
+add_action(
+	'admin_init',
+	static function () {
+		delete_transient( 'wp_mail_smtp_activation_redirect' );
+	},
+	0
+);
+`;
+
+const RANK_MATH_PROMPTS_CODE = `<?php
+add_action(
+	'admin_init',
+	static function () {
+		delete_transient( '_rank_math_activation_redirect' );
+	},
+	0
+);
 `;
 
 const RANK_MATH_SETUP_CODE = `<?php
@@ -823,7 +2316,6 @@ require '/wordpress/wp-load.php';
 delete_transient( '_rank_math_activation_redirect' );
 update_option( 'rank_math_registration_skip', true );
 update_option( 'rank_math_wizard_completed', true );
-update_option( 'rank_math_is_configured', true );
 `;
 
 const REDIRECTION_SETUP_CODE = `<?php
@@ -906,18 +2398,42 @@ function adminer_object() {
 require '/wordpress/adminer/adminer.php';
 `;
 
+const V27_LANDING_STATICS = [
+	{ value: '/wp-admin/edit.php?post_type=product', label: 'Products' },
+	{ value: '/wp-admin/', label: 'Dashboard' },
+	{ value: '/', label: 'Homepage' },
+	{ value: '/wp-admin/plugins.php', label: 'Plugins' },
+];
+
+/* Site language: every locale WordPress ships, lazily fetched from the CORS-open
+   translations API; this curated list covers the offline case. */
+const V27_FALLBACK_LOCALES = [
+	{ code: 'en_US', native: 'English (US)', english: 'English (US)' },
+	{ code: 'en_GB', native: 'English (UK)', english: 'English (UK)' },
+	{ code: 'de_DE', native: 'Deutsch', english: 'German' },
+	{ code: 'es_ES', native: 'Español', english: 'Spanish (Spain)' },
+	{ code: 'fr_FR', native: 'Français', english: 'French (France)' },
+	{ code: 'it_IT', native: 'Italiano', english: 'Italian' },
+	{ code: 'ja', native: '日本語', english: 'Japanese' },
+	{ code: 'nl_NL', native: 'Nederlands', english: 'Dutch' },
+	{ code: 'pl_PL', native: 'Polski', english: 'Polish' },
+	{ code: 'pt_BR', native: 'Português do Brasil', english: 'Portuguese (Brazil)' },
+];
+let v27Locales = V27_FALLBACK_LOCALES;
+let v27LocalesPromise = null;
+let v27LangActive = -1;
+let v27LangMatches = [];
+
+/* Fonts: Google Fonts picked from a local index (the public list has no keyless API),
+   or uploaded files that ship with the export. */
+const GF_FAMILIES = ['Roboto', 'Open Sans', 'Noto Sans', 'Noto Serif', 'Lato', 'Montserrat', 'Poppins', 'Inter', 'Oswald', 'Raleway', 'Nunito', 'Nunito Sans', 'Ubuntu', 'Merriweather', 'Playfair Display', 'PT Sans', 'PT Serif', 'Rubik', 'Work Sans', 'Fira Sans', 'Fira Code', 'Mulish', 'Barlow', 'Barlow Condensed', 'Kanit', 'Heebo', 'DM Sans', 'DM Serif Display', 'Quicksand', 'Manrope', 'Karla', 'Josefin Sans', 'Josefin Slab', 'Space Grotesk', 'Space Mono', 'JetBrains Mono', 'Source Code Pro', 'Source Sans 3', 'Source Serif 4', 'IBM Plex Sans', 'IBM Plex Serif', 'IBM Plex Mono', 'Lora', 'Bitter', 'Crimson Text', 'Libre Baskerville', 'Libre Franklin', 'Libre Caslon Text', 'EB Garamond', 'Cormorant', 'Cormorant Garamond', 'Zilla Slab', 'Archivo', 'Archivo Black', 'Outfit', 'Sora', 'Urbanist', 'Figtree', 'Plus Jakarta Sans', 'Lexend', 'Be Vietnam Pro', 'Epilogue', 'Fraunces', 'Newsreader', 'Literata', 'Spectral', 'Roboto Slab', 'Roboto Mono', 'Roboto Condensed', 'Cabin', 'Dosis', 'Inconsolata', 'Abel', 'Anton', 'Bebas Neue', 'Exo 2', 'Teko', 'Titillium Web', 'Varela Round', 'Vollkorn', 'Alegreya', 'Alegreya Sans', 'Arvo', 'Asap', 'Assistant', 'Catamaran', 'Chivo', 'Comfortaa', 'Domine', 'Eczar', 'Encode Sans', 'Gelasio', 'Hind', 'Jost', 'Maven Pro', 'Overpass', 'Oxygen', 'Prompt', 'Public Sans', 'Questrial', 'Red Hat Display', 'Red Hat Text', 'Saira', 'Sarabun', 'Signika', 'Tajawal', 'Yanone Kaffeesatz', 'Abril Fatface', 'Alfa Slab One', 'Amatic SC', 'Bangers', 'Caveat', 'Cinzel', 'Comic Neue', 'Courgette', 'Dancing Script', 'Fredoka', 'Great Vibes', 'Indie Flower', 'Kalam', 'Lobster', 'Pacifico', 'Permanent Marker', 'Righteous', 'Sacramento', 'Satisfy', 'Shadows Into Light', 'Special Elite', 'VT323', 'Press Start 2P', 'Orbitron', 'Audiowide', 'Bungee', 'Monoton', 'Russo One', 'Staatliches', 'Cardo', 'Faustina', 'Frank Ruhl Libre', 'Kumbh Sans', 'League Spartan', 'Mukta', 'Old Standard TT', 'Petrona', 'Piazzolla', 'Quattrocento', 'Rokkitt', 'Syne', 'Unbounded', 'Albert Sans', 'Onest', 'Geologica', 'Instrument Sans', 'Instrument Serif', 'Bricolage Grotesque', 'Gabarito', 'Schibsted Grotesk', 'Hanken Grotesk', 'Familjen Grotesk', 'Readex Pro', 'Wix Madefor Text', 'Golos Text', 'Martian Mono', 'Azeret Mono', 'Spline Sans', 'Commissioner', 'Crete Round', 'Rajdhani', 'Advent Pro', 'Sen', 'Recursive', 'Radio Canada', 'Atkinson Hyperlegible', 'Gantari', 'Mona Sans', 'Hubot Sans'];
+const V27_FONT_SUGGESTIONS = ['Inter', 'Playfair Display', 'Lora', 'Space Grotesk', 'DM Sans', 'EB Garamond', 'JetBrains Mono', 'Fraunces'];
+const v27FontCssLoaded = new Set();
+const v27FontFacesLoaded = new Set();
+
+/* The "Simplify the Dashboard" recipe now lives as the stage-6 checkbox; its steps
+   compile from DASHBOARD_CODE when state.simplifyDashboard is on. */
 const FINISH_RECIPES = [
-	{
-		key: 'dashboard',
-		name: 'Simplify the Dashboard',
-		file: 'remove-dashboard-widgets.php',
-		note: 'Remove the welcome, glance, events, draft, and activity panels.',
-		source: 'Alex Kirk · removeDashboardWidgets',
-		steps: [
-			{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
-			{ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/remove-dashboard-widgets.php', data: DASHBOARD_CODE },
-		],
-	},
 	{
 		key: 'notice',
 		name: 'Show an admin notice',
@@ -1060,72 +2576,90 @@ const PLUGIN_CATALOG = [
 	}
 ];
 
-// Only include first-run flows with a supported skip, safe local mode, or setup we can complete.
-// Never fabricate credentials to make required account or license setup look finished.
-const PLUGIN_SETUP_CONTROLS = {
+// This is the prompt-bearing subset of the 100 most popular WordPress.org plugins reviewed on
+// July 21, 2026. Only include automatic onboarding, tours, welcome screens, and promotional
+// prompts we can suppress safely. Keep operational warnings and user-opened feature dialogs, and
+// never fabricate a connected account, license, or functional configuration state.
+const PLUGIN_ONBOARDING_RECIPES = {
 	woocommerce: [{
-		key: 'skipOnboarding',
-		label: 'Skip setup wizard',
-		note: 'Mark onboarding complete and suppress the first-run redirect.',
-		status: 'setup wizard skipped',
-		defaultValue: true,
+		pluginName: 'WooCommerce',
+		note: 'Hide the setup wizard, task lists, Launch Your Store, product tours, and analytics tours.',
 		beforeInstallSteps: [{
 			step: 'writeFile',
-			path: '/wordpress/wp-content/mu-plugins/skip-woocommerce-onboarding.php',
+			path: '/wordpress/wp-content/mu-plugins/disable-woocommerce-onboarding-prompts.php',
 			data: WOOCOMMERCE_ONBOARDING_CODE,
 		}],
-		afterInstallSteps: [{
-			step: 'setSiteOptions',
-			options: { woocommerce_onboarding_profile: { completed: true } },
-		}],
+		afterInstallSteps: [{ step: 'runPHP', code: WOOCOMMERCE_PROMPT_STATE_CODE }],
 	}],
 	'wordpress-seo': [{
-		key: 'hideFirstRunPrompts',
-		label: 'Hide first-run prompts',
-		note: 'Suppress the install redirect and configuration notice without marking SEO configured.',
-		status: 'first-run prompts hidden',
-		defaultValue: true,
+		pluginName: 'Yoast SEO',
+		note: 'Hide welcome screens, introductions, guided tips, task-list opt-ins, and promo cards.',
 		beforeInstallSteps: [{
 			step: 'writeFile',
-			path: '/wordpress/wp-content/mu-plugins/hide-yoast-first-run-prompts.php',
-			data: YOAST_FIRST_RUN_CODE,
+			path: '/wordpress/wp-content/mu-plugins/disable-yoast-onboarding-prompts.php',
+			data: YOAST_PROMPTS_CODE,
 		}],
-		afterInstallSteps: [{ step: 'runPHP', code: YOAST_FIRST_RUN_STATE_CODE }],
+		afterInstallSteps: [{ step: 'runPHP', code: YOAST_PROMPT_STATE_CODE }],
+	}],
+	'contact-form-7': [{
+		pluginName: 'Contact Form 7',
+		note: 'Dismiss Contact Form 7’s versioned welcome panel for current and future users.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-contact-form-7-prompts.php',
+			data: CONTACT_FORM_7_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: CONTACT_FORM_7_PROMPT_STATE_CODE }],
+	}],
+	akismet: [{
+		pluginName: 'Akismet Anti-spam',
+		note: 'Skip the activation redirect without hiding the real missing-API-key status notice.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-akismet-setup-redirect.php',
+			data: AKISMET_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: AKISMET_PROMPT_STATE_CODE }],
+	}],
+	'google-site-kit': [{
+		pluginName: 'Site Kit by Google',
+		note: 'Hide pointers, tours, and welcome modals without claiming a Google connection.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-site-kit-prompts.php',
+			data: SITE_KIT_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: SITE_KIT_PROMPT_STATE_CODE }],
 	}],
 	elementor: [{
-		key: 'skipOnboarding',
-		label: 'Skip onboarding',
-		note: 'Mark onboarding complete and dismiss the editor starter panel.',
-		status: 'onboarding skipped',
-		defaultValue: true,
+		pluginName: 'Elementor Website Builder',
+		note: 'Hide onboarding, Launchpad, promotional introductions, welcome popovers, and product tours.',
 		beforeInstallSteps: [{
-			step: 'setSiteOptions',
-			options: {
-				elementor_onboarded: '2.0.0',
-				elementor_onboarding_progress: {
-					exit_type: 'user_exit',
-					starter_dismissed: true,
-				},
-			},
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-elementor-onboarding-prompts.php',
+			data: ELEMENTOR_PROMPTS_CODE,
 		}],
+		afterInstallSteps: [{ step: 'runPHP', code: ELEMENTOR_PROMPT_STATE_CODE }],
 	}],
 	'wpforms-lite': [{
-		key: 'disableSetupWizard',
-		label: 'Disable setup wizard',
-		note: 'Use WPForms’ built-in switch to disable its setup wizard and welcome screen.',
-		status: 'setup wizard disabled',
-		defaultValue: true,
-		beforeInstallSteps: [{
-			step: 'setSiteOptions',
-			options: { wpforms_setup_wizard_disabled: true },
-		}],
+		pluginName: 'WPForms',
+		note: 'Disable the setup wizard, welcome screen, activation redirect, and WPForms Challenge.',
+		beforeInstallSteps: [
+			{
+				step: 'setSiteOptions',
+				options: { wpforms_setup_wizard_disabled: true },
+			},
+			{
+				step: 'defineWpConfigConsts',
+				consts: { WPFORMS_SKIP_CHALLENGE: true },
+				method: 'rewrite-wp-config',
+			},
+		],
+		afterInstallSteps: [{ step: 'runPHP', code: WP_FORMS_PROMPT_STATE_CODE }],
 	}],
 	'wp-mail-smtp': [{
-		key: 'disableSetupWizard',
-		label: 'Disable setup wizard',
-		note: 'Prevent the automatic launch and disable the wizard route.',
-		status: 'setup wizard disabled',
-		defaultValue: true,
+		pluginName: 'WP Mail SMTP by WPForms',
+		note: 'Prevent automatic launch and disable the wizard route without inventing mailer credentials.',
 		beforeInstallSteps: [
 			{
 				step: 'setSiteOptions',
@@ -1137,21 +2671,48 @@ const PLUGIN_SETUP_CONTROLS = {
 				data: WP_MAIL_SMTP_SETUP_CODE,
 			},
 		],
+		afterInstallSteps: [{ step: 'runPHP', code: WP_MAIL_SMTP_PROMPT_STATE_CODE }],
+	}],
+	wordfence: [{
+		pluginName: 'Wordfence Security',
+		note: 'Hide setup overlays, the missing-license banner, and tours; Wordfence remains unlicensed.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-wordfence-onboarding-prompts.php',
+			data: WORDFENCE_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: WORDFENCE_PROMPT_STATE_CODE }],
 	}],
 	'seo-by-rank-math': [{
-		key: 'skipSetupWizard',
-		label: 'Skip setup wizard',
-		note: 'Dismiss registration and mark the setup wizard complete.',
-		status: 'setup wizard skipped',
-		defaultValue: true,
+		pluginName: 'Rank Math SEO',
+		note: 'Use Rank Math’s account-skip and wizard-dismissal states without claiming configuration.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-rank-math-setup-redirect.php',
+			data: RANK_MATH_PROMPTS_CODE,
+		}],
 		afterInstallSteps: [{ step: 'runPHP', code: RANK_MATH_SETUP_CODE }],
 	}],
+	'duplicate-post': [{
+		pluginName: 'Yoast Duplicate Post',
+		note: 'Dismiss Yoast Duplicate Post’s first-install and update welcome notice.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-duplicate-post-prompts.php',
+			data: DUPLICATE_POST_PROMPTS_CODE,
+		}],
+	}],
+	'duplicate-page': [{
+		pluginName: 'Duplicate Page',
+		note: 'Dismiss the delayed promotional help panel on Duplicate Page’s settings screen.',
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { mk_fm_close_fm_help_c: 'done' },
+		}],
+	}],
 	updraftplus: [{
-		key: 'skipTour',
-		label: 'Skip guided tour',
+		pluginName: 'UpdraftPlus',
 		note: 'Disable UpdraftPlus’ first-run guided tour.',
-		status: 'guided tour skipped',
-		defaultValue: true,
 		beforeInstallSteps: [{
 			step: 'defineWpConfigConsts',
 			consts: { UPDRAFTPLUS_ENABLE_TOUR: false },
@@ -1159,56 +2720,517 @@ const PLUGIN_SETUP_CONTROLS = {
 		}],
 	}],
 	'really-simple-ssl': [{
-		key: 'dismissOnboarding',
-		label: 'Dismiss onboarding',
+		pluginName: 'Really Simple Security',
 		note: 'Hide onboarding without changing the site’s SSL configuration.',
-		status: 'onboarding dismissed',
-		defaultValue: true,
 		beforeInstallSteps: [{
 			step: 'setSiteOptions',
 			options: { rsssl_onboarding_dismissed: true },
 		}],
 	}],
 	jetpack: [{
-		key: 'offlineMode',
-		label: 'Use offline mode',
-		note: 'Skip the WordPress.com connection; cloud features will be unavailable.',
-		status: 'offline mode',
-		defaultValue: true,
+		pluginName: 'Jetpack',
+		note: 'Hide activation and My Jetpack welcome prompts without forcing offline mode or faking a connection.',
 		beforeInstallSteps: [{
-			step: 'defineWpConfigConsts',
-			consts: { JETPACK_DEV_DEBUG: true },
-			method: 'rewrite-wp-config',
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-jetpack-onboarding-prompts.php',
+			data: JETPACK_PROMPTS_CODE,
 		}],
+		afterInstallSteps: [{ step: 'runPHP', code: JETPACK_PROMPT_STATE_CODE }],
 	}],
 	'all-in-one-seo-pack': [{
-		key: 'skipSetupWizard',
-		label: 'Skip setup wizard',
-		note: 'Prevent the setup wizard from opening automatically after activation.',
-		status: 'setup wizard skipped',
-		defaultValue: true,
-		beforeInstallSteps: [{
-			step: 'setSiteOptions',
-			options: { aioseo_activation_redirect: true },
-		}],
+		pluginName: 'All in One SEO',
+		note: 'Prevent the setup redirect and hide dashboard setup and checklist prompts.',
+		beforeInstallSteps: [
+			{
+				step: 'setSiteOptions',
+				options: { aioseo_activation_redirect: true },
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/disable-aioseo-onboarding-prompts.php',
+				data: AIOSEO_PROMPTS_CODE,
+			},
+		],
 	}],
 	redirection: [{
-		key: 'automaticSetup',
-		label: 'Set up automatically',
+		pluginName: 'Redirection',
 		note: 'Create the required database tables and groups instead of opening the setup wizard.',
-		status: 'automatic setup',
-		defaultValue: true,
 		afterInstallSteps: [{ step: 'runPHP', code: REDIRECTION_SETUP_CODE }],
 	}],
 	'google-analytics-for-wordpress': [{
-		key: 'skipSetupWizard',
-		label: 'Skip setup wizard',
-		note: 'Prevent MonsterInsights’ setup wizard from opening automatically.',
-		status: 'setup wizard skipped',
-		defaultValue: true,
+		pluginName: 'MonsterInsights',
+		note: 'Prevent the automatic setup redirect without claiming a Google Analytics connection.',
+		beforeInstallSteps: [
+			{
+				step: 'setSiteOptions',
+				options: { monsterinsights_skip_wizard: true },
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/disable-monsterinsights-onboarding-prompts.php',
+				data: MONSTERINSIGHTS_PROMPTS_CODE,
+			},
+		],
+		afterInstallSteps: [{ step: 'runPHP', code: MONSTERINSIGHTS_PROMPT_STATE_CODE }],
+	}],
+	'header-footer-elementor': [{
+		pluginName: 'Ultimate Addons for Elementor',
+		note: 'Clear Ultimate Addons for Elementor’s activation onboarding redirect.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-hfe-onboarding-prompts.php',
+			data: HFE_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: HFE_PROMPT_STATE_CODE }],
+	}],
+	'essential-addons-for-elementor-lite': [{
+		pluginName: 'Essential Addons for Elementor',
+		note: 'Use Essential Addons’ own completed state to bypass its setup wizard.',
 		beforeInstallSteps: [{
 			step: 'setSiteOptions',
-			options: { monsterinsights_skip_wizard: true },
+			options: { eael_setup_wizard: 'complete' },
+		}],
+	}],
+	'astra-sites': [{
+		pluginName: 'Starter Templates',
+		note: 'Hide activation, welcome, and Finish Setup prompts without claiming a template import.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-starter-templates-prompts.php',
+			data: ASTRA_SITES_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: ASTRA_SITES_PROMPT_STATE_CODE }],
+	}],
+	'elementskit-lite': [{
+		pluginName: 'ElementsKit Elementor Addons',
+		note: 'Use ElementsKit’s onboarded state to bypass its first-admin-visit wizard.',
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { elements_kit_onboard_status: 'onboarded' },
+		}],
+	}],
+	'limit-login-attempts-reloaded': [{
+		pluginName: 'Limit Login Attempts Security',
+		note: 'Clear the dashboard redirect and dismiss the onboarding modal without changing security settings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-llar-onboarding-prompts.php',
+			data: LLAR_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: LLAR_PROMPT_STATE_CODE }],
+	}],
+	'cookie-law-info': [{
+		pluginName: 'CookieYes',
+		note: 'Prevent the activation redirect and hide CookieYes’ setup and connection card.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-cookieyes-onboarding-prompts.php',
+			data: COOKIEYES_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: COOKIEYES_ONBOARDING_STATE_CODE }],
+	}],
+	'disable-comments': [{
+		pluginName: 'Disable Comments',
+		note: 'Hide setup and tracking opt-in notices without changing comment settings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-disable-comments-prompts.php',
+			data: DISABLE_COMMENTS_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: DISABLE_COMMENTS_PROMPT_STATE_CODE }],
+	}],
+	'code-snippets': [{
+		pluginName: 'Code Snippets',
+		note: 'Use Code Snippets’ own filter to hide welcome campaigns and survey banners.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-code-snippets-prompts.php',
+			data: CODE_SNIPPETS_PROMPTS_CODE,
+		}],
+	}],
+	'wp-super-cache': [{
+		pluginName: 'WP Super Cache',
+		note: 'Dismiss the automatic Jetpack Boost migration prompt for every admin.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-wp-super-cache-prompts.php',
+			data: WP_SUPER_CACHE_PROMPTS_CODE,
+		}],
+	}],
+	loginizer: [{
+		pluginName: 'Loginizer',
+		note: 'Dismiss the newsletter request and scheduled cross-product promotions.',
+		afterInstallSteps: [{ step: 'runPHP', code: LOGINIZER_PROMPTS_STATE_CODE }],
+	}],
+	worker: [{
+		pluginName: 'ManageWP Worker',
+		note: 'Use ManageWP’s own filter to hide its unconnected-site setup notice.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-managewp-prompts.php',
+			data: MANAGEWP_PROMPTS_CODE,
+		}],
+	}],
+	duplicator: [{
+		pluginName: 'Duplicator',
+		note: 'Use Duplicator’s own filter to suppress its welcome redirect.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-duplicator-onboarding.php',
+			data: DUPLICATOR_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: DUPLICATOR_ONBOARDING_STATE_CODE }],
+	}],
+	'wp-file-manager': [{
+		pluginName: 'File Manager',
+		note: 'Dismiss File Manager’s email modal and first-use help panel for every admin.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-file-manager-prompts.php',
+			data: FILE_MANAGER_PROMPTS_CODE,
+		}],
+	}],
+	'complianz-gdpr': [{
+		pluginName: 'Complianz',
+		note: 'Dismiss the welcome redirect and Website Scan signup flow without connecting an account.',
+		afterInstallSteps: [{ step: 'runPHP', code: COMPLIANZ_ONBOARDING_STATE_CODE }],
+	}],
+	'hostinger-reach': [{
+		pluginName: 'Hostinger Reach',
+		note: 'Suppress the unconnected welcome-app redirect without fabricating an account.',
+		afterInstallSteps: [{ step: 'runPHP', code: HOSTINGER_REACH_ONBOARDING_STATE_CODE }],
+	}],
+	'sg-ai-studio': [{
+		pluginName: 'AI Agent by SiteGround',
+		note: 'Hide the full-screen AI chat welcome splash.',
+		afterInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { sg_ai_studio_onboarding_shown: true },
+		}],
+	}],
+	'custom-post-type-ui': [{
+		pluginName: 'Custom Post Type UI',
+		note: 'Suppress the automatic About and welcome-page redirect.',
+		afterInstallSteps: [{ step: 'runPHP', code: CPTUI_ONBOARDING_STATE_CODE }],
+	}],
+	'wp-optimize': [{
+		pluginName: 'WP-Optimize',
+		note: 'Use WP-Optimize’s skip state to prevent its full modal wizard.',
+		afterInstallSteps: [{ step: 'runPHP', code: WP_OPTIMIZE_ONBOARDING_STATE_CODE }],
+	}],
+	'ultimate-addons-for-gutenberg': [{
+		pluginName: 'Spectra Legacy',
+		note: 'Use Spectra’s own filter to suppress its activation redirect and onboarding page.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-spectra-onboarding.php',
+			data: SPECTRA_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: SPECTRA_ONBOARDING_STATE_CODE }],
+	}],
+	optinmonster: [{
+		pluginName: 'OptinMonster',
+		note: 'Use OptinMonster’s opt-out to suppress its unconnected setup wizard.',
+		afterInstallSteps: [{ step: 'runPHP', code: OPTINMONSTER_ONBOARDING_STATE_CODE }],
+	}],
+	'google-sitemap-generator': [{
+		pluginName: 'XML Sitemap Generator for Google',
+		note: 'Choose No for the first-visit usage-consent modal.',
+		afterInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { sm_user_consent: 'no' },
+		}],
+	}],
+	maintenance: [{
+		pluginName: 'Maintenance',
+		note: 'Dismiss the automatic welcome pointer on WordPress admin pages.',
+		afterInstallSteps: [{ step: 'runPHP', code: MAINTENANCE_PROMPTS_STATE_CODE }],
+	}],
+	'image-optimization': [{
+		pluginName: 'Image Optimizer',
+		note: 'Hide menu pointers and the recurring account-connect modal without claiming a connection.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-image-optimizer-prompts.php',
+			data: IMAGE_OPTIMIZATION_PROMPTS_CODE,
+		}],
+	}],
+	'instagram-feed': [{
+		pluginName: 'Smash Balloon Social Photo Feed',
+		note: 'Dismiss the setup redirect plus builder and customizer tours for every admin.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-instagram-feed-onboarding.php',
+			data: INSTAGRAM_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: INSTAGRAM_ONBOARDING_STATE_CODE }],
+	}],
+	'ewww-image-optimizer': [{
+		pluginName: 'EWWW Image Optimizer',
+		note: 'Skip the first-settings-visit intro wizard in local and network mode.',
+		afterInstallSteps: [{ step: 'runPHP', code: EWWW_ONBOARDING_STATE_CODE }],
+	}],
+	'all-in-one-wp-security-and-firewall': [{
+		pluginName: 'All-In-One Security (AIOS)',
+		note: 'Dismiss the dashboard redirect and full modal onboarding wizard.',
+		afterInstallSteps: [{ step: 'runPHP', code: AIOS_ONBOARDING_STATE_CODE }],
+	}],
+	'wp-smushit': [{
+		pluginName: 'Smush',
+		note: 'Skip Smush’s activation redirect, quick setup, and historical upgrade modal.',
+		beforeInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { 'skip-smush-setup': true },
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: SMUSH_ONBOARDING_STATE_CODE }],
+	}],
+	imagify: [{
+		pluginName: 'Imagify Image Optimization',
+		note: 'Dismiss the unconnected welcome and setup panel for every admin.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-imagify-prompts.php',
+			data: IMAGIFY_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: IMAGIFY_PROMPTS_STATE_CODE }],
+	}],
+	'wp-reviews-plugin-for-google': [{
+		pluginName: 'Widgets for Google Reviews',
+		note: 'Suppress the setup redirect, connection reminders, review request, and cross-product promo.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-trustindex-onboarding-prompts.php',
+			data: TRUSTINDEX_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: TRUSTINDEX_ONBOARDING_STATE_CODE }],
+	}],
+	'wpvivid-backuprestore': [{
+		pluginName: 'WPvivid',
+		note: 'Suppress WPvivid’s activation redirect and recurring post-restore review prompt.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-wpvivid-prompts.php',
+			data: WPVIVID_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: WPVIVID_ONBOARDING_STATE_CODE }],
+	}],
+	'w3-total-cache': [{
+		pluginName: 'W3 Total Cache',
+		note: 'Use W3 Total Cache’s completion state to skip the guided setup.',
+		afterInstallSteps: [{ step: 'runPHP', code: W3TC_ONBOARDING_STATE_CODE }],
+	}],
+	gtranslate: [{
+		pluginName: 'Translate WordPress with GTranslate',
+		note: 'Dismiss the delayed review request and upgrade tips while preserving operational warnings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-gtranslate-prompts.php',
+			data: GTRANSLATE_PROMPTS_CODE,
+		}],
+	}],
+	'cookie-notice': [{
+		pluginName: 'Compliance',
+		note: 'Dismiss the activation redirect, welcome screen, setup wizard, and delayed review prompt.',
+		afterInstallSteps: [{ step: 'runPHP', code: COOKIE_NOTICE_ONBOARDING_STATE_CODE }],
+	}],
+	'woocommerce-payments': [{
+		pluginName: 'WooPayments',
+		note: 'Hide onboarding, welcome and success modals, tours, and review prompts without faking a connection.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-woo-payments-prompts.php',
+			data: WOO_PAYMENTS_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: WOO_PAYMENTS_PROMPT_STATE_CODE }],
+	}],
+	'google-listings-and-ads': [{
+		pluginName: 'Google for WooCommerce',
+		note: 'Suppress the setup redirect, guided tours, and delayed review prompts without faking a connection.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-google-listings-prompts.php',
+			data: GOOGLE_LISTINGS_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: GOOGLE_LISTINGS_ONBOARDING_STATE_CODE }],
+	}],
+	polylang: [{
+		pluginName: 'Polylang',
+		note: 'Dismiss the setup wizard, reminder, WooCommerce cross-sell, and review request.',
+		afterInstallSteps: [{ step: 'runPHP', code: POLYLANG_ONBOARDING_STATE_CODE }],
+	}],
+	autoptimize: [{
+		pluginName: 'Autoptimize',
+		note: 'Use Autoptimize’s own filter to hide its automatic image-optimization promotion.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-autoptimize-prompts.php',
+			data: AUTOPTIMIZE_PROMPTS_CODE,
+		}],
+	}],
+	'smart-slider-3': [{
+		pluginName: 'Smart Slider 3',
+		note: 'Skip Getting Started and dismiss upgrade, newsletter, sample, and rating prompts.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-smart-slider-onboarding.php',
+			data: SMART_SLIDER_ONBOARDING_CODE,
+		}],
+	}],
+	'woocommerce-paypal-payments': [{
+		pluginName: 'WooCommerce PayPal Payments',
+		note: 'Dismiss the conditional Agentic beta banner without changing PayPal connection state.',
+		afterInstallSteps: [{
+			step: 'setSiteOptions',
+			options: { 'woocommerce-ppcp-agentic-banner-dismissed': true },
+		}],
+	}],
+	'woocommerce-gateway-stripe': [{
+		pluginName: 'WooCommerce Stripe Payment Gateway',
+		note: 'Suppress the settings redirect and automatic product, feature, tax, and checkout banners.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-stripe-onboarding-prompts.php',
+			data: STRIPE_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: STRIPE_PROMPT_STATE_CODE }],
+	}],
+	fluentform: [{
+		pluginName: 'Fluent Forms',
+		note: 'Dismiss Fluent Forms’ automatic post-creation review request.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-fluent-forms-prompts.php',
+			data: FLUENT_FORMS_PROMPTS_CODE,
+		}],
+	}],
+	'better-wp-security': [{
+		pluginName: 'Kadence Security',
+		note: 'Dismiss the API-key promotion while keeping guided setup and real security warnings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-solid-security-prompts.php',
+			data: SOLID_SECURITY_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: SOLID_SECURITY_PROMPT_STATE_CODE }],
+	}],
+	'mainwp-child': [{
+		pluginName: 'MainWP Child',
+		note: 'Hide the repeated activation panel without claiming a MainWP Dashboard connection.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-mainwp-child-prompts.php',
+			data: MAINWP_CHILD_PROMPTS_CODE,
+		}],
+	}],
+	'creame-whatsapp-me': [{
+		pluginName: 'Joinchat',
+		note: 'Use Joinchat’s own filter to bypass its onboarding screen.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-joinchat-onboarding.php',
+			data: JOINCHAT_ONBOARDING_CODE,
+		}],
+	}],
+	'popup-maker': [{
+		pluginName: 'Popup Maker',
+		note: 'Hide welcome, tips, tours, reviews, upsells, known announcements, and telemetry opt-in; keep the mixed security feed.',
+		beforeInstallSteps: [
+			{
+				step: 'setSiteOptions',
+				options: { pum_seen_welcome: 1 },
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/disable-popup-maker-onboarding.php',
+				data: POPUP_MAKER_ONBOARDING_CODE,
+			},
+		],
+		afterInstallSteps: [{ step: 'runPHP', code: POPUP_MAKER_ONBOARDING_STATE_CODE }],
+	}],
+	'coming-soon': [{
+		pluginName: 'SeedProd',
+		note: 'Dismiss SeedProd’s welcome screen, setup wizard, and remote notification bar.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-seedprod-prompts.php',
+			data: SEEDPROD_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: SEEDPROD_ONBOARDING_STATE_CODE }],
+	}],
+	'premium-addons-for-elementor': [{
+		pluginName: 'Premium Addons for Elementor',
+		note: 'Dismiss setup, promotional pointers, feature notices, and the review request.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-premium-addons-onboarding.php',
+			data: PREMIUM_ADDONS_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: PREMIUM_ADDONS_ONBOARDING_STATE_CODE }],
+	}],
+	'click-to-chat-for-whatsapp': [{
+		pluginName: 'Click to Chat',
+		note: 'Dismiss the delayed PRO banner while preserving missing-number setup warnings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-click-to-chat-prompts.php',
+			data: CLICK_TO_CHAT_PROMPTS_CODE,
+		}],
+	}],
+	backuply: [{
+		pluginName: 'Backuply',
+		note: 'Dismiss trial, sale, offer, and holiday promotions while preserving backup warnings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-backuply-prompts.php',
+			data: BACKUPLY_PROMPTS_CODE,
+		}],
+	}],
+	'the-events-calendar': [{
+		pluginName: 'The Events Calendar',
+		note: 'Suppress the Guided Setup redirect and Event Tickets promotional prompt.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-events-calendar-onboarding.php',
+			data: EVENTS_CALENDAR_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: EVENTS_CALENDAR_ONBOARDING_STATE_CODE }],
+	}],
+	tablepress: [{
+		pluginName: 'TablePress',
+		note: 'Skip account connection, welcome panels, delayed nags, and editor pointer tours.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-tablepress-onboarding.php',
+			data: TABLEPRESS_ONBOARDING_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: TABLEPRESS_ONBOARDING_STATE_CODE }],
+	}],
+	'custom-css-js': [{
+		pluginName: 'Simple Custom CSS and JS',
+		note: 'Hide the automatic first- and second-day sale prompt, including after updates.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-custom-css-js-prompts.php',
+			data: CUSTOM_CSS_JS_PROMPTS_CODE,
+		}],
+	}],
+	'royal-elementor-addons': [{
+		pluginName: 'Royal Addons for Elementor',
+		note: 'Skip connection, redirects, banners, rating requests, and the backup popup.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-royal-addons-prompts.php',
+			data: ROYAL_ADDONS_PROMPTS_CODE,
+		}],
+		afterInstallSteps: [{ step: 'runPHP', code: ROYAL_ADDONS_PROMPT_STATE_CODE }],
+	}],
+	'enable-media-replace': [{
+		pluginName: 'Enable Media Replace',
+		note: 'Hide built-in upsells and the known beta notice while preserving operational warnings.',
+		beforeInstallSteps: [{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-enable-media-replace-prompts.php',
+			data: ENABLE_MEDIA_REPLACE_PROMPTS_CODE,
 		}],
 	}],
 };
@@ -1241,9 +3263,9 @@ let state = {
 	login: 'admin',
 	landing: '/wp-admin/edit.php?post_type=product',
 	networking: true,
-	wordpressAdmin: {
-		hideEditorGuides: true,
-	},
+	disablePluginOnboardingModals: true,
+	simplifyDashboard: false,
+	fonts: [],
 	scripts: []
 };
 
@@ -1381,7 +3403,6 @@ function renderText() {
 	setText('network-state', state.networking ? 'with internet access' : 'without internet access');
 	setText('ready-count', '6');
 	setText('estimate', 'about 48 seconds');
-	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php);
 	setText('summary-theme', 'Switch the active theme or install another');
 	setText('summary-plugins', state.plugins.length + ' plugins install · '
 		+ state.plugins.filter((plugin) => plugin.active).length + ' activate');
@@ -1394,18 +3415,19 @@ function renderText() {
 
 function renderPlugins() {
 	document.querySelectorAll('[data-plugins]').forEach((container) => {
-		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => `
-			<div class="plugin-item">
-				<img class="plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">
-				<span class="plugin-copy"><strong>${escapeHtml(plugin.name)}</strong>
-					<span>${escapeHtml(plugin.note || plugin.slug)}</span></span>
-				<span class="plugin-state">${escapeHtml(plugin.version)}${plugin.source ? ' · ' + escapeHtml(plugin.source) : ''}</span>
-				<label class="switch"><input type="checkbox" data-plugin-active="${index}"
-					${plugin.active ? 'checked' : ''}><span>active</span></label>
-				<button class="icon-btn" type="button" data-remove-plugin="${index}"
-					aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
-			</div>
-		`).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => {
+			const summary = pluginOverrideSummary(plugin);
+			return `
+				<div class="plugin-item">
+					<img class="plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">
+					<span class="plugin-copy"><strong>${escapeHtml(plugin.name)}</strong>
+						<span>${escapeHtml(plugin.note || plugin.slug)}</span></span>
+					<span class="plugin-state">${escapeHtml(summary)}</span>
+					<button class="icon-btn" type="button" data-remove-plugin="${index}"
+						aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
+				</div>
+			`;
+		}).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
 	});
 
 	document.querySelectorAll('[data-plugin-names]').forEach((container) => {
@@ -1414,6 +3436,15 @@ function renderPlugins() {
 				<strong>${escapeHtml(plugin.name)}</strong></span>
 		`).join('');
 	});
+}
+
+function pluginOverrideSummary(plugin) {
+	const summary = [];
+	if (plugin.version && !['latest', 'embedded'].includes(plugin.version)) {
+		summary.push('v ' + plugin.version);
+	}
+	if (!plugin.active) summary.push('inactive');
+	return summary.join(' · ');
 }
 
 function renderContent() {
@@ -1656,10 +3687,6 @@ function theme() {
 	return THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
 }
 
-function wpName(value) {
-	return value === 'latest' ? 'latest' : value;
-}
-
 function landingName(value) {
 	return {
 		'/wp-admin/edit.php?post_type=product': 'Products',
@@ -1767,6 +3794,7 @@ function v27Initialize() {
 	document.addEventListener('click', v27OnClick);
 	document.addEventListener('input', v27OnInput, true);
 	document.addEventListener('change', v27OnChange, true);
+	document.addEventListener('focusout', v27OnFocusOut, true);
 	document.addEventListener('focusin', v27OnFocusIn);
 	document.addEventListener('focusout', v27OnFocusOut);
 	document.addEventListener('pointerdown', v27OnOutsidePointer, true);
@@ -1799,6 +3827,39 @@ function v27OnClick(event) {
 		v27ClosePopover(true);
 		return;
 	}
+	if (event.target.closest('[data-v27-landing-picker]')) {
+		v27ReopenLandingPicker(event.target.closest('[data-v27-landing-zone]'));
+		return;
+	}
+	const langButton = event.target.closest('[data-v27-lang-button]');
+	if (langButton) {
+		v27ToggleLangPopover(langButton);
+		return;
+	}
+	const langOption = event.target.closest('[data-v27-lang-option]');
+	if (langOption) {
+		v27PickLanguage(langOption.dataset.v27LangOption);
+		return;
+	}
+	const paramEdit = event.target.closest('[data-v27-edit-param]');
+	if (paramEdit) {
+		v27EditScriptParam(Number(paramEdit.dataset.v27EditParam));
+		return;
+	}
+	const addFont = event.target.closest('[data-v27-add-google-font]');
+	if (addFont) {
+		v27AddGoogleFont(addFont.dataset.v27AddGoogleFont);
+		return;
+	}
+	const removeFont = event.target.closest('[data-v27-remove-font]');
+	if (removeFont) {
+		v27RemoveFont(Number(removeFont.dataset.v27RemoveFont));
+		return;
+	}
+	if (event.target.closest('[data-v27-font-upload]')) {
+		document.querySelector('[data-v27-font-file]')?.click();
+		return;
+	}
 	const result = event.target.closest('[data-v27-result-index]');
 	if (result) {
 		v27ChooseResult(Number(result.dataset.v27ResultIndex));
@@ -1816,10 +3877,6 @@ function v27OnClick(event) {
 	}
 	if (event.target.closest('[data-v27-upload-button]')) {
 		document.querySelector('[data-v27-file-input]')?.click();
-		return;
-	}
-	if (event.target.closest('[data-v27-add-page]')) {
-		v27AddPage();
 		return;
 	}
 	if (event.target.closest('[data-v27-products]')) {
@@ -1843,6 +3900,10 @@ function v27OnClick(event) {
 	const saveNewScript = event.target.closest('[data-v27-save-new-script]');
 	if (saveNewScript) {
 		v27SaveNewScript(saveNewScript.dataset.v27SaveNewScript);
+		return;
+	}
+	if (event.target.closest('[data-v27-onboarding-info]')) {
+		v27OpenOnboardingSupport();
 		return;
 	}
 	const pluginInfo = event.target.closest('[data-v27-plugin-info]');
@@ -1910,6 +3971,14 @@ function v27OnInput(event) {
 		});
 		return;
 	}
+	if (event.target.matches('[data-v27-lang-filter]')) {
+		v27RenderLangList(event.target.value);
+		return;
+	}
+	if (event.target.matches('[data-v27-font-filter]')) {
+		v27RenderFontResults();
+		return;
+	}
 	if (!event.target.matches('[data-v27-search]')) return;
 	v27Query = event.target.value;
 	v27ActiveIndex = -1;
@@ -1941,27 +4010,40 @@ function v27OnChange(event) {
 		);
 		return;
 	}
-	if (event.target.matches('[data-v27-plugin-setup]')) {
+	if (event.target.matches('[data-v27-disable-plugin-onboarding]')) {
 		event.stopImmediatePropagation();
-		const index = Number(event.target.dataset.v27PluginSetup);
-		const plugin = state.plugins[index];
-		const control = plugin
-			? (PLUGIN_SETUP_CONTROLS[plugin.slug] || []).find((item) => item.key === event.target.dataset.v27PluginSetupKey)
-			: null;
-		if (!plugin || !control || control.key !== event.target.dataset.v27PluginSetupKey) return;
 		v27CommitWithoutRender(
-			event.target.checked ? control.label + ' enabled' : control.label + ' disabled',
-			() => { plugin.setup[control.key] = event.target.checked; }
+			event.target.checked
+				? 'Setup wizards and welcome tours will be skipped'
+				: 'Setup wizards and welcome tours will remain',
+			() => { state.disablePluginOnboardingModals = event.target.checked; }
 		);
-		v27UpdatePluginDetailStatus(index);
+		v27RenderPlugins();
 		return;
 	}
-	if (event.target.matches('[data-v27-hide-editor-guides]')) {
+	if (event.target.matches('[data-v27-simplify-dashboard]')) {
 		event.stopImmediatePropagation();
 		v27Commit(
-			event.target.checked ? 'Editor welcome guides will be hidden' : 'Editor welcome guides will remain available',
-			() => { state.wordpressAdmin.hideEditorGuides = event.target.checked; }
+			event.target.checked
+				? 'The dashboard will be simplified'
+				: 'The dashboard stays as WordPress ships it',
+			() => { state.simplifyDashboard = event.target.checked; }
 		);
+		return;
+	}
+	if (event.target.matches('[data-v27-landing-select]') && event.target.value === '__custom') {
+		event.stopImmediatePropagation();
+		v27ShowLandingCustom(event.target.closest('[data-v27-landing-zone]'));
+		return;
+	}
+	if (event.target.matches('[data-v27-landing-custom]')) {
+		event.stopImmediatePropagation();
+		v27CommitLandingCustom(event.target);
+		return;
+	}
+	if (event.target.matches('[data-v27-param-index]')) {
+		event.stopImmediatePropagation();
+		v27CommitScriptParam(event.target);
 		return;
 	}
 	if (event.target.matches('[data-plugin-active]')) {
@@ -1983,12 +4065,24 @@ function v27OnChange(event) {
 		event.target.value = '';
 		return;
 	}
+	if (event.target.matches('[data-v27-font-file]')) {
+		v27UploadFontFile((event.target.files || [])[0]);
+		event.target.value = '';
+		return;
+	}
 	if (event.target.matches('[data-v27-plugin-version]')) {
 		v27SetPluginVersion(Number(event.target.dataset.v27PluginVersion), event.target.value);
 	}
 }
 
+function v27OnFocusOut(event) {
+	if (event.target.matches?.('[data-v27-landing-select]') && event.target.value === '__custom') {
+		v27RenderLanding();
+	}
+}
+
 function v27OnOutsidePointer(event) {
+	if (v27LangPopoverOpen() && !event.target.closest('.v27-lang-wrap')) v27CloseLangPopover(false);
 	if (!v27ActiveKind || !document.getElementById('hybridModal').hidden) return;
 	if (event.target.closest('#sheetPopover, [data-sheet-popover], #hybridToast')) return;
 	v27ClosePopover(false);
@@ -2048,9 +4142,39 @@ function v27OnKeyDown(event) {
 		}
 	}
 
-	if (event.key === 'Enter' && event.target.id === 'v27PageName') {
+	if (event.target.matches?.('[data-v27-lang-filter]')) {
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			v27MoveLangActive(event.key === 'ArrowDown' ? 1 : -1);
+			return;
+		}
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			const active = v27LangMatches[v27LangActive];
+			if (active) v27PickLanguage(active.code);
+			return;
+		}
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			v27CloseLangPopover(true);
+			return;
+		}
+	}
+	if (event.key === 'Enter' && event.target.matches?.('[data-v27-font-filter]')) {
 		event.preventDefault();
-		v27AddPage();
+		document.querySelector('[data-v27-font-results] [data-v27-add-google-font]')?.click();
+		return;
+	}
+	if (event.key === 'Enter' && event.target.matches?.('[data-v27-landing-custom]')) {
+		event.preventDefault();
+		v27CommitLandingCustom(event.target);
+		return;
+	}
+	if (event.key === 'Escape' && event.target.matches?.('[data-v27-landing-custom]')) {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		v27RenderLanding();
 		return;
 	}
 	if (event.key === 'Enter' && event.target.id === 'v27UserName') {
@@ -2058,15 +4182,18 @@ function v27OnKeyDown(event) {
 		v27AddUser();
 		return;
 	}
-	if (event.key === 'Enter' && event.target.id === 'v27CategoryName') {
-		event.preventDefault();
-		v27AddScriptPreset('category');
-		return;
-	}
-	if (event.key === 'Enter' && event.target.id === 'v27NoticeMessage') {
-		event.preventDefault();
-		v27AddScriptPreset('notice');
-		return;
+	if (event.target.matches?.('[data-v27-param-index]')) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			v27CommitScriptParam(event.target);
+			return;
+		}
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			v27RenderScripts();
+			return;
+		}
 	}
 	if (event.key === 'Escape' && v27ActiveKind) {
 		event.preventDefault();
@@ -2161,6 +4288,7 @@ function v27RenderPopover(options = {}) {
 		content: v27ContentPopover,
 		user: v27UserPopover,
 		script: v27ScriptPopover,
+		font: v27FontPopover,
 	};
 	const rendered = renderers[v27ActiveKind]();
 	title.textContent = rendered.title;
@@ -2168,6 +4296,7 @@ function v27RenderPopover(options = {}) {
 	subtitle.hidden = !rendered.subtitle;
 	body.innerHTML = rendered.markup;
 	if (['theme', 'plugin', 'content'].includes(v27ActiveKind)) v27PopulateResults();
+	if (v27ActiveKind === 'font') v27RenderFontResults();
 	requestAnimationFrame(() => {
 		v27PositionPopover();
 		if (options.focus) document.getElementById('sheetPopover').querySelector(options.focus)?.focus();
@@ -2210,9 +4339,7 @@ function v27ContentPopover() {
 		title: 'Add content',
 		subtitle: '',
 		markup: `
-			${v27SmartAddMarkup('content', 'Paste a WXR, XML, or SQL URL', '.xml,.wxr,.sql,text/xml,application/xml')}
-			<p class="v27-group-label">Create</p>
-			<div class="sheet-form"><input class="sheet-input" id="v27PageName" placeholder="Page title" aria-label="Page title"><button class="btn" type="button" data-v27-add-page>Add page</button></div>
+			${v27SmartAddMarkup('content', 'Page title, or a WXR / XML / SQL URL', '.xml,.wxr,.sql,text/xml,application/xml')}
 			<button class="sheet-choice no-icon" type="button" data-v27-products="6"><span><strong>Add 6 sample products</strong><span>Generated during stage 4 · adds WooCommerce if needed</span></span><b>Add</b></button>
 			<p class="v27-status" data-v27-notice role="status" aria-live="polite"></p>
 		`,
@@ -2258,21 +4385,11 @@ function v27ScriptPopover() {
 	};
 }
 
+/* Every recipe adds in one click with sensible defaults; values are edited afterwards,
+   inline on the ledger line — never configured up front in the catalog. */
 function v27RecipeButton(recipe) {
 	const added = state.scripts.some((script) => script.recipeKey === recipe.key);
-	const disabled = added;
-	const action = added ? 'Added' : 'Add';
-	if (recipe.key === 'category') {
-		const saved = state.scripts.find((script) => script.recipeKey === recipe.key)?.params?.categoryName || 'News';
-		return `<div class="v27-recipe-config"><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><div class="v27-recipe-parameter"><label><span>New category name</span><input class="sheet-input" id="v27CategoryName" value="${escapeHtml(saved)}" ${disabled ? 'disabled' : ''}></label><button class="btn" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" aria-label="${escapeHtml(action + ' ' + recipe.name + ' recipe')}" ${disabled ? 'disabled' : ''}><b>${escapeHtml(action)}</b></button></div></div>`;
-	}
-	if (recipe.key === 'notice') {
-		const params = state.scripts.find((script) => script.recipeKey === recipe.key)?.params || {};
-		const tone = params.tone || 'info';
-		const toneOptions = ['info', 'success', 'warning', 'error'].map((value) => `<option value="${value}" ${value === tone ? 'selected' : ''}>${value.slice(0, 1).toUpperCase() + value.slice(1)}</option>`).join('');
-		return `<div class="v27-recipe-config"><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><div class="v27-recipe-fields"><label><span>Message</span><input class="sheet-input" id="v27NoticeMessage" value="${escapeHtml(params.message || 'Welcome! This demo is ready to explore.')}" ${disabled ? 'disabled' : ''}></label><label><span>Tone</span><select class="sheet-select" id="v27NoticeTone" ${disabled ? 'disabled' : ''}>${toneOptions}</select></label><div class="v27-actions"><button class="btn" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" aria-label="${escapeHtml(action + ' ' + recipe.name + ' recipe')}" ${disabled ? 'disabled' : ''}><b>${escapeHtml(action)}</b></button></div></div></div>`;
-	}
-	return `<button class="sheet-choice no-icon" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" ${disabled ? 'disabled' : ''}><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><b>${escapeHtml(action)}</b></button>`;
+	return `<button class="sheet-choice no-icon" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}" ${added ? 'disabled' : ''}><span><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipe.note)}</span></span><b>${added ? 'Added' : 'Add'}</b></button>`;
 }
 
 function v27SmartAddMarkup(kind, placeholder, accept, beforeSearch = '') {
@@ -2299,8 +4416,25 @@ function v27PopulateResults() {
 	v27ActiveIndex = -1;
 	const query = v27Query.trim();
 	if (v27ActiveKind === 'content') {
-		v27Results = /^https?:\/\//i.test(query) ? [v27UrlResult('content', query)] : [];
-		v27RenderResults(query ? (v27Results.length ? 'Press Enter to import this source' : 'Use a WXR, XML, or SQL URL — or upload a file') : 'Paste a URL above, or drop a file here');
+		const trimmed = query.trim();
+		const urlish = /^https?:\/\//i.test(trimmed)
+			|| (!/\s/.test(trimmed) && /\.(xml|wxr|sql)(\?|$)/i.test(trimmed));
+		if (urlish) {
+			v27Results = [v27UrlResult('content', trimmed)];
+			v27RenderResults('Press Enter to import this source');
+		} else if (trimmed) {
+			v27Results = [{
+				kind: 'page',
+				slug: v27Slugify(trimmed),
+				name: trimmed,
+				note: 'A page you can write in the block editor',
+				source: 'Create',
+			}];
+			v27RenderResults('Press Enter to create this page');
+		} else {
+			v27Results = [];
+			v27RenderResults('Or drop a file anywhere in this panel.');
+		}
 		return;
 	}
 	if (v27LooksLikeUrl(query)) {
@@ -2343,7 +4477,7 @@ function v27RenderResults(status, busy = false) {
 			id="v27-option-${item.kind}-${index}" role="option" aria-selected="false" data-v27-result-index="${index}">
 			${v27ResultVisual(item)}
 			<span><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.note)}</span></span>
-			<b>${item.kind === 'content' ? 'Import' : item.kind === 'theme' ? 'Install' : 'Add'}</b>
+			<b>${item.kind === 'content' ? 'Import' : item.kind === 'page' ? 'Create' : item.kind === 'theme' ? 'Install' : 'Add'}</b>
 		</button>
 	`).join('');
 	input.setAttribute('aria-expanded', String(v27Results.length > 0));
@@ -2383,6 +4517,7 @@ function v27ChooseResult(index) {
 	if (!item) return;
 	if (item.kind === 'plugin') v27AddPlugin(item);
 	else if (item.kind === 'theme') v27AddTheme(item);
+	else if (item.kind === 'page') v27AddPageNamed(item.name);
 	else v27AddImport(item);
 }
 
@@ -2543,7 +4678,6 @@ function v27AddPlugin(item) {
 		return;
 	}
 	v27Commit('Added ' + item.name, () => {
-		const setup = v27PluginSetupDefaults(item.slug);
 		state.plugins.push({
 			slug: item.slug,
 			name: item.name,
@@ -2554,7 +4688,6 @@ function v27AddPlugin(item) {
 			url: item.url || '',
 			file: item.file || null,
 			active: true,
-			...(setup ? { setup } : {}),
 		});
 	});
 	v27Query = '';
@@ -2674,26 +4807,18 @@ function v27ReadFileAsDataUrl(file) {
 	});
 }
 
-function v27AddPage() {
-	const input = document.getElementById('v27PageName');
-	const name = input?.value.replace(/\s+/g, ' ').trim() || '';
-	if (!name) {
-		v27SetNotice('Enter a page title.', 'error');
-		input?.focus();
-		return;
-	}
+function v27AddPageNamed(rawName) {
+	const name = rawName.replace(/\s+/g, ' ').trim();
+	if (!name) return;
 	if (state.content.pages.some((page) => page.title.toLowerCase() === name.toLowerCase())) {
 		v27SetNotice('“' + name + '” is already in stage 4.', 'error');
-		input.focus();
-		input.select();
 		return;
 	}
 	v27Commit('Added page “' + name + '”', () => {
 		state.content.pages.push({ id: v27UniquePageId(name), title: name, content: '' });
 	});
-	input.value = '';
 	v27SetNotice('Added “' + name + '”. Add another when ready.', 'success');
-	input.focus();
+	v27ClearSearch();
 }
 
 function v27AddProducts(button) {
@@ -2702,7 +4827,7 @@ function v27AddProducts(button) {
 	v27Commit('Added ' + amount + ' sample products', () => {
 		if (addedWooCommerce) {
 			const catalogItem = PLUGIN_CATALOG.find((plugin) => plugin.slug === 'woocommerce');
-			state.plugins.push({ ...catalogItem, active: true, source: 'WordPress.org', setup: v27PluginSetupDefaults('woocommerce') });
+			state.plugins.push({ ...catalogItem, active: true, source: 'WordPress.org' });
 		}
 		state.content.products += amount;
 	});
@@ -2752,19 +4877,10 @@ function v27AddScriptPreset(key) {
 		v27SetNotice(recipe.name + ' is already in stage 6.', 'error');
 		return;
 	}
-	const categoryName = key === 'category'
-		? document.getElementById('v27CategoryName')?.value.replace(/\s+/g, ' ').trim() || 'News'
-		: '';
-	const noticeMessage = key === 'notice'
-		? document.getElementById('v27NoticeMessage')?.value.replace(/\s+/g, ' ').trim() || ''
-		: '';
-	const noticeTone = key === 'notice' ? document.getElementById('v27NoticeTone')?.value || 'info' : '';
-	if (key === 'notice' && !noticeMessage) {
-		v27SetNotice('Enter the notice message.', 'error');
-		document.getElementById('v27NoticeMessage')?.focus();
-		return;
-	}
-	const resolvedName = key === 'category' ? 'Rename “Uncategorized” to “' + categoryName + '”' : recipe.name;
+	const categoryName = key === 'category' ? 'News' : '';
+	const noticeMessage = key === 'notice' ? 'Welcome! This demo is ready to explore.' : '';
+	const noticeTone = key === 'notice' ? 'info' : '';
+	const resolvedName = recipe.name;
 	v27Commit('Added ' + resolvedName, () => {
 		const script = JSON.parse(JSON.stringify(recipe));
 		script.recipeKey = script.key;
@@ -2898,11 +5014,33 @@ function v27RemovePlugin(index) {
 	v27RestoreFocus('[data-remove-plugin="' + nextIndex + '"]', '[data-sheet-popover="plugin"]');
 }
 
+function v27OpenOnboardingSupport() {
+	const supportedPlugins = Object.entries(PLUGIN_ONBOARDING_RECIPES)
+		.map(([slug, controls]) => ({
+			slug,
+			name: controls[0].pluginName,
+			note: controls.map((control) => control.note).filter(Boolean).join(' '),
+		}))
+		.sort((left, right) => left.name.localeCompare(right.name));
+	v27OpenModal('What gets skipped', `
+		<div class="v27-onboarding-support">
+			<p>WordPress itself starts quiet: the block editor opens without its welcome guide and tour popovers.</p>
+			<p>Of the 100 most popular WordPress.org plugins reviewed, these ${supportedPlugins.length} have automatic first-run or promotional UI that Playground can safely suppress.</p>
+			<p>Playground does not fabricate account or license state. Security, compatibility, and other operational notices remain visible.</p>
+			<p><strong>${supportedPlugins.length} supported plugins</strong></p>
+			<ul class="v27-supported-plugin-list" data-v27-supported-plugin-list>
+				${supportedPlugins.map((plugin) => `<li data-v27-supported-plugin="${escapeHtml(plugin.slug)}"><strong>${escapeHtml(plugin.name)}</strong><span>${escapeHtml(plugin.slug)}</span><small>${escapeHtml(plugin.note)}</small></li>`).join('')}
+			</ul>
+		</div>
+	`);
+}
+
 function v27OpenPluginInfo(index) {
 	const plugin = state.plugins[index];
 	if (!plugin) return;
 	const wporg = (plugin.source || 'WordPress.org') === 'WordPress.org';
 	const externalUrl = v27PluginExternalUrl(plugin);
+	const installationSummary = pluginOverrideSummary(plugin);
 	v27OpenModal('Plugin details', `
 		<div class="v27-plugin-detail" data-v27-plugin-detail="${index}" data-v27-plugin-detail-slug="${escapeHtml(plugin.slug)}">
 			<header class="v27-plugin-detail-head">
@@ -2917,7 +5055,7 @@ function v27OpenPluginInfo(index) {
 				<div><dt>Directory</dt><dd data-v27-plugin-directory>${wporg ? 'Loading…' : 'Not a directory plugin'}</dd></div>
 			</dl>
 			<details class="v27-installation-settings">
-				<summary><strong>Installation settings</strong><small data-v27-plugin-install-summary>${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</small></summary>
+				<summary><strong>Installation settings</strong><small data-v27-plugin-install-summary ${installationSummary ? '' : 'hidden'}>${escapeHtml(installationSummary)}</small></summary>
 				<div class="v27-plugin-controls">
 					${wporg ? `<label class="v27-plugin-version-control">Version<select class="v27-version" data-v27-plugin-version="${index}" data-v27-version-slug="${escapeHtml(plugin.slug)}" aria-label="${escapeHtml(plugin.name)} version"><option value="${escapeHtml(plugin.version || 'latest')}" selected>${escapeHtml(plugin.version || 'latest')}</option>${plugin.version === 'latest' ? '' : '<option value="latest">latest</option>'}</select></label>` : `<div class="v27-plugin-version-control"><span>Version</span><strong>${escapeHtml(plugin.version || plugin.source || 'source archive')}</strong></div>`}
 					<label class="switch"><input type="checkbox" data-plugin-active="${index}" aria-label="Activate ${escapeHtml(plugin.name)} on run" ${plugin.active ? 'checked' : ''}><span>Activate after install</span></label>
@@ -2966,12 +5104,11 @@ function v27UpdatePluginDetailStatus(index) {
 	const status = document.querySelector('[data-v27-plugin-detail="' + index + '"] [data-v27-plugin-control-status]');
 	const summary = document.querySelector('[data-v27-plugin-detail="' + index + '"] [data-v27-plugin-install-summary]');
 	if (!plugin) return;
-	const setup = (PLUGIN_SETUP_CONTROLS[plugin.slug] || [])
-		.filter((control) => plugin.setup?.[control.key])
-		.map((control) => control.status);
-	if (summary) summary.textContent = (plugin.version || 'latest') + ' · ' + (plugin.active ? 'active' : 'inactive');
-	if (status) status.textContent = 'Will install ' + (plugin.active ? 'and activate' : 'without activation')
-		+ (setup.length ? ' · ' + setup.join(' · ') : '');
+	if (summary) {
+		summary.textContent = pluginOverrideSummary(plugin);
+		summary.hidden = !summary.textContent;
+	}
+	if (status) status.textContent = 'Will install ' + (plugin.active ? 'and activate' : 'without activation');
 }
 
 function v27PluginExternalUrl(plugin) {
@@ -3016,16 +5153,20 @@ async function v27EditPage(index) {
 	v27EditorPageReady = false;
 	v27OpenModal('Editing “' + page.title + '”', '', 'page-editor');
 	v27SetEditorStatus('Starting WordPress and the block editor…');
+	v27EditorProgressBegin();
 	try {
 		const client = await v27EnsurePageEditor();
 		if (!v27EditorIsOpen(page.id, session)) return;
+		v27EditorProgressStage(0.88);
 		v27SetEditorStatus('Opening “' + page.title + '”…');
 		const postId = await v27SeedEditorPage(page);
 		if (!v27EditorIsOpen(page.id, session)) return;
 		v27EditorPostId = postId;
+		v27EditorProgressStage(0.94);
 		const opened = await v27NavigatePageEditor(client, postId, page.id, session);
 		if (!opened) return;
 		v27EditorPageReady = true;
+		v27EditorProgressDone();
 		v27SetEditorStatus('');
 		document.getElementById('v27EditorFrame')?.focus();
 	} catch (error) {
@@ -3058,6 +5199,12 @@ async function v27EnsurePageEditor() {
 			blueprint: v27PageEditorBlueprint(),
 		}))
 		.then(async (client) => {
+			try {
+				client.onDownloadProgress((event) => {
+					const detail = event?.detail || event || {};
+					v27EditorProgressReport(Number(detail.loaded), Number(detail.total));
+				});
+			} catch (error) { /* progress events are a nice-to-have */ }
 			await client.isReady();
 			if (generation !== v27EditorBootGeneration) throw new Error('The editor configuration changed while WordPress was starting.');
 			v27EditorClient = client;
@@ -3076,7 +5223,7 @@ async function v27EnsurePageEditor() {
 
 function v27PageEditorBlueprint() {
 	const steps = [{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' }];
-	if (state.wordpressAdmin.hideEditorGuides) {
+	if (state.disablePluginOnboardingModals) {
 		steps.push({
 			step: 'writeFile',
 			path: '/wordpress/wp-content/mu-plugins/hide-editor-welcome-guides.php',
@@ -3118,7 +5265,7 @@ function v27PageEditorFingerprint() {
 		lang: state.lang,
 		networking: state.networking,
 		title: state.title,
-		hideEditorGuides: state.wordpressAdmin.hideEditorGuides,
+		hideEditorGuides: state.disablePluginOnboardingModals,
 		theme: v27EditorResourceFingerprint(v27CurrentTheme()),
 	});
 }
@@ -3283,10 +5430,60 @@ function v27EditorCaptureFailed(message) {
 function v27SetEditorStatus(message, tone = '') {
 	const status = document.querySelector('[data-v27-editor-status]');
 	if (!status) return;
-	status.textContent = message;
+	const text = status.querySelector('[data-v27-editor-status-text]');
+	if (text) text.textContent = message;
+	else status.textContent = message;
 	status.hidden = !message;
 	if (tone) status.dataset.tone = tone;
 	else delete status.dataset.tone;
+	if (!message || tone === 'error') v27EditorProgressStop();
+}
+
+/* Boot progress: a trickle bar that real Playground download events push forward,
+   snapped to 100% when the editor is ready. */
+let v27EditorProgressTimer = 0;
+let v27EditorProgressValue = 0;
+
+function v27EditorProgressBegin() {
+	const bar = document.querySelector('[data-v27-editor-progress]');
+	if (!bar) return;
+	v27EditorProgressValue = 0.02;
+	bar.hidden = false;
+	v27EditorProgressPaint();
+	window.clearInterval(v27EditorProgressTimer);
+	v27EditorProgressTimer = window.setInterval(() => {
+		v27EditorProgressValue += (0.85 - v27EditorProgressValue) * 0.03;
+		v27EditorProgressPaint();
+	}, 200);
+}
+
+function v27EditorProgressReport(loaded, total) {
+	if (!Number.isFinite(loaded) || !Number.isFinite(total) || total <= 0) return;
+	v27EditorProgressValue = Math.max(v27EditorProgressValue, Math.min(0.8, (loaded / total) * 0.8));
+	v27EditorProgressPaint();
+}
+
+function v27EditorProgressStage(floor) {
+	v27EditorProgressValue = Math.max(v27EditorProgressValue, floor);
+	v27EditorProgressPaint();
+}
+
+function v27EditorProgressDone() {
+	v27EditorProgressStage(1);
+	window.clearInterval(v27EditorProgressTimer);
+	v27EditorProgressTimer = 0;
+}
+
+function v27EditorProgressStop() {
+	window.clearInterval(v27EditorProgressTimer);
+	v27EditorProgressTimer = 0;
+	const bar = document.querySelector('[data-v27-editor-progress]');
+	if (bar) bar.hidden = true;
+}
+
+function v27EditorProgressPaint() {
+	const fill = document.querySelector('[data-v27-editor-progress] > span');
+	if (fill) fill.style.width = (Math.min(1, v27EditorProgressValue) * 100).toFixed(1) + '%';
 }
 
 function v27SetEditorButtonSaving(saving) {
@@ -3524,10 +5721,6 @@ function v27SyncScriptPresetButtons() {
 		const action = added ? 'Added' : 'Add';
 		const stateLabel = button.querySelector('b');
 		if (stateLabel) stateLabel.textContent = action;
-		if (recipe?.key === 'category') {
-			button.setAttribute('aria-label', action + ' ' + recipe.name + ' recipe');
-			document.getElementById('v27CategoryName').disabled = added;
-		}
 	});
 }
 
@@ -3581,25 +5774,23 @@ function v27DownloadJson() {
 function v27RenderPlugins() {
 	document.querySelectorAll('[data-plugins]').forEach((container) => {
 		container.innerHTML = state.plugins.length ? state.plugins.map((plugin, index) => {
-			const setupControls = PLUGIN_SETUP_CONTROLS[plugin.slug] || [];
-			const setupMarkup = setupControls.length ? `<div class="v27-plugin-context">${setupControls.map((control) => `
-				<label class="switch" title="${escapeHtml(control.note)}"><input type="checkbox" data-v27-plugin-setup="${index}" data-v27-plugin-setup-key="${escapeHtml(control.key)}" ${plugin.setup?.[control.key] ? 'checked' : ''}><span>${escapeHtml(control.label)}</span></label>
-			`).join('')}</div>` : '';
+			const summary = pluginOverrideSummary(plugin);
 			return `
-				<article class="v27-plugin" data-v27-plugin-slug="${escapeHtml(plugin.slug)}">
+				<article class="v27-plugin ${plugin.active ? '' : 'is-inactive'}" data-v27-plugin-slug="${escapeHtml(plugin.slug)}">
 					<div class="v27-plugin-row">
 						<button class="v27-plugin-main" type="button" data-v27-plugin-info="${index}">
 							${plugin.icon ? `<img class="v27-plugin-icon" src="${escapeHtml(plugin.icon)}" alt="">` : `<span class="v27-plugin-fallback" aria-hidden="true">${escapeHtml(plugin.name.slice(0, 2).toUpperCase())}</span>`}
-							<span class="v27-plugin-copy"><strong class="v27-plugin-title">${escapeHtml(plugin.name)}</strong><span>${escapeHtml(plugin.note || plugin.source || plugin.slug)}</span></span>
-							<span class="v27-plugin-summary">${escapeHtml(plugin.version || 'latest')} · ${plugin.active ? 'active' : 'inactive'}</span>
+							<span class="v27-plugin-copy"><strong class="v27-plugin-title"><span class="v27-plugin-name">${escapeHtml(plugin.name)}</span></strong><span class="v27-plugin-meta"><span class="v27-plugin-note">${escapeHtml(plugin.note || plugin.source || plugin.slug)}</span>${summary ? `<span class="v27-plugin-summary">${escapeHtml(summary)}</span>` : ''}</span></span>
 							<span class="sr-only">View plugin details</span>
 						</button>
 						<button class="icon-btn" type="button" data-remove-plugin="${index}" aria-label="Remove ${escapeHtml(plugin.name)}">×</button>
 					</div>
-					${setupMarkup}
 				</article>
 			`;
 		}).join('') : '<p class="empty-note">No plugins — WordPress will start clean.</p>';
+	});
+	document.querySelectorAll('[data-v27-disable-plugin-onboarding]').forEach((input) => {
+		input.checked = state.disablePluginOnboardingModals;
 	});
 }
 
@@ -3615,17 +5806,16 @@ function v27RenderContent() {
 		const homepageOptions = '<option value="latest-posts"' + (state.homepage === 'latest-posts' ? ' selected' : '') + '>Latest posts</option>'
 			+ state.content.pages.map((page) => `<option value="${escapeHtml(page.id)}" ${state.homepage === page.id ? 'selected' : ''}>${escapeHtml(page.title)}</option>`).join('');
 		const products = state.content.products ? `
-			<div class="v27-line"><strong>Sample products</strong><span class="leader"></span><span class="tail">${state.content.products} generated on run</span><span></span><span></span></div>
+			<div class="v27-line v27-products-line"><strong>Sample products</strong><span class="leader"></span><span class="tail">${state.content.products} generated on run</span><span></span><span></span></div>
 		` : '';
 		const contentSettings = `
-			<div class="v27-content-settings" role="group" aria-label="Content setup">
-				<label class="v27-content-setting"><input type="checkbox" data-v27-remove-starter-content ${state.content.removeStarterContent ? 'checked' : ''}><span><strong>Start with a clean site</strong><small>Remove “Hello world!”, Sample Page, and the default comment before adding this content.</small></span></label>
-				<label class="v27-content-setting"><input type="checkbox" data-v27-hide-editor-guides ${state.wordpressAdmin.hideEditorGuides ? 'checked' : ''}><span><strong>Hide WordPress editor welcome guides</strong><small>Open the editor ready to work, without first-run tours.</small></span></label>
-				${hasWooCommerce ? `<label class="v27-content-setting"><input type="checkbox" data-v27-add-test-coupon ${state.content.addTestCoupon ? 'checked' : ''}><span><strong>Add a WELCOME10 test coupon</strong><small>Create a 10% coupon for trying the WooCommerce checkout.</small></span></label>` : ''}
+			<div class="v27-prep" role="group" aria-label="Content setup">
+				<label class="v27-prep-line"><input type="checkbox" data-v27-remove-starter-content ${state.content.removeStarterContent ? 'checked' : ''}><span><strong>Clean install</strong> <span class="note">removes WordPress sample content</span></span></label>
+				${hasWooCommerce ? `<label class="v27-prep-line"><input type="checkbox" data-v27-add-test-coupon ${state.content.addTestCoupon ? 'checked' : ''}><span><strong>Test checkout</strong> <span class="note">creates a WELCOME10 coupon</span></span></label>` : ''}
 			</div>
 		`;
 		container.innerHTML = contentSettings + pages + `
-			<div class="v27-homepage"><label>Default homepage <select class="ctl" name="homepage" data-field="homepage" aria-label="Default homepage">${homepageOptions}</select></label><span>What visitors see at <span class="mono">/</span></span></div>
+			<label class="v27-homepage-line"><strong>Default homepage</strong><select class="v27-fact-select" name="homepage" data-field="homepage" aria-label="Default homepage">${homepageOptions}</select><span class="leader"></span><span class="tail">what visitors see at <span class="mono">/</span></span><span></span></label>
 		` + products + imports;
 	});
 }
@@ -3656,15 +5846,74 @@ function v27LoginOptions() {
 		+ `<option value="none" ${state.login === 'none' ? 'selected' : ''}>no one</option>`;
 }
 
+/* One ledger line per finishing step, like the page rows: the name carries the meaning,
+   a typed-in value or code kind sits as the tail, the note lives in the tooltip and the
+   catalog. Custom code opens its editor via "edit"; recipes show their compiled steps
+   via "view". Below the filled lines, suggested recipes print as ghost lines — the
+   ledger's empty pre-printed rows — that fill in as ink when clicked. */
+function v27ScriptParamValue(script) {
+	if (script.recipeKey === 'notice') return script.params?.message || '';
+	if (script.recipeKey === 'category') return script.params?.categoryName || '';
+	return '';
+}
+
 function v27RenderScripts() {
-	const kindLabels = { php: 'Custom PHP', sql: 'Custom SQL', 'wp-cli': 'WP-CLI commands' };
+	const kindTails = { php: 'PHP', sql: 'SQL', 'wp-cli': 'WP-CLI' };
 	document.querySelectorAll('[data-scripts]').forEach((container) => {
-		container.innerHTML = state.scripts.length ? state.scripts.map((script, index) => {
-			const note = script.note || kindLabels[script.kind] || (script.recipeKey ? 'Step Library recipe' : 'Custom PHP');
+		container.innerHTML = state.scripts.map((script, index) => {
+			const paramValue = v27ScriptParamValue(script);
+			const tail = paramValue
+				? `<button class="tail v27-value-edit" type="button" data-v27-edit-param="${index}" aria-label="Edit the value for ${escapeHtml(script.name)}">“${escapeHtml(paramValue)}”</button>`
+				: `<span class="tail">${script.code ? escapeHtml(kindTails[script.kind] || 'PHP') : ''}</span>`;
+			const action = script.code
+				? `<button class="btn quiet" type="button" data-v27-edit-script="${index}" aria-label="Edit ${escapeHtml(script.name)}">edit</button>`
+				: `<button class="btn quiet" type="button" data-open-code="${index}" aria-label="View steps for ${escapeHtml(script.name)}">view</button>`;
 			return `
-			<div class="script-row v27-script"><span class="v27-script-copy"><strong>${escapeHtml(script.name)}</strong><span>${escapeHtml(note)}</span></span>${script.code ? `<button class="btn quiet" type="button" data-v27-edit-script="${index}" aria-label="Edit ${escapeHtml(script.name)}">edit</button>` : '<span></span>'}<button class="btn quiet" type="button" data-open-code="${index}" aria-label="View ${script.code ? 'code' : 'steps'} for ${escapeHtml(script.name)}">view ${script.code ? 'code' : 'steps'}</button><button class="v27-small-remove" type="button" data-v27-remove-script="${index}" aria-label="Remove ${escapeHtml(script.name)}">×</button></div>
+			<div class="v27-line"${script.note ? ` title="${escapeHtml(script.note)}"` : ''}><strong>${escapeHtml(script.name)}</strong><span class="leader"></span>${tail}${action}<button class="v27-small-remove" type="button" data-v27-remove-script="${index}" aria-label="Remove ${escapeHtml(script.name)}">×</button></div>
 		`;
-		}).join('') : '';
+		}).join('');
+	});
+}
+
+function v27EditScriptParam(index) {
+	const trigger = document.querySelector('[data-v27-edit-param="' + index + '"]');
+	const script = state.scripts[index];
+	if (!trigger || !script) return;
+	const input = document.createElement('input');
+	input.className = 'v27-fact-input v27-param-input';
+	input.value = v27ScriptParamValue(script);
+	input.dataset.v27ParamIndex = index;
+	input.setAttribute('aria-label', 'Value for ' + script.name);
+	trigger.replaceWith(input);
+	input.focus();
+	input.select();
+}
+
+function v27CommitScriptParam(input) {
+	const index = Number(input.dataset.v27ParamIndex);
+	const script = state.scripts[index];
+	if (!script) return;
+	const value = input.value.replace(/\s+/g, ' ').trim();
+	if (!value || value === v27ScriptParamValue(script)) {
+		v27RenderScripts();
+		return;
+	}
+	v27Commit('Updated ' + script.name, () => {
+		const target = state.scripts[index];
+		if (target.recipeKey === 'notice') {
+			target.params.message = value;
+			target.steps = [
+				{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+				{
+					step: 'writeFile',
+					path: '/wordpress/wp-content/mu-plugins/show-admin-notice.php',
+					data: v27AdminNoticeRecipeCode(value, target.params.tone || 'info'),
+				},
+			];
+		} else if (target.recipeKey === 'category') {
+			target.params.categoryName = value;
+			target.steps = [{ step: 'runPHP', code: v27CategoryRecipeCode(value) }];
+		}
 	});
 }
 
@@ -3691,17 +5940,322 @@ function v27RenderText() {
 	setText('summary-content', state.content.pages.length + ' pages' + (state.content.products ? ' + ' + state.content.products + ' products' : '')
 		+ (importCount ? ' + ' + importCount + (importCount === 1 ? ' import' : ' imports') : '') + ' · ' + v27HomepageName() + ' at /');
 	setText('summary-theme', 'Switch the active theme or install another');
-	setText('summary-boot', 'WordPress ' + wpName(state.wp) + ' · PHP ' + state.php + (state.networking ? '' : ' · offline'));
 	setText('summary-users', state.users.length === 1 && state.users[0].username === 'admin'
 		? 'Default admin'
 		: state.users.length + (state.users.length === 1 ? ' user' : ' users') + ' · sign in as ' + (state.login === 'none' ? 'no one' : state.login));
-	setText('summary-finish', state.scripts.length + (state.scripts.length === 1 ? ' finishing step' : ' finishing steps') + ' · open ' + landingName(state.landing));
+	setText('summary-finish', state.scripts.length
+		? state.scripts.length + (state.scripts.length === 1 ? ' finishing step' : ' finishing steps')
+		: '');
+	v27RenderLanding();
+	v27RenderFonts();
+	v27RenderRecipeSuggestions();
+	document.querySelectorAll('[data-v27-simplify-dashboard]').forEach((input) => {
+		input.checked = state.simplifyDashboard;
+	});
+	document.querySelectorAll('[data-v27-lang-button]').forEach((button) => {
+		button.textContent = v27LocaleName(state.lang);
+	});
 	const hasWooCommerce = state.plugins.some((plugin) => plugin.slug === 'woocommerce');
 	document.querySelectorAll('select[data-field="landing"] option[value="/wp-admin/edit.php?post_type=product"]').forEach((option) => {
 		option.disabled = !hasWooCommerce;
 	});
 	const seconds = 26 + state.plugins.length * 4 + state.content.imports.length * 5 + state.scripts.length * 2;
 	setText('estimate', 'about ' + seconds + ' seconds');
+}
+
+function v27LandingPageOptions() {
+	return state.content.pages.map((page) => ({ value: '/?pagename=' + page.id, label: page.title }));
+}
+
+function v27RenderLanding() {
+	document.querySelectorAll('[data-v27-landing-zone]').forEach((zone) => {
+		const select = zone.querySelector('[data-v27-landing-select]');
+		const blank = zone.querySelector('.v27-fact-blank');
+		const input = zone.querySelector('[data-v27-landing-custom]');
+		const pages = v27LandingPageOptions();
+		const known = [...V27_LANDING_STATICS.map((item) => item.value), ...pages.map((item) => item.value)];
+		select.innerHTML = V27_LANDING_STATICS.map((item) =>
+			`<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('')
+			+ (pages.length ? `<optgroup label="Pages you’re adding">${pages.map((item) =>
+				`<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('')}</optgroup>` : '')
+			+ '<option value="__custom">Custom URL…</option>';
+		const custom = !known.includes(state.landing);
+		select.hidden = custom;
+		blank.hidden = !custom;
+		if (custom) {
+			select.value = '__custom';
+			if (document.activeElement !== input) input.value = state.landing;
+		} else {
+			select.value = state.landing;
+		}
+	});
+}
+
+function v27ShowLandingCustom(zone) {
+	if (!zone) return;
+	const select = zone.querySelector('[data-v27-landing-select]');
+	const blank = zone.querySelector('.v27-fact-blank');
+	const input = zone.querySelector('[data-v27-landing-custom]');
+	select.hidden = true;
+	blank.hidden = false;
+	input.value = V27_LANDING_STATICS.some((item) => item.value === state.landing) ? '' : state.landing;
+	input.focus();
+	input.select();
+}
+
+function v27CommitLandingCustom(input) {
+	let value = input.value.trim();
+	if (!value) {
+		v27RenderLanding();
+		return;
+	}
+	if (!/^(\/|https?:\/\/)/.test(value)) value = '/' + value;
+	if (value === state.landing) {
+		v27RenderLanding();
+		return;
+	}
+	commit('Updated the page to open after build', () => { state.landing = value; });
+}
+
+function v27ReopenLandingPicker(zone) {
+	if (!zone) return;
+	const select = zone.querySelector('[data-v27-landing-select]');
+	const blank = zone.querySelector('.v27-fact-blank');
+	select.hidden = false;
+	blank.hidden = true;
+	select.focus();
+	try { select.showPicker(); } catch (error) { /* focus alone still opens on click/keyboard */ }
+}
+
+function v27RenderRecipeSuggestions() {
+	document.querySelectorAll('[data-v27-recipe-suggest]').forEach((container) => {
+		const added = new Set(state.scripts.map((script) => script.recipeKey));
+		const pool = FINISH_RECIPES.filter((recipe) => !recipe.advanced && !added.has(recipe.key)).slice(0, 3);
+		container.innerHTML = pool.map((recipe) => {
+			const outcome = recipe.note.replace(/\.$/, '');
+			const tail = outcome.charAt(0).toLowerCase() + outcome.slice(1);
+			return `<button class="v27-line v27-ghost-line" type="button" data-v27-script-preset="${escapeHtml(recipe.key)}"><strong>＋ ${escapeHtml(recipe.name)}</strong><span class="leader"></span><span class="tail">${escapeHtml(tail)}</span><span></span><span></span></button>`;
+		}).join('');
+	});
+}
+
+function v27LocaleName(code) {
+	return v27Locales.find((locale) => locale.code === code)?.native || code;
+}
+
+function v27LoadLocales() {
+	if (v27LocalesPromise) return v27LocalesPromise;
+	v27LocalesPromise = fetch('https://api.wordpress.org/translations/core/1.0/')
+		.then((response) => response.json())
+		.then((payload) => {
+			const translations = (payload.translations || []).map((item) => ({
+				code: item.language,
+				native: item.native_name || item.english_name || item.language,
+				english: item.english_name || item.native_name || item.language,
+			})).sort((left, right) => left.english.localeCompare(right.english));
+			if (translations.length) {
+				v27Locales = [V27_FALLBACK_LOCALES[0], ...translations.filter((item) => item.code !== 'en_US')];
+			}
+		})
+		.catch(() => { /* keep the curated fallback */ });
+	return v27LocalesPromise;
+}
+
+function v27LangPopoverOpen() {
+	return !!document.querySelector('[data-v27-lang-popover]:not([hidden])');
+}
+
+function v27ToggleLangPopover(button) {
+	if (v27LangPopoverOpen()) {
+		v27CloseLangPopover(true);
+		return;
+	}
+	const popover = button.parentElement.querySelector('[data-v27-lang-popover]');
+	button.setAttribute('aria-expanded', 'true');
+	popover.hidden = false;
+	const filter = popover.querySelector('[data-v27-lang-filter]');
+	filter.value = '';
+	v27RenderLangList('');
+	filter.focus();
+	v27LoadLocales().then(() => {
+		if (v27LangPopoverOpen()) v27RenderLangList(filter.value);
+	});
+}
+
+function v27CloseLangPopover(returnFocus) {
+	const popover = document.querySelector('[data-v27-lang-popover]:not([hidden])');
+	if (!popover) return;
+	popover.hidden = true;
+	const button = popover.parentElement.querySelector('[data-v27-lang-button]');
+	button.setAttribute('aria-expanded', 'false');
+	if (returnFocus) button.focus();
+}
+
+function v27RenderLangList(query) {
+	const list = document.querySelector('[data-v27-lang-list]');
+	if (!list) return;
+	const needle = query.trim().toLowerCase();
+	v27LangMatches = v27Locales.filter((locale) => !needle
+		|| locale.native.toLowerCase().includes(needle)
+		|| locale.english.toLowerCase().includes(needle)
+		|| locale.code.toLowerCase().includes(needle));
+	v27LangActive = needle ? 0 : Math.max(0, v27LangMatches.findIndex((locale) => locale.code === state.lang));
+	list.innerHTML = v27LangMatches.map((locale, index) => `
+		<li role="option" id="v27-lang-${escapeHtml(locale.code)}" data-v27-lang-option="${escapeHtml(locale.code)}"
+			aria-selected="${locale.code === state.lang}" class="${index === v27LangActive ? 'is-active' : ''}"
+			title="${escapeHtml(locale.english)}"><span>${escapeHtml(locale.native)}</span><span class="code">${escapeHtml(locale.code)}</span></li>
+	`).join('') || '<li class="v27-lang-empty">No languages match</li>';
+	const filter = document.querySelector('[data-v27-lang-filter]');
+	const active = v27LangMatches[v27LangActive];
+	if (filter) {
+		if (active) filter.setAttribute('aria-activedescendant', 'v27-lang-' + active.code);
+		else filter.removeAttribute('aria-activedescendant');
+	}
+	list.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function v27MoveLangActive(delta) {
+	if (!v27LangMatches.length) return;
+	v27LangActive = Math.min(v27LangMatches.length - 1, Math.max(0, v27LangActive + delta));
+	const list = document.querySelector('[data-v27-lang-list]');
+	list.querySelectorAll('li').forEach((item, index) => item.classList.toggle('is-active', index === v27LangActive));
+	document.querySelector('[data-v27-lang-filter]')
+		?.setAttribute('aria-activedescendant', 'v27-lang-' + (v27LangMatches[v27LangActive]?.code || ''));
+	list.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function v27PickLanguage(code) {
+	v27CloseLangPopover(true);
+	if (code === state.lang) return;
+	commit('Updated site language', () => { state.lang = code; });
+}
+
+function v27EnsureFontCss(family) {
+	if (v27FontCssLoaded.has(family)) return;
+	v27FontCssLoaded.add(family);
+	const link = document.createElement('link');
+	link.rel = 'stylesheet';
+	link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(family).replace(/%20/g, '+') + ':wght@400;600&display=swap';
+	document.head.appendChild(link);
+}
+
+function v27FontFamilyStyle(family) {
+	return 'font-family: ' + escapeHtml(JSON.stringify(family));
+}
+
+function v27RenderFonts() {
+	document.querySelectorAll('[data-v27-fonts]').forEach((container) => {
+		container.innerHTML = (state.fonts.length ? '<p class="v27-section-label">Fonts</p>' : '')
+			+ state.fonts.map((font, index) => {
+				if (font.source === 'upload') v27EnsureUploadedFontFace(font);
+				else v27EnsureFontCss(font.family);
+				return `
+					<div class="v27-font-line"><span class="v27-font-name" style="${v27FontFamilyStyle(font.family)}">${escapeHtml(font.family)}</span><span class="leader"></span><span class="tail">${font.source === 'upload' ? 'uploaded · ships with the export' : 'Google Fonts'}</span><button class="v27-small-remove" type="button" data-v27-remove-font="${index}" aria-label="Remove font ${escapeHtml(font.family)}">×</button></div>
+				`;
+			}).join('');
+	});
+}
+
+function v27EnsureUploadedFontFace(font) {
+	if (v27FontFacesLoaded.has(font.family) || !font.file?.dataUrl) return;
+	v27FontFacesLoaded.add(font.family);
+	const face = new FontFace(font.family, 'url(' + font.file.dataUrl + ')');
+	face.load().then(() => document.fonts.add(face)).catch(() => {});
+}
+
+function v27FontPopover() {
+	return {
+		title: 'Add fonts',
+		subtitle: '',
+		markup: `
+			<div class="v27-search-row"><input class="sheet-search" data-v27-font-filter type="search" placeholder="Search Google Fonts" aria-label="Search Google Fonts" autocomplete="off" spellcheck="false"><button class="v27-upload" type="button" data-v27-font-upload>Upload font</button><input type="file" data-v27-font-file accept=".woff2,.woff,.ttf,.otf" hidden></div>
+			<div class="v27-font-results" data-v27-font-results></div>
+		`,
+	};
+}
+
+function v27RenderFontResults() {
+	const container = document.querySelector('[data-v27-font-results]');
+	if (!container) return;
+	const query = (document.querySelector('[data-v27-font-filter]')?.value || '').trim().toLowerCase();
+	const added = new Set(state.fonts.map((font) => font.family));
+	let matches;
+	if (!query) {
+		matches = V27_FONT_SUGGESTIONS.filter((family) => !added.has(family));
+	} else {
+		const prefix = GF_FAMILIES.filter((family) => family.toLowerCase().startsWith(query));
+		const contains = GF_FAMILIES.filter((family) =>
+			!family.toLowerCase().startsWith(query) && family.toLowerCase().includes(query));
+		matches = [...prefix, ...contains].filter((family) => !added.has(family));
+	}
+	matches = matches.slice(0, 8);
+	matches.forEach(v27EnsureFontCss);
+	container.innerHTML = matches.map((family) => `
+		<button class="sheet-choice no-icon" type="button" data-v27-add-google-font="${escapeHtml(family)}"><span><strong style="${v27FontFamilyStyle(family)}">${escapeHtml(family)}</strong><span>Google Fonts</span></span><b>Add</b></button>
+	`).join('') || (query
+		? '<p class="empty-note">Not in the Google Fonts index — upload a font file instead.</p>'
+		: '<p class="empty-note">Every suggested font is already added — search for more.</p>');
+}
+
+function v27AddGoogleFont(family) {
+	if (state.fonts.some((font) => font.family === family)) return;
+	v27Commit('Added font “' + family + '”', () => {
+		state.fonts.push({ family, source: 'google' });
+	});
+	v27RenderFontResults();
+	document.querySelector('[data-v27-font-filter]')?.focus();
+}
+
+function v27RemoveFont(index) {
+	const font = state.fonts[index];
+	if (!font) return;
+	v27Commit('Removed font “' + font.family + '”', () => {
+		state.fonts.splice(index, 1);
+	});
+}
+
+function v27UploadFontFile(file) {
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = () => {
+		const family = file.name.replace(/\.(woff2?|ttf|otf)$/i, '').replace(/[^\w. -]+/g, '').replace(/[-_]+/g, ' ').trim() || 'Custom font';
+		if (state.fonts.some((font) => font.family === family)) return;
+		const safeName = file.name.replace(/[^\w.-]+/g, '-');
+		v27Commit('Added font “' + family + '”', () => {
+			state.fonts.push({ family, source: 'upload', file: { name: safeName, dataUrl: String(reader.result) } });
+		});
+		v27RenderFontResults();
+	};
+	reader.readAsDataURL(file);
+}
+
+function v27FontsMuPluginCode() {
+	const google = state.fonts.filter((font) => font.source !== 'upload');
+	const uploads = state.fonts.filter((font) => font.source === 'upload');
+	const googleUrl = 'https://fonts.googleapis.com/css2?'
+		+ google.map((font) => 'family=' + font.family.replace(/ /g, '+') + ':wght@400;600').join('&')
+		+ '&display=swap';
+	const faces = uploads.map((font) =>
+		'@font-face { font-family: ' + JSON.stringify(font.family)
+		+ '; src: url("/wp-content/fonts/' + font.file.name + '"); font-display: swap; }').join(' ');
+	const lines = [
+		'<?php',
+		"add_action( 'wp_enqueue_scripts', 'blueprint_fonts_enqueue' );",
+		"add_action( 'admin_enqueue_scripts', 'blueprint_fonts_enqueue' );",
+		'function blueprint_fonts_enqueue() {',
+	];
+	if (google.length) {
+		lines.push("\twp_enqueue_style( 'blueprint-google-fonts', '" + googleUrl + "', array(), null );");
+	}
+	if (uploads.length) {
+		lines.push(
+			"\twp_register_style( 'blueprint-font-faces', false );",
+			"\twp_enqueue_style( 'blueprint-font-faces' );",
+			"\twp_add_inline_style( 'blueprint-font-faces', '" + faces.replace(/'/g, "\\'") + "' );"
+		);
+	}
+	lines.push('}', '');
+	return lines.join('\n');
 }
 
 function v27Commit(message, change) {
@@ -3738,9 +6292,7 @@ function v27Undo() {
 		v27RenderPopover({ focus: '#v27UserName' });
 	} else if (v27ActiveKind) {
 		if (v27ActiveKind === 'script') v27SyncScriptPresetButtons();
-		const focusSelector = v27ActiveKind === 'script' ? '#v27ScriptName'
-			: v27ActiveKind === 'content' && document.getElementById('v27PageName')?.value ? '#v27PageName'
-			: '[data-v27-search]';
+		const focusSelector = v27ActiveKind === 'script' ? '#v27ScriptName' : '[data-v27-search]';
 		requestAnimationFrame(() => document.querySelector(focusSelector)?.focus());
 	}
 	if (['content', 'user', 'script'].includes(v27ActiveKind)) v27SetNotice('Last change undone.');
@@ -3839,8 +6391,8 @@ function v27BuildBlueprint() {
 				humanReadableName: plugin.name,
 			},
 		});
+		steps.push(...v27PluginOnboardingSteps(plugin, 'afterInstallSteps'));
 	});
-	steps.push(...v27ContextualSetupSteps('afterInstallSteps'));
 	if (state.lang !== 'en_US') steps.push({ step: 'setSiteLanguage', language: state.lang });
 	if (state.content.removeStarterContent) {
 		steps.push({ step: 'runPHP', code: STARTER_CONTENT_CODE });
@@ -3860,6 +6412,27 @@ function v27BuildBlueprint() {
 	state.users.forEach((user) => {
 		if (user.username !== 'admin' || user.roleSlug !== 'administrator') steps.push(v27UserStep(user));
 	});
+	if (state.fonts.length) {
+		const uploads = state.fonts.filter((font) => font.source === 'upload');
+		if (uploads.length) {
+			steps.push({ step: 'mkdir', path: '/wordpress/wp-content/fonts' });
+			uploads.forEach((font) => steps.push({
+				step: 'writeFile',
+				path: '/wordpress/wp-content/fonts/' + font.file.name,
+				data: { resource: 'url', url: font.file.dataUrl },
+			}));
+		}
+		steps.push(
+			{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+			{ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/blueprint-fonts.php', data: v27FontsMuPluginCode() }
+		);
+	}
+	if (state.simplifyDashboard) {
+		steps.push(
+			{ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' },
+			{ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/remove-dashboard-widgets.php', data: DASHBOARD_CODE }
+		);
+	}
 	state.scripts.forEach((script) => {
 		if (Array.isArray(script.steps)) {
 			steps.push(...JSON.parse(JSON.stringify(script.steps)));
@@ -3884,9 +6457,9 @@ function v27BuildBlueprint() {
 	return blueprint;
 }
 
-function v27ContextualSetupSteps(phase = 'beforeInstallSteps') {
+function v27ContextualSetupSteps() {
 	const steps = [];
-	if (phase === 'beforeInstallSteps' && state.wordpressAdmin.hideEditorGuides) {
+	if (state.disablePluginOnboardingModals) {
 		steps.push({
 			step: 'writeFile',
 			path: '/wordpress/wp-content/mu-plugins/hide-editor-welcome-guides.php',
@@ -3894,15 +6467,21 @@ function v27ContextualSetupSteps(phase = 'beforeInstallSteps') {
 		});
 	}
 	state.plugins.forEach((plugin) => {
-		(PLUGIN_SETUP_CONTROLS[plugin.slug] || []).forEach((control) => {
-			if (!plugin.setup?.[control.key]) return;
-			steps.push(...JSON.parse(JSON.stringify(control[phase] || [])));
-		});
+		steps.push(...v27PluginOnboardingSteps(plugin, 'beforeInstallSteps'));
 	});
 	if (steps.some((step) => step.step === 'writeFile'
 		&& step.path.startsWith('/wordpress/wp-content/mu-plugins/'))) {
 		steps.unshift({ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' });
 	}
+	return steps;
+}
+
+function v27PluginOnboardingSteps(plugin, phase) {
+	if (!state.disablePluginOnboardingModals) return [];
+	const steps = [];
+	(PLUGIN_ONBOARDING_RECIPES[plugin.slug] || []).forEach((control) => {
+		steps.push(...JSON.parse(JSON.stringify(control[phase] || [])));
+	});
 	return steps;
 }
 
@@ -4022,6 +6601,9 @@ async function v27LoadVersions(select) {
 function v27OpenModal(title, markup, mode = 'dialog') {
 	v27ModalOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 	v27ModalReturnSelector = v27ModalReturnTarget(v27ModalOpener);
+	const toast = document.getElementById('hybridToast');
+	window.clearTimeout(toastTimer);
+	toast.hidden = true;
 	const modal = document.getElementById('hybridModal');
 	const body = document.getElementById('hybridModalBody');
 	const editorBody = document.getElementById('v27EditorBody');
@@ -4118,7 +6700,6 @@ function v27SetBackgroundInert(inert) {
 function v27PrepareState() {
 	const usedPageIds = new Set();
 	const legacyScripts = Array.isArray(state.scripts) ? state.scripts : [];
-	const legacyWooCommerceSetup = legacyScripts.some((script) => (script.recipeKey || script.key) === 'woocommerce-onboarding');
 	const legacyStarterCleanup = legacyScripts.some((script) => (script.recipeKey || script.key) === 'fresh-start');
 	const legacyTestCoupon = legacyScripts.some((script) => script.file === 'demo-coupon.php');
 	state.content.pages = (Array.isArray(state.content.pages) ? state.content.pages : []).map((page, index) => {
@@ -4143,29 +6724,19 @@ function v27PrepareState() {
 	}
 	state.plugins.forEach((plugin) => {
 		plugin.source = plugin.source || 'WordPress.org';
-		const controls = PLUGIN_SETUP_CONTROLS[plugin.slug] || [];
-		if (!controls.length) {
-			delete plugin.setup;
-			return;
-		}
-		plugin.setup = plugin.setup && typeof plugin.setup === 'object' ? plugin.setup : {};
-		controls.forEach((control) => {
-			if (typeof plugin.setup[control.key] !== 'boolean') {
-				plugin.setup[control.key] = plugin.slug === 'woocommerce' && control.key === 'skipOnboarding' && legacyWooCommerceSetup
-					? true
-					: control.defaultValue;
-			}
-		});
+		delete plugin.setup;
 	});
-	state.wordpressAdmin = state.wordpressAdmin && typeof state.wordpressAdmin === 'object'
-		? state.wordpressAdmin
-		: {};
-	if (typeof state.wordpressAdmin.hideEditorGuides !== 'boolean') {
-		state.wordpressAdmin.hideEditorGuides = true;
+	if (typeof state.disablePluginOnboardingModals !== 'boolean') {
+		state.disablePluginOnboardingModals = true;
 	}
+	delete state.wordpressAdmin;
+	if (typeof state.simplifyDashboard !== 'boolean') {
+		state.simplifyDashboard = legacyScripts.some((script) => (script.recipeKey || script.key) === 'dashboard');
+	}
+	state.fonts = Array.isArray(state.fonts) ? state.fonts : [];
 	state.scripts = legacyScripts.filter((script) => {
 		const recipeKey = script.recipeKey || script.key;
-		return !['guides', 'woocommerce-onboarding', 'fresh-start'].includes(recipeKey)
+		return !['guides', 'woocommerce-onboarding', 'fresh-start', 'dashboard'].includes(recipeKey)
 			&& script.file !== 'demo-coupon.php';
 	});
 	state.scripts.forEach((script) => {
@@ -4192,13 +6763,6 @@ function v27PrepareState() {
 		const selected = THEMES.find((item) => item.slug === state.activeTheme) || THEMES[0];
 		state.installedThemes = [{ ...selected, source: 'WordPress.org' }];
 	}
-}
-
-function v27PluginSetupDefaults(slug) {
-	const controls = PLUGIN_SETUP_CONTROLS[slug] || [];
-	return controls.length
-		? Object.fromEntries(controls.map((control) => [control.key, control.defaultValue]))
-		: null;
 }
 
 function v27SetTriggerState(activeTrigger) {

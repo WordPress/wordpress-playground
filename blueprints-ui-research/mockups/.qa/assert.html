@@ -20,34 +20,111 @@ frame.addEventListener('load', () => setTimeout(() => {
 		ok('networking checkbox lives in stage 1', !!doc.querySelector('.nav-runtime [data-field="networking"]'));
 		ok('stage 6 has no networking control', !doc.querySelector('.nav-options [data-field="networking"]'));
 
-		// Plugin first-run controls.
-		ok('WooCommerce setup control defaults on', state.plugins.find((plugin) => plugin.slug === 'woocommerce')?.setup?.skipOnboarding
-			&& doc.querySelector('[data-v27-plugin-slug="woocommerce"] [data-v27-plugin-setup]')?.checked);
+		// Plugin first-run suppression.
+		const onboardingRecipes = win.eval('PLUGIN_ONBOARDING_RECIPES');
+		const configuredSlugs = Object.keys(onboardingRecipes);
+		const sameStep = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+		const onboardingToggle = doc.querySelector('[data-v27-disable-plugin-onboarding]');
+		ok('popular-plugin onboarding audit stays complete', configuredSlugs.length === 72
+			&& configuredSlugs.every((slug) => onboardingRecipes[slug].length
+				&& onboardingRecipes[slug][0].pluginName && onboardingRecipes[slug][0].note));
+		ok('one plugin-wide onboarding control defaults on', state.disablePluginOnboardingModals === true
+			&& doc.querySelectorAll('[data-v27-disable-plugin-onboarding]').length === 1
+			&& onboardingToggle?.checked);
+		ok('plugin rows have no separate onboarding controls', !doc.querySelector('[data-v27-plugin-setup]'));
+		const initialSummaries = [...doc.querySelectorAll('[data-plugins] .v27-plugin-summary')]
+			.map((element) => element.textContent);
+		ok('plugin rows show only changed settings', initialSummaries.length === 1
+			&& initialSummaries[0] === 'inactive', initialSummaries.join(' | '));
+		ok('plugin summary formats overrides', win.pluginOverrideSummary({ version: 'latest', active: true }) === ''
+			&& win.pluginOverrideSummary({ version: '6.1.2', active: true }) === 'v 6.1.2'
+			&& win.pluginOverrideSummary({ version: 'latest', active: false }) === 'inactive'
+			&& win.pluginOverrideSummary({ version: '6.1.2', active: false }) === 'v 6.1.2 · inactive'
+			&& win.pluginOverrideSummary({ version: 'embedded', active: true }) === '');
+
+		doc.querySelector('[data-v27-onboarding-info]').click();
+		const modalSlugs = [...doc.querySelectorAll('[data-v27-supported-plugin]')]
+			.map((element) => element.dataset.v27SupportedPlugin);
+		ok('supported-plugin modal derives from every suppression recipe', modalSlugs.length === configuredSlugs.length
+			&& configuredSlugs.every((slug) => modalSlugs.includes(slug)));
+		win.v27CloseModal();
+
 		let blueprint = win.v27BuildBlueprint();
 		const wooInstallIndex = blueprint.steps.findIndex((step) => step.step === 'installPlugin' && step.options?.targetFolderName === 'woocommerce');
-		const wooRedirectFilterIndex = blueprint.steps.findIndex((step) => step.path?.endsWith('/skip-woocommerce-onboarding.php'));
-		const wooCompletedIndex = blueprint.steps.findIndex((step) => step.options?.woocommerce_onboarding_profile?.completed === true);
-		ok('WooCommerce setup brackets activation', wooRedirectFilterIndex >= 0
+		const wooRedirectFilterIndex = blueprint.steps.findIndex((step) =>
+			step.path?.endsWith('/disable-woocommerce-onboarding-prompts.php'));
+		const wooCompletedIndex = blueprint.steps.findIndex((step) => step.step === 'runPHP'
+			&& String(step.code).includes('woocommerce_task_list_hidden_lists'));
+		ok('WooCommerce onboarding suppression brackets activation', wooRedirectFilterIndex >= 0
 			&& wooRedirectFilterIndex < wooInstallIndex && wooCompletedIndex > wooInstallIndex);
+		const yoastInstallIndex = blueprint.steps.findIndex((step) => step.step === 'installPlugin'
+			&& step.options?.targetFolderName === 'wordpress-seo');
+		const yoastSuppressorIndex = blueprint.steps.findIndex((step) => step.path?.endsWith('/disable-yoast-onboarding-prompts.php'));
+		const yoastStateIndex = blueprint.steps.findIndex((step) => step.step === 'runPHP'
+			&& String(step.code).includes('wp_playground_silence_yoast_prompts'));
+		ok('Yoast suppression covers AI introductions and the SEO task-list prompt',
+			String(blueprint.steps[yoastSuppressorIndex]?.data).includes('wpseo_introductions')
+			&& String(blueprint.steps[yoastSuppressorIndex]?.data)
+				.includes('_yoast_wpseo_task_list_opt_in_notification_seen'));
+		ok('Yoast prompt suppression brackets activation', yoastSuppressorIndex >= 0
+			&& yoastSuppressorIndex < yoastInstallIndex && yoastStateIndex === yoastInstallIndex + 1);
+
 		win.v27AddPlugin({ kind: 'plugin', slug: 'wpforms-lite', name: 'WPForms Lite', icon: '', version: 'latest', note: 'Forms', source: 'WordPress.org' });
 		win.v27AddPlugin({ kind: 'plugin', slug: 'seo-by-rank-math', name: 'Rank Math SEO', icon: '', version: 'latest', note: 'SEO', source: 'WordPress.org' });
 		const wpforms = state.plugins.find((plugin) => plugin.slug === 'wpforms-lite');
 		const rankMath = state.plugins.find((plugin) => plugin.slug === 'seo-by-rank-math');
-		ok('new plugin setup controls default on', wpforms?.setup?.disableSetupWizard
-			&& rankMath?.setup?.skipSetupWizard
-			&& doc.querySelector('[data-v27-plugin-slug="wpforms-lite"] [data-v27-plugin-setup]')?.checked);
+		ok('new supported plugins need no plugin-local setup state', wpforms && rankMath
+			&& !Object.hasOwn(wpforms, 'setup') && !Object.hasOwn(rankMath, 'setup'));
 		blueprint = win.v27BuildBlueprint();
 		const wpformsSetupIndex = blueprint.steps.findIndex((step) => step.options?.wpforms_setup_wizard_disabled === true);
 		const wpformsInstallIndex = blueprint.steps.findIndex((step) => step.step === 'installPlugin' && step.options?.targetFolderName === 'wpforms-lite');
 		const rankMathSetupIndex = blueprint.steps.findIndex((step) => step.step === 'runPHP' && String(step.code).includes("delete_transient( '_rank_math_activation_redirect' )"));
 		const rankMathInstallIndex = blueprint.steps.findIndex((step) => step.step === 'installPlugin' && step.options?.targetFolderName === 'seo-by-rank-math');
-		ok('pre-install setup runs before activation', wpformsSetupIndex >= 0 && wpformsSetupIndex < wpformsInstallIndex);
-		ok('post-install setup runs after activation', rankMathSetupIndex > rankMathInstallIndex);
-		wpforms.setup.disableSetupWizard = false;
-		rankMath.setup.skipSetupWizard = false;
+		ok('pre-install suppression runs before activation', wpformsSetupIndex >= 0 && wpformsSetupIndex < wpformsInstallIndex);
+		ok('post-install suppression runs after activation', rankMathSetupIndex > rankMathInstallIndex);
+
+		onboardingToggle.checked = false;
+		onboardingToggle.dispatchEvent(new win.Event('change', { bubbles: true }));
 		blueprint = win.v27BuildBlueprint();
-		ok('turning setup controls off removes their steps', !blueprint.steps.some((step) => step.options?.wpforms_setup_wizard_disabled === true)
-			&& !blueprint.steps.some((step) => String(step.code).includes("_rank_math_activation_redirect")));
+		const everyRecipeStep = Object.values(onboardingRecipes).flatMap((controls) => controls.flatMap((control) =>
+			[...(control.beforeInstallSteps || []), ...(control.afterInstallSteps || [])]));
+		ok('turning the global control off removes every suppression step', state.disablePluginOnboardingModals === false
+			&& everyRecipeStep.every((expected) => !blueprint.steps.some((step) => sameStep(step, expected))));
+		onboardingToggle.checked = true;
+		onboardingToggle.dispatchEvent(new win.Event('change', { bubbles: true }));
+
+		const dynamicSlug = configuredSlugs.find((slug) => !state.plugins.some((plugin) => plugin.slug === slug));
+		win.v27AddPlugin({ kind: 'plugin', slug: dynamicSlug, name: dynamicSlug, icon: '', version: 'latest', note: '', source: 'WordPress.org' });
+		const dynamicPlugin = state.plugins.find((plugin) => plugin.slug === dynamicSlug);
+		blueprint = win.v27BuildBlueprint();
+		const dynamicSteps = [
+			...win.v27PluginOnboardingSteps(dynamicPlugin, 'beforeInstallSteps'),
+			...win.v27PluginOnboardingSteps(dynamicPlugin, 'afterInstallSteps'),
+		];
+		ok('a dynamically added supported plugin gets suppression steps', dynamicSteps.length > 0
+			&& dynamicSteps.every((expected) => blueprint.steps.some((step) => sameStep(step, expected))));
+
+		const pluginsBeforeOrderCheck = state.plugins;
+		state.plugins = configuredSlugs.map((slug) => ({
+			slug,
+			name: slug,
+			version: 'latest',
+			active: true,
+		}));
+		blueprint = win.v27BuildBlueprint();
+		const orderFailures = [];
+		state.plugins.forEach((plugin) => {
+			const installIndex = blueprint.steps.findIndex((step) => step.step === 'installPlugin'
+				&& step.options?.targetFolderName === plugin.slug);
+			const beforeSteps = win.v27PluginOnboardingSteps(plugin, 'beforeInstallSteps');
+			const afterSteps = win.v27PluginOnboardingSteps(plugin, 'afterInstallSteps');
+			if (beforeSteps.some((expected) => !blueprint.steps.slice(0, installIndex).some((step) => sameStep(step, expected)))
+				|| afterSteps.some((expected, index) => !sameStep(blueprint.steps[installIndex + index + 1], expected))) {
+				orderFailures.push(plugin.slug);
+			}
+		});
+		ok('every configured onboarding recipe brackets its plugin install', orderFailures.length === 0, orderFailures.join(', '));
+		state.plugins = pluginsBeforeOrderCheck;
 
 		// Theme flows.
 		win.v27AddTheme({ kind: 'theme', slug: 'ollie', name: 'Ollie', shot: '', note: 'Block theme', source: 'WordPress.org' });
@@ -63,7 +140,7 @@ frame.addEventListener('load', () => setTimeout(() => {
 		ok('removing active theme falls back', state.installedThemes.length === 1 && state.activeTheme === 'storefront');
 
 		// Finishing steps: recipes.
-		win.v27AddScriptPreset('dashboard');
+		win.v27AddScriptPreset('debug');
 		win.v27AddScriptPreset('permalinks');
 		win.v27AddScriptPreset('category');
 		ok('recipes append to stage 6', state.scripts.length === 3, state.scripts.map(s => s.name).join(' | '));
@@ -71,7 +148,7 @@ frame.addEventListener('load', () => setTimeout(() => {
 		blueprint = win.v27BuildBlueprint();
 		ok('permalinks recipe lands in blueprint', blueprint.steps.some((step) => step.step === 'setSiteOptions' && step.options?.permalink_structure === '/%postname%/'));
 		ok('starter cleanup lands in blueprint', blueprint.steps.some((step) => step.step === 'runPHP' && String(step.code).includes('wp_delete_post( 2, true )')));
-		ok('category rename parameterized', state.scripts.find(s => s.recipeKey === 'category')?.name.includes('News'));
+		ok('category rename parameterized', state.scripts.find(s => s.recipeKey === 'category')?.params?.categoryName === 'News');
 
 		// Custom steps via builder used by the New-step modal.
 		const sql = win.v27BuildCustomScript('sql', 'Seed a flag', "INSERT INTO wp_options (option_name, option_value) VALUES ('demo_flag', '1');");
