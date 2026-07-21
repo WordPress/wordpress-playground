@@ -35,10 +35,11 @@ export function MailPreview({ mail }: { mail: Email }) {
 
 		function observeIframeContents() {
 			contentResizeObserver?.disconnect();
-			const body = htmlPreview.contentDocument?.body;
-			if (body) {
+			const documentElement =
+				htmlPreview.contentDocument?.documentElement;
+			if (documentElement) {
 				const observer = new ResizeObserver(resizeIframe);
-				observer.observe(body);
+				observer.observe(documentElement);
 				contentResizeObserver = observer;
 			}
 			resizeIframe();
@@ -51,16 +52,17 @@ export function MailPreview({ mail }: { mail: Email }) {
 
 			animationFrame = window.requestAnimationFrame(() => {
 				animationFrame = undefined;
-				const body = htmlPreview.contentDocument?.body;
-				if (!body) {
+				const documentElement =
+					htmlPreview.contentDocument?.documentElement;
+				if (!documentElement) {
 					return;
 				}
 
 				const contentHeight = Math.ceil(
 					Math.max(
-						body.scrollHeight,
-						body.offsetHeight,
-						body.getBoundingClientRect().height
+						documentElement.scrollHeight,
+						documentElement.offsetHeight,
+						documentElement.getBoundingClientRect().height
 					)
 				);
 				const height = `${Math.max(1, contentHeight)}px`;
