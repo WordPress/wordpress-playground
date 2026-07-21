@@ -365,6 +365,44 @@ describe('stored sites', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
+	it('selects the requested replacement once when removing the active site', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const { selectActiveSite, setActiveSite } = await import('./store');
+		const removedSite = createSiteInfo({ slug: 'failed-import' });
+		const previousSite = createSiteInfo({ slug: 'previous-site' });
+		const newerSite = createSiteInfo({ slug: 'newer-site' });
+		removedSite.metadata.whenCreated = 3;
+		newerSite.metadata.whenCreated = 2;
+		previousSite.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([
+					removedSite,
+					previousSite,
+					newerSite,
+				])
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		vi.mocked(selectActiveSite).mockReturnValue(removedSite);
+
+		await removeSite(removedSite.slug, {
+			replacementSiteSlug: previousSite.slug,
+			updateUrl: false,
+		})(dispatch as any, () => state as any);
+
+		expect(setActiveSite).toHaveBeenCalledOnce();
+		expect(setActiveSite).toHaveBeenCalledWith(previousSite.slug, {
+			updateUrl: false,
+		});
+	});
+
 	it('continues pruning after an autosave cannot be deleted', async () => {
 		const { pruneAutosavedSites, sitesSlice } =
 			await import('./slice-sites');

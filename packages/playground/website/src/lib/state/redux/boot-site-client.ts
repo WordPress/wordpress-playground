@@ -389,7 +389,7 @@ export function bootSiteClient(
 			if (signal.aborted) {
 				return;
 			}
-			logger.error('Error initializing saved Playground', error);
+			logger.error('Error initializing Playground', error);
 			if (mountDescriptorForInitialOpfsSync) {
 				dispatch(
 					updateClientInfo({

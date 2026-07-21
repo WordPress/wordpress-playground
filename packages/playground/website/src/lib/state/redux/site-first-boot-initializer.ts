@@ -12,7 +12,9 @@ const pendingInitializers = new Map<string, PendingInitializer>();
 
 /**
  * Registers work that must modify a new site's MEMFS before its first OPFS
- * copy. The returned promise settles after boot runs that work.
+ * copy. `finished` settles after boot runs that work. Cancellation removes
+ * unconsumed work and resolves `finished`; callers handle the cancellation
+ * reason separately.
  */
 export function registerSiteFirstBootInitializer(
 	siteSlug: string,

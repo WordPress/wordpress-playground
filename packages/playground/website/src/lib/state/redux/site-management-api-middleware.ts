@@ -896,17 +896,12 @@ export function createSitesAPI(
 			if (initialize) {
 				// A failed initializer or first OPFS copy cannot produce a reloadable
 				// site. Remove it instead of retaining incomplete files and metadata.
-				await dispatch(removeSite(newSiteInfo.slug));
-				if (
-					previousActiveSiteSlug &&
-					selectSiteBySlug(getState(), previousActiveSiteSlug)
-				) {
-					dispatch(
-						setActiveSite(previousActiveSiteSlug, {
-							updateUrl: options.updateUrl,
-						})
-					);
-				}
+				await dispatch(
+					removeSite(newSiteInfo.slug, {
+						replacementSiteSlug: previousActiveSiteSlug,
+						updateUrl: options.updateUrl,
+					})
+				);
 			}
 			throw error;
 		}
@@ -943,6 +938,12 @@ export function createSitesAPI(
 			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
 		const sync = getSync();
 		if (!sync) {
+			const site = selectSiteBySlug(getState(), siteSlug);
+			if (!site || site.metadata.initialOpfsSyncPending !== false) {
+				throw new Error(
+					'Unable to save the imported Playground because its initial storage sync did not complete.'
+				);
+			}
 			return;
 		}
 		if (sync.status === 'error') {
