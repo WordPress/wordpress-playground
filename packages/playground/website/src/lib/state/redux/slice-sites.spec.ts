@@ -4,6 +4,8 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
+	let deleteSite: ReturnType<typeof vi.fn>;
+	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
 	let deleteBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -12,6 +14,8 @@ describe('stored sites', () => {
 	beforeEach(() => {
 		vi.resetModules();
 		createSite = vi.fn();
+		deleteSite = vi.fn();
+		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
@@ -19,7 +23,7 @@ describe('stored sites', () => {
 
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
-				error: vi.fn(),
+				error: loggerError,
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -49,6 +53,7 @@ describe('stored sites', () => {
 		vi.doMock('../opfs/opfs-site-storage', () => ({
 			opfsSiteStorage: {
 				create: createSite,
+				delete: deleteSite,
 				update: updateSiteStorage,
 			},
 		}));
@@ -307,6 +312,107 @@ describe('stored sites', () => {
 		).rejects.toThrow('browser storage is not available');
 
 		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('keeps a stored site in Redux when deleting it from OPFS fails', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		deleteSite.mockRejectedValue(new Error('Could not delete site'));
+
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('Could not delete site');
+
+		expect(state.sites.entities[site.slug]).toEqual(site);
+	});
+
+	it('keeps a stored site in Redux when browser storage is unavailable', async () => {
+		vi.doMock('../opfs/opfs-site-storage', () => ({
+			opfsSiteStorage: undefined,
+		}));
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('browser storage is not available');
+
+		expect(state.sites.entities[site.slug]).toEqual(site);
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('continues pruning after an autosave cannot be deleted', async () => {
+		const { pruneAutosavedSites, sitesSlice } =
+			await import('./slice-sites');
+		const failedAutosave = createSiteInfo({ slug: 'failed-autosave' });
+		failedAutosave.metadata.persistence = 'autosave';
+		failedAutosave.metadata.whenCreated = 2;
+		const removableAutosave = createSiteInfo({
+			slug: 'removable-autosave',
+		});
+		removableAutosave.metadata.persistence = 'autosave';
+		removableAutosave.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([failedAutosave, removableAutosave])
+			),
+		};
+		const getState = () => state as any;
+		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		const deletionError = new Error('Could not delete autosave');
+		deleteSite.mockImplementation(async (slug) => {
+			if (slug === failedAutosave.slug) {
+				throw deletionError;
+			}
+		});
+
+		await expect(
+			pruneAutosavedSites({ limit: 0 })(dispatch as any, getState)
+		).resolves.toBeUndefined();
+
+		expect(deleteSite).toHaveBeenCalledWith(failedAutosave.slug);
+		expect(deleteSite).toHaveBeenCalledWith(removableAutosave.slug);
+		expect(state.sites.entities[failedAutosave.slug]).toEqual(
+			failedAutosave
+		);
+		expect(state.sites.entities[removableAutosave.slug]).toBeUndefined();
+		expect(loggerError).toHaveBeenCalledWith(
+			`Failed to prune autosaved Playground "${failedAutosave.slug}"`,
+			deletionError
+		);
 	});
 
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
