@@ -249,29 +249,17 @@ export function updateSite({
 		if (!existingSite) {
 			throw new Error(`Site not found: ${slug}`);
 		}
-		const { metadata, ...topLevelChanges } = changes;
-		const {
-			runtimeConfiguration: runtimeConfigurationChanges,
-			...metadataChanges
-		} = metadata ?? {};
-		let updatedSite = {
+		let updatedSite: SiteInfo = {
 			...existingSite,
-			...topLevelChanges,
-			metadata: metadata
-				? {
-						...existingSite.metadata,
-						...metadataChanges,
-						...(runtimeConfigurationChanges
-							? {
-									runtimeConfiguration: {
-										...existingSite.metadata
-											.runtimeConfiguration,
-										...runtimeConfigurationChanges,
-									},
-								}
-							: {}),
-					}
-				: existingSite.metadata,
+			...changes,
+			metadata: {
+				...existingSite.metadata,
+				...changes.metadata,
+				runtimeConfiguration: {
+					...existingSite.metadata.runtimeConfiguration,
+					...changes.metadata?.runtimeConfiguration,
+				},
+			},
 		};
 		if (updatedSite.metadata.storage !== 'none') {
 			if (!opfsSiteStorage) {
@@ -279,36 +267,17 @@ export function updateSite({
 					'Cannot update a saved Playground because browser storage is not available.'
 				);
 			}
-			const persistedSite = await opfsSiteStorage.update(
-				updatedSite.slug,
-				{
-					...(metadata ? { metadata } : {}),
-					...('originalUrlParams' in topLevelChanges
-						? { originalUrlParams: updatedSite.originalUrlParams }
-						: {}),
-				}
-			);
+			const persistedSite = await opfsSiteStorage.update(slug, changes);
 			updatedSite = {
 				...updatedSite,
-				originalUrlParams: persistedSite.originalUrlParams,
-				metadata: persistedSite.metadata,
+				...persistedSite,
 			};
 		}
+		const { slug: updatedSlug, ...updatedSiteChanges } = updatedSite;
 		dispatch(
 			sitesSlice.actions.updateSite({
-				id: slug,
-				changes: {
-					...topLevelChanges,
-					...(updatedSite.metadata.storage !== 'none'
-						? {
-								originalUrlParams:
-									updatedSite.originalUrlParams,
-								metadata: updatedSite.metadata,
-							}
-						: metadata
-							? { metadata: updatedSite.metadata }
-							: {}),
-				},
+				id: updatedSlug,
+				changes: updatedSiteChanges,
 			})
 		);
 	};
