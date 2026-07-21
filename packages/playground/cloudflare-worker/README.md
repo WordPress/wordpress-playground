@@ -49,7 +49,17 @@ For a normal account deployment, authenticate separately and run:
 npm exec -- wrangler deploy --config packages/playground/cloudflare-worker/wrangler.jsonc
 ```
 
-Call the URL printed by Wrangler. Success is JSON with `marker` equal to `cloudflare-php-wasm-memory-gate`, a PHP 8.5.8 `php_version`, and initialization/execution timings. Only that real remote response is a memory acceptance result for issue #69. An isolate-memory deployment or request failure is negative evidence.
+Call the URL printed by Wrangler with a unique `run` query parameter. Success is JSON with `marker` equal to `cloudflare-php-wasm-memory-gate`, a PHP 8.5.8 `php_version`, and request/isolate correlation fields. Only that real remote response is a memory acceptance result for issue #69. An isolate-memory deployment or request failure is negative evidence.
+
+Cloudflare intentionally freezes `performance.now()` and `Date.now()` during CPU and Wasm execution, so in-Worker elapsed timers are not valid performance evidence. Stream preview logs in another terminal and correlate each request's unique `run` query value with Cloudflare's authoritative invocation `CPUTimeMs` and `WallTimeMs`. The response's `isolate_id` and `initialized_for_request` identify cold and warm execution:
+
+```sh
+npm exec -- wrangler tail playground-php-wasm-memory-gate --format json
+curl --fail --show-error 'https://<preview-url>/?run=cold-1'
+curl --fail --show-error 'https://<preview-url>/?run=warm-1'
+```
+
+Repeated requests may reach different isolates. A response with `initialized_for_request: false` proves warm reuse of the named `isolate_id`; a later cold isolate does not by itself prove memory eviction.
 
 Clean up a normal deployment after recording the result:
 

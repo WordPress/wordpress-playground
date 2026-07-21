@@ -3,9 +3,10 @@ export const HEALTH_MARKER = 'cloudflare-php-wasm-memory-gate';
 export type HealthPayload = {
 	php_version: string;
 	marker: string;
-	timing_ms: { initialization: number; execution: number };
 	initialization_scope: 'isolate';
 	initialized_for_request: boolean;
+	isolate_id: string;
+	request_id: string;
 	artifact: {
 		php_version: '8.5.8';
 		async_mode: 'asyncify';

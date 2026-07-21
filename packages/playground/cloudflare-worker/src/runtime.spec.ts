@@ -26,9 +26,10 @@ describe('healthResponse', () => {
 		const payload: HealthPayload = {
 			php_version: '8.5.8',
 			marker: 'cloudflare-php-wasm-memory-gate',
-			timing_ms: { initialization: 1, execution: 2 },
 			initialization_scope: 'isolate',
 			initialized_for_request: true,
+			isolate_id: 'isolate-id',
+			request_id: 'request-id',
 			artifact: {
 				php_version: '8.5.8',
 				async_mode: 'asyncify',

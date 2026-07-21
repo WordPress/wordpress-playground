@@ -20,18 +20,19 @@ import {
 const loaderPath = '@php-wasm/web-8-5/asyncify/php_8_5.js';
 const phpVersion = '8.5.8' as const;
 const wordpressArchiveUrl = 'https://wordpress.org/latest.zip';
-let runtimePromise: Promise<{ php: PHP; initializationMs: number }> | undefined;
+let isolateId: string | undefined;
+let runtimePromise: Promise<PHP> | undefined;
 
 export default {
 	async fetch(request: Request): Promise<Response> {
-		if (new URL(request.url).searchParams.get('probe') === 'remote-zip') {
+		const url = new URL(request.url);
+		if (url.searchParams.get('probe') === 'remote-zip') {
 			return remoteZipProbe();
 		}
 
 		const initializedForRequest = runtimePromise === undefined;
-		const { php, initializationMs } = await (runtimePromise ??=
-			loadRuntime());
-		const executionStarted = performance.now();
+		const currentIsolateId = (isolateId ??= crypto.randomUUID());
+		const php = await (runtimePromise ??= loadRuntime());
 		const output = await php.run({
 			code: `<?php echo json_encode(['php_version' => PHP_VERSION, 'marker' => '${HEALTH_MARKER}']);`,
 		});
@@ -39,14 +40,13 @@ export default {
 			HealthPayload,
 			'php_version' | 'marker'
 		>;
+		const requestId = url.searchParams.get('run') ?? crypto.randomUUID();
 		return healthResponse({
 			...phpResult,
-			timing_ms: {
-				initialization: initializationMs,
-				execution: performance.now() - executionStarted,
-			},
 			initialization_scope: 'isolate',
 			initialized_for_request: initializedForRequest,
+			isolate_id: currentIsolateId,
+			request_id: requestId,
 			artifact: {
 				php_version: phpVersion,
 				async_mode: 'asyncify',
@@ -94,8 +94,7 @@ function isWordPressRuntimeAsset(path: string): boolean {
 	);
 }
 
-async function loadRuntime(): Promise<{ php: PHP; initializationMs: number }> {
-	const initializationStarted = performance.now();
+async function loadRuntime(): Promise<PHP> {
 	const runtimeId = await loadPHPRuntime(
 		{
 			dependencyFilename: 'php_8_5.wasm',
@@ -108,8 +107,5 @@ async function loadRuntime(): Promise<{ php: PHP; initializationMs: number }> {
 			instantiateWasm: instantiatePrecompiledWasm(phpWasmModule),
 		}
 	);
-	return {
-		php: new PHP(runtimeId),
-		initializationMs: performance.now() - initializationStarted,
-	};
+	return new PHP(runtimeId);
 }
