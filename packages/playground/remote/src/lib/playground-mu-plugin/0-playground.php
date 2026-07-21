@@ -294,9 +294,17 @@ function playground_enable_site_thumbnail_capture() {
 					// Dynamic import executes inside the WordPress document. Accept only
 					// the same-origin renderer asset marked by the trusted parent.
 					const moduleUrl = new URL(request.moduleUrl);
+					const isRendererModule =
+						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+							moduleUrl.pathname
+						) ||
+						(moduleUrl.pathname ===
+							'/src/lib/capture-site-thumbnail.ts' &&
+							moduleUrl.searchParams.has('worker_file') &&
+							moduleUrl.searchParams.get('type') === 'module');
 					if (
 						moduleUrl.origin !== event.origin ||
-						!moduleUrl.pathname.includes('/capture-site-thumbnail') ||
+						!isRendererModule ||
 						moduleUrl.searchParams.get(
 							'playground-site-thumbnail-module'
 						) !== '1'

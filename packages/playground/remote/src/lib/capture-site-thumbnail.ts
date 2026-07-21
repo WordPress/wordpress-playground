@@ -1,4 +1,5 @@
 import { domToCanvas } from 'modern-screenshot';
+import type { SiteThumbnail } from './playground-client';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
 import resourceWorkerUrl from 'modern-screenshot/worker?url';
 
@@ -18,7 +19,7 @@ const CLONED_NODES_PER_YIELD = 100;
  * and the phase callbacks yield so other tasks can run during the remaining
  * renderer work.
  */
-export async function captureSiteThumbnail() {
+export async function captureSiteThumbnail(): Promise<SiteThumbnail> {
 	document
 		.querySelectorAll<HTMLImageElement>('img[loading="lazy"]')
 		.forEach((image) => (image.loading = 'eager'));
@@ -151,7 +152,7 @@ function blobToDataUrl(blob: Blob) {
 	});
 }
 
-function splitDataUrl(dataUrl: string) {
+function splitDataUrl(dataUrl: string): SiteThumbnail {
 	const match = /^data:([^;,]+);base64,(.*)$/.exec(dataUrl);
 	if (!match) {
 		throw new Error(

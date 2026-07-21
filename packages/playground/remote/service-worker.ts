@@ -241,9 +241,14 @@ self.addEventListener('fetch', (event) => {
 	// from inside a scoped WordPress document. Serve them as app assets instead of
 	// redirecting them into that site's virtual URL namespace, where WordPress
 	// would return a 404.
+	const isSiteThumbnailModule =
+		url.searchParams.has('playground-site-thumbnail-module') &&
+		(/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname) ||
+			(url.pathname === '/src/lib/capture-site-thumbnail.ts' &&
+				url.searchParams.has('worker_file') &&
+				url.searchParams.get('type') === 'module'));
 	if (
-		(url.pathname.includes('/capture-site-thumbnail') &&
-			url.searchParams.has('playground-site-thumbnail-module')) ||
+		isSiteThumbnailModule ||
 		(event.request.destination === 'worker' &&
 			url.searchParams.has('playground-site-thumbnail-worker'))
 	) {

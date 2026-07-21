@@ -632,7 +632,25 @@ async function captureSiteThumbnailFromWordPress({
 				finish(() => reject(new Error(event.data.error)));
 				return;
 			}
-			finish(() => resolve(event.data.thumbnail));
+			const thumbnail = event.data.thumbnail;
+			if (
+				typeof thumbnail !== 'object' ||
+				thumbnail === null ||
+				(thumbnail.mime !== 'image/webp' &&
+					thumbnail.mime !== 'image/jpeg') ||
+				typeof thumbnail.data !== 'string' ||
+				thumbnail.data.length === 0
+			) {
+				finish(() =>
+					reject(
+						new Error(
+							'The site thumbnail renderer returned an invalid image.'
+						)
+					)
+				);
+				return;
+			}
+			finish(() => resolve(thumbnail));
 		};
 
 		const onLoad = () => {
