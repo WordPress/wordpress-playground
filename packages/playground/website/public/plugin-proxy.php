@@ -165,7 +165,7 @@ class PluginDownloader
 			 */
 			if (array_key_exists('verify_only', $_GET)) {
 				header('HTTP/1.1 200 OK');
-				return true;
+				return;
 			}
 
 			$allowed_headers = array(
@@ -220,7 +220,7 @@ class PluginDownloader
 			throw new ApiException('invalid_pr_number');
 		}
 		try {
-			$verified = $this->streamArtifactFromBranch(
+			$this->streamArtifactFromBranch(
 				$organization,
 				$repo,
 				$prDetails->head->ref,
@@ -237,7 +237,7 @@ class PluginDownloader
 				$e
 			);
 		}
-		if ($verified === true && array_key_exists('verify_only', $_GET)) {
+		if (array_key_exists('verify_only', $_GET)) {
 			header('Content-Type: application/json');
 			echo json_encode([
 				'title' => $prDetails->title,

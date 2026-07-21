@@ -22,9 +22,10 @@ import {
  * proxy resolves a pull request, its title is preserved on both successful and
  * failed build checks so repository choices can identify the actual change.
  */
-type PrVerification =
-	| { ok: true; title?: string; openedAt?: string }
-	| { ok: false; error: string; title?: string; openedAt?: string };
+type PrVerification = {
+	title?: string;
+	openedAt?: string;
+} & ({ ok: true } | { ok: false; error: string });
 
 /**
  * Associates a repository candidate with the response that classified it.
@@ -216,21 +217,6 @@ export default function PreviewPRForm({
 
 		setRepositoryMatches(matches);
 		setSubmitting(false);
-	}
-
-	/**
-	 * Continues the preview flow with a repository selected by the user.
-	 *
-	 * The repository choices are removed before the preview begins. The
-	 * verification response obtained during detection is reused so choosing a
-	 * repository does not issue the same proxy request again.
-	 *
-	 * @param match Repository and verification response selected by the user.
-	 * @returns A promise that settles when the preview flow has handled the PR.
-	 */
-	async function selectRepository(match: RepositoryMatch) {
-		setRepositoryMatches([]);
-		await previewPr(match.resolved, match.verification);
 	}
 
 	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
@@ -466,8 +452,9 @@ export default function PreviewPRForm({
 		);
 		const failedVerification = results.find(
 			({ verification }) =>
-				!isRepositoryMatch(verification) &&
-				!isRepositoryMiss(verification)
+				!verification.ok &&
+				verification.error !== 'invalid_pr_number' &&
+				!isRepositoryMatch(verification)
 		);
 		if (failedVerification && !failedVerification.verification.ok) {
 			throw new Error(
@@ -498,13 +485,10 @@ export default function PreviewPRForm({
 		let json:
 			| { error?: unknown; title?: unknown; created_at?: unknown }
 			| undefined;
-		const responseBody = await response.text();
-		if (responseBody) {
-			try {
-				json = JSON.parse(responseBody);
-			} catch (parseError) {
-				logger.error(parseError);
-			}
+		try {
+			json = await response.json();
+		} catch (parseError) {
+			logger.error(parseError);
 		}
 		const title = typeof json?.title === 'string' ? json.title : undefined;
 		const openedAt =
@@ -590,10 +574,9 @@ export default function PreviewPRForm({
 								const pullRequestTitle =
 									match.verification.title ||
 									`Pull request ${match.resolved.ref}`;
-								const repositoryName =
-									match.resolved.target === 'wordpress'
-										? 'wordpress/wordpress-develop'
-										: 'wordpress/gutenberg';
+								const repositoryName = `wordpress/${
+									targetParams[match.resolved.target].repo
+								}`;
 								return (
 									<PullRequestPreviewCard
 										key={match.resolved.target}
@@ -626,7 +609,13 @@ export default function PreviewPRForm({
 												)}
 											</>
 										}
-										onClick={() => selectRepository(match)}
+										onClick={async () => {
+											setRepositoryMatches([]);
+											await previewPr(
+												match.resolved,
+												match.verification
+											);
+										}}
 									/>
 								);
 							})}
@@ -761,30 +750,22 @@ function formatPullRequestOpenedAt(
 	if (Number.isNaN(date.getTime())) {
 		return undefined;
 	}
-	const now = new Date();
-	const openedDay = Date.UTC(
-		date.getFullYear(),
-		date.getMonth(),
-		date.getDate()
-	);
-	const currentDay = Date.UTC(
-		now.getFullYear(),
-		now.getMonth(),
-		now.getDate()
-	);
-	const daysAgo = (currentDay - openedDay) / 86_400_000;
-	const time = pullRequestOpenedTimeFormatter
-		.formatToParts(date)
-		.map(({ type, value }) =>
-			type === 'dayPeriod' ? value.toLowerCase() : value
-		)
-		.join('')
+	const today = new Date();
+	const yesterday = new Date(today);
+	yesterday.setDate(today.getDate() - 1);
+	const time = date
+		.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			hour12: true,
+			minute: '2-digit',
+		})
+		.toLowerCase()
 		.replace(/\s/gu, '');
 
-	if (daysAgo === 0) {
+	if (date.toDateString() === today.toDateString()) {
 		return `today ${time}`;
 	}
-	if (daysAgo === 1) {
+	if (date.toDateString() === yesterday.toDateString()) {
 		return `yesterday at ${time}`;
 	}
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
@@ -792,12 +773,6 @@ function formatPullRequestOpenedAt(
 		'0'
 	)}-${String(date.getDate()).padStart(2, '0')}`;
 }
-
-const pullRequestOpenedTimeFormatter = new Intl.DateTimeFormat('en-US', {
-	hour: 'numeric',
-	hour12: true,
-	minute: '2-digit',
-});
 
 /**
  * Determines whether a verification response identifies a repository match.
@@ -814,20 +789,6 @@ function isRepositoryMatch(verification: PrVerification): boolean {
 	return verification.ok || repositoryMatchErrors.has(verification.error);
 }
 
-/**
- * Determines whether a response can be treated as a repository miss.
- *
- * Only known negative responses belong here. Any other failure remains
- * unclassified and stops repository detection rather than producing a false
- * “PR not found” result.
- *
- * @param verification Response returned by the preview proxy.
- * @returns Whether detection may safely discard the repository candidate.
- */
-function isRepositoryMiss(verification: PrVerification): boolean {
-	return !verification.ok && repositoryMissErrors.has(verification.error);
-}
-
 /** Proxy errors that identify a PR even though its preview cannot be opened. */
 const repositoryMatchErrors = new Set([
 	'no_ci_runs',
@@ -836,6 +797,3 @@ const repositoryMatchErrors = new Set([
 	'artifact_invalid',
 	'artifact_expired',
 ]);
-
-/** Proxy errors that repository detection treats as conclusive misses. */
-const repositoryMissErrors = new Set(['invalid_pr_number']);
