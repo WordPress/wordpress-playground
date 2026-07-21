@@ -567,8 +567,8 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
-	// The save state lives in the row's status chip, so the meta line stays clean
-	// (just the date, or the location for local-directory Playgrounds).
+	// The save state lives in the row's status chip, so the meta line stays focused
+	// on runtime/date details or the local-directory location.
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
 			return 'Not saved to browser storage';
@@ -576,7 +576,10 @@ export function SavedPlaygroundsPanel({
 		if (site.metadata.storage === 'local-fs') {
 			return 'Local directory';
 		}
-		return formatSiteCreatedDate(site) ?? '';
+		const createdDate = formatSiteCreatedDate(site);
+		return isAutosavedSite(site)
+			? [getRuntimeLabel(site), createdDate].filter(Boolean).join(' · ')
+			: (createdDate ?? '');
 	};
 
 	const getCurrentSiteDetails = (site: SiteInfo) => {
@@ -1062,9 +1065,6 @@ export function SavedPlaygroundsPanel({
 				data-playground-row={site.slug}
 				className={classNames(css.siteRow, {
 					[css.siteRowSelected]: isSelected,
-					[css.siteRowWithThumbnail]: Boolean(
-						site.metadata.thumbnail
-					),
 				})}
 			>
 				<div className={css.siteRowContent} {...rowButtonProps}>
@@ -1089,11 +1089,7 @@ export function SavedPlaygroundsPanel({
 		return (
 			<div
 				data-playground-row={site.slug}
-				className={classNames(css.siteRow, css.currentSiteRow, {
-					[css.siteRowWithThumbnail]: Boolean(
-						site.metadata.thumbnail
-					),
-				})}
+				className={classNames(css.siteRow, css.currentSiteRow)}
 			>
 				<div className={css.siteRowContent}>
 					{renderSitePreview(site)}
@@ -1128,7 +1124,11 @@ export function SavedPlaygroundsPanel({
 
 	function renderSitePreview(site: SiteInfo) {
 		return (
-			<div className={css.siteRowPreview}>
+			<div
+				className={classNames(css.siteRowPreview, {
+					[css.siteRowPreviewFallback]: !site.metadata.thumbnail,
+				})}
+			>
 				{site.metadata.thumbnail ? (
 					<img
 						className={css.siteRowThumbnail}

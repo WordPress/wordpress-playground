@@ -1128,36 +1128,39 @@
 	width: 128px;
 }
 
-/* On phones, put the name above the preview. Keeping the thumbnail beside the
-   secondary details preserves a compact list without squeezing the primary
-   label into the narrow strip between the preview and the actions menu. */
+.playgrounds-pane .siteRowPreviewFallback {
+	background: var(--paper-2);
+	border: 1px solid var(--line-subtle);
+	border-radius: 6px;
+}
+
+/* On phones, align the name and details with the top of the preview. Let the
+   name use three lines before truncating so the larger thumbnail does not reduce
+   it to a single short fragment. */
 @media (max-width: 480px) {
-	.playgrounds-pane .siteRowWithThumbnail .siteRowContent {
-		flex-wrap: wrap;
-		gap: 8px 12px;
+	.playgrounds-pane .siteRow {
+		align-items: flex-start;
 	}
 
-	.playgrounds-pane .siteRowWithThumbnail .siteRowInfo {
-		display: contents;
+	.playgrounds-pane .siteRowContent {
+		align-items: flex-start;
+		gap: 8px;
 	}
 
-	.playgrounds-pane .siteRowWithThumbnail .siteRowName,
-	.playgrounds-pane .siteRowWithThumbnail .siteRowNameInput,
-	.playgrounds-pane .siteRowWithThumbnail .currentSiteNameLine {
-		flex-basis: 100%;
-		order: -1;
+	.playgrounds-pane .siteRowName {
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		display: -webkit-box;
+		line-height: 1.25;
+		white-space: normal;
 	}
 
-	.playgrounds-pane .siteRowWithThumbnail .siteRowDate,
-	.playgrounds-pane .siteRowWithThumbnail .siteRowSaving {
-		flex: 1;
-		min-width: 0;
+	.playgrounds-pane .siteRowActions {
+		padding-top: 8px;
+		padding-right: 0;
 	}
 }
 
-/* Without a thumbnail, the 50px gallery logo and 20px name drove the row
-   height. Keep that fallback compact; thumbnail rows intentionally use the
-   larger 96px preview. */
 /* Neutral logo chips — a blue-tinted box on every row added up to a lot of
    accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
 .playgrounds-pane .siteRowLogo {
@@ -1165,6 +1168,10 @@
 	color: var(--ink-soft);
 	height: 38px;
 	width: 38px;
+}
+
+.playgrounds-pane .siteRowPreviewFallback .siteRowLogo {
+	background: transparent;
 }
 
 .playgrounds-pane .siteRowLogo svg {
