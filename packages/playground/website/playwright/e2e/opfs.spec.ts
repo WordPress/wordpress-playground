@@ -682,6 +682,58 @@ test('should wait for a temporary OPFS metadata lock', async ({
 		.toBe(newName);
 });
 
+test('should preserve metadata changes made in different tabs', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser()
+	);
+	const site = await getActivePlaygroundSite(website.page);
+
+	const secondTab = await context.newPage();
+	await secondTab.goto(
+		new URL(
+			`./?site-slug=${encodeURIComponent(site.slug)}`,
+			website.page.url()
+		).href
+	);
+	await secondTab.waitForFunction(() =>
+		Boolean((window as any).playgroundSites)
+	);
+	await secondTab.evaluate(() => (window as any).playgroundSites.isReady());
+
+	const newName = 'Renamed in the first tab';
+	await website.page.evaluate(
+		({ name, slug }) => (window as any).playgroundSites.rename(name, slug),
+		{ name: newName, slug: site.slug }
+	);
+	await secondTab.evaluate(() =>
+		(window as any).playgroundSites.setNetworking(false)
+	);
+
+	const persistedMetadata = await website.page.evaluate(async (dirName) => {
+		const root = await navigator.storage.getDirectory();
+		const sites = await root.getDirectoryHandle('sites');
+		const siteDirectory = await sites.getDirectoryHandle(dirName);
+		const metadataFile =
+			await siteDirectory.getFileHandle('wp-runtime.json');
+		return JSON.parse(await (await metadataFile.getFile()).text());
+	}, getDirectoryNameForSlug(site.slug));
+	expect(persistedMetadata.name).toBe(newName);
+	expect(persistedMetadata.runtimeConfiguration.networking).toBe(false);
+});
+
 test('should show the Store permanently pane with the save controls', async ({
 	website,
 	browserName,
