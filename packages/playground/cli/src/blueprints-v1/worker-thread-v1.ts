@@ -1,7 +1,12 @@
 import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
+import type {
+	AllPHPVersion,
+	PathAlias,
+	PHPRunOptions,
+	PHPResponse,
+} from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -72,6 +77,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
+	requestHandlerOptions: WorkerBootRequestHandlerOptions | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -158,6 +164,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
+		this.requestHandlerOptions = options;
 
 		try {
 			const requestHandler = await bootRequestHandler({
@@ -209,6 +216,37 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		} catch (e) {
 			setAPIError(e as Error);
 			throw e;
+		}
+	}
+
+	async runInFreshProcess(request: PHPRunOptions): Promise<PHPResponse> {
+		const options = this.requestHandlerOptions;
+		if (!options || !this.fileLockManager) {
+			throw new Error('Playground request handler is not booted');
+		}
+
+		const requestHandler = await bootRequestHandler({
+			siteUrl: options.siteUrl,
+			phpVersion: options.phpVersion,
+			maxPhpInstances: 1,
+			createPhpRuntime: createPhpRuntimeFactory(
+				options,
+				this.fileLockManager
+			),
+			onPHPInstanceCreated: async (php) => {
+				await mountResources(php, options.mountsBeforeWpInstall);
+				await mountResources(php, options.mountsAfterWpInstall);
+			},
+			sapiName: 'cli',
+			cookieStore: false,
+			pathAliases: options.pathAliases,
+		});
+
+		try {
+			const php = await requestHandler.getPrimaryPhp();
+			return await php.run(request);
+		} finally {
+			await requestHandler[Symbol.asyncDispose]();
 		}
 	}
 

@@ -86,6 +86,29 @@ describe.each(blueprintVersions)(
 			expect(text).toContain('8.0');
 		});
 
+		test('should run PHP without inheriting booted WordPress symbols', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				workers: 1,
+			});
+
+			const workerResponse = await cliServer.playground.run({
+				code: `<?php
+				require_once '/wordpress/wp-load.php';
+				echo function_exists('add_filter') ? 'booted' : 'missing';`,
+			});
+			expect(workerResponse.text).toBe('booted');
+
+			const freshResponse = await cliServer.playground.runInFreshProcess({
+				code: `<?php
+				echo function_exists('add_filter') ? 'booted:' : 'clean:';
+				require_once '/wordpress/wp-load.php';
+				echo function_exists('add_filter') ? 'loaded' : 'missing';`,
+			});
+			expect(freshResponse.text).toBe('clean:loaded');
+		});
+
 		test('should have Intl extension enabled by default', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
