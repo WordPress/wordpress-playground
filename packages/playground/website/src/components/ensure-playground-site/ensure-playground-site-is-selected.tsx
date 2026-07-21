@@ -132,6 +132,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				logger.error('Error loading sites:', error);
 				dispatch(
 					setDockOperationNotice({
+						status: 'error',
 						title: 'Couldn’t load Playgrounds',
 						message:
 							'Reload the page to try browser storage again.',
@@ -335,6 +336,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: 'Couldn’t autosave this Playground',
 					message:
 						'It’s still open but will be lost on refresh. Your earlier autosave is unchanged.',

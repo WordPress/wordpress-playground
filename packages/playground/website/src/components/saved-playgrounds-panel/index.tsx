@@ -335,7 +335,7 @@ export function SavedPlaygroundsPanel({
 				.find((site) => site.slug === importedSiteSlug);
 			dispatch(
 				setDockOperationNotice({
-					kind: 'success',
+					status: 'success',
 					title: 'Playground imported',
 					message:
 						importedSite?.storage === 'temporary'
@@ -407,6 +407,7 @@ export function SavedPlaygroundsPanel({
 			);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
 					message: 'This Playground is still available in your list.',
 				})
@@ -521,6 +522,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error storing Playground in the browser', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
 					message: 'No changes were made to this Playground.',
 				})
@@ -561,6 +563,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error saving Playground to a local directory', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t save ${site.metadata.name} locally`,
 					message: 'The Playground in your browser is unchanged.',
 				})
@@ -1516,7 +1519,6 @@ export function SavedPlaygroundsPanel({
 									css.zipImportError
 								)}
 								role="alert"
-								aria-live="polite"
 							>
 								{zipImportError}
 							</div>

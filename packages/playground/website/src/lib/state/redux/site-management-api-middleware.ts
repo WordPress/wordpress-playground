@@ -45,7 +45,11 @@ import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
 import { importWordPressFiles } from '@wp-playground/client';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
-import { ProgressTracker, type ProgressTrackerEvent } from '@php-wasm/progress';
+import {
+	ProgressTracker,
+	type ProgressDetails,
+	type ProgressTrackerEvent,
+} from '@php-wasm/progress';
 import { logger } from '@php-wasm/logger';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 
@@ -59,7 +63,7 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
-type ZipImportProgress = { caption: string; progress: number };
+type ZipImportProgress = ProgressDetails;
 
 const ZIP_INSTALL_PROGRESS_PERCENT = 85;
 const ZIP_STORAGE_PROGRESS_PERCENT = 100 - ZIP_INSTALL_PROGRESS_PERCENT;
@@ -868,17 +872,10 @@ export function createSitesAPI(
 						{ wordPressFilesZip },
 						{ tracker }
 					);
-					void playground
-						.goTo('/')
-						.catch((error) => {
-							logger.error(
-								'Failed to refresh imported site',
-								error
-							);
-						})
-						.finally(() => {
-							dispatch(setSiteImportIsRunning(false));
-						});
+					await playground.goTo('/').catch((error) => {
+						logger.error('Failed to refresh imported site', error);
+						throw error;
+					});
 				};
 				if (!opfsSiteStorage) {
 					return await createTemporarySite(
@@ -894,9 +891,8 @@ export function createSitesAPI(
 					initialize,
 					onProgress
 				);
-			} catch (error) {
+			} finally {
 				dispatch(setSiteImportIsRunning(false));
-				throw error;
 			}
 		},
 	};

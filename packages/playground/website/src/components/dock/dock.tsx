@@ -540,6 +540,8 @@ export function Dock({
 		if (!operationNotice) {
 			return;
 		}
+		// Dismiss the toast on the next outside interaction. Pointer events inside
+		// the Playground iframe do not bubble to this document, so listen across frames.
 		return listenForPointerDownAcrossIframes((event) => {
 			if (operationToastRef.current?.contains(event.target as Node)) {
 				return;
