@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 	fileExplorerProps: undefined as Record<string, unknown> | undefined,
 	loggerError: vi.fn(),
 	pruneAutosavedSites: vi.fn(),
+	removeSite: vi.fn(),
 	resolveRuntimeConfiguration: vi.fn(),
 	setActiveSite: vi.fn(),
 	setDockPaneOpen: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock('../../lib/state/redux/slice-sites', async (importOriginal) => ({
 	...(await importOriginal<typeof SliceSitesModule>()),
 	createStoredSite: mocks.createStoredSite,
 	pruneAutosavedSites: mocks.pruneAutosavedSites,
+	removeSite: mocks.removeSite,
 	updateSite: mocks.updateSite,
 }));
 
@@ -123,6 +125,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		mocks.dispatch.mockReset();
 		mocks.loggerError.mockReset();
 		mocks.pruneAutosavedSites.mockReset();
+		mocks.removeSite.mockReset();
 		mocks.resolveRuntimeConfiguration.mockReset();
 		mocks.setActiveSite.mockReset();
 		mocks.setActiveSite.mockImplementation((slug) => ({
@@ -214,15 +217,18 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.resolveRuntimeConfiguration).not.toHaveBeenCalled();
 	});
 
-	it('keeps the original return target when an unfinished Blueprint run is run again', async () => {
+	it('keeps the return target and removes the failed run before pruning on retry', async () => {
 		const failedRun = createStoredSiteInfo('autosave', 'failed-run');
 		failedRun.metadata.siteSlugToReturnToIfBlueprintFails = 'original-site';
 		const replacement = createStoredSiteInfo('autosave', 'replacement');
 		const createAction = { type: 'create-stored-site' };
+		const activateAction = { type: 'activate-replacement' };
+		const removeAction = { type: 'remove-site' };
+		const pruneAction = { type: 'prune-autosaves' };
 		mocks.createStoredSite.mockReturnValue(createAction);
-		mocks.pruneAutosavedSites.mockReturnValue({
-			type: 'prune-autosaves',
-		});
+		mocks.setActiveSite.mockReturnValue(activateAction);
+		mocks.removeSite.mockReturnValue(removeAction);
+		mocks.pruneAutosavedSites.mockReturnValue(pruneAction);
 		mocks.dispatch.mockImplementation((action) =>
 			action === createAction ? Promise.resolve(replacement) : action
 		);
@@ -242,6 +248,49 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
 			excludeSlugs: ['original-site', replacement.slug],
 		});
+		expect(mocks.removeSite).toHaveBeenCalledWith(failedRun.slug);
+		const dispatchedActions = mocks.dispatch.mock.calls.map(
+			([action]) => action
+		);
+		expect(dispatchedActions).toContain(removeAction);
+		expect(dispatchedActions).toContain(pruneAction);
+		expect(dispatchedActions.indexOf(activateAction)).toBeLessThan(
+			dispatchedActions.indexOf(removeAction)
+		);
+		expect(dispatchedActions.indexOf(removeAction)).toBeLessThan(
+			dispatchedActions.indexOf(pruneAction)
+		);
+	});
+
+	it('does not prune autosaves when the failed run cannot be discarded', async () => {
+		const failedRun = createStoredSiteInfo('autosave', 'failed-run');
+		failedRun.metadata.siteSlugToReturnToIfBlueprintFails = 'original-site';
+		const replacement = createStoredSiteInfo('autosave', 'replacement');
+		const createAction = { type: 'create-stored-site' };
+		const removeAction = { type: 'remove-site' };
+		const pruneAction = { type: 'prune-autosaves' };
+		const deletionError = new Error('Could not delete failed run');
+		mocks.createStoredSite.mockReturnValue(createAction);
+		mocks.removeSite.mockReturnValue(removeAction);
+		mocks.pruneAutosavedSites.mockReturnValue(pruneAction);
+		mocks.dispatch.mockImplementation((action) => {
+			if (action === createAction) {
+				return Promise.resolve(replacement);
+			}
+			if (action === removeAction) {
+				return Promise.reject(deletionError);
+			}
+			return action;
+		});
+		const editorRef = await renderEditor({ site: failedRun });
+
+		await act(async () => editorRef.current!.runBlueprint());
+
+		expect(mocks.pruneAutosavedSites).not.toHaveBeenCalled();
+		expect(mocks.loggerError).toHaveBeenCalledWith(
+			'Failed to discard Blueprint run',
+			deletionError
+		);
 	});
 
 	it('queues Run until the source Playground finishes syncing to OPFS', async () => {
@@ -409,36 +458,6 @@ describe('BlueprintBundleEditor Run barrier', () => {
 
 		expect(mocks.createStoredSite).toHaveBeenCalledTimes(2);
 		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
-	});
-
-	it('keeps a committed Playground when autosave pruning fails', async () => {
-		const sourceSite = createStoredSiteInfo('autosave');
-		const newSite = createStoredSiteInfo('autosave', 'blueprint-copy');
-		const createAction = { type: 'create-stored-site' };
-		const pruneAction = { type: 'prune-autosaves' };
-		mocks.createStoredSite.mockReturnValue(createAction);
-		mocks.pruneAutosavedSites.mockReturnValue(pruneAction);
-		mocks.dispatch.mockImplementation((action) => {
-			if (action === createAction) {
-				return Promise.resolve(newSite);
-			}
-			if (action === pruneAction) {
-				return Promise.reject(new Error('Could not prune'));
-			}
-			return action;
-		});
-		const editorRef = await renderEditor({ site: sourceSite });
-
-		await act(async () => editorRef.current!.runBlueprint());
-
-		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
-		expect(container.textContent).not.toContain(
-			'Could not create Playground. Try again.'
-		);
-		expect(mocks.loggerError).toHaveBeenCalledWith(
-			'Failed to prune autosaved Playgrounds',
-			expect.any(Error)
-		);
 	});
 
 	it('shows that stored Blueprints run in a fresh Playground', async () => {
