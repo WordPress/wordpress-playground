@@ -116,6 +116,17 @@ describe.each(blueprintVersions)(
 				'clean:loaded:2',
 				'clean:loaded:3',
 			]);
+
+			await expect(
+				cliServer.playground.runInFreshProcess({
+					code: '<?php syntax error',
+				})
+			).rejects.toThrow();
+			const recoveredResponse =
+				await cliServer.playground.runInFreshProcess({
+					code: '<?php echo "recovered";',
+				});
+			expect(recoveredResponse.text).toBe('recovered');
 		});
 
 		test('should have Intl extension enabled by default', async () => {
