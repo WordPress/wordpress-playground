@@ -1,15 +1,22 @@
 // @vitest-environment jsdom
 
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import type * as SliceSitesModule from './slice-sites';
 import type { SiteInfo } from './slice-sites';
 import { createSitesAPI } from './site-management-api-middleware';
 
 const mocks = vi.hoisted(() => ({
 	persistTemporarySite: vi.fn(),
+	pruneAutosavedSites: vi.fn(),
 }));
 
 vi.mock('./persist-temporary-site', () => ({
 	persistTemporarySite: mocks.persistTemporarySite,
+}));
+
+vi.mock('./slice-sites', async (importOriginal) => ({
+	...(await importOriginal<typeof SliceSitesModule>()),
+	pruneAutosavedSites: mocks.pruneAutosavedSites,
 }));
 
 vi.mock('./store', () => ({
@@ -24,7 +31,12 @@ vi.mock('./store', () => ({
 }));
 
 describe('createSitesAPI', () => {
-	it('shares an autosave already running for the same site', async () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.pruneAutosavedSites.mockImplementation(() => vi.fn());
+	});
+
+	it('shares an autosave between API instances for the same store', async () => {
 		const site = createTemporarySite();
 		const state = createState(site);
 		let finishPersistence!: () => void;
@@ -36,18 +48,16 @@ describe('createSitesAPI', () => {
 			site.metadata.storage = 'opfs';
 		});
 		mocks.persistTemporarySite.mockReturnValue(persist);
-		const dispatch = vi.fn((action) => {
-			if (action === persist) {
-				return persist();
-			}
-			return Promise.resolve();
-		}) as unknown as PlaygroundDispatch;
-		const api = createSitesAPI(() => state, dispatch);
+		const dispatch = createDispatch(persist);
+		const firstApi = createSitesAPI(() => state, dispatch);
+		const secondApi = createSitesAPI(() => state, dispatch);
 
-		const firstAutosave = api.autosaveTemporarySite(site.slug);
-		const secondAutosave = api.autosaveTemporarySite(site.slug);
+		const firstAutosave = firstApi.autosaveTemporarySite(site.slug);
+		const secondAutosave = secondApi.autosaveTemporarySite(site.slug);
 
-		expect(mocks.persistTemporarySite).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() =>
+			expect(mocks.persistTemporarySite).toHaveBeenCalledTimes(1)
+		);
 		finishPersistence();
 		await expect(
 			Promise.all([firstAutosave, secondAutosave])
@@ -56,7 +66,110 @@ describe('createSitesAPI', () => {
 			{ slug: site.slug, storage: 'opfs' },
 		]);
 	});
+
+	it('waits for finalization when persistence has already updated storage', async () => {
+		const site = createTemporarySite();
+		const state = createState(site);
+		let finishPersistence!: () => void;
+		const persistenceCanFinish = new Promise<void>((resolve) => {
+			finishPersistence = resolve;
+		});
+		const persist = vi.fn(async () => {
+			await persistenceCanFinish;
+			site.metadata.storage = 'opfs';
+		});
+		mocks.persistTemporarySite.mockReturnValue(persist);
+		let finishPruning!: () => void;
+		const pruningCanFinish = new Promise<void>((resolve) => {
+			finishPruning = resolve;
+		});
+		const prune = vi.fn();
+		mocks.pruneAutosavedSites.mockReturnValue(prune);
+		const dispatch = createDispatch(persist, (action) =>
+			action === prune ? pruningCanFinish : Promise.resolve()
+		);
+		const api = createSitesAPI(() => state, dispatch);
+
+		const firstAutosave = api.autosaveTemporarySite(site.slug);
+		finishPersistence();
+		await vi.waitFor(() =>
+			expect(mocks.pruneAutosavedSites).toHaveBeenCalledTimes(1)
+		);
+		const secondAutosave = api.autosaveTemporarySite(site.slug);
+		let secondAutosaveFinished = false;
+		void secondAutosave.then(() => {
+			secondAutosaveFinished = true;
+		});
+		await Promise.resolve();
+
+		expect(secondAutosaveFinished).toBe(false);
+		finishPruning();
+		await expect(
+			Promise.all([firstAutosave, secondAutosave])
+		).resolves.toEqual([
+			{ slug: site.slug, storage: 'opfs' },
+			{ slug: site.slug, storage: 'opfs' },
+		]);
+	});
+
+	it('applies each concurrent caller’s routing and pruning options', async () => {
+		const site = createTemporarySite();
+		const state = createState(site);
+		let finishPersistence!: () => void;
+		const persistenceCanFinish = new Promise<void>((resolve) => {
+			finishPersistence = resolve;
+		});
+		const persist = vi.fn(async () => {
+			await persistenceCanFinish;
+			site.metadata.storage = 'opfs';
+		});
+		mocks.persistTemporarySite.mockReturnValue(persist);
+		const dispatch = createDispatch(persist);
+		const api = createSitesAPI(() => state, dispatch);
+		const pushState = vi
+			.spyOn(window.history, 'pushState')
+			.mockImplementation(() => undefined);
+
+		const firstAutosave = api.autosaveTemporarySite(site.slug, {
+			excludeFromPruning: ['first-exclusion'],
+		});
+		const secondAutosave = api.autosaveTemporarySite(site.slug, {
+			updateUrl: true,
+			excludeFromPruning: ['second-exclusion'],
+		});
+		finishPersistence();
+		await Promise.all([firstAutosave, secondAutosave]);
+
+		expect(mocks.persistTemporarySite).toHaveBeenCalledTimes(1);
+		expect(mocks.persistTemporarySite).toHaveBeenCalledWith(
+			site.slug,
+			'opfs',
+			{
+				skipRenameModal: true,
+				persistence: 'autosave',
+				updateUrl: false,
+			}
+		);
+		expect(mocks.pruneAutosavedSites).toHaveBeenCalledOnce();
+		expect(mocks.pruneAutosavedSites).toHaveBeenCalledWith({
+			excludeSlugs: [site.slug, 'first-exclusion', 'second-exclusion'],
+		});
+		expect(pushState).toHaveBeenCalledTimes(1);
+	});
 });
+
+function createDispatch(
+	persist: () => Promise<void>,
+	dispatchOther: (action: unknown) => Promise<unknown> = () =>
+		Promise.resolve()
+): PlaygroundDispatch {
+	return vi.fn((action) => {
+		if (action === persist) {
+			return persist();
+		}
+		return dispatchOther(action);
+	}) as unknown as PlaygroundDispatch;
+}
 
 function createState(site: SiteInfo): PlaygroundReduxState {
 	return {

@@ -36,6 +36,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { PlaygroundRoute, redirectTo } from '../url/router';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -47,6 +48,18 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
+type AutosaveInProgress = {
+	promise: Promise<SaveSiteResult>;
+	excludeFromPruning: Set<string>;
+	urlUpdateRequested: boolean;
+};
+
+// The window API and React hooks create separate API objects for the same Redux
+// store. Key by dispatch so those objects share autosaves without mixing stores.
+const autosavesInProgressByDispatch = new WeakMap<
+	PlaygroundDispatch,
+	Map<string, AutosaveInProgress>
+>();
 
 /**
  * API for listing, renaming, saving, and opening Playground
@@ -82,10 +95,15 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
-	const autosavesInProgressBySiteSlug = new Map<
-		string,
-		Promise<SaveSiteResult>
-	>();
+	let autosavesInProgressBySiteSlug =
+		autosavesInProgressByDispatch.get(dispatch);
+	if (!autosavesInProgressBySiteSlug) {
+		autosavesInProgressBySiteSlug = new Map();
+		autosavesInProgressByDispatch.set(
+			dispatch,
+			autosavesInProgressBySiteSlug
+		);
+	}
 	const api = {
 		/**
 		 * Lists all known sites.
@@ -261,9 +279,10 @@ export function createSitesAPI(
 		 * Autosaves a temporary Playground into browser storage.
 		 *
 		 * Autosave keeps the current browser URL unchanged unless the caller
-		 * asks to route to the new stored site. Concurrent requests for one site
-		 * share the same persistence operation so they cannot race the filesystem
-		 * copy, metadata update, or autosave pruning.
+		 * asks to route to the new stored site. Concurrent requests that begin while
+		 * one site is temporary share the filesystem copy and metadata update.
+		 * Routing runs when any caller requests it, and pruning uses their combined
+		 * exclusions.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -282,50 +301,74 @@ export function createSitesAPI(
 			if (!site) {
 				throw new Error('No site selected');
 			}
-			if (site.metadata.storage !== 'none') {
-				return { slug: site.slug, storage: site.metadata.storage };
-			}
-			const autosaveInProgress = autosavesInProgressBySiteSlug.get(
+			let autosaveInProgress = autosavesInProgressBySiteSlug.get(
 				site.slug
 			);
-			if (autosaveInProgress) {
-				return await autosaveInProgress;
+			if (!autosaveInProgress) {
+				if (site.metadata.storage !== 'none') {
+					return { slug: site.slug, storage: site.metadata.storage };
+				}
+				const promise = Promise.resolve()
+					.then(async () => {
+						const currentAutosave = autosaveInProgress!;
+						await dispatch(
+							persistTemporarySite(site.slug, 'opfs', {
+								skipRenameModal: true,
+								persistence: 'autosave',
+								updateUrl: false,
+							})
+						);
+						const updatedSite = selectSiteBySlug(
+							getState(),
+							site.slug
+						);
+						const storage = updatedSite?.metadata.storage;
+						if (storage !== 'opfs' && storage !== 'local-fs') {
+							throw new Error(
+								`Site ${site.slug} was not persisted (storage: ${storage}).`
+							);
+						}
+						if (currentAutosave.urlUpdateRequested) {
+							redirectTo(PlaygroundRoute.site(updatedSite));
+						}
+						await dispatch(
+							pruneAutosavedSites({
+								excludeSlugs: [
+									site.slug,
+									...currentAutosave.excludeFromPruning,
+								],
+							})
+						);
+						return { slug: site.slug, storage };
+					})
+					.finally(() => {
+						const currentAutosave = autosaveInProgress!;
+						if (
+							autosavesInProgressBySiteSlug.get(site.slug) ===
+							currentAutosave
+						) {
+							autosavesInProgressBySiteSlug.delete(site.slug);
+						}
+					});
+				autosaveInProgress = {
+					promise,
+					excludeFromPruning: new Set(),
+					urlUpdateRequested: false,
+				};
+				autosavesInProgressBySiteSlug.set(
+					site.slug,
+					autosaveInProgress
+				);
 			}
 
-			const autosave = (async () => {
-				await dispatch(
-					persistTemporarySite(site.slug, 'opfs', {
-						skipRenameModal: true,
-						persistence: 'autosave',
-						updateUrl: options.updateUrl ?? false,
-					})
-				);
-				await dispatch(
-					pruneAutosavedSites({
-						excludeSlugs: [
-							site.slug,
-							...(options.excludeFromPruning ?? []),
-						],
-					})
-				);
-				const updatedSite = selectSiteBySlug(getState(), site.slug);
-				const storage = updatedSite?.metadata.storage;
-				if (storage !== 'opfs' && storage !== 'local-fs') {
-					throw new Error(
-						`Site ${site.slug} was not persisted (storage: ${storage}).`
-					);
+			if (site.metadata.storage === 'none') {
+				for (const excludedSlug of options.excludeFromPruning ?? []) {
+					autosaveInProgress.excludeFromPruning.add(excludedSlug);
 				}
-				return { slug: site.slug, storage };
-			})();
-			autosavesInProgressBySiteSlug.set(site.slug, autosave);
-
-			try {
-				return await autosave;
-			} finally {
-				if (autosavesInProgressBySiteSlug.get(site.slug) === autosave) {
-					autosavesInProgressBySiteSlug.delete(site.slug);
-				}
+				autosaveInProgress.urlUpdateRequested ||=
+					options.updateUrl ?? false;
 			}
+			return await autosaveInProgress.promise;
 		},
 
 		/**
