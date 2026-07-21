@@ -25,6 +25,7 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -288,6 +289,16 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+			} else if (
+				(e as any).name === 'ResourceUnavailableError' ||
+				(e as any).originalErrorClassName === 'ResourceUnavailableError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-unavailable',
+						details: e,
+					})
+				);
 			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
@@ -316,6 +327,14 @@ export function bootSiteClient(
 				if (shouldShowGitHubAuthModal(repoUrl)) {
 					if (repoUrl) {
 						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					if (isUnfinishedBlueprintRun(site)) {
+						dispatch(
+							setActiveSiteError({
+								error: 'site-boot-failed',
+								details: e,
+							})
+						);
 					}
 					dispatch(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
@@ -374,6 +393,8 @@ export function bootSiteClient(
 				operation: syncOperation,
 				dispatch,
 				signal,
+				siteSlugToReturnToIfBlueprintFails:
+					site.metadata.siteSlugToReturnToIfBlueprintFails,
 			});
 		} else {
 			try {
@@ -540,6 +561,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation,
 	dispatch,
 	signal,
+	siteSlugToReturnToIfBlueprintFails,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -547,6 +569,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
+	siteSlugToReturnToIfBlueprintFails?: string;
 }) {
 	let shouldReportProgress = true;
 	try {
@@ -579,12 +602,17 @@ async function syncInitialOpfsFilesInBackground({
 		if (signal.aborted) {
 			return;
 		}
+		// Clear the return target in the same metadata write that completes the
+		// initial copy so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					...(siteSlugToReturnToIfBlueprintFails
+						? { siteSlugToReturnToIfBlueprintFails: undefined }
+						: {}),
 				},
 			})
 		);

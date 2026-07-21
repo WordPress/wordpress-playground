@@ -1,12 +1,219 @@
 .logs-inside-modal {
-	.log__search {
-		/* Title margin bottom + log margin top */
-		margin-bottom: var(--space-4, 16px);
-	}
-
 	.logs-component {
 		padding: var(--space-4, 16px);
 	}
+}
+
+.logs-component {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+}
+
+/* The toolbar pins to the top of the scrolling pane so search and filters
+   stay reachable while long logs scroll underneath. */
+.log-toolbar {
+	background: var(--paper-1, #fff);
+	box-shadow: 0 1px 0 var(--line-subtle, rgba(33, 32, 29, 0.08));
+	padding: var(--space-2, 8px) 0 var(--space-3, 12px);
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.log-filters {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2, 8px);
+	margin-top: var(--space-2, 8px);
+}
+
+.log-filter-chip {
+	background: none;
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: 999px;
+	color: var(--ink-muted, #5f5b54);
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 20px;
+	padding: 0 10px;
+}
+
+.log-filter-chip:hover:not(:disabled) {
+	border-color: var(--line-hover, rgba(33, 32, 29, 0.22));
+	color: var(--ink, #21201d);
+}
+
+/* The active chip fills with a warm neutral instead of near-black so the
+   filter row stays quieter than the log content it controls. */
+.log-filter-chip[aria-pressed='true'] {
+	background: var(--paper-5, #e2dcd2);
+	border-color: var(--paper-5, #e2dcd2);
+	color: var(--ink, #21201d);
+}
+
+.log-filter-chip:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.log-filter-count {
+	font-variant-numeric: tabular-nums;
+	margin-left: var(--space-1, 4px);
+	opacity: 0.65;
+}
+
+.log-copy-all {
+	background: none;
+	border: 0;
+	color: var(--accent-link, #2645c9);
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 500;
+	margin-left: auto;
+	padding: 0;
+}
+
+.log-copy-all:hover {
+	text-decoration: underline;
+}
+
+.log__content-container {
+	flex-grow: 1;
+}
+
+.log-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* Each row is a full-width column — timestamp above, message beneath —
+   with a copy slot on the right. The message is the widest and darkest
+   element, so the eye lands on it. */
+.log-entry {
+	border-block-end: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
+	column-gap: var(--space-4, 16px);
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 24px;
+	padding: var(--space-3, 12px) 0;
+}
+
+.log-entry:last-child {
+	border-block-end: 0;
+}
+
+.log-entry-body {
+	grid-column: 1;
+	min-width: 0;
+}
+
+.log-timestamp {
+	color: var(--ink-faint, #8a857b);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	grid-column: 1;
+	line-height: 19px;
+}
+
+/* The `PHP Notice:` style head is part of the record text — it only gets
+   a tint, and color appears only where it means something. */
+.log-severity-head[data-tier='error'] {
+	color: #96291b;
+}
+
+.log-severity-head[data-tier='warning'] {
+	color: #765311;
+}
+
+.log-severity-head[data-tier='info'] {
+	color: var(--ink-muted, #5f5b54);
+}
+
+.log-copy {
+	align-items: center;
+	background: none;
+	border: 0;
+	border-radius: var(--radius-control, 6px);
+	color: var(--action-icon, #4f4b45);
+	cursor: pointer;
+	display: flex;
+	grid-column: 2;
+	grid-row: 1;
+	height: 24px;
+	justify-content: center;
+	opacity: 0;
+	padding: 0;
+	transition: opacity 120ms ease;
+	width: 24px;
+}
+
+.log-entry:hover .log-copy,
+.log-entry:focus-within .log-copy,
+.log-copy:focus-visible {
+	opacity: 1;
+}
+
+.log-copy:hover {
+	background: var(--paper-4, #e7e2da);
+}
+
+.log-entry-message {
+	color: var(--ink-soft, #2f2d28);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+	/* Matches the 19px rail line height so the first message line and the
+	   severity word share a baseline. */
+	line-height: 19px;
+	overflow-wrap: anywhere;
+	white-space-collapse: preserve-breaks;
+}
+
+/* Keep the clamp line count in sync with CLAMP_LINES in index.tsx. */
+.log-entry-message[data-clamped] {
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 6;
+	display: -webkit-box;
+	overflow: hidden;
+}
+
+.log-entry-message mark {
+	background: #f2e2ac;
+	border-radius: 3px;
+	color: var(--ink, #21201d);
+	padding: 0 2px;
+}
+
+.log-entry-toggle {
+	background: none;
+	border: 0;
+	color: var(--accent-link, #2645c9);
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 500;
+	margin-top: var(--space-1, 4px);
+	padding: 0;
+}
+
+/* While an entry is expanded, "Show less" rides the bottom of the scrollport
+   so collapsing never requires scrolling to the end of a long record. The
+   full-width opaque band masks the text passing beneath it. */
+.log-entry-toggle[aria-expanded='true'] {
+	background: var(--paper-1, #fff);
+	bottom: 0;
+	box-shadow: 0 -1px 0 var(--line-subtle, rgba(33, 32, 29, 0.08));
+	display: block;
+	padding: var(--space-2, 8px) 0;
+	position: sticky;
+	text-align: left;
+	width: 100%;
+}
+
+.log-entry-toggle:hover {
+	text-decoration: underline;
 }
 
 .log__empty_placeholder {
@@ -20,7 +227,7 @@
 .log-clear-search {
 	background: none;
 	border: 0;
-	color: var(--accent-link);
+	color: var(--accent-link, #2645c9);
 	cursor: pointer;
 	font-size: 13px;
 	padding: 0;
@@ -28,38 +235,6 @@
 
 .log-clear-search:hover {
 	text-decoration: underline;
-}
-
-.logs-component {
-	display: flex;
-	flex-direction: column;
-	width: 100%;
-}
-
-.log__content-container {
-	flex-grow: 1;
-}
-
-.log__entry {
-	border-block-end: 1px solid var(--line-subtle);
-	font-family:
-		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-	margin: var(--space-2) 0;
-	padding: var(--space-2) 0;
-	white-space-collapse: preserve-breaks;
-	word-wrap: break-word;
-}
-
-.log__entry:has(mark) {
-	background-color: var(--paper-3);
-}
-
-.log__entry mark {
-	background-color: var(--paper-4, #e7e2da);
-	border-radius: var(--radius-control, 6px);
-	color: var(--color-alert-red, #cc1818);
-	font-weight: 600;
-	padding: 0 var(--space-1, 4px);
 }
 
 .log-empty-state {
@@ -83,33 +258,4 @@
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
-}
-
-.log-legend {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
-	list-style: none;
-	margin: var(--space-3) 0 0;
-	padding: 0;
-	width: 100%;
-}
-
-.log-legend li {
-	align-items: baseline;
-	display: grid;
-	gap: var(--space-3);
-	grid-template-columns: max-content 1fr;
-}
-
-.log-legend-term {
-	color: var(--ink);
-	font-size: 13px;
-	font-weight: 600;
-}
-
-.log-legend-desc {
-	color: var(--ink-muted);
-	font-size: 13px;
-	line-height: 1.5;
 }

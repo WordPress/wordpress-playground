@@ -530,6 +530,14 @@ async function opfsWriteFile(path: string, content: string) {
 		channel.port1.onmessage = function (event: MessageEvent) {
 			if (event.data === 'done') {
 				resolve();
+			} else if (event.data?.type === 'error') {
+				logger.error('Error in OPFS write worker.', event.data);
+				reject(
+					new Error(
+						`The browser storage worker failed while writing ${path}. See the preceding OPFS worker log for details.`,
+						{ cause: event.data.error }
+					)
+				);
 			} else {
 				reject(
 					new Error(
@@ -538,13 +546,35 @@ async function opfsWriteFile(path: string, content: string) {
 				);
 			}
 		};
-		worker.onerror = reject;
+		worker.onerror = (event) => {
+			const detail =
+				event instanceof ErrorEvent && event.message
+					? ` ${event.message}`
+					: '';
+			reject(
+				new Error(
+					`The browser storage worker failed while writing ${path} at ${metadataWorkerUrl}.${detail}`
+				)
+			);
+		};
 	});
+	let timeoutId: ReturnType<typeof setTimeout>;
 	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(() => reject(new Error('timeout')), 5000);
+		timeoutId = setTimeout(
+			() =>
+				reject(
+					new Error(
+						`The browser storage worker did not finish writing ${path} within 5 seconds.`
+					)
+				),
+			5000
+		);
 	});
 
-	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
-		worker.terminate()
+	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
+		() => {
+			clearTimeout(timeoutId);
+			worker.terminate();
+		}
 	);
 }

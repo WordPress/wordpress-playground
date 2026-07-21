@@ -501,7 +501,8 @@ export function createSitesAPI(
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
-		 * @throws When the site is not found or the site is temporary.
+		 * @throws When the site is not found, the site is temporary, or its
+		 * storage cannot be deleted.
 		 */
 		async delete(siteSlug: string): Promise<void> {
 			const site = selectSiteBySlug(getState(), siteSlug);

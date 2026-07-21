@@ -11,6 +11,7 @@ import {
 	OPFSSitesLoaded,
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
+	isRestorableAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
 	type SiteInfo,
@@ -229,7 +230,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				// setup URL. A different setup URL should create a fresh
 				// Playground even if another autosave exists.
 				const matchingAutosave = sortedSites
-					.filter(isAutosavedSite)
+					.filter(isRestorableAutosavedSite)
 					.find(
 						(site) =>
 							getAutosaveFingerprintFromSite(site) ===
@@ -313,24 +314,31 @@ export function EnsurePlaygroundSiteIsSelected({
 		setAutosaveNudge(undefined);
 		setAutosaveNudgeError(undefined);
 		setIsAutosaveNudgeActionPending(true);
+		// Dismissing the restore choice settles it for this page load. If keeping
+		// the new Playground fails, report that save failure separately instead of
+		// reopening a prompt about the older autosave.
+		setDeclinedYouHaveAutosaveFingerprints((fingerprints) =>
+			fingerprints.includes(dismissedNudge.setupUrlFingerprint)
+				? fingerprints
+				: [...fingerprints, dismissedNudge.setupUrlFingerprint]
+		);
 		try {
 			await sitesAPI.autosaveTemporarySite(undefined, {
 				updateUrl: false,
 				excludeFromPruning: [dismissedNudge.site.slug],
 			});
-			setDeclinedYouHaveAutosaveFingerprints((fingerprints) => [
-				...fingerprints,
-				dismissedNudge.setupUrlFingerprint,
-			]);
 			return true;
 		} catch (error) {
 			logger.error(
 				'Error autosaving the new Playground after declining restore.',
 				error
 			);
-			setAutosaveNudge(dismissedNudge);
-			setAutosaveNudgeError(
-				'Could not keep the new Playground. Please try again.'
+			dispatch(
+				setDockOperationNotice({
+					title: 'Couldn’t autosave this Playground',
+					message:
+						'It’s still open but will be lost on refresh. Your earlier autosave is unchanged.',
+				})
 			);
 			return false;
 		} finally {

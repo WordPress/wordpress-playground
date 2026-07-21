@@ -41,7 +41,7 @@
 	overflow: hidden;
 }
 
-.boot-notice {
+.inline-progress {
 	align-items: center;
 	background: var(--paper-3, #ece8e1);
 	border-radius: var(--radius-card, 8px);
@@ -51,7 +51,7 @@
 	padding: var(--space-3, 12px) var(--space-4, 16px);
 }
 
-.boot-notice-text {
+.inline-progress-text {
 	font-size: 13px;
 	line-height: 1.4;
 }

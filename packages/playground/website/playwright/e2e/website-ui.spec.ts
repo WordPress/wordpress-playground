@@ -229,6 +229,21 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
+test('should navigate from the address bar suggestions', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const address = dock.getByRole('combobox');
+
+	await address.click();
+	await website.page.getByRole('option', { name: /Dashboard/ }).click();
+
+	await expect(address).toHaveValue('/wp-admin/');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {
@@ -927,7 +942,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
-		['Logs', 'Logs pane'],
+		['Logs', 'PHP error log pane'],
 		['Export', 'Export pane'],
 	] as const;
 
@@ -2219,11 +2234,8 @@ test.describe('Default Playground storage', () => {
 
 		await pullRequestTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
-		await expect(
 			newPane.getByRole('textbox', {
-				name: 'Pull request URL or number',
+				name: 'WordPress Core or Gutenberg',
 			})
 		).toBeVisible();
 		await expect(
