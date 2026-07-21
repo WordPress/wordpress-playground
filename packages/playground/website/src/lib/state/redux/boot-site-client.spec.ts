@@ -278,6 +278,41 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('requires an explicit retry for an interrupted Blueprint run', async () => {
+		const site = createSite('blueprint-run', {
+			loadedFromStorage: true,
+			metadata: {
+				initialOpfsSyncPending: true,
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).not.toHaveBeenCalled();
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: expect.objectContaining({
+					error: 'initial-opfs-sync-interrupted',
+				}),
+			})
+		);
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+	});
+
 	it('boots stored OPFS files based on Playground metadata, not WordPress file probes', async () => {
 		const site = createSite('stored-save', { loadedFromStorage: true });
 		const state = createState(site);
