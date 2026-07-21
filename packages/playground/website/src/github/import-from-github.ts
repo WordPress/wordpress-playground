@@ -77,40 +77,54 @@ export async function importWpContent(php: UniversalPHP, files: Files) {
 		wpContentPath
 	);
 
-	// Back up runtime artifacts supplied by the current Playground.
-	for (const relativePath of currentRuntimePaths) {
-		const currentPath = joinPaths(wpContentPath, relativePath);
-		const temporaryPath = joinPaths(temporaryWpContentPath, relativePath);
-		if (await php.fileExists(currentPath)) {
-			await php.mkdir(dirname(temporaryPath));
-			await php.mv(currentPath, temporaryPath);
+	await removePath(php, temporaryWpContentPath);
+	let importSucceeded = false;
+	try {
+		// Back up runtime artifacts supplied by the current Playground.
+		for (const relativePath of currentRuntimePaths) {
+			const currentPath = joinPaths(wpContentPath, relativePath);
+			const temporaryPath = joinPaths(
+				temporaryWpContentPath,
+				relativePath
+			);
+			if (await php.fileExists(currentPath)) {
+				await php.mkdir(dirname(temporaryPath));
+				await php.mv(currentPath, temporaryPath);
+			}
 		}
-	}
 
-	await writeFiles(php, wpContentPath, files, {
-		rmRoot: true,
-	});
+		await writeFiles(php, wpContentPath, files, {
+			rmRoot: true,
+		});
 
-	// Remove runtime artifacts committed by older Playgrounds. A custom db.php
-	// has no Playground marker and remains part of the imported site.
-	const importedRuntimePaths = await getLegacyPlaygroundRuntimeWpContentPaths(
-		php,
-		wpContentPath
-	);
-	for (const relativePath of importedRuntimePaths) {
-		await removePath(php, joinPaths(wpContentPath, relativePath));
-	}
-
-	for (const relativePath of currentRuntimePaths) {
-		const currentPath = joinPaths(wpContentPath, relativePath);
-		const temporaryPath = joinPaths(temporaryWpContentPath, relativePath);
-		if (
-			!(await php.fileExists(currentPath)) &&
-			(await php.fileExists(temporaryPath))
-		) {
-			await php.mkdir(dirname(currentPath));
-			await php.mv(temporaryPath, currentPath);
+		// Remove runtime artifacts committed by older Playgrounds. A custom db.php
+		// has no Playground marker and remains part of the imported site.
+		const importedRuntimePaths =
+			await getLegacyPlaygroundRuntimeWpContentPaths(php, wpContentPath);
+		for (const relativePath of importedRuntimePaths) {
+			await removePath(php, joinPaths(wpContentPath, relativePath));
 		}
+		importSucceeded = true;
+	} finally {
+		for (const relativePath of currentRuntimePaths) {
+			const currentPath = joinPaths(wpContentPath, relativePath);
+			const temporaryPath = joinPaths(
+				temporaryWpContentPath,
+				relativePath
+			);
+			if (!importSucceeded && (await php.fileExists(temporaryPath))) {
+				await removePath(php, currentPath);
+			}
+			if (
+				!(await php.fileExists(currentPath)) &&
+				(await php.fileExists(temporaryPath))
+			) {
+				await php.mkdir(dirname(currentPath));
+				await php.mv(temporaryPath, currentPath);
+			}
+		}
+
+		await removePath(php, temporaryWpContentPath);
 	}
 
 	await php.run({

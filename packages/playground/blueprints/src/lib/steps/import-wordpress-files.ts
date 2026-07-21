@@ -111,19 +111,20 @@ export const importWordPressFiles: StepHandler<
 			(await playground.fileExists(currentRuntimePath))
 		) {
 			await playground.mkdir(dirname(importedRuntimePath));
-			await playground.mv(currentRuntimePath, importedRuntimePath);
+			await playground.cp(currentRuntimePath, importedRuntimePath);
 		}
 	}
 
-	// Legacy exports omitted stock plugins and themes. Retain the current
-	// copies until versioned exports can be distinguished in the importer.
+	// Legacy exports omitted these stock plugins and themes without recording
+	// deletions. Restore the current copies because an old archive cannot
+	// distinguish deletion from exporter omission.
 	for (const relativePath of legacyUserWpContentPathsExcludedFromExport) {
 		const importedUserPath = joinPaths(importedWpContentPath, relativePath);
 		await removePath(playground, importedUserPath);
 		const currentUserPath = joinPaths(wpContentPath, relativePath);
 		if (await playground.fileExists(currentUserPath)) {
 			await playground.mkdir(dirname(importedUserPath));
-			await playground.mv(currentUserPath, importedUserPath);
+			await playground.cp(currentUserPath, importedUserPath);
 		}
 	}
 
@@ -135,7 +136,7 @@ export const importWordPressFiles: StepHandler<
 		'database'
 	);
 	if (!(await playground.fileExists(importedDatabasePath))) {
-		await playground.mv(
+		await playground.cp(
 			joinPaths(documentRoot, 'wp-content', 'database'),
 			importedDatabasePath
 		);

@@ -206,6 +206,33 @@ describe('Blueprint step importWordPressFiles', () => {
 		);
 	});
 
+	it('should leave current runtime artifacts in place when staging fails', async () => {
+		const targetDocumentRoot = await targetPHP.documentRoot;
+		const targetRuntimePath = joinPaths(
+			targetDocumentRoot,
+			'wp-content/mu-plugins/0-playground.php'
+		);
+		await targetPHP.mkdir(dirname(targetRuntimePath));
+		await targetPHP.writeFile(
+			targetRuntimePath,
+			new TextEncoder().encode('<?php // Current Playground runtime')
+		);
+		const zipBuffer = await zipWpContent(sourcePHP);
+		vi.spyOn(targetPHP, 'cp').mockImplementation(() => {
+			throw new Error('Failed to stage runtime artifact');
+		});
+
+		await expect(
+			importWordPressFiles(targetPHP, {
+				wordPressFilesZip: new File([zipBuffer], 'export.zip'),
+			})
+		).rejects.toThrow('Failed to stage runtime artifact');
+
+		expect(await targetPHP.readFileAsText(targetRuntimePath)).toBe(
+			'<?php // Current Playground runtime'
+		);
+	});
+
 	it('should replace old scope URLs with new scope URLs in post content during import', async () => {
 		// Create a post with an image URL containing the source scope
 		const sourceUrl = await sourcePHP.absoluteUrl;
