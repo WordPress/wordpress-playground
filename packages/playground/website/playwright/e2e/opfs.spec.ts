@@ -635,10 +635,14 @@ test('should wait for a temporary OPFS metadata lock', async ({
 			const writable = await metadataFile.createWritable({
 				keepExistingData: true,
 			});
-			const releaseLock = new Promise<void>((resolve) => {
+			const releaseLock = new Promise<void>((resolve, reject) => {
 				setTimeout(async () => {
-					await writable.close();
-					resolve();
+					try {
+						await writable.close();
+						resolve();
+					} catch (error) {
+						reject(error);
+					}
 				}, 200);
 			});
 
