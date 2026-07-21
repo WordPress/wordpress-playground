@@ -11,6 +11,7 @@ import { bootSiteClient } from './boot-site-client';
 import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
 import { logBlueprintEvents } from '../../tracking';
+import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -77,6 +78,8 @@ describe('bootSiteClient', () => {
 				return playground;
 			}
 		);
+		vi.mocked(shouldShowGitHubAuthModal).mockReset();
+		vi.mocked(shouldShowGitHubAuthModal).mockReturnValue(false);
 		vi.mocked(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).mockReset();
@@ -383,6 +386,58 @@ describe('bootSiteClient', () => {
 					.siteSlugToReturnToIfBlueprintFails
 			).toBeUndefined()
 		);
+	});
+
+	it('keeps Blueprint recovery behind private repository authentication', async () => {
+		const authenticationError = Object.assign(
+			new Error('GitHub authentication required'),
+			{
+				name: 'GitAuthenticationError',
+				repoUrl: 'https://github.com/example/private-repository',
+			}
+		);
+		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(
+			authenticationError
+		);
+		vi.mocked(shouldShowGitHubAuthModal).mockReturnValueOnce(true);
+		const site = createSite('blueprint-run', {
+			metadata: { siteSlugToReturnToIfBlueprintFails: 'source-site' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		const actions: Array<{ type?: string; payload?: unknown }> =
+			dispatch.mock.calls.map(
+				([action]: [unknown]) =>
+					action as { type?: string; payload?: unknown }
+			);
+		const errorIndex = actions.findIndex(
+			(action) => action.type === 'ui/setActiveSiteError'
+		);
+		const authModalIndex = actions.findIndex(
+			(action) => action.type === 'ui/setActiveModal'
+		);
+		expect(actions[errorIndex]).toEqual(
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					error: 'site-boot-failed',
+					details: expect.objectContaining({
+						name: 'GitAuthenticationError',
+						message: 'GitHub authentication required',
+					}),
+				}),
+			})
+		);
+		expect(actions[authModalIndex]).toEqual(
+			expect.objectContaining({ payload: 'github-private-repo-auth' })
+		);
+		expect(errorIndex).toBeLessThan(authModalIndex);
 	});
 
 	it('classifies a worker resource-unavailable error', async () => {
