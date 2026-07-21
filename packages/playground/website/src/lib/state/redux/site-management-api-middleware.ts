@@ -25,6 +25,7 @@ import {
 	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
+	isStoredSite,
 	type SiteInfo,
 	type SitePersistence,
 	type SiteStorageType,
@@ -308,7 +309,7 @@ export function createSitesAPI(
 			// and await the same persistence and pruning work.
 			if (!autosaveInProgress) {
 				// With no shared autosave left to finalize, a stored site needs no work.
-				if (site.metadata.storage !== 'none') {
+				if (isStoredSite(site)) {
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
 				// Always protect the site being saved from pruning. Caller-specific
