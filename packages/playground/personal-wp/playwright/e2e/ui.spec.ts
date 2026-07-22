@@ -1,4 +1,10 @@
 import { test, expect } from '../playground-fixtures';
+import type { Blueprint } from '@wp-playground/blueprints';
+import {
+	PHPMYADMIN_CONFIG_PATH,
+	PHPMYADMIN_INSTALL_PATH,
+	PHPMYADMIN_URL_PATH,
+} from '@wp-playground/tools';
 
 test('should open and close the Site Tools panel', async ({ website }) => {
 	await website.goto('./');
@@ -104,4 +110,46 @@ test('should navigate within WordPress from Site Tools shortcuts', async ({
 	await expect(
 		wordpress.locator('a[href$="/my-apps/?recipes"]')
 	).toBeVisible();
+});
+
+test('should open phpMyAdmin from the Database tools', async ({
+	website,
+	context,
+}) => {
+	const probeText = 'phpMyAdmin path alias works';
+	const blueprint: Blueprint = {
+		steps: [
+			{
+				step: 'mkdir',
+				path: PHPMYADMIN_INSTALL_PATH,
+			},
+			{
+				step: 'writeFile',
+				path: `${PHPMYADMIN_INSTALL_PATH}/index.php`,
+				data: `<?php echo ${JSON.stringify(probeText)};`,
+			},
+			{
+				step: 'writeFile',
+				path: PHPMYADMIN_CONFIG_PATH,
+				data: '<?php',
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('tab', { name: 'Database' }).click();
+
+	const phpMyAdminButton = website.page.getByRole('button', {
+		name: 'Open phpMyAdmin',
+	});
+	await expect(phpMyAdminButton).toBeEnabled();
+
+	const popupPromise = context.waitForEvent('page');
+	await phpMyAdminButton.click();
+	const popup = await popupPromise;
+
+	await popup.waitForLoadState();
+	expect(new URL(popup.url()).pathname).toContain(PHPMYADMIN_URL_PATH);
+	await expect(popup.locator('body')).toContainText(probeText);
 });

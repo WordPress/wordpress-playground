@@ -13,6 +13,7 @@ import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_CONFIG_PATH,
 	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_URL_PATH,
 } from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -31,15 +32,16 @@ export function PhpMyAdminButton({
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
-	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
+	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('loading');
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!playground) {
-			setState('idle');
+			setState('loading');
 			setError(null);
 			return;
 		}
+		setState('loading');
 		let cancelled = false;
 
 		async function detectPhpMyAdmin() {
@@ -89,7 +91,7 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/phpmyadmin${PHPMYADMIN_ENTRY_PATH}`,
+				`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`,
 				'_blank',
 				'noopener,noreferrer'
 			);
