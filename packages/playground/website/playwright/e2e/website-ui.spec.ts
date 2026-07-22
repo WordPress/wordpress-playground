@@ -85,6 +85,23 @@ async function getRunningPhpVersion(page: Page) {
 	});
 }
 
+/**
+ * Waits for a settings submission to replace and fully boot the temporary site.
+ */
+async function waitForTemporaryPlaygroundReset(
+	page: Page,
+	previousSiteSlug: string
+) {
+	// The settings form starts an asynchronous replacement. Waiting for the
+	// active slug prevents the old, already-ready client from satisfying isReady().
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(page))?.slug, {
+			timeout: 120_000,
+		})
+		.not.toBe(previousSiteSlug);
+	await page.evaluate(() => (window as any).playgroundSites.isReady());
+}
+
 async function replaceBlueprintEditorContents(
 	page: Page,
 	blueprint: Blueprint
@@ -92,15 +109,20 @@ async function replaceBlueprintEditorContents(
 	// Wait for CodeMirror editor to load.
 	const editor = page.locator('[class*="blueprint-editor"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const runButton = page.getByRole('button', {
+		name: /^(?:Run Blueprint|Run in a new Playground|Discard current Playground & run Blueprint)$/,
+	});
+	await expect(runButton).toHaveAttribute('aria-busy', 'false', {
+		timeout: 5000,
+	});
 
 	// Focus the editor and select all existing content before replacing it.
 	await editor.click();
-	await page.waitForTimeout(100);
+	await expect(editor.locator('.cm-content')).toBeFocused();
 	await page.keyboard.press(
 		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 	);
 	await page.keyboard.press('Backspace');
-	await page.waitForTimeout(100);
 
 	// Use Playwright's fill method on the contenteditable .cm-content element.
 	// This is more reliable than character-by-character typing which triggers
@@ -109,12 +131,18 @@ async function replaceBlueprintEditorContents(
 	const cmContent = editor.locator('.cm-content');
 	await cmContent.fill(blueprintJson);
 
-	// Wait for validation to complete (linter has 300ms debounce), then verify
-	// the Blueprint was inserted by checking the editor content.
-	await page.waitForTimeout(500);
+	// Observe validation for this document enter and leave its semantic busy state.
+	await expect(runButton).toHaveAttribute('aria-busy', 'true', {
+		timeout: 5000,
+	});
+	await expect(runButton).toBeDisabled();
 	await expect(cmContent).toContainText('writeFile', {
 		timeout: 5000,
 	});
+	await expect(runButton).toHaveAttribute('aria-busy', 'false', {
+		timeout: 5000,
+	});
+	await expect(runButton).toBeEnabled();
 }
 
 /**
@@ -577,16 +605,22 @@ SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
-		await website.page.getByLabel('PHP version').selectOption(version);
+		const previousSite = await getActivePlaygroundSite(website.page);
+		const phpVersion = website.page.getByLabel('PHP version');
+		await phpVersion.selectOption(version);
+		// Confirm the controlled form retained the user's choice before submit.
+		await expect(phpVersion).toHaveValue(version);
 		await website.page
 			.getByText('Discard current work & create a fresh Playground')
 			.click();
-		await website.ensureSiteManagerIsClosed();
-		await website.ensureSiteManagerIsOpen();
+		await expect
+			.poll(() => new URL(website.page.url()).searchParams.get('php'), {
+				timeout: 120_000,
+			})
+			.toBe(version);
+		await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
-		await expect(website.page.getByLabel('PHP version')).toHaveValue(
-			version
-		);
+		await expect(phpVersion).toHaveValue(version);
 	});
 });
 
@@ -599,18 +633,20 @@ Object.keys(MinifiedWordPressVersions)
 		}) => {
 			await website.goto('./?storage=temp');
 			await website.ensureSiteManagerIsOpen();
-			await website.page
-				.getByLabel('WordPress version')
-				.selectOption(version);
+			const previousSite = await getActivePlaygroundSite(website.page);
+			const wordpressVersion =
+				website.page.getByLabel('WordPress version');
+			await wordpressVersion.selectOption(version);
+			await expect(wordpressVersion).toHaveValue(version);
 			await website.page
 				.getByText('Discard current work & create a fresh Playground')
 				.click();
-			await website.ensureSiteManagerIsClosed();
-			await website.ensureSiteManagerIsOpen();
+			await waitForTemporaryPlaygroundReset(
+				website.page,
+				previousSite.slug
+			);
 
-			await expect(
-				website.page.getByLabel('WordPress version')
-			).toHaveValue(version);
+			await expect(wordpressVersion).toHaveValue(version);
 		});
 	});
 
@@ -632,12 +668,12 @@ test('should enable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').check();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
@@ -646,12 +682,12 @@ test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp&networking=yes');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').uncheck();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
 });
@@ -697,11 +733,12 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 
 	await website.ensureSiteManagerIsOpen();
+	const previousSite = await getActivePlaygroundSite(website.page);
 	await website.page.getByLabel('Network access').check();
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
-	await website.waitForNestedIframes();
+	await waitForTemporaryPlaygroundReset(website.page, previousSite.slug);
 
 	const updatedParams = new URL(website.page.url()).searchParams;
 	expect(updatedParams.get('storage')).toBe('temp');
@@ -742,29 +779,44 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 		.dblclick();
 
 	// Wait for CodeMirror editor to load
-	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
+	const fileBrowser = website.page.locator('[class*="file-browser"]');
+	const editor = fileBrowser.locator('.cm-editor');
 	await editor.waitFor({ timeout: 10000 });
+	const cmContent = editor.locator('.cm-content');
 	const saveButton = filesPane.getByRole('button', {
 		name: /^(Save|Saved|Saving…)$/,
 	});
 
-	// Click on the editor to focus it
-	await website.page.waitForTimeout(50);
-
-	await editor.click();
-
-	await website.page.waitForTimeout(250);
-
-	// Select all content in the editor (Cmd+A or Ctrl+A)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(200);
-
-	// Type the new content with a delay between keystrokes
-	await website.page.keyboard.type('Edited file', { delay: 50 });
+	// File opening schedules cursor restoration; take focus after it settles.
+	await website.page.waitForTimeout(150);
+	await cmContent.click();
+	await expect(cmContent).toBeFocused();
+	const selectionCoversEditor = () =>
+		cmContent.evaluate((element) => {
+			const normalize = (text: string) => text.replace(/\s/g, '');
+			const selectedText = normalize(
+				window.getSelection()?.toString() ?? ''
+			);
+			const editorText = normalize((element as HTMLElement).innerText);
+			return editorText.length > 0 && selectedText === editorText;
+		});
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await cmContent.press('ControlOrMeta+a');
+		await cmContent.evaluate(
+			() =>
+				new Promise<void>((resolve) =>
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => resolve())
+					)
+				)
+		);
+		if (await selectionCoversEditor()) {
+			break;
+		}
+	}
+	expect(await selectionCoversEditor()).toBe(true);
+	await cmContent.pressSequentially('Edited file', { delay: 100 });
+	await expect(cmContent).toHaveText('Edited file');
 
 	await expect(saveButton).toBeEnabled();
 
@@ -833,8 +885,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		})
 		.click();
 
-	await website.page.waitForTimeout(1500);
-	// Wait for the playground to recreate
+	// Wait for rendered WordPress content instead of assuming recreation timing.
 	await website.waitForNestedIframes();
 
 	// Verify the page shows "Blueprint test"

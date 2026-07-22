@@ -38,6 +38,13 @@
 					"buildTarget": "playground-website-extras:build:standalone:development",
 					"hmr": true
 				},
+				"development-for-playwright": {
+					"buildTarget": "playground-website-extras:build:standalone:development",
+					"hmr": {
+						"host": "127.0.0.1",
+						"clientPort": 6400
+					}
+				},
 				"production": {
 					"buildTarget": "playground-website-extras:build:standalone:production",
 					"hmr": false

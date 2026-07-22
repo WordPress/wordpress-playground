@@ -19,7 +19,12 @@ export class WebsitePage {
 				)
 				.frameLocator('#wp')
 				.locator('body')
-		).not.toBeEmpty();
+		).not.toBeEmpty({
+			// A serialized Firefox PHP-WASM boot can legitimately take just over
+			// one minute. Match the suite's navigation timeout instead of using the
+			// shorter default expect timeout at this boot boundary.
+			timeout: 120_000,
+		});
 	}
 
 	async waitForPlaygroundShell(page = this.page) {

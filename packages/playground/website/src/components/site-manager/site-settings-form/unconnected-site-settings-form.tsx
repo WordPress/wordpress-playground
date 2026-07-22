@@ -200,9 +200,9 @@ export function UnconnectedSiteSettingsForm({
 									[css.invalidInput]: !!errors.wpVersion,
 								})}
 								options={wpVersionOptions}
-								onChange={(value, extra) => {
-									onChange(extra?.event);
-								}}
+								// SelectControl's value is the stable public API. Forwarding its
+								// optional event can leave React Hook Form with the old value.
+								onChange={onChange}
 								{...rest}
 							/>
 
@@ -248,9 +248,9 @@ export function UnconnectedSiteSettingsForm({
 								[css.invalidInput]: !!errors.phpVersion,
 							})}
 							options={phpVersionOptions}
-							onChange={(value, extra) => {
-								onChange(extra?.event);
-							}}
+							// Keep the controlled value in React Hook Form even when the
+							// browser delays a later submit click across a rerender.
+							onChange={onChange}
 							{...rest}
 						/>
 					)}
@@ -516,9 +516,9 @@ export function UnconnectedSiteSettingsForm({
 									label: 'Chinese (Taiwan)',
 								},
 							].sort((a, b) => a.label.localeCompare(b.label))}
-							onChange={(value, extra) => {
-								onChange(extra?.event);
-							}}
+							// Use the selected value directly instead of depending on an
+							// optional SelectControl implementation detail.
+							onChange={onChange}
 							{...rest}
 						/>
 					)}

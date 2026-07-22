@@ -1,14 +1,14 @@
 import { test, expect } from '../playground-fixtures';
 
 test('window.playgroundSites is exposed after boot', async ({ website }) => {
-	await website.goto('./');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
 });
 
 test('playgroundSites.list() returns the active site', async ({ website }) => {
-	await website.goto('./');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -34,7 +34,7 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./?storage=temp');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -55,7 +55,7 @@ test('playgroundSites.autosaveTemporarySite() persists without disrupting the ta
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./?storage=temp');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -219,7 +219,7 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 		},
 		steps: [],
 	};
-	await website.goto('./?storage=temp');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -279,7 +279,7 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./?storage=temp');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -320,7 +320,7 @@ test('playgroundSites.rename() renames a saved site', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await website.goto('./');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -340,7 +340,7 @@ test('playgroundSites.rename() renames a saved site', async ({
 test('playgroundSites.getClient() returns a playground client', async ({
 	website,
 }) => {
-	await website.goto('./');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -355,7 +355,7 @@ test('playgroundSites.getClient() returns a playground client', async ({
 test('playgroundSites.isReady() resolves once the active site is ready', async ({
 	website,
 }) => {
-	await website.goto('./');
+	await website.goto(getSitesApiTestUrl());
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites)
 	);
@@ -373,8 +373,8 @@ test('playgroundSites.isReady() waits when the client is not in the store yet', 
 	page,
 }) => {
 	// Install a setter on window.playgroundSites BEFORE the app runs.
-	// The setter captures the moment of exposure and snapshots the client
-	// state so we can prove the test really hit the "not yet ready" path.
+	// The setter invokes isReady() at the moment of exposure so later test
+	// scheduling cannot miss the "not yet ready" path.
 	await page.addInitScript(() => {
 		let api: any;
 		Object.defineProperty(window, 'playgroundSites', {
@@ -384,44 +384,54 @@ test('playgroundSites.isReady() waits when the client is not in the store yet', 
 			},
 			set(v) {
 				api = v;
-				let clientAtExposure: unknown = 'missing';
+				const order = ['api-exposed'];
+				let hadClientWhenInvoked = false;
 				try {
-					clientAtExposure = v?.getClient();
-				} catch (e) {
-					clientAtExposure = `THREW:${(e as Error).message}`;
+					hadClientWhenInvoked = v.getClient() != null;
+				} catch {
+					// No active site has been selected yet, so no client exists.
 				}
-				(window as any).__sitesApiExposure = {
-					hadClientAtExposure:
-						clientAtExposure != null &&
-						typeof clientAtExposure !== 'string',
-					exposureSnapshot: String(clientAtExposure),
+
+				order.push('isReady-invoked');
+				const readiness = v.isReady().then(() => {
+					const hasClientWhenResolved = v.getClient() != null;
+					order.push('isReady-resolved');
+					return { hasClientWhenResolved };
+				});
+				(window as any).__sitesApiReadinessProbe = {
+					hadClientWhenInvoked,
+					order,
+					readiness,
 				};
 			},
 		});
 	});
-	await page.goto('./');
+	await page.goto(getSitesApiTestUrl());
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
 
 	const result = await page.evaluate(async () => {
-		const api = (window as any).playgroundSites;
-		const exposure = (window as any).__sitesApiExposure;
-		const t0 = performance.now();
-		await api.isReady();
-		const isReadyMs = performance.now() - t0;
-		const clientAfter = api.getClient();
+		const probe = (window as any).__sitesApiReadinessProbe;
+		const resolution = await probe.readiness;
 		return {
-			hadClientAtExposure: exposure?.hadClientAtExposure,
-			exposureSnapshot: exposure?.exposureSnapshot,
-			isReadyMs,
-			hasClientAfter: clientAfter != null,
+			hadClientWhenInvoked: probe.hadClientWhenInvoked,
+			hasClientWhenResolved: resolution.hasClientWhenResolved,
+			order: probe.order,
 		};
 	});
 
-	// The test is only meaningful if we actually caught the unready window.
-	expect(result.hadClientAtExposure).toBe(false);
-	// After isReady() resolves, the client must be present.
-	expect(result.hasClientAfter).toBe(true);
-	// And isReady() must not have returned instantly — it had to wait for
-	// the boot to finish.
-	expect(result.isReadyMs).toBeGreaterThan(50);
+	// Event order proves isReady() waited without imposing a machine-speed
+	// threshold that can become flaky under load.
+	expect(result.hadClientWhenInvoked).toBe(false);
+	expect(result.hasClientWhenResolved).toBe(true);
+	expect(result.order).toEqual([
+		'api-exposed',
+		'isReady-invoked',
+		'isReady-resolved',
+	]);
 });
+
+function getSitesApiTestUrl() {
+	// These tests exercise the public sites API, not the live welcome Blueprint.
+	// Supplying an empty Blueprint keeps them independent of raw.githubusercontent.com.
+	return `./?storage=temp#${JSON.stringify({ steps: [] })}`;
+}

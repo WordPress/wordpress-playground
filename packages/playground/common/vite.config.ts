@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -7,7 +8,10 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+
+// URL.pathname leaves spaces percent-encoded, while Vite needs a native filesystem path.
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 export default defineConfig({
 	root: __dirname,
 	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip', '**/*.tar.zst'],

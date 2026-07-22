@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { join } from 'path';
+import { fileURLToPath } from 'node:url';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
@@ -16,10 +17,17 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { vitePlaywrightHmr } from '../../vite-extensions/vite-playwright-hmr';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+// URL.pathname leaves spaces percent-encoded, so Vite cannot find files in a
+// worktree such as "WordPress Playground". Convert the file URL natively.
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 
 const plugins = [
+	// This is inert unless the Playwright dev target opts into the Firefox fix.
+	vitePlaywrightHmr(),
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
@@ -44,6 +52,25 @@ const plugins = [
 	} as Plugin,
 	...viteGlobalExtensions,
 	buildVersionPlugin('remote-config'),
+	{
+		name: 'dev-server-keep-alive',
+		apply: 'serve',
+		configureServer(server) {
+			const httpServer = server.httpServer;
+			if (
+				!httpServer ||
+				!('keepAliveTimeout' in httpServer) ||
+				!('headersTimeout' in httpServer)
+			) {
+				return;
+			}
+			// The website dev server keeps proxy sockets open. Node's five-second
+			// server default can close one just as the proxy reuses it for the next
+			// PHP-WASM boot, leaving that iframe without a WordPress archive.
+			httpServer.keepAliveTimeout = 60_000;
+			httpServer.headersTimeout = 65_000;
+		},
+	} as Plugin,
 ];
 
 export default defineConfig(({ mode }) => {
@@ -72,6 +99,18 @@ export default defineConfig(({ mode }) => {
 			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		// Playground discovers these dependencies at different stages of boot.
+		// Pre-bundle them together so Vite does not invalidate chunks while the
+		// first PHP worker is still loading them.
+		optimizeDeps: {
+			include: [
+				'@zip.js/zip.js',
+				'ini',
+				'octokit',
+				'wasm-feature-detect',
+				'zstddec/stream',
+			],
+		},
 		resolve: {
 			alias: [isomorphicGitBrowserAlias()],
 		},
@@ -189,7 +228,8 @@ export default defineConfig(({ mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
-					wordpress: path('/remote.html'),
+					// Keep this relative so it resolves from this package, not filesystem root.
+					wordpress: path('remote.html'),
 				},
 				output: {
 					assetFileNames: (chunkInfo) => {

@@ -1,7 +1,10 @@
 /// <reference types='vitest' />
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import dts from 'vite-plugin-dts';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { joinPaths } from '../../php-wasm/util/src/lib/paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -9,7 +12,9 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+// URL.pathname leaves spaces percent-encoded, while Vite needs a native filesystem path.
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 export default defineConfig({
 	root: __dirname,
 	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip', '**/*.tar.zst'],
@@ -35,7 +40,11 @@ export default defineConfig({
 			 */
 			transform(code, id) {
 				if (id.match(new RegExp(`/wp-\\d.\\d\\.data\\?url`))) {
-					const fullyQualifiedPath = '/@fs' + path(id.split('?')[0]);
+					// Preserve Vite's native id and let the path utility form the /@fs URL.
+					const fullyQualifiedPath = joinPaths(
+						'/@fs',
+						id.split('?', 2)[0]
+					);
 					return `export default ${JSON.stringify(
 						fullyQualifiedPath
 					)};`;

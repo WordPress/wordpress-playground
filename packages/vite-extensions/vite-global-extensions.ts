@@ -4,9 +4,9 @@ const vitePlugins = [
 	{
 		name: 'base64-loader',
 		transform(_: any, id: string) {
-			const url = new URL(id, 'file://');
-			if (!url.searchParams.has('base64')) return null;
-			const path = url.pathname;
+			// Vite ids already contain native paths; URL parsing would encode spaces as %20.
+			const [path, query = ''] = id.split('?', 2);
+			if (!new URLSearchParams(query).has('base64')) return null;
 
 			const data = fs.readFileSync(path);
 			const base64 = data.toString('base64');

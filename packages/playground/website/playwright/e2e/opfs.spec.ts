@@ -937,8 +937,17 @@ test('should block closing and finish during a ZIP import', async ({
 	});
 	await expect(importingButton).toBeVisible();
 	const saveStatus = website.page.getByRole('button', { name: 'Unsaved' });
-	await expect(saveStatus).toBeDisabled();
-	await saveStatus.evaluate((button: HTMLButtonElement) => button.click());
+	// The import activates its saved target asynchronously, replacing this
+	// transient button with static "Saved" text. Assert and click in one browser
+	// task so Playwright does not re-resolve the stale accessible name in between.
+	const saveStatusWasDisabled = await saveStatus.evaluate(
+		(button: HTMLButtonElement) => {
+			const wasDisabled = button.disabled;
+			button.click();
+			return wasDisabled;
+		}
+	);
+	expect(saveStatusWasDisabled).toBe(true);
 	await expect(
 		website.page.getByRole('dialog', { name: 'New Playground pane' })
 	).toBeVisible();

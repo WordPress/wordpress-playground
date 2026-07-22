@@ -1,5 +1,7 @@
 /* eslint-disable no-loop-func */
-import path from 'path';
+import { existsSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import type { TestInfo } from '@playwright/test';
 import { test, expect } from '../playground-fixtures.ts';
 import { startVersionSwitchingServer as startServer } from '../version-switching-server.ts';
 
@@ -21,24 +23,60 @@ url.searchParams.set('storage', 'temp');
 url.searchParams.set('theme', 'twentytwentyfour');
 
 const maxDiffPixels = 10_000;
+// Only Linux snapshots are committed. Non-Linux runs still exercise the
+// deployment behavior, but their titles and stderr make the missing visual
+// comparison explicit.
+const shouldCompareDeploymentScreenshots = process.platform === 'linux';
+const screenshotComparisonSuffix = shouldCompareDeploymentScreenshots
+	? ''
+	: ' [WITHOUT SCREENSHOT COMPARE]';
+// Preserve native worktree paths; URL.pathname would leave spaces encoded as %20.
+const deploymentSpecUrl = pathToFileURL(__filename);
+const deploymentDirectories = {
+	old: fileURLToPath(
+		new URL(
+			'../../../../../dist/packages/playground/wasm-wordpress-net-old',
+			deploymentSpecUrl
+		)
+	),
+	mid: fileURLToPath(
+		new URL(
+			'../../../../../dist/packages/playground/wasm-wordpress-net-mid',
+			deploymentSpecUrl
+		)
+	),
+	new: fileURLToPath(
+		new URL(
+			'../../../../../dist/packages/playground/wasm-wordpress-net-new',
+			deploymentSpecUrl
+		)
+	),
+};
 
 let server: Awaited<ReturnType<typeof startServer>> | null = null;
 
 test.beforeEach(async () => {
+	const missingDeploymentDirectories = getMissingDeploymentDirectories();
+	// These app builds are expensive and are prepared by a dedicated target.
+	// A clean local checkout should skip with an actionable command, not serve
+	// empty directories and time out while waiting for the nested iframe. CI
+	// prepares these builds and must fail if that preparation stops working.
+	if (missingDeploymentDirectories.length > 0) {
+		const message =
+			`Deployment tests require prepared Playground app builds. ` +
+			`Missing: ${missingDeploymentDirectories.join(', ')}. ` +
+			`Run: npx nx run playground-website:e2e:playwright:prepare-app-deploy-and-offline-mode`;
+		if (process.env.CI) {
+			throw new Error(message);
+		}
+		test.skip(true, message);
+	}
+
 	server = await startServer({
 		port,
-		oldVersionDirectory: path.join(
-			__dirname,
-			'../../../../../dist/packages/playground/wasm-wordpress-net-old'
-		),
-		midVersionDirectory: path.join(
-			__dirname,
-			'../../../../../dist/packages/playground/wasm-wordpress-net-mid'
-		),
-		newVersionDirectory: path.join(
-			__dirname,
-			'../../../../../dist/packages/playground/wasm-wordpress-net-new'
-		),
+		oldVersionDirectory: deploymentDirectories.old,
+		midVersionDirectory: deploymentDirectories.mid,
+		newVersionDirectory: deploymentDirectories.new,
 	});
 	server.switchToOldVersion();
 	server.setHttpCacheEnabled(true);
@@ -61,14 +99,22 @@ for (const cachingEnabled of [true, false]) {
 	 */
 	test(`When a new website version is deployed, it should be loaded upon a regular page refresh (with HTTP caching ${
 		cachingEnabled ? 'enabled' : 'disabled'
-	})`, async ({ website, page, wordpress }) => {
+	})${screenshotComparisonSuffix}`, async ({
+		website,
+		page,
+		wordpress,
+	}, testInfo) => {
 		server!.setHttpCacheEnabled(cachingEnabled);
 
 		await page.goto(url.href);
 		await website.waitForNestedIframes();
-		await expect(page).toHaveScreenshot('website-old.png', {
-			maxDiffPixels,
-		});
+		if (shouldCompareDeploymentScreenshots) {
+			await expect(page).toHaveScreenshot('website-old.png', {
+				maxDiffPixels,
+			});
+		} else {
+			warnWithoutDeploymentScreenshotCompare(testInfo);
+		}
 
 		server!.switchToNewVersion();
 		await page.goto(url.href);
@@ -78,6 +124,14 @@ for (const cachingEnabled of [true, false]) {
 			'My WordPress Website'
 		);
 	});
+}
+
+function warnWithoutDeploymentScreenshotCompare(testInfo: TestInfo) {
+	process.stderr.write(
+		`[playwright:e2e] WARNING: ${testInfo.title} is running ` +
+			`WITHOUT SCREENSHOT COMPARE. Deployment screenshot baselines ` +
+			`are only committed for Linux; this platform is ${process.platform}.\n`
+	);
 }
 
 /**
@@ -174,3 +228,9 @@ test('offline mode – the app should load even when the server goes offline', a
 		'My WordPress Website'
 	);
 });
+
+function getMissingDeploymentDirectories() {
+	return Object.values(deploymentDirectories).filter(
+		(directory) => !existsSync(directory)
+	);
+}

@@ -149,7 +149,12 @@ test.describe('option `php-extension`', () => {
 			'php-extension': noArtifactManifestUrl,
 		});
 
-		await expectSiteBootError(website.page);
+		// Match the terminal loader error so an unrelated boot message cannot
+		// satisfy the assertion first on a slower browser.
+		await expectSiteBootError(
+			website.page,
+			'No extension artifact found for PHP 8.3.'
+		);
 	});
 });
 

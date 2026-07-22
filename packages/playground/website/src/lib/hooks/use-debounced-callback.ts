@@ -3,10 +3,11 @@ import type { DependencyList } from 'react';
 
 type DebouncedCallback<T extends (...args: any[]) => any> = {
 	(...args: Parameters<T>): void;
+	cancel: () => void;
 	flush: () => ReturnType<T> | undefined;
 };
 
-/** Debounces a callback and exposes its latest pending call for explicit flushes. */
+/** Debounces a callback and exposes its pending call for cancellation or flushing. */
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
 	callback: T,
 	delay = 250,
@@ -15,27 +16,24 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const callbackRef = useRef(callback);
 	const pendingArgsRef = useRef<Parameters<T> | null>(null);
+	const lastResultRef = useRef<ReturnType<T> | undefined>(undefined);
 
 	// Keep callback ref up to date
 	useEffect(() => {
 		callbackRef.current = callback;
 	}, [callback, ...dependencies]);
 
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
+	const debouncedCallback = useMemo(() => {
+		function cancel() {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
+				timeoutRef.current = null;
 			}
 			pendingArgsRef.current = null;
-		};
-	}, []);
+		}
 
-	return useMemo(() => {
 		function debounced(...args: Parameters<T>) {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current);
-			}
+			cancel();
 			pendingArgsRef.current = args;
 			timeoutRef.current = setTimeout(() => {
 				flush();
@@ -49,19 +47,22 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 		 * @see https://lodash.com/docs/#debounce
 		 */
 		function flush(): ReturnType<T> | undefined {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current);
-				timeoutRef.current = null;
-			}
 			const args = pendingArgsRef.current;
-			pendingArgsRef.current = null;
 			if (!args) {
-				return undefined;
+				return lastResultRef.current;
 			}
-			return callbackRef.current(...args);
+			cancel();
+			lastResultRef.current = callbackRef.current(...args);
+			return lastResultRef.current;
 		}
 
+		debounced.cancel = cancel;
 		debounced.flush = flush;
 		return debounced;
 	}, [delay, ...dependencies]);
+
+	// Cleanup on unmount without changing the debounced callback's identity.
+	useEffect(() => debouncedCallback.cancel, [debouncedCallback]);
+
+	return debouncedCallback;
 }

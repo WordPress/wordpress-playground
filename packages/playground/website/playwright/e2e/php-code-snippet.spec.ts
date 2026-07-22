@@ -408,9 +408,15 @@ test.describe('php-code-snippet embed', () => {
 
 		await editable.evaluate((snippet: any) => {
 			snippet._testRunCount = 0;
+			snippet._testRunGate = new Promise<void>((resolve) => {
+				snippet._releaseTestRun = resolve;
+			});
 			snippet._runOnce = async function () {
 				this._testRunCount += 1;
-				await new Promise((resolve) => setTimeout(resolve, 100));
+				if (this._testRunCount === 1) {
+					// Keep the first run active until the test has queued the second one.
+					await this._testRunGate;
+				}
 				const outputWrap = this.shadowRoot.querySelector('.output');
 				const outputBody =
 					this.shadowRoot.querySelector('.output-body');
@@ -424,11 +430,16 @@ test.describe('php-code-snippet embed', () => {
 		await expect(runButton).toHaveAttribute('aria-busy', /true/);
 		await expect(runButton).toBeEnabled();
 		await runButton.click();
+		await expect(editable.locator('.run-label')).toHaveText('Queued');
+
+		// Release the first run only after every transient queued state is observed.
+		await editable.evaluate((snippet: any) => snippet._releaseTestRun());
 
 		await expect(editable.locator('.output-body')).toContainText(
 			'run-count:2'
 		);
 		await expect(runButton).toBeEnabled();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 	});
 
 	test('Run button starts from pointer activation even if click is canceled', async ({
@@ -666,7 +677,12 @@ test.describe('php-code-snippet embed', () => {
 
 		await expect(snippet).toBeVisible();
 		await ensurePlaygroundClientIsServed(page);
-		await ensureToolkitAutoloadIsServed(page);
+		const toolkitAutoloadUrl = new URL(
+			'php-toolkit-autoload.txt',
+			page.url()
+		).href;
+		await ensureToolkitAutoloadIsServed(page, toolkitAutoloadUrl);
+		await setToolkitAutoloadUrl(page, toolkitAutoloadUrl);
 		await snippet.evaluate((element) => {
 			element.setAttribute('playground-origin', window.location.origin);
 		});
@@ -708,9 +724,13 @@ test.describe('php-code-snippet embed', () => {
 		const runShortcut = editable.locator('.run-shortcut');
 
 		await editable.evaluate((snippet: any) => {
+			snippet._testRunGate = new Promise<void>((resolve) => {
+				snippet._releaseTestRun = resolve;
+			});
 			snippet._runOnce = async function (code: string) {
 				this._setRunButtonProgress('Running', 42);
-				await new Promise((resolve) => setTimeout(resolve, 500));
+				// Hold this state until the test has inspected every progress indicator.
+				await this._testRunGate;
 				const outputWrap = this.shadowRoot.querySelector('.output');
 				const outputBody =
 					this.shadowRoot.querySelector('.output-body');
@@ -737,6 +757,9 @@ test.describe('php-code-snippet embed', () => {
 		await expect(runShortcut).toBeHidden();
 		await expect(runLabel).toHaveText('Running');
 		await expect(runPercent).toHaveText('42%');
+
+		// Completion is test-controlled so browser speed cannot hide the progress state.
+		await editable.evaluate((snippet: any) => snippet._releaseTestRun());
 		await expect(outputBody).toContainText('slow-run-marker', {
 			timeout: 60_000,
 		});
@@ -801,8 +824,7 @@ async function ensurePlaygroundClientIsServed(page: Page) {
 	});
 }
 
-async function ensureToolkitAutoloadIsServed(page: Page) {
-	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
+async function ensureToolkitAutoloadIsServed(page: Page, autoloadUrl: string) {
 	const response = await page.request.get(autoloadUrl);
 	if (response.ok()) {
 		return;
@@ -814,6 +836,21 @@ async function ensureToolkitAutoloadIsServed(page: Page) {
 			contentType: 'text/plain',
 		});
 	});
+}
+
+async function setToolkitAutoloadUrl(page: Page, autoloadUrl: string) {
+	await page.evaluate((url) => {
+		const setupScript = document.getElementById('toolkit-setup');
+		if (!setupScript?.textContent) {
+			throw new Error('Could not find the toolkit setup Blueprint.');
+		}
+		const blueprint = JSON.parse(setupScript.textContent);
+		// The fixture Blueprint was authored for the deployed website root.
+		// Local Playwright serves it under /website-server/, so rewrite the URL
+		// to the fixture's actual origin/path before the snippet boots.
+		blueprint.steps[1].data.url = url;
+		setupScript.textContent = JSON.stringify(blueprint);
+	}, autoloadUrl);
 }
 
 async function waitForPhpSnippetDefinition(page: Page) {
