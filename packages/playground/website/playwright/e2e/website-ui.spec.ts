@@ -1074,15 +1074,15 @@ test.describe('Database panel', () => {
 		expect(path).toBeTruthy();
 	});
 
-	test('should load and open Adminer', async ({ website, context }) => {
+	test('should load and open Adminer', async ({ website }) => {
 		const adminerButton = website.page.getByRole('button', {
 			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the Adminer button
 		await adminerButton.click();
@@ -1146,15 +1146,15 @@ test.describe('Database panel', () => {
 		await newPage.close();
 	});
 
-	test('should load and open phpMyAdmin', async ({ website, context }) => {
+	test('should load and open phpMyAdmin', async ({ website }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
 			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the phpMyAdmin button
 		await phpMyAdminButton.click();
@@ -1231,6 +1231,36 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
 		await newPage.close();
+	});
+
+	/*
+	 * Regression coverage for https://github.com/WordPress/wordpress-playground/pull/4144.
+	 * Opening Adminer first creates a secondary PHP instance that phpMyAdmin may reuse.
+	 * Every PHP instance must therefore see runtime-installed tools under `/tools`.
+	 */
+	test('should open phpMyAdmin after Adminer', async ({ website }) => {
+		const adminerPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open Adminer' })
+			.click();
+		const adminerPage = await adminerPagePromise;
+		await adminerPage.waitForLoadState();
+		await expect(adminerPage.locator('body')).toContainText('Adminer');
+		await expect(adminerPage.locator('body')).toContainText('wp_posts');
+
+		const phpMyAdminPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open phpMyAdmin' })
+			.click();
+		const phpMyAdminPage = await phpMyAdminPagePromise;
+		await phpMyAdminPage.waitForLoadState();
+		await expect(phpMyAdminPage.locator('body')).toContainText(
+			'phpMyAdmin'
+		);
+		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
+
+		await adminerPage.close();
+		await phpMyAdminPage.close();
 	});
 });
 

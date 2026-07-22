@@ -1,8 +1,13 @@
 import type { StepDefinition } from '@wp-playground/blueprints';
+import { joinPaths } from '@php-wasm/util';
 
 export const PHPMYADMIN_VERSION = '5.2.3';
 export const PHPMYADMIN_DOWNLOAD_URL = `https://files.phpmyadmin.net/phpMyAdmin/${PHPMYADMIN_VERSION}/phpMyAdmin-${PHPMYADMIN_VERSION}-english.zip`;
 export const PHPMYADMIN_INSTALL_PATH = '/tools/phpmyadmin';
+export const PHPMYADMIN_CONFIG_PATH = joinPaths(
+	PHPMYADMIN_INSTALL_PATH,
+	'config.inc.php'
+);
 export const PHPMYADMIN_ENTRY_PATH =
 	'/index.php?route=/database/structure&db=wordpress';
 
@@ -42,7 +47,7 @@ export async function getPhpMyAdminInstallSteps(): Promise<StepDefinition[]> {
 		},
 		{
 			step: 'writeFile',
-			path: `${PHPMYADMIN_INSTALL_PATH}/config.inc.php`,
+			path: PHPMYADMIN_CONFIG_PATH,
 			/* @ts-ignore */
 			data: (await import('./config.inc.php?raw')).default as string,
 		},

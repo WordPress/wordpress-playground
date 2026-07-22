@@ -11,8 +11,8 @@ import {
 } from '@wp-playground/client';
 import {
 	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_CONFIG_PATH,
 	PHPMYADMIN_ENTRY_PATH,
-	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -45,9 +45,11 @@ export function PhpMyAdminButton({
 		async function detectPhpMyAdmin() {
 			try {
 				if (!playground) return;
-				const isDir = await playground.isDir(PHPMYADMIN_INSTALL_PATH);
+				const isInstalled = await playground.isFile(
+					PHPMYADMIN_CONFIG_PATH
+				);
 				if (cancelled) return;
-				setState(isDir ? 'ready' : 'idle');
+				setState(isInstalled ? 'ready' : 'idle');
 			} catch (error) {
 				if (cancelled) return;
 				logger.error('Failed to detect phpMyAdmin', error);
