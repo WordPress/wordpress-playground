@@ -108,8 +108,9 @@ test('follows absolute and relative redirects within the allowlist', async ({
 test('rejects an off-allowlist redirect before fetching it', async ({
 	request,
 }) => {
-	const response = await request.get(
-		urlForTarget('http://wordpress.org/redirect-to-blocked')
+	const response = await request.fetch(
+		urlForTarget('http://wordpress.org/redirect-to-blocked'),
+		{ method: 'PATCH', data: 'payload=blocked' }
 	);
 
 	expect(response.status()).toBe(403);
@@ -118,7 +119,7 @@ test('rejects an off-allowlist redirect before fetching it', async ({
 
 test('preserves cURL POST redirect behavior', async ({ request }) => {
 	const response302 = await request.post(
-		urlForTarget('http://wordpress.org/redirect-post-302'),
+		urlForTarget('http://wordpress.org/redirect-302'),
 		{
 			data: 'payload=discarded',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -132,7 +133,7 @@ test('preserves cURL POST redirect behavior', async ({ request }) => {
 	});
 
 	const response307 = await request.post(
-		urlForTarget('http://wordpress.org/redirect-post-307'),
+		urlForTarget('http://wordpress.org/redirect-307'),
 		{
 			data: 'payload=preserved',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -146,6 +147,43 @@ test('preserves cURL POST redirect behavior', async ({ request }) => {
 	});
 });
 
+test('forwards other methods with cURL redirect behavior', async ({
+	request,
+}) => {
+	const response302 = await request.fetch(
+		urlForTarget('http://wordpress.org/redirect-302'),
+		{ method: 'PATCH', data: 'payload=patch' }
+	);
+	expect(await response302.json()).toEqual({
+		host: 'wordpress.org',
+		method: 'PATCH',
+		body: 'payload=patch',
+		query: {},
+	});
+
+	const response303 = await request.fetch(
+		urlForTarget('http://wordpress.org/redirect-303'),
+		{ method: 'PUT', data: 'payload=discarded' }
+	);
+	expect(await response303.json()).toEqual({
+		host: 'wordpress.org',
+		method: 'GET',
+		body: '',
+		query: {},
+	});
+
+	const response307 = await request.fetch(
+		urlForTarget('http://wordpress.org/redirect-307'),
+		{ method: 'DELETE', data: 'payload=delete' }
+	);
+	expect(await response307.json()).toEqual({
+		host: 'wordpress.org',
+		method: 'DELETE',
+		body: 'payload=delete',
+		query: {},
+	});
+});
+
 test('bounds redirect loops', async ({ request }) => {
 	const response = await request.get(
 		urlForTarget('http://wordpress.org/loop')
@@ -153,6 +191,7 @@ test('bounds redirect loops', async ({ request }) => {
 
 	expect(response.status()).toBe(400);
 	expect(await response.json()).toEqual({ error: 'Too many redirects' });
+	expect(requestDestinations).toHaveLength(31);
 });
 
 function urlForTarget(targetUrl: string) {
@@ -208,12 +247,17 @@ async function handleUpstreamRequest(
 			response.end('blocked intermediate response');
 			return;
 
-		case '/redirect-post-302':
+		case '/redirect-302':
 			response.writeHead(302, { Location: '/echo-request' });
 			response.end();
 			return;
 
-		case '/redirect-post-307':
+		case '/redirect-303':
+			response.writeHead(303, { Location: '/echo-request' });
+			response.end();
+			return;
+
+		case '/redirect-307':
 			response.writeHead(307, { Location: '/echo-request' });
 			response.end();
 			return;
