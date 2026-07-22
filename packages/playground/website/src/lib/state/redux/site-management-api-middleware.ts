@@ -14,12 +14,15 @@ import { setActiveSiteError } from './slice-ui';
 import {
 	addClientInfo,
 	removeClientInfo,
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
 	updateClientInfo,
 } from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
+	updateSite,
 	updateSiteMetadata,
 	removeSite,
 	pruneAutosavedSites,
@@ -36,10 +39,6 @@ import {
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
-import {
-	selectClientBySiteSlug,
-	selectClientInfoBySiteSlug,
-} from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
@@ -608,12 +607,18 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: version,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								phpVersion: version,
+							},
 						},
 					},
 				})
@@ -638,12 +643,18 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							networking: enabled,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								networking: enabled,
+							},
 						},
 					},
 				})
@@ -687,13 +698,19 @@ export function createSitesAPI(
 				return;
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: settings.phpVersion,
-							networking: settings.networking,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								phpVersion: settings.phpVersion,
+								networking: settings.networking,
+							},
 						},
 					},
 				})

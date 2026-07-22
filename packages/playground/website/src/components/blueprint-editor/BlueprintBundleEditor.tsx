@@ -72,7 +72,10 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
+import {
+	setDockOperationNotice,
+	setDockPaneOpen,
+} from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -465,6 +468,23 @@ export const BlueprintBundleEditor = forwardRef<
 				return;
 			}
 			setSaveError(null);
+			if (runInNewPlayground) {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running in a new Playground',
+						message: 'Opening the new Playground now.',
+					})
+				);
+			} else {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running',
+						message: 'Recreating this Playground now.',
+					})
+				);
+			}
 			if (runInNewPlayground) {
 				const siteSlugToReturnToIfBlueprintFails =
 					site.metadata.siteSlugToReturnToIfBlueprintFails ??

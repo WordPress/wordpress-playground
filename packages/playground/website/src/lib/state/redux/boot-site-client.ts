@@ -27,6 +27,7 @@ import {
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
+	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -486,6 +487,37 @@ export function bootSiteClient(
 				})
 			);
 		});
+
+		if (site.urlToRestoreAfterRuntimeSettingsChange) {
+			const urlToRestore = site.urlToRestoreAfterRuntimeSettingsChange;
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes: {
+						urlToRestoreAfterRuntimeSettingsChange: undefined,
+					},
+				})
+			);
+			if (signal.aborted) {
+				return;
+			}
+			if (urlToRestore.startsWith('/')) {
+				const restoreBaseUrl = 'https://playground.internal';
+				const parsedUrlToRestore = new URL(
+					urlToRestore,
+					restoreBaseUrl
+				);
+				// Restore only paths inside this Playground. The URL parser
+				// catches protocol-relative URLs and browser backslash
+				// normalization quirks while preserving valid slashes in the
+				// path, query, and hash.
+				if (parsedUrlToRestore.origin === restoreBaseUrl) {
+					await connectedPlayground.goTo(
+						`${parsedUrlToRestore.pathname}${parsedUrlToRestore.search}${parsedUrlToRestore.hash}`
+					);
+				}
+			}
+		}
 	};
 }
 

@@ -3074,28 +3074,22 @@ echo get_option('blogname');
 		await assertRestoreCardGeometry();
 
 		async function assertRestoreCardGeometry() {
-			const geometry = await website.page.evaluate(() => {
-				const card = document.querySelector<HTMLElement>(
-					'[aria-label="Recent autosaved Playground"]'
-				)!;
-				const cardRect = card.getBoundingClientRect();
-				return {
-					cardTop: cardRect.top,
-					cardLeft: cardRect.left,
-					cardRight: cardRect.right,
-					cardBottom: cardRect.bottom,
-					viewportWidth: window.innerWidth,
-					viewportHeight: window.innerHeight,
-				};
-			});
-			expect(geometry.cardTop).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardRight).toBeLessThanOrEqual(
-				geometry.viewportWidth
-			);
-			expect(geometry.cardBottom).toBeLessThanOrEqual(
-				geometry.viewportHeight
-			);
+			await expect
+				.poll(() =>
+					website.page.evaluate(() => {
+						const card = document.querySelector<HTMLElement>(
+							'[aria-label="Recent autosaved Playground"]'
+						)!;
+						const cardRect = card.getBoundingClientRect();
+						return (
+							cardRect.top >= 0 &&
+							cardRect.left >= 0 &&
+							cardRect.right <= window.innerWidth &&
+							cardRect.bottom <= window.innerHeight
+						);
+					})
+				)
+				.toBe(true);
 		}
 	});
 

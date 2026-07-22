@@ -16,6 +16,7 @@ import {
 	layout,
 	fullscreen,
 	offline as offlineIcon,
+	check,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -992,6 +993,20 @@ export function SavedPlaygroundsPanel({
 											Save in a local directory…
 										</MenuItem>
 									)}
+								</MenuGroup>
+							)}
+							{site.metadata.storage === 'opfs' && (
+								<MenuGroup>
+									<MenuItem icon={check} disabled>
+										Saved in browser storage
+									</MenuItem>
+								</MenuGroup>
+							)}
+							{site.metadata.storage === 'local-fs' && (
+								<MenuGroup>
+									<MenuItem icon={check} disabled>
+										Saved in a local directory
+									</MenuItem>
 								</MenuGroup>
 							)}
 							{isStored && (

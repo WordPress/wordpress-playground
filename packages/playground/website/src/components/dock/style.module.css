@@ -1309,6 +1309,16 @@
 	z-index: 60;
 }
 
+.dock-operation-toast-success {
+	background: #1f4f2b;
+	border-color: #4f8f59;
+	box-shadow: 0 15px 36px rgba(19, 68, 32, 0.28);
+}
+
+.dock-operation-toast-success .dock-operation-toast-message {
+	color: #d8f4dc;
+}
+
 .dock-operation-toast-content {
 	flex: 1;
 	min-width: 0;
