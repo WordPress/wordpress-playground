@@ -229,6 +229,21 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
+test('should navigate from the address bar suggestions', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const address = dock.getByRole('combobox');
+
+	await address.click();
+	await website.page.getByRole('option', { name: /Dashboard/ }).click();
+
+	await expect(address).toHaveValue('/wp-admin/');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {
@@ -927,7 +942,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
-		['Logs', 'Logs pane'],
+		['Logs', 'PHP error log pane'],
 		['Export', 'Export pane'],
 	] as const;
 
@@ -2219,11 +2234,8 @@ test.describe('Default Playground storage', () => {
 
 		await pullRequestTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
-		await expect(
 			newPane.getByRole('textbox', {
-				name: 'Pull request URL or number',
+				name: 'WordPress Core or Gutenberg',
 			})
 		).toBeVisible();
 		await expect(
@@ -2847,6 +2859,58 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should persist a front-page thumbnail for a saved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('thumbnail'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		const thumbnail = website.page.locator(
+			`[data-playground-row="${activeSite.slug}"] [data-site-thumbnail]`
+		);
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			/^data:image\/(webp|jpeg);base64,/
+		);
+
+		const storedThumbnail = await website.page.evaluate(
+			async (siteSlug) => {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(
+					`site-${encodeURIComponent(siteSlug)}`
+				);
+				const metadata = await site.getFileHandle('wp-runtime.json');
+				return JSON.parse(await (await metadata.getFile()).text())
+					.thumbnail;
+			},
+			activeSite.slug
+		);
+		expect(storedThumbnail.mime).toMatch(/^image\/(webp|jpeg)$/);
+		expect(storedThumbnail.data.length).toBeGreaterThan(0);
+
+		await website.goto(
+			`./?site-slug=${encodeURIComponent(activeSite.slug)}`
+		);
+		await website.waitForNestedIframes();
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			`data:${storedThumbnail.mime};base64,${storedThumbnail.data}`
+		);
+	});
+
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
 		browserName,
@@ -2878,7 +2942,7 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page
 				.getByLabel('Recent autosaved Playground')
-				.getByText('Recent autosave available', { exact: true })
+				.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -2926,7 +2990,7 @@ echo get_option('blogname');
 		const nudge = website.page.getByLabel('Recent autosaved Playground');
 		await expect(nudge).toBeVisible();
 		await nudge
-			.getByRole('button', { name: 'Stop showing autosave prompts' })
+			.getByRole('button', { name: 'Don’t notify me about autosaves' })
 			.click();
 		await expect(nudge).toHaveCount(0);
 		await expect(

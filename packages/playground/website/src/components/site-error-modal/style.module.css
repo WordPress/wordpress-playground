@@ -1,309 +1,478 @@
+/* The error modal is a "Quiet Paper" surface — the same warm system the Dock
+   panes use. It renders in a portal outside the pane tree, so it re-declares
+   the pane tokens (see dock/style.module.css) rather than inheriting them. */
 .error-modal {
-	width: min(860px, calc(100vw - 32px));
+	--paper-1: #f7f5f2; /* sheet surface */
+	--paper-2: #faf8f5; /* raised: footer */
+	--paper-3: #ece8e1; /* recessed well: details, code */
+	--paper-4: #e7e2da; /* control hover */
+	--line-subtle: rgba(33, 32, 29, 0.08);
+	--line-control: rgba(33, 32, 29, 0.14);
+	--line-hover: rgba(33, 32, 29, 0.22);
+	--ink: #21201d;
+	--ink-soft: #2f2d28;
+	--ink-muted: #5f5b54;
+	--ink-faint: #8a857b;
+	--accent: #3858e9;
+	--accent-hover: #2f4ad1;
+	--accent-link: #2645c9;
+	--alert: #cc1818;
+	--radius-pane: 14px;
+	--radius-card: 8px;
+	--radius-control: 6px;
+	--font-mono:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+	/* Retune the WordPress components inside (primary buttons, focus rings,
+	   text fields) to the surface accent instead of wp-admin teal. */
+	--wp-components-color-accent: var(--accent);
+	--wp-components-color-accent-darker-10: var(--accent-hover);
+	--wp-components-color-accent-darker-20: #26399e;
+	--wp-admin-theme-color: var(--accent);
+	--wp-admin-theme-color-darker-10: var(--accent-hover);
+	--wp-admin-theme-color-darker-20: #26399e;
+}
+
+/* Doubled selector so sizing and surface outrank the stock frame styles
+   regardless of stylesheet load order. */
+.error-modal:global(.components-modal__frame) {
+	background: var(--paper-1);
+	border-radius: var(--radius-pane);
+	/* The pane elevation: soft warm casts plus a faint lit top edge. Overflow
+	   is clipped so the full-bleed footer keeps the rounded bottom corners. */
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.55),
+		0 1px 2px rgba(40, 33, 23, 0.05),
+		0 8px 18px rgba(40, 33, 23, 0.09),
+		0 26px 56px rgba(40, 33, 23, 0.18);
+	color: var(--ink);
+	/* Header, scrolling body, and pinned footer split the frame's height. */
+	display: flex;
+	flex-direction: column;
+	max-height: 85dvh;
 	max-width: none;
-	max-height: 83dvh;
+	overflow: hidden;
+	/* Wide enough for stack traces and step JSON to breathe, short of the
+	   old full-screen slab. */
+	width: min(760px, calc(100vw - 32px));
+}
+
+/* The dialog container takes initial focus; its ring is decoration on a
+   surface with no action, so the retuned accent ring stays on controls only. */
+.error-modal:global(.components-modal__frame):focus,
+.error-modal:global(.components-modal__frame):focus-visible {
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.55),
+		0 1px 2px rgba(40, 33, 23, 0.05),
+		0 8px 18px rgba(40, 33, 23, 0.09),
+		0 26px 56px rgba(40, 33, 23, 0.18);
+	outline: none;
+}
+
+/* Warm the scrim to the same ink family so the backdrop and sheet read as one
+   material world, not a gray system overlay under warm paper. */
+.error-modal-overlay:global(.components-modal__screen-overlay) {
+	background: rgba(28, 25, 21, 0.55);
 }
 
 .error-modal :global(.components-modal__content) {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
+	/* Drop the stock 72px top margin that reserved space for the
+	   absolutely-positioned two-line header slot. */
+	margin: 0;
+	min-height: 0;
+	/* The body scrolls, not the stock content wrapper — otherwise the footer
+	   would scroll away with the prose. */
+	overflow: hidden;
 	width: 100%;
-	font-size: 15px;
-	padding: 0 24px 20px;
-	padding-top: 0;
+	/* Header, body, and footer own their padding — the footer needs the full
+	   sheet width for its hairline rule. */
+	padding: 0;
 }
 
 .error-modal :global(.components-modal__header) {
-	padding-top: 20px;
-	padding-bottom: 16px;
-	padding-left: 24px;
-	padding-right: 24px;
+	/* One line: title left, close glyph right. Top padding matches the 24px
+	   inline inset; the right padding is measured so the close glyph's ink
+	   lands on the same ~24px optical inset as the text (the stock button
+	   carries a negative margin). */
+	align-items: flex-start;
+	background: transparent;
+	border-bottom: none;
+	gap: 16px;
+	/* The stock header is absolutely positioned over a hardcoded 72px
+	   content margin (a two-line slot). Rejoin the flow and size to the
+	   single line; the content margin is zeroed below. */
+	height: auto;
+	min-height: 0;
+	position: static;
 	margin: 0;
-}
-
-.error-modal :global(.components-modal__header-heading) {
-	display: flex;
-	width: 100%;
-	align-items: center;
-	gap: 12px;
-	font-size: 20px;
-	line-height: 1.3;
+	padding: 24px 21px 6px 24px;
 }
 
 .error-modal :global(.components-modal__header-heading-container) {
 	padding: 0;
 }
 
+/* Element-qualified to outrank the stock 1.2rem heading rule. */
+.error-modal :global(h1.components-modal__header-heading) {
+	color: var(--ink);
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.3;
+	width: 100%;
+}
+
+.error-modal :global(.components-modal__header .components-button) {
+	border-radius: var(--radius-control);
+	color: var(--ink-faint);
+	/* Centered on the title line: the 36px button overhangs the 26px line
+	   by 5px on each side so the title keeps the 24px top inset and the
+	   header hugs its single line. */
+	margin-bottom: -5px;
+	margin-top: -5px;
+}
+
+.error-modal :global(.components-modal__header .components-button:hover) {
+	background: var(--paper-4);
+	color: var(--ink);
+}
+
 .error-modal :global(.components-modal__header .components-button svg) {
-	color: #1e1e1e;
+	fill: currentColor;
 }
 
-.error-modal :global(p) {
-	margin: 0;
+/* The category ("Blueprint issue" / "Runtime error") mostly restates the
+   title, so it is spoken to screen readers but not shown — the title and the
+   body copy carry the distinction visually. */
+.error-badge {
+	border: 0;
+	clip: rect(0, 0, 0, 0);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
 }
 
-:global(.components-modal__content):has(.error-modal-footer) {
-	padding-bottom: 0;
+/* WordPress' Modal wraps children in an anonymous div; without joining the
+   flex chain it refuses to shrink (min-height: auto) and pushes the footer
+   past the frame edge. */
+.error-modal
+	:global(.components-modal__content)
+	> :not(:global(.components-modal__header)) {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
 }
 
 .error-modal-content {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
-	width: 100%;
-	height: 100%;
-	max-height: min(80vh, 720px);
+	min-height: 0;
 	overflow: hidden;
+	width: 100%;
 }
 
 .error-modal-body {
-	flex: 1 1 auto;
+	color: var(--ink-muted);
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
-	gap: 0.875rem;
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding-right: 0.25rem;
-	padding-bottom: 90px;
+	font-size: 14px;
+	gap: 14px;
+	line-height: 1.55;
 	min-height: 0;
-	padding-top: 4px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	padding: 10px 24px 24px;
 }
 
-.error-badge {
-	display: inline-flex;
-	align-items: center;
-	flex-shrink: 0;
-	white-space: nowrap;
-	font-size: 0.6875rem;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	font-weight: 600;
-	background: #ede9fe;
-	color: #4c1d95;
-	padding: 0.25rem 0.75rem;
-	border-radius: 999px;
-	line-height: 1;
-}
-
-.error-modal-crash .error-badge {
-	background: #ffe4e6;
-	color: #9f1239;
+.error-modal .error-modal-body p {
+	margin: 0;
 }
 
 .error-lead {
-	font-size: 1.0625rem;
-	line-height: 1.5;
-	color: #1d2327;
+	color: var(--ink-soft);
+	font-size: 15px;
+	line-height: 1.55;
 	margin: 0;
 }
 
 .error-list {
-	margin: 0;
-	padding-left: 1.2rem;
-	line-height: 1.5;
-	color: #1d2327;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	list-style-type: disc;
+	margin: 0;
+	padding-left: 20px;
 }
 
+.error-list li::marker {
+	color: var(--ink-faint);
+}
+
+.error-modal-body a {
+	color: var(--accent-link);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.error-modal-body code {
+	background: var(--paper-3);
+	border-radius: 4px;
+	color: var(--ink-soft);
+	font-family: var(--font-mono);
+	font-size: 0.86em;
+	padding: 2px 5px;
+}
+
+/* Technical output sits in a recessed parchment well — carved into the sheet,
+   not boxed onto it (no border, faint inset only). */
 .error-details {
-	background: #f6f7f7;
-	border-radius: 10px;
-	padding: 0.65rem 0.875rem 0.75rem;
-	font-size: 0.9375rem;
-	border: 1px solid #dcdcde;
-	color: #1d2327;
+	background: var(--paper-3);
+	border: 0;
+	border-radius: var(--radius-card);
+	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	flex-shrink: 0;
 }
 
 .error-details summary {
+	align-items: center;
+	border-radius: var(--radius-card);
+	color: var(--ink-soft);
 	cursor: pointer;
+	display: flex;
+	font-size: 13px;
 	font-weight: 600;
-	margin-bottom: 0.5rem;
+	gap: 8px;
 	line-height: 1.2;
-	margin-bottom: 0;
-	font-size: 1rem;
+	/* The OS disclosure triangle is replaced by the chevron below. */
+	list-style: none;
+	padding: 12px 16px;
+	user-select: none;
+}
+
+.error-details summary::-webkit-details-marker {
+	display: none;
+}
+
+.error-details summary::before {
+	background: var(--ink-faint);
+	content: '';
+	flex-shrink: 0;
+	height: 12px;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 5.5l6.5 6.5L9 18.5' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+		center / contain no-repeat;
+	transition: transform 150ms ease;
+	width: 12px;
+}
+
+.error-details[open] summary::before {
+	transform: rotate(90deg);
+}
+
+.error-details summary:hover {
+	color: var(--ink);
+}
+
+.error-details summary:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
 }
 
 .error-details pre {
+	color: var(--ink-soft);
+	font-family: var(--font-mono);
+	font-size: 12.5px;
+	line-height: 1.55;
 	margin: 0;
-	font-family:
-		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	/* Hangs off the summary's text column (16px + 12px chevron + 8px gap). */
+	padding: 2px 16px 14px 36px;
 	white-space: pre-wrap;
 	word-break: break-word;
-	margin-top: 1rem;
 }
 
-.error-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.75rem;
-	margin-top: 0.5rem;
-	justify-content: center;
-}
-
-.error-action-wrapper {
-	display: flex;
-}
-
+/* Blueprint step failures are body content, not a nested card — the step JSON
+   gets the same recessed-well treatment as other technical output. */
 .step-error {
-	border: 1px solid #dcdcde;
-	border-radius: 12px;
-	padding: 0.75rem 0.85rem 0.9rem;
-	background: #fff;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	flex-shrink: 0;
+	gap: 10px;
 }
 
 .step-error-header {
+	align-items: baseline;
 	display: flex;
 	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 0.4rem;
+	gap: 6px;
 }
 
 .step-error-title {
-	margin: 0;
+	color: var(--ink);
+	font-size: 15px;
 	font-weight: 600;
-	color: #1d2327;
-	font-size: 1.05rem;
+	line-height: 1.4;
+	margin: 0;
 }
 
 .step-error-message {
+	color: var(--ink-muted);
+	line-height: 1.55;
 	margin: 0;
-	color: #1d2327;
-	line-height: 1.4;
 }
 
 .step-error-code-wrapper {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
+	gap: 6px;
 }
 
 .step-error-label {
-	font-size: 0.75rem;
+	color: var(--ink-faint);
+	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #6c7781;
 }
 
 .step-error-code {
+	background: var(--paper-3);
+	border-radius: var(--radius-card);
+	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	color: var(--ink-soft);
+	font-family: var(--font-mono);
+	font-size: 12.5px;
+	line-height: 1.55;
 	margin: 0;
-	background: #f6f7f7;
-	border-radius: 10px;
-	padding: 0.75rem;
-	font-family:
-		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-	font-size: 0.82rem;
 	overflow-x: auto;
-	line-height: 1.35;
+	padding: 12px 16px;
 }
 
 .error-link {
-	color: #1d4ed8;
-	text-decoration: underline;
 	word-break: break-all;
 }
 
-.error-modal-footer {
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	flex-shrink: 0;
-	width: 100%;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.625rem;
-	padding: 16px 0;
-	margin-top: 4px;
-	box-shadow: 0 -3px 16px 0 rgba(30, 34, 43, 0.1);
-	justify-content: center;
-	background: #fff;
-	font-size: 15px;
+/* Confirmation stays on the ink ramp — the copy carries the good news, the
+   surface stays quiet (no off-palette green). */
+.report-success {
+	color: var(--ink-soft);
+	font-weight: 500;
 }
 
-.error-modal:has(.error-modal-footer:not(:has(*))) {
-	padding-bottom: 0;
+/* Report-a-crash form fields, retuned from admin chrome to the paper surface. */
+.error-modal-body :global(.components-base-control__label) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.error-modal-body :global(.components-textarea-control__input) {
+	background: #ffffff;
+	border-color: var(--line-control);
+	border-radius: var(--radius-card);
+	box-shadow: none;
+	color: var(--ink);
+	font-family: inherit;
+	font-size: 14px;
+	padding: 10px 12px;
+}
+
+.error-modal-body :global(.components-base-control__help) {
+	color: var(--ink-faint);
+	font-size: 12px;
+}
+
+/* Actions live on a raised strip behind a hairline — a quiet, right-aligned
+   footer instead of a floating shadow bar. */
+.error-modal-footer {
+	align-items: center;
+	background: var(--paper-2);
+	border-top: 1px solid var(--line-subtle);
+	display: flex;
+	flex-shrink: 0;
+	flex-wrap: wrap;
+	gap: 10px;
+	justify-content: flex-end;
+	padding: 14px 24px;
 }
 
 .error-modal-footer:not(:has(*)) {
 	display: none;
 }
 
-@media (max-width: 768px) {
-	.error-modal {
-		max-width: none;
-		max-height: none;
-		margin: 0;
-		width: 100dvw;
-		height: 100dvh;
-	}
+.error-action-wrapper {
+	display: flex;
+}
 
-	.error-modal :global(.components-modal__content) {
-		font-size: 14px;
-		padding: 18px 20px;
-		padding-top: 0;
-	}
+.error-modal :global(.components-button) {
+	border-radius: var(--radius-control);
+}
 
-	.error-modal :global(.components-modal__header) {
-		padding-bottom: 14px;
-		padding-left: 20px;
-		padding-right: 20px;
-	}
+/* Exactly one filled accent primary per sheet; every other action is a quiet
+   ink control on paper (same hierarchy as the Dock panes). */
+.error-modal :global(.components-button.is-secondary:not(.is-destructive)) {
+	box-shadow: inset 0 0 0 1px var(--line-control);
+	color: var(--ink);
+}
 
-	.error-modal :global(.components-modal__header-heading) {
-		font-size: 18px;
-		gap: 10px;
-	}
+.error-modal
+	:global(
+		.components-button.is-secondary:not(.is-destructive):hover:not(
+				:disabled
+			)
+	) {
+	background: var(--paper-4);
+	box-shadow: inset 0 0 0 1px var(--line-hover);
+	color: var(--ink);
+}
 
-	.error-modal-content {
-		max-height: min(85vh, 600px);
-	}
-
-	.error-badge {
-		font-size: 0.65rem;
-		padding: 0.22rem 0.65rem;
-	}
-
-	.error-lead {
-		font-size: 1rem;
-	}
-
-	.error-list {
-		font-size: 0.9375rem;
-		padding-left: 1rem;
-	}
-
-	.error-details {
-		font-size: 0.875rem;
-		padding: 0.6rem 0.8rem 0.7rem;
-		border-radius: 8px;
-	}
-
-	.error-modal-body {
-		gap: 0.75rem;
-	}
-
-	.error-modal-footer {
-		font-size: 14px;
-		gap: 0.5rem;
-		padding: 14px 0 0;
+@media (prefers-reduced-motion: reduce) {
+	.error-details summary::before {
+		transition: none;
 	}
 }
 
-@media (max-width: 480px) {
-	.error-modal {
-		width: 100%;
-		height: 100%;
-		max-height: 100%;
+@media (max-width: 768px) {
+	.error-modal:global(.components-modal__frame) {
+		border-radius: 0;
+		height: 100dvh;
+		margin: 0;
+		max-height: none;
+		width: 100dvw;
+	}
+
+	.error-modal :global(.components-modal__header) {
+		padding: 18px 14px 6px 20px;
+	}
+
+	/* Same optical centering against the smaller 18px title line. */
+	.error-modal :global(.components-modal__header .components-button) {
+		margin-top: -6px;
+	}
+
+	.error-modal :global(h1.components-modal__header-heading) {
+		font-size: 18px;
+	}
+
+	/* Fill the screen so the footer rests on the bottom edge. */
+	.error-modal-content {
+		flex: 1;
+		max-height: none;
 	}
 
 	.error-modal-body {
-		padding-bottom: 70px;
+		padding: 8px 20px 20px;
 	}
 
 	.error-modal-footer {
-		gap: 0.4rem;
+		padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
 	}
 }

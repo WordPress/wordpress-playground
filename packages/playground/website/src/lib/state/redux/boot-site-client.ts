@@ -25,6 +25,7 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from './slice-sites';
@@ -41,6 +42,8 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -288,6 +291,16 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+			} else if (
+				(e as any).name === 'ResourceUnavailableError' ||
+				(e as any).originalErrorClassName === 'ResourceUnavailableError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-unavailable',
+						details: e,
+					})
+				);
 			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
@@ -316,6 +329,14 @@ export function bootSiteClient(
 				if (shouldShowGitHubAuthModal(repoUrl)) {
 					if (repoUrl) {
 						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					if (isUnfinishedBlueprintRun(site)) {
+						dispatch(
+							setActiveSiteError({
+								error: 'site-boot-failed',
+								details: e,
+							})
+						);
 					}
 					dispatch(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
@@ -363,6 +384,28 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		try {
+			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
+		} catch (error) {
+			if (signal.aborted) {
+				return;
+			}
+			logger.error('Error initializing Playground', error);
+			if (mountDescriptorForInitialOpfsSync) {
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.
@@ -374,6 +417,20 @@ export function bootSiteClient(
 				operation: syncOperation,
 				dispatch,
 				signal,
+				siteSlugToReturnToIfBlueprintFails:
+					site.metadata.siteSlugToReturnToIfBlueprintFails,
+			}).then(() => {
+				const storedSite = selectSiteBySlug(getState(), site.slug);
+				if (
+					!signal.aborted &&
+					storedSite?.metadata.initialOpfsSyncPending === false
+				) {
+					void captureAndPersistSiteThumbnail({
+						playground: connectedPlayground,
+						siteSlug: site.slug,
+						dispatch,
+					});
+				}
 			});
 		} else {
 			try {
@@ -406,6 +463,13 @@ export function bootSiteClient(
 						},
 					})
 				);
+			}
+			if (site.metadata.storage !== 'none') {
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+				});
 			}
 		}
 
@@ -540,6 +604,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation,
 	dispatch,
 	signal,
+	siteSlugToReturnToIfBlueprintFails,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -547,6 +612,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
+	siteSlugToReturnToIfBlueprintFails?: string;
 }) {
 	let shouldReportProgress = true;
 	try {
@@ -579,12 +645,17 @@ async function syncInitialOpfsFilesInBackground({
 		if (signal.aborted) {
 			return;
 		}
+		// Clear the return target in the same metadata write that completes the
+		// initial copy so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					...(siteSlugToReturnToIfBlueprintFails
+						? { siteSlugToReturnToIfBlueprintFails: undefined }
+						: {}),
 				},
 			})
 		);

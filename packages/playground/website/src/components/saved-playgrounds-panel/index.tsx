@@ -15,6 +15,7 @@ import {
 	pencil,
 	layout,
 	fullscreen,
+	offline as offlineIcon,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
@@ -35,8 +36,6 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
-import { importWordPressFiles } from '@wp-playground/client';
-import type { PlaygroundClient } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -44,12 +43,12 @@ import {
 	useAppDispatch,
 	getActiveClientInfo,
 } from '../../lib/state/redux/store';
-import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
+import type { SiteImage, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	isRestorableAutosavedSite,
 	selectSortedSites,
-	selectTemporarySite,
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import {
@@ -163,7 +162,6 @@ export function SavedPlaygroundsPanel({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
-	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const activeClientInfo = useAppSelector(getActiveClientInfo);
 	const activeSiteSyncLabel = getActiveSiteSyncLabel(activeClientInfo);
@@ -179,16 +177,8 @@ export function SavedPlaygroundsPanel({
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
-	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
-	const [pendingZipTargetSlug, setPendingZipTargetSlug] = useState<
-		string | null
-	>(null);
 	const [isImportingZip, setIsImportingZip] = useState(false);
 	const zipImportPendingRef = useRef(false);
-	// Re-entrancy guard: the import effect's deps (onClose, activeSite) change on
-	// routine re-renders, so this prevents a second concurrent import firing while
-	// one is already in flight.
-	const importingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
 	// dedicated GitHub view moves keyboard focus to its Back button because it
@@ -331,105 +321,10 @@ export function SavedPlaygroundsPanel({
 		}
 	}, [panel]);
 
-	useEffect(() => {
-		if (
-			!pendingZipFile ||
-			!playground ||
-			!activeSite ||
-			activeSite.slug !== pendingZipTargetSlug ||
-			importingRef.current
-		) {
-			return;
-		}
-		if (activeClientInfo?.opfsSync?.status === 'syncing') {
-			return;
-		}
-		if (activeClientInfo?.opfsSync?.status === 'error') {
-			setPendingZipFile(null);
-			setPendingZipTargetSlug(null);
-			zipImportPendingRef.current = false;
-			setIsImportingZip(false);
-			if (zipFileInputRef.current) {
-				zipFileInputRef.current.value = '';
-			}
-			alert('Unable to save the new Playground before import.');
-			return;
-		}
-
-		// Capture the file and clear the pending request synchronously, BEFORE the
-		// async work, so a re-render (new onClose/activeSite identity) re-running
-		// this effect can't kick off a second concurrent import into the same site.
-		importingRef.current = true;
-		const zipFile = pendingZipFile;
-		setPendingZipFile(null);
-		setPendingZipTargetSlug(null);
-
-		const doImport = async () => {
-			try {
-				await importWordPressFiles(playground, {
-					wordPressFilesZip: zipFile,
-				});
-				await flushImportedWordPressFiles(playground);
-				window.setTimeout(() => {
-					void playground.goTo('/').catch((error) => {
-						logger.error('Failed to refresh imported site', error);
-					});
-				}, 200);
-				alert(
-					'File imported! This Playground instance has been updated and will refresh shortly.'
-				);
-				onClose();
-			} catch (error) {
-				logger.error(error);
-				alert(
-					'Unable to import file. Is it a valid WordPress Playground export?'
-				);
-			} finally {
-				zipImportPendingRef.current = false;
-				setIsImportingZip(false);
-				importingRef.current = false;
-				if (zipFileInputRef.current) {
-					zipFileInputRef.current.value = '';
-				}
-			}
-		};
-		void doImport();
-	}, [
-		pendingZipFile,
-		pendingZipTargetSlug,
-		activeSite,
-		playground,
-		activeClientInfo?.opfsSync?.status,
-		onClose,
-	]);
-
-	/**
-	 * Creates or selects a target Playground before importing a zip archive.
-	 *
-	 * Imports prefer a new OPFS-backed site so the result survives a refresh.
-	 * If that cannot be created, the import falls back to an existing or new
-	 * temporary site.
-	 */
-	async function createSiteForImport() {
-		try {
-			return await sitesAPI.createNewSavedSite();
-		} catch {
-			if (temporarySite) {
-				await sitesAPI.setActiveSite(temporarySite.slug);
-				return temporarySite.slug;
-			}
-			return await sitesAPI.createNewTemporarySite();
-		}
-	}
-
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
-		if (
-			zipImportPendingRef.current ||
-			importingRef.current ||
-			pendingZipFile
-		) {
+		if (zipImportPendingRef.current) {
 			e.target.value = '';
 			return;
 		}
@@ -437,16 +332,25 @@ export function SavedPlaygroundsPanel({
 		zipImportPendingRef.current = true;
 		setIsImportingZip(true);
 		try {
-			const targetSlug = await createSiteForImport();
-			setPendingZipTargetSlug(targetSlug);
-			setPendingZipFile(file);
+			await sitesAPI.createNewSiteFromZip(file);
+			const importedPlayground = sitesAPI.getClient();
+			window.setTimeout(() => {
+				void importedPlayground?.goTo('/').catch((error) => {
+					logger.error('Failed to refresh imported site', error);
+				});
+			}, 200);
+			alert(
+				'File imported! This Playground instance has been updated and will refresh shortly.'
+			);
+			onClose();
 		} catch (error) {
 			logger.error(error);
+			alert(
+				'Unable to import file. Is it a valid WordPress Playground export?'
+			);
+		} finally {
 			zipImportPendingRef.current = false;
 			setIsImportingZip(false);
-			alert(
-				'No active Playground to import into. Please create one first.'
-			);
 			if (zipFileInputRef.current) {
 				zipFileInputRef.current.value = '';
 			}
@@ -507,10 +411,6 @@ export function SavedPlaygroundsPanel({
 				})
 			);
 		});
-	};
-
-	const getLogoDataURL = (logo: SiteLogo): string => {
-		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
 	const handleDeleteSite = (site: SiteInfo, closeMenu: () => void) => {
@@ -667,8 +567,8 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
-	// The save state lives in the row's status chip, so the meta line stays clean
-	// (just the date, or the location for local-directory Playgrounds).
+	// The save state lives in the row's status chip, so the meta line stays focused
+	// on runtime/date details or the local-directory location.
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
 			return 'Not saved to browser storage';
@@ -676,7 +576,10 @@ export function SavedPlaygroundsPanel({
 		if (site.metadata.storage === 'local-fs') {
 			return 'Local directory';
 		}
-		return formatSiteCreatedDate(site) ?? '';
+		const createdDate = formatSiteCreatedDate(site);
+		return isAutosavedSite(site)
+			? [getRuntimeLabel(site), createdDate].filter(Boolean).join(' · ')
+			: (createdDate ?? '');
 	};
 
 	const getCurrentSiteDetails = (site: SiteInfo) => {
@@ -893,12 +796,12 @@ export function SavedPlaygroundsPanel({
 	 * The start methods, as a top tab strip. The three Blueprint sources lead
 	 * (Gallery / From a URL / Write your own) so they read as one cohesive way to
 	 * start; the code/import flows follow. Each tab shows an icon + label; the
-	 * panel below names the active flow and renders it.
+	 * panel below renders the active flow.
 	 */
 	const creationMethods: {
 		id: CreationTabId;
 		label: string;
-		panelTitle: string;
+		panelTitle?: string;
 		icon: React.ReactNode;
 		disabled: boolean;
 	}[] = [
@@ -926,7 +829,6 @@ export function SavedPlaygroundsPanel({
 		{
 			id: 'pull-request',
 			label: 'Preview a PR',
-			panelTitle: 'Preview a pull request',
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
@@ -1003,7 +905,7 @@ export function SavedPlaygroundsPanel({
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
-	const recentSites = inactiveStoredSites.filter(isAutosavedSite);
+	const recentSites = inactiveStoredSites.filter(isRestorableAutosavedSite);
 	const savedSites = inactiveStoredSites.filter(isExplicitlySavedSite);
 
 	function formatSiteCreatedDate(site: SiteInfo) {
@@ -1166,16 +1068,7 @@ export function SavedPlaygroundsPanel({
 				})}
 			>
 				<div className={css.siteRowContent} {...rowButtonProps}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					<SitePreview site={site} />
 					<div className={css.siteRowInfo}>
 						{renderSiteRowName(site)}
 						{meta && (
@@ -1199,16 +1092,7 @@ export function SavedPlaygroundsPanel({
 				className={classNames(css.siteRow, css.currentSiteRow)}
 			>
 				<div className={css.siteRowContent}>
-					<div className={css.siteRowLogo}>
-						{site.metadata.logo ? (
-							<img
-								src={getLogoDataURL(site.metadata.logo)}
-								alt=""
-							/>
-						) : (
-							<WordPressIcon />
-						)}
-					</div>
+					<SitePreview site={site} />
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
@@ -1309,7 +1193,7 @@ export function SavedPlaygroundsPanel({
 	function renderNewPlaygroundSection() {
 		// A top tab strip picks a way to start; the panel below swaps to match.
 		// The three Blueprint sources lead so they read as one cohesive way to
-		// start, then the code/import flows. A quiet heading names each flow.
+		// start, then the code/import flows. Most have a quiet secondary heading.
 		const activeMethod = creationMethods.find(
 			(method) => method.id === activeCreationTab
 		);
@@ -1389,7 +1273,7 @@ export function SavedPlaygroundsPanel({
 							: `creation-tab-${activeCreationTab}`
 					}
 				>
-					{!isGitHubImportOpen && (
+					{!isGitHubImportOpen && activeMethod?.panelTitle && (
 						<div className={css.panelHeader}>
 							<h3
 								id="creation-panel-title"
@@ -1420,9 +1304,22 @@ export function SavedPlaygroundsPanel({
 					</div>
 				)}
 				{!blueprintsLoading && blueprintsError && (
-					<p className={css.emptyMessage}>
-						Unable to load Blueprints. Check your connection.
-					</p>
+					<div className={css.blueprintsError} role="alert">
+						<span
+							className={css.blueprintsErrorIcon}
+							aria-hidden="true"
+						>
+							<Icon icon={offlineIcon} size={16} />
+						</span>
+						<div>
+							<p className={css.blueprintsErrorTitle}>
+								The Blueprint gallery couldn’t load
+							</p>
+							<p className={css.blueprintsErrorMessage}>
+								Check your internet connection and try again.
+							</p>
+						</div>
+					</div>
 				)}
 				{!blueprintsLoading &&
 					!blueprintsError &&
@@ -1702,6 +1599,40 @@ export function SavedPlaygroundsPanel({
 	);
 }
 
+function SitePreview({ site }: { site: SiteInfo }) {
+	return (
+		<div
+			className={classNames(css.siteRowPreview, {
+				[css.siteRowPreviewFallback]: !site.metadata.thumbnail,
+			})}
+		>
+			{site.metadata.thumbnail ? (
+				<img
+					className={css.siteRowThumbnail}
+					src={getSiteImageDataURL(site.metadata.thumbnail)}
+					alt=""
+					data-site-thumbnail
+				/>
+			) : (
+				<div className={css.siteRowLogo}>
+					{site.metadata.logo ? (
+						<img
+							src={getSiteImageDataURL(site.metadata.logo)}
+							alt=""
+						/>
+					) : (
+						<WordPressIcon />
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+function getSiteImageDataURL(image: SiteImage) {
+	return `data:${image.mime};base64,${image.data}`;
+}
+
 function PullRequestIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -1728,13 +1659,6 @@ function getActiveSiteSyncLabel(
 		return `${verb}… ${getOpfsSyncProgressPercent(progress)}%`;
 	}
 	return `${verb}…`;
-}
-
-async function flushImportedWordPressFiles(playground: PlaygroundClient) {
-	const documentRoot = await playground.documentRoot;
-	if (await playground.hasOpfsMount(documentRoot)) {
-		await playground.flushOpfs(documentRoot);
-	}
 }
 
 function isCreationTabDisabled(tab: CreationTabId, offline: boolean) {

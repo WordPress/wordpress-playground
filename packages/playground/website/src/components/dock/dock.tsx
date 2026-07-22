@@ -47,7 +47,10 @@ import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
-import { useRecentAutosaveNudgeVisible } from '../ensure-playground-site/recent-autosave-nudge-context';
+import {
+	useRecentAutosaveNudgeVisible,
+	useSetRecentAutosaveNudgeAnchor,
+} from '../ensure-playground-site/recent-autosave-nudge-context';
 import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
@@ -164,8 +167,8 @@ const PANE_COPY: Record<
 		description: 'Browse and edit the active Playground filesystem.',
 	},
 	logs: {
-		title: 'Logs',
-		description: 'PHP, WordPress, and Playground runtime messages.',
+		title: 'PHP error log',
+		description: 'Errors, warnings, and notices from your site.',
 	},
 	share: {
 		title: 'Export',
@@ -203,6 +206,8 @@ export function Dock({
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = section === 'blueprint' || section === 'files';
+	// Logs hold long monospace records, so they get a wider pane.
+	const isWideSection = section === 'logs';
 	const isFixedHeightSection =
 		section === 'new' || (section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
@@ -215,6 +220,9 @@ export function Dock({
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
 	const recentAutosaveNudgeVisible = useRecentAutosaveNudgeVisible();
+	const setRecentAutosaveNudgeAnchor = useSetRecentAutosaveNudgeAnchor();
+	const playgroundsButtonRef = useRef<HTMLButtonElement>(null);
+	const dockStatusRef = useRef<HTMLDivElement>(null);
 	const operationNotice = useAppSelector(
 		(state) => state.ui.dockOperationNotice
 	);
@@ -407,6 +415,21 @@ export function Dock({
 		setIsMaximizing(false);
 	}, [section, dockPaneIsOpen]);
 
+	// The autosave nudge points at the Playgrounds button, or at the save
+	// status when a collapsed Dock hides the tools row. A cornered Dock shows
+	// neither, and the nudge then falls back to its free-floating position
+	// instead of pointing at nothing.
+	useEffect(() => {
+		if (cornerSide !== null) {
+			setRecentAutosaveNudgeAnchor(null);
+		} else if (isCollapsed) {
+			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
+		} else {
+			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+		}
+		return () => setRecentAutosaveNudgeAnchor(null);
+	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
+
 	// The overlay query parameter only describes New and Playgrounds. Remove it
 	// when that requested pane closes or another Dock destination replaces it.
 	useEffect(() => {
@@ -551,12 +574,12 @@ export function Dock({
 	// already fixed to an edge and keep their native control interactions.
 	const canDrag = !isMobile && !isFullWidth;
 
-	/** Reports whether a target is a real Dock control. */
-	const isInteractiveTarget = (target: EventTarget | null) =>
+	/** Reports whether a target belongs to a Dock control, including a portal. */
+	const isDockControlTarget = (target: EventTarget | null) =>
 		target instanceof Element &&
 		Boolean(
 			target.closest(
-				'button, a, input, textarea, select, [role="menu"], [role="menuitem"]'
+				'button, a, input, textarea, select, [role="menu"], [role="menuitem"], [role="listbox"]'
 			)
 		);
 
@@ -586,20 +609,12 @@ export function Dock({
 	// Controls keep native press, selection, and motor-tolerance behavior. The
 	// surrounding Dock chrome remains a large drag handle without turning a small
 	// pointer wobble on a button into an accidental Dock move.
-	const isNativePressTarget = (target: EventTarget | null) =>
-		target instanceof Element &&
-		Boolean(
-			target.closest(
-				'button, input, textarea, select, a, [role="menu"], [role="menuitem"]'
-			)
-		);
-
 	/** Arms a whole-surface horizontal drag and swallows clicks after real drags. */
 	const handleDockPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
 		if (
 			!canDrag ||
 			event.button !== 0 ||
-			isNativePressTarget(event.target)
+			isDockControlTarget(event.target)
 		) {
 			return;
 		}
@@ -733,7 +748,7 @@ export function Dock({
 			return;
 		}
 		setDockSheen(
-			isInteractiveTarget(event.target) ? 0.12 : 1,
+			isDockControlTarget(event.target) ? 0.12 : 1,
 			event.clientX
 		);
 	};
@@ -962,9 +977,12 @@ export function Dock({
 	const paneStyle = getDockPaneStyle({
 		isMobile,
 		dockSize,
+		toolsHeight,
+		isCollapsed,
 		dockCenter,
 		viewportSize,
 		isEditorSection,
+		isWideSection,
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
@@ -979,6 +997,7 @@ export function Dock({
 		toastHeight: operationToastHeight,
 		paneOpen: dockPaneIsOpen,
 		isEditorSection,
+		isWideSection,
 	});
 
 	return (
@@ -1095,6 +1114,7 @@ export function Dock({
 						[css.hostPaneHidden]:
 							!dockPaneIsOpen && paneExitComplete,
 						[css.paneSave]: section === 'save',
+						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
@@ -1189,6 +1209,7 @@ export function Dock({
 						<div className={css.dockAddress}>
 							<AddressBar
 								url={clientInfo?.url}
+								isMobile={isMobile}
 								disabled={!clientInfo}
 								onUpdate={
 									clientInfo
@@ -1198,7 +1219,7 @@ export function Dock({
 								}
 							/>
 						</div>
-						<div className={css.dockStatus}>
+						<div className={css.dockStatus} ref={dockStatusRef}>
 							{playgroundTitle && (
 								<span
 									className={css.dockSiteName}
@@ -1234,6 +1255,11 @@ export function Dock({
 						{DOCK_ITEMS.map((item, index) => (
 							<DockItemButton
 								key={item.section}
+								ref={
+									item.section === 'playgrounds'
+										? playgroundsButtonRef
+										: undefined
+								}
 								label={item.label}
 								ariaLabel={item.ariaLabel}
 								icon={item.icon}
