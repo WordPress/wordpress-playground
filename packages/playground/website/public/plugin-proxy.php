@@ -306,12 +306,13 @@ class PluginDownloader
 
 function streamHttpResponse($url, $request_method = 'GET', $request_headers = [], $request_body = null, $allowed_response_headers = [], $default_response_headers = [], $allowed_hosts = null)
 {
-	$redirect_count = 0;
-	$follow_location = $allowed_hosts === null;
-	while (true) {
-		// An allowlist opts into manual redirects so every outbound URL is checked first.
+	// Make the initial request, then manually follow up to libcurl's default 30 redirects.
+	// See https://curl.se/libcurl/c/CURLOPT_MAXREDIRS.html
+	$max_redirects = 30;
+	for ($redirect_count = 0; $redirect_count <= $max_redirects; $redirect_count++) {
+		// When supplied, the allowlist applies to every outbound URL.
 		if (
-			!$follow_location
+			$allowed_hosts !== null
 			&& !isPluginProxyUrlAllowed($url, $allowed_hosts)
 		) {
 			throw new UrlNotAllowedException('URL is not allowed');
@@ -323,31 +324,31 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 			$request_headers,
 			$request_body,
 			$allowed_response_headers,
-			$default_response_headers,
-			$follow_location
+			$default_response_headers
 		);
 
-		if ($follow_location || empty($info['redirect_url'])) {
+		if (empty($info['redirect_url'])) {
 			return $info;
 		}
 
-		// Match modern libcurl's default redirect limit.
-		if ($redirect_count >= 30) {
-			throw new ApiException('Too many redirects');
-		}
-
-		// Match libcurl's default redirect behavior for POST requests.
-		if (
+		// Match libcurl's default method behavior across redirects.
+		// See https://curl.se/libcurl/c/CURLOPT_FOLLOWLOCATION.html
+		$redirect_uses_get = (
+			$info['http_code'] === 303
+			&& $request_method !== 'HEAD'
+		) || (
 			$request_method === 'POST'
-			&& in_array($info['http_code'], [301, 302, 303], true)
-		) {
+			&& in_array($info['http_code'], [301, 302], true)
+		);
+		if ($redirect_uses_get) {
 			$request_method = 'GET';
 			$request_body = null;
 		}
 
 		$url = $info['redirect_url'];
-		$redirect_count++;
 	}
+
+	throw new ApiException('Too many redirects');
 }
 
 function isPluginProxyUrlAllowed($candidate_url, $allowed_hosts)
@@ -356,7 +357,7 @@ function isPluginProxyUrlAllowed($candidate_url, $allowed_hosts)
 	return is_string($host) && in_array($host, $allowed_hosts, true);
 }
 
-function streamHttpResponseOnce($url, $request_method, $request_headers, $request_body, $allowed_response_headers, $default_response_headers, $follow_location)
+function streamHttpResponseOnce($url, $request_method, $request_headers, $request_body, $allowed_response_headers, $default_response_headers)
 {
 	$ch = curl_init($url);
 	curl_setopt_array(
@@ -365,7 +366,6 @@ function streamHttpResponseOnce($url, $request_method, $request_headers, $reques
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_CONNECTTIMEOUT => 30,
 			CURLOPT_FAILONERROR => true,
-			CURLOPT_FOLLOWLOCATION => $follow_location,
 		]
 	);
 
@@ -374,6 +374,11 @@ function streamHttpResponseOnce($url, $request_method, $request_headers, $reques
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $request_body);
 	} else if ($request_method === 'HEAD') {
 		curl_setopt($ch, CURLOPT_NOBODY, true);
+	} else if ($request_method !== 'GET') {
+		if ($request_body !== null && $request_body !== '') {
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $request_body);
+		}
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $request_method);
 	}
 
 	if (count($request_headers)) {
@@ -451,7 +456,7 @@ function streamHttpResponseOnce($url, $request_method, $request_headers, $reques
 	$response = curl_exec($ch);
 	$info = curl_getinfo($ch);
 	closeCurlHandle($ch);
-	if (!$follow_location && $is_redirect_response && empty($info['redirect_url'])) {
+	if ($is_redirect_response && empty($info['redirect_url'])) {
 		throw new ApiException('Invalid redirect');
 	}
 	if ($response === false && isset($info['http_code']) && $info['http_code'] === 429) {
