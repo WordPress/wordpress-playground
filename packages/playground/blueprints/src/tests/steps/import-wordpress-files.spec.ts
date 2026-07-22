@@ -413,6 +413,90 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
+	it('should preserve live files and clean staging when preparation fails', async () => {
+		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
+		const documentRoot = await targetPHP.documentRoot;
+		const dbDropInPath = joinPaths(documentRoot, 'wp-content', 'db.php');
+		const databasePath = joinPaths(documentRoot, 'wp-content', 'database');
+		const dbDropInContents = '<?php // Live SQLite drop-in';
+		await targetPHP.writeFile(dbDropInPath, dbDropInContents);
+		expect(await targetPHP.fileExists(databasePath)).toBe(true);
+
+		const listFiles = targetPHP.listFiles.bind(targetPHP);
+		const listFilesSpy = vi
+			.spyOn(targetPHP, 'listFiles')
+			.mockImplementation((path, options) => {
+				if (path.startsWith('/tmp/import-wordpress-files-')) {
+					throw new Error('Injected pre-commit failure');
+				}
+				return listFiles(path, options);
+			});
+
+		try {
+			await expect(
+				importWordPressFiles(targetPHP, {
+					wordPressFilesZip: zipFile,
+				})
+			).rejects.toThrow('Injected pre-commit failure');
+		} finally {
+			listFilesSpy.mockRestore();
+		}
+
+		expect(await targetPHP.readFileAsText(dbDropInPath)).toBe(
+			dbDropInContents
+		);
+		expect(await targetPHP.fileExists(databasePath)).toBe(true);
+		expect(
+			(await targetPHP.listFiles('/tmp')).filter((path) =>
+				path.startsWith('import-wordpress-files-')
+			)
+		).toEqual([]);
+	});
+
+	it('should preserve remaining staged files when replacement fails', async () => {
+		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
+		const documentRoot = await targetPHP.documentRoot;
+		const mv = targetPHP.mv.bind(targetPHP);
+		const mvSpy = vi
+			.spyOn(targetPHP, 'mv')
+			.mockImplementation((fromPath, toPath) => {
+				if (
+					fromPath.startsWith('/tmp/import-wordpress-files-') &&
+					toPath.startsWith(`${documentRoot}/`)
+				) {
+					throw new Error('Injected replacement failure');
+				}
+				return mv(fromPath, toPath);
+			});
+
+		try {
+			await expect(
+				importWordPressFiles(targetPHP, {
+					wordPressFilesZip: zipFile,
+				})
+			).rejects.toThrow('Injected replacement failure');
+		} finally {
+			mvSpy.mockRestore();
+		}
+
+		const stagingDirectories = (await targetPHP.listFiles('/tmp')).filter(
+			(path) => path.startsWith('import-wordpress-files-')
+		);
+		expect(stagingDirectories).toHaveLength(1);
+		expect(
+			await targetPHP.fileExists(
+				joinPaths(
+					'/tmp',
+					stagingDirectories[0],
+					'wp-content',
+					'plugins',
+					'import-test',
+					'import-test.php'
+				)
+			)
+		).toBe(true);
+	});
+
 	it('should import WordPress files from a single wrapping directory', async () => {
 		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
 		const pluginPath =
@@ -555,3 +639,19 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 });
+
+async function createMinimalWordPressFilesZip(playground: PHP) {
+	const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+	await playground.run({
+		code: `<?php
+		$zip = new ZipArchive();
+		$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+		$zip->addFromString('wp-content/plugins/import-test/import-test.php', '<?php');
+		$zip->close();
+		`,
+	});
+
+	const zipBuffer = await playground.readFileAsBuffer(zipPath);
+	await playground.unlink(zipPath);
+	return new File([zipBuffer], 'minimal-wordpress-files.zip');
+}
