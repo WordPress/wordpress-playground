@@ -468,7 +468,10 @@ function is_cors_proxy_origin_supported($origin, $supported_origins) {
  * Whether an origin matches a configured origin pattern.
  */
 function cors_proxy_origin_matches_pattern($origin, $pattern) {
-    if (!is_string($origin) || !is_string($pattern)) {
+    if (
+        !is_valid_cors_proxy_origin($origin) ||
+        !is_valid_cors_proxy_origin_pattern($pattern)
+    ) {
         return false;
     }
 
@@ -476,11 +479,7 @@ function cors_proxy_origin_matches_pattern($origin, $pattern) {
         return true;
     }
 
-    if (
-        strpos($pattern, '*') === false ||
-        !is_valid_cors_proxy_origin_pattern($pattern) ||
-        !is_valid_cors_proxy_origin_pattern($origin)
-    ) {
+    if (strpos($pattern, '*') === false) {
         return false;
     }
 
@@ -505,26 +504,40 @@ function is_valid_cors_proxy_origin_pattern($pattern) {
         return false;
     }
 
+    if (strpos($pattern, '*') === false) {
+        return is_valid_cors_proxy_origin($pattern);
+    }
+
     if (
-        strpos($pattern, '*') !== false &&
-        (
-            !preg_match(
-                '~\Ahttps?://(?<host>[^/:?#]+)(?::[0-9]{1,5})?\z~i',
-                $pattern,
-                $matches
-            ) ||
-            strpos($matches['host'], '*') === false
-        )
+        !preg_match(
+            '~\Ahttps?://(?<host>[^/:?#]+)(?::[0-9]{1,5})?\z~i',
+            $pattern,
+            $matches
+        ) ||
+        strpos($matches['host'], '*') === false
     ) {
         return false;
     }
 
-    $url = str_replace('*', 'wildcard', $pattern);
-    if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+    return is_valid_cors_proxy_origin(
+        str_replace('*', 'wildcard', $pattern)
+    );
+}
+
+/**
+ * Whether a value is a concrete HTTP(S) origin without a wildcard.
+ */
+function is_valid_cors_proxy_origin($origin) {
+    if (
+        !is_string($origin) ||
+        $origin === '' ||
+        strpos($origin, '*') !== false ||
+        filter_var($origin, FILTER_VALIDATE_URL) === false
+    ) {
         return false;
     }
 
-    $parts = parse_url($url);
+    $parts = parse_url($origin);
     if (
         $parts === false ||
         !in_array($parts['scheme'] ?? null, ['http', 'https'], true) ||
