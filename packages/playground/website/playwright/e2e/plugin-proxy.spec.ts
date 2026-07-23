@@ -24,6 +24,7 @@ test.skip(
 );
 
 const pluginProxyDocumentRoot = joinPaths(__dirname, '../../public');
+const pluginProxyRouter = joinPaths(__dirname, 'plugin-proxy-test-router.php');
 
 let requestDestinations: string[] = [];
 let pluginProxyUrl = '';
@@ -44,6 +45,7 @@ test.beforeAll(async () => {
 			`127.0.0.1:${pluginProxyPort}`,
 			'-t',
 			pluginProxyDocumentRoot,
+			pluginProxyRouter,
 		],
 		{
 			http_proxy: `http://127.0.0.1:${upstreamPort}`,
@@ -82,6 +84,26 @@ test('rejects a direct off-allowlist URL without fetching it', async ({
 		'Error: The specified URL is not allowed.'
 	);
 	expect(requestDestinations).toEqual([]);
+});
+
+/**
+ * Stable contract: A filtered upstream header does not suppress a configured
+ * default header with the same name.
+ * Plausible regression: Header buffering records received headers instead of
+ * only the headers forwarded to the client.
+ * Independent path: The test router invokes the real PHP header helper and the
+ * HTTP client observes the resulting response headers.
+ */
+test('keeps a default header when the matching upstream header is filtered', async ({
+	request,
+}) => {
+	const response = await request.get(
+		new URL('/__test-default-response-headers', pluginProxyUrl).href
+	);
+
+	expect(response.status()).toBe(200);
+	expect(response.headers()['content-type']).toBe('application/zip');
+	expect(await response.text()).toBe('body');
 });
 
 test('follows absolute and relative redirects within the allowlist', async ({
