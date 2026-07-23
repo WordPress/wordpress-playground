@@ -1,12 +1,12 @@
 ---
 name: doc-screenshots
-description: Annotate UI screenshots with documentation callouts in Fellyph's established visual style — uniform-width blue arrows with white halos, double-stroke target outlines, numbered callout cards, dim overlays and a framed canvas. Use this whenever the user asks to annotate a screenshot, add arrows or callouts to a screenshot, create documentation images, highlight UI controls in a capture, or produce docs/tutorial visuals for Playground, Studio or any web UI — even if they just say "add arrows to this" or "make a docs screenshot".
+description: Annotate UI screenshots with documentation callouts in Fellyph's established visual style — uniform-width orange arrows with white halos, double-stroke target outlines, numbered callout cards, dim overlays and a framed canvas. Use this whenever the user asks to annotate a screenshot, add arrows or callouts to a screenshot, create documentation images, highlight UI controls in a capture, or produce docs/tutorial visuals for Playground, Studio or any web UI — even if they just say "add arrows to this" or "make a docs screenshot".
 ---
 
 # Documentation Screenshot Annotations
 
 Produce annotated UI screenshots in one specific house style: uniform-width
-blue (#3858e9) arrows with white halos, double-stroke outlines around
+orange (#e8590c) arrows with white halos, double-stroke blue outlines around
 targets, and (for overviews) a row of numbered callout cards over a dimmed
 screenshot. Never use stock arrow shapes, stroked polylines, or ad-hoc styles.
 
@@ -67,8 +67,8 @@ to spec. Do not reimplement the drawing by hand.
         active, create a venv in the session scratchpad (`python3 -m venv
 
     <scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`) and call
-    that interpreter directly. The script validates the config up front and
-    exits with a readable `config error:`message on bad input;`output`    must be a`.webp` path.
+that interpreter directly. The script validates the config up front and
+exits with a readable `config error:`message on bad input;`output`    must be a`.webp` path.
 
 3.  **Quality gate — actually look.** Read the rendered WEBP at full size,
     plus the zoomed crops the script saves of every arrowhead and outline
@@ -111,7 +111,7 @@ to spec. Do not reimplement the drawing by hand.
 
 ## Style constants (already baked into the script — do not override)
 
-Blue #3858e9 on pure white halos; the shaft is a uniform 9px line (constant
+Arrows are orange #e8590c on pure white halos; outlines, badges and cards stay blue #3858e9. The shaft is a uniform 9px line (constant
 top to bottom, round caps) ending in an open chevron head — two 16px
 diagonal strokes of the same width sweeping back from the tip at ±35°;
 halo expanded 3.2px per side. Outline = white width 9 on

@@ -48,6 +48,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 BLUE = (56, 88, 233, 255)          # #3858e9
+ARROW_COLOR = (232, 89, 12, 255)   # #e8590c — orange, contrasts with the blue UI
 WHITE = (255, 255, 255, 255)
 CANVAS_BG = (246, 247, 247, 255)   # #f6f7f7
 FRAME_BORDER = (220, 220, 222, 255)  # #dcdcde
@@ -167,10 +168,10 @@ def _arrow_shapes(p0, p1, axis, half_w, wing_len, tip_ext):
 
 
 def draw_arrow(draw, p0, p1, axis, scale):
-    """Halo pass (white, expanded 3.2px/side, tip extended 3.2px) then blue."""
+    """Halo pass (white, expanded 3.2px/side, tip extended 3.2px) then orange."""
     passes = [
         (WHITE, (4.5 + 3.2) * scale, (16 + 3.2) * scale, 3.2 * scale),
-        (BLUE, 4.5 * scale, 16 * scale, 0.0),
+        (ARROW_COLOR, 4.5 * scale, 16 * scale, 0.0),
     ]
     for color, half_w, wing_len, tip_ext in passes:
         for cx, cy in _arrow_shapes(p0, p1, axis, half_w, wing_len, tip_ext):
