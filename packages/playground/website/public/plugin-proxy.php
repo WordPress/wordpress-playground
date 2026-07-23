@@ -83,7 +83,7 @@ class PluginDownloader
 				'date',
 				'age',
 				'vary',
-				'cache-Control'
+				'cache-control'
 			], [
 				'Content-Type: application/zip',
 				'Content-Disposition: attachment; filename="plugin.zip"',
@@ -178,7 +178,7 @@ class PluginDownloader
 				'date',
 				'age',
 				'vary',
-				'cache-Control'
+				'cache-control'
 			);
 			$artifact_res = $this->gitHubRequest($zip_download_api_endpoint, false, false);
 			ob_end_flush();
@@ -259,7 +259,7 @@ class PluginDownloader
 				'date',
 				'age',
 				'vary',
-				'cache-Control'
+				'cache-control'
 			], [
 				'Content-Type: application/zip',
 				'Content-Disposition: attachment; filename="plugin.zip"',
