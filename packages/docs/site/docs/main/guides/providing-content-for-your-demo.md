@@ -16,7 +16,7 @@ ZIP imports—including pros, cons, and measured performance—see
 
 ## `importWxr`
 
-With the [`importWxr` step](/blueprints/steps), you can import content from a
+With the [`importWxr` step](/blueprints/steps#importWxr), you can import content from a
 WordPress eXtended RSS (WXR) `.xml` file previously
 [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/).
 
@@ -299,7 +299,7 @@ so a failed setup does not silently produce an incomplete demo:
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'/wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%5Cnrequire_once%20'/wordpress/wp-load.php'%3B%5Cn%5Cn$post_id%20=%20wp_insert_post(%5Cn%5Ctarray(%5Cn%5Ct%5Ct'post_title'%20%20%20=%3E%20'Simple%20post%20from%20PHP',%5Cn%5Ct%5Ct'post_content'%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post.%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%5Cn%5Ct%5Ct'post_author'%20%20=%3E%201,%5Cn%5Ct%5Ct'post_status'%20%20=%3E%20'publish',%5Cn%5Ct),%5Cn%5Cttrue%5Cn)%3B%5Cn%5Cnif%20(%20is_wp_error(%20$post_id%20)%20)%20{%5Cn%5Ctthrow%20new%20RuntimeException(%20$post_id-%3Eget_error_message()%20)%3B%5Cn}%22}]}>)
 
 For small, deterministic fixtures, `runPHP` keeps setup logic close to the
 Blueprint. For large editorial datasets or a complete prepared site, WXR or a

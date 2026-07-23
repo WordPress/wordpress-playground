@@ -43,7 +43,7 @@ This example expects `content.xml` next to `blueprint.json` in a
 	"landingPage": "/wp-admin/edit.php",
 	"preferredVersions": {
 		"php": "8.3",
-		"wp": "7.0"
+		"wp": "latest"
 	},
 	"login": true,
 	"steps": [
@@ -93,8 +93,9 @@ another domain.
   remaining available.
 - Large XML files use more parsing time and memory than restoring an existing
   SQLite database.
-- Re-importing the same file can create duplicates; it is not an idempotent
-  synchronization format.
+- Re-importing is additive, not a synchronization. The importer creates terms
+  it cannot find and never removes existing content; it only skips a post when
+  an existing one matches its title, author, and date.
 - The Blueprint installs the WordPress Importer dependency automatically, which
   adds setup work before the WXR import starts.
 
@@ -112,7 +113,7 @@ The following example creates the 100 posts used by the benchmark:
 	"landingPage": "/wp-admin/edit.php",
 	"preferredVersions": {
 		"php": "8.3",
-		"wp": "7.0"
+		"wp": "latest"
 	},
 	"login": true,
 	"steps": [
@@ -127,7 +128,9 @@ The following example creates the 100 posts used by the benchmark:
 For larger programs, keep the code in a small plugin or split the setup across
 focused steps instead of maintaining a very long JSON string. Use WordPress
 APIs rather than writing directly to database tables so hooks, caches, and data
-validation still run.
+validation still run. Keep in mind that the code is not limited to content:
+`runPHP` can do anything PHP can, including overwriting options or modifying
+the database directly.
 
 ### Pros
 
@@ -140,12 +143,12 @@ validation still run.
 
 ### Cons
 
-- Custom PHP is more verbose than exporting existing editorial content.
+- A Blueprint is trusted input. Only run PHP from a source you trust.
 - The script must handle errors, reruns, dependencies, and partial failures.
 - Code can become coupled to a plugin's APIs or database model.
 - Creating many records one at a time still runs WordPress hooks and database
   writes for every record, so performance degrades as the dataset grows.
-- A Blueprint is trusted input. Only run PHP from a source you trust.
+- Custom PHP is more verbose than exporting existing editorial content.
 
 ## Restore a Playground ZIP with `importWordPressFiles`
 
@@ -164,7 +167,7 @@ resource:
 	"landingPage": "/",
 	"preferredVersions": {
 		"php": "8.3",
-		"wp": "7.0"
+		"wp": "latest"
 	},
 	"login": true,
 	"steps": [
