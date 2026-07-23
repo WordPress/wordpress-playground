@@ -6,10 +6,21 @@ A PHP CORS proxy need to integrate git clone via fetch().
 
 In order to avoid running a CORS proxy that is easy to abuse by default, the proxy requires administrators to explicitly declare what to do about rate-limiting, by doing one of the following:
 
--   Provide a rate-limiting function `playground_cors_proxy_maybe_rate_limit()`.
--   Define a truthy `PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT` to explicitly disable rate-limiting.
+- Provide a rate-limiting function `playground_cors_proxy_maybe_rate_limit()`.
+- Define a truthy `PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT` to explicitly disable rate-limiting.
 
 These can be provided in an optional `cors-proxy-config.php` file in the same directory as `cors-proxy.php` or in a PHP file that is loaded before all PHP execution via the [`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file) php.ini option.
+
+Allowed browser origins may be overridden with `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS`. Each configured origin may contain at most one `*` in its hostname. The wildcard matches one or more hostname-label characters but never crosses a dot boundary, so `https://*.example.com` matches `https://preview.example.com` but not `https://example.com` or `https://nested.preview.example.com`. The proxy validates the concrete request origin and echoes it in `Access-Control-Allow-Origin`; it never sends the configured wildcard pattern as that header.
+
+```php
+define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', [
+    'https://playground.example.com',
+    'https://*.preview.playground.example.com',
+]);
+```
+
+The standalone proxy deployment reads the same values from the space-separated `CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED` environment variable. For example, `https://playground.example.com https://*.preview.playground.example.com` generates the PHP configuration above. Setting a custom list replaces the built-in origins, so deployments must retain every origin they still need.
 
 ### Usage
 
@@ -17,16 +28,16 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 
 ### Development and testing
 
--   Run `dev.sh` to start a local server, then go to http://127.0.0.1:5263/proxy.php/https://w.org/ and confirm it worked.
--   Run `test.sh` to run PHPUnit tests, confirm they all pass.
--   Run `test-watch.sh` to run PHPUnit tests in watch mode.
+- Run `dev.sh` to start a local server, then go to http://127.0.0.1:5263/proxy.php/https://w.org/ and confirm it worked.
+- Run `test.sh` to run PHPUnit tests, confirm they all pass.
+- Run `test-watch.sh` to run PHPUnit tests in watch mode.
 
 ### Design decisions
 
--   Stream data both ways, don't buffer.
--   Don't pass auth headers in either direction.
+- Stream data both ways, don't buffer.
+- Don't pass auth headers in either direction.
     - Opt-in for request headers possible using `X-Cors-Proxy-Allowed-Request-Headers`.
--   Refuse to request private IPs.
--   Refuse to process non-GET non-POST non-OPTIONS requests.
--   Refuse to process POST request body larger than, say, 100KB.
--   Refuse to process responses larger than, say, 100MB.
+- Refuse to request private IPs.
+- Refuse to process non-GET non-POST non-OPTIONS requests.
+- Refuse to process POST request body larger than, say, 100KB.
+- Refuse to process responses larger than, say, 100MB.

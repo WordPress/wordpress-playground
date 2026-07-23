@@ -215,6 +215,82 @@ class ProxyFunctionsTests extends TestCase
         ];
     }
 
+    /**
+     * @dataProvider providerCorsProxyOriginMatchesPattern
+     */
+    public function testCorsProxyOriginMatchesPattern($pattern, $origin, $expected)
+    {
+        $this->assertEquals(
+            $expected,
+            cors_proxy_origin_matches_pattern($origin, $pattern)
+        );
+    }
+
+    static public function providerCorsProxyOriginMatchesPattern() {
+        return [
+            'exact origin' => [
+                'https://pg.ashfame.com',
+                'https://pg.ashfame.com',
+                true,
+            ],
+            'single-label wildcard' => [
+                'https://*.pg.ashfame.com',
+                'https://pr123.pg.ashfame.com',
+                true,
+            ],
+            'partial-label wildcard' => [
+                'https://pr*.pg.ashfame.com',
+                'https://pr123.pg.ashfame.com',
+                true,
+            ],
+            'wildcard does not match an empty string' => [
+                'https://pr*.pg.ashfame.com',
+                'https://pr.pg.ashfame.com',
+                false,
+            ],
+            'wildcard does not match the apex origin' => [
+                'https://*.pg.ashfame.com',
+                'https://pg.ashfame.com',
+                false,
+            ],
+            'wildcard does not cross a dot boundary' => [
+                'https://*.pg.ashfame.com',
+                'https://nested.pr123.pg.ashfame.com',
+                false,
+            ],
+            'wildcard does not accept a deceptive suffix' => [
+                'https://*.pg.ashfame.com',
+                'https://pr123.pg.ashfame.com.evil.test',
+                false,
+            ],
+            'wildcard does not cross into the port' => [
+                'https://*.pg.ashfame.com:443',
+                'https://pr123.pg.ashfame.com:444',
+                false,
+            ],
+            'wildcard preserves an exact port' => [
+                'https://*.pg.ashfame.com:8443',
+                'https://pr123.pg.ashfame.com:8443',
+                true,
+            ],
+            'wildcard preserves the scheme' => [
+                'https://*.pg.ashfame.com',
+                'http://pr123.pg.ashfame.com',
+                false,
+            ],
+            'multiple wildcards are invalid' => [
+                'https://*.*.pg.ashfame.com',
+                'https://nested.pr123.pg.ashfame.com',
+                false,
+            ],
+            'path wildcards are invalid' => [
+                'https://pg.ashfame.com/*',
+                'https://pg.ashfame.com/path',
+                false,
+            ],
+        ];
+    }
+
     public function testFilterHeaderStringsWithAdditionalAllowedHeaders()
     {
         $original_headers = [

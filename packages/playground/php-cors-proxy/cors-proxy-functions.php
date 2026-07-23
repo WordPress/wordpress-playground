@@ -445,9 +445,99 @@ function should_respond_with_cors_headers($host, $origin) {
         $supported_origins = PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS;
     }
 
-    return in_array(
-        $origin,
-        $supported_origins,
-        true
-    );
+    return is_cors_proxy_origin_supported($origin, $supported_origins);
+}
+
+/**
+ * Whether an origin matches one of the configured origin patterns.
+ *
+ * A pattern may contain at most one `*`. It matches one or more valid
+ * hostname-label characters, but never a dot or another URL component.
+ */
+function is_cors_proxy_origin_supported($origin, $supported_origins) {
+    foreach ($supported_origins as $supported_origin) {
+        if (cors_proxy_origin_matches_pattern($origin, $supported_origin)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Whether an origin matches a configured origin pattern.
+ */
+function cors_proxy_origin_matches_pattern($origin, $pattern) {
+    if (!is_string($origin) || !is_string($pattern)) {
+        return false;
+    }
+
+    if ($origin === $pattern) {
+        return true;
+    }
+
+    if (
+        strpos($pattern, '*') === false ||
+        !is_valid_cors_proxy_origin_pattern($pattern) ||
+        !is_valid_cors_proxy_origin_pattern($origin)
+    ) {
+        return false;
+    }
+
+    $quoted_pattern = preg_quote($pattern, '~');
+    $quoted_pattern = str_replace('\\*', '[a-z0-9-]+', $quoted_pattern);
+
+    return preg_match(
+        '~\A' . $quoted_pattern . '\z~Di',
+        $origin
+    ) === 1;
+}
+
+/**
+ * Whether a configured value is an HTTP(S) origin with at most one hostname wildcard.
+ */
+function is_valid_cors_proxy_origin_pattern($pattern) {
+    if (
+        !is_string($pattern) ||
+        $pattern === '' ||
+        substr_count($pattern, '*') > 1
+    ) {
+        return false;
+    }
+
+    if (
+        strpos($pattern, '*') !== false &&
+        (
+            !preg_match(
+                '~\Ahttps?://(?<host>[^/:?#]+)(?::[0-9]{1,5})?\z~i',
+                $pattern,
+                $matches
+            ) ||
+            strpos($matches['host'], '*') === false
+        )
+    ) {
+        return false;
+    }
+
+    $url = str_replace('*', 'wildcard', $pattern);
+    if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+
+    $parts = parse_url($url);
+    if (
+        $parts === false ||
+        !in_array($parts['scheme'] ?? null, ['http', 'https'], true) ||
+        empty($parts['host']) ||
+        isset($parts['user']) ||
+        isset($parts['pass']) ||
+        isset($parts['path']) ||
+        isset($parts['query']) ||
+        isset($parts['fragment'])
+    ) {
+        return false;
+    }
+
+    return !isset($parts['port']) ||
+        ($parts['port'] >= 1 && $parts['port'] <= 65535);
 }
