@@ -469,12 +469,12 @@ function sendBufferedResponseHeaders($response_headers, $allowed_response_header
 {
 	$seen_headers = [];
 	foreach ($response_headers as [$header_name, $header_line]) {
-		$seen_headers[$header_name] = true;
 		$header_allowed = (
 			NULL === $allowed_response_headers
 			|| in_array($header_name, $allowed_response_headers, true)
 		) && $header_name !== 'transfer-encoding';
 		if ($header_allowed) {
+			$seen_headers[$header_name] = true;
 			header($header_line);
 		}
 	}
