@@ -28,6 +28,7 @@ export type {
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 export { getWordPressStableVersions } from './wordpress-releases';
+export { PLAYGROUND_MANAGED_DB_PHP_MARKER } from './legacy-wp/legacy-fixes';
 
 export * from './version-detect';
 export * from './rewrite-rules';
@@ -426,15 +427,18 @@ export async function preloadSqliteIntegration(
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
-	const stopIfDbPhpExists = `<?php
-	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)})) {
-		return;
-	}
-	?>`;
+	const stopIfDbPhpExists = `
+		// Do not preload this if WordPress comes with a custom db.php file.
+		if(file_exists(${phpVar(dbPhpPath)})) {
+			return;
+		}
+		`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
+	await php.writeFile(
+		SQLITE_MUPLUGIN_PATH,
+		`<?php${stopIfDbPhpExists}?>` + dbPhp
+	);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
 		buildModernSqlitePreload(stopIfDbPhpExists, SQLITE_MUPLUGIN_PATH)
@@ -458,24 +462,23 @@ export async function preloadSqliteIntegration(
 
 /**
  * Builds the 0-sqlite.php preload content for modern PHP (7+).
- * Matches trunk behavior: require_once, simple db.php guard,
- * minimal mysqli_connect stub.
+ * The mysqli_connect stub must load before the custom db.php guard
+ * because WordPress may check for it even when a drop-in handles the DB.
  */
 function buildModernSqlitePreload(
 	stopIfDbPhpExists: string,
 	muPluginPath: string
 ): string {
-	return (
-		stopIfDbPhpExists +
-		`<?php
+	return `<?php
+	if(!function_exists('mysqli_connect')) {
+		function mysqli_connect() {}
+	}
 
-${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
+	${stopIfDbPhpExists}
 
-		`
-	);
+	${SQLITE_PRELOAD_LOADER_CLASS(`require_once ${phpVar(muPluginPath)};`)}
+
+		`;
 }
 
 /**
@@ -516,10 +519,9 @@ export async function unzipWordPress(
 			options.expectedFileCount != null &&
 			stats.fileCount !== options.expectedFileCount
 		) {
-			throw new Error(
-				`WordPress core bundle file-count parity check failed: ` +
-					`extracted ${stats.fileCount} files, expected ${options.expectedFileCount}. ` +
-					`The download may be truncated or corrupt.`
+			throw new WordPressBundleFileCountMismatchError(
+				stats.fileCount,
+				options.expectedFileCount
 			);
 		}
 	} else {
@@ -608,6 +610,17 @@ export async function unzipWordPress(
 				joinPaths(php.documentRoot, '/wp-config-sample.php')
 			)
 		);
+	}
+}
+
+export class WordPressBundleFileCountMismatchError extends Error {
+	constructor(actualFileCount: number, expectedFileCount: number) {
+		super(
+			`WordPress core bundle file-count parity check failed: ` +
+				`extracted ${actualFileCount} files, expected ${expectedFileCount}. ` +
+				`The download may be truncated or corrupt.`
+		);
+		this.name = 'WordPressBundleFileCountMismatchError';
 	}
 }
 

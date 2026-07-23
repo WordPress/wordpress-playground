@@ -4,6 +4,55 @@ ini_set('display_errors', 0);
 
 class ApiException extends Exception {}
 class RateLimitedException extends ApiException {}
+class PullRequestApiException extends ApiException
+{
+	private $pullRequestTitle;
+	private $pullRequestOpenedAt;
+
+	/**
+	 * Creates an API error for a pull request that GitHub resolved.
+	 *
+	 * Artifact and workflow checks happen after the pull request has been
+	 * fetched. Keeping its title on those errors lets verification clients
+	 * identify the resolved pull request even when its preview is unavailable.
+	 *
+	 * @param string         $message          Machine-readable proxy error name.
+	 * @param string         $pullRequestTitle Title returned by the GitHub API.
+	 * @param string         $pullRequestOpenedAt GitHub creation timestamp.
+	 * @param Throwable|null $previous            Original artifact or workflow error.
+	 */
+	public function __construct(
+		$message,
+		$pullRequestTitle,
+		$pullRequestOpenedAt,
+		$previous = null
+	)
+	{
+		parent::__construct($message, 0, $previous);
+		$this->pullRequestTitle = $pullRequestTitle;
+		$this->pullRequestOpenedAt = $pullRequestOpenedAt;
+	}
+
+	/**
+	 * Returns the title of the pull request resolved before the error occurred.
+	 *
+	 * @return string Pull-request title returned by the GitHub API.
+	 */
+	public function getPullRequestTitle()
+	{
+		return $this->pullRequestTitle;
+	}
+
+	/**
+	 * Returns when GitHub records the pull request as having been opened.
+	 *
+	 * @return string ISO 8601 creation timestamp returned by the GitHub API.
+	 */
+	public function getPullRequestOpenedAt()
+	{
+		return $this->pullRequestOpenedAt;
+	}
+}
 class PluginDownloader
 {
 
@@ -170,7 +219,31 @@ class PluginDownloader
 		if (!$prDetails) {
 			throw new ApiException('invalid_pr_number');
 		}
-		$this->streamArtifactFromBranch($organization, $repo, $prDetails->head->ref, $workflow_name, $artifact_name);
+		try {
+			$this->streamArtifactFromBranch(
+				$organization,
+				$repo,
+				$prDetails->head->ref,
+				$workflow_name,
+				$artifact_name
+			);
+		} catch (RateLimitedException $e) {
+			throw $e;
+		} catch (ApiException $e) {
+			throw new PullRequestApiException(
+				$e->getMessage(),
+				$prDetails->title,
+				$prDetails->created_at,
+				$e
+			);
+		}
+		if (array_key_exists('verify_only', $_GET)) {
+			header('Content-Type: application/json');
+			echo json_encode([
+				'title' => $prDetails->title,
+				'created_at' => $prDetails->created_at,
+			]);
+		}
 	}
 
 	public function streamFromGithubReleases($repo, $name)
@@ -507,5 +580,10 @@ try {
 	if (!headers_sent()) {
 		header('Content-Type: application/json');
 	}
-	die(json_encode(['error' => $e->getMessage()]));
+	$errorResponse = ['error' => $e->getMessage()];
+	if ($e instanceof PullRequestApiException) {
+		$errorResponse['title'] = $e->getPullRequestTitle();
+		$errorResponse['created_at'] = $e->getPullRequestOpenedAt();
+	}
+	die(json_encode($errorResponse));
 }

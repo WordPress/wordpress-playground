@@ -28,6 +28,7 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 import { getSetupUrlFromSite } from '../playground-identity';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -297,6 +298,11 @@ export function persistTemporarySite(
 					},
 				})
 			);
+			void captureAndPersistSiteThumbnail({
+				playground,
+				siteSlug,
+				dispatch,
+			});
 		} catch (error) {
 			if (
 				storageType === 'local-fs' &&

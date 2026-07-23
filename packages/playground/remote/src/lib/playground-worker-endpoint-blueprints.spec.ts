@@ -204,12 +204,50 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 	}, 10000);
 
 	it.each([
-		['6.8.0', 'https://wordpress.org/wordpress-6.8.zip'],
-		['7.0-rc1', 'https://wordpress.org/wordpress-7.0-RC1.zip'],
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 200,
+		},
+		{
+			wpVersion: '7.0-rc1',
+			releaseUrl: 'https://wordpress.org/wordpress-7.0-RC1.zip',
+			status: 200,
+		},
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 404,
+			expectedName: 'ResourceUnavailableError',
+			expectedMessage: 'WordPress 6.8 is not available for download.',
+		},
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 500,
+			expectedName: 'Error',
+			expectedMessage: 'Failed to download WordPress 6.8 (HTTP 500)',
+		},
 	])(
-		'downloads concrete WordPress release %s without changing its identity',
-		async (wpVersion, releaseUrl) => {
-			const bootWordPress = vi.fn();
+		'handles a concrete WordPress release $wpVersion with HTTP $status',
+		async ({
+			wpVersion,
+			releaseUrl,
+			status,
+			expectedName,
+			expectedMessage,
+		}) => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (url) =>
+					String(url).includes('wordpress-')
+						? new Response(null, { status })
+						: new Response(new ArrayBuffer(0))
+				)
+			);
+			const bootWordPress = vi.fn(async (_requestHandler, options) => {
+				await options.wordPressZip;
+			});
 			let endpoint:
 				| {
 						boot(options: Record<string, unknown>): Promise<void>;
@@ -241,7 +279,7 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 				undefined
 			);
 
-			await endpoint.boot({
+			const boot = endpoint.boot({
 				scope: 'test',
 				phpVersion: '8.3',
 				wpVersion,
@@ -249,6 +287,14 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 				corsProxyUrl: 'https://proxy.test/?url=',
 				withNetworking: false,
 			});
+			if (expectedMessage) {
+				await expect(boot).rejects.toMatchObject({
+					name: expectedName,
+					message: expectedMessage,
+				});
+			} else {
+				await boot;
+			}
 
 			expect(fetch).toHaveBeenCalledWith(
 				`https://proxy.test/?url=${releaseUrl}`

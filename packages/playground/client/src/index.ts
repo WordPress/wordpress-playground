@@ -26,7 +26,7 @@ export {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor };
+export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
 
 import {
 	BlueprintReflection,
@@ -41,7 +41,11 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import type {
+	MountDescriptor,
+	PlaygroundClient,
+	SiteThumbnail,
+} from '@wp-playground/remote';
 import type { PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
@@ -57,11 +61,6 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	/**
-	 * A stable label for the loading progress bar, typically the name of the
-	 * Playground being started. It stays visible while boot captions change.
-	 */
-	siteName?: string;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -174,7 +173,6 @@ export async function startPlaygroundWeb(
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
 	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
-		progressbarTitle: options.siteName || undefined,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

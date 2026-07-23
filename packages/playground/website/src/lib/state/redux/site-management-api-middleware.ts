@@ -11,36 +11,41 @@ import {
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
 import { setActiveSiteError } from './slice-ui';
-import { addClientInfo, removeClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	removeClientInfo,
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
+	updateSite,
 	updateSiteMetadata,
 	removeSite,
 	pruneAutosavedSites,
 	preserveSite,
-	resetAutosavedSiteSpec,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
 	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
+	isStoredSite,
 	type SiteInfo,
 	type SitePersistence,
 	type SiteStorageType,
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
-import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import {
-	getSetupUrlFromSite,
-	getSetupUrlFromUrl,
-} from '../playground-identity';
-import { redirectTo } from '../url/router';
+import { getSetupUrlFromUrl } from '../playground-identity';
+import { importWordPressFiles } from '@wp-playground/client';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { PlaygroundRoute, redirectTo } from '../url/router';
 
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
@@ -52,6 +57,42 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
+
+/**
+ * Tracks the operation shared by concurrent autosave calls for one site.
+ *
+ * The promise covers persistence, routing, and pruning. Routing requests remain
+ * mutable until the operation completes because a later caller may require a
+ * URL update while awaiting the same promise.
+ */
+type AutosaveInProgress = {
+	promise: Promise<SaveSiteResult>;
+	requests: {
+		urlUpdateRequested: boolean;
+	};
+};
+
+/**
+ * Coordinates autosaves created for one Redux store.
+ *
+ * Filesystem persistence is shared by site slug. Pruning reads the store's
+ * complete site list, so active calls contribute exclusions to one shared
+ * pruning operation.
+ */
+type AutosaveCoordinator = {
+	autosavesBySiteSlug: Map<string, AutosaveInProgress>;
+	activePruningExclusions: Set<ReadonlySet<string>>;
+	pruneInProgress?: Promise<void>;
+	activePruneAbortController?: AbortController;
+};
+
+// The window API and React hooks create separate API objects for the same Redux
+// store. Key by dispatch so those objects share per-site persistence and one
+// store-wide pruning operation without mixing stores.
+const autosaveCoordinatorsByDispatch = new WeakMap<
+	PlaygroundDispatch,
+	AutosaveCoordinator
+>();
 
 /**
  * API for listing, renaming, saving, and opening Playground
@@ -87,6 +128,16 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ) {
+	let autosaveCoordinator = autosaveCoordinatorsByDispatch.get(dispatch);
+	if (!autosaveCoordinator) {
+		autosaveCoordinator = {
+			autosavesBySiteSlug: new Map(),
+			activePruningExclusions: new Set(),
+		};
+		autosaveCoordinatorsByDispatch.set(dispatch, autosaveCoordinator);
+	}
+	const coordinator = autosaveCoordinator;
+	const autosavesInProgressBySiteSlug = coordinator.autosavesBySiteSlug;
 	const api = {
 		/**
 		 * Lists all known sites.
@@ -262,7 +313,10 @@ export function createSitesAPI(
 		 * Autosaves a temporary Playground into browser storage.
 		 *
 		 * Autosave keeps the current browser URL unchanged unless the caller
-		 * asks to route to the new stored site.
+		 * asks to route to the new stored site. Concurrent requests for one site
+		 * share the filesystem copy and metadata update. Routing runs when any caller
+		 * requests it. Pruning is serialized across the store and protects the slugs
+		 * requested by every concurrent autosave.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -281,32 +335,175 @@ export function createSitesAPI(
 			if (!site) {
 				throw new Error('No site selected');
 			}
-			if (site.metadata.storage !== 'none') {
+			let autosaveInProgress = autosavesInProgressBySiteSlug.get(
+				site.slug
+			);
+			// A stored site with no autosave in progress has no work left to complete.
+			if (!autosaveInProgress && isStoredSite(site)) {
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
-			await dispatch(
-				persistTemporarySite(site.slug, 'opfs', {
-					skipRenameModal: true,
-					persistence: 'autosave',
-					updateUrl: options.updateUrl ?? false,
-				})
-			);
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [
+
+			// Each pruning pass considers every autosaved site in the Redux store.
+			// Keep this call's exclusions visible to the shared pass until it finishes.
+			const pruningExclusions = new Set([
+				site.slug,
+				...(options.excludeFromPruning ?? []),
+			]);
+			coordinator.activePruningExclusions.add(pruningExclusions);
+			// A running pass selected its candidates from an older snapshot. Stop it
+			// before its next deletion so the new exclusions can be applied.
+			coordinator.activePruneAbortController?.abort();
+
+			try {
+				// Only one filesystem copy may target a site's OPFS destination.
+				// Concurrent autosaveTemporarySite() invocations for that slug share the
+				// copy and combine whether the stored site's URL must be opened.
+				if (!autosaveInProgress) {
+					const requests: AutosaveInProgress['requests'] = {
+						urlUpdateRequested: false,
+					};
+					autosaveInProgress = {
+						promise: runSharedAutosave(site, requests),
+						requests,
+					};
+					autosavesInProgressBySiteSlug.set(
 						site.slug,
-						...(options.excludeFromPruning ?? []),
-					],
-				})
-			);
-			const updatedSite = selectSiteBySlug(getState(), site.slug);
-			const storage = updatedSite?.metadata.storage;
-			if (storage !== 'opfs' && storage !== 'local-fs') {
-				throw new Error(
-					`Site ${site.slug} was not persisted (storage: ${storage}).`
-				);
+						autosaveInProgress
+					);
+				}
+
+				autosaveInProgress.requests.urlUpdateRequested ||=
+					options.updateUrl ?? false;
+				return await autosaveInProgress.promise;
+			} finally {
+				coordinator.activePruningExclusions.delete(pruningExclusions);
 			}
-			return { slug: site.slug, storage };
+
+			/**
+			 * Persists one site and completes its shared routing and pruning work.
+			 *
+			 * Concurrent filesystem copies would target the same OPFS destination and
+			 * race its mount and metadata updates. Routing remains specific to this site;
+			 * pruning joins the operation shared by the Redux store.
+			 */
+			async function runSharedAutosave(
+				siteToAutosave: SiteInfo,
+				requests: AutosaveInProgress['requests']
+			): Promise<SaveSiteResult> {
+				// The promise must be present in the per-site map before persistence can
+				// dispatch actions that start another autosave.
+				await Promise.resolve();
+
+				try {
+					await dispatch(
+						persistTemporarySite(siteToAutosave.slug, 'opfs', {
+							skipRenameModal: true,
+							persistence: 'autosave',
+							// The shared operation combines routing requests separately.
+							updateUrl: false,
+						})
+					);
+					const updatedSite = selectSiteBySlug(
+						getState(),
+						siteToAutosave.slug
+					);
+					const storage = updatedSite?.metadata.storage;
+					if (!updatedSite || !isStoredSite(updatedSite)) {
+						throw new Error(
+							`Site ${siteToAutosave.slug} was not persisted (storage: ${storage}).`
+						);
+					}
+
+					let urlWasUpdated = false;
+					if (requests.urlUpdateRequested) {
+						redirectTo(PlaygroundRoute.site(updatedSite));
+						urlWasUpdated = true;
+					}
+					await runStoreWidePruning();
+					if (requests.urlUpdateRequested && !urlWasUpdated) {
+						// The URL request arrived while pruning was pending.
+						redirectTo(PlaygroundRoute.site(updatedSite));
+					}
+					return { slug: siteToAutosave.slug, storage };
+				} finally {
+					// Only remove the entry owned by this workflow. A replacement for the
+					// same slug must remain registered.
+					if (
+						autosavesInProgressBySiteSlug.get(siteToAutosave.slug)
+							?.requests === requests
+					) {
+						autosavesInProgressBySiteSlug.delete(
+							siteToAutosave.slug
+						);
+					}
+				}
+			}
+
+			/**
+			 * Runs the pruning operation shared by active autosaves in this Redux store.
+			 *
+			 * Each pass receives an immutable exclusion snapshot. Registering another
+			 * autosave aborts an active pass between deletions, then the loop starts a
+			 * replacement pass containing all exclusions that are still active.
+			 */
+			async function runStoreWidePruning(): Promise<void> {
+				let pruning = coordinator.pruneInProgress;
+				if (!pruning) {
+					pruning = runPruningPasses();
+					coordinator.pruneInProgress = pruning;
+				}
+				await pruning;
+
+				async function runPruningPasses(): Promise<void> {
+					// The shared promise must be published before pruning can dispatch work
+					// that starts another autosave.
+					await Promise.resolve();
+					try {
+						let passWasAborted: boolean;
+						do {
+							const abortController = new AbortController();
+							coordinator.activePruneAbortController =
+								abortController;
+							try {
+								await dispatch(
+									pruneAutosavedSites({
+										excludeSlugs: [
+											...getActivePruningExclusions(),
+										],
+										signal: abortController.signal,
+									})
+								);
+							} finally {
+								if (
+									coordinator.activePruneAbortController ===
+									abortController
+								) {
+									coordinator.activePruneAbortController =
+										undefined;
+								}
+							}
+							passWasAborted = abortController.signal.aborted;
+						} while (passWasAborted);
+					} finally {
+						if (coordinator.pruneInProgress === pruning) {
+							coordinator.pruneInProgress = undefined;
+						}
+					}
+				}
+			}
+
+			/**
+			 * Returns the union of exclusions owned by active autosave calls.
+			 */
+			function getActivePruningExclusions(): Set<string> {
+				const slugs = new Set<string>();
+				for (const exclusions of coordinator.activePruningExclusions) {
+					for (const slug of exclusions) {
+						slugs.add(slug);
+					}
+				}
+				return slugs;
+			}
 		},
 
 		/**
@@ -394,39 +591,6 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Recreates the active autosaved Playground with new setup settings.
-		 *
-		 * Today this keeps the same sidebar entry and replaces the WordPress
-		 * files under that site's OPFS directory. The future Dock flow should
-		 * create a separate Playground for setup changes instead.
-		 *
-		 * @param settings Optional site settings.
-		 * @throws When no site is selected, the active site is not autosaved, or
-		 *   browser storage cannot be reset.
-		 */
-		async recreateAutosavedSite(settings?: SiteSettings): Promise<void> {
-			const site = selectActiveSite(getState());
-			if (!site) {
-				throw new Error('No active site selected');
-			}
-			if (!isAutosavedSite(site)) {
-				throw new Error(
-					'Only autosaved Playgrounds can replace their stored files.'
-				);
-			}
-			const setupUrl = getSetupUrlForNewSite(settings, {
-				baseUrl: getSetupUrlFromSite(site, window.location.href),
-				onlySetupParams: true,
-			});
-			await selectClientBySiteSlug(getState(), site.slug)?.unmountOpfs(
-				'/wordpress'
-			);
-			dispatch(removeClientInfo(site.slug));
-			await dispatch(resetAutosavedSiteSpec(site.slug, setupUrl));
-			redirectTo(setupUrl.toString());
-		},
-
-		/**
 		 * Changes the PHP version for the active site and reboots it.
 		 *
 		 * @param version The PHP version to use (e.g. `"8.4"`).
@@ -443,12 +607,18 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: version,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								phpVersion: version,
+							},
 						},
 					},
 				})
@@ -473,12 +643,74 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							networking: enabled,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								networking: enabled,
+							},
+						},
+					},
+				})
+			);
+		},
+
+		/**
+		 * Applies the runtime settings that can change without replacing WordPress.
+		 * When the settings already match, reloads the current WordPress page.
+		 *
+		 * PHP and networking share one metadata write so changing both cannot boot an
+		 * intermediate runtime and then immediately tear it down for the second change.
+		 */
+		async updateRuntimeSettings(settings: {
+			phpVersion: AllPHPVersion;
+			networking: boolean;
+		}): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (site.metadata.storage === 'none') {
+				throw new Error(
+					'Cannot update settings on a temporary site. Save it first.'
+				);
+			}
+			const currentRuntimeConfiguration =
+				site.metadata.runtimeConfiguration;
+			if (
+				currentRuntimeConfiguration.phpVersion ===
+					settings.phpVersion &&
+				currentRuntimeConfiguration.networking === settings.networking
+			) {
+				const client = selectClientBySiteSlug(getState(), site.slug);
+				if (!client) {
+					throw new Error(
+						'Cannot reload a Playground that is not running.'
+					);
+				}
+				await client.goTo(await client.getCurrentURL());
+				return;
+			}
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes: {
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							...site.metadata,
+							runtimeConfiguration: {
+								...site.metadata.runtimeConfiguration,
+								phpVersion: settings.phpVersion,
+								networking: settings.networking,
+							},
 						},
 					},
 				})
@@ -489,7 +721,8 @@ export function createSitesAPI(
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
-		 * @throws When the site is not found or the site is temporary.
+		 * @throws When the site is not found, the site is temporary, or its
+		 * storage cannot be deleted.
 		 */
 		async delete(siteSlug: string): Promise<void> {
 			const site = selectSiteBySlug(getState(), siteSlug);
@@ -567,17 +800,7 @@ export function createSitesAPI(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings
 		): Promise<string> {
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-			});
-			const newSiteInfo = await dispatch(
-				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
-			);
-			await api.setActiveSite(newSiteInfo.slug);
-			return newSiteInfo.slug;
+			return await createTemporarySite(requestedSiteSlug, settings);
 		},
 
 		/**
@@ -603,37 +826,180 @@ export function createSitesAPI(
 				excludeFromPruning?: string[];
 			} = {}
 		): Promise<string> {
+			return await createSavedSite(requestedSiteSlug, settings, options);
+		},
+
+		/**
+		 * Creates a site from a Playground ZIP and waits until its imported
+		 * filesystem is safely stored. The import runs against first-boot MEMFS
+		 * before the initial OPFS copy, avoiding an empty-site persistence pass.
+		 *
+		 * @param wordPressFilesZip Playground ZIP export.
+		 * @returns The new site's slug.
+		 */
+		async createNewSiteFromZip(wordPressFilesZip: File): Promise<string> {
+			const initialize = async (playground: PlaygroundClient) => {
+				await importWordPressFiles(playground, { wordPressFilesZip });
+			};
 			if (!opfsSiteStorage) {
-				throw new Error(
-					'Cannot create a saved Playground because browser storage is not available.'
+				return await createTemporarySite(
+					undefined,
+					undefined,
+					initialize
 				);
 			}
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-				onlySetupParams: true,
-			});
-			const newSiteInfo = await dispatch(
-				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
-					persistence: options.persistence ?? 'explicit',
-				})
-			);
-			await api.setActiveSite(newSiteInfo.slug, {
-				updateUrl: options.updateUrl,
-			});
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [
-						newSiteInfo.slug,
-						...(options.excludeFromPruning ?? []),
-					],
-				})
-			);
-			return newSiteInfo.slug;
+			return await createSavedSite(undefined, undefined, {}, initialize);
 		},
 	};
+
+	async function createTemporarySite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		initialize?: (playground: PlaygroundClient) => Promise<void>
+	): Promise<string> {
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+		});
+		const newSiteInfo = await dispatch(
+			setTemporarySiteSpec(siteName, url, requestedSiteSlug, {
+				// ZIP initialization must run during a fresh boot, before WordPress
+				// starts serving requests from the new filesystem.
+				replaceExisting: Boolean(initialize),
+			})
+		);
+		await activateNewSite(newSiteInfo.slug, initialize);
+		return newSiteInfo.slug;
+	}
+
+	async function createSavedSite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		options: {
+			persistence?: SitePersistence;
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		} = {},
+		initialize?: (playground: PlaygroundClient) => Promise<void>
+	): Promise<string> {
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+			onlySetupParams: true,
+		});
+		const previousActiveSiteSlug = selectActiveSite(getState())?.slug;
+		const newSiteInfo = await dispatch(
+			setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+				persistence: options.persistence ?? 'explicit',
+			})
+		);
+		try {
+			await activateNewSite(newSiteInfo.slug, initialize, {
+				updateUrl: options.updateUrl,
+			});
+			if (initialize) {
+				await waitForInitialOpfsSync(newSiteInfo.slug);
+			}
+		} catch (error) {
+			if (initialize) {
+				// A failed initializer or first OPFS copy cannot produce a reloadable
+				// site. Remove it instead of retaining incomplete files and metadata.
+				await dispatch(
+					removeSite(newSiteInfo.slug, {
+						replacementSiteSlug: previousActiveSiteSlug,
+						updateUrl: options.updateUrl,
+					})
+				);
+			}
+			throw error;
+		}
+		await dispatch(
+			pruneAutosavedSites({
+				excludeSlugs: [
+					newSiteInfo.slug,
+					...(options.excludeFromPruning ?? []),
+				],
+			})
+		);
+		return newSiteInfo.slug;
+	}
+
+	async function activateNewSite(
+		siteSlug: string,
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
+	) {
+		const initialization = initialize
+			? registerSiteFirstBootInitializer(siteSlug, initialize)
+			: undefined;
+		try {
+			await api.setActiveSite(siteSlug, options);
+			await initialization?.finished;
+		} catch (error) {
+			initialization?.cancel();
+			throw error;
+		}
+	}
+
+	async function waitForInitialOpfsSync(siteSlug: string) {
+		const getSync = () =>
+			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
+		const sync = getSync();
+		if (!sync) {
+			const site = selectSiteBySlug(getState(), siteSlug);
+			if (!site || site.metadata.initialOpfsSyncPending !== false) {
+				throw new Error(
+					'Unable to save the imported Playground because its initial storage sync did not complete.'
+				);
+			}
+			return;
+		}
+		if (sync.status === 'error') {
+			throw new Error('Unable to save the imported Playground.');
+		}
+
+		await new Promise<void>((resolve, reject) => {
+			const unsubscribe = startListening({
+				predicate: (action) =>
+					(updateClientInfo.match(action) &&
+						action.payload.siteSlug === siteSlug) ||
+					(removeClientInfo.match(action) &&
+						action.payload === siteSlug),
+				effect: (action) => {
+					if (removeClientInfo.match(action)) {
+						unsubscribe();
+						reject(
+							new Error(
+								'Unable to save the imported Playground because its runtime stopped.'
+							)
+						);
+						return;
+					}
+					const currentSync = getSync();
+					if (currentSync?.status === 'syncing') {
+						return;
+					}
+					unsubscribe();
+					if (currentSync?.status === 'error') {
+						reject(
+							new Error('Unable to save the imported Playground.')
+						);
+					} else {
+						resolve();
+					}
+				},
+			});
+		});
+	}
 	return api;
 }
 
@@ -662,11 +1028,8 @@ async function updateSiteNameIfProvided(
  *
  * Temporary sites keep the current query string for backwards compatibility.
  * Saved sites keep only setup params so routing, UI, and lifecycle params do
- * not leak into persisted metadata. Autosaved site recreation passes the
- * stored setup URL as the base so changing one setting does not discard
- * Blueprint, plugin, theme, or other setup params that are absent from the
- * current browser route. All paths use the same `SiteSettings` mapping so new
- * settings have one query representation.
+ * not leak into persisted metadata. Both paths use the same `SiteSettings`
+ * mapping so new settings have one query representation.
  */
 function getSetupUrlForNewSite(
 	settings: SiteSettings | undefined,

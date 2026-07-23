@@ -11,6 +11,8 @@ import { bootSiteClient } from './boot-site-client';
 import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
 import { logBlueprintEvents } from '../../tracking';
+import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock('../opfs/opfs-site-storage', () => ({
 vi.mock('@php-wasm/logger', () => ({
 	logger: {
 		error: vi.fn(),
+		warn: vi.fn(),
 	},
 }));
 
@@ -77,6 +80,8 @@ describe('bootSiteClient', () => {
 				return playground;
 			}
 		);
+		vi.mocked(shouldShowGitHubAuthModal).mockReset();
+		vi.mocked(shouldShowGitHubAuthModal).mockReturnValue(false);
 		vi.mocked(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).mockReset();
@@ -275,6 +280,41 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('requires an explicit retry for an interrupted Blueprint run', async () => {
+		const site = createSite('blueprint-run', {
+			loadedFromStorage: true,
+			metadata: {
+				initialOpfsSyncPending: true,
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(
+			opfsSiteStorage!.removeWordPressFilesKeepMetadata
+		).not.toHaveBeenCalled();
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: expect.objectContaining({
+					error: 'initial-opfs-sync-interrupted',
+				}),
+			})
+		);
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+	});
+
 	it('boots stored OPFS files based on Playground metadata, not WordPress file probes', async () => {
 		const site = createSite('stored-save', { loadedFromStorage: true });
 		const state = createState(site);
@@ -295,6 +335,69 @@ describe('bootSiteClient', () => {
 				],
 			})
 		);
+	});
+
+	it('reopens the current page after a runtime settings reboot', async () => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange:
+				'/index.php?slashes=///#more/slashes',
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).toHaveBeenCalledWith(
+			'/index.php?slashes=///#more/slashes'
+		);
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
+	});
+
+	it.each([
+		'https://example.com/wp-admin/',
+		'//example.com/wp-admin/',
+		'/\\example.com/wp-admin/',
+	])('skips unsafe runtime settings restore URL %s', async (urlToRestore) => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange: urlToRestore,
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).not.toHaveBeenCalled();
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
 	});
 
 	it('mounts legacy OPFS directories from stored metadata', async () => {
@@ -339,6 +442,126 @@ describe('bootSiteClient', () => {
 		expect(startPlaygroundWeb).toHaveBeenCalledWith(
 			expect.objectContaining({
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
+			})
+		);
+	});
+
+	it('clears the return target after the initial OPFS copy succeeds', async () => {
+		let resolveMount = () => {};
+		const mountFinished = new Promise<void>((resolve) => {
+			resolveMount = resolve;
+		});
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(() => mountFinished),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('blueprint-run', {
+			metadata: {
+				initialOpfsSyncPending: true,
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			},
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+		resolveMount();
+		await vi.waitFor(() =>
+			expect(
+				state.sites.entities['blueprint-run'].metadata
+					.siteSlugToReturnToIfBlueprintFails
+			).toBeUndefined()
+		);
+	});
+
+	it('keeps Blueprint recovery behind private repository authentication', async () => {
+		const authenticationError = Object.assign(
+			new Error('GitHub authentication required'),
+			{
+				name: 'GitAuthenticationError',
+				repoUrl: 'https://github.com/example/private-repository',
+			}
+		);
+		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(
+			authenticationError
+		);
+		vi.mocked(shouldShowGitHubAuthModal).mockReturnValueOnce(true);
+		const site = createSite('blueprint-run', {
+			metadata: { siteSlugToReturnToIfBlueprintFails: 'source-site' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'blueprint-run',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		const actions: Array<{ type?: string; payload?: unknown }> =
+			dispatch.mock.calls.map(
+				([action]: [unknown]) =>
+					action as { type?: string; payload?: unknown }
+			);
+		const errorIndex = actions.findIndex(
+			(action) => action.type === 'ui/setActiveSiteError'
+		);
+		const authModalIndex = actions.findIndex(
+			(action) => action.type === 'ui/setActiveModal'
+		);
+		expect(actions[errorIndex]).toEqual(
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					error: 'site-boot-failed',
+					details: expect.objectContaining({
+						name: 'GitAuthenticationError',
+						message: 'GitHub authentication required',
+					}),
+				}),
+			})
+		);
+		expect(actions[authModalIndex]).toEqual(
+			expect.objectContaining({ payload: 'github-private-repo-auth' })
+		);
+		expect(errorIndex).toBeLessThan(authModalIndex);
+	});
+
+	it('classifies a worker resource-unavailable error', async () => {
+		const unavailableError = Object.assign(
+			new Error('WordPress 6.8 is not available for download.'),
+			{ originalErrorClassName: 'ResourceUnavailableError' }
+		);
+		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(unavailableError);
+		const site = createSite('unavailable-version');
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'unavailable-version',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: expect.objectContaining({
+					error: 'resource-unavailable',
+				}),
 			})
 		);
 	});
@@ -426,6 +649,40 @@ describe('bootSiteClient', () => {
 			undefined
 		);
 	});
+
+	it('runs a first-boot initializer before the initial OPFS copy', async () => {
+		const calls: string[] = [];
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(async () => {
+				calls.push('copy to OPFS');
+			}),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('zip-import', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		const initialization = registerSiteFirstBootInitializer(
+			'zip-import',
+			async () => {
+				calls.push('import ZIP');
+			}
+		);
+
+		await bootSiteClient('zip-import', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		await initialization.finished;
+		await vi.waitFor(() => expect(calls).toHaveLength(2));
+
+		expect(calls).toEqual(['import ZIP', 'copy to OPFS']);
+	});
 });
 
 function createDispatch(state: PlaygroundReduxState) {
@@ -459,12 +716,15 @@ function createSite(
 	slug: string,
 	options: {
 		loadedFromStorage?: boolean;
+		urlToRestoreAfterRuntimeSettingsChange?: string;
 		metadata?: Partial<SiteInfo['metadata']>;
 	} = {}
 ): SiteInfo {
 	return {
 		slug,
 		loadedFromStorage: options.loadedFromStorage,
+		urlToRestoreAfterRuntimeSettingsChange:
+			options.urlToRestoreAfterRuntimeSettingsChange,
 		metadata: {
 			id: slug,
 			name: slug,

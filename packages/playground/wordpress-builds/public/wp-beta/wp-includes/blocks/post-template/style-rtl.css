@@ -68,6 +68,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -124,7 +130,7 @@
 }
 
 @media (max-width: 600px) {
-  .wp-block-post-template-is-layout-grid.wp-block-post-template-is-layout-grid.wp-block-post-template-is-layout-grid.wp-block-post-template-is-layout-grid {
+  .wp-block-post-template-is-layout-grid[class*=columns-]:not(.has-native-responsive-grid) {
     grid-template-columns: 1fr;
   }
 }

@@ -51,4 +51,33 @@ describe('Blueprint step resetData()', () => {
 
 		expect(result.text).toBe('1');
 	});
+
+	it('removes only the requested content types', async () => {
+		await resetData(php, { contentTypes: ['pages', 'comments'] });
+
+		const result = await php.run({
+			code: `<?php
+			require "/php/wp-load.php";
+			echo json_encode([
+				'helloWorldExists' => (bool) get_page_by_path(
+					'hello-world',
+					OBJECT,
+					'post'
+				),
+				'samplePageExists' => (bool) get_page_by_path(
+					'sample-page',
+					OBJECT,
+					'page'
+				),
+				'commentCount' => (int) get_comments(['count' => true]),
+			]);
+			`,
+		});
+
+		expect(JSON.parse(result.text)).toEqual({
+			helloWorldExists: true,
+			samplePageExists: false,
+			commentCount: 0,
+		});
+	});
 });

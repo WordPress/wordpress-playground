@@ -11,6 +11,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	width: 32px;
+	height: 32px;
 	padding: 5px;
 	background: transparent;
 	border: none;
@@ -26,6 +28,12 @@
 
 .refresh-button:active {
 	transform: scale(0.95);
+}
+
+.refresh-button:disabled,
+.refresh-button:disabled:hover {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
 }
 
 .input-container {
@@ -67,6 +75,11 @@
 	outline: none;
 }
 
+.input:disabled {
+	color: rgba(180, 190, 203, 0.4);
+	cursor: default;
+}
+
 /* Popover container */
 .popover {
 	z-index: 100000;
@@ -106,7 +119,8 @@
 }
 
 .suggestion-item:hover,
-.suggestion-item:focus {
+.suggestion-item:focus,
+.suggestion-item-active {
 	background: #4f5861;
 	color: #e0e6eb;
 	outline: none;
