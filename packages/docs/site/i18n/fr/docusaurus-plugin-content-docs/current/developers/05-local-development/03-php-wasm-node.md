@@ -12,9 +12,33 @@ description: WordPress Playground apporte PHP propulsé par WebAssembly à Node.
 
 En tant que projet WebAssembly, vous pouvez aussi utiliser WordPress Playground dans Node.js.
 
-<!-- If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js. -->
+<!--
+If you need direct control over the underlying WebAssembly PHP runtime, take a
+look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node). It
+provides the Node.js loader and runtime integrations used by WordPress
+Playground tools. The compiled binaries are published in version-specific
+packages such as `@php-wasm/node-8-4`.
+-->
 
-Si vous avez besoin d'un contrôle bas niveau sur la build WebAssembly de PHP, consultez le [paquet @php-wasm/node](https://npmjs.org/@php-wasm/node) qui fournit l'environnement d'exécution PHP WebAssembly. Ce paquet est au cœur de tous les outils WordPress Playground pour Node.js.
+Si vous avez besoin d'un contrôle direct sur l'environnement d'exécution PHP
+WebAssembly sous-jacent, consultez le
+[paquet @php-wasm/node](https://npmjs.org/@php-wasm/node). Il fournit le
+chargeur Node.js et les intégrations de l'environnement d'exécution utilisées
+par les outils WordPress Playground. Les binaires compilés sont publiés dans
+des paquets spécifiques à chaque version, comme `@php-wasm/node-8-4`.
+
+<!--
+See [PHP.wasm packages](/developers/architecture/php-wasm-packages) to learn
+how `@php-wasm/universal`, the Node.js and web adapters, and the version-specific
+packages fit together. That page also explains the lower-level, single-version
+setup with a smaller dependency footprint.
+-->
+
+Consultez [Paquets PHP.wasm](/developers/architecture/php-wasm-packages) pour
+comprendre comment s'articulent `@php-wasm/universal`, les adaptateurs Node.js
+et web, et les paquets spécifiques à chaque version. Cette page explique aussi
+la configuration de bas niveau pour une seule version, avec une empreinte de
+dépendances plus réduite.
 
 <!-- Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases. -->
 
@@ -24,9 +48,20 @@ Consultez la [liste complète](/api/node) des classes, fonctions, interfaces et 
 
 ## PHP WebAssembly pour Node.js
 
-<!-- This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy. -->
+<!--
+Together, `@php-wasm/node` and a version-specific package provide the compiled
+PHP runtime and JavaScript API optimized for Node.js. PHP starts with an
+in-memory filesystem; use the Node.js filesystem helpers to mount host paths.
+The runtime can access the network if you plug in a custom WebSocket-to-TCP
+proxy.
+-->
 
-Ce paquet fournit les exécutables PHP WebAssembly et l'API JavaScript optimisée pour Node.js. Il utilise directement le système de fichiers hôte et peut accéder au réseau si vous branchez un proxy WS personnalisé.
+Ensemble, `@php-wasm/node` et un paquet spécifique à une version fournissent
+l'environnement d'exécution PHP compilé et l'API JavaScript optimisés pour
+Node.js. PHP démarre avec un système de fichiers en mémoire ; utilisez les
+utilitaires de système de fichiers de Node.js pour monter des chemins de
+l'hôte. L'environnement d'exécution peut accéder au réseau si vous branchez un
+proxy WebSocket vers TCP personnalisé.
 
 <!-- ### Basic usage -->
 
@@ -43,6 +78,95 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
+<!-- ### Load one PHP version directly -->
+
+### Charger directement une version de PHP
+
+<!--
+If installation size matters and you only need the shared, low-level PHP API,
+you can omit `@php-wasm/node` and install one Node.js build instead:
+-->
+
+Si la taille de l'installation est importante et que vous n'avez besoin que de
+l'API PHP partagée de bas niveau, vous pouvez omettre `@php-wasm/node` et
+installer une seule build Node.js à la place :
+
+```bash
+npm install @php-wasm/universal @php-wasm/node-8-4
+```
+
+<!--
+This approach bypasses Node.js-specific setup such as networking, file locking,
+and extension loading. See
+[Load one PHP version directly](/developers/architecture/php-wasm-packages#load-one-php-version-directly)
+for the complete example and tradeoffs.
+-->
+
+Cette approche contourne la configuration spécifique à Node.js, comme le
+réseau, le verrouillage de fichiers et le chargement des extensions. Consultez
+[Charger directement une version de PHP](/developers/architecture/php-wasm-packages#charger-directement-une-version-de-php)
+pour l'exemple complet et les compromis.
+
+<!-- ### Loading PHP extensions -->
+
+### Chargement des extensions PHP
+
+<!--
+Use the `extensions` loader option to enable optional extensions before PHP
+starts:
+-->
+
+Utilisez l'option `extensions` du chargeur pour activer des extensions
+optionnelles avant le démarrage de PHP :
+
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
+	})
+);
+```
+
+<!-- The same array can load external JSPI `.so` artifacts from a manifest: -->
+
+Le même tableau peut charger des artefacts `.so` JSPI externes à partir d'un
+manifeste :
+
+```javascript
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: './dist/wp_mysql_parser/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+
+<!--
+External extensions require JSPI. Asyncify support is limited to the bundled
+extensions shipped with the PHP.wasm packages.
+-->
+
+Les extensions externes nécessitent JSPI. La prise en charge d'Asyncify est
+limitée aux extensions intégrées fournies avec les paquets PHP.wasm.
+
+<!--
+See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
+for manifest format, browser usage, sidecar files, and compatibility notes.
+-->
+
+Consultez [Chargement des extensions PHP](/developers/apis/javascript-api/php-extensions)
+pour le format du manifeste, l'utilisation dans le navigateur, les fichiers
+annexes et les notes de compatibilité.
+
 <!-- ## Use cases -->
 
 ## Cas d'usage
@@ -55,10 +179,10 @@ console.log(await output.stdoutText);
 
 Exécutez PHP dans Node.js sans installation native de PHP. Cela permet au développeur de produire les solutions suivantes :
 
--   Tâches CI/CD et outils de développement.
--   Support pour l'éducation et les workflows WordPress : didacticiels interactifs, sandboxes et défis de code.
--   Génération de contenu et prototypage du comportement serveur.
--   Rendu HTML via des templates PHP et création rapide d'endpoints d'API simulés pour simuler des requêtes.
+- Tâches CI/CD et outils de développement.
+- Support pour l'éducation et les workflows WordPress : didacticiels interactifs, sandboxes et défis de code.
+- Génération de contenu et prototypage du comportement serveur.
+- Rendu HTML via des templates PHP et création rapide d'endpoints d'API simulés pour simuler des requêtes.
 
 <!-- ## Practical demos -->
 
@@ -655,7 +779,7 @@ try {
 <!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
 <!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
--   **Réutiliser les instances PHP** : créer une nouvelle instance PHP est coûteux. Réutilisez la même instance lorsque c'est possible.
--   **Regrouper les opérations** : groupez plusieurs opérations de fichiers plutôt que d'exécuter des scripts séparés.
--   **Gestion de la mémoire** : les fichiers volumineux peuvent impacter les performances. Envisagez le streaming pour de grands jeux de données.
--   **Mise en cache** : mettez en cache les scripts PHP compilés et les données souvent consultées.
+- **Réutiliser les instances PHP** : créer une nouvelle instance PHP est coûteux. Réutilisez la même instance lorsque c'est possible.
+- **Regrouper les opérations** : groupez plusieurs opérations de fichiers plutôt que d'exécuter des scripts séparés.
+- **Gestion de la mémoire** : les fichiers volumineux peuvent impacter les performances. Envisagez le streaming pour de grands jeux de données.
+- **Mise en cache** : mettez en cache les scripts PHP compilés et les données souvent consultées.
