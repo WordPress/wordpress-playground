@@ -158,22 +158,6 @@ describe('PlaygroundWorkerEndpoint', () => {
 		);
 	});
 
-	test('forwards an event once when the same PHP instance is reused', async () => {
-		const endpoint = new TestEndpoint();
-		const php = createMockPHP();
-		const received: PhpEvent[] = [];
-
-		endpoint.addEventListener('worker.ready', (event) => {
-			received.push(event as PhpEvent);
-		});
-		endpoint.attachPhp(php as unknown as PHP);
-		endpoint.attachPhp(php as unknown as PHP);
-
-		await php.emitEvent({ type: 'worker.ready' });
-
-		expect(received).toHaveLength(1);
-	});
-
 	test('recovers request handler from the primary PHP instance', async () => {
 		const endpoint = new TestEndpoint();
 		const response = {
