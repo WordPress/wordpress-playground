@@ -1,5 +1,6 @@
 import type { Attachment } from 'postal-mime';
 import { useEffect, useState } from 'react';
+import attachmentStylesheetUrl from './mail-attachments.css?url';
 
 export type AttachmentResource = {
 	url: string;
@@ -49,12 +50,9 @@ export function MailAttachments({
 			: `${attachments.length} attachments`;
 
 	return (
-		<div
-			id="mail-attachments-host"
-			style={{ all: 'initial', display: 'block' }}
-		>
+		<div id="mail-attachments-host">
 			<template {...{ shadowrootmode: 'open' }}>
-				<style>{attachmentStyles}</style>
+				<link rel="stylesheet" href={attachmentStylesheetUrl} />
 				<section
 					className="attachments"
 					aria-labelledby="mail-attachments-heading"
@@ -194,99 +192,3 @@ function formatFileSize(bytes: number): string {
 	}
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-const attachmentStyles = `
-	* { box-sizing: border-box; }
-	.attachments {
-		display: block;
-		min-width: 0;
-		padding: 16px 16px 0;
-		color: #1e1e1e;
-		font: 14px/1.5 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-			Oxygen-Sans, Ubuntu, Cantarell, Helvetica Neue, sans-serif;
-	}
-	hr { height: 0; margin: 0 0 16px; border: 0; border-top: 1px solid #dddddd; }
-	h2 { margin: 0 0 8px; font-size: 15px; line-height: 20px; }
-	ul {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
-		gap: 12px;
-		width: 100%;
-		margin: 0;
-		padding: 2px 2px 8px;
-		list-style: none;
-	}
-	li { min-width: 0; }
-	.card {
-		height: 100%;
-		overflow: hidden;
-		border: 1px solid #dddddd;
-		border-radius: 2px;
-		background: #ffffff;
-	}
-	.media {
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 80px;
-		overflow: hidden;
-		background: #f0f0f0;
-	}
-	.preview {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		height: 100%;
-	}
-	.preview img, .preview video {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.preview audio { display: block; width: calc(100% - 24px); }
-	.placeholder { width: 32px; height: 32px; fill: #757575; }
-	.actions {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		align-items: center;
-		justify-content: center;
-		padding: 8px;
-		opacity: 0;
-		pointer-events: none;
-		color: #757575;
-		font-size: 12px;
-		background: #f0f0f0;
-	}
-	.card:hover .preview, .card:focus-within .preview { opacity: 0; }
-	.card:hover .actions, .card:focus-within .actions {
-		opacity: 1;
-		pointer-events: auto;
-	}
-	.actions a {
-		display: inline-flex;
-		gap: 4px;
-		align-items: center;
-		color: #3858e9;
-		font-size: 13px;
-		text-decoration: none;
-		pointer-events: auto;
-	}
-	.actions a:hover { text-decoration: underline; }
-	.details {
-		min-width: 0;
-		padding: 8px 12px;
-		overflow: hidden;
-		font-weight: 600;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	@media (prefers-reduced-motion: no-preference) {
-		.preview, .actions { transition: opacity 120ms ease-out; }
-	}
-`;
