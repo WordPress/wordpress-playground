@@ -45,7 +45,11 @@ interface ModelContext {
 	readonly tools: ModelContextTool[];
 }
 
-type DocumentWithModelContext = Document & { modelContext?: ModelContext };
+declare global {
+	interface Document {
+		modelContext?: ModelContext;
+	}
+}
 
 // -- Registration --
 
@@ -110,15 +114,38 @@ export async function registerWebMCPTools(
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
 
-	await Promise.all(
-		tools.map((tool) => modelContext.registerTool(tool, { signal }))
+	const results = await Promise.allSettled(
+		tools.map(async (tool) => {
+			await modelContext.registerTool(tool, { signal });
+		})
 	);
+	const failedRegistrations: Array<{ name: string; reason: unknown }> = [];
+	for (const [index, result] of results.entries()) {
+		if (result.status === 'rejected') {
+			failedRegistrations.push({
+				name: tools[index].name,
+				reason: result.reason,
+			});
+		}
+	}
+	if (failedRegistrations.length > 0) {
+		throw new Error(
+			'Failed to register WebMCP tools: ' +
+				failedRegistrations
+					.map(
+						({ name, reason }) =>
+							`${name} (${stringifyError(reason)})`
+					)
+					.join(', ')
+		);
+	}
 }
 
 function getModelContext(): ModelContext | undefined {
 	if (typeof document !== 'undefined') {
-		return (document as DocumentWithModelContext).modelContext;
+		return document.modelContext;
 	}
+	return undefined;
 }
 
 function createSiteManagementTools(

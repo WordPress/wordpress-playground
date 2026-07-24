@@ -115,13 +115,9 @@ startListening({
 			},
 		};
 
-		void (async () => {
-			try {
-				await registerWebMCPTools(mcpConfig);
-			} catch (error) {
-				logger.warn('WebMCP registration failed:', error);
-			}
-		})();
+		void registerWebMCPTools(mcpConfig).catch((error) => {
+			logger.warn('WebMCP registration failed:', error);
+		});
 
 		const getRequestedMcpPort = (): number | null => {
 			const mcpPort = new URLSearchParams(window.location.search).get(
