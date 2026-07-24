@@ -469,12 +469,12 @@ function sendBufferedResponseHeaders($response_headers, $allowed_response_header
 {
 	$seen_headers = [];
 	foreach ($response_headers as [$header_name, $header_line]) {
-		$seen_headers[$header_name] = true;
 		$header_allowed = (
 			NULL === $allowed_response_headers
 			|| in_array($header_name, $allowed_response_headers, true)
 		) && $header_name !== 'transfer-encoding';
 		if ($header_allowed) {
+			$seen_headers[$header_name] = true;
 			header($header_line);
 		}
 	}
@@ -520,7 +520,6 @@ $downloader = new PluginDownloader(
 if (!array_key_exists('url', $_GET)) {
 	header('Access-Control-Allow-Origin: *');
 }
-$pluginResponse;
 try {
 	/** @deprecated Plugins and themes downloads are no longer needed now that WordPress.org serves
 	 *              the proper CORS headers. This code will be removed in one of the next releases.

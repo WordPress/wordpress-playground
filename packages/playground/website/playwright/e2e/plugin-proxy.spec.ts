@@ -24,6 +24,7 @@ test.skip(
 );
 
 const pluginProxyDocumentRoot = joinPaths(__dirname, '../../public');
+const pluginProxyRouter = joinPaths(__dirname, 'plugin-proxy-test-router.php');
 
 let requestDestinations: string[] = [];
 let pluginProxyUrl = '';
@@ -44,6 +45,7 @@ test.beforeAll(async () => {
 			`127.0.0.1:${pluginProxyPort}`,
 			'-t',
 			pluginProxyDocumentRoot,
+			pluginProxyRouter,
 		],
 		{
 			http_proxy: `http://127.0.0.1:${upstreamPort}`,
@@ -82,6 +84,38 @@ test('rejects a direct off-allowlist URL without fetching it', async ({
 		'Error: The specified URL is not allowed.'
 	);
 	expect(requestDestinations).toEqual([]);
+});
+
+/**
+ * Stable contract: Forward an upstream Content-Type when it is allowed. When it
+ * is filtered out, send the configured default Content-Type instead.
+ *
+ * Plausible regressions: A filtered header could prevent the default from being
+ * sent, or the default could overwrite an allowed upstream header.
+ *
+ * Independent code path: The PHP fixture calls the production header helper.
+ * The test checks the Content-Type on the HTTP response returned to the client.
+ */
+test('uses a default header only when the matching upstream header is filtered', async ({
+	request,
+}) => {
+	const filteredResponse = await request.get(
+		urlForDefaultResponseHeaders({ allowContentType: false })
+	);
+
+	expect(filteredResponse.status()).toBe(200);
+	expect(filteredResponse.headers()['content-type']).toBe('application/zip');
+	expect(await filteredResponse.text()).toBe('body');
+
+	const allowedResponse = await request.get(
+		urlForDefaultResponseHeaders({ allowContentType: true })
+	);
+
+	expect(allowedResponse.status()).toBe(200);
+	expect(allowedResponse.headers()['content-type']).toBe(
+		'application/octet-stream'
+	);
+	expect(await allowedResponse.text()).toBe('body');
 });
 
 test('follows absolute and relative redirects within the allowlist', async ({
@@ -200,6 +234,25 @@ function urlForTarget(targetUrl: string) {
 	return url.href;
 }
 
+function urlForDefaultResponseHeaders({
+	allowContentType,
+}: {
+	allowContentType: boolean;
+}) {
+	const url = new URL('/__test-default-response-headers', pluginProxyUrl);
+	if (allowContentType) {
+		url.searchParams.set('allow-content-type', '1');
+	}
+	return url.href;
+}
+
+/**
+ * This in-process router is the plugin proxy's fake upstream service. The PHP
+ * cURL client reaches it through the http_proxy environment variable, allowing
+ * the tests to control redirects and echoed requests without external network
+ * calls. Running it in this process also lets each destination be recorded
+ * directly in requestDestinations for assertions.
+ */
 function routeUpstreamRequest(
 	request: IncomingMessage,
 	response: ServerResponse
