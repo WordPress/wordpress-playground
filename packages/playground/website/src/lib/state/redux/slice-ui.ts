@@ -17,6 +17,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
+	| 'resource-unavailable'
 	| 'resource-download-failed';
 
 export type DockPaneSection =
@@ -181,6 +182,7 @@ export interface UIState {
 	/** Playground slug from which the current authoring draft was seeded. */
 	writeOwnSeededSlug?: string;
 	dockOperationNotice?: {
+		status?: 'error' | 'success';
 		title: string;
 		message?: string;
 	};

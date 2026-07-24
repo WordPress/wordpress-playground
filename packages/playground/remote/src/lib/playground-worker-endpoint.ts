@@ -244,9 +244,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					'sendmail',
 					sendmailSpawnHandler(php)
 				);
-				php.addEventListener('sendmail.spawned', (event) =>
-					this.dispatchEvent(event)
-				);
+				this.registerWorkerListeners(php);
 
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
@@ -254,6 +252,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 						requestHandler.documentRoot,
 						'/internal/shared',
 						'/internal/symlinks',
+						// Runtime-installed tools are shared state. Share their filesystem
+						// boundary instead of mounting individual tool directories.
+						'/tools',
 					];
 					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
 						(path) => !isPathToSharedFS(php, path)

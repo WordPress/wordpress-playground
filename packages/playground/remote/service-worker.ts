@@ -221,16 +221,41 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
+	// imports them during development. Sending them through WordPress turns the
+	// module graph into scoped 404 responses.
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js') ||
-		url.pathname.startsWith('/relay/');
+		url.pathname.startsWith('/relay/') ||
+		url.pathname.startsWith('/@fs/');
 	if (isReservedUrl) {
 		return;
 	}
 
 	if (url.pathname === '/feature-detect/document-isolation-policy.html') {
 		return event.respondWith(documentIsolationPolicyHtml());
+	}
+
+	// Vite bundles
+	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts` as the renderer
+	// and `modern-screenshot/worker` as its resource worker. Their requests originate
+	// from a scoped WordPress document, so the generic referrer handling below would
+	// redirect them into that site's virtual URL namespace, where WordPress returns
+	// a 404. Fetch these marked app assets directly instead.
+	const isSiteThumbnailModule =
+		url.searchParams.has('playground-site-thumbnail-module') &&
+		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
+			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+	const isSiteThumbnailWorker =
+		event.request.destination === 'worker' &&
+		url.searchParams.has('playground-site-thumbnail-worker');
+	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
+		return event.respondWith(
+			shouldCacheUrl(url)
+				? cacheFirstFetch(event.request)
+				: fetch(event.request)
+		);
 	}
 
 	if (isURLScoped(url)) {

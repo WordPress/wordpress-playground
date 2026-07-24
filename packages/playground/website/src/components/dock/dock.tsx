@@ -167,8 +167,8 @@ const PANE_COPY: Record<
 		description: 'Browse and edit the active Playground filesystem.',
 	},
 	logs: {
-		title: 'Logs',
-		description: 'PHP, WordPress, and Playground runtime messages.',
+		title: 'PHP error log',
+		description: 'Errors, warnings, and notices from your site.',
 	},
 	share: {
 		title: 'Export',
@@ -206,6 +206,8 @@ export function Dock({
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = section === 'blueprint' || section === 'files';
+	// Logs hold long monospace records, so they get a wider pane.
+	const isWideSection = section === 'logs';
 	const isFixedHeightSection =
 		section === 'new' || (section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
@@ -362,6 +364,16 @@ export function Dock({
 		observer.observe(toast);
 		return () => observer.disconnect();
 	}, [operationNotice]);
+
+	useEffect(() => {
+		if (operationNotice?.status !== 'success') {
+			return;
+		}
+		const timeout = window.setTimeout(() => {
+			dispatch(setDockOperationNotice(undefined));
+		}, 4000);
+		return () => window.clearTimeout(timeout);
+	}, [dispatch, operationNotice]);
 
 	useEffect(() => {
 		if (dockCenter === null || !dockSize.width) {
@@ -572,12 +584,12 @@ export function Dock({
 	// already fixed to an edge and keep their native control interactions.
 	const canDrag = !isMobile && !isFullWidth;
 
-	/** Reports whether a target is a real Dock control. */
-	const isInteractiveTarget = (target: EventTarget | null) =>
+	/** Reports whether a target belongs to a Dock control, including a portal. */
+	const isDockControlTarget = (target: EventTarget | null) =>
 		target instanceof Element &&
 		Boolean(
 			target.closest(
-				'button, a, input, textarea, select, [role="menu"], [role="menuitem"]'
+				'button, a, input, textarea, select, [role="menu"], [role="menuitem"], [role="listbox"]'
 			)
 		);
 
@@ -607,20 +619,12 @@ export function Dock({
 	// Controls keep native press, selection, and motor-tolerance behavior. The
 	// surrounding Dock chrome remains a large drag handle without turning a small
 	// pointer wobble on a button into an accidental Dock move.
-	const isNativePressTarget = (target: EventTarget | null) =>
-		target instanceof Element &&
-		Boolean(
-			target.closest(
-				'button, input, textarea, select, a, [role="menu"], [role="menuitem"]'
-			)
-		);
-
 	/** Arms a whole-surface horizontal drag and swallows clicks after real drags. */
 	const handleDockPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
 		if (
 			!canDrag ||
 			event.button !== 0 ||
-			isNativePressTarget(event.target)
+			isDockControlTarget(event.target)
 		) {
 			return;
 		}
@@ -754,7 +758,7 @@ export function Dock({
 			return;
 		}
 		setDockSheen(
-			isInteractiveTarget(event.target) ? 0.12 : 1,
+			isDockControlTarget(event.target) ? 0.12 : 1,
 			event.clientX
 		);
 	};
@@ -983,9 +987,12 @@ export function Dock({
 	const paneStyle = getDockPaneStyle({
 		isMobile,
 		dockSize,
+		toolsHeight,
+		isCollapsed,
 		dockCenter,
 		viewportSize,
 		isEditorSection,
+		isWideSection,
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
@@ -1000,12 +1007,20 @@ export function Dock({
 		toastHeight: operationToastHeight,
 		paneOpen: dockPaneIsOpen,
 		isEditorSection,
+		isWideSection,
 	});
 
 	return (
 		<>
 			{operationNotice && (
-				<span className={css.visuallyHidden} role="alert">
+				<span
+					className={css.visuallyHidden}
+					role={
+						operationNotice.status === 'success'
+							? 'status'
+							: 'alert'
+					}
+				>
 					{operationNotice.title}
 					{operationNotice.message && `. ${operationNotice.message}`}
 				</span>
@@ -1116,6 +1131,7 @@ export function Dock({
 						[css.hostPaneHidden]:
 							!dockPaneIsOpen && paneExitComplete,
 						[css.paneSave]: section === 'save',
+						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
@@ -1151,9 +1167,16 @@ export function Dock({
 			{operationNotice && (
 				<div
 					ref={operationToastRef}
-					className={css.dockOperationToast}
+					className={classNames(css.dockOperationToast, {
+						[css.dockOperationToastSuccess]:
+							operationNotice.status === 'success',
+					})}
 					role="group"
-					aria-label="Operation failed"
+					aria-label={
+						operationNotice.status === 'success'
+							? 'Operation succeeded'
+							: 'Operation failed'
+					}
 					style={operationToastStyle}
 				>
 					<div className={css.dockOperationToastContent}>
@@ -1168,7 +1191,11 @@ export function Dock({
 					</div>
 					<button
 						type="button"
-						aria-label="Dismiss operation error"
+						aria-label={
+							operationNotice.status === 'success'
+								? 'Dismiss operation notification'
+								: 'Dismiss operation error'
+						}
 						onClick={() =>
 							dispatch(setDockOperationNotice(undefined))
 						}
@@ -1210,6 +1237,7 @@ export function Dock({
 						<div className={css.dockAddress}>
 							<AddressBar
 								url={clientInfo?.url}
+								isMobile={isMobile}
 								disabled={!clientInfo}
 								onUpdate={
 									clientInfo

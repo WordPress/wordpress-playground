@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import classNames from 'classnames';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
 
 import { Modal } from '../modal';
 import css from './style.module.css';
-import { useAppDispatch } from '../../lib/state/redux/store';
+import {
+	setActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
 	clearActiveSiteError,
+	modalSlugs,
+	setDockPaneOpen,
+	setDockPaneSection,
 	type SerializedBlueprintStepErrorDetails,
 	type SerializedSiteErrorDetails,
 } from '../../lib/state/redux/slice-ui';
@@ -19,8 +25,13 @@ import type {
 	BlueprintStepError,
 } from './types';
 import { getSiteErrorView } from './get-site-error-view';
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import {
+	isUnfinishedBlueprintRun,
+	selectSiteBySlug,
+	type SiteInfo,
+} from '../../lib/state/redux/slice-sites';
 import { useKapaAI } from './use-kapa-ai';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
 export function SiteErrorModal({
 	error,
@@ -30,6 +41,18 @@ export function SiteErrorModal({
 }: SiteErrorModalProps) {
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
+	const siteSlugToReturnToIfBlueprintFails =
+		site.metadata.siteSlugToReturnToIfBlueprintFails;
+	const siteToReturnToIfBlueprintFails = useAppSelector((state) =>
+		siteSlugToReturnToIfBlueprintFails
+			? selectSiteBySlug(state, siteSlugToReturnToIfBlueprintFails)
+			: undefined
+	);
+	const isEditingBlueprint = useAppSelector(
+		(state) =>
+			state.ui.dockPaneIsOpen && state.ui.dockPaneSection === 'blueprint'
+	);
+	const activeModal = useAppSelector((state) => state.ui.activeModal);
 	const {
 		isReporting,
 		setIsReporting,
@@ -61,22 +84,115 @@ export function SiteErrorModal({
 			window.location.href = url.toString();
 		},
 		reloadWithoutBlueprint() {
-			const url = new URL(window.location.href);
-			url.search = '';
-			url.pathname = '/';
-			url.hash = '';
-			window.location.href = url.toString();
+			const currentUrl = new URL(window.location.href);
+			const newSiteUrl = new URL(PlaygroundRoute.newSite());
+			const paramsToKeep = [
+				'mode',
+				'url',
+				'page-title',
+				'mcp',
+				'mcp-port',
+				'can-save',
+			];
+			for (const param of paramsToKeep) {
+				const value = currentUrl.searchParams.get(param);
+				if (value !== null) {
+					newSiteUrl.searchParams.set(param, value);
+				}
+			}
+			redirectTo(newSiteUrl.toString());
 		},
 	};
 
 	const blueprintStepError = extractBlueprintStepError(errorDetails);
-	const view = getSiteErrorView({
+	const isBlueprintRunFailure = isUnfinishedBlueprintRun(site);
+	const isSeamlessMode =
+		new URLSearchParams(document.location.search).get('mode') ===
+		'seamless';
+	const baseView = getSiteErrorView({
 		error,
 		site,
 		blueprintStepError,
 		helpers,
 		errorDetails,
 	});
+	const errorMessage =
+		typeof errorDetails === 'string' ? errorDetails : errorDetails?.message;
+	const recoveryBody =
+		error === 'initial-opfs-sync-interrupted' ? (
+			<p className={css.errorLead}>
+				This Blueprint run stopped before its WordPress files finished
+				saving.
+			</p>
+		) : error === 'site-boot-failed' && !blueprintStepError ? (
+			errorMessage ? (
+				<p className={css.errorLead}>{errorMessage}</p>
+			) : (
+				<p className={css.errorLead}>
+					The Blueprint run did not finish.
+				</p>
+			)
+		) : (
+			baseView.body
+		);
+	const returnOrStartAction = siteToReturnToIfBlueprintFails ? (
+		<Button
+			variant={isSeamlessMode ? 'primary' : 'secondary'}
+			key="return-to-source"
+			onClick={async () => {
+				dispatch(setActiveSite(siteToReturnToIfBlueprintFails.slug));
+				await discardFailedBlueprintRun();
+			}}
+		>
+			Return to your last Playground
+		</Button>
+	) : (
+		<Button
+			variant={isSeamlessMode ? 'primary' : 'secondary'}
+			key="start-new-playground"
+			onClick={async () => {
+				await discardFailedBlueprintRun();
+				helpers.reloadWithoutBlueprint();
+			}}
+		>
+			Start a new Playground
+		</Button>
+	);
+	async function discardFailedBlueprintRun() {
+		try {
+			await sitesAPI.delete(siteSlug);
+			dispatch(removeClientInfo(siteSlug));
+		} catch (error) {
+			logger.error('Failed to discard Blueprint run', error);
+		}
+	}
+	const view = isBlueprintRunFailure
+		? {
+				...baseView,
+				title:
+					error === 'site-boot-failed'
+						? 'Blueprint run failed'
+						: error === 'initial-opfs-sync-interrupted'
+							? 'Blueprint run did not finish'
+							: baseView.title,
+				body: recoveryBody,
+				actions: [
+					returnOrStartAction,
+					!isSeamlessMode ? (
+						<Button
+							variant="primary"
+							key="edit-blueprint"
+							onClick={() => {
+								dispatch(setDockPaneSection('blueprint'));
+								dispatch(setDockPaneOpen(true));
+							}}
+						>
+							Edit Blueprint
+						</Button>
+					) : null,
+				],
+			}
+		: baseView;
 
 	const detailText = formatErrorDetails(errorDetails);
 	const shouldShowKapaButton =
@@ -84,6 +200,13 @@ export function SiteErrorModal({
 		!isReporting &&
 		detailText &&
 		kapaAI.isEnabled();
+	if (
+		isBlueprintRunFailure &&
+		(isEditingBlueprint ||
+			activeModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
+	) {
+		return null;
+	}
 
 	return (
 		<Modal
@@ -99,12 +222,16 @@ export function SiteErrorModal({
 					</>
 				) as unknown as string
 			}
-			onRequestClose={() => dispatch(clearActiveSiteError())}
-			shouldCloseOnClickOutside
-			className={classNames(css.errorModal, {
-				[css.errorModalDeveloper]: view.isDeveloperError,
-				[css.errorModalCrash]: !view.isDeveloperError,
-			})}
+			onRequestClose={() => {
+				if (!isBlueprintRunFailure) {
+					dispatch(clearActiveSiteError());
+				}
+			}}
+			isDismissible={!isBlueprintRunFailure}
+			shouldCloseOnClickOutside={!isBlueprintRunFailure}
+			shouldCloseOnEsc={!isBlueprintRunFailure}
+			overlayClassName={css.errorModalOverlay}
+			className={css.errorModal}
 		>
 			<div className={css.errorModalContent}>
 				<div className={css.errorModalBody}>
@@ -133,7 +260,7 @@ export function SiteErrorModal({
 						/>
 					)}
 					{reportSubmitted && !submitError && (
-						<p style={{ color: 'green', fontWeight: '500' }}>
+						<p className={css.reportSuccess}>
 							Your report has been submitted to the{' '}
 							<a
 								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"

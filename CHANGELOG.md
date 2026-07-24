@@ -4,6 +4,48 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.46] (2026-07-20) 
+
+### Blueprints
+
+- Declare v2 schema constraints beside their types. ([#4077](https://github.com/WordPress/wordpress-playground/pull/4077))
+
+### Documentation
+
+- [Docs] Describe Playground tools with the Dock UI. ([#4085](https://github.com/WordPress/wordpress-playground/pull/4085))
+- [Docs] Document Dock paths in Blueprint and API documentation. ([#4083](https://github.com/WordPress/wordpress-playground/pull/4083))
+
+### PHP WebAssembly
+
+- [CLI] Use preferredVersions.wp in Playground CLI. ([#4075](https://github.com/WordPress/wordpress-playground/pull/4075))
+- Harden non-streaming fallback tests for fetchWithCorsProxy. ([#3495](https://github.com/WordPress/wordpress-playground/pull/3495))
+- [PHP-WASM] Expose recursive cp through PHPWorker. ([#4061](https://github.com/WordPress/wordpress-playground/pull/4061))
+
+### Website
+
+- Add a square mobile Dock with a tools toggle. ([#4088](https://github.com/WordPress/wordpress-playground/pull/4088))
+- Add end-to-end coverage for playground-zip import regressions. ([#3874](https://github.com/WordPress/wordpress-playground/pull/3874))
+- Align mobile Dock pane titles, toolbars, and forms. ([#4084](https://github.com/WordPress/wordpress-playground/pull/4084))
+- Anchor the autosave nudge to the Playgrounds Dock button. ([#4096](https://github.com/WordPress/wordpress-playground/pull/4096))
+- Ask before reloading edited Blueprint fragments. ([#4089](https://github.com/WordPress/wordpress-playground/pull/4089))
+- Clarify New Playground action labels. ([#4090](https://github.com/WordPress/wordpress-playground/pull/4090))
+- Decode JSON-encoded &lt;php-snippet&gt; child payloads. ([#4101](https://github.com/WordPress/wordpress-playground/pull/4101))
+- Keep the file editor Save control stable during autosave. ([#4073](https://github.com/WordPress/wordpress-playground/pull/4073))
+- Make Playgrounds pane rows span the Dock width. ([#4086](https://github.com/WordPress/wordpress-playground/pull/4086))
+- Match local-directory status to the autosave callout. ([#4100](https://github.com/WordPress/wordpress-playground/pull/4100))
+- Name Dock pane state after the Dock. ([#4080](https://github.com/WordPress/wordpress-playground/pull/4080))
+- Place Dock panes above the visible collapsed row. ([#4112](https://github.com/WordPress/wordpress-playground/pull/4112))
+- Render error dialogs as Quiet Paper sheets. ([#4102](https://github.com/WordPress/wordpress-playground/pull/4102))
+- Restyle the GitHub connect prompt to match the Dock. ([#4094](https://github.com/WordPress/wordpress-playground/pull/4094))
+- Use outward glyph for Dock Export. ([#4091](https://github.com/WordPress/wordpress-playground/pull/4091))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame
+
+
 ## [v3.1.45] (2026-07-16) 
 
 ### Enhancements
