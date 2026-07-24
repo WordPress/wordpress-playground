@@ -136,7 +136,6 @@ ${attachmentsHtml}`;
 				/* Popups and downloads escape the sandbox so links and attachment
 				 * actions work normally. */
 				<iframe
-					{...{ credentialless: '' }}
 					className={css.mailPanelHtmlPreview}
 					title={`Contents of ${subject}`}
 					referrerPolicy="no-referrer"
