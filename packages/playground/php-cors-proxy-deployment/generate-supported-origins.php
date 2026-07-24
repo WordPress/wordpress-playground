@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/cors-proxy-functions.php';
+require_once __DIR__ . '/../php-cors-proxy/cors-proxy-functions.php';
 
 $origins_string = getenv('CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED');
 $origins = preg_split(
