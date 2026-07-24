@@ -469,7 +469,7 @@ function is_cors_proxy_origin_supported($origin, $supported_origins) {
  */
 function cors_proxy_origin_matches_pattern($origin, $pattern) {
     if (
-        !is_valid_cors_proxy_origin($origin) ||
+        !is_valid_cors_proxy_origin_url($origin) ||
         !is_valid_cors_proxy_origin_pattern($pattern)
     ) {
         return false;
@@ -505,7 +505,7 @@ function is_valid_cors_proxy_origin_pattern($pattern) {
     }
 
     if (strpos($pattern, '*') === false) {
-        return is_valid_cors_proxy_origin($pattern);
+        return is_valid_cors_proxy_origin_url($pattern);
     }
 
     if (
@@ -519,7 +519,7 @@ function is_valid_cors_proxy_origin_pattern($pattern) {
         return false;
     }
 
-    return is_valid_cors_proxy_origin(
+    return is_valid_cors_proxy_origin_url(
         str_replace('*', 'wildcard', $pattern)
     );
 }
@@ -527,7 +527,7 @@ function is_valid_cors_proxy_origin_pattern($pattern) {
 /**
  * Whether a value is a concrete HTTP(S) origin without a wildcard.
  */
-function is_valid_cors_proxy_origin($origin) {
+function is_valid_cors_proxy_origin_url($origin) {
     if (
         !is_string($origin) ||
         $origin === '' ||
