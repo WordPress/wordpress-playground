@@ -11,16 +11,40 @@ In order to avoid running a CORS proxy that is easy to abuse by default, the pro
 
 These can be provided in an optional `cors-proxy-config.php` file in the same directory as `cors-proxy.php` or in a PHP file that is loaded before all PHP execution via the [`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file) php.ini option.
 
-Allowed browser origins may be overridden with `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS`. A configured origin may begin its hostname with `*.` to match exactly one subdomain level, so `https://*.example.com` matches `https://preview.example.com` but not `https://example.com` or `https://nested.preview.example.com`. The proxy validates the concrete request origin and echoes it in `Access-Control-Allow-Origin`; it never sends the configured wildcard pattern as that header.
+Allowed browser origins may be overridden with
+`PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES`. Each entry must be an array with
+one of these types:
+
+- `match-exact` compares the complete origin.
+- `match-subdomain` matches exactly one hostname label beneath `host`, using
+  the configured scheme and port.
+
+Invalid entries and unrecognized rule types are ignored.
 
 ```php
-define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', [
-    'https://playground.example.com',
-    'https://*.preview.playground.example.com',
+define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES', [
+    [
+        'type' => 'match-exact',
+        'origin' => 'https://playground.example.com',
+    ],
+    [
+        'type' => 'match-subdomain',
+        'scheme' => 'https',
+        'host' => 'preview.playground.example.com',
+        'port' => null,
+    ],
 ]);
 ```
 
-The standalone proxy deployment reads the same values from the space-separated `CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED` environment variable. For example, `https://playground.example.com https://*.preview.playground.example.com` generates the PHP configuration above. Setting a custom list replaces the built-in origins, so deployments must retain every origin they still need.
+The standalone proxy deployment accepts origins through the space-separated
+`CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED` environment variable. For example,
+`https://playground.example.com https://*.preview.playground.example.com`
+generates the typed PHP rules above. The generator validates and parses these
+values before deployment. Setting custom rules replaces the built-in rules, so
+deployments must retain every origin they still need.
+
+The previous `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS` string list is no longer
+supported.
 
 ### Usage
 

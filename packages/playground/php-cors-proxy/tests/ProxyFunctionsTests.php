@@ -216,89 +216,165 @@ class ProxyFunctionsTests extends TestCase
     }
 
     /**
-     * @dataProvider providerCorsProxyOriginMatchesPattern
+     * @dataProvider providerCorsProxyOriginMatchesRule
      */
-    public function testCorsProxyOriginMatchesPattern($pattern, $origin, $expected)
+    public function testCorsProxyOriginMatchesRule(
+        $supported_origin_rule,
+        $origin,
+        $expected
+    )
     {
-        $this->assertEquals(
+        $this->assertSame(
             $expected,
-            cors_proxy_origin_matches_pattern($origin, $pattern)
+            is_cors_proxy_origin_supported(
+                $origin,
+                [$supported_origin_rule]
+            )
         );
     }
 
-    static public function providerCorsProxyOriginMatchesPattern() {
+    static public function providerCorsProxyOriginMatchesRule() {
         return [
             'exact origin' => [
-                'https://pg.ashfame.com',
+                [
+                    'type' => 'match-exact',
+                    'origin' => 'https://pg.ashfame.com',
+                ],
                 'https://pg.ashfame.com',
                 true,
             ],
-            'single-label wildcard' => [
-                'https://*.pg.ashfame.com',
+            'single-label subdomain' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://pr123.pg.ashfame.com',
                 true,
             ],
-            'wildcard host matching is case-insensitive' => [
-                'https://*.pg.ashfame.com',
+            'subdomain host matching is case-insensitive' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://PR123.PG.ASHFAME.COM',
                 true,
             ],
-            'literal wildcard request origin is rejected' => [
-                'https://*.pg.ashfame.com',
+            'invalid request origin is rejected' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://*.pg.ashfame.com',
                 false,
             ],
-            'partial-label wildcards are invalid' => [
-                'https://pr*.pg.ashfame.com',
-                'https://pr123.pg.ashfame.com',
-                false,
-            ],
-            'wildcard must appear at the start of the hostname' => [
-                'https://preview.*.ashfame.com',
-                'https://preview.pg.ashfame.com',
-                false,
-            ],
-            'wildcard does not match the apex origin' => [
-                'https://*.pg.ashfame.com',
+            'subdomain rule does not match the apex origin' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://pg.ashfame.com',
                 false,
             ],
-            'wildcard does not cross a dot boundary' => [
-                'https://*.pg.ashfame.com',
+            'subdomain rule does not cross a dot boundary' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://nested.pr123.pg.ashfame.com',
                 false,
             ],
-            'wildcard does not accept a deceptive suffix' => [
-                'https://*.pg.ashfame.com',
+            'subdomain rule does not accept a deceptive suffix' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'https://pr123.pg.ashfame.com.evil.test',
                 false,
             ],
-            'wildcard does not cross into the port' => [
-                'https://*.pg.ashfame.com:443',
+            'subdomain rule preserves an exact port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => 443,
+                ],
                 'https://pr123.pg.ashfame.com:444',
                 false,
             ],
-            'wildcard preserves an exact port' => [
-                'https://*.pg.ashfame.com:8443',
+            'subdomain rule matches its configured port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => 8443,
+                ],
                 'https://pr123.pg.ashfame.com:8443',
                 true,
             ],
-            'wildcard preserves the scheme' => [
-                'https://*.pg.ashfame.com',
+            'subdomain rule distinguishes an omitted port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://pr123.pg.ashfame.com:443',
+                false,
+            ],
+            'subdomain rule preserves the scheme' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
                 'http://pr123.pg.ashfame.com',
                 false,
             ],
-            'multiple wildcards are invalid' => [
-                'https://*.*.pg.ashfame.com',
-                'https://nested.pr123.pg.ashfame.com',
-                false,
+        ];
+    }
+
+    public function testInvalidCorsProxyOriginRulesAreSkipped()
+    {
+        $supported_origin_rules = [
+            'https://pg.ashfame.com',
+            [],
+            [
+                'type' => 'unknown',
             ],
-            'path wildcards are invalid' => [
-                'https://pg.ashfame.com/*',
-                'https://pg.ashfame.com/path',
-                false,
+            [
+                'type' => 'match-exact',
+                'origin' => [],
+            ],
+            [
+                'type' => 'match-subdomain',
+                'scheme' => 'https',
+                'host' => 'pg.ashfame.com',
+            ],
+            [
+                'type' => 'match-exact',
+                'origin' => 'https://pg.ashfame.com',
             ],
         ];
+
+        $this->assertTrue(
+            is_cors_proxy_origin_supported(
+                'https://pg.ashfame.com',
+                $supported_origin_rules
+            )
+        );
     }
 
     public function testFilterHeaderStringsWithAdditionalAllowedHeaders()

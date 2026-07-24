@@ -426,37 +426,70 @@ function should_respond_with_cors_headers($host, $origin) {
         return false;
     }
 
-    $supported_origins = array(
-        'https://playground-preview.test',
-        'https://playground.wordpress.net',
-        'http://localhost',
-        'http://127.0.0.1',
-        'http://127.0.0.1:5400',
-        'http://localhost:5400',
-        'http://127.0.0.1:5401',
-        'http://localhost:5401',
-        'http://127.0.0.1:4400',
-        'http://localhost:4400',
-    );
+    $supported_origin_rules = [
+        ['type' => 'match-exact', 'origin' => 'https://playground-preview.test'],
+        ['type' => 'match-exact', 'origin' => 'https://playground.wordpress.net'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:5400'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:5400'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:5401'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:5401'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:4400'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:4400'],
+    ];
     if (
-        defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS') &&
-        is_array(PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS)
+        defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES') &&
+        is_array(PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES)
     ) {
-        $supported_origins = PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS;
+        $supported_origin_rules =
+            PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES;
     }
 
-    return is_cors_proxy_origin_supported($origin, $supported_origins);
+    return is_cors_proxy_origin_supported($origin, $supported_origin_rules);
 }
 
 /**
- * Whether an origin matches one of the configured origin patterns.
- *
- * A pattern may begin its hostname with `*.` to match exactly one subdomain level.
+ * Whether an origin matches one of the configured origin rules.
  */
-function is_cors_proxy_origin_supported($origin, $supported_origins) {
-    foreach ($supported_origins as $supported_origin) {
-        if (cors_proxy_origin_matches_pattern($origin, $supported_origin)) {
-            return true;
+function is_cors_proxy_origin_supported($origin, $supported_origin_rules) {
+    $origin_parts = parse_cors_proxy_origin($origin);
+    if ($origin_parts === false) {
+        return false;
+    }
+
+    foreach ($supported_origin_rules as $supported_origin_rule) {
+        if (!is_array($supported_origin_rule)) {
+            continue;
+        }
+
+        $rule_type = $supported_origin_rule['type'] ?? null;
+
+        if ($rule_type === 'match-exact') {
+            $supported_origin = $supported_origin_rule['origin'] ?? null;
+            if (!is_string($supported_origin)) {
+                continue;
+            }
+
+            if ($origin === $supported_origin) {
+                return true;
+            }
+
+            continue;
+        }
+
+        if ($rule_type === 'match-subdomain') {
+            if (
+                cors_proxy_origin_matches_subdomain_rule(
+                    $origin,
+                    $origin_parts,
+                    $supported_origin_rule
+                )
+            ) {
+                return true;
+            }
+
+            continue;
         }
     }
 
@@ -464,77 +497,129 @@ function is_cors_proxy_origin_supported($origin, $supported_origins) {
 }
 
 /**
- * Whether an origin matches a configured origin pattern.
+ * Whether a parsed origin matches a subdomain rule.
  */
-function cors_proxy_origin_matches_pattern($origin, $pattern) {
+function cors_proxy_origin_matches_subdomain_rule(
+    $origin,
+    $origin_parts,
+    $supported_origin_rule
+) {
+    $required_scheme = $supported_origin_rule['scheme'] ?? null;
+    if ($required_scheme !== 'http' && $required_scheme !== 'https') {
+        return false;
+    }
+
+    $required_host = $supported_origin_rule['host'] ?? null;
+    if (!is_string($required_host) || $required_host === '') {
+        return false;
+    }
+
+    if (!array_key_exists('port', $supported_origin_rule)) {
+        return false;
+    }
+
+    $required_port = $supported_origin_rule['port'];
+    if ($required_port !== null && !is_int($required_port)) {
+        return false;
+    }
+
     if (
-        !is_valid_cors_proxy_origin_url($origin) ||
-        !is_valid_cors_proxy_origin_pattern($pattern)
+        $required_port !== null &&
+        ($required_port < 1 || $required_port > 65535)
     ) {
         return false;
     }
 
-    if ($origin === $pattern) {
-        return true;
-    }
-
-    if (strpos($pattern, '*') === false) {
+    $first_dot = strpos($origin_parts['host'], '.');
+    if ($first_dot === false || $first_dot === 0) {
         return false;
     }
 
-    $host = parse_url($origin, PHP_URL_HOST);
-    $first_dot = strpos($host, '.');
-    if ($first_dot === false) {
-        return false;
+    $origin_first_host_label = substr(
+        $origin_parts['host'],
+        0,
+        $first_dot
+    );
+
+    $port_suffix = '';
+    if ($required_port !== null) {
+        $port_suffix = ":{$required_port}";
     }
 
-    // Replace the first hostname segment with `*` and compare it to the pattern.
-    $wildcard_host = '*' . substr($host, $first_dot);
-    $origin_pattern = str_replace($host, $wildcard_host, $origin);
+    $expected_host = "{$origin_first_host_label}.{$required_host}";
+    $expected_origin =
+        "{$required_scheme}://{$expected_host}{$port_suffix}";
 
-    return strcasecmp($origin_pattern, $pattern) === 0;
+    return strcasecmp($origin, $expected_origin) === 0;
 }
 
 /**
- * Whether a configured value is an HTTP(S) origin or wildcard subdomain pattern.
+ * Parses a concrete HTTP(S) origin into the fields used by origin rules.
  */
-function is_valid_cors_proxy_origin_pattern($pattern) {
-    if (!is_string($pattern)) {
+function parse_cors_proxy_origin($origin) {
+    if (!is_string($origin)) {
         return false;
     }
 
-    $origin_url = str_replace('://*.', '://', $pattern);
-
-    return is_valid_cors_proxy_origin_url($origin_url);
-}
-
-/**
- * Whether a value is a concrete HTTP(S) origin without a wildcard.
- */
-function is_valid_cors_proxy_origin_url($origin) {
-    if (
-        !is_string($origin) ||
-        $origin === '' ||
-        strpos($origin, '*') !== false ||
-        filter_var($origin, FILTER_VALIDATE_URL) === false
-    ) {
+    if ($origin === '') {
         return false;
     }
 
-    $parts = parse_url($origin);
-    if (
-        $parts === false ||
-        !in_array($parts['scheme'] ?? null, ['http', 'https'], true) ||
-        empty($parts['host']) ||
-        isset($parts['user']) ||
-        isset($parts['pass']) ||
-        isset($parts['path']) ||
-        isset($parts['query']) ||
-        isset($parts['fragment'])
-    ) {
+    if (str_contains($origin, '*')) {
         return false;
     }
 
-    return !isset($parts['port']) ||
-        ($parts['port'] >= 1 && $parts['port'] <= 65535);
+    if (filter_var($origin, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+
+    $origin_parts = parse_url($origin);
+    if ($origin_parts === false) {
+        return false;
+    }
+
+    $scheme = $origin_parts['scheme'] ?? null;
+    if ($scheme !== 'http' && $scheme !== 'https') {
+        return false;
+    }
+
+    $host = $origin_parts['host'] ?? null;
+    if (!is_string($host) || $host === '') {
+        return false;
+    }
+
+    if (isset($origin_parts['user'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['pass'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['path'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['query'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['fragment'])) {
+        return false;
+    }
+
+    $port = $origin_parts['port'] ?? null;
+    if ($port !== null && $port < 1) {
+        return false;
+    }
+
+    if ($port !== null && $port > 65535) {
+        return false;
+    }
+
+    return [
+        'scheme' => $scheme,
+        'host' => $host,
+        'port' => $port,
+    ];
 }

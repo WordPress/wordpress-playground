@@ -25,23 +25,31 @@ class GenerateSupportedOriginsTests extends TestCase
 <?php
 
 define(
-    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS',
+    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES',
     [
-        'https://playground.example.com',
+        [
+            'type' => 'match-exact',
+            'origin' => 'https://playground.example.com',
+        ],
     ]
 );
 
 PHP,
             ],
             'single wildcard origin' => [
-                'https://*.preview.example.com',
+                'https://*.preview.example.com:8443',
                 <<<'PHP'
 <?php
 
 define(
-    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS',
+    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES',
     [
-        'https://*.preview.example.com',
+        [
+            'type' => 'match-subdomain',
+            'scheme' => 'https',
+            'host' => 'preview.example.com',
+            'port' => 8443,
+        ],
     ]
 );
 
@@ -53,10 +61,18 @@ PHP,
 <?php
 
 define(
-    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS',
+    'PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES',
     [
-        'https://playground.example.com',
-        'https://*.preview.example.com',
+        [
+            'type' => 'match-exact',
+            'origin' => 'https://playground.example.com',
+        ],
+        [
+            'type' => 'match-subdomain',
+            'scheme' => 'https',
+            'host' => 'preview.example.com',
+            'port' => null,
+        ],
     ]
 );
 
@@ -86,7 +102,19 @@ PHP,
             ],
             'invalid wildcard pattern' => [
                 'https://*.*.example.com',
-                "Invalid origin pattern in CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: https://*.*.example.com\n",
+                "Invalid supported origin in CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: https://*.*.example.com\n",
+            ],
+            'partial-label wildcard' => [
+                'https://preview-*.example.com',
+                "Invalid supported origin in CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: https://preview-*.example.com\n",
+            ],
+            'wildcard after the first hostname label' => [
+                'https://preview.*.example.com',
+                "Invalid supported origin in CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: https://preview.*.example.com\n",
+            ],
+            'wildcard in the path' => [
+                'https://example.com/*',
+                "Invalid supported origin in CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: https://example.com/*\n",
             ],
         ];
     }
