@@ -220,7 +220,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */
 	async cli(
 		argv: string[],
-		options?: { env?: Record<string, string> }
+		options?: { env?: Record<string, string>; cwd?: string }
 	): Promise<StreamedPHPResponse> {
 		const state = _private.get(this)!;
 		const primaryPhp = state.php;

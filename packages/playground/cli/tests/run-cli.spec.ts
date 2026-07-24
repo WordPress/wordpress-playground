@@ -1538,6 +1538,174 @@ describe('php command', () => {
 		}
 	});
 
+	test('should use an explicit --cwd from parsed CLI arguments', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-php-cwd-test-')
+		);
+		const stdoutChunks: string[] = [];
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation((chunk: any) => {
+				stdoutChunks.push(
+					typeof chunk === 'string'
+						? chunk
+						: new TextDecoder().decode(chunk)
+				);
+				return true;
+			});
+
+		try {
+			const result = await parseOptionsAndRunCLI([
+				'php',
+				'--mount-dir',
+				tmpDir,
+				'/workspace',
+				'--cwd=/workspace',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--',
+				'-r',
+				'echo getcwd();',
+			]);
+
+			expect('exitCode' in result).toBe(true);
+			expect((result as CLIExitResult).exitCode).toBe(0);
+			expect(stdoutChunks.join('').trim()).toBe('/workspace');
+		} finally {
+			stdoutSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should infer cwd from a single auto-mounted plugin', async () => {
+		const pluginDir = path.join(
+			import.meta.dirname,
+			'mount-examples',
+			'plugin'
+		);
+
+		await expect(
+			capturePhpWorkingDirectory({
+				autoMount: pluginDir,
+			})
+		).resolves.toBe('/wordpress/wp-content/plugins/plugin');
+	}, 120_000);
+
+	test('should retain the default cwd without a configured or inferred cwd', async () => {
+		await expect(capturePhpWorkingDirectory({})).resolves.toBe(
+			'/wordpress'
+		);
+	});
+
+	test('should prefer an explicit cwd over an auto-mounted path', async () => {
+		const pluginDir = path.join(
+			import.meta.dirname,
+			'mount-examples',
+			'plugin'
+		);
+
+		await expect(
+			capturePhpWorkingDirectory({
+				mount: [
+					{
+						hostPath: pluginDir,
+						vfsPath: '/auto-mounted-plugin',
+						autoMounted: true,
+					},
+				],
+				cwd: '/wordpress',
+			})
+		).resolves.toBe('/wordpress');
+	});
+
+	test('should not infer cwd when an additional manual mount exists', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-php-manual-mount-test-')
+		);
+		const pluginDir = path.join(
+			import.meta.dirname,
+			'mount-examples',
+			'plugin'
+		);
+		const autoMountedPath = '/auto-mounted-plugin';
+
+		try {
+			const cwd = await capturePhpWorkingDirectory({
+				mount: [
+					{
+						hostPath: pluginDir,
+						vfsPath: autoMountedPath,
+						autoMounted: true,
+					},
+					{
+						hostPath: tmpDir,
+						vfsPath: '/tools',
+					},
+				],
+			});
+
+			expect(cwd).toBe('/wordpress');
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should not infer cwd from multiple auto-mounted paths', async () => {
+		const pluginDir = path.join(
+			import.meta.dirname,
+			'mount-examples',
+			'plugin'
+		);
+
+		const cwd = await capturePhpWorkingDirectory({
+			mount: [
+				{
+					hostPath: pluginDir,
+					vfsPath: '/first-auto-mount',
+					autoMounted: true,
+				},
+				{
+					hostPath: pluginDir,
+					vfsPath: '/second-auto-mount',
+					autoMounted: true,
+				},
+			],
+		});
+
+		expect(cwd).toBe('/wordpress');
+	});
+
+	test('should reject a nonexistent cwd', async () => {
+		await expect(
+			capturePhpWorkingDirectory({
+				cwd: '/does-not-exist',
+			})
+		).rejects.toThrow(
+			'Could not change the PHP working directory to "/does-not-exist": There is no such file or directory OR the parent directory does not exist.'
+		);
+	});
+
+	test('should reject --cwd for non-PHP commands', async () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {});
+
+		try {
+			const result = await parseOptionsAndRunCLI([
+				'server',
+				'--cwd=/wordpress',
+			]);
+
+			expect('exitCode' in result).toBe(true);
+			expect((result as CLIExitResult).exitCode).toBe(1);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Unknown argument: cwd')
+			);
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
+	});
+
 	test('should exit with non-zero code on PHP error', async () => {
 		const stdoutSpy = vi
 			.spyOn(process.stdout, 'write')
@@ -1692,6 +1860,44 @@ describe('php command', () => {
 			rmSync(tmpDir, { recursive: true });
 		}
 	});
+
+	async function capturePhpWorkingDirectory(
+		args: Partial<Omit<RunCLIArgs, 'command'>>
+	): Promise<string> {
+		const skipWordPressSetup =
+			args.autoMount === undefined
+				? {
+						wordpressInstallMode:
+							'do-not-attempt-installing' as const,
+						skipSqliteSetup: true,
+					}
+				: {};
+		const stdoutChunks: string[] = [];
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation((chunk: any) => {
+				stdoutChunks.push(
+					typeof chunk === 'string'
+						? chunk
+						: new TextDecoder().decode(chunk)
+				);
+				return true;
+			});
+
+		try {
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'echo getcwd();'],
+				blueprint: undefined,
+				...skipWordPressSetup,
+				...args,
+			});
+			expect(exitCode).toBe(0);
+			return stdoutChunks.join('').trim();
+		} finally {
+			stdoutSpy.mockRestore();
+		}
+	}
 });
 
 describe('other run-cli behaviors', () => {

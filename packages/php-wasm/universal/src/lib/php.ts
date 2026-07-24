@@ -16,6 +16,7 @@ import type { PHPRuntimeId } from './load-php-runtime';
 import { popLoadedRuntime } from './load-php-runtime';
 import type { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
+import { ErrnoError, getEmscriptenFsError } from './rethrow-file-system-error';
 import type {
 	ChildProcess,
 	MessageListener,
@@ -1703,6 +1704,21 @@ export class PHP implements Disposable {
 		const release = await this.semaphore.acquire();
 
 		return await this.#executeWithErrorHandling(() => {
+			if (options.cwd !== undefined) {
+				try {
+					this.chdir(options.cwd);
+				} catch (error) {
+					const fileSystemError = getEmscriptenFsError(error);
+					if (fileSystemError !== undefined) {
+						throw new ErrnoError(
+							(error as { errno: number }).errno,
+							`Could not change the PHP working directory to "${options.cwd}": ${fileSystemError}`,
+							{ cause: error }
+						);
+					}
+					throw error;
+				}
+			}
 			const env = options.env || {};
 			for (const [key, value] of Object.entries(env)) {
 				this.#setEnv(key, value);
