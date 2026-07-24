@@ -69,7 +69,9 @@ describe('decodeRemoteZip', () => {
 				'https://example.com/archive.zip',
 				() => true
 			);
-			await expect(readAll(stream)).rejects.toThrow('Range request failed');
+			await expect(readAll(stream)).rejects.toThrow(
+				'Range request failed'
+			);
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
@@ -95,8 +97,9 @@ async function createLargeZip(selectedFiles = 2): Promise<Uint8Array> {
 	return await collectBytes(
 		encodeZip([
 			...files,
-			...Array.from({ length: 2_500 }, (_, index) =>
-				new File([], `ignored-${index}.bin`)
+			...Array.from(
+				{ length: 2_500 },
+				(_, index) => new File([], `ignored-${index}.bin`)
 			),
 		])
 	);
@@ -128,12 +131,21 @@ function createRangeFetch(
 			onRangeRequest?.();
 		}
 
-		const match = /^bytes=(\d+)-(\d+)$/.exec(range);
+		const match = /^bytes=(\d+)-(\d*)$/.exec(range);
 		if (!match) {
 			throw new Error(`Unexpected Range header: ${range}`);
 		}
 		const from = Number(match[1]);
-		const to = Number(match[2]);
-		return new Response(zipBytes.slice(from, to + 1), { status: 206 });
+		const to = match[2]
+			? Math.min(Number(match[2]), zipBytes.byteLength - 1)
+			: zipBytes.byteLength - 1;
+		const bytes = zipBytes.slice(from, to + 1);
+		return new Response(bytes, {
+			status: 206,
+			headers: {
+				'Content-Length': String(bytes.byteLength),
+				'Content-Range': `bytes ${from}-${to}/${zipBytes.byteLength}`,
+			},
+		});
 	};
 }
