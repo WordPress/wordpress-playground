@@ -9,10 +9,12 @@ export function SiteFileBrowser({
 	site,
 	isVisible = true,
 	documentRoot,
+	mobileHeaderTarget,
 }: {
 	site: SiteInfo;
 	isVisible?: boolean;
 	documentRoot: string;
+	mobileHeaderTarget?: Element | null;
 }) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
@@ -24,6 +26,8 @@ export function SiteFileBrowser({
 			isVisible={isVisible}
 			initialPath={`${documentRoot}/wp-config.php`}
 			placeholderText="Start this Playground to browse and edit its files."
+			dockPresentation
+			mobileHeaderTarget={mobileHeaderTarget}
 		/>
 	);
 }

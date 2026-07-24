@@ -95,7 +95,7 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 
 ### Sites API
 
-The Playground website at [playground.wordpress.net](https://playground.wordpress.net) exposes a `window.playgroundSites` object for managing the saved sites in the site manager — listing them, creating new ones, persisting temporary sites to OPFS or local disk, switching between them, and changing PHP version or networking.
+The Playground website at [playground.wordpress.net](https://playground.wordpress.net) exposes a `window.playgroundSites` object for managing the sites shown in the Dock's **Playgrounds** pane — listing them, creating new ones, persisting temporary sites to OPFS or local disk, switching between them, and changing PHP version or networking.
 
 ```javascript
 await playgroundSites.createNewTemporarySite('demo', { phpVersion: '8.4' });

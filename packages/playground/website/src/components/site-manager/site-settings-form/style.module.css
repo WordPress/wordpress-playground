@@ -11,44 +11,291 @@
 }
 
 .invalid-input :global(.components-input-control__backdrop) {
-	border-color: #e26f56 !important;
+	border-color: var(--color-alert-red, #cc1818) !important;
 }
 
 .invalid-input :global(.components-base-control__help) {
-	color: #e26f56;
+	color: var(--color-alert-red, #cc1818);
 }
 
 .form-section {
-	padding: 24px;
+	padding: 0 var(--space-6) var(--space-6);
 }
 
 .form-section p {
 	margin: 0;
 }
 
+.sub-option {
+	margin-top: var(--space-3);
+	padding-left: 158px;
+}
+
 .form-section :global(.components-select-control > :first-child) {
-	width: 50%;
+	flex: 0 0 150px;
+	width: 150px;
 }
 .form-section :global(.components-select-control > :first-child label) {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-weight: 500;
 	text-transform: none;
-	font-weight: normal;
-	font-size: 14px;
-	color: #757575;
 }
 .form-section :global(.components-select-control > :nth-child(2)) {
+	flex: 1;
 	width: auto;
-	flex-shrink: 1;
+}
+
+.form-section :global(.components-input-control__backdrop) {
+	border-color: var(--line-control) !important;
+	border-radius: var(--radius-control) !important;
+}
+
+.form-section :global(.components-checkbox-control__label) {
+	color: var(--ink-soft);
+	font-size: 13px;
+	line-height: 1.3;
+}
+
+.form-section :global(.components-checkbox-control .components-h-stack) {
+	align-items: center;
+}
+
+/* CheckboxControl adds a legacy 8px field margin. VStack already owns the row
+   gap, so keeping both makes checkbox rows look farther apart than fields. */
+.form-section
+	:global(.components-checkbox-control .components-base-control__field) {
+	margin-bottom: 0;
+}
+
+.sub-option :global(.components-checkbox-control__label),
+.form-section :global(.components-base-control__help) {
+	color: var(--ink-muted);
 }
 
 .notice {
-	background-color: #f3f6fd;
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 .footer {
-	background-color: #f3f6fd;
+	padding-top: 0;
+	position: relative;
 	button {
 		width: 100%;
 		align-self: center;
 		justify-content: center;
+	}
+}
+
+.footer-note {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.split-button {
+	display: flex;
+	width: 100%;
+}
+
+.split-button > .apply-button,
+.split-button > .create-fresh-button {
+	flex: 1;
+	width: auto;
+	border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.split-button-dropdown,
+.split-button-dropdown > div {
+	display: flex;
+}
+
+.footer .split-button-toggle {
+	box-sizing: border-box;
+	width: 40px;
+	min-width: 40px;
+	padding: 0;
+	border-left: 1px solid rgb(255 255 255 / 35%);
+	border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.create-fresh-button {
+	background: #6c4fd3 !important;
+	color: #fff !important;
+}
+
+.create-fresh-button:hover {
+	background: #573eb5 !important;
+}
+
+.caret {
+	display: block;
+	width: 0;
+	height: 0;
+	margin: auto;
+	border-top: 5px solid currentColor;
+	border-right: 4px solid transparent;
+	border-left: 4px solid transparent;
+}
+
+.action-menu {
+	box-sizing: border-box;
+	width: min(330px, calc(100vw - 24px));
+}
+
+.action-menu-popover :global(.components-popover__content) {
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid #d6d6d9;
+	border-radius: 10px;
+	box-shadow: 0 16px 38px rgb(0 0 0 / 20%);
+}
+
+.action-menu-item {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 16px 20px;
+	border: 0;
+	border-radius: 0;
+	background: #fff;
+	color: var(--ink, #21201d);
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
+	white-space: normal;
+}
+
+.action-menu-item:first-child {
+	border-radius: 9px 9px 0 0;
+}
+
+.action-menu-item:last-child {
+	border-radius: 0 0 9px 9px;
+}
+
+.action-menu-item + .action-menu-item {
+	border-top: 1px solid #d6d6d9;
+}
+
+.action-menu-item:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 2px #3858e9;
+}
+
+.action-error {
+	animation: action-error-in 120ms ease-out;
+	color: var(--color-alert-red, #cc1818);
+	font-size: 13px;
+	left: var(--space-6);
+	line-height: 1.4;
+	position: absolute;
+	right: var(--space-6);
+}
+
+@keyframes action-error-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.action-error {
+		animation: none;
+	}
+}
+
+.action-menu-title {
+	display: block;
+	font-weight: 500;
+	line-height: 1.4;
+	white-space: normal;
+}
+
+.action-menu-description {
+	display: block;
+	max-width: 100%;
+	margin-top: 2px;
+	color: var(--ink-muted, #5f5b54);
+	font-size: 12px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+.create-fresh-menu-item {
+	color: #573eb5;
+}
+
+.action-menu-item.selected-apply-menu-item {
+	color: #304bd1;
+}
+
+.action-menu-item:disabled {
+	color: #757575;
+	cursor: not-allowed;
+}
+
+.action-menu-item:disabled .action-menu-description {
+	color: inherit;
+}
+
+.action-menu-item:disabled:focus-visible {
+	box-shadow: inset 0 0 0 2px #949494;
+}
+
+@media (forced-colors: active) {
+	.action-menu-item:focus-visible {
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+		box-shadow: none;
+	}
+}
+
+.temporary-warning {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.temporary-warning strong,
+.temporary-warning span {
+	display: block;
+}
+
+.temporary-warning strong {
+	color: var(--color-alert-red, #cc1818);
+}
+
+.footer .temporary-action-button {
+	height: auto;
+	min-height: 36px;
+	padding: var(--space-2) var(--space-3);
+	justify-content: center;
+}
+
+@media (max-width: 600px) {
+	.form-section :global(.components-select-control) {
+		align-items: stretch;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.form-section :global(.components-select-control > :first-child),
+	.form-section :global(.components-select-control > :nth-child(2)) {
+		flex: none;
+		width: 100%;
+	}
+
+	.sub-option {
+		margin-top: var(--space-3);
+		padding-left: 0;
 	}
 }

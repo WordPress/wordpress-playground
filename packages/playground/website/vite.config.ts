@@ -65,6 +65,76 @@ const proxy: CommonServerOptions['proxy'] = {
 	},
 };
 
+/**
+ * Verification outcomes emitted by the local PR-preview middleware.
+ *
+ * `available` and `unavailable` describe HTTP-level responses. The remaining
+ * values are error names returned by the production plugin proxy.
+ */
+type PrPreviewMockResult =
+	| 'available'
+	| 'invalid_pr_number'
+	| 'no_ci_runs'
+	| 'artifact_not_found'
+	| 'artifact_expired'
+	| 'unavailable';
+
+const prPreviewMockMetadata = {
+	'wordpress-develop': {
+		title: 'Update the HTML API to preserve text boundaries',
+		created_at: '2026-06-12T09:30:00Z',
+	},
+	gutenberg: {
+		title: 'Add a data view for managing reusable blocks',
+		created_at: '2026-07-18T14:45:00Z',
+	},
+};
+
+/**
+ * Reserved PR numbers and their independent Core and Gutenberg responses.
+ *
+ * The numbers are active only when local mocks are enabled. Keeping every
+ * scenario here keeps the middleware behavior auditable and easy to compare
+ * with the README table.
+ */
+const prPreviewMockScenarios: Record<
+	string,
+	Record<'wordpress-develop' | 'gutenberg', PrPreviewMockResult>
+> = {
+	'900000001': {
+		'wordpress-develop': 'available',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000002': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'available',
+	},
+	'900000003': {
+		'wordpress-develop': 'available',
+		gutenberg: 'available',
+	},
+	'900000004': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000005': {
+		'wordpress-develop': 'unavailable',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000006': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'no_ci_runs',
+	},
+	'900000007': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'artifact_expired',
+	},
+	'900000008': {
+		'wordpress-develop': 'artifact_not_found',
+		gutenberg: 'invalid_pr_number',
+	},
+};
+
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	const corsProxyUrl =
@@ -192,6 +262,9 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					if (process.env['PLAYGROUND_PR_PREVIEW_MOCKS'] === 'true') {
+						registerPrPreviewMockMiddleware(server);
+					}
 					// Let static playground pages import the local client package in dev.
 					server.middlewares.use(
 						'/website-server/client/index.js',
@@ -410,3 +483,69 @@ export default defineConfig(({ command, mode }) => {
 		},
 	};
 });
+
+/**
+ * Registers deterministic PR-preview responses on the website dev server.
+ *
+ * The middleware intercepts only `verify_only` requests for the documented
+ * mock PR numbers. Every other plugin-proxy request continues to the normal
+ * development proxy, so enabling the mocks does not replace artifact downloads
+ * or unrelated plugin-proxy features.
+ *
+ * Each scenario returns independent WordPress Core and Gutenberg results. This
+ * exercises repository detection through the same HTTP boundary used in
+ * production while avoiding GitHub credentials, rate limits, and network
+ * availability during local UI testing.
+ *
+ * @param server Vite development server that receives plugin-proxy requests.
+ */
+function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
+	server.config.logger.info(
+		'PR preview mocks enabled. See packages/playground/website/README.md for scenario numbers.'
+	);
+	server.middlewares.use((req, res, next) => {
+		const requestUrl = new URL(req.url || '/', 'http://localhost');
+		if (
+			requestUrl.pathname !== '/plugin-proxy.php' ||
+			!requestUrl.searchParams.has('verify_only')
+		) {
+			next();
+			return;
+		}
+
+		const ref = requestUrl.searchParams.get('pr');
+		const repo = requestUrl.searchParams.get('repo');
+		const scenario = ref ? prPreviewMockScenarios[ref] : undefined;
+		if (
+			!scenario ||
+			(repo !== 'wordpress-develop' && repo !== 'gutenberg')
+		) {
+			next();
+			return;
+		}
+
+		const result = scenario[repo];
+		const metadata = prPreviewMockMetadata[repo];
+		if (result === 'available') {
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/json');
+			res.end(JSON.stringify(metadata));
+			return;
+		}
+		if (result === 'unavailable') {
+			res.statusCode = 502;
+			res.setHeader('Content-Type', 'text/plain');
+			res.end('Bad gateway');
+			return;
+		}
+
+		res.statusCode = 400;
+		res.setHeader('Content-Type', 'application/json');
+		res.end(
+			JSON.stringify({
+				error: result,
+				...(result === 'invalid_pr_number' ? {} : metadata),
+			})
+		);
+	});
+}

@@ -1,11 +1,11 @@
-/* Site details */
+/* Site Settings */
 
 .site-info-panel {
 	--padding-size: 24px;
 
-	background: #ffffff;
-	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
-	border-radius: var(--site-manager-border-radius);
+	background: transparent;
+	box-shadow: none;
+	border-radius: 0;
 	overflow: hidden;
 
 	display: flex;
@@ -13,7 +13,14 @@
 	flex-grow: 1;
 }
 
+.site-info-panel.site-info-panel-hidden,
+.tab-contents.tab-hidden,
+.blueprint-wrapper.tab-hidden {
+	display: none;
+}
+
 .site-info-panel-content {
+	flex: 1;
 	min-height: 0;
 }
 
@@ -21,35 +28,10 @@
 	padding: var(--padding-size);
 }
 
-.tabs {
-	width: 100%;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-
-	& :global(.components-tab-panel__tabs) {
-		--wp-components-color-accent: var(--color-gray-900);
-		border-bottom: 1px solid var(--color-gray-200);
-		max-width: 100%;
-		overflow-x: auto;
-		overflow-y: hidden;
-		-webkit-overflow-scrolling: touch;
-		flex-shrink: 0;
-	}
-	& :global(.components-tab-panel__tabs-item) {
-		flex: 0 0 auto;
-		padding-left: var(--padding-size);
-		padding-right: var(--padding-size);
-		white-space: nowrap;
-	}
-	& :global(.components-tab-panel__tab-content) {
-		display: flex;
-		flex-direction: column;
-		flex-grow: 1;
-		min-height: 0;
-		overflow: hidden;
-		align-self: stretch;
-	}
+/* Database and Logs sit below the Dock pane's own header. That header already
+   owns the top gap, so these tool bodies only need side and bottom padding. */
+.tool-tab-contents {
+	padding: 0 var(--padding-size) var(--padding-size);
 }
 
 .tab-contents {
@@ -60,10 +42,6 @@
 	min-height: 0;
 	position: relative;
 	overflow: auto;
-}
-
-.tabHidden {
-	display: none !important;
 }
 
 .file-browser-tab {
@@ -98,10 +76,6 @@
 	color: var(--color-gray-600) !important;
 }
 
-.gray-link-dark {
-	color: var(--color-gray-900) !important;
-}
-
 .button-no-padding {
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -121,6 +95,12 @@
 	&:not(:has(.site-info-header-details-created-at)) {
 		justify-content: center;
 		align-items: center;
+	}
+}
+
+@media (max-width: 600px) {
+	.site-info-header {
+		flex-wrap: wrap;
 	}
 }
 
@@ -301,15 +281,6 @@
 
 .blueprint-editor :global(.cm-scroller) {
 	overflow: auto;
-}
-
-.blueprintNotice {
-	padding: 12px 16px;
-	background: #f0f6fc;
-	border-bottom: 1px solid var(--color-gray-200);
-	font-size: 13px;
-	color: var(--color-gray-700);
-	line-height: 1.5;
 }
 
 @media (max-width: 600px) {

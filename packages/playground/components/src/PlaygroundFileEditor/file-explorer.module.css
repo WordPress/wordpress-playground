@@ -82,3 +82,70 @@
 	overflow: auto;
 	padding: 6px 0;
 }
+
+/* Quiet Paper and the larger Dock header are explicit so shared consumers keep
+   the original compact file explorer by default. */
+.fileExplorerContainer.dockPresentation {
+	background: var(--paper-1, #ffffff);
+	--file-tree-row-background: var(--paper-2, #f7f7f7);
+	--file-tree-row-padding: 6px 12px;
+	--file-tree-row-color: var(
+		--ink,
+		var(--wp-components-color-foreground, #1e1e1e)
+	);
+	--file-tree-selected-background: var(
+		--paper-5,
+		var(--wp-admin-theme-color)
+	);
+	--file-tree-selected-color: var(--ink, #fff);
+	--file-tree-selected-shadow: inset 2px 0 0 var(--accent, transparent);
+	--file-tree-focus-shadow: 0 0 0 1px
+		var(--accent, var(--wp-admin-theme-color)) inset;
+	--file-tree-drop-shadow: inset 0 0 0 2px
+		var(--accent, var(--wp-admin-theme-color));
+}
+
+.fileExplorerContainer.dockPresentation.dropActive {
+	border-color: var(--accent, #3858e9);
+	background: rgba(56, 88, 233, 0.06);
+}
+
+.dockPresentation .fileExplorerHeader {
+	gap: 8px;
+	min-height: 56px;
+	padding: 8px 16px 8px 24px;
+	background: var(--paper-2, #ffffff);
+	border-bottom-color: var(--line-subtle, #ddd);
+}
+
+.dockPresentation .fileExplorerTitle {
+	text-transform: none;
+	font-size: 20px;
+	letter-spacing: -0.01em;
+	color: var(--ink, #1e1e1e);
+}
+
+.dockPresentation .fileExplorerActions {
+	gap: 6px;
+}
+
+.dockPresentation .fileExplorerButton {
+	border-radius: var(--radius-control, 4px);
+	color: var(--ink, #1e1e1e);
+}
+
+.dockPresentation .fileExplorerButton:hover {
+	background: var(--paper-4, rgba(0, 0, 0, 0.04));
+	color: var(--ink, #1e1e1e);
+	border-color: transparent;
+}
+
+.dockPresentation .fileExplorerIconButton svg {
+	width: 24px;
+	height: 24px;
+}
+
+.dockPresentation .fileExplorerUploadButton svg {
+	width: 16px;
+	height: 16px;
+}

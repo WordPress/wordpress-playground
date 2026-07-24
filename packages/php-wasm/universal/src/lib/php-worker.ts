@@ -1,4 +1,5 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { phpEventStdinTransfer } from '@php-wasm/util';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
@@ -30,6 +31,7 @@ export type LimitedPHPApi = Pick<
 	| 'writeFile'
 	| 'unlink'
 	| 'mv'
+	| 'cp'
 	| 'rmdir'
 	| 'listFiles'
 	| 'isDir'
@@ -163,6 +165,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!PHP.mv  */
 	async mv(fromPath: string, toPath: string) {
 		return _private.get(this)!.php!.mv(fromPath, toPath);
+	}
+
+	/** @inheritDoc @php-wasm/universal!PHP.cp  */
+	async cp(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.cp(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
@@ -362,12 +369,40 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
-	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+	protected dispatchEvent<EventType extends PHPWorkerEvent>(
+		event: EventType
+	) {
 		const listeners = this.#eventListeners.get(event.type);
 		if (!listeners) {
 			return;
 		}
-		for (const listener of listeners) {
+		// Callbacks may mutate the Set. Dispatch the listeners that matched at entry.
+		const eventListeners = [...listeners];
+		const transfersStdin =
+			phpEventStdinTransfer in event &&
+			event[phpEventStdinTransfer] === true &&
+			'stdin' in event &&
+			typeof ReadableStream !== 'undefined' &&
+			event.stdin instanceof ReadableStream;
+		if (eventListeners.length > 1 && transfersStdin) {
+			/**
+			 * Split the unassigned stream branch before each transfer, then give the
+			 * final listener what remains. Unread branches may buffer the full input
+			 * because tee() does not coordinate backpressure.
+			 */
+			let remainingStdin = event.stdin as ReadableStream<Uint8Array>;
+			for (let index = 0; index < eventListeners.length - 1; index++) {
+				const [stdin, nextStdin] = remainingStdin.tee();
+				remainingStdin = nextStdin;
+				eventListeners[index]({ ...event, stdin } as EventType);
+			}
+			eventListeners[eventListeners.length - 1]({
+				...event,
+				stdin: remainingStdin,
+			} as EventType);
+			return;
+		}
+		for (const listener of eventListeners) {
 			listener(event);
 		}
 	}
