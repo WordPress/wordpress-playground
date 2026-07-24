@@ -238,6 +238,11 @@ class ProxyFunctionsTests extends TestCase
                 'https://pr123.pg.ashfame.com',
                 true,
             ],
+            'wildcard host matching is case-insensitive' => [
+                'https://*.pg.ashfame.com',
+                'https://PR123.PG.ASHFAME.COM',
+                true,
+            ],
             'literal wildcard request origin is rejected' => [
                 'https://*.pg.ashfame.com',
                 'https://*.pg.ashfame.com',

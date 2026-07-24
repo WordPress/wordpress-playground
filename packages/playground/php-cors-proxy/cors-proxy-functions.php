@@ -482,13 +482,17 @@ function cors_proxy_origin_matches_pattern($origin, $pattern) {
         return false;
     }
 
-    $quoted_pattern = preg_quote($pattern, '~');
-    $quoted_pattern = str_replace('\\*', '[a-z0-9-]+', $quoted_pattern);
+    $host = parse_url($origin, PHP_URL_HOST);
+    $first_dot = strpos($host, '.');
+    if ($first_dot === false) {
+        return false;
+    }
 
-    return preg_match(
-        '~\A' . $quoted_pattern . '\z~Di',
-        $origin
-    ) === 1;
+    // Replace the first hostname segment with `*` and compare it to the pattern.
+    $wildcard_host = '*' . substr($host, $first_dot);
+    $origin_pattern = str_replace($host, $wildcard_host, $origin);
+
+    return strcasecmp($origin_pattern, $pattern) === 0;
 }
 
 /**
