@@ -41,7 +41,7 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
@@ -253,12 +253,7 @@ export function bootSiteClient(
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
-				pathAliases: [
-					{
-						urlPrefix: '/phpmyadmin',
-						fsPath: PHPMYADMIN_INSTALL_PATH,
-					},
-				],
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			if (signal.aborted) {
