@@ -146,7 +146,6 @@ type CreationTabId =
 interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
-	onCloseBlockedChange: (isBlocked: boolean) => void;
 	onPaneHeaderChange: (header: DockPaneHeaderOverride | undefined) => void;
 }
 
@@ -156,7 +155,6 @@ interface SavedPlaygroundsPanelProps {
 export function SavedPlaygroundsPanel({
 	onClose,
 	panel,
-	onCloseBlockedChange,
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -179,6 +177,7 @@ export function SavedPlaygroundsPanel({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [zipImportError, setZipImportError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
@@ -231,11 +230,6 @@ export function SavedPlaygroundsPanel({
 	const writeOwnSeededSlug = useAppSelector(
 		(state) => state.ui.writeOwnSeededSlug
 	);
-
-	useEffect(() => {
-		onCloseBlockedChange(isImportingZip);
-		return () => onCloseBlockedChange(false);
-	}, [isImportingZip, onCloseBlockedChange]);
 
 	useEffect(() => {
 		if (isCreationTabDisabled(activeCreationTab, offline)) {
@@ -332,23 +326,29 @@ export function SavedPlaygroundsPanel({
 
 		zipImportPendingRef.current = true;
 		setIsImportingZip(true);
+		setZipImportError(undefined);
+		onClose();
 		try {
-			await sitesAPI.createNewSiteFromZip(file);
-			const importedPlayground = sitesAPI.getClient();
-			window.setTimeout(() => {
-				void importedPlayground?.goTo('/').catch((error) => {
-					logger.error('Failed to refresh imported site', error);
-				});
-			}, 200);
-			alert(
-				'File imported! This Playground instance has been updated and will refresh shortly.'
+			const importedSiteSlug = await sitesAPI.createNewSiteFromZip(file);
+			const importedSite = sitesAPI
+				.list()
+				.find((site) => site.slug === importedSiteSlug);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Playground imported',
+					message:
+						importedSite?.storage === 'temporary'
+							? 'Your Playground is ready. It’s available until you close this page.'
+							: 'Your Playground is ready. It’s autosaved in this browser.',
+				})
 			);
-			onClose();
 		} catch (error) {
 			logger.error(error);
-			alert(
-				'Unable to import file. Is it a valid WordPress Playground export?'
+			setZipImportError(
+				'Unable to import this file. Is it a valid WordPress Playground export?'
 			);
+			dispatch(setDockPaneOpen(true));
 		} finally {
 			zipImportPendingRef.current = false;
 			setIsImportingZip(false);
@@ -407,6 +407,7 @@ export function SavedPlaygroundsPanel({
 			);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
 					message: 'This Playground is still available in your list.',
 				})
@@ -521,6 +522,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error storing Playground in the browser', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
 					message: 'No changes were made to this Playground.',
 				})
@@ -561,6 +563,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error saving Playground to a local directory', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t save ${site.metadata.name} locally`,
 					message: 'The Playground in your browser is unchanged.',
 				})
@@ -1509,6 +1512,17 @@ export function SavedPlaygroundsPanel({
 									: 'Choose a .zip file…'}
 							</Button>
 						</div>
+						{zipImportError && (
+							<div
+								className={classNames(
+									css.zipImportStatus,
+									css.zipImportError
+								)}
+								role="alert"
+							>
+								{zipImportError}
+							</div>
+						)}
 					</div>
 				);
 			default:

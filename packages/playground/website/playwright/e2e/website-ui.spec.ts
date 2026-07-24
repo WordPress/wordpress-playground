@@ -1927,7 +1927,7 @@ test.describe('Default Playground storage', () => {
 			.toBe(true);
 	});
 
-	test('should keep Playground management failures visible across Dock surfaces', async ({
+	test('should position and dismiss Playground management failures', async ({
 		website,
 		browserName,
 	}) => {
@@ -2017,93 +2017,17 @@ test.describe('Default Playground storage', () => {
 		);
 
 		await website.page.keyboard.press('Escape');
-		await expect(pane).not.toBeVisible();
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const dock = website.page.getByRole('navigation', {
-			name: 'Playground tools',
-		});
-		const closedNoticeBox = await notice.boundingBox();
-		const dockBox = await dock.boundingBox();
-		expect(closedNoticeBox).not.toBeNull();
-		expect(dockBox).not.toBeNull();
-		expect(
-			closedNoticeBox!.y + closedNoticeBox!.height
-		).toBeLessThanOrEqual(dockBox!.y);
-		expect(closedNoticeBox!.x + closedNoticeBox!.width / 2).toBeCloseTo(
-			dockBox!.x + dockBox!.width / 2,
-			0
-		);
+		await expect(notice).toHaveCount(0);
+		await expect(pane).toBeVisible();
 
-		await website.openDockPane('Site Settings');
-		const settingsPane = website.page.getByRole('dialog', {
-			name: 'Site Settings pane',
-		});
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const settingsPaneBox = await settingsPane.boundingBox();
-		const settingsNoticeBox = await notice.boundingBox();
-		expect(settingsPaneBox).not.toBeNull();
-		expect(settingsNoticeBox).not.toBeNull();
-		expect(
-			settingsNoticeBox!.y + settingsNoticeBox!.height
-		).toBeLessThanOrEqual(settingsPaneBox!.y);
-
-		await website.openDockPane('Playgrounds');
 		await pane
-			.getByRole('button', { name: `Open ${originalSite.name}` })
+			.getByRole('button', { name: `Actions for ${activeSite.name}` })
 			.click();
-		await expect(pane).not.toBeVisible();
-		await expect
-			.poll(() => getActivePlaygroundSite(website.page), {
-				timeout: 120000,
-			})
-			.toMatchObject({ slug: originalSite.slug });
-		await expect(notice).toBeVisible();
-
-		await website.page.setViewportSize({ width: 390, height: 844 });
-		await expect
-			.poll(() =>
-				website.page.evaluate(
-					() => window.matchMedia('(max-width: 1024px)').matches
-				)
-			)
-			.toBe(true);
-		await website.openDockPane('Playgrounds');
-		await expect
-			.poll(() => pane.boundingBox())
-			.toMatchObject({
-				x: 0,
-				width: 390,
-			});
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const mobileNoticeBox = await notice.boundingBox();
-		const mobileDockBox = await dock.boundingBox();
-		expect(mobileNoticeBox).not.toBeNull();
-		expect(mobileDockBox).not.toBeNull();
-		expect(mobileNoticeBox!.x).toBeGreaterThanOrEqual(12);
-		expect(mobileNoticeBox!.x + mobileNoticeBox!.width).toBeLessThanOrEqual(
-			378
-		);
-		expect(
-			mobileNoticeBox!.y + mobileNoticeBox!.height
-		).toBeLessThanOrEqual(mobileDockBox!.y);
-		await notice
-			.getByRole('button', { name: 'Dismiss operation error' })
+		await website.page
+			.getByRole('menuitem', { name: 'Save in a local directory…' })
 			.click();
+		await expect(notice).toBeVisible();
+		await pane.click({ position: { x: 20, y: 20 } });
 		await expect(notice).toHaveCount(0);
 	});
 

@@ -65,10 +65,11 @@ export interface ImportWordPressFilesStep<ResourceType> {
  */
 export const importWordPressFiles: StepHandler<
 	ImportWordPressFilesStep<File>
-> = async (playground, { wordPressFilesZip, pathInZip = '' }) => {
+> = async (playground, { wordPressFilesZip, pathInZip = '' }, progress) => {
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
+	progress?.tracker.setCaption('Unpacking archive');
 	const unzipRoot = joinPaths(
 		'/tmp',
 		`import-wordpress-files-${randomFilename()}`
@@ -85,6 +86,8 @@ export const importWordPressFiles: StepHandler<
 		importPath =
 			(await findWordPressFilesRoot(playground, importPath)) ||
 			importPath;
+		progress?.tracker.setCaption('Installing WordPress files');
+		progress?.tracker.set(30);
 
 		// Read the export manifest if it exists. The manifest contains the
 		// site URL (including scope) at export time, which we'll use later
@@ -222,6 +225,8 @@ export const importWordPressFiles: StepHandler<
 		}
 	}
 
+	progress?.tracker.setCaption('Updating WordPress configuration');
+	progress?.tracker.set(60);
 	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);
 
@@ -240,6 +245,8 @@ export const importWordPressFiles: StepHandler<
 	});
 
 	// Upgrade the database
+	progress?.tracker.setCaption('Upgrading the WordPress database');
+	progress?.tracker.set(75);
 	const upgradePhp = phpVar(
 		joinPaths(documentRoot, 'wp-admin', 'upgrade.php')
 	);
@@ -254,8 +261,12 @@ export const importWordPressFiles: StepHandler<
 	// This ensures that image and media URLs that reference the old scope
 	// are updated to use the new scope.
 	if (oldSiteUrl && oldSiteUrl !== newSiteUrl) {
+		progress?.tracker.setCaption('Updating site URLs');
+		progress?.tracker.set(90);
 		await replaceSiteUrl(playground, documentRoot, oldSiteUrl, newSiteUrl);
 	}
+	progress?.tracker.setCaption('WordPress files imported');
+	progress?.tracker.finish();
 };
 
 /**

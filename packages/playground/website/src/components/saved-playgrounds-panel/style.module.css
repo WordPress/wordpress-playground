@@ -1032,6 +1032,22 @@
 	color: var(--ink-muted, #5f5b54);
 }
 
+.playgrounds-pane .zipImportStatus {
+	background: var(--paper-2, #faf8f5);
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-soft, #2f2d28);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2, 8px);
+	padding: 12px;
+}
+
+.playgrounds-pane .zipImportError {
+	border-color: var(--color-alert-red, #cc1818);
+	color: var(--color-alert-red, #cc1818);
+}
+
 /* Inline docs link inside a hint — accent, underlines on hover. */
 .playgrounds-pane .inlineForm .inlineFormLink,
 .playgrounds-pane .inlineFormLink {
