@@ -451,8 +451,7 @@ function should_respond_with_cors_headers($host, $origin) {
 /**
  * Whether an origin matches one of the configured origin patterns.
  *
- * A pattern may contain at most one `*`. It matches one or more valid
- * hostname-label characters, but never a dot or another URL component.
+ * A pattern may begin its hostname with `*.` to match exactly one subdomain level.
  */
 function is_cors_proxy_origin_supported($origin, $supported_origins) {
     foreach ($supported_origins as $supported_origin) {
@@ -493,35 +492,16 @@ function cors_proxy_origin_matches_pattern($origin, $pattern) {
 }
 
 /**
- * Whether a configured value is an HTTP(S) origin with at most one hostname wildcard.
+ * Whether a configured value is an HTTP(S) origin or wildcard subdomain pattern.
  */
 function is_valid_cors_proxy_origin_pattern($pattern) {
-    if (
-        !is_string($pattern) ||
-        $pattern === '' ||
-        substr_count($pattern, '*') > 1
-    ) {
+    if (!is_string($pattern)) {
         return false;
     }
 
-    if (strpos($pattern, '*') === false) {
-        return is_valid_cors_proxy_origin_url($pattern);
-    }
+    $origin_url = str_replace('://*.', '://', $pattern);
 
-    if (
-        !preg_match(
-            '~\Ahttps?://(?<host>[^/:?#]+)(?::[0-9]{1,5})?\z~i',
-            $pattern,
-            $matches
-        ) ||
-        strpos($matches['host'], '*') === false
-    ) {
-        return false;
-    }
-
-    return is_valid_cors_proxy_origin_url(
-        str_replace('*', 'wildcard', $pattern)
-    );
+    return is_valid_cors_proxy_origin_url($origin_url);
 }
 
 /**

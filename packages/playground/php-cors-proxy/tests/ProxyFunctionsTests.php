@@ -243,14 +243,14 @@ class ProxyFunctionsTests extends TestCase
                 'https://*.pg.ashfame.com',
                 false,
             ],
-            'partial-label wildcard' => [
+            'partial-label wildcards are invalid' => [
                 'https://pr*.pg.ashfame.com',
                 'https://pr123.pg.ashfame.com',
-                true,
+                false,
             ],
-            'wildcard does not match an empty string' => [
-                'https://pr*.pg.ashfame.com',
-                'https://pr.pg.ashfame.com',
+            'wildcard must appear at the start of the hostname' => [
+                'https://preview.*.ashfame.com',
+                'https://preview.pg.ashfame.com',
                 false,
             ],
             'wildcard does not match the apex origin' => [

@@ -11,7 +11,7 @@ In order to avoid running a CORS proxy that is easy to abuse by default, the pro
 
 These can be provided in an optional `cors-proxy-config.php` file in the same directory as `cors-proxy.php` or in a PHP file that is loaded before all PHP execution via the [`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file) php.ini option.
 
-Allowed browser origins may be overridden with `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS`. Each configured origin may contain at most one `*` in its hostname. The wildcard matches one or more hostname-label characters but never crosses a dot boundary, so `https://*.example.com` matches `https://preview.example.com` but not `https://example.com` or `https://nested.preview.example.com`. The proxy validates the concrete request origin and echoes it in `Access-Control-Allow-Origin`; it never sends the configured wildcard pattern as that header.
+Allowed browser origins may be overridden with `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS`. A configured origin may begin its hostname with `*.` to match exactly one subdomain level, so `https://*.example.com` matches `https://preview.example.com` but not `https://example.com` or `https://nested.preview.example.com`. The proxy validates the concrete request origin and echoes it in `Access-Control-Allow-Origin`; it never sends the configured wildcard pattern as that header.
 
 ```php
 define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', [
