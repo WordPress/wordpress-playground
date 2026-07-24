@@ -1,7 +1,7 @@
 ---
 title: Pacchetti PHP.wasm
 slug: /developers/architecture/php-wasm-packages
-description: Scopri come si integrano l'API condivisa, gli adattatori di piattaforma e i pacchetti PHP.wasm specifici per ogni versione.
+description: Scopri come si integrano l'API condivisa, gli adattatori della piattaforma e i pacchetti PHP.wasm specifici per ogni versione.
 ---
 
 <!-- title: PHP.wasm packages -->
@@ -20,10 +20,10 @@ one version-specific package through the lower-level API.
 
 I pacchetti npm di PHP.wasm separano l'API JavaScript condivisa, la
 configurazione specifica per ogni piattaforma e i binari PHP compilati. La
-maggior parte delle applicazioni dovrebbe usare un adattatore di piattaforma.
-Le applicazioni che danno priorità a un'installazione più piccola possono
-invece caricare un pacchetto specifico per una versione tramite l'API di basso
-livello.
+maggior parte delle applicazioni dovrebbe usare un adattatore della piattaforma.
+Le applicazioni che privilegiano un'installazione più piccola possono invece
+caricare un pacchetto specifico per una versione tramite l'API di livello
+inferiore.
 
 <!-- ## Package layers -->
 
@@ -67,14 +67,14 @@ usano un suffisso con il trattino, come `8-4`.
 
 <!-- ## Convenient platform loaders -->
 
-## Caricatori di piattaforma pratici
+## Caricatori della piattaforma pratici
 
 <!--
 Use a platform adapter when you need its runtime integrations or may select
 different PHP versions at runtime. For Node.js:
 -->
 
-Usa un adattatore di piattaforma quando hai bisogno delle sue integrazioni con
+Usa un adattatore della piattaforma quando hai bisogno delle sue integrazioni con
 il runtime o quando potresti selezionare versioni diverse di PHP in fase di
 esecuzione. Per Node.js:
 
@@ -100,7 +100,7 @@ is convenient, but it is not the smallest installation when an application
 only needs one PHP version.
 -->
 
-Gli adattatori di piattaforma possono selezionare qualsiasi versione di PHP
+Gli adattatori della piattaforma possono selezionare qualsiasi versione di PHP
 supportata e il loro grafo delle dipendenze pubblicato include i pacchetti
 delle versioni corrispondenti. È pratico, ma non è l'installazione più piccola
 quando un'applicazione ha bisogno di una sola versione di PHP.
@@ -114,9 +114,9 @@ For the smallest dependency footprint, omit the platform adapter and install
 `@php-wasm/universal` with one version-specific package:
 -->
 
-Per ottenere l'impronta di dipendenze più ridotta, ometti l'adattatore di
-piattaforma e installa `@php-wasm/universal` insieme a un solo pacchetto
-specifico per una versione:
+Per ridurre al minimo le dipendenze, ometti l'adattatore della piattaforma e
+installa `@php-wasm/universal` insieme a un solo pacchetto specifico per una
+versione:
 
 ```bash
 npm install @php-wasm/universal @php-wasm/node-8-4

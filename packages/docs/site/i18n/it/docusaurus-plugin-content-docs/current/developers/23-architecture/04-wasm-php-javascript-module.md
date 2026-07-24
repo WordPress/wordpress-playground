@@ -17,7 +17,7 @@ il normale output di Emscripten e aggiunge alcune funzionalità extra.
 
 <!-- Here's the API it exposes: -->
 
-Ecco l'API che espone:
+Questo è quello che espone l'API:
 
 <!--
 ```js
@@ -73,12 +73,12 @@ Both platform loaders return a runtime ID accepted by the `PHP` class from
 shared API, platform adapters, and version-specific binaries fit together.
 -->
 
-Entrambi i caricatori di piattaforma restituiscono un identificatore di
+Entrambi i caricatori della piattaforma restituiscono un identificatore di
 runtime accettato dalla classe `PHP` di `@php-wasm/universal`, che fornisce
 l'API condivisa tra gli ambienti. Consulta
 [Pacchetti PHP.wasm](/developers/architecture/php-wasm-packages) per capire
-come si integrano l'API condivisa, gli adattatori di piattaforma e i binari
-specifici per ogni versione.
+come si integrano l'API condivisa, gli adattatori della piattaforma e i file
+binari specifici per ogni versione.
 
 <!-- ### Loading the PHP runtime -->
 
@@ -100,6 +100,6 @@ PHP. In particolare:
 -->
 
 - Crea un'istanza del modulo PHP di Emscripten
-- Lo collega alle dipendenze dei dati e le carica
-- Garantisce che tutto avvenga nell'ordine corretto
-- Attende il completamento dell'intera sequenza di caricamento
+- Collegalo alle dipendenze dei dati e caricale
+- Garantisci che tutto avvenga nell'ordine corretto
+- Attendi il completamento dell'intera sequenza di caricamento
