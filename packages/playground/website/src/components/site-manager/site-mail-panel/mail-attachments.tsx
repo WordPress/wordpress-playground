@@ -50,16 +50,24 @@ export function MailAttachments({
 			: `${attachments.length} attachments`;
 
 	return (
-		<div id="mail-attachments-host">
+		<div id="mail-attachments-host" className="mail-attachments">
 			<template {...{ shadowrootmode: 'open' }}>
 				<link rel="stylesheet" href={attachmentStylesheetUrl} />
 				<section
-					className="attachments"
+					className="mail-attachments__content"
 					aria-labelledby="mail-attachments-heading"
 				>
-					<hr />
-					<h2 id="mail-attachments-heading">{heading}</h2>
-					<ul aria-label="Attachments">
+					<hr className="mail-attachments__separator" />
+					<h2
+						id="mail-attachments-heading"
+						className="mail-attachments__heading"
+					>
+						{heading}
+					</h2>
+					<ul
+						className="mail-attachments__list"
+						aria-label="Attachments"
+					>
 						{attachments.map((attachment, index) => (
 							<MailAttachment
 								key={`${attachment.filename}-${index}`}
@@ -84,10 +92,10 @@ function MailAttachment({
 	const filename = attachment.filename || 'Unnamed attachment';
 
 	return (
-		<li>
-			<article className="card">
-				<div className="media">
-					<div className="preview">
+		<li className="mail-attachments__item">
+			<article className="mail-attachments__card">
+				<div className="mail-attachments__media">
+					<div className="mail-attachments__preview">
 						<AttachmentPreview
 							attachment={attachment}
 							url={resource?.url}
@@ -95,19 +103,28 @@ function MailAttachment({
 						/>
 					</div>
 					{resource && (
-						<div className="actions">
-							<span>Size: {formatFileSize(resource.size)}</span>
+						<div className="mail-attachments__actions">
+							<span className="mail-attachments__size">
+								Size: {formatFileSize(resource.size)}
+							</span>
 							<a
+								className="mail-attachments__download-link"
 								href={resource.url}
 								download={filename}
 								aria-label={`Download ${filename}`}
 							>
-								<span aria-hidden="true">&#8595;</span> Download
+								<span
+									className="mail-attachments__download-icon"
+									aria-hidden="true"
+								>
+									&#8595;
+								</span>{' '}
+								Download
 							</a>
 						</div>
 					)}
 				</div>
-				<div className="details" title={filename}>
+				<div className="mail-attachments__details" title={filename}>
 					{filename}
 				</div>
 			</article>
@@ -125,12 +142,23 @@ function AttachmentPreview({
 	filename: string;
 }) {
 	if (url && attachment.mimeType.startsWith('image/')) {
-		return <img src={url} alt={filename} loading="lazy" />;
+		return (
+			<img
+				className="mail-attachments__preview-content mail-attachments__preview-content--visual"
+				src={url}
+				alt={filename}
+				loading="lazy"
+			/>
+		);
 	}
 
 	if (url && attachment.mimeType.startsWith('video/')) {
 		return (
-			<video controls preload="metadata">
+			<video
+				className="mail-attachments__preview-content mail-attachments__preview-content--visual"
+				controls
+				preload="metadata"
+			>
 				<source src={url} type={attachment.mimeType} />
 			</video>
 		);
@@ -138,14 +166,22 @@ function AttachmentPreview({
 
 	if (url && attachment.mimeType.startsWith('audio/')) {
 		return (
-			<audio controls preload="metadata">
+			<audio
+				className="mail-attachments__preview-content mail-attachments__preview-content--audio"
+				controls
+				preload="metadata"
+			>
 				<source src={url} type={attachment.mimeType} />
 			</audio>
 		);
 	}
 
 	return (
-		<svg className="placeholder" viewBox="0 0 24 24" aria-hidden="true">
+		<svg
+			className="mail-attachments__placeholder"
+			viewBox="0 0 24 24"
+			aria-hidden="true"
+		>
 			<path d="M6 2h8l4 4v16H6V2zm8 1.5V7h3.5L14 3.5zM8 10v1.5h8V10H8zm0 4v1.5h8V14H8z" />
 		</svg>
 	);

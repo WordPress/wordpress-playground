@@ -41,16 +41,16 @@ export function MailPreview({ mail }: { mail: Email }) {
 		<VStack
 			className={
 				renderBodyInIframe
-					? `${css.mailPreview} ${css.mailPreviewWithIframe}`
-					: css.mailPreview
+					? `${css.mailPanelPreview} ${css.mailPanelPreviewWithIframe}`
+					: css.mailPanelPreview
 			}
 			spacing={4}
 			justify="flex-start"
 		>
-			<VStack spacing={2}>
+			<VStack className={css.mailPanelPreviewHeader} spacing={2}>
 				<Heading level={2}>{subject}</Heading>
-				<div className={css.mailMetadata}>
-					<VStack spacing={1}>
+				<div className={css.mailPanelMetadata}>
+					<VStack className={css.mailPanelMetadataColumn} spacing={1}>
 						{mail.from && (
 							<Text>
 								<strong>From:</strong>{' '}
@@ -70,7 +70,7 @@ export function MailPreview({ mail }: { mail: Email }) {
 							</Text>
 						)}
 					</VStack>
-					<VStack spacing={1}>
+					<VStack className={css.mailPanelMetadataColumn} spacing={1}>
 						{mail.date && (
 							<Text>
 								<strong>Sent:</strong> {formatDate(mail.date)}
@@ -85,22 +85,24 @@ export function MailPreview({ mail }: { mail: Email }) {
 					</VStack>
 				</div>
 			</VStack>
-			<Divider />
+			<Divider className={css.mailPanelPreviewDivider} />
 			{renderBodyInIframe ? (
 				/* Popups and downloads escape the sandbox so links and attachment
 				 * actions work normally. */
 				<iframe
 					{...{ credentialless: '' }}
-					className={css.htmlPreview}
+					className={css.mailPanelHtmlPreview}
 					title={`Contents of ${subject}`}
 					referrerPolicy="no-referrer"
 					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
 					srcDoc={previewDocument}
 				/>
 			) : mail.text ? (
-				<pre className={css.textBody}>{mail.text}</pre>
+				<pre className={css.mailPanelTextBody}>{mail.text}</pre>
 			) : (
-				<Text>This message has no body.</Text>
+				<Text className={css.mailPanelEmptyBody}>
+					This message has no body.
+				</Text>
 			)}
 		</VStack>
 	);

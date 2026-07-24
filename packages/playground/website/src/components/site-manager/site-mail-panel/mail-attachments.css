@@ -1,13 +1,27 @@
-:host {
+:host(.mail-attachments) {
 	all: initial;
 	display: block;
 }
 
-* {
+.mail-attachments__content,
+.mail-attachments__separator,
+.mail-attachments__heading,
+.mail-attachments__list,
+.mail-attachments__item,
+.mail-attachments__card,
+.mail-attachments__media,
+.mail-attachments__preview,
+.mail-attachments__preview-content,
+.mail-attachments__placeholder,
+.mail-attachments__actions,
+.mail-attachments__size,
+.mail-attachments__download-link,
+.mail-attachments__download-icon,
+.mail-attachments__details {
 	box-sizing: border-box;
 }
 
-.attachments {
+.mail-attachments__content {
 	display: block;
 	min-width: 0;
 	padding: 16px 16px 0;
@@ -24,20 +38,20 @@
 		sans-serif;
 }
 
-hr {
+.mail-attachments__separator {
 	height: 0;
 	margin: 0 0 16px;
 	border: 0;
 	border-top: 1px solid #dddddd;
 }
 
-h2 {
+.mail-attachments__heading {
 	margin: 0 0 8px;
 	font-size: 15px;
 	line-height: 20px;
 }
 
-ul {
+.mail-attachments__list {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 	gap: 12px;
@@ -47,11 +61,11 @@ ul {
 	list-style: none;
 }
 
-li {
+.mail-attachments__item {
 	min-width: 0;
 }
 
-.card {
+.mail-attachments__card {
 	height: 100%;
 	overflow: hidden;
 	border: 1px solid #dddddd;
@@ -59,7 +73,7 @@ li {
 	background: #ffffff;
 }
 
-.media {
+.mail-attachments__media {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -69,7 +83,7 @@ li {
 	background: #f0f0f0;
 }
 
-.preview {
+.mail-attachments__preview {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -77,26 +91,27 @@ li {
 	height: 100%;
 }
 
-.preview img,
-.preview video {
+.mail-attachments__preview-content {
 	display: block;
+}
+
+.mail-attachments__preview-content--visual {
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
 }
 
-.preview audio {
-	display: block;
+.mail-attachments__preview-content--audio {
 	width: calc(100% - 24px);
 }
 
-.placeholder {
+.mail-attachments__placeholder {
 	width: 32px;
 	height: 32px;
 	fill: #757575;
 }
 
-.actions {
+.mail-attachments__actions {
 	position: absolute;
 	inset: 0;
 	display: flex;
@@ -112,18 +127,18 @@ li {
 	background: #f0f0f0;
 }
 
-.card:hover .preview,
-.card:focus-within .preview {
+.mail-attachments__card:hover .mail-attachments__preview,
+.mail-attachments__card:focus-within .mail-attachments__preview {
 	opacity: 0;
 }
 
-.card:hover .actions,
-.card:focus-within .actions {
+.mail-attachments__card:hover .mail-attachments__actions,
+.mail-attachments__card:focus-within .mail-attachments__actions {
 	opacity: 1;
 	pointer-events: auto;
 }
 
-.actions a {
+.mail-attachments__download-link {
 	display: inline-flex;
 	gap: 4px;
 	align-items: center;
@@ -133,11 +148,11 @@ li {
 	pointer-events: auto;
 }
 
-.actions a:hover {
+.mail-attachments__download-link:hover {
 	text-decoration: underline;
 }
 
-.details {
+.mail-attachments__details {
 	min-width: 0;
 	padding: 8px 12px;
 	overflow: hidden;
@@ -147,8 +162,8 @@ li {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	.preview,
-	.actions {
+	.mail-attachments__preview,
+	.mail-attachments__actions {
 		transition: opacity 120ms ease-out;
 	}
 }

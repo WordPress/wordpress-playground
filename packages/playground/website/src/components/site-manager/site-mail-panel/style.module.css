@@ -5,13 +5,13 @@
 	min-height: 0;
 }
 
-.mail-list {
+.mail-panel__list {
 	min-width: 0;
 	overflow-y: auto;
 	border-right: 1px solid var(--color-gray-200);
 }
 
-.mail-list-header {
+.mail-panel__list-header {
 	position: sticky;
 	top: 0;
 	z-index: 1;
@@ -20,11 +20,11 @@
 	border-bottom: 1px solid var(--color-gray-200);
 }
 
-.mail-list-item[aria-pressed='true'] {
+.mail-panel__list-item[aria-pressed='true'] {
 	background: var(--wp-components-color-gray-100, #f0f0f0);
 }
 
-.mail-preview {
+.mail-panel__preview {
 	flex: 1 1 0;
 	min-width: 0;
 	min-height: 0;
@@ -32,41 +32,44 @@
 	padding: 24px;
 }
 
-.mail-preview-with-iframe {
+.mail-panel__preview--with-iframe {
 	overflow: hidden;
 }
 
-.mail-preview > * {
+.mail-panel__preview-header,
+.mail-panel__preview-divider,
+.mail-panel__empty-body,
+.mail-panel__text-body {
 	flex-shrink: 0;
 }
 
-.mail-metadata {
+.mail-panel__metadata {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) max-content;
 	gap: 8px 32px;
 }
 
-.mail-metadata > * {
+.mail-panel__metadata-column {
 	min-width: 0;
 }
 
-.empty-state {
+.mail-empty-state {
 	padding: 24px;
 }
 
-.site-notice {
+.mail-empty-state__notice {
 	padding: 24px;
 	background-color: #f3f6fd;
 }
 
-.text-body {
+.mail-panel__text-body {
 	margin: 0;
 	font: inherit;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
 
-.html-preview {
+.mail-panel__html-preview {
 	display: block;
 	flex: 1 1 auto;
 	height: 100vh;
@@ -82,7 +85,7 @@
 		background: var(--wp-components-color-gray-100, #f0f0f0);
 	}
 
-	.mail-list {
+	.mail-panel__list {
 		flex: 0 1 auto;
 		max-height: 34%;
 		border-right: 0;
@@ -90,7 +93,7 @@
 		background: #ffffff;
 	}
 
-	.mail-preview {
+	.mail-panel__preview {
 		margin: 12px;
 		padding: 16px;
 		background: #ffffff;
@@ -102,11 +105,11 @@
 		overflow-y: auto;
 	}
 
-	.mail-preview-with-iframe {
+	.mail-panel__preview--with-iframe {
 		overflow: hidden;
 	}
 
-	.mail-metadata {
+	.mail-panel__metadata {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }

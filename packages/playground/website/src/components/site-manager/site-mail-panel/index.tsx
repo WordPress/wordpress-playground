@@ -27,9 +27,9 @@ export function SiteMailPanel() {
 
 	if (!selectedMail) {
 		return (
-			<section className={css.emptyState} aria-label="Email">
+			<section className={css.mailEmptyState} aria-label="Email">
 				<Notice
-					className={css.siteNotice}
+					className={css.mailEmptyStateNotice}
 					status="info"
 					isDismissible={false}
 				>
@@ -46,8 +46,8 @@ export function SiteMailPanel() {
 
 	return (
 		<section className={css.mailPanel} aria-label="Email">
-			<aside className={css.mailList} aria-label="Sent emails">
-				<HStack className={css.mailListHeader}>
+			<aside className={css.mailPanelList} aria-label="Sent emails">
+				<HStack className={css.mailPanelListHeader}>
 					<Text as="h2" weight={600}>
 						Sent
 					</Text>
@@ -63,7 +63,7 @@ export function SiteMailPanel() {
 								key={message.messageId || `${subject}-${index}`}
 								onClick={() => setSelectedEmail(message)}
 								aria-pressed={isSelected}
-								className={css.mailListItem}
+								className={css.mailPanelListItem}
 							>
 								<VStack spacing={1}>
 									<Text weight={600} truncate>
