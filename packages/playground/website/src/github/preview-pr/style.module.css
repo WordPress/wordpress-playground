@@ -1,15 +1,3 @@
-.content {
-	position: relative;
-}
-
-/* Short note under the field explaining what input is accepted. */
-.hint {
-	margin: 8px 0 0;
-	color: #50575e;
-	font-size: 13px;
-	line-height: 1.5;
-}
-
 /* Inline (dock pane) actions: a single left-aligned primary, matching the other
    New-pane flows. The modal variant keeps the right-aligned Cancel/Submit row. */
 .inline-actions {
@@ -17,26 +5,177 @@
 	margin-top: 12px;
 }
 
-.overlay {
-	width: 100%;
-	height: 100%;
-	position: absolute;
+.progress {
+	margin-top: 12px;
+}
 
-	&:before {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(255, 255, 255, 0.75);
+.feedback-notice {
+	margin-top: 12px;
+}
+
+.repository-picker {
+	margin-top: 16px;
+}
+
+.feedback-title,
+.feedback-message {
+	margin: 0;
+}
+
+.feedback-title {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.feedback-message {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 13px;
+	line-height: 1.5;
+	margin-top: 2px;
+}
+
+.repository-choices {
+	display: grid;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.repository-choice:global(.components-button.is-secondary) {
+	align-items: center;
+	background: var(--paper-2, #faf8f5);
+	border-radius: var(--radius-control, 6px);
+	box-sizing: border-box;
+	cursor: pointer;
+	display: flex;
+	height: auto;
+	justify-content: space-between;
+	max-width: 100%;
+	overflow: hidden;
+	padding: 12px;
+	text-align: left;
+	transition:
+		background 0.12s ease,
+		box-shadow 0.12s ease;
+	width: 100%;
+}
+
+.repository-choice:global(
+	.components-button.is-secondary:hover:not(:disabled)
+) {
+	background: var(--paper-4, #e7e2da);
+	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
+}
+
+.repository-choices
+	.repository-choice:global(
+		.components-button.is-secondary:active:not(:disabled)
+	) {
+	background: var(--paper-5, #e2dcd2);
+	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
+}
+
+.repository-choice:global(
+	.components-button.is-secondary:focus-visible:not(:disabled)
+) {
+	box-shadow: inset 0 0 0 2px rgba(56, 88, 233, 0.8);
+	outline: none;
+}
+
+.repository-choice:global(.components-button.is-secondary) svg {
+	flex: none;
+}
+
+.repository-choice-main {
+	align-items: center;
+	display: flex;
+	flex: 1;
+	gap: 12px;
+	min-width: 0;
+}
+
+.repository-choice-logo {
+	align-items: center;
+	color: var(--action-icon, #4f4b45);
+	display: flex;
+	flex: none;
+	height: 48px;
+	justify-content: center;
+	width: 48px;
+}
+
+.repository-choice-logo img {
+	display: block;
+	max-height: 44px;
+	max-width: 44px;
+}
+
+.repository-choice-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	white-space: normal;
+}
+
+.repository-choice-title {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.repository-choice-meta {
+	color: var(--ink-muted, #5f5b54);
+	display: flex;
+	flex-direction: column;
+	font-size: 12px;
+	line-height: 1.35;
+	margin-top: 2px;
+}
+
+.repository-choice-details {
+	column-gap: 4px;
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.repository-choice-opened {
+	display: inline-block;
+	white-space: nowrap;
+}
+
+.repository-choice-action {
+	align-items: center;
+	color: var(--action-icon, #4f4b45);
+	display: flex;
+	flex: none;
+	margin-left: 12px;
+}
+
+@media (max-width: 519px) {
+	.repository-choice:global(.components-button.is-secondary) {
+		position: relative;
 	}
 
-	svg {
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: 0;
-		margin: 0;
+	.repository-choice-main {
+		align-items: flex-start;
+	}
+
+	.repository-choice-logo {
+		transform: translateY(-3px);
+	}
+
+	.repository-choice-title {
+		padding-right: 32px;
+	}
+
+	.repository-choice-action {
+		margin-left: 0;
+		position: absolute;
+		right: 12px;
+		top: 12px;
 	}
 }

@@ -35,6 +35,7 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	isAutosavedSite,
 	isStoredSite,
 	isTemporarySite,
 	type AutosavedSitesPruneOptions,
@@ -74,6 +75,7 @@ export interface SiteInfo {
 	slug: string;
 	loadedFromStorage?: boolean;
 	originalUrlParams?: OriginalUrlParams;
+	urlToRestoreAfterRuntimeSettingsChange?: string;
 	metadata: SiteMetadata;
 }
 
@@ -315,9 +317,20 @@ export function addSite(siteInfo: SiteInfo) {
 /**
  * Removes a stored site from OPFS and from the redux state.
  *
- * Temporary sites are rejected because they only exist in redux state.
+ * Temporary sites are rejected because they only exist in redux state. If
+ * deleting the OPFS data fails, the redux record remains available for retry
+ * and the storage error is rethrown.
+ *
+ * @param options.replacementSiteSlug Site to select after deleting the active
+ * site. Falls back to the most recently created remaining site.
+ * @param options.updateUrl Whether selecting the replacement updates the URL.
+ * @throws When the site is temporary, browser storage is unavailable, or its
+ * OPFS data cannot be deleted.
  */
-export function removeSite(slug: string) {
+export function removeSite(
+	slug: string,
+	options: { replacementSiteSlug?: string; updateUrl?: boolean } = {}
+) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -327,18 +340,27 @@ export function removeSite(slug: string) {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error('Cannot remove a temporary site.');
 		}
-		try {
-			await opfsSiteStorage?.delete(siteInfo.slug);
-		} catch (error: any) {
-			logger.error('Error deleting site from OPFS:', error);
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot remove a saved Playground because browser storage is not available.'
+			);
 		}
+		await opfsSiteStorage.delete(siteInfo.slug);
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
 		if (activeSite?.slug === siteInfo.slug) {
-			const newActiveSite = selectSortedSites(getState())[0];
+			const requestedReplacement = options.replacementSiteSlug
+				? selectSiteBySlug(getState(), options.replacementSiteSlug)
+				: undefined;
+			const newActiveSite =
+				requestedReplacement ?? selectSortedSites(getState())[0];
 			if (newActiveSite) {
-				dispatch(setActiveSite(newActiveSite.slug));
+				dispatch(
+					setActiveSite(newActiveSite.slug, {
+						updateUrl: options.updateUrl,
+					})
+				);
 			}
 		}
 	};
@@ -348,9 +370,14 @@ export function removeSite(slug: string) {
  * Removes autosaved Playgrounds beyond the retention limit.
  *
  * Explicitly saved Playgrounds are never pruned. `excludeSlugs` protects
- * specific autosaves for the current prune pass.
+ * specific autosaves for the current prune pass. Removal is best-effort: a
+ * failed deletion remains available for retry and does not prevent later
+ * candidates from being pruned. `signal` invalidates the pass between deletions
+ * when its exclusion snapshot is no longer current.
  */
-export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
+export function pruneAutosavedSites(
+	options: AutosavedSitesPruneOptions & { signal?: AbortSignal } = {}
+) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -360,18 +387,64 @@ export function pruneAutosavedSites(options: AutosavedSitesPruneOptions = {}) {
 			options
 		);
 		for (const site of sitesToPrune) {
-			await dispatch(removeSite(site.slug));
+			// The candidate list belongs to the exclusion snapshot supplied when this
+			// pass started. Do not delete another site after that snapshot is invalidated.
+			if (options.signal?.aborted) {
+				return;
+			}
+			try {
+				await dispatch(removeSite(site.slug));
+			} catch (error) {
+				logger.error(
+					`Failed to prune autosaved Playground "${site.slug}"`,
+					error
+				);
+			}
 		}
 	};
 }
 
 /**
- * Creates or reuses a temporary Playground in the redux state.
+ * Checks whether a stored Playground may be offered as an autosave.
+ *
+ * A Blueprint run uses autosave persistence before its initial OPFS copy
+ * succeeds. Its return target marks it unfinished, so callers withhold it from
+ * Recent and matching-setup restore suggestions until that copy succeeds.
+ *
+ * @param site The Playground whose autosave lifecycle should be checked.
+ * @returns Whether the Playground is a restorable autosave.
+ */
+export function isRestorableAutosavedSite(site: SiteInfo) {
+	return isAutosavedSite(site) && !isUnfinishedBlueprintRun(site);
+}
+
+/**
+ * Checks whether a Playground is marked as an unfinished Blueprint run.
+ *
+ * Running a stored Blueprint records the Playground to return to before boot.
+ * The return target survives a failed boot or reload and is cleared only after
+ * the first MEMFS-to-OPFS copy succeeds.
+ *
+ * This cannot be inferred from `initialOpfsSyncPending`, because every new
+ * stored Playground starts with an initial copy. The return target distinguishes
+ * the Blueprint run while that common sync flag cannot.
+ *
+ * @param site The Playground whose Blueprint run lifecycle should be checked.
+ * @returns Whether the Playground is an unfinished Blueprint run.
+ */
+export function isUnfinishedBlueprintRun(site: SiteInfo) {
+	return typeof site.metadata.siteSlugToReturnToIfBlueprintFails === 'string';
+}
+
+/**
+ * Creates or reuses a temporary Playground in the redux state. Replacements
+ * receive a different slug so React boots them in a fresh iframe.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL,
-	preferredSlug?: string
+	preferredSlug?: string,
+	options: { replaceExisting?: boolean } = {}
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -441,7 +514,7 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite) {
+		if (currentTemporarySite && !options.replaceExisting) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -458,6 +531,11 @@ export function setTemporarySiteSpec(
 			(site) => site.metadata.storage !== 'none'
 		);
 		const unavailableSlugs = storedSites.map((site) => site.slug);
+		if (currentTemporarySite && options.replaceExisting) {
+			// Reserve the old slug so selecting the replacement changes the active
+			// slug and React boots a fresh iframe for it.
+			unavailableSlugs.push(currentTemporarySite.slug);
+		}
 		const unavailableNames = storedSites.map((site) => site.metadata.name);
 		const getAvailableSiteSlug = (name: string) =>
 			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
@@ -556,8 +634,12 @@ export function setTemporarySiteSpec(
 
 /**
  * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
- * bundle. Bundles are stored with the new Playground before their metadata is
- * written because they may include edits that cannot be represented by a URL.
+ * bundle.
+ *
+ * Editable bundles are copied into the new Playground's storage before its
+ * metadata is written. The metadata points to that persisted copy rather than
+ * the caller's backend, so editing the new Playground cannot mutate the source
+ * bundle.
  */
 export function createStoredSite(
 	siteName: string,
@@ -568,6 +650,10 @@ export function createStoredSite(
 		 * Whether the stored site is an autosave or an explicit user save.
 		 */
 		persistence?: SitePersistence;
+		/**
+		 * Slug of the stored Playground to return to if this Blueprint run fails.
+		 */
+		siteSlugToReturnToIfBlueprintFails?: string;
 	} = {}
 ) {
 	return async (
@@ -636,6 +722,12 @@ export function createStoredSite(
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
+				...(options.siteSlugToReturnToIfBlueprintFails
+					? {
+							siteSlugToReturnToIfBlueprintFails:
+								options.siteSlugToReturnToIfBlueprintFails,
+						}
+					: {}),
 				...(sourceSetupUrlFingerprint
 					? {
 							sourceSetupUrlFingerprint:
@@ -650,7 +742,8 @@ export function createStoredSite(
 
 		try {
 			if (blueprintBundle) {
-				await persistBlueprintBundle(siteSlug, blueprintBundle);
+				newSiteInfo.metadata.originalBlueprint =
+					await persistBlueprintBundle(siteSlug, blueprintBundle);
 			}
 			await dispatch(addSite(newSiteInfo));
 		} catch (error) {
@@ -745,13 +838,20 @@ function parseSearchParams(searchParams: URLSearchParams) {
 export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
-/**
- * The site logo data.
- */
-export type SiteLogo = {
+export type SiteImage = {
 	mime: string;
 	data: string;
 };
+
+/**
+ * The site logo data.
+ */
+export type SiteLogo = SiteImage;
+
+/**
+ * A compact front-page image used to identify a saved Playground.
+ */
+export type SiteThumbnail = SiteImage;
 
 // TODO: Create a schema for this as the design matures
 /**
@@ -762,6 +862,7 @@ export interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
+	thumbnail?: SiteThumbnail;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -785,6 +886,13 @@ export interface SiteMetadata {
 	 * OPFS and clear this flag after a successful sync.
 	 */
 	initialOpfsSyncPending?: boolean;
+	/**
+	 * Slug of the stored Playground to return to if this Blueprint run fails.
+	 *
+	 * This remains set until the first MEMFS-to-OPFS copy succeeds so retries
+	 * and reloads retain the same return target.
+	 */
+	siteSlugToReturnToIfBlueprintFails?: string;
 	/**
 	 * Legacy crash-recovery marker for replacing autosaved WordPress files.
 	 *

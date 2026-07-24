@@ -229,6 +229,21 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
+test('should navigate from the address bar suggestions', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const address = dock.getByRole('combobox');
+
+	await address.click();
+	await website.page.getByRole('option', { name: /Dashboard/ }).click();
+
+	await expect(address).toHaveValue('/wp-admin/');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {
@@ -927,7 +942,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
-		['Logs', 'Logs pane'],
+		['Logs', 'PHP error log pane'],
 		['Export', 'Export pane'],
 	] as const;
 
@@ -1059,15 +1074,15 @@ test.describe('Database panel', () => {
 		expect(path).toBeTruthy();
 	});
 
-	test('should load and open Adminer', async ({ website, context }) => {
+	test('should load and open Adminer', async ({ website }) => {
 		const adminerButton = website.page.getByRole('button', {
 			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the Adminer button
 		await adminerButton.click();
@@ -1131,15 +1146,15 @@ test.describe('Database panel', () => {
 		await newPage.close();
 	});
 
-	test('should load and open phpMyAdmin', async ({ website, context }) => {
+	test('should load and open phpMyAdmin', async ({ website }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
 			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the phpMyAdmin button
 		await phpMyAdminButton.click();
@@ -1216,6 +1231,36 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
 		await newPage.close();
+	});
+
+	/*
+	 * Regression coverage for https://github.com/WordPress/wordpress-playground/pull/4144.
+	 * Opening Adminer first creates a secondary PHP instance that phpMyAdmin may reuse.
+	 * Every PHP instance must therefore see runtime-installed tools under `/tools`.
+	 */
+	test('should open phpMyAdmin after Adminer', async ({ website }) => {
+		const adminerPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open Adminer' })
+			.click();
+		const adminerPage = await adminerPagePromise;
+		await adminerPage.waitForLoadState();
+		await expect(adminerPage.locator('body')).toContainText('Adminer');
+		await expect(adminerPage.locator('body')).toContainText('wp_posts');
+
+		const phpMyAdminPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open phpMyAdmin' })
+			.click();
+		const phpMyAdminPage = await phpMyAdminPagePromise;
+		await phpMyAdminPage.waitForLoadState();
+		await expect(phpMyAdminPage.locator('body')).toContainText(
+			'phpMyAdmin'
+		);
+		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
+
+		await adminerPage.close();
+		await phpMyAdminPage.close();
 	});
 });
 
@@ -2219,11 +2264,8 @@ test.describe('Default Playground storage', () => {
 
 		await pullRequestTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
-		await expect(
 			newPane.getByRole('textbox', {
-				name: 'Pull request URL or number',
+				name: 'WordPress Core or Gutenberg',
 			})
 		).toBeVisible();
 		await expect(
@@ -2847,6 +2889,58 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should persist a front-page thumbnail for a saved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('thumbnail'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		const thumbnail = website.page.locator(
+			`[data-playground-row="${activeSite.slug}"] [data-site-thumbnail]`
+		);
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			/^data:image\/(webp|jpeg);base64,/
+		);
+
+		const storedThumbnail = await website.page.evaluate(
+			async (siteSlug) => {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(
+					`site-${encodeURIComponent(siteSlug)}`
+				);
+				const metadata = await site.getFileHandle('wp-runtime.json');
+				return JSON.parse(await (await metadata.getFile()).text())
+					.thumbnail;
+			},
+			activeSite.slug
+		);
+		expect(storedThumbnail.mime).toMatch(/^image\/(webp|jpeg)$/);
+		expect(storedThumbnail.data.length).toBeGreaterThan(0);
+
+		await website.goto(
+			`./?site-slug=${encodeURIComponent(activeSite.slug)}`
+		);
+		await website.waitForNestedIframes();
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			`data:${storedThumbnail.mime};base64,${storedThumbnail.data}`
+		);
+	});
+
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
 		browserName,
@@ -3010,28 +3104,22 @@ echo get_option('blogname');
 		await assertRestoreCardGeometry();
 
 		async function assertRestoreCardGeometry() {
-			const geometry = await website.page.evaluate(() => {
-				const card = document.querySelector<HTMLElement>(
-					'[aria-label="Recent autosaved Playground"]'
-				)!;
-				const cardRect = card.getBoundingClientRect();
-				return {
-					cardTop: cardRect.top,
-					cardLeft: cardRect.left,
-					cardRight: cardRect.right,
-					cardBottom: cardRect.bottom,
-					viewportWidth: window.innerWidth,
-					viewportHeight: window.innerHeight,
-				};
-			});
-			expect(geometry.cardTop).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardRight).toBeLessThanOrEqual(
-				geometry.viewportWidth
-			);
-			expect(geometry.cardBottom).toBeLessThanOrEqual(
-				geometry.viewportHeight
-			);
+			await expect
+				.poll(() =>
+					website.page.evaluate(() => {
+						const card = document.querySelector<HTMLElement>(
+							'[aria-label="Recent autosaved Playground"]'
+						)!;
+						const cardRect = card.getBoundingClientRect();
+						return (
+							cardRect.top >= 0 &&
+							cardRect.left >= 0 &&
+							cardRect.right <= window.innerWidth &&
+							cardRect.bottom <= window.innerHeight
+						);
+					})
+				)
+				.toBe(true);
 		}
 	});
 

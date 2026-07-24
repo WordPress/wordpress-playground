@@ -18,11 +18,11 @@ describe('remote sendmail transport', () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 		vi.stubGlobal('location', { href: 'http://playground.test/' });
 		const setCommandSpawnHandler = vi.fn();
-		const addEventListener = vi.fn();
 		const php = {
 			requestHandler: undefined,
 			setCommandSpawnHandler,
-			addEventListener,
+			addEventListener: vi.fn(),
+			onMessage: vi.fn(),
 		};
 		const requestHandler = {
 			documentRoot: '/wordpress',

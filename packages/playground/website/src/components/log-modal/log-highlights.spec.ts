@@ -1,44 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { splitLogHighlights } from './log-highlights';
+import { splitSearchHighlights } from './log-highlights';
 
-describe('splitLogHighlights', () => {
-	it('highlights standalone Error and Fatal markers', () => {
-		expect(splitLogHighlights('PHP Fatal: boom')).toEqual([
-			{ text: 'PHP ', highlight: false },
-			{ text: 'Fatal:', highlight: true },
-			{ text: ' boom', highlight: false },
-		]);
-		expect(splitLogHighlights('Error: failed')).toEqual([
-			{ text: 'Error:', highlight: true },
-			{ text: ' failed', highlight: false },
+describe('splitSearchHighlights', () => {
+	it('returns the whole text unhighlighted for an empty term', () => {
+		expect(splitSearchHighlights('PHP Notice: hello', '')).toEqual([
+			{ text: 'PHP Notice: hello', highlight: false },
 		]);
 	});
 
-	it('does not highlight markers embedded in words or class names', () => {
-		expect(splitLogHighlights('ParseError: nope terror: nope')).toEqual([
-			{ text: 'ParseError: nope terror: nope', highlight: false },
+	it('highlights every case-insensitive occurrence', () => {
+		expect(splitSearchHighlights('Error: fatal error', 'error')).toEqual([
+			{ text: 'Error', highlight: true },
+			{ text: ': fatal ', highlight: false },
+			{ text: 'error', highlight: true },
 		]);
 	});
 
-	it('does not highlight lowercase words that resemble severity markers', () => {
-		expect(splitLogHighlights('error: nope fatal: nope')).toEqual([
-			{ text: 'error: nope fatal: nope', highlight: false },
+	it('handles adjacent matches without dropping text', () => {
+		expect(splitSearchHighlights('abab', 'ab')).toEqual([
+			{ text: 'ab', highlight: true },
+			{ text: 'ab', highlight: true },
 		]);
 	});
 
-	it('keeps punctuation before a marker in the plain segment', () => {
-		expect(splitLogHighlights('(Error: failed)')).toEqual([
-			{ text: '(', highlight: false },
-			{ text: 'Error:', highlight: true },
-			{ text: ' failed)', highlight: false },
+	it('treats regex metacharacters as plain text', () => {
+		expect(splitSearchHighlights('a.*b then ab', 'a.*b')).toEqual([
+			{ text: 'a.*b', highlight: true },
+			{ text: ' then ab', highlight: false },
 		]);
 	});
 
-	it('keeps log markup as plain text', () => {
-		expect(splitLogHighlights('<img src=x> Error: failed')).toEqual([
-			{ text: '<img src=x> ', highlight: false },
-			{ text: 'Error:', highlight: true },
-			{ text: ' failed', highlight: false },
-		]);
+	it('returns no segments for empty text with a term', () => {
+		expect(splitSearchHighlights('', 'error')).toEqual([]);
 	});
 });

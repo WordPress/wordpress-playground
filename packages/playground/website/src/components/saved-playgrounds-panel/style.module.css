@@ -1110,8 +1110,57 @@
 	padding: 8px var(--space-2);
 }
 
-/* Denser rows: the 50px gallery logo and 20px name drove the row height, so
-   trim both to fit more Playgrounds in view without scrolling. */
+.playgrounds-pane .siteRowPreview {
+	align-items: center;
+	display: flex;
+	flex: 0 0 128px;
+	height: 96px;
+	justify-content: center;
+}
+
+.playgrounds-pane .siteRowThumbnail {
+	background: var(--paper-3);
+	border: 1px solid var(--line-subtle);
+	border-radius: 6px;
+	height: 96px;
+	object-fit: cover;
+	object-position: top;
+	width: 128px;
+}
+
+.playgrounds-pane .siteRowPreviewFallback {
+	background: var(--paper-2);
+	border: 1px solid var(--line-subtle);
+	border-radius: 6px;
+}
+
+/* On phones, align the name and details with the top of the preview. Let the
+   name use three lines before truncating so the larger thumbnail does not reduce
+   it to a single short fragment. */
+@media (max-width: 480px) {
+	.playgrounds-pane .siteRow {
+		align-items: flex-start;
+	}
+
+	.playgrounds-pane .siteRowContent {
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.playgrounds-pane .siteRowName {
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		display: -webkit-box;
+		line-height: 1.25;
+		white-space: normal;
+	}
+
+	.playgrounds-pane .siteRowActions {
+		padding-top: 8px;
+		padding-right: 0;
+	}
+}
+
 /* Neutral logo chips — a blue-tinted box on every row added up to a lot of
    accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
 .playgrounds-pane .siteRowLogo {
@@ -1119,6 +1168,10 @@
 	color: var(--ink-soft);
 	height: 38px;
 	width: 38px;
+}
+
+.playgrounds-pane .siteRowPreviewFallback .siteRowLogo {
+	background: transparent;
 }
 
 .playgrounds-pane .siteRowLogo svg {
@@ -1359,6 +1412,51 @@
 .playgrounds-pane .emptyMessage {
 	background: #ffffff;
 	color: #5f5b54;
+}
+
+.playgrounds-pane .blueprintsError {
+	align-items: flex-start;
+	background: #fff8e5;
+	border: 1px solid #e6d39a;
+	border-radius: 10px;
+	color: var(--ink, #21201d);
+	display: flex;
+	gap: 12px;
+	padding: 14px 16px;
+}
+
+.playgrounds-pane .blueprintsErrorIcon {
+	align-items: center;
+	background: #f5df9d;
+	border-radius: 50%;
+	color: #6d4a00;
+	display: flex;
+	flex: none;
+	font-size: 13px;
+	font-weight: 700;
+	height: 24px;
+	justify-content: center;
+	line-height: 1;
+	width: 24px;
+}
+
+.playgrounds-pane .blueprintsErrorTitle,
+.playgrounds-pane .blueprintsErrorMessage {
+	margin: 0;
+}
+
+.playgrounds-pane .blueprintsErrorTitle {
+	color: var(--ink, #21201d);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.playgrounds-pane .blueprintsErrorMessage {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 13px;
+	line-height: 1.5;
+	margin-top: 2px;
 }
 
 .playgrounds-pane .showMoreButton {

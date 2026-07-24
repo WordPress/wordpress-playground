@@ -1,9 +1,17 @@
 import type { StepHandler } from '.';
 import { unzip } from './unzip';
-import { dirname, joinPaths, phpVar, phpVars } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
+import {
+	dirname,
+	joinPaths,
+	phpVar,
+	phpVars,
+	randomFilename,
+} from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { ensureWpConfig } from '@wp-playground/wordpress';
-import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
+import { wpContentPathsExcludedFromLegacyExports } from '../utils/legacy-wp-content-paths-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
 /**
@@ -39,9 +47,18 @@ export interface ImportWordPressFilesStep<ResourceType> {
  * `wp-content` and `wp-includes` directories, they will replace
  * the corresponding directories in Playground's `documentRoot`.
  *
- * Any files that Playground recognizes as "excluded from the export"
- * will carry over from the existing document root into the imported
- * directories. For example, the sqlite-database-integration plugin.
+ * Imported copies of Playground-owned runtime artifacts are discarded. For
+ * example, an archive cannot replace `mu-plugins/sqlite-database-integration`,
+ * `mu-plugins/0-playground.php`, or a Playground-generated `db.php`. If those
+ * paths still exist in the importing document root, its copies are retained.
+ * An unmarked custom `db.php` remains part of the imported site.
+ *
+ * A `formatVersion: 2` archive is otherwise authoritative for user-owned
+ * `wp-content`: a customized Twenty Twenty-Five theme replaces the boot
+ * default, while an absent theme remains deleted. For an older archive, stock
+ * paths omitted by the exporter, such as `plugins/akismet`, `plugins/hello.php`,
+ * and `themes/twentytwentyfive`, are restored from the importing document root
+ * only when absent from the archive.
  *
  * @param playground Playground client.
  * @param wordPressFilesZip Zipped WordPress site.
@@ -52,85 +69,158 @@ export const importWordPressFiles: StepHandler<
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	const unzipRoot = joinPaths('/tmp', 'import');
-	await playground.mkdir(unzipRoot);
-	await unzip(playground, {
-		zipFile: wordPressFilesZip,
-		extractToPath: unzipRoot,
-	});
-	let importPath = joinPaths(unzipRoot, pathInZip);
-	importPath =
-		(await findWordPressFilesRoot(playground, importPath)) || importPath;
-
-	// Read the export manifest if it exists. The manifest contains the
-	// site URL (including scope) at export time, which we'll use later
-	// to update URLs in the database when the scope changes.
-	const manifestPath = joinPaths(importPath, 'playground-export.json');
-	let oldSiteUrl: string | null = null;
-	if (await playground.fileExists(manifestPath)) {
-		try {
-			const manifestContent =
-				await playground.readFileAsText(manifestPath);
-			const manifest = JSON.parse(manifestContent);
-			oldSiteUrl = manifest.siteUrl;
-			// Remove the manifest file - it's not needed in the document root
-			await playground.unlink(manifestPath);
-		} catch {
-			// Ignore error – tolerate missing and malformed manifests.
-		}
-	}
-
-	// Carry over any Playground-related files, such as the
-	// SQLite database plugin, from the current wp-content
-	// into the one that's about to be imported
-	const importedWpContentPath = joinPaths(importPath, 'wp-content');
-	const wpContentPath = joinPaths(documentRoot, 'wp-content');
-	for (const relativePath of wpContentFilesExcludedFromExport) {
-		// Remove any paths that were supposed to be excluded from the export
-		// but maybe weren't
-		const excludedImportPath = joinPaths(
-			importedWpContentPath,
-			relativePath
-		);
-		await removePath(playground, excludedImportPath);
-
-		// Replace them with files sourced from the live wp-content directory
-		const restoreFromPath = joinPaths(wpContentPath, relativePath);
-		if (await playground.fileExists(restoreFromPath)) {
-			await playground.mkdir(dirname(excludedImportPath));
-			await playground.mv(restoreFromPath, excludedImportPath);
-		}
-	}
-
-	// Carry over the database directory if the imported zip file doesn't
-	// already contain one.
-	const importedDatabasePath = joinPaths(
-		importPath,
-		'wp-content',
-		'database'
+	const unzipRoot = joinPaths(
+		'/tmp',
+		`import-wordpress-files-${randomFilename()}`
 	);
-	if (!(await playground.fileExists(importedDatabasePath))) {
-		await playground.mv(
-			joinPaths(documentRoot, 'wp-content', 'database'),
-			importedDatabasePath
-		);
-	}
+	let commitInProgress = false;
+	let oldSiteUrl: string | null = null;
+	try {
+		await playground.mkdir(unzipRoot);
+		await unzip(playground, {
+			zipFile: wordPressFilesZip,
+			extractToPath: unzipRoot,
+		});
+		let importPath = joinPaths(unzipRoot, pathInZip);
+		importPath =
+			(await findWordPressFilesRoot(playground, importPath)) ||
+			importPath;
 
-	// Move all the paths from the imported directory into the document root.
-	// Overwrite, if needed.
-	const importedFilenames = await playground.listFiles(importPath);
-	for (const fileName of importedFilenames) {
-		await removePath(playground, joinPaths(documentRoot, fileName));
-		await playground.mv(
-			joinPaths(importPath, fileName),
-			joinPaths(documentRoot, fileName)
-		);
-	}
+		// Read the export manifest if it exists. The manifest contains the
+		// site URL (including scope) at export time, which we'll use later
+		// to update URLs in the database when the scope changes.
+		const manifestPath = joinPaths(importPath, 'playground-export.json');
+		let exportFormatVersion: number | null = null;
+		if (await playground.fileExists(manifestPath)) {
+			try {
+				const manifestContent =
+					await playground.readFileAsText(manifestPath);
+				const manifest = JSON.parse(manifestContent);
+				if (typeof manifest.siteUrl === 'string') {
+					oldSiteUrl = manifest.siteUrl;
+				}
+				if (typeof manifest.formatVersion === 'number') {
+					exportFormatVersion = manifest.formatVersion;
+				}
+				// Remove the manifest file - it's not needed in the document root
+				await playground.unlink(manifestPath);
+			} catch {
+				// Ignore error – tolerate missing and malformed manifests.
+			}
+		}
 
-	// Remove the directory where we unzipped the imported zip file.
-	await playground.rmdir(unzipRoot, {
-		recursive: true,
-	});
+		const importedWpContentPath = joinPaths(importPath, 'wp-content');
+		// wp-content is optional: this step also accepts partial WordPress archives
+		// containing only other top-level paths, such as wp-config.php or wp-includes.
+		// Apply wp-content compatibility rules only when the archive provides it.
+		if (await playground.fileExists(importedWpContentPath)) {
+			const wpContentPath = joinPaths(documentRoot, 'wp-content');
+
+			// Old exports may contain Playground runtime implementations under wp-content.
+			// They must not replace the runtime selected by the importing Playground.
+			// db.php needs content-based ownership because WordPress also supports custom
+			// database drop-ins at that path. During legacy WordPress boot,
+			// writeLegacyDbPhp() creates db.php from generateDbPhpContent(), whose header
+			// includes @playground-managed. Only a db.php containing that marker is
+			// runtime-owned; an unmarked db.php remains user-owned.
+			const importedRuntimePaths =
+				await getLegacyPlaygroundRuntimeWpContentPaths(
+					playground,
+					importedWpContentPath
+				);
+			const currentRuntimePaths =
+				await getLegacyPlaygroundRuntimeWpContentPaths(
+					playground,
+					wpContentPath
+				);
+			// Discard runtime implementations supplied by the archive.
+			for (const relativePath of importedRuntimePaths) {
+				await removePath(
+					playground,
+					joinPaths(importedWpContentPath, relativePath)
+				);
+			}
+			// Stage runtime files that still live in the current wp-content so replacing
+			// that directory does not delete the importing Playground's copies.
+			for (const relativePath of currentRuntimePaths) {
+				const importedRuntimePath = joinPaths(
+					importedWpContentPath,
+					relativePath
+				);
+				const currentRuntimePath = joinPaths(
+					wpContentPath,
+					relativePath
+				);
+				if (
+					!(await playground.fileExists(importedRuntimePath)) &&
+					(await playground.fileExists(currentRuntimePath))
+				) {
+					await playground.mkdir(dirname(importedRuntimePath));
+					await playground.cp(
+						currentRuntimePath,
+						importedRuntimePath
+					);
+				}
+			}
+
+			if (exportFormatVersion === null || exportFormatVersion < 2) {
+				// Old exports omitted these stock plugins and themes without recording
+				// deletions. Restore current copies missing from the archive because we
+				// cannot tell a user deletion from an exporter omission.
+				for (const relativePath of wpContentPathsExcludedFromLegacyExports) {
+					const importedUserPath = joinPaths(
+						importedWpContentPath,
+						relativePath
+					);
+					const userPath = joinPaths(wpContentPath, relativePath);
+					if (
+						!(await playground.fileExists(importedUserPath)) &&
+						(await playground.fileExists(userPath))
+					) {
+						await playground.mkdir(dirname(importedUserPath));
+						await playground.cp(userPath, importedUserPath);
+					}
+				}
+
+				// Legacy exports may also omit the database directory.
+				const importedDatabasePath = joinPaths(
+					importedWpContentPath,
+					'database'
+				);
+				const databasePath = joinPaths(wpContentPath, 'database');
+				if (
+					!(await playground.fileExists(importedDatabasePath)) &&
+					(await playground.fileExists(databasePath))
+				) {
+					await playground.cp(databasePath, importedDatabasePath);
+				}
+			}
+		}
+
+		// Move all the paths from the imported directory into the document root.
+		// Overwrite, if needed.
+		const importedFilenames = await playground.listFiles(importPath);
+		// Once replacement starts, cleanup would destroy the only remaining
+		// copy of any staged paths that have not moved yet.
+		commitInProgress = importedFilenames.length > 0;
+		for (const fileName of importedFilenames) {
+			await removePath(playground, joinPaths(documentRoot, fileName));
+			await playground.mv(
+				joinPaths(importPath, fileName),
+				joinPaths(documentRoot, fileName)
+			);
+		}
+		commitInProgress = false;
+	} finally {
+		if (commitInProgress) {
+			logger.warn(
+				`WordPress file import failed while replacing live files. ` +
+					`The remaining staged files were preserved for recovery at ${unzipRoot}.`
+			);
+		} else {
+			await removePath(playground, unzipRoot);
+		}
+	}
 
 	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);

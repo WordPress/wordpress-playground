@@ -29,7 +29,9 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
+	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -43,10 +45,12 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import PostalMime from 'postal-mime';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -255,12 +259,7 @@ export function bootSiteClient(
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
-				pathAliases: [
-					{
-						urlPrefix: '/phpmyadmin',
-						fsPath: PHPMYADMIN_INSTALL_PATH,
-					},
-				],
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			if (signal.aborted) {
@@ -294,6 +293,16 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+			} else if (
+				(e as any).name === 'ResourceUnavailableError' ||
+				(e as any).originalErrorClassName === 'ResourceUnavailableError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-unavailable',
+						details: e,
+					})
+				);
 			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
@@ -322,6 +331,14 @@ export function bootSiteClient(
 				if (shouldShowGitHubAuthModal(repoUrl)) {
 					if (repoUrl) {
 						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					if (isUnfinishedBlueprintRun(site)) {
+						dispatch(
+							setActiveSiteError({
+								error: 'site-boot-failed',
+								details: e,
+							})
+						);
 					}
 					dispatch(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
@@ -370,32 +387,66 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
-		void connectedPlayground.addEventListener(
-			'sendmail.spawned',
-			async (event) => {
-				const { stdin } = event as PHPSendmailSpawnedEvent;
-				if (signal.aborted) {
-					void stdin.cancel();
-					return;
+		let emailProcessingQueue = Promise.resolve();
+		try {
+			await connectedPlayground.addEventListener(
+				'sendmail.spawned',
+				(event) => {
+					const { stdin } = event as PHPSendmailSpawnedEvent;
+					emailProcessingQueue = emailProcessingQueue.then(
+						async () => {
+							if (signal.aborted) {
+								await stdin.cancel().catch(() => {});
+								return;
+							}
+							let email;
+							try {
+								email = await PostalMime.parse(stdin);
+							} catch (error) {
+								logger.error(
+									'Failed to parse captured email',
+									error
+								);
+								return;
+							}
+							if (signal.aborted) {
+								return;
+							}
+							dispatch(
+								addClientEmail({
+									siteSlug,
+									email,
+								})
+							);
+						}
+					);
 				}
-				let email;
-				try {
-					email = await PostalMime.parse(stdin);
-				} catch (error) {
-					logger.error('Failed to parse captured email', error);
-					return;
-				}
-				if (signal.aborted) {
-					return;
-				}
+			);
+		} catch (error) {
+			logger.error('Failed to start capturing emails', error);
+		}
+		try {
+			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
+		} catch (error) {
+			if (signal.aborted) {
+				return;
+			}
+			logger.error('Error initializing Playground', error);
+			if (mountDescriptorForInitialOpfsSync) {
 				dispatch(
-					addClientEmail({
-						siteSlug,
-						email,
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
 					})
 				);
 			}
-		);
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.
@@ -407,6 +458,20 @@ export function bootSiteClient(
 				operation: syncOperation,
 				dispatch,
 				signal,
+				siteSlugToReturnToIfBlueprintFails:
+					site.metadata.siteSlugToReturnToIfBlueprintFails,
+			}).then(() => {
+				const storedSite = selectSiteBySlug(getState(), site.slug);
+				if (
+					!signal.aborted &&
+					storedSite?.metadata.initialOpfsSyncPending === false
+				) {
+					void captureAndPersistSiteThumbnail({
+						playground: connectedPlayground,
+						siteSlug: site.slug,
+						dispatch,
+					});
+				}
 			});
 		} else {
 			try {
@@ -440,6 +505,13 @@ export function bootSiteClient(
 					})
 				);
 			}
+			if (site.metadata.storage !== 'none') {
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+				});
+			}
 		}
 
 		connectedPlayground.onNavigation((url) => {
@@ -455,6 +527,37 @@ export function bootSiteClient(
 				})
 			);
 		});
+
+		if (site.urlToRestoreAfterRuntimeSettingsChange) {
+			const urlToRestore = site.urlToRestoreAfterRuntimeSettingsChange;
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes: {
+						urlToRestoreAfterRuntimeSettingsChange: undefined,
+					},
+				})
+			);
+			if (signal.aborted) {
+				return;
+			}
+			if (urlToRestore.startsWith('/')) {
+				const restoreBaseUrl = 'https://playground.internal';
+				const parsedUrlToRestore = new URL(
+					urlToRestore,
+					restoreBaseUrl
+				);
+				// Restore only paths inside this Playground. The URL parser
+				// catches protocol-relative URLs and browser backslash
+				// normalization quirks while preserving valid slashes in the
+				// path, query, and hash.
+				if (parsedUrlToRestore.origin === restoreBaseUrl) {
+					await connectedPlayground.goTo(
+						`${parsedUrlToRestore.pathname}${parsedUrlToRestore.search}${parsedUrlToRestore.hash}`
+					);
+				}
+			}
+		}
 	};
 }
 
@@ -573,6 +676,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation,
 	dispatch,
 	signal,
+	siteSlugToReturnToIfBlueprintFails,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -580,6 +684,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
+	siteSlugToReturnToIfBlueprintFails?: string;
 }) {
 	let shouldReportProgress = true;
 	try {
@@ -612,12 +717,17 @@ async function syncInitialOpfsFilesInBackground({
 		if (signal.aborted) {
 			return;
 		}
+		// Clear the return target in the same metadata write that completes the
+		// initial copy so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					...(siteSlugToReturnToIfBlueprintFails
+						? { siteSlugToReturnToIfBlueprintFails: undefined }
+						: {}),
 				},
 			})
 		);

@@ -52,6 +52,7 @@ const sidebars = {
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',
 						'main/guides/providing-content-for-your-demo',
+						'main/guides/import-content-with-blueprints',
 						'main/guides/github-action-pr-preview',
 						'main/guides/playground-for-everyone',
 						'main/guides/programmatic-playground-cli',

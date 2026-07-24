@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@php-wasm/logger', () => ({
 	logger: {
 		error: vi.fn(),
+		warn: vi.fn(),
 	},
 }));
 

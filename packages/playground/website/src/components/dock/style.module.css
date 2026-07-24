@@ -297,6 +297,36 @@
 	width: min(440px, calc(100vw - 40px));
 }
 
+/* Logs hold long monospace records, so they get a wider pane. Same compound
+   selector trick as .pane-compact so the mobile override below still wins.
+   Half of this width is mirrored in dock-positioning.ts.
+
+   The pane also pins its header and scrolls the tool body internally
+   (inside .tab-contents) instead of scrolling as one piece. The Logs
+   search/filter toolbar is sticky, and every ancestor between it and the
+   pane creates its own overflow context — the tool body is the only
+   scrollport the toolbar can reliably stick to. */
+.pane.pane-wide {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	width: min(860px, calc(100vw - 40px));
+}
+
+.pane.pane-wide .pane-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* Let the tool chain shrink so the innermost overflow: auto box scrolls. */
+.pane.pane-wide .pane-body :global(.components-flex),
+.pane.pane-wide .pane-body :global(.components-flex-item) {
+	min-height: 0;
+}
+
 /* Start states. CSSTransition keeps the base (`-enter`/`-exit`) class on the
    node alongside the `-active` class for the whole transition, so the `-active`
    rules MUST come later in source order to win — otherwise the end state never
@@ -747,6 +777,7 @@
 	   inline so the panel always clears the (collapsible) bar. */
 	.pane,
 	.pane.pane-compact,
+	.pane.pane-wide,
 	.pane-editor,
 	.pane-fixed-height {
 		border-radius: 0;
@@ -1276,6 +1307,16 @@
 		left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 	width: min(520px, calc(100vw - 24px));
 	z-index: 60;
+}
+
+.dock-operation-toast-success {
+	background: #1f4f2b;
+	border-color: #4f8f59;
+	box-shadow: 0 15px 36px rgba(19, 68, 32, 0.28);
+}
+
+.dock-operation-toast-success .dock-operation-toast-message {
+	color: #d8f4dc;
 }
 
 .dock-operation-toast-content {

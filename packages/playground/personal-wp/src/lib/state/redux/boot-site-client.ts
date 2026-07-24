@@ -20,6 +20,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type { PlaygroundClient } from '@wp-playground/remote';
@@ -297,6 +298,7 @@ export function bootSiteClient(
 					: [],
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			logger.error(e);
