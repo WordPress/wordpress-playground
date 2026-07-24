@@ -866,6 +866,23 @@ export function createSitesAPI(
 						});
 					}
 				);
+				const initialOpfsSyncProgress = opfsSiteStorage
+					? new ProgressTracker({
+							caption: 'Saving imported Playground',
+						})
+					: undefined;
+				initialOpfsSyncProgress?.addEventListener(
+					'progress',
+					(event: ProgressTrackerEvent) => {
+						onProgress?.({
+							caption: event.detail.caption,
+							progress:
+								ZIP_INSTALL_PROGRESS_PERCENT +
+								(event.detail.progress / 100) *
+									ZIP_STORAGE_PROGRESS_PERCENT,
+						});
+					}
+				);
 				const initialize = async (playground: PlaygroundClient) => {
 					await importWordPressFiles(
 						playground,
@@ -887,13 +904,15 @@ export function createSitesAPI(
 						initialize
 					);
 				}
-				return await createSavedSite(
+				const siteSlug = await createSavedSite(
 					undefined,
 					undefined,
 					{ persistence: 'autosave' },
 					initialize,
-					onProgress
+					initialOpfsSyncProgress
 				);
+				onProgress?.({ caption: 'Import complete', progress: 100 });
+				return siteSlug;
 			} finally {
 				dispatch(setSiteImportIsRunning(false));
 			}
@@ -931,7 +950,7 @@ export function createSitesAPI(
 			excludeFromPruning?: string[];
 		} = {},
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
-		onProgress?: (progress: ZipImportProgress) => void
+		initialOpfsSyncProgress?: ProgressTracker
 	): Promise<string> {
 		if (!opfsSiteStorage) {
 			throw new Error(
@@ -956,7 +975,10 @@ export function createSitesAPI(
 				updateUrl: options.updateUrl,
 			});
 			if (initialize) {
-				await waitForInitialOpfsSync(newSiteInfo.slug, onProgress);
+				await waitForInitialOpfsSync(
+					newSiteInfo.slug,
+					initialOpfsSyncProgress
+				);
 			}
 		} catch (error) {
 			if (initialize) {
@@ -1001,7 +1023,7 @@ export function createSitesAPI(
 
 	async function waitForInitialOpfsSync(
 		siteSlug: string,
-		onProgress?: (progress: ZipImportProgress) => void
+		progress?: ProgressTracker
 	) {
 		const getSync = () =>
 			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
@@ -1013,29 +1035,25 @@ export function createSitesAPI(
 					: undefined;
 			const completedFiles = syncProgress?.files ?? 0;
 			const totalFiles = syncProgress?.total ?? 0;
-			onProgress?.({
-				caption: 'Saving imported Playground',
-				progress:
-					ZIP_INSTALL_PROGRESS_PERCENT +
-					(totalFiles > 0
-						? Math.min(1, completedFiles / totalFiles) *
-							ZIP_STORAGE_PROGRESS_PERCENT
-						: 0),
-			});
+			progress?.set(
+				totalFiles > 0
+					? Math.min(1, completedFiles / totalFiles) * 100
+					: 0
+			);
 		};
 		const sync = getSync();
 		if (!sync) {
 			const site = selectSiteBySlug(getState(), siteSlug);
 			if (!site || site.metadata.initialOpfsSyncPending !== false) {
 				throw new Error(
-					'Unable to save the imported Playground because its initial storage sync did not complete.'
+					'Unable to save the Playground because its initial storage sync did not complete.'
 				);
 			}
-			onProgress?.({ caption: 'Import complete', progress: 100 });
+			progress?.finish();
 			return;
 		}
 		if (sync.status === 'error') {
-			throw new Error('Unable to save the imported Playground.');
+			throw new Error('Unable to save the Playground.');
 		}
 		reportProgress();
 
@@ -1051,7 +1069,7 @@ export function createSitesAPI(
 						unsubscribe();
 						reject(
 							new Error(
-								'Unable to save the imported Playground because its runtime stopped.'
+								'Unable to save the Playground because its runtime stopped.'
 							)
 						);
 						return;
@@ -1063,14 +1081,9 @@ export function createSitesAPI(
 					}
 					unsubscribe();
 					if (currentSync?.status === 'error') {
-						reject(
-							new Error('Unable to save the imported Playground.')
-						);
+						reject(new Error('Unable to save the Playground.'));
 					} else {
-						onProgress?.({
-							caption: 'Import complete',
-							progress: 100,
-						});
+						progress?.finish();
 						resolve();
 					}
 				},
