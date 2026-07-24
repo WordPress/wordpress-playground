@@ -4,13 +4,9 @@ import {
 	__experimentalText as Text,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
-import type { Attachment, Email } from 'postal-mime';
+import type { Email } from 'postal-mime';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-	type AttachmentResources,
-	MailAttachments,
-	useAttachmentResources,
-} from './mail-attachments';
+import { MailAttachments, useAttachmentResources } from './mail-attachments';
 import {
 	formatAddress,
 	formatAddressList,
@@ -25,17 +21,67 @@ export function MailPreview({ mail }: { mail: Email }) {
 		mail.html || mail.attachments.length > 0
 	);
 
-	const emailBody = createEmailBodyHtml(mail, attachmentResources);
+	let sentDate = mail.date;
+	if (sentDate) {
+		const date = new Date(sentDate);
+		if (!Number.isNaN(date.getTime())) {
+			sentDate = new Intl.DateTimeFormat(undefined, {
+				dateStyle: 'medium',
+				timeStyle: 'short',
+			}).format(date);
+		}
+	}
+
+	let emailBody: string;
+	if (mail.html) {
+		emailBody = mail.html;
+		const relatedAttachments = mail.attachments
+			.map((attachment) => ({
+				attachment,
+				contentId: attachment.contentId?.trim().replace(/^<|>$/g, ''),
+			}))
+			.filter(({ contentId }) => contentId)
+			.sort((a, b) => b.contentId!.length - a.contentId!.length);
+
+		for (const { attachment, contentId } of relatedAttachments) {
+			const resource = attachmentResources.get(attachment);
+			if (resource) {
+				emailBody = emailBody
+					.split(`cid:${contentId}`)
+					.join(resource.url);
+			}
+		}
+	} else if (mail.text) {
+		emailBody = renderToStaticMarkup(<pre>{mail.text}</pre>);
+	} else {
+		emailBody = renderToStaticMarkup(<p>This message has no body.</p>);
+	}
+
 	const attachmentsHtml = renderToStaticMarkup(
 		<MailAttachments
 			attachments={mail.attachments}
 			resources={attachmentResources}
 		/>
 	);
-	const previewDocument = createEmailPreviewDocument(
-		emailBody,
-		attachmentsHtml
-	);
+	/*
+	 * Email bodies are untrusted fragments and may not include document metadata.
+	 * UTF-8 and standards mode keep parsing consistent across messages. CSP blocks
+	 * active content while retaining the assets and inline styles emails commonly
+	 * use. The base target opens links outside the preview instead of replacing
+	 * its contents.
+	 */
+	const previewDocument = `<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https: data: blob:; media-src http: https: data: blob:; style-src 'unsafe-inline' http: https: data:; font-src http: https: data: blob:; script-src 'none'; form-action 'none'; base-uri 'none'">
+<base target="_blank">
+<style>
+	html { overflow: auto !important; }
+	body { color: #1e1e1e; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; overflow-wrap: anywhere; }
+	img { height: auto; max-width: 100%; }
+	pre { white-space: pre-wrap; }
+</style>
+${emailBody}
+${attachmentsHtml}`;
 
 	return (
 		<VStack
@@ -73,7 +119,7 @@ export function MailPreview({ mail }: { mail: Email }) {
 					<VStack className={css.mailPanelMetadataColumn} spacing={1}>
 						{mail.date && (
 							<Text>
-								<strong>Sent:</strong> {formatDate(mail.date)}
+								<strong>Sent:</strong> {sentDate}
 							</Text>
 						)}
 						{mail.attachments.length > 0 && (
@@ -106,75 +152,4 @@ export function MailPreview({ mail }: { mail: Email }) {
 			)}
 		</VStack>
 	);
-}
-
-function formatDate(value: string): string {
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) {
-		return value;
-	}
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(date);
-}
-
-function createEmailBodyHtml(
-	mail: Email,
-	resources: AttachmentResources
-): string {
-	if (mail.html) {
-		return embedRelatedAttachments(mail.html, mail.attachments, resources);
-	}
-	if (mail.text) {
-		return renderToStaticMarkup(<pre>{mail.text}</pre>);
-	}
-	return renderToStaticMarkup(<p>This message has no body.</p>);
-}
-
-function embedRelatedAttachments(
-	html: string,
-	attachments: Attachment[],
-	resources: AttachmentResources
-): string {
-	const relatedAttachments = attachments
-		.map((attachment) => ({
-			attachment,
-			contentId: attachment.contentId?.trim().replace(/^<|>$/g, ''),
-		}))
-		.filter(({ contentId }) => contentId)
-		.sort((a, b) => b.contentId!.length - a.contentId!.length);
-
-	for (const { attachment, contentId } of relatedAttachments) {
-		const resource = resources.get(attachment);
-		if (resource) {
-			html = html.split(`cid:${contentId}`).join(resource.url);
-		}
-	}
-	return html;
-}
-
-function createEmailPreviewDocument(
-	html: string,
-	attachmentsHtml: string
-): string {
-	/*
-	 * Email bodies are untrusted fragments and may not include document metadata.
-	 * UTF-8 and standards mode keep parsing consistent across messages. CSP blocks
-	 * active content while retaining the assets and inline styles emails commonly
-	 * use. The base target opens links outside the preview instead of replacing
-	 * its contents.
-	 */
-	return `<!doctype html>
-<meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https: data: blob:; media-src http: https: data: blob:; style-src 'unsafe-inline' http: https: data:; font-src http: https: data: blob:; script-src 'none'; form-action 'none'; base-uri 'none'">
-<base target="_blank">
-<style>
-	html { overflow: auto !important; }
-	body { color: #1e1e1e; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; overflow-wrap: anywhere; }
-	img { height: auto; max-width: 100%; }
-	pre { white-space: pre-wrap; }
-</style>
-${html}
-${attachmentsHtml}`;
 }

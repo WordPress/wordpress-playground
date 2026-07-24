@@ -19,7 +19,27 @@ export function useAttachmentResources(
 	useEffect(() => {
 		const nextResources = new Map<Attachment, AttachmentResource>();
 		for (const attachment of attachments) {
-			nextResources.set(attachment, createAttachmentResource(attachment));
+			let content: BlobPart = attachment.content;
+			if (attachment.content instanceof ArrayBuffer) {
+				content = attachment.content;
+			} else if (attachment.content instanceof Uint8Array) {
+				content = Uint8Array.from(attachment.content).buffer;
+			} else if (attachment.encoding === 'base64') {
+				const decoded = atob(attachment.content);
+				const bytes = new Uint8Array(decoded.length);
+				for (let index = 0; index < decoded.length; index++) {
+					bytes[index] = decoded.charCodeAt(index);
+				}
+				content = bytes.buffer;
+			}
+
+			const blob = new Blob([content], {
+				type: attachment.mimeType,
+			});
+			nextResources.set(attachment, {
+				url: URL.createObjectURL(blob),
+				size: blob.size,
+			});
 		}
 		setResources(nextResources);
 
@@ -68,163 +88,127 @@ export function MailAttachments({
 						className="mail-attachments__list"
 						aria-label="Attachments"
 					>
-						{attachments.map((attachment, index) => (
-							<MailAttachment
-								key={`${attachment.filename}-${index}`}
-								attachment={attachment}
-								resource={resources.get(attachment)}
-							/>
-						))}
+						{attachments.map((attachment, index) => {
+							const filename =
+								attachment.filename || 'Unnamed attachment';
+							const resource = resources.get(attachment);
+
+							let preview = (
+								<svg
+									className="mail-attachments__placeholder"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path d="M6 2h8l4 4v16H6V2zm8 1.5V7h3.5L14 3.5zM8 10v1.5h8V10H8zm0 4v1.5h8V14H8z" />
+								</svg>
+							);
+							if (
+								resource &&
+								attachment.mimeType.startsWith('image/')
+							) {
+								preview = (
+									<img
+										className="mail-attachments__preview-content mail-attachments__preview-content--visual"
+										src={resource.url}
+										alt={filename}
+										loading="lazy"
+									/>
+								);
+							} else if (
+								resource &&
+								attachment.mimeType.startsWith('video/')
+							) {
+								preview = (
+									<video
+										className="mail-attachments__preview-content mail-attachments__preview-content--visual"
+										controls
+										preload="metadata"
+									>
+										<source
+											src={resource.url}
+											type={attachment.mimeType}
+										/>
+									</video>
+								);
+							} else if (
+								resource &&
+								attachment.mimeType.startsWith('audio/')
+							) {
+								preview = (
+									<audio
+										className="mail-attachments__preview-content mail-attachments__preview-content--audio"
+										controls
+										preload="metadata"
+									>
+										<source
+											src={resource.url}
+											type={attachment.mimeType}
+										/>
+									</audio>
+								);
+							}
+
+							let formattedSize: string | undefined;
+							if (resource) {
+								if (resource.size < 1024) {
+									formattedSize = `${resource.size} B`;
+								} else if (resource.size < 1024 * 1024) {
+									formattedSize = `${(
+										resource.size / 1024
+									).toFixed(1)} KB`;
+								} else {
+									formattedSize = `${(
+										resource.size /
+										(1024 * 1024)
+									).toFixed(1)} MB`;
+								}
+							}
+
+							return (
+								<li
+									key={`${attachment.filename}-${index}`}
+									className="mail-attachments__item"
+								>
+									<article className="mail-attachments__card">
+										<div className="mail-attachments__media">
+											<div className="mail-attachments__preview">
+												{preview}
+											</div>
+											{resource && (
+												<div className="mail-attachments__actions">
+													<span className="mail-attachments__size">
+														Size: {formattedSize}
+													</span>
+													<a
+														className="mail-attachments__download-link"
+														href={resource.url}
+														download={filename}
+														aria-label={`Download ${filename}`}
+													>
+														<span
+															className="mail-attachments__download-icon"
+															aria-hidden="true"
+														>
+															&#8595;
+														</span>{' '}
+														Download
+													</a>
+												</div>
+											)}
+										</div>
+										<div
+											className="mail-attachments__details"
+											title={filename}
+										>
+											{filename}
+										</div>
+									</article>
+								</li>
+							);
+						})}
 					</ul>
 				</section>
 			</template>
 		</div>
 	);
-}
-
-function MailAttachment({
-	attachment,
-	resource,
-}: {
-	attachment: Attachment;
-	resource: AttachmentResource | undefined;
-}) {
-	const filename = attachment.filename || 'Unnamed attachment';
-
-	return (
-		<li className="mail-attachments__item">
-			<article className="mail-attachments__card">
-				<div className="mail-attachments__media">
-					<div className="mail-attachments__preview">
-						<AttachmentPreview
-							attachment={attachment}
-							url={resource?.url}
-							filename={filename}
-						/>
-					</div>
-					{resource && (
-						<div className="mail-attachments__actions">
-							<span className="mail-attachments__size">
-								Size: {formatFileSize(resource.size)}
-							</span>
-							<a
-								className="mail-attachments__download-link"
-								href={resource.url}
-								download={filename}
-								aria-label={`Download ${filename}`}
-							>
-								<span
-									className="mail-attachments__download-icon"
-									aria-hidden="true"
-								>
-									&#8595;
-								</span>{' '}
-								Download
-							</a>
-						</div>
-					)}
-				</div>
-				<div className="mail-attachments__details" title={filename}>
-					{filename}
-				</div>
-			</article>
-		</li>
-	);
-}
-
-function AttachmentPreview({
-	attachment,
-	url,
-	filename,
-}: {
-	attachment: Attachment;
-	url: string | undefined;
-	filename: string;
-}) {
-	if (url && attachment.mimeType.startsWith('image/')) {
-		return (
-			<img
-				className="mail-attachments__preview-content mail-attachments__preview-content--visual"
-				src={url}
-				alt={filename}
-				loading="lazy"
-			/>
-		);
-	}
-
-	if (url && attachment.mimeType.startsWith('video/')) {
-		return (
-			<video
-				className="mail-attachments__preview-content mail-attachments__preview-content--visual"
-				controls
-				preload="metadata"
-			>
-				<source src={url} type={attachment.mimeType} />
-			</video>
-		);
-	}
-
-	if (url && attachment.mimeType.startsWith('audio/')) {
-		return (
-			<audio
-				className="mail-attachments__preview-content mail-attachments__preview-content--audio"
-				controls
-				preload="metadata"
-			>
-				<source src={url} type={attachment.mimeType} />
-			</audio>
-		);
-	}
-
-	return (
-		<svg
-			className="mail-attachments__placeholder"
-			viewBox="0 0 24 24"
-			aria-hidden="true"
-		>
-			<path d="M6 2h8l4 4v16H6V2zm8 1.5V7h3.5L14 3.5zM8 10v1.5h8V10H8zm0 4v1.5h8V14H8z" />
-		</svg>
-	);
-}
-
-function createAttachmentResource(attachment: Attachment): AttachmentResource {
-	const blob = new Blob([getAttachmentBlobPart(attachment)], {
-		type: attachment.mimeType,
-	});
-	return {
-		url: URL.createObjectURL(blob),
-		size: blob.size,
-	};
-}
-
-function getAttachmentBlobPart(attachment: Attachment): BlobPart {
-	if (attachment.content instanceof ArrayBuffer) {
-		return attachment.content;
-	}
-	if (attachment.content instanceof Uint8Array) {
-		return Uint8Array.from(attachment.content).buffer;
-	}
-	if (attachment.encoding === 'base64') {
-		return decodeBase64(attachment.content);
-	}
-	return attachment.content;
-}
-
-function decodeBase64(content: string): ArrayBuffer {
-	const decoded = atob(content);
-	const bytes = new Uint8Array(decoded.length);
-	for (let index = 0; index < decoded.length; index++) {
-		bytes[index] = decoded.charCodeAt(index);
-	}
-	return bytes.buffer;
-}
-
-function formatFileSize(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-	if (bytes < 1024 * 1024) {
-		return `${(bytes / 1024).toFixed(1)} KB`;
-	}
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
