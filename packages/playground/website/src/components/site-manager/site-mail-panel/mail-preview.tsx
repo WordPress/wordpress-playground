@@ -90,8 +90,10 @@ export function MailPreview({ mail }: { mail: Email }) {
 				/* Popups and downloads escape the sandbox so links and attachment
 				 * actions work normally. */
 				<iframe
+					{...{ credentialless: '' }}
 					className={css.htmlPreview}
 					title={`Contents of ${subject}`}
+					referrerPolicy="no-referrer"
 					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
 					srcDoc={previewDocument}
 				/>
