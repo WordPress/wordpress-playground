@@ -79,13 +79,8 @@ export const importWordPressFiles: StepHandler<
 	let oldSiteUrl: string | null = null;
 	try {
 		await playground.mkdir(unzipRoot);
-		/**
-		 * Maps archive extraction onto the first 30% of the import.
-		 *
-		 * Declared byte counts better represent work when archive entries have
-		 * different sizes. File counts are the fallback for archives whose
-		 * entries all have a declared uncompressed size of zero.
-		 */
+		// Unpacking owns the first 30% of the import. Bytes account for unequal
+		// entry sizes; file counts handle archives containing only empty files.
 		let reportUnzipProgress:
 			| ((progress: UnzipProgress) => void)
 			| undefined;
