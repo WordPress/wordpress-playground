@@ -249,6 +249,19 @@ export const unzipFile = async (
 	}
 };
 
+/**
+ * Runs a ZIP extraction request and forwards its framed progress records.
+ *
+ * PHP writes newline-delimited JSON records prefixed with
+ * `UNZIP_PROGRESS_LINE_PREFIX`. Stream chunks may split or combine records, so
+ * this function buffers partial lines and ignores unrelated stdout.
+ *
+ * The first progress parsing or callback failure is saved until stdout,
+ * stderr, and the PHP exit status have settled. This waits for extraction to
+ * finish and release any worker-backed PHP instance, and prevents the caller
+ * from cleaning up the temporary ZIP while PHP may still be reading it. A PHP
+ * process failure takes precedence over a progress-consumer failure.
+ */
 async function runUnzipFileWithProgress(
 	php: UniversalPHP,
 	request: PHPRunOptions,
