@@ -38,6 +38,11 @@ export async function captureAndPersistSiteThumbnail({
 	latestCaptureBySiteSlug.set(siteSlug, captureRequest);
 	try {
 		const thumbnail = await playground.captureSiteThumbnail();
+		/*
+		 * Rendering cannot be cancelled. By the time it returns, this iframe may
+		 * already be dead or a newer capture may have started. Do not let that
+		 * stale result touch saved metadata.
+		 */
 		if (
 			signal?.aborted ||
 			latestCaptureBySiteSlug.get(siteSlug) !== captureRequest ||
