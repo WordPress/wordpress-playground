@@ -152,11 +152,10 @@ describe('opfsSiteStorage', () => {
 			},
 		};
 
-		await storage.update(
-			'stored-site',
-			createSiteMetadata({ name: 'Renamed Playground' }),
-			originalUrlParams
-		);
+		await storage.update('stored-site', {
+			metadata: { name: 'Renamed Playground' },
+			originalUrlParams,
+		});
 
 		await expect(storage.read('stored-site')).resolves.toMatchObject({
 			metadata: {
@@ -166,18 +165,37 @@ describe('opfsSiteStorage', () => {
 		});
 	});
 
+	it('preserves runtime configuration fields across partial updates', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { phpVersion: '8.2' } },
+		});
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { networking: false } },
+		});
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				runtimeConfiguration: {
+					phpVersion: '8.2',
+					wpVersion: 'latest',
+					networking: false,
+				},
+			},
+		});
+	});
+
 	it('serializes concurrent metadata updates to the same site', async () => {
 		await storage.create('stored-site', createSiteMetadata());
 
 		await Promise.all([
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'First name' })
-			),
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'Second name' })
-			),
+			storage.update('stored-site', {
+				metadata: { name: 'First name' },
+			}),
+			storage.update('stored-site', {
+				metadata: { name: 'Second name' },
+			}),
 		]);
 		const site = await storage.read('stored-site');
 		expect(['First name', 'Second name']).toContain(site?.metadata.name);

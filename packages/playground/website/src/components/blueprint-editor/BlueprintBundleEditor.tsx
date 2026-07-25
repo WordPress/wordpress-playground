@@ -527,14 +527,9 @@ export const BlueprintBundleEditor = forwardRef<
 			);
 			const changes = {
 				metadata: {
-					...site.metadata,
 					originalBlueprintSource: { type: 'none' as const },
 					originalBlueprint: filesystem,
 					runtimeConfiguration,
-					initialOpfsSyncPending:
-						site.metadata.initialOpfsSyncPending,
-					playgroundDefinedConstants:
-						site.metadata.playgroundDefinedConstants,
 					whenCreated: Date.now(),
 				},
 				originalUrlParams: undefined,

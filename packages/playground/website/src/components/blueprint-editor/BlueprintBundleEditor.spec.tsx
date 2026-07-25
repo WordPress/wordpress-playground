@@ -382,12 +382,9 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			slug: temporarySite.slug,
 			changes: {
 				metadata: {
-					...temporarySite.metadata,
 					originalBlueprintSource: { type: 'none' },
 					originalBlueprint: filesystem,
 					runtimeConfiguration,
-					initialOpfsSyncPending: false,
-					playgroundDefinedConstants: undefined,
 					whenCreated: expect.any(Number),
 				},
 				originalUrlParams: undefined,
