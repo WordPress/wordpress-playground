@@ -218,7 +218,26 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 	}
 
-	/** @inheritDoc @php-wasm/universal!/PHP.runStream */
+	/**
+	 * Starts a PHP request and returns its output streams without buffering them.
+	 *
+	 * A worker backed by a request handler borrows a PHP instance from that
+	 * handler's pool. Returning a `StreamedPHPResponse` does not mean the PHP
+	 * process has finished, so the borrowed instance remains checked out until
+	 * `response.finished` settles. If the request fails before a response is
+	 * returned, the instance is released immediately.
+	 *
+	 * When the worker has a primary PHP instance and no request-handler pool,
+	 * the request is delegated directly to that instance.
+	 *
+	 * The caller owns the returned response streams. A non-zero PHP exit is
+	 * exposed through `response.exitCode`; it does not make this method reject
+	 * by itself.
+	 *
+	 * @param request - PHP code or script path, request metadata, and environment.
+	 * @returns A streamed response whose output can be consumed incrementally.
+	 * @throws When a PHP instance cannot be acquired or the request cannot start.
+	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
 		const state = _private.get(this)!;
 		const primaryPhp = state.php;

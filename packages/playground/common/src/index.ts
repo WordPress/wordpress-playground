@@ -16,10 +16,23 @@ export { createMemoizedFetch } from './create-memoized-fetch';
 
 export const RecommendedPHPVersion = '8.3';
 
+/**
+ * Describes cumulative progress through the non-directory entries in a ZIP.
+ *
+ * The byte counts come from each entry's declared uncompressed size. They
+ * advance when a complete entry has been processed, not while bytes within an
+ * entry are being written. Entries skipped because `overwriteFiles` is false
+ * still advance these counters because progress describes traversal through
+ * the archive rather than the number of filesystem writes.
+ */
 export interface UnzipProgress {
+	/** Number of non-directory entries processed so far. */
 	filesProcessed: number;
+	/** Total number of non-directory entries in the archive. */
 	totalFiles: number;
+	/** Declared uncompressed bytes processed so far. */
 	uncompressedBytesProcessed: number;
+	/** Declared uncompressed bytes across all non-directory entries. */
 	totalUncompressedBytes: number;
 }
 
@@ -28,14 +41,40 @@ const UNZIP_PROGRESS_UNCOMPRESSED_BYTES_INTERVAL = 400 * 1024;
 const UNZIP_PROGRESS_LINE_PREFIX = 'PLAYGROUND_UNZIP_PROGRESS:';
 
 /**
- * Unzip a zip file inside Playground.
+ * Extracts a ZIP archive into Playground's virtual filesystem.
  *
- * When `onProgress` is provided, extraction reports after each batch reaches
- * 100 files or 400 KiB of uncompressed data. Each ZIP entry is extracted
- * atomically, so one large entry may cross the byte threshold.
+ * `zipPath` may be an existing path in the PHP filesystem or a browser `File`.
+ * A browser `File` is copied to a uniquely named temporary path before PHP
+ * opens it. The temporary copy is removed after extraction has settled.
  *
- * The destination must not contain untrusted pre-existing symlinks because
- * ZipArchive follows them while writing files.
+ * Entries are extracted in batches after either 100 files or 400 KiB of
+ * declared uncompressed data has been processed. The same batch loop is used
+ * with and without progress reporting. When `onProgress` is provided, an
+ * initial archive scan calculates the totals and the callback receives an
+ * update after every batch. An empty archive produces one all-zero update.
+ *
+ * ZIP entries remain atomic. A single entry larger than 400 KiB is fully
+ * extracted before the next update. When `overwriteFiles` is false, entries
+ * whose destination already exists are omitted from extraction, but they
+ * still advance progress through the archive.
+ *
+ * `ZipArchive` handles archive-entry path normalization. PHP 5.2 does not
+ * apply that normalization to directory-only entries, so those entries are
+ * omitted on PHP 5.2. Regular files still create their parent directories,
+ * but empty directories from the archive are not restored on that version.
+ *
+ * The destination must not contain untrusted pre-existing symlinks.
+ * `ZipArchive` follows them while writing files.
+ *
+ * @param php - PHP runtime whose filesystem contains the archive and target.
+ * @param zipPath - Archive path in the PHP filesystem, or a browser `File`.
+ * @param extractToPath - Destination directory, created when it does not exist.
+ * @param overwriteFiles - Whether archive entries may replace existing paths.
+ * @param onProgress - Receives cumulative progress after each extracted batch.
+ * @returns A promise that resolves after extraction and stream processing finish.
+ * @throws When PHP cannot open, inspect, or extract the archive, or when the
+ * progress callback throws. Callback failures are reported after extraction
+ * finishes.
  */
 export const unzipFile = async (
 	php: UniversalPHP,
@@ -187,6 +226,19 @@ export const unzipFile = async (
 		$zip->close();
 		chmod($extractTo, 0777);
 
+		/**
+		 * Extracts queued ZIP entries and clears the queue after success.
+		 *
+		 * An empty queue is a no-op. When ZipArchive reports an extraction
+		 * failure, the queue remains intact and an exception aborts the
+		 * surrounding extraction loop.
+		 *
+		 * @param ZipArchive $zip       Open archive containing the entries.
+		 * @param string     $extractTo Destination directory.
+		 * @param array      $entries   Entry names, passed by reference.
+		 * @return void
+		 * @throws Exception When ZipArchive cannot extract the queued entries.
+		 */
 		function extractZipBatch($zip, $extractTo, &$entries)
 		{
 			if (count($entries) === 0) {
@@ -198,6 +250,21 @@ export const unzipFile = async (
 			$entries = array();
 		}
 
+		/**
+		 * Writes one framed progress record to standard output.
+		 *
+		 * Each record contains the configured prefix, a JSON object, and a
+		 * trailing newline. The prefix lets the JavaScript reader distinguish
+		 * progress from unrelated PHP output. Flushing requests delivery
+		 * before the next extraction batch begins.
+		 *
+		 * @param string $linePrefix                Progress record prefix.
+		 * @param int    $filesProcessed             Files processed so far.
+		 * @param int    $totalFiles                 Total files in the archive.
+		 * @param int    $uncompressedBytesProcessed Bytes processed so far.
+		 * @param int    $totalUncompressedBytes     Total uncompressed bytes.
+		 * @return void
+		 */
 		function reportUnzipProgress(
 			$linePrefix,
 			$filesProcessed,
@@ -250,23 +317,34 @@ export const unzipFile = async (
 };
 
 /**
- * Runs a ZIP extraction request and forwards its framed progress records.
+ * Runs a ZIP extraction request and forwards its progress records.
  *
- * PHP writes newline-delimited JSON records prefixed with
- * `UNZIP_PROGRESS_LINE_PREFIX`. Stream chunks may split or combine records, so
- * this function buffers partial lines and ignores unrelated stdout.
+ * The PHP extractor writes each update as a newline-delimited JSON record
+ * prefixed with `UNZIP_PROGRESS_LINE_PREFIX`. `runStream()` returns arbitrary
+ * byte chunks that may split one record or combine several records. This
+ * function decodes those chunks incrementally, buffers incomplete lines, and
+ * ignores complete lines without the progress prefix.
  *
- * The first progress parsing or callback failure is saved until stdout,
- * stderr, and the PHP exit status have settled. This waits for extraction to
- * finish and release any worker-backed PHP instance, and prevents the caller
- * from cleaning up the temporary ZIP while PHP may still be reading it. A PHP
- * process failure takes precedence over a progress-consumer failure.
+ * Standard output and standard error are drained before this function
+ * returns. The first JSON parsing or callback failure is retained instead of
+ * being thrown immediately. This lets the PHP request finish before
+ * `unzipFile()` removes a temporary archive and lets a worker-backed runtime
+ * release the PHP instance associated with the streams. A non-zero PHP exit
+ * takes precedence over a progress-consumer failure.
+ *
+ * @param php - PHP runtime used to start the streaming request.
+ * @param request - Extraction program and per-request environment variables.
+ * @param onProgress - Receives each complete, valid progress record.
+ * @returns A promise that resolves after both output streams and the PHP exit
+ * status have settled.
+ * @throws When the request cannot start, PHP exits with a non-zero status, a
+ * prefixed line is not valid progress JSON, or `onProgress` throws.
  */
 async function runUnzipFileWithProgress(
 	php: UniversalPHP,
 	request: PHPRunOptions,
 	onProgress: (progress: UnzipProgress) => void
-) {
+): Promise<void> {
 	const response = await php.runStream(request);
 	const stderrText = response.stderrText;
 	const reader = response.stdout.getReader();

@@ -237,6 +237,17 @@ async function createZipBuffer(php: PHP, entries: Record<string, string>) {
 	return zip;
 }
 
+/**
+ * Creates a ZIP with one file for each requested uncompressed size.
+ *
+ * Entries are named `file-<index>.txt` and filled with repeated `x` bytes.
+ * This gives progress tests exact file and byte thresholds without relying on
+ * compression ratios.
+ *
+ * @param php - PHP runtime used to build the archive.
+ * @param fileSizes - Uncompressed size of each entry, in bytes.
+ * @returns The completed ZIP archive.
+ */
 async function createZipBufferWithFileSizes(php: PHP, fileSizes: number[]) {
 	const zipPath = `/tmp/source-${Math.random()}.zip`;
 	const js = phpVars({ fileSizes, zipPath });
@@ -259,6 +270,16 @@ async function createZipBufferWithFileSizes(php: PHP, fileSizes: number[]) {
 	return zip;
 }
 
+/**
+ * Creates a ZIP containing a directory entry that traverses above its target.
+ *
+ * The archive contains both `../outside-directory/` and a file below that
+ * directory. PHP 5.2 handles those two entry types through different path
+ * normalization branches, so the fixture exercises both branches together.
+ *
+ * @param php - PHP runtime used to build the archive.
+ * @returns The completed ZIP archive.
+ */
 async function createZipBufferWithTraversalDirectory(php: PHP) {
 	const zipPath = `/tmp/source-${Math.random()}.zip`;
 	const js = phpVars({ zipPath });
