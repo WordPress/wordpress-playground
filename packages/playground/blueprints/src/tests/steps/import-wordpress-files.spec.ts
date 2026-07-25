@@ -1,4 +1,6 @@
 import type { PHP, PHPRequestHandler } from '@php-wasm/universal';
+import { ProgressTracker } from '@php-wasm/progress';
+import type { ProgressTrackerEvent } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { importWordPressFiles } from '../../lib/steps/import-wordpress-files';
 import { zipWpContent } from '../../lib/steps/zip-wp-content';
@@ -78,6 +80,43 @@ describe('Blueprint step importWordPressFiles', () => {
 		const manifest = JSON.parse(result.text);
 		expect(manifest.formatVersion).toBe(2);
 		expect(manifest.siteUrl).toContain(`scope:${sourceScope}`);
+	});
+
+	it('should report progress while unpacking the archive', async () => {
+		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open(${phpVar(zipPath)}, ZipArchive::CREATE);
+			for ($i = 0; $i < 5; $i++) {
+				$zip->addFromString(
+					"wp-content/uploads/progress-$i.txt",
+					str_repeat('x', 200 * 1024)
+				);
+			}
+			$zip->close();
+			`,
+		});
+		const tracker = new ProgressTracker();
+		const reportedProgress: number[] = [];
+		tracker.addEventListener('progress', (event: ProgressTrackerEvent) => {
+			reportedProgress.push(event.detail.progress);
+		});
+
+		await importWordPressFiles(
+			targetPHP,
+			{
+				wordPressFilesZip: new File(
+					[await targetPHP.readFileAsBuffer(zipPath)],
+					'progress.zip'
+				),
+			},
+			{ tracker }
+		);
+
+		expect(
+			reportedProgress.some((progress) => progress > 0 && progress < 30)
+		).toBe(true);
 	});
 
 	it('should export all user-owned wp-content files and wp-config.php', async () => {

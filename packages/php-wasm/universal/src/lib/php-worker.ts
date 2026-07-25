@@ -38,6 +38,7 @@ export type LimitedPHPApi = Pick<
 	| 'fileExists'
 	| 'chdir'
 	| 'run'
+	| 'runStream'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -215,6 +216,31 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		} finally {
 			reap();
 		}
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.runStream */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const state = _private.get(this)!;
+		const primaryPhp = state.php;
+		if (
+			!state.requestHandler &&
+			!primaryPhp?.requestHandler &&
+			primaryPhp
+		) {
+			return await primaryPhp.runStream(request);
+		}
+		const { php, reap } = await this.acquirePHPInstance();
+		let response: StreamedPHPResponse;
+		try {
+			response = await php.runStream(request);
+		} catch (error) {
+			reap();
+			throw error;
+		}
+		// The caller still owns the response streams. Keep this PHP instance
+		// checked out until the process behind those streams has finished.
+		response.finished.finally(reap);
+		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */

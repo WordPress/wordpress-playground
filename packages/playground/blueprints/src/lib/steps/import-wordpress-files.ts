@@ -1,5 +1,4 @@
 import type { StepHandler } from '.';
-import { unzip } from './unzip';
 import { logger } from '@php-wasm/logger';
 import {
 	dirname,
@@ -9,6 +8,7 @@ import {
 	randomFilename,
 } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
+import { unzipFile } from '@wp-playground/common';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
 import { wpContentPathsExcludedFromLegacyExports } from '../utils/legacy-wp-content-paths-excluded-from-exports';
@@ -78,10 +78,27 @@ export const importWordPressFiles: StepHandler<
 	let oldSiteUrl: string | null = null;
 	try {
 		await playground.mkdir(unzipRoot);
-		await unzip(playground, {
-			zipFile: wordPressFilesZip,
-			extractToPath: unzipRoot,
-		});
+		await unzipFile(
+			playground,
+			wordPressFilesZip,
+			unzipRoot,
+			true,
+			progress
+				? ({
+						filesProcessed,
+						totalFiles,
+						uncompressedBytesProcessed,
+						totalUncompressedBytes,
+					}) => {
+						const fraction =
+							totalUncompressedBytes > 0
+								? uncompressedBytesProcessed /
+									totalUncompressedBytes
+								: filesProcessed / Math.max(totalFiles, 1);
+						progress.tracker.set(fraction * 30);
+					}
+				: undefined
+		);
 		let importPath = joinPaths(unzipRoot, pathInZip);
 		importPath =
 			(await findWordPressFilesRoot(playground, importPath)) ||

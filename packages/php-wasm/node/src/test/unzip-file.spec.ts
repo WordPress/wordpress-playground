@@ -3,6 +3,7 @@ import {
 	zipDirectory,
 	RecommendedPHPVersion,
 } from '@wp-playground/common';
+import type { UnzipProgress } from '@wp-playground/common';
 import { phpVars } from '@php-wasm/util';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
@@ -96,6 +97,74 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
 		expect(php.readFileAsText('/dst/existing.txt')).toBe('old');
 		expect(php.readFileAsText('/dst/fresh.txt')).toBe('fresh');
 	});
+
+	it('reports progress after every 100 files', async () => {
+		const zip = await createZipBufferWithFileSizes(
+			php,
+			new Array(201).fill(1)
+		);
+		const updates: UnzipProgress[] = [];
+
+		await unzipFile(
+			php,
+			new File([zip], 'many-files.zip'),
+			'/dst',
+			true,
+			(progress) => updates.push(progress)
+		);
+
+		expect(updates.map(({ filesProcessed }) => filesProcessed)).toEqual([
+			100, 200, 201,
+		]);
+		expect(updates.at(-1)).toEqual({
+			filesProcessed: 201,
+			totalFiles: 201,
+			uncompressedBytesProcessed: 201,
+			totalUncompressedBytes: 201,
+		});
+		expect(php.readFileAsText('/dst/file-200.txt')).toBe('x');
+	});
+
+	it('reports progress after every 400 KiB of uncompressed data', async () => {
+		const zip = await createZipBufferWithFileSizes(
+			php,
+			new Array(5).fill(200 * 1024)
+		);
+		const processedBytes: number[] = [];
+
+		await unzipFile(
+			php,
+			new File([zip], 'large-files.zip'),
+			'/dst',
+			true,
+			({ uncompressedBytesProcessed }) =>
+				processedBytes.push(uncompressedBytesProcessed)
+		);
+
+		expect(processedBytes).toEqual([400 * 1024, 800 * 1024, 1000 * 1024]);
+	});
+
+	it('reports progress on PHP 5.2', async () => {
+		const php52 = new PHP(await loadNodeRuntime('5.2'));
+		try {
+			const zip = await createZipBufferWithFileSizes(php52, [400 * 1024]);
+			const updates: UnzipProgress[] = [];
+
+			await unzipFile(
+				php52,
+				new File([zip], 'php-52.zip'),
+				'/dst-php-52',
+				true,
+				(progress) => updates.push(progress)
+			);
+
+			expect(updates).toHaveLength(1);
+			expect(updates[0].uncompressedBytesProcessed).toBe(400 * 1024);
+			expect(php52.fileExists('/dst-php-52/file-0.txt')).toBe(true);
+		} finally {
+			php52.exit();
+		}
+	});
 });
 
 /**
@@ -117,6 +186,28 @@ async function createZipBuffer(php: PHP, entries: Record<string, string>) {
 		}
 		foreach ($entries as $name => $contents) {
 			$zip->addFromString($name, $contents);
+		}
+		$zip->close();
+		`,
+	});
+	const zip = await php.readFileAsBuffer(zipPath);
+	await php.unlink(zipPath);
+	return zip;
+}
+
+async function createZipBufferWithFileSizes(php: PHP, fileSizes: number[]) {
+	const zipPath = `/tmp/source-${Math.random()}.zip`;
+	const js = phpVars({ fileSizes, zipPath });
+	await php.run({
+		code: `<?php
+		$fileSizes = ${js.fileSizes};
+		$zip = new ZipArchive;
+		$res = $zip->open(${js.zipPath}, ZipArchive::CREATE);
+		if ($res !== TRUE) {
+			throw new Exception('Failed to create ZIP: ' . $res);
+		}
+		foreach ($fileSizes as $index => $size) {
+			$zip->addFromString("file-$index.txt", str_repeat('x', $size));
 		}
 		$zip->close();
 		`,
