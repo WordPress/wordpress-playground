@@ -1,5 +1,4 @@
 import type { StepHandler } from '.';
-import { unzip } from './unzip';
 import { logger } from '@php-wasm/logger';
 import {
 	dirname,
@@ -9,6 +8,8 @@ import {
 	randomFilename,
 } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
+import type { UnzipProgress } from '@wp-playground/common';
+import { unzipFile } from '@wp-playground/common';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
 import { wpContentPathsExcludedFromLegacyExports } from '../utils/legacy-wp-content-paths-excluded-from-exports';
@@ -78,10 +79,33 @@ export const importWordPressFiles: StepHandler<
 	let oldSiteUrl: string | null = null;
 	try {
 		await playground.mkdir(unzipRoot);
-		await unzip(playground, {
-			zipFile: wordPressFilesZip,
-			extractToPath: unzipRoot,
-		});
+		// Unpacking owns the first 30% of the import. Bytes account for unequal
+		// entry sizes; file counts handle archives containing only empty files.
+		let reportUnzipProgress:
+			| ((progress: UnzipProgress) => void)
+			| undefined;
+		if (progress) {
+			reportUnzipProgress = ({
+				filesProcessed,
+				totalFiles,
+				uncompressedBytesProcessed,
+				totalUncompressedBytes,
+			}) => {
+				let fraction = filesProcessed / Math.max(totalFiles, 1);
+				if (totalUncompressedBytes > 0) {
+					fraction =
+						uncompressedBytesProcessed / totalUncompressedBytes;
+				}
+				progress.tracker.set(fraction * 30);
+			};
+		}
+		await unzipFile(
+			playground,
+			wordPressFilesZip,
+			unzipRoot,
+			true,
+			reportUnzipProgress
+		);
 		let importPath = joinPaths(unzipRoot, pathInZip);
 		importPath =
 			(await findWordPressFilesRoot(playground, importPath)) ||
