@@ -9,7 +9,7 @@
  * Let's always consider these questions before adding new code here.
  */
 
-import type { UniversalPHP } from '@php-wasm/universal';
+import type { PHPRunOptions, UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 
 export { createMemoizedFetch } from './create-memoized-fetch';
@@ -33,6 +33,9 @@ const UNZIP_PROGRESS_LINE_PREFIX = 'PLAYGROUND_UNZIP_PROGRESS:';
  * When `onProgress` is provided, extraction reports after each batch reaches
  * 100 files or 400 KiB of uncompressed data. Each ZIP entry is extracted
  * atomically, so one large entry may cross the byte threshold.
+ *
+ * The destination must not contain untrusted pre-existing symlinks because
+ * ZipArchive follows them while writing files.
  */
 export const unzipFile = async (
 	php: UniversalPHP,
@@ -57,24 +60,19 @@ export const unzipFile = async (
 				new Uint8Array(await zipFile.arrayBuffer())
 			);
 		}
-		const js = phpVars({
-			zipPath,
-			extractToPath,
-			overwriteFiles,
-			reportProgress: !!onProgress,
-			filesInterval: UNZIP_PROGRESS_FILES_INTERVAL,
-			uncompressedBytesInterval:
-				UNZIP_PROGRESS_UNCOMPRESSED_BYTES_INTERVAL,
-			linePrefix: UNZIP_PROGRESS_LINE_PREFIX,
-		});
 		const code = `<?php
-		$zipPath = ${js.zipPath};
-		$extractTo = ${js.extractToPath};
-		$overwriteFiles = ${js.overwriteFiles};
-		$reportProgress = ${js.reportProgress};
-		$filesInterval = ${js.filesInterval};
-		$uncompressedBytesInterval = ${js.uncompressedBytesInterval};
-		$linePrefix = ${js.linePrefix};
+		$zipPath = getenv('PLAYGROUND_UNZIP_ZIP_PATH');
+		$extractTo = getenv('PLAYGROUND_UNZIP_EXTRACT_TO_PATH');
+		$overwriteFiles =
+			getenv('PLAYGROUND_UNZIP_OVERWRITE_FILES') === '1';
+		$reportProgress =
+			getenv('PLAYGROUND_UNZIP_REPORT_PROGRESS') === '1';
+		$filesInterval =
+			intval(getenv('PLAYGROUND_UNZIP_FILES_INTERVAL'));
+		$uncompressedBytesInterval = intval(
+			getenv('PLAYGROUND_UNZIP_UNCOMPRESSED_BYTES_INTERVAL')
+		);
+		$linePrefix = getenv('PLAYGROUND_UNZIP_LINE_PREFIX');
 
 		if (!is_dir($extractTo)) {
 			mkdir($extractTo, 0777, true);
@@ -122,13 +120,24 @@ export const unzipFile = async (
 					);
 				}
 				$filename = $stat['name'];
+				$isDirectory = substr($filename, -1) === '/';
+				// PHP 5.2 extracts explicit directory names without the path
+				// cleanup it applies to files. Skip those entries there; files
+				// still create their parent directories, but empty directories
+				// from the archive are omitted.
+				if (
+					$isDirectory &&
+					version_compare(PHP_VERSION, '5.3', '<')
+				) {
+					continue;
+				}
 				$extractFilePath =
 					rtrim($extractTo, '/') . '/' . $filename;
 				// Leave existing paths out when $overwriteFiles is false.
 				if ($overwriteFiles || !file_exists($extractFilePath)) {
 					$entriesToExtract[] = $filename;
 				}
-				if (substr($filename, -1) === '/') {
+				if ($isDirectory) {
 					continue;
 				}
 
@@ -205,10 +214,26 @@ export const unzipFile = async (
 			flush();
 		}
 		`;
+		const request: PHPRunOptions = {
+			code,
+			env: {
+				PLAYGROUND_UNZIP_ZIP_PATH: zipPath,
+				PLAYGROUND_UNZIP_EXTRACT_TO_PATH: extractToPath,
+				PLAYGROUND_UNZIP_OVERWRITE_FILES: overwriteFiles ? '1' : '0',
+				PLAYGROUND_UNZIP_REPORT_PROGRESS: onProgress ? '1' : '0',
+				PLAYGROUND_UNZIP_FILES_INTERVAL: String(
+					UNZIP_PROGRESS_FILES_INTERVAL
+				),
+				PLAYGROUND_UNZIP_UNCOMPRESSED_BYTES_INTERVAL: String(
+					UNZIP_PROGRESS_UNCOMPRESSED_BYTES_INTERVAL
+				),
+				PLAYGROUND_UNZIP_LINE_PREFIX: UNZIP_PROGRESS_LINE_PREFIX,
+			},
+		};
 		if (onProgress) {
-			await runUnzipFileWithProgress(php, code, onProgress);
+			await runUnzipFileWithProgress(php, request, onProgress);
 		} else {
-			await php.run({ code });
+			await php.run(request);
 		}
 	} finally {
 		if (shouldRemoveTmpPath) {
@@ -226,10 +251,10 @@ export const unzipFile = async (
 
 async function runUnzipFileWithProgress(
 	php: UniversalPHP,
-	code: string,
+	request: PHPRunOptions,
 	onProgress: (progress: UnzipProgress) => void
 ) {
-	const response = await php.runStream({ code });
+	const response = await php.runStream(request);
 	const stderrText = response.stderrText;
 	const reader = response.stdout.getReader();
 	const decoder = new TextDecoder();
