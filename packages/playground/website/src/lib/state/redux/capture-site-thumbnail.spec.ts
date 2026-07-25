@@ -68,7 +68,7 @@ describe('captureAndPersistSiteThumbnail', () => {
 		const playground = {
 			captureSiteThumbnail: vi.fn(() => capture.promise),
 		} as unknown as PlaygroundClient;
-		const state = createStateWithClient('test-site', playground);
+		let state = createStateWithClient('test-site', playground);
 		const result = captureAndPersistSiteThumbnail({
 			playground,
 			siteSlug: 'test-site',
@@ -76,7 +76,7 @@ describe('captureAndPersistSiteThumbnail', () => {
 			getState: () => state,
 		});
 
-		state.clients.entities['test-site']!.client = {} as PlaygroundClient;
+		state = createStateWithClient('test-site', {} as PlaygroundClient);
 		capture.resolve({ mime: 'image/webp', data: 'stale' });
 		await result;
 

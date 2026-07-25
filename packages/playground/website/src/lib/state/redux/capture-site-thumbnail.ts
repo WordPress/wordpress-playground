@@ -4,7 +4,7 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { updateSiteMetadata } from './slice-sites';
 
-const latestCaptureBySiteSlug = new Map<string, object>();
+const latestCaptureBySiteSlug = new Map<string, symbol>();
 
 /**
  * Captures and stores a thumbnail without making thumbnail failure fail the
@@ -34,7 +34,7 @@ export async function captureAndPersistSiteThumbnail({
 		return;
 	}
 
-	const captureRequest = {};
+	const captureRequest = Symbol();
 	latestCaptureBySiteSlug.set(siteSlug, captureRequest);
 	try {
 		const thumbnail = await playground.captureSiteThumbnail();
@@ -54,7 +54,8 @@ export async function captureAndPersistSiteThumbnail({
 	} catch (error) {
 		if (
 			signal?.aborted ||
-			latestCaptureBySiteSlug.get(siteSlug) !== captureRequest
+			latestCaptureBySiteSlug.get(siteSlug) !== captureRequest ||
+			selectClientBySiteSlug(getState(), siteSlug) !== playground
 		) {
 			return;
 		}
