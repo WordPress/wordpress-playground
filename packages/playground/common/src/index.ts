@@ -41,10 +41,14 @@ const UNZIP_PROGRESS_LINE_PREFIX = 'PLAYGROUND_UNZIP_PROGRESS:';
 /**
  * Extracts a ZIP archive into Playground's virtual filesystem.
  *
- * Entries are extracted in batches after either 100 files or 400 KiB of
- * declared uncompressed data. An `onProgress` callback adds a totals scan and
- * receives an update after every batch. Entries remain atomic, so a large
- * entry may cross the byte threshold before the next update.
+ * `ZipArchive::extractTo()` has no extraction-progress callback in any
+ * supported PHP version, so this function calls it in batches. Each batch ends
+ * after either 100 files or 400 KiB of declared uncompressed data.
+ *
+ * For example, 250 one-byte files are extracted as three batches of 100, 100,
+ * and 50 files. An `onProgress` callback receives an update after each batch.
+ * Entries remain atomic, so a single file larger than 400 KiB finishes before
+ * the update.
  *
  * `ZipArchive` follows symlinks already present in the destination. Do not
  * extract into a directory containing untrusted symlinks.
