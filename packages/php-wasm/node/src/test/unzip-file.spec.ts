@@ -79,6 +79,26 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
 		expect(php.readFileAsText('/dst/absolute.txt')).toBe('absolute');
 	});
 
+	it('keeps normalized entries inside the target while reporting progress', async () => {
+		const zip = await createZipBuffer(php, {
+			'../escape.txt': 'escape',
+			'/absolute.txt': 'absolute',
+		});
+
+		await unzipFile(
+			php,
+			new File([zip], 'normalized-progress.zip'),
+			'/dst',
+			true,
+			() => {}
+		);
+
+		expect(php.fileExists('/escape.txt')).toBe(false);
+		expect(php.fileExists('/absolute.txt')).toBe(false);
+		expect(php.readFileAsText('/dst/escape.txt')).toBe('escape');
+		expect(php.readFileAsText('/dst/absolute.txt')).toBe('absolute');
+	});
+
 	it('preserves existing files when overwriteFiles is false', async () => {
 		php.mkdir('/dst');
 		php.writeFile('/dst/existing.txt', 'old');

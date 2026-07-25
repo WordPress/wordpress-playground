@@ -239,7 +239,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 		// The caller still owns the response streams. Keep this PHP instance
 		// checked out until the process behind those streams has finished.
-		response.finished.finally(reap);
+		void response.finished.finally(reap);
 		return response;
 	}
 

@@ -269,18 +269,22 @@ async function runUnzipFileWithProgress(
 			progressError ??= error;
 		}
 	};
-	while (true) {
-		const { done, value } = await reader.read();
-		buffered += decoder.decode(value, { stream: !done });
-		let newline = buffered.indexOf('\n');
-		while (newline !== -1) {
-			processLine(buffered.slice(0, newline));
-			buffered = buffered.slice(newline + 1);
-			newline = buffered.indexOf('\n');
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			buffered += decoder.decode(value, { stream: !done });
+			let newline = buffered.indexOf('\n');
+			while (newline !== -1) {
+				processLine(buffered.slice(0, newline));
+				buffered = buffered.slice(newline + 1);
+				newline = buffered.indexOf('\n');
+			}
+			if (done) {
+				break;
+			}
 		}
-		if (done) {
-			break;
-		}
+	} finally {
+		reader.releaseLock();
 	}
 	if (buffered) {
 		processLine(buffered);
