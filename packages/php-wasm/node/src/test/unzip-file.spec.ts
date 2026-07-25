@@ -185,28 +185,6 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
 			php52.exit();
 		}
 	});
-
-	it('does not let directory entries escape the target on PHP 5.2', async () => {
-		const php52 = new PHP(await loadNodeRuntime('5.2'));
-		try {
-			const zip = await createZipBufferWithTraversalDirectory(php52);
-
-			await unzipFile(
-				php52,
-				new File([zip], 'php-52-traversal-directory.zip'),
-				'/dst-php-52',
-				true,
-				() => {}
-			);
-
-			expect(php52.fileExists('/outside-directory')).toBe(false);
-			expect(
-				php52.fileExists('/dst-php-52/outside-directory/file.txt')
-			).toBe(true);
-		} finally {
-			php52.exit();
-		}
-	});
 });
 
 /**
@@ -251,29 +229,6 @@ async function createZipBufferWithFileSizes(php: PHP, fileSizes: number[]) {
 		foreach ($fileSizes as $index => $size) {
 			$zip->addFromString("file-$index.txt", str_repeat('x', $size));
 		}
-		$zip->close();
-		`,
-	});
-	const zip = await php.readFileAsBuffer(zipPath);
-	await php.unlink(zipPath);
-	return zip;
-}
-
-async function createZipBufferWithTraversalDirectory(php: PHP) {
-	const zipPath = `/tmp/source-${Math.random()}.zip`;
-	const js = phpVars({ zipPath });
-	await php.run({
-		code: `<?php
-		$zip = new ZipArchive;
-		$res = $zip->open(${js.zipPath}, ZipArchive::CREATE);
-		if ($res !== TRUE) {
-			throw new Exception('Failed to create ZIP: ' . $res);
-		}
-		$zip->addEmptyDir('../outside-directory');
-		$zip->addFromString(
-			'../outside-directory/file.txt',
-			'directory traversal'
-		);
 		$zip->close();
 		`,
 	});

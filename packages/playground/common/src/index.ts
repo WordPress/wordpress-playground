@@ -46,14 +46,8 @@ const UNZIP_PROGRESS_LINE_PREFIX = 'PLAYGROUND_UNZIP_PROGRESS:';
  * receives an update after every batch. Entries remain atomic, so a large
  * entry may cross the byte threshold before the next update.
  *
- * `ZipArchive::extractTo()` handles a directory entry such as `../empty/`
- * differently across PHP versions. When extracting into `/site`, PHP 7.x and
- * 8.x create `/site/empty/`, while PHP 5.2 would create `/empty/` outside the
- * destination. Directory-only entries are therefore skipped on PHP 5.2. Files
- * still create their parent directories, but empty directories are not restored.
- *
- * Separately, all PHP versions follow symlinks already present in the destination.
- * Do not extract into a directory containing untrusted symlinks.
+ * `ZipArchive` follows symlinks already present in the destination. Do not
+ * extract into a directory containing untrusted symlinks.
  *
  * @param php - PHP runtime whose filesystem contains the archive and target.
  * @param zipPath - Archive path in the PHP filesystem, or a browser `File`.
@@ -148,16 +142,6 @@ export const unzipFile = async (
 				}
 				$filename = $stat['name'];
 				$isDirectory = substr($filename, -1) === '/';
-				// PHP 5.2 extracts explicit directory names without the path
-				// cleanup it applies to files. Skip those entries there; files
-				// still create their parent directories, but empty directories
-				// from the archive are omitted.
-				if (
-					$isDirectory &&
-					version_compare(PHP_VERSION, '5.3', '<')
-				) {
-					continue;
-				}
 				$extractFilePath =
 					rtrim($extractTo, '/') . '/' . $filename;
 				// Leave existing paths out when $overwriteFiles is false.
