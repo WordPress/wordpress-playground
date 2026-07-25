@@ -90,35 +90,9 @@ export const unzipFile = async (
 		}
 
 		try {
-			if (!$reportProgress) {
-				if ($overwriteFiles) {
-					if (!$zip->extractTo($extractTo)) {
-						throw new Exception("Could not extract ZIP file.");
-					}
-				} else {
-					for ($i = 0; $i < $zip->numFiles; $i++) {
-						$filename = $zip->getNameIndex($i);
-						if ($filename === false) {
-							throw new Exception(
-								"Could not inspect ZIP entry " . $i . "."
-							);
-						}
-						$extractFilePath =
-							rtrim($extractTo, '/') . '/' . $filename;
-						// Leave existing paths out when $overwriteFiles is false.
-						if (
-							!file_exists($extractFilePath) &&
-							!$zip->extractTo($extractTo, $filename)
-						) {
-							throw new Exception(
-								"Could not extract ZIP entry " . $filename . "."
-							);
-						}
-					}
-				}
-			} else {
-				$totalFiles = 0;
-				$totalUncompressedBytes = 0;
+			$totalFiles = 0;
+			$totalUncompressedBytes = 0;
+			if ($reportProgress) {
 				for ($i = 0; $i < $zip->numFiles; $i++) {
 					$stat = $zip->statIndex($i);
 					if ($stat === false) {
@@ -131,39 +105,44 @@ export const unzipFile = async (
 						$totalUncompressedBytes += $stat['size'];
 					}
 				}
+			}
 
-				$filesProcessed = 0;
-				$uncompressedBytesProcessed = 0;
-				$filesSinceUpdate = 0;
-				$uncompressedBytesSinceUpdate = 0;
-				$entriesToExtract = array();
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$stat = $zip->statIndex($i);
-					if ($stat === false) {
-						throw new Exception(
-							"Could not inspect ZIP entry " . $i . "."
-						);
-					}
-					$filename = $stat['name'];
-					$extractFilePath =
-						rtrim($extractTo, '/') . '/' . $filename;
-					if ($overwriteFiles || !file_exists($extractFilePath)) {
-						$entriesToExtract[] = $filename;
-					}
-					if (substr($filename, -1) === '/') {
-						continue;
-					}
+			// Keep one extraction path for all callers. Progress reporting only
+			// adds the totals scan above and emits an update between batches.
+			$filesProcessed = 0;
+			$uncompressedBytesProcessed = 0;
+			$filesSinceUpdate = 0;
+			$uncompressedBytesSinceUpdate = 0;
+			$entriesToExtract = array();
+			for ($i = 0; $i < $zip->numFiles; $i++) {
+				$stat = $zip->statIndex($i);
+				if ($stat === false) {
+					throw new Exception(
+						"Could not inspect ZIP entry " . $i . "."
+					);
+				}
+				$filename = $stat['name'];
+				$extractFilePath =
+					rtrim($extractTo, '/') . '/' . $filename;
+				// Leave existing paths out when $overwriteFiles is false.
+				if ($overwriteFiles || !file_exists($extractFilePath)) {
+					$entriesToExtract[] = $filename;
+				}
+				if (substr($filename, -1) === '/') {
+					continue;
+				}
 
-					$filesProcessed++;
-					$uncompressedBytesProcessed += $stat['size'];
-					$filesSinceUpdate++;
-					$uncompressedBytesSinceUpdate += $stat['size'];
-					if (
-						$filesSinceUpdate >= $filesInterval ||
-						$uncompressedBytesSinceUpdate >=
-							$uncompressedBytesInterval
-					) {
-						extractZipBatch($zip, $extractTo, $entriesToExtract);
+				$filesProcessed++;
+				$uncompressedBytesProcessed += $stat['size'];
+				$filesSinceUpdate++;
+				$uncompressedBytesSinceUpdate += $stat['size'];
+				if (
+					$filesSinceUpdate >= $filesInterval ||
+					$uncompressedBytesSinceUpdate >=
+						$uncompressedBytesInterval
+				) {
+					extractZipBatch($zip, $extractTo, $entriesToExtract);
+					if ($reportProgress) {
 						reportUnzipProgress(
 							$linePrefix,
 							$filesProcessed,
@@ -171,24 +150,25 @@ export const unzipFile = async (
 							$uncompressedBytesProcessed,
 							$totalUncompressedBytes
 						);
-						$filesSinceUpdate = 0;
-						$uncompressedBytesSinceUpdate = 0;
 					}
+					$filesSinceUpdate = 0;
+					$uncompressedBytesSinceUpdate = 0;
 				}
-				extractZipBatch($zip, $extractTo, $entriesToExtract);
-				if (
-					$filesSinceUpdate > 0 ||
+			}
+			extractZipBatch($zip, $extractTo, $entriesToExtract);
+			if (
+				$reportProgress &&
+				($filesSinceUpdate > 0 ||
 					$uncompressedBytesSinceUpdate > 0 ||
-					$totalFiles === 0
-				) {
-					reportUnzipProgress(
-						$linePrefix,
-						$filesProcessed,
-						$totalFiles,
-						$uncompressedBytesProcessed,
-						$totalUncompressedBytes
-					);
-				}
+					$totalFiles === 0)
+			) {
+				reportUnzipProgress(
+					$linePrefix,
+					$filesProcessed,
+					$totalFiles,
+					$uncompressedBytesProcessed,
+					$totalUncompressedBytes
+				);
 			}
 		} catch (Exception $e) {
 			// PHP 5.2 does not support finally.

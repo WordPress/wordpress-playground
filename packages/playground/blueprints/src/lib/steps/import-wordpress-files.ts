@@ -8,6 +8,7 @@ import {
 	randomFilename,
 } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
+import type { UnzipProgress } from '@wp-playground/common';
 import { unzipFile } from '@wp-playground/common';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
@@ -78,26 +79,30 @@ export const importWordPressFiles: StepHandler<
 	let oldSiteUrl: string | null = null;
 	try {
 		await playground.mkdir(unzipRoot);
+		let reportUnzipProgress:
+			| ((progress: UnzipProgress) => void)
+			| undefined;
+		if (progress) {
+			reportUnzipProgress = ({
+				filesProcessed,
+				totalFiles,
+				uncompressedBytesProcessed,
+				totalUncompressedBytes,
+			}) => {
+				let fraction = filesProcessed / Math.max(totalFiles, 1);
+				if (totalUncompressedBytes > 0) {
+					fraction =
+						uncompressedBytesProcessed / totalUncompressedBytes;
+				}
+				progress.tracker.set(fraction * 30);
+			};
+		}
 		await unzipFile(
 			playground,
 			wordPressFilesZip,
 			unzipRoot,
 			true,
-			progress
-				? ({
-						filesProcessed,
-						totalFiles,
-						uncompressedBytesProcessed,
-						totalUncompressedBytes,
-					}) => {
-						const fraction =
-							totalUncompressedBytes > 0
-								? uncompressedBytesProcessed /
-									totalUncompressedBytes
-								: filesProcessed / Math.max(totalFiles, 1);
-						progress.tracker.set(fraction * 30);
-					}
-				: undefined
+			reportUnzipProgress
 		);
 		let importPath = joinPaths(unzipRoot, pathInZip);
 		importPath =
