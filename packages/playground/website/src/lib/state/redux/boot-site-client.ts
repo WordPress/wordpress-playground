@@ -415,18 +415,17 @@ export function bootSiteClient(
 				signal,
 				siteSlugToReturnToIfBlueprintFails:
 					site.metadata.siteSlugToReturnToIfBlueprintFails,
-			}).then(() => {
-				const storedSite = selectSiteBySlug(getState(), site.slug);
-				if (
-					!signal.aborted &&
-					storedSite?.metadata.initialOpfsSyncPending === false
-				) {
-					void captureAndPersistSiteThumbnail({
-						playground: connectedPlayground,
-						siteSlug: site.slug,
-						dispatch,
-					});
+			}).then((syncSucceeded) => {
+				if (!syncSucceeded) {
+					return;
 				}
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
 			});
 		} else {
 			try {
@@ -465,6 +464,8 @@ export function bootSiteClient(
 					playground: connectedPlayground,
 					siteSlug: site.slug,
 					dispatch,
+					getState,
+					signal,
 				});
 			}
 		}
@@ -640,7 +641,7 @@ async function syncInitialOpfsFilesInBackground({
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
 	siteSlugToReturnToIfBlueprintFails?: string;
-}) {
+}): Promise<boolean> {
 	let shouldReportProgress = true;
 	try {
 		// The first OPFS copy can outlive the iframe that started it. Once the
@@ -670,7 +671,7 @@ async function syncInitialOpfsFilesInBackground({
 			}
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		// Clear the return target in the same metadata write that completes the
 		// initial copy so failed copies retain their recovery action.
@@ -687,7 +688,7 @@ async function syncInitialOpfsFilesInBackground({
 			})
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		dispatch(
 			updateClientInfo({
@@ -697,9 +698,10 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		return true;
 	} catch (error: unknown) {
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
@@ -713,7 +715,7 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
-		return;
+		return false;
 	} finally {
 		// Progress is reported from a worker. Once the sync settles, ignore any
 		// queued progress message so it cannot overwrite the final UI state.

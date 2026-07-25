@@ -301,6 +301,7 @@ export function persistTemporarySite(
 				playground,
 				siteSlug,
 				dispatch,
+				getState,
 			});
 		} catch (error) {
 			if (

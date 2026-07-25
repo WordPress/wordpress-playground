@@ -13,6 +13,7 @@ import type { PlaygroundReduxState } from './store';
 import { logBlueprintEvents } from '../../tracking';
 import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
+import clientsReducer from './slice-clients';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -676,6 +677,63 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('does not capture a thumbnail after the initial OPFS copy fails', async () => {
+		let rejectMount!: (error: Error) => void;
+		const mountFinished = new Promise<void>((_, reject) => {
+			rejectMount = reject;
+		});
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(() => mountFinished),
+			captureSiteThumbnail: vi.fn(),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('initial-sync', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('initial-sync', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		// Another tab may clear this flag while this copy is still running.
+		// Thumbnail capture must follow this copy's result, not shared metadata.
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: 'initial-sync',
+				changes: {
+					metadata: {
+						...state.sites.entities['initial-sync'].metadata,
+						initialOpfsSyncPending: false,
+					},
+				},
+			})
+		);
+		rejectMount(new Error('OPFS copy failed'));
+		await vi.waitFor(() =>
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: 'clients/updateClientInfo',
+					payload: expect.objectContaining({
+						changes: expect.objectContaining({
+							opfsSync: expect.objectContaining({
+								status: 'error',
+							}),
+						}),
+					}),
+				})
+			)
+		);
+
+		expect(playground.captureSiteThumbnail).not.toHaveBeenCalled();
+	});
+
 	it('runs a first-boot initializer before the initial OPFS copy', async () => {
 		const calls: string[] = [];
 		const playground = createPlaygroundClient({
@@ -720,6 +778,9 @@ function createDispatch(state: PlaygroundReduxState) {
 		if (reduxAction.type?.startsWith('sites/')) {
 			state.sites = reducer(state.sites, action as any);
 		}
+		if (reduxAction.type?.startsWith('clients/')) {
+			state.clients = clientsReducer(state.clients, action as any);
+		}
 		return action;
 	}) as any;
 	return dispatch;
@@ -732,6 +793,7 @@ function createState(...sites: SiteInfo[]): PlaygroundReduxState {
 	}
 	return {
 		sites: sitesState,
+		clients: clientsReducer(undefined, { type: 'init' }),
 		ui: {
 			activeSite: sites[0] ? { slug: sites[0].slug } : undefined,
 		},
